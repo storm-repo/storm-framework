@@ -27,7 +27,7 @@ Storm provides a Bill of Materials (BOM) for centralized version management. Imp
 
 ```kotlin
 dependencies {
-    implementation(platform("st.orm:storm-bom:1.9.1"))
+    implementation(platform("st.orm:storm-bom:1.10.0"))
 }
 ```
 
@@ -39,7 +39,7 @@ dependencies {
         <dependency>
             <groupId>st.orm</groupId>
             <artifactId>storm-bom</artifactId>
-            <version>1.9.1</version>
+            <version>1.10.0</version>
             <type>pom</type>
             <scope>import</scope>
         </dependency>
@@ -58,7 +58,7 @@ dependencies {
         <dependency>
             <groupId>st.orm</groupId>
             <artifactId>storm-bom</artifactId>
-            <version>1.9.1</version>
+            <version>1.10.0</version>
             <type>pom</type>
             <scope>import</scope>
         </dependency>
@@ -70,7 +70,7 @@ dependencies {
 
 ```kotlin
 dependencies {
-    implementation(platform("st.orm:storm-bom:1.9.1"))
+    implementation(platform("st.orm:storm-bom:1.10.0"))
 }
 ```
 
@@ -86,7 +86,7 @@ dependencies {
 
 ```kotlin
 dependencies {
-    implementation(platform("st.orm:storm-bom:1.9.1"))
+    implementation(platform("st.orm:storm-bom:1.10.0"))
 
     implementation("st.orm:storm-kotlin")
 }
@@ -121,7 +121,7 @@ dependencies {
 
 ```kotlin
 dependencies {
-    implementation(platform("st.orm:storm-bom:1.9.1"))
+    implementation(platform("st.orm:storm-bom:1.10.0"))
 
     implementation("st.orm:storm-java21")
 }
@@ -182,7 +182,7 @@ plugins {
 }
 
 dependencies {
-    ksp("st.orm:storm-metamodel-ksp:1.9.1")
+    ksp("st.orm:storm-metamodel-ksp:1.10.0")
 }
 ```
 
@@ -201,7 +201,7 @@ dependencies {
                     <path>
                         <groupId>st.orm</groupId>
                         <artifactId>storm-metamodel-processor</artifactId>
-                        <version>1.9.1</version>
+                        <version>1.10.0</version>
                     </path>
                 </annotationProcessorPaths>
             </configuration>
@@ -227,7 +227,7 @@ dependencies {
 
 ```kotlin
 dependencies {
-    annotationProcessor("st.orm:storm-metamodel-processor:1.9.1")
+    annotationProcessor("st.orm:storm-metamodel-processor:1.10.0")
 }
 ```
 

@@ -20,6 +20,8 @@ import st.orm.Data
 import st.orm.Metamodel
 import st.orm.Operator.EQUALS
 import st.orm.Operator.IN
+import st.orm.Page
+import st.orm.Pageable
 import st.orm.Projection
 import st.orm.Ref
 import st.orm.Slice
@@ -572,14 +574,14 @@ interface ProjectionRepository<P, ID : Any> : Repository where P : Projection<ID
     // Kotlin specific DSL
 
     /**
-     * Retrieves all entities of type [T] from the repository.
+     * Retrieves all entities of type [P] from the repository.
      *
      * @return a list containing all entities.
      */
     fun findAllRef(): List<Ref<P>> = selectRef().resultList
 
     /**
-     * Retrieves all entities of type [T] from the repository.
+     * Retrieves all entities of type [P] from the repository.
      *
      * The resulting sequence is lazily loaded, meaning that the entities are only retrieved from the database as they
      * are consumed by the sequence. This approach is efficient and minimizes the memory footprint, especially when
@@ -594,7 +596,7 @@ interface ProjectionRepository<P, ID : Any> : Repository where P : Projection<ID
     fun selectAllRef(): Flow<Ref<P>> = selectRef().resultFlow
 
     /**
-     * Retrieves an optional entity of type [T] based on a single field and its value.
+     * Retrieves an optional entity of type [P] based on a single field and its value.
      * Returns null if no matching entity is found.
      *
      * @param field metamodel reference of the entity field.
@@ -604,7 +606,7 @@ interface ProjectionRepository<P, ID : Any> : Repository where P : Projection<ID
     fun <V> findBy(field: Metamodel<P, V>, value: V): P? = select().where(field, EQUALS, value).optionalResult
 
     /**
-     * Retrieves an optional entity of type [T] based on a single field and its value.
+     * Retrieves an optional entity of type [P] based on a single field and its value.
      * Returns null if no matching entity is found.
      *
      * @param field metamodel reference of the entity field.
@@ -614,7 +616,7 @@ interface ProjectionRepository<P, ID : Any> : Repository where P : Projection<ID
     fun <V : Data> findBy(field: Metamodel<P, V>, value: Ref<V>): P? = select().where(field, value).optionalResult
 
     /**
-     * Retrieves entities of type [T] matching a single field and a single value.
+     * Retrieves entities of type [P] matching a single field and a single value.
      * Returns an empty list if no entities are found.
      *
      * @param field metamodel reference of the entity field.
@@ -624,7 +626,7 @@ interface ProjectionRepository<P, ID : Any> : Repository where P : Projection<ID
     fun <V> findAllBy(field: Metamodel<P, V>, value: V): List<P> = select().where(field, EQUALS, value).resultList
 
     /**
-     * Retrieves entities of type [T] matching a single field and a single value.
+     * Retrieves entities of type [P] matching a single field and a single value.
      * Returns an empty sequence if no entities are found.
      *
      * The resulting sequence is lazily loaded, meaning that the entities are only retrieved from the database as they
@@ -642,7 +644,7 @@ interface ProjectionRepository<P, ID : Any> : Repository where P : Projection<ID
     fun <V> selectBy(field: Metamodel<P, V>, value: V): Flow<P> = select().where(field, EQUALS, value).resultFlow
 
     /**
-     * Retrieves entities of type [T] matching a single field and a single value.
+     * Retrieves entities of type [P] matching a single field and a single value.
      * Returns an empty list if no entities are found.
      *
      * @param field metamodel reference of the entity field.
@@ -652,7 +654,7 @@ interface ProjectionRepository<P, ID : Any> : Repository where P : Projection<ID
     fun <V : Data> findAllBy(field: Metamodel<P, V>, value: Ref<V>): List<P> = select().where(field, value).resultList
 
     /**
-     * Retrieves entities of type [T] matching a single field and a single value.
+     * Retrieves entities of type [P] matching a single field and a single value.
      * Returns an empty sequence if no entities are found.
      *
      * The resulting sequence is lazily loaded, meaning that the entities are only retrieved from the database as they
@@ -670,7 +672,7 @@ interface ProjectionRepository<P, ID : Any> : Repository where P : Projection<ID
     fun <V : Data> selectBy(field: Metamodel<P, V>, value: Ref<V>): Flow<P> = select().where(field, value).resultFlow
 
     /**
-     * Retrieves entities of type [T] matching a single field against multiple values.
+     * Retrieves entities of type [P] matching a single field against multiple values.
      * Returns an empty list if no entities are found.
      *
      * @param field metamodel reference of the entity field.
@@ -680,7 +682,7 @@ interface ProjectionRepository<P, ID : Any> : Repository where P : Projection<ID
     fun <V> findAllBy(field: Metamodel<P, V>, values: Iterable<V>): List<P> = select().where(field, IN, values).resultList
 
     /**
-     * Retrieves entities of type [T] matching a single field against multiple values.
+     * Retrieves entities of type [P] matching a single field against multiple values.
      * Returns an empty sequence if no entities are found.
      *
      * The resulting sequence is lazily loaded, meaning that the entities are only retrieved from the database as they
@@ -698,7 +700,7 @@ interface ProjectionRepository<P, ID : Any> : Repository where P : Projection<ID
     fun <V> selectBy(field: Metamodel<P, V>, values: Iterable<V>): Flow<P> = select().where(field, IN, values).resultFlow
 
     /**
-     * Retrieves entities of type [T] matching a single field against multiple values.
+     * Retrieves entities of type [P] matching a single field against multiple values.
      * Returns an empty list if no entities are found.
      *
      * @param field metamodel reference of the entity field.
@@ -708,7 +710,7 @@ interface ProjectionRepository<P, ID : Any> : Repository where P : Projection<ID
     fun <V : Data> findAllByRef(field: Metamodel<P, V>, values: Iterable<Ref<V>>): List<P> = select().whereRef(field, values).resultList
 
     /**
-     * Retrieves entities of type [T] matching a single field against multiple values.
+     * Retrieves entities of type [P] matching a single field against multiple values.
      * Returns an empty sequence if no entities are found.
      *
      * @param field metamodel reference of the entity field.
@@ -718,7 +720,7 @@ interface ProjectionRepository<P, ID : Any> : Repository where P : Projection<ID
     fun <V : Data> selectByRef(field: Metamodel<P, V>, values: Iterable<Ref<V>>): Flow<P> = select().whereRef(field, values).resultFlow
 
     /**
-     * Retrieves exactly one entity of type [T] based on a single field and its value.
+     * Retrieves exactly one entity of type [P] based on a single field and its value.
      * Throws an exception if no entity or more than one entity is found.
      *
      * @param field metamodel reference of the entity field.
@@ -730,7 +732,7 @@ interface ProjectionRepository<P, ID : Any> : Repository where P : Projection<ID
     fun <V> getBy(field: Metamodel<P, V>, value: V): P = select().where(field, EQUALS, value).singleResult
 
     /**
-     * Retrieves exactly one entity of type [T] based on a single field and its value.
+     * Retrieves exactly one entity of type [P] based on a single field and its value.
      * Throws an exception if no entity or more than one entity is found.
      *
      * @param field metamodel reference of the entity field.
@@ -742,7 +744,7 @@ interface ProjectionRepository<P, ID : Any> : Repository where P : Projection<ID
     fun <V : Data> getBy(field: Metamodel<P, V>, value: Ref<V>): P = select().where(field, value).singleResult
 
     /**
-     * Retrieves an optional entity of type [T] based on a single field and its value.
+     * Retrieves an optional entity of type [P] based on a single field and its value.
      * Returns a ref with a null value if no matching entity is found.
      *
      * @param field metamodel reference of the entity field.
@@ -752,7 +754,7 @@ interface ProjectionRepository<P, ID : Any> : Repository where P : Projection<ID
     fun <T, ID, V> findRefBy(field: Metamodel<P, V>, value: V): Ref<P>? = selectRef().where(field, EQUALS, value).optionalResult
 
     /**
-     * Retrieves an optional entity of type [T] based on a single field and its value.
+     * Retrieves an optional entity of type [P] based on a single field and its value.
      * Returns a ref with a null value if no matching entity is found.
      *
      * @param field metamodel reference of the entity field.
@@ -762,7 +764,7 @@ interface ProjectionRepository<P, ID : Any> : Repository where P : Projection<ID
     fun <V : Data> findRefBy(field: Metamodel<P, V>, value: Ref<V>): Ref<P>? = selectRef().where(field, value).optionalResult
 
     /**
-     * Retrieves entities of type [T] matching a single field and a single value.
+     * Retrieves entities of type [P] matching a single field and a single value.
      * Returns an empty list if no entities are found.
      *
      * @param field metamodel reference of the entity field.
@@ -772,7 +774,7 @@ interface ProjectionRepository<P, ID : Any> : Repository where P : Projection<ID
     fun <V> findAllRefBy(field: Metamodel<P, V>, value: V): List<Ref<P>> = selectRef().where(field, EQUALS, value).resultList
 
     /**
-     * Retrieves entities of type [T] matching a single field and a single value.
+     * Retrieves entities of type [P] matching a single field and a single value.
      * Returns an empty sequence if no entities are found.
      *
      * The resulting sequence is lazily loaded, meaning that the entities are only retrieved from the database as they
@@ -790,7 +792,7 @@ interface ProjectionRepository<P, ID : Any> : Repository where P : Projection<ID
     fun <V> selectRefBy(field: Metamodel<P, V>, value: V): Flow<Ref<P>> = selectRef().where(field, EQUALS, value).resultFlow
 
     /**
-     * Retrieves entities of type [T] matching a single field and a single value.
+     * Retrieves entities of type [P] matching a single field and a single value.
      * Returns an empty list if no entities are found.
      *
      * @param field metamodel reference of the entity field.
@@ -800,7 +802,7 @@ interface ProjectionRepository<P, ID : Any> : Repository where P : Projection<ID
     fun <V : Data> findAllRefBy(field: Metamodel<P, V>, value: Ref<V>): List<Ref<P>> = selectRef().where(field, value).resultList
 
     /**
-     * Retrieves entities of type [T] matching a single field and a single value.
+     * Retrieves entities of type [P] matching a single field and a single value.
      * Returns an empty sequence if no entities are found.
      *
      * The resulting sequence is lazily loaded, meaning that the entities are only retrieved from the database as they
@@ -818,7 +820,7 @@ interface ProjectionRepository<P, ID : Any> : Repository where P : Projection<ID
     fun <V : Data> selectRefBy(field: Metamodel<P, V>, value: Ref<V>): Flow<Ref<P>> = selectRef().where(field, value).resultFlow
 
     /**
-     * Retrieves entities of type [T] matching a single field against multiple values.
+     * Retrieves entities of type [P] matching a single field against multiple values.
      * Returns an empty list if no entities are found.
      *
      * @param field metamodel reference of the entity field.
@@ -828,7 +830,7 @@ interface ProjectionRepository<P, ID : Any> : Repository where P : Projection<ID
     fun <V : Data> findAllRefBy(field: Metamodel<P, V>, values: Iterable<V>): List<Ref<P>> = selectRef().where(field, IN, values).resultList
 
     /**
-     * Retrieves entities of type [T] matching a single field against multiple values.
+     * Retrieves entities of type [P] matching a single field against multiple values.
      * Returns an empty sequence if no entities are found.
      *
      * The resulting sequence is lazily loaded, meaning that the entities are only retrieved from the database as they
@@ -846,7 +848,7 @@ interface ProjectionRepository<P, ID : Any> : Repository where P : Projection<ID
     fun <V> selectRefBy(field: Metamodel<P, V>, values: Iterable<V>): Flow<Ref<P>> = selectRef().where(field, IN, values).resultFlow
 
     /**
-     * Retrieves entities of type [T] matching a single field against multiple values.
+     * Retrieves entities of type [P] matching a single field against multiple values.
      * Returns an empty list if no entities are found.
      *
      * @param field metamodel reference of the entity field.
@@ -856,7 +858,7 @@ interface ProjectionRepository<P, ID : Any> : Repository where P : Projection<ID
     fun <V : Data> findAllRefByRef(field: Metamodel<P, V>, values: Iterable<Ref<V>>): List<Ref<P>> = selectRef().whereRef(field, values).resultList
 
     /**
-     * Retrieves entities of type [T] matching a single field against multiple values.
+     * Retrieves entities of type [P] matching a single field against multiple values.
      * Returns an empty sequence if no entities are found.
      *
      * The resulting sequence is lazily loaded, meaning that the entities are only retrieved from the database as they
@@ -874,7 +876,7 @@ interface ProjectionRepository<P, ID : Any> : Repository where P : Projection<ID
     fun <V : Data> selectRefByRef(field: Metamodel<P, V>, values: Iterable<Ref<V>>): Flow<Ref<P>> = selectRef().whereRef(field, values).resultFlow
 
     /**
-     * Retrieves exactly one entity of type [T] based on a single field and its value.
+     * Retrieves exactly one entity of type [P] based on a single field and its value.
      * Throws an exception if no entity or more than one entity is found.
      *
      * @param field metamodel reference of the entity field.
@@ -886,7 +888,7 @@ interface ProjectionRepository<P, ID : Any> : Repository where P : Projection<ID
     fun <V> getRefBy(field: Metamodel<P, V>, value: V): Ref<P> = selectRef().where(field, EQUALS, value).singleResult
 
     /**
-     * Retrieves exactly one entity of type [T] based on a single field and its value.
+     * Retrieves exactly one entity of type [P] based on a single field and its value.
      * Throws an exception if no entity or more than one entity is found.
      *
      * @param field metamodel reference of the entity field.
@@ -898,21 +900,21 @@ interface ProjectionRepository<P, ID : Any> : Repository where P : Projection<ID
     fun <V : Data> getRefBy(field: Metamodel<P, V>, value: Ref<V>): Ref<P> = selectRef().where(field, value).singleResult
 
     /**
-     * Retrieves entities of type [T] matching the specified predicate.
+     * Retrieves entities of type [P] matching the specified predicate.
      *
      * @return a list of matching entities.
      */
     fun findAll(predicate: WhereBuilder<P, P, ID>.() -> PredicateBuilder<P, *, *>): List<P> = select().whereBuilder(predicate).resultList
 
     /**
-     * Retrieves entities of type [T] matching the specified predicate.
+     * Retrieves entities of type [P] matching the specified predicate.
      *
      * @return a list of matching entities.
      */
     fun findAll(predicate: PredicateBuilder<P, *, *>): List<P> = select().where(predicate).resultList
 
     /**
-     * Retrieves entities of type [T] matching the specified predicate.
+     * Retrieves entities of type [P] matching the specified predicate.
      *
      * @return a list of matching entities.
      */
@@ -921,14 +923,14 @@ interface ProjectionRepository<P, ID : Any> : Repository where P : Projection<ID
     ): List<Ref<P>> = selectRef().whereBuilder(predicate).resultList
 
     /**
-     * Retrieves entities of type [T] matching the specified predicate.
+     * Retrieves entities of type [P] matching the specified predicate.
      *
      * @return a list of matching entities.
      */
     fun findAllRef(predicate: PredicateBuilder<P, *, *>): List<Ref<P>> = selectRef().where(predicate).resultList
 
     /**
-     * Retrieves an optional entity of type [T] matching the specified predicate.
+     * Retrieves an optional entity of type [P] matching the specified predicate.
      * Returns null if no matching entity is found.
      *
      * @return an optional entity, or null if none found.
@@ -938,7 +940,7 @@ interface ProjectionRepository<P, ID : Any> : Repository where P : Projection<ID
     ): P? = select().whereBuilder(predicate).optionalResult
 
     /**
-     * Retrieves an optional entity of type [T] matching the specified predicate.
+     * Retrieves an optional entity of type [P] matching the specified predicate.
      * Returns null if no matching entity is found.
      *
      * @return an optional entity, or null if none found.
@@ -948,7 +950,7 @@ interface ProjectionRepository<P, ID : Any> : Repository where P : Projection<ID
     ): P? = select().where(predicate).optionalResult
 
     /**
-     * Retrieves an optional entity of type [T] matching the specified predicate.
+     * Retrieves an optional entity of type [P] matching the specified predicate.
      * Returns null if no matching entity is found.
      *
      * @return an optional entity, or null if none found.
@@ -958,7 +960,7 @@ interface ProjectionRepository<P, ID : Any> : Repository where P : Projection<ID
     ): Ref<P>? = selectRef().whereBuilder(predicate).optionalResult
 
     /**
-     * Retrieves an optional entity of type [T] matching the specified predicate.
+     * Retrieves an optional entity of type [P] matching the specified predicate.
      * Returns a ref with a null value if no matching entity is found.
      *
      * @return an optional entity, or null if none found.
@@ -968,7 +970,7 @@ interface ProjectionRepository<P, ID : Any> : Repository where P : Projection<ID
     ): Ref<P>? = selectRef().where(predicate).optionalResult
 
     /**
-     * Retrieves a single entity of type [T] matching the specified predicate.
+     * Retrieves a single entity of type [P] matching the specified predicate.
      * Throws an exception if no entity or more than one entity is found.
      *
      * @return the matching entity.
@@ -980,7 +982,7 @@ interface ProjectionRepository<P, ID : Any> : Repository where P : Projection<ID
     ): P = select().whereBuilder(predicate).singleResult
 
     /**
-     * Retrieves a single entity of type [T] matching the specified predicate.
+     * Retrieves a single entity of type [P] matching the specified predicate.
      * Throws an exception if no entity or more than one entity is found.
      *
      * @return the matching entity.
@@ -992,7 +994,7 @@ interface ProjectionRepository<P, ID : Any> : Repository where P : Projection<ID
     ): P = select().where(predicate).singleResult
 
     /**
-     * Retrieves a single entity of type [T] matching the specified predicate.
+     * Retrieves a single entity of type [P] matching the specified predicate.
      * Throws an exception if no entity or more than one entity is found.
      *
      * @return the matching entity.
@@ -1004,7 +1006,7 @@ interface ProjectionRepository<P, ID : Any> : Repository where P : Projection<ID
     ): Ref<P> = selectRef().whereBuilder(predicate).singleResult
 
     /**
-     * Retrieves a single entity of type [T] matching the specified predicate.
+     * Retrieves a single entity of type [P] matching the specified predicate.
      * Throws an exception if no entity or more than one entity is found.
      *
      * @return the matching entity.
@@ -1016,7 +1018,7 @@ interface ProjectionRepository<P, ID : Any> : Repository where P : Projection<ID
     ): Ref<P> = selectRef().where(predicate).singleResult
 
     /**
-     * Retrieves entities of type [T] matching the specified predicate.
+     * Retrieves entities of type [P] matching the specified predicate.
      *
      * The resulting sequence is lazily loaded, meaning that the entities are only retrieved from the database as they
      * are consumed by the sequence. This approach is efficient and minimizes the memory footprint, especially when
@@ -1033,7 +1035,7 @@ interface ProjectionRepository<P, ID : Any> : Repository where P : Projection<ID
     ): Flow<P> = select().whereBuilder(predicate).resultFlow
 
     /**
-     * Retrieves entities of type [T] matching the specified predicate.
+     * Retrieves entities of type [P] matching the specified predicate.
      *
      * The resulting sequence is lazily loaded, meaning that the entities are only retrieved from the database as they
      * are consumed by the sequence. This approach is efficient and minimizes the memory footprint, especially when
@@ -1050,7 +1052,7 @@ interface ProjectionRepository<P, ID : Any> : Repository where P : Projection<ID
     ): Flow<P> = select().where(predicate).resultFlow
 
     /**
-     * Retrieves entities of type [T] matching the specified predicate.
+     * Retrieves entities of type [P] matching the specified predicate.
      *
      * The resulting sequence is lazily loaded, meaning that the entities are only retrieved from the database as they
      * are consumed by the sequence. This approach is efficient and minimizes the memory footprint, especially when
@@ -1067,7 +1069,7 @@ interface ProjectionRepository<P, ID : Any> : Repository where P : Projection<ID
     ): Flow<Ref<P>> = selectRef().whereBuilder(predicate).resultFlow
 
     /**
-     * Retrieves entities of type [T] matching the specified predicate.
+     * Retrieves entities of type [P] matching the specified predicate.
      *
      * The resulting sequence is lazily loaded, meaning that the entities are only retrieved from the database as they
      * are consumed by the sequence. This approach is efficient and minimizes the memory footprint, especially when
@@ -1084,7 +1086,7 @@ interface ProjectionRepository<P, ID : Any> : Repository where P : Projection<ID
     ): Flow<Ref<P>> = selectRef().where(predicate).resultFlow
 
     /**
-     * Counts entities of type [T] matching the specified field and value.
+     * Counts entities of type [P] matching the specified field and value.
      *
      * @param field metamodel reference of the entity field.
      * @param value the value to match against.
@@ -1096,7 +1098,7 @@ interface ProjectionRepository<P, ID : Any> : Repository where P : Projection<ID
     ): Long = selectCount().where(field, EQUALS, value).singleResult
 
     /**
-     * Counts entities of type [T] matching the specified field and referenced value.
+     * Counts entities of type [P] matching the specified field and referenced value.
      *
      * @param field metamodel reference of the entity field.
      * @param value the referenced value to match against.
@@ -1108,7 +1110,7 @@ interface ProjectionRepository<P, ID : Any> : Repository where P : Projection<ID
     ): Long = selectCount().where(field, value).singleResult
 
     /**
-     * Counts entities of type [T] matching the specified predicate.
+     * Counts entities of type [P] matching the specified predicate.
      *
      * @param predicate Lambda to build the WHERE clause.
      * @return the count of matching entities.
@@ -1118,7 +1120,7 @@ interface ProjectionRepository<P, ID : Any> : Repository where P : Projection<ID
     ): Long = selectCount().whereBuilder(predicate).singleResult
 
     /**
-     * Counts entities of type [T] matching the specified predicate.
+     * Counts entities of type [P] matching the specified predicate.
      *
      * @param predicate Lambda to build the WHERE clause.
      * @return the count of matching entities.
@@ -1128,7 +1130,7 @@ interface ProjectionRepository<P, ID : Any> : Repository where P : Projection<ID
     ): Long = selectCount().where(predicate).singleResult
 
     /**
-     * Checks if entities of type [T] matching the specified field and value exists.
+     * Checks if entities of type [P] matching the specified field and value exists.
      *
      * @param field metamodel reference of the entity field.
      * @param value the value to match against.
@@ -1140,7 +1142,7 @@ interface ProjectionRepository<P, ID : Any> : Repository where P : Projection<ID
     ): Boolean = selectCount().where(field, EQUALS, value).singleResult > 0
 
     /**
-     * Checks if entities of type [T] matching the specified field and referenced value exists.
+     * Checks if entities of type [P] matching the specified field and referenced value exists.
      *
      * @param field metamodel reference of the entity field.
      * @param value the referenced value to match against.
@@ -1152,7 +1154,7 @@ interface ProjectionRepository<P, ID : Any> : Repository where P : Projection<ID
     ): Boolean = selectCount().where(field, value).singleResult > 0
 
     /**
-     * Checks if entities of type [T] matching the specified predicate exists.
+     * Checks if entities of type [P] matching the specified predicate exists.
      *
      * @param predicate Lambda to build the WHERE clause.
      * @return true if any matching entities exist, false otherwise.
@@ -1162,7 +1164,7 @@ interface ProjectionRepository<P, ID : Any> : Repository where P : Projection<ID
     ): Boolean = selectCount().whereBuilder(predicate).singleResult > 0
 
     /**
-     * Checks if entities of type [T] matching the specified predicate exists.
+     * Checks if entities of type [P] matching the specified predicate exists.
      *
      * @param predicate Lambda to build the WHERE clause.
      * @return true if any matching entities exist, false otherwise.
@@ -1170,6 +1172,62 @@ interface ProjectionRepository<P, ID : Any> : Repository where P : Projection<ID
     fun exists(
         predicate: PredicateBuilder<P, *, *>,
     ): Boolean = selectCount().where(predicate).singleResult > 0
+
+    // Page methods.
+
+    /**
+     * Returns a page of projections using offset-based pagination.
+     *
+     * This method executes two queries: a `SELECT COUNT(*)` to determine the total number of projections, and
+     * a query with OFFSET and LIMIT to fetch the content for the requested page.
+     *
+     * Page numbers are zero-based: pass `0` for the first page.
+     *
+     * @param pageNumber the zero-based page index.
+     * @param pageSize the maximum number of projections per page.
+     * @return a page containing the results and pagination metadata.
+     * @since 1.10
+     */
+    fun page(pageNumber: Int, pageSize: Int): Page<P>
+
+    /**
+     * Returns a page of projections using offset-based pagination.
+     *
+     * This method executes two queries: a `SELECT COUNT(*)` to determine the total number of projections, and
+     * a query with OFFSET and LIMIT to fetch the content for the requested page.
+     *
+     * Use [Pageable.ofSize] for the first page, then navigate with
+     * [Page.nextPageable] or [Page.previousPageable].
+     *
+     * @param pageable the pagination request specifying page number and page size.
+     * @return a page containing the results and pagination metadata.
+     * @since 1.10
+     */
+    fun page(pageable: Pageable): Page<P>
+
+    /**
+     * Returns a page of projection refs using offset-based pagination.
+     *
+     * Page numbers are zero-based: pass `0` for the first page.
+     *
+     * @param pageNumber the zero-based page index.
+     * @param pageSize the maximum number of refs per page.
+     * @return a page containing the ref results and pagination metadata.
+     * @since 1.10
+     */
+    fun pageRef(pageNumber: Int, pageSize: Int): Page<Ref<P>>
+
+    /**
+     * Returns a page of projection refs using offset-based pagination.
+     *
+     * This method executes two queries: a `SELECT COUNT(*)` to determine the total number of projections, and
+     * a query with OFFSET and LIMIT to fetch the refs for the requested page.
+     *
+     * @param pageable the pagination request specifying page number and page size.
+     * @return a page containing the ref results and pagination metadata.
+     * @since 1.10
+     */
+    fun pageRef(pageable: Pageable): Page<Ref<P>>
 
     // Slice methods.
 
@@ -1181,7 +1239,7 @@ interface ProjectionRepository<P, ID : Any> : Repository where P : Projection<ID
      * @return a slice containing the first page of results.
      * @since 1.9
      */
-    fun <V> slice(key: Metamodel.Key<P, V>, size: Int): Slice<P> = select().slice(key, size)
+    fun <V> slice(key: Metamodel.Key<P, V>, size: Int): Slice<P>
 
     /**
      * Returns the first slice of projections ordered by the specified key in descending order.
@@ -1194,7 +1252,7 @@ interface ProjectionRepository<P, ID : Any> : Repository where P : Projection<ID
      * @return a slice containing the first page of results in descending key order.
      * @since 1.9
      */
-    fun <V> sliceBefore(key: Metamodel.Key<P, V>, size: Int): Slice<P> = select().sliceBefore(key, size)
+    fun <V> sliceBefore(key: Metamodel.Key<P, V>, size: Int): Slice<P>
 
     /**
      * Returns the first slice of projection refs ordered by the specified key.
@@ -1204,7 +1262,7 @@ interface ProjectionRepository<P, ID : Any> : Repository where P : Projection<ID
      * @return a slice containing the first page of ref results.
      * @since 1.9
      */
-    fun <V> sliceRef(key: Metamodel.Key<P, V>, size: Int): Slice<Ref<P>> = selectRef().slice(key, size)
+    fun <V> sliceRef(key: Metamodel.Key<P, V>, size: Int): Slice<Ref<P>>
 
     /**
      * Returns the first slice of projection refs ordered by the specified key in descending order.
@@ -1217,7 +1275,7 @@ interface ProjectionRepository<P, ID : Any> : Repository where P : Projection<ID
      * @return a slice containing the first page of ref results in descending key order.
      * @since 1.9
      */
-    fun <V> sliceBeforeRef(key: Metamodel.Key<P, V>, size: Int): Slice<Ref<P>> = selectRef().sliceBefore(key, size)
+    fun <V> sliceBeforeRef(key: Metamodel.Key<P, V>, size: Int): Slice<Ref<P>>
 
     /**
      * Returns the first slice of projections ordered by the specified key, filtered by the given predicate.
@@ -1320,7 +1378,7 @@ interface ProjectionRepository<P, ID : Any> : Repository where P : Projection<ID
      * @return a slice containing the next page of results.
      * @since 1.9
      */
-    fun <V> sliceAfter(key: Metamodel.Key<P, V>, after: V, size: Int): Slice<P> = select().sliceAfter(key, after, size)
+    fun <V> sliceAfter(key: Metamodel.Key<P, V>, after: V, size: Int): Slice<P>
 
     /**
      * Returns the next slice of projection refs after the specified cursor value.
@@ -1331,7 +1389,7 @@ interface ProjectionRepository<P, ID : Any> : Repository where P : Projection<ID
      * @return a slice containing the next page of ref results.
      * @since 1.9
      */
-    fun <V> sliceAfterRef(key: Metamodel.Key<P, V>, after: V, size: Int): Slice<Ref<P>> = selectRef().sliceAfter(key, after, size)
+    fun <V> sliceAfterRef(key: Metamodel.Key<P, V>, after: V, size: Int): Slice<Ref<P>>
 
     /**
      * Returns the next slice of projections after the specified cursor value, filtered by the given predicate.
@@ -1390,7 +1448,7 @@ interface ProjectionRepository<P, ID : Any> : Repository where P : Projection<ID
      * @return a slice containing the previous page of results.
      * @since 1.9
      */
-    fun <V> sliceBefore(key: Metamodel.Key<P, V>, before: V, size: Int): Slice<P> = select().sliceBefore(key, before, size)
+    fun <V> sliceBefore(key: Metamodel.Key<P, V>, before: V, size: Int): Slice<P>
 
     /**
      * Returns the previous slice of projection refs before the specified cursor value.
@@ -1401,7 +1459,7 @@ interface ProjectionRepository<P, ID : Any> : Repository where P : Projection<ID
      * @return a slice containing the previous page of ref results.
      * @since 1.9
      */
-    fun <V> sliceBeforeRef(key: Metamodel.Key<P, V>, before: V, size: Int): Slice<Ref<P>> = selectRef().sliceBefore(key, before, size)
+    fun <V> sliceBeforeRef(key: Metamodel.Key<P, V>, before: V, size: Int): Slice<Ref<P>>
 
     /**
      * Returns the previous slice of projections before the specified cursor value, filtered by the given predicate.
@@ -1460,7 +1518,7 @@ interface ProjectionRepository<P, ID : Any> : Repository where P : Projection<ID
      * @return a slice containing the next page of results.
      * @since 1.9
      */
-    fun <V : Data> sliceAfter(key: Metamodel.Key<P, V>, after: Ref<V>, size: Int): Slice<P> = select().sliceAfter(key, after, size)
+    fun <V : Data> sliceAfter(key: Metamodel.Key<P, V>, after: Ref<V>, size: Int): Slice<P>
 
     /**
      * Returns the next slice of projection refs after the specified ref cursor value.
@@ -1471,7 +1529,7 @@ interface ProjectionRepository<P, ID : Any> : Repository where P : Projection<ID
      * @return a slice containing the next page of ref results.
      * @since 1.9
      */
-    fun <V : Data> sliceAfterRef(key: Metamodel.Key<P, V>, after: Ref<V>, size: Int): Slice<Ref<P>> = selectRef().sliceAfter(key, after, size)
+    fun <V : Data> sliceAfterRef(key: Metamodel.Key<P, V>, after: Ref<V>, size: Int): Slice<Ref<P>>
 
     /**
      * Returns the next slice of projections after the specified ref cursor value, filtered by the given predicate.
@@ -1530,7 +1588,7 @@ interface ProjectionRepository<P, ID : Any> : Repository where P : Projection<ID
      * @return a slice containing the previous page of results.
      * @since 1.9
      */
-    fun <V : Data> sliceBefore(key: Metamodel.Key<P, V>, before: Ref<V>, size: Int): Slice<P> = select().sliceBefore(key, before, size)
+    fun <V : Data> sliceBefore(key: Metamodel.Key<P, V>, before: Ref<V>, size: Int): Slice<P>
 
     /**
      * Returns the previous slice of projection refs before the specified ref cursor value.
@@ -1541,7 +1599,7 @@ interface ProjectionRepository<P, ID : Any> : Repository where P : Projection<ID
      * @return a slice containing the previous page of ref results.
      * @since 1.9
      */
-    fun <V : Data> sliceBeforeRef(key: Metamodel.Key<P, V>, before: Ref<V>, size: Int): Slice<Ref<P>> = selectRef().sliceBefore(key, before, size)
+    fun <V : Data> sliceBeforeRef(key: Metamodel.Key<P, V>, before: Ref<V>, size: Int): Slice<Ref<P>>
 
     /**
      * Returns the previous slice of projections before the specified ref cursor value, filtered by the given predicate.
@@ -1603,7 +1661,7 @@ interface ProjectionRepository<P, ID : Any> : Repository where P : Projection<ID
      * @return a slice containing the first page of results.
      * @since 1.9
      */
-    fun <V, S> slice(key: Metamodel.Key<P, V>, sort: Metamodel<P, S>, size: Int): Slice<P> = select().slice(key, sort, size)
+    fun <V, S> slice(key: Metamodel.Key<P, V>, sort: Metamodel<P, S>, size: Int): Slice<P>
 
     /**
      * Returns the first slice of projections ordered by a non-unique sort column with a unique tiebreaker, both in
@@ -1618,7 +1676,7 @@ interface ProjectionRepository<P, ID : Any> : Repository where P : Projection<ID
      * @return a slice containing the first page of results in descending order.
      * @since 1.9
      */
-    fun <V, S> sliceBefore(key: Metamodel.Key<P, V>, sort: Metamodel<P, S>, size: Int): Slice<P> = select().sliceBefore(key, sort, size)
+    fun <V, S> sliceBefore(key: Metamodel.Key<P, V>, sort: Metamodel<P, S>, size: Int): Slice<P>
 
     /**
      * Returns the next slice of projections after the specified composite cursor, using a non-unique sort column with
@@ -1632,7 +1690,7 @@ interface ProjectionRepository<P, ID : Any> : Repository where P : Projection<ID
      * @return a slice containing the next page of results.
      * @since 1.9
      */
-    fun <V, S> sliceAfter(key: Metamodel.Key<P, V>, keyAfter: V, sort: Metamodel<P, S>, sortAfter: S, size: Int): Slice<P> = select().sliceAfter(key, keyAfter, sort, sortAfter, size)
+    fun <V, S> sliceAfter(key: Metamodel.Key<P, V>, keyAfter: V, sort: Metamodel<P, S>, sortAfter: S, size: Int): Slice<P>
 
     /**
      * Returns the previous slice of projections before the specified composite cursor, using a non-unique sort column
@@ -1646,7 +1704,7 @@ interface ProjectionRepository<P, ID : Any> : Repository where P : Projection<ID
      * @return a slice containing the previous page of results.
      * @since 1.9
      */
-    fun <V, S> sliceBefore(key: Metamodel.Key<P, V>, keyBefore: V, sort: Metamodel<P, S>, sortBefore: S, size: Int): Slice<P> = select().sliceBefore(key, keyBefore, sort, sortBefore, size)
+    fun <V, S> sliceBefore(key: Metamodel.Key<P, V>, keyBefore: V, sort: Metamodel<P, S>, sortBefore: S, size: Int): Slice<P>
 
     /**
      * Returns the next slice of projections after the specified composite cursor with a ref-based unique key, using a
@@ -1660,7 +1718,7 @@ interface ProjectionRepository<P, ID : Any> : Repository where P : Projection<ID
      * @return a slice containing the next page of results.
      * @since 1.9
      */
-    fun <V : Data, S> sliceAfter(key: Metamodel.Key<P, V>, keyAfter: Ref<V>, sort: Metamodel<P, S>, sortAfter: S, size: Int): Slice<P> = select().sliceAfter(key, keyAfter, sort, sortAfter, size)
+    fun <V : Data, S> sliceAfter(key: Metamodel.Key<P, V>, keyAfter: Ref<V>, sort: Metamodel<P, S>, sortAfter: S, size: Int): Slice<P>
 
     /**
      * Returns the previous slice of projections before the specified composite cursor with a ref-based unique key,
@@ -1674,7 +1732,7 @@ interface ProjectionRepository<P, ID : Any> : Repository where P : Projection<ID
      * @return a slice containing the previous page of results.
      * @since 1.9
      */
-    fun <V : Data, S> sliceBefore(key: Metamodel.Key<P, V>, keyBefore: Ref<V>, sort: Metamodel<P, S>, sortBefore: S, size: Int): Slice<P> = select().sliceBefore(key, keyBefore, sort, sortBefore, size)
+    fun <V : Data, S> sliceBefore(key: Metamodel.Key<P, V>, keyBefore: Ref<V>, sort: Metamodel<P, S>, sortBefore: S, size: Int): Slice<P>
 
     /**
      * Returns the first slice of projection refs ordered by a non-unique sort column with a unique tiebreaker for
@@ -1686,7 +1744,7 @@ interface ProjectionRepository<P, ID : Any> : Repository where P : Projection<ID
      * @return a slice containing the first page of ref results.
      * @since 1.9
      */
-    fun <V, S> sliceRef(key: Metamodel.Key<P, V>, sort: Metamodel<P, S>, size: Int): Slice<Ref<P>> = selectRef().slice(key, sort, size)
+    fun <V, S> sliceRef(key: Metamodel.Key<P, V>, sort: Metamodel<P, S>, size: Int): Slice<Ref<P>>
 
     /**
      * Returns the first slice of projection refs ordered by a non-unique sort column with a unique tiebreaker, both
@@ -1701,7 +1759,7 @@ interface ProjectionRepository<P, ID : Any> : Repository where P : Projection<ID
      * @return a slice containing the first page of ref results in descending order.
      * @since 1.9
      */
-    fun <V, S> sliceBeforeRef(key: Metamodel.Key<P, V>, sort: Metamodel<P, S>, size: Int): Slice<Ref<P>> = selectRef().sliceBefore(key, sort, size)
+    fun <V, S> sliceBeforeRef(key: Metamodel.Key<P, V>, sort: Metamodel<P, S>, size: Int): Slice<Ref<P>>
 
     /**
      * Returns the next slice of projection refs after the specified composite cursor, using a non-unique sort column
@@ -1715,7 +1773,7 @@ interface ProjectionRepository<P, ID : Any> : Repository where P : Projection<ID
      * @return a slice containing the next page of ref results.
      * @since 1.9
      */
-    fun <V, S> sliceAfterRef(key: Metamodel.Key<P, V>, keyAfter: V, sort: Metamodel<P, S>, sortAfter: S, size: Int): Slice<Ref<P>> = selectRef().sliceAfter(key, keyAfter, sort, sortAfter, size)
+    fun <V, S> sliceAfterRef(key: Metamodel.Key<P, V>, keyAfter: V, sort: Metamodel<P, S>, sortAfter: S, size: Int): Slice<Ref<P>>
 
     /**
      * Returns the previous slice of projection refs before the specified composite cursor, using a non-unique sort
@@ -1729,7 +1787,7 @@ interface ProjectionRepository<P, ID : Any> : Repository where P : Projection<ID
      * @return a slice containing the previous page of ref results.
      * @since 1.9
      */
-    fun <V, S> sliceBeforeRef(key: Metamodel.Key<P, V>, keyBefore: V, sort: Metamodel<P, S>, sortBefore: S, size: Int): Slice<Ref<P>> = selectRef().sliceBefore(key, keyBefore, sort, sortBefore, size)
+    fun <V, S> sliceBeforeRef(key: Metamodel.Key<P, V>, keyBefore: V, sort: Metamodel<P, S>, sortBefore: S, size: Int): Slice<Ref<P>>
 
     /**
      * Returns the next slice of projection refs after the specified composite cursor with a ref-based unique key,
@@ -1743,7 +1801,7 @@ interface ProjectionRepository<P, ID : Any> : Repository where P : Projection<ID
      * @return a slice containing the next page of ref results.
      * @since 1.9
      */
-    fun <V : Data, S> sliceAfterRef(key: Metamodel.Key<P, V>, keyAfter: Ref<V>, sort: Metamodel<P, S>, sortAfter: S, size: Int): Slice<Ref<P>> = selectRef().sliceAfter(key, keyAfter, sort, sortAfter, size)
+    fun <V : Data, S> sliceAfterRef(key: Metamodel.Key<P, V>, keyAfter: Ref<V>, sort: Metamodel<P, S>, sortAfter: S, size: Int): Slice<Ref<P>>
 
     /**
      * Returns the previous slice of projection refs before the specified composite cursor with a ref-based unique
@@ -1757,5 +1815,5 @@ interface ProjectionRepository<P, ID : Any> : Repository where P : Projection<ID
      * @return a slice containing the previous page of ref results.
      * @since 1.9
      */
-    fun <V : Data, S> sliceBeforeRef(key: Metamodel.Key<P, V>, keyBefore: Ref<V>, sort: Metamodel<P, S>, sortBefore: S, size: Int): Slice<Ref<P>> = selectRef().sliceBefore(key, keyBefore, sort, sortBefore, size)
+    fun <V : Data, S> sliceBeforeRef(key: Metamodel.Key<P, V>, keyBefore: Ref<V>, sort: Metamodel<P, S>, sortBefore: S, size: Int): Slice<Ref<P>>
 }

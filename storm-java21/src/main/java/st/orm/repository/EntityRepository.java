@@ -26,6 +26,8 @@ import st.orm.Inline;
 import st.orm.Metamodel;
 import st.orm.NoResultException;
 import st.orm.PK;
+import st.orm.Page;
+import st.orm.Pageable;
 import st.orm.PersistenceException;
 import st.orm.Ref;
 import st.orm.Slice;
@@ -628,6 +630,62 @@ public interface EntityRepository<E extends Entity<ID>, ID> extends Repository {
      */
     <V extends Data> E getByRef(@Nonnull Metamodel.Key<E, V> key, @Nonnull Ref<V> value);
 
+    // Page methods.
+
+    /**
+     * Returns a page of entities using offset-based pagination.
+     *
+     * <p>This method executes two queries: a {@code SELECT COUNT(*)} to determine the total number of entities, and
+     * a query with OFFSET and LIMIT to fetch the content for the requested page.</p>
+     *
+     * <p>Page numbers are zero-based: pass {@code 0} for the first page.</p>
+     *
+     * @param pageNumber the zero-based page index.
+     * @param pageSize the maximum number of entities per page.
+     * @return a page containing the results and pagination metadata.
+     * @since 1.10
+     */
+    Page<E> page(int pageNumber, int pageSize);
+
+    /**
+     * Returns a page of entities using offset-based pagination.
+     *
+     * <p>This method executes two queries: a {@code SELECT COUNT(*)} to determine the total number of entities, and
+     * a query with OFFSET and LIMIT to fetch the content for the requested page.</p>
+     *
+     * <p>Use {@link Pageable#ofSize(int)} for the first page, then navigate with
+     * {@link Page#nextPageable()} or {@link Page#previousPageable()}.</p>
+     *
+     * @param pageable the pagination request specifying page number and page size.
+     * @return a page containing the results and pagination metadata.
+     * @since 1.10
+     */
+    Page<E> page(@Nonnull Pageable pageable);
+
+    /**
+     * Returns a page of entity refs using offset-based pagination.
+     *
+     * <p>Page numbers are zero-based: pass {@code 0} for the first page.</p>
+     *
+     * @param pageNumber the zero-based page index.
+     * @param pageSize the maximum number of refs per page.
+     * @return a page containing the ref results and pagination metadata.
+     * @since 1.10
+     */
+    Page<Ref<E>> pageRef(int pageNumber, int pageSize);
+
+    /**
+     * Returns a page of entity refs using offset-based pagination.
+     *
+     * <p>This method executes two queries: a {@code SELECT COUNT(*)} to determine the total number of entities, and
+     * a query with OFFSET and LIMIT to fetch the refs for the requested page.</p>
+     *
+     * @param pageable the pagination request specifying page number and page size.
+     * @return a page containing the ref results and pagination metadata.
+     * @since 1.10
+     */
+    Page<Ref<E>> pageRef(@Nonnull Pageable pageable);
+
     // Slice methods.
 
     /**
@@ -643,9 +701,7 @@ public interface EntityRepository<E extends Entity<ID>, ID> extends Repository {
      * @throws PersistenceException if the query fails due to underlying database issues.
      * @since 1.9
      */
-    default <V> Slice<E> slice(@Nonnull Metamodel.Key<E, V> key, int size) {
-        return select().slice(key, size);
-    }
+    <V> Slice<E> slice(@Nonnull Metamodel.Key<E, V> key, int size);
 
     /**
      * Returns the first slice of entities ordered by the specified key in descending order.
@@ -660,9 +716,7 @@ public interface EntityRepository<E extends Entity<ID>, ID> extends Repository {
      * @throws PersistenceException if the query fails due to underlying database issues.
      * @since 1.9
      */
-    default <V> Slice<E> sliceBefore(@Nonnull Metamodel.Key<E, V> key, int size) {
-        return select().sliceBefore(key, size);
-    }
+    <V> Slice<E> sliceBefore(@Nonnull Metamodel.Key<E, V> key, int size);
 
     /**
      * Returns the first slice of entity refs ordered by the specified key in descending order.
@@ -677,9 +731,7 @@ public interface EntityRepository<E extends Entity<ID>, ID> extends Repository {
      * @throws PersistenceException if the query fails due to underlying database issues.
      * @since 1.9
      */
-    default <V> Slice<Ref<E>> sliceBeforeRef(@Nonnull Metamodel.Key<E, V> key, int size) {
-        return selectRef().sliceBefore(key, size);
-    }
+    <V> Slice<Ref<E>> sliceBeforeRef(@Nonnull Metamodel.Key<E, V> key, int size);
 
     /**
      * Returns the next slice of entities after the specified cursor value.
@@ -695,9 +747,7 @@ public interface EntityRepository<E extends Entity<ID>, ID> extends Repository {
      * @throws PersistenceException if the query fails due to underlying database issues.
      * @since 1.9
      */
-    default <V> Slice<E> sliceAfter(@Nonnull Metamodel.Key<E, V> key, @Nonnull V after, int size) {
-        return select().sliceAfter(key, after, size);
-    }
+    <V> Slice<E> sliceAfter(@Nonnull Metamodel.Key<E, V> key, @Nonnull V after, int size);
 
     /**
      * Returns the previous slice of entities before the specified cursor value.
@@ -714,9 +764,7 @@ public interface EntityRepository<E extends Entity<ID>, ID> extends Repository {
      * @throws PersistenceException if the query fails due to underlying database issues.
      * @since 1.9
      */
-    default <V> Slice<E> sliceBefore(@Nonnull Metamodel.Key<E, V> key, @Nonnull V before, int size) {
-        return select().sliceBefore(key, before, size);
-    }
+    <V> Slice<E> sliceBefore(@Nonnull Metamodel.Key<E, V> key, @Nonnull V before, int size);
 
     /**
      * Returns the first slice of entity refs ordered by the specified key.
@@ -733,9 +781,7 @@ public interface EntityRepository<E extends Entity<ID>, ID> extends Repository {
      * @throws PersistenceException if the query fails due to underlying database issues.
      * @since 1.9
      */
-    default <V> Slice<Ref<E>> sliceRef(@Nonnull Metamodel.Key<E, V> key, int size) {
-        return selectRef().slice(key, size);
-    }
+    <V> Slice<Ref<E>> sliceRef(@Nonnull Metamodel.Key<E, V> key, int size);
 
     /**
      * Returns the next slice of entity refs after the specified cursor value.
@@ -752,9 +798,7 @@ public interface EntityRepository<E extends Entity<ID>, ID> extends Repository {
      * @throws PersistenceException if the query fails due to underlying database issues.
      * @since 1.9
      */
-    default <V> Slice<Ref<E>> sliceAfterRef(@Nonnull Metamodel.Key<E, V> key, @Nonnull V after, int size) {
-        return selectRef().sliceAfter(key, after, size);
-    }
+    <V> Slice<Ref<E>> sliceAfterRef(@Nonnull Metamodel.Key<E, V> key, @Nonnull V after, int size);
 
     /**
      * Returns the previous slice of entity refs before the specified cursor value.
@@ -771,9 +815,7 @@ public interface EntityRepository<E extends Entity<ID>, ID> extends Repository {
      * @throws PersistenceException if the query fails due to underlying database issues.
      * @since 1.9
      */
-    default <V> Slice<Ref<E>> sliceBeforeRef(@Nonnull Metamodel.Key<E, V> key, @Nonnull V before, int size) {
-        return selectRef().sliceBefore(key, before, size);
-    }
+    <V> Slice<Ref<E>> sliceBeforeRef(@Nonnull Metamodel.Key<E, V> key, @Nonnull V before, int size);
 
     /**
      * Returns the next slice of entities after the specified ref cursor value.
@@ -789,9 +831,7 @@ public interface EntityRepository<E extends Entity<ID>, ID> extends Repository {
      * @throws PersistenceException if the query fails due to underlying database issues.
      * @since 1.9
      */
-    default <V extends Data> Slice<E> sliceAfter(@Nonnull Metamodel.Key<E, V> key, @Nonnull Ref<V> after, int size) {
-        return select().sliceAfter(key, after, size);
-    }
+    <V extends Data> Slice<E> sliceAfter(@Nonnull Metamodel.Key<E, V> key, @Nonnull Ref<V> after, int size);
 
     /**
      * Returns the previous slice of entities before the specified ref cursor value.
@@ -807,9 +847,7 @@ public interface EntityRepository<E extends Entity<ID>, ID> extends Repository {
      * @throws PersistenceException if the query fails due to underlying database issues.
      * @since 1.9
      */
-    default <V extends Data> Slice<E> sliceBefore(@Nonnull Metamodel.Key<E, V> key, @Nonnull Ref<V> before, int size) {
-        return select().sliceBefore(key, before, size);
-    }
+    <V extends Data> Slice<E> sliceBefore(@Nonnull Metamodel.Key<E, V> key, @Nonnull Ref<V> before, int size);
 
     /**
      * Returns the next slice of entity refs after the specified ref cursor value.
@@ -825,9 +863,7 @@ public interface EntityRepository<E extends Entity<ID>, ID> extends Repository {
      * @throws PersistenceException if the query fails due to underlying database issues.
      * @since 1.9
      */
-    default <V extends Data> Slice<Ref<E>> sliceAfterRef(@Nonnull Metamodel.Key<E, V> key, @Nonnull Ref<V> after, int size) {
-        return selectRef().sliceAfter(key, after, size);
-    }
+    <V extends Data> Slice<Ref<E>> sliceAfterRef(@Nonnull Metamodel.Key<E, V> key, @Nonnull Ref<V> after, int size);
 
     /**
      * Returns the previous slice of entity refs before the specified ref cursor value.
@@ -843,9 +879,7 @@ public interface EntityRepository<E extends Entity<ID>, ID> extends Repository {
      * @throws PersistenceException if the query fails due to underlying database issues.
      * @since 1.9
      */
-    default <V extends Data> Slice<Ref<E>> sliceBeforeRef(@Nonnull Metamodel.Key<E, V> key, @Nonnull Ref<V> before, int size) {
-        return selectRef().sliceBefore(key, before, size);
-    }
+    <V extends Data> Slice<Ref<E>> sliceBeforeRef(@Nonnull Metamodel.Key<E, V> key, @Nonnull Ref<V> before, int size);
 
     // Composite keyset slice methods.
 
@@ -863,9 +897,7 @@ public interface EntityRepository<E extends Entity<ID>, ID> extends Repository {
      * @return a slice containing the first page of results.
      * @since 1.9
      */
-    default <V, S> Slice<E> slice(@Nonnull Metamodel.Key<E, V> key, @Nonnull Metamodel<E, S> sort, int size) {
-        return select().slice(key, sort, size);
-    }
+    <V, S> Slice<E> slice(@Nonnull Metamodel.Key<E, V> key, @Nonnull Metamodel<E, S> sort, int size);
 
     /**
      * Returns the first slice of entities ordered by a non-unique sort column with a unique tiebreaker, both in
@@ -883,9 +915,7 @@ public interface EntityRepository<E extends Entity<ID>, ID> extends Repository {
      * @return a slice containing the first page of results in descending order.
      * @since 1.9
      */
-    default <V, S> Slice<E> sliceBefore(@Nonnull Metamodel.Key<E, V> key, @Nonnull Metamodel<E, S> sort, int size) {
-        return select().sliceBefore(key, sort, size);
-    }
+    <V, S> Slice<E> sliceBefore(@Nonnull Metamodel.Key<E, V> key, @Nonnull Metamodel<E, S> sort, int size);
 
     /**
      * Returns the first slice of entity refs ordered by a non-unique sort column with a unique tiebreaker, both in
@@ -902,9 +932,7 @@ public interface EntityRepository<E extends Entity<ID>, ID> extends Repository {
      * @return a slice containing the first page of ref results in descending order.
      * @since 1.9
      */
-    default <V, S> Slice<Ref<E>> sliceBeforeRef(@Nonnull Metamodel.Key<E, V> key, @Nonnull Metamodel<E, S> sort, int size) {
-        return selectRef().sliceBefore(key, sort, size);
-    }
+    <V, S> Slice<Ref<E>> sliceBeforeRef(@Nonnull Metamodel.Key<E, V> key, @Nonnull Metamodel<E, S> sort, int size);
 
     /**
      * Returns the next slice of entities after the specified composite cursor, using a non-unique sort column
@@ -920,10 +948,8 @@ public interface EntityRepository<E extends Entity<ID>, ID> extends Repository {
      * @return a slice containing the next page of results.
      * @since 1.9
      */
-    default <V, S> Slice<E> sliceAfter(@Nonnull Metamodel.Key<E, V> key, @Nonnull V keyAfter,
-                                       @Nonnull Metamodel<E, S> sort, @Nonnull S sortAfter, int size) {
-        return select().sliceAfter(key, keyAfter, sort, sortAfter, size);
-    }
+    <V, S> Slice<E> sliceAfter(@Nonnull Metamodel.Key<E, V> key, @Nonnull V keyAfter,
+                               @Nonnull Metamodel<E, S> sort, @Nonnull S sortAfter, int size);
 
     /**
      * Returns the previous slice of entities before the specified composite cursor, using a non-unique sort column
@@ -939,10 +965,8 @@ public interface EntityRepository<E extends Entity<ID>, ID> extends Repository {
      * @return a slice containing the previous page of results.
      * @since 1.9
      */
-    default <V, S> Slice<E> sliceBefore(@Nonnull Metamodel.Key<E, V> key, @Nonnull V keyBefore,
-                                        @Nonnull Metamodel<E, S> sort, @Nonnull S sortBefore, int size) {
-        return select().sliceBefore(key, keyBefore, sort, sortBefore, size);
-    }
+    <V, S> Slice<E> sliceBefore(@Nonnull Metamodel.Key<E, V> key, @Nonnull V keyBefore,
+                                @Nonnull Metamodel<E, S> sort, @Nonnull S sortBefore, int size);
 
     /**
      * Returns the next slice of entities after the specified composite cursor with a ref unique key, using a
@@ -958,11 +982,9 @@ public interface EntityRepository<E extends Entity<ID>, ID> extends Repository {
      * @return a slice containing the next page of results.
      * @since 1.9
      */
-    default <V extends Data, S> Slice<E> sliceAfter(@Nonnull Metamodel.Key<E, V> key, @Nonnull Ref<V> keyAfter,
-                                                    @Nonnull Metamodel<E, S> sort, @Nonnull S sortAfter,
-                                                    int size) {
-        return select().sliceAfter(key, keyAfter, sort, sortAfter, size);
-    }
+    <V extends Data, S> Slice<E> sliceAfter(@Nonnull Metamodel.Key<E, V> key, @Nonnull Ref<V> keyAfter,
+                                            @Nonnull Metamodel<E, S> sort, @Nonnull S sortAfter,
+                                            int size);
 
     /**
      * Returns the previous slice of entities before the specified composite cursor with a ref unique key, using a
@@ -978,11 +1000,9 @@ public interface EntityRepository<E extends Entity<ID>, ID> extends Repository {
      * @return a slice containing the previous page of results.
      * @since 1.9
      */
-    default <V extends Data, S> Slice<E> sliceBefore(@Nonnull Metamodel.Key<E, V> key, @Nonnull Ref<V> keyBefore,
-                                                     @Nonnull Metamodel<E, S> sort, @Nonnull S sortBefore,
-                                                     int size) {
-        return select().sliceBefore(key, keyBefore, sort, sortBefore, size);
-    }
+    <V extends Data, S> Slice<E> sliceBefore(@Nonnull Metamodel.Key<E, V> key, @Nonnull Ref<V> keyBefore,
+                                             @Nonnull Metamodel<E, S> sort, @Nonnull S sortBefore,
+                                             int size);
 
     /**
      * Returns the first slice of entity refs ordered by a non-unique sort column with a unique tiebreaker.
@@ -995,9 +1015,7 @@ public interface EntityRepository<E extends Entity<ID>, ID> extends Repository {
      * @return a slice containing the first page of ref results.
      * @since 1.9
      */
-    default <V, S> Slice<Ref<E>> sliceRef(@Nonnull Metamodel.Key<E, V> key, @Nonnull Metamodel<E, S> sort, int size) {
-        return selectRef().slice(key, sort, size);
-    }
+    <V, S> Slice<Ref<E>> sliceRef(@Nonnull Metamodel.Key<E, V> key, @Nonnull Metamodel<E, S> sort, int size);
 
     /**
      * Returns the next slice of entity refs after the specified composite cursor, using a non-unique sort column
@@ -1013,10 +1031,8 @@ public interface EntityRepository<E extends Entity<ID>, ID> extends Repository {
      * @return a slice containing the next page of ref results.
      * @since 1.9
      */
-    default <V, S> Slice<Ref<E>> sliceAfterRef(@Nonnull Metamodel.Key<E, V> key, @Nonnull V keyAfter,
-                                               @Nonnull Metamodel<E, S> sort, @Nonnull S sortAfter, int size) {
-        return selectRef().sliceAfter(key, keyAfter, sort, sortAfter, size);
-    }
+    <V, S> Slice<Ref<E>> sliceAfterRef(@Nonnull Metamodel.Key<E, V> key, @Nonnull V keyAfter,
+                                       @Nonnull Metamodel<E, S> sort, @Nonnull S sortAfter, int size);
 
     /**
      * Returns the previous slice of entity refs before the specified composite cursor, using a non-unique sort column
@@ -1032,10 +1048,8 @@ public interface EntityRepository<E extends Entity<ID>, ID> extends Repository {
      * @return a slice containing the previous page of ref results.
      * @since 1.9
      */
-    default <V, S> Slice<Ref<E>> sliceBeforeRef(@Nonnull Metamodel.Key<E, V> key, @Nonnull V keyBefore,
-                                                @Nonnull Metamodel<E, S> sort, @Nonnull S sortBefore, int size) {
-        return selectRef().sliceBefore(key, keyBefore, sort, sortBefore, size);
-    }
+    <V, S> Slice<Ref<E>> sliceBeforeRef(@Nonnull Metamodel.Key<E, V> key, @Nonnull V keyBefore,
+                                        @Nonnull Metamodel<E, S> sort, @Nonnull S sortBefore, int size);
 
     /**
      * Returns the next slice of entity refs after the specified composite cursor with a ref unique key, using a
@@ -1051,11 +1065,9 @@ public interface EntityRepository<E extends Entity<ID>, ID> extends Repository {
      * @return a slice containing the next page of ref results.
      * @since 1.9
      */
-    default <V extends Data, S> Slice<Ref<E>> sliceAfterRef(@Nonnull Metamodel.Key<E, V> key, @Nonnull Ref<V> keyAfter,
-                                                            @Nonnull Metamodel<E, S> sort, @Nonnull S sortAfter,
-                                                            int size) {
-        return selectRef().sliceAfter(key, keyAfter, sort, sortAfter, size);
-    }
+    <V extends Data, S> Slice<Ref<E>> sliceAfterRef(@Nonnull Metamodel.Key<E, V> key, @Nonnull Ref<V> keyAfter,
+                                                    @Nonnull Metamodel<E, S> sort, @Nonnull S sortAfter,
+                                                    int size);
 
     /**
      * Returns the previous slice of entity refs before the specified composite cursor with a ref unique key, using a
@@ -1071,11 +1083,9 @@ public interface EntityRepository<E extends Entity<ID>, ID> extends Repository {
      * @return a slice containing the previous page of ref results.
      * @since 1.9
      */
-    default <V extends Data, S> Slice<Ref<E>> sliceBeforeRef(@Nonnull Metamodel.Key<E, V> key, @Nonnull Ref<V> keyBefore,
-                                                             @Nonnull Metamodel<E, S> sort, @Nonnull S sortBefore,
-                                                             int size) {
-        return selectRef().sliceBefore(key, keyBefore, sort, sortBefore, size);
-    }
+    <V extends Data, S> Slice<Ref<E>> sliceBeforeRef(@Nonnull Metamodel.Key<E, V> key, @Nonnull Ref<V> keyBefore,
+                                                     @Nonnull Metamodel<E, S> sort, @Nonnull S sortBefore,
+                                                     int size);
 
     // List based methods.
 

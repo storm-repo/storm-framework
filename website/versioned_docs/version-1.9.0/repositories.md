@@ -264,18 +264,18 @@ When you need to sort by a non-unique column (for example, a date or status), us
 
 ```kotlin
 // First page sorted by creation date, with ID as tiebreaker
-val page1: Slice<Post> = postRepository.slice(Post_.createdAt, Post_.id, 20)
+val page1: Slice<Post> = postRepository.slice(Post_.id, Post_.createdAt, 20)
 
 // Next page: pass both cursor values from the last item
 val last = page1.content.last()
 val page2: Slice<Post> = postRepository.sliceAfter(
-    Post_.createdAt, last.createdAt,
     Post_.id, last.id,
+    Post_.createdAt, last.createdAt,
     20
 )
 
 // With filter
-val activePage: Slice<Post> = postRepository.slice(Post_.createdAt, Post_.id, 20) {
+val activePage: Slice<Post> = postRepository.slice(Post_.id, Post_.createdAt, 20) {
     Post_.active eq true
 }
 ```
@@ -285,13 +285,13 @@ val activePage: Slice<Post> = postRepository.slice(Post_.createdAt, Post_.id, 20
 
 ```java
 // First page sorted by creation date, with ID as tiebreaker
-Slice<Post> page1 = postRepository.slice(Post_.createdAt, Post_.id, 20);
+Slice<Post> page1 = postRepository.slice(Post_.id, Post_.createdAt, 20);
 
 // Next page: pass both cursor values from the last item
 Post last = page1.content().getLast();
 Slice<Post> page2 = postRepository.sliceAfter(
-    Post_.createdAt, last.createdAt(),
     Post_.id, last.id(),
+    Post_.createdAt, last.createdAt(),
     20);
 ```
 

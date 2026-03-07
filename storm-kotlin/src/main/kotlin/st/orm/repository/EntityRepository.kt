@@ -21,6 +21,8 @@ import st.orm.Entity
 import st.orm.Metamodel
 import st.orm.Operator.EQUALS
 import st.orm.Operator.IN
+import st.orm.Page
+import st.orm.Pageable
 import st.orm.Ref
 import st.orm.Slice
 import st.orm.template.*
@@ -1165,7 +1167,6 @@ interface EntityRepository<E, ID : Any> : Repository where E : Entity<ID> {
      *
      * @param entities a flow of entities to insert. Each entity must not be null and must conform to the model
      * constraints.
-     * @param callback the callback to process the IDs of the inserted entities in batches.
      * @throws st.orm.PersistenceException if there is an error during the insertion or key retrieval operation, such as a
      * violation of database constraints, connectivity issues, or if any entity in the
      * flow is null.
@@ -1181,8 +1182,6 @@ interface EntityRepository<E, ID : Any> : Repository where E : Entity<ID> {
      *
      * @param entities a flow of entities to insert. Each entity must not be null and must conform to the model
      * constraints.
-     * @param callback the callback to process the inserted entities, reflecting their new state in the database,
-     * in batches.
      * @throws st.orm.PersistenceException if there is an error during the insertion or retrieval operation, such as a
      * violation of database constraints, connectivity issues, or if any entity in the
      * flow is null.
@@ -1201,7 +1200,6 @@ interface EntityRepository<E, ID : Any> : Repository where E : Entity<ID> {
      * constraints.
      * @param batchSize the size of the batches to use for the insertion operation. A larger batch size can improve
      * performance but may also increase the load on the database.
-     * @param callback the callback to process the IDs of the inserted entities in batches.
      * @throws st.orm.PersistenceException if there is an error during the insertion or key retrieval operation, such as a
      * violation of database constraints, connectivity issues, or if any entity in the
      * flow is null.
@@ -1221,8 +1219,6 @@ interface EntityRepository<E, ID : Any> : Repository where E : Entity<ID> {
      * constraints.
      * @param batchSize the size of the batches to use for the insertion operation. A larger batch size can improve
      * performance but may also increase the load on the database.
-     * @param callback the callback to process the inserted entities, reflecting their new state in the database,
-     * in batches.
      * @throws st.orm.PersistenceException if there is an error during the insertion or retrieval operation, such as a
      * violation of database constraints, connectivity issues, or if any entity in the
      * flow is null.
@@ -1269,8 +1265,6 @@ interface EntityRepository<E, ID : Any> : Repository where E : Entity<ID> {
      *
      * @param entities a flow of entities to update. Each entity must not be null, must already exist in the database,
      * and must conform to the model constraints.
-     * @param callback the callback to process the updated entities, reflecting their new state in the database,
-     * in batches.
      * @throws st.orm.PersistenceException if there is an error during the update or retrieval operation, such as a violation
      * of database constraints, connectivity issues, or if any entity in the flow is
      * null.
@@ -1290,8 +1284,6 @@ interface EntityRepository<E, ID : Any> : Repository where E : Entity<ID> {
      * and must conform to the model constraints.
      * @param batchSize the size of the batches to use for the update operation. A larger batch size can improve
      * performance but may also increase the load on the database.
-     * @param callback the callback to process the updated entities, reflecting their new state in the database,
-     * in batches.
      * @throws st.orm.PersistenceException if there is an error during the update or retrieval operation, such as a violation
      * of database constraints, connectivity issues, or if any entity in the flow is
      * null.
@@ -1337,11 +1329,10 @@ interface EntityRepository<E, ID : Any> : Repository where E : Entity<ID> {
      * This method processes the provided flow of entities in batches, performing an "upsert" operation on each entity.
      * For each entity, it will be inserted if it does not already exist in the database or updated if it does. After
      * each batch operation, the IDs of the upserted entities are passed to the provided callback, allowing for
-     * specializedized handling of the IDs as they are retrieved.
+     * specialized handling of the IDs as they are retrieved.
      *
      * @param entities a flow of entities to be inserted or updated. Each entity in the flow must be non-null and
      * contain valid data for insertion or update in the database.
-     * @param callback the callback to process the IDs of the upserted entities in batches.
      * @throws st.orm.PersistenceException if the upsert operation fails due to database issues, such as connectivity problems,
      * constraints violations, or invalid entity data.
      */
@@ -1352,14 +1343,12 @@ interface EntityRepository<E, ID : Any> : Repository where E : Entity<ID> {
      *
      * This method processes the provided flow of entities in batches, performing an "upsert" operation on each entity.
      * For each entity, it will be inserted if it does not already exist in the database or updated if it does. After
-     * each batch operation, the updated entities are passed to the provided callback, allowing for specializedized handling
+     * each batch operation, the updated entities are passed to the provided callback, allowing for specialized handling
      * of the entities as they are retrieved. The entities returned reflect their current state in the database, including
      * any changes such as generated primary keys, timestamps, or default values set by the database during the upsert process.
      *
      * @param entities a flow of entities to be inserted or updated. Each entity in the flow must be non-null and
      * contain valid data for insertion or update in the database.
-     * @param callback the callback to process the upserted entities, reflecting their new state in the database,
-     * in batches.
      * @throws st.orm.PersistenceException if the upsert operation fails due to database issues, such as connectivity problems,
      * constraints violations, or invalid entity data.
      */
@@ -1372,13 +1361,12 @@ interface EntityRepository<E, ID : Any> : Repository where E : Entity<ID> {
      * For each entity, it will be inserted if it does not already exist in the database or updated if it does. The batch size
      * parameter allows control over the number of entities processed in each batch, optimizing memory and performance based
      * on system requirements. After each batch operation, the IDs of the upserted entities are passed to the provided
-     * callback, allowing for specializedized handling of the IDs as they are retrieved.
+     * callback, allowing for specialized handling of the IDs as they are retrieved.
      *
      * @param entities a flow of entities to be inserted or updated. Each entity in the flow must be non-null and contain
      * valid data for insertion or update in the database.
      * @param batchSize the number of entities to process in each batch. Adjusting the batch size can optimize performance
      * and memory usage, with larger sizes potentially improving performance but using more memory.
-     * @param callback the callback to process the IDs of the upserted entities in batches.
      * @throws st.orm.PersistenceException if the upsert operation fails due to database issues, such as connectivity problems,
      * constraints violations, or invalid entity data.
      */
@@ -1391,7 +1379,7 @@ interface EntityRepository<E, ID : Any> : Repository where E : Entity<ID> {
      * For each entity, it will be inserted if it does not already exist in the database or updated if it does. The
      * `chunkSize` parameter allows control over the number of entities processed in each batch, optimizing performance
      * and memory usage based on system requirements. After each batch operation, the updated entities are passed to
-     * the provided callback, allowing for specializedized handling of the entities as they are retrieved. The entities
+     * the provided callback, allowing for specialized handling of the entities as they are retrieved. The entities
      * returned reflect their current state in the database, including any changes such as generated primary keys,
      * timestamps, or default values applied during the upsert process.
      *
@@ -1399,8 +1387,6 @@ interface EntityRepository<E, ID : Any> : Repository where E : Entity<ID> {
      * contain valid data for insertion or update in the database.
      * @param batchSize the number of entities to process in each batch. Adjusting the batch size can optimize performance
      * and memory usage, with larger sizes potentially improving performance but using more memory.
-     * @param callback the callback to process the upserted entities, reflecting their new state in the database,
-     * in batches.
      * @throws st.orm.PersistenceException if the upsert operation fails due to database issues, such as connectivity problems,
      * constraints violations, or invalid entity data.
      */
@@ -1475,7 +1461,7 @@ interface EntityRepository<E, ID : Any> : Repository where E : Entity<ID> {
     // Kotlin specific DSL
 
     /**
-     * Retrieves all entities of type [T] from the repository.
+     * Retrieves all entities of type [E] from the repository.
      *
      * @return a list containing all entities.
      */
@@ -1507,7 +1493,7 @@ interface EntityRepository<E, ID : Any> : Repository where E : Entity<ID> {
     fun <V> findBy(field: Metamodel<E, V>, value: V): E? = select().where(field, EQUALS, value).optionalResult
 
     /**
-     * Retrieves an optional entity of type [T] based on a single field and its value.
+     * Retrieves an optional entity of type [E] based on a single field and its value.
      * Returns null if no matching entity is found.
      *
      * @param field metamodel reference of the entity field.
@@ -1517,7 +1503,7 @@ interface EntityRepository<E, ID : Any> : Repository where E : Entity<ID> {
     fun <V : Data> findBy(field: Metamodel<E, V>, value: Ref<V>): E? = select().where(field, value).optionalResult
 
     /**
-     * Retrieves entities of type [T] matching a single field and a single value.
+     * Retrieves entities of type [E] matching a single field and a single value.
      * Returns an empty list if no entities are found.
      *
      * @param field metamodel reference of the entity field.
@@ -1527,7 +1513,7 @@ interface EntityRepository<E, ID : Any> : Repository where E : Entity<ID> {
     fun <V> findAllBy(field: Metamodel<E, V>, value: V): List<E> = select().where(field, EQUALS, value).resultList
 
     /**
-     * Retrieves entities of type [T] matching a single field and a single value.
+     * Retrieves entities of type [E] matching a single field and a single value.
      * Returns an empty sequence if no entities are found.
      *
      * The resulting sequence is lazily loaded, meaning that the entities are only retrieved from the database as they
@@ -1545,7 +1531,7 @@ interface EntityRepository<E, ID : Any> : Repository where E : Entity<ID> {
     fun <V> selectBy(field: Metamodel<E, V>, value: V): Flow<E> = select().where(field, EQUALS, value).resultFlow
 
     /**
-     * Retrieves entities of type [T] matching a single field and a single value.
+     * Retrieves entities of type [E] matching a single field and a single value.
      * Returns an empty list if no entities are found.
      *
      * @param field metamodel reference of the entity field.
@@ -1555,7 +1541,7 @@ interface EntityRepository<E, ID : Any> : Repository where E : Entity<ID> {
     fun <V : Data> findAllBy(field: Metamodel<E, V>, value: Ref<V>): List<E> = select().where(field, value).resultList
 
     /**
-     * Retrieves entities of type [T] matching a single field and a single value.
+     * Retrieves entities of type [E] matching a single field and a single value.
      * Returns an empty sequence if no entities are found.
      *
      * The resulting sequence is lazily loaded, meaning that the entities are only retrieved from the database as they
@@ -1573,7 +1559,7 @@ interface EntityRepository<E, ID : Any> : Repository where E : Entity<ID> {
     fun <V : Data> selectBy(field: Metamodel<E, V>, value: Ref<V>): Flow<E> = select().where(field, value).resultFlow
 
     /**
-     * Retrieves entities of type [T] matching a single field against multiple values.
+     * Retrieves entities of type [E] matching a single field against multiple values.
      * Returns an empty list if no entities are found.
      *
      * @param field metamodel reference of the entity field.
@@ -1583,7 +1569,7 @@ interface EntityRepository<E, ID : Any> : Repository where E : Entity<ID> {
     fun <V> findAllBy(field: Metamodel<E, V>, values: Iterable<V>): List<E> = select().where(field, IN, values).resultList
 
     /**
-     * Retrieves entities of type [T] matching a single field against multiple values.
+     * Retrieves entities of type [E] matching a single field against multiple values.
      * Returns an empty sequence if no entities are found.
      *
      * The resulting sequence is lazily loaded, meaning that the entities are only retrieved from the database as they
@@ -1601,7 +1587,7 @@ interface EntityRepository<E, ID : Any> : Repository where E : Entity<ID> {
     fun <V> selectBy(field: Metamodel<E, V>, values: Iterable<V>): Flow<E> = select().where(field, IN, values).resultFlow
 
     /**
-     * Retrieves entities of type [T] matching a single field against multiple values.
+     * Retrieves entities of type [E] matching a single field against multiple values.
      * Returns an empty list if no entities are found.
      *
      * @param field metamodel reference of the entity field.
@@ -1611,7 +1597,7 @@ interface EntityRepository<E, ID : Any> : Repository where E : Entity<ID> {
     fun <V : Data> findAllByRef(field: Metamodel<E, V>, values: Iterable<Ref<V>>): List<E> = select().whereRef(field, values).resultList
 
     /**
-     * Retrieves entities of type [T] matching a single field against multiple values.
+     * Retrieves entities of type [E] matching a single field against multiple values.
      * Returns an empty sequence if no entities are found.
      *
      * @param field metamodel reference of the entity field.
@@ -1621,7 +1607,7 @@ interface EntityRepository<E, ID : Any> : Repository where E : Entity<ID> {
     fun <V : Data> selectByRef(field: Metamodel<E, V>, values: Iterable<Ref<V>>): Flow<E> = select().whereRef(field, values).resultFlow
 
     /**
-     * Retrieves exactly one entity of type [T] based on a single field and its value.
+     * Retrieves exactly one entity of type [E] based on a single field and its value.
      * Throws an exception if no entity or more than one entity is found.
      *
      * @param field metamodel reference of the entity field.
@@ -1633,7 +1619,7 @@ interface EntityRepository<E, ID : Any> : Repository where E : Entity<ID> {
     fun <V> getBy(field: Metamodel<E, V>, value: V): E = select().where(field, EQUALS, value).singleResult
 
     /**
-     * Retrieves exactly one entity of type [T] based on a single field and its value.
+     * Retrieves exactly one entity of type [E] based on a single field and its value.
      * Throws an exception if no entity or more than one entity is found.
      *
      * @param field metamodel reference of the entity field.
@@ -1645,7 +1631,7 @@ interface EntityRepository<E, ID : Any> : Repository where E : Entity<ID> {
     fun <V : Data> getBy(field: Metamodel<E, V>, value: Ref<V>): E = select().where(field, value).singleResult
 
     /**
-     * Retrieves an optional entity of type [T] based on a single field and its value.
+     * Retrieves an optional entity of type [E] based on a single field and its value.
      * Returns a ref with a null value if no matching entity is found.
      *
      * @param field metamodel reference of the entity field.
@@ -1655,7 +1641,7 @@ interface EntityRepository<E, ID : Any> : Repository where E : Entity<ID> {
     fun <T, ID, V> findRefBy(field: Metamodel<E, V>, value: V): Ref<E>? = selectRef().where(field, EQUALS, value).optionalResult
 
     /**
-     * Retrieves an optional entity of type [T] based on a single field and its value.
+     * Retrieves an optional entity of type [E] based on a single field and its value.
      * Returns a ref with a null value if no matching entity is found.
      *
      * @param field metamodel reference of the entity field.
@@ -1665,7 +1651,7 @@ interface EntityRepository<E, ID : Any> : Repository where E : Entity<ID> {
     fun <V : Data> findRefBy(field: Metamodel<E, V>, value: Ref<V>): Ref<E>? = selectRef().where(field, value).optionalResult
 
     /**
-     * Retrieves entities of type [T] matching a single field and a single value.
+     * Retrieves entities of type [E] matching a single field and a single value.
      * Returns an empty list if no entities are found.
      *
      * @param field metamodel reference of the entity field.
@@ -1675,7 +1661,7 @@ interface EntityRepository<E, ID : Any> : Repository where E : Entity<ID> {
     fun <V> findAllRefBy(field: Metamodel<E, V>, value: V): List<Ref<E>> = selectRef().where(field, EQUALS, value).resultList
 
     /**
-     * Retrieves entities of type [T] matching a single field and a single value.
+     * Retrieves entities of type [E] matching a single field and a single value.
      * Returns an empty sequence if no entities are found.
      *
      * The resulting sequence is lazily loaded, meaning that the entities are only retrieved from the database as they
@@ -1693,7 +1679,7 @@ interface EntityRepository<E, ID : Any> : Repository where E : Entity<ID> {
     fun <V> selectRefBy(field: Metamodel<E, V>, value: V): Flow<Ref<E>> = selectRef().where(field, EQUALS, value).resultFlow
 
     /**
-     * Retrieves entities of type [T] matching a single field and a single value.
+     * Retrieves entities of type [E] matching a single field and a single value.
      * Returns an empty list if no entities are found.
      *
      * @param field metamodel reference of the entity field.
@@ -1703,7 +1689,7 @@ interface EntityRepository<E, ID : Any> : Repository where E : Entity<ID> {
     fun <V : Data> findAllRefBy(field: Metamodel<E, V>, value: Ref<V>): List<Ref<E>> = selectRef().where(field, value).resultList
 
     /**
-     * Retrieves entities of type [T] matching a single field and a single value.
+     * Retrieves entities of type [E] matching a single field and a single value.
      * Returns an empty sequence if no entities are found.
      *
      * The resulting sequence is lazily loaded, meaning that the entities are only retrieved from the database as they
@@ -1721,7 +1707,7 @@ interface EntityRepository<E, ID : Any> : Repository where E : Entity<ID> {
     fun <V : Data> selectRefBy(field: Metamodel<E, V>, value: Ref<V>): Flow<Ref<E>> = selectRef().where(field, value).resultFlow
 
     /**
-     * Retrieves entities of type [T] matching a single field against multiple values.
+     * Retrieves entities of type [E] matching a single field against multiple values.
      * Returns an empty list if no entities are found.
      *
      * @param field metamodel reference of the entity field.
@@ -1731,7 +1717,7 @@ interface EntityRepository<E, ID : Any> : Repository where E : Entity<ID> {
     fun <V : Data> findAllRefBy(field: Metamodel<E, V>, values: Iterable<V>): List<Ref<E>> = selectRef().where(field, IN, values).resultList
 
     /**
-     * Retrieves entities of type [T] matching a single field against multiple values.
+     * Retrieves entities of type [E] matching a single field against multiple values.
      * Returns an empty sequence if no entities are found.
      *
      * The resulting sequence is lazily loaded, meaning that the entities are only retrieved from the database as they
@@ -1749,7 +1735,7 @@ interface EntityRepository<E, ID : Any> : Repository where E : Entity<ID> {
     fun <V> selectRefBy(field: Metamodel<E, V>, values: Iterable<V>): Flow<Ref<E>> = selectRef().where(field, IN, values).resultFlow
 
     /**
-     * Retrieves entities of type [T] matching a single field against multiple values.
+     * Retrieves entities of type [E] matching a single field against multiple values.
      * Returns an empty list if no entities are found.
      *
      * @param field metamodel reference of the entity field.
@@ -1759,7 +1745,7 @@ interface EntityRepository<E, ID : Any> : Repository where E : Entity<ID> {
     fun <V : Data> findAllRefByRef(field: Metamodel<E, V>, values: Iterable<Ref<V>>): List<Ref<E>> = selectRef().whereRef(field, values).resultList
 
     /**
-     * Retrieves entities of type [T] matching a single field against multiple values.
+     * Retrieves entities of type [E] matching a single field against multiple values.
      * Returns an empty sequence if no entities are found.
      *
      * The resulting sequence is lazily loaded, meaning that the entities are only retrieved from the database as they
@@ -1777,7 +1763,7 @@ interface EntityRepository<E, ID : Any> : Repository where E : Entity<ID> {
     fun <V : Data> selectRefByRef(field: Metamodel<E, V>, values: Iterable<Ref<V>>): Flow<Ref<E>> = selectRef().whereRef(field, values).resultFlow
 
     /**
-     * Retrieves exactly one entity of type [T] based on a single field and its value.
+     * Retrieves exactly one entity of type [E] based on a single field and its value.
      * Throws an exception if no entity or more than one entity is found.
      *
      * @param field metamodel reference of the entity field.
@@ -1789,7 +1775,7 @@ interface EntityRepository<E, ID : Any> : Repository where E : Entity<ID> {
     fun <V> getRefBy(field: Metamodel<E, V>, value: V): Ref<E> = selectRef().where(field, EQUALS, value).singleResult
 
     /**
-     * Retrieves exactly one entity of type [T] based on a single field and its value.
+     * Retrieves exactly one entity of type [E] based on a single field and its value.
      * Throws an exception if no entity or more than one entity is found.
      *
      * @param field metamodel reference of the entity field.
@@ -1801,21 +1787,21 @@ interface EntityRepository<E, ID : Any> : Repository where E : Entity<ID> {
     fun <V : Data> getRefBy(field: Metamodel<E, V>, value: Ref<V>): Ref<E> = selectRef().where(field, value).singleResult
 
     /**
-     * Retrieves entities of type [T] matching the specified predicate.
+     * Retrieves entities of type [E] matching the specified predicate.
      *
      * @return a list of matching entities.
      */
     fun findAll(predicate: WhereBuilder<E, E, ID>.() -> PredicateBuilder<E, *, *>): List<E> = select().whereBuilder(predicate).resultList
 
     /**
-     * Retrieves entities of type [T] matching the specified predicate.
+     * Retrieves entities of type [E] matching the specified predicate.
      *
      * @return a list of matching entities.
      */
     fun findAll(predicate: PredicateBuilder<E, *, *>): List<E> = select().where(predicate).resultList
 
     /**
-     * Retrieves entities of type [T] matching the specified predicate.
+     * Retrieves entities of type [E] matching the specified predicate.
      *
      * @return a list of matching entities.
      */
@@ -1824,14 +1810,14 @@ interface EntityRepository<E, ID : Any> : Repository where E : Entity<ID> {
     ): List<Ref<E>> = selectRef().whereBuilder(predicate).resultList
 
     /**
-     * Retrieves entities of type [T] matching the specified predicate.
+     * Retrieves entities of type [E] matching the specified predicate.
      *
      * @return a list of matching entities.
      */
     fun findAllRef(predicate: PredicateBuilder<E, *, *>): List<Ref<E>> = selectRef().where(predicate).resultList
 
     /**
-     * Retrieves an optional entity of type [T] matching the specified predicate.
+     * Retrieves an optional entity of type [E] matching the specified predicate.
      * Returns null if no matching entity is found.
      *
      * @return an optional entity, or null if none found.
@@ -1841,7 +1827,7 @@ interface EntityRepository<E, ID : Any> : Repository where E : Entity<ID> {
     ): E? = select().whereBuilder(predicate).optionalResult
 
     /**
-     * Retrieves an optional entity of type [T] matching the specified predicate.
+     * Retrieves an optional entity of type [E] matching the specified predicate.
      * Returns null if no matching entity is found.
      *
      * @return an optional entity, or null if none found.
@@ -1851,7 +1837,7 @@ interface EntityRepository<E, ID : Any> : Repository where E : Entity<ID> {
     ): E? = select().where(predicate).optionalResult
 
     /**
-     * Retrieves an optional entity of type [T] matching the specified predicate.
+     * Retrieves an optional entity of type [E] matching the specified predicate.
      * Returns null if no matching entity is found.
      *
      * @return an optional entity, or null if none found.
@@ -1861,7 +1847,7 @@ interface EntityRepository<E, ID : Any> : Repository where E : Entity<ID> {
     ): Ref<E>? = selectRef().whereBuilder(predicate).optionalResult
 
     /**
-     * Retrieves an optional entity of type [T] matching the specified predicate.
+     * Retrieves an optional entity of type [E] matching the specified predicate.
      * Returns a ref with a null value if no matching entity is found.
      *
      * @return an optional entity, or null if none found.
@@ -1871,7 +1857,7 @@ interface EntityRepository<E, ID : Any> : Repository where E : Entity<ID> {
     ): Ref<E>? = selectRef().where(predicate).optionalResult
 
     /**
-     * Retrieves a single entity of type [T] matching the specified predicate.
+     * Retrieves a single entity of type [E] matching the specified predicate.
      * Throws an exception if no entity or more than one entity is found.
      *
      * @return the matching entity.
@@ -1883,7 +1869,7 @@ interface EntityRepository<E, ID : Any> : Repository where E : Entity<ID> {
     ): E = select().whereBuilder(predicate).singleResult
 
     /**
-     * Retrieves a single entity of type [T] matching the specified predicate.
+     * Retrieves a single entity of type [E] matching the specified predicate.
      * Throws an exception if no entity or more than one entity is found.
      *
      * @return the matching entity.
@@ -1895,7 +1881,7 @@ interface EntityRepository<E, ID : Any> : Repository where E : Entity<ID> {
     ): E = select().where(predicate).singleResult
 
     /**
-     * Retrieves a single entity of type [T] matching the specified predicate.
+     * Retrieves a single entity of type [E] matching the specified predicate.
      * Throws an exception if no entity or more than one entity is found.
      *
      * @return the matching entity.
@@ -1907,7 +1893,7 @@ interface EntityRepository<E, ID : Any> : Repository where E : Entity<ID> {
     ): Ref<E> = selectRef().whereBuilder(predicate).singleResult
 
     /**
-     * Retrieves a single entity of type [T] matching the specified predicate.
+     * Retrieves a single entity of type [E] matching the specified predicate.
      * Throws an exception if no entity or more than one entity is found.
      *
      * @return the matching entity.
@@ -1919,7 +1905,7 @@ interface EntityRepository<E, ID : Any> : Repository where E : Entity<ID> {
     ): Ref<E> = selectRef().where(predicate).singleResult
 
     /**
-     * Retrieves entities of type [T] matching the specified predicate.
+     * Retrieves entities of type [E] matching the specified predicate.
      *
      * The resulting sequence is lazily loaded, meaning that the entities are only retrieved from the database as they
      * are consumed by the sequence. This approach is efficient and minimizes the memory footprint, especially when
@@ -1936,7 +1922,7 @@ interface EntityRepository<E, ID : Any> : Repository where E : Entity<ID> {
     ): Flow<E> = select().whereBuilder(predicate).resultFlow
 
     /**
-     * Retrieves entities of type [T] matching the specified predicate.
+     * Retrieves entities of type [E] matching the specified predicate.
      *
      * The resulting sequence is lazily loaded, meaning that the entities are only retrieved from the database as they
      * are consumed by the sequence. This approach is efficient and minimizes the memory footprint, especially when
@@ -1953,7 +1939,7 @@ interface EntityRepository<E, ID : Any> : Repository where E : Entity<ID> {
     ): Flow<E> = select().where(predicate).resultFlow
 
     /**
-     * Retrieves entities of type [T] matching the specified predicate.
+     * Retrieves entities of type [E] matching the specified predicate.
      *
      * The resulting sequence is lazily loaded, meaning that the entities are only retrieved from the database as they
      * are consumed by the sequence. This approach is efficient and minimizes the memory footprint, especially when
@@ -1970,7 +1956,7 @@ interface EntityRepository<E, ID : Any> : Repository where E : Entity<ID> {
     ): Flow<Ref<E>> = selectRef().whereBuilder(predicate).resultFlow
 
     /**
-     * Retrieves entities of type [T] matching the specified predicate.
+     * Retrieves entities of type [E] matching the specified predicate.
      *
      * The resulting sequence is lazily loaded, meaning that the entities are only retrieved from the database as they
      * are consumed by the sequence. This approach is efficient and minimizes the memory footprint, especially when
@@ -1987,7 +1973,7 @@ interface EntityRepository<E, ID : Any> : Repository where E : Entity<ID> {
     ): Flow<Ref<E>> = selectRef().where(predicate).resultFlow
 
     /**
-     * Counts entities of type [T] matching the specified field and value.
+     * Counts entities of type [E] matching the specified field and value.
      *
      * @param field metamodel reference of the entity field.
      * @param value the value to match against.
@@ -1999,7 +1985,7 @@ interface EntityRepository<E, ID : Any> : Repository where E : Entity<ID> {
     ): Long = selectCount().where(field, EQUALS, value).singleResult
 
     /**
-     * Counts entities of type [T] matching the specified field and referenced value.
+     * Counts entities of type [E] matching the specified field and referenced value.
      *
      * @param field metamodel reference of the entity field.
      * @param value the referenced value to match against.
@@ -2011,7 +1997,7 @@ interface EntityRepository<E, ID : Any> : Repository where E : Entity<ID> {
     ): Long = selectCount().where(field, value).singleResult
 
     /**
-     * Counts entities of type [T] matching the specified predicate.
+     * Counts entities of type [E] matching the specified predicate.
      *
      * @param predicate Lambda to build the WHERE clause.
      * @return the count of matching entities.
@@ -2021,7 +2007,7 @@ interface EntityRepository<E, ID : Any> : Repository where E : Entity<ID> {
     ): Long = selectCount().whereBuilder(predicate).singleResult
 
     /**
-     * Counts entities of type [T] matching the specified predicate.
+     * Counts entities of type [E] matching the specified predicate.
      *
      * @param predicate Lambda to build the WHERE clause.
      * @return the count of matching entities.
@@ -2031,7 +2017,7 @@ interface EntityRepository<E, ID : Any> : Repository where E : Entity<ID> {
     ): Long = selectCount().where(predicate).singleResult
 
     /**
-     * Checks if entities of type [T] matching the specified field and value exists.
+     * Checks if entities of type [E] matching the specified field and value exists.
      *
      * @param field metamodel reference of the entity field.
      * @param value the value to match against.
@@ -2043,7 +2029,7 @@ interface EntityRepository<E, ID : Any> : Repository where E : Entity<ID> {
     ): Boolean = selectCount().where(field, EQUALS, value).singleResult > 0
 
     /**
-     * Checks if entities of type [T] matching the specified field and referenced value exists.
+     * Checks if entities of type [E] matching the specified field and referenced value exists.
      *
      * @param field metamodel reference of the entity field.
      * @param value the referenced value to match against.
@@ -2055,7 +2041,7 @@ interface EntityRepository<E, ID : Any> : Repository where E : Entity<ID> {
     ): Boolean = selectCount().where(field, value).singleResult > 0
 
     /**
-     * Checks if entities of type [T] matching the specified predicate exists.
+     * Checks if entities of type [E] matching the specified predicate exists.
      *
      * @param predicate Lambda to build the WHERE clause.
      * @return true if any matching entities exist, false otherwise.
@@ -2065,7 +2051,7 @@ interface EntityRepository<E, ID : Any> : Repository where E : Entity<ID> {
     ): Boolean = selectCount().whereBuilder(predicate).singleResult > 0
 
     /**
-     * Checks if entities of type [T] matching the specified predicate exists.
+     * Checks if entities of type [E] matching the specified predicate exists.
      *
      * @param predicate Lambda to build the WHERE clause.
      * @return true if any matching entities exist, false otherwise.
@@ -2075,7 +2061,7 @@ interface EntityRepository<E, ID : Any> : Repository where E : Entity<ID> {
     ): Boolean = selectCount().where(predicate).singleResult > 0
 
     /**
-     * Deletes entities of type [T] matching the specified field and value.
+     * Deletes entities of type [E] matching the specified field and value.
      *
      * @param field metamodel reference of the entity field.
      * @param value the value to match against.
@@ -2087,7 +2073,7 @@ interface EntityRepository<E, ID : Any> : Repository where E : Entity<ID> {
     ): Int = delete().where(field, EQUALS, value).executeUpdate()
 
     /**
-     * Deletes entities of type [T] matching the specified field and referenced value.
+     * Deletes entities of type [E] matching the specified field and referenced value.
      *
      * @param field metamodel reference of the entity field.
      * @param value the referenced value to match against.
@@ -2099,7 +2085,7 @@ interface EntityRepository<E, ID : Any> : Repository where E : Entity<ID> {
     ): Int = delete().where(field, value).executeUpdate()
 
     /**
-     * Deletes entities of type [T] matching the specified field against multiple values.
+     * Deletes entities of type [E] matching the specified field against multiple values.
      *
      * @param field metamodel reference of the entity field.
      * @param values Iterable of values to match against.
@@ -2111,7 +2097,7 @@ interface EntityRepository<E, ID : Any> : Repository where E : Entity<ID> {
     ): Int = delete().where(field, IN, values).executeUpdate()
 
     /**
-     * Deletes entities of type [T] matching the specified field against multiple referenced values.
+     * Deletes entities of type [E] matching the specified field against multiple referenced values.
      *
      * @param field metamodel reference of the entity field.
      * @param values Iterable of referenced values to match against.
@@ -2123,7 +2109,7 @@ interface EntityRepository<E, ID : Any> : Repository where E : Entity<ID> {
     ): Int = delete().whereRef(field, values).executeUpdate()
 
     /**
-     * Deletes entities of type [T] matching the specified predicate.
+     * Deletes entities of type [E] matching the specified predicate.
      *
      * @param predicate Lambda to build the WHERE clause.
      * @return the number of entities deleted.
@@ -2133,12 +2119,68 @@ interface EntityRepository<E, ID : Any> : Repository where E : Entity<ID> {
     ): Int = delete().whereBuilder(predicate).executeUpdate()
 
     /**
-     * Deletes entities of type [T] matching the specified predicate.
+     * Deletes entities of type [E] matching the specified predicate.
      *
      * @param predicate Lambda to build the WHERE clause.
      * @return the number of entities deleted.
      */
     fun delete(predicate: PredicateBuilder<E, *, *>): Int = delete().where(predicate).executeUpdate()
+
+    // Page methods.
+
+    /**
+     * Returns a page of entities using offset-based pagination.
+     *
+     * This method executes two queries: a `SELECT COUNT(*)` to determine the total number of entities, and
+     * a query with OFFSET and LIMIT to fetch the content for the requested page.
+     *
+     * Page numbers are zero-based: pass `0` for the first page.
+     *
+     * @param pageNumber the zero-based page index.
+     * @param pageSize the maximum number of entities per page.
+     * @return a page containing the results and pagination metadata.
+     * @since 1.10
+     */
+    fun page(pageNumber: Int, pageSize: Int): Page<E>
+
+    /**
+     * Returns a page of entities using offset-based pagination.
+     *
+     * This method executes two queries: a `SELECT COUNT(*)` to determine the total number of entities, and
+     * a query with OFFSET and LIMIT to fetch the content for the requested page.
+     *
+     * Use [Pageable.ofSize] for the first page, then navigate with
+     * [Page.nextPageable] or [Page.previousPageable].
+     *
+     * @param pageable the pagination request specifying page number and page size.
+     * @return a page containing the results and pagination metadata.
+     * @since 1.10
+     */
+    fun page(pageable: Pageable): Page<E>
+
+    /**
+     * Returns a page of entity refs using offset-based pagination.
+     *
+     * Page numbers are zero-based: pass `0` for the first page.
+     *
+     * @param pageNumber the zero-based page index.
+     * @param pageSize the maximum number of refs per page.
+     * @return a page containing the ref results and pagination metadata.
+     * @since 1.10
+     */
+    fun pageRef(pageNumber: Int, pageSize: Int): Page<Ref<E>>
+
+    /**
+     * Returns a page of entity refs using offset-based pagination.
+     *
+     * This method executes two queries: a `SELECT COUNT(*)` to determine the total number of entities, and
+     * a query with OFFSET and LIMIT to fetch the refs for the requested page.
+     *
+     * @param pageable the pagination request specifying page number and page size.
+     * @return a page containing the ref results and pagination metadata.
+     * @since 1.10
+     */
+    fun pageRef(pageable: Pageable): Page<Ref<E>>
 
     // Slice methods.
 
@@ -2150,7 +2192,7 @@ interface EntityRepository<E, ID : Any> : Repository where E : Entity<ID> {
      * @return a slice containing the first page of results.
      * @since 1.9
      */
-    fun <V> slice(key: Metamodel.Key<E, V>, size: Int): Slice<E> = select().slice(key, size)
+    fun <V> slice(key: Metamodel.Key<E, V>, size: Int): Slice<E>
 
     /**
      * Returns the first slice of entities ordered by the specified key in descending order.
@@ -2163,7 +2205,7 @@ interface EntityRepository<E, ID : Any> : Repository where E : Entity<ID> {
      * @return a slice containing the first page of results in descending key order.
      * @since 1.9
      */
-    fun <V> sliceBefore(key: Metamodel.Key<E, V>, size: Int): Slice<E> = select().sliceBefore(key, size)
+    fun <V> sliceBefore(key: Metamodel.Key<E, V>, size: Int): Slice<E>
 
     /**
      * Returns the first slice of entity refs ordered by the specified key.
@@ -2173,7 +2215,7 @@ interface EntityRepository<E, ID : Any> : Repository where E : Entity<ID> {
      * @return a slice containing the first page of ref results.
      * @since 1.9
      */
-    fun <V> sliceRef(key: Metamodel.Key<E, V>, size: Int): Slice<Ref<E>> = selectRef().slice(key, size)
+    fun <V> sliceRef(key: Metamodel.Key<E, V>, size: Int): Slice<Ref<E>>
 
     /**
      * Returns the first slice of entity refs ordered by the specified key in descending order.
@@ -2186,7 +2228,7 @@ interface EntityRepository<E, ID : Any> : Repository where E : Entity<ID> {
      * @return a slice containing the first page of ref results in descending key order.
      * @since 1.9
      */
-    fun <V> sliceBeforeRef(key: Metamodel.Key<E, V>, size: Int): Slice<Ref<E>> = selectRef().sliceBefore(key, size)
+    fun <V> sliceBeforeRef(key: Metamodel.Key<E, V>, size: Int): Slice<Ref<E>>
 
     /**
      * Returns the first slice of entities ordered by the specified key, filtered by the given predicate.
@@ -2289,7 +2331,7 @@ interface EntityRepository<E, ID : Any> : Repository where E : Entity<ID> {
      * @return a slice containing the next page of results.
      * @since 1.9
      */
-    fun <V> sliceAfter(key: Metamodel.Key<E, V>, after: V, size: Int): Slice<E> = select().sliceAfter(key, after, size)
+    fun <V> sliceAfter(key: Metamodel.Key<E, V>, after: V, size: Int): Slice<E>
 
     /**
      * Returns the next slice of entity refs after the specified cursor value.
@@ -2300,7 +2342,7 @@ interface EntityRepository<E, ID : Any> : Repository where E : Entity<ID> {
      * @return a slice containing the next page of ref results.
      * @since 1.9
      */
-    fun <V> sliceAfterRef(key: Metamodel.Key<E, V>, after: V, size: Int): Slice<Ref<E>> = selectRef().sliceAfter(key, after, size)
+    fun <V> sliceAfterRef(key: Metamodel.Key<E, V>, after: V, size: Int): Slice<Ref<E>>
 
     /**
      * Returns the next slice of entities after the specified cursor value, filtered by the given predicate.
@@ -2359,7 +2401,7 @@ interface EntityRepository<E, ID : Any> : Repository where E : Entity<ID> {
      * @return a slice containing the previous page of results.
      * @since 1.9
      */
-    fun <V> sliceBefore(key: Metamodel.Key<E, V>, before: V, size: Int): Slice<E> = select().sliceBefore(key, before, size)
+    fun <V> sliceBefore(key: Metamodel.Key<E, V>, before: V, size: Int): Slice<E>
 
     /**
      * Returns the previous slice of entity refs before the specified cursor value.
@@ -2370,7 +2412,7 @@ interface EntityRepository<E, ID : Any> : Repository where E : Entity<ID> {
      * @return a slice containing the previous page of ref results.
      * @since 1.9
      */
-    fun <V> sliceBeforeRef(key: Metamodel.Key<E, V>, before: V, size: Int): Slice<Ref<E>> = selectRef().sliceBefore(key, before, size)
+    fun <V> sliceBeforeRef(key: Metamodel.Key<E, V>, before: V, size: Int): Slice<Ref<E>>
 
     /**
      * Returns the previous slice of entities before the specified cursor value, filtered by the given predicate.
@@ -2429,7 +2471,7 @@ interface EntityRepository<E, ID : Any> : Repository where E : Entity<ID> {
      * @return a slice containing the next page of results.
      * @since 1.9
      */
-    fun <V : Data> sliceAfter(key: Metamodel.Key<E, V>, after: Ref<V>, size: Int): Slice<E> = select().sliceAfter(key, after, size)
+    fun <V : Data> sliceAfter(key: Metamodel.Key<E, V>, after: Ref<V>, size: Int): Slice<E>
 
     /**
      * Returns the next slice of entity refs after the specified ref cursor value.
@@ -2440,7 +2482,7 @@ interface EntityRepository<E, ID : Any> : Repository where E : Entity<ID> {
      * @return a slice containing the next page of ref results.
      * @since 1.9
      */
-    fun <V : Data> sliceAfterRef(key: Metamodel.Key<E, V>, after: Ref<V>, size: Int): Slice<Ref<E>> = selectRef().sliceAfter(key, after, size)
+    fun <V : Data> sliceAfterRef(key: Metamodel.Key<E, V>, after: Ref<V>, size: Int): Slice<Ref<E>>
 
     /**
      * Returns the next slice of entities after the specified ref cursor value, filtered by the given predicate.
@@ -2499,7 +2541,7 @@ interface EntityRepository<E, ID : Any> : Repository where E : Entity<ID> {
      * @return a slice containing the previous page of results.
      * @since 1.9
      */
-    fun <V : Data> sliceBefore(key: Metamodel.Key<E, V>, before: Ref<V>, size: Int): Slice<E> = select().sliceBefore(key, before, size)
+    fun <V : Data> sliceBefore(key: Metamodel.Key<E, V>, before: Ref<V>, size: Int): Slice<E>
 
     /**
      * Returns the previous slice of entity refs before the specified ref cursor value.
@@ -2510,7 +2552,7 @@ interface EntityRepository<E, ID : Any> : Repository where E : Entity<ID> {
      * @return a slice containing the previous page of ref results.
      * @since 1.9
      */
-    fun <V : Data> sliceBeforeRef(key: Metamodel.Key<E, V>, before: Ref<V>, size: Int): Slice<Ref<E>> = selectRef().sliceBefore(key, before, size)
+    fun <V : Data> sliceBeforeRef(key: Metamodel.Key<E, V>, before: Ref<V>, size: Int): Slice<Ref<E>>
 
     /**
      * Returns the previous slice of entities before the specified ref cursor value, filtered by the given predicate.
@@ -2572,7 +2614,7 @@ interface EntityRepository<E, ID : Any> : Repository where E : Entity<ID> {
      * @return a slice containing the first page of results.
      * @since 1.9
      */
-    fun <V, S> slice(key: Metamodel.Key<E, V>, sort: Metamodel<E, S>, size: Int): Slice<E> = select().slice(key, sort, size)
+    fun <V, S> slice(key: Metamodel.Key<E, V>, sort: Metamodel<E, S>, size: Int): Slice<E>
 
     /**
      * Returns the first slice of entities ordered by a non-unique sort column with a unique tiebreaker, both in
@@ -2587,7 +2629,7 @@ interface EntityRepository<E, ID : Any> : Repository where E : Entity<ID> {
      * @return a slice containing the first page of results in descending order.
      * @since 1.9
      */
-    fun <V, S> sliceBefore(key: Metamodel.Key<E, V>, sort: Metamodel<E, S>, size: Int): Slice<E> = select().sliceBefore(key, sort, size)
+    fun <V, S> sliceBefore(key: Metamodel.Key<E, V>, sort: Metamodel<E, S>, size: Int): Slice<E>
 
     /**
      * Returns the next slice of entities after the specified composite cursor, using a non-unique sort column with a
@@ -2601,7 +2643,7 @@ interface EntityRepository<E, ID : Any> : Repository where E : Entity<ID> {
      * @return a slice containing the next page of results.
      * @since 1.9
      */
-    fun <V, S> sliceAfter(key: Metamodel.Key<E, V>, keyAfter: V, sort: Metamodel<E, S>, sortAfter: S, size: Int): Slice<E> = select().sliceAfter(key, keyAfter, sort, sortAfter, size)
+    fun <V, S> sliceAfter(key: Metamodel.Key<E, V>, keyAfter: V, sort: Metamodel<E, S>, sortAfter: S, size: Int): Slice<E>
 
     /**
      * Returns the previous slice of entities before the specified composite cursor, using a non-unique sort column
@@ -2615,7 +2657,7 @@ interface EntityRepository<E, ID : Any> : Repository where E : Entity<ID> {
      * @return a slice containing the previous page of results.
      * @since 1.9
      */
-    fun <V, S> sliceBefore(key: Metamodel.Key<E, V>, keyBefore: V, sort: Metamodel<E, S>, sortBefore: S, size: Int): Slice<E> = select().sliceBefore(key, keyBefore, sort, sortBefore, size)
+    fun <V, S> sliceBefore(key: Metamodel.Key<E, V>, keyBefore: V, sort: Metamodel<E, S>, sortBefore: S, size: Int): Slice<E>
 
     /**
      * Returns the next slice of entities after the specified composite cursor with a ref-based unique key, using a
@@ -2629,7 +2671,7 @@ interface EntityRepository<E, ID : Any> : Repository where E : Entity<ID> {
      * @return a slice containing the next page of results.
      * @since 1.9
      */
-    fun <V : Data, S> sliceAfter(key: Metamodel.Key<E, V>, keyAfter: Ref<V>, sort: Metamodel<E, S>, sortAfter: S, size: Int): Slice<E> = select().sliceAfter(key, keyAfter, sort, sortAfter, size)
+    fun <V : Data, S> sliceAfter(key: Metamodel.Key<E, V>, keyAfter: Ref<V>, sort: Metamodel<E, S>, sortAfter: S, size: Int): Slice<E>
 
     /**
      * Returns the previous slice of entities before the specified composite cursor with a ref-based unique key, using
@@ -2643,7 +2685,7 @@ interface EntityRepository<E, ID : Any> : Repository where E : Entity<ID> {
      * @return a slice containing the previous page of results.
      * @since 1.9
      */
-    fun <V : Data, S> sliceBefore(key: Metamodel.Key<E, V>, keyBefore: Ref<V>, sort: Metamodel<E, S>, sortBefore: S, size: Int): Slice<E> = select().sliceBefore(key, keyBefore, sort, sortBefore, size)
+    fun <V : Data, S> sliceBefore(key: Metamodel.Key<E, V>, keyBefore: Ref<V>, sort: Metamodel<E, S>, sortBefore: S, size: Int): Slice<E>
 
     /**
      * Returns the first slice of entity refs ordered by a non-unique sort column with a unique tiebreaker for stable
@@ -2655,7 +2697,7 @@ interface EntityRepository<E, ID : Any> : Repository where E : Entity<ID> {
      * @return a slice containing the first page of ref results.
      * @since 1.9
      */
-    fun <V, S> sliceRef(key: Metamodel.Key<E, V>, sort: Metamodel<E, S>, size: Int): Slice<Ref<E>> = selectRef().slice(key, sort, size)
+    fun <V, S> sliceRef(key: Metamodel.Key<E, V>, sort: Metamodel<E, S>, size: Int): Slice<Ref<E>>
 
     /**
      * Returns the first slice of entity refs ordered by a non-unique sort column with a unique tiebreaker, both in
@@ -2670,7 +2712,7 @@ interface EntityRepository<E, ID : Any> : Repository where E : Entity<ID> {
      * @return a slice containing the first page of ref results in descending order.
      * @since 1.9
      */
-    fun <V, S> sliceBeforeRef(key: Metamodel.Key<E, V>, sort: Metamodel<E, S>, size: Int): Slice<Ref<E>> = selectRef().sliceBefore(key, sort, size)
+    fun <V, S> sliceBeforeRef(key: Metamodel.Key<E, V>, sort: Metamodel<E, S>, size: Int): Slice<Ref<E>>
 
     /**
      * Returns the next slice of entity refs after the specified composite cursor, using a non-unique sort column with
@@ -2684,7 +2726,7 @@ interface EntityRepository<E, ID : Any> : Repository where E : Entity<ID> {
      * @return a slice containing the next page of ref results.
      * @since 1.9
      */
-    fun <V, S> sliceAfterRef(key: Metamodel.Key<E, V>, keyAfter: V, sort: Metamodel<E, S>, sortAfter: S, size: Int): Slice<Ref<E>> = selectRef().sliceAfter(key, keyAfter, sort, sortAfter, size)
+    fun <V, S> sliceAfterRef(key: Metamodel.Key<E, V>, keyAfter: V, sort: Metamodel<E, S>, sortAfter: S, size: Int): Slice<Ref<E>>
 
     /**
      * Returns the previous slice of entity refs before the specified composite cursor, using a non-unique sort column
@@ -2698,7 +2740,7 @@ interface EntityRepository<E, ID : Any> : Repository where E : Entity<ID> {
      * @return a slice containing the previous page of ref results.
      * @since 1.9
      */
-    fun <V, S> sliceBeforeRef(key: Metamodel.Key<E, V>, keyBefore: V, sort: Metamodel<E, S>, sortBefore: S, size: Int): Slice<Ref<E>> = selectRef().sliceBefore(key, keyBefore, sort, sortBefore, size)
+    fun <V, S> sliceBeforeRef(key: Metamodel.Key<E, V>, keyBefore: V, sort: Metamodel<E, S>, sortBefore: S, size: Int): Slice<Ref<E>>
 
     /**
      * Returns the next slice of entity refs after the specified composite cursor with a ref-based unique key, using a
@@ -2712,7 +2754,7 @@ interface EntityRepository<E, ID : Any> : Repository where E : Entity<ID> {
      * @return a slice containing the next page of ref results.
      * @since 1.9
      */
-    fun <V : Data, S> sliceAfterRef(key: Metamodel.Key<E, V>, keyAfter: Ref<V>, sort: Metamodel<E, S>, sortAfter: S, size: Int): Slice<Ref<E>> = selectRef().sliceAfter(key, keyAfter, sort, sortAfter, size)
+    fun <V : Data, S> sliceAfterRef(key: Metamodel.Key<E, V>, keyAfter: Ref<V>, sort: Metamodel<E, S>, sortAfter: S, size: Int): Slice<Ref<E>>
 
     /**
      * Returns the previous slice of entity refs before the specified composite cursor with a ref-based unique key,
@@ -2726,5 +2768,5 @@ interface EntityRepository<E, ID : Any> : Repository where E : Entity<ID> {
      * @return a slice containing the previous page of ref results.
      * @since 1.9
      */
-    fun <V : Data, S> sliceBeforeRef(key: Metamodel.Key<E, V>, keyBefore: Ref<V>, sort: Metamodel<E, S>, sortBefore: S, size: Int): Slice<Ref<E>> = selectRef().sliceBefore(key, keyBefore, sort, sortBefore, size)
+    fun <V : Data, S> sliceBeforeRef(key: Metamodel.Key<E, V>, keyBefore: Ref<V>, sort: Metamodel<E, S>, sortBefore: S, size: Int): Slice<Ref<E>>
 }

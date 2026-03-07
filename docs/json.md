@@ -19,12 +19,12 @@ Works with both Kotlin and Java projects. Two variants are available, matching t
 <dependency>
     <groupId>st.orm</groupId>
     <artifactId>storm-jackson2</artifactId>
-    <version>1.9.1</version>
+    <version>1.10.0</version>
 </dependency>
 ```
 
 ```groovy
-implementation 'st.orm:storm-jackson2:1.9.1'
+implementation 'st.orm:storm-jackson2:1.10.0'
 ```
 
 **Jackson 3** (requires Jackson 3.0+):
@@ -33,12 +33,12 @@ implementation 'st.orm:storm-jackson2:1.9.1'
 <dependency>
     <groupId>st.orm</groupId>
     <artifactId>storm-jackson3</artifactId>
-    <version>1.9.1</version>
+    <version>1.10.0</version>
 </dependency>
 ```
 
 ```groovy
-implementation 'st.orm:storm-jackson3:1.9.1'
+implementation 'st.orm:storm-jackson3:1.10.0'
 ```
 
 The two modules are mutually exclusive on the classpath. Both provide the same public API (`st.orm.jackson` package), so switching between them requires only changing the Maven dependency.
@@ -53,7 +53,7 @@ plugins {
 }
 
 dependencies {
-    implementation("st.orm:storm-kotlinx-serialization:1.9.1")
+    implementation("st.orm:storm-kotlinx-serialization:1.10.0")
 }
 ```
 

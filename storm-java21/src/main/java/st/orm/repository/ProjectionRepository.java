@@ -22,6 +22,8 @@ import java.util.stream.Stream;
 import st.orm.Data;
 import st.orm.Metamodel;
 import st.orm.NoResultException;
+import st.orm.Page;
+import st.orm.Pageable;
 import st.orm.PersistenceException;
 import st.orm.Projection;
 import st.orm.Ref;
@@ -284,6 +286,62 @@ public interface ProjectionRepository<P extends Projection<ID>, ID> extends Repo
      */
     <V extends Data> P getByRef(@Nonnull Metamodel.Key<P, V> key, @Nonnull Ref<V> value);
 
+    // Page methods.
+
+    /**
+     * Returns a page of projections using offset-based pagination.
+     *
+     * <p>This method executes two queries: a {@code SELECT COUNT(*)} to determine the total number of projections, and
+     * a query with OFFSET and LIMIT to fetch the content for the requested page.</p>
+     *
+     * <p>Page numbers are zero-based: pass {@code 0} for the first page.</p>
+     *
+     * @param pageNumber the zero-based page index.
+     * @param pageSize the maximum number of projections per page.
+     * @return a page containing the results and pagination metadata.
+     * @since 1.10
+     */
+    Page<P> page(int pageNumber, int pageSize);
+
+    /**
+     * Returns a page of projections using offset-based pagination.
+     *
+     * <p>This method executes two queries: a {@code SELECT COUNT(*)} to determine the total number of projections, and
+     * a query with OFFSET and LIMIT to fetch the content for the requested page.</p>
+     *
+     * <p>Use {@link Pageable#ofSize(int)} for the first page, then navigate with
+     * {@link Page#nextPageable()} or {@link Page#previousPageable()}.</p>
+     *
+     * @param pageable the pagination request specifying page number and page size.
+     * @return a page containing the results and pagination metadata.
+     * @since 1.10
+     */
+    Page<P> page(@Nonnull Pageable pageable);
+
+    /**
+     * Returns a page of projection refs using offset-based pagination.
+     *
+     * <p>Page numbers are zero-based: pass {@code 0} for the first page.</p>
+     *
+     * @param pageNumber the zero-based page index.
+     * @param pageSize the maximum number of refs per page.
+     * @return a page containing the ref results and pagination metadata.
+     * @since 1.10
+     */
+    Page<Ref<P>> pageRef(int pageNumber, int pageSize);
+
+    /**
+     * Returns a page of projection refs using offset-based pagination.
+     *
+     * <p>This method executes two queries: a {@code SELECT COUNT(*)} to determine the total number of projections, and
+     * a query with OFFSET and LIMIT to fetch the refs for the requested page.</p>
+     *
+     * @param pageable the pagination request specifying page number and page size.
+     * @return a page containing the ref results and pagination metadata.
+     * @since 1.10
+     */
+    Page<Ref<P>> pageRef(@Nonnull Pageable pageable);
+
     // Slice methods.
 
     /**
@@ -299,9 +357,7 @@ public interface ProjectionRepository<P extends Projection<ID>, ID> extends Repo
      * @throws PersistenceException if the query fails due to underlying database issues.
      * @since 1.9
      */
-    default <V> Slice<P> slice(@Nonnull Metamodel.Key<P, V> key, int size) {
-        return select().slice(key, size);
-    }
+    <V> Slice<P> slice(@Nonnull Metamodel.Key<P, V> key, int size);
 
     /**
      * Returns the first slice of projections ordered by the specified key in descending order.
@@ -316,9 +372,7 @@ public interface ProjectionRepository<P extends Projection<ID>, ID> extends Repo
      * @throws PersistenceException if the query fails due to underlying database issues.
      * @since 1.9
      */
-    default <V> Slice<P> sliceBefore(@Nonnull Metamodel.Key<P, V> key, int size) {
-        return select().sliceBefore(key, size);
-    }
+    <V> Slice<P> sliceBefore(@Nonnull Metamodel.Key<P, V> key, int size);
 
     /**
      * Returns the first slice of projection refs ordered by the specified key in descending order.
@@ -333,9 +387,7 @@ public interface ProjectionRepository<P extends Projection<ID>, ID> extends Repo
      * @throws PersistenceException if the query fails due to underlying database issues.
      * @since 1.9
      */
-    default <V> Slice<Ref<P>> sliceBeforeRef(@Nonnull Metamodel.Key<P, V> key, int size) {
-        return selectRef().sliceBefore(key, size);
-    }
+    <V> Slice<Ref<P>> sliceBeforeRef(@Nonnull Metamodel.Key<P, V> key, int size);
 
     /**
      * Returns the next slice of projections after the specified cursor value.
@@ -351,9 +403,7 @@ public interface ProjectionRepository<P extends Projection<ID>, ID> extends Repo
      * @throws PersistenceException if the query fails due to underlying database issues.
      * @since 1.9
      */
-    default <V> Slice<P> sliceAfter(@Nonnull Metamodel.Key<P, V> key, @Nonnull V after, int size) {
-        return select().sliceAfter(key, after, size);
-    }
+    <V> Slice<P> sliceAfter(@Nonnull Metamodel.Key<P, V> key, @Nonnull V after, int size);
 
     /**
      * Returns the previous slice of projections before the specified cursor value.
@@ -370,9 +420,7 @@ public interface ProjectionRepository<P extends Projection<ID>, ID> extends Repo
      * @throws PersistenceException if the query fails due to underlying database issues.
      * @since 1.9
      */
-    default <V> Slice<P> sliceBefore(@Nonnull Metamodel.Key<P, V> key, @Nonnull V before, int size) {
-        return select().sliceBefore(key, before, size);
-    }
+    <V> Slice<P> sliceBefore(@Nonnull Metamodel.Key<P, V> key, @Nonnull V before, int size);
 
     /**
      * Returns the first slice of projection refs ordered by the specified key.
@@ -389,9 +437,7 @@ public interface ProjectionRepository<P extends Projection<ID>, ID> extends Repo
      * @throws PersistenceException if the query fails due to underlying database issues.
      * @since 1.9
      */
-    default <V> Slice<Ref<P>> sliceRef(@Nonnull Metamodel.Key<P, V> key, int size) {
-        return selectRef().slice(key, size);
-    }
+    <V> Slice<Ref<P>> sliceRef(@Nonnull Metamodel.Key<P, V> key, int size);
 
     /**
      * Returns the next slice of projection refs after the specified cursor value.
@@ -408,9 +454,7 @@ public interface ProjectionRepository<P extends Projection<ID>, ID> extends Repo
      * @throws PersistenceException if the query fails due to underlying database issues.
      * @since 1.9
      */
-    default <V> Slice<Ref<P>> sliceAfterRef(@Nonnull Metamodel.Key<P, V> key, @Nonnull V after, int size) {
-        return selectRef().sliceAfter(key, after, size);
-    }
+    <V> Slice<Ref<P>> sliceAfterRef(@Nonnull Metamodel.Key<P, V> key, @Nonnull V after, int size);
 
     /**
      * Returns the previous slice of projection refs before the specified cursor value.
@@ -427,9 +471,7 @@ public interface ProjectionRepository<P extends Projection<ID>, ID> extends Repo
      * @throws PersistenceException if the query fails due to underlying database issues.
      * @since 1.9
      */
-    default <V> Slice<Ref<P>> sliceBeforeRef(@Nonnull Metamodel.Key<P, V> key, @Nonnull V before, int size) {
-        return selectRef().sliceBefore(key, before, size);
-    }
+    <V> Slice<Ref<P>> sliceBeforeRef(@Nonnull Metamodel.Key<P, V> key, @Nonnull V before, int size);
 
     /**
      * Returns the next slice of projections after the specified ref cursor value.
@@ -445,9 +487,7 @@ public interface ProjectionRepository<P extends Projection<ID>, ID> extends Repo
      * @throws PersistenceException if the query fails due to underlying database issues.
      * @since 1.9
      */
-    default <V extends Data> Slice<P> sliceAfter(@Nonnull Metamodel.Key<P, V> key, @Nonnull Ref<V> after, int size) {
-        return select().sliceAfter(key, after, size);
-    }
+    <V extends Data> Slice<P> sliceAfter(@Nonnull Metamodel.Key<P, V> key, @Nonnull Ref<V> after, int size);
 
     /**
      * Returns the previous slice of projections before the specified ref cursor value.
@@ -463,9 +503,7 @@ public interface ProjectionRepository<P extends Projection<ID>, ID> extends Repo
      * @throws PersistenceException if the query fails due to underlying database issues.
      * @since 1.9
      */
-    default <V extends Data> Slice<P> sliceBefore(@Nonnull Metamodel.Key<P, V> key, @Nonnull Ref<V> before, int size) {
-        return select().sliceBefore(key, before, size);
-    }
+    <V extends Data> Slice<P> sliceBefore(@Nonnull Metamodel.Key<P, V> key, @Nonnull Ref<V> before, int size);
 
     /**
      * Returns the next slice of projection refs after the specified ref cursor value.
@@ -481,9 +519,7 @@ public interface ProjectionRepository<P extends Projection<ID>, ID> extends Repo
      * @throws PersistenceException if the query fails due to underlying database issues.
      * @since 1.9
      */
-    default <V extends Data> Slice<Ref<P>> sliceAfterRef(@Nonnull Metamodel.Key<P, V> key, @Nonnull Ref<V> after, int size) {
-        return selectRef().sliceAfter(key, after, size);
-    }
+    <V extends Data> Slice<Ref<P>> sliceAfterRef(@Nonnull Metamodel.Key<P, V> key, @Nonnull Ref<V> after, int size);
 
     /**
      * Returns the previous slice of projection refs before the specified ref cursor value.
@@ -499,9 +535,7 @@ public interface ProjectionRepository<P extends Projection<ID>, ID> extends Repo
      * @throws PersistenceException if the query fails due to underlying database issues.
      * @since 1.9
      */
-    default <V extends Data> Slice<Ref<P>> sliceBeforeRef(@Nonnull Metamodel.Key<P, V> key, @Nonnull Ref<V> before, int size) {
-        return selectRef().sliceBefore(key, before, size);
-    }
+    <V extends Data> Slice<Ref<P>> sliceBeforeRef(@Nonnull Metamodel.Key<P, V> key, @Nonnull Ref<V> before, int size);
 
     // Composite keyset slice methods.
 
@@ -519,9 +553,7 @@ public interface ProjectionRepository<P extends Projection<ID>, ID> extends Repo
      * @return a slice containing the first page of results.
      * @since 1.9
      */
-    default <V, S> Slice<P> slice(@Nonnull Metamodel.Key<P, V> key, @Nonnull Metamodel<P, S> sort, int size) {
-        return select().slice(key, sort, size);
-    }
+    <V, S> Slice<P> slice(@Nonnull Metamodel.Key<P, V> key, @Nonnull Metamodel<P, S> sort, int size);
 
     /**
      * Returns the first slice of projections ordered by a non-unique sort column with a unique tiebreaker, both in
@@ -539,9 +571,7 @@ public interface ProjectionRepository<P extends Projection<ID>, ID> extends Repo
      * @return a slice containing the first page of results in descending order.
      * @since 1.9
      */
-    default <V, S> Slice<P> sliceBefore(@Nonnull Metamodel.Key<P, V> key, @Nonnull Metamodel<P, S> sort, int size) {
-        return select().sliceBefore(key, sort, size);
-    }
+    <V, S> Slice<P> sliceBefore(@Nonnull Metamodel.Key<P, V> key, @Nonnull Metamodel<P, S> sort, int size);
 
     /**
      * Returns the first slice of projection refs ordered by a non-unique sort column with a unique tiebreaker, both
@@ -558,9 +588,7 @@ public interface ProjectionRepository<P extends Projection<ID>, ID> extends Repo
      * @return a slice containing the first page of ref results in descending order.
      * @since 1.9
      */
-    default <V, S> Slice<Ref<P>> sliceBeforeRef(@Nonnull Metamodel.Key<P, V> key, @Nonnull Metamodel<P, S> sort, int size) {
-        return selectRef().sliceBefore(key, sort, size);
-    }
+    <V, S> Slice<Ref<P>> sliceBeforeRef(@Nonnull Metamodel.Key<P, V> key, @Nonnull Metamodel<P, S> sort, int size);
 
     /**
      * Returns the next slice of projections after the specified composite cursor, using a non-unique sort column
@@ -576,10 +604,8 @@ public interface ProjectionRepository<P extends Projection<ID>, ID> extends Repo
      * @return a slice containing the next page of results.
      * @since 1.9
      */
-    default <V, S> Slice<P> sliceAfter(@Nonnull Metamodel.Key<P, V> key, @Nonnull V keyAfter,
-                                       @Nonnull Metamodel<P, S> sort, @Nonnull S sortAfter, int size) {
-        return select().sliceAfter(key, keyAfter, sort, sortAfter, size);
-    }
+    <V, S> Slice<P> sliceAfter(@Nonnull Metamodel.Key<P, V> key, @Nonnull V keyAfter,
+                               @Nonnull Metamodel<P, S> sort, @Nonnull S sortAfter, int size);
 
     /**
      * Returns the previous slice of projections before the specified composite cursor, using a non-unique sort column
@@ -595,10 +621,8 @@ public interface ProjectionRepository<P extends Projection<ID>, ID> extends Repo
      * @return a slice containing the previous page of results.
      * @since 1.9
      */
-    default <V, S> Slice<P> sliceBefore(@Nonnull Metamodel.Key<P, V> key, @Nonnull V keyBefore,
-                                        @Nonnull Metamodel<P, S> sort, @Nonnull S sortBefore, int size) {
-        return select().sliceBefore(key, keyBefore, sort, sortBefore, size);
-    }
+    <V, S> Slice<P> sliceBefore(@Nonnull Metamodel.Key<P, V> key, @Nonnull V keyBefore,
+                                @Nonnull Metamodel<P, S> sort, @Nonnull S sortBefore, int size);
 
     /**
      * Returns the next slice of projections after the specified composite cursor with a ref unique key, using a
@@ -614,11 +638,9 @@ public interface ProjectionRepository<P extends Projection<ID>, ID> extends Repo
      * @return a slice containing the next page of results.
      * @since 1.9
      */
-    default <V extends Data, S> Slice<P> sliceAfter(@Nonnull Metamodel.Key<P, V> key, @Nonnull Ref<V> keyAfter,
-                                                    @Nonnull Metamodel<P, S> sort, @Nonnull S sortAfter,
-                                                    int size) {
-        return select().sliceAfter(key, keyAfter, sort, sortAfter, size);
-    }
+    <V extends Data, S> Slice<P> sliceAfter(@Nonnull Metamodel.Key<P, V> key, @Nonnull Ref<V> keyAfter,
+                                            @Nonnull Metamodel<P, S> sort, @Nonnull S sortAfter,
+                                            int size);
 
     /**
      * Returns the previous slice of projections before the specified composite cursor with a ref unique key, using a
@@ -634,11 +656,9 @@ public interface ProjectionRepository<P extends Projection<ID>, ID> extends Repo
      * @return a slice containing the previous page of results.
      * @since 1.9
      */
-    default <V extends Data, S> Slice<P> sliceBefore(@Nonnull Metamodel.Key<P, V> key, @Nonnull Ref<V> keyBefore,
-                                                     @Nonnull Metamodel<P, S> sort, @Nonnull S sortBefore,
-                                                     int size) {
-        return select().sliceBefore(key, keyBefore, sort, sortBefore, size);
-    }
+    <V extends Data, S> Slice<P> sliceBefore(@Nonnull Metamodel.Key<P, V> key, @Nonnull Ref<V> keyBefore,
+                                             @Nonnull Metamodel<P, S> sort, @Nonnull S sortBefore,
+                                             int size);
 
     /**
      * Returns the first slice of projection refs ordered by a non-unique sort column with a unique tiebreaker.
@@ -651,9 +671,7 @@ public interface ProjectionRepository<P extends Projection<ID>, ID> extends Repo
      * @return a slice containing the first page of ref results.
      * @since 1.9
      */
-    default <V, S> Slice<Ref<P>> sliceRef(@Nonnull Metamodel.Key<P, V> key, @Nonnull Metamodel<P, S> sort, int size) {
-        return selectRef().slice(key, sort, size);
-    }
+    <V, S> Slice<Ref<P>> sliceRef(@Nonnull Metamodel.Key<P, V> key, @Nonnull Metamodel<P, S> sort, int size);
 
     /**
      * Returns the next slice of projection refs after the specified composite cursor, using a non-unique sort column
@@ -669,10 +687,8 @@ public interface ProjectionRepository<P extends Projection<ID>, ID> extends Repo
      * @return a slice containing the next page of ref results.
      * @since 1.9
      */
-    default <V, S> Slice<Ref<P>> sliceAfterRef(@Nonnull Metamodel.Key<P, V> key, @Nonnull V keyAfter,
-                                               @Nonnull Metamodel<P, S> sort, @Nonnull S sortAfter, int size) {
-        return selectRef().sliceAfter(key, keyAfter, sort, sortAfter, size);
-    }
+    <V, S> Slice<Ref<P>> sliceAfterRef(@Nonnull Metamodel.Key<P, V> key, @Nonnull V keyAfter,
+                                       @Nonnull Metamodel<P, S> sort, @Nonnull S sortAfter, int size);
 
     /**
      * Returns the previous slice of projection refs before the specified composite cursor, using a non-unique sort
@@ -688,10 +704,8 @@ public interface ProjectionRepository<P extends Projection<ID>, ID> extends Repo
      * @return a slice containing the previous page of ref results.
      * @since 1.9
      */
-    default <V, S> Slice<Ref<P>> sliceBeforeRef(@Nonnull Metamodel.Key<P, V> key, @Nonnull V keyBefore,
-                                                @Nonnull Metamodel<P, S> sort, @Nonnull S sortBefore, int size) {
-        return selectRef().sliceBefore(key, keyBefore, sort, sortBefore, size);
-    }
+    <V, S> Slice<Ref<P>> sliceBeforeRef(@Nonnull Metamodel.Key<P, V> key, @Nonnull V keyBefore,
+                                        @Nonnull Metamodel<P, S> sort, @Nonnull S sortBefore, int size);
 
     /**
      * Returns the next slice of projection refs after the specified composite cursor with a ref unique key, using a
@@ -707,11 +721,9 @@ public interface ProjectionRepository<P extends Projection<ID>, ID> extends Repo
      * @return a slice containing the next page of ref results.
      * @since 1.9
      */
-    default <V extends Data, S> Slice<Ref<P>> sliceAfterRef(@Nonnull Metamodel.Key<P, V> key, @Nonnull Ref<V> keyAfter,
-                                                            @Nonnull Metamodel<P, S> sort, @Nonnull S sortAfter,
-                                                            int size) {
-        return selectRef().sliceAfter(key, keyAfter, sort, sortAfter, size);
-    }
+    <V extends Data, S> Slice<Ref<P>> sliceAfterRef(@Nonnull Metamodel.Key<P, V> key, @Nonnull Ref<V> keyAfter,
+                                                    @Nonnull Metamodel<P, S> sort, @Nonnull S sortAfter,
+                                                    int size);
 
     /**
      * Returns the previous slice of projection refs before the specified composite cursor with a ref unique key,
@@ -727,11 +739,9 @@ public interface ProjectionRepository<P extends Projection<ID>, ID> extends Repo
      * @return a slice containing the previous page of ref results.
      * @since 1.9
      */
-    default <V extends Data, S> Slice<Ref<P>> sliceBeforeRef(@Nonnull Metamodel.Key<P, V> key, @Nonnull Ref<V> keyBefore,
-                                                             @Nonnull Metamodel<P, S> sort, @Nonnull S sortBefore,
-                                                             int size) {
-        return selectRef().sliceBefore(key, keyBefore, sort, sortBefore, size);
-    }
+    <V extends Data, S> Slice<Ref<P>> sliceBeforeRef(@Nonnull Metamodel.Key<P, V> key, @Nonnull Ref<V> keyBefore,
+                                                     @Nonnull Metamodel<P, S> sort, @Nonnull S sortBefore,
+                                                     int size);
 
     // List based methods.
 

@@ -359,37 +359,31 @@ public class SoftDeleteGuard implements EntityCallback<Customer> {
 
 ## Pagination
 
-There are two common approaches to pagination: offset-based (using `LIMIT` and `OFFSET`) and keyset-based (using a cursor). Offset-based pagination is simpler but degrades on large offsets; keyset pagination is consistent regardless of the page depth.
+Storm provides built-in types for both offset-based and keyset-based pagination, so you do not need to define your own page wrappers or write raw `LIMIT`/`OFFSET` queries.
 
 ### Offset-Based Pagination
+
+Use the `page()` method on any entity or projection repository. Storm executes the data query and count query automatically, returning a `Page` that includes the result list and total count.
 
 <Tabs groupId="language">
 <TabItem value="kotlin" label="Kotlin" default>
 
 ```kotlin
-data class Page<T>(
-    val content: List<T>,
-    val pageNumber: Int,
-    val pageSize: Int,
-    val totalElements: Long
-) {
-    val totalPages: Int get() = ((totalElements + pageSize - 1) / pageSize).toInt()
-    val hasNext: Boolean get() = pageNumber < totalPages - 1
+// First page of 20 users (page numbers are zero-based)
+val page: Page<User> = userRepository.page(0, 20)
+
+// With sort order using Pageable
+val pageable = Pageable.ofSize(20).sortBy(User_.name)
+val sortedPage: Page<User> = userRepository.page(pageable)
+
+// Navigate forward
+if (sortedPage.hasNext()) {
+    val nextPage = userRepository.page(sortedPage.nextPageable())
 }
 
-fun findUsersPage(pageNumber: Int, pageSize: Int): Page<User> {
-    val offset = pageNumber * pageSize
-
-    val content = orm.query("""
-        SELECT ${User::class}
-        FROM ${User::class}
-        ORDER BY ${User_.name}
-        LIMIT $pageSize OFFSET $offset
-    """).getResultList(User::class)
-
-    val totalElements = orm.entity(User::class).select().getResultCount()
-
-    return Page(content, pageNumber, pageSize, totalElements)
+// Navigate backward
+if (sortedPage.hasPrevious()) {
+    val previousPage = userRepository.page(sortedPage.previousPageable())
 }
 ```
 
@@ -397,25 +391,53 @@ fun findUsersPage(pageNumber: Int, pageSize: Int): Page<User> {
 <TabItem value="java" label="Java">
 
 ```java
-public record Page<T>(List<T> content, int pageNumber, int pageSize, long totalElements) {
-    public int totalPages() { return (int) ((totalElements + pageSize - 1) / pageSize); }
-    public boolean hasNext() { return pageNumber < totalPages() - 1; }
+// First page of 20 users (page numbers are zero-based)
+Page<User> page = userRepository.page(0, 20);
+
+// With sort order using Pageable
+Pageable pageable = Pageable.ofSize(20).sortBy(User_.name);
+Page<User> sortedPage = userRepository.page(pageable);
+
+// Navigate forward
+if (sortedPage.hasNext()) {
+    Page<User> nextPage = userRepository.page(sortedPage.nextPageable());
 }
 
-public Page<User> findUsersPage(int pageNumber, int pageSize) {
-    int offset = pageNumber * pageSize;
-
-    List<User> content = orm.query(RAW."""
-        SELECT \{User.class}
-        FROM \{User.class}
-        ORDER BY \{User_.name}
-        LIMIT \{pageSize} OFFSET \{offset}
-    """).getResultList(User.class);
-
-    long totalElements = orm.entity(User.class).select().getResultCount();
-
-    return new Page<>(content, pageNumber, pageSize, totalElements);
+// Navigate backward
+if (sortedPage.hasPrevious()) {
+    Page<User> previousPage = userRepository.page(sortedPage.previousPageable());
 }
+```
+
+</TabItem>
+</Tabs>
+
+The `Page` record carries all the metadata you need for building pagination controls:
+
+| Field / Method | Description |
+|---|---|
+| `content` | List of results for the current page |
+| `totalCount` | Total matching rows across all pages |
+| `pageNumber()` | Zero-based index of the current page |
+| `pageSize()` | Maximum elements per page |
+| `totalPages()` | Computed total number of pages |
+| `hasNext()` / `hasPrevious()` | Navigation checks |
+| `nextPageable()` / `previousPageable()` | Returns a `Pageable` for the adjacent page |
+
+To load only primary keys instead of full entities, use `pageRef()`:
+
+<Tabs groupId="language">
+<TabItem value="kotlin" label="Kotlin" default>
+
+```kotlin
+val refPage: Page<Ref<User>> = userRepository.pageRef(0, 20)
+```
+
+</TabItem>
+<TabItem value="java" label="Java">
+
+```java
+Page<Ref<User>> refPage = userRepository.pageRef(0, 20);
 ```
 
 </TabItem>
@@ -423,91 +445,54 @@ public Page<User> findUsersPage(int pageNumber, int pageSize) {
 
 ### Keyset-Based Pagination
 
-Keyset pagination uses the last row's sort key as the starting point for the next page. This avoids the performance degradation of large offsets:
+Use the `slice()`, `sliceAfter()`, and `sliceBefore()` methods on any entity repository. These use a unique column value (typically the primary key) as a cursor, which lets the database seek directly to the correct position using an index.
 
 <Tabs groupId="language">
 <TabItem value="kotlin" label="Kotlin" default>
 
 ```kotlin
-data class KeysetPage<T>(
-    val content: List<T>,
-    val nextCursor: String?,     // null if no more pages
-    val pageSize: Int
-) {
-    val hasNext: Boolean get() = nextCursor != null
-}
+// First page of 20 users ordered by ID
+val page1: Slice<User> = userRepository.slice(User_.id, 20)
 
-fun findUsersAfter(cursor: String?, pageSize: Int): KeysetPage<User> {
-    val content = if (cursor != null) {
-        orm.query("""
-            SELECT ${User::class}
-            FROM ${User::class}
-            WHERE ${User_.name} > $cursor
-            ORDER BY ${User_.name}
-            LIMIT $pageSize
-        """).getResultList(User::class)
-    } else {
-        orm.query("""
-            SELECT ${User::class}
-            FROM ${User::class}
-            ORDER BY ${User_.name}
-            LIMIT $pageSize
-        """).getResultList(User::class)
-    }
+// Next page using the last ID as cursor
+val page2: Slice<User> = userRepository.sliceAfter(User_.id, page1.content.last().id, 20)
 
-    val nextCursor = if (content.size == pageSize) content.last().name else null
-
-    return KeysetPage(content, nextCursor, pageSize)
-}
+// Previous page before a known cursor
+val previous: Slice<User> = userRepository.sliceBefore(User_.id, someId, 20)
 ```
 
 </TabItem>
 <TabItem value="java" label="Java">
 
 ```java
-public record KeysetPage<T>(List<T> content, String nextCursor, int pageSize) {
-    public boolean hasNext() { return nextCursor != null; }
-}
+// First page of 20 users ordered by ID
+Slice<User> page1 = userRepository.slice(User_.id, 20);
 
-public KeysetPage<User> findUsersAfter(String cursor, int pageSize) {
-    List<User> content;
-    if (cursor != null) {
-        content = orm.query(RAW."""
-            SELECT \{User.class}
-            FROM \{User.class}
-            WHERE \{User_.name} > \{cursor}
-            ORDER BY \{User_.name}
-            LIMIT \{pageSize}
-        """).getResultList(User.class);
-    } else {
-        content = orm.query(RAW."""
-            SELECT \{User.class}
-            FROM \{User.class}
-            ORDER BY \{User_.name}
-            LIMIT \{pageSize}
-        """).getResultList(User.class);
-    }
+// Next page using the last ID as cursor
+User last = page1.content().getLast();
+Slice<User> page2 = userRepository.sliceAfter(User_.id, last.id(), 20);
 
-    String nextCursor = content.size() == pageSize
-        ? content.getLast().name()
-        : null;
-
-    return new KeysetPage<>(content, nextCursor, pageSize);
-}
+// Previous page before a known cursor
+Slice<User> previous = userRepository.sliceBefore(User_.id, someId, 20);
 ```
 
 </TabItem>
 </Tabs>
 
+Each method returns a `Slice` containing the page content and a `hasNext` flag. See [Repositories: Keyset Pagination](repositories.md#keyset-pagination) for the full API, including sort overloads, filtering, and ref variants.
+
 ### Choosing Between the Two
 
-| Factor | Offset-Based | Keyset-Based |
+| Factor | Offset-Based (`page`) | Keyset-Based (`slice`) |
 |---|---|---|
 | Implementation complexity | Simple | Moderate |
 | Jump to arbitrary page | Yes | No (sequential only) |
 | Performance at page 1 | Good | Good |
-| Performance at page 1000 | Degrades | Consistent |
+| Performance at page 1,000 | Degrades (database must skip rows) | Consistent (index seek) |
 | Handles concurrent inserts | Rows may shift between pages | Stable cursor |
+| Total element count | Included in `Page` | Not available in `Slice` |
+
+Use offset-based pagination when you need random page access or a total count (for example, displaying "Page 3 of 12" in a UI). Use keyset pagination when you need consistent performance over deep result sets or when the data changes frequently between requests.
 
 ---
 

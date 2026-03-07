@@ -857,6 +857,81 @@ interface QueryBuilder<T : Data, R, ID> {
     fun prepare(): PreparedQuery = build().prepare()
 
     //
+    // Page-based pagination.
+    //
+
+    /**
+     * Executes the query and returns a [Page] of results using offset-based pagination.
+     *
+     * This method executes two queries: one to count the total number of matching results (without offset or
+     * limit), and one to fetch the content for the requested page. The caller is responsible for adding ORDER BY
+     * clauses to ensure deterministic ordering across pages.
+     *
+     * Page numbers are zero-based: pass `0` for the first page.
+     *
+     * @param pageNumber the zero-based page index (must not be negative).
+     * @param pageSize the maximum number of results per page (must be positive).
+     * @return a page containing the results and pagination metadata.
+     * @throws IllegalArgumentException if [pageNumber] is negative or [pageSize] is not positive.
+     * @since 1.10
+     */
+    fun page(pageNumber: Int, pageSize: Int): Page<R> = page(Pageable.of(pageNumber, pageSize))
+
+    /**
+     * Executes the query and returns a [Page] of results using offset-based pagination.
+     *
+     * This method executes two queries: one to count the total number of matching results (without offset or
+     * limit), and one to fetch the content for the requested page. Sort orders can be specified either through the
+     * pageable or through explicit `orderBy` calls on the query builder, but not both. If both are present,
+     * a [PersistenceException] is thrown.
+     *
+     * Use [Pageable.ofSize] for the first page, then navigate with
+     * [Page.nextPageable] or [Page.previousPageable].
+     *
+     * @param pageable the pagination request specifying page number and page size.
+     * @return a page containing the results and pagination metadata.
+     * @throws PersistenceException if the pageable has sort orders and the query builder has explicit orderBy calls.
+     * @since 1.10
+     */
+    fun page(pageable: Pageable): Page<R> = page(pageable, resultCount)
+
+    /**
+     * Executes the query and returns a [Page] of results using offset-based pagination with a pre-computed
+     * total count.
+     *
+     * This method applies the sort orders from the pageable, then fetches the content for the requested page
+     * using the provided total count instead of executing a separate count query. This is useful when the total
+     * count is already known (for example, cached from a previous request or obtained from an external source),
+     * avoiding a redundant `COUNT` query.
+     *
+     * Sort orders can be specified either through the pageable or through explicit `orderBy` calls on the query
+     * builder, but not both. If both are present, a [PersistenceException] is thrown.
+     *
+     * @param pageable the pagination request specifying page number and page size.
+     * @param totalCount the pre-computed total number of matching results.
+     * @return a page containing the results and pagination metadata.
+     * @throws PersistenceException if the pageable has sort orders and the query builder has explicit orderBy calls.
+     * @since 1.10
+     */
+    fun page(pageable: Pageable, totalCount: Long): Page<R> {
+        // Forbid combining explicit orderBy with Pageable sort orders for consistency with slice, which also
+        // manages ORDER BY internally and forbids explicit orderBy calls.
+        if (hasOrderBy() && pageable.orders().isNotEmpty()) {
+            throw PersistenceException("page with Pageable sort orders cannot be combined with explicit orderBy calls.")
+        }
+        var sorted: QueryBuilder<T, R, ID> = this
+        for (order in pageable.orders()) {
+            sorted = if (order.descending()) {
+                sorted.orderByDescendingAny(order.field())
+            } else {
+                sorted.orderByAny(order.field())
+            }
+        }
+        val content = sorted.offset(pageable.offset().toInt()).limit(pageable.pageSize()).resultList
+        return Page(content, totalCount, pageable)
+    }
+
+    //
     // Slice-based pagination.
     //
 

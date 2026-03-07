@@ -182,6 +182,96 @@ Entities loaded within a transaction are cached. See [Entity Cache](entity-cache
 
 ---
 
+## Offset-Based Pagination
+
+Storm provides built-in `Page` and `Pageable` types for offset-based pagination. These eliminate the need to write manual `LIMIT`/`OFFSET` queries or define your own page wrapper. The repository handles the count query and result slicing automatically. For query-builder-level pagination (manual offset/limit, Page with query builder), see [Queries: Pagination](queries.md#pagination).
+
+### Page and Pageable
+
+A `Pageable` describes a pagination request: which page to fetch, how many results per page, and an optional sort order. A `Page` holds the results along with metadata such as the total number of matching results, the total number of pages, and navigation helpers.
+
+| `Page` field / method | Description |
+|---|---|
+| `content` | The list of results for this page |
+| `totalCount` | Total number of matching rows across all pages |
+| `pageNumber()` | Zero-based index of the current page |
+| `pageSize()` | Maximum number of elements per page |
+| `totalPages()` | Total number of pages |
+| `hasNext()` | Whether a next page exists |
+| `hasPrevious()` | Whether a previous page exists |
+| `nextPageable()` | Returns a `Pageable` for the next page (preserves sort orders) |
+| `previousPageable()` | Returns a `Pageable` for the previous page (preserves sort orders) |
+
+Create a `Pageable` using one of the factory methods:
+
+- `Pageable.ofSize(pageSize)` creates a request for the first page (page 0) with the given size.
+- `Pageable.of(pageNumber, pageSize)` creates a request for a specific page.
+- Chain `.sortBy(field)` or `.sortByDescending(field)` to add sort orders.
+
+### Basic Usage
+
+The simplest way to paginate is to call `page(pageNumber, pageSize)` on a repository. For more control over sorting, construct a `Pageable` and pass it to `page(pageable)`.
+
+<Tabs groupId="language">
+<TabItem value="kotlin" label="Kotlin" default>
+
+```kotlin
+// First page of 20 users
+val page1: Page<User> = userRepository.page(0, 20)
+
+// Using Pageable with sort order
+val pageable = Pageable.ofSize(20).sortBy(User_.name)
+val page: Page<User> = userRepository.page(pageable)
+
+// Navigate to next page
+if (page.hasNext()) {
+    val nextPage = userRepository.page(page.nextPageable())
+}
+```
+
+</TabItem>
+<TabItem value="java" label="Java">
+
+```java
+// First page of 20 users
+Page<User> page1 = userRepository.page(0, 20);
+
+// Using Pageable with sort order
+Pageable pageable = Pageable.ofSize(20).sortBy(User_.name);
+Page<User> page = userRepository.page(pageable);
+
+// Navigate to next page
+if (page.hasNext()) {
+    Page<User> nextPage = userRepository.page(page.nextPageable());
+}
+```
+
+</TabItem>
+</Tabs>
+
+### Ref Variants
+
+Use `pageRef` to load only primary keys instead of full entities, returning a `Page<Ref<E>>`. This is useful when you need identifiers for a subsequent batch operation without the overhead of fetching full entity data.
+
+<Tabs groupId="language">
+<TabItem value="kotlin" label="Kotlin" default>
+
+```kotlin
+val refPage: Page<Ref<User>> = userRepository.pageRef(0, 20)
+```
+
+</TabItem>
+<TabItem value="java" label="Java">
+
+```java
+Page<Ref<User>> refPage = userRepository.pageRef(0, 20);
+```
+
+</TabItem>
+</Tabs>
+
+---
+
 ## Keyset Pagination
 
 Repositories provide convenience methods for keyset-based pagination, where a unique column value (typically the primary key) acts as a cursor. This approach avoids the performance issues of `OFFSET` on large tables, because the database can seek directly to the cursor position using an index rather than scanning and discarding skipped rows.
@@ -223,7 +313,7 @@ Ref variants (`sliceRef`, `sliceAfterRef`, `sliceBeforeRef`) load only primary k
 val refPage: Slice<Ref<User>> = userRepository.sliceRef(User_.id, 20)
 ```
 
-Note that the slice methods handle ordering internally based on the key you provide, so you should not combine them with an explicit `orderBy()` call on the query builder. Also note that `sliceBefore` returns results in descending key order; reverse the list if you need ascending order for display.
+The slice methods handle ordering internally and reject explicit `orderBy()` calls. `sliceBefore` returns results in descending key order; reverse the list if you need ascending order for display. See [Queries: Slice](queries.md#slice) for full details on ordering constraints.
 
 </TabItem>
 <TabItem value="java" label="Java">
@@ -250,32 +340,32 @@ Slice<User> activePage = userRepository.select()
     .slice(User_.id, 20);
 ```
 
-As with Kotlin, do not add an explicit `orderBy()` call when using the slice methods; they handle ordering internally via the key. `sliceBefore` returns results in descending key order; reverse the list if you need ascending order for display.
+As with Kotlin, the slice methods handle ordering internally and reject explicit `orderBy()` calls. `sliceBefore` returns results in descending key order. See [Queries: Slice](queries.md#slice) for full details.
 
 </TabItem>
 </Tabs>
 
 ### Keyset Pagination with Sort
 
-When you need to sort by a non-unique column (for example, a date or status), use the overloads that accept a separate sort column. These accept a `sort` column for the primary sort order and a `key` column (typically the primary key) as a unique tiebreaker to guarantee deterministic paging even when `sort` values repeat.
+When you need to sort by a non-unique column (for example, a date or status), use the overloads that accept a separate sort column. These accept a `key` column (typically the primary key) as a unique tiebreaker, and a `sort` column for the primary sort order, to guarantee deterministic paging even when `sort` values repeat.
 
 <Tabs groupId="language">
 <TabItem value="kotlin" label="Kotlin" default>
 
 ```kotlin
 // First page sorted by creation date, with ID as tiebreaker
-val page1: Slice<Post> = postRepository.slice(Post_.createdAt, Post_.id, 20)
+val page1: Slice<Post> = postRepository.slice(Post_.id, Post_.createdAt, 20)
 
 // Next page: pass both cursor values from the last item
 val last = page1.content.last()
 val page2: Slice<Post> = postRepository.sliceAfter(
-    Post_.createdAt, last.createdAt,
     Post_.id, last.id,
+    Post_.createdAt, last.createdAt,
     20
 )
 
 // With filter
-val activePage: Slice<Post> = postRepository.slice(Post_.createdAt, Post_.id, 20) {
+val activePage: Slice<Post> = postRepository.slice(Post_.id, Post_.createdAt, 20) {
     Post_.active eq true
 }
 ```
@@ -285,13 +375,13 @@ val activePage: Slice<Post> = postRepository.slice(Post_.createdAt, Post_.id, 20
 
 ```java
 // First page sorted by creation date, with ID as tiebreaker
-Slice<Post> page1 = postRepository.slice(Post_.createdAt, Post_.id, 20);
+Slice<Post> page1 = postRepository.slice(Post_.id, Post_.createdAt, 20);
 
 // Next page: pass both cursor values from the last item
 Post last = page1.content().getLast();
 Slice<Post> page2 = postRepository.sliceAfter(
-    Post_.createdAt, last.createdAt(),
     Post_.id, last.id(),
+    Post_.createdAt, last.createdAt(),
     20);
 ```
 
@@ -300,7 +390,22 @@ Slice<Post> page2 = postRepository.sliceAfter(
 
 The client is responsible for extracting both cursor values from the last (or first) item of the current page and passing them to the next request.
 
-For queries that need joins, projections, or more complex filtering, use the query builder and call `slice` as a terminal operation. See [Queries](queries.md#keyset-pagination-with-slice) for the full details on how keyset pagination composes with WHERE and ORDER BY clauses, including indexing recommendations.
+For queries that need joins, projections, or more complex filtering, use the query builder and call `slice` as a terminal operation. See [Queries](queries.md#slice) for the full details on how keyset pagination composes with WHERE and ORDER BY clauses, including indexing recommendations.
+
+## Offset vs. Keyset Pagination
+
+Storm supports both offset-based and keyset-based pagination. The table below summarizes the trade-offs to help you choose.
+
+| Factor | Offset-Based (`page`) | Keyset-Based (`slice`) |
+|---|---|---|
+| Implementation complexity | Simple | Moderate |
+| Jump to arbitrary page | Yes | No (sequential only) |
+| Performance at page 1 | Good | Good |
+| Performance at page 1,000 | Degrades (database must skip rows) | Consistent (index seek) |
+| Handles concurrent inserts | Rows may shift between pages | Stable cursor |
+| Total element count | Included in `Page` | Not available in `Slice` |
+
+Use offset-based pagination when you need random page access or a total count (for example, displaying "Page 3 of 12" in a UI). Use keyset pagination when you need consistent performance over deep result sets or when the data changes frequently between requests.
 
 ---
 

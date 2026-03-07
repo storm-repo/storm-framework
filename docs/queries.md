@@ -252,6 +252,58 @@ List<User> users = orm.entity(User.class)
 </TabItem>
 </Tabs>
 
+### Composing Multiple Filters
+
+Multiple `where()` calls on the same query builder are combined with AND. This lets you build up filters incrementally, which is useful when conditions are added conditionally in application code.
+
+<Tabs groupId="language">
+<TabItem value="kotlin" label="Kotlin" default>
+
+```kotlin
+val results = orm.entity(User::class)
+    .select()
+    .where(User_.active, EQUALS, true)
+    .where(User_.city eq city)           // AND-combined with previous where
+    .resultList
+```
+
+Builder-style `where()` calls (with `and`/`or` predicates) compose with other `where()` calls in the same way:
+
+```kotlin
+val results = orm.entity(User::class)
+    .select()
+    .where(User_.active, EQUALS, true)
+    .where(                              // AND-combined with the active filter above
+        (User_.role eq adminRole) or (User_.role eq superUserRole)
+    )
+    .resultList
+```
+
+</TabItem>
+<TabItem value="java" label="Java">
+
+```java
+List<User> results = orm.entity(User.class)
+    .select()
+    .where(User_.active, EQUALS, true)
+    .where(User_.city, EQUALS, city)     // AND-combined with previous where
+    .getResultList();
+```
+
+Builder-style `where()` calls (with `and`/`or` predicates) compose with other `where()` calls in the same way:
+
+```java
+List<User> results = orm.entity(User.class)
+    .select()
+    .where(User_.active, EQUALS, true)
+    .where(it -> it.where(User_.role, EQUALS, adminRole)  // AND-combined with active filter
+            .or(it.where(User_.role, EQUALS, superUserRole)))
+    .getResultList();
+```
+
+</TabItem>
+</Tabs>
+
 ---
 
 ## Ordering
@@ -353,6 +405,490 @@ List<User> users = orm.entity(User.class)
 
 </TabItem>
 </Tabs>
+
+## Aggregation
+
+<Tabs groupId="language">
+<TabItem value="kotlin" label="Kotlin" default>
+
+To perform GROUP BY queries with aggregate functions like COUNT, SUM, or AVG, define a result data class with the desired columns and pass a custom SELECT expression. The `t()` function generates the column list for an entity or projection type, so you do not have to enumerate columns manually.
+
+```kotlin
+data class CityCount(val city: City, val count: Long)
+
+val counts: List<CityCount> = orm.entity(User::class)
+    .select(CityCount::class) { "${t(City::class)}, COUNT(*)" }
+    .groupBy(User_.city)
+    .resultList
+```
+
+</TabItem>
+<TabItem value="java" label="Java">
+
+Define a result record with the desired columns and pass a custom SELECT expression. The DSL approach uses `select(Class, template)` with `groupBy` to build the query.
+
+```java
+record CityCount(City city, long count) {}
+
+List<CityCount> counts = orm.entity(User.class)
+    .select(CityCount.class, RAW."\{City.class}, COUNT(*)")
+    .groupBy(User_.city)
+    .getResultList();
+```
+
+### Aggregation (SQL Templates)
+
+For aggregation queries that involve multiple tables, CTEs, or HAVING clauses, SQL Templates give you full control over the query structure while still mapping results to typed records.
+
+```java
+List<CityCount> counts = orm.query(RAW."""
+        SELECT \{City.class}, COUNT(*)
+        FROM \{User.class}
+        GROUP BY \{User_.city}""")
+    .getResultList(CityCount.class);
+```
+
+</TabItem>
+</Tabs>
+
+## Pagination
+
+Storm supports three levels of pagination, from manual control to cursor-based navigation:
+
+| Approach | Best for | Total count | Random access |
+|----------|----------|-------------|---------------|
+| **Manual** | Simple offset/limit control | No | Yes |
+| **Page** | Traditional numbered pages with total counts | Yes | Yes |
+| **Slice** | Large tables, infinite scroll, "load more" patterns | No | No (cursor-based) |
+
+Start with manual offset/limit for simple cases. Use `Page` when the UI needs total counts and page numbers. Use `Slice` for large tables or sequential navigation where consistent performance matters.
+
+### Manual
+
+For direct offset/limit control, use `offset` and `limit` on the query builder. Always combine these with `orderBy` to ensure deterministic ordering across pages.
+
+<Tabs groupId="language">
+<TabItem value="kotlin" label="Kotlin" default>
+
+```kotlin
+val results = orm.entity(User::class)
+    .select()
+    .orderBy(User_.createdAt)
+    .offset(20)
+    .limit(10)
+    .resultList
+```
+
+</TabItem>
+<TabItem value="java" label="Java">
+
+```java
+List<User> results = orm.entity(User.class)
+    .select()
+    .orderBy(User_.createdAt)
+    .offset(20)
+    .limit(10)
+    .getResultList();
+```
+
+</TabItem>
+</Tabs>
+
+### Page and Pageable
+
+For a higher-level API that includes total counts and navigation helpers, use the `page` terminal method on the query builder. Pass a `Pageable` to specify the page number and page size. The builder executes two queries: a `SELECT COUNT(*)` for the total, and a query with `OFFSET`/`LIMIT` for the content. The result is a `Page` containing the content, total count, and navigation methods.
+
+<Tabs groupId="language">
+<TabItem value="kotlin" label="Kotlin" default>
+
+```kotlin
+val pageable = Pageable.ofSize(10)
+val page: Page<User> = orm.entity(User::class)
+    .select()
+    .where(User_.active, EQUALS, true)
+    .page(pageable)
+
+// Navigate
+if (page.hasNext()) {
+    val nextPage = orm.entity(User::class)
+        .select()
+        .where(User_.active, EQUALS, true)
+        .page(page.nextPageable())
+}
+```
+
+</TabItem>
+<TabItem value="java" label="Java">
+
+```java
+Pageable pageable = Pageable.ofSize(10);
+Page<User> page = orm.entity(User.class)
+    .select()
+    .where(User_.active, EQUALS, true)
+    .page(pageable);
+
+// Navigate
+if (page.hasNext()) {
+    Page<User> nextPage = orm.entity(User.class)
+        .select()
+        .where(User_.active, EQUALS, true)
+        .page(page.nextPageable());
+}
+```
+
+</TabItem>
+</Tabs>
+
+#### Sorting
+
+Sort orders are specified on the `Pageable` using `sortBy` (ascending) and `sortByDescending` (descending). Multiple calls append columns to build a multi-column sort, and the orders carry over automatically when navigating with `nextPageable()` or `previousPageable()`. You do not need to call `orderBy` separately on the query builder.
+
+<Tabs groupId="language">
+<TabItem value="kotlin" label="Kotlin" default>
+
+```kotlin
+// Single column, ascending
+val pageable = Pageable.ofSize(10).sortBy(User_.createdAt)
+
+// Single column, descending
+val pageable = Pageable.ofSize(10).sortByDescending(User_.createdAt)
+
+// Multi-column: last name ascending, then first name descending
+val pageable = Pageable.ofSize(10)
+    .sortBy(User_.lastName)
+    .sortByDescending(User_.firstName)
+```
+
+</TabItem>
+<TabItem value="java" label="Java">
+
+```java
+// Single column, ascending
+Pageable pageable = Pageable.ofSize(10).sortBy(User_.createdAt);
+
+// Single column, descending
+Pageable pageable = Pageable.ofSize(10).sortByDescending(User_.createdAt);
+
+// Multi-column: last name ascending, then first name descending
+Pageable pageable = Pageable.ofSize(10)
+    .sortBy(User_.lastName)
+    .sortByDescending(User_.firstName);
+```
+
+</TabItem>
+</Tabs>
+
+For the full `Page` and `Pageable` API reference, see [Repositories: Offset-Based Pagination](repositories.md#offset-based-pagination).
+
+Both Manual and Page use offset-based pagination under the hood. This works well for small to medium tables or when users need to jump to arbitrary page numbers, but degrades on large tables because the database must scan and discard all skipped rows.
+
+### Slice
+
+Keyset pagination works by remembering the last value seen on the current page and asking the database for rows after (or before) that value. This avoids the performance cliff of `OFFSET` on large tables, because the database can seek directly to the cursor position using an index.
+
+:::warning Sort Stability Required
+Keyset pagination (`sliceAfter`/`sliceBefore`) requires a stable sort order. The final sort column must be unique (typically the primary key). Using a non-unique sort column like `createdAt` without a tiebreaker will produce duplicate or missing rows at page boundaries. Use the [two-column overloads](#sorting-by-non-unique-columns) when sorting by a non-unique column.
+:::
+
+The `slice`, `sliceAfter`, and `sliceBefore` methods are available directly on repositories and on the query builder. Each returns a `Slice<R>`, which is a simple record containing:
+
+| Field | Description |
+|-------|-------------|
+| `content` | The list of results for this page. |
+| `hasNext` | `true` if more results exist beyond this slice. |
+
+The four methods correspond to four paging operations:
+
+| Method | Purpose | SQL effect |
+|--------|---------|------------|
+| `slice(key, size)` | Fetch the first page (ascending). | `ORDER BY key ASC LIMIT size+1` |
+| `sliceAfter(key, cursor, size)` | Fetch the next page after a cursor value. | `WHERE key > cursor ORDER BY key ASC LIMIT size+1` |
+| `sliceBefore(key, size)` | Fetch the first page (descending). | `ORDER BY key DESC LIMIT size+1` |
+| `sliceBefore(key, cursor, size)` | Fetch the previous page before a cursor value. | `WHERE key < cursor ORDER BY key DESC LIMIT size+1` |
+
+The extra row (`size+1`) is used internally to determine the value of `hasNext`, then discarded from the returned content.
+
+**Result ordering.** `slice` and `sliceAfter` return results in ascending key order. `sliceBefore` returns results in **descending** key order, both when used with a cursor (to find the nearest rows before it) and without a cursor (to start from the most recent entries). If you need ascending order for display after navigating backward, reverse the list.
+
+**No total count.** Unlike offset-based pagination, keyset pagination does not include a total element count. A separate `COUNT(*)` query must execute the same joins, filters, and conditions as the main query, which can be expensive on large or complex result sets. Total counts are also inherently unstable: rows may be inserted or deleted while a user navigates through pages, so the count can become stale between requests. Keyset pagination is designed for sequential "load more" or infinite-scroll patterns where a total is rarely needed. If you do need a total count (for example, for a UI label like "showing 10 of 4,827 results"), call the `count` (Kotlin) or `getCount()` (Java) method on the query builder separately, keeping in mind that the value is a snapshot that may drift as the underlying data changes.
+
+**Basic usage.** Pass a `Metamodel.Key` that identifies a unique, indexed column (typically the primary key) and the desired page size. The key determines both ordering and the cursor column. Fields annotated with `@UK` or `@PK` automatically generate `Metamodel.Key` instances in the metamodel. See [Metamodel](metamodel.md#unique-keys-uk-and-metamodelkey) for details.
+
+> **Nullable keys.** If a `@UK` field is nullable and the default `nullsDistinct = true` applies, `slice` methods throw a `PersistenceException` at runtime. Either use a non-nullable type, or set `@UK(nullsDistinct = false)` if the database constraint prevents duplicate NULLs. See [Nullable Unique Keys](metamodel.md#nullable-unique-keys) for details.
+
+For repository convenience methods (`slice`, `sliceAfter`, `sliceBefore` called directly on a repository) and Ref variants, see [Repositories: Keyset Pagination](repositories.md#keyset-pagination).
+
+Use `slice` as a terminal operation on the query builder for filtering, joins, or projections:
+
+<Tabs groupId="language">
+<TabItem value="kotlin" label="Kotlin" default>
+
+```kotlin
+val page = userRepository.select()
+    .where(User_.active, EQUALS, true)
+    .slice(User_.id, 10)
+```
+
+</TabItem>
+<TabItem value="java" label="Java">
+
+```java
+Slice<User> activePage = userRepository.select()
+    .where(User_.active, EQUALS, true)
+    .slice(User_.id, 10);
+```
+
+</TabItem>
+</Tabs>
+
+:::warning Ordering is built in
+The `slice`, `sliceAfter`, and `sliceBefore` methods generate the ORDER BY clause from the key you provide (ascending for `slice`/`sliceAfter`, descending for `sliceBefore`). Adding your own `orderBy()` call conflicts with the ordering that keyset pagination depends on, so Storm rejects the combination at runtime with a `PersistenceException`.
+
+<Tabs groupId="language">
+<TabItem value="kotlin" label="Kotlin" default>
+
+```kotlin
+// Wrong: orderBy conflicts with slice
+userRepository.select()
+    .orderBy(User_.name)          // PersistenceException at runtime
+    .slice(User_.id, 10)
+
+// Correct: slice handles ordering via the key
+userRepository.select()
+    .slice(User_.id, 10)
+```
+
+</TabItem>
+<TabItem value="java" label="Java">
+
+```java
+// Wrong: orderBy conflicts with slice
+userRepository.select()
+    .orderBy(User_.name)          // PersistenceException at runtime
+    .slice(User_.id, 10);
+
+// Correct: slice handles ordering via the key
+userRepository.select()
+    .slice(User_.id, 10);
+```
+
+</TabItem>
+</Tabs>
+:::
+
+#### Sorting by Non-Unique Columns
+
+The single-key `slice` methods require the cursor column to also be the sort column, which means the column must contain unique values. When you want to sort by a non-unique column (for example, a timestamp or status), use the overloads that accept a separate sort column. These accept two metamodel fields: a unique `key` column (typically the primary key) as a tiebreaker for deterministic paging, and a `sort` column for the primary sort order.
+
+<Tabs groupId="language">
+<TabItem value="kotlin" label="Kotlin" default>
+
+```kotlin
+// First page sorted by creation date ascending, with ID as tiebreaker
+val page1: Slice<Post> = postRepository.select()
+    .slice(Post_.id, Post_.createdAt, 20)
+
+// Next page: pass both cursor values from the last item
+val last = page1.content.last()
+val page2: Slice<Post> = postRepository.select()
+    .sliceAfter(Post_.id, last.id, Post_.createdAt, last.createdAt, 20)
+
+// First page sorted by creation date descending (most recent first)
+val latest: Slice<Post> = postRepository.select()
+    .sliceBefore(Post_.id, Post_.createdAt, 20)
+
+// Previous page
+val prev: Slice<Post> = postRepository.select()
+    .sliceBefore(Post_.id, last.id, Post_.createdAt, last.createdAt, 20)
+```
+
+</TabItem>
+<TabItem value="java" label="Java">
+
+```java
+// First page sorted by creation date, with ID as tiebreaker
+Slice<Post> page1 = postRepository.select()
+    .slice(Post_.id, Post_.createdAt, 20);
+
+// Next page: pass both cursor values from the last item
+Post last = page1.content().getLast();
+Slice<Post> page2 = postRepository.select()
+    .sliceAfter(Post_.id, last.id(), Post_.createdAt, last.createdAt(), 20);
+
+// Previous page
+Slice<Post> prev = postRepository.select()
+    .sliceBefore(Post_.id, last.id(), Post_.createdAt, last.createdAt(), 20);
+```
+
+</TabItem>
+</Tabs>
+
+The generated SQL uses a composite WHERE condition that maintains correct ordering even when `sort` values repeat:
+
+```sql
+WHERE (created_at > ? OR (created_at = ? AND id > ?))
+ORDER BY created_at ASC, id ASC
+LIMIT 21
+```
+
+As with the single-key variants, these methods manage ORDER BY internally and reject any explicit `orderBy()` call. The client is responsible for extracting both cursor values from the last (or first) item of the current page and passing them to the next request.
+
+**Indexing.** For keyset pagination with sort to perform well, create a composite index that covers both columns in the correct order:
+
+```sql
+CREATE INDEX idx_post_created_id ON post (created_at, id);
+```
+
+This allows the database to seek directly to the cursor position and scan forward, giving consistent performance regardless of page depth.
+
+#### GROUP BY
+
+When a query uses GROUP BY, the grouped column produces unique values in the result set even if the column itself is not annotated with `@UK`. In this case, wrap the metamodel with `.key()` (Kotlin) or `Metamodel.key()` (Java) to indicate it can serve as a keyset pagination cursor:
+
+<Tabs groupId="language">
+<TabItem value="kotlin" label="Kotlin" default>
+
+```kotlin
+val page = orm.query(Order::class)
+    .select(Order_.city, "COUNT(*)")
+    .groupBy(Order_.city)
+    .slice(Order_.city.key(), 20)
+```
+
+</TabItem>
+<TabItem value="java" label="Java">
+
+```java
+var page = orm.query(Order.class)
+    .select(Order_.city, "COUNT(*)")
+    .groupBy(Order_.city)
+    .slice(Metamodel.key(Order_.city), 20);
+```
+
+</TabItem>
+</Tabs>
+
+See [Manual Key Wrapping](metamodel.md#manual-key-wrapping) for more details.
+
+## Distinct Results
+
+Add `.distinct()` to eliminate duplicate rows from the result set. This is useful when selecting a related entity type from a query that could produce duplicates due to one-to-many relationships.
+
+<Tabs groupId="language">
+<TabItem value="kotlin" label="Kotlin" default>
+
+```kotlin
+val cities = orm.entity(User::class)
+    .select(City::class)
+    .distinct()
+    .resultList
+```
+
+</TabItem>
+<TabItem value="java" label="Java">
+
+```java
+List<City> cities = orm.entity(User.class)
+    .select(City.class)
+    .distinct()
+    .getResultList();
+```
+
+</TabItem>
+</Tabs>
+
+---
+
+## Streaming
+
+<Tabs groupId="language">
+<TabItem value="kotlin" label="Kotlin" default>
+
+For large result sets, use `selectAll()` or `select()` which return a Kotlin `Flow<T>`. Rows are fetched lazily from the database as you collect, so memory usage stays constant regardless of result set size. Flow also handles resource cleanup automatically when collection completes or is cancelled.
+
+```kotlin
+val users: Flow<User> = orm.entity(User::class).selectAll()
+
+// Process each
+users.collect { user -> process(user) }
+
+// Transform and collect
+val emails: List<String> = users.map { it.email }.toList()
+
+// Count
+val count: Int = users.count()
+```
+
+</TabItem>
+<TabItem value="java" label="Java">
+
+Java streams hold an open database cursor and JDBC resources. Unlike Kotlin's `Flow` (which handles cleanup automatically), Java `Stream` results must be explicitly closed. Always wrap them in a try-with-resources block to prevent connection leaks.
+
+```java
+try (Stream<User> users = orm.entity(User.class).selectAll()) {
+    List<String> emails = users.map(User::email).toList();
+}
+```
+
+</TabItem>
+</Tabs>
+
+---
+
+## Joins
+
+<Tabs groupId="language">
+<TabItem value="kotlin" label="Kotlin" default>
+
+Storm automatically joins entities referenced by `@FK` fields. When you need to join entities that are not directly referenced in the result type (for example, filtering through a many-to-many join table), use explicit `innerJoin` or `leftJoin` calls. The `on` clause specifies which existing entity in the query the joined table relates to.
+
+```kotlin
+val roles = orm.entity(Role::class)
+    .select()
+    .innerJoin(UserRole::class).on(Role::class)
+    .whereAny(UserRole_.user eq user)
+    .resultList
+```
+
+</TabItem>
+<TabItem value="java" label="Java">
+
+Storm automatically joins entities referenced by `@FK` fields. For entities not directly referenced in the result type, such as join tables in many-to-many relationships, use explicit `innerJoin` or `leftJoin` calls. The `on` clause specifies which existing entity in the query the joined table relates to.
+
+```java
+List<Role> roles = orm.entity(Role.class)
+    .select()
+    .innerJoin(UserRole.class).on(Role.class)
+    .where(UserRole_.user, EQUALS, user)
+    .getResultList();
+```
+
+### Joins (SQL Templates)
+
+SQL Templates let you write JOIN clauses directly, which is useful when the join condition is not a simple foreign key match or when you need to join on computed expressions.
+
+```java
+List<Role> roles = orm.query(RAW."""
+        SELECT \{Role.class}
+        FROM \{Role.class}
+        INNER JOIN \{UserRole.class} ON \{UserRole_.role} = \{Role_.id}
+        WHERE \{UserRole_.user} = \{user.id()}""")
+    .getResultList(Role.class);
+```
+
+</TabItem>
+</Tabs>
+
+---
+
+## Result Classes
+
+Query result classes can be:
+- **Plain records** -- Storm maps columns to fields (you write all SQL)
+- **`Data` implementations** -- enable SQL template helpers like `${t(Class::class)}`
+- **`Entity`/`Projection`** -- full repository support with CRUD operations
+
+Choose the simplest option that meets your needs. See [SQL Templates](sql-templates.md) for details.
 
 ---
 
@@ -499,472 +1035,7 @@ val page = orm.query(Order::class)
     .slice(Order_.city.key(), 20)
 ```
 
-See [Keyset Pagination with GROUP BY](#keyset-pagination-with-group-by) for details.
-
----
-
-## Aggregation
-
-<Tabs groupId="language">
-<TabItem value="kotlin" label="Kotlin" default>
-
-To perform GROUP BY queries with aggregate functions like COUNT, SUM, or AVG, define a result data class with the desired columns and pass a custom SELECT expression. The `t()` function generates the column list for an entity or projection type, so you do not have to enumerate columns manually.
-
-```kotlin
-data class CityCount(val city: City, val count: Long)
-
-val counts: List<CityCount> = orm.entity(User::class)
-    .select(CityCount::class) { "${t(City::class)}, COUNT(*)" }
-    .groupBy(User_.city)
-    .resultList
-```
-
-</TabItem>
-<TabItem value="java" label="Java">
-
-Define a result record with the desired columns and pass a custom SELECT expression. The DSL approach uses `select(Class, template)` with `groupBy` to build the query.
-
-```java
-record CityCount(City city, long count) {}
-
-List<CityCount> counts = orm.entity(User.class)
-    .select(CityCount.class, RAW."\{City.class}, COUNT(*)")
-    .groupBy(User_.city)
-    .getResultList();
-```
-
-### Aggregation (SQL Templates)
-
-For aggregation queries that involve multiple tables, CTEs, or HAVING clauses, SQL Templates give you full control over the query structure while still mapping results to typed records.
-
-```java
-List<CityCount> counts = orm.query(RAW."""
-        SELECT \{City.class}, COUNT(*)
-        FROM \{User.class}
-        GROUP BY \{User_.city}""")
-    .getResultList(CityCount.class);
-```
-
-</TabItem>
-</Tabs>
-
----
-
-## Joins
-
-<Tabs groupId="language">
-<TabItem value="kotlin" label="Kotlin" default>
-
-Storm automatically joins entities referenced by `@FK` fields. When you need to join entities that are not directly referenced in the result type (for example, filtering through a many-to-many join table), use explicit `innerJoin` or `leftJoin` calls. The `on` clause specifies which existing entity in the query the joined table relates to.
-
-```kotlin
-val roles = orm.entity(Role::class)
-    .select()
-    .innerJoin(UserRole::class).on(Role::class)
-    .whereAny(UserRole_.user eq user)
-    .resultList
-```
-
-</TabItem>
-<TabItem value="java" label="Java">
-
-Storm automatically joins entities referenced by `@FK` fields. For entities not directly referenced in the result type, such as join tables in many-to-many relationships, use explicit `innerJoin` or `leftJoin` calls. The `on` clause specifies which existing entity in the query the joined table relates to.
-
-```java
-List<Role> roles = orm.entity(Role.class)
-    .select()
-    .innerJoin(UserRole.class).on(Role.class)
-    .where(UserRole_.user, EQUALS, user)
-    .getResultList();
-```
-
-### Joins (SQL Templates)
-
-SQL Templates let you write JOIN clauses directly, which is useful when the join condition is not a simple foreign key match or when you need to join on computed expressions.
-
-```java
-List<Role> roles = orm.query(RAW."""
-        SELECT \{Role.class}
-        FROM \{Role.class}
-        INNER JOIN \{UserRole.class} ON \{UserRole_.role} = \{Role_.id}
-        WHERE \{UserRole_.user} = \{user.id()}""")
-    .getResultList(Role.class);
-```
-
-</TabItem>
-</Tabs>
-
----
-
-## Pagination
-
-Storm supports two pagination strategies: offset-based and keyset-based. Offset-based pagination is simple but degrades on large tables because the database must scan and discard all skipped rows. Keyset pagination uses a column value as a cursor, so every page is fetched with the same cost regardless of how deep into the result set you are.
-
-### Offset-based Pagination
-
-Use `offset` and `limit` on the query builder for traditional page-number style pagination. Always combine these with `orderBy` to ensure deterministic ordering across pages.
-
-<Tabs groupId="language">
-<TabItem value="kotlin" label="Kotlin" default>
-
-```kotlin
-val page = orm.entity(User::class)
-    .select()
-    .orderBy(User_.createdAt)
-    .offset(20)
-    .limit(10)
-    .resultList
-```
-
-</TabItem>
-<TabItem value="java" label="Java">
-
-```java
-List<User> page = orm.entity(User.class)
-    .select()
-    .orderBy(User_.createdAt)
-    .offset(20)
-    .limit(10)
-    .getResultList();
-```
-
-</TabItem>
-</Tabs>
-
-Offset-based pagination works well for small to medium tables or when users need to jump to arbitrary page numbers. For large tables where users scroll through results sequentially, prefer keyset pagination.
-
-### Keyset Pagination with Slice
-
-Keyset pagination works by remembering the last value seen on the current page and asking the database for rows after (or before) that value. This avoids the performance cliff of `OFFSET` on large tables, because the database can seek directly to the cursor position using an index.
-
-:::warning Sort Stability Required
-Keyset pagination (`sliceAfter`/`sliceBefore`) requires a stable sort order. The final sort column must be unique (typically the primary key). Using a non-unique sort column like `createdAt` without a tiebreaker will produce duplicate or missing rows at page boundaries. Use the [two-column overloads](#keyset-pagination-with-sort) when sorting by a non-unique column.
-:::
-
-The `slice`, `sliceAfter`, and `sliceBefore` methods are available directly on repositories and on the query builder. Each returns a `Slice<R>`, which is a simple record containing:
-
-| Field | Description |
-|-------|-------------|
-| `content` | The list of results for this page. |
-| `hasNext` | `true` if more results exist beyond this slice. |
-
-The four methods correspond to four paging operations:
-
-| Method | Purpose | SQL effect |
-|--------|---------|------------|
-| `slice(key, size)` | Fetch the first page (ascending). | `ORDER BY key ASC LIMIT size+1` |
-| `sliceAfter(key, cursor, size)` | Fetch the next page after a cursor value. | `WHERE key > cursor ORDER BY key ASC LIMIT size+1` |
-| `sliceBefore(key, size)` | Fetch the first page (descending). | `ORDER BY key DESC LIMIT size+1` |
-| `sliceBefore(key, cursor, size)` | Fetch the previous page before a cursor value. | `WHERE key < cursor ORDER BY key DESC LIMIT size+1` |
-
-The extra row (`size+1`) is used internally to determine the value of `hasNext`, then discarded from the returned content.
-
-**Result ordering.** `slice` and `sliceAfter` return results in ascending key order. `sliceBefore` returns results in **descending** key order, both when used with a cursor (to find the nearest rows before it) and without a cursor (to start from the most recent entries). If you need ascending order for display after navigating backward, reverse the list.
-
-**No total count.** Unlike offset-based pagination, keyset pagination does not include a total element count. A separate `COUNT(*)` query must execute the same joins, filters, and conditions as the main query, which can be expensive on large or complex result sets. Total counts are also inherently unstable: rows may be inserted or deleted while a user navigates through pages, so the count can become stale between requests. Keyset pagination is designed for sequential "load more" or infinite-scroll patterns where a total is rarely needed. If you do need a total count (for example, for a UI label like "showing 10 of 4,827 results"), call the `count` (Kotlin) or `getCount()` (Java) method on the query builder separately, keeping in mind that the value is a snapshot that may drift as the underlying data changes.
-
-**Basic usage.** Pass a `Metamodel.Key` that identifies a unique, indexed column (typically the primary key) and the desired page size. The key determines both ordering and the cursor column. Fields annotated with `@UK` or `@PK` automatically generate `Metamodel.Key` instances in the metamodel. See [Metamodel](metamodel.md#unique-keys-uk-and-metamodelkey) for details.
-
-> **Nullable keys.** If a `@UK` field is nullable and the default `nullsDistinct = true` applies, `slice` methods throw a `PersistenceException` at runtime. Either use a non-nullable type, or set `@UK(nullsDistinct = false)` if the database constraint prevents duplicate NULLs. See [Nullable Unique Keys](metamodel.md#nullable-unique-keys) for details.
-
-<Tabs groupId="language">
-<TabItem value="kotlin" label="Kotlin" default>
-
-```kotlin
-// First page of 10 users ordered by ID ascending
-val firstPage: Slice<User> = userRepository.slice(User_.id, 10)
-
-// Next page, using the last seen ID as cursor
-val nextPage: Slice<User> = userRepository.sliceAfter(User_.id, firstPage.content.last().id, 10)
-
-// First page of 10 users ordered by ID descending (most recent first)
-val latestPage: Slice<User> = userRepository.sliceBefore(User_.id, 10)
-
-// Previous page before a known ID
-val prevPage: Slice<User> = userRepository.sliceBefore(User_.id, someId, 10)
-```
-
-**Filtered slices.** The repository convenience methods accept a trailing-lambda predicate, following the same pattern as `findAll`. The filter is combined with the keyset condition using AND.
-
-```kotlin
-val activePage = userRepository.slice(User_.id, 10) { User_.active eq true }
-val nextActive = userRepository.sliceAfter(User_.id, lastId, 10) { User_.active eq true }
-```
-
-**Query builder.** For more complex filtering, joins, or projections, build the query explicitly and call `slice` as a terminal operation. This gives you full control over the query while still getting keyset pagination.
-
-```kotlin
-val page = userRepository.select()
-    .where(User_.active, EQUALS, true)
-    .slice(User_.id, 10)
-```
-
-**Ordering is built in.** A common mistake is to add an `orderBy()` call before `slice(key, size)`, `sliceAfter`, or `sliceBefore`. These methods already generate the correct ORDER BY clause from the key you provide: ascending for `slice` and `sliceAfter`, descending for `sliceBefore`. Adding your own `orderBy()` would conflict with the ordering that keyset pagination depends on, so Storm rejects the combination at runtime with a `PersistenceException`.
-
-```kotlin
-// Wrong: orderBy conflicts with slice(key, size)
-userRepository.select()
-    .orderBy(User_.name)          // PersistenceException at runtime
-    .slice(User_.id, 10)
-
-// Correct: slice handles ordering via the key
-userRepository.select()
-    .slice(User_.id, 10)
-```
-
-</TabItem>
-<TabItem value="java" label="Java">
-
-```java
-// First page of 10 users ordered by ID
-Slice<User> firstPage = userRepository.slice(User_.id, 10);
-
-// Next page, using the last seen ID as cursor
-var last = firstPage.content().getLast();
-Slice<User> nextPage = userRepository.sliceAfter(User_.id, last.id(), 10);
-
-// Previous page before a known ID
-Slice<User> prevPage = userRepository.sliceBefore(User_.id, someId, 10);
-```
-
-**Filtered slices.** In Java, filtered pagination uses the query builder. Add `where` clauses before calling the `slice` terminal operation. The filter and keyset conditions are combined with AND.
-
-```java
-Slice<User> activePage = userRepository.select()
-    .where(User_.active, EQUALS, true)
-    .slice(User_.id, 10);
-```
-
-**Ordering is built in.** The `slice(key, size)`, `sliceAfter`, and `sliceBefore` methods generate the ORDER BY clause from the key you provide, so you must not add your own `orderBy()` call. Doing so throws a `PersistenceException` at runtime.
-
-</TabItem>
-</Tabs>
-
-### Keyset Pagination with Sort
-
-The single-key `slice` methods require the cursor column to also be the sort column, which means the column must contain unique values. When you want to sort by a non-unique column (for example, a timestamp or status), use the overloads that accept a separate sort column. These accept two metamodel fields: a unique `key` column (typically the primary key) as a tiebreaker for deterministic paging, and a `sort` column for the primary sort order.
-
-<Tabs groupId="language">
-<TabItem value="kotlin" label="Kotlin" default>
-
-```kotlin
-// First page sorted by creation date ascending, with ID as tiebreaker
-val page1: Slice<Post> = postRepository.select()
-    .slice(Post_.id, Post_.createdAt, 20)
-
-// Next page: pass both cursor values from the last item
-val last = page1.content.last()
-val page2: Slice<Post> = postRepository.select()
-    .sliceAfter(Post_.id, last.id, Post_.createdAt, last.createdAt, 20)
-
-// First page sorted by creation date descending (most recent first)
-val latest: Slice<Post> = postRepository.select()
-    .sliceBefore(Post_.id, Post_.createdAt, 20)
-
-// Previous page
-val prev: Slice<Post> = postRepository.select()
-    .sliceBefore(Post_.id, last.id, Post_.createdAt, last.createdAt, 20)
-```
-
-</TabItem>
-<TabItem value="java" label="Java">
-
-```java
-// First page sorted by creation date, with ID as tiebreaker
-Slice<Post> page1 = postRepository.select()
-    .slice(Post_.id, Post_.createdAt, 20);
-
-// Next page: pass both cursor values from the last item
-Post last = page1.content().getLast();
-Slice<Post> page2 = postRepository.select()
-    .sliceAfter(Post_.id, last.id(), Post_.createdAt, last.createdAt(), 20);
-
-// Previous page
-Slice<Post> prev = postRepository.select()
-    .sliceBefore(Post_.id, last.id(), Post_.createdAt, last.createdAt(), 20);
-```
-
-</TabItem>
-</Tabs>
-
-The generated SQL uses a composite WHERE condition that maintains correct ordering even when `sort` values repeat:
-
-```sql
-WHERE (created_at > ? OR (created_at = ? AND id > ?))
-ORDER BY created_at ASC, id ASC
-LIMIT 21
-```
-
-As with the single-key variants, these methods manage ORDER BY internally and reject any explicit `orderBy()` call. The client is responsible for extracting both cursor values from the last (or first) item of the current page and passing them to the next request.
-
-**Indexing.** For keyset pagination with sort to perform well, create a composite index that covers both columns in the correct order:
-
-```sql
-CREATE INDEX idx_post_created_id ON post (created_at, id);
-```
-
-This allows the database to seek directly to the cursor position and scan forward, giving consistent performance regardless of page depth.
-
-### Keyset Pagination with GROUP BY
-
-When a query uses GROUP BY, the grouped column produces unique values in the result set even if the column itself is not annotated with `@UK`. In this case, wrap the metamodel with `.key()` (Kotlin) or `Metamodel.key()` (Java) to indicate it can serve as a keyset pagination cursor:
-
-<Tabs groupId="language">
-<TabItem value="kotlin" label="Kotlin" default>
-
-```kotlin
-val page = orm.query(Order::class)
-    .select(Order_.city, "COUNT(*)")
-    .groupBy(Order_.city)
-    .slice(Order_.city.key(), 20)
-```
-
-</TabItem>
-<TabItem value="java" label="Java">
-
-```java
-var page = orm.query(Order.class)
-    .select(Order_.city, "COUNT(*)")
-    .groupBy(Order_.city)
-    .slice(Metamodel.key(Order_.city), 20);
-```
-
-</TabItem>
-</Tabs>
-
-See [Manual Key Wrapping](metamodel.md#manual-key-wrapping) for more details.
-
-### Composable WHERE and ORDER BY
-
-Multiple `where()` calls are combined with AND, and multiple `orderBy()` calls append columns to a single ORDER BY clause:
-
-<Tabs groupId="language">
-<TabItem value="kotlin" label="Kotlin" default>
-
-```kotlin
-val results = orm.entity(User::class)
-    .select()
-    .where(User_.active, EQUALS, true)
-    .where(User_.city eq city)           // AND-combined with previous where
-    .orderBy(User_.lastName)
-    .orderBy(User_.firstName)            // appended: ORDER BY last_name, first_name
-    .resultList
-```
-
-Builder-style `where()` calls (with `and`/`or` predicates) compose with other `where()` calls in the same way:
-
-```kotlin
-val results = orm.entity(User::class)
-    .select()
-    .where(User_.active, EQUALS, true)
-    .where(                              // AND-combined with the active filter above
-        (User_.role eq adminRole) or (User_.role eq superUserRole)
-    )
-    .resultList
-```
-
-</TabItem>
-<TabItem value="java" label="Java">
-
-```java
-List<User> results = orm.entity(User.class)
-    .select()
-    .where(User_.active, EQUALS, true)
-    .where(User_.city, EQUALS, city)     // AND-combined with previous where
-    .orderBy(User_.lastName)
-    .orderBy(User_.firstName)            // appended: ORDER BY last_name, first_name
-    .getResultList();
-```
-
-Builder-style `where()` calls (with `and`/`or` predicates) compose with other `where()` calls in the same way:
-
-```java
-List<User> results = orm.entity(User.class)
-    .select()
-    .where(User_.active, EQUALS, true)
-    .where(it -> it.where(User_.role, EQUALS, adminRole)  // AND-combined with active filter
-            .or(it.where(User_.role, EQUALS, superUserRole)))
-    .getResultList();
-```
-
-</TabItem>
-</Tabs>
-
----
-
-## Distinct Results
-
-Add `.distinct()` to eliminate duplicate rows from the result set. This is useful when selecting a related entity type from a query that could produce duplicates due to one-to-many relationships.
-
-<Tabs groupId="language">
-<TabItem value="kotlin" label="Kotlin" default>
-
-```kotlin
-val cities = orm.entity(User::class)
-    .select(City::class)
-    .distinct()
-    .resultList
-```
-
-</TabItem>
-<TabItem value="java" label="Java">
-
-```java
-List<City> cities = orm.entity(User.class)
-    .select(City.class)
-    .distinct()
-    .getResultList();
-```
-
-</TabItem>
-</Tabs>
-
----
-
-## Streaming
-
-<Tabs groupId="language">
-<TabItem value="kotlin" label="Kotlin" default>
-
-For large result sets, use `selectAll()` or `select()` which return a Kotlin `Flow<T>`. Rows are fetched lazily from the database as you collect, so memory usage stays constant regardless of result set size. Flow also handles resource cleanup automatically when collection completes or is cancelled.
-
-```kotlin
-val users: Flow<User> = orm.entity(User::class).selectAll()
-
-// Process each
-users.collect { user -> process(user) }
-
-// Transform and collect
-val emails: List<String> = users.map { it.email }.toList()
-
-// Count
-val count: Int = users.count()
-```
-
-</TabItem>
-<TabItem value="java" label="Java">
-
-Java streams hold an open database cursor and JDBC resources. Unlike Kotlin's `Flow` (which handles cleanup automatically), Java `Stream` results must be explicitly closed. Always wrap them in a try-with-resources block to prevent connection leaks.
-
-```java
-try (Stream<User> users = orm.entity(User.class).selectAll()) {
-    List<String> emails = users.map(User::email).toList();
-}
-```
-
-</TabItem>
-</Tabs>
-
----
-
-## Result Classes
-
-Query result classes can be:
-- **Plain records** -- Storm maps columns to fields (you write all SQL)
-- **`Data` implementations** -- enable SQL template helpers like `${t(Class::class)}`
-- **`Entity`/`Projection`** -- full repository support with CRUD operations
-
-Choose the simplest option that meets your needs. See [SQL Templates](sql-templates.md) for details.
+See [Slice: GROUP BY](#group-by) for details.
 
 ---
 

@@ -17,6 +17,8 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.test.context.ContextConfiguration;
 import org.springframework.test.context.jdbc.Sql;
 import org.springframework.test.context.junit.jupiter.SpringExtension;
+import st.orm.Page;
+import st.orm.Pageable;
 import st.orm.Ref;
 import st.orm.Slice;
 import st.orm.repository.EntityRepository;
@@ -545,6 +547,93 @@ public class RepositoryTest {
     public void testProjectionSliceBeforeRefByKeyAndSortAndValue() {
         Slice<Ref<OwnerView>> slice = orm.projection(OwnerView.class).sliceBeforeRef(OwnerView_.id, 8, OwnerView_.firstName, "Z", 5);
         assertNotNull(slice);
+    }
+
+    // Page pagination
+
+    @Test
+    public void testEntityPageFirstPage() {
+        Page<City> firstPage = orm.entity(City.class).page(0, 3);
+        assertEquals(3, firstPage.content().size());
+        assertEquals(6, firstPage.totalCount());
+        assertEquals(2, firstPage.totalPages());
+        assertTrue(firstPage.hasNext());
+        assertFalse(firstPage.hasPrevious());
+    }
+
+    @Test
+    public void testEntityPageSecondPage() {
+        Page<City> secondPage = orm.entity(City.class).page(1, 3);
+        assertEquals(3, secondPage.content().size());
+        assertEquals(6, secondPage.totalCount());
+        assertFalse(secondPage.hasNext());
+        assertTrue(secondPage.hasPrevious());
+    }
+
+    @Test
+    public void testEntityPageWithPageable() {
+        Pageable pageable = Pageable.ofSize(2);
+        Page<City> firstPage = orm.entity(City.class).page(pageable);
+        assertEquals(2, firstPage.content().size());
+        assertEquals(6, firstPage.totalCount());
+        assertEquals(0, firstPage.pageNumber());
+        assertTrue(firstPage.hasNext());
+
+        Page<City> secondPage = orm.entity(City.class).page(firstPage.nextPageable());
+        assertEquals(2, secondPage.content().size());
+        assertEquals(1, secondPage.pageNumber());
+        assertTrue(secondPage.hasNext());
+        assertTrue(secondPage.hasPrevious());
+    }
+
+    @Test
+    public void testEntityPageWithSortOrder() {
+        Pageable pageable = Pageable.ofSize(3).sortBy(City_.name);
+        Page<City> firstPage = orm.entity(City.class).page(pageable);
+        assertEquals(3, firstPage.content().size());
+        String firstName = firstPage.content().getFirst().name();
+        for (City city : firstPage.content()) {
+            assertTrue(firstName.compareTo(city.name()) <= 0);
+        }
+    }
+
+    @Test
+    public void testEntityPageBeyondLastPage() {
+        Page<City> emptyPage = orm.entity(City.class).page(100, 3);
+        assertEquals(0, emptyPage.content().size());
+        assertEquals(6, emptyPage.totalCount());
+    }
+
+    @Test
+    public void testEntityPageRef() {
+        Page<Ref<City>> refPage = orm.entity(City.class).pageRef(0, 3);
+        assertEquals(3, refPage.content().size());
+        assertEquals(6, refPage.totalCount());
+    }
+
+    @Test
+    public void testProjectionPageFirstPage() {
+        Page<OwnerView> firstPage = orm.projection(OwnerView.class).page(0, 5);
+        assertEquals(5, firstPage.content().size());
+        assertEquals(10, firstPage.totalCount());
+        assertTrue(firstPage.hasNext());
+    }
+
+    @Test
+    public void testProjectionPageWithPageable() {
+        Pageable pageable = Pageable.ofSize(5);
+        Page<OwnerView> firstPage = orm.projection(OwnerView.class).page(pageable);
+        assertEquals(5, firstPage.content().size());
+        assertEquals(10, firstPage.totalCount());
+        assertEquals(0, firstPage.pageNumber());
+        assertTrue(firstPage.hasNext());
+    }
+
+    @Test
+    public void testProjectionPageRef() {
+        Page<Ref<OwnerView>> refPage = orm.projection(OwnerView.class).pageRef(0, 5);
+        assertEquals(5, refPage.content().size());
+        assertEquals(10, refPage.totalCount());
     }
 
     // EntityRepository - additional default methods for completeness

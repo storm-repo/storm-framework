@@ -905,8 +905,6 @@ class MetamodelProcessor(
                 |
                 |/**
                 | * Metamodel for $className.
-                | *
-                | * @param T the record type of the root table of the entity graph.
                 | */
                 |@Suppress("ClassName")
                 |@Generated("${this::class.java.name}")

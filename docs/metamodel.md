@@ -49,14 +49,14 @@ plugins {
 }
 
 dependencies {
-    ksp("st.orm:storm-metamodel-processor:1.9.1")
+    ksp("st.orm:storm-metamodel-processor:1.10.0")
 }
 ```
 
 ### Gradle (Java)
 
 ```kotlin
-annotationProcessor("st.orm:storm-metamodel-processor:1.9.1")
+annotationProcessor("st.orm:storm-metamodel-processor:1.10.0")
 ```
 
 ### Maven (Java)
@@ -65,7 +65,7 @@ annotationProcessor("st.orm:storm-metamodel-processor:1.9.1")
 <dependency>
     <groupId>st.orm</groupId>
     <artifactId>storm-metamodel-processor</artifactId>
-    <version>1.9.1</version>
+    <version>1.10.0</version>
     <scope>provided</scope>
 </dependency>
 ```
@@ -487,7 +487,7 @@ Slice<SomeEntity> nextPage = repository.sliceAfter(SomeEntity_.uniqueKey, last.u
 </TabItem>
 </Tabs>
 
-See [Queries](queries.md#keyset-pagination-with-slice) for full details on keyset pagination.
+See [Queries](queries.md#slice) for full details on keyset pagination.
 
 ### Manual Key Wrapping
 
