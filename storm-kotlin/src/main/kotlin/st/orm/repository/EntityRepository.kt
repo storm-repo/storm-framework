@@ -1167,7 +1167,6 @@ interface EntityRepository<E, ID : Any> : Repository where E : Entity<ID> {
      *
      * @param entities a flow of entities to insert. Each entity must not be null and must conform to the model
      * constraints.
-     * @param callback the callback to process the IDs of the inserted entities in batches.
      * @throws st.orm.PersistenceException if there is an error during the insertion or key retrieval operation, such as a
      * violation of database constraints, connectivity issues, or if any entity in the
      * flow is null.
@@ -1183,8 +1182,6 @@ interface EntityRepository<E, ID : Any> : Repository where E : Entity<ID> {
      *
      * @param entities a flow of entities to insert. Each entity must not be null and must conform to the model
      * constraints.
-     * @param callback the callback to process the inserted entities, reflecting their new state in the database,
-     * in batches.
      * @throws st.orm.PersistenceException if there is an error during the insertion or retrieval operation, such as a
      * violation of database constraints, connectivity issues, or if any entity in the
      * flow is null.
@@ -1203,7 +1200,6 @@ interface EntityRepository<E, ID : Any> : Repository where E : Entity<ID> {
      * constraints.
      * @param batchSize the size of the batches to use for the insertion operation. A larger batch size can improve
      * performance but may also increase the load on the database.
-     * @param callback the callback to process the IDs of the inserted entities in batches.
      * @throws st.orm.PersistenceException if there is an error during the insertion or key retrieval operation, such as a
      * violation of database constraints, connectivity issues, or if any entity in the
      * flow is null.
@@ -1223,8 +1219,6 @@ interface EntityRepository<E, ID : Any> : Repository where E : Entity<ID> {
      * constraints.
      * @param batchSize the size of the batches to use for the insertion operation. A larger batch size can improve
      * performance but may also increase the load on the database.
-     * @param callback the callback to process the inserted entities, reflecting their new state in the database,
-     * in batches.
      * @throws st.orm.PersistenceException if there is an error during the insertion or retrieval operation, such as a
      * violation of database constraints, connectivity issues, or if any entity in the
      * flow is null.
@@ -1271,8 +1265,6 @@ interface EntityRepository<E, ID : Any> : Repository where E : Entity<ID> {
      *
      * @param entities a flow of entities to update. Each entity must not be null, must already exist in the database,
      * and must conform to the model constraints.
-     * @param callback the callback to process the updated entities, reflecting their new state in the database,
-     * in batches.
      * @throws st.orm.PersistenceException if there is an error during the update or retrieval operation, such as a violation
      * of database constraints, connectivity issues, or if any entity in the flow is
      * null.
@@ -1292,8 +1284,6 @@ interface EntityRepository<E, ID : Any> : Repository where E : Entity<ID> {
      * and must conform to the model constraints.
      * @param batchSize the size of the batches to use for the update operation. A larger batch size can improve
      * performance but may also increase the load on the database.
-     * @param callback the callback to process the updated entities, reflecting their new state in the database,
-     * in batches.
      * @throws st.orm.PersistenceException if there is an error during the update or retrieval operation, such as a violation
      * of database constraints, connectivity issues, or if any entity in the flow is
      * null.
@@ -1339,11 +1329,10 @@ interface EntityRepository<E, ID : Any> : Repository where E : Entity<ID> {
      * This method processes the provided flow of entities in batches, performing an "upsert" operation on each entity.
      * For each entity, it will be inserted if it does not already exist in the database or updated if it does. After
      * each batch operation, the IDs of the upserted entities are passed to the provided callback, allowing for
-     * specializedized handling of the IDs as they are retrieved.
+     * specialized handling of the IDs as they are retrieved.
      *
      * @param entities a flow of entities to be inserted or updated. Each entity in the flow must be non-null and
      * contain valid data for insertion or update in the database.
-     * @param callback the callback to process the IDs of the upserted entities in batches.
      * @throws st.orm.PersistenceException if the upsert operation fails due to database issues, such as connectivity problems,
      * constraints violations, or invalid entity data.
      */
@@ -1354,14 +1343,12 @@ interface EntityRepository<E, ID : Any> : Repository where E : Entity<ID> {
      *
      * This method processes the provided flow of entities in batches, performing an "upsert" operation on each entity.
      * For each entity, it will be inserted if it does not already exist in the database or updated if it does. After
-     * each batch operation, the updated entities are passed to the provided callback, allowing for specializedized handling
+     * each batch operation, the updated entities are passed to the provided callback, allowing for specialized handling
      * of the entities as they are retrieved. The entities returned reflect their current state in the database, including
      * any changes such as generated primary keys, timestamps, or default values set by the database during the upsert process.
      *
      * @param entities a flow of entities to be inserted or updated. Each entity in the flow must be non-null and
      * contain valid data for insertion or update in the database.
-     * @param callback the callback to process the upserted entities, reflecting their new state in the database,
-     * in batches.
      * @throws st.orm.PersistenceException if the upsert operation fails due to database issues, such as connectivity problems,
      * constraints violations, or invalid entity data.
      */
@@ -1374,13 +1361,12 @@ interface EntityRepository<E, ID : Any> : Repository where E : Entity<ID> {
      * For each entity, it will be inserted if it does not already exist in the database or updated if it does. The batch size
      * parameter allows control over the number of entities processed in each batch, optimizing memory and performance based
      * on system requirements. After each batch operation, the IDs of the upserted entities are passed to the provided
-     * callback, allowing for specializedized handling of the IDs as they are retrieved.
+     * callback, allowing for specialized handling of the IDs as they are retrieved.
      *
      * @param entities a flow of entities to be inserted or updated. Each entity in the flow must be non-null and contain
      * valid data for insertion or update in the database.
      * @param batchSize the number of entities to process in each batch. Adjusting the batch size can optimize performance
      * and memory usage, with larger sizes potentially improving performance but using more memory.
-     * @param callback the callback to process the IDs of the upserted entities in batches.
      * @throws st.orm.PersistenceException if the upsert operation fails due to database issues, such as connectivity problems,
      * constraints violations, or invalid entity data.
      */
@@ -1393,7 +1379,7 @@ interface EntityRepository<E, ID : Any> : Repository where E : Entity<ID> {
      * For each entity, it will be inserted if it does not already exist in the database or updated if it does. The
      * `chunkSize` parameter allows control over the number of entities processed in each batch, optimizing performance
      * and memory usage based on system requirements. After each batch operation, the updated entities are passed to
-     * the provided callback, allowing for specializedized handling of the entities as they are retrieved. The entities
+     * the provided callback, allowing for specialized handling of the entities as they are retrieved. The entities
      * returned reflect their current state in the database, including any changes such as generated primary keys,
      * timestamps, or default values applied during the upsert process.
      *
@@ -1401,8 +1387,6 @@ interface EntityRepository<E, ID : Any> : Repository where E : Entity<ID> {
      * contain valid data for insertion or update in the database.
      * @param batchSize the number of entities to process in each batch. Adjusting the batch size can optimize performance
      * and memory usage, with larger sizes potentially improving performance but using more memory.
-     * @param callback the callback to process the upserted entities, reflecting their new state in the database,
-     * in batches.
      * @throws st.orm.PersistenceException if the upsert operation fails due to database issues, such as connectivity problems,
      * constraints violations, or invalid entity data.
      */
