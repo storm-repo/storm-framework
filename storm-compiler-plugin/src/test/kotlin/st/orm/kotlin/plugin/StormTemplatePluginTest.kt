@@ -365,6 +365,114 @@ class StormTemplatePluginTest {
     }
 
     @Test
+    fun `nested TemplateBuilder lambdas are independently rewritten`() {
+        val source = SourceFile.kotlin(
+            "Test.kt",
+            """
+            import st.orm.template.*
+
+            fun query(template: TemplateBuilder): TemplateString = template.build()
+
+            fun main() {
+                val outerValue = 1
+                val innerValue = 2
+                var innerValues = ""
+                val outerResult = query {
+                    val innerResult = query { "SELECT ${'$'}innerValue" }
+                    innerValues = innerResult.values.joinToString(",")
+                    "SELECT ${'$'}outerValue"
+                }
+                println(innerValues)
+                println(outerResult.values.joinToString(","))
+            }
+            """,
+        )
+        val result = compile(source)
+        assertEquals(KotlinCompilation.ExitCode.OK, result.exitCode, result.messages)
+        val output = result.runMain()
+        val lines = output.lines()
+        assertEquals("2", lines[0])
+        assertEquals("1", lines[1])
+    }
+
+    @Test
+    fun `lambda with non-TemplateContext receiver is not rewritten`() {
+        val source = SourceFile.kotlin(
+            "Test.kt",
+            """
+            import st.orm.template.*
+
+            fun StringBuilder.buildString(block: StringBuilder.() -> String): String = block()
+
+            fun main() {
+                val id = 42
+                val result = StringBuilder().buildString { "id = ${'$'}id" }
+                println(result)
+            }
+            """,
+        )
+        val result = compile(source)
+        assertEquals(KotlinCompilation.ExitCode.OK, result.exitCode, result.messages)
+        val output = result.runMain()
+        assertEquals("id = 42", output)
+    }
+
+    @Test
+    fun `non-t function call in interpolation is auto-wrapped`() {
+        val source = SourceFile.kotlin(
+            "Test.kt",
+            """
+            import st.orm.template.*
+
+            fun main() {
+                val id = 42
+                val builder: TemplateBuilder = { "SELECT * FROM users WHERE id = ${'$'}{id.toString()}" }
+                val result = builder.build()
+                println(result.fragments.joinToString("|"))
+                println(result.values.joinToString(","))
+            }
+            """,
+        )
+        val result = compile(source)
+        assertEquals(KotlinCompilation.ExitCode.OK, result.exitCode, result.messages)
+        val output = result.runMain()
+        val lines = output.lines()
+        assertEquals("SELECT * FROM users WHERE id = |", lines[0])
+        assertEquals("42", lines[1])
+    }
+
+    @Test
+    fun `multiple string templates in one lambda are all rewritten`() {
+        val source = SourceFile.kotlin(
+            "Test.kt",
+            """
+            import st.orm.template.*
+
+            fun main() {
+                val id = 42
+                val name = "Alice"
+                val builder: TemplateBuilder = {
+                    if (id > 0) {
+                        "SELECT * FROM users WHERE id = ${'$'}id AND name = ${'$'}name"
+                    } else {
+                        "SELECT * FROM users WHERE name = ${'$'}name"
+                    }
+                }
+                val result = builder.build()
+                println(result.fragments.joinToString("|"))
+                println(result.values.joinToString(","))
+            }
+            """,
+        )
+        val result = compile(source)
+        assertEquals(KotlinCompilation.ExitCode.OK, result.exitCode, result.messages)
+        val output = result.runMain()
+        val lines = output.lines()
+        assertEquals("SELECT * FROM users WHERE id = | AND name = |", lines[0])
+        assertEquals("42,Alice", lines[1])
+    }
+
+    @Test
     fun `expression interpolation is auto-wrapped`() {
         val source = SourceFile.kotlin(
             "Test.kt",
