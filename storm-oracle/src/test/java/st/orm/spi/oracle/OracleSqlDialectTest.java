@@ -3,11 +3,17 @@ package st.orm.spi.oracle;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
+import java.util.SequencedMap;
 import org.junit.jupiter.api.Test;
+import st.orm.Operator;
 import st.orm.StormConfig;
+import st.orm.core.template.SqlTemplateException;
 
 /**
  * Unit tests for {@link OracleSqlDialect} verifying Oracle-specific SQL generation behavior.
@@ -287,5 +293,63 @@ class OracleSqlDialectTest {
     @Test
     void escapeShouldHandleEmptyName() {
         assertEquals("\"\"", dialect.escape(""));
+    }
+
+    // multiColumnExpression: tuple syntax for supported operators
+
+    private SequencedMap<String, Object> row(String column1, Object value1, String column2, Object value2) {
+        var map = new LinkedHashMap<String, Object>();
+        map.put(column1, value1);
+        map.put(column2, value2);
+        return map;
+    }
+
+    @Test
+    void multiColumnExpressionShouldUseTupleSyntaxForEquals() throws Exception {
+        var values = List.of(row("a", 1, "b", 2));
+        var result = dialect.multiColumnExpression(Operator.EQUALS, values, v -> "?");
+        assertEquals("(a, b) = (?, ?)", result);
+    }
+
+    @Test
+    void multiColumnExpressionShouldUseTupleSyntaxForIn() throws Exception {
+        var values = List.of(row("a", 1, "b", 2), row("a", 3, "b", 4));
+        var result = dialect.multiColumnExpression(Operator.IN, values, v -> "?");
+        assertEquals("(a, b) IN ((?, ?), (?, ?))", result);
+    }
+
+    @Test
+    void multiColumnExpressionShouldUseTupleSyntaxForNotEquals() throws Exception {
+        var values = List.of(row("a", 1, "b", 2));
+        var result = dialect.multiColumnExpression(Operator.NOT_EQUALS, values, v -> "?");
+        assertEquals("(a, b) <> (?, ?)", result);
+    }
+
+    @Test
+    void multiColumnExpressionShouldUseTupleSyntaxForBetween() throws Exception {
+        var values = List.of(row("a", 1, "b", 2), row("a", 3, "b", 4));
+        var result = dialect.multiColumnExpression(Operator.BETWEEN, values, v -> "?");
+        assertEquals("(a, b) BETWEEN (?, ?) AND (?, ?)", result);
+    }
+
+    @Test
+    void multiColumnExpressionShouldUseTupleSyntaxForLessThan() throws Exception {
+        var values = List.of(row("a", 1, "b", 2));
+        var result = dialect.multiColumnExpression(Operator.LESS_THAN, values, v -> "?");
+        assertEquals("(a, b) < (?, ?)", result);
+    }
+
+    @Test
+    void multiColumnExpressionShouldUseTupleSyntaxForGreaterThanOrEqual() throws Exception {
+        var values = List.of(row("a", 1, "b", 2));
+        var result = dialect.multiColumnExpression(Operator.GREATER_THAN_OR_EQUAL, values, v -> "?");
+        assertEquals("(a, b) >= (?, ?)", result);
+    }
+
+    @Test
+    void multiColumnExpressionShouldFallBackForUnsupportedOperator() {
+        var values = List.of(row("a", 1, "b", 2));
+        assertThrows(SqlTemplateException.class,
+                () -> dialect.multiColumnExpression(Operator.LIKE, values, v -> "?"));
     }
 }

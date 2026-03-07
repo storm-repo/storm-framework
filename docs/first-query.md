@@ -158,7 +158,7 @@ val roles = orm.entity(Role::class)
 // Aggregation
 data class CityCount(val city: City, val count: Long)
 
-val counts = users.select(CityCount::class) { "${t(City::class)}, COUNT(*)" }
+val counts = users.select(CityCount::class) { "${City::class}, COUNT(*)" }
     .groupBy(User_.city)
     .resultList
 ```
@@ -241,14 +241,14 @@ When the query builder does not cover your use case (for example, CTEs, window f
 
 ```kotlin
 val users = orm.query {
-    """SELECT ${t(User::class)}
-       FROM ${t(User::class)}
-       WHERE ${t(User_.city)} = ${t(city)}
-       ORDER BY ${t(User_.name)}"""
+    """SELECT ${User::class}
+       FROM ${User::class}
+       WHERE ${User_.city} = $city
+       ORDER BY ${User_.name}"""
 }.resultList<User>()
 ```
 
-The `t()` function resolves entity types to column lists, metamodel fields to column names, and values to parameterized placeholders.
+With the [Storm compiler plugin](string-templates.md), interpolated expressions are automatically processed by the template engine: entity types expand to column lists, metamodel fields resolve to column names, and values become parameterized placeholders.
 
 </TabItem>
 <TabItem value="java" label="Java">

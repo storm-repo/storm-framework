@@ -12,8 +12,8 @@
 
 **Key benefits:**
 
-- **Easy to learn**: With a programming model similar to the Java Persistence API (JPA), developers familiar with JPA can quickly adapt to using Storm.
-- **Minimal code**: Define entities with simple records/data classes and query with concise, readable syntax—no boilerplate.
+- **Minimal code**: Define entities with simple records/data classes and query with concise, readable syntax; no boilerplate.
+- **Parameterized by default**: String interpolations are automatically converted to bound parameters, making queries SQL injection safe by design.
 - **Close to SQL**: Storm embraces SQL rather than abstracting it away, keeping you in control of your database operations.
 - **Type-safe**: Storm's DSL mirrors SQL, providing a type-safe, intuitive experience that makes queries easy to write and read while reducing the risk of runtime errors.
 - **Direct Database Interaction**: Storm translates method calls directly into database operations, offering a transparent and straightforward experience. It eliminates inefficiencies like the N+1 query problem for predictable and efficient interactions.
@@ -73,9 +73,12 @@ val users = orm.entity(User::class)
     .orderBy(User_.name)
     .resultList
 
-// SQL Template for full control
-val users = orm.query { "SELECT ${t(User::class)} FROM ${t(User::class)} WHERE ${t(User_.city.name)} = ${t(cityName)}" }
-    .resultList<User>()
+// SQL Template for full control; parameterized by default, SQL injection safe
+val users = orm.query { """
+        SELECT ${User::class}
+        FROM ${User::class}
+        WHERE ${User_.city.name} = $cityName"""
+    }.resultList<User>()
 ```
 
 Full coroutine support with `Flow` for streaming and programmatic transactions:
@@ -117,15 +120,15 @@ List<User> users = orm.entity(User.class)
     .orderBy(User_.name)
     .getResultList();
 
-// SQL Template for full control
+// SQL Template for full control; parameterized by default, SQL injection safe
 List<User> users = orm.query(RAW."""
         SELECT \{User.class}
         FROM \{User.class}
-        WHERE \{User_.city.name} = \{cityName}""")
-    .getResultList(User.class);
+        WHERE \{User_.city.name} = \{cityName}
+        """).getResultList(User.class);
 ```
 
-> **Note on Java String Templates:** The Java API is built on String Templates, a preview feature that is still evolving in the JDK. Storm is a forward-looking framework, and String Templates are the best way to write SQL that is both readable and injection-safe by design. Rather than wait for the feature to stabilize, Storm ships with String Template support today. If you prefer a stable API right now, the Kotlin API is fully stable and requires no preview features. Only `storm-java21` depends on this preview feature; the core framework and the Kotlin API are unaffected. The Java API is production-ready from a quality perspective, but its API surface will adapt as String Templates move toward a stable release.
+> **String Templates:** Kotlin uses a compiler plugin that automatically wraps interpolations at compile time. Java uses String Templates, a preview feature. See [String Templates](docs/string-templates.md) for setup and details on both languages.
 
 ## Quick Start
 
@@ -166,6 +169,7 @@ dependencies {
     implementation(platform("st.orm:storm-bom:1.10.0"))
     implementation("st.orm:storm-kotlin")
     runtimeOnly("st.orm:storm-core")
+    kotlinCompilerPluginClasspath("st.orm:storm-compiler-plugin:1.10.0")
 }
 ```
 
@@ -218,6 +222,7 @@ Deep dives into Storm's internals. You don't need these to be productive, but th
 
 | Topic | Description |
 |-------|-------------|
+| [String Templates](docs/string-templates.md) | Kotlin compiler plugin and Java string templates (5 min) |
 | [SQL Templates](docs/sql-templates.md) | Template parameters and query generation (10 min) |
 | [Hydration](docs/hydration.md) | Result mapping to records (16 min) |
 | [Dirty Checking](docs/dirty-checking.md) | Update modes and change detection (19 min) |
@@ -252,8 +257,6 @@ Storm works with any JDBC-compatible database. Dialect packages provide optimize
 [![Java](https://img.shields.io/badge/Java-21%2B-ED8B00?style=for-the-badge&logo=openjdk&logoColor=white)](https://openjdk.org/)
 
 Storm targets Kotlin 2.0+ and Java 21+ as minimum supported versions. These baselines will be maintained for the foreseeable future.
-
-> **Note on Java String Templates:** The Java API is built on String Templates, a preview feature that is still evolving in the JDK. Only `storm-java21` depends on this preview feature; the core framework and the Kotlin API are unaffected. The Java API is production-ready from a quality perspective, but its API surface will adapt as String Templates move toward a stable release.
 
 ## Contributing
 

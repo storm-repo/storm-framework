@@ -12,8 +12,8 @@ import TabItem from '@theme/TabItem';
 
 **Key benefits:**
 
-- **Easy to learn**: With a programming model similar to the Java Persistence API (JPA), developers familiar with JPA can quickly adapt to using Storm.
 - **Minimal code**: Define entities with simple records/data classes and query with concise, readable syntax, no boilerplate.
+- **Parameterized by default**: String interpolations are automatically converted to bound parameters, making queries SQL injection safe by design.
 - **Close to SQL**: Storm embraces SQL rather than abstracting it away, keeping you in control of your database operations.
 - **Type-safe**: Storm's DSL mirrors SQL, providing a type-safe, intuitive experience that makes queries easy to write and read while reducing the risk of runtime errors.
 - **Direct Database Interaction**: Storm translates method calls directly into database operations, offering a transparent and straightforward experience. It eliminates inefficiencies like the N+1 query problem for predictable and efficient interactions.
@@ -74,9 +74,12 @@ val users = orm.entity(User::class)
     .orderBy(User_.name)
     .resultList
 
-// SQL Template for full control
-val users = orm.query { "SELECT ${t(User::class)} FROM ${t(User::class)} WHERE ${t(User_.city.name)} = ${t(cityName)}" }
-    .resultList<User>()
+// SQL Template for full control; parameterized by default, SQL injection safe
+val users = orm.query { """
+        SELECT ${User::class}
+        FROM ${User::class}
+        WHERE ${User_.city.name} = $cityName"""
+    }.resultList<User>()
 ```
 
 Full coroutine support with `Flow` for streaming and programmatic transactions:
@@ -119,12 +122,12 @@ List<User> users = orm.entity(User.class)
     .orderBy(User_.name)
     .getResultList();
 
-// SQL Template for full control
+// SQL Template for full control; parameterized by default, SQL injection safe
 List<User> users = orm.query(RAW."""
         SELECT \{User.class}
         FROM \{User.class}
-        WHERE \{User_.city.name} = \{cityName}""")
-    .getResultList(User.class);
+        WHERE \{User_.city.name} = \{cityName}
+        """).getResultList(User.class);
 ```
 
 </TabItem>
@@ -142,6 +145,7 @@ dependencies {
     implementation(platform("st.orm:storm-bom:1.10.0"))
     implementation("st.orm:storm-kotlin")
     runtimeOnly("st.orm:storm-core")
+    kotlinCompilerPluginClasspath("st.orm:storm-compiler-plugin:1.10.0")
 }
 ```
 
