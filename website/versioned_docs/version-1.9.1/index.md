@@ -139,7 +139,7 @@ Storm provides a Bill of Materials (BOM) for centralized version management. Imp
 
 ```kotlin
 dependencies {
-    implementation(platform("st.orm:storm-bom:1.9.1"))
+    implementation(platform("st.orm:storm-bom:1.10.0"))
     implementation("st.orm:storm-kotlin")
     runtimeOnly("st.orm:storm-core")
 }
@@ -154,7 +154,7 @@ dependencies {
         <dependency>
             <groupId>st.orm</groupId>
             <artifactId>storm-bom</artifactId>
-            <version>1.9.1</version>
+            <version>1.10.0</version>
             <type>pom</type>
             <scope>import</scope>
         </dependency>

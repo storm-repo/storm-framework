@@ -728,9 +728,9 @@ data class Address(
 
 // Now Address_ is available for type-safe references
 val addresses = orm.query { """
-    SELECT ${t(Address::class)}
-    FROM ${t(Address::class)}
-    WHERE ${t(Address_.street)} LIKE ${t("%Main%")}
+    SELECT ${Address::class}
+    FROM ${Address::class}
+    WHERE ${Address_.street} LIKE ${"%Main%"}
 """ }
 ```
 

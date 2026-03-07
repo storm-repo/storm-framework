@@ -345,13 +345,13 @@ val users = orm.entity(User::class)
 
 When an inline record (embedded component) is passed to `orderBy` or `orderByDescending`, Storm automatically expands it into its individual leaf columns using `flatten()`. For example, if `User_.fullName` is an inline record with `lastName` and `firstName` fields, `orderBy(User_.fullName)` produces `ORDER BY last_name, first_name`. The same expansion applies to `groupBy`.
 
-For full control over the ORDER BY clause (for example, to use SQL expressions or database-specific syntax), use the template overload. The `t()` function resolves a metamodel field to its column name.
+For full control over the ORDER BY clause (for example, to use SQL expressions or database-specific syntax), use the template overload. Metamodel fields are resolved to their column names automatically.
 
 ```kotlin
 // Mixed sort directions (template)
 val users = orm.entity(User::class)
     .select()
-    .orderBy { "${t(User_.lastName)}, ${t(User_.firstName)} DESC" }
+    .orderBy { "${User_.lastName}, ${User_.firstName} DESC" }
     .resultList
 ```
 
@@ -411,13 +411,13 @@ List<User> users = orm.entity(User.class)
 <Tabs groupId="language">
 <TabItem value="kotlin" label="Kotlin" default>
 
-To perform GROUP BY queries with aggregate functions like COUNT, SUM, or AVG, define a result data class with the desired columns and pass a custom SELECT expression. The `t()` function generates the column list for an entity or projection type, so you do not have to enumerate columns manually.
+To perform GROUP BY queries with aggregate functions like COUNT, SUM, or AVG, define a result data class with the desired columns and pass a custom SELECT expression. Interpolating an entity or projection type generates the column list automatically, so you do not have to enumerate columns manually.
 
 ```kotlin
 data class CityCount(val city: City, val count: Long)
 
 val counts: List<CityCount> = orm.entity(User::class)
-    .select(CityCount::class) { "${t(City::class)}, COUNT(*)" }
+    .select(CityCount::class) { "${City::class}, COUNT(*)" }
     .groupBy(User_.city)
     .resultList
 ```
@@ -885,7 +885,7 @@ List<Role> roles = orm.query(RAW."""
 
 Query result classes can be:
 - **Plain records** -- Storm maps columns to fields (you write all SQL)
-- **`Data` implementations** -- enable SQL template helpers like `${t(Class::class)}`
+- **`Data` implementations** -- enable SQL template helpers like `${Class::class}`
 - **`Entity`/`Projection`** -- full repository support with CRUD operations
 
 Choose the simplest option that meets your needs. See [SQL Templates](sql-templates.md) for details.

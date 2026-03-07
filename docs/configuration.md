@@ -19,6 +19,7 @@ Storm can be configured through `StormConfig`, system properties, or Spring Boot
 | `storm.validation.record_mode` | `fail` | Record validation mode: `fail`, `warn`, or `none` |
 | `storm.validation.schema_mode` | `none` | Schema validation mode: `none`, `warn`, or `fail` (Spring Boot only) |
 | `storm.validation.strict` | `false` | Treat schema validation warnings as errors |
+| `storm.validation.interpolation_mode` | `warn` | Interpolation safety mode: `warn`, `fail`, or `none` (see [Interpolation Safety](#interpolation-safety)) |
 
 ### Setting Properties
 
@@ -577,6 +578,22 @@ When `true`, schema validation warnings (type narrowing, nullability mismatches,
 
 See [Validation](validation.md) for a complete list of what each validation level checks.
 
+---
+
+## Interpolation Safety
+
+Storm's Kotlin API uses the Storm compiler plugin to automatically wrap string interpolations inside SQL template lambdas, ensuring all values are parameterized and SQL injection safe. When a `TemplateBuilder` lambda runs without the compiler plugin and without any explicit `t()` or `insert()` calls, Storm cannot distinguish a pure SQL literal (safe) from a string with accidentally concatenated interpolations (SQL injection risk). The `storm.validation.interpolation_mode` property controls how Storm handles this situation.
+
+### storm.validation.interpolation_mode
+
+| Value | Behavior |
+|-------|----------|
+| `warn` | Logs a warning at `WARNING` level (default). |
+| `fail` | Throws an `IllegalStateException`, preventing execution of potentially unsafe templates. |
+| `none` | Disables the check entirely. Use only when you are certain the compiler plugin is not needed. |
+
+See [String Templates](string-templates.md) for setup instructions for the compiler plugin.
+
 :::tip Monitoring
 Storm exposes runtime metrics for template compilation, dirty checking, and entity cache behavior through JMX MBeans. See [Metrics](metrics.md) for details.
 :::
@@ -683,3 +700,18 @@ java -Dstorm.entity_cache.retention=light \
 ```
 
 This reduces memory usage at the cost of less efficient dirty checking.
+
+### Production Hardening
+
+For production environments, consider enabling strict validation and interpolation safety checks. These settings catch configuration issues and potential security problems that should not reach production:
+
+```bash
+java -Dstorm.validation.schema_mode=fail \
+     -Dstorm.validation.interpolation_mode=fail \
+     -jar myapp.jar
+```
+
+- `storm.validation.schema_mode=fail` catches entity-to-schema mismatches at startup rather than at runtime.
+- `storm.validation.interpolation_mode=fail` prevents execution of templates that were not processed by the compiler plugin and do not use explicit `t()` calls, protecting against accidental SQL injection.
+
+During development, the defaults (`schema_mode=none`, `interpolation_mode=warn`) provide a smoother experience: schema validation is skipped (since the schema may be evolving), and missing compiler plugin usage is logged as a warning rather than blocking execution.
