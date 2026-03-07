@@ -1894,7 +1894,7 @@ open class QueryBuilderTest(
     }
 
     @Test
-    fun `whereAny with PredicateBuilder should filter entities`() {
+    fun `whereAny with Predicate should filter entities`() {
         val repo = orm.entity(City::class)
         val namePath = metamodel<City, String>(repo.model, "name")
         val predicate = namePath eq "Madison"
@@ -1941,7 +1941,7 @@ open class QueryBuilderTest(
     // QueryBuilder: selectAll flow
 
     @Test
-    fun `resultFlow should return all entities as flow`(): Unit = runBlocking {
+    fun `resultFlow should return all entities as flow from repo`(): Unit = runBlocking {
         val repo = orm.entity(City::class)
         val count = repo.select().resultFlow.count()
         count shouldBe 6
