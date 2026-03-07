@@ -1,0 +1,12 @@
+$dokka.format:html-v1
+$dokka.linkExtension:html
+$dokka.location:st.orm.validator////PointingToDeclaration/storm-kotlin-validator/st.orm.validator/index.html
+$dokka.location:st.orm.validator/NoDirectInterpolationRule///PointingToDeclaration/storm-kotlin-validator/st.orm.validator/-no-direct-interpolation-rule/index.html
+$dokka.location:st.orm.validator/NoDirectInterpolationRule/NoDirectInterpolationRule/#io.gitlab.arturbosch.detekt.api.Config/PointingToDeclaration/storm-kotlin-validator/st.orm.validator/-no-direct-interpolation-rule/-no-direct-interpolation-rule.html
+$dokka.location:st.orm.validator/NoDirectInterpolationRule/issue/#/PointingToDeclaration/storm-kotlin-validator/st.orm.validator/-no-direct-interpolation-rule/issue.html
+$dokka.location:st.orm.validator/NoDirectInterpolationRule/visitStringTemplateExpression/#org.jetbrains.kotlin.psi.KtStringTemplateExpression/PointingToDeclaration/storm-kotlin-validator/st.orm.validator/-no-direct-interpolation-rule/visit-string-template-expression.html
+$dokka.location:st.orm.validator/NoDirectInterpolationRuleSetProvider///PointingToDeclaration/storm-kotlin-validator/st.orm.validator/-no-direct-interpolation-rule-set-provider/index.html
+$dokka.location:st.orm.validator/NoDirectInterpolationRuleSetProvider/NoDirectInterpolationRuleSetProvider/#/PointingToDeclaration/storm-kotlin-validator/st.orm.validator/-no-direct-interpolation-rule-set-provider/-no-direct-interpolation-rule-set-provider.html
+$dokka.location:st.orm.validator/NoDirectInterpolationRuleSetProvider/instance/#io.gitlab.arturbosch.detekt.api.Config/PointingToDeclaration/storm-kotlin-validator/st.orm.validator/-no-direct-interpolation-rule-set-provider/instance.html
+$dokka.location:st.orm.validator/NoDirectInterpolationRuleSetProvider/ruleSetId/#/PointingToDeclaration/storm-kotlin-validator/st.orm.validator/-no-direct-interpolation-rule-set-provider/rule-set-id.html
+st.orm.validator
