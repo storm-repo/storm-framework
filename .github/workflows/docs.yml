@@ -46,7 +46,7 @@ jobs:
             -Dmaven.javadoc.failOnError=false \
             -DadditionalJOption=--enable-preview \
             -Ddoclint=none \
-            -pl '!:storm-kotlin,!:storm-kotlin-spring,!:storm-kotlin-spring-boot-starter,!:storm-kotlin-validator,!:storm-kotlinx-serialization,!:storm-metamodel-ksp,!:storm-spring-boot-starter,!:storm-jackson3'
+            -pl '!:storm-kotlin,!:storm-kotlin-spring,!:storm-kotlin-spring-boot-starter,!:storm-kotlinx-serialization,!:storm-metamodel-ksp,!:storm-spring-boot-starter,!:storm-jackson3'
 
       - name: Copy Javadoc to website/static/api/java
         run: |
@@ -57,7 +57,7 @@ jobs:
 
       - name: Copy KDoc to website/static/api/kotlin
         run: |
-          for module in storm-kotlin storm-kotlin-spring storm-kotlin-spring-boot-starter storm-kotlin-validator storm-metamodel-ksp storm-kotlinx-serialization; do
+          for module in storm-kotlin storm-kotlin-spring storm-kotlin-spring-boot-starter storm-metamodel-ksp storm-kotlinx-serialization; do
             if [ -d "$module/target/dokka" ]; then
               mkdir -p "website/static/api/kotlin/$module"
               cp -r "$module/target/dokka/"* "website/static/api/kotlin/$module/"
