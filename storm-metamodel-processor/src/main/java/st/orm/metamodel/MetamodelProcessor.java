@@ -744,6 +744,7 @@ public final class MetamodelProcessor extends AbstractProcessor {
     private String buildInterfaceFields(@Nonnull Element recordElement, @Nonnull String packageName) {
         StringBuilder builder = new StringBuilder();
         String recordName = recordElement.getSimpleName().toString();
+        String modelRef = recordName + "Metamodel.<" + recordName + ">instance()";
         for (Element enclosed : recordElement.getEnclosedElements()) {
             TypeMirror recordComponentType = getRecordComponentType(enclosed).orElse(null);
             if (recordComponentType == null) continue;
@@ -768,8 +769,8 @@ public final class MetamodelProcessor extends AbstractProcessor {
                         .append(inline ? "record." : "foreign key.")
                         .append(" */\n");
                 builder.append("    ").append(fieldTypeName).append("Metamodel<").append(recordName).append("> ")
-                        .append(fieldName).append(" = new ").append(recordName).append("Metamodel<")
-                        .append(recordName).append(">().").append(fieldName).append(";\n");
+                        .append(fieldName).append(" = ").append(modelRef).append(".")
+                        .append(fieldName).append(";\n");
             } else {
                 String valueTypeName = getValueTypeName(fieldType, packageName);
                 boolean unique = isUniqueField(recordElement, fieldName);
@@ -779,8 +780,8 @@ public final class MetamodelProcessor extends AbstractProcessor {
                         .append("} field. */\n");
                 builder.append("    ").append(baseClass).append("<").append(recordName).append(", ").append(fieldTypeName)
                         .append(", ").append(valueTypeName).append("> ")
-                        .append(fieldName).append(" = new ").append(recordName).append("Metamodel<")
-                        .append(recordName).append(">().").append(fieldName).append(";\n");
+                        .append(fieldName).append(" = ").append(modelRef).append(".")
+                        .append(fieldName).append(";\n");
             }
         }
         if (!builder.isEmpty()) {
@@ -1187,12 +1188,23 @@ public final class MetamodelProcessor extends AbstractProcessor {
                                 "        this(path, field, inline, parent, getter, false);\n" +
                                 "    }\n";
             }
+            String staticInstance = "";
+            if (isData) {
+                staticInstance =
+                        "\n    @SuppressWarnings(\"rawtypes\")\n" +
+                        "    private static final " + metaClassName + " INSTANCE = new " + metaClassName + "();\n\n" +
+                        "    @SuppressWarnings(\"unchecked\")\n" +
+                        "    public static <T extends st.orm.Data> " + metaClassName + "<T> instance() {\n" +
+                        "        return INSTANCE;\n" +
+                        "    }\n";
+            }
             String footer = "}\n";
             try (Writer writer = fileObject.openWriter()) {
                 writer.write(header);
                 writer.write(body);
                 writer.write(constructors);
                 writer.write(fullCtor);
+                writer.write(staticInstance);
                 writer.write(footer);
             }
         } catch (Exception e) {
@@ -1269,6 +1281,7 @@ public final class MetamodelProcessor extends AbstractProcessor {
         String metaInterfaceName = typeName + "_";
 
         StringBuilder fields = new StringBuilder();
+        String modelRef = typeName + "Metamodel.<" + typeName + ">instance()";
         for (ExecutableElement getter : declaredGetters) {
             String fieldName = getter.getSimpleName().toString();
             TypeMirror fieldType = getter.getReturnType();
@@ -1283,8 +1296,8 @@ public final class MetamodelProcessor extends AbstractProcessor {
                 fields.append("    /** Represents the {@link ").append(typeName).append("#").append(fieldName)
                         .append("()} record. */\n");
                 fields.append("    ").append(fieldTypeName).append("Metamodel<").append(typeName).append("> ")
-                        .append(fieldName).append(" = new ").append(typeName).append("Metamodel<")
-                        .append(typeName).append(">().").append(fieldName).append(";\n");
+                        .append(fieldName).append(" = ").append(modelRef).append(".")
+                        .append(fieldName).append(";\n");
             } else {
                 String valueTypeName = getValueTypeName(fieldType, packageName);
                 boolean unique = isUniqueFieldOnSubclass(sealedInterface, fieldName);
@@ -1293,8 +1306,8 @@ public final class MetamodelProcessor extends AbstractProcessor {
                         .append("()} field. */\n");
                 fields.append("    ").append(baseClass).append("<").append(typeName).append(", ").append(fieldTypeName)
                         .append(", ").append(valueTypeName).append("> ")
-                        .append(fieldName).append(" = new ").append(typeName).append("Metamodel<")
-                        .append(typeName).append(">().").append(fieldName).append(";\n");
+                        .append(fieldName).append(" = ").append(modelRef).append(".")
+                        .append(fieldName).append(";\n");
             }
         }
         if (!fields.isEmpty()) {
@@ -1616,12 +1629,23 @@ public final class MetamodelProcessor extends AbstractProcessor {
                                 "        this(path, field, inline, parent, getter, false);\n" +
                                 "    }\n";
             }
+            String staticInstance = "";
+            if (isData) {
+                staticInstance =
+                        "\n    @SuppressWarnings(\"rawtypes\")\n" +
+                        "    private static final " + metaClassName + " INSTANCE = new " + metaClassName + "();\n\n" +
+                        "    @SuppressWarnings(\"unchecked\")\n" +
+                        "    public static <T extends st.orm.Data> " + metaClassName + "<T> instance() {\n" +
+                        "        return INSTANCE;\n" +
+                        "    }\n";
+            }
             String footer = "}\n";
             try (Writer writer = fileObject.openWriter()) {
                 writer.write(header);
                 writer.write(body);
                 writer.write(constructors);
                 writer.write(fullCtor);
+                writer.write(staticInstance);
                 writer.write(footer);
             }
         } catch (Exception e) {

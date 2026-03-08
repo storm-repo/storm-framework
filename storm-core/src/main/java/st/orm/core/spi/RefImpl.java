@@ -20,7 +20,9 @@ import static java.util.Objects.requireNonNull;
 import jakarta.annotation.Nonnull;
 import jakarta.annotation.Nullable;
 import st.orm.Data;
+import st.orm.Entity;
 import st.orm.Ref;
+import st.orm.core.repository.EntityRepository;
 import st.orm.core.template.impl.LazySupplier;
 
 /**
@@ -107,23 +109,14 @@ final class RefImpl<T extends Data, ID> extends AbstractRef<T> {
     }
 
     /**
-     * Returns a ref with the same identity but without data.
+     * Returns a detached ref with the same identity but without data. The returned ref is not attached to a database
+     * context. To obtain an attached ref that can re-fetch the record, use
+     * {@link EntityRepository#unload(Entity) EntityRepository.unload()} instead.
      *
-     * <p>For attached refs, this clears the fetched record while preserving the ability to re-fetch from the database.
-     * The same ref instance may be returned since the data can be recovered on demand.</p>
-     *
-     * <p>For detached refs that hold a loaded record, a new unloaded ref is returned. Note that calling {@link #fetch()}
-     * on the returned ref will fail since there is no database connection to recover the data. Use this with caution
-     * when working with detached refs, as the original data cannot be retrieved.</p>
-     *
-     * <p>For detached refs that are already unloaded, this method returns the same instance.</p>
-     *
-     * @return a ref with the same type and primary key but without cached data; may return {@code this} if no new
-     *         instance is required.
+     * @return a detached ref with the same type and primary key but without cached data.
      */
     @Override
     public Ref<T> unload() {
-        supplier.remove();
-        return this;
+        return Ref.of(type, pk);
     }
 }

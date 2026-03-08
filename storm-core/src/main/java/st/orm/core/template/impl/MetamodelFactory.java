@@ -274,9 +274,10 @@ public final class MetamodelFactory {
             @Nonnull String path
     ) {
         try {
-            Metamodel<T, ?> current = (Metamodel<T, ?>) Class.forName(rootTable.getName() + "Metamodel", true, rootTable.getClassLoader())
-                    .getConstructor()
-                    .newInstance();
+            Metamodel<T, ?> current = (Metamodel<T, ?>) Class.forName(
+                            rootTable.getName() + "Metamodel", true, rootTable.getClassLoader())
+                    .getMethod("instance")
+                    .invoke(null);
             for (String segment : path.split("\\.")) {
                 current = (Metamodel<T, ?>) readSegment(current, segment);
             }
