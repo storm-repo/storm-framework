@@ -264,7 +264,7 @@ data class GroupedByCity(
 )
 
 val counts: Map<Ref<City>, Long> = orm.entity(User::class)
-    .select(GroupedByCity::class) { "${t(select(City::class, SelectMode.PK))}, COUNT(*)" }
+    .select(GroupedByCity::class) { "${select(City::class, SelectMode.PK)}, COUNT(*)" }
     .groupBy(User_.city)
     .resultList
     .associate { it.city to it.count }

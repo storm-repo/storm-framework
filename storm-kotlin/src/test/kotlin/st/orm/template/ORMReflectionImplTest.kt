@@ -445,6 +445,18 @@ open class ORMReflectionImplTest(
         refField.type() shouldBe Ref::class.java
     }
 
+    data class NoPKEntity(
+        val name: String,
+    ) : Entity<Int>
+
+    @Test
+    fun `getId should throw when no PK field exists`() {
+        val entity = NoPKEntity(name = "Test")
+        assertThrows<st.orm.PersistenceException> {
+            reflection.getId(entity)
+        }
+    }
+
     @Test
     fun `findRecordType should merge annotations from property and constructor parameter`() {
         val result = reflection.findRecordType(DataWithVar::class.java)

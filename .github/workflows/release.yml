@@ -51,7 +51,7 @@ jobs:
         env:
           CENTRAL_USER_TOKEN: ${{ secrets.CENTRAL_USER_TOKEN }}
 
-      - name: Publish package to Maven Central
+      - name: Publish all modules to Maven Central
         run: mvn clean deploy -Prelease -Dgpg.passphrase="${GPG_PASSPHRASE}" -DskipTests -B
         env:
           GPG_PASSPHRASE: ${{ secrets.GPG_PASSPHRASE }}

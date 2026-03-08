@@ -6,7 +6,7 @@
     <parent>
         <groupId>st.orm</groupId>
         <artifactId>storm-framework</artifactId>
-        <version>1.9.1</version>
+        <version>1.10.0</version>
         <relativePath>../pom.xml</relativePath>
     </parent>
     <artifactId>storm-kotlin</artifactId>
@@ -88,6 +88,13 @@
                         </configuration>
                     </execution>
                 </executions>
+                <dependencies>
+                    <dependency>
+                        <groupId>st.orm</groupId>
+                        <artifactId>storm-compiler-plugin-${kotlin.major.minor}</artifactId>
+                        <version>${project.version}</version>
+                    </dependency>
+                </dependencies>
             </plugin>
             <plugin>
                 <groupId>org.codehaus.mojo</groupId>

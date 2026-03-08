@@ -632,7 +632,7 @@ public class BuilderIntegrationTest {
         var orm = ORMTemplate.of(dataSource);
         var list = orm.selectFrom(City.class)
                 .where(TemplateBuilder.create(it ->
-                        "%s.name = %s".formatted(it.insert(City.class), it.insert("Madison"))
+                        "%s.name = %s".formatted(it.interpolate(City.class), it.interpolate("Madison"))
                 ))
                 .getResultList();
         assertEquals(1, list.size());

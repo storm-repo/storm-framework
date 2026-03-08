@@ -20,17 +20,17 @@ The syntax differs between Kotlin and Java due to language-level string interpol
 <Tabs groupId="language">
 <TabItem value="kotlin" label="Kotlin" default>
 
-Kotlin uses `${}` interpolation inside a lambda that provides template functions. The lambda receiver exposes the `t()` function, which is the single entry point for all template elements.
+Kotlin uses `${}` interpolation inside a lambda. With the [Storm compiler plugin](string-templates.md), interpolated expressions are automatically wrapped in `t()` calls at compile time, so you can write natural Kotlin string interpolation:
 
 ```kotlin
 orm.query { """
-    SELECT ${t(User::class)}
-    FROM ${t(User::class)}
-    WHERE ${t(User_.email)} = ${t(email)}
+    SELECT ${User::class}
+    FROM ${User::class}
+    WHERE ${User_.email} = $email
 """ }
 ```
 
-The `t()` function wraps all injected elements: types, metamodel references, and parameter values.
+The compiler plugin wraps each interpolated expression in `t()`, which is the single entry point for all template elements: types expand to column lists, metamodel references resolve to column names, and values become parameterized placeholders. Without the plugin, you can wrap expressions in `t()` manually. See [String Templates](string-templates.md) for setup instructions.
 
 </TabItem>
 <TabItem value="java" label="Java">
@@ -53,7 +53,7 @@ orm.query(RAW."""
 
 ## Data Interface
 
-The `Data` interface marks a record or data class as eligible for Storm's SQL generation. Without this marker, Storm treats the type as a plain container and expects you to write all SQL manually. With it, template expressions like `t(MyType::class)` in a SELECT clause expand into the full column list, and the same expression in a FROM clause generates the table name with appropriate joins for `@FK` fields.
+The `Data` interface marks a record or data class as eligible for Storm's SQL generation. Without this marker, Storm treats the type as a plain container and expects you to write all SQL manually. With it, template expressions like `${MyType::class}` in a SELECT clause expand into the full column list, and the same expression in a FROM clause generates the table name with appropriate joins for `@FK` fields.
 
 Use `Data` for query-specific result types that do not need full repository support (insert, update, delete). If you need CRUD operations, use `Entity` or `Projection` instead, which extend `Data`.
 
@@ -69,9 +69,9 @@ data class PetWithOwner(
 
 // SQL template generates SELECT columns and joins
 val pets = orm.query { """
-    SELECT ${t(PetWithOwner::class)}
-    FROM ${t(PetWithOwner::class)}
-    WHERE ${t(Owner_.city)} = ${t(city)}
+    SELECT ${PetWithOwner::class}
+    FROM ${PetWithOwner::class}
+    WHERE ${Owner_.city} = $city
 """ }.getResultList(PetWithOwner::class)
 ```
 
@@ -151,8 +151,8 @@ This query:
 
 ```kotlin
 orm.query { """
-    SELECT ${t(User::class)}
-    FROM ${t(User::class)}
+    SELECT ${User::class}
+    FROM ${User::class}
 """ }
 ```
 
@@ -239,9 +239,9 @@ Use `from(Class, autoJoin = false)` to disable automatic join generation:
 
 ```kotlin
 orm.query { """
-    SELECT ${t(User::class)}
-    FROM ${t(from(User::class, autoJoin = false))}
-    JOIN ${t(table(City::class))} ON ${t(User_.city)} = ${t(City_.id)}
+    SELECT ${User::class}
+    FROM ${from(User::class, autoJoin = false)}
+    JOIN ${table(City::class)} ON ${User_.city} = ${City_.id}
 """ }
 ```
 
@@ -261,9 +261,9 @@ For an entity `User`, Storm generates `User_` with fields for each column. Use t
 ```kotlin
 // Reference a column in WHERE clause
 orm.query { """
-    SELECT ${t(User::class)}
-    FROM ${t(User::class)}
-    WHERE ${t(User_.email)} = ${t(email)}
+    SELECT ${User::class}
+    FROM ${User::class}
+    WHERE ${User_.email} = $email
 """ }
 ```
 
@@ -290,9 +290,9 @@ Metamodel fields support path navigation for `@FK` relationships. This lets you 
 ```kotlin
 // Reference a column through a relationship
 orm.query { """
-    SELECT ${t(User::class)}
-    FROM ${t(User::class)}
-    WHERE ${t(User_.city.country.code)} = ${t("US")}
+    SELECT ${User::class}
+    FROM ${User::class}
+    WHERE ${User_.city.country.code} = ${"US"}
 """ }
 ```
 
@@ -323,9 +323,9 @@ Use `column()` to explicitly reference a column with alias resolution:
 
 ```kotlin
 orm.query { """
-    SELECT ${t(User::class)}
-    FROM ${t(User::class)}
-    ORDER BY ${t(column(User_.email))}
+    SELECT ${User::class}
+    FROM ${User::class}
+    ORDER BY ${column(User_.email)}
 """ }
 ```
 
@@ -348,12 +348,12 @@ The `alias()` and `column()` template functions accept an optional `ResolveScope
 
 ```kotlin
 orm.query { """
-    SELECT ${t(User::class)}
-    FROM ${t(User::class)}
-    WHERE ${t(User_.id)} IN (
-        SELECT ${t(column(Order_.userId, ResolveScope.INNER))}
-        FROM ${t(table(Order::class))}
-        WHERE ${t(column(Order_.total, ResolveScope.INNER))} > ${t(1000)}
+    SELECT ${User::class}
+    FROM ${User::class}
+    WHERE ${User_.id} IN (
+        SELECT ${column(Order_.userId, ResolveScope.INNER)}
+        FROM ${table(Order::class)}
+        WHERE ${column(Order_.total, ResolveScope.INNER)} > ${1000}
     )
 """ }
 ```
@@ -385,12 +385,12 @@ Most queries only need a few template elements. Here are the ones you'll use mos
 
 | Element | Description |
 |---------|-------------|
-| `t(Class)` | Type reference for SELECT columns or FROM clause |
-| `t(Metamodel_)` (e.g., `t(User_.email)`) | Column reference with automatic alias resolution |
-| `t(column(Metamodel))` | Explicit column reference |
-| `t(table(Class))` | Table name without alias |
-| `t(from(Class, autoJoin))` | FROM clause with auto-join control |
-| `t(unsafe(String))` | Raw SQL (use with caution) |
+| `${Class}` | Type reference for SELECT columns or FROM clause |
+| `${Metamodel_}` (e.g., `${User_.email}`) | Column reference with automatic alias resolution |
+| `${column(Metamodel)}` | Explicit column reference |
+| `${table(Class)}` | Table reference without auto-join |
+| `${from(Class, autoJoin)}` | FROM clause with auto-join control |
+| `${unsafe(String)}` | Raw SQL (use with caution) |
 
 For advanced use cases like batch operations, subqueries, or custom insert/update statements, Storm provides additional elements. See the `Templates` class for the full API.
 
@@ -407,10 +407,10 @@ The following examples demonstrate common query patterns using SQL templates. Ea
 
 ```kotlin
 val users = orm.query { """
-    SELECT ${t(User::class)}
-    FROM ${t(User::class)}
-    WHERE ${t(User_.city.country.code)} = ${t("US")}
-      AND ${t(User_.email)} LIKE ${t("%@example.com")}
+    SELECT ${User::class}
+    FROM ${User::class}
+    WHERE ${User_.city.country.code} = ${"US"}
+      AND ${User_.email} LIKE ${"%@example.com"}
 """ }.getResultList(User::class)
 ```
 
@@ -435,10 +435,10 @@ When auto-join does not produce the join type or condition you need, disable it 
 
 ```kotlin
 orm.query { """
-    SELECT ${t(User::class)}, COUNT(${t(Order_.id)})
-    FROM ${t(from(User::class, autoJoin = false))}
-    LEFT JOIN ${t(table(Order::class))} ON ${t(Order_.userId)} = ${t(User_.id)}
-    GROUP BY ${t(User_.id)}
+    SELECT ${User::class}, COUNT(${Order_.id})
+    FROM ${from(User::class, autoJoin = false)}
+    LEFT JOIN ${table(Order::class)} ON ${Order_.userId} = ${User_.id}
+    GROUP BY ${User_.id}
 """ }
 ```
 
@@ -448,12 +448,12 @@ Subqueries use `column()` and `table()` to reference columns and tables without 
 
 ```kotlin
 orm.query { """
-    SELECT ${t(User::class)}
-    FROM ${t(User::class)}
-    WHERE ${t(User_.id)} IN (
-        SELECT ${t(column(Order_.userId))}
-        FROM ${t(table(Order::class))}
-        WHERE ${t(Order_.total)} > ${t(1000)}
+    SELECT ${User::class}
+    FROM ${User::class}
+    WHERE ${User_.id} IN (
+        SELECT ${column(Order_.userId)}
+        FROM ${table(Order::class)}
+        WHERE ${Order_.total} > ${1000}
     )
 """ }
 ```

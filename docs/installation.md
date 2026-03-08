@@ -161,6 +161,41 @@ tasks.withType<Test> {
 }
 ```
 
+### Storm Compiler Plugin (Kotlin)
+
+The Storm compiler plugin automatically wraps string interpolations inside SQL template lambdas, so you can write natural Kotlin syntax that is parameterized and SQL injection safe by default. See [String Templates](string-templates.md) for details.
+
+<Tabs groupId="build">
+<TabItem value="gradle" label="Gradle (Kotlin DSL)" default>
+
+```kotlin
+dependencies {
+    kotlinCompilerPluginClasspath("st.orm:storm-compiler-plugin-2.0:1.10.0")
+}
+```
+
+</TabItem>
+<TabItem value="maven" label="Maven">
+
+Add the plugin jar as a dependency of `kotlin-maven-plugin`:
+
+```xml
+<plugin>
+    <groupId>org.jetbrains.kotlin</groupId>
+    <artifactId>kotlin-maven-plugin</artifactId>
+    <dependencies>
+        <dependency>
+            <groupId>st.orm</groupId>
+            <artifactId>storm-compiler-plugin-2.0</artifactId>
+            <version>${storm.version}</version>
+        </dependency>
+    </dependencies>
+</plugin>
+```
+
+</TabItem>
+</Tabs>
+
 ## Optional Modules
 
 Storm is modular. Add only what you need.

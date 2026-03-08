@@ -154,7 +154,7 @@ data class RolesByUser(
 interface UserRepository : EntityRepository<User, Int> {
 
     fun getUserRoles(): List<RolesByUser> =
-        select(RolesByUser::class) { "${t(User::class)}, JSON_OBJECTAGG(${t(Role::class)})" }
+        select(RolesByUser::class) { "${User::class}, JSON_OBJECTAGG(${Role::class})" }
             .innerJoin(UserRole::class).on(User::class)
             .groupBy(User_.id)
             .resultList

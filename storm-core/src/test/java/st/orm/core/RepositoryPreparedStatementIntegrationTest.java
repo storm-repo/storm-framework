@@ -1382,7 +1382,7 @@ public class RepositoryPreparedStatementIntegrationTest {
     @Test
     public void testWithTwoArgs() {
         var ORM = ORMTemplate.of(dataSource);
-        var list = ORM.entity(Pet.class).select().where(TemplateBuilder.create(it -> "%s.id = 7 OR %s.id = 8".formatted(it.insert(Pet.class), it.insert(Pet.class)))).getResultList();
+        var list = ORM.entity(Pet.class).select().where(TemplateBuilder.create(it -> "%s.id = 7 OR %s.id = 8".formatted(it.interpolate(Pet.class), it.interpolate(Pet.class)))).getResultList();
         assertEquals(2, list.size());
         assertEquals(7, list.getFirst().id());
         assertEquals(8, list.getLast().id());

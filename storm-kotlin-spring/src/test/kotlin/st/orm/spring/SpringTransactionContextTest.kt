@@ -436,6 +436,37 @@ open class SpringTransactionContextTest(
     }
 
     @Test
+    fun `NEVER propagation should work without outer transaction`(): Unit = runBlocking {
+        transactionBlocking(NEVER) {
+            orm.countAll<City>() shouldBe 6
+        }
+    }
+
+    @Test
+    fun `MANDATORY should throw when no outer transaction exists`(): Unit = runBlocking {
+        assertThrows<Exception> {
+            transactionBlocking(MANDATORY) {
+                orm.countAll<City>()
+            }
+        }
+    }
+
+    @Test
+    fun `setRollbackOnly in REQUIRED inner should cause outer commit to throw`(): Unit = runBlocking {
+        assertThrows<UnexpectedRollbackException> {
+            transactionBlocking {
+                transactionBlocking(REQUIRED) {
+                    orm.deleteAll<Visit>()
+                    setRollbackOnly()
+                }
+                // Outer tries to commit but inner marked rollback-only
+            }
+        }
+        // Visits should still exist since rollback occurred
+        orm.exists<Visit>().shouldBeTrue()
+    }
+
+    @Test
     fun `REQUIRES_NEW with readOnly inside writable outer`(): Unit = runBlocking {
         transactionBlocking {
             orm.deleteAll<Visit>()
