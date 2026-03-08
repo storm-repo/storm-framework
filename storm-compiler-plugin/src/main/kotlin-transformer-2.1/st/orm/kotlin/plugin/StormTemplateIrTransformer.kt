@@ -96,13 +96,16 @@ class StormTemplateIrTransformer(
         val receiver = templateContextReceiver ?: return super.visitStringConcatenation(expression)
         val tFunction = tFunctionSymbol ?: return super.visitStringConcatenation(expression)
         // We're inside a TemplateBuilder lambda and found a string template. Wrap each non-constant argument in t().
+        // First, recursively transform each argument so that nested TemplateBuilder lambdas (e.g., inside subquery
+        // calls) are processed before we wrap the argument in t().
         val newArguments = expression.arguments.map { argument ->
-            if (argument is IrConst<*>) {
-                argument
-            } else if (isAlreadyWrappedInT(argument)) {
-                argument
+            val transformed = argument.transform(this, null)
+            if (transformed is IrConst) {
+                transformed
+            } else if (isAlreadyWrappedInT(transformed)) {
+                transformed
             } else {
-                wrapInT(argument, receiver, tFunction)
+                wrapInT(transformed, receiver, tFunction)
             }
         }
         expression.arguments.clear()
@@ -111,14 +114,14 @@ class StormTemplateIrTransformer(
     }
 
     /**
-     * Checks whether an expression is already a call to `TemplateContext.t()` or `TemplateContext.insert()`, so we
+     * Checks whether an expression is already a call to `TemplateContext.t()` or `TemplateContext.interpolate()`, so we
      * don't double-wrap.
      */
     private fun isAlreadyWrappedInT(expression: IrExpression): Boolean {
         if (expression !is IrCall) return false
         val callee = expression.symbol.owner
         val calleeName = callee.name.asString()
-        if (calleeName != "t" && calleeName != "insert") return false
+        if (calleeName != "t" && calleeName != "interpolate") return false
         val dispatchReceiver = expression.dispatchReceiver ?: return false
         val dispatchFqName = dispatchReceiver.type.classFqName ?: return false
         return dispatchFqName == TEMPLATE_CONTEXT_FQN

@@ -15,6 +15,10 @@
  */
 package st.orm.template
 
+import st.orm.template.TemplateString.Companion.combine
+import st.orm.template.TemplateString.Companion.raw
+import st.orm.template.TemplateString.Companion.wrap
+
 /**
  * Represents a compiled SQL template string that can be passed to Storm's query engine for execution.
  *
@@ -71,7 +75,7 @@ typealias TemplateBuilder = TemplateContext.() -> String
 /**
  * Provides the interpolation context for building SQL template strings.
  *
- * Within a [TemplateBuilder] lambda, use [t] (or its longer form [insert]) to interpolate values, types,
+ * Within a [TemplateBuilder] lambda, use [t] (or its longer form [interpolate]) to interpolate values, types,
  * and SQL elements into the template. The interpolated objects are processed by the Storm template engine,
  * which resolves them into the appropriate SQL fragments and bound parameters based on their position in the query.
  *
@@ -81,12 +85,12 @@ typealias TemplateBuilder = TemplateContext.() -> String
 interface TemplateContext {
 
     /**
-     * Interpolates the given object into the SQL template. Shorthand for [insert].
+     * Interpolates the given object into the SQL template. Shorthand for [interpolate].
      *
-     * @param o the object to interpolate (a value, [KClass][kotlin.reflect.KClass], [Element], record, etc.).
+     * @param o the object to interpolate (a value, [KClass][kotlin.reflect.KClass], [Element][st.orm.Element], record, etc.).
      * @return a placeholder string that the template engine replaces with the appropriate SQL fragment.
      */
-    fun t(o: Any?): String = insert(o)
+    fun t(o: Any?): String = interpolate(o)
 
     /**
      * Interpolates the given object into the SQL template.
@@ -94,7 +98,7 @@ interface TemplateContext {
      * @param o the object to interpolate.
      * @return a placeholder string that the template engine replaces with the appropriate SQL fragment.
      */
-    fun insert(o: Any?): String
+    fun interpolate(o: Any?): String
 
     /**
      * Signals that the Storm compiler plugin has processed this lambda and automatically wrapped all string
@@ -102,7 +106,7 @@ interface TemplateContext {
      * [TemplateBuilder] lambda it transforms. It should not be called manually.
      *
      * At runtime, Storm uses this signal to verify interpolation safety: if a [TemplateBuilder] lambda executes
-     * without this method being called and without any explicit [t] or [insert] calls, Storm acts based on the
+     * without this method being called and without any explicit [t] or [interpolate] calls, Storm acts based on the
      * `storm.validation.interpolation_mode` system property: `warn` (default) logs a warning, `fail` throws an
      * [IllegalStateException], and `none` disables the check entirely.
      */
@@ -113,19 +117,19 @@ interface TemplateContext {
  * Builds this [TemplateBuilder] into a [TemplateString] ready for use with the Storm query engine.
  *
  * This method validates interpolation safety by checking whether the Storm compiler plugin processed the lambda
- * (via [TemplateContext.autoInterpolation]) or whether explicit [TemplateContext.t]/[TemplateContext.insert] calls
- * were made. If neither is detected, the behavior depends on the `storm.validation.interpolation_mode` system property:
- * `warn` (default) logs a warning, `fail` throws an [IllegalStateException], and `none` disables the check.
+ * (via [TemplateContext.autoInterpolation]) or whether explicit [TemplateContext.t]/[TemplateContext.interpolate]
+ * calls were made. If neither is detected, the behavior depends on the `storm.validation.interpolation_mode` system
+ * property: `warn` (default) logs a warning, `fail` throws an [IllegalStateException], and `none` disables the check.
  */
 fun TemplateBuilder.build(): TemplateString {
     var autoInterpolation = false
-    var insertCalled = false
+    var interpolateCalled = false
     val coreTemplate = st.orm.core.template.TemplateBuilder.create { ctx ->
         with(
             object : TemplateContext {
-                override fun insert(o: Any?): String {
-                    insertCalled = true
-                    return ctx.insert(o)
+                override fun interpolate(o: Any?): String {
+                    interpolateCalled = true
+                    return ctx.interpolate(o)
                 }
                 override fun autoInterpolation() {
                     autoInterpolation = true
@@ -134,13 +138,13 @@ fun TemplateBuilder.build(): TemplateString {
             this,
         )
     }
-    if (!autoInterpolation && !insertCalled) {
-        // No plugin marker and no t()/insert() calls. The result could be:
+    if (!autoInterpolation && !interpolateCalled) {
+        // No plugin marker and no t()/interpolate() calls. The result could be:
         // 1. A pure literal (safe), or
         // 2. String interpolations concatenated without t() wrapping (SQL injection risk).
         // We cannot distinguish these cases at runtime, so we act based on the configured mode.
         val message = "TemplateBuilder lambda executed without the Storm compiler plugin and without explicit t() " +
-            "or insert() calls. If this template uses string interpolations, values may have been " +
+            "or interpolate() calls. If this template uses string interpolations, values may have been " +
             "concatenated directly into the SQL, risking SQL injection. " +
             "See https://orm.st/string-templates for setup instructions. " +
             "To change this behavior, set -Dstorm.validation.interpolation_mode=warn|fail|none."

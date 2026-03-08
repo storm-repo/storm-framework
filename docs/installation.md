@@ -170,7 +170,7 @@ The Storm compiler plugin automatically wraps string interpolations inside SQL t
 
 ```kotlin
 dependencies {
-    kotlinCompilerPluginClasspath("st.orm:storm-compiler-plugin:1.10.0")
+    kotlinCompilerPluginClasspath("st.orm:storm-compiler-plugin-2.0:1.10.0")
 }
 ```
 
@@ -186,8 +186,8 @@ Add the plugin jar as a dependency of `kotlin-maven-plugin`:
     <dependencies>
         <dependency>
             <groupId>st.orm</groupId>
-            <artifactId>storm-compiler-plugin</artifactId>
-            <version>1.10.0</version>
+            <artifactId>storm-compiler-plugin-2.0</artifactId>
+            <version>${storm.version}</version>
         </dependency>
     </dependencies>
 </plugin>

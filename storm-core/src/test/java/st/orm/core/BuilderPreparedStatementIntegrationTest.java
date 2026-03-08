@@ -60,7 +60,7 @@ public class BuilderPreparedStatementIntegrationTest {
         // 3 visits on 2023-01-08.
         var list = ORMTemplate.of(dataSource)
                 .selectFrom(Pet.class)
-                .innerJoin(Visit.class).on(TemplateBuilder.create(it -> "%s.id = %s.pet_id".formatted(it.insert(Pet.class), it.insert(Visit.class))))
+                .innerJoin(Visit.class).on(TemplateBuilder.create(it -> "%s.id = %s.pet_id".formatted(it.interpolate(Pet.class), it.interpolate(Visit.class))))
                 .where(raw("\0.visit_date = \0", Visit.class, LocalDate.of(2023, 1, 8)))
                 .getResultList();
          assertEquals(3, list.size());
@@ -82,7 +82,7 @@ public class BuilderPreparedStatementIntegrationTest {
     public void testBuilderWithJoinTemplateFunctionParameter() {
         var list = ORMTemplate.of(dataSource)
                 .selectFrom(Pet.class)
-                .innerJoin(Visit.class).on(TemplateBuilder.create(it -> "%s.id = %d".formatted(it.insert(Pet.class), 1)))
+                .innerJoin(Visit.class).on(TemplateBuilder.create(it -> "%s.id = %d".formatted(it.interpolate(Pet.class), 1)))
                 .where(raw("\0.visit_date = \0", Visit.class, LocalDate.of(2023, 1, 8)))
                 .getResultList();
          assertEquals(3, list.size());
@@ -92,7 +92,7 @@ public class BuilderPreparedStatementIntegrationTest {
     public void testBuilderWithJoinTemplateFunctionParameterMetamodel() {
         var list = ORMTemplate.of(dataSource)
                 .selectFrom(Pet.class)
-                .innerJoin(Visit.class).on(TemplateBuilder.create(it -> "%s.id = %d".formatted(it.insert(Pet.class), 1)))
+                .innerJoin(Visit.class).on(TemplateBuilder.create(it -> "%s.id = %d".formatted(it.interpolate(Pet.class), 1)))
                 .where(raw("\0 = \0", Visit_.visitDate, LocalDate.of(2023, 1, 8)))
                 .getResultList();
          assertEquals(3, list.size());
@@ -274,7 +274,7 @@ public class BuilderPreparedStatementIntegrationTest {
                 .selectFrom(Vet.class)
                 .typed(Integer.class)
                 .where(it -> it.whereId(1).or(
-                        it.where(TemplateBuilder.create(i -> "%s.id = %s".formatted(i.insert(Vet.class), i.insert(2))))))
+                        it.where(TemplateBuilder.create(i -> "%s.id = %s".formatted(i.interpolate(Vet.class), i.interpolate(2))))))
                 .getResultList();
         assertEquals(2, list.size());
     }

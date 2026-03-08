@@ -6,8 +6,8 @@
         <java.version>21</java.version>
         <maven.compiler.source>${java.version}</maven.compiler.source>
         <maven.compiler.target>${java.version}</maven.compiler.target>
-        <gradle.version>8.2</gradle.version>
         <kotlin.version>2.0.21</kotlin.version>
+        <kotlin.major.minor>2.0</kotlin.major.minor>
         <kotlin.ksp.version>2.0.21-1.0.25</kotlin.ksp.version>
         <kotlin.coroutines.version>1.9.0</kotlin.coroutines.version>
         <kotlinx.serialization.version>1.7.3</kotlinx.serialization.version>
@@ -44,6 +44,7 @@
         <module>storm-bom</module>
         <module>storm-metamodel-processor</module>
         <module>storm-metamodel-ksp</module>
+        <module>storm-compiler-plugin</module>
         <module>storm-foundation</module>
         <module>storm-core</module>
         <module>storm-test</module>

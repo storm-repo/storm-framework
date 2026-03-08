@@ -582,7 +582,7 @@ See [Validation](validation.md) for a complete list of what each validation leve
 
 ## Interpolation Safety
 
-Storm's Kotlin API uses the Storm compiler plugin to automatically wrap string interpolations inside SQL template lambdas, ensuring all values are parameterized and SQL injection safe. When a `TemplateBuilder` lambda runs without the compiler plugin and without any explicit `t()` or `insert()` calls, Storm cannot distinguish a pure SQL literal (safe) from a string with accidentally concatenated interpolations (SQL injection risk). The `storm.validation.interpolation_mode` property controls how Storm handles this situation.
+Storm's Kotlin API uses the Storm compiler plugin to automatically wrap string interpolations inside SQL template lambdas, ensuring all values are parameterized and SQL injection safe. When a `TemplateBuilder` lambda runs without the compiler plugin and without any explicit `t()` or `interpolate()` calls, Storm cannot distinguish a pure SQL literal (safe) from a string with accidentally concatenated interpolations (SQL injection risk). The `storm.validation.interpolation_mode` property controls how Storm handles this situation.
 
 ### storm.validation.interpolation_mode
 

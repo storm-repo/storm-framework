@@ -5,7 +5,6 @@ import com.tschuchort.compiletesting.KotlinCompilation
 import com.tschuchort.compiletesting.SourceFile
 import org.jetbrains.kotlin.compiler.plugin.ExperimentalCompilerApi
 import org.junit.jupiter.api.Assertions.assertEquals
-import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 
 /**
@@ -23,8 +22,8 @@ class StormTemplatePluginTest {
         package st.orm.template
 
         interface TemplateContext {
-            fun t(o: Any?): String = insert(o)
-            fun insert(o: Any?): String
+            fun t(o: Any?): String = interpolate(o)
+            fun interpolate(o: Any?): String
             fun autoInterpolation() {}
         }
 
@@ -40,7 +39,7 @@ class StormTemplatePluginTest {
             var autoInterpolation = false
             val values = mutableListOf<Any?>()
             val raw = this(object : TemplateContext {
-                override fun insert(o: Any?): String {
+                override fun interpolate(o: Any?): String {
                     values.add(o)
                     return "\u0000"
                 }
@@ -54,14 +53,13 @@ class StormTemplatePluginTest {
         """,
     )
 
-    private fun compile(vararg sources: SourceFile): JvmCompilationResult {
-        return KotlinCompilation().apply {
-            this.sources = listOf(templateContextStub) + sources.toList()
-            compilerPluginRegistrars = listOf(StormTemplatePluginRegistrar())
-            inheritClassPath = true
-            languageVersion = "2.0"
-        }.compile()
-    }
+    private fun compile(vararg sources: SourceFile): JvmCompilationResult = KotlinCompilation().apply {
+        this.sources = listOf(templateContextStub) + sources.toList()
+        compilerPluginRegistrars = listOf(StormTemplatePluginRegistrar())
+        inheritClassPath = true
+        languageVersion = "2.0"
+        verbose = false
+    }.compile()
 
     private fun JvmCompilationResult.runMain(): String {
         val output = StringBuilder()
@@ -256,7 +254,7 @@ class StormTemplatePluginTest {
     }
 
     @Test
-    fun `insert() is not double-wrapped`() {
+    fun `interpolate() is not double-wrapped`() {
         val source = SourceFile.kotlin(
             "Test.kt",
             """
@@ -264,7 +262,7 @@ class StormTemplatePluginTest {
 
             fun main() {
                 val id = 42
-                val builder: TemplateBuilder = { "SELECT * FROM users WHERE id = ${'$'}{insert(id)}" }
+                val builder: TemplateBuilder = { "SELECT * FROM users WHERE id = ${'$'}{interpolate(id)}" }
                 val result = builder.build()
                 println(result.fragments.joinToString("|"))
                 println(result.values.joinToString(","))
@@ -393,6 +391,40 @@ class StormTemplatePluginTest {
         val lines = output.lines()
         assertEquals("2", lines[0])
         assertEquals("1", lines[1])
+    }
+
+    @Test
+    fun `nested TemplateBuilder lambda inside string interpolation is rewritten`() {
+        val source = SourceFile.kotlin(
+            "Test.kt",
+            """
+            import st.orm.template.*
+
+            fun subquery(template: TemplateBuilder): TemplateString = template.build()
+
+            fun main() {
+                val outerValue = 1
+                val innerValue = 2
+                val outerResult: TemplateBuilder = {
+                    "HAVING COUNT(${'$'}outerValue) = (${'$'}{subquery { "COUNT(${'$'}innerValue)" }})"
+                }
+                val result = outerResult.build()
+                println(result.values.size)
+                println(result.values[0])
+                val subResult = result.values[1] as TemplateString
+                println(subResult.values.size)
+                println(subResult.values[0])
+            }
+            """,
+        )
+        val result = compile(source)
+        assertEquals(KotlinCompilation.ExitCode.OK, result.exitCode, result.messages)
+        val output = result.runMain()
+        val lines = output.lines()
+        assertEquals("2", lines[0]) // outer has 2 interpolated values
+        assertEquals("1", lines[1]) // first outer value is 1
+        assertEquals("1", lines[2]) // inner subquery has 1 interpolated value
+        assertEquals("2", lines[3]) // inner value is 2
     }
 
     @Test

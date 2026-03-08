@@ -16,7 +16,7 @@ public class TemplateBuilderTest {
     @Test
     public void createWithLambdaShouldProduceCorrectFragmentsAndValues() {
         TemplateString result = TemplateBuilder.create(context ->
-                "SELECT * FROM table WHERE id = " + context.insert(42));
+                "SELECT * FROM table WHERE id = " + context.interpolate(42));
         assertNotNull(result);
         assertEquals(2, result.fragments().size());
         assertEquals("SELECT * FROM table WHERE id = ", result.fragments().get(0));
@@ -36,7 +36,7 @@ public class TemplateBuilderTest {
     @Test
     public void createWithLambdaMultipleInsertionsShouldProduceCorrectFragments() {
         TemplateString result = TemplateBuilder.create(context ->
-                "SELECT * FROM t WHERE a = " + context.insert(1) + " AND b = " + context.insert(2));
+                "SELECT * FROM t WHERE a = " + context.interpolate(1) + " AND b = " + context.interpolate(2));
         assertEquals(3, result.fragments().size());
         assertEquals("SELECT * FROM t WHERE a = ", result.fragments().get(0));
         assertEquals(" AND b = ", result.fragments().get(1));

@@ -1028,7 +1028,7 @@ public class TemplatePreparedStatementIntegrationTest {
         var query = ORMTemplate.of(dataSource).query(TemplateBuilder.create(it -> """
                 SELECT %s
                 FROM %s
-                """.formatted(it.insert(Pet.class), it.insert(Pet.class))));
+                """.formatted(it.interpolate(Pet.class), it.interpolate(Pet.class))));
         assertEquals(13, query.getResultCount());
     }
 
@@ -1040,8 +1040,8 @@ public class TemplatePreparedStatementIntegrationTest {
                 SELECT %s
                 FROM %s
                 WHERE EXISTS (%s)
-                """.formatted(it.insert(Pet.class), it.insert(Pet.class), it.insert(orm.subquery(Pet.class)
-                .where(TemplateBuilder.create(i -> "%s.id = %s.id".formatted(i.insert(alias(Pet.class, OUTER)), i.insert(alias(Pet.class, INNER)))))))));
+                """.formatted(it.interpolate(Pet.class), it.interpolate(Pet.class), it.interpolate(orm.subquery(Pet.class)
+                .where(TemplateBuilder.create(i -> "%s.id = %s.id".formatted(i.interpolate(alias(Pet.class, OUTER)), i.interpolate(alias(Pet.class, INNER)))))))));
         assertEquals(13, query.getResultCount());
     }
 
@@ -1053,8 +1053,8 @@ public class TemplatePreparedStatementIntegrationTest {
                 SELECT %s
                 FROM %s
                 WHERE NOT EXISTS (%s)
-                """.formatted(it.insert(Pet.class), it.insert(Pet.class), it.insert(orm.subquery(Pet.class)
-                .where(TemplateBuilder.create(i -> "%s.id = %s.id".formatted(i.insert(alias(Pet.class, OUTER)), i.insert(alias(Pet.class, INNER)))))))));
+                """.formatted(it.interpolate(Pet.class), it.interpolate(Pet.class), it.interpolate(orm.subquery(Pet.class)
+                .where(TemplateBuilder.create(i -> "%s.id = %s.id".formatted(i.interpolate(alias(Pet.class, OUTER)), i.interpolate(alias(Pet.class, INNER)))))))));
         assertEquals(0, query.getResultCount());
     }
 }

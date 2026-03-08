@@ -10,7 +10,7 @@ import java.util.List;
 /**
  * Provides support for Java-style string templates without preview features.
  *
- * <p>Use {@code it.insert(x)} to inject values. Delimiters are real NULLs ({@code '\0'}), and
+ * <p>Use {@code it.interpolate(x)} to inject values. Delimiters are real NULLs ({@code '\0'}), and
  * if you write {@code "\\0"} in your literal Java string, it becomes a genuine NULL in the output.
  */
 @FunctionalInterface
@@ -22,7 +22,7 @@ public interface TemplateBuilder {
      * <p>Interpolation insertions become NULLs. Any literal {@code "\\0"} in your code
      * is parsed as a real NULL, not as a delimiter.</p>
      *
-     * @param builder your template-building lambda; call {@code context.insert(x)} to register parameters.
+     * @param builder your template-building lambda; call {@code context.interpolate(x)} to register parameters.
      * @return a {@link TemplateString} with fragments and values.
      */
     static TemplateString create(@Nonnull TemplateBuilder builder) {
@@ -82,18 +82,18 @@ public interface TemplateBuilder {
     @FunctionalInterface
     interface Context {
         /**
-         * Insert an object and returns the intermediary string that will be replaced when interpolating.
+         * Interpolate an object and return the intermediary string that will be replaced when interpolating.
          *
-         * @param o the object to inject
+         * @param o the object to interpolate.
          * @return a single-character string containing '\0'.
          */
-        String insert(@Nullable Object o);
+        String interpolate(@Nullable Object o);
     }
 
     /**
      * Produces the raw string (with '\0' placeholders) from your template lambda.
      *
-     * @param context callback used within your lambda to insert values.
+     * @param context callback used within your lambda to interpolate values.
      * @return intermediary string containing zero or more '\0' delimiters.
      */
     String interpolate(@Nonnull Context context);

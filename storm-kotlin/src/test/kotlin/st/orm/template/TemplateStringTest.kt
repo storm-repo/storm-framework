@@ -187,15 +187,15 @@ open class TemplateStringTest(
         results shouldHaveSize 6
     }
 
-    // TemplateContext.t and TemplateContext.insert tests
+    // TemplateContext.t and TemplateContext.interpolate tests
 
     @Test
-    fun `TemplateContext t and insert should produce same results`() {
-        // Both t() and insert() should behave identically.
+    fun `TemplateContext t and interpolate should produce same results`() {
+        // Both t() and interpolate() should behave identically.
         val resultsViaT = orm.query { "SELECT ${t(City::class)} FROM ${t(City::class)}" }.getResultList(City::class)
-        val resultsViaInsert = orm.query { "SELECT ${insert(City::class)} FROM ${insert(City::class)}" }.getResultList(City::class)
+        val resultsViaInterpolate = orm.query { "SELECT ${interpolate(City::class)} FROM ${interpolate(City::class)}" }.getResultList(City::class)
         resultsViaT shouldHaveSize 6
-        resultsViaInsert shouldHaveSize 6
-        resultsViaT.map { it.id }.sorted() shouldBe resultsViaInsert.map { it.id }.sorted()
+        resultsViaInterpolate shouldHaveSize 6
+        resultsViaT.map { it.id }.sorted() shouldBe resultsViaInterpolate.map { it.id }.sorted()
     }
 }

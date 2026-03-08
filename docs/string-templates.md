@@ -46,7 +46,16 @@ This transformation happens at compile time and produces identical bytecode to w
 
 ### Setup
 
-Add the Storm compiler plugin to your Kotlin compiler configuration.
+Add the Storm compiler plugin to your Kotlin compiler configuration. The plugin is published as a separate artifact per Kotlin major.minor version, so that each artifact is compiled against the matching Kotlin compiler API. Choose the artifact that matches the Kotlin version in your project:
+
+| Kotlin version | Artifact ID |
+|---|---|
+| 2.0.x | `storm-compiler-plugin-2.0` |
+| 2.1.x | `storm-compiler-plugin-2.1` |
+| 2.2.x | `storm-compiler-plugin-2.2` |
+| 2.3.x | `storm-compiler-plugin-2.3` |
+
+The artifact version matches the Storm version (e.g., `1.10.0`).
 
 <Tabs groupId="build">
 <TabItem value="maven" label="Maven" default>
@@ -61,7 +70,7 @@ Add the plugin jar as a dependency of `kotlin-maven-plugin`:
     <dependencies>
         <dependency>
             <groupId>st.orm</groupId>
-            <artifactId>storm-compiler-plugin</artifactId>
+            <artifactId>storm-compiler-plugin-2.0</artifactId>
             <version>${storm.version}</version>
         </dependency>
     </dependencies>
@@ -73,7 +82,7 @@ Add the plugin jar as a dependency of `kotlin-maven-plugin`:
 
 ```kotlin
 dependencies {
-    kotlinCompilerPluginClasspath("st.orm:storm-compiler-plugin:${stormVersion}")
+    kotlinCompilerPluginClasspath("st.orm:storm-compiler-plugin-2.0:${stormVersion}")
 }
 ```
 
@@ -94,7 +103,7 @@ This produces identical behavior. The `t()` function is always available inside 
 
 ### Interpolation Safety
 
-When a `TemplateBuilder` lambda runs without the compiler plugin and without any explicit `t()` or `insert()` calls, Storm cannot distinguish a pure SQL literal from a string with accidentally concatenated interpolations. The `storm.validation.interpolation_mode` system property controls how Storm handles this situation:
+When a `TemplateBuilder` lambda runs without the compiler plugin and without any explicit `t()` or `interpolate()` calls, Storm cannot distinguish a pure SQL literal from a string with accidentally concatenated interpolations. The `storm.validation.interpolation_mode` system property controls how Storm handles this situation:
 
 | Value | Behavior |
 |-------|----------|
@@ -106,7 +115,7 @@ In `warn` mode (the default), Storm logs the following message:
 
 ```
 WARNING: TemplateBuilder lambda executed without the Storm compiler plugin and without
-explicit t() or insert() calls. If this template uses string interpolations, values may
+explicit t() or interpolate() calls. If this template uses string interpolations, values may
 have been concatenated directly into the SQL, risking SQL injection.
 See https://orm.st/string-templates for setup instructions.
 To change this behavior, set -Dstorm.validation.interpolation_mode=warn|fail|none.
@@ -149,7 +158,7 @@ orm.query { "SELECT ${User::class} FROM ${User::class} WHERE ${unsafe("name = 'A
 
 ### Fallback: Manual t() Wrapping
 
-If the compiler plugin is not available, you can wrap interpolations in `t()` manually. The compiler plugin detects existing `t()` and `insert()` calls and leaves them unchanged, so mixing both styles in the same project is safe:
+If the compiler plugin is not available, you can wrap interpolations in `t()` manually. The compiler plugin detects existing `t()` and `interpolate()` calls and leaves them unchanged, so mixing both styles in the same project is safe:
 
 ```kotlin
 orm.query { "SELECT ${t(User::class)} FROM ${t(User::class)} WHERE id = ${t(id)}" }
