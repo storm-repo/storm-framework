@@ -204,14 +204,17 @@ public interface EntityRepository<E extends Entity<ID>, ID> extends Repository {
     /**
      * Unloads the given entity from memory by converting it into a lightweight ref containing only its primary key.
      *
-     * <p>This method discards the full entity data and returns a ref that encapsulates just the primary key. The actual
-     * record is not retained in memory, but can be retrieved on demand by calling {@link Ref#fetch()}, which will
-     * trigger a new database call. This approach is particularly useful when you need to minimize memory usage while
-     * keeping the option to re-fetch the complete record later.</p>
+     * <p>This method discards the full entity data and returns an attached ref that encapsulates just the primary key.
+     * The actual record is not retained in memory, but can be retrieved on demand by calling {@link Ref#fetch()},
+     * which will trigger a new database call. This approach is particularly useful when you need to minimize memory
+     * usage while keeping the option to re-fetch the complete record later.</p>
+     *
+     * <p>Unlike {@link Ref#unload()}, which returns a detached ref, this method returns an attached ref that can
+     * re-fetch the entity from the database.</p>
      *
      * @param entity the entity to unload into a lightweight ref.
-     * @return a ref containing only the primary key of the entity, allowing the full record to be fetched again when
-     * needed.
+     * @return an attached ref containing only the primary key of the entity, allowing the full record to be fetched
+     * again when needed.
      * @since 1.3
      */
     Ref<E> unload(@Nonnull E entity);

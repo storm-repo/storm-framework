@@ -269,19 +269,14 @@ public interface Ref<T extends Data> {
     }
 
     /**
-     * Returns a ref with the same identity but without data.
+     * Returns a detached ref with the same identity but without data.
      *
-     * <p>For attached refs, this clears the fetched record while preserving the ability to re-fetch from the database.
-     * The same ref instance may be returned since the data can be recovered on demand.</p>
+     * <p>The returned ref is not attached to a database context. Calling {@link #fetch()} on the returned ref will
+     * fail since there is no database connection to recover the data.</p>
      *
-     * <p>For detached refs that hold a loaded record, a new unloaded ref is returned. Note that calling {@link #fetch()}
-     * on the returned ref will fail since there is no database connection to recover the data. Use this with caution
-     * when working with detached refs, as the original data cannot be retrieved.</p>
+     * <p>For refs that are already detached and unloaded, this method may return the same instance.</p>
      *
-     * <p>For detached refs that are already unloaded, this method returns the same instance.</p>
-     *
-     * @return a ref with the same type and primary key but without cached data; may return {@code this} if no new
-     *         instance is required.
+     * @return a detached ref with the same type and primary key but without cached data.
      */
     Ref<T> unload();
 }

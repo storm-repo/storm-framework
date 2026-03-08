@@ -24,7 +24,8 @@ import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Supplier;
 
 /**
- * Returns a lazily initialized value.
+ * Returns a lazily initialized value. Once the value has been resolved, the supplier is released for garbage
+ * collection.
  *
  * @param <T> the type of results supplied by this supplier.
  */
@@ -41,27 +42,41 @@ public final class LazySupplier<T> implements Supplier<T> {
         return new LazySupplier<>(supplier);
     }
 
-    private final Supplier<T> supplier;
+    private volatile Supplier<T> supplier;
     private final AtomicReference<T> reference;
 
+    /**
+     * Creates a lazy supplier that will invoke the given supplier on the first call to {@link #get()}.
+     *
+     * @param supplier the supplier that provides the value.
+     */
     public LazySupplier(@Nonnull Supplier<T> supplier) {
         this.supplier = requireNonNull(supplier);
         this.reference = new AtomicReference<>();
     }
 
-    public LazySupplier(@Nonnull Supplier<T> supplier, @Nonnull T initialValue) {
-        this.supplier = requireNonNull(supplier);
+    /**
+     * Creates a lazy supplier with a pre-loaded initial value. The supplier is not retained and {@link #get()} will
+     * return the initial value without invoking any supplier.
+     *
+     * @param initialValue the pre-loaded value.
+     */
+    public LazySupplier(@Nonnull T initialValue) {
+        this.supplier = null;
         this.reference = new AtomicReference<>(requireNonNull(initialValue));
     }
 
     /**
-     * Gets a result.
+     * Gets a result. On the first invocation, the supplier is called to produce the value. The supplier is then
+     * released for garbage collection.
      *
-     * @return a result
+     * @return a result.
      */
     @Override
     public T get() {
-        return reference.updateAndGet(value -> requireNonNullElseGet(value, supplier));
+        T result = reference.updateAndGet(value -> requireNonNullElseGet(value, supplier));
+        supplier = null;    // Release the supplier (and its captured context) for GC.
+        return result;
     }
 
     /**
@@ -71,13 +86,6 @@ public final class LazySupplier<T> implements Supplier<T> {
      */
     public Optional<T> value() {
         return ofNullable(reference.get());
-    }
-
-    /**
-     * Removes the lazily loaded value. This will not remove the supplier.
-     */
-    public void remove() {
-        reference.set(null);
     }
 
     /**

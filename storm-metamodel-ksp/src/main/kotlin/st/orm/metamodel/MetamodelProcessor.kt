@@ -646,6 +646,7 @@ class MetamodelProcessor(
     ): String {
         val builder = StringBuilder()
         val className = classDeclaration.simpleName.asString()
+        val modelRef = "${className}Metamodel.instance<$className>()"
         getModelProperties(classDeclaration).forEach { prop ->
             val fieldName = prop.simpleName.asString()
             val typeRef = prop.type
@@ -662,7 +663,7 @@ class MetamodelProcessor(
                 builder.append("        /** Represents the $className.$fieldName record. */\n")
                 builder.append(
                     "        val $fieldName: $childMetaType = " +
-                        "${className}Metamodel<$className>().$fieldName\n",
+                        "$modelRef.$fieldName\n",
                 )
             } else {
                 val kotlinTypeName = getKotlinTypeName(typeRef, packageName) // E (unwrap Ref)
@@ -672,7 +673,7 @@ class MetamodelProcessor(
                 builder.append("        /** Represents the $className.$fieldName field. */\n")
                 builder.append(
                     "        val $fieldName: $baseClass<$className, $kotlinTypeName, $valueKotlinTypeName> = " +
-                        "${className}Metamodel<$className>().$fieldName\n",
+                        "$modelRef.$fieldName\n",
                 )
             }
         }
@@ -1093,6 +1094,20 @@ class MetamodelProcessor(
                 |${initClassFields(classDeclaration, packageName, metaClassName, forceNullableChain)}
                 |    }
                 |$convenienceCtors
+                |${
+                    if (isDataRoot && !forceNullableChain) {
+                        """
+                |    companion object {
+                |        private val INSTANCE: $metaClassName<*> = $metaClassName<st.orm.Data>()
+                |
+                |        @Suppress("UNCHECKED_CAST")
+                |        @JvmStatic
+                |        fun <T : st.orm.Data> instance(): $metaClassName<T> = INSTANCE as $metaClassName<T>
+                |    }"""
+                    } else {
+                        ""
+                    }
+                }
                 |}
                 """.trimMargin(),
             )

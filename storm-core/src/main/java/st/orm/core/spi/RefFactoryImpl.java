@@ -100,11 +100,7 @@ public final class RefFactoryImpl implements RefFactory {
     @Override
     public <T extends Data, ID> Ref<T> create(@Nonnull T record, @Nonnull ID pk) {
         var type = (Class<T>) record.getClass();
-        var supplier = new LazySupplier<>(() ->
-                ((QueryBuilder<T, T, ID>) template
-                        .selectFrom(type))
-                        .where(pk)
-                        .getSingleResult(), record);
+        var supplier = new LazySupplier<>(record);
         return create(supplier, type, pk);
     }
 

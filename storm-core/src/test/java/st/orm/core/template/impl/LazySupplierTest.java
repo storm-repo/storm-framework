@@ -43,14 +43,11 @@ public class LazySupplierTest {
 
     @Test
     public void testConstructorWithInitialValue() {
-        AtomicInteger callCount = new AtomicInteger(0);
-        LazySupplier<String> lazy = new LazySupplier<>(() -> {
-            callCount.incrementAndGet();
-            return "fallback";
-        }, "initial");
+        LazySupplier<String> lazy = new LazySupplier<>("initial");
 
         assertEquals("initial", lazy.get());
-        assertEquals(0, callCount.get(), "Supplier should not be called when initial value is provided");
+        assertTrue(lazy.value().isPresent());
+        assertEquals("initial", lazy.value().get());
     }
 
     @Test
@@ -69,35 +66,25 @@ public class LazySupplierTest {
 
     @Test
     public void testValueReturnsPresentWithInitialValue() {
-        LazySupplier<String> lazy = new LazySupplier<>(() -> "fallback", "initial");
+        LazySupplier<String> lazy = new LazySupplier<>("initial");
         assertTrue(lazy.value().isPresent(), "Value should be present when initial value is provided");
         assertEquals("initial", lazy.value().get());
     }
 
     @Test
-    public void testRemoveClearsLazyValue() {
-        LazySupplier<String> lazy = new LazySupplier<>(() -> "hello");
-        lazy.get();
-        assertTrue(lazy.value().isPresent());
-
-        lazy.remove();
-        assertTrue(lazy.value().isEmpty(), "Value should be empty after remove()");
-    }
-
-    @Test
-    public void testGetAfterRemoveReinvokesSupplier() {
+    public void testSupplierReleasedAfterGet() {
         AtomicInteger callCount = new AtomicInteger(0);
         LazySupplier<String> lazy = new LazySupplier<>(() -> {
             callCount.incrementAndGet();
             return "hello";
         });
 
-        lazy.get();
-        assertEquals(1, callCount.get());
+        assertEquals("hello", lazy.get());
+        assertEquals(1, callCount.get(), "Supplier should be called exactly once");
 
-        lazy.remove();
-        lazy.get();
-        assertEquals(2, callCount.get(), "After remove, get should invoke supplier again");
+        // After get(), the supplier should be released. Calling get() again returns the cached value.
+        assertEquals("hello", lazy.get());
+        assertEquals(1, callCount.get(), "Supplier should not be called again after first get()");
     }
 
     @Test
