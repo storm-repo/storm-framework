@@ -48,14 +48,6 @@ implementation("st.orm:storm-kotlin-spring-boot-starter:1.10.0")
 
 See [Spring Integration: Spring Boot Starter](spring-integration.md#spring-boot-starter) for what the starter provides and how to override its defaults.
 
-### storm-kotlin-validator
-
-Validation support for Kotlin entities. Provides integration with Kotlin validation libraries for entity constraint checking.
-
-```kotlin
-implementation("st.orm:storm-kotlin-validator:1.10.0")
-```
-
 ## Key Classes and Functions
 
 | Class/Function | Description | Guide |
@@ -143,6 +135,5 @@ KDoc is generated per module using Dokka. Select a module below to browse its AP
 | [storm-kotlin](../api/kotlin/storm-kotlin/index.html) | Kotlin API with coroutine support |
 | [storm-kotlin-spring](../api/kotlin/storm-kotlin-spring/index.html) | Spring Framework integration for Kotlin |
 | [storm-kotlin-spring-boot-starter](../api/kotlin/storm-kotlin-spring-boot-starter/index.html) | Spring Boot auto-configuration for Kotlin |
-| [storm-kotlin-validator](../api/kotlin/storm-kotlin-validator/index.html) | Kotlin validation support |
 | [storm-metamodel-ksp](../api/kotlin/storm-metamodel-ksp/index.html) | Kotlin Symbol Processing for metamodel generation |
 | [storm-kotlinx-serialization](../api/kotlin/storm-kotlinx-serialization/index.html) | Kotlinx Serialization support |
