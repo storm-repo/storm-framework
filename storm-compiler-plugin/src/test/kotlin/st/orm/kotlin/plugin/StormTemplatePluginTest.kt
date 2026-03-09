@@ -363,6 +363,88 @@ class StormTemplatePluginTest {
     }
 
     @Test
+    fun `inline string constant between expressions is auto-wrapped`() {
+        val source = SourceFile.kotlin(
+            "Test.kt",
+            """
+            import st.orm.template.*
+
+            fun main() {
+                val id = 42
+                val status = "active"
+                val builder: TemplateBuilder = { "SELECT * FROM users WHERE id = ${'$'}id AND email LIKE ${'$'}{"%@gmail.com"} AND status = ${'$'}status" }
+                val result = builder.build()
+                println(result.fragments.joinToString("|"))
+                println(result.values.joinToString(","))
+            }
+            """,
+        )
+        val result = compile(source)
+        assertEquals(KotlinCompilation.ExitCode.OK, result.exitCode, result.messages)
+        val output = result.runMain()
+        val lines = output.lines()
+        assertEquals("SELECT * FROM users WHERE id = | AND email LIKE | AND status = |", lines[0])
+        assertEquals("42,%@gmail.com,active", lines[1])
+    }
+
+    @Test
+    fun `inline string constant at end of template is auto-wrapped`() {
+        val source = SourceFile.kotlin(
+            "Test.kt",
+            """
+            import st.orm.template.*
+
+            fun main() {
+                val id = 42
+                val builder: TemplateBuilder = { "SELECT * FROM users WHERE id = ${'$'}id AND email LIKE ${'$'}{"%@gmail.com"}" }
+                val result = builder.build()
+                println(result.fragments.joinToString("|"))
+                println(result.values.joinToString(","))
+            }
+            """,
+        )
+        val result = compile(source)
+        assertEquals(KotlinCompilation.ExitCode.OK, result.exitCode, result.messages)
+        val output = result.runMain()
+        val lines = output.lines()
+        assertEquals("SELECT * FROM users WHERE id = | AND email LIKE |", lines[0])
+        assertEquals("42,%@gmail.com", lines[1])
+    }
+
+    @Test
+    fun `inline string constant in multiline template is auto-wrapped`() {
+        val source = SourceFile.kotlin(
+            "Test.kt",
+            """
+            import st.orm.template.*
+
+            fun main() {
+                val id = 42
+                val status = "active"
+                val builder: TemplateBuilder = {
+                    ${"\"\"\""}
+                    SELECT *
+                    FROM users
+                    WHERE id = ${'$'}id
+                      AND email LIKE ${'$'}{"%@gmail.com"}
+                      AND status = ${'$'}status
+                    ${"\"\"\""}.trimIndent()
+                }
+                val result = builder.build()
+                println(result.values.joinToString(","))
+                println(result.values.size)
+            }
+            """,
+        )
+        val result = compile(source)
+        assertEquals(KotlinCompilation.ExitCode.OK, result.exitCode, result.messages)
+        val output = result.runMain()
+        val lines = output.lines()
+        assertEquals("42,%@gmail.com,active", lines[0])
+        assertEquals("3", lines[1])
+    }
+
+    @Test
     fun `nested TemplateBuilder lambdas are independently rewritten`() {
         val source = SourceFile.kotlin(
             "Test.kt",
