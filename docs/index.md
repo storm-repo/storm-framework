@@ -13,7 +13,7 @@ import TabItem from '@theme/TabItem';
 **Key benefits:**
 
 - **Minimal code**: Define entities with simple records/data classes and query with concise, readable syntax, no boilerplate.
-- **Parameterized by default**: String interpolations are automatically converted to bound parameters, making queries SQL injection safe by design.
+- **Parameterized by default**: String interpolations are automatically converted to bind variables, making queries SQL injection safe by design.
 - **Close to SQL**: Storm embraces SQL rather than abstracting it away, keeping you in control of your database operations.
 - **Type-safe**: Storm's DSL mirrors SQL, providing a type-safe, intuitive experience that makes queries easy to write and read while reducing the risk of runtime errors.
 - **Direct Database Interaction**: Storm translates method calls directly into database operations, offering a transparent and straightforward experience. It eliminates inefficiencies like the N+1 query problem for predictable and efficient interactions.

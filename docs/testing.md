@@ -283,11 +283,11 @@ All three methods are scoped: only SQL statements generated within the block are
 
 Each captured statement is represented as a `CapturedStatement` record with three fields:
 
-| Field        | Type              | Description                                          |
-|--------------|-------------------|------------------------------------------------------|
+| Field        | Type              | Description                                                                     |
+|--------------|-------------------|---------------------------------------------------------------------------------|
 | `operation`  | `Operation`       | The SQL operation type: `SELECT`, `INSERT`, `UPDATE`, `DELETE`, or `UNDEFINED`. |
-| `statement`  | `String`          | The SQL text with `?` placeholders for bound parameters. |
-| `parameters` | `List<Object>`    | The bound parameter values in order.                 |
+| `statement`  | `String`          | The SQL text with `?` placeholders for bind variables.                          |
+| `parameters` | `List<Object>`    | The bound parameter values in order.                                            |
 
 Query the capture results using `count()`, `statements()`, or their filtered variants:
 
