@@ -962,7 +962,7 @@ class MetamodelProcessor(
             builder.append("        }\n")
         }
 
-        builder.append("    }\n")
+        builder.append("    }")
         return builder.toString()
     }
 
@@ -985,7 +985,7 @@ class MetamodelProcessor(
                 |        if (ra == null || rb == null) return ra == rb
                 |        return ra.$pkName == rb.$pkName
                 |    }
-                """.trimMargin()
+                """.trimMargin().trim('\n')
             } else {
                 """
                 |    override fun isSame(a: T, b: T): Boolean {
@@ -993,20 +993,20 @@ class MetamodelProcessor(
                 |        val rb = getter(b)
                 |        return ra.$pkName == rb.$pkName
                 |    }
-                """.trimMargin()
+                """.trimMargin().trim('\n')
             }
         } else {
             """
             |    override fun isSame(a: T, b: T): Boolean {
             |        return getter(a) == getter(b)
             |    }
-            """.trimMargin()
+            """.trimMargin().trim('\n')
         }
         val isIdenticalMethod = """
             |    override fun isIdentical(a: T, b: T): Boolean {
             |        return getter(a) === getter(b)
             |    }
-        """.trimMargin()
+        """.trimMargin().trim('\n')
 
         val containingFile = classDeclaration.containingFile
         val deps = if (containingFile != null) Dependencies(true, containingFile) else Dependencies(false)
@@ -1046,7 +1046,7 @@ class MetamodelProcessor(
             |        if (!super.isNullable()) return false
             |        return flatten().any { it is Metamodel.Key<*, *> && it.isNullable }
             |    }
-            """.trimMargin()
+            """.trimMargin().trim('\n')
         } else {
             ""
         }
@@ -1057,6 +1057,16 @@ class MetamodelProcessor(
         } else {
             "$className::class.java, path, field, inline, parent, !inline && field.isNotEmpty(), nullable"
         }
+        val classFields = buildClassFields(classDeclaration, packageName, forceNullableChain)
+        val methods = listOf(
+            "    override fun getValue(record: T): $recordValueType = getter(record)",
+            isIdenticalMethod,
+            isSameMethod,
+            flattenMethod,
+            isNullableOverride,
+        ).filter { it.isNotEmpty() }.joinToString("\n\n")
+        val classBody = methods + "\n\n" + classFields
+
         OutputStreamWriter(file).use { writer ->
             writer.write(
                 """
@@ -1076,17 +1086,7 @@ class MetamodelProcessor(
                 |    private val getter: (T) -> $recordGetterType$nullableCtorParam
                 |) : $baseAbstractClass<T, $className, $abstractVType>($superCtorArgs) {
                 |
-                |    override fun getValue(record: T): $recordValueType = getter(record)
-                |
-                |$isIdenticalMethod
-                |
-                |$isSameMethod
-                |
-                |$flattenMethod
-                |
-                |$isNullableOverride
-                |
-                |${buildClassFields(classDeclaration, packageName, forceNullableChain)}
+                |$classBody
                 |    init {
                 |        val subPath = if (inline) path else if (field.isEmpty()) path else if (path.isEmpty()) field else "${'$'}path.${'$'}field"
                 |        val fieldBase = if (inline) if (field.isEmpty()) "" else "${'$'}field." else ""
