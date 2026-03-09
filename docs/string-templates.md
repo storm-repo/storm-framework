@@ -58,7 +58,16 @@ Add the Storm compiler plugin to your Kotlin compiler configuration. The plugin 
 The artifact version matches the Storm version (e.g., `1.10.0`).
 
 <Tabs groupId="build">
-<TabItem value="maven" label="Maven" default>
+<TabItem value="gradle" label="Gradle (Kotlin DSL)" default>
+
+```kotlin
+dependencies {
+    kotlinCompilerPluginClasspath("st.orm:storm-compiler-plugin-2.0")
+}
+```
+
+</TabItem>
+<TabItem value="maven" label="Maven">
 
 Add the plugin jar as a dependency of `kotlin-maven-plugin`:
 
@@ -75,15 +84,6 @@ Add the plugin jar as a dependency of `kotlin-maven-plugin`:
         </dependency>
     </dependencies>
 </plugin>
-```
-
-</TabItem>
-<TabItem value="gradle" label="Gradle (Kotlin DSL)">
-
-```kotlin
-dependencies {
-    kotlinCompilerPluginClasspath("st.orm:storm-compiler-plugin-2.0:${stormVersion}")
-}
 ```
 
 </TabItem>

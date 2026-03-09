@@ -170,7 +170,7 @@ dependencies {
     implementation("st.orm:storm-kotlin")
     runtimeOnly("st.orm:storm-core")
     // Use storm-compiler-plugin-2.0 for Kotlin 2.0.x, -2.1 for 2.1.x, etc.
-    kotlinCompilerPluginClasspath("st.orm:storm-compiler-plugin-2.0:1.10.0")
+    kotlinCompilerPluginClasspath("st.orm:storm-compiler-plugin-2.0")
 }
 ```
 

@@ -23,28 +23,10 @@ Storm provides a Bill of Materials (BOM) for centralized version management. Imp
 <Tabs groupId="language">
 <TabItem value="kotlin" label="Kotlin" default>
 
-**Gradle (Kotlin DSL):**
-
 ```kotlin
 dependencies {
     implementation(platform("st.orm:storm-bom:1.10.0"))
 }
-```
-
-**Maven:**
-
-```xml
-<dependencyManagement>
-    <dependencies>
-        <dependency>
-            <groupId>st.orm</groupId>
-            <artifactId>storm-bom</artifactId>
-            <version>1.10.0</version>
-            <type>pom</type>
-            <scope>import</scope>
-        </dependency>
-    </dependencies>
-</dependencyManagement>
 ```
 
 </TabItem>
@@ -77,10 +59,30 @@ dependencies {
 </TabItem>
 </Tabs>
 
-## Add the Core Dependency
+## Add the Core Dependencies
 
 <Tabs groupId="language">
 <TabItem value="kotlin" label="Kotlin" default>
+
+```kotlin
+plugins {
+    id("com.google.devtools.ksp") version "2.0.21-1.0.28"
+}
+
+dependencies {
+    implementation(platform("st.orm:storm-bom:1.10.0"))
+
+    implementation("st.orm:storm-kotlin")
+    runtimeOnly("st.orm:storm-core")
+    ksp("st.orm:storm-metamodel-ksp")
+    kotlinCompilerPluginClasspath("st.orm:storm-compiler-plugin-2.0")
+}
+```
+
+The `storm-metamodel-ksp` dependency generates type-safe metamodel classes (e.g., `User_`, `City_`) at compile time. See [Metamodel](metamodel.md) for details. The `storm-compiler-plugin` automatically wraps string interpolations inside SQL template lambdas, making queries injection-safe by default. The `2.0` suffix matches the Kotlin major.minor version used in your project (e.g., `storm-compiler-plugin-2.1` for Kotlin 2.1.x). See [String Templates](string-templates.md) for details.
+
+</TabItem>
+<TabItem value="java" label="Java">
 
 **Gradle (Kotlin DSL):**
 
@@ -88,23 +90,19 @@ dependencies {
 dependencies {
     implementation(platform("st.orm:storm-bom:1.10.0"))
 
-    implementation("st.orm:storm-kotlin")
+    implementation("st.orm:storm-java21")
+    runtimeOnly("st.orm:storm-core")
+    annotationProcessor("st.orm:storm-metamodel-processor")
+}
+
+tasks.withType<JavaCompile> {
+    options.compilerArgs.add("--enable-preview")
+}
+
+tasks.withType<Test> {
+    jvmArgs("--enable-preview")
 }
 ```
-
-**Maven:**
-
-```xml
-<dependencies>
-    <dependency>
-        <groupId>st.orm</groupId>
-        <artifactId>storm-kotlin</artifactId>
-    </dependency>
-</dependencies>
-```
-
-</TabItem>
-<TabItem value="java" label="Java">
 
 **Maven:**
 
@@ -114,27 +112,20 @@ dependencies {
         <groupId>st.orm</groupId>
         <artifactId>storm-java21</artifactId>
     </dependency>
+    <dependency>
+        <groupId>st.orm</groupId>
+        <artifactId>storm-core</artifactId>
+        <scope>runtime</scope>
+    </dependency>
+    <dependency>
+        <groupId>st.orm</groupId>
+        <artifactId>storm-metamodel-processor</artifactId>
+        <scope>provided</scope>
+    </dependency>
 </dependencies>
 ```
 
-**Gradle (Kotlin DSL):**
-
-```kotlin
-dependencies {
-    implementation(platform("st.orm:storm-bom:1.10.0"))
-
-    implementation("st.orm:storm-java21")
-}
-```
-
-</TabItem>
-</Tabs>
-
-### Enable Preview Features (Java Only)
-
-The Java API uses String Templates (JEP 430), a preview feature in JDK 21+. You must add `--enable-preview` to the compiler configuration:
-
-**Maven:**
+Enable preview features for String Templates (JEP 430):
 
 ```xml
 <plugin>
@@ -149,125 +140,14 @@ The Java API uses String Templates (JEP 430), a preview feature in JDK 21+. You 
 </plugin>
 ```
 
-**Gradle (Kotlin DSL):**
-
-```kotlin
-tasks.withType<JavaCompile> {
-    options.compilerArgs.add("--enable-preview")
-}
-
-tasks.withType<Test> {
-    jvmArgs("--enable-preview")
-}
-```
-
-### Storm Compiler Plugin (Kotlin)
-
-The Storm compiler plugin automatically wraps string interpolations inside SQL template lambdas, so you can write natural Kotlin syntax that is parameterized and SQL injection safe by default. See [String Templates](string-templates.md) for details.
-
-<Tabs groupId="build">
-<TabItem value="gradle" label="Gradle (Kotlin DSL)" default>
-
-```kotlin
-dependencies {
-    kotlinCompilerPluginClasspath("st.orm:storm-compiler-plugin-2.0:1.10.0")
-}
-```
-
-</TabItem>
-<TabItem value="maven" label="Maven">
-
-Add the plugin jar as a dependency of `kotlin-maven-plugin`:
-
-```xml
-<plugin>
-    <groupId>org.jetbrains.kotlin</groupId>
-    <artifactId>kotlin-maven-plugin</artifactId>
-    <dependencies>
-        <dependency>
-            <groupId>st.orm</groupId>
-            <artifactId>storm-compiler-plugin-2.0</artifactId>
-            <version>${storm.version}</version>
-        </dependency>
-    </dependencies>
-</plugin>
-```
-
 </TabItem>
 </Tabs>
+
+The metamodel processor generates type-safe metamodel classes (e.g., `User_`, `City_`) at compile time. See [Metamodel](metamodel.md) for details.
 
 ## Optional Modules
 
 Storm is modular. Add only what you need.
-
-### Static Metamodel
-
-The metamodel generates companion classes (e.g., `User_`, `City_`) at compile time, enabling type-safe field references in queries. While optional, it is strongly recommended for projects that use Storm's query builder or repository predicates. See [Metamodel](metamodel.md) for details.
-
-<Tabs groupId="language">
-<TabItem value="kotlin" label="Kotlin" default>
-
-Kotlin projects can generate the metamodel using either KSP (for Gradle) or kapt (for Maven). Both produce the same metamodel classes.
-
-**Gradle (Kotlin DSL) with KSP:**
-
-```kotlin
-plugins {
-    id("com.google.devtools.ksp") version "2.0.21-1.0.28"
-}
-
-dependencies {
-    ksp("st.orm:storm-metamodel-ksp:1.10.0")
-}
-```
-
-**Maven with kapt:**
-
-```xml
-<plugin>
-    <groupId>org.jetbrains.kotlin</groupId>
-    <artifactId>kotlin-maven-plugin</artifactId>
-    <executions>
-        <execution>
-            <id>kapt</id>
-            <goals><goal>kapt</goal></goals>
-            <configuration>
-                <annotationProcessorPaths>
-                    <path>
-                        <groupId>st.orm</groupId>
-                        <artifactId>storm-metamodel-processor</artifactId>
-                        <version>1.10.0</version>
-                    </path>
-                </annotationProcessorPaths>
-            </configuration>
-        </execution>
-    </executions>
-</plugin>
-```
-
-</TabItem>
-<TabItem value="java" label="Java">
-
-**Maven (annotation processor):**
-
-```xml
-<dependency>
-    <groupId>st.orm</groupId>
-    <artifactId>storm-metamodel-processor</artifactId>
-    <scope>provided</scope>
-</dependency>
-```
-
-**Gradle (Kotlin DSL):**
-
-```kotlin
-dependencies {
-    annotationProcessor("st.orm:storm-metamodel-processor:1.10.0")
-}
-```
-
-</TabItem>
-</Tabs>
 
 ### Database Dialects
 
