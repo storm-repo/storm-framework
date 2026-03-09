@@ -283,6 +283,42 @@ public class MySQLSqlDialect extends DefaultSqlDialect implements SqlDialect {
     }
 
     /**
+     * Returns {@code Integer.MIN_VALUE} to enable the MySQL Connector/J row-by-row streaming mode.
+     *
+     * <p>By default, the MySQL JDBC driver buffers the entire result set in memory during
+     * {@code executeQuery()}. Setting the fetch size to {@code Integer.MIN_VALUE} switches the driver to
+     * streaming mode, where rows are fetched one at a time from the server. This prevents
+     * {@code OutOfMemoryError} for large result sets when consumed lazily via {@code getResultStream()}.</p>
+     *
+     * <p>Because row-by-row streaming incurs per-row network latency, this fetch size is only applied for
+     * streaming access (see {@link #streamOnlyFetchSize()}).</p>
+     *
+     * @return {@code Integer.MIN_VALUE}.
+     * @since 1.10
+     */
+    @Override
+    public int defaultFetchSize() {
+        return Integer.MIN_VALUE;
+    }
+
+    /**
+     * Returns {@code true} to restrict the streaming fetch size to stream-based methods only.
+     *
+     * <p>The MySQL row-by-row streaming mode ({@code fetchSize = Integer.MIN_VALUE}) imposes constraints on
+     * the connection: the result set must be fully consumed or closed before another query can execute on the
+     * same connection. Applying this mode to eager methods (such as {@code getResultList()} or
+     * {@code getSingleResult()}) would add unnecessary per-row latency without memory benefits, since those
+     * methods collect all results immediately.</p>
+     *
+     * @return {@code true}.
+     * @since 1.10
+     */
+    @Override
+    public boolean streamOnlyFetchSize() {
+        return true;
+    }
+
+    /**
      * Returns the SQL statement for getting the next value of the given sequence.
      *
      * @param sequenceName the name of the sequence.

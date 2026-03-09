@@ -176,6 +176,21 @@ public class OracleSqlDialect extends DefaultSqlDialect implements SqlDialect {
     }
 
     /**
+     * Returns a fetch size of 1000 to control Oracle's row prefetch behavior.
+     *
+     * <p>The Oracle JDBC driver uses a prefetch mechanism to reduce database round-trips. Setting the fetch
+     * size to 1000 instructs the driver to prefetch rows in batches of 1000, providing a good balance between
+     * memory consumption and network efficiency for both streaming and eager result consumption.</p>
+     *
+     * @return {@code 1000}.
+     * @since 1.10
+     */
+    @Override
+    public int defaultFetchSize() {
+        return 1000;
+    }
+
+    /**
      * For Oracle 12c+ you can use:
      *   SELECT ... FETCH FIRST n ROWS ONLY
      */

@@ -467,4 +467,30 @@ public interface SqlDialect {
         return false;
     }
 
+    /**
+     * Returns the default JDBC fetch size hint for queries.
+     *
+     * <p>The returned value is passed to {@link PreparedStatement#setFetchSize(int)} to control how many rows the
+     * JDBC driver fetches from the database at a time. A value of {@code 0} (the default) leaves the fetch size
+     * unset, deferring to driver defaults.</p>
+     *
+     * @return the default fetch size.
+     * @since 1.10
+     */
+    default int defaultFetchSize() {
+        return 0;
+    }
+
+    /**
+     * Returns whether the default fetch size should only be applied for streaming result consumption
+     * (i.e., {@code getResultStream()} and flow-based access), not for eager methods like
+     * {@code getResultList()} or {@code getSingleResult()}.
+     *
+     * @return {@code true} if fetch size should only apply to streaming access.
+     * @since 1.10
+     */
+    default boolean streamOnlyFetchSize() {
+        return false;
+    }
+
 }

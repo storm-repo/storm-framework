@@ -38,7 +38,9 @@ import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
 import java.time.ZonedDateTime;
 import java.util.Calendar;
+import java.util.List;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.TimeZone;
 import java.util.UUID;
 import java.util.function.Function;
@@ -67,6 +69,8 @@ class QueryImpl implements Query {
     private final Class<? extends Data> affectedType;
     private final boolean unsafe;
     private final boolean managed;
+    private final int defaultFetchSize;
+    private final boolean streamOnlyFetchSize;
     private final Function<Throwable, PersistenceException> exceptionTransformer;
 
     QueryImpl(@Nonnull RefFactory refFactory,
@@ -74,7 +78,7 @@ class QueryImpl implements Query {
               @Nullable BindVarsHandle bindVarsHandle,
               boolean versionAware,
               @Nonnull Function<Throwable, PersistenceException> exceptionTransformer) {
-        this(refFactory, statement, bindVarsHandle, null, versionAware, false, false, exceptionTransformer);
+        this(refFactory, statement, bindVarsHandle, null, versionAware, false, false, 0, false, exceptionTransformer);
     }
 
     QueryImpl(@Nonnull RefFactory refFactory,
@@ -83,7 +87,7 @@ class QueryImpl implements Query {
               boolean versionAware,
               boolean unsafe,
               @Nonnull Function<Throwable, PersistenceException> exceptionTransformer) {
-        this(refFactory, statement, bindVarsHandle, null, versionAware, false, unsafe, exceptionTransformer);
+        this(refFactory, statement, bindVarsHandle, null, versionAware, false, unsafe, 0, false, exceptionTransformer);
     }
 
     QueryImpl(@Nonnull RefFactory refFactory,
@@ -93,7 +97,7 @@ class QueryImpl implements Query {
               boolean versionAware,
               boolean unsafe,
               @Nonnull Function<Throwable, PersistenceException> exceptionTransformer) {
-        this(refFactory, statement, bindVarsHandle, affectedType, versionAware, false, unsafe, exceptionTransformer);
+        this(refFactory, statement, bindVarsHandle, affectedType, versionAware, false, unsafe, 0, false, exceptionTransformer);
     }
 
     QueryImpl(@Nonnull RefFactory refFactory,
@@ -104,6 +108,19 @@ class QueryImpl implements Query {
               boolean managed,
               boolean unsafe,
               @Nonnull Function<Throwable, PersistenceException> exceptionTransformer) {
+        this(refFactory, statement, bindVarsHandle, affectedType, versionAware, managed, unsafe, 0, false, exceptionTransformer);
+    }
+
+    QueryImpl(@Nonnull RefFactory refFactory,
+              @Nonnull Function<Boolean, PreparedStatement> statement,
+              @Nullable BindVarsHandle bindVarsHandle,
+              @Nullable Class<? extends Data> affectedType,
+              boolean versionAware,
+              boolean managed,
+              boolean unsafe,
+              int defaultFetchSize,
+              boolean streamOnlyFetchSize,
+              @Nonnull Function<Throwable, PersistenceException> exceptionTransformer) {
         this.refFactory = refFactory;
         this.statement = statement;
         this.bindVarsHandle = bindVarsHandle;
@@ -111,6 +128,8 @@ class QueryImpl implements Query {
         this.affectedType = affectedType;
         this.managed = managed;
         this.unsafe = unsafe;
+        this.defaultFetchSize = defaultFetchSize;
+        this.streamOnlyFetchSize = streamOnlyFetchSize;
         this.exceptionTransformer = exceptionTransformer;
     }
 
@@ -128,7 +147,7 @@ class QueryImpl implements Query {
      */
     @Override
     public PreparedQuery prepare() {
-        return MonitoredResource.wrap(new PreparedQueryImpl(refFactory, statement.apply(unsafe), bindVarsHandle, affectedType, versionAware, managed, exceptionTransformer));
+        return MonitoredResource.wrap(new PreparedQueryImpl(refFactory, statement.apply(unsafe), bindVarsHandle, affectedType, versionAware, managed, defaultFetchSize, streamOnlyFetchSize, exceptionTransformer));
     }
 
     /**
@@ -139,7 +158,7 @@ class QueryImpl implements Query {
      */
     @Override
     public Query managed() {
-        return new QueryImpl(refFactory, statement, bindVarsHandle, affectedType, versionAware, true, unsafe, exceptionTransformer);
+        return new QueryImpl(refFactory, statement, bindVarsHandle, affectedType, versionAware, true, unsafe, defaultFetchSize, streamOnlyFetchSize, exceptionTransformer);
     }
 
     /**
@@ -150,11 +169,21 @@ class QueryImpl implements Query {
      */
     @Override
     public Query unsafe() {
-        return new QueryImpl(refFactory, statement, bindVarsHandle, affectedType, versionAware, managed, true, exceptionTransformer);
+        return new QueryImpl(refFactory, statement, bindVarsHandle, affectedType, versionAware, managed, true, defaultFetchSize, streamOnlyFetchSize, exceptionTransformer);
+    }
+
+    private QueryImpl withoutFetchSize() {
+        return new QueryImpl(refFactory, statement, bindVarsHandle, affectedType, versionAware, managed, unsafe, 0, false, exceptionTransformer);
     }
 
     private PreparedStatement getStatement() {
         return statement.apply(unsafe);
+    }
+
+    private void applyFetchSize(@Nonnull PreparedStatement statement) throws SQLException {
+        if (defaultFetchSize != 0) {
+            statement.setFetchSize(defaultFetchSize);
+        }
     }
 
     protected boolean closeStatement() {
@@ -186,6 +215,7 @@ class QueryImpl implements Query {
             PreparedStatement statement = getStatement();
             boolean close = true;
             try {
+                applyFetchSize(statement);
                 ResultSet resultSet = statement.executeQuery();
                 try {
                     int columnCount = resultSet.getMetaData().getColumnCount();
@@ -240,6 +270,7 @@ class QueryImpl implements Query {
         boolean close = true;
         try {
             try {
+                applyFetchSize(statement);
                 ResultSet resultSet = statement.executeQuery();
                 int columnCount = resultSet.getMetaData().getColumnCount();
                 var mapper = getObjectMapper(columnCount, type, refFactory)
@@ -287,6 +318,62 @@ class QueryImpl implements Query {
         var interner = new WeakInterner();
         return getResultStream(pkType)
                 .map(pk -> pk == null ? null : interner.intern(refFactory.create(type, pk)));
+    }
+
+    @Override
+    public Object[] getSingleResult() {
+        return streamOnlyFetchSize && defaultFetchSize != 0
+                ? withoutFetchSize().getSingleResult()
+                : Query.super.getSingleResult();
+    }
+
+    @Override
+    public <T> T getSingleResult(@Nonnull Class<T> type) {
+        return streamOnlyFetchSize && defaultFetchSize != 0
+                ? withoutFetchSize().getSingleResult(type)
+                : Query.super.getSingleResult(type);
+    }
+
+    @Override
+    public Optional<Object[]> getOptionalResult() {
+        return streamOnlyFetchSize && defaultFetchSize != 0
+                ? withoutFetchSize().getOptionalResult()
+                : Query.super.getOptionalResult();
+    }
+
+    @Override
+    public <T> Optional<T> getOptionalResult(@Nonnull Class<T> type) {
+        return streamOnlyFetchSize && defaultFetchSize != 0
+                ? withoutFetchSize().getOptionalResult(type)
+                : Query.super.getOptionalResult(type);
+    }
+
+    @Override
+    public List<Object[]> getResultList() {
+        return streamOnlyFetchSize && defaultFetchSize != 0
+                ? withoutFetchSize().getResultList()
+                : Query.super.getResultList();
+    }
+
+    @Override
+    public <T> List<T> getResultList(@Nonnull Class<T> type) {
+        return streamOnlyFetchSize && defaultFetchSize != 0
+                ? withoutFetchSize().getResultList(type)
+                : Query.super.getResultList(type);
+    }
+
+    @Override
+    public <T extends Data> List<Ref<T>> getRefList(@Nonnull Class<T> type, @Nonnull Class<?> pkType) {
+        return streamOnlyFetchSize && defaultFetchSize != 0
+                ? withoutFetchSize().getRefList(type, pkType)
+                : Query.super.getRefList(type, pkType);
+    }
+
+    @Override
+    public long getResultCount() {
+        return streamOnlyFetchSize && defaultFetchSize != 0
+                ? withoutFetchSize().getResultCount()
+                : Query.super.getResultCount();
     }
 
     protected void close(@Nonnull ResultSet resultSet, @Nonnull PreparedStatement statement) {

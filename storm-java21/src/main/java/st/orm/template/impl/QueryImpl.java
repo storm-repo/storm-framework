@@ -18,6 +18,8 @@ package st.orm.template.impl;
 import static java.util.Objects.requireNonNull;
 
 import jakarta.annotation.Nonnull;
+import java.util.List;
+import java.util.Optional;
 import java.util.stream.Stream;
 import st.orm.Data;
 import st.orm.PersistenceException;
@@ -57,6 +59,46 @@ public class QueryImpl implements Query {
     @Override
     public Query unsafe() {
         return new QueryImpl(core.unsafe());
+    }
+
+    @Override
+    public Object[] getSingleResult() {
+        return core.getSingleResult();
+    }
+
+    @Override
+    public <T> T getSingleResult(@Nonnull Class<T> type) {
+        return core.getSingleResult(type);
+    }
+
+    @Override
+    public Optional<Object[]> getOptionalResult() {
+        return core.getOptionalResult();
+    }
+
+    @Override
+    public <T> Optional<T> getOptionalResult(@Nonnull Class<T> type) {
+        return core.getOptionalResult(type);
+    }
+
+    @Override
+    public List<Object[]> getResultList() {
+        return core.getResultList();
+    }
+
+    @Override
+    public <T> List<T> getResultList(@Nonnull Class<T> type) {
+        return core.getResultList(type);
+    }
+
+    @Override
+    public <T extends Data> List<Ref<T>> getRefList(@Nonnull Class<T> type, @Nonnull Class<?> pkType) {
+        return core.getRefList(type, pkType);
+    }
+
+    @Override
+    public long getResultCount() {
+        return core.getResultCount();
     }
 
     /**
