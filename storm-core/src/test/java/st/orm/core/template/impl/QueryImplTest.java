@@ -46,8 +46,6 @@ public class QueryImplTest {
     @Autowired
     private DataSource dataSource;
 
-    // readColumnValue: Calendar type mapping
-
     record CalendarResult(Calendar value) {}
 
     @Test
@@ -65,11 +63,8 @@ public class QueryImplTest {
         var orm = ORMTemplate.of(dataSource);
         CalendarResult result = orm.query(raw("SELECT CAST(NULL AS TIMESTAMP)"))
                 .getSingleResult(CalendarResult.class);
-        // Calendar is not primitive, so null is valid
         assertTrue(result.value() == null);
     }
-
-    // readColumnValue: java.sql.Timestamp type mapping
 
     record TimestampResult(Timestamp value) {}
 
@@ -80,8 +75,6 @@ public class QueryImplTest {
                 .getSingleResult(TimestampResult.class);
         assertNotNull(result.value());
     }
-
-    // readColumnValue: ByteBuffer type mapping
 
     record ByteBufferResult(ByteBuffer value) {}
 
@@ -99,11 +92,8 @@ public class QueryImplTest {
         var orm = ORMTemplate.of(dataSource);
         ByteBufferResult result = orm.query(raw("SELECT CAST(NULL AS BINARY)"))
                 .getSingleResult(ByteBufferResult.class);
-        // ByteBuffer null when bytes are null
         assertTrue(result.value() == null);
     }
-
-    // getRefStream
 
     @Test
     public void testGetRefStream() {
@@ -112,7 +102,6 @@ public class QueryImplTest {
                 .getRefStream(City.class, Integer.class)) {
             List<Ref<City>> refList = refs.toList();
             assertEquals(6, refList.size());
-            // Refs should be non-null for non-null PKs
             for (Ref<City> ref : refList) {
                 assertNotNull(ref);
             }
@@ -122,8 +111,6 @@ public class QueryImplTest {
     @Test
     public void testGetRefStreamWithNullPk() {
         var orm = ORMTemplate.of(dataSource);
-        // Pets with NULL owner_id: pet 13 ("Sly") has NULL owner
-        // Null PK causes construction failure, so expect PersistenceException
         assertThrows(PersistenceException.class, () -> {
             try (Stream<Ref<Owner>> refs = orm.query(raw("SELECT owner_id FROM pet WHERE owner_id IS NULL"))
                     .getRefStream(Owner.class, Integer.class)) {
@@ -131,8 +118,6 @@ public class QueryImplTest {
             }
         });
     }
-
-    // executeBatch path
 
     @Test
     public void testExecuteBatch() {
@@ -143,20 +128,15 @@ public class QueryImplTest {
         }
     }
 
-    // getResultStream(Class) with type mismatch
-
     record WrongColumnCount(int first, int second, int third) {}
 
     @Test
     public void testGetResultStreamTypeMismatchThrows() {
         var orm = ORMTemplate.of(dataSource);
-        // SELECT only 1 column but record expects 3 - should throw due to no suitable constructor
         assertThrows(PersistenceException.class, () ->
                 orm.query(raw("SELECT id FROM city WHERE id = 1"))
                         .getSingleResult(WrongColumnCount.class));
     }
-
-    // Query.managed() and Query.unsafe()
 
     @Test
     public void testManagedQuery() {
@@ -164,7 +144,6 @@ public class QueryImplTest {
         Query query = orm.selectFrom(City.class).build();
         Query managedQuery = query.managed();
         assertNotNull(managedQuery);
-        // Managed query should still be able to get results
         long count = managedQuery.getResultCount();
         assertEquals(6, count);
     }
@@ -172,17 +151,12 @@ public class QueryImplTest {
     @Test
     public void testUnsafeQuery() {
         var orm = ORMTemplate.of(dataSource);
-        // Build an UPDATE without WHERE - normally rejected
         Query query = orm.query(raw("UPDATE city SET name = 'x'"));
-        // Without unsafe() this should throw
         assertThrows(PersistenceException.class, () -> query.executeUpdate());
-        // With unsafe() it should succeed
         Query unsafeQuery = query.unsafe();
         int updated = unsafeQuery.executeUpdate();
         assertTrue(updated > 0);
     }
-
-    // Query.isVersionAware()
 
     @Test
     public void testIsVersionAware() {
@@ -190,8 +164,6 @@ public class QueryImplTest {
         Query query = orm.selectFrom(City.class).build();
         assertFalse(query.isVersionAware());
     }
-
-    // getResultStream() returning Object[] - multiple columns
 
     @Test
     public void testGetResultStreamObjectArrayMultipleColumns() {
@@ -201,8 +173,6 @@ public class QueryImplTest {
             assertEquals(2, row.length);
         }
     }
-
-    // getResultList(Class)
 
     @Test
     public void testGetResultListTyped() {
@@ -214,8 +184,6 @@ public class QueryImplTest {
         assertEquals("Sun Paririe", results.getFirst().name());
     }
 
-    // getOptionalResult returns empty for no rows
-
     @Test
     public void testGetOptionalResultReturnsEmpty() {
         var orm = ORMTemplate.of(dataSource);
@@ -224,8 +192,6 @@ public class QueryImplTest {
                 .getOptionalResult(CityName.class);
         assertTrue(result.isEmpty());
     }
-
-    // PreparedQuery: getResultStream(Class) on prepared query
 
     @Test
     public void testPreparedQueryGetResultStreamTyped() {

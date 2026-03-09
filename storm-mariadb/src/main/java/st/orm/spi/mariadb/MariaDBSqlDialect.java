@@ -40,6 +40,37 @@ public class MariaDBSqlDialect extends MySQLSqlDialect {
     }
 
     /**
+     * Returns a fetch size of 1000 to control result batching.
+     *
+     * <p>Unlike MySQL Connector/J, the MariaDB Connector/J driver does not support {@code Integer.MIN_VALUE}
+     * as a fetch size for row-by-row streaming. Instead, a positive fetch size is used to instruct the driver
+     * to fetch rows in batches, reducing memory consumption for large result sets while maintaining good
+     * throughput.</p>
+     *
+     * @return {@code 1000}.
+     * @since 1.10
+     */
+    @Override
+    public int defaultFetchSize() {
+        return 1000;
+    }
+
+    /**
+     * Returns {@code false} because the positive fetch size is safe to apply universally.
+     *
+     * <p>Unlike the MySQL Connector/J row-by-row streaming mode, the MariaDB batch fetch approach does not
+     * impose connection-level constraints, so it can be applied to both streaming and eager result
+     * consumption without a performance penalty.</p>
+     *
+     * @return {@code false}.
+     * @since 1.10
+     */
+    @Override
+    public boolean streamOnlyFetchSize() {
+        return false;
+    }
+
+    /**
      * Returns the SQL statement for getting the next value of the given sequence.
      *
      * @param sequenceName the name of the sequence.

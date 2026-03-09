@@ -185,6 +185,22 @@ public class PostgreSQLSqlDialect extends DefaultSqlDialect implements SqlDialec
     }
 
     /**
+     * Returns a fetch size of 1000 to enable cursor-based result batching.
+     *
+     * <p>By default, the PostgreSQL JDBC driver fetches the entire result set into memory. When a non-zero
+     * fetch size is set and the connection is not in auto-commit mode, the driver uses a database cursor to
+     * fetch rows in batches of the specified size. A value of 1000 provides a good balance between reducing
+     * memory consumption and minimizing round-trip overhead.</p>
+     *
+     * @return {@code 1000}.
+     * @since 1.10
+     */
+    @Override
+    public int defaultFetchSize() {
+        return 1000;
+    }
+
+    /**
      * Returns a PostgreSQL limit clause.
      *
      * @param limit the maximum number of records to return.

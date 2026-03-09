@@ -107,7 +107,6 @@ import kotlin.reflect.KClass
  *
  * <h3>Create</h3>
  *
- *
  * Insert a user into the database. The template engine also supports insertion of multiple entries in batch mode by
  * passing a list of entities. Alternatively, insertion can also be executed using a flow of entities.
  * ```
@@ -116,7 +115,6 @@ import kotlin.reflect.KClass
  * ```
  *
  * <h3>Read</h3>
- *
  *
  * Select all users from the database that are linked to cities with the name "Sunnyvale". The static metamodel is
  * used to specify the City entity in the QueryBuilder's entity graph.
@@ -144,7 +142,6 @@ import kotlin.reflect.KClass
  * ```
  *
  * <h3>Delete</h3>
- *
  *
  * Delete user in the database. The repository also supports updates for multiple entries in batch mode by passing a
  * list entities or primary keys. Alternatively, deletion can be executed in using a flow of entities.

@@ -18,11 +18,11 @@ package st.orm.test;
 import java.util.List;
 
 /**
- * Represents a captured SQL statement with its operation type and bound parameters.
+ * Represents a captured SQL statement with its operation type and bind variables.
  *
  * @param operation the type of SQL operation.
  * @param statement the SQL statement with {@code ?} placeholders.
- * @param parameters the bound parameter values.
+ * @param parameters the bind variable values.
  * @since 1.9
  */
 public record CapturedStatement(

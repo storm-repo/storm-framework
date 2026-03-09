@@ -46,8 +46,10 @@ final class PreparedQueryImpl extends QueryImpl implements PreparedQuery {
                              @Nullable Class<? extends Data> affectedType,
                              boolean versionAware,
                              boolean managed,
+                             int defaultFetchSize,
+                             boolean streamOnlyFetchSize,
                              @Nonnull Function<Throwable, PersistenceException> exceptionTransformer) {
-        super(refFactory, ignore -> statement, bindVarsHandle, affectedType, versionAware, managed, false, exceptionTransformer);
+        super(refFactory, ignore -> statement, bindVarsHandle, affectedType, versionAware, managed, false, defaultFetchSize, streamOnlyFetchSize, exceptionTransformer);
         this.refFactory = refFactory;
         this.statement = statement;
         this.bindVarsHandle = bindVarsHandle;

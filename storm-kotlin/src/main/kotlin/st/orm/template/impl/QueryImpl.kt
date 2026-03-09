@@ -46,6 +46,26 @@ open class QueryImpl(private val core: st.orm.core.template.Query) : Query {
      */
     override fun unsafe(): Query = QueryImpl(core.unsafe())
 
+    override val singleResult: Array<Any>
+        get() = core.getSingleResult()
+
+    override val optionalResult: Array<Any>?
+        get() = core.getOptionalResult().orElse(null)
+
+    override val resultCount: Long
+        get() = core.getResultCount()
+
+    override fun <T : Any> getSingleResult(type: KClass<T>): T = core.getSingleResult(type.java)
+
+    override fun <T : Any> getOptionalResult(type: KClass<T>): T? = core.getOptionalResult(type.java).orElse(null)
+
+    override val resultList: List<Array<Any>>
+        get() = core.getResultList()
+
+    override fun <T : Any> getResultList(type: KClass<T>): List<T> = core.getResultList(type.java)
+
+    override fun <T : Data> getRefList(type: KClass<T>, pkType: KClass<*>): List<Ref<T>> = core.getRefList(type.java, pkType.java)
+
     override val resultStream: Stream<Array<Any>>
         /**
          * Execute a SELECT query and return the resulting rows as a stream of row instances.

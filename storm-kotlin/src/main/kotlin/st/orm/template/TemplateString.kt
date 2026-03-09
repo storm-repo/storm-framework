@@ -48,7 +48,7 @@ sealed interface TemplateString {
         fun raw(str: String): TemplateString = TemplateStringHolder(st.orm.core.template.TemplateString.of(str))
 
         /**
-         * Create a new template string that wraps a single value as a bound parameter.
+         * Create a new template string that wraps a single value as a bind variable.
          */
         fun wrap(value: Any?): TemplateString = TemplateStringHolder(st.orm.core.template.TemplateString.wrap(value))
 
@@ -77,7 +77,7 @@ typealias TemplateBuilder = TemplateContext.() -> String
  *
  * Within a [TemplateBuilder] lambda, use [t] (or its longer form [interpolate]) to interpolate values, types,
  * and SQL elements into the template. The interpolated objects are processed by the Storm template engine,
- * which resolves them into the appropriate SQL fragments and bound parameters based on their position in the query.
+ * which resolves them into the appropriate SQL fragments and bind variables based on their position in the query.
  *
  * @see TemplateBuilder
  * @see TemplateString

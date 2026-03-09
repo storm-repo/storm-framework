@@ -44,8 +44,6 @@ public class PreparedStatementParameterTest {
     @Autowired
     private DataSource dataSource;
 
-    // setParameters: Short parameter binding
-
     @Test
     public void testShortParameterBinding() {
         var orm = ORMTemplate.of(dataSource);
@@ -55,8 +53,6 @@ public class PreparedStatementParameterTest {
             assertEquals(value, stream.findFirst().orElseThrow());
         }
     }
-
-    // setParameters: Byte parameter binding
 
     @Test
     public void testByteParameterBinding() {
@@ -68,8 +64,6 @@ public class PreparedStatementParameterTest {
         }
     }
 
-    // setParameters: Float parameter binding
-
     @Test
     public void testFloatParameterBinding() {
         var orm = ORMTemplate.of(dataSource);
@@ -79,8 +73,6 @@ public class PreparedStatementParameterTest {
             assertEquals(value, stream.findFirst().orElseThrow(), 0.001f);
         }
     }
-
-    // setParameters: BigDecimal parameter binding
 
     record BigDecimalResult(BigDecimal value) {}
 
@@ -95,8 +87,6 @@ public class PreparedStatementParameterTest {
         }
     }
 
-    // setParameters: ByteBuffer parameter binding
-
     @Test
     public void testByteBufferParameterBinding() {
         var orm = ORMTemplate.of(dataSource);
@@ -107,8 +97,6 @@ public class PreparedStatementParameterTest {
             assertNotNull(row[0]);
         }
     }
-
-    // setParameters: Time parameter binding
 
     record TimeResult(LocalTime value) {}
 
@@ -124,8 +112,6 @@ public class PreparedStatementParameterTest {
         }
     }
 
-    // setParameters: LocalTime parameter binding
-
     record LocalTimeResult(LocalTime value) {}
 
     @Test
@@ -139,8 +125,6 @@ public class PreparedStatementParameterTest {
             assertEquals(30, result.getMinute());
         }
     }
-
-    // setParameters: LocalDateTime parameter binding
 
     record LocalDateTimeResult(LocalDateTime value) {}
 
@@ -156,8 +140,6 @@ public class PreparedStatementParameterTest {
         }
     }
 
-    // setParameters: OffsetDateTime parameter binding
-
     record OffsetDateTimeResult(OffsetDateTime value) {}
 
     @Test
@@ -171,8 +153,6 @@ public class PreparedStatementParameterTest {
             assertEquals(2023, result.getYear());
         }
     }
-
-    // setParameters: ZonedDateTime parameter binding
 
     record ZonedDateTimeResult(ZonedDateTime value) {}
 
@@ -188,8 +168,6 @@ public class PreparedStatementParameterTest {
         }
     }
 
-    // setParameters: Instant parameter binding
-
     record InstantResult(Instant value) {}
 
     @Test
@@ -203,8 +181,6 @@ public class PreparedStatementParameterTest {
         }
     }
 
-    // setParameters: Enum parameter binding
-
     enum TestColor { RED, GREEN, BLUE }
 
     @Test
@@ -216,8 +192,6 @@ public class PreparedStatementParameterTest {
         }
     }
 
-    // setParameters: null parameter binding
-
     @Test
     public void testNullParameterBinding() {
         var orm = ORMTemplate.of(dataSource);
@@ -226,8 +200,6 @@ public class PreparedStatementParameterTest {
             assertEquals("default", stream.findFirst().orElseThrow());
         }
     }
-
-    // setParameters: Boolean parameter binding
 
     @Test
     public void testBooleanParameterBinding() {
@@ -238,8 +210,6 @@ public class PreparedStatementParameterTest {
         }
     }
 
-    // setParameters: LocalDate parameter binding
-
     @Test
     public void testLocalDateParameterBinding() {
         var orm = ORMTemplate.of(dataSource);
@@ -249,8 +219,6 @@ public class PreparedStatementParameterTest {
             assertEquals("Leo", stream.findFirst().orElseThrow());
         }
     }
-
-    // createConnectionProcessor: Connection-based template
 
     @Test
     public void testConnectionBasedTemplateSimpleQuery() throws Exception {
@@ -274,8 +242,6 @@ public class PreparedStatementParameterTest {
         }
     }
 
-    // createSqlTemplate: providerFilter != null branch
-
     @Test
     public void testWithProviderFilter() {
         var template = new PreparedStatementTemplateImpl(dataSource);
@@ -283,8 +249,6 @@ public class PreparedStatementParameterTest {
         assertNotNull(filtered);
         assertNotNull(filtered.toORM());
     }
-
-    // Unsafe query rejection
 
     @Test
     public void testUnsafeDeleteRejected() {
@@ -296,7 +260,6 @@ public class PreparedStatementParameterTest {
     @Test
     public void testUnsafeDeleteAllowed() {
         var orm = ORMTemplate.of(dataSource);
-        // unsafe() should allow delete without WHERE
         assertDoesNotThrow(() ->
                 orm.query(raw("DELETE FROM pet_extension")).unsafe().executeUpdate());
     }

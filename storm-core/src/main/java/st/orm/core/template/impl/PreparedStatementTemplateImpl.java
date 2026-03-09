@@ -178,6 +178,9 @@ public final class PreparedStatementTemplateImpl implements PreparedStatementTem
                     preparedStatement = transactionContext.getDecorator(PreparedStatement.class)
                             .decorate(preparedStatement);
                 }
+                if (!dialect.streamOnlyFetchSize() && dialect.defaultFetchSize() != 0) {
+                    preparedStatement.setFetchSize(dialect.defaultFetchSize());
+                }
                 if (bindVariables == null) {
                     setParameters(preparedStatement, parameters, dialect);
                 } else {
@@ -228,6 +231,9 @@ public final class PreparedStatementTemplateImpl implements PreparedStatementTem
                 if (transactionContext != null) {
                     preparedStatement = transactionContext.getDecorator(PreparedStatement.class)
                             .decorate(preparedStatement);
+                }
+                if (!dialect.streamOnlyFetchSize() && dialect.defaultFetchSize() != 0) {
+                    preparedStatement.setFetchSize(dialect.defaultFetchSize());
                 }
                 if (bindVariables == null) {
                     setParameters(preparedStatement, parameters, dialect);
@@ -492,13 +498,16 @@ public final class PreparedStatementTemplateImpl implements PreparedStatementTem
         try {
             var sql = sqlTemplate().process(template);
             var bindVariables = sql.bindVariables().orElse(null);
+            SqlDialect dialect = providerFilter != null
+                    ? getSqlDialect(providerFilter, config)
+                    : getSqlDialect(config);
             return new QueryImpl(refFactory, unsafe -> {
                 try {
                     return templateProcessor.process(sql, unsafe);
                 } catch (SQLException e) {
                     throw new PersistenceException(e);
                 }
-            }, bindVariables == null ? null : bindVariables.getHandle(), sql.affectedType().orElse(null), sql.versionAware(), false, getExceptionTransformer(sql));
+            }, bindVariables == null ? null : bindVariables.getHandle(), sql.affectedType().orElse(null), sql.versionAware(), false, false, dialect.defaultFetchSize(), dialect.streamOnlyFetchSize(), getExceptionTransformer(sql));
         } catch (SqlTemplateException e) {
             throw new PersistenceException(e);
         }
