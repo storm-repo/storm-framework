@@ -507,7 +507,7 @@ public final class PreparedStatementTemplateImpl implements PreparedStatementTem
                 } catch (SQLException e) {
                     throw new PersistenceException(e);
                 }
-            }, bindVariables == null ? null : bindVariables.getHandle(), sql.affectedType().orElse(null), sql.versionAware(), false, false, dialect.defaultFetchSize(), dialect.streamOnlyFetchSize(), getExceptionTransformer(sql));
+            }, bindVariables == null ? null : bindVariables.getHandle(), sql.affectedType().orElse(null), sql.versionAware(), false, false, dialect.defaultFetchSize(), dialect.streamOnlyFetchSize(), dialect.streamingRequiresTransaction(), getExceptionTransformer(sql));
         } catch (SqlTemplateException e) {
             throw new PersistenceException(e);
         }

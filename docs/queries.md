@@ -1029,8 +1029,8 @@ Inline records expand in GROUP BY the same way. This is particularly useful in c
 ```kotlin
 data class CityOrderCount(val city: City, val count: Long)
 
-val page = orm.query(Order::class)
-    .select(Order_.city, "COUNT(*)")
+val orders = orm.entity(Order::class)
+val slice = orders.select(CityOrderCount::class) { "${City::class}, COUNT(*)" }
     .groupBy(Order_.city)
     .slice(Order_.city.key(), 20)
 ```
@@ -1121,7 +1121,7 @@ Optional<User> user = orm.entity(User.class)
 ## Tips
 
 1. **Use the metamodel** -- `User_.email` catches typos at compile time; see [Metamodel](metamodel.md)
-2. **Kotlin: choose your style** -- quick queries (`orm.find`, `orm.findAll`) for simple cases, repository builder for complex operations
+2. **Kotlin: choose your style** -- quick queries (`orm.find`, `orm.findAll`) for simple cases, query builder for complex operations
 3. **Java: DSL or Templates** -- DSL for type-safe conditions, SQL Templates for complex SQL like CTEs, window functions, or database-specific features
 4. **Entity graphs load in one query** -- related entities marked with `@FK` are JOINed automatically, no N+1 problems
 5. **Close Java streams** -- always use try-with-resources with `Stream` results

@@ -64,6 +64,14 @@ public class FetchSizeTest {
                                                String sql,
                                                int defaultFetchSize,
                                                boolean streamOnlyFetchSize) {
+        return createQueryWithFetchSize(connection, sql, defaultFetchSize, streamOnlyFetchSize, false);
+    }
+
+    private QueryImpl createQueryWithFetchSize(Connection connection,
+                                               String sql,
+                                               int defaultFetchSize,
+                                               boolean streamOnlyFetchSize,
+                                               boolean streamingRequiresTransaction) {
         return new QueryImpl(
                 DETACHED_REF_FACTORY,
                 unsafe -> {
@@ -80,6 +88,7 @@ public class FetchSizeTest {
                 false,
                 defaultFetchSize,
                 streamOnlyFetchSize,
+                streamingRequiresTransaction,
                 e -> new PersistenceException(e)
         );
     }
@@ -240,6 +249,49 @@ public class FetchSizeTest {
              var stream = preparedQuery.getResultStream(City.class)) {
             long count = stream.count();
             assertEquals(6, count);
+        }
+    }
+
+    @Test
+    public void testStreamingRequiresTransaction_disablesAutoCommitDuringStream() throws Exception {
+        try (Connection connection = dataSource.getConnection()) {
+            assertTrue(connection.getAutoCommit());
+            QueryImpl query = createQueryWithFetchSize(connection, "SELECT id FROM city WHERE id = 1", 100, false, true);
+            try (Stream<Object[]> stream = query.getResultStream()) {
+                Object[] row = stream.findFirst().orElseThrow();
+                assertNotNull(row[0]);
+            }
+            // Auto-commit should be restored after the stream is closed.
+            assertTrue(connection.getAutoCommit(), "Auto-commit should be restored after stream close");
+        }
+    }
+
+    @Test
+    public void testStreamingRequiresTransaction_noChangeWhenAlreadyInTransaction() throws Exception {
+        try (Connection connection = dataSource.getConnection()) {
+            connection.setAutoCommit(false);
+            QueryImpl query = createQueryWithFetchSize(connection, "SELECT id FROM city WHERE id = 1", 100, false, true);
+            try (Stream<Object[]> stream = query.getResultStream()) {
+                Object[] row = stream.findFirst().orElseThrow();
+                assertNotNull(row[0]);
+            }
+            // Auto-commit should remain false (unchanged).
+            assertTrue(!connection.getAutoCommit(), "Auto-commit should remain false when already in a transaction");
+            connection.rollback();
+        }
+    }
+
+    @Test
+    public void testStreamingRequiresTransaction_noChangeWhenFlagDisabled() throws Exception {
+        try (Connection connection = dataSource.getConnection()) {
+            assertTrue(connection.getAutoCommit());
+            QueryImpl query = createQueryWithFetchSize(connection, "SELECT id FROM city WHERE id = 1", 100, false, false);
+            try (Stream<Object[]> stream = query.getResultStream()) {
+                Object[] row = stream.findFirst().orElseThrow();
+                assertNotNull(row[0]);
+            }
+            // Auto-commit should remain true (unchanged).
+            assertTrue(connection.getAutoCommit(), "Auto-commit should remain true when flag is disabled");
         }
     }
 }

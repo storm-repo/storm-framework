@@ -71,6 +71,7 @@ class QueryImpl implements Query {
     private final boolean managed;
     private final int defaultFetchSize;
     private final boolean streamOnlyFetchSize;
+    private final boolean streamingRequiresTransaction;
     private final Function<Throwable, PersistenceException> exceptionTransformer;
 
     QueryImpl(@Nonnull RefFactory refFactory,
@@ -78,7 +79,7 @@ class QueryImpl implements Query {
               @Nullable BindVarsHandle bindVarsHandle,
               boolean versionAware,
               @Nonnull Function<Throwable, PersistenceException> exceptionTransformer) {
-        this(refFactory, statement, bindVarsHandle, null, versionAware, false, false, 0, false, exceptionTransformer);
+        this(refFactory, statement, bindVarsHandle, null, versionAware, false, false, 0, false, false, exceptionTransformer);
     }
 
     QueryImpl(@Nonnull RefFactory refFactory,
@@ -87,7 +88,7 @@ class QueryImpl implements Query {
               boolean versionAware,
               boolean unsafe,
               @Nonnull Function<Throwable, PersistenceException> exceptionTransformer) {
-        this(refFactory, statement, bindVarsHandle, null, versionAware, false, unsafe, 0, false, exceptionTransformer);
+        this(refFactory, statement, bindVarsHandle, null, versionAware, false, unsafe, 0, false, false, exceptionTransformer);
     }
 
     QueryImpl(@Nonnull RefFactory refFactory,
@@ -97,7 +98,7 @@ class QueryImpl implements Query {
               boolean versionAware,
               boolean unsafe,
               @Nonnull Function<Throwable, PersistenceException> exceptionTransformer) {
-        this(refFactory, statement, bindVarsHandle, affectedType, versionAware, false, unsafe, 0, false, exceptionTransformer);
+        this(refFactory, statement, bindVarsHandle, affectedType, versionAware, false, unsafe, 0, false, false, exceptionTransformer);
     }
 
     QueryImpl(@Nonnull RefFactory refFactory,
@@ -108,7 +109,7 @@ class QueryImpl implements Query {
               boolean managed,
               boolean unsafe,
               @Nonnull Function<Throwable, PersistenceException> exceptionTransformer) {
-        this(refFactory, statement, bindVarsHandle, affectedType, versionAware, managed, unsafe, 0, false, exceptionTransformer);
+        this(refFactory, statement, bindVarsHandle, affectedType, versionAware, managed, unsafe, 0, false, false, exceptionTransformer);
     }
 
     QueryImpl(@Nonnull RefFactory refFactory,
@@ -120,6 +121,7 @@ class QueryImpl implements Query {
               boolean unsafe,
               int defaultFetchSize,
               boolean streamOnlyFetchSize,
+              boolean streamingRequiresTransaction,
               @Nonnull Function<Throwable, PersistenceException> exceptionTransformer) {
         this.refFactory = refFactory;
         this.statement = statement;
@@ -130,6 +132,7 @@ class QueryImpl implements Query {
         this.unsafe = unsafe;
         this.defaultFetchSize = defaultFetchSize;
         this.streamOnlyFetchSize = streamOnlyFetchSize;
+        this.streamingRequiresTransaction = streamingRequiresTransaction;
         this.exceptionTransformer = exceptionTransformer;
     }
 
@@ -147,7 +150,7 @@ class QueryImpl implements Query {
      */
     @Override
     public PreparedQuery prepare() {
-        return MonitoredResource.wrap(new PreparedQueryImpl(refFactory, statement.apply(unsafe), bindVarsHandle, affectedType, versionAware, managed, defaultFetchSize, streamOnlyFetchSize, exceptionTransformer));
+        return MonitoredResource.wrap(new PreparedQueryImpl(refFactory, statement.apply(unsafe), bindVarsHandle, affectedType, versionAware, managed, defaultFetchSize, streamOnlyFetchSize, streamingRequiresTransaction, exceptionTransformer));
     }
 
     /**
@@ -158,7 +161,7 @@ class QueryImpl implements Query {
      */
     @Override
     public Query managed() {
-        return new QueryImpl(refFactory, statement, bindVarsHandle, affectedType, versionAware, true, unsafe, defaultFetchSize, streamOnlyFetchSize, exceptionTransformer);
+        return new QueryImpl(refFactory, statement, bindVarsHandle, affectedType, versionAware, true, unsafe, defaultFetchSize, streamOnlyFetchSize, streamingRequiresTransaction, exceptionTransformer);
     }
 
     /**
@@ -169,11 +172,11 @@ class QueryImpl implements Query {
      */
     @Override
     public Query unsafe() {
-        return new QueryImpl(refFactory, statement, bindVarsHandle, affectedType, versionAware, managed, true, defaultFetchSize, streamOnlyFetchSize, exceptionTransformer);
+        return new QueryImpl(refFactory, statement, bindVarsHandle, affectedType, versionAware, managed, true, defaultFetchSize, streamOnlyFetchSize, streamingRequiresTransaction, exceptionTransformer);
     }
 
     private QueryImpl withoutFetchSize() {
-        return new QueryImpl(refFactory, statement, bindVarsHandle, affectedType, versionAware, managed, unsafe, 0, false, exceptionTransformer);
+        return new QueryImpl(refFactory, statement, bindVarsHandle, affectedType, versionAware, managed, unsafe, 0, false, false, exceptionTransformer);
     }
 
     private PreparedStatement getStatement() {
@@ -184,6 +187,38 @@ class QueryImpl implements Query {
         if (defaultFetchSize != 0) {
             statement.setFetchSize(defaultFetchSize);
         }
+    }
+
+    /**
+     * Configures the connection for cursor-based streaming when the dialect requires an active transaction.
+     *
+     * <p>If the connection is in auto-commit mode and the dialect indicates that streaming requires a transaction,
+     * auto-commit is disabled to enable cursor-based result batching. The returned {@code Runnable} restores the
+     * connection to its original state when the stream is closed.</p>
+     *
+     * @param statement the prepared statement whose connection to configure.
+     * @return a cleanup action that restores auto-commit, or {@code null} if no configuration was needed.
+     */
+    private @Nullable Runnable configureStreamingTransaction(@Nonnull PreparedStatement statement) {
+        if (streamingRequiresTransaction && defaultFetchSize != 0) {
+            try {
+                var connection = statement.getConnection();
+                if (connection.getAutoCommit()) {
+                    connection.setAutoCommit(false);
+                    return () -> {
+                        try {
+                            connection.commit();
+                            connection.setAutoCommit(true);
+                        } catch (SQLException e) {
+                            throw new PersistenceException(e);
+                        }
+                    };
+                }
+            } catch (SQLException ignore) {
+                // Unable to determine or change auto-commit state; proceed without cursor-based streaming.
+            }
+        }
+        return null;
     }
 
     protected boolean closeStatement() {
@@ -216,6 +251,7 @@ class QueryImpl implements Query {
             boolean close = true;
             try {
                 applyFetchSize(statement);
+                Runnable streamingCleanup = configureStreamingTransaction(statement);
                 ResultSet resultSet = statement.executeQuery();
                 try {
                     int columnCount = resultSet.getMetaData().getColumnCount();
@@ -229,7 +265,7 @@ class QueryImpl implements Query {
                                 }
                             })
                                     .takeWhile(Objects::nonNull)
-                                    .onClose(() -> close(resultSet, statement)));
+                                    .onClose(() -> close(resultSet, statement, streamingCleanup)));
                 } finally {
                     if (close) {
                         resultSet.close();
@@ -271,6 +307,7 @@ class QueryImpl implements Query {
         try {
             try {
                 applyFetchSize(statement);
+                Runnable streamingCleanup = configureStreamingTransaction(statement);
                 ResultSet resultSet = statement.executeQuery();
                 int columnCount = resultSet.getMetaData().getColumnCount();
                 var mapper = getObjectMapper(columnCount, type, refFactory)
@@ -285,7 +322,7 @@ class QueryImpl implements Query {
                             }
                         })
                                 .takeWhile(Objects::nonNull)
-                                .onClose(() -> close(resultSet, statement)));
+                                .onClose(() -> close(resultSet, statement, streamingCleanup)));
             } finally {
                 if (close && closeStatement()) {
                     statement.close();
@@ -377,9 +414,20 @@ class QueryImpl implements Query {
     }
 
     protected void close(@Nonnull ResultSet resultSet, @Nonnull PreparedStatement statement) {
+        close(resultSet, statement, null);
+    }
+
+    protected void close(@Nonnull ResultSet resultSet, @Nonnull PreparedStatement statement,
+                          @Nullable Runnable streamingCleanup) {
         try {
             try {
-                resultSet.close();
+                try {
+                    resultSet.close();
+                } finally {
+                    if (streamingCleanup != null) {
+                        streamingCleanup.run();
+                    }
+                }
             } finally {
                 if (closeStatement()) {
                     statement.close();

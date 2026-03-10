@@ -201,6 +201,19 @@ public class PostgreSQLSqlDialect extends DefaultSqlDialect implements SqlDialec
     }
 
     /**
+     * Returns {@code true} because the PostgreSQL JDBC driver requires the connection to be in non-auto-commit
+     * mode for the fetch size hint to activate cursor-based result batching. When auto-commit is enabled, the
+     * driver silently ignores the fetch size and buffers the entire result set in memory.
+     *
+     * @return {@code true}.
+     * @since 1.10
+     */
+    @Override
+    public boolean streamingRequiresTransaction() {
+        return true;
+    }
+
+    /**
      * Returns a PostgreSQL limit clause.
      *
      * @param limit the maximum number of records to return.
