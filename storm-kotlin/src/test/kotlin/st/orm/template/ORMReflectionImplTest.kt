@@ -3,6 +3,7 @@ package st.orm.template
 import io.kotest.matchers.booleans.shouldBeFalse
 import io.kotest.matchers.booleans.shouldBeTrue
 import io.kotest.matchers.collections.shouldHaveSize
+import io.kotest.matchers.nulls.shouldBeNull
 import io.kotest.matchers.nulls.shouldNotBeNull
 import io.kotest.matchers.shouldBe
 import org.junit.jupiter.api.Test
@@ -18,6 +19,49 @@ import st.orm.PersistenceException
 import st.orm.Ref
 import st.orm.spi.ORMReflectionImpl
 import st.orm.template.model.*
+import java.lang.invoke.MethodHandles
+import java.lang.reflect.Method
+import java.lang.reflect.Modifier
+import java.lang.reflect.Proxy
+
+// Test interfaces with self-contained Kotlin default methods for scanMethods tests.
+
+interface ScanTestNoArgs {
+    fun greeting(): String = "hello"
+}
+
+interface ScanTestPrimitiveArgs {
+    fun add(a: Int, b: Int): Int = a + b
+}
+
+interface ScanTestNullableArgs {
+    fun withDefault(name: String?): String = name ?: "default"
+}
+
+interface ScanTestCollectionArgs {
+    fun listSize(items: List<String>): Int = items.size
+}
+
+interface ScanTestReturnsUnit {
+    fun doNothing() {}
+}
+
+interface ScanTestOverloaded {
+    fun compute(a: Int): Int = a * 2
+    fun compute(a: Int, b: Int): Int = a + b
+}
+
+interface ScanTestAbstractOnly {
+    fun abstractMethod(): String
+}
+
+interface ScanTestParent {
+    fun value(): String = "parent"
+}
+
+interface ScanTestChild : ScanTestParent {
+    override fun value(): String = "child"
+}
 
 /**
  * Tests for [ORMReflectionImpl] covering Kotlin data class reflection,
@@ -472,5 +516,145 @@ open class ORMReflectionImplTest(
         recordType.shouldNotBeNull()
         // Kotlin Metadata annotation should not be in the type-level annotations
         recordType.annotations().none { it.annotationClass.java.name.contains("Metadata") }.shouldBeTrue()
+    }
+
+    // execute / scanMethods
+
+    @Suppress("UNCHECKED_CAST")
+    private fun <T> proxy(iface: Class<T>): T = Proxy.newProxyInstance(
+        iface.classLoader,
+        arrayOf(iface),
+    ) { _, _, _ -> null } as T
+
+    @Test
+    fun `execute should invoke no-arg Kotlin default method`() {
+        val proxy = proxy(ScanTestNoArgs::class.java)
+        val method = ScanTestNoArgs::class.java.getMethod("greeting")
+        reflection.execute(proxy, method) shouldBe "hello"
+    }
+
+    @Test
+    fun `execute should invoke default method with primitive parameters`() {
+        val proxy = proxy(ScanTestPrimitiveArgs::class.java)
+        val method = ScanTestPrimitiveArgs::class.java.getMethod("add", Int::class.java, Int::class.java)
+        reflection.execute(proxy, method, 3, 4) shouldBe 7
+    }
+
+    @Test
+    fun `execute should invoke default method with nullable parameter passing null`() {
+        val proxy = proxy(ScanTestNullableArgs::class.java)
+        val method = ScanTestNullableArgs::class.java.getMethod("withDefault", String::class.java)
+        reflection.execute(proxy, method, *arrayOf<Any?>(null)) shouldBe "default"
+    }
+
+    @Test
+    fun `execute should invoke default method with collection parameter`() {
+        val proxy = proxy(ScanTestCollectionArgs::class.java)
+        val method = ScanTestCollectionArgs::class.java.getMethod("listSize", List::class.java)
+        reflection.execute(proxy, method, listOf("a", "b", "c")) shouldBe 3
+    }
+
+    @Test
+    fun `execute should handle default method returning Unit`() {
+        val proxy = proxy(ScanTestReturnsUnit::class.java)
+        val method = ScanTestReturnsUnit::class.java.getMethod("doNothing")
+        reflection.execute(proxy, method)
+    }
+
+    @Test
+    fun `execute should resolve overloaded default methods by arity`() {
+        val proxy = proxy(ScanTestOverloaded::class.java)
+        val oneArg = ScanTestOverloaded::class.java.getMethod("compute", Int::class.java)
+        val twoArg = ScanTestOverloaded::class.java.getMethod("compute", Int::class.java, Int::class.java)
+        reflection.execute(proxy, oneArg, 5) shouldBe 10
+        reflection.execute(proxy, twoArg, 3, 7) shouldBe 10
+    }
+
+    @Test
+    fun `execute should invoke overridden default method from child interface`() {
+        val proxy = proxy(ScanTestChild::class.java)
+        val method = ScanTestChild::class.java.getMethod("value")
+        reflection.execute(proxy, method) shouldBe "child"
+    }
+
+    @Test
+    fun `execute should throw for abstract method without DefaultImpls`() {
+        val proxy = proxy(ScanTestAbstractOnly::class.java)
+        val method = ScanTestAbstractOnly::class.java.getMethod("abstractMethod")
+        assertThrows<IllegalArgumentException> {
+            reflection.execute(proxy, method)
+        }
+    }
+
+    // Direct scanMethods tests
+
+    private val scanMethodsMethod: Method by lazy {
+        ORMReflectionImpl::class.java.declaredMethods
+            .first { it.name == "scanMethods" }
+            .also { it.isAccessible = true }
+    }
+
+    private fun invokeScanMethods(
+        candidates: Array<Method>,
+        iface: Class<*>,
+        method: Method,
+        lookup: MethodHandles.Lookup,
+    ): Any? = scanMethodsMethod.invoke(reflection, candidates, iface, method, lookup)
+
+    private fun defaultImplsClass(iface: Class<*>): Class<*> = Class.forName("${iface.name}\$DefaultImpls", true, iface.classLoader)
+
+    private fun lookupFor(implsClass: Class<*>): MethodHandles.Lookup = MethodHandles.privateLookupIn(implsClass, MethodHandles.lookup())
+
+    @Test
+    fun `scanMethods should find matching method with parameters`() {
+        val method = ScanTestPrimitiveArgs::class.java.getMethod("add", Int::class.java, Int::class.java)
+        val implsClass = defaultImplsClass(ScanTestPrimitiveArgs::class.java)
+        val result = invokeScanMethods(implsClass.declaredMethods, ScanTestPrimitiveArgs::class.java, method, lookupFor(implsClass))
+        result.shouldNotBeNull()
+    }
+
+    @Test
+    fun `scanMethods should match when first parameter is supertype of interface`() {
+        // ScanTestParent$DefaultImpls.value(ScanTestParent) should match when iface is ScanTestChild
+        // because ScanTestParent.isAssignableFrom(ScanTestChild) = true.
+        val method = ScanTestChild::class.java.getMethod("value")
+        val parentImplsClass = defaultImplsClass(ScanTestParent::class.java)
+        val result = invokeScanMethods(parentImplsClass.declaredMethods, ScanTestChild::class.java, method, lookupFor(parentImplsClass))
+        result.shouldNotBeNull()
+    }
+
+    @Test
+    fun `scanMethods should not match when first parameter is subtype of interface`() {
+        // ScanTestChild$DefaultImpls.value(ScanTestChild) should not match when iface is ScanTestParent
+        // because ScanTestChild.isAssignableFrom(ScanTestParent) = false.
+        val method = ScanTestParent::class.java.getMethod("value")
+        val childImplsClass = defaultImplsClass(ScanTestChild::class.java)
+        val result = invokeScanMethods(childImplsClass.declaredMethods, ScanTestParent::class.java, method, lookupFor(childImplsClass))
+        result.shouldBeNull()
+    }
+
+    @Test
+    fun `scanMethods should return null for empty candidates array`() {
+        val method = ScanTestNoArgs::class.java.getMethod("greeting")
+        val implsClass = defaultImplsClass(ScanTestNoArgs::class.java)
+        val result = invokeScanMethods(emptyArray(), ScanTestNoArgs::class.java, method, lookupFor(implsClass))
+        result.shouldBeNull()
+    }
+
+    @Test
+    fun `scanMethods should return null when no method matches name`() {
+        val method = ScanTestNoArgs::class.java.getMethod("greeting")
+        val implsClass = defaultImplsClass(ScanTestPrimitiveArgs::class.java)
+        val result = invokeScanMethods(implsClass.declaredMethods, ScanTestNoArgs::class.java, method, lookupFor(implsClass))
+        result.shouldBeNull()
+    }
+
+    @Test
+    fun `scanMethods should skip non-static methods`() {
+        val method = ScanTestNoArgs::class.java.getMethod("greeting")
+        val implsClass = defaultImplsClass(ScanTestNoArgs::class.java)
+        val nonStaticMethods = implsClass.declaredMethods.filter { !Modifier.isStatic(it.modifiers) }.toTypedArray()
+        val result = invokeScanMethods(nonStaticMethods, ScanTestNoArgs::class.java, method, lookupFor(implsClass))
+        result.shouldBeNull()
     }
 }

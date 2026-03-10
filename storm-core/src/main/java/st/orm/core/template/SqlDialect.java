@@ -493,4 +493,19 @@ public interface SqlDialect {
         return false;
     }
 
+    /**
+     * Returns whether streaming result sets require an active transaction for the fetch size hint to take effect.
+     *
+     * <p>Some JDBC drivers silently ignore {@link PreparedStatement#setFetchSize(int)} when the connection is in
+     * auto-commit mode. When this method returns {@code true} and a streaming method ({@code getResultStream()}) is
+     * called without an active transaction, a warning is logged to alert the caller that the entire result set will
+     * be buffered in memory instead of being fetched in batches.</p>
+     *
+     * @return {@code true} if an active transaction is required for cursor-based streaming.
+     * @since 1.10
+     */
+    default boolean streamingRequiresTransaction() {
+        return false;
+    }
+
 }
