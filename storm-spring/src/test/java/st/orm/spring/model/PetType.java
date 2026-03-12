@@ -17,13 +17,14 @@ package st.orm.spring.model;
 
 import jakarta.annotation.Nonnull;
 import st.orm.Entity;
+import st.orm.GenerationStrategy;
 import st.orm.PK;
 
 /**
  * Can be Cat, Dog, Hamster...
  */
 public record PetType(
-        @PK Integer id,
+        @PK(generation = GenerationStrategy.NONE) Integer id,
         @Nonnull String name
 ) implements Entity<Integer> {
 }

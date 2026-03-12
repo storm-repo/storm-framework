@@ -33,6 +33,7 @@ import st.orm.core.template.SqlDialect;
  * @param generation the generation strategy.
  * @param sequence the sequence name.
  * @param foreignKey whether the column is a foreign key.
+ * @param foreignKeyGeneration the generation strategy for the primary key of the referenced entity.
  * @param keyIndex the 1-based index of the key.
  * @param nullable whether the column is nullable.
  * @param insertable whether the column is insertable.
@@ -50,6 +51,7 @@ public record ColumnImpl(
         @Nonnull GenerationStrategy generation,
         @Nonnull String sequence,
         boolean foreignKey,
+        @Nonnull GenerationStrategy foreignKeyGeneration,
         int keyIndex,
         boolean nullable,
         boolean insertable,

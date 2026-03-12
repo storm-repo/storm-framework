@@ -82,6 +82,17 @@ public interface Column {
     boolean foreignKey();
 
     /**
+     * Gets the generation strategy for the primary key of the referenced (foreign) entity.
+     *
+     * <p>Only meaningful when {@link #foreignKey()} returns {@code true}. For non-foreign-key columns, this method
+     * returns {@link GenerationStrategy#NONE}.</p>
+     *
+     * @return the generation strategy of the referenced entity's primary key.
+     * @since 1.10
+     */
+    GenerationStrategy foreignKeyGeneration();
+
+    /**
      * The 1-based index of the key.
      *
      * @return the 1-based index of the key.
