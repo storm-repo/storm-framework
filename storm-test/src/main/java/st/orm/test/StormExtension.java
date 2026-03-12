@@ -43,7 +43,7 @@ import st.orm.core.template.impl.SchemaValidator;
  * parameter types into test methods:</p>
  * <ul>
  *     <li>{@link DataSource} -- the test database connection</li>
- *     <li>{@link StatementCapture} -- a fresh capture instance for verifying SQL statements</li>
+ *     <li>{@link SqlCapture} -- a fresh capture instance for verifying SQL statements</li>
  *     <li>Any type with a static {@code of(DataSource)} factory method or a Kotlin companion object
  *         {@code of(DataSource)} method (e.g., {@code ORMTemplate})</li>
  * </ul>
@@ -80,7 +80,7 @@ public class StormExtension implements BeforeAllCallback, ParameterResolver {
     public boolean supportsParameter(ParameterContext paramCtx, ExtensionContext extCtx)
             throws ParameterResolutionException {
         Class<?> type = paramCtx.getParameter().getType();
-        if (type == DataSource.class || type == StatementCapture.class || type == SchemaValidator.class) {
+        if (type == DataSource.class || type == SqlCapture.class || type == SchemaValidator.class) {
             return true;
         }
         return hasFactoryMethod(type);
@@ -90,8 +90,8 @@ public class StormExtension implements BeforeAllCallback, ParameterResolver {
     public Object resolveParameter(ParameterContext paramCtx, ExtensionContext extCtx)
             throws ParameterResolutionException {
         Class<?> type = paramCtx.getParameter().getType();
-        if (type == StatementCapture.class) {
-            return new StatementCapture();
+        if (type == SqlCapture.class) {
+            return new SqlCapture();
         }
         DataSource dataSource = getDataSource(extCtx);
         if (type == DataSource.class) {

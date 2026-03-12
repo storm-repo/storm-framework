@@ -19,6 +19,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import javax.sql.DataSource;
+import org.springframework.beans.factory.SmartInitializingSingleton;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnBean;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnClass;
@@ -61,23 +62,28 @@ public class StormAutoConfiguration {
     @ConditionalOnMissingBean(ORMTemplate.class)
     public ORMTemplate ormTemplate(DataSource dataSource, StormProperties properties,
                                    List<EntityCallback<?>> entityCallbacks) {
-        ORMTemplate template = ORMTemplate.of(dataSource, toStormConfig(properties))
+        return ORMTemplate.of(dataSource, toStormConfig(properties))
                 .withEntityCallbacks(entityCallbacks);
-        runSchemaValidation(dataSource, properties);
-        return template;
     }
 
-    private void runSchemaValidation(DataSource dataSource, StormProperties properties) {
-        String schemaMode = properties.getValidation().getSchemaMode();
-        if (schemaMode == null || schemaMode.isBlank() || "none".equalsIgnoreCase(schemaMode.trim())) {
-            return;
-        }
-        SchemaValidator validator = SchemaValidator.of(dataSource);
-        if ("fail".equalsIgnoreCase(schemaMode.trim())) {
-            validator.validateOrThrow();
-        } else if ("warn".equalsIgnoreCase(schemaMode.trim())) {
-            validator.validateOrWarn();
-        }
+    /**
+     * Runs schema validation after all singleton beans have been fully initialized. This guarantees that migration
+     * tools like Flyway and Liquibase have completed their work before validation occurs.
+     */
+    @Bean
+    SmartInitializingSingleton stormSchemaValidator(DataSource dataSource, StormProperties properties) {
+        return () -> {
+            String schemaMode = properties.getValidation().getSchemaMode();
+            if (schemaMode == null || schemaMode.isBlank() || "none".equalsIgnoreCase(schemaMode.trim())) {
+                return;
+            }
+            SchemaValidator validator = SchemaValidator.of(dataSource);
+            if ("fail".equalsIgnoreCase(schemaMode.trim())) {
+                validator.validateOrThrow();
+            } else if ("warn".equalsIgnoreCase(schemaMode.trim())) {
+                validator.validateOrWarn();
+            }
+        };
     }
 
     private static StormConfig toStormConfig(StormProperties properties) {

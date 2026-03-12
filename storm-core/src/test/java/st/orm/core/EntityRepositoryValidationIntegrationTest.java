@@ -1,5 +1,6 @@
 package st.orm.core;
 
+import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
@@ -20,11 +21,15 @@ import org.springframework.test.context.junit.jupiter.SpringExtension;
 import st.orm.EntityCallback;
 import st.orm.OptimisticLockException;
 import st.orm.PersistenceException;
+import st.orm.Ref;
+import st.orm.core.model.Address;
 import st.orm.core.model.City;
 import st.orm.core.model.Owner;
+import st.orm.core.model.Pet;
 import st.orm.core.model.PetType;
 import st.orm.core.model.VetSpecialty;
 import st.orm.core.model.VetSpecialtyPK;
+import st.orm.core.model.Visit;
 import st.orm.core.template.ORMTemplate;
 import st.orm.core.template.SqlTemplateException;
 
@@ -543,26 +548,136 @@ public class EntityRepositoryValidationIntegrationTest {
         assertEquals("StreamUpd McFarland", cities.getById(2).name());
     }
 
-    // PetType: auto-gen PK insert validation
+    // PetType: manual PK insert validation
 
     @Test
-    public void testPetTypeInsertWithExplicitPkThrows() {
+    public void testPetTypeInsertWithExplicitPk() {
         var orm = ORMTemplate.of(dataSource);
         var petTypes = orm.entity(PetType.class);
-        // PetType has @PK with default generation = IDENTITY (auto-gen).
-        // Inserting with an explicit (non-default) PK should throw.
-        assertThrows(PersistenceException.class,
+        // PetType has @PK(generation = NONE), so inserting with an explicit PK should succeed.
+        assertDoesNotThrow(
                 () -> petTypes.insert(PetType.builder().id(99).name("Explicit").build()));
     }
 
     @Test
-    public void testPetTypeInsertWithDefaultPkThrowsAtDb() {
+    public void testPetTypeInsertWithNullPkThrowsAtDb() {
         var orm = ORMTemplate.of(dataSource);
         var petTypes = orm.entity(PetType.class);
-        // PetType entity uses default @PK (generation = IDENTITY), but the schema has no
-        // auto_increment. Inserting with null PK passes framework validation but fails at DB.
+        // PetType has @PK(generation = NONE) and the schema has no auto_increment.
+        // Inserting with null PK fails at the database level.
         assertThrows(PersistenceException.class,
                 () -> petTypes.insert(PetType.builder().name("New Type").build()));
+    }
+
+    // Foreign key default value validation
+
+    @Test
+    public void testInsertPetWithDefaultOwnerIdThrows() {
+        var orm = ORMTemplate.of(dataSource);
+        var pets = orm.entity(Pet.class);
+        // Owner uses IDENTITY generation, so a default PK value (0) indicates an unsaved entity.
+        var unsavedOwner = Owner.builder()
+                .id(0)
+                .firstName("John")
+                .lastName("Doe")
+                .address(Address.builder().address("123 Main St").city(City.builder().id(1).build()).build())
+                .build();
+        assertThrows(PersistenceException.class,
+                () -> pets.insert(Pet.builder()
+                        .name("Buddy")
+                        .birthDate(java.time.LocalDate.of(2020, 1, 1))
+                        .type(Ref.of(PetType.class, 0))
+                        .owner(unsavedOwner)
+                        .build()));
+    }
+
+    @Test
+    public void testInsertPetWithNullOwnerSucceeds() {
+        var orm = ORMTemplate.of(dataSource);
+        var pets = orm.entity(Pet.class);
+        // Null FK is allowed (nullable owner).
+        assertDoesNotThrow(
+                () -> pets.insert(Pet.builder()
+                        .name("Buddy")
+                        .birthDate(java.time.LocalDate.of(2020, 1, 1))
+                        .type(Ref.of(PetType.class, 0))
+                        .owner(null)
+                        .build()));
+    }
+
+    @Test
+    public void testInsertPetWithValidOwnerSucceeds() {
+        var orm = ORMTemplate.of(dataSource);
+        var pets = orm.entity(Pet.class);
+        // Owner with a non-default PK should pass validation.
+        var savedOwner = Owner.builder()
+                .id(1)
+                .firstName("Jane")
+                .lastName("Doe")
+                .address(Address.builder().address("456 Oak Ave").city(City.builder().id(1).build()).build())
+                .build();
+        assertDoesNotThrow(
+                () -> pets.insert(Pet.builder()
+                        .name("Rex")
+                        .birthDate(java.time.LocalDate.of(2021, 6, 15))
+                        .type(Ref.of(PetType.class, 1))
+                        .owner(savedOwner)
+                        .build()));
+    }
+
+    @Test
+    public void testInsertPetWithDefaultPetTypeIdSucceeds() {
+        var orm = ORMTemplate.of(dataSource);
+        var pets = orm.entity(Pet.class);
+        // PetType uses NONE generation, so a PK value of 0 is valid (not treated as unsaved).
+        assertDoesNotThrow(
+                () -> pets.insert(Pet.builder()
+                        .name("Kitty")
+                        .birthDate(java.time.LocalDate.of(2022, 3, 10))
+                        .type(Ref.of(PetType.class, 0))
+                        .owner(null)
+                        .build()));
+    }
+
+    @Test
+    public void testInsertVisitWithDefaultPetIdThrows() {
+        var orm = ORMTemplate.of(dataSource);
+        var visits = orm.entity(Visit.class);
+        // Pet uses IDENTITY generation, so a default PK value (0) indicates an unsaved entity.
+        var unsavedPet = Pet.builder()
+                .id(0)
+                .name("Ghost")
+                .birthDate(java.time.LocalDate.of(2020, 1, 1))
+                .type(Ref.of(PetType.class, 0))
+                .build();
+        assertThrows(PersistenceException.class,
+                () -> visits.insert(Visit.builder()
+                        .visitDate(java.time.LocalDate.of(2024, 1, 1))
+                        .description("Checkup")
+                        .pet(unsavedPet)
+                        .timestamp(java.time.Instant.now())
+                        .build()));
+    }
+
+    @Test
+    public void testUpdatePetWithDefaultOwnerIdThrows() {
+        var orm = ORMTemplate.of(dataSource);
+        var pets = orm.entity(Pet.class);
+        // Update should also validate FK default values.
+        var unsavedOwner = Owner.builder()
+                .id(0)
+                .firstName("John")
+                .lastName("Doe")
+                .address(Address.builder().address("123 Main St").city(City.builder().id(1).build()).build())
+                .build();
+        assertThrows(PersistenceException.class,
+                () -> pets.update(Pet.builder()
+                        .id(1)
+                        .name("Buddy")
+                        .birthDate(java.time.LocalDate.of(2020, 1, 1))
+                        .type(Ref.of(PetType.class, 0))
+                        .owner(unsavedOwner)
+                        .build()));
     }
 
     // Intermediate callback type resolution

@@ -52,8 +52,10 @@ import java.util.function.BiConsumer;
 import st.orm.Data;
 import st.orm.DbEnum;
 import st.orm.FK;
+import st.orm.GenerationStrategy;
 import st.orm.Metamodel;
 import st.orm.PK;
+import st.orm.PersistenceException;
 import st.orm.Ref;
 import st.orm.core.spi.ORMConverter;
 import st.orm.core.spi.ORMReflection;
@@ -391,6 +393,36 @@ public final class ModelImpl<E extends Data, ID> implements Model<E, ID> {
         requireNonNull(record, "record");
         requireNonNull(consumer, "consumer");
         forEachValueOrdered(columns, record, consumer);
+    }
+
+    @Override
+    public void validateForeignKeys(@Nonnull List<Column> columns, @Nonnull E record) throws SqlTemplateException {
+        requireNonNull(columns, "columns");
+        requireNonNull(record, "record");
+        for (var column : columns) {
+            if (!column.foreignKey() || column.foreignKeyGeneration() == GenerationStrategy.NONE) {
+                continue;
+            }
+            var value = getValue(column.metamodel(), record);
+            if (value == null) {
+                continue;
+            }
+            Object foreignKeyId;
+            if (value instanceof Ref<?> ref) {
+                foreignKeyId = ref.id();
+            } else if (value instanceof Data data) {
+                foreignKeyId = REFLECTION.getId(data);
+            } else {
+                continue;
+            }
+            if (foreignKeyId != null && REFLECTION.isDefaultValue(foreignKeyId)) {
+                throw new PersistenceException(
+                        "Foreign key '%s.%s' has a default primary key value. "
+                                .formatted(record.getClass().getSimpleName(), column.name())
+                        + "This typically indicates an unsaved entity is being used as a reference. "
+                        + "Ensure the referenced entity has been persisted before using it as a foreign key.");
+            }
+        }
     }
 
     @Override

@@ -1,6 +1,7 @@
 package st.orm.spring.model
 
 import st.orm.Entity
+import st.orm.GenerationStrategy
 import st.orm.PK
 
 /**
@@ -8,6 +9,6 @@ import st.orm.PK
  */
 @JvmRecord
 data class PetType(
-    @PK val id: Int = 0,
+    @PK(generation = GenerationStrategy.NONE) val id: Int = 0,
     val name: String,
 ) : Entity<Int>

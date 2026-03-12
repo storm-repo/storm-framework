@@ -102,6 +102,7 @@ final class SetProcessor implements ElementProcessor<Set> {
                 var table = queryModel.getTable();
                 //noinspection unchecked
                 var model = (Model<Data, ?>) binder.getModel(table.type());
+                model.validateForeignKeys(columns, set.record());
                 var mapped = model.values(columns, set.record());
                 for (var entry : mapped.entrySet()) {
                     var column = entry.getKey();
@@ -118,6 +119,7 @@ final class SetProcessor implements ElementProcessor<Set> {
                 var parameterFactory = binder.setBindVars(vars);
                 vars.addParameterExtractor(record -> {
                     try {
+                        model.validateForeignKeys(columns, record);
                         model.forEachValue(columns, record, (column, value) -> parameterFactory.bind(value));
                         return parameterFactory.getParameters();
                     } catch (SqlTemplateException ex) {

@@ -15,6 +15,7 @@
  */
 package st.orm.spring.boot.autoconfigure
 
+import org.springframework.beans.factory.SmartInitializingSingleton
 import org.springframework.boot.autoconfigure.AutoConfiguration
 import org.springframework.boot.autoconfigure.condition.ConditionalOnBean
 import org.springframework.boot.autoconfigure.condition.ConditionalOnClass
@@ -59,16 +60,20 @@ open class StormAutoConfiguration {
         dataSource: DataSource,
         properties: StormProperties,
         entityCallbacks: List<EntityCallback<*>>,
-    ): ORMTemplate {
-        val template = ORMTemplate.of(dataSource, toStormConfig(properties)).withEntityCallbacks(entityCallbacks)
-        runSchemaValidation(dataSource, properties)
-        return template
-    }
+    ): ORMTemplate = ORMTemplate.of(dataSource, toStormConfig(properties)).withEntityCallbacks(entityCallbacks)
 
-    private fun runSchemaValidation(dataSource: DataSource, properties: StormProperties) {
-        val schemaMode = properties.validation.schemaMode?.trim() ?: return
+    /**
+     * Runs schema validation after all singleton beans have been fully initialized. This guarantees that migration
+     * tools like Flyway and Liquibase have completed their work before validation occurs.
+     */
+    @Bean
+    open fun stormSchemaValidator(
+        dataSource: DataSource,
+        properties: StormProperties,
+    ): SmartInitializingSingleton = SmartInitializingSingleton {
+        val schemaMode = properties.validation.schemaMode?.trim() ?: return@SmartInitializingSingleton
         if (schemaMode.isBlank() || schemaMode.equals("none", ignoreCase = true)) {
-            return
+            return@SmartInitializingSingleton
         }
         val validator = SchemaValidator.of(dataSource)
         when {

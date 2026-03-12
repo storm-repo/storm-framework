@@ -19,7 +19,6 @@ import org.springframework.test.context.junit.jupiter.SpringExtension
 import st.orm.Data
 import st.orm.Metamodel
 import st.orm.NoResultException
-import st.orm.Operator.*
 import st.orm.PersistenceException
 import st.orm.Ref
 import st.orm.repository.*
@@ -308,7 +307,7 @@ open class RepositoryTest(
     fun `findAll with predicate should filter cities`() {
         val repo = orm.entity(City::class)
         val namePath = metamodel<City, String>(repo.model, "name")
-        val cities = repo.findAll { where(namePath, EQUALS, "Madison") }
+        val cities = repo.findAll(namePath eq "Madison")
         cities shouldHaveSize 1
         cities.first().name shouldBe "Madison"
     }
@@ -317,7 +316,7 @@ open class RepositoryTest(
     fun `findAll with predicate returning empty should return empty list`() {
         val repo = orm.entity(City::class)
         val namePath = metamodel<City, String>(repo.model, "name")
-        val cities = repo.findAll { where(namePath, EQUALS, "NonExistent") }
+        val cities = repo.findAll(namePath eq "NonExistent")
         cities.shouldBeEmpty()
     }
 
@@ -325,7 +324,7 @@ open class RepositoryTest(
     fun `find with predicate should return matching city`() {
         val repo = orm.entity(City::class)
         val namePath = metamodel<City, String>(repo.model, "name")
-        val city = repo.find { where(namePath, EQUALS, "Windsor") }
+        val city = repo.find(namePath eq "Windsor")
         city.shouldNotBeNull()
         city.name shouldBe "Windsor"
     }
@@ -334,7 +333,7 @@ open class RepositoryTest(
     fun `find with predicate should return null when no match`() {
         val repo = orm.entity(City::class)
         val namePath = metamodel<City, String>(repo.model, "name")
-        val city = repo.find { where(namePath, EQUALS, "NonExistent") }
+        val city = repo.find(namePath eq "NonExistent")
         city.shouldBeNull()
     }
 
@@ -342,7 +341,7 @@ open class RepositoryTest(
     fun `get with predicate should return matching city`() {
         val repo = orm.entity(City::class)
         val namePath = metamodel<City, String>(repo.model, "name")
-        val city = repo.get { where(namePath, EQUALS, "Monona") }
+        val city = repo.get(namePath eq "Monona")
         city.name shouldBe "Monona"
     }
 
@@ -351,7 +350,7 @@ open class RepositoryTest(
         val repo = orm.entity(City::class)
         val namePath = metamodel<City, String>(repo.model, "name")
         assertThrows<NoResultException> {
-            repo.get { where(namePath, EQUALS, "NonExistent") }
+            repo.get(namePath eq "NonExistent")
         }
     }
 
@@ -359,7 +358,7 @@ open class RepositoryTest(
     fun `select with predicate should return flow of matching cities`(): Unit = runBlocking {
         val repo = orm.entity(City::class)
         val namePath = metamodel<City, String>(repo.model, "name")
-        val count = repo.select { where(namePath, EQUALS, "Madison") }.count()
+        val count = repo.select(namePath eq "Madison").count()
         count shouldBe 1
     }
 
@@ -367,7 +366,7 @@ open class RepositoryTest(
     fun `count with predicate should count matching cities`() {
         val repo = orm.entity(City::class)
         val namePath = metamodel<City, String>(repo.model, "name")
-        val count = repo.count { where(namePath, EQUALS, "Madison") }
+        val count = repo.count(namePath eq "Madison")
         count shouldBe 1
     }
 
@@ -375,21 +374,21 @@ open class RepositoryTest(
     fun `exists with predicate should return true for matching city`() {
         val repo = orm.entity(City::class)
         val namePath = metamodel<City, String>(repo.model, "name")
-        repo.exists { where(namePath, EQUALS, "Madison") } shouldBe true
+        repo.exists(namePath eq "Madison") shouldBe true
     }
 
     @Test
     fun `exists with predicate should return false when no match`() {
         val repo = orm.entity(City::class)
         val namePath = metamodel<City, String>(repo.model, "name")
-        repo.exists { where(namePath, EQUALS, "NonExistent") } shouldBe false
+        repo.exists(namePath eq "NonExistent") shouldBe false
     }
 
     @Test
     fun `findAllRef with predicate should return refs of matching cities`() {
         val repo = orm.entity(City::class)
         val namePath = metamodel<City, String>(repo.model, "name")
-        val refs = repo.findAllRef { where(namePath, EQUALS, "Madison") }
+        val refs = repo.findAllRef(namePath eq "Madison")
         refs shouldHaveSize 1
     }
 
@@ -734,7 +733,7 @@ open class RepositoryTest(
     @Test
     fun `orm findAll with predicate should filter cities`() {
         val namePath = metamodel<City, String>(orm.entity(City::class).model, "name")
-        val cities = orm.findAll<City> { where(namePath, EQUALS, "Madison") }
+        val cities = orm.findAll<City>(namePath eq "Madison")
         cities shouldHaveSize 1
         cities.first().name shouldBe "Madison"
     }
@@ -742,7 +741,7 @@ open class RepositoryTest(
     @Test
     fun `orm find with predicate should return single matching city`() {
         val namePath = metamodel<City, String>(orm.entity(City::class).model, "name")
-        val city = orm.find<City> { where(namePath, EQUALS, "Windsor") }
+        val city = orm.find<City>(namePath eq "Windsor")
         city.shouldNotBeNull()
         city.name shouldBe "Windsor"
     }
@@ -750,14 +749,14 @@ open class RepositoryTest(
     @Test
     fun `orm find with predicate should return null when no match`() {
         val namePath = metamodel<City, String>(orm.entity(City::class).model, "name")
-        val city = orm.find<City> { where(namePath, EQUALS, "Nonexistent") }
+        val city = orm.find<City>(namePath eq "Nonexistent")
         city.shouldBeNull()
     }
 
     @Test
     fun `orm get with predicate should return matching city`() {
         val namePath = metamodel<City, String>(orm.entity(City::class).model, "name")
-        val city = orm.get<City> { where(namePath, EQUALS, "Waunakee") }
+        val city = orm.get<City>(namePath eq "Waunakee")
         city.name shouldBe "Waunakee"
     }
 
@@ -765,40 +764,40 @@ open class RepositoryTest(
     fun `orm get with predicate should throw when no match`() {
         val namePath = metamodel<City, String>(orm.entity(City::class).model, "name")
         assertThrows<NoResultException> {
-            orm.get<City> { where(namePath, EQUALS, "Nonexistent") }
+            orm.get<City>(namePath eq "Nonexistent")
         }
     }
 
     @Test
     fun `orm select with predicate should return matching flow`(): Unit = runBlocking {
         val namePath = metamodel<City, String>(orm.entity(City::class).model, "name")
-        val count = orm.select<City> { where(namePath, EQUALS, "Madison") }.count()
+        val count = orm.select<City>(namePath eq "Madison").count()
         count shouldBe 1
     }
 
     @Test
     fun `orm count with predicate should count matching`() {
         val namePath = metamodel<City, String>(orm.entity(City::class).model, "name")
-        val count = orm.count<City> { where(namePath, EQUALS, "Madison") }
+        val count = orm.count<City>(namePath eq "Madison")
         count shouldBe 1
     }
 
     @Test
     fun `orm exists with predicate should return true for match`() {
         val namePath = metamodel<City, String>(orm.entity(City::class).model, "name")
-        orm.exists<City> { where(namePath, EQUALS, "Madison") } shouldBe true
+        orm.exists<City>(namePath eq "Madison") shouldBe true
     }
 
     @Test
     fun `orm exists with predicate should return false for no match`() {
         val namePath = metamodel<City, String>(orm.entity(City::class).model, "name")
-        orm.exists<City> { where(namePath, EQUALS, "Nonexistent") } shouldBe false
+        orm.exists<City>(namePath eq "Nonexistent") shouldBe false
     }
 
     @Test
     fun `orm findAllRef with predicate should return refs`() {
         val namePath = metamodel<City, String>(orm.entity(City::class).model, "name")
-        val refs = orm.findAllRef<City> { where(namePath, EQUALS, "Madison") }
+        val refs = orm.findAllRef<City>(namePath eq "Madison")
         refs shouldHaveSize 1
     }
 
@@ -974,7 +973,7 @@ open class RepositoryTest(
     fun `findRef with predicate should return ref for matching city`() {
         val repo = orm.entity(City::class)
         val namePath = metamodel<City, String>(repo.model, "name")
-        val ref = repo.findRef { where(namePath, EQUALS, "Madison") }
+        val ref = repo.findRef(namePath eq "Madison")
         ref.shouldNotBeNull()
     }
 
@@ -982,7 +981,7 @@ open class RepositoryTest(
     fun `findRef with predicate should return null when no match`() {
         val repo = orm.entity(City::class)
         val namePath = metamodel<City, String>(repo.model, "name")
-        val ref = repo.findRef { where(namePath, EQUALS, "NonExistent") }
+        val ref = repo.findRef(namePath eq "NonExistent")
         ref.shouldBeNull()
     }
 
@@ -990,7 +989,7 @@ open class RepositoryTest(
     fun `getRef with predicate should return ref for single match`() {
         val repo = orm.entity(City::class)
         val namePath = metamodel<City, String>(repo.model, "name")
-        val ref = repo.getRef { where(namePath, EQUALS, "Monona") }
+        val ref = repo.getRef(namePath eq "Monona")
         ref.shouldNotBeNull()
     }
 
@@ -999,7 +998,7 @@ open class RepositoryTest(
         val repo = orm.entity(City::class)
         val namePath = metamodel<City, String>(repo.model, "name")
         assertThrows<NoResultException> {
-            repo.getRef { where(namePath, EQUALS, "NonExistent") }
+            repo.getRef(namePath eq "NonExistent")
         }
     }
 
@@ -1007,7 +1006,7 @@ open class RepositoryTest(
     fun `selectRef with predicate should return flow of matching refs`(): Unit = runBlocking {
         val repo = orm.entity(City::class)
         val namePath = metamodel<City, String>(repo.model, "name")
-        val count = repo.selectRef { where(namePath, EQUALS, "Madison") }.count()
+        val count = repo.selectRef(namePath eq "Madison").count()
         count shouldBe 1
     }
 
@@ -1016,21 +1015,21 @@ open class RepositoryTest(
     @Test
     fun `orm findRef with predicate should return ref for matching city`() {
         val namePath = metamodel<City, String>(orm.entity(City::class).model, "name")
-        val ref = orm.findRef<City> { where(namePath, EQUALS, "Windsor") }
+        val ref = orm.findRef<City>(namePath eq "Windsor")
         ref.shouldNotBeNull()
     }
 
     @Test
     fun `orm findRef with predicate should return null when no match`() {
         val namePath = metamodel<City, String>(orm.entity(City::class).model, "name")
-        val ref = orm.findRef<City> { where(namePath, EQUALS, "NonExistent") }
+        val ref = orm.findRef<City>(namePath eq "NonExistent")
         ref.shouldBeNull()
     }
 
     @Test
     fun `orm getRef with predicate should return ref for single match`() {
         val namePath = metamodel<City, String>(orm.entity(City::class).model, "name")
-        val ref = orm.getRef<City> { where(namePath, EQUALS, "Waunakee") }
+        val ref = orm.getRef<City>(namePath eq "Waunakee")
         ref.shouldNotBeNull()
     }
 
@@ -1038,14 +1037,14 @@ open class RepositoryTest(
     fun `orm getRef with predicate should throw when no match`() {
         val namePath = metamodel<City, String>(orm.entity(City::class).model, "name")
         assertThrows<NoResultException> {
-            orm.getRef<City> { where(namePath, EQUALS, "NonExistent") }
+            orm.getRef<City>(namePath eq "NonExistent")
         }
     }
 
     @Test
     fun `orm selectRef with predicate should return flow of matching refs`(): Unit = runBlocking {
         val namePath = metamodel<City, String>(orm.entity(City::class).model, "name")
-        val count = orm.selectRef<City> { where(namePath, EQUALS, "Madison") }.count()
+        val count = orm.selectRef<City>(namePath eq "Madison").count()
         count shouldBe 1
     }
 
@@ -1055,7 +1054,7 @@ open class RepositoryTest(
     fun `orm delete with predicate should remove matching cities`() {
         val city = orm insert City(name = "ToDeleteByPredicate")
         val namePath = metamodel<City, String>(orm.entity(City::class).model, "name")
-        val deleted = orm.delete<City> { where(namePath, EQUALS, "ToDeleteByPredicate") }
+        val deleted = orm.delete<City>(namePath eq "ToDeleteByPredicate")
         deleted shouldBe 1
         orm.entity(City::class).findById(city.id).shouldBeNull()
     }

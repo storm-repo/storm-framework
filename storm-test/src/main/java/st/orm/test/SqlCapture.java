@@ -23,7 +23,7 @@ import java.util.function.Supplier;
 import st.orm.core.template.Sql;
 import st.orm.core.template.SqlInterceptor;
 import st.orm.core.template.SqlTemplate.Parameter;
-import st.orm.test.CapturedStatement.Operation;
+import st.orm.test.CapturedSql.Operation;
 
 /**
  * Captures SQL statements generated during the execution of an action.
@@ -36,9 +36,9 @@ import st.orm.test.CapturedStatement.Operation;
  *
  * @since 1.9
  */
-public final class StatementCapture {
+public final class SqlCapture {
 
-    private final List<CapturedStatement> statements = new ArrayList<>();
+    private final List<CapturedSql> statements = new ArrayList<>();
 
     private Consumer<Sql> createObserver() {
         return sql -> {
@@ -49,10 +49,10 @@ public final class StatementCapture {
                 case DELETE -> Operation.DELETE;
                 case UNDEFINED -> Operation.UNDEFINED;
             };
-            List<Object> params = sql.parameters().stream()
+            List<Object> parameters = sql.parameters().stream()
                     .map(Parameter::dbValue)
                     .toList();
-            statements.add(new CapturedStatement(op, sql.statement(), params));
+            statements.add(new CapturedSql(op, sql.statement(), parameters));
         };
     }
 
@@ -94,7 +94,7 @@ public final class StatementCapture {
      *
      * @return an unmodifiable copy of the captured statements.
      */
-    public List<CapturedStatement> statements() {
+    public List<CapturedSql> statements() {
         return List.copyOf(statements);
     }
 
@@ -104,7 +104,7 @@ public final class StatementCapture {
      * @param operation the operation type to filter by.
      * @return the matching statements.
      */
-    public List<CapturedStatement> statements(Operation operation) {
+    public List<CapturedSql> statements(Operation operation) {
         return statements.stream()
                 .filter(s -> s.operation() == operation)
                 .toList();

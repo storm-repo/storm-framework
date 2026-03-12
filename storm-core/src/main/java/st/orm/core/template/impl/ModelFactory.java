@@ -132,7 +132,7 @@ final class ModelFactory {
                     adjusted.add(new ColumnImpl(
                             ci.columnName(), ci.index(), ci.type(), true,
                             GenerationStrategy.NONE, "",
-                            ci.foreignKey(), ci.keyIndex(), ci.nullable(),
+                            ci.foreignKey(), ci.foreignKeyGeneration(), ci.keyIndex(), ci.nullable(),
                             ci.insertable(), ci.updatable(), ci.version(), ci.ref(),
                             ci.metamodel(), ci.secondaryMetamodel()
                     ));
@@ -149,7 +149,7 @@ final class ModelFactory {
                         adjusted.add(new ColumnImpl(
                                 ci.columnName(), ci.index(), ci.type(), false,
                                 ci.generation(), ci.sequence(),
-                                ci.foreignKey(), ci.keyIndex(), ci.nullable(),
+                                ci.foreignKey(), ci.foreignKeyGeneration(), ci.keyIndex(), ci.nullable(),
                                 false, false, ci.version(), ci.ref(),
                                 ci.metamodel(), ci.secondaryMetamodel()
                         ));
@@ -208,6 +208,7 @@ final class ModelFactory {
                 GenerationStrategy.NONE,
                 "",
                 false,  // not foreign key
+                GenerationStrategy.NONE,
                 -1,
                 false,  // not nullable
                 discriminator,   // insertable only when discriminator exists
@@ -298,6 +299,7 @@ final class ModelFactory {
                     isPk ? getGenerationStrategy(field) : GenerationStrategy.NONE,
                     isPk ? getSequence(field) : "",
                     false,  // not foreign key
+                    GenerationStrategy.NONE,
                     isPk ? 1 : -1,
                     nullable,
                     !extensionColumn,                       // insertable
@@ -320,6 +322,7 @@ final class ModelFactory {
 
     record ColumnSpec(boolean primaryKey,
                       boolean foreignKey,
+                      @Nonnull GenerationStrategy foreignKeyGeneration,
                       boolean nullable,
                       boolean insertable,
                       boolean updatable,
@@ -479,7 +482,14 @@ final class ModelFactory {
         }
         GenerationStrategy generation = effectivePrimaryKey ? pkContext.generation() : GenerationStrategy.NONE;
         String sequence = effectivePrimaryKey ? pkContext.sequence() : "";
-        return new ColumnSpec(effectivePrimaryKey, foreignKey, nullable, insertable, updatable, version, ref, dataType, generation, sequence);
+        GenerationStrategy fkGeneration = GenerationStrategy.NONE;
+        if (foreignKey) {
+            Class<?> fkTargetType = ref ? getRefDataType(field) : field.type();
+            fkGeneration = findPkField(fkTargetType)
+                    .map(pkField -> getGenerationStrategy(pkField))
+                    .orElse(GenerationStrategy.NONE);
+        }
+        return new ColumnSpec(effectivePrimaryKey, foreignKey, fkGeneration, nullable, insertable, updatable, version, ref, dataType, generation, sequence);
     }
 
     private static void emitColumns(@Nonnull BuildContext ctx,
@@ -503,6 +513,7 @@ final class ModelFactory {
                     spec.generation(),
                     spec.sequence(),
                     spec.foreignKey(),
+                    spec.foreignKeyGeneration(),
                     keyPos,
                     spec.nullable(),
                     spec.insertable(),

@@ -250,23 +250,23 @@ public interface UserRepository extends EntityRepository<User, Integer> {}
 
 For more targeted logging, annotate individual methods instead of the entire repository. See the [SQL Logging](sql-logging.md) page for details.
 
-### Use StatementCapture in Tests
+### Use SqlCapture in Tests
 
-The `StatementCapture` class from `storm-test` records all SQL statements generated during a block of code. This is useful for verifying that the correct queries are being generated:
+The `SqlCapture` class from `storm-test` records all SQL statements generated during a block of code. This is useful for verifying that the correct queries are being generated:
 
 ```java
-var capture = new StatementCapture();
+var capture = new SqlCapture();
 capture.run(() -> {
     userRepository.findAll();
 });
 
 // Inspect the captured SQL.
-List<CapturedStatement> statements = capture.statements();
+List<CapturedSql> statements = capture.statements();
 assertEquals(1, statements.size());
 assertTrue(statements.get(0).statement().contains("SELECT"));
 ```
 
-See the [Testing](testing.md) page for full details on `StatementCapture` and the `@StormTest` annotation.
+See the [Testing](testing.md) page for full details on `SqlCapture` and the `@StormTest` annotation.
 
 ### Read the Suppressed SQL
 

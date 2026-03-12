@@ -34,35 +34,35 @@ class StormExtensionAdditionalTest {
     }
 
     @Test
-    void statementCaptureExecuteShouldReturnResult(ORMTemplate orm, StatementCapture capture) {
+    void statementCaptureExecuteShouldReturnResult(ORMTemplate orm, SqlCapture capture) {
         var items = capture.execute(() -> orm.entity(Item.class).findAll());
         // At least 3 rows from test data; may be more if insert tests run in the same class.
         assertTrue(items.size() >= 3);
-        assertEquals(1, capture.count(CapturedStatement.Operation.SELECT));
+        assertEquals(1, capture.count(CapturedSql.Operation.SELECT));
     }
 
     @Test
-    void statementCaptureExecuteThrowingShouldReturnResult(ORMTemplate orm, StatementCapture capture) throws Exception {
+    void statementCaptureExecuteThrowingShouldReturnResult(ORMTemplate orm, SqlCapture capture) throws Exception {
         var items = capture.executeThrowing(() -> orm.entity(Item.class).findAll());
         assertTrue(items.size() >= 3);
-        assertEquals(1, capture.count(CapturedStatement.Operation.SELECT));
+        assertEquals(1, capture.count(CapturedSql.Operation.SELECT));
     }
 
     @Test
-    void statementCaptureStatementsShouldReturnFilteredStatements(ORMTemplate orm, StatementCapture capture) {
+    void statementCaptureStatementsShouldReturnFilteredStatements(ORMTemplate orm, SqlCapture capture) {
         capture.run(() -> orm.entity(Item.class).findAll());
         capture.run(() -> orm.entity(Item.class).insert(new Item(0, "Echo")));
 
-        var selects = capture.statements(CapturedStatement.Operation.SELECT);
-        var inserts = capture.statements(CapturedStatement.Operation.INSERT);
+        var selects = capture.statements(CapturedSql.Operation.SELECT);
+        var inserts = capture.statements(CapturedSql.Operation.INSERT);
         assertEquals(1, selects.size());
         assertEquals(1, inserts.size());
-        assertEquals(0, capture.statements(CapturedStatement.Operation.DELETE).size());
-        assertEquals(0, capture.count(CapturedStatement.Operation.DELETE));
+        assertEquals(0, capture.statements(CapturedSql.Operation.DELETE).size());
+        assertEquals(0, capture.count(CapturedSql.Operation.DELETE));
     }
 
     @Test
-    void statementCaptureShouldReturnAllStatements(ORMTemplate orm, StatementCapture capture) {
+    void statementCaptureShouldReturnAllStatements(ORMTemplate orm, SqlCapture capture) {
         capture.run(() -> orm.entity(Item.class).findAll());
         var allStatements = capture.statements();
         assertEquals(1, allStatements.size());
@@ -71,10 +71,10 @@ class StormExtensionAdditionalTest {
     }
 
     @Test
-    void statementCaptureShouldRecordUpdates(ORMTemplate orm, StatementCapture capture) {
+    void statementCaptureShouldRecordUpdates(ORMTemplate orm, SqlCapture capture) {
         capture.run(() -> orm.entity(Item.class).update(new Item(1, "Updated")));
-        assertEquals(1, capture.count(CapturedStatement.Operation.UPDATE));
-        var updates = capture.statements(CapturedStatement.Operation.UPDATE);
+        assertEquals(1, capture.count(CapturedSql.Operation.UPDATE));
+        var updates = capture.statements(CapturedSql.Operation.UPDATE);
         assertEquals(1, updates.size());
         assertTrue(updates.getFirst().statement().toUpperCase().contains("UPDATE"));
     }

@@ -21,8 +21,6 @@ import st.orm.PK;
 
 /**
  * Simple domain object representing a veterinarian.
- *
- * @author Leon van Zantvoort
  */
 @Builder(toBuilder = true)
 public record Vet(

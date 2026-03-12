@@ -26,8 +26,6 @@ import st.orm.PK;
 
 /**
  * Simple domain object representing a visit.
- *
- * @author Leon van Zantvoort
  */
 @Builder(toBuilder = true)
 public record Visit(

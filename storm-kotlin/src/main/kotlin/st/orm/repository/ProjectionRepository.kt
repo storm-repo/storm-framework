@@ -904,23 +904,19 @@ interface ProjectionRepository<P, ID : Any> : Repository where P : Projection<ID
      *
      * @return a list of matching entities.
      */
-    fun findAll(predicate: WhereBuilder<P, P, ID>.() -> PredicateBuilder<P, *, *>): List<P> = select().whereBuilder(predicate).resultList
-
-    /**
-     * Retrieves entities of type [P] matching the specified predicate.
-     *
-     * @return a list of matching entities.
-     */
     fun findAll(predicate: PredicateBuilder<P, *, *>): List<P> = select().where(predicate).resultList
 
     /**
-     * Retrieves entities of type [P] matching the specified predicate.
+     * Retrieves projections of type [P] matching the specified predicate lambda.
      *
-     * @return a list of matching entities.
+     * Example:
+     * ```kotlin
+     * val owners = ownerViews.findAll { OwnerView_.lastName eq "Davis" }
+     * ```
+     *
+     * @return a list of matching projections.
      */
-    fun findAllRef(
-        predicate: WhereBuilder<P, Ref<P>, ID>.() -> PredicateBuilder<P, *, *>,
-    ): List<Ref<P>> = selectRef().whereBuilder(predicate).resultList
+    fun findAll(predicate: () -> PredicateBuilder<P, *, *>): List<P> = findAll(predicate())
 
     /**
      * Retrieves entities of type [P] matching the specified predicate.
@@ -930,14 +926,16 @@ interface ProjectionRepository<P, ID : Any> : Repository where P : Projection<ID
     fun findAllRef(predicate: PredicateBuilder<P, *, *>): List<Ref<P>> = selectRef().where(predicate).resultList
 
     /**
-     * Retrieves an optional entity of type [P] matching the specified predicate.
-     * Returns null if no matching entity is found.
+     * Retrieves projection references of type [P] matching the specified predicate lambda.
      *
-     * @return an optional entity, or null if none found.
+     * Example:
+     * ```kotlin
+     * val ownerRefs = ownerViews.findAllRef { OwnerView_.lastName eq "Davis" }
+     * ```
+     *
+     * @return a list of matching projection references.
      */
-    fun find(
-        predicate: WhereBuilder<P, P, ID>.() -> PredicateBuilder<P, *, *>,
-    ): P? = select().whereBuilder(predicate).optionalResult
+    fun findAllRef(predicate: () -> PredicateBuilder<P, *, *>): List<Ref<P>> = findAllRef(predicate())
 
     /**
      * Retrieves an optional entity of type [P] matching the specified predicate.
@@ -950,14 +948,17 @@ interface ProjectionRepository<P, ID : Any> : Repository where P : Projection<ID
     ): P? = select().where(predicate).optionalResult
 
     /**
-     * Retrieves an optional entity of type [P] matching the specified predicate.
-     * Returns null if no matching entity is found.
+     * Retrieves an optional projection of type [P] matching the specified predicate lambda.
+     * Returns null if no matching projection is found.
      *
-     * @return an optional entity, or null if none found.
+     * Example:
+     * ```kotlin
+     * val owner = ownerViews.find { OwnerView_.lastName eq "Davis" }
+     * ```
+     *
+     * @return the matching projection, or null if none found.
      */
-    fun findRef(
-        predicate: WhereBuilder<P, Ref<P>, ID>.() -> PredicateBuilder<P, *, *>,
-    ): Ref<P>? = selectRef().whereBuilder(predicate).optionalResult
+    fun find(predicate: () -> PredicateBuilder<P, *, *>): P? = find(predicate())
 
     /**
      * Retrieves an optional entity of type [P] matching the specified predicate.
@@ -970,16 +971,17 @@ interface ProjectionRepository<P, ID : Any> : Repository where P : Projection<ID
     ): Ref<P>? = selectRef().where(predicate).optionalResult
 
     /**
-     * Retrieves a single entity of type [P] matching the specified predicate.
-     * Throws an exception if no entity or more than one entity is found.
+     * Retrieves an optional projection reference of type [P] matching the specified predicate lambda.
+     * Returns null if no matching projection is found.
      *
-     * @return the matching entity.
-     * @throws st.orm.NoResultException if there is no result.
-     * @throws st.orm.NonUniqueResultException if more than one result.
+     * Example:
+     * ```kotlin
+     * val ownerRef = ownerViews.findRef { OwnerView_.lastName eq "Davis" }
+     * ```
+     *
+     * @return the matching projection reference, or null if none found.
      */
-    fun get(
-        predicate: WhereBuilder<P, P, ID>.() -> PredicateBuilder<P, *, *>,
-    ): P = select().whereBuilder(predicate).singleResult
+    fun findRef(predicate: () -> PredicateBuilder<P, *, *>): Ref<P>? = findRef(predicate())
 
     /**
      * Retrieves a single entity of type [P] matching the specified predicate.
@@ -994,16 +996,19 @@ interface ProjectionRepository<P, ID : Any> : Repository where P : Projection<ID
     ): P = select().where(predicate).singleResult
 
     /**
-     * Retrieves a single entity of type [P] matching the specified predicate.
-     * Throws an exception if no entity or more than one entity is found.
+     * Retrieves a single projection of type [P] matching the specified predicate lambda.
+     * Throws an exception if no projection or more than one projection is found.
      *
-     * @return the matching entity.
+     * Example:
+     * ```kotlin
+     * val owner = ownerViews.get { OwnerView_.lastName eq "Davis" }
+     * ```
+     *
+     * @return the matching projection.
      * @throws st.orm.NoResultException if there is no result.
      * @throws st.orm.NonUniqueResultException if more than one result.
      */
-    fun getRef(
-        predicate: WhereBuilder<P, Ref<P>, ID>.() -> PredicateBuilder<P, *, *>,
-    ): Ref<P> = selectRef().whereBuilder(predicate).singleResult
+    fun get(predicate: () -> PredicateBuilder<P, *, *>): P = get(predicate())
 
     /**
      * Retrieves a single entity of type [P] matching the specified predicate.
@@ -1018,21 +1023,19 @@ interface ProjectionRepository<P, ID : Any> : Repository where P : Projection<ID
     ): Ref<P> = selectRef().where(predicate).singleResult
 
     /**
-     * Retrieves entities of type [P] matching the specified predicate.
+     * Retrieves a single projection reference of type [P] matching the specified predicate lambda.
+     * Throws an exception if no projection or more than one projection is found.
      *
-     * The resulting sequence is lazily loaded, meaning that the entities are only retrieved from the database as they
-     * are consumed by the sequence. This approach is efficient and minimizes the memory footprint, especially when
-     * dealing with large volumes of entities.
+     * Example:
+     * ```kotlin
+     * val ownerRef = ownerViews.getRef { OwnerView_.lastName eq "Davis" }
+     * ```
      *
-     * Note: Calling this method does trigger the execution of the underlying
-     * query, so it should only be invoked when the query is intended to run. Since the sequence holds resources open
-     * while in use, it must be closed after usage to prevent resource leaks.
-     *
-     * @return a sequence of matching entities.
+     * @return the matching projection reference.
+     * @throws st.orm.NoResultException if there is no result.
+     * @throws st.orm.NonUniqueResultException if more than one result.
      */
-    fun select(
-        predicate: WhereBuilder<P, P, ID>.() -> PredicateBuilder<P, *, *>,
-    ): Flow<P> = select().whereBuilder(predicate).resultFlow
+    fun getRef(predicate: () -> PredicateBuilder<P, *, *>): Ref<P> = getRef(predicate())
 
     /**
      * Retrieves entities of type [P] matching the specified predicate.
@@ -1052,21 +1055,19 @@ interface ProjectionRepository<P, ID : Any> : Repository where P : Projection<ID
     ): Flow<P> = select().where(predicate).resultFlow
 
     /**
-     * Retrieves entities of type [P] matching the specified predicate.
+     * Retrieves projections of type [P] matching the specified predicate lambda as a flow.
      *
-     * The resulting sequence is lazily loaded, meaning that the entities are only retrieved from the database as they
-     * are consumed by the sequence. This approach is efficient and minimizes the memory footprint, especially when
-     * dealing with large volumes of entities.
+     * The resulting flow is lazily loaded, meaning that the projections are only retrieved from the database as they
+     * are consumed by the flow.
      *
-     * Note: Calling this method does trigger the execution of the underlying
-     * query, so it should only be invoked when the query is intended to run. Since the sequence holds resources open
-     * while in use, it must be closed after usage to prevent resource leaks.
+     * Example:
+     * ```kotlin
+     * val owners = ownerViews.select { OwnerView_.lastName eq "Davis" }
+     * ```
      *
-     * @return a sequence of matching entities.
+     * @return a flow of matching projections.
      */
-    fun selectRef(
-        predicate: WhereBuilder<P, Ref<P>, ID>.() -> PredicateBuilder<P, *, *>,
-    ): Flow<Ref<P>> = selectRef().whereBuilder(predicate).resultFlow
+    fun select(predicate: () -> PredicateBuilder<P, *, *>): Flow<P> = select(predicate())
 
     /**
      * Retrieves entities of type [P] matching the specified predicate.
@@ -1084,6 +1085,21 @@ interface ProjectionRepository<P, ID : Any> : Repository where P : Projection<ID
     fun selectRef(
         predicate: PredicateBuilder<P, *, *>,
     ): Flow<Ref<P>> = selectRef().where(predicate).resultFlow
+
+    /**
+     * Retrieves projection references of type [P] matching the specified predicate lambda as a flow.
+     *
+     * The resulting flow is lazily loaded, meaning that the projections are only retrieved from the database as they
+     * are consumed by the flow.
+     *
+     * Example:
+     * ```kotlin
+     * val ownerRefs = ownerViews.selectRef { OwnerView_.lastName eq "Davis" }
+     * ```
+     *
+     * @return a flow of matching projection references.
+     */
+    fun selectRef(predicate: () -> PredicateBuilder<P, *, *>): Flow<Ref<P>> = selectRef(predicate())
 
     /**
      * Counts entities of type [P] matching the specified field and value.
@@ -1116,18 +1132,20 @@ interface ProjectionRepository<P, ID : Any> : Repository where P : Projection<ID
      * @return the count of matching entities.
      */
     fun count(
-        predicate: WhereBuilder<P, *, ID>.() -> PredicateBuilder<P, *, *>,
-    ): Long = selectCount().whereBuilder(predicate).singleResult
-
-    /**
-     * Counts entities of type [P] matching the specified predicate.
-     *
-     * @param predicate Lambda to build the WHERE clause.
-     * @return the count of matching entities.
-     */
-    fun count(
         predicate: PredicateBuilder<P, *, *>,
     ): Long = selectCount().where(predicate).singleResult
+
+    /**
+     * Counts projections of type [P] matching the specified predicate lambda.
+     *
+     * Example:
+     * ```kotlin
+     * val count = ownerViews.count { OwnerView_.lastName eq "Davis" }
+     * ```
+     *
+     * @return the count of matching projections.
+     */
+    fun count(predicate: () -> PredicateBuilder<P, *, *>): Long = count(predicate())
 
     /**
      * Checks if entities of type [P] matching the specified field and value exists.
@@ -1160,18 +1178,20 @@ interface ProjectionRepository<P, ID : Any> : Repository where P : Projection<ID
      * @return true if any matching entities exist, false otherwise.
      */
     fun exists(
-        predicate: WhereBuilder<P, *, ID>.() -> PredicateBuilder<P, *, *>,
-    ): Boolean = selectCount().whereBuilder(predicate).singleResult > 0
-
-    /**
-     * Checks if entities of type [P] matching the specified predicate exists.
-     *
-     * @param predicate Lambda to build the WHERE clause.
-     * @return true if any matching entities exist, false otherwise.
-     */
-    fun exists(
         predicate: PredicateBuilder<P, *, *>,
     ): Boolean = selectCount().where(predicate).singleResult > 0
+
+    /**
+     * Checks if projections of type [P] matching the specified predicate lambda exist.
+     *
+     * Example:
+     * ```kotlin
+     * val hasDavis = ownerViews.exists { OwnerView_.lastName eq "Davis" }
+     * ```
+     *
+     * @return true if any matching projections exist, false otherwise.
+     */
+    fun exists(predicate: () -> PredicateBuilder<P, *, *>): Boolean = exists(predicate())
 
     // Page methods.
 
@@ -1282,17 +1302,6 @@ interface ProjectionRepository<P, ID : Any> : Repository where P : Projection<ID
      *
      * @param key the metamodel field to use as the pagination key; must refer to a unique column.
      * @param size the maximum number of projections to include in the slice.
-     * @param predicate lambda to build the WHERE clause.
-     * @return a slice containing the first page of results.
-     * @since 1.9
-     */
-    fun <V> slice(key: Metamodel.Key<P, V>, size: Int, predicate: WhereBuilder<P, P, ID>.() -> PredicateBuilder<P, *, *>): Slice<P> = select().whereBuilder(predicate).slice(key, size)
-
-    /**
-     * Returns the first slice of projections ordered by the specified key, filtered by the given predicate.
-     *
-     * @param key the metamodel field to use as the pagination key; must refer to a unique column.
-     * @param size the maximum number of projections to include in the slice.
      * @param predicate infix predicate for the WHERE clause.
      * @return a slice containing the first page of results.
      * @since 1.9
@@ -1300,15 +1309,15 @@ interface ProjectionRepository<P, ID : Any> : Repository where P : Projection<ID
     fun <V> slice(key: Metamodel.Key<P, V>, size: Int, predicate: PredicateBuilder<P, *, *>): Slice<P> = select().where(predicate).slice(key, size)
 
     /**
-     * Returns the first slice of projection refs ordered by the specified key, filtered by the given predicate.
+     * Returns the first slice of projections ordered by the specified key, filtered by the given WhereBuilder predicate.
      *
      * @param key the metamodel field to use as the pagination key; must refer to a unique column.
-     * @param size the maximum number of refs to include in the slice.
-     * @param predicate lambda to build the WHERE clause.
-     * @return a slice containing the first page of ref results.
+     * @param size the maximum number of projections to include in the slice.
+     * @param predicate predicate lambda for the WHERE clause.
+     * @return a slice containing the first page of results.
      * @since 1.9
      */
-    fun <V> sliceRef(key: Metamodel.Key<P, V>, size: Int, predicate: WhereBuilder<P, Ref<P>, ID>.() -> PredicateBuilder<P, *, *>): Slice<Ref<P>> = selectRef().whereBuilder(predicate).slice(key, size)
+    fun <V> slice(key: Metamodel.Key<P, V>, size: Int, predicate: () -> PredicateBuilder<P, *, *>): Slice<P> = select().where(predicate()).slice(key, size)
 
     /**
      * Returns the first slice of projection refs ordered by the specified key, filtered by the given predicate.
@@ -1322,16 +1331,15 @@ interface ProjectionRepository<P, ID : Any> : Repository where P : Projection<ID
     fun <V> sliceRef(key: Metamodel.Key<P, V>, size: Int, predicate: PredicateBuilder<P, *, *>): Slice<Ref<P>> = selectRef().where(predicate).slice(key, size)
 
     /**
-     * Returns the first slice of projections ordered by the specified key in descending order, filtered by the given
-     * predicate.
+     * Returns the first slice of projection refs ordered by the specified key, filtered by the given WhereBuilder predicate.
      *
      * @param key the metamodel field to use as the pagination key; must refer to a unique column.
-     * @param size the maximum number of projections to include in the slice.
-     * @param predicate lambda to build the WHERE clause.
-     * @return a slice containing the first page of results in descending key order.
+     * @param size the maximum number of refs to include in the slice.
+     * @param predicate predicate lambda for the WHERE clause.
+     * @return a slice containing the first page of ref results.
      * @since 1.9
      */
-    fun <V> sliceBefore(key: Metamodel.Key<P, V>, size: Int, predicate: WhereBuilder<P, P, ID>.() -> PredicateBuilder<P, *, *>): Slice<P> = select().whereBuilder(predicate).sliceBefore(key, size)
+    fun <V> sliceRef(key: Metamodel.Key<P, V>, size: Int, predicate: () -> PredicateBuilder<P, *, *>): Slice<Ref<P>> = selectRef().where(predicate()).slice(key, size)
 
     /**
      * Returns the first slice of projections ordered by the specified key in descending order, filtered by the given
@@ -1346,16 +1354,16 @@ interface ProjectionRepository<P, ID : Any> : Repository where P : Projection<ID
     fun <V> sliceBefore(key: Metamodel.Key<P, V>, size: Int, predicate: PredicateBuilder<P, *, *>): Slice<P> = select().where(predicate).sliceBefore(key, size)
 
     /**
-     * Returns the first slice of projection refs ordered by the specified key in descending order, filtered by the
-     * given predicate.
+     * Returns the first slice of projections ordered by the specified key in descending order, filtered by the given
+     * WhereBuilder predicate.
      *
      * @param key the metamodel field to use as the pagination key; must refer to a unique column.
-     * @param size the maximum number of refs to include in the slice.
-     * @param predicate lambda to build the WHERE clause.
-     * @return a slice containing the first page of ref results in descending key order.
+     * @param size the maximum number of projections to include in the slice.
+     * @param predicate predicate lambda for the WHERE clause.
+     * @return a slice containing the first page of results in descending key order.
      * @since 1.9
      */
-    fun <V> sliceBeforeRef(key: Metamodel.Key<P, V>, size: Int, predicate: WhereBuilder<P, Ref<P>, ID>.() -> PredicateBuilder<P, *, *>): Slice<Ref<P>> = selectRef().whereBuilder(predicate).sliceBefore(key, size)
+    fun <V> sliceBefore(key: Metamodel.Key<P, V>, size: Int, predicate: () -> PredicateBuilder<P, *, *>): Slice<P> = select().where(predicate()).sliceBefore(key, size)
 
     /**
      * Returns the first slice of projection refs ordered by the specified key in descending order, filtered by the
@@ -1368,6 +1376,18 @@ interface ProjectionRepository<P, ID : Any> : Repository where P : Projection<ID
      * @since 1.9
      */
     fun <V> sliceBeforeRef(key: Metamodel.Key<P, V>, size: Int, predicate: PredicateBuilder<P, *, *>): Slice<Ref<P>> = selectRef().where(predicate).sliceBefore(key, size)
+
+    /**
+     * Returns the first slice of projection refs ordered by the specified key in descending order, filtered by the
+     * given WhereBuilder predicate.
+     *
+     * @param key the metamodel field to use as the pagination key; must refer to a unique column.
+     * @param size the maximum number of refs to include in the slice.
+     * @param predicate predicate lambda for the WHERE clause.
+     * @return a slice containing the first page of ref results in descending key order.
+     * @since 1.9
+     */
+    fun <V> sliceBeforeRef(key: Metamodel.Key<P, V>, size: Int, predicate: () -> PredicateBuilder<P, *, *>): Slice<Ref<P>> = selectRef().where(predicate()).sliceBefore(key, size)
 
     /**
      * Returns the next slice of projections after the specified cursor value.
@@ -1397,18 +1417,6 @@ interface ProjectionRepository<P, ID : Any> : Repository where P : Projection<ID
      * @param key the metamodel field to use as the pagination key; must refer to a unique column.
      * @param after the cursor value; only projections with a key value greater than this will be returned.
      * @param size the maximum number of projections to include in the slice.
-     * @param predicate lambda to build the WHERE clause.
-     * @return a slice containing the next page of results.
-     * @since 1.9
-     */
-    fun <V> sliceAfter(key: Metamodel.Key<P, V>, after: V, size: Int, predicate: WhereBuilder<P, P, ID>.() -> PredicateBuilder<P, *, *>): Slice<P> = select().whereBuilder(predicate).sliceAfter(key, after, size)
-
-    /**
-     * Returns the next slice of projections after the specified cursor value, filtered by the given predicate.
-     *
-     * @param key the metamodel field to use as the pagination key; must refer to a unique column.
-     * @param after the cursor value; only projections with a key value greater than this will be returned.
-     * @param size the maximum number of projections to include in the slice.
      * @param predicate infix predicate for the WHERE clause.
      * @return a slice containing the next page of results.
      * @since 1.9
@@ -1416,16 +1424,17 @@ interface ProjectionRepository<P, ID : Any> : Repository where P : Projection<ID
     fun <V> sliceAfter(key: Metamodel.Key<P, V>, after: V, size: Int, predicate: PredicateBuilder<P, *, *>): Slice<P> = select().where(predicate).sliceAfter(key, after, size)
 
     /**
-     * Returns the next slice of projection refs after the specified cursor value, filtered by the given predicate.
+     * Returns the next slice of projections after the specified cursor value, filtered by the given WhereBuilder
+     * predicate.
      *
      * @param key the metamodel field to use as the pagination key; must refer to a unique column.
      * @param after the cursor value; only projections with a key value greater than this will be returned.
-     * @param size the maximum number of refs to include in the slice.
-     * @param predicate lambda to build the WHERE clause.
-     * @return a slice containing the next page of ref results.
+     * @param size the maximum number of projections to include in the slice.
+     * @param predicate predicate lambda for the WHERE clause.
+     * @return a slice containing the next page of results.
      * @since 1.9
      */
-    fun <V> sliceAfterRef(key: Metamodel.Key<P, V>, after: V, size: Int, predicate: WhereBuilder<P, Ref<P>, ID>.() -> PredicateBuilder<P, *, *>): Slice<Ref<P>> = selectRef().whereBuilder(predicate).sliceAfter(key, after, size)
+    fun <V> sliceAfter(key: Metamodel.Key<P, V>, after: V, size: Int, predicate: () -> PredicateBuilder<P, *, *>): Slice<P> = select().where(predicate()).sliceAfter(key, after, size)
 
     /**
      * Returns the next slice of projection refs after the specified cursor value, filtered by the given predicate.
@@ -1438,6 +1447,19 @@ interface ProjectionRepository<P, ID : Any> : Repository where P : Projection<ID
      * @since 1.9
      */
     fun <V> sliceAfterRef(key: Metamodel.Key<P, V>, after: V, size: Int, predicate: PredicateBuilder<P, *, *>): Slice<Ref<P>> = selectRef().where(predicate).sliceAfter(key, after, size)
+
+    /**
+     * Returns the next slice of projection refs after the specified cursor value, filtered by the given WhereBuilder
+     * predicate.
+     *
+     * @param key the metamodel field to use as the pagination key; must refer to a unique column.
+     * @param after the cursor value; only projections with a key value greater than this will be returned.
+     * @param size the maximum number of refs to include in the slice.
+     * @param predicate predicate lambda for the WHERE clause.
+     * @return a slice containing the next page of ref results.
+     * @since 1.9
+     */
+    fun <V> sliceAfterRef(key: Metamodel.Key<P, V>, after: V, size: Int, predicate: () -> PredicateBuilder<P, *, *>): Slice<Ref<P>> = selectRef().where(predicate()).sliceAfter(key, after, size)
 
     /**
      * Returns the previous slice of projections before the specified cursor value.
@@ -1467,18 +1489,6 @@ interface ProjectionRepository<P, ID : Any> : Repository where P : Projection<ID
      * @param key the metamodel field to use as the pagination key; must refer to a unique column.
      * @param before the cursor value; only projections with a key value less than this will be returned.
      * @param size the maximum number of projections to include in the slice.
-     * @param predicate lambda to build the WHERE clause.
-     * @return a slice containing the previous page of results.
-     * @since 1.9
-     */
-    fun <V> sliceBefore(key: Metamodel.Key<P, V>, before: V, size: Int, predicate: WhereBuilder<P, P, ID>.() -> PredicateBuilder<P, *, *>): Slice<P> = select().whereBuilder(predicate).sliceBefore(key, before, size)
-
-    /**
-     * Returns the previous slice of projections before the specified cursor value, filtered by the given predicate.
-     *
-     * @param key the metamodel field to use as the pagination key; must refer to a unique column.
-     * @param before the cursor value; only projections with a key value less than this will be returned.
-     * @param size the maximum number of projections to include in the slice.
      * @param predicate infix predicate for the WHERE clause.
      * @return a slice containing the previous page of results.
      * @since 1.9
@@ -1486,16 +1496,17 @@ interface ProjectionRepository<P, ID : Any> : Repository where P : Projection<ID
     fun <V> sliceBefore(key: Metamodel.Key<P, V>, before: V, size: Int, predicate: PredicateBuilder<P, *, *>): Slice<P> = select().where(predicate).sliceBefore(key, before, size)
 
     /**
-     * Returns the previous slice of projection refs before the specified cursor value, filtered by the given predicate.
+     * Returns the previous slice of projections before the specified cursor value, filtered by the given WhereBuilder
+     * predicate.
      *
      * @param key the metamodel field to use as the pagination key; must refer to a unique column.
      * @param before the cursor value; only projections with a key value less than this will be returned.
-     * @param size the maximum number of refs to include in the slice.
-     * @param predicate lambda to build the WHERE clause.
-     * @return a slice containing the previous page of ref results.
+     * @param size the maximum number of projections to include in the slice.
+     * @param predicate predicate lambda for the WHERE clause.
+     * @return a slice containing the previous page of results.
      * @since 1.9
      */
-    fun <V> sliceBeforeRef(key: Metamodel.Key<P, V>, before: V, size: Int, predicate: WhereBuilder<P, Ref<P>, ID>.() -> PredicateBuilder<P, *, *>): Slice<Ref<P>> = selectRef().whereBuilder(predicate).sliceBefore(key, before, size)
+    fun <V> sliceBefore(key: Metamodel.Key<P, V>, before: V, size: Int, predicate: () -> PredicateBuilder<P, *, *>): Slice<P> = select().where(predicate()).sliceBefore(key, before, size)
 
     /**
      * Returns the previous slice of projection refs before the specified cursor value, filtered by the given predicate.
@@ -1508,6 +1519,19 @@ interface ProjectionRepository<P, ID : Any> : Repository where P : Projection<ID
      * @since 1.9
      */
     fun <V> sliceBeforeRef(key: Metamodel.Key<P, V>, before: V, size: Int, predicate: PredicateBuilder<P, *, *>): Slice<Ref<P>> = selectRef().where(predicate).sliceBefore(key, before, size)
+
+    /**
+     * Returns the previous slice of projection refs before the specified cursor value, filtered by the given
+     * WhereBuilder predicate.
+     *
+     * @param key the metamodel field to use as the pagination key; must refer to a unique column.
+     * @param before the cursor value; only projections with a key value less than this will be returned.
+     * @param size the maximum number of refs to include in the slice.
+     * @param predicate predicate lambda for the WHERE clause.
+     * @return a slice containing the previous page of ref results.
+     * @since 1.9
+     */
+    fun <V> sliceBeforeRef(key: Metamodel.Key<P, V>, before: V, size: Int, predicate: () -> PredicateBuilder<P, *, *>): Slice<Ref<P>> = selectRef().where(predicate()).sliceBefore(key, before, size)
 
     /**
      * Returns the next slice of projections after the specified ref cursor value.
@@ -1537,18 +1561,6 @@ interface ProjectionRepository<P, ID : Any> : Repository where P : Projection<ID
      * @param key the metamodel field to use as the pagination key; must refer to a unique column.
      * @param after the ref cursor value; only projections with a key value greater than this ref will be returned.
      * @param size the maximum number of projections to include in the slice.
-     * @param predicate lambda to build the WHERE clause.
-     * @return a slice containing the next page of results.
-     * @since 1.9
-     */
-    fun <V : Data> sliceAfter(key: Metamodel.Key<P, V>, after: Ref<V>, size: Int, predicate: WhereBuilder<P, P, ID>.() -> PredicateBuilder<P, *, *>): Slice<P> = select().whereBuilder(predicate).sliceAfter(key, after, size)
-
-    /**
-     * Returns the next slice of projections after the specified ref cursor value, filtered by the given predicate.
-     *
-     * @param key the metamodel field to use as the pagination key; must refer to a unique column.
-     * @param after the ref cursor value; only projections with a key value greater than this ref will be returned.
-     * @param size the maximum number of projections to include in the slice.
      * @param predicate infix predicate for the WHERE clause.
      * @return a slice containing the next page of results.
      * @since 1.9
@@ -1556,16 +1568,17 @@ interface ProjectionRepository<P, ID : Any> : Repository where P : Projection<ID
     fun <V : Data> sliceAfter(key: Metamodel.Key<P, V>, after: Ref<V>, size: Int, predicate: PredicateBuilder<P, *, *>): Slice<P> = select().where(predicate).sliceAfter(key, after, size)
 
     /**
-     * Returns the next slice of projection refs after the specified ref cursor value, filtered by the given predicate.
+     * Returns the next slice of projections after the specified ref cursor value, filtered by the given WhereBuilder
+     * predicate.
      *
      * @param key the metamodel field to use as the pagination key; must refer to a unique column.
      * @param after the ref cursor value; only projections with a key value greater than this ref will be returned.
-     * @param size the maximum number of refs to include in the slice.
-     * @param predicate lambda to build the WHERE clause.
-     * @return a slice containing the next page of ref results.
+     * @param size the maximum number of projections to include in the slice.
+     * @param predicate predicate lambda for the WHERE clause.
+     * @return a slice containing the next page of results.
      * @since 1.9
      */
-    fun <V : Data> sliceAfterRef(key: Metamodel.Key<P, V>, after: Ref<V>, size: Int, predicate: WhereBuilder<P, Ref<P>, ID>.() -> PredicateBuilder<P, *, *>): Slice<Ref<P>> = selectRef().whereBuilder(predicate).sliceAfter(key, after, size)
+    fun <V : Data> sliceAfter(key: Metamodel.Key<P, V>, after: Ref<V>, size: Int, predicate: () -> PredicateBuilder<P, *, *>): Slice<P> = select().where(predicate()).sliceAfter(key, after, size)
 
     /**
      * Returns the next slice of projection refs after the specified ref cursor value, filtered by the given predicate.
@@ -1578,6 +1591,19 @@ interface ProjectionRepository<P, ID : Any> : Repository where P : Projection<ID
      * @since 1.9
      */
     fun <V : Data> sliceAfterRef(key: Metamodel.Key<P, V>, after: Ref<V>, size: Int, predicate: PredicateBuilder<P, *, *>): Slice<Ref<P>> = selectRef().where(predicate).sliceAfter(key, after, size)
+
+    /**
+     * Returns the next slice of projection refs after the specified ref cursor value, filtered by the given
+     * WhereBuilder predicate.
+     *
+     * @param key the metamodel field to use as the pagination key; must refer to a unique column.
+     * @param after the ref cursor value; only projections with a key value greater than this ref will be returned.
+     * @param size the maximum number of refs to include in the slice.
+     * @param predicate predicate lambda for the WHERE clause.
+     * @return a slice containing the next page of ref results.
+     * @since 1.9
+     */
+    fun <V : Data> sliceAfterRef(key: Metamodel.Key<P, V>, after: Ref<V>, size: Int, predicate: () -> PredicateBuilder<P, *, *>): Slice<Ref<P>> = selectRef().where(predicate()).sliceAfter(key, after, size)
 
     /**
      * Returns the previous slice of projections before the specified ref cursor value.
@@ -1607,18 +1633,6 @@ interface ProjectionRepository<P, ID : Any> : Repository where P : Projection<ID
      * @param key the metamodel field to use as the pagination key; must refer to a unique column.
      * @param before the ref cursor value; only projections with a key value less than this ref will be returned.
      * @param size the maximum number of projections to include in the slice.
-     * @param predicate lambda to build the WHERE clause.
-     * @return a slice containing the previous page of results.
-     * @since 1.9
-     */
-    fun <V : Data> sliceBefore(key: Metamodel.Key<P, V>, before: Ref<V>, size: Int, predicate: WhereBuilder<P, P, ID>.() -> PredicateBuilder<P, *, *>): Slice<P> = select().whereBuilder(predicate).sliceBefore(key, before, size)
-
-    /**
-     * Returns the previous slice of projections before the specified ref cursor value, filtered by the given predicate.
-     *
-     * @param key the metamodel field to use as the pagination key; must refer to a unique column.
-     * @param before the ref cursor value; only projections with a key value less than this ref will be returned.
-     * @param size the maximum number of projections to include in the slice.
      * @param predicate infix predicate for the WHERE clause.
      * @return a slice containing the previous page of results.
      * @since 1.9
@@ -1626,16 +1640,17 @@ interface ProjectionRepository<P, ID : Any> : Repository where P : Projection<ID
     fun <V : Data> sliceBefore(key: Metamodel.Key<P, V>, before: Ref<V>, size: Int, predicate: PredicateBuilder<P, *, *>): Slice<P> = select().where(predicate).sliceBefore(key, before, size)
 
     /**
-     * Returns the previous slice of projection refs before the specified ref cursor value, filtered by the given predicate.
+     * Returns the previous slice of projections before the specified ref cursor value, filtered by the given
+     * WhereBuilder predicate.
      *
      * @param key the metamodel field to use as the pagination key; must refer to a unique column.
      * @param before the ref cursor value; only projections with a key value less than this ref will be returned.
-     * @param size the maximum number of refs to include in the slice.
-     * @param predicate lambda to build the WHERE clause.
-     * @return a slice containing the previous page of ref results.
+     * @param size the maximum number of projections to include in the slice.
+     * @param predicate predicate lambda for the WHERE clause.
+     * @return a slice containing the previous page of results.
      * @since 1.9
      */
-    fun <V : Data> sliceBeforeRef(key: Metamodel.Key<P, V>, before: Ref<V>, size: Int, predicate: WhereBuilder<P, Ref<P>, ID>.() -> PredicateBuilder<P, *, *>): Slice<Ref<P>> = selectRef().whereBuilder(predicate).sliceBefore(key, before, size)
+    fun <V : Data> sliceBefore(key: Metamodel.Key<P, V>, before: Ref<V>, size: Int, predicate: () -> PredicateBuilder<P, *, *>): Slice<P> = select().where(predicate()).sliceBefore(key, before, size)
 
     /**
      * Returns the previous slice of projection refs before the specified ref cursor value, filtered by the given predicate.
@@ -1648,6 +1663,19 @@ interface ProjectionRepository<P, ID : Any> : Repository where P : Projection<ID
      * @since 1.9
      */
     fun <V : Data> sliceBeforeRef(key: Metamodel.Key<P, V>, before: Ref<V>, size: Int, predicate: PredicateBuilder<P, *, *>): Slice<Ref<P>> = selectRef().where(predicate).sliceBefore(key, before, size)
+
+    /**
+     * Returns the previous slice of projection refs before the specified ref cursor value, filtered by the given
+     * WhereBuilder predicate.
+     *
+     * @param key the metamodel field to use as the pagination key; must refer to a unique column.
+     * @param before the ref cursor value; only projections with a key value less than this ref will be returned.
+     * @param size the maximum number of refs to include in the slice.
+     * @param predicate predicate lambda for the WHERE clause.
+     * @return a slice containing the previous page of ref results.
+     * @since 1.9
+     */
+    fun <V : Data> sliceBeforeRef(key: Metamodel.Key<P, V>, before: Ref<V>, size: Int, predicate: () -> PredicateBuilder<P, *, *>): Slice<Ref<P>> = selectRef().where(predicate()).sliceBefore(key, before, size)
 
     // Composite keyset slice methods.
 

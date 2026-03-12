@@ -9,19 +9,19 @@ import org.junit.jupiter.api.Test;
 import st.orm.Entity;
 import st.orm.PK;
 import st.orm.core.template.ORMTemplate;
-import st.orm.test.CapturedStatement.Operation;
+import st.orm.test.CapturedSql.Operation;
 
 /**
- * Extended tests for {@link StatementCapture} covering uncovered branches in the
+ * Extended tests for {@link SqlCapture} covering uncovered branches in the
  * createObserver switch expression (DELETE and UNDEFINED operations).
  */
 @StormTest(scripts = {"/test-schema.sql", "/test-data.sql"})
-class StatementCaptureTest {
+class SqlCaptureTest {
 
     record Item(@PK Integer id, String name) implements Entity<Integer> {}
 
     @Test
-    void captureDeleteOperationShouldRecordDeleteStatement(ORMTemplate orm, StatementCapture capture) {
+    void captureDeleteOperationShouldRecordDeleteStatement(ORMTemplate orm, SqlCapture capture) {
         // Insert an item, then delete it while capturing to exercise the DELETE branch.
         Integer insertedId = orm.entity(Item.class).insertAndFetchId(new Item(0, "ToDelete"));
         capture.run(() -> orm.entity(Item.class).delete(new Item(insertedId, "ToDelete")));
@@ -32,7 +32,7 @@ class StatementCaptureTest {
     }
 
     @Test
-    void captureUndefinedOperationViaRawSql(ORMTemplate orm, StatementCapture capture) {
+    void captureUndefinedOperationViaRawSql(ORMTemplate orm, SqlCapture capture) {
         // Execute raw SQL that does not start with SELECT/INSERT/UPDATE/DELETE
         // to exercise the UNDEFINED branch in the createObserver switch.
         capture.run(() -> orm.query("SET @x = 1").executeUpdate());
@@ -41,7 +41,7 @@ class StatementCaptureTest {
     }
 
     @Test
-    void capturedStatementParametersShouldContainBoundValues(ORMTemplate orm, StatementCapture capture) {
+    void capturedStatementParametersShouldContainBoundValues(ORMTemplate orm, SqlCapture capture) {
         capture.run(() -> orm.entity(Item.class).findById(1));
         var statements = capture.statements(Operation.SELECT);
         assertFalse(statements.isEmpty());
@@ -49,7 +49,7 @@ class StatementCaptureTest {
     }
 
     @Test
-    void executeThrowingShouldCaptureStatementsAndReturnResult(ORMTemplate orm, StatementCapture capture) throws Exception {
+    void executeThrowingShouldCaptureStatementsAndReturnResult(ORMTemplate orm, SqlCapture capture) throws Exception {
         var result = capture.executeThrowing(() -> orm.entity(Item.class).findById(1));
         assertTrue(result.isPresent());
         assertEquals(1, capture.count(Operation.SELECT));

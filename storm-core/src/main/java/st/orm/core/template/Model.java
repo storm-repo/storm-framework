@@ -231,6 +231,20 @@ public interface Model<E extends Data, ID> {
     }
 
     /**
+     * Validates that foreign key columns in the given record do not contain default primary key values.
+     *
+     * <p>A default primary key value (such as {@code 0} for {@code Integer}) on a foreign key reference typically
+     * indicates that the referenced entity has not been persisted yet. This method should be called before inserting
+     * or updating a record.</p>
+     *
+     * @param columns the columns to validate.
+     * @param record the record to validate.
+     * @throws SqlTemplateException if extraction fails.
+     * @since 1.10
+     */
+    void validateForeignKeys(@Nonnull List<Column> columns, @Nonnull E record) throws SqlTemplateException;
+
+    /**
      * Finds a unique metamodel referring to the given entity type.
      *
      * @param type the referenced entity type.

@@ -8,7 +8,7 @@ Writing tests for database code can involve repetitive setup: creating a `DataSo
 The module provides two categories of functionality:
 
 1. **JUnit 5 integration** (`@StormTest`) for automatic database setup, script execution, and parameter injection.
-2. **Statement capture** (`StatementCapture`) for recording and inspecting SQL statements generated during test execution. This component is framework-agnostic and works independently of JUnit.
+2. **Statement capture** (`SqlCapture`) for recording and inspecting SQL statements generated during test execution. This component is framework-agnostic and works independently of JUnit.
 
 ---
 
@@ -46,7 +46,7 @@ The module uses H2 as its default in-memory database. To use H2, add it as a tes
 
 JUnit 5 (`junit-jupiter-api`) is an optional dependency of `storm-test`. It is not pulled in transitively, so it does not appear on your classpath unless you add it yourself. Most projects already have JUnit Jupiter as a test dependency, in which case the `@StormTest` annotation and `StormExtension` are available automatically with no extra configuration.
 
-If you only need `StatementCapture` and `CapturedStatement` (for example, in a project that uses TestNG, or for development-time debugging outside of any test framework), `storm-test` works without JUnit on the classpath. The JUnit-specific classes simply remain unused.
+If you only need `SqlCapture` and `CapturedSql` (for example, in a project that uses TestNG, or for development-time debugging outside of any test framework), `storm-test` works without JUnit on the classpath. The JUnit-specific classes simply remain unused.
 
 ---
 
@@ -107,7 +107,7 @@ Test methods can declare parameters of the following types, and Storm will resol
 | Parameter type     | What is injected                                                                |
 |--------------------|---------------------------------------------------------------------------------|
 | `DataSource`       | The test database connection.                                                   |
-| `StatementCapture` | A fresh capture instance for recording SQL statements (see below).              |
+| `SqlCapture` | A fresh capture instance for recording SQL statements (see below).              |
 | Any type with a static `of(DataSource)` factory method | An instance created via that factory method. This covers `ORMTemplate` and custom types that follow the same pattern. |
 
 The factory method resolution also supports Kotlin companion objects. If a class has a `Companion` field with an `of(DataSource)` method, Storm will use it. This means `ORMTemplate` works seamlessly in both Kotlin and Java tests without any additional configuration.
@@ -195,11 +195,11 @@ class PostgresTest {
 
 ## Statement Capture
 
-When testing database code, knowing _what_ SQL is executed is often as important as knowing _whether_ the operation succeeded. A test might pass because the correct rows were returned, but the underlying query could be inefficient, missing a filter, or using unexpected parameters. `StatementCapture` gives you visibility into the SQL that Storm generates, so you can write assertions not just on results, but on the queries themselves.
+When testing database code, knowing _what_ SQL is executed is often as important as knowing _whether_ the operation succeeded. A test might pass because the correct rows were returned, but the underlying query could be inefficient, missing a filter, or using unexpected parameters. `SqlCapture` gives you visibility into the SQL that Storm generates, so you can write assertions not just on results, but on the queries themselves.
 
-`StatementCapture` records every SQL statement generated during a block of code, along with its operation type (`SELECT`, `INSERT`, `UPDATE`, `DELETE`) and bound parameter values. It provides a high-level API designed for test assertions: count statements, filter by operation type, and inspect individual queries.
+`SqlCapture` records every SQL statement generated during a block of code, along with its operation type (`SELECT`, `INSERT`, `UPDATE`, `DELETE`) and bound parameter values. It provides a high-level API designed for test assertions: count statements, filter by operation type, and inspect individual queries.
 
-`StatementCapture` is framework-agnostic. It does not depend on JUnit and can be used with any test framework, or even outside of tests entirely (for example, in development-time debugging or diagnostics).
+`SqlCapture` is framework-agnostic. It does not depend on JUnit and can be used with any test framework, or even outside of tests entirely (for example, in development-time debugging or diagnostics).
 
 ### Use Cases
 
@@ -209,7 +209,7 @@ When testing database code, knowing _what_ SQL is executed is often as important
 
 **Inspecting SQL structure.** For custom queries or complex filter logic, you may want to verify that the generated SQL contains specific clauses (such as a `WHERE` condition or a `JOIN`) or that the correct parameters were bound. This is especially useful when testing query builder logic that constructs dynamic predicates.
 
-**Debugging during development.** When a query does not return the expected results, wrapping the operation in a `StatementCapture` block lets you print the exact SQL and parameters without configuring logging or attaching a debugger.
+**Debugging during development.** When a query does not return the expected results, wrapping the operation in a `SqlCapture` block lets you print the exact SQL and parameters without configuring logging or attaching a debugger.
 
 ### Basic Usage
 
@@ -219,7 +219,7 @@ Wrap any Storm operation in a `run`, `execute`, or `executeThrowing` call to cap
 <TabItem value="kotlin" label="Kotlin" default>
 
 ```kotlin
-val capture = StatementCapture()
+val capture = SqlCapture()
 
 capture.run { orm.entity(User::class).findAll() }
 
@@ -230,7 +230,7 @@ capture.count(Operation.SELECT) shouldBe 1
 <TabItem value="java" label="Java">
 
 ```java
-var capture = new StatementCapture();
+var capture = new SqlCapture();
 
 capture.run(() -> orm.entity(User.class).findAll());
 
@@ -246,7 +246,7 @@ The `execute` variant returns the result of the captured operation, so you can c
 <TabItem value="kotlin" label="Kotlin" default>
 
 ```kotlin
-val capture = StatementCapture()
+val capture = SqlCapture()
 
 val users = capture.execute { orm.entity(User::class).findAll() }
 
@@ -258,7 +258,7 @@ capture.count(Operation.SELECT) shouldBe 1
 <TabItem value="java" label="Java">
 
 ```java
-var capture = new StatementCapture();
+var capture = new SqlCapture();
 
 List<User> users = capture.execute(() -> orm.entity(User.class).findAll());
 
@@ -281,7 +281,7 @@ All three methods are scoped: only SQL statements generated within the block are
 
 ### Inspecting Captured Statements
 
-Each captured statement is represented as a `CapturedStatement` record with three fields:
+Each captured statement is represented as a `CapturedSql` record with three fields:
 
 | Field        | Type              | Description                                                                     |
 |--------------|-------------------|---------------------------------------------------------------------------------|
@@ -300,13 +300,13 @@ int selects = capture.count(Operation.SELECT);
 int inserts = capture.count(Operation.INSERT);
 
 // Get all captured statements
-List<CapturedStatement> all = capture.statements();
+List<CapturedSql> all = capture.statements();
 
 // Filter by operation type
-List<CapturedStatement> selectStmts = capture.statements(Operation.SELECT);
+List<CapturedSql> selectStmts = capture.statements(Operation.SELECT);
 
 // Inspect a specific statement
-CapturedStatement stmt = selectStmts.getFirst();
+CapturedSql stmt = selectStmts.getFirst();
 String sql = stmt.statement();          // SQL with ? placeholders
 List<Object> params = stmt.parameters(); // Bound parameter values
 Operation op = stmt.operation();         // SELECT, INSERT, UPDATE, DELETE, or UNDEFINED
@@ -314,7 +314,7 @@ Operation op = stmt.operation();         // SELECT, INSERT, UPDATE, DELETE, or U
 
 ### Accumulation and Clearing
 
-Statements accumulate across multiple `run`/`execute` calls on the same `StatementCapture` instance. This is useful when you want to measure the total SQL activity of a sequence of operations. Use `clear()` to reset between captures when you need to measure operations independently:
+Statements accumulate across multiple `run`/`execute` calls on the same `SqlCapture` instance. This is useful when you want to measure the total SQL activity of a sequence of operations. Use `clear()` to reset between captures when you need to measure operations independently:
 
 ```java
 capture.run(() -> orm.entity(User.class).findAll());
@@ -327,14 +327,14 @@ assertEquals(0, capture.count());
 
 ### Verifying Query Counts
 
-A count assertion is the simplest and most common use of `StatementCapture`. It protects against regressions where a code change inadvertently introduces extra queries:
+A count assertion is the simplest and most common use of `SqlCapture`. It protects against regressions where a code change inadvertently introduces extra queries:
 
 <Tabs groupId="language">
 <TabItem value="kotlin" label="Kotlin" default>
 
 ```kotlin
 @Test
-fun `bulk insert should use single statement`(orm: ORMTemplate, capture: StatementCapture) {
+fun `bulk insert should use single statement`(orm: ORMTemplate, capture: SqlCapture) {
     val items = listOf(Item(name = "A"), Item(name = "B"), Item(name = "C"))
     capture.run { orm.entity(Item::class).insertAll(items) }
 
@@ -347,7 +347,7 @@ fun `bulk insert should use single statement`(orm: ORMTemplate, capture: Stateme
 
 ```java
 @Test
-void bulkInsertShouldUseSingleStatement(ORMTemplate orm, StatementCapture capture) {
+void bulkInsertShouldUseSingleStatement(ORMTemplate orm, SqlCapture capture) {
     var items = List.of(new Item(0, "A"), new Item(0, "B"), new Item(0, "C"));
     capture.run(() -> orm.entity(Item.class).insertAll(items));
 
@@ -364,7 +364,7 @@ For finer-grained assertions, inspect the SQL text and bound parameters of indiv
 
 ```java
 @Test
-void findByIdShouldUseWhereClause(ORMTemplate orm, StatementCapture capture) {
+void findByIdShouldUseWhereClause(ORMTemplate orm, SqlCapture capture) {
     capture.run(() -> orm.entity(User.class).findById(42));
 
     var stmts = capture.statements(Operation.SELECT);
@@ -380,7 +380,7 @@ When a service method should only read data, you can verify that no write operat
 
 ```java
 @Test
-void reportGenerationShouldBeReadOnly(ORMTemplate orm, StatementCapture capture) {
+void reportGenerationShouldBeReadOnly(ORMTemplate orm, SqlCapture capture) {
     capture.run(() -> generateReport(orm));
 
     assertEquals(0, capture.count(Operation.INSERT));
@@ -393,20 +393,20 @@ void reportGenerationShouldBeReadOnly(ORMTemplate orm, StatementCapture capture)
 
 ## With JUnit 5 Parameter Injection
 
-When using `@StormTest`, a fresh `StatementCapture` instance is automatically injected into each test method that declares it as a parameter. This means you do not need to create one manually, and each test starts with a clean slate:
+When using `@StormTest`, a fresh `SqlCapture` instance is automatically injected into each test method that declares it as a parameter. This means you do not need to create one manually, and each test starts with a clean slate:
 
 ```java
 @StormTest(scripts = {"/schema.sql", "/data.sql"})
 class QueryCountTest {
 
     @Test
-    void insertShouldGenerateOneStatement(ORMTemplate orm, StatementCapture capture) {
+    void insertShouldGenerateOneStatement(ORMTemplate orm, SqlCapture capture) {
         capture.run(() -> orm.entity(Item.class).insert(new Item(0, "Test")));
         assertEquals(1, capture.count(Operation.INSERT));
     }
 
     @Test
-    void eachTestGetsAFreshCapture(StatementCapture capture) {
+    void eachTestGetsAFreshCapture(SqlCapture capture) {
         // No statements from previous tests
         assertEquals(0, capture.count());
     }
@@ -418,7 +418,7 @@ class QueryCountTest {
 ## Tips
 
 1. **Keep SQL scripts small and focused.** Each test class should set up only the tables and data it needs. This keeps tests fast and independent.
-2. **Use `StatementCapture` to verify query counts.** Asserting the number of statements an operation produces is an effective way to catch unintended query changes during refactoring.
+2. **Use `SqlCapture` to verify query counts.** Asserting the number of statements an operation produces is an effective way to catch unintended query changes during refactoring.
 3. **Clear between captures** when a single test method needs to measure multiple operations independently.
 4. **Prefer `@StormTest` over manual setup.** It eliminates boilerplate and ensures consistent database lifecycle management across test classes.
-5. **`StatementCapture` is thread-local.** Captures are bound to the calling thread, so multi-threaded tests will only record statements from the thread that called `run`/`execute`.
+5. **`SqlCapture` is thread-local.** Captures are bound to the calling thread, so multi-threaded tests will only record statements from the thread that called `run`/`execute`.

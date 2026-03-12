@@ -26,7 +26,7 @@ import org.junit.jupiter.api.extension.ExtendWith;
  *
  * <p>Provides automatic {@link javax.sql.DataSource} creation using an H2 in-memory database (by default), SQL script
  * execution, and parameter injection for test methods. Test methods can declare parameters of type
- * {@link javax.sql.DataSource}, {@link StatementCapture}, or any type with a static {@code of(DataSource)} factory
+ * {@link javax.sql.DataSource}, {@link SqlCapture}, or any type with a static {@code of(DataSource)} factory
  * method (such as {@code ORMTemplate}).</p>
  *
  * <p>Example usage:</p>

@@ -98,6 +98,7 @@ final class ValuesProcessor implements ElementProcessor<Values> {
             if (values.records() != null) {
                 values.records().forEach(record -> {
                     try {
+                        model.validateForeignKeys(columns, record);
                         model.forEachValue(columns, record, (column, value) -> {
                             switch (column.generation()) {
                                 case NONE -> binder.bindParameter(value);
@@ -117,6 +118,7 @@ final class ValuesProcessor implements ElementProcessor<Values> {
                 var parameterFactory = binder.setBindVars(vars);
                 vars.addParameterExtractor(record -> {
                     try {
+                        model.validateForeignKeys(columns, record);
                         model.forEachValue(columns, record, (column, value) -> {
                             switch (column.generation()) {
                                 case NONE -> parameterFactory.bind(value);
