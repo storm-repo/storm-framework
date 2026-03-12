@@ -22,8 +22,6 @@ import st.orm.ProjectionQuery;
 
 /**
  * Simple domain object representing a veterinarian.
- *
- * @author Leon van Zantvoort
  */
 @Builder(toBuilder = true)
 @ProjectionQuery("SELECT * FROM vet")

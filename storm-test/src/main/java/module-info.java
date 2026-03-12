@@ -4,4 +4,5 @@ module storm.test {
     requires static org.junit.jupiter.api;
     requires java.sql;
     requires java.logging;
+    requires jakarta.annotation;
 }

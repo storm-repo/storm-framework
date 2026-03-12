@@ -19,8 +19,8 @@ import io.kotest.matchers.shouldBe
 import io.kotest.matchers.shouldNotBe
 import org.junit.jupiter.api.Test
 import st.orm.template.model.City
-import st.orm.test.CapturedStatement.Operation
-import st.orm.test.StatementCapture
+import st.orm.test.CapturedSql.Operation
+import st.orm.test.SqlCapture
 import st.orm.test.StormTest
 import javax.sql.DataSource
 
@@ -44,19 +44,19 @@ class StormTestExtensionTest {
     }
 
     @Test
-    fun `statement capture should record selects`(orm: ORMTemplate, capture: StatementCapture) {
+    fun `statement capture should record selects`(orm: ORMTemplate, capture: SqlCapture) {
         capture.run { orm.entity(City::class).findAll() }
         capture.count(Operation.SELECT) shouldBe 1
     }
 
     @Test
-    fun `statement capture should record inserts`(orm: ORMTemplate, capture: StatementCapture) {
+    fun `statement capture should record inserts`(orm: ORMTemplate, capture: SqlCapture) {
         capture.run { orm.entity(City::class).insert(City(name = "TestCity")) }
         capture.count(Operation.INSERT) shouldBe 1
     }
 
     @Test
-    fun `statement capture should accumulate and clear`(orm: ORMTemplate, capture: StatementCapture) {
+    fun `statement capture should accumulate and clear`(orm: ORMTemplate, capture: SqlCapture) {
         capture.run { orm.entity(City::class).findAll() }
         capture.run { orm.entity(City::class).findAll() }
         capture.count(Operation.SELECT) shouldBe 2

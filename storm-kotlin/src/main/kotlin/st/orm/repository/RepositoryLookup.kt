@@ -21,7 +21,6 @@ import st.orm.Operator.EQUALS
 import st.orm.Operator.IN
 import st.orm.template.PredicateBuilder
 import st.orm.template.QueryBuilder
-import st.orm.template.WhereBuilder
 import kotlin.reflect.KClass
 import kotlin.reflect.full.isSubclassOf
 
@@ -573,22 +572,6 @@ inline fun <reified T : Data, V : Data> RepositoryLookup.getRefBy(field: Metamod
  * @return A [QueryBuilder] for selecting records of type [T].
  */
 @Suppress("UNCHECKED_CAST")
-inline fun <reified T : Data> RepositoryLookup.findAll(
-    noinline predicate: WhereBuilder<T, T, *>.() -> PredicateBuilder<T, *, *>,
-): List<T> = if (T::class.isSubclassOf(Entity::class)) {
-    (entity(T::class as KClass<Entity<Any>>) as EntityRepository<Entity<*>, *>).select().whereBuilder(predicate as WhereBuilder<Entity<*>, Entity<*>, *>.() -> PredicateBuilder<Entity<*>, *, *>).resultList as List<T>
-} else {
-    (projection(T::class as KClass<Projection<Any>>) as ProjectionRepository<Projection<*>, *>).select().whereBuilder(predicate as WhereBuilder<Projection<*>, Projection<*>, *>.() -> PredicateBuilder<Projection<*>, *, *>).resultList as List<T>
-}
-
-/**
- * Creates a query builder to select records of type [T].
- *
- * [T] must be either an Entity or Projection type.
- *
- * @return A [QueryBuilder] for selecting records of type [T].
- */
-@Suppress("UNCHECKED_CAST")
 inline fun <reified T : Data> RepositoryLookup.findAll(predicate: PredicateBuilder<T, *, *>): List<T> = if (T::class.isSubclassOf(Entity::class)) {
     (entity(T::class as KClass<Entity<Any>>) as EntityRepository<Entity<*>, *>).select().where(predicate as PredicateBuilder<Entity<*>, *, *>).resultList as List<T>
 } else {
@@ -596,20 +579,12 @@ inline fun <reified T : Data> RepositoryLookup.findAll(predicate: PredicateBuild
 }
 
 /**
- * Creates a query builder to select records of type [T].
+ * Retrieves all records of type [T] matching the specified predicate, using trailing lambda syntax.
  *
- * [T] must be either an Entity or Projection type.
- *
- * @return A [QueryBuilder] for selecting records of type [T].
+ * @param predicate Lambda providing the predicate to build the WHERE clause.
+ * @return list of matching records.
  */
-@Suppress("UNCHECKED_CAST")
-inline fun <reified T : Data> RepositoryLookup.findAllRef(
-    noinline predicate: WhereBuilder<T, Ref<T>, *>.() -> PredicateBuilder<T, *, *>,
-): List<Ref<T>> = if (T::class.isSubclassOf(Entity::class)) {
-    (entity(T::class as KClass<Entity<Any>>) as EntityRepository<Entity<*>, *>).selectRef().whereBuilder(predicate as WhereBuilder<Entity<*>, Ref<Entity<*>>, *>.() -> PredicateBuilder<Entity<*>, *, *>).resultList as List<Ref<T>>
-} else {
-    (projection(T::class as KClass<Projection<Any>>) as ProjectionRepository<Projection<*>, *>).selectRef().whereBuilder(predicate as WhereBuilder<Projection<*>, Ref<Projection<*>>, *>.() -> PredicateBuilder<Projection<*>, *, *>).resultList as List<Ref<T>>
-}
+inline fun <reified T : Data> RepositoryLookup.findAll(predicate: () -> PredicateBuilder<T, *, *>): List<T> = findAll(predicate())
 
 /**
  * Creates a query builder to select records of type [T].
@@ -626,20 +601,12 @@ inline fun <reified T : Data> RepositoryLookup.findAllRef(predicate: PredicateBu
 }
 
 /**
- * Creates a query builder to select records of type [T].
+ * Retrieves all record references of type [T] matching the specified predicate, using trailing lambda syntax.
  *
- * [T] must be either an Entity or Projection type.
- *
- * @return A [QueryBuilder] for selecting records of type [T].
+ * @param predicate Lambda providing the predicate to build the WHERE clause.
+ * @return list of matching record references.
  */
-@Suppress("UNCHECKED_CAST")
-inline fun <reified T : Data> RepositoryLookup.find(
-    noinline predicate: WhereBuilder<T, T, *>.() -> PredicateBuilder<T, *, *>,
-): T? = if (T::class.isSubclassOf(Entity::class)) {
-    (entity(T::class as KClass<Entity<Any>>) as EntityRepository<Entity<*>, *>).select().whereBuilder(predicate as WhereBuilder<Entity<*>, Entity<*>, *>.() -> PredicateBuilder<Entity<*>, *, *>).optionalResult as T?
-} else {
-    (projection(T::class as KClass<Projection<Any>>) as ProjectionRepository<Projection<*>, *>).select().whereBuilder(predicate as WhereBuilder<Projection<*>, Projection<*>, *>.() -> PredicateBuilder<Projection<*>, *, *>).optionalResult as T?
-}
+inline fun <reified T : Data> RepositoryLookup.findAllRef(predicate: () -> PredicateBuilder<T, *, *>): List<Ref<T>> = findAllRef(predicate())
 
 /**
  * Creates a query builder to select records of type [T].
@@ -656,20 +623,12 @@ inline fun <reified T : Data> RepositoryLookup.find(predicate: PredicateBuilder<
 }
 
 /**
- * Creates a query builder to select records of type [T].
+ * Finds a single record of type [T] matching the specified predicate, using trailing lambda syntax.
  *
- * [T] must be either an Entity or Projection type.
- *
- * @return A [QueryBuilder] for selecting records of type [T].
+ * @param predicate Lambda providing the predicate to build the WHERE clause.
+ * @return the matching record, or null if none found.
  */
-@Suppress("UNCHECKED_CAST")
-inline fun <reified T : Data> RepositoryLookup.findRef(
-    noinline predicate: WhereBuilder<T, Ref<T>, *>.() -> PredicateBuilder<T, *, *>,
-): Ref<T>? = if (T::class.isSubclassOf(Entity::class)) {
-    (entity(T::class as KClass<Entity<Any>>) as EntityRepository<Entity<*>, *>).selectRef().whereBuilder(predicate as WhereBuilder<Entity<*>, Ref<Entity<*>>, *>.() -> PredicateBuilder<Entity<*>, *, *>).optionalResult as Ref<T>?
-} else {
-    (projection(T::class as KClass<Projection<Any>>) as ProjectionRepository<Projection<*>, *>).selectRef().whereBuilder(predicate as WhereBuilder<Projection<*>, Ref<Projection<*>>, *>.() -> PredicateBuilder<Projection<*>, *, *>).optionalResult as Ref<T>?
-}
+inline fun <reified T : Data> RepositoryLookup.find(predicate: () -> PredicateBuilder<T, *, *>): T? = find(predicate())
 
 /**
  * Creates a query builder to select records of type [T].
@@ -686,20 +645,12 @@ inline fun <reified T : Data> RepositoryLookup.findRef(predicate: PredicateBuild
 }
 
 /**
- * Creates a query builder to select records of type [T].
+ * Finds a single record reference of type [T] matching the specified predicate, using trailing lambda syntax.
  *
- * [T] must be either an Entity or Projection type.
- *
- * @return A [QueryBuilder] for selecting records of type [T].
+ * @param predicate Lambda providing the predicate to build the WHERE clause.
+ * @return the matching record reference, or null if none found.
  */
-@Suppress("UNCHECKED_CAST")
-inline fun <reified T : Data> RepositoryLookup.get(
-    noinline predicate: WhereBuilder<T, T, *>.() -> PredicateBuilder<T, *, *>,
-): T = if (T::class.isSubclassOf(Entity::class)) {
-    (entity(T::class as KClass<Entity<Any>>) as EntityRepository<Entity<*>, *>).select().whereBuilder(predicate as WhereBuilder<Entity<*>, Entity<*>, *>.() -> PredicateBuilder<Entity<*>, *, *>).singleResult as T
-} else {
-    (projection(T::class as KClass<Projection<Any>>) as ProjectionRepository<Projection<*>, *>).select().whereBuilder(predicate as WhereBuilder<Projection<*>, Projection<*>, *>.() -> PredicateBuilder<Projection<*>, *, *>).singleResult as T
-}
+inline fun <reified T : Data> RepositoryLookup.findRef(predicate: () -> PredicateBuilder<T, *, *>): Ref<T>? = findRef(predicate())
 
 /**
  * Creates a query builder to select records of type [T].
@@ -716,20 +667,14 @@ inline fun <reified T : Data> RepositoryLookup.get(predicate: PredicateBuilder<T
 }
 
 /**
- * Creates a query builder to select records of type [T].
+ * Retrieves exactly one record of type [T] matching the specified predicate, using trailing lambda syntax.
  *
- * [T] must be either an Entity or Projection type.
- *
- * @return A [QueryBuilder] for selecting records of type [T].
+ * @param predicate Lambda providing the predicate to build the WHERE clause.
+ * @return the matching record.
+ * @throws st.orm.NoResultException if there is no result.
+ * @throws st.orm.NonUniqueResultException if more than one result.
  */
-@Suppress("UNCHECKED_CAST")
-inline fun <reified T : Data> RepositoryLookup.getRef(
-    noinline predicate: WhereBuilder<T, Ref<T>, *>.() -> PredicateBuilder<T, *, *>,
-): Ref<T> = if (T::class.isSubclassOf(Entity::class)) {
-    (entity(T::class as KClass<Entity<Any>>) as EntityRepository<Entity<*>, *>).selectRef().whereBuilder(predicate as WhereBuilder<Entity<*>, Ref<Entity<*>>, *>.() -> PredicateBuilder<Entity<*>, *, *>).singleResult as Ref<T>
-} else {
-    (projection(T::class as KClass<Projection<Any>>) as ProjectionRepository<Projection<*>, *>).selectRef().whereBuilder(predicate as WhereBuilder<Projection<*>, Ref<Projection<*>>, *>.() -> PredicateBuilder<Projection<*>, *, *>).singleResult as Ref<T>
-}
+inline fun <reified T : Data> RepositoryLookup.get(predicate: () -> PredicateBuilder<T, *, *>): T = get(predicate())
 
 /**
  * Creates a query builder to select records of type [T].
@@ -746,20 +691,14 @@ inline fun <reified T : Data> RepositoryLookup.getRef(predicate: PredicateBuilde
 }
 
 /**
- * Creates a query builder to select records of type [T].
+ * Retrieves exactly one record reference of type [T] matching the specified predicate, using trailing lambda syntax.
  *
- * [T] must be either an Entity or Projection type.
- *
- * @return A [QueryBuilder] for selecting records of type [T].
+ * @param predicate Lambda providing the predicate to build the WHERE clause.
+ * @return the matching record reference.
+ * @throws st.orm.NoResultException if there is no result.
+ * @throws st.orm.NonUniqueResultException if more than one result.
  */
-@Suppress("UNCHECKED_CAST")
-inline fun <reified T : Data> RepositoryLookup.select(
-    noinline predicate: WhereBuilder<T, T, *>.() -> PredicateBuilder<T, *, *>,
-): Flow<T> = if (T::class.isSubclassOf(Entity::class)) {
-    (entity(T::class as KClass<Entity<Any>>) as EntityRepository<Entity<*>, *>).select().whereBuilder(predicate as WhereBuilder<Entity<*>, Entity<*>, *>.() -> PredicateBuilder<Entity<*>, *, *>).resultFlow as Flow<T>
-} else {
-    (projection(T::class as KClass<Projection<Any>>) as ProjectionRepository<Projection<*>, *>).select().whereBuilder(predicate as WhereBuilder<Projection<*>, Projection<*>, *>.() -> PredicateBuilder<Projection<*>, *, *>).resultFlow as Flow<T>
-}
+inline fun <reified T : Data> RepositoryLookup.getRef(predicate: () -> PredicateBuilder<T, *, *>): Ref<T> = getRef(predicate())
 
 /**
  * Creates a query builder to select records of type [T].
@@ -776,20 +715,12 @@ inline fun <reified T : Data> RepositoryLookup.select(predicate: PredicateBuilde
 }
 
 /**
- * Creates a query builder to select records of type [T].
+ * Selects records of type [T] matching the specified predicate as a [Flow], using trailing lambda syntax.
  *
- * [T] must be either an Entity or Projection type.
- *
- * @return A [QueryBuilder] for selecting records of type [T].
+ * @param predicate Lambda providing the predicate to build the WHERE clause.
+ * @return flow of matching records.
  */
-@Suppress("UNCHECKED_CAST")
-inline fun <reified T : Data> RepositoryLookup.selectRef(
-    noinline predicate: WhereBuilder<T, Ref<T>, *>.() -> PredicateBuilder<T, *, *>,
-): Flow<Ref<T>> = if (T::class.isSubclassOf(Entity::class)) {
-    (entity(T::class as KClass<Entity<Any>>) as EntityRepository<Entity<*>, *>).selectRef().whereBuilder(predicate as WhereBuilder<Entity<*>, Ref<Entity<*>>, *>.() -> PredicateBuilder<Entity<*>, *, *>).resultFlow as Flow<Ref<T>>
-} else {
-    (projection(T::class as KClass<Projection<Any>>) as ProjectionRepository<Projection<*>, *>).selectRef().whereBuilder(predicate as WhereBuilder<Projection<*>, Ref<Projection<*>>, *>.() -> PredicateBuilder<Projection<*>, *, *>).resultFlow as Flow<Ref<T>>
-}
+inline fun <reified T : Data> RepositoryLookup.select(predicate: () -> PredicateBuilder<T, *, *>): Flow<T> = select(predicate())
 
 /**
  * Creates a query builder to select records of type [T].
@@ -804,6 +735,14 @@ inline fun <reified T : Data> RepositoryLookup.selectRef(predicate: PredicateBui
 } else {
     (projection(T::class as KClass<Projection<Any>>) as ProjectionRepository<Projection<*>, *>).selectRef().where(predicate as PredicateBuilder<Projection<*>, *, *>).resultFlow as Flow<Ref<T>>
 }
+
+/**
+ * Selects record references of type [T] matching the specified predicate as a [Flow], using trailing lambda syntax.
+ *
+ * @param predicate Lambda providing the predicate to build the WHERE clause.
+ * @return flow of matching record references.
+ */
+inline fun <reified T : Data> RepositoryLookup.selectRef(predicate: () -> PredicateBuilder<T, *, *>): Flow<Ref<T>> = selectRef(predicate())
 
 /**
  * Creates a query builder to select records of type [T].
@@ -862,21 +801,6 @@ inline fun <reified T : Data, V : Data> RepositoryLookup.countBy(field: Metamode
 /**
  * Counts entities of type [T] matching the specified predicate.
  *
- * @param predicate Lambda to build the WHERE clause.
- * @return the count of matching entities.
- */
-@Suppress("UNCHECKED_CAST")
-inline fun <reified T : Data> RepositoryLookup.count(
-    noinline predicate: WhereBuilder<T, *, *>.() -> PredicateBuilder<T, *, *>,
-): Long = if (T::class.isSubclassOf(Entity::class)) {
-    (entity(T::class as KClass<Entity<Any>>) as EntityRepository<Entity<*>, *>).selectCount().whereBuilder(predicate as WhereBuilder<Entity<*>, *, *>.() -> PredicateBuilder<Entity<*>, *, *>).singleResult
-} else {
-    (projection(T::class as KClass<Projection<Any>>) as ProjectionRepository<Projection<*>, *>).selectCount().whereBuilder(predicate as WhereBuilder<Projection<*>, *, *>.() -> PredicateBuilder<Projection<*>, *, *>).singleResult
-}
-
-/**
- * Counts entities of type [T] matching the specified predicate.
- *
  * @return the count of matching entities.
  */
 @Suppress("UNCHECKED_CAST")
@@ -898,6 +822,14 @@ inline fun <reified T : Data> RepositoryLookup.count(predicate: PredicateBuilder
 } else {
     (projection(T::class as KClass<Projection<Any>>) as ProjectionRepository<Projection<*>, *>).selectCount().where(predicate as PredicateBuilder<Projection<*>, *, *>).singleResult
 }
+
+/**
+ * Counts entities of type [T] matching the specified predicate, using trailing lambda syntax.
+ *
+ * @param predicate Lambda providing the predicate to build the WHERE clause.
+ * @return the count of matching entities.
+ */
+inline fun <reified T : Data> RepositoryLookup.count(predicate: () -> PredicateBuilder<T, *, *>): Long = count(predicate())
 
 /**
  * Checks if entities of type [T] matching the specified field and value exists.
@@ -930,21 +862,6 @@ inline fun <reified T : Data, V : Data> RepositoryLookup.existsBy(field: Metamod
 /**
  * Checks if entities of type [T] matching the specified predicate exists.
  *
- * @param predicate Lambda to build the WHERE clause.
- * @return true if any matching entities exist, false otherwise.
- */
-@Suppress("UNCHECKED_CAST")
-inline fun <reified T : Data> RepositoryLookup.exists(
-    noinline predicate: WhereBuilder<T, *, *>.() -> PredicateBuilder<T, *, *>,
-): Boolean = if (T::class.isSubclassOf(Entity::class)) {
-    (entity(T::class as KClass<Entity<Any>>) as EntityRepository<Entity<*>, *>).selectCount().whereBuilder(predicate as WhereBuilder<Entity<*>, *, *>.() -> PredicateBuilder<Entity<*>, *, *>).singleResult > 0
-} else {
-    (projection(T::class as KClass<Projection<Any>>) as ProjectionRepository<Projection<*>, *>).selectCount().whereBuilder(predicate as WhereBuilder<Projection<*>, *, *>.() -> PredicateBuilder<Projection<*>, *, *>).singleResult > 0
-}
-
-/**
- * Checks if entities of type [T] matching the specified predicate exists.
- *
  * @return true if any matching entities exist, false otherwise.
  */
 @Suppress("UNCHECKED_CAST")
@@ -966,6 +883,14 @@ inline fun <reified T : Data> RepositoryLookup.exists(predicate: PredicateBuilde
 } else {
     (projection(T::class as KClass<Projection<Any>>) as ProjectionRepository<Projection<*>, *>).selectCount().where(predicate as PredicateBuilder<Projection<*>, *, *>).singleResult > 0
 }
+
+/**
+ * Checks if entities of type [T] matching the specified predicate exist, using trailing lambda syntax.
+ *
+ * @param predicate Lambda providing the predicate to build the WHERE clause.
+ * @return true if any matching entities exist, false otherwise.
+ */
+inline fun <reified T : Data> RepositoryLookup.exists(predicate: () -> PredicateBuilder<T, *, *>): Boolean = exists(predicate())
 
 /**
  * Inserts an entity of type [T] into the repository.
@@ -1162,16 +1087,17 @@ inline fun <reified T, V> RepositoryLookup.deleteAllByRef(
  * @return the number of entities deleted.
  */
 inline fun <reified T> RepositoryLookup.delete(
-    noinline predicate: WhereBuilder<T, *, *>.() -> PredicateBuilder<T, *, *>,
-): Int where T : Entity<*> = entity<T>().delete().whereBuilder(predicate).executeUpdate()
-
-/**
- * Deletes entities of type [T] matching the specified predicate.
- *
- * @param predicate Lambda to build the WHERE clause.
- * @return the number of entities deleted.
- */
-inline fun <reified T> RepositoryLookup.delete(
     predicate: PredicateBuilder<T, *, *>,
 ): Int
         where T : Entity<*> = entity<T>().delete().whereBuilder { predicate }.executeUpdate()
+
+/**
+ * Deletes entities of type [T] matching the specified predicate, using trailing lambda syntax.
+ *
+ * @param predicate Lambda providing the predicate to build the WHERE clause.
+ * @return the number of entities deleted.
+ */
+inline fun <reified T> RepositoryLookup.delete(
+    predicate: () -> PredicateBuilder<T, *, *>,
+): Int
+        where T : Entity<*> = delete(predicate())

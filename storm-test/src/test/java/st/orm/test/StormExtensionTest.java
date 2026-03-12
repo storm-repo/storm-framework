@@ -24,7 +24,7 @@ import org.junit.jupiter.api.Test;
 import st.orm.Entity;
 import st.orm.PK;
 import st.orm.core.template.ORMTemplate;
-import st.orm.test.CapturedStatement.Operation;
+import st.orm.test.CapturedSql.Operation;
 
 @StormTest(scripts = {"/test-schema.sql", "/test-data.sql"})
 class StormExtensionTest {
@@ -59,25 +59,25 @@ class StormExtensionTest {
     }
 
     @Test
-    void statementCaptureShouldBeInjected(StatementCapture capture) {
+    void statementCaptureShouldBeInjected(SqlCapture capture) {
         assertNotNull(capture);
     }
 
     @Test
-    void statementCaptureShouldRecordSelects(ORMTemplate orm, StatementCapture capture) {
+    void statementCaptureShouldRecordSelects(ORMTemplate orm, SqlCapture capture) {
         capture.run(() -> orm.entity(Item.class).findAll());
         assertEquals(1, capture.count(Operation.SELECT));
         assertTrue(capture.count() >= 1);
     }
 
     @Test
-    void statementCaptureShouldRecordInserts(ORMTemplate orm, StatementCapture capture) {
+    void statementCaptureShouldRecordInserts(ORMTemplate orm, SqlCapture capture) {
         capture.run(() -> orm.entity(Item.class).insert(new Item(0, "Delta")));
         assertEquals(1, capture.count(Operation.INSERT));
     }
 
     @Test
-    void statementCaptureShouldAccumulateAndClear(ORMTemplate orm, StatementCapture capture) {
+    void statementCaptureShouldAccumulateAndClear(ORMTemplate orm, SqlCapture capture) {
         capture.run(() -> orm.entity(Item.class).findAll());
         capture.run(() -> orm.entity(Item.class).findAll());
         assertEquals(2, capture.count(Operation.SELECT));
@@ -86,7 +86,7 @@ class StormExtensionTest {
     }
 
     @Test
-    void capturedStatementShouldContainSqlAndParameters(ORMTemplate orm, StatementCapture capture) {
+    void capturedStatementShouldContainSqlAndParameters(ORMTemplate orm, SqlCapture capture) {
         capture.run(() -> orm.entity(Item.class).findById(1));
         var statements = capture.statements(Operation.SELECT);
         assertEquals(1, statements.size());

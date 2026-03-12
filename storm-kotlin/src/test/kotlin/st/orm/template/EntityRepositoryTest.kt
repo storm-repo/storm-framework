@@ -274,17 +274,9 @@ open class EntityRepositoryTest(
     fun `delete with whereBuilder predicate should delete matching entities`() {
         val repo = orm.entity(Vet::class)
         val firstNamePath = metamodel<Vet, String>(repo.model, "first_name")
-        val deleted = repo.delete { where(firstNamePath, EQUALS, "James") }
-        deleted shouldBe 1
-        repo.count() shouldBe 5
-    }
-
-    @Test
-    fun `delete with PredicateBuilder should delete matching entities`() {
-        val repo = orm.entity(Vet::class)
-        val firstNamePath = metamodel<Vet, String>(repo.model, "first_name")
         val deleted = repo.delete(firstNamePath eq "James")
         deleted shouldBe 1
+        repo.count() shouldBe 5
     }
 
     // EntityRepository: count/exists with PredicateBuilder directly
@@ -383,6 +375,103 @@ open class EntityRepositoryTest(
         val repo = orm.entity(Vet::class)
         val firstNamePath = metamodel<Vet, String>(repo.model, "first_name")
         val deleted = repo.delete(firstNamePath eq "James")
+        deleted shouldBe 1
+    }
+
+    // EntityRepository: lambda predicate-based find/get/select/selectRef/count/exists/delete
+
+    @Test
+    fun `findAll with lambda predicate should filter entities`() {
+        val cities = orm.entity(City::class)
+        val namePath = metamodel<City, String>(cities.model, "name")
+        val result = cities.findAll { namePath eq "Madison" }
+        result shouldHaveSize 1
+    }
+
+    @Test
+    fun `find with lambda predicate should return matching entity`() {
+        val cities = orm.entity(City::class)
+        val namePath = metamodel<City, String>(cities.model, "name")
+        val city = cities.find { namePath eq "Madison" }
+        city.shouldNotBeNull()
+        city.name shouldBe "Madison"
+    }
+
+    @Test
+    fun `get with lambda predicate should return matching entity`() {
+        val cities = orm.entity(City::class)
+        val namePath = metamodel<City, String>(cities.model, "name")
+        val city = cities.get { namePath eq "Madison" }
+        city.name shouldBe "Madison"
+    }
+
+    @Test
+    fun `findAllRef with lambda predicate should return refs`() {
+        val cities = orm.entity(City::class)
+        val namePath = metamodel<City, String>(cities.model, "name")
+        val refs = cities.findAllRef { namePath eq "Madison" }
+        refs shouldHaveSize 1
+    }
+
+    @Test
+    fun `findRef with lambda predicate should return ref`() {
+        val cities = orm.entity(City::class)
+        val namePath = metamodel<City, String>(cities.model, "name")
+        val ref = cities.findRef { namePath eq "Madison" }
+        ref.shouldNotBeNull()
+    }
+
+    @Test
+    fun `getRef with lambda predicate should return ref`() {
+        val cities = orm.entity(City::class)
+        val namePath = metamodel<City, String>(cities.model, "name")
+        val ref = cities.getRef { namePath eq "Madison" }
+        ref.shouldNotBeNull()
+    }
+
+    @Test
+    fun `select with lambda predicate should return flow`(): Unit = runBlocking {
+        val cities = orm.entity(City::class)
+        val namePath = metamodel<City, String>(cities.model, "name")
+        val count = cities.select { namePath eq "Madison" }.count()
+        count shouldBe 1
+    }
+
+    @Test
+    fun `selectRef with lambda predicate should return flow of refs`(): Unit = runBlocking {
+        val cities = orm.entity(City::class)
+        val namePath = metamodel<City, String>(cities.model, "name")
+        val count = cities.selectRef { namePath eq "Madison" }.count()
+        count shouldBe 1
+    }
+
+    @Test
+    fun `count with lambda predicate should count matching entities`() {
+        val cities = orm.entity(City::class)
+        val namePath = metamodel<City, String>(cities.model, "name")
+        val count = cities.count { namePath eq "Madison" }
+        count shouldBe 1
+    }
+
+    @Test
+    fun `exists with lambda predicate should return true for match`() {
+        val cities = orm.entity(City::class)
+        val namePath = metamodel<City, String>(cities.model, "name")
+        cities.exists { namePath eq "Madison" } shouldBe true
+    }
+
+    @Test
+    fun `exists with lambda predicate should return false for no match`() {
+        val cities = orm.entity(City::class)
+        val namePath = metamodel<City, String>(cities.model, "name")
+        cities.exists { namePath eq "NonExistent" } shouldBe false
+    }
+
+    @Test
+    fun `delete with lambda predicate should delete matching`() {
+        val vets = orm.entity(Vet::class)
+        val firstNamePath = metamodel<Vet, String>(vets.model, "first_name")
+        val deleted = vets.delete { firstNamePath eq "James" }
         deleted shouldBe 1
     }
 
@@ -556,13 +645,6 @@ open class EntityRepositoryTest(
     }
 
     // RepositoryLookup: delete extension functions
-
-    @Test
-    fun `orm delete reified with WhereBuilder should delete matching`() {
-        val firstNamePath = metamodel<Vet, String>(orm.entity(Vet::class).model, "first_name")
-        val deleted = orm.delete<Vet> { where(firstNamePath, EQUALS, "James") }
-        deleted shouldBe 1
-    }
 
     @Test
     fun `orm delete reified with PredicateBuilder should delete matching`() {
@@ -833,88 +915,6 @@ open class EntityRepositoryTest(
         val namePath = metamodel<City, String>(repo.model, "name")
         val refs = repo.selectRef().where(namePath, IN, listOf("Madison", "Windsor")).resultList
         refs shouldHaveSize 2
-    }
-
-    // EntityRepository: WhereBuilder-based find/get/select/selectRef
-
-    @Test
-    fun `findAll with WhereBuilder predicate should filter entities`() {
-        val repo = orm.entity(City::class)
-        val namePath = metamodel<City, String>(repo.model, "name")
-        val cities = repo.findAll { where(namePath, EQUALS, "Madison") }
-        cities shouldHaveSize 1
-    }
-
-    @Test
-    fun `find with WhereBuilder predicate should return matching entity`() {
-        val repo = orm.entity(City::class)
-        val namePath = metamodel<City, String>(repo.model, "name")
-        val city = repo.find { where(namePath, EQUALS, "Madison") }
-        city.shouldNotBeNull()
-        city.name shouldBe "Madison"
-    }
-
-    @Test
-    fun `get with WhereBuilder predicate should return matching entity`() {
-        val repo = orm.entity(City::class)
-        val namePath = metamodel<City, String>(repo.model, "name")
-        val city = repo.get { where(namePath, EQUALS, "Madison") }
-        city.name shouldBe "Madison"
-    }
-
-    @Test
-    fun `count with WhereBuilder predicate should count matching entities`() {
-        val repo = orm.entity(City::class)
-        val namePath = metamodel<City, String>(repo.model, "name")
-        val count = repo.count { where(namePath, EQUALS, "Madison") }
-        count shouldBe 1
-    }
-
-    @Test
-    fun `exists with WhereBuilder predicate should return true for match`() {
-        val repo = orm.entity(City::class)
-        val namePath = metamodel<City, String>(repo.model, "name")
-        repo.exists { where(namePath, EQUALS, "Madison") } shouldBe true
-    }
-
-    @Test
-    fun `select with WhereBuilder predicate should return flow`(): Unit = runBlocking {
-        val repo = orm.entity(City::class)
-        val namePath = metamodel<City, String>(repo.model, "name")
-        val count = repo.select { where(namePath, EQUALS, "Madison") }.count()
-        count shouldBe 1
-    }
-
-    @Test
-    fun `findAllRef with WhereBuilder predicate should return refs`() {
-        val repo = orm.entity(City::class)
-        val namePath = metamodel<City, String>(repo.model, "name")
-        val refs = repo.findAllRef { where(namePath, EQUALS, "Madison") }
-        refs shouldHaveSize 1
-    }
-
-    @Test
-    fun `findRef with WhereBuilder predicate should return ref`() {
-        val repo = orm.entity(City::class)
-        val namePath = metamodel<City, String>(repo.model, "name")
-        val ref = repo.findRef { where(namePath, EQUALS, "Madison") }
-        ref.shouldNotBeNull()
-    }
-
-    @Test
-    fun `getRef with WhereBuilder predicate should return ref`() {
-        val repo = orm.entity(City::class)
-        val namePath = metamodel<City, String>(repo.model, "name")
-        val ref = repo.getRef { where(namePath, EQUALS, "Madison") }
-        ref.shouldNotBeNull()
-    }
-
-    @Test
-    fun `selectRef with WhereBuilder predicate should return flow`(): Unit = runBlocking {
-        val repo = orm.entity(City::class)
-        val namePath = metamodel<City, String>(repo.model, "name")
-        val count = repo.selectRef { where(namePath, EQUALS, "Madison") }.count()
-        count shouldBe 1
     }
 
     // EntityRepository: Ref-based findAllRefBy/selectByRef with Iterable
@@ -1463,32 +1463,13 @@ open class EntityRepositoryTest(
     }
 
     @Test
-    fun `entity slice with key and WhereBuilder should filter results`() {
-        val repo = orm.entity(City::class)
-        val idKey = metamodel<City, Int>(repo.model, "id").key()
-        val namePath = metamodel<City, String>(repo.model, "name")
-        val slice = repo.slice(idKey, 10) { where(namePath, EQUALS, "Madison") }
-        slice.content shouldHaveSize 1
-        slice.hasNext shouldBe false
-    }
-
-    @Test
     fun `entity slice with key and PredicateBuilder should filter results`() {
         val repo = orm.entity(City::class)
         val idKey = metamodel<City, Int>(repo.model, "id").key()
         val namePath = metamodel<City, String>(repo.model, "name")
-        val predicate = namePath eq "Madison"
-        val slice = repo.slice(idKey, 10, predicate)
+        val slice = repo.slice(idKey, 10, namePath eq "Madison")
         slice.content shouldHaveSize 1
-    }
-
-    @Test
-    fun `entity sliceRef with key and WhereBuilder should filter refs`() {
-        val repo = orm.entity(City::class)
-        val idKey = metamodel<City, Int>(repo.model, "id").key()
-        val namePath = metamodel<City, String>(repo.model, "name")
-        val slice = repo.sliceRef(idKey, 10) { where(namePath, EQUALS, "Madison") }
-        slice.content shouldHaveSize 1
+        slice.hasNext shouldBe false
     }
 
     @Test
@@ -1496,18 +1477,8 @@ open class EntityRepositoryTest(
         val repo = orm.entity(City::class)
         val idKey = metamodel<City, Int>(repo.model, "id").key()
         val namePath = metamodel<City, String>(repo.model, "name")
-        val predicate = namePath eq "Madison"
-        val slice = repo.sliceRef(idKey, 10, predicate)
+        val slice = repo.sliceRef(idKey, 10, namePath eq "Madison")
         slice.content shouldHaveSize 1
-    }
-
-    @Test
-    fun `entity sliceBefore with key and WhereBuilder should filter descending`() {
-        val repo = orm.entity(City::class)
-        val idKey = metamodel<City, Int>(repo.model, "id").key()
-        val namePath = metamodel<City, String>(repo.model, "name")
-        val slice = repo.sliceBefore(idKey, 10) { where(namePath, LIKE, "M%") }
-        slice.content shouldHaveSize 3
     }
 
     @Test
@@ -1515,8 +1486,46 @@ open class EntityRepositoryTest(
         val repo = orm.entity(City::class)
         val idKey = metamodel<City, Int>(repo.model, "id").key()
         val namePath = metamodel<City, String>(repo.model, "name")
-        val predicate = namePath like "M%"
-        val slice = repo.sliceBefore(idKey, 10, predicate)
+        val slice = repo.sliceBefore(idKey, 10, namePath like "M%")
+        slice.content shouldHaveSize 3
+    }
+
+    // EntityRepository: Slice with lambda predicate
+
+    @Test
+    fun `entity slice with key and lambda predicate should filter results`() {
+        val cities = orm.entity(City::class)
+        val idKey = metamodel<City, Int>(cities.model, "id").key()
+        val namePath = metamodel<City, String>(cities.model, "name")
+        val slice = cities.slice(idKey, 10) { namePath eq "Madison" }
+        slice.content shouldHaveSize 1
+        slice.hasNext shouldBe false
+    }
+
+    @Test
+    fun `entity sliceRef with key and lambda predicate should filter refs`() {
+        val cities = orm.entity(City::class)
+        val idKey = metamodel<City, Int>(cities.model, "id").key()
+        val namePath = metamodel<City, String>(cities.model, "name")
+        val slice = cities.sliceRef(idKey, 10) { namePath eq "Madison" }
+        slice.content shouldHaveSize 1
+    }
+
+    @Test
+    fun `entity sliceBefore with key and lambda predicate should filter descending`() {
+        val cities = orm.entity(City::class)
+        val idKey = metamodel<City, Int>(cities.model, "id").key()
+        val namePath = metamodel<City, String>(cities.model, "name")
+        val slice = cities.sliceBefore(idKey, 10) { namePath like "M%" }
+        slice.content shouldHaveSize 3
+    }
+
+    @Test
+    fun `entity sliceBeforeRef with key and lambda predicate should filter refs`() {
+        val cities = orm.entity(City::class)
+        val idKey = metamodel<City, Int>(cities.model, "id").key()
+        val namePath = metamodel<City, String>(cities.model, "name")
+        val slice = cities.sliceBeforeRef(idKey, 10) { namePath like "M%" }
         slice.content shouldHaveSize 3
     }
 
@@ -1554,38 +1563,38 @@ open class EntityRepositoryTest(
     }
 
     @Test
-    fun `entity sliceAfter with key cursor and WhereBuilder should filter next page`() {
+    fun `entity sliceAfter with key cursor and PredicateBuilder should filter next page`() {
         val repo = orm.entity(City::class)
         val idKey = metamodel<City, Int>(repo.model, "id").key()
         val namePath = metamodel<City, String>(repo.model, "name")
-        val slice = repo.sliceAfter(idKey, 1, 10) { where(namePath, LIKE, "M%") }
+        val slice = repo.sliceAfter(idKey, 1, 10, namePath like "M%")
         slice.content shouldHaveSize 3
     }
 
     @Test
-    fun `entity sliceAfterRef with key cursor and WhereBuilder should filter next page refs`() {
+    fun `entity sliceAfterRef with key cursor and PredicateBuilder should filter next page refs`() {
         val repo = orm.entity(City::class)
         val idKey = metamodel<City, Int>(repo.model, "id").key()
         val namePath = metamodel<City, String>(repo.model, "name")
-        val slice = repo.sliceAfterRef(idKey, 1, 10) { where(namePath, LIKE, "M%") }
+        val slice = repo.sliceAfterRef(idKey, 1, 10, namePath like "M%")
         slice.content shouldHaveSize 3
     }
 
     @Test
-    fun `entity sliceBefore with key cursor and WhereBuilder should filter previous page`() {
+    fun `entity sliceBefore with key cursor and PredicateBuilder should filter previous page`() {
         val repo = orm.entity(City::class)
         val idKey = metamodel<City, Int>(repo.model, "id").key()
         val namePath = metamodel<City, String>(repo.model, "name")
-        val slice = repo.sliceBefore(idKey, 6, 10) { where(namePath, LIKE, "M%") }
+        val slice = repo.sliceBefore(idKey, 6, 10, namePath like "M%")
         slice.content shouldHaveSize 3
     }
 
     @Test
-    fun `entity sliceBeforeRef with key cursor and WhereBuilder should filter previous page refs`() {
+    fun `entity sliceBeforeRef with key cursor and PredicateBuilder should filter previous page refs`() {
         val repo = orm.entity(City::class)
         val idKey = metamodel<City, Int>(repo.model, "id").key()
         val namePath = metamodel<City, String>(repo.model, "name")
-        val slice = repo.sliceBeforeRef(idKey, 6, 10) { where(namePath, LIKE, "M%") }
+        val slice = repo.sliceBeforeRef(idKey, 6, 10, namePath like "M%")
         slice.content shouldHaveSize 3
     }
 
@@ -1631,22 +1640,13 @@ open class EntityRepositoryTest(
         slice.hasNext shouldBe true
     }
 
-    // EntityRepository: delete with WhereBuilder and PredicateBuilder
+    // EntityRepository: delete with PredicateBuilder
 
     @Test
-    fun `delete with WhereBuilder should delete matching entities`() {
+    fun `delete with PredicateBuilder should delete matching entities`() {
         val repo = orm.entity(Visit::class)
         val idPath = metamodel<Visit, Int>(repo.model, "id")
-        val deleted = repo.delete { where(idPath, EQUALS, 1) }
-        deleted shouldBe 1
-    }
-
-    @Test
-    fun `delete with direct PredicateBuilder should delete matching entities`() {
-        val repo = orm.entity(Visit::class)
-        val idPath = metamodel<Visit, Int>(repo.model, "id")
-        val predicate = idPath eq 2
-        val deleted = repo.delete(predicate)
+        val deleted = repo.delete(idPath eq 1)
         deleted shouldBe 1
     }
 
@@ -1687,30 +1687,12 @@ open class EntityRepositoryTest(
     }
 
     @Test
-    fun `entity sliceAfter with WhereBuilder should filter`() {
-        val repo = orm.entity(Owner::class)
-        val idKey = metamodel<Owner, Int>(repo.model, "id").key()
-        val lastNamePath = metamodel<Owner, String>(repo.model, "last_name")
-        // After id > 1 AND last_name LIKE 'D%': owners 4 (Harold Davis) = 1 owner.
-        val slice = repo.sliceAfter(idKey, 1, 10) { where(lastNamePath, LIKE, "D%") }
-        slice.content.size shouldBe 1
-    }
-
-    @Test
     fun `entity sliceAfter with PredicateBuilder should filter`() {
         val repo = orm.entity(Owner::class)
         val idKey = metamodel<Owner, Int>(repo.model, "id").key()
         val lastNamePath = metamodel<Owner, String>(repo.model, "last_name")
+        // After id > 1 AND last_name LIKE 'D%': owners 4 (Harold Davis) = 1 owner.
         val slice = repo.sliceAfter(idKey, 1, 10, lastNamePath like "D%")
-        slice.content.size shouldBe 1
-    }
-
-    @Test
-    fun `entity sliceAfterRef with WhereBuilder should filter refs`() {
-        val repo = orm.entity(Owner::class)
-        val idKey = metamodel<Owner, Int>(repo.model, "id").key()
-        val lastNamePath = metamodel<Owner, String>(repo.model, "last_name")
-        val slice = repo.sliceAfterRef(idKey, 1, 10) { where(lastNamePath, LIKE, "D%") }
         slice.content.size shouldBe 1
     }
 
@@ -1724,30 +1706,12 @@ open class EntityRepositoryTest(
     }
 
     @Test
-    fun `entity sliceBefore with WhereBuilder should filter`() {
-        val repo = orm.entity(Owner::class)
-        val idKey = metamodel<Owner, Int>(repo.model, "id").key()
-        val lastNamePath = metamodel<Owner, String>(repo.model, "last_name")
-        // Before id < 10 AND last_name LIKE 'D%': owners 1 (Betty Davis), 4 (Harold Davis) = 2 owners.
-        val slice = repo.sliceBefore(idKey, 10, 10) { where(lastNamePath, LIKE, "D%") }
-        slice.content.size shouldBe 2
-    }
-
-    @Test
     fun `entity sliceBefore with PredicateBuilder should filter`() {
         val repo = orm.entity(Owner::class)
         val idKey = metamodel<Owner, Int>(repo.model, "id").key()
         val lastNamePath = metamodel<Owner, String>(repo.model, "last_name")
+        // Before id < 10 AND last_name LIKE 'D%': owners 1 (Betty Davis), 4 (Harold Davis) = 2 owners.
         val slice = repo.sliceBefore(idKey, 10, 10, lastNamePath like "D%")
-        slice.content.size shouldBe 2
-    }
-
-    @Test
-    fun `entity sliceBeforeRef with WhereBuilder should filter refs`() {
-        val repo = orm.entity(Owner::class)
-        val idKey = metamodel<Owner, Int>(repo.model, "id").key()
-        val lastNamePath = metamodel<Owner, String>(repo.model, "last_name")
-        val slice = repo.sliceBeforeRef(idKey, 10, 10) { where(lastNamePath, LIKE, "D%") }
         slice.content.size shouldBe 2
     }
 

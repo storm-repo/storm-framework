@@ -15,6 +15,9 @@
  */
 package st.orm.test;
 
+import static java.util.Objects.requireNonNull;
+
+import jakarta.annotation.Nonnull;
 import java.util.List;
 
 /**
@@ -25,10 +28,16 @@ import java.util.List;
  * @param parameters the bind variable values.
  * @since 1.9
  */
-public record CapturedStatement(
-        Operation operation,
-        String statement,
-        List<Object> parameters) {
+public record CapturedSql(
+        @Nonnull Operation operation,
+        @Nonnull String statement,
+        @Nonnull List<Object> parameters) {
+
+    public CapturedSql(@Nonnull Operation operation, @Nonnull String statement, @Nonnull List<Object> parameters) {
+        this.operation = requireNonNull(operation, "operation");
+        this.statement = requireNonNull(statement, "statement");
+        this.parameters = List.copyOf(parameters);
+    }
 
     /**
      * Classifies the type of SQL operation.
