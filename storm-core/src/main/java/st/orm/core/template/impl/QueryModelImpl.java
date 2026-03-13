@@ -190,17 +190,17 @@ final class QueryModelImpl implements QueryModel {
                         return modelBuilder.build(type, true).getPrimaryKeyMetamodel().orElseThrow();
                     }
                 }
-                throw new SqlTemplateException("Cannot uniquely identify object in expression.");
+                throw new SqlTemplateException("Cannot uniquely identify object in expression: multiple matches found for type %s. Ensure the expression resolves to a single, unambiguous metamodel path.".formatted(type.getSimpleName()));
             }
             if (isPrimaryKeyValue(object, model.primaryKeyType())) {
                 return model.getPrimaryKeyMetamodel().orElseThrow();
             }
-            throw new SqlTemplateException("Cannot identify object in expression.");
+            throw new SqlTemplateException("Cannot identify object in expression: no matching metamodel path found for %s. Ensure the expression references a valid field or relationship defined in the entity model.".formatted(object.getClass().getSimpleName()));
         }
         // We cannot check the metamodel in case of an empty list. In this case, we return a root metamodel and deal
         // with the empty list later.
         return model.getPrimaryKeyMetamodel()
-                .orElseThrow(() -> new SqlTemplateException("Cannot identify object in expression."));
+                .orElseThrow(() -> new SqlTemplateException("Cannot identify object in expression: no matching metamodel path found. Ensure the expression references a valid field or relationship defined in the entity model."));
     }
 
     /**
@@ -267,8 +267,8 @@ final class QueryModelImpl implements QueryModel {
             if (i < values.size()) {
                 Object value = resolveElements(values.get(i), fragment, i + 1 < fragments.size() ? fragments.get(i + 1) : "");
                 switch (value) {
-                    case Stream<?> ignore -> throw new SqlTemplateException("Stream not supported in expression.");
-                    case Query ignore -> throw new SqlTemplateException("Query not supported in expression. Use QueryBuilder instead.");
+                    case Stream<?> ignore -> throw new SqlTemplateException("Stream is not supported in expressions. Collect the Stream into a List before passing it.");
+                    case Query ignore -> throw new SqlTemplateException("Query is not supported in expressions. Use a QueryBuilder subquery instead.");
                     case Expression it -> parts.add(compileExpression(it, compiler));
                     case Ref<?> it -> parts.add(compileExpression(new ObjectExpression(it), compiler));
                     case Data it -> parts.add(compileExpression(new ObjectExpression(it), compiler));
@@ -299,8 +299,8 @@ final class QueryModelImpl implements QueryModel {
             if (i < values.size()) {
                 Object value = resolveElements(values.get(i), fragment, i + 1 < fragments.size() ? fragments.get(i + 1) : "");
                 switch (value) {
-                    case Stream<?> ignore -> throw new SqlTemplateException("Stream not supported in expression.");
-                    case Query ignore -> throw new SqlTemplateException("Query not supported in expression. Use QueryBuilder instead.");
+                    case Stream<?> ignore -> throw new SqlTemplateException("Stream is not supported in expressions. Collect the Stream into a List before passing it.");
+                    case Query ignore -> throw new SqlTemplateException("Query is not supported in expressions. Use a QueryBuilder subquery instead.");
                     case Expression it -> bindExpression(it, binder);
                     case Ref<?> it -> bindExpression(new ObjectExpression(it), binder);
                     case Data it -> bindExpression(new ObjectExpression(it), binder);
@@ -322,12 +322,12 @@ final class QueryModelImpl implements QueryModel {
      */
     private Iterable<?> getObjectIterable(@Nullable Object object) throws SqlTemplateException {
         return switch (object) {
-            case null -> throw new SqlTemplateException("Null object not allowed, use IS_NULL operator instead.");
+            case null -> throw new SqlTemplateException("Null value not allowed as a direct parameter. To check for NULL, use the IS_NULL operator instead (e.g., where(field, IS_NULL)).");
             case Object[] a -> asList(a);   // Use this instead of List.of() to allow null values.
             case Iterable<?> i -> i;
-            case BindVars ignore -> throw new SqlTemplateException("BindVars not allowed in this context.");
-            case Stream<?> ignore -> throw new SqlTemplateException("Stream not allowed in this context. Use Iterable or varargs instead.");
-            case TemplateString ignore -> throw new SqlTemplateException("TemplateString not allowed in this context. Use expression method instead.");
+            case BindVars ignore -> throw new SqlTemplateException("BindVars is not allowed in this context. Use BindVars with the where(BindVars) or values(BindVars) template methods instead.");
+            case Stream<?> ignore -> throw new SqlTemplateException("Stream is not allowed in this context. Collect the Stream into a List, or use Iterable or varargs instead.");
+            case TemplateString ignore -> throw new SqlTemplateException("TemplateString is not allowed in this context. Use the expression() builder method instead.");
             default -> List.of(object); // Not expected at the moment though.
         };
     }
@@ -374,20 +374,20 @@ final class QueryModelImpl implements QueryModel {
                     model.forEachValue(List.of(versionColumn), data,
                             (k, v) -> valueMap.put(toFullyQualifiedColumn(k), v));
                 } else {
-                    throw new SqlTemplateException("Data object expected for version-aware statement.");
+                    throw new SqlTemplateException("Data object expected for version-aware statement. When using optimistic locking, the WHERE clause value must be a Data instance that contains the version field.");
                 }
             }
             if (multiValues.isEmpty() && valueMap.size() == 1) {
                 var entry = valueMap.entrySet().iterator().next();
                 var k = entry.getKey();
                 if (column != null && !column.equals(k)) {
-                    throw new SqlTemplateException("Multiple columns specified by where-clause argument: %s and %s.".formatted(column, k));
+                    throw new SqlTemplateException("Multiple columns specified by WHERE clause argument: %s and %s.".formatted(column, k));
                 }
                 placeholders.add(compiler.mapParameter(entry.getValue()));
                 column = k;
             } else {
                 if (column != null) {
-                    throw new SqlTemplateException("Multiple columns specified by where-clause arguments.");
+                    throw new SqlTemplateException("Multiple columns specified by WHERE clause arguments. When passing multiple objects, each must resolve to the same single column.");
                 }
                 multiValues.add(valueMap);
             }
@@ -441,7 +441,7 @@ final class QueryModelImpl implements QueryModel {
                     model.forEachValue(List.of(versionColumn), data,
                             (k, v) -> valueMap.put(k.name(), v));
                 } else {
-                    throw new SqlTemplateException("Data object expected for version-aware statement.");
+                    throw new SqlTemplateException("Data object expected for version-aware statement. When using optimistic locking, the WHERE clause value must be a Data instance that contains the version field.");
                 }
             }
             if (multiValues.isEmpty() && valueMap.size() == 1) {
@@ -546,20 +546,20 @@ final class QueryModelImpl implements QueryModel {
      */
     private Object resolveElements(@Nullable Object value, @Nonnull String previousFragment, @Nonnull String nextFragment) throws SqlTemplateException {
         return switch (value) {
-            case TemplateString ignore -> throw new SqlTemplateException("TemplateString not allowed as string template value.");
-            case Stream<?> ignore -> throw new SqlTemplateException("Stream not supported as string template value.");
+            case TemplateString ignore -> throw new SqlTemplateException("TemplateString is not allowed as a string template value.");
+            case Stream<?> ignore -> throw new SqlTemplateException("Stream is not supported as a string template value. Collect the Stream into a List before passing it.");
             case Subqueryable t -> new Subquery(t.getSubquery(), true);
             case Metamodel<?, ?> m when m.isColumn() -> new st.orm.core.template.impl.Elements.Column(m, CASCADE);
-            case Metamodel<?, ?> ignore -> throw new SqlTemplateException("Metamodel does not reference a column.");
+            case Metamodel<?, ?> ignore -> throw new SqlTemplateException("Metamodel does not reference a column. Use a column-level metamodel (e.g., User_.name) rather than a table-level metamodel.");
             case null, default -> {
                 if (!(value instanceof Element) && value instanceof Record) {
                     String previous = removeComments(previousFragment, template.dialect()).stripTrailing().toUpperCase();
                     if (ENDS_WITH_OPERATOR.matcher(previous).find()) {
-                        throw new SqlTemplateException("Record not allowed in expression with operator.");
+                        throw new SqlTemplateException("Record is not allowed directly next to a comparison operator in an expression. Use a specific field value or metamodel reference instead.");
                     }
                     String next = removeComments(nextFragment, template.dialect()).stripLeading().toUpperCase();
                     if (STARTS_WITH_OPERATOR.matcher(next).find()) {
-                        throw new SqlTemplateException("Record not allowed in expression with operator.");
+                        throw new SqlTemplateException("Record is not allowed directly next to a comparison operator in an expression. Use a specific field value or metamodel reference instead.");
                     }
                 }
                 yield value;

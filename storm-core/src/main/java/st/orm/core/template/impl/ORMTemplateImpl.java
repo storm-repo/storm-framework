@@ -159,7 +159,7 @@ public final class ORMTemplateImpl extends QueryTemplateImpl implements ORMTempl
             try {
                 return getEntityRepository(this, modelBuilder.build(type, true), providerFilter == null ? ignore -> true : providerFilter);
             } catch (SqlTemplateException e) {
-                throw new PersistenceException(e);
+                throw new PersistenceException("Failed to create entity repository for type %s.".formatted(t.getName()), e);
             }
         });
     }
@@ -179,7 +179,7 @@ public final class ORMTemplateImpl extends QueryTemplateImpl implements ORMTempl
             try {
                 return getProjectionRepository(this, modelBuilder.build(type, false), providerFilter == null ? ignore -> true : providerFilter);
             } catch (SqlTemplateException e) {
-                throw new PersistenceException(e);
+                throw new PersistenceException("Failed to create projection repository for type %s.".formatted(t.getName()), e);
             }
         });
     }
@@ -238,27 +238,27 @@ public final class ORMTemplateImpl extends QueryTemplateImpl implements ORMTempl
             }
             if (EntityRepository.class.isAssignableFrom(method.getDeclaringClass())) {
                 if (entityRepository == null) {
-                    throw new UnsupportedOperationException("EntityRepository not available for %s.".formatted(type.getName()));
+                    throw new UnsupportedOperationException("EntityRepository not available for %s. Ensure the type implements the Entity interface and has a valid @DbTable annotation.".formatted(type.getName()));
                 }
                 return method.invoke(entityRepository, args);
             }
             if (ProjectionRepository.class.isAssignableFrom(method.getDeclaringClass())) {
                 if (projectionRepository == null) {
-                    throw new UnsupportedOperationException("ProjectionRepository not available for %s.".formatted(type.getName()));
+                    throw new UnsupportedOperationException("ProjectionRepository not available for %s. Ensure the type implements the Projection interface and has a valid @DbTable annotation.".formatted(type.getName()));
                 }
                 return method.invoke(projectionRepository, args);
             }
-            throw new UnsupportedOperationException("Unsupported method: %s for %s.".formatted(method.getName(), type.getName()));
+            throw new UnsupportedOperationException("Unsupported repository method '%s' for type %s. This method is not available for the repository type associated with this class.".formatted(method.getName(), type.getName()));
         } catch (InvocationTargetException e) {
             var target = e.getTargetException();
             if (target instanceof Exception ex) {
                 throw ex;
             }
-            throw new PersistenceException(target);
+            throw new PersistenceException("Repository method invocation failed for '%s' on type %s.".formatted(method.getName(), type.getName()), target);
         } catch (Exception e) {
             throw e;
         } catch (Throwable t) {
-            throw new PersistenceException(t);
+            throw new PersistenceException("Unexpected error invoking repository method '%s' on type %s.".formatted(method.getName(), type.getName()), t);
         }
     }
 

@@ -108,7 +108,7 @@ final class JoinProcessor implements ElementProcessor<Join> {
             case TableTarget(var toTable) when join.source() instanceof TableSource(var fromTable) ->
                     compileJoinCondition(fromTable, join.sourceAlias(), toTable, join.targetAlias(), compiler);
             case TemplateTarget ts -> compiler.compile(ts.template(), true);
-            default -> throw new SqlTemplateException("Unsupported join target.");
+            default -> throw new SqlTemplateException("Unsupported join target type: %s. Join targets must be either a table type (Class<? extends Data>) or a template expression.".formatted(join.target().getClass().getSimpleName()));
         } : "";
         final String clause = onClause.isEmpty() ? "" : " ON " + onClause;
         return switch (join.source()) {
@@ -147,7 +147,7 @@ final class JoinProcessor implements ElementProcessor<Join> {
                     findPkField(toTable).orElseThrow(), compiler);
         }
         throw new SqlTemplateException(
-                "Failed to join %s with %s. No matching foreign key found.".formatted(fromTable.getSimpleName(), toTable.getSimpleName()));
+                "Failed to join %s with %s: no matching foreign key relationship found. Ensure one of the types has an @FK-annotated field referencing the other, or use an explicit ON clause with a template-based join.".formatted(fromTable.getSimpleName(), toTable.getSimpleName()));
     }
 
     @SuppressWarnings("DuplicatedCode")
@@ -167,7 +167,7 @@ final class JoinProcessor implements ElementProcessor<Join> {
         var fkColumns = getForeignKeys(left, foreignKeyResolver, columnNameResolver);
         var pkColumns = getPrimaryKeys(right, foreignKeyResolver, columnNameResolver);
         if (fkColumns.size() != pkColumns.size()) {
-            throw new SqlTemplateException("Mismatch in PK/FK columns between tables.");
+            throw new SqlTemplateException("Mismatch in PK/FK column count between %s and %s: found %d foreign key column(s) but %d primary key column(s). Ensure the foreign key definition matches the referenced primary key structure.".formatted(toTable.getSimpleName(), fromTable.getSimpleName(), fkColumns.size(), pkColumns.size()));
         }
         StringBuilder joinCondition = new StringBuilder();
         for (int i = 0; i < fkColumns.size(); i++) {

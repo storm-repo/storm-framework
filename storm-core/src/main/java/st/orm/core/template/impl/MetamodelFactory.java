@@ -99,7 +99,7 @@ public final class MetamodelFactory {
                 } catch (PersistenceException e) {
                     throw e;
                 } catch (Throwable e) {
-                    throw new PersistenceException(e);
+                    throw new PersistenceException("Failed to evaluate isSame for root metamodel of type %s.".formatted(table.getName()), e);
                 }
             }
         };
@@ -200,7 +200,7 @@ public final class MetamodelFactory {
                 effectivePath = stripLast(effectivePath);
             }
         } catch (SqlTemplateException e) {
-            throw new PersistenceException(e);
+            throw new PersistenceException("Failed to resolve metamodel field at path '%s' on type %s.".formatted(path, rootTable.getName()), e);
         }
         Metamodel<T, ? extends Data> rootModel = root(rootTable);
         String tablePath = getTablePath(fieldResolutionClass, effectivePath);
@@ -337,7 +337,7 @@ public final class MetamodelFactory {
             }
             return tablePath;
         } catch (SqlTemplateException e) {
-            throw new PersistenceException(e);
+            throw new PersistenceException("Failed to resolve table path for type %s at path '%s'.".formatted(rootTable.getName(), path), e);
         }
     }
 
@@ -354,7 +354,7 @@ public final class MetamodelFactory {
             }
             return (Class<? extends Data>) f.type();
         } catch (SqlTemplateException e) {
-            throw new PersistenceException(e);
+            throw new PersistenceException("Failed to resolve Data type at path '%s' on type %s.".formatted(fullPath, rootTable.getName()), e);
         }
     }
 
@@ -540,7 +540,7 @@ public final class MetamodelFactory {
             } catch (RuntimeException e) {
                 throw e;
             } catch (Throwable e) {
-                throw new PersistenceException(e);
+                throw new PersistenceException("Failed to get value for metamodel field '%s' on type %s.".formatted(field(), root.getName()), e);
             }
         }
 
@@ -551,7 +551,7 @@ public final class MetamodelFactory {
             } catch (RuntimeException e) {
                 throw e;
             } catch (Throwable e) {
-                throw new PersistenceException(e);
+                throw new PersistenceException("Failed to evaluate isIdentical for metamodel field '%s' on type %s.".formatted(field(), root.getName()), e);
             }
         }
 
@@ -562,7 +562,7 @@ public final class MetamodelFactory {
             } catch (RuntimeException e) {
                 throw e;
             } catch (Throwable e) {
-                throw new PersistenceException(e);
+                throw new PersistenceException("Failed to evaluate isSame for metamodel field '%s' on type %s.".formatted(field(), root.getName()), e);
             }
         }
 
@@ -641,7 +641,7 @@ public final class MetamodelFactory {
             } catch (RuntimeException e) {
                 throw e;
             } catch (Throwable e) {
-                throw new PersistenceException(e);
+                throw new PersistenceException("Failed to get value for metamodel field '%s' on type %s.".formatted(field(), root.getName()), e);
             }
         }
 
@@ -652,7 +652,7 @@ public final class MetamodelFactory {
             } catch (RuntimeException e) {
                 throw e;
             } catch (Throwable e) {
-                throw new PersistenceException(e);
+                throw new PersistenceException("Failed to evaluate isIdentical for metamodel field '%s' on type %s.".formatted(field(), root.getName()), e);
             }
         }
 
@@ -663,7 +663,7 @@ public final class MetamodelFactory {
             } catch (RuntimeException e) {
                 throw e;
             } catch (Throwable e) {
-                throw new PersistenceException(e);
+                throw new PersistenceException("Failed to evaluate isSame for metamodel field '%s' on type %s.".formatted(field(), root.getName()), e);
             }
         }
     }

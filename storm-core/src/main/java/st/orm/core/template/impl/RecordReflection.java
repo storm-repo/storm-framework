@@ -315,7 +315,7 @@ final class RecordReflection {
                             }
                         }
                     }
-                    throw new SqlTemplateException("Ref component must specify an entity: %s.".formatted(field.type().getSimpleName()));
+                    throw new SqlTemplateException("Ref component must specify a Data type: %s. The generic type parameter of Ref<T> must be a type that implements the Data interface (Entity, Projection, or Inline record).".formatted(field.type().getSimpleName()));
                 } catch (SqlTemplateException e) {
                     throw new RuntimeException(e);
                 }
@@ -341,10 +341,10 @@ final class RecordReflection {
                         }
                     }
                     if (recordType == null) {
-                        throw new SqlTemplateException("Ref must specify a Data type: %s.".formatted(field.type().getSimpleName()));
+                        throw new SqlTemplateException("Ref must specify a Data type: %s. The generic type parameter of Ref<T> must be a type that implements the Data interface (Entity, Projection, or Inline record).".formatted(field.type().getSimpleName()));
                     }
                     if (!Data.class.isAssignableFrom(recordType)) {
-                        throw new SqlTemplateException("Ref must specify a Data type: %s.".formatted(field.type().getSimpleName()));
+                        throw new SqlTemplateException("Ref must specify a Data type: %s. The generic type parameter of Ref<T> must be a type that implements the Data interface (Entity, Projection, or Inline record).".formatted(field.type().getSimpleName()));
                     }
                     // Accept sealed interfaces (they are not records themselves but their subtypes are).
                     var finalRecordType = recordType;
@@ -775,7 +775,7 @@ final class RecordReflection {
                 return "dtype";
             }
             throw new SqlTemplateException(
-                    "Sealed type %s must be annotated with @Discriminator to specify the discriminator column."
+                    "Sealed type %s must be annotated with @Discriminator to specify the discriminator column. Add @Discriminator(column = \"...\") to the sealed type to specify which column distinguishes between subtypes."
                             .formatted(sealedType.getSimpleName()));
         }
         if (!discriminator.column().isEmpty()) {
@@ -1222,7 +1222,7 @@ final class RecordReflection {
                     REFLECTION.findRecordType(recordType)
                             .orElseThrow(() -> new SqlTemplateException("FK annotation is only allowed on record types: %s.".formatted(field.type().getSimpleName())));
                     if (!Data.class.isAssignableFrom(recordType)) {
-                        throw new SqlTemplateException("FK annotation is only allowed on Data types: %s.".formatted(field.type().getSimpleName()));
+                        throw new SqlTemplateException("@FK annotation is only allowed on Data types: %s. Foreign key fields must reference types that implement the Data interface (Entity or Inline record). Remove the @FK annotation or change the field type.".formatted(field.type().getSimpleName()));
                     }
                     tableMapper.mapForeignKey(table, (Class<? extends Data>) recordType, alias, field, rootTable, path);
                 }

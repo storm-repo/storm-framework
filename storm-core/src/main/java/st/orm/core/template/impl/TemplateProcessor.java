@@ -788,9 +788,9 @@ class TemplateProcessor {
             return switch (value) {
                 case Object[] array when template.expandCollection() -> mapArgs(List.of(array), template.inlineParameters());
                 case Iterable<?> it when template.expandCollection() -> mapArgs(it, template.inlineParameters());
-                case Object[] ignore -> throw new UncheckedSqlTemplateException(new SqlTemplateException("Array parameters not supported."));
+                case Object[] ignore -> throw new UncheckedSqlTemplateException(new SqlTemplateException("Array parameters are not supported in SQL templates. Use a List instead of an array to pass multiple values."));
                 case Iterable<?> ignore ->
-                        throw new UncheckedSqlTemplateException(new SqlTemplateException("Collection parameters not supported."));
+                        throw new UncheckedSqlTemplateException(new SqlTemplateException("Collection parameters are not supported at this position in the SQL template. Use individual parameters, or pass collections inside a WHERE ... IN clause using the whereAny/whereAll builder methods."));
                 case null, default -> {
                     if (template.inlineParameters()) {
                         yield toLiteral(value);
@@ -812,7 +812,7 @@ class TemplateProcessor {
         @Override
         public String mapParameter(@Nonnull String name, @Nullable Object value) {
             if (template.positionalOnly()) {
-                throw new UncheckedSqlTemplateException(new SqlTemplateException("Named parameters not supported."));
+                throw new UncheckedSqlTemplateException(new SqlTemplateException("Named parameters are not supported at this position in the SQL template. Use positional parameters instead."));
             }
             TemplateProcessor.this.mapNamedParameter();
             return ":%s".formatted(name);
@@ -1084,9 +1084,9 @@ class TemplateProcessor {
             switch (value) {
                 case Object[] array when template.expandCollection() -> bindArgs(List.of(array), template.inlineParameters());
                 case Iterable<?> it when template.expandCollection() -> bindArgs(it, template.inlineParameters());
-                case Object[] ignore -> throw new UncheckedSqlTemplateException(new SqlTemplateException("Array parameters not supported."));
+                case Object[] ignore -> throw new UncheckedSqlTemplateException(new SqlTemplateException("Array parameters are not supported in SQL templates. Use a List instead of an array to pass multiple values."));
                 case Iterable<?> ignore ->
-                        throw new UncheckedSqlTemplateException(new SqlTemplateException("Collection parameters not supported."));
+                        throw new UncheckedSqlTemplateException(new SqlTemplateException("Collection parameters are not supported at this position in the SQL template. Use individual parameters, or pass collections inside a WHERE ... IN clause using the whereAny/whereAll builder methods."));
                 case null, default -> {
                     if (!template.inlineParameters()) {
                         parameters.add(new PositionalParameter(parameters.size() + 1, value));
@@ -1104,7 +1104,7 @@ class TemplateProcessor {
         @Override
         public void bindParameter(@Nonnull String name, @Nullable Object value) {
             if (template.positionalOnly()) {
-                throw new UncheckedSqlTemplateException(new SqlTemplateException("Named parameters not supported."));
+                throw new UncheckedSqlTemplateException(new SqlTemplateException("Named parameters are not supported at this position in the SQL template. Use positional parameters instead."));
             }
             parameters.add(new NamedParameter(name, value));
         }
@@ -1159,12 +1159,12 @@ class TemplateProcessor {
         public ParameterFactory setBindVars(@Nonnull BindVars vars) {
             var current = bindVariables;
             if (current != null && current != vars) {
-                throw new UncheckedSqlTemplateException(new SqlTemplateException("Multiple BindVars instances not supported."));
+                throw new UncheckedSqlTemplateException(new SqlTemplateException("Multiple BindVars instances are not supported in a single template. Combine your bind variables into a single BindVars instance."));
             }
             if (vars instanceof BindVarsImpl bindVars) {
                 bindVariables = bindVars;
             } else {
-                throw new UncheckedSqlTemplateException(new SqlTemplateException("Unsupported BindVars type."));
+                throw new UncheckedSqlTemplateException(new SqlTemplateException("Unsupported BindVars type: %s. Expected a standard BindVars implementation.".formatted(vars.getClass().getSimpleName())));
             }
             int startPosition = parameters.size()
                     + bindVarsCounts.subList(0, bindVarsCursor).stream().mapToInt(count -> count).sum()

@@ -80,7 +80,7 @@ final class SetProcessor implements ElementProcessor<Set> {
         if (set.bindVars() != null) {
             return compileSetBindVars(set.bindVars(), set.fields(), compiler);
         }
-        throw new SqlTemplateException("No values found for Set.");
+        throw new SqlTemplateException("No values found for SET clause. Ensure the entity or record passed to the set() method has at least one field to update.");
     }
 
     /**
@@ -209,7 +209,7 @@ final class SetProcessor implements ElementProcessor<Set> {
             return new CompiledElement(bindVarsString,
                     new SetBindHint(columns.stream().filter(column -> !column.version()).toList()));
         }
-        throw new SqlTemplateException("Unsupported BindVars type.");
+        throw new SqlTemplateException("Unsupported BindVars type in SET clause. Expected a standard BindVars implementation.");
     }
 
     /**

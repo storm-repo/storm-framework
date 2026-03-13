@@ -107,7 +107,7 @@ public final class DefaultORMConverterImpl<D, E> implements ORMConverter {
             D dbValue = converter.toDatabase(value);
             return singletonList(dbValue);
         } catch (Throwable e) {
-            throw new SqlTemplateException(e);
+            throw new SqlTemplateException("Failed to convert value to database format for field '%s.%s'.".formatted(field.type().getSimpleName(), field.name()), e);
         }
     }
 
@@ -135,7 +135,7 @@ public final class DefaultORMConverterImpl<D, E> implements ORMConverter {
             D dbValue = databaseType.cast(raw);
             return converter.fromDatabase(dbValue);
         } catch (Throwable e) {
-            throw new SqlTemplateException(e);
+            throw new SqlTemplateException("Failed to convert database value to entity format for field '%s.%s'.".formatted(field.type().getSimpleName(), field.name()), e);
         }
     }
 }

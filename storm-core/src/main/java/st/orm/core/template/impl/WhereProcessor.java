@@ -56,7 +56,7 @@ final class WhereProcessor implements ElementProcessor<Where> {
         if (where.bindVars() != null) {
             return new Where(null, null);
         }
-        throw new SqlTemplateException("Invalid where element: %s.".formatted(where));
+        throw new SqlTemplateException("Invalid element in WHERE clause: %s. Expected a valid expression, entity, or bind variable.".formatted(where));
     }
 
     /**
@@ -79,7 +79,7 @@ final class WhereProcessor implements ElementProcessor<Where> {
         if (where.bindVars() != null) {
             return compileWhereBindVars(where.bindVars(), compiler);
         }
-        throw new SqlTemplateException("No expression or bindVars found for Where.");
+        throw new SqlTemplateException("No expression or bind variables found for WHERE clause. Provide at least one filter condition.");
     }
 
     /**
@@ -126,7 +126,7 @@ final class WhereProcessor implements ElementProcessor<Where> {
         var columns = compiler.getModel(table.type()).declaredColumns();
         boolean hasPk = columns.stream().anyMatch(Column::primaryKey);
         if (!hasPk) {
-            throw new SqlTemplateException("No primary key found for table: %s.".formatted(table.type().getSimpleName()));
+            throw new SqlTemplateException("No primary key found for table %s. Entity types used in WHERE clauses must have a primary key field annotated with @PK.".formatted(table.type().getSimpleName()));
         }
         return columns.stream()
                 .filter(c -> c.primaryKey() || (compiler.isVersionAware() && c.version()))
@@ -144,6 +144,6 @@ final class WhereProcessor implements ElementProcessor<Where> {
                     .map(column -> column.toSql() + " = ?")
                     .collect(joining(" AND ")), new WhereBindHint(columns));
         }
-        throw new SqlTemplateException("Unsupported BindVars type.");
+        throw new SqlTemplateException("Unsupported BindVars type in WHERE clause. Expected a standard BindVars implementation.");
     }
 }
