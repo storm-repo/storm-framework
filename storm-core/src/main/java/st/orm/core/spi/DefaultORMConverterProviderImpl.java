@@ -92,7 +92,7 @@ public class DefaultORMConverterProviderImpl implements ORMConverterProvider {
         try {
             return (Converter<?, ?>) converterClass.getDeclaredConstructor().newInstance();
         } catch (ReflectiveOperationException e) {
-            throw new PersistenceException("Failed to instantiate converter " + converterClass.getName(), e);
+            throw new PersistenceException("Failed to instantiate converter %s. Ensure the converter class has a public no-argument constructor.".formatted(converterClass.getName()), e);
         }
     }
 
@@ -205,9 +205,7 @@ public class DefaultORMConverterProviderImpl implements ORMConverterProvider {
         ConverterTypes types = resolveConverterTypes(converterClass);
         if (types == null) {
             throw new PersistenceException(
-                    "Cannot resolve generic types for converter " + converterClass.getName() +
-                            " used on " + field.type().getName() + "." +
-                            field.name()
+                    "Cannot resolve generic types for converter %s used on %s.%s. Ensure the converter directly implements Converter<DatabaseType, EntityValueType> with concrete (non-generic) type arguments.".formatted(converterClass.getName(), field.type().getName(), field.name())
             );
         }
         @SuppressWarnings("unchecked")

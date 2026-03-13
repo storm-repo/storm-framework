@@ -18,6 +18,7 @@ package st.orm.core.template.impl;
 import static java.util.Optional.empty;
 
 import jakarta.annotation.Nonnull;
+import java.util.Arrays;
 import java.util.Optional;
 import st.orm.PersistenceException;
 import st.orm.core.template.SqlTemplateException;
@@ -62,7 +63,7 @@ final class EnumMapper {
                     if (arg instanceof Integer n) {
                         return (T) getEnumFromOrdinal(type, n);
                     }
-                    throw new SqlTemplateException("Invalid value '%s' for enum %s.".formatted(arg, type.getName()));
+                    throw new SqlTemplateException("Invalid value '%s' for enum %s. Valid values are: %s.".formatted(arg, type.getName(), Arrays.toString(type.getEnumConstants())));
                 }
             });
         }
@@ -75,7 +76,7 @@ final class EnumMapper {
             //noinspection unchecked,rawtypes
             return Enum.valueOf((Class<? extends Enum>) enumType, name);
         } catch (IllegalArgumentException e) {
-            throw new SqlTemplateException("No enum constant %s for value '%s'.".formatted(enumType.getName(), name), e);
+            throw new SqlTemplateException("No enum constant in %s matches the value '%s'. Valid constants are: %s.".formatted(enumType.getName(), name, Arrays.toString(enumType.getEnumConstants())), e);
         }
     }
 
@@ -85,7 +86,7 @@ final class EnumMapper {
         if (ordinal >= 0 && ordinal < enumConstants.length) {
             return enumConstants[ordinal];
         } else {
-            throw new SqlTemplateException("Invalid ordinal '%d' for enum %s.".formatted(ordinal, enumType.getName()));
+            throw new SqlTemplateException("Invalid ordinal %d for enum %s. Valid ordinals are 0 to %d.".formatted(ordinal, enumType.getName(), enumType.getEnumConstants().length - 1));
         }
     }
 }

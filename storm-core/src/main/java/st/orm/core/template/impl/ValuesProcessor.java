@@ -74,7 +74,7 @@ final class ValuesProcessor implements ElementProcessor<Values> {
         if (values.bindVars() != null) {
             return compileValuesBindVars(values, compiler);
         }
-        throw new SqlTemplateException("No values found for Values.");
+        throw new SqlTemplateException("No values found for VALUES clause. Ensure the entity or record passed to the values() method is not empty and has at least one field to insert.");
     }
 
     /**
@@ -161,10 +161,10 @@ final class ValuesProcessor implements ElementProcessor<Values> {
         List<String> args = new ArrayList<>();
         for (var record : values.records()) {
             if (record == null) {
-                throw new SqlTemplateException("Record is null.");
+                throw new SqlTemplateException("Cannot generate VALUES clause: the record is null. Ensure a non-null entity is provided for insert operations.");
             }
             if (!table.type().isInstance(record)) {
-                throw new SqlTemplateException("Record %s does not match entity %s.".formatted(record.getClass().getSimpleName(), table.type().getSimpleName()));
+                throw new SqlTemplateException("Record type %s does not match the target entity type %s. Ensure the record passed to values() matches the entity type specified in the INSERT INTO clause.".formatted(record.getClass().getSimpleName(), table.type().getSimpleName()));
             }
             List<String> placeholders = new ArrayList<>();
             model.forEachValue(columns, record, (column, value) -> {
@@ -242,6 +242,6 @@ final class ValuesProcessor implements ElementProcessor<Values> {
             }
             return new CompiledElement("(%s)".formatted(bindVarsString), new ValuesBindHint(columns));
         }
-        throw new SqlTemplateException("Unsupported BindVars type.");
+        throw new SqlTemplateException("Unsupported BindVars type in VALUES clause. Expected a standard BindVars implementation.");
     }
 }

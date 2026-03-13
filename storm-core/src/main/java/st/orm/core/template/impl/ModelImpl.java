@@ -23,6 +23,7 @@ import static java.util.Optional.ofNullable;
 import static java.util.stream.Collectors.toSet;
 import static st.orm.EnumType.NAME;
 import static st.orm.core.spi.Providers.getORMConverter;
+import static st.orm.core.template.impl.ObjectMapperFactory.nullableHint;
 import static st.orm.core.template.impl.RecordReflection.getDiscriminatorValue;
 import static st.orm.core.template.impl.RecordReflection.getRefDataType;
 import static st.orm.core.template.impl.RecordReflection.isJoinedEntity;
@@ -589,7 +590,7 @@ public final class ModelImpl<E extends Data, ID> implements Model<E, ID> {
             }
             var value = getValue(column.metamodel(), record);
             if (value == null && !column.nullable() && !column.primaryKey()) {
-                throw new SqlTemplateException("Column cannot be null: %s.".formatted(column.name()));
+                throw new SqlTemplateException("Cannot write NULL to non-nullable column '%s'. Ensure the entity field has a value before inserting or updating, or %s if NULL is intended.".formatted(column.name(), nullableHint(type())));
             }
             if (column.foreignKey()) {
                 if (value instanceof Ref<?> ref) {
@@ -602,7 +603,7 @@ public final class ModelImpl<E extends Data, ID> implements Model<E, ID> {
                 } else if (value instanceof Data data) {
                     value = REFLECTION.getId(data);
                 } else if (value != null) {
-                    throw new SqlTemplateException("Invalid foreign key type for column: %s.".formatted(column.name()));
+                    throw new SqlTemplateException("Invalid foreign key type for column '%s'. Expected a Ref or Data type, but got an unrecognized value type. Ensure the foreign key field is correctly typed.".formatted(column.name()));
                 }
             }
             if (value != null && (column.primaryKey() || column.foreignKey()) && isRecord(value.getClass())) {

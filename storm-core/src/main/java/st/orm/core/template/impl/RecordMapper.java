@@ -23,6 +23,7 @@ import static st.orm.EnumType.NAME;
 import static st.orm.UpdateMode.OFF;
 import static st.orm.core.repository.impl.DirtySupport.getUpdateMode;
 import static st.orm.core.spi.Providers.getORMConverter;
+import static st.orm.core.template.impl.ObjectMapperFactory.nullableHint;
 import static st.orm.core.template.impl.RecordReflection.findPkField;
 import static st.orm.core.template.impl.RecordReflection.getDiscriminatorColumnJavaType;
 import static st.orm.core.template.impl.RecordReflection.getDiscriminatorType;
@@ -688,8 +689,8 @@ final class RecordMapper {
                 boolean nullable = parentNullable || field.nullable();
                 if (!nullable && isArgNull(v)) {
                     throw new SqlTemplateException(
-                            "Argument for non-null component '%s.%s' is null."
-                                    .formatted(type.type().getSimpleName(), field.name())
+                            "Database returned NULL for non-nullable component '%s.%s'. Either %s, or ensure the corresponding column is NOT NULL in the database."
+                                    .formatted(type.type().getSimpleName(), field.name(), nullableHint(type.type()))
                     );
                 }
                 constructorArgs[p] = v;
@@ -794,8 +795,8 @@ final class RecordMapper {
                         yield Integer.parseInt(s);
                     }
                     throw new SqlTemplateException(
-                            "Argument for ordinal enum component %s.%s is not valid."
-                                    .formatted(ownerSimpleName, fieldName)
+                            "Cannot map value '%s' to ordinal enum field '%s.%s'. Expected a numeric string representing the enum ordinal."
+                                    .formatted(raw, ownerSimpleName, fieldName)
                     );
                 }
             };
@@ -997,8 +998,8 @@ final class RecordMapper {
             if (nullViolation != null) {
                 if (!nullableHere) {
                     throw new SqlTemplateException(
-                            "Argument for non-null component '%s.%s' is null."
-                                    .formatted(subType.type().getSimpleName(), nullViolation.name())
+                            "Database returned NULL for non-nullable component '%s.%s'. Either %s, or ensure the corresponding column is NOT NULL in the database."
+                                    .formatted(subType.type().getSimpleName(), nullViolation.name(), nullableHint(subType.type()))
                     );
                 }
                 return null;

@@ -160,12 +160,12 @@ public final class ObjectMapperFactory {
                 Class<?> paramType = parameterTypes[i];
                 if (arg == null) {
                     if (isNonnull(parameters[i])) {
-                        throw new SqlTemplateException("Non-null argument of %s (%s) is null at position %d."
-                                .formatted(constructor.getDeclaringClass().getSimpleName(), parameters[i].getName(), offset + i + 1));
+                        throw new SqlTemplateException("Database returned NULL for non-nullable field '%s.%s' at column position %d. Either %s, ensure the column has a NOT NULL constraint with a default value, or verify the query returns the expected data."
+                                .formatted(constructor.getDeclaringClass().getSimpleName(), parameters[i].getName(), offset + i + 1, nullableHint(constructor.getDeclaringClass())));
                     }
                     if (paramType.isPrimitive()) {
-                        throw new SqlTemplateException("Primitive argument of %s (%s) is null at position %d."
-                                .formatted(constructor.getDeclaringClass().getSimpleName(), parameters[i].getName(), offset + i + 1));
+                        throw new SqlTemplateException("Database returned NULL for primitive field '%s.%s' at column position %d. Primitive types cannot hold null values. Change the field type to its wrapper class (e.g., int to Integer) and %s, or ensure the column is NOT NULL."
+                                .formatted(constructor.getDeclaringClass().getSimpleName(), parameters[i].getName(), offset + i + 1, nullableHint(constructor.getDeclaringClass())));
                     }
                 }
             }
@@ -178,8 +178,36 @@ public final class ObjectMapperFactory {
         } catch (SqlTemplateException e) {
             throw e;
         } catch (Throwable t) {
-            throw new SqlTemplateException("Failed to create a new instance.", t);
+            throw new SqlTemplateException("Failed to create a new instance of %s.".formatted(constructor.getDeclaringClass().getSimpleName()), t);
         }
+    }
+
+    @SuppressWarnings("unchecked")
+    private static final Class<? extends Annotation> KOTLIN_METADATA = ((Supplier<Class<? extends Annotation>>) () -> {
+        try {
+            return (Class<? extends Annotation>) Class.forName("kotlin.Metadata");
+        } catch (ClassNotFoundException e) {
+            return null;
+        }
+    }).get();
+
+    /**
+     * Returns {@code true} if the specified class is a Kotlin class (i.e. annotated with {@code kotlin.Metadata}).
+     */
+    static boolean isKotlinClass(@Nonnull Class<?> clazz) {
+        return KOTLIN_METADATA != null && clazz.isAnnotationPresent(KOTLIN_METADATA);
+    }
+
+    /**
+     * Returns language-appropriate guidance for making a field nullable.
+     *
+     * @param clazz the declaring class of the field.
+     * @return a hint string for Java ({@code @Nullable}) or Kotlin (nullable type syntax).
+     */
+    static String nullableHint(@Nonnull Class<?> clazz) {
+        return isKotlinClass(clazz)
+                ? "make the property nullable (e.g., String?)"
+                : "annotate the field with @Nullable";
     }
 
     @SuppressWarnings("unchecked")

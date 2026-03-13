@@ -110,7 +110,7 @@ final class CacheableProcessor implements ElementProcessor<Cacheable> {
      */
     private static Class<?> getTypeShape(@Nonnull Object object) throws SqlTemplateException {
         return switch (object) {
-            case null -> throw new SqlTemplateException("Null object not allowed, use IS_NULL operator instead.");
+            case null -> throw new SqlTemplateException("Null value not allowed as a direct parameter in a WHERE clause. To check for NULL, use the IS_NULL operator instead (e.g., where(field, IS_NULL)).");
             case Ref<?> ref -> ref.type();
             case Data data -> data.getClass();
             default -> CONSTANT_SHAPE;
