@@ -47,10 +47,14 @@ public record SchemaValidationError(
         NULLABILITY_MISMATCH(true),
         /** The primary key columns in the entity do not match the database primary key. */
         PRIMARY_KEY_MISMATCH,
+        /** The entity declares a {@code @PK} but the database table has no primary key constraint. @since 1.10 */
+        PRIMARY_KEY_MISSING(true),
         /** A sequence referenced by the entity does not exist in the database. */
         SEQUENCE_NOT_FOUND,
         /** A {@code @UK} field does not have a matching unique constraint in the database. */
         UNIQUE_KEY_MISSING(true),
+        /** A {@code @FK} field has a foreign key constraint that references a different table than expected. @since 1.10 */
+        FOREIGN_KEY_MISMATCH,
         /** A {@code @FK} field does not have a matching foreign key constraint in the database. */
         FOREIGN_KEY_MISSING(true);
 

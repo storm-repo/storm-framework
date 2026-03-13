@@ -131,4 +131,19 @@ public @interface FK {
      * The database column name for the foreign key. Acts as an alias for {@link #value()}.
      */
     String name() default "";
+
+    /**
+     * Indicates whether a corresponding foreign key constraint is expected to exist in the database.
+     *
+     * <p>When {@code true} (the default), schema validation will warn if no matching foreign key constraint is found
+     * in the database. Set to {@code false} when the database intentionally omits the foreign key constraint, for
+     * example for performance reasons or because referential integrity is enforced at the application level.</p>
+     *
+     * <p>Setting this to {@code false} only suppresses the constraint check during schema validation. The field is
+     * still fully functional as a foreign key for Storm's query generation and relationship resolution.</p>
+     *
+     * @return {@code true} if the foreign key constraint is expected in the database, {@code false} to skip the check.
+     * @since 1.10
+     */
+    boolean constraint() default true;
 }

@@ -121,4 +121,19 @@ public @interface UK {
      * @since 1.9
      */
     boolean nullsDistinct() default true;
+
+    /**
+     * Indicates whether a corresponding unique constraint is expected to exist in the database.
+     *
+     * <p>When {@code true} (the default), schema validation will warn if no matching unique constraint is found
+     * in the database. Set to {@code false} when the database intentionally omits the unique constraint, for example
+     * because uniqueness is enforced at the application level.</p>
+     *
+     * <p>Setting this to {@code false} only suppresses the constraint check during schema validation. The field is
+     * still fully functional as a unique key for keyset pagination and unique lookups.</p>
+     *
+     * @return {@code true} if the unique constraint is expected in the database, {@code false} to skip the check.
+     * @since 1.10
+     */
+    boolean constraint() default true;
 }
