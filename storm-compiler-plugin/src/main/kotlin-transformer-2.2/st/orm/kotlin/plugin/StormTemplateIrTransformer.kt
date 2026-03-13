@@ -184,12 +184,19 @@ class StormTemplateIrTransformer(
         if (sourceStart < 0 || sourceEnd > sourceText.length) return listOf(irConst)
         val source = sourceText.substring(sourceStart, sourceEnd)
         // Find all ${"..."} patterns in the source and split the merged text.
+        // For multi-dollar strings (e.g., $$"...$${"value"}..."), the interpolation marker uses multiple $ signs.
+        // We scan backwards from the found ${"  to include any additional $ signs that are part of the marker.
         val result = mutableListOf<IrExpression>()
         var textPosition = 0
         var sourcePosition = 0
         while (sourcePosition < source.length) {
-            val expressionStart = source.indexOf("\${\"", sourcePosition)
-            if (expressionStart == -1) break
+            val dollarBraceQuote = source.indexOf("\${\"", sourcePosition)
+            if (dollarBraceQuote == -1) break
+            // Scan backwards to find the start of consecutive $ signs (handles $${"..."}, $$${"..."}, etc.).
+            var expressionStart = dollarBraceQuote
+            while (expressionStart > sourcePosition && source[expressionStart - 1] == '$') {
+                expressionStart--
+            }
             // Add the fragment before the expression.
             val fragmentSourceLength = expressionStart - sourcePosition
             if (fragmentSourceLength > 0) {
@@ -207,8 +214,8 @@ class StormTemplateIrTransformer(
                 ))
                 textPosition += fragmentSourceLength
             }
-            // Parse the string literal inside ${"..."}.
-            val contentStart = expressionStart + 3 // position after ${"
+            // Parse the string literal inside ${"..."} (or $${"..."}, etc.).
+            val contentStart = dollarBraceQuote + 3 // position after ${"
             val closingQuote = findClosingQuote(source, contentStart)
             if (closingQuote == -1) return listOf(irConst) // Malformed; leave unchanged.
             val expressionSourceContent = source.substring(contentStart, closingQuote)
@@ -225,8 +232,8 @@ class StormTemplateIrTransformer(
             }
             // Wrap the expression value in t().
             val expressionConst = createStringConst(
-                sourceStart + expressionStart + 2, // position of opening "
-                sourceStart + closingQuote + 1,    // position after closing "
+                sourceStart + dollarBraceQuote + 2, // position of opening "
+                sourceStart + closingQuote + 1,     // position after closing "
                 irConst.type,
                 expressionValue,
             )
