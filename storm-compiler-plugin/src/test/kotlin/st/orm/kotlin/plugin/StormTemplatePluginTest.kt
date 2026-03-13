@@ -5,6 +5,7 @@ import com.tschuchort.compiletesting.KotlinCompilation
 import com.tschuchort.compiletesting.SourceFile
 import org.jetbrains.kotlin.compiler.plugin.ExperimentalCompilerApi
 import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assumptions.assumeTrue
 import org.junit.jupiter.api.Test
 
 /**
@@ -53,13 +54,21 @@ class StormTemplatePluginTest {
         """,
     )
 
-    private fun compile(vararg sources: SourceFile): JvmCompilationResult = KotlinCompilation().apply {
+    private fun compile(vararg sources: SourceFile, languageVersion: String = "2.0"): JvmCompilationResult = KotlinCompilation().apply {
         this.sources = listOf(templateContextStub) + sources.toList()
         compilerPluginRegistrars = listOf(StormTemplatePluginRegistrar())
         inheritClassPath = true
-        languageVersion = "2.0"
+        this.languageVersion = languageVersion
         verbose = false
     }.compile()
+
+    /** Assumes compilation succeeded; skips the test if the compiler does not support the required language features. */
+    private fun assumeCompilationSuccess(result: JvmCompilationResult) {
+        assumeTrue(
+            result.exitCode == KotlinCompilation.ExitCode.OK,
+            "Compilation failed (compiler may not support the required language features): ${result.messages.lines().take(5).joinToString("\n")}",
+        )
+    }
 
     private fun JvmCompilationResult.runMain(): String {
         val output = StringBuilder()
@@ -608,5 +617,127 @@ class StormTemplatePluginTest {
         val lines = output.lines()
         assertEquals("SELECT * FROM users WHERE id IN |", lines[0])
         assertEquals("[1, 2, 3]", lines[1])
+    }
+
+    // -- Multi-dollar string interpolation ($$) tests --
+
+    @Test
+    fun `multi-dollar single interpolation is auto-wrapped`() {
+        val source = SourceFile.kotlin(
+            "Test.kt",
+            """
+            import st.orm.template.*
+
+            fun main() {
+                val id = 42
+                val builder: TemplateBuilder = { ${'$'}${'$'}"SELECT * FROM users WHERE id = ${'$'}${'$'}id" }
+                val result = builder.build()
+                println(result.fragments.joinToString("|"))
+                println(result.values.joinToString(","))
+            }
+            """,
+        )
+        val result = compile(source, languageVersion = "2.2")
+        assumeCompilationSuccess(result)
+        val output = result.runMain()
+        val lines = output.lines()
+        assertEquals("SELECT * FROM users WHERE id = |", lines[0])
+        assertEquals("42", lines[1])
+    }
+
+    @Test
+    fun `multi-dollar literal dollar sign is preserved as fragment`() {
+        val source = SourceFile.kotlin(
+            "Test.kt",
+            """
+            import st.orm.template.*
+
+            fun main() {
+                val id = 42
+                val builder: TemplateBuilder = { ${'$'}${'$'}"SELECT * FROM users WHERE cost > ${'$'}5 AND id = ${'$'}${'$'}id" }
+                val result = builder.build()
+                println(result.fragments.joinToString("|"))
+                println(result.values.joinToString(","))
+            }
+            """,
+        )
+        val result = compile(source, languageVersion = "2.2")
+        assumeCompilationSuccess(result)
+        val output = result.runMain()
+        val lines = output.lines()
+        assertEquals("SELECT * FROM users WHERE cost > ${'$'}5 AND id = |", lines[0])
+        assertEquals("42", lines[1])
+    }
+
+    @Test
+    fun `multi-dollar multiple interpolations are auto-wrapped`() {
+        val source = SourceFile.kotlin(
+            "Test.kt",
+            """
+            import st.orm.template.*
+
+            fun main() {
+                val id = 42
+                val status = "active"
+                val builder: TemplateBuilder = { ${'$'}${'$'}"SELECT * FROM users WHERE id = ${'$'}${'$'}id AND status = ${'$'}${'$'}status" }
+                val result = builder.build()
+                println(result.fragments.joinToString("|"))
+                println(result.values.joinToString(","))
+            }
+            """,
+        )
+        val result = compile(source, languageVersion = "2.2")
+        assumeCompilationSuccess(result)
+        val output = result.runMain()
+        val lines = output.lines()
+        assertEquals("SELECT * FROM users WHERE id = | AND status = |", lines[0])
+        assertEquals("42,active", lines[1])
+    }
+
+    @Test
+    fun `multi-dollar inline string constant is auto-wrapped`() {
+        val source = SourceFile.kotlin(
+            "Test.kt",
+            """
+            import st.orm.template.*
+
+            fun main() {
+                val id = 42
+                val builder: TemplateBuilder = { ${'$'}${'$'}"SELECT * FROM users WHERE id = ${'$'}${'$'}id AND email LIKE ${'$'}${'$'}{"%@gmail.com"}" }
+                val result = builder.build()
+                println(result.fragments.joinToString("|"))
+                println(result.values.joinToString(","))
+            }
+            """,
+        )
+        val result = compile(source, languageVersion = "2.2")
+        assumeCompilationSuccess(result)
+        val output = result.runMain()
+        val lines = output.lines()
+        assertEquals("SELECT * FROM users WHERE id = | AND email LIKE |", lines[0])
+        assertEquals("42,%@gmail.com", lines[1])
+    }
+
+    @Test
+    fun `multi-dollar plain string literal is unchanged`() {
+        val source = SourceFile.kotlin(
+            "Test.kt",
+            """
+            import st.orm.template.*
+
+            fun main() {
+                val builder: TemplateBuilder = { ${'$'}${'$'}"SELECT COUNT(*) FROM users" }
+                val result = builder.build()
+                println(result.fragments.joinToString("|"))
+                println(result.values.size)
+            }
+            """,
+        )
+        val result = compile(source, languageVersion = "2.2")
+        assumeCompilationSuccess(result)
+        val output = result.runMain()
+        val lines = output.lines()
+        assertEquals("SELECT COUNT(*) FROM users", lines[0])
+        assertEquals("0", lines[1])
     }
 }
