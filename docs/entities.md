@@ -56,6 +56,14 @@ record User(@PK Integer id,
 
 ---
 
+## Entity Interface
+
+Implementing the `Entity<ID>` interface is optional but required for using `EntityRepository` with built-in CRUD operations. The type parameter specifies the primary key type. Without this interface, you can still use Storm's SQL template features and query builder, but you lose the convenience methods like `findById`, `insert`, `update`, and `delete`. If you only need read access, consider using `Projection<ID>` instead (see [Projections](projections.md)).
+
+Storm also supports polymorphic entity hierarchies using sealed interfaces. A sealed interface extending `Entity` can define multiple record subtypes, enabling Single-Table or Joined Table inheritance with compile-time exhaustive pattern matching. See [Polymorphism](polymorphism.md) for details.
+
+---
+
 ## Nullability
 
 <Tabs groupId="language">
@@ -87,6 +95,143 @@ record User(@PK Integer id,
             String postalCode,            // Nullable (default)
             @Nullable @FK City city       // Nullable (results in LEFT JOIN)
 ) implements Entity<Integer> {}
+```
+
+</TabItem>
+</Tabs>
+
+---
+
+## Primary Key Generation
+
+The `@PK` annotation supports a `generation` parameter that controls how primary key values are generated:
+
+| Strategy | Description |
+|----------|-------------|
+| `IDENTITY` | Database generates the key using an identity/auto-increment column (default) |
+| `SEQUENCE` | Database generates the key using a named sequence |
+| `NONE` | No generation; the caller must provide the key value |
+
+<Tabs groupId="language">
+<TabItem value="kotlin" label="Kotlin" default>
+
+**IDENTITY (default):**
+
+```kotlin
+data class User(
+    @PK val id: Int = 0,  // Database generates via auto-increment
+    val name: String
+) : Entity<Int>
+```
+
+When inserting, Storm omits the PK column and retrieves the generated value:
+
+```kotlin
+val user = User(name = "Alice")
+val inserted = orm.insert(user)  // Returns User with generated id
+```
+
+**SEQUENCE:**
+
+```kotlin
+data class Order(
+    @PK(generation = SEQUENCE, sequence = "order_seq") val id: Long = 0,
+    val total: BigDecimal
+) : Entity<Long>
+```
+
+Storm fetches the next value from the sequence before inserting.
+
+**NONE:**
+
+```kotlin
+data class Country(
+    @PK(generation = NONE) val code: String,  // Caller provides the value
+    val name: String
+) : Entity<String>
+```
+
+Use `NONE` when:
+- The key is a natural key (like country codes or UUIDs)
+- The key comes from an external source
+- The primary key is also a foreign key (see [Primary Key as Foreign Key](relationships.md#primary-key-as-foreign-key))
+
+</TabItem>
+<TabItem value="java" label="Java">
+
+**IDENTITY (default):**
+
+```java
+record User(@PK Integer id,  // Database generates via auto-increment
+            @Nonnull String name
+) implements Entity<Integer> {}
+```
+
+When inserting, Storm omits the PK column and retrieves the generated value:
+
+```java
+var user = new User(null, "Alice");
+var inserted = orm.entity(User.class).insert(user);  // Returns User with generated id
+```
+
+**SEQUENCE:**
+
+```java
+record Order(@PK(generation = SEQUENCE, sequence = "order_seq") Long id,
+             @Nonnull BigDecimal total
+) implements Entity<Long> {}
+```
+
+Storm fetches the next value from the sequence before inserting.
+
+**NONE:**
+
+```java
+record Country(@PK(generation = NONE) String code,  // Caller provides the value
+               @Nonnull String name
+) implements Entity<String> {}
+```
+
+Use `NONE` when:
+- The key is a natural key (like country codes or UUIDs)
+- The key comes from an external source
+- The primary key is also a foreign key (see [Primary Key as Foreign Key](relationships.md#primary-key-as-foreign-key))
+
+</TabItem>
+</Tabs>
+
+---
+
+## Composite Primary Keys
+
+For join tables or entities whose identity is defined by a combination of columns, wrap the key fields in a separate data class and annotate it with `@PK`. Storm treats all fields in the composite key class as part of the primary key.
+
+<Tabs groupId="language">
+<TabItem value="kotlin" label="Kotlin" default>
+
+```kotlin
+data class UserRolePk(
+    val userId: Int,
+    val roleId: Int
+)
+
+data class UserRole(
+    @PK val userRolePk: UserRolePk,
+    @FK val user: User,
+    @FK val role: Role
+) : Entity<UserRolePk>
+```
+
+</TabItem>
+<TabItem value="java" label="Java">
+
+```java
+record UserRolePk(int userId, int roleId) {}
+
+record UserRole(@PK UserRolePk userRolePk,
+                @Nonnull @FK User user,
+                @Nonnull @FK Role role
+) implements Entity<UserRolePk> {}
 ```
 
 </TabItem>
@@ -186,43 +331,6 @@ record SomeEntity(@PK Integer id,
 </Tabs>
 
 When a column is not annotated with `@UK` but becomes unique in a specific query context (for example, a GROUP BY column produces unique values in the result set), wrap the metamodel with `.key()` (Kotlin) or `Metamodel.key()` (Java) to indicate it can serve as a keyset pagination cursor. See [Manual Key Wrapping](metamodel.md#manual-key-wrapping) for details.
-
----
-
-## Composite Primary Keys
-
-For join tables or entities whose identity is defined by a combination of columns, wrap the key fields in a separate data class and annotate it with `@PK`. Storm treats all fields in the composite key class as part of the primary key.
-
-<Tabs groupId="language">
-<TabItem value="kotlin" label="Kotlin" default>
-
-```kotlin
-data class UserRolePk(
-    val userId: Int,
-    val roleId: Int
-)
-
-data class UserRole(
-    @PK val userRolePk: UserRolePk,
-    @FK val user: User,
-    @FK val role: Role
-) : Entity<UserRolePk>
-```
-
-</TabItem>
-<TabItem value="java" label="Java">
-
-```java
-record UserRolePk(int userId, int roleId) {}
-
-record UserRole(@PK UserRolePk userRolePk,
-                @Nonnull @FK User user,
-                @Nonnull @FK Role role
-) implements Entity<UserRolePk> {}
-```
-
-</TabItem>
-</Tabs>
 
 ---
 
@@ -510,163 +618,20 @@ record Pet(@PK Integer id,
 
 ---
 
-## Primary Key Generation
+## Modifying Entities
 
-The `@PK` annotation supports a `generation` parameter that controls how primary key values are generated:
-
-| Strategy | Description |
-|----------|-------------|
-| `IDENTITY` | Database generates the key using an identity/auto-increment column (default) |
-| `SEQUENCE` | Database generates the key using a named sequence |
-| `NONE` | No generation; the caller must provide the key value |
-
-<Tabs groupId="language">
-<TabItem value="kotlin" label="Kotlin" default>
-
-**IDENTITY (default):**
-
-```kotlin
-data class User(
-    @PK val id: Int = 0,  // Database generates via auto-increment
-    val name: String
-) : Entity<Int>
-```
-
-When inserting, Storm omits the PK column and retrieves the generated value:
-
-```kotlin
-val user = User(name = "Alice")
-val inserted = orm.insert(user)  // Returns User with generated id
-```
-
-**SEQUENCE:**
-
-```kotlin
-data class Order(
-    @PK(generation = SEQUENCE, sequence = "order_seq") val id: Long = 0,
-    val total: BigDecimal
-) : Entity<Long>
-```
-
-Storm fetches the next value from the sequence before inserting.
-
-**NONE:**
-
-```kotlin
-data class Country(
-    @PK(generation = NONE) val code: String,  // Caller provides the value
-    val name: String
-) : Entity<String>
-```
-
-Use `NONE` when:
-- The key is a natural key (like country codes or UUIDs)
-- The key comes from an external source
-- The primary key is also a foreign key (see [Primary Key as Foreign Key](relationships.md#primary-key-as-foreign-key))
-
-</TabItem>
-<TabItem value="java" label="Java">
-
-**IDENTITY (default):**
-
-```java
-record User(@PK Integer id,  // Database generates via auto-increment
-            @Nonnull String name
-) implements Entity<Integer> {}
-```
-
-When inserting, Storm omits the PK column and retrieves the generated value:
-
-```java
-var user = new User(null, "Alice");
-var inserted = orm.entity(User.class).insert(user);  // Returns User with generated id
-```
-
-**SEQUENCE:**
-
-```java
-record Order(@PK(generation = SEQUENCE, sequence = "order_seq") Long id,
-             @Nonnull BigDecimal total
-) implements Entity<Long> {}
-```
-
-Storm fetches the next value from the sequence before inserting.
-
-**NONE:**
-
-```java
-record Country(@PK(generation = NONE) String code,  // Caller provides the value
-               @Nonnull String name
-) implements Entity<String> {}
-```
-
-Use `NONE` when:
-- The key is a natural key (like country codes or UUIDs)
-- The key comes from an external source
-- The primary key is also a foreign key (see [Primary Key as Foreign Key](relationships.md#primary-key-as-foreign-key))
-
-### Builder Pattern (with Lombok)
+Since Storm entities are immutable, updating a field means creating a new instance with the changed value. Kotlin data classes have a built-in `copy()` method for this. Java records do not provide an equivalent, but Lombok's `@Builder(toBuilder = true)` annotation generates a builder that copies all fields from an existing instance:
 
 ```java
 @Builder(toBuilder = true)
-record Pet(@PK Integer id,
-           @Nonnull String name,
-           @Nonnull LocalDate birthDate,
-           @Nonnull @FK PetType type,
-           @Nullable @FK Owner owner
+record User(@PK Integer id,
+            @Nonnull String email,
+            @Nonnull String name,
+            @FK City city
 ) implements Entity<Integer> {}
 ```
 
-</TabItem>
-</Tabs>
-
----
-
-## Custom Table and Column Names
-
-When the database schema does not follow Storm's default camelCase-to-snake_case convention, use annotations to specify the exact names. `@DbTable` overrides the table name, `@DbColumn` overrides a column name, and the string parameter on `@PK` or `@FK` overrides their respective column names. These annotations take precedence over any configured name resolver.
-
-<Tabs groupId="language">
-<TabItem value="kotlin" label="Kotlin" default>
-
-```kotlin
-@DbTable("app_users")
-data class User(
-    @PK("user_id") val id: Int = 0,
-    @DbColumn("email_address") val email: String,
-    @FK("home_city_id") val city: City
-) : Entity<Int>
-```
-
-</TabItem>
-<TabItem value="java" label="Java">
-
-```java
-@DbTable("app_users")
-record User(@PK("user_id") Integer id,
-            @DbColumn("email_address") String email,
-            @FK("home_city_id") City city
-) implements Entity<Integer> {}
-```
-
-</TabItem>
-</Tabs>
-
----
-
-## Column Mapping
-
-Storm automatically maps fields to columns using these conventions:
-
-| Entity Field | Database Column |
-|--------------|-----------------|
-| `id` | `id` |
-| `email` | `email` |
-| `birthDate` | `birth_date` |
-| `postalCode` | `postal_code` |
-| `city` (FK) | `city_id` |
-
-CamelCase field names are converted to snake_case column names. Foreign keys automatically append `_id` and reference the primary key of the related entity.
+This enables `user.toBuilder().email("new@example.com").build()` to create a modified copy. See the [FAQ](faq.md#how-do-i-modify-a-java-record-entity) for alternative approaches and upcoming Java language features.
 
 ---
 
@@ -734,6 +699,63 @@ record Order(@PK Integer id,
 
 ---
 
+## Custom Table and Column Names
+
+When the database schema does not follow Storm's default camelCase-to-snake_case convention, use annotations to specify the exact names. `@DbTable` overrides the table name, `@DbColumn` overrides a column name, and the string parameter on `@PK` or `@FK` overrides their respective column names. These annotations take precedence over any configured name resolver.
+
+<Tabs groupId="language">
+<TabItem value="kotlin" label="Kotlin" default>
+
+```kotlin
+@DbTable("app_users")
+data class User(
+    @PK("user_id") val id: Int = 0,
+    @DbColumn("email_address") val email: String,
+    @FK("home_city_id") val city: City
+) : Entity<Int>
+```
+
+</TabItem>
+<TabItem value="java" label="Java">
+
+```java
+@DbTable("app_users")
+record User(@PK("user_id") Integer id,
+            @DbColumn("email_address") String email,
+            @FK("home_city_id") City city
+) implements Entity<Integer> {}
+```
+
+</TabItem>
+</Tabs>
+
+---
+
+## Column Mapping
+
+Storm automatically maps fields to columns using these conventions:
+
+| Entity Field | Database Column |
+|--------------|-----------------|
+| `id` | `id` |
+| `email` | `email` |
+| `birthDate` | `birth_date` |
+| `postalCode` | `postal_code` |
+| `city` (FK) | `city_id` |
+
+CamelCase field names are converted to snake_case column names. Foreign keys automatically append `_id` and reference the primary key of the related entity.
+
+---
+
+## Join Behavior
+
+Nullability affects how relationships are loaded:
+
+- **Non-nullable FK:** INNER JOIN (referenced entity must exist)
+- **Nullable FK:** LEFT JOIN (referenced entity may be null)
+
+---
+
 ## Suppressing Schema Validation
 
 To suppress constraint-specific warnings (missing primary key, foreign key, or unique constraint), use the `constraint` attribute on `@PK`, `@FK`, or `@UK`. This is more targeted than `@DbIgnore` because it only suppresses the constraint check while preserving all other validation (column existence, type compatibility, nullability). See [Constraint Validation](validation.md#constraint-validation) for details and examples.
@@ -782,18 +804,3 @@ record User(@PK Integer id,
 </Tabs>
 
 The optional `value` parameter documents why the mismatch is acceptable. When placed on an embedded component field, `@DbIgnore` suppresses validation for all columns within that component.
-
----
-
-## Join Behavior
-
-Nullability affects how relationships are loaded:
-
-- **Non-nullable FK:** INNER JOIN (referenced entity must exist)
-- **Nullable FK:** LEFT JOIN (referenced entity may be null)
-
-## Entity Interface
-
-Implementing the `Entity<ID>` interface is optional but required for using `EntityRepository` with built-in CRUD operations. The type parameter specifies the primary key type. Without this interface, you can still use Storm's SQL template features and query builder, but you lose the convenience methods like `findById`, `insert`, `update`, and `delete`. If you only need read access, consider using `Projection<ID>` instead (see [Projections](projections.md)).
-
-Storm also supports polymorphic entity hierarchies using sealed interfaces. A sealed interface extending `Entity` can define multiple record subtypes, enabling Single-Table or Joined Table inheritance with compile-time exhaustive pattern matching. See [Polymorphism](polymorphism.md) for details.

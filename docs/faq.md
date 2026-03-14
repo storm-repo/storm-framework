@@ -90,6 +90,45 @@ Storm entities are pure data carriers. They never need to intercept method calls
 - **Equality:** Value-based equals/hashCode by default.
 - **Transparency:** No hidden proxy magic.
 
+### How do I modify a Java record entity?
+
+Since Java records are immutable, you need to create a new instance with the changed values. There are several approaches:
+
+**Lombok `@Builder(toBuilder = true)` (recommended):** Generates a builder that copies all fields from an existing instance. This is the most ergonomic option and is used throughout Storm's own test suite. See [Modifying Entities](entities.md#modifying-entities) for the annotation setup.
+
+```java
+var updated = user.toBuilder().email("new@example.com").build();
+orm.entity(User.class).update(updated);
+```
+
+**Canonical constructor:** Call the record constructor directly. This works but becomes unwieldy as the number of fields grows.
+
+```java
+var updated = new User(user.id(), "new@example.com", user.name(), user.city());
+```
+
+**Custom wither methods:** Define `with*` methods on the record that return a new instance with a single field changed. Clean API but requires a method per field.
+
+```java
+record User(@PK Integer id, @Nonnull String email, @Nonnull String name, @FK City city
+) implements Entity<Integer> {
+    User withEmail(String email) { return new User(id, email, name, city); }
+}
+```
+
+**Future: JEP 468 (Derived Record Creation):** Java has proposed language-level support through [JEP 468](https://openjdk.org/jeps/468), which would allow concise copy-with-modification syntax without any external tooling:
+
+```java
+// Proposed syntax (not yet available)
+var updated = user with { email = "new@example.com"; }
+```
+
+Until this feature is finalized, `@Builder(toBuilder = true)` remains the recommended approach.
+
+:::note
+Kotlin data classes have a built-in `copy()` method that handles this naturally: `user.copy(email = "new@example.com")`.
+:::
+
 ### Can I use inheritance with Storm entities?
 
 Kotlin data classes and Java records cannot extend other classes, but Storm supports polymorphic entity hierarchies using sealed interfaces. A sealed interface defines the type hierarchy, and each permitted subtype is a record or data class. Storm provides three inheritance strategies: **Single-Table** (all subtypes in one table), **Joined Table** (base table plus extension tables), and **Polymorphic FK** (independent tables referenced via a two-column foreign key). See the [Polymorphism](polymorphism.md) guide for details.
@@ -186,12 +225,28 @@ You do not need to take any special action. Storm prevents N+1 queries by design
 
 ### Can I write raw SQL?
 
-Yes. Use SQL Templates (Java) or raw query methods:
+Yes. Use SQL templates for raw queries:
+
+<Tabs groupId="language">
+<TabItem value="kotlin" label="Kotlin" default>
+
+```kotlin
+orm.query { "SELECT * FROM user WHERE email = $email" }
+    .resultList
+```
+
+</TabItem>
+<TabItem value="java" label="Java">
 
 ```java
 orm.query(RAW."SELECT * FROM user WHERE email = \{email}")
-    .getResultList(User.class);
+    .getResultList();
 ```
+
+</TabItem>
+</Tabs>
+
+Interpolated values like `email` are automatically converted to bind variables (`?`) in the generated SQL, preventing SQL injection.
 
 ### How do I handle pagination?
 
@@ -314,12 +369,26 @@ The `unsafe()` method signals that the absence of a WHERE clause is intentional.
 
 ### Can I use database-specific functions?
 
-Yes. Use SQL Templates for database-specific SQL:
+Yes. Use SQL templates for database-specific SQL:
+
+<Tabs groupId="language">
+<TabItem value="kotlin" label="Kotlin" default>
+
+```kotlin
+orm.query { "SELECT * FROM user WHERE LOWER(email) = LOWER($email)" }
+    .resultList
+```
+
+</TabItem>
+<TabItem value="java" label="Java">
 
 ```java
 orm.query(RAW."SELECT * FROM user WHERE LOWER(email) = LOWER(\{email})")
-    .getResultList(User.class);
+    .getResultList();
 ```
+
+</TabItem>
+</Tabs>
 
 ---
 
