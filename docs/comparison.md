@@ -233,6 +233,26 @@ Exposed is JetBrains' official Kotlin database framework. It offers two APIs: a 
 | **Type Safety** | Column references | Metamodel DSL                        |
 | **Transactions** | Required `transaction {}` block | Optional, programmatic + declarative |
 
+#### Transaction Propagation
+
+Both Storm and Exposed use a `transaction { }` block for programmatic transaction management, but they differ significantly in propagation support.
+
+Exposed's native API supports two modes: shared nesting (the default, where inner blocks join the outer transaction) and savepoint-based nesting (via `useNestedTransactions = true`). For other propagation behaviors, Exposed relies on Spring's `@Transactional` through its `SpringTransactionManager` integration module.
+
+Storm supports all seven standard propagation modes natively in its `transaction { }` block, without requiring Spring:
+
+| Propagation | Storm | Exposed |
+|-------------|-------|---------|
+| `REQUIRED` | Yes | Yes (default behavior) |
+| `REQUIRES_NEW` | Yes | No (Spring only) |
+| `NESTED` | Yes | Yes (`useNestedTransactions`) |
+| `MANDATORY` | Yes | No |
+| `SUPPORTS` | Yes | No |
+| `NOT_SUPPORTED` | Yes | No |
+| `NEVER` | Yes | No |
+
+This means Storm's programmatic API can express patterns like audit logging (`REQUIRES_NEW`), defensive boundary enforcement (`MANDATORY`, `NEVER`), and non-transactional operations (`NOT_SUPPORTED`) directly in code, while Exposed requires Spring integration for these use cases. See [Transactions](transactions.md) for details and examples of each propagation mode.
+
 ### When to Choose Storm
 
 - You need Kotlin and Java support

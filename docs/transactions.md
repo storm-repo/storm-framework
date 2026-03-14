@@ -14,6 +14,8 @@ Storm works directly with JDBC transactions and supports both programmatic and d
 
 Storm for Kotlin provides a fully programmatic transaction solution (following the style popularized by [Exposed](https://github.com/JetBrains/Exposed)) that is **completely coroutine-friendly**. It supports **all isolation levels and propagation modes** found in traditional transaction management systems. You can freely switch coroutine dispatchers within a transaction (offload CPU-bound work to `Dispatchers.Default` or IO work to `Dispatchers.IO`) and still remain in the **same active transaction**.
 
+While Storm's `transaction { }` blocks look similar to Exposed's, Storm goes further by supporting all seven standard propagation modes (`REQUIRED`, `REQUIRES_NEW`, `NESTED`, `MANDATORY`, `SUPPORTS`, `NOT_SUPPORTED`, `NEVER`). Exposed's native transaction API only supports basic nesting (shared transaction) and savepoint-based nesting (`useNestedTransactions = true`), without the ability to suspend an outer transaction, enforce transactional context, or run non-transactionally. See [Storm vs Exposed](comparison.md#storm-vs-exposed) for a detailed comparison.
+
 The API is designed around Kotlin's type system and coroutine model. Import the transaction functions and enums from `st.orm.template`:
 
 ```kotlin
