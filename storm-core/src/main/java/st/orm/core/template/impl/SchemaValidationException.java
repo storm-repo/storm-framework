@@ -52,6 +52,7 @@ public class SchemaValidationException extends PersistenceException {
         return "Schema validation failed with %d error(s):\n".formatted(errors.size())
                 + errors.stream()
                         .map(error -> "  - " + error.toString())
-                        .collect(Collectors.joining("\n"));
+                        .collect(Collectors.joining("\n"))
+                + "\nIf intentional, use @DbIgnore to exclude specific types or fields from validation.";
     }
 }

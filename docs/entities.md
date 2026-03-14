@@ -736,7 +736,9 @@ record Order(@PK Integer id,
 
 ## Suppressing Schema Validation
 
-Use `@DbIgnore` to suppress [schema validation](configuration.md#schema-validation) for an entity or a specific field. This is useful for legacy tables, columns handled by [custom converters](converters.md), or known type mismatches that are safe at runtime.
+To suppress constraint-specific warnings (missing primary key, foreign key, or unique constraint), use the `constraint` attribute on `@PK`, `@FK`, or `@UK`. This is more targeted than `@DbIgnore` because it only suppresses the constraint check while preserving all other validation (column existence, type compatibility, nullability). See [Constraint Validation](validation.md#constraint-validation) for details and examples.
+
+Use `@DbIgnore` to suppress [schema validation](configuration.md#schema-validation) for an entity or a specific field entirely. This is useful for legacy tables, columns handled by [custom converters](converters.md), or known type mismatches that are safe at runtime.
 
 <Tabs groupId="language">
 <TabItem value="kotlin" label="Kotlin" default>

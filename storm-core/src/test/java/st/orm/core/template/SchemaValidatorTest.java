@@ -151,6 +151,52 @@ class SchemaValidatorTest {
             @DbIgnore @Nonnull LocalDate description  // type mismatch, but ignored
     ) implements Entity<Integer> {}
 
+    // Constraint flag test entities
+
+    public record PrimaryKeyMissingEntity(
+            @PK Integer id,
+            @Nonnull String name
+    ) implements Entity<Integer> {}
+
+    public record PrimaryKeyMissingNoConstraintEntity(
+            @PK(constraint = false) Integer id,
+            @Nonnull String name
+    ) implements Entity<Integer> {}
+
+    public record ForeignKeyMismatchTarget(
+            @PK Integer id,
+            @Nonnull String name
+    ) implements Entity<Integer> {}
+
+    public record WrongForeignKeyTarget(
+            @PK Integer id,
+            @Nonnull String label
+    ) implements Entity<Integer> {}
+
+    public record ForeignKeyMismatchEntity(
+            @PK Integer id,
+            @Nonnull String name,
+            @Nullable @FK Ref<ForeignKeyMismatchTarget> foreignKeyMismatchTarget
+    ) implements Entity<Integer> {}
+
+    public record ForeignKeyNoConstraintEntity(
+            @PK Integer id,
+            @Nonnull String name,
+            @Nullable @FK(constraint = false) Ref<ForeignKeyTarget> foreignKeyTarget
+    ) implements Entity<Integer> {}
+
+    public record ForeignKeyMismatchNoConstraintEntity(
+            @PK Integer id,
+            @Nonnull String name,
+            @Nullable @FK(constraint = false) Ref<ForeignKeyMismatchTarget> foreignKeyMismatchTarget
+    ) implements Entity<Integer> {}
+
+    public record UniqueKeyNoConstraintEntity(
+            @PK Integer id,
+            @UK(constraint = false) @Nonnull String email,
+            @Nonnull String name
+    ) implements Entity<Integer> {}
+
     // UK/FK validation test entities
 
     public record UniqueKeyEntity(
@@ -632,6 +678,114 @@ class SchemaValidatorTest {
         // Polymorphic FK should skip FK constraint validation (no FOREIGN_KEY_MISSING error).
         assertFalse(errors.stream().anyMatch(error -> error.kind() == ErrorKind.FOREIGN_KEY_MISSING),
                 "Expected no FOREIGN_KEY_MISSING for polymorphic FK, but got: " + errors);
+    }
+
+    // Primary key missing tests
+
+    @Test
+    void testPrimaryKeyMissing() throws SQLException {
+        // Table has no PRIMARY KEY constraint.
+        execute("CREATE TABLE primary_key_missing_entity (id INTEGER NOT NULL, name VARCHAR(255) NOT NULL)");
+
+        List<SchemaValidationError> errors = SchemaValidator.of(dataSource)
+                .validate(List.of(PrimaryKeyMissingEntity.class));
+
+        assertTrue(errors.stream().anyMatch(error -> error.kind() == ErrorKind.PRIMARY_KEY_MISSING),
+                "Expected PRIMARY_KEY_MISSING when DB has no PK constraint, but got: " + errors);
+        // Should be a warning, not an error.
+        assertTrue(errors.stream()
+                .filter(error -> error.kind() == ErrorKind.PRIMARY_KEY_MISSING)
+                .allMatch(error -> error.kind().warning()));
+    }
+
+    @Test
+    void testPrimaryKeyMissingSuppressedByConstraintFalse() throws SQLException {
+        // Table has no PRIMARY KEY constraint.
+        execute("CREATE TABLE primary_key_missing_no_constraint_entity (id INTEGER NOT NULL, name VARCHAR(255) NOT NULL)");
+
+        List<SchemaValidationError> errors = SchemaValidator.of(dataSource)
+                .validate(List.of(PrimaryKeyMissingNoConstraintEntity.class));
+
+        assertFalse(errors.stream().anyMatch(error -> error.kind() == ErrorKind.PRIMARY_KEY_MISSING),
+                "Expected no PRIMARY_KEY_MISSING with @PK(constraint = false), but got: " + errors);
+    }
+
+    // Foreign key mismatch tests
+
+    @Test
+    void testForeignKeyMismatch() throws SQLException {
+        // Create the wrong target table and the entity's expected target.
+        execute("CREATE TABLE wrong_foreign_key_target (id INTEGER AUTO_INCREMENT, label VARCHAR(255) NOT NULL, PRIMARY KEY (id))");
+        execute("CREATE TABLE foreign_key_mismatch_target (id INTEGER AUTO_INCREMENT, name VARCHAR(255) NOT NULL, PRIMARY KEY (id))");
+        // FK constraint references wrong_foreign_key_target instead of foreign_key_mismatch_target.
+        execute("CREATE TABLE foreign_key_mismatch_entity ("
+                + "id INTEGER AUTO_INCREMENT, "
+                + "name VARCHAR(255) NOT NULL, "
+                + "foreign_key_mismatch_target_id INTEGER, "
+                + "PRIMARY KEY (id), "
+                + "FOREIGN KEY (foreign_key_mismatch_target_id) REFERENCES wrong_foreign_key_target(id))");
+
+        List<SchemaValidationError> errors = SchemaValidator.of(dataSource)
+                .validate(List.of(ForeignKeyMismatchEntity.class));
+
+        assertTrue(errors.stream().anyMatch(error -> error.kind() == ErrorKind.FOREIGN_KEY_MISMATCH),
+                "Expected FOREIGN_KEY_MISMATCH when FK points to wrong table, but got: " + errors);
+        // Should be a hard error, not a warning.
+        assertFalse(errors.stream()
+                .filter(error -> error.kind() == ErrorKind.FOREIGN_KEY_MISMATCH)
+                .anyMatch(error -> error.kind().warning()));
+    }
+
+    @Test
+    void testForeignKeyMismatchNotSuppressedByConstraintFalse() throws SQLException {
+        // FK mismatch should still be reported even with @FK(constraint = false).
+        execute("CREATE TABLE wrong_foreign_key_target (id INTEGER AUTO_INCREMENT, label VARCHAR(255) NOT NULL, PRIMARY KEY (id))");
+        execute("CREATE TABLE foreign_key_mismatch_target (id INTEGER AUTO_INCREMENT, name VARCHAR(255) NOT NULL, PRIMARY KEY (id))");
+        execute("CREATE TABLE foreign_key_mismatch_no_constraint_entity ("
+                + "id INTEGER AUTO_INCREMENT, "
+                + "name VARCHAR(255) NOT NULL, "
+                + "foreign_key_mismatch_target_id INTEGER, "
+                + "PRIMARY KEY (id), "
+                + "FOREIGN KEY (foreign_key_mismatch_target_id) REFERENCES wrong_foreign_key_target(id))");
+
+        List<SchemaValidationError> errors = SchemaValidator.of(dataSource)
+                .validate(List.of(ForeignKeyMismatchNoConstraintEntity.class));
+
+        assertTrue(errors.stream().anyMatch(error -> error.kind() == ErrorKind.FOREIGN_KEY_MISMATCH),
+                "Expected FOREIGN_KEY_MISMATCH even with @FK(constraint = false), but got: " + errors);
+    }
+
+    // Constraint flag suppression tests
+
+    @Test
+    void testForeignKeyMissingSuppressedByConstraintFalse() throws SQLException {
+        execute("CREATE TABLE foreign_key_target (id INTEGER AUTO_INCREMENT, name VARCHAR(255) NOT NULL, PRIMARY KEY (id))");
+        execute("CREATE TABLE foreign_key_no_constraint_entity ("
+                + "id INTEGER AUTO_INCREMENT, "
+                + "name VARCHAR(255) NOT NULL, "
+                + "foreign_key_target_id INTEGER, "
+                + "PRIMARY KEY (id))");
+
+        List<SchemaValidationError> errors = SchemaValidator.of(dataSource)
+                .validate(List.of(ForeignKeyNoConstraintEntity.class));
+
+        assertFalse(errors.stream().anyMatch(error -> error.kind() == ErrorKind.FOREIGN_KEY_MISSING),
+                "Expected no FOREIGN_KEY_MISSING with @FK(constraint = false), but got: " + errors);
+    }
+
+    @Test
+    void testUniqueKeyMissingSuppressedByConstraintFalse() throws SQLException {
+        execute("CREATE TABLE unique_key_no_constraint_entity ("
+                + "id INTEGER AUTO_INCREMENT, "
+                + "email VARCHAR(255) NOT NULL, "
+                + "name VARCHAR(255) NOT NULL, "
+                + "PRIMARY KEY (id))");
+
+        List<SchemaValidationError> errors = SchemaValidator.of(dataSource)
+                .validate(List.of(UniqueKeyNoConstraintEntity.class));
+
+        assertFalse(errors.stream().anyMatch(error -> error.kind() == ErrorKind.UNIQUE_KEY_MISSING),
+                "Expected no UNIQUE_KEY_MISSING with @UK(constraint = false), but got: " + errors);
     }
 
     // Helpers

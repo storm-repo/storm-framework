@@ -131,4 +131,19 @@ public @interface PK {
      * @return the sequence name.
      */
     String sequence() default "";
+
+    /**
+     * Indicates whether a corresponding primary key constraint is expected to exist in the database.
+     *
+     * <p>When {@code true} (the default), schema validation will check that the database table has a primary key
+     * constraint matching the entity's primary key columns. Set to {@code false} when the database intentionally
+     * omits the primary key constraint, for example for legacy tables without constraints.</p>
+     *
+     * <p>Setting this to {@code false} only suppresses the constraint check during schema validation. The field is
+     * still fully functional as a primary key for Storm's identity resolution and query generation.</p>
+     *
+     * @return {@code true} if the primary key constraint is expected in the database, {@code false} to skip the check.
+     * @since 1.10
+     */
+    boolean constraint() default true;
 }

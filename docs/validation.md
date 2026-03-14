@@ -72,10 +72,12 @@ Schema validation compares your entity and projection definitions against the ac
 | Each mapped column exists in the table | `COLUMN_NOT_FOUND` | Error |
 | Kotlin/Java type is compatible with the SQL column type | `TYPE_INCOMPATIBLE` | Error |
 | Entity primary key columns match the database primary key | `PRIMARY_KEY_MISMATCH` | Error |
+| `@FK` constraint references the correct target table | `FOREIGN_KEY_MISMATCH` | Error |
 | Sequences referenced by `@PK(generation = SEQUENCE)` exist | `SEQUENCE_NOT_FOUND` | Error |
 | | | |
 | Numeric cross-category conversions (e.g., `Integer` mapped to `DECIMAL`) | `TYPE_NARROWING` | Warning |
 | Non-nullable entity field mapped to a nullable database column | `NULLABILITY_MISMATCH` | Warning |
+| Entity declares `@PK` but the database has no primary key constraint | `PRIMARY_KEY_MISSING` | Warning |
 | `@UK` field has a matching unique constraint in the database | `UNIQUE_KEY_MISSING` | Warning |
 | `@FK` field has a matching foreign key constraint in the database | `FOREIGN_KEY_MISSING` | Warning |
 
@@ -85,16 +87,60 @@ Schema validation compares your entity and projection definitions against the ac
 
 #### Constraint Validation
 
-The `UNIQUE_KEY_MISSING` and `FOREIGN_KEY_MISSING` checks verify that the database has the constraints your entity model declares. These are warnings rather than errors because the ORM functions correctly without database-level enforcement: queries return the same results, inserts and updates succeed, and keyset pagination works as expected.
+Schema validation checks that the database has the constraints your entity model declares. There are two categories of constraint findings:
+
+**Mismatches (errors)** occur when a constraint exists in the database but contradicts the entity definition. For example, if `@FK val city: City` expects a foreign key referencing the `city` table, but the database has a foreign key on that column referencing the `account` table, that is a `FOREIGN_KEY_MISMATCH`. Similarly, if the entity declares `@PK` with columns `(id)` but the database primary key is `(user_id, role_id)`, that is a `PRIMARY_KEY_MISMATCH`. Mismatches are always hard errors because they indicate a bug in the entity definition.
+
+**Missing constraints (warnings)** occur when the database has no constraint at all for a declared `@PK`, `@FK`, or `@UK` field. These are warnings rather than errors because the ORM functions correctly without database-level enforcement: queries return the same results, inserts and updates succeed, and keyset pagination works as expected.
 
 However, database constraints serve as a safety net that the application layer cannot replace:
 
+- **Primary key constraints** ensure row uniqueness at the database level. Without one, duplicate primary key values could be inserted by other applications or direct SQL.
 - **Unique constraints** protect against application bugs and concurrent modifications that could insert duplicate values. Without a database-level unique constraint, a `@UK` field might contain duplicates that go undetected until a `findBy` call unexpectedly returns multiple results.
 - **Foreign key constraints** protect referential integrity. Without a database-level foreign key constraint, orphaned rows can accumulate when referenced rows are deleted.
 
-In [strict mode](#strict-mode), these warnings are promoted to errors, causing validation to fail if the constraints are missing. Use `@DbIgnore` to suppress these warnings for fields where the missing constraint is intentional (for example, when using application-level deduplication or soft deletes that make database constraints impractical).
+##### Suppressing Constraint Warnings
 
-Use `@DbIgnore` to exclude entity fields from schema validation. See [Entities](entities.md) for annotation details.
+When the database intentionally omits a constraint (for performance, for views, or because integrity is enforced at the application level), use the `constraint` attribute to suppress the warning for that specific field:
+
+<Tabs groupId="language">
+<TabItem value="kotlin" label="Kotlin" default>
+
+```kotlin
+// No FK constraint for performance reasons.
+data class Order(
+    @PK val id: Int = 0,
+    @FK(constraint = false) val customer: Customer
+) : Entity<Int>
+
+// No unique index in the database.
+data class User(
+    @PK val id: Int = 0,
+    @UK(constraint = false) val email: String
+) : Entity<Int>
+```
+
+</TabItem>
+<TabItem value="java" label="Java">
+
+```java
+// No FK constraint for performance reasons.
+record Order(@PK Integer id,
+             @FK(constraint = false) Customer customer
+) implements Entity<Integer> {}
+
+// No unique index in the database.
+record User(@PK Integer id,
+            @UK(constraint = false) String email
+) implements Entity<Integer> {}
+```
+
+</TabItem>
+</Tabs>
+
+Setting `constraint = false` only suppresses the "missing" warning. If the database *does* have a constraint that contradicts the entity definition (a mismatch), it is always reported as a hard error regardless of this flag.
+
+In [strict mode](#strict-mode), missing constraint warnings are promoted to errors, causing validation to fail. The `constraint = false` flag takes precedence: fields marked with it are excluded from validation even in strict mode.
 
 ### Programmatic API
 
