@@ -282,7 +282,7 @@ public final class SchemaValidator {
     }
 
     static String formatErrors(@Nonnull List<String> errors) {
-        return "Schema validation failed with %d error(s):\n%s".formatted(
+        return "Schema validation failed with %d error(s):\n%s\nIf intentional, use @DbIgnore to exclude specific types or fields from validation.".formatted(
                 errors.size(),
                 String.join("\n", errors.stream().map(e -> "  - " + e).toList()));
     }
@@ -431,7 +431,7 @@ public final class SchemaValidator {
                         .orElse(true);
                 if (validatePkConstraint) {
                     errors.add(new SchemaValidationError(type, ErrorKind.PRIMARY_KEY_MISSING,
-                            "No primary key constraint found in table '%s', but entity defines primary key columns %s."
+                            "No primary key constraint found in table '%s', but entity defines primary key columns %s. If intentional, use @PK(constraint = false) to suppress this check."
                                     .formatted(qualifiedTableName, entityPkColumns)));
                 }
             } else if (!dbPkColumns.isEmpty() && !entityPkColumns.equals(dbPkColumns)) {
@@ -520,7 +520,7 @@ public final class SchemaValidator {
                         ? "column '%s'".formatted(expectedColumns.first())
                         : "columns %s".formatted(expectedColumns);
                 errors.add(new SchemaValidationError(type, ErrorKind.UNIQUE_KEY_MISSING,
-                        "No unique constraint found on %s in table '%s' for @UK field '%s'."
+                        "No unique constraint found on %s in table '%s' for @UK field '%s'. If intentional, use @UK(constraint = false) to suppress this check."
                                 .formatted(columnDescription, qualifiedTableName, field.name())));
             }
         }
@@ -617,7 +617,7 @@ public final class SchemaValidator {
                     } else if (validateFkConstraint) {
                         // No FK constraint at all: only warn if constraint validation is enabled.
                         errors.add(new SchemaValidationError(type, ErrorKind.FOREIGN_KEY_MISSING,
-                                "No foreign key constraint found on column '%s' in table '%s' referencing table '%s'."
+                                "No foreign key constraint found on column '%s' in table '%s' referencing table '%s'. If intentional, use @FK(constraint = false) to suppress this check."
                                         .formatted(fkColumnName, qualifiedTableName, targetTableName)));
                     }
                 }
