@@ -29,12 +29,12 @@ const sidebars: SidebarsConfig = {
           type: 'category',
           label: 'Entity Modeling',
           items: [
-            'polymorphism',
             'converters',
-            'entity-lifecycle',
-            'validation',
             'json',
+            'polymorphism',
+            'entity-lifecycle',
             'serialization',
+            'validation',
           ],
         },
         {

@@ -341,39 +341,35 @@ When working with subqueries or nested template expressions, you may need to con
 | `INNER` | Resolve only within the current (innermost) scope. Fails if the alias is not defined locally. |
 | `OUTER` | Resolve only from outer scope(s), ignoring locally defined aliases. |
 
-The `alias()` and `column()` template functions accept an optional `ResolveScope` parameter:
+The `alias()` and `column()` template functions accept an optional `ResolveScope` parameter. This is most useful in correlated subqueries where the same entity appears in both the outer and inner query. For example, selecting all pets that have at least one visit:
 
 <Tabs groupId="language">
 <TabItem value="kotlin" label="Kotlin" default>
 
 ```kotlin
-orm.query { """
-    SELECT ${User::class}
-    FROM ${User::class}
-    WHERE ${User_.id} IN (
-        SELECT ${column(Order_.userId, ResolveScope.INNER)}
-        FROM ${table(Order::class)}
-        WHERE ${column(Order_.total, ResolveScope.INNER)} > ${1000}
-    )
-""" }
+val pets = orm.entity(Pet::class)
+    .select()
+    .whereExists { subquery(Visit::class)
+        .where { "${column(Visit_.pet, INNER)} = ${column(Pet_.id, OUTER)}" }
+    }
+    .resultList
 ```
 
 </TabItem>
 <TabItem value="java" label="Java">
 
 ```java
-orm.query(RAW."""
-    SELECT \{User.class}
-    FROM \{User.class}
-    WHERE \{User_.id} IN (
-        SELECT \{column(Order_.userId, ResolveScope.INNER)}
-        FROM \{table(Order.class)}
-        WHERE \{column(Order_.total, ResolveScope.INNER)} > \{1000}
-    )""")
+var pets = orm.entity(Pet.class).select()
+        .where(wb -> wb.exists(
+                wb.subquery(Visit.class)
+                        .where(RAW."\{column(Visit_.pet, INNER)} = \{column(Pet_.id, OUTER)}")))
+        .getResultList();
 ```
 
 </TabItem>
 </Tabs>
+
+The `column()` function with a metamodel reference resolves to the fully qualified column name (e.g., `v.pet_id` and `p.id`). `INNER` tells Storm to resolve `Visit_.pet` from the subquery, while `OUTER` resolves `Pet_.id` from the main query.
 
 In most cases the default `CASCADE` scope is correct, because it ensures that each alias resolves to exactly one table. Use `INNER` or `OUTER` when writing correlated subqueries where you need to control whether a reference resolves to the inner query's tables or the outer query's tables.
 
