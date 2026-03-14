@@ -44,18 +44,20 @@ The following tables provide a side-by-side comparison of concrete features acro
 
 | Feature | Storm | JPA | Spring Data | MyBatis | jOOQ | JDBI | Exposed | Ktorm |
 |---------|-------|-----|-------------|---------|------|------|---------|-------|
-| Transactions | Both | Both | Declarative | Both | Programmatic | Both | Required | Required |
+| Transactions | Both | Both | Declarative | Both | Programmatic | Both | Both<sup>6</sup> | Required |
 | Schema validation | Yes | Yes | Via JPA | No | N/A<sup>5</sup> | No | Yes | No |
 | Java support | Yes | Yes | Yes | Yes | Yes | Yes | No | No |
 | Kotlin support | First-class | Good | Good | Good | Good | Good | Native | Native |
 | Coroutines | Yes | No | No | No | No | No | Yes | Limited |
 | Spring integration | Yes | Yes | Native | Yes | Yes | Yes | Yes | Yes |
-| Runtime mechanism | Codegen<sup>6</sup> | Bytecode | Bytecode | Reflection | Codegen | Reflection | Reflection | Reflection |
+| Runtime mechanism | Codegen<sup>7</sup> | Bytecode | Bytecode | Reflection | Codegen | Reflection | Reflection | Reflection |
 | Community | New | Huge | Huge | Large | Medium | Medium | Medium | Small |
 
 <sup>5</sup> jOOQ generates code from the database schema, so schema validation is inherent in its code generation step.
 
-<sup>6</sup> Storm uses codegen with reflection fallback.
+<sup>6</sup> Exposed requires `transaction {}` blocks natively, but supports declarative `@Transactional` via its Spring integration module.
+
+<sup>7</sup> Storm uses codegen with reflection fallback.
 
 ---
 
@@ -85,6 +87,7 @@ JPA (typically implemented by Hibernate) is the most widely used persistence fra
 - N+1 queries have been a recurring problem
 - You prefer immutable data structures
 - You value simplicity over complexity
+- You want a lightweight, minimal dependency footprint
 - You're using Kotlin and want idiomatic APIs
 
 ### When to Choose JPA/Hibernate
@@ -114,6 +117,7 @@ Spring Data JPA wraps JPA with a repository abstraction that derives query imple
 - You want stateless, immutable entities
 - You prefer explicit query logic over naming conventions
 - You want to avoid JPA's complexity
+- You want a lightweight, minimal dependency footprint
 
 ### When to Choose Spring Data JPA
 
@@ -231,7 +235,7 @@ Exposed is JetBrains' official Kotlin database framework. It offers two APIs: a 
 | **N+1 Problem** | Possible with DAO | Prevented by design; requires explicit opt-in                 |
 | **Coroutines** | Supported (added later) | First-class from the start           |
 | **Type Safety** | Column references | Metamodel DSL                        |
-| **Transactions** | Required `transaction {}` block | Optional, programmatic + declarative |
+| **Transactions** | `transaction {}` block, declarative via Spring module | Optional, programmatic + declarative |
 
 #### Transaction Propagation
 
@@ -304,7 +308,6 @@ Ktorm is a lightweight Kotlin ORM that uses entity interfaces and DSL-based tabl
 - You're building a Kotlin-only project
 - You prefer no code generation
 - You like the Sequence API style
-- You want a lightweight, minimal dependency footprint
 - You prefer DSL-based table definitions
 
 ## Summary

@@ -33,11 +33,13 @@ Non-nullable fields (like `city: City`) produce `INNER JOIN` queries. Nullable f
 <TabItem value="java" label="Java">
 
 ```java
+@Builder(toBuilder = true)
 record City(@PK Integer id,
             String name,
             long population
 ) implements Entity<Integer> {}
 
+@Builder(toBuilder = true)
 record User(@PK Integer id,
             String email,
             String name,
@@ -46,6 +48,8 @@ record User(@PK Integer id,
 ```
 
 In Java, record components are nullable by default. Use `@Nonnull` on fields that must always have a value. Primitive types (`int`, `long`, etc.) are inherently non-nullable.
+
+The `@Builder` annotation is from [Lombok](https://projectlombok.org/) and is optional. It generates a builder that lets you construct entities without specifying the primary key, and creates modified copies via `toBuilder()`. Without Lombok, you can pass `null` as the primary key (e.g., `new City(null, "Sunnyvale", 155_000)`) or define a convenience constructor that omits it. See [Modifying Entities](entities.md#modifying-entities) for details.
 
 </TabItem>
 </Tabs>
@@ -129,10 +133,17 @@ var cities = orm.entity(City.class);
 var users = orm.entity(User.class);
 
 // Insert a city -- the returned object has the database-generated ID
-City city = cities.insertAndFetch(new City(null, "Sunnyvale", 155_000));
+City city = cities.insertAndFetch(City.builder()
+        .name("Sunnyvale")
+        .population(155_000)
+        .build());
 
 // Insert a user that references the city
-User user = users.insertAndFetch(new User(null, "alice@example.com", "Alice", city));
+User user = users.insertAndFetch(User.builder()
+        .email("alice@example.com")
+        .name("Alice")
+        .city(city)
+        .build());
 ```
 
 The `insertAndFetch` method sends an INSERT statement, retrieves the auto-generated primary key, and returns a new record with the key populated.
@@ -237,7 +248,11 @@ With Spring's `@Transactional`:
 @Transactional
 public User createUser(String email, String name, City city) {
     return orm.entity(User.class)
-        .insertAndFetch(new User(null, email, name, city));
+        .insertAndFetch(User.builder()
+                .email(email)
+                .name(name)
+                .city(city)
+                .build());
 }
 ```
 
