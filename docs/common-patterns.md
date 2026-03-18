@@ -357,9 +357,9 @@ public class SoftDeleteGuard implements EntityCallback<Customer> {
 
 ---
 
-## Pagination
+## Pagination and Scrolling
 
-Storm provides built-in types for both offset-based and keyset-based pagination, so you do not need to define your own page wrappers or write raw `LIMIT`/`OFFSET` queries.
+Storm provides two strategies for traversing large result sets: pagination (by page number) and scrolling (by cursor). You do not need to define your own page wrappers or write raw `LIMIT`/`OFFSET` queries.
 
 ### Offset-Based Pagination
 
@@ -443,22 +443,26 @@ Page<Ref<User>> refPage = userRepository.pageRef(0, 20);
 </TabItem>
 </Tabs>
 
-### Keyset-Based Pagination
+### Scrolling
 
-Use the `slice()`, `sliceAfter()`, and `sliceBefore()` methods on any entity repository. These use a unique column value (typically the primary key) as a cursor, which lets the database seek directly to the correct position using an index.
+Use the `scroll()` method on any entity repository with a `Scrollable` that captures the cursor state. These navigate sequentially using a unique column value (typically the primary key) as a cursor, which lets the database seek directly to the correct position using an index.
 
 <Tabs groupId="language">
 <TabItem value="kotlin" label="Kotlin" default>
 
 ```kotlin
 // First page of 20 users ordered by ID
-val page1: Slice<User> = userRepository.slice(User_.id, 20)
+val window: Window<User> = userRepository.scroll(Scrollable.of(User_.id, 20))
 
-// Next page using the last ID as cursor
-val page2: Slice<User> = userRepository.sliceAfter(User_.id, page1.content.last().id, 20)
+// Next page
+if (window.hasNext()) {
+    val next: Window<User> = userRepository.scroll(window.nextScrollable())
+}
 
-// Previous page before a known cursor
-val previous: Slice<User> = userRepository.sliceBefore(User_.id, someId, 20)
+// Previous page
+if (window.hasPrevious()) {
+    val previous: Window<User> = userRepository.scroll(window.previousScrollable())
+}
 ```
 
 </TabItem>
@@ -466,33 +470,40 @@ val previous: Slice<User> = userRepository.sliceBefore(User_.id, someId, 20)
 
 ```java
 // First page of 20 users ordered by ID
-Slice<User> page1 = userRepository.slice(User_.id, 20);
+Window<User> window = userRepository.scroll(Scrollable.of(User_.id, 20));
 
-// Next page using the last ID as cursor
-User last = page1.content().getLast();
-Slice<User> page2 = userRepository.sliceAfter(User_.id, last.id(), 20);
+// Next page
+if (window.hasNext()) {
+    Window<User> next = userRepository.scroll(window.nextScrollable());
+}
 
-// Previous page before a known cursor
-Slice<User> previous = userRepository.sliceBefore(User_.id, someId, 20);
+// Previous page
+if (window.hasPrevious()) {
+    Window<User> previous = userRepository.scroll(window.previousScrollable());
+}
 ```
 
 </TabItem>
 </Tabs>
 
-Each method returns a `Slice` containing the page content and a `hasNext` flag. See [Repositories: Keyset Pagination](repositories.md#keyset-pagination) for the full API, including sort overloads, filtering, and ref variants.
+Each method returns a `Window` containing the page content, a `hasNext` flag, and navigation tokens (`nextScrollable()`, `previousScrollable()`) for sequential traversal. For REST APIs, `Window` also provides `nextCursor()` and `previousCursor()` to serialize the scroll position as an opaque string, and `Scrollable.fromCursor(key, cursor)` to reconstruct a `Scrollable` from a cursor string. See [Repositories: Scrolling](repositories.md#scrolling) for the full API, including sort overloads, filtering, and Ref variants.
 
 ### Choosing Between the Two
 
-| Factor | Offset-Based (`page`) | Keyset-Based (`slice`) |
+| Factor | Pagination (`page`) | Scrolling (`scroll`) |
 |---|---|---|
-| Implementation complexity | Simple | Moderate |
-| Jump to arbitrary page | Yes | No (sequential only) |
+| Request type | `Pageable` | `Scrollable` |
+| Result type | `Page` | `Window` |
+| Navigation | page number | cursor |
+| Count query | yes | no |
+| Random access | yes | no |
 | Performance at page 1 | Good | Good |
 | Performance at page 1,000 | Degrades (database must skip rows) | Consistent (index seek) |
 | Handles concurrent inserts | Rows may shift between pages | Stable cursor |
-| Total element count | Included in `Page` | Not available in `Slice` |
+| Navigate forward | `page.nextPageable()` | `window.nextScrollable()` |
+| Navigate backward | `page.previousPageable()` | `window.previousScrollable()` |
 
-Use offset-based pagination when you need random page access or a total count (for example, displaying "Page 3 of 12" in a UI). Use keyset pagination when you need consistent performance over deep result sets or when the data changes frequently between requests.
+Use pagination when you need random page access or a total count (for example, displaying "Page 3 of 12" in a UI). Use scrolling when you need consistent performance over deep result sets or when the data changes frequently between requests.
 
 ---
 

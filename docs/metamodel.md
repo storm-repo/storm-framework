@@ -49,14 +49,14 @@ plugins {
 }
 
 dependencies {
-    ksp("st.orm:storm-metamodel-processor:1.10.0")
+    ksp("st.orm:storm-metamodel-processor:1.11.0")
 }
 ```
 
 ### Gradle (Java)
 
 ```kotlin
-annotationProcessor("st.orm:storm-metamodel-processor:1.10.0")
+annotationProcessor("st.orm:storm-metamodel-processor:1.11.0")
 ```
 
 ### Maven (Java)
@@ -65,7 +65,7 @@ annotationProcessor("st.orm:storm-metamodel-processor:1.10.0")
 <dependency>
     <groupId>st.orm</groupId>
     <artifactId>storm-metamodel-processor</artifactId>
-    <version>1.10.0</version>
+    <version>1.11.0</version>
     <scope>provided</scope>
 </dependency>
 ```
@@ -350,7 +350,7 @@ Foreign key fields like `city` generate their own metamodel classes, enabling na
 
 ## Unique Keys (`@UK`) and `Metamodel.Key`
 
-Use `@UK` on fields that have a unique constraint in the database. Fields annotated with `@UK` indicate that the corresponding column contains unique values. The metamodel processor generates `Metamodel.Key` instances for these fields, enabling type-safe single-result lookups and keyset pagination.
+Use `@UK` on fields that have a unique constraint in the database. Fields annotated with `@UK` indicate that the corresponding column contains unique values. The metamodel processor generates `Metamodel.Key` instances for these fields, enabling type-safe single-result lookups and scrolling.
 
 The `@PK` annotation is meta-annotated with `@UK`, so primary key fields are automatically recognized as unique keys without needing an explicit `@UK` annotation.
 
@@ -423,7 +423,7 @@ record SomeEntity(@PK Integer id,
 </TabItem>
 </Tabs>
 
-The metamodel processor generates a `Metamodel.Key` for the compound field, which can be used for lookups and keyset pagination just like a single-column key.
+The metamodel processor generates a `Metamodel.Key` for the compound field, which can be used for lookups and scrolling just like a single-column key.
 
 ### Using Keys for Lookups
 
@@ -448,46 +448,52 @@ User user = userRepository.getBy(User_.email, "alice@example.com");  // throws i
 </TabItem>
 </Tabs>
 
-### Using Keys for Keyset Pagination
+### Using Keys for Scrolling
 
-`Metamodel.Key` is also required for keyset pagination, where the cursor column must be unique:
+`Metamodel.Key` is also required for scrolling, where the cursor column must be unique:
 
 <Tabs groupId="language">
 <TabItem value="kotlin" label="Kotlin" default>
 
 ```kotlin
-val page: Slice<User> = userRepository.slice(User_.id, 20)
-val nextPage: Slice<User> = userRepository.sliceAfter(User_.id, lastId, 20)
+val window: Window<User> = userRepository.scroll(Scrollable.of(User_.id, 20))
+if (window.hasNext()) {
+    val nextWindow: Window<User> = userRepository.scroll(window.nextScrollable())
+}
 ```
 
 Compound unique keys work the same way. The inline record is used as the cursor value:
 
 ```kotlin
-val page: Slice<SomeEntity> = repository.slice(SomeEntity_.uniqueKey, 20)
-val last = page.content.last()
-val nextPage: Slice<SomeEntity> = repository.sliceAfter(SomeEntity_.uniqueKey, last.uniqueKey, 20)
+val window: Window<SomeEntity> = repository.scroll(Scrollable.of(SomeEntity_.uniqueKey, 20))
+if (window.hasNext()) {
+    val nextWindow: Window<SomeEntity> = repository.scroll(window.nextScrollable())
+}
 ```
 
 </TabItem>
 <TabItem value="java" label="Java">
 
 ```java
-Slice<User> page = userRepository.slice(User_.id, 20);
-Slice<User> nextPage = userRepository.sliceAfter(User_.id, lastId, 20);
+Window<User> window = userRepository.scroll(Scrollable.of(User_.id, 20));
+if (window.hasNext()) {
+    Window<User> next = userRepository.scroll(window.nextScrollable());
+}
 ```
 
 Compound unique keys work the same way:
 
 ```java
-Slice<SomeEntity> page = repository.slice(SomeEntity_.uniqueKey, 20);
-SomeEntity last = page.content().getLast();
-Slice<SomeEntity> nextPage = repository.sliceAfter(SomeEntity_.uniqueKey, last.uniqueKey(), 20);
+Window<SomeEntity> window = repository.scroll(Scrollable.of(SomeEntity_.uniqueKey, 20));
+if (window.hasNext()) {
+    Window<SomeEntity> next = repository.scroll(window.nextScrollable());
+}
 ```
 
 </TabItem>
 </Tabs>
 
-See [Queries](queries.md#slice) for full details on keyset pagination.
+See [Pagination and Scrolling: Scrolling](pagination-and-scrolling.md#scrolling) for full details.
 
 ### Manual Key Wrapping
 
@@ -510,7 +516,7 @@ Metamodel.Key<User, String> key = Metamodel.key(Metamodel.of(User.class, "email"
 </TabItem>
 </Tabs>
 
-This is also useful when a column that is not annotated with `@UK` becomes unique in the context of a query, for example because of a GROUP BY clause. In that case, the column can serve as a keyset pagination cursor even though the metamodel processor did not generate a `Key` for it:
+This is also useful when a column that is not annotated with `@UK` becomes unique in the context of a query, for example because of a GROUP BY clause. In that case, the column can serve as a scrolling cursor even though the metamodel processor did not generate a `Key` for it:
 
 <Tabs groupId="language">
 <TabItem value="kotlin" label="Kotlin" default>
@@ -519,7 +525,7 @@ This is also useful when a column that is not annotated with `@UK` becomes uniqu
 val ordersByCity = orm.query(Order::class)
     .select(Order_.city, "COUNT(*)")
     .groupBy(Order_.city)
-    .slice(Order_.city.key(), 20)
+    .scroll(Scrollable.of(Order_.city.key(), 20))
 ```
 
 </TabItem>
@@ -529,7 +535,7 @@ val ordersByCity = orm.query(Order::class)
 var ordersByCity = orm.query(Order.class)
     .select(Order_.city, "COUNT(*)")
     .groupBy(Order_.city)
-    .slice(Metamodel.key(Order_.city), 20);
+    .scroll(Scrollable.of(Metamodel.key(Order_.city), 20));
 ```
 
 </TabItem>
@@ -539,16 +545,16 @@ Callers are responsible for ensuring that the column contains unique values in t
 
 ### Nullable Unique Keys
 
-In standard SQL, `NULL != NULL`. This means a `UNIQUE` constraint typically allows multiple rows with `NULL` in the unique column, because each `NULL` is considered distinct from every other `NULL`. While this behavior is well-defined in the SQL standard, it has practical implications for two Storm features: single-result lookups and keyset pagination.
+In standard SQL, `NULL != NULL`. This means a `UNIQUE` constraint typically allows multiple rows with `NULL` in the unique column, because each `NULL` is considered distinct from every other `NULL`. While this behavior is well-defined in the SQL standard, it has practical implications for two Storm features: single-result lookups and scrolling.
 
 **Single-result lookups (`findBy`, `getBy`) are safe.** These methods throw if the query returns more than one row. Even if multiple `NULL` rows exist, the lookup either finds zero or one match (when searching for a non-null value) or throws an exception (when multiple rows match). There is no risk of silently returning the wrong result.
 
-**Keyset pagination (`slice`, `sliceAfter`, `sliceBefore`) is not safe with nullable keys.** Keyset pagination works by adding a `WHERE key > cursor` (or `WHERE key < cursor`) condition. In SQL, any comparison with `NULL` evaluates to `UNKNOWN`, which means rows with `NULL` in the key column are silently excluded from the result set. This can cause missing data without any error or indication that rows were skipped.
+**Scrolling is not safe with nullable keys.** Scrolling works by adding a `WHERE key > cursor` (or `WHERE key < cursor`) condition. In SQL, any comparison with `NULL` evaluates to `UNKNOWN`, which means rows with `NULL` in the key column are silently excluded from the result set. This can cause missing data without any error or indication that rows were skipped.
 
 Because of this, Storm validates nullable unique keys at two levels:
 
 1. **Compile-time warning.** The metamodel processor emits a warning when a `@UK` field is nullable (a nullable type in Kotlin, or a reference type without `@Nonnull` in Java) and the default `nullsDistinct = true` applies.
-2. **Runtime check.** The `slice`, `sliceAfter`, and `sliceBefore` methods throw a `PersistenceException` if the key's metamodel indicates that nulls are distinct for a nullable field, preventing silent data loss.
+2. **Runtime check.** The `scroll` method throws a `PersistenceException` if the key's metamodel indicates that nulls are distinct for a nullable field, preventing silent data loss.
 
 Database behavior varies. Some databases offer stricter NULL handling for unique constraints:
 
@@ -562,12 +568,12 @@ The `@UK` annotation provides a `nullsDistinct` attribute to control this behavi
 |-------|-----------------|--------|
 | `@UK @Nonnull String email` | (irrelevant) | Safe. No warning, no runtime check. |
 | `@UK int count` | (irrelevant) | Safe. Primitive is never null. |
-| `@UK String email` | `true` (default) | Compile-time warning. `slice` throws `PersistenceException`. |
-| `@UK(nullsDistinct = false) String email` | `false` | No warning. `slice` works (user asserts DB prevents duplicate NULLs). |
+| `@UK String email` | `true` (default) | Compile-time warning. `scroll` throws `PersistenceException`. |
+| `@UK(nullsDistinct = false) String email` | `false` | No warning. `scroll` works (user asserts DB prevents duplicate NULLs). |
 
 When `nullsDistinct` is set to `false`, you are telling Storm that your database constraint prevents duplicate `NULL` values in the column. Storm trusts this assertion and skips both the compile-time warning and the runtime check. Use this only when your database actually enforces this guarantee (for example, with a `NULLS NOT DISTINCT` unique index in PostgreSQL 15+, or on SQL Server where unique indexes allow at most one `NULL` by default).
 
-The following examples show how to define unique keys that are safe for keyset pagination.
+The following examples show how to define unique keys that are safe for scrolling.
 
 <Tabs groupId="language">
 <TabItem value="kotlin" label="Kotlin" default>
@@ -576,7 +582,7 @@ The following examples show how to define unique keys that are safe for keyset p
 // Safe (non-nullable)
 data class User(
     @PK val id: Int = 0,
-    @UK val email: String,     // Non-nullable, safe for keyset pagination
+    @UK val email: String,     // Non-nullable, safe for scrolling
     val name: String
 ) : Entity<Int>
 
@@ -594,7 +600,7 @@ data class User(
 ```java
 // Safe (non-nullable)
 record User(@PK Integer id,
-            @UK @Nonnull String email,  // Non-nullable, safe for keyset pagination
+            @UK @Nonnull String email,  // Non-nullable, safe for scrolling
             String name
 ) implements Entity<Integer> {}
 
@@ -705,7 +711,7 @@ path1.canonical().equals(path2.canonical());  // true
 
 ### Wrapping as a Key
 
-`Metamodel.key(metamodel)` wraps any metamodel as a `Metamodel.Key`, indicating that the column can serve as a unique cursor for keyset pagination. If the metamodel already implements `Key`, it is returned as-is. See [Manual Key Wrapping](#manual-key-wrapping) for usage examples.
+`Metamodel.key(metamodel)` wraps any metamodel as a `Metamodel.Key`, indicating that the column can serve as a unique cursor for scrolling. If the metamodel already implements `Key`, it is returned as-is. See [Manual Key Wrapping](#manual-key-wrapping) for usage examples.
 
 ## `@GenerateMetamodel` Annotation
 

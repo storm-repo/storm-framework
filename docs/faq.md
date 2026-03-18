@@ -279,12 +279,30 @@ var page = orm.entity(User.class)
 </TabItem>
 </Tabs>
 
-For large tables where users scroll through results sequentially, prefer **keyset pagination** via `slice()`, `sliceAfter()`, and `sliceBefore()`. These are available directly on repositories and on the query builder, and remain performant regardless of how deep into the result set you are. `Slice` intentionally does not include a total element count, since a separate `COUNT(*)` must execute the same joins and filters as the main query, which can be expensive on large or complex result sets. Total counts are also inherently unstable, as rows may be inserted or deleted while a user navigates through pages. If you need a total count separately, use the `count` (Kotlin) or `getCount()` (Java) method on the query builder. See [Queries](queries.md#slice) for a full explanation.
+For large tables where users scroll through results sequentially, prefer **scrolling** via `scroll()` with a `Scrollable`. This is available directly on repositories and on the query builder, and remains performant regardless of how deep into the result set you are. `Window` intentionally does not include a total element count, since a separate `COUNT(*)` must execute the same joins and filters as the main query, which can be expensive on large or complex result sets. Total counts are also inherently unstable, as rows may be inserted or deleted while a user navigates through pages. If you need a total count separately, use the `count` (Kotlin) or `getCount()` (Java) method on the query builder. See [Pagination and Scrolling: Scrolling](pagination-and-scrolling.md#scrolling) for a full explanation.
+
+<Tabs groupId="language">
+<TabItem value="kotlin" label="Kotlin" default>
 
 ```kotlin
-val page = userRepository.slice(User_.id, 20)
-val next = userRepository.sliceAfter(User_.id, page.content.last().id, 20)
+val window = userRepository.scroll(Scrollable.of(User_.id, 20))
+if (window.hasNext()) {
+    val next = userRepository.scroll(window.nextScrollable())
+}
 ```
+
+</TabItem>
+<TabItem value="java" label="Java">
+
+```java
+Window<User> window = userRepository.scroll(Scrollable.of(User_.id, 20));
+if (window.hasNext()) {
+    Window<User> next = userRepository.scroll(window.nextScrollable());
+}
+```
+
+</TabItem>
+</Tabs>
 
 ### Why does my DELETE without a WHERE clause throw an exception?
 

@@ -899,7 +899,7 @@ public final class MetamodelProcessor extends AbstractProcessor {
                         processingEnv.getMessager().printMessage(
                                 WARNING,
                                 "Unique key field '" + fieldName + "' on " + recordName + " has nullable constituent fields. "
-                                + "Keyset pagination (slice/sliceAfter/sliceBefore) will be rejected at runtime. "
+                                + "Scrolling (scroll/scrollAfter/scrollBefore) will be rejected at runtime. "
                                 + "Consider adding @Nonnull to constituent fields, using primitive types, or setting "
                                 + "@UK(nullsDistinct = false) if the database constraint prevents duplicate NULLs.",
                                 enclosed);
@@ -935,7 +935,7 @@ public final class MetamodelProcessor extends AbstractProcessor {
                         processingEnv.getMessager().printMessage(
                                 WARNING,
                                 "Unique key field '" + fieldName + "' on " + recordName + " is nullable. "
-                                + "Keyset pagination (slice/sliceAfter/sliceBefore) will be rejected at runtime. "
+                                + "Scrolling (scroll/scrollAfter/scrollBefore) will be rejected at runtime. "
                                 + "Consider adding @Nonnull, using a primitive type, or setting @UK(nullsDistinct = false) "
                                 + "if the database constraint prevents duplicate NULLs.",
                                 enclosed);

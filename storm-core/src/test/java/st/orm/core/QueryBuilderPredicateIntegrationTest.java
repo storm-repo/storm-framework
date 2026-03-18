@@ -20,6 +20,7 @@ import org.springframework.test.context.ContextConfiguration;
 import org.springframework.test.context.junit.jupiter.SpringExtension;
 import st.orm.PersistenceException;
 import st.orm.Ref;
+import st.orm.Scrollable;
 import st.orm.core.model.City;
 import st.orm.core.model.City_;
 import st.orm.core.model.Owner;
@@ -304,137 +305,137 @@ public class QueryBuilderPredicateIntegrationTest {
         }
     }
 
-    // QueryBuilder.slice with invalid size throws
+    // QueryBuilder.scroll with invalid size throws
 
     @Test
-    public void testSliceNonPositiveSizeThrows() {
+    public void testScrollNonPositiveSizeThrows() {
         var orm = ORMTemplate.of(dataSource);
         assertThrows(IllegalArgumentException.class, () ->
-                orm.selectFrom(City.class).orderBy(City_.id).slice(0));
+                orm.selectFrom(City.class).orderBy(City_.id).scroll(0));
     }
 
-    // QueryBuilder.slice basic without key
+    // QueryBuilder.scroll basic without key
 
     @Test
-    public void testSliceBasicWithoutKey() {
+    public void testScrollBasicWithoutKey() {
         var orm = ORMTemplate.of(dataSource);
-        var slice = orm.selectFrom(City.class)
+        var window = orm.selectFrom(City.class)
                 .orderBy(City_.id)
-                .slice(3);
-        assertEquals(3, slice.content().size());
-        assertTrue(slice.hasNext(), "Expected hasNext=true since there are 6 cities");
+                .scroll(3);
+        assertEquals(3, window.content().size());
+        assertTrue(window.hasNext(), "Expected hasNext=true since there are 6 cities");
     }
 
-    // Keyset pagination: sliceBefore (cursorless, descending)
+    // Scrolling: scrollBefore (cursorless, descending)
 
     @Test
-    public void testSliceBeforeCursorless() {
+    public void testScrollBeforeCursorless() {
         var orm = ORMTemplate.of(dataSource);
-        var slice = orm.selectFrom(City.class)
-                .sliceBefore(City_.id, 3);
-        assertEquals(3, slice.content().size());
-        assertTrue(slice.hasNext(), "Expected hasNext since there are 6 cities");
-        for (int i = 0; i < slice.content().size() - 1; i++) {
-            assertTrue(slice.content().get(i).id() > slice.content().get(i + 1).id());
+        var window = orm.selectFrom(City.class)
+                .scroll(Scrollable.of(City_.id, 3).backward());
+        assertEquals(3, window.content().size());
+        assertTrue(window.hasNext(), "Expected hasNext since there are 6 cities");
+        for (int i = 0; i < window.content().size() - 1; i++) {
+            assertTrue(window.content().get(i).id() > window.content().get(i + 1).id());
         }
     }
 
-    // Keyset pagination: sliceAfter with value cursor
+    // Scrolling: scrollAfter with value cursor
 
     @Test
-    public void testSliceAfterWithValueCursor() {
+    public void testScrollAfterWithValueCursor() {
         var orm = ORMTemplate.of(dataSource);
-        var slice = orm.selectFrom(City.class)
-                .sliceAfter(City_.id, 2, 3);
-        assertEquals(3, slice.content().size());
-        assertTrue(slice.hasNext());
-        for (City city : slice.content()) {
+        var window = orm.selectFrom(City.class)
+                .scroll(new Scrollable<>(City_.id, 2, null, null, 3, true));
+        assertEquals(3, window.content().size());
+        assertTrue(window.hasNext());
+        for (City city : window.content()) {
             assertTrue(city.id() > 2);
         }
     }
 
-    // Keyset pagination: sliceBefore with value cursor
+    // Scrolling: scrollBefore with value cursor
 
     @Test
-    public void testSliceBeforeWithValueCursor() {
+    public void testScrollBeforeWithValueCursor() {
         var orm = ORMTemplate.of(dataSource);
-        var slice = orm.selectFrom(City.class)
-                .sliceBefore(City_.id, 5, 3);
-        assertEquals(3, slice.content().size());
-        assertTrue(slice.hasNext());
-        for (City city : slice.content()) {
+        var window = orm.selectFrom(City.class)
+                .scroll(new Scrollable<>(City_.id, 5, null, null, 3, false));
+        assertEquals(3, window.content().size());
+        assertTrue(window.hasNext());
+        for (City city : window.content()) {
             assertTrue(city.id() < 5);
         }
     }
 
-    // Keyset pagination: sliceAfter/sliceBefore throw with explicit orderBy
+    // Scrolling: scrollAfter/scrollBefore throw with explicit orderBy
 
     @Test
-    public void testSliceAfterThrowsWithExplicitOrderBy() {
+    public void testScrollAfterThrowsWithExplicitOrderBy() {
         var orm = ORMTemplate.of(dataSource);
         assertThrows(PersistenceException.class, () ->
                 orm.selectFrom(City.class)
                         .orderBy(City_.name)
-                        .sliceAfter(City_.id, 1, 3));
+                        .scroll(new Scrollable<>(City_.id, 1, null, null, 3, true)));
     }
 
     @Test
-    public void testSliceBeforeThrowsWithExplicitOrderBy() {
+    public void testScrollBeforeThrowsWithExplicitOrderBy() {
         var orm = ORMTemplate.of(dataSource);
         assertThrows(PersistenceException.class, () ->
                 orm.selectFrom(City.class)
                         .orderBy(City_.name)
-                        .sliceBefore(City_.id, 5, 3));
+                        .scroll(new Scrollable<>(City_.id, 5, null, null, 3, false)));
     }
 
-    // Composite keyset pagination: slice(key, sort, size)
+    // Composite scrolling: first page
 
     @Test
-    public void testCompositeSliceFirstPage() {
+    public void testCompositeScrollFirstPage() {
         var orm = ORMTemplate.of(dataSource);
-        var slice = orm.selectFrom(City.class)
-                .slice(City_.id, City_.name, 3);
-        assertEquals(3, slice.content().size());
-        assertTrue(slice.hasNext());
+        var window = orm.selectFrom(City.class)
+                .scroll(Scrollable.of(City_.id, City_.name, 3));
+        assertEquals(3, window.content().size());
+        assertTrue(window.hasNext());
     }
 
-    // Composite keyset pagination: sliceAfter(key, keyAfter, sort, sortAfter, size)
+    // Composite scrolling: scroll forward with cursor
 
     @Test
-    public void testCompositeSliceAfter() {
+    public void testCompositeScrollAfter() {
         var orm = ORMTemplate.of(dataSource);
         var firstPage = orm.selectFrom(City.class)
-                .slice(City_.id, City_.name, 3);
+                .scroll(Scrollable.of(City_.id, City_.name, 3));
         City lastCity = firstPage.content().getLast();
         var secondPage = orm.selectFrom(City.class)
-                .sliceAfter(City_.id, lastCity.id(), City_.name, lastCity.name(), 3);
+                .scroll(new Scrollable<>(City_.id, lastCity.id(), City_.name, lastCity.name(), 3, true));
         assertNotNull(secondPage);
         assertFalse(secondPage.content().isEmpty());
     }
 
-    // Composite keyset pagination: sliceBefore(key, keyBefore, sort, sortBefore, size)
+    // Composite scrolling: scroll backward with cursor
 
     @Test
-    public void testCompositeSliceBefore() {
+    public void testCompositeScrollBefore() {
         var orm = ORMTemplate.of(dataSource);
         var lastPage = orm.selectFrom(City.class)
-                .sliceBefore(City_.id, City_.name, 3);
+                .scroll(Scrollable.of(City_.id, City_.name, 3).backward());
         assertNotNull(lastPage);
         City firstCity = lastPage.content().getLast();
         var previousPage = orm.selectFrom(City.class)
-                .sliceBefore(City_.id, firstCity.id(), City_.name, firstCity.name(), 3);
+                .scroll(new Scrollable<>(City_.id, firstCity.id(), City_.name, firstCity.name(), 3, false));
         assertNotNull(previousPage);
     }
 
-    // Composite keyset pagination: sliceBefore cursorless (descending)
+    // Composite scrolling: first page descending
 
     @Test
-    public void testCompositeSliceBeforeCursorless() {
+    public void testCompositeScrollBeforeCursorless() {
         var orm = ORMTemplate.of(dataSource);
-        var slice = orm.selectFrom(City.class)
-                .sliceBefore(City_.id, City_.name, 3);
-        assertEquals(3, slice.content().size());
-        assertTrue(slice.hasNext());
+        var window = orm.selectFrom(City.class)
+                .scroll(Scrollable.of(City_.id, City_.name, 3).backward());
+        assertEquals(3, window.content().size());
+        assertTrue(window.hasNext());
     }
 
     // Complex predicate: nested AND and OR

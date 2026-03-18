@@ -16,13 +16,9 @@ import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.test.context.ContextConfiguration
 import org.springframework.test.context.jdbc.Sql
 import org.springframework.test.context.junit.jupiter.SpringExtension
-import st.orm.Data
-import st.orm.Metamodel
-import st.orm.NoResultException
-import st.orm.Operator.*
-import st.orm.Pageable
-import st.orm.PersistenceException
-import st.orm.Ref
+import st.orm.*
+import st.orm.Operator.EQUALS
+import st.orm.Operator.IN
 import st.orm.repository.*
 import st.orm.template.model.*
 
@@ -623,25 +619,25 @@ open class EntityRepositoryTest(
         count shouldBe 2
     }
 
-    // EntityRepository: Slice methods
+    // EntityRepository: Scroll methods
 
     @Test
-    fun `slice on entity repo should return first page`() {
+    fun `scrollon entity repo should return first page`() {
         val repo = orm.entity(City::class)
         val idPath = metamodel<City, Int>(repo.model, "id")
-        val slice = repo.select().orderBy(idPath).slice(3)
-        slice.content shouldHaveSize 3
-        slice.hasNext shouldBe true
-        slice.content[0].id shouldBe 1
+        val window = repo.select().orderBy(idPath).scroll(3)
+        window.content shouldHaveSize 3
+        window.hasNext shouldBe true
+        window.content[0].id shouldBe 1
     }
 
     @Test
-    fun `slice with large size should return all entities`() {
+    fun `scroll with large size should return all entities`() {
         val repo = orm.entity(City::class)
         val idPath = metamodel<City, Int>(repo.model, "id")
-        val slice = repo.select().orderBy(idPath).slice(100)
-        slice.content shouldHaveSize 6
-        slice.hasNext shouldBe false
+        val window = repo.select().orderBy(idPath).scroll(100)
+        window.content shouldHaveSize 6
+        window.hasNext shouldBe false
     }
 
     // RepositoryLookup: delete extension functions
@@ -1423,221 +1419,221 @@ open class EntityRepositoryTest(
         owner.firstName shouldBe "Betty"
     }
 
-    // EntityRepository: Slice methods with Metamodel.Key
+    // EntityRepository: Scroll methods with Metamodel.Key
 
     @Test
-    fun `entity slice with Metamodel Key should return first page`() {
+    fun `entity scroll with Metamodel Key should return first page`() {
         val repo = orm.entity(City::class)
         val idKey = metamodel<City, Int>(repo.model, "id").key()
-        val slice = repo.slice(idKey, 3)
-        slice.content shouldHaveSize 3
-        slice.hasNext shouldBe true
+        val window = repo.scroll(Scrollable.of(idKey, 3))
+        window.content shouldHaveSize 3
+        window.hasNext shouldBe true
     }
 
     @Test
-    fun `entity sliceBefore with Metamodel Key should return descending first page`() {
+    fun `entity scrollBefore with Metamodel Key should return descending first page`() {
         val repo = orm.entity(City::class)
         val idKey = metamodel<City, Int>(repo.model, "id").key()
-        val slice = repo.sliceBefore(idKey, 3)
-        slice.content shouldHaveSize 3
-        slice.hasNext shouldBe true
-        slice.content[0].id shouldBe 6
+        val window = repo.scroll(Scrollable.of(idKey, 3).backward())
+        window.content shouldHaveSize 3
+        window.hasNext shouldBe true
+        window.content[0].id shouldBe 6
     }
 
     @Test
-    fun `entity sliceRef with Metamodel Key should return first page of refs`() {
+    fun `entity scrollRef with Metamodel Key should return first page of refs`() {
         val repo = orm.entity(City::class)
         val idKey = metamodel<City, Int>(repo.model, "id").key()
-        val slice = repo.sliceRef(idKey, 3)
-        slice.content shouldHaveSize 3
-        slice.hasNext shouldBe true
+        val window = repo.selectRef().scroll(Scrollable.of(idKey, 3))
+        window.content shouldHaveSize 3
+        window.hasNext shouldBe true
     }
 
     @Test
-    fun `entity sliceBeforeRef with Metamodel Key should return refs descending`() {
+    fun `entity scrollBeforeRef with Metamodel Key should return refs descending`() {
         val repo = orm.entity(City::class)
         val idKey = metamodel<City, Int>(repo.model, "id").key()
-        val slice = repo.sliceBeforeRef(idKey, 3)
-        slice.content shouldHaveSize 3
-        slice.hasNext shouldBe true
+        val window = repo.selectRef().scroll(Scrollable.of(idKey, 3).backward())
+        window.content shouldHaveSize 3
+        window.hasNext shouldBe true
     }
 
     @Test
-    fun `entity slice with key and PredicateBuilder should filter results`() {
-        val repo = orm.entity(City::class)
-        val idKey = metamodel<City, Int>(repo.model, "id").key()
-        val namePath = metamodel<City, String>(repo.model, "name")
-        val slice = repo.slice(idKey, 10, namePath eq "Madison")
-        slice.content shouldHaveSize 1
-        slice.hasNext shouldBe false
-    }
-
-    @Test
-    fun `entity sliceRef with key and PredicateBuilder should filter refs`() {
+    fun `entity scroll with key and PredicateBuilder should filter results`() {
         val repo = orm.entity(City::class)
         val idKey = metamodel<City, Int>(repo.model, "id").key()
         val namePath = metamodel<City, String>(repo.model, "name")
-        val slice = repo.sliceRef(idKey, 10, namePath eq "Madison")
-        slice.content shouldHaveSize 1
+        val window = repo.select().where(namePath eq "Madison").scroll(Scrollable.of(idKey, 10))
+        window.content shouldHaveSize 1
+        window.hasNext shouldBe false
     }
 
     @Test
-    fun `entity sliceBefore with key and PredicateBuilder should filter descending`() {
+    fun `entity scrollRef with key and PredicateBuilder should filter refs`() {
         val repo = orm.entity(City::class)
         val idKey = metamodel<City, Int>(repo.model, "id").key()
         val namePath = metamodel<City, String>(repo.model, "name")
-        val slice = repo.sliceBefore(idKey, 10, namePath like "M%")
-        slice.content shouldHaveSize 3
+        val window = repo.selectRef().where(namePath eq "Madison").scroll(Scrollable.of(idKey, 10))
+        window.content shouldHaveSize 1
     }
 
-    // EntityRepository: Slice with lambda predicate
+    @Test
+    fun `entity scrollBefore with key and PredicateBuilder should filter descending`() {
+        val repo = orm.entity(City::class)
+        val idKey = metamodel<City, Int>(repo.model, "id").key()
+        val namePath = metamodel<City, String>(repo.model, "name")
+        val window = repo.select().where(namePath like "M%").scroll(Scrollable.of(idKey, 10).backward())
+        window.content shouldHaveSize 3
+    }
+
+    // EntityRepository: Scroll with lambda predicate
 
     @Test
-    fun `entity slice with key and lambda predicate should filter results`() {
+    fun `entity scroll with key and lambda predicate should filter results`() {
         val cities = orm.entity(City::class)
         val idKey = metamodel<City, Int>(cities.model, "id").key()
         val namePath = metamodel<City, String>(cities.model, "name")
-        val slice = cities.slice(idKey, 10) { namePath eq "Madison" }
-        slice.content shouldHaveSize 1
-        slice.hasNext shouldBe false
+        val window = cities.select().where(namePath eq "Madison").scroll(Scrollable.of(idKey, 10))
+        window.content shouldHaveSize 1
+        window.hasNext shouldBe false
     }
 
     @Test
-    fun `entity sliceRef with key and lambda predicate should filter refs`() {
+    fun `entity scrollRef with key and lambda predicate should filter refs`() {
         val cities = orm.entity(City::class)
         val idKey = metamodel<City, Int>(cities.model, "id").key()
         val namePath = metamodel<City, String>(cities.model, "name")
-        val slice = cities.sliceRef(idKey, 10) { namePath eq "Madison" }
-        slice.content shouldHaveSize 1
+        val window = cities.selectRef().where(namePath eq "Madison").scroll(Scrollable.of(idKey, 10))
+        window.content shouldHaveSize 1
     }
 
     @Test
-    fun `entity sliceBefore with key and lambda predicate should filter descending`() {
+    fun `entity scrollBefore with key and lambda predicate should filter descending`() {
         val cities = orm.entity(City::class)
         val idKey = metamodel<City, Int>(cities.model, "id").key()
         val namePath = metamodel<City, String>(cities.model, "name")
-        val slice = cities.sliceBefore(idKey, 10) { namePath like "M%" }
-        slice.content shouldHaveSize 3
+        val window = cities.select().where(namePath like "M%").scroll(Scrollable.of(idKey, 10).backward())
+        window.content shouldHaveSize 3
     }
 
     @Test
-    fun `entity sliceBeforeRef with key and lambda predicate should filter refs`() {
+    fun `entity scrollBeforeRef with key and lambda predicate should filter refs`() {
         val cities = orm.entity(City::class)
         val idKey = metamodel<City, Int>(cities.model, "id").key()
         val namePath = metamodel<City, String>(cities.model, "name")
-        val slice = cities.sliceBeforeRef(idKey, 10) { namePath like "M%" }
-        slice.content shouldHaveSize 3
+        val window = cities.selectRef().where(namePath like "M%").scroll(Scrollable.of(idKey, 10).backward())
+        window.content shouldHaveSize 3
     }
 
     @Test
-    fun `entity sliceAfter with key and cursor should return next page`() {
+    fun `entity scrollAfter with key and cursor should return next page`() {
         val repo = orm.entity(City::class)
         val idKey = metamodel<City, Int>(repo.model, "id").key()
-        val slice = repo.sliceAfter(idKey, 3, 3)
-        slice.content shouldHaveSize 3
-        slice.content[0].id shouldBe 4
+        val window = repo.select().scroll(Scrollable(idKey, 3, null, null, 3, true))
+        window.content shouldHaveSize 3
+        window.content[0].id shouldBe 4
     }
 
     @Test
-    fun `entity sliceAfterRef with key and cursor should return next page refs`() {
+    fun `entity scrollAfterRef with key and cursor should return next page refs`() {
         val repo = orm.entity(City::class)
         val idKey = metamodel<City, Int>(repo.model, "id").key()
-        val slice = repo.sliceAfterRef(idKey, 3, 3)
-        slice.content shouldHaveSize 3
+        val window = repo.selectRef().scroll(Scrollable(idKey, 3, null, null, 3, true))
+        window.content shouldHaveSize 3
     }
 
     @Test
-    fun `entity sliceBefore with key and cursor should return previous page`() {
+    fun `entity scrollBefore with key and cursor should return previous page`() {
         val repo = orm.entity(City::class)
         val idKey = metamodel<City, Int>(repo.model, "id").key()
-        val slice = repo.sliceBefore(idKey, 4, 3)
-        slice.content shouldHaveSize 3
+        val window = repo.select().scroll(Scrollable(idKey, 4, null, null, 3, false))
+        window.content shouldHaveSize 3
     }
 
     @Test
-    fun `entity sliceBeforeRef with key and cursor should return previous page refs`() {
+    fun `entity scrollBeforeRef with key and cursor should return previous page refs`() {
         val repo = orm.entity(City::class)
         val idKey = metamodel<City, Int>(repo.model, "id").key()
-        val slice = repo.sliceBeforeRef(idKey, 4, 3)
-        slice.content shouldHaveSize 3
+        val window = repo.selectRef().scroll(Scrollable(idKey, 4, null, null, 3, false))
+        window.content shouldHaveSize 3
     }
 
     @Test
-    fun `entity sliceAfter with key cursor and PredicateBuilder should filter next page`() {
-        val repo = orm.entity(City::class)
-        val idKey = metamodel<City, Int>(repo.model, "id").key()
-        val namePath = metamodel<City, String>(repo.model, "name")
-        val slice = repo.sliceAfter(idKey, 1, 10, namePath like "M%")
-        slice.content shouldHaveSize 3
-    }
-
-    @Test
-    fun `entity sliceAfterRef with key cursor and PredicateBuilder should filter next page refs`() {
+    fun `entity scrollAfter with key cursor and PredicateBuilder should filter next page`() {
         val repo = orm.entity(City::class)
         val idKey = metamodel<City, Int>(repo.model, "id").key()
         val namePath = metamodel<City, String>(repo.model, "name")
-        val slice = repo.sliceAfterRef(idKey, 1, 10, namePath like "M%")
-        slice.content shouldHaveSize 3
+        val window = repo.select().where(namePath like "M%").scroll(Scrollable(idKey, 1, null, null, 10, true))
+        window.content shouldHaveSize 3
     }
 
     @Test
-    fun `entity sliceBefore with key cursor and PredicateBuilder should filter previous page`() {
+    fun `entity scrollAfterRef with key cursor and PredicateBuilder should filter next page refs`() {
         val repo = orm.entity(City::class)
         val idKey = metamodel<City, Int>(repo.model, "id").key()
         val namePath = metamodel<City, String>(repo.model, "name")
-        val slice = repo.sliceBefore(idKey, 6, 10, namePath like "M%")
-        slice.content shouldHaveSize 3
+        val window = repo.selectRef().where(namePath like "M%").scroll(Scrollable(idKey, 1, null, null, 10, true))
+        window.content shouldHaveSize 3
     }
 
     @Test
-    fun `entity sliceBeforeRef with key cursor and PredicateBuilder should filter previous page refs`() {
+    fun `entity scrollBefore with key cursor and PredicateBuilder should filter previous page`() {
         val repo = orm.entity(City::class)
         val idKey = metamodel<City, Int>(repo.model, "id").key()
         val namePath = metamodel<City, String>(repo.model, "name")
-        val slice = repo.sliceBeforeRef(idKey, 6, 10, namePath like "M%")
-        slice.content shouldHaveSize 3
-    }
-
-    // EntityRepository: Slice with sort metamodel
-
-    @Test
-    fun `entity slice with key sort and size should return sorted first page`() {
-        val repo = orm.entity(City::class)
-        val idKey = metamodel<City, Int>(repo.model, "id").key()
-        val namePath = metamodel<City, String>(repo.model, "name")
-        val slice = repo.slice(idKey, namePath, 3)
-        slice.content shouldHaveSize 3
-        slice.hasNext shouldBe true
+        val window = repo.select().where(namePath like "M%").scroll(Scrollable(idKey, 6, null, null, 10, false))
+        window.content shouldHaveSize 3
     }
 
     @Test
-    fun `entity sliceBefore with key sort and size should return sorted last page`() {
+    fun `entity scrollBeforeRef with key cursor and PredicateBuilder should filter previous page refs`() {
         val repo = orm.entity(City::class)
         val idKey = metamodel<City, Int>(repo.model, "id").key()
         val namePath = metamodel<City, String>(repo.model, "name")
-        val slice = repo.sliceBefore(idKey, namePath, 3)
-        slice.content shouldHaveSize 3
-        slice.hasNext shouldBe true
+        val window = repo.selectRef().where(namePath like "M%").scroll(Scrollable(idKey, 6, null, null, 10, false))
+        window.content shouldHaveSize 3
+    }
+
+    // EntityRepository: Scroll with sort metamodel
+
+    @Test
+    fun `entity scroll with key sort and size should return sorted first page`() {
+        val repo = orm.entity(City::class)
+        val idKey = metamodel<City, Int>(repo.model, "id").key()
+        val namePath = metamodel<City, String>(repo.model, "name")
+        val window = repo.scroll(Scrollable.of(idKey, namePath, 3))
+        window.content shouldHaveSize 3
+        window.hasNext shouldBe true
     }
 
     @Test
-    fun `entity sliceRef with key sort and size should return sorted first page refs`() {
+    fun `entity scrollBefore with key sort and size should return sorted last page`() {
         val repo = orm.entity(City::class)
         val idKey = metamodel<City, Int>(repo.model, "id").key()
         val namePath = metamodel<City, String>(repo.model, "name")
-        val slice = repo.sliceRef(idKey, namePath, 3)
-        slice.content shouldHaveSize 3
-        slice.hasNext shouldBe true
+        val window = repo.scroll(Scrollable.of(idKey, namePath, 3).backward())
+        window.content shouldHaveSize 3
+        window.hasNext shouldBe true
     }
 
     @Test
-    fun `entity sliceBeforeRef with key sort and size should return sorted refs`() {
+    fun `entity scrollRef with key sort and size should return sorted first page refs`() {
         val repo = orm.entity(City::class)
         val idKey = metamodel<City, Int>(repo.model, "id").key()
         val namePath = metamodel<City, String>(repo.model, "name")
-        val slice = repo.sliceBeforeRef(idKey, namePath, 3)
-        slice.content shouldHaveSize 3
-        slice.hasNext shouldBe true
+        val window = repo.selectRef().scroll(Scrollable.of(idKey, namePath, 3))
+        window.content shouldHaveSize 3
+        window.hasNext shouldBe true
+    }
+
+    @Test
+    fun `entity scrollBeforeRef with key sort and size should return sorted refs`() {
+        val repo = orm.entity(City::class)
+        val idKey = metamodel<City, Int>(repo.model, "id").key()
+        val namePath = metamodel<City, String>(repo.model, "name")
+        val window = repo.selectRef().scroll(Scrollable.of(idKey, namePath, 3).backward())
+        window.content shouldHaveSize 3
+        window.hasNext shouldBe true
     }
 
     // EntityRepository: delete with PredicateBuilder
@@ -1650,202 +1646,202 @@ open class EntityRepositoryTest(
         deleted shouldBe 1
     }
 
-    // EntityRepository: Keyset pagination with PK
+    // EntityRepository: Scrolling with PK
 
     @Test
-    fun `entity sliceAfter should return next page`() {
+    fun `entity scrollAfter should return next page`() {
         val repo = orm.entity(Owner::class)
         val idKey = metamodel<Owner, Int>(repo.model, "id").key()
         // Owners have ids 1-10. After id > 5: ids 6,7,8,9,10 = 5 owners.
-        val slice = repo.sliceAfter(idKey, 5, 10)
-        slice.content.size shouldBe 5
+        val window = repo.select().scroll(Scrollable(idKey, 5, null, null, 10, true))
+        window.content.size shouldBe 5
     }
 
     @Test
-    fun `entity sliceAfterRef should return next page refs`() {
+    fun `entity scrollAfterRef should return next page refs`() {
         val repo = orm.entity(Owner::class)
         val idKey = metamodel<Owner, Int>(repo.model, "id").key()
-        val slice = repo.sliceAfterRef(idKey, 5, 10)
-        slice.content.size shouldBe 5
+        val window = repo.selectRef().scroll(Scrollable(idKey, 5, null, null, 10, true))
+        window.content.size shouldBe 5
     }
 
     @Test
-    fun `entity sliceBefore should return previous page`() {
+    fun `entity scrollBefore should return previous page`() {
         val repo = orm.entity(Owner::class)
         val idKey = metamodel<Owner, Int>(repo.model, "id").key()
         // Owners have ids 1-10. Before id < 6: ids 1,2,3,4,5 = 5 owners.
-        val slice = repo.sliceBefore(idKey, 6, 10)
-        slice.content.size shouldBe 5
+        val window = repo.select().scroll(Scrollable(idKey, 6, null, null, 10, false))
+        window.content.size shouldBe 5
     }
 
     @Test
-    fun `entity sliceBeforeRef should return previous page refs`() {
+    fun `entity scrollBeforeRef should return previous page refs`() {
         val repo = orm.entity(Owner::class)
         val idKey = metamodel<Owner, Int>(repo.model, "id").key()
-        val slice = repo.sliceBeforeRef(idKey, 6, 10)
-        slice.content.size shouldBe 5
+        val window = repo.selectRef().scroll(Scrollable(idKey, 6, null, null, 10, false))
+        window.content.size shouldBe 5
     }
 
     @Test
-    fun `entity sliceAfter with PredicateBuilder should filter`() {
+    fun `entity scrollAfter with PredicateBuilder should filter`() {
         val repo = orm.entity(Owner::class)
         val idKey = metamodel<Owner, Int>(repo.model, "id").key()
         val lastNamePath = metamodel<Owner, String>(repo.model, "last_name")
         // After id > 1 AND last_name LIKE 'D%': owners 4 (Harold Davis) = 1 owner.
-        val slice = repo.sliceAfter(idKey, 1, 10, lastNamePath like "D%")
-        slice.content.size shouldBe 1
+        val window = repo.select().where(lastNamePath like "D%").scroll(Scrollable(idKey, 1, null, null, 10, true))
+        window.content.size shouldBe 1
     }
 
     @Test
-    fun `entity sliceAfterRef with PredicateBuilder should filter refs`() {
+    fun `entity scrollAfterRef with PredicateBuilder should filter refs`() {
         val repo = orm.entity(Owner::class)
         val idKey = metamodel<Owner, Int>(repo.model, "id").key()
         val lastNamePath = metamodel<Owner, String>(repo.model, "last_name")
-        val slice = repo.sliceAfterRef(idKey, 1, 10, lastNamePath like "D%")
-        slice.content.size shouldBe 1
+        val window = repo.selectRef().where(lastNamePath like "D%").scroll(Scrollable(idKey, 1, null, null, 10, true))
+        window.content.size shouldBe 1
     }
 
     @Test
-    fun `entity sliceBefore with PredicateBuilder should filter`() {
+    fun `entity scrollBefore with PredicateBuilder should filter`() {
         val repo = orm.entity(Owner::class)
         val idKey = metamodel<Owner, Int>(repo.model, "id").key()
         val lastNamePath = metamodel<Owner, String>(repo.model, "last_name")
         // Before id < 10 AND last_name LIKE 'D%': owners 1 (Betty Davis), 4 (Harold Davis) = 2 owners.
-        val slice = repo.sliceBefore(idKey, 10, 10, lastNamePath like "D%")
-        slice.content.size shouldBe 2
+        val window = repo.select().where(lastNamePath like "D%").scroll(Scrollable(idKey, 10, null, null, 10, false))
+        window.content.size shouldBe 2
     }
 
     @Test
-    fun `entity sliceBeforeRef with PredicateBuilder should filter refs`() {
+    fun `entity scrollBeforeRef with PredicateBuilder should filter refs`() {
         val repo = orm.entity(Owner::class)
         val idKey = metamodel<Owner, Int>(repo.model, "id").key()
         val lastNamePath = metamodel<Owner, String>(repo.model, "last_name")
-        val slice = repo.sliceBeforeRef(idKey, 10, 10, lastNamePath like "D%")
-        slice.content.size shouldBe 2
+        val window = repo.selectRef().where(lastNamePath like "D%").scroll(Scrollable(idKey, 10, null, null, 10, false))
+        window.content.size shouldBe 2
     }
 
-    // EntityRepository: Composite keyset pagination with sort
+    // EntityRepository: Composite scrolling with sort
 
     @Test
-    fun `entity sliceAfter with key sort cursor should return next page`() {
+    fun `entity scrollAfter with key sort cursor should return next page`() {
         val repo = orm.entity(City::class)
         val idKey = metamodel<City, Int>(repo.model, "id").key()
         val namePath = metamodel<City, String>(repo.model, "name")
-        val firstPage = repo.slice(idKey, namePath, 3)
+        val firstPage = repo.scroll(Scrollable.of(idKey, namePath, 3))
         firstPage.content shouldHaveSize 3
         val lastItem = firstPage.content.last()
-        val nextPage = repo.sliceAfter(idKey, lastItem.id, namePath, lastItem.name, 3)
+        val nextPage = repo.select().scroll(Scrollable(idKey, lastItem.id, namePath, lastItem.name, 3, true))
         nextPage.content shouldHaveSize 3
     }
 
     @Test
-    fun `entity sliceBefore with key sort cursor should return previous page`() {
+    fun `entity scrollBefore with key sort cursor should return previous page`() {
         val repo = orm.entity(City::class)
         val idKey = metamodel<City, Int>(repo.model, "id").key()
         val namePath = metamodel<City, String>(repo.model, "name")
-        val lastPage = repo.sliceBefore(idKey, namePath, 3)
+        val lastPage = repo.scroll(Scrollable.of(idKey, namePath, 3).backward())
         lastPage.content shouldHaveSize 3
         val firstItem = lastPage.content.last()
-        val previousPage = repo.sliceBefore(idKey, firstItem.id, namePath, firstItem.name, 3)
+        val previousPage = repo.select().scroll(Scrollable(idKey, firstItem.id, namePath, firstItem.name, 3, false))
         previousPage.content shouldHaveSize 3
     }
 
     @Test
-    fun `entity sliceAfterRef with key sort cursor should return next page refs`() {
+    fun `entity scrollAfterRef with key sort cursor should return next page refs`() {
         val repo = orm.entity(City::class)
         val idKey = metamodel<City, Int>(repo.model, "id").key()
         val namePath = metamodel<City, String>(repo.model, "name")
-        val firstPage = repo.slice(idKey, namePath, 3)
+        val firstPage = repo.scroll(Scrollable.of(idKey, namePath, 3))
         val lastItem = firstPage.content.last()
-        val nextPage = repo.sliceAfterRef(idKey, lastItem.id, namePath, lastItem.name, 3)
+        val nextPage = repo.selectRef().scroll(Scrollable(idKey, lastItem.id, namePath, lastItem.name, 3, true))
         nextPage.content shouldHaveSize 3
     }
 
     @Test
-    fun `entity sliceBeforeRef with key sort cursor should return previous page refs`() {
+    fun `entity scrollBeforeRef with key sort cursor should return previous page refs`() {
         val repo = orm.entity(City::class)
         val idKey = metamodel<City, Int>(repo.model, "id").key()
         val namePath = metamodel<City, String>(repo.model, "name")
-        val lastPage = repo.sliceBefore(idKey, namePath, 3)
+        val lastPage = repo.scroll(Scrollable.of(idKey, namePath, 3).backward())
         val firstItem = lastPage.content.last()
-        val previousPage = repo.sliceBeforeRef(idKey, firstItem.id, namePath, firstItem.name, 3)
+        val previousPage = repo.selectRef().scroll(Scrollable(idKey, firstItem.id, namePath, firstItem.name, 3, false))
         previousPage.content shouldHaveSize 3
     }
 
     @Test
-    fun `entity sliceAfter with composite key sort cursor should return next page`() {
+    fun `entity scrollAfter with composite key sort cursor should return next page`() {
         val repo = orm.entity(Owner::class)
         val idKey = metamodel<Owner, Int>(repo.model, "id").key()
         val lastNamePath = metamodel<Owner, String>(repo.model, "last_name")
         // After (lastName > "A" OR (lastName = "A" AND id > 1)): all 10 owners have lastName > "A".
-        val slice = repo.sliceAfter(idKey, 1, lastNamePath, "A", 10)
-        slice.content.size shouldBe 10
+        val window = repo.select().scroll(Scrollable(idKey, 1, lastNamePath, "A", 10, true))
+        window.content.size shouldBe 10
     }
 
     @Test
-    fun `entity sliceBefore with composite key sort cursor should return previous page`() {
+    fun `entity scrollBefore with composite key sort cursor should return previous page`() {
         val repo = orm.entity(Owner::class)
         val idKey = metamodel<Owner, Int>(repo.model, "id").key()
         val lastNamePath = metamodel<Owner, String>(repo.model, "last_name")
         // Before (lastName < "Z" OR (lastName = "Z" AND id < 10)): all 10 owners have lastName < "Z".
-        val slice = repo.sliceBefore(idKey, 10, lastNamePath, "Z", 10)
-        slice.content.size shouldBe 10
+        val window = repo.select().scroll(Scrollable(idKey, 10, lastNamePath, "Z", 10, false))
+        window.content.size shouldBe 10
     }
 
     @Test
-    fun `entity sliceAfterRef with composite key sort cursor should return next page refs`() {
+    fun `entity scrollAfterRef with composite key sort cursor should return next page refs`() {
         val repo = orm.entity(Owner::class)
         val idKey = metamodel<Owner, Int>(repo.model, "id").key()
         val lastNamePath = metamodel<Owner, String>(repo.model, "last_name")
-        val slice = repo.sliceAfterRef(idKey, 1, lastNamePath, "A", 10)
-        slice.content.size shouldBe 10
+        val window = repo.selectRef().scroll(Scrollable(idKey, 1, lastNamePath, "A", 10, true))
+        window.content.size shouldBe 10
     }
 
     @Test
-    fun `entity sliceBeforeRef with composite key sort cursor should return previous page refs`() {
+    fun `entity scrollBeforeRef with composite key sort cursor should return previous page refs`() {
         val repo = orm.entity(Owner::class)
         val idKey = metamodel<Owner, Int>(repo.model, "id").key()
         val lastNamePath = metamodel<Owner, String>(repo.model, "last_name")
-        val slice = repo.sliceBeforeRef(idKey, 10, lastNamePath, "Z", 10)
-        slice.content.size shouldBe 10
+        val window = repo.selectRef().scroll(Scrollable(idKey, 10, lastNamePath, "Z", 10, false))
+        window.content.size shouldBe 10
     }
 
-    // EntityRepository: Predicate-based slice with cursor (value-based)
+    // EntityRepository: Predicate-based scroll with cursor (value-based)
 
     @Test
-    fun `entity sliceAfter with value cursor and PredicateBuilder should filter`() {
+    fun `entity scrollAfter with value cursor and PredicateBuilder should filter`() {
         val repo = orm.entity(City::class)
         val idKey = metamodel<City, Int>(repo.model, "id").key()
         val namePath = metamodel<City, String>(repo.model, "name")
-        val slice = repo.sliceAfter(idKey, 1, 10, namePath like "M%")
-        slice.content shouldHaveSize 3
+        val window = repo.select().where(namePath like "M%").scroll(Scrollable(idKey, 1, null, null, 10, true))
+        window.content shouldHaveSize 3
     }
 
     @Test
-    fun `entity sliceAfterRef with value cursor and PredicateBuilder should filter refs`() {
+    fun `entity scrollAfterRef with value cursor and PredicateBuilder should filter refs`() {
         val repo = orm.entity(City::class)
         val idKey = metamodel<City, Int>(repo.model, "id").key()
         val namePath = metamodel<City, String>(repo.model, "name")
-        val slice = repo.sliceAfterRef(idKey, 1, 10, namePath like "M%")
-        slice.content shouldHaveSize 3
+        val window = repo.selectRef().where(namePath like "M%").scroll(Scrollable(idKey, 1, null, null, 10, true))
+        window.content shouldHaveSize 3
     }
 
     @Test
-    fun `entity sliceBefore with value cursor and PredicateBuilder should filter`() {
+    fun `entity scrollBefore with value cursor and PredicateBuilder should filter`() {
         val repo = orm.entity(City::class)
         val idKey = metamodel<City, Int>(repo.model, "id").key()
         val namePath = metamodel<City, String>(repo.model, "name")
-        val slice = repo.sliceBefore(idKey, 6, 10, namePath like "M%")
-        slice.content shouldHaveSize 3
+        val window = repo.select().where(namePath like "M%").scroll(Scrollable(idKey, 6, null, null, 10, false))
+        window.content shouldHaveSize 3
     }
 
     @Test
-    fun `entity sliceBeforeRef with value cursor and PredicateBuilder should filter refs`() {
+    fun `entity scrollBeforeRef with value cursor and PredicateBuilder should filter refs`() {
         val repo = orm.entity(City::class)
         val idKey = metamodel<City, Int>(repo.model, "id").key()
         val namePath = metamodel<City, String>(repo.model, "name")
-        val slice = repo.sliceBeforeRef(idKey, 6, 10, namePath like "M%")
-        slice.content shouldHaveSize 3
+        val window = repo.selectRef().where(namePath like "M%").scroll(Scrollable(idKey, 6, null, null, 10, false))
+        window.content shouldHaveSize 3
     }
 
     // EntityRepository: Page methods
@@ -1905,7 +1901,59 @@ open class EntityRepositoryTest(
     @Test
     fun `entity pageRef should return refs`() {
         val repo = orm.entity(City::class)
-        val page = repo.pageRef(0, 3)
+        val page = repo.selectRef().page(0, 3)
         page.content shouldHaveSize 3
+    }
+
+    // EntityRepository: Scroll navigation end-to-end tests
+
+    @Test
+    fun `entity scroll navigation forward then backward should return consistent results`() {
+        val repo = orm.entity(City::class)
+        val idKey = metamodel<City, Int>(repo.model, "id").key()
+        val firstWindow = repo.scroll(Scrollable.of(idKey, 3))
+        firstWindow.content shouldHaveSize 3
+        firstWindow.hasNext shouldBe true
+        firstWindow.nextScrollable.shouldNotBeNull()
+        val nextWindow = repo.scroll(firstWindow.nextScrollable!!)
+        nextWindow.content shouldHaveSize 3
+        nextWindow.previousScrollable.shouldNotBeNull()
+        val backToFirst = repo.scroll(nextWindow.previousScrollable!!)
+        backToFirst.content shouldHaveSize 3
+        backToFirst.content.map { it.id }.sorted() shouldBe firstWindow.content.map { it.id }.sorted()
+    }
+
+    @Test
+    fun `entity scroll cursor round trip should return same results`() {
+        val repo = orm.entity(City::class)
+        val idKey = metamodel<City, Int>(repo.model, "id").key()
+        val firstWindow = repo.scroll(Scrollable.of(idKey, 3))
+        firstWindow.content shouldHaveSize 3
+        val cursor = firstWindow.nextCursor()
+        cursor.shouldNotBeNull()
+        val scrollable = Scrollable.fromCursor(idKey, cursor)
+        val nextFromCursor = repo.scroll(scrollable)
+        val nextFromScrollable = repo.scroll(firstWindow.nextScrollable!!)
+        nextFromCursor.content.map { it.id } shouldBe nextFromScrollable.content.map { it.id }
+    }
+
+    @Test
+    fun `entity scroll backward then navigate further back`() {
+        val repo = orm.entity(City::class)
+        val idKey = metamodel<City, Int>(repo.model, "id").key()
+        val lastWindow = repo.scroll(Scrollable.of(idKey, 3).backward())
+        lastWindow.content shouldHaveSize 3
+        lastWindow.hasNext shouldBe true
+        // Backward scroll returns results in descending order.
+        val ids = lastWindow.content.map { it.id }
+        ids shouldBe ids.sortedDescending()
+        lastWindow.nextScrollable.shouldNotBeNull()
+        val furtherBack = repo.scroll(lastWindow.nextScrollable!!)
+        furtherBack.content shouldHaveSize 3
+        // Further back should return earlier items (still descending).
+        val furtherIds = furtherBack.content.map { it.id }
+        furtherIds shouldBe furtherIds.sortedDescending()
+        // All IDs in the further-back window should be less than the minimum of the first window.
+        furtherIds.max() shouldBe (ids.min() - 1)
     }
 }

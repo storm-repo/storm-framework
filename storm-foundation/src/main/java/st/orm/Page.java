@@ -29,7 +29,7 @@ import java.util.List;
  *
  * <p>Page numbers are zero-based: the first page is page 0.</p>
  *
- * @param content the list of results in this page.
+ * @param content the list of results in this page; never contains {@code null} elements.
  * @param totalCount the total number of matching results across all pages.
  * @param pageable the pagination request that produced this page.
  * @param <R> the type of the results.

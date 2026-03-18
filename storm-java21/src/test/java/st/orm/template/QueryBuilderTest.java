@@ -31,11 +31,12 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.test.context.ContextConfiguration;
 import org.springframework.test.context.jdbc.Sql;
 import org.springframework.test.context.junit.jupiter.SpringExtension;
+import st.orm.MappedWindow;
 import st.orm.NoResultException;
 import st.orm.NonUniqueResultException;
 import st.orm.PersistenceException;
 import st.orm.Ref;
-import st.orm.Slice;
+import st.orm.Scrollable;
 import st.orm.template.model.City;
 import st.orm.template.model.City_;
 import st.orm.template.model.Owner;
@@ -495,20 +496,20 @@ public class QueryBuilderTest {
                 orm.entity(City.class).select().getSingleResult());
     }
 
-    // QueryBuilder - slice (pagination)
+    // QueryBuilder - scroll (pagination)
 
     @Test
-    public void testSlice() {
-        Slice<City> slice = orm.entity(City.class).select().slice(3);
-        assertEquals(3, slice.content().size());
-        assertTrue(slice.hasNext());
+    public void testScroll() {
+        MappedWindow<City, City> window = orm.entity(City.class).select().scroll(3);
+        assertEquals(3, window.content().size());
+        assertTrue(window.hasNext());
     }
 
     @Test
-    public void testSliceNoMore() {
-        Slice<City> slice = orm.entity(City.class).select().slice(100);
-        assertEquals(6, slice.content().size());
-        assertFalse(slice.hasNext());
+    public void testScrollNoMore() {
+        MappedWindow<City, City> window = orm.entity(City.class).select().scroll(100);
+        assertEquals(6, window.content().size());
+        assertFalse(window.hasNext());
     }
 
     // QueryBuilder - typed
@@ -768,47 +769,48 @@ public class QueryBuilderTest {
         assertTrue(cities.get(0).name().compareTo(cities.get(1).name()) >= 0);
     }
 
-    // QueryBuilder - Metamodel-based slice
+    // QueryBuilder - Metamodel-based scroll
 
     @Test
-    public void testSliceWithMetamodelKey() {
-        Slice<City> slice = orm.entity(City.class).select()
-                .slice(City_.id, 3);
-        assertEquals(3, slice.content().size());
-        assertTrue(slice.hasNext());
+    public void testScrollWithMetamodelKey() {
+        MappedWindow<City, City> window = orm.entity(City.class).select()
+                .scroll(Scrollable.of(City_.id, 3));
+        assertEquals(3, window.content().size());
+        assertTrue(window.hasNext());
     }
 
     @Test
-    public void testSliceAfterWithMetamodelKey() {
-        Slice<City> slice = orm.entity(City.class).select()
-                .sliceAfter(City_.id, 2, 3);
-        assertFalse(slice.content().isEmpty());
+    public void testScrollAfterWithMetamodelKey() {
+        MappedWindow<City, City> window = orm.entity(City.class).select()
+                .scroll(Scrollable.of(City_.id, 2, 3));
+        assertFalse(window.content().isEmpty());
     }
 
     @Test
-    public void testSliceBeforeWithMetamodelKey() {
-        Slice<City> slice = orm.entity(City.class).select()
-                .sliceBefore(City_.id, 5, 3);
-        assertFalse(slice.content().isEmpty());
+    public void testScrollBeforeWithMetamodelKey() {
+        MappedWindow<City, City> window = orm.entity(City.class).select()
+                .scroll(Scrollable.of(City_.id, 5, 3).backward());
+        assertFalse(window.content().isEmpty());
     }
 
     @Test
-    public void testSliceRefWithMetamodelKey() {
-        // sliceRef is on EntityRepository, not QueryBuilder
-        Slice<Ref<City>> slice = orm.entity(City.class).sliceRef(City_.id, 3);
-        assertEquals(3, slice.content().size());
+    public void testScrollRefWithMetamodelKey() {
+        MappedWindow<Ref<City>, City> window = orm.entity(City.class).selectRef().scroll(Scrollable.of(City_.id, 3));
+        assertEquals(3, window.content().size());
     }
 
     @Test
-    public void testSliceAfterRefWithMetamodelKey() {
-        Slice<Ref<City>> slice = orm.entity(City.class).sliceAfterRef(City_.id, 2, 3);
-        assertFalse(slice.content().isEmpty());
+    public void testScrollAfterRefWithMetamodelKey() {
+        MappedWindow<Ref<City>, City> window = orm.entity(City.class).selectRef()
+                .scroll(Scrollable.of(City_.id, 2, 3));
+        assertFalse(window.content().isEmpty());
     }
 
     @Test
-    public void testSliceBeforeRefWithMetamodelKey() {
-        Slice<Ref<City>> slice = orm.entity(City.class).sliceBeforeRef(City_.id, 5, 3);
-        assertFalse(slice.content().isEmpty());
+    public void testScrollBeforeRefWithMetamodelKey() {
+        MappedWindow<Ref<City>, City> window = orm.entity(City.class).selectRef()
+                .scroll(Scrollable.of(City_.id, 5, 3).backward());
+        assertFalse(window.content().isEmpty());
     }
 
     // WhereBuilder - Metamodel-based where
@@ -1035,70 +1037,70 @@ public class QueryBuilderTest {
         assertTrue(cities.get(0).name().compareTo(cities.get(1).name()) >= 0);
     }
 
-    // QueryBuilder - composite keyset slice with sort + key
+    // QueryBuilder - composite scroll with sort + key
 
     @Test
-    public void testSliceAfterComposite() {
-        Slice<City> slice = orm.entity(City.class).select()
-                .sliceAfter(City_.id, 2, City_.name, "A", 3);
-        assertNotNull(slice);
+    public void testScrollAfterComposite() {
+        MappedWindow<City, City> window = orm.entity(City.class).select()
+                .scroll(Scrollable.of(City_.id, 2, City_.name, "A", 3));
+        assertNotNull(window);
     }
 
     @Test
-    public void testSliceBeforeComposite() {
-        Slice<City> slice = orm.entity(City.class).select()
-                .sliceBefore(City_.id, 5, City_.name, "Z", 3);
-        assertNotNull(slice);
+    public void testScrollBeforeComposite() {
+        MappedWindow<City, City> window = orm.entity(City.class).select()
+                .scroll(Scrollable.of(City_.id, 5, City_.name, "Z", 3).backward());
+        assertNotNull(window);
     }
 
-    // QueryBuilder - slice methods throw if orderBy already set
+    // QueryBuilder - scroll methods throw if orderBy already set
 
     @Test
-    public void testSliceWithKeyThrowsIfOrderBySet() {
+    public void testScrollWithKeyThrowsIfOrderBySet() {
         assertThrows(PersistenceException.class, () ->
-                orm.entity(City.class).select().orderBy(City_.name).slice(City_.id, 3));
+                orm.entity(City.class).select().orderBy(City_.name).scroll(Scrollable.of(City_.id, 3)));
     }
 
     @Test
-    public void testSliceBeforeWithKeyThrowsIfOrderBySet() {
+    public void testScrollBeforeWithKeyThrowsIfOrderBySet() {
         assertThrows(PersistenceException.class, () ->
-                orm.entity(City.class).select().orderBy(City_.name).sliceBefore(City_.id, 3));
+                orm.entity(City.class).select().orderBy(City_.name).scroll(Scrollable.of(City_.id, 3).backward()));
     }
 
     @Test
-    public void testSliceAfterThrowsIfOrderBySet() {
+    public void testScrollAfterThrowsIfOrderBySet() {
         assertThrows(PersistenceException.class, () ->
-                orm.entity(City.class).select().orderBy(City_.name).sliceAfter(City_.id, 2, 3));
+                orm.entity(City.class).select().orderBy(City_.name).scroll(Scrollable.of(City_.id, 2, 3)));
     }
 
     @Test
-    public void testSliceBeforeValueThrowsIfOrderBySet() {
+    public void testScrollBeforeValueThrowsIfOrderBySet() {
         assertThrows(PersistenceException.class, () ->
-                orm.entity(City.class).select().orderBy(City_.name).sliceBefore(City_.id, 5, 3));
+                orm.entity(City.class).select().orderBy(City_.name).scroll(Scrollable.of(City_.id, 5, 3).backward()));
     }
 
     @Test
-    public void testSliceCompositeThrowsIfOrderBySet() {
+    public void testScrollCompositeThrowsIfOrderBySet() {
         assertThrows(PersistenceException.class, () ->
-                orm.entity(City.class).select().orderBy(City_.name).slice(City_.id, City_.name, 3));
+                orm.entity(City.class).select().orderBy(City_.name).scroll(Scrollable.of(City_.id, City_.name, 3)));
     }
 
     @Test
-    public void testSliceBeforeCompositeThrowsIfOrderBySet() {
+    public void testScrollBeforeCompositeThrowsIfOrderBySet() {
         assertThrows(PersistenceException.class, () ->
-                orm.entity(City.class).select().orderBy(City_.name).sliceBefore(City_.id, City_.name, 3));
+                orm.entity(City.class).select().orderBy(City_.name).scroll(Scrollable.of(City_.id, City_.name, 3).backward()));
     }
 
     @Test
-    public void testSliceAfterCompositeThrowsIfOrderBySet() {
+    public void testScrollAfterCompositeThrowsIfOrderBySet() {
         assertThrows(PersistenceException.class, () ->
-                orm.entity(City.class).select().orderBy(City_.name).sliceAfter(City_.id, 2, City_.name, "A", 3));
+                orm.entity(City.class).select().orderBy(City_.name).scroll(Scrollable.of(City_.id, 2, City_.name, "A", 3)));
     }
 
     @Test
-    public void testSliceBeforeCompositeValueThrowsIfOrderBySet() {
+    public void testScrollBeforeCompositeValueThrowsIfOrderBySet() {
         assertThrows(PersistenceException.class, () ->
-                orm.entity(City.class).select().orderBy(City_.name).sliceBefore(City_.id, 5, City_.name, "Z", 3));
+                orm.entity(City.class).select().orderBy(City_.name).scroll(Scrollable.of(City_.id, 5, City_.name, "Z", 3).backward()));
     }
 
     // QueryBuilder - forShare
@@ -1124,18 +1126,18 @@ public class QueryBuilderTest {
         assertEquals(1, cities.size());
     }
 
-    // QueryBuilder - slice with size validation
+    // QueryBuilder - scroll with size validation
 
     @Test
-    public void testSliceSizeZeroThrows() {
+    public void testScrollSizeZeroThrows() {
         assertThrows(IllegalArgumentException.class, () ->
-                orm.entity(City.class).select().slice(0));
+                orm.entity(City.class).select().scroll(0));
     }
 
     @Test
-    public void testSliceSizeNegativeThrows() {
+    public void testScrollSizeNegativeThrows() {
         assertThrows(IllegalArgumentException.class, () ->
-                orm.entity(City.class).select().slice(-1));
+                orm.entity(City.class).select().scroll(-1));
     }
 
     // QueryBuilder - getResultList / getResultCount via default methods

@@ -34,15 +34,15 @@ import java.lang.annotation.Target;
  * <h2>NULL Handling</h2>
  *
  * <p>In standard SQL, {@code NULL != NULL}, so a UNIQUE constraint typically allows multiple rows with NULL
- * values. This breaks the uniqueness guarantee that keyset pagination ({@code slice}/{@code sliceAfter}/
- * {@code sliceBefore}) relies on, because {@code WHERE key > cursor} silently excludes NULL rows.</p>
+ * values. This breaks the uniqueness guarantee that scrolling ({@code scroll}) relies on, because
+ * {@code WHERE key > cursor} silently excludes NULL rows.</p>
  *
  * <p>Some databases treat NULLs as equal for uniqueness purposes: PostgreSQL 15+ supports
  * {@code NULLS NOT DISTINCT}, and SQL Server allows only one NULL by default. Since Storm cannot determine the
  * database constraint behavior from the code alone, you can declare it explicitly via {@link #nullsDistinct()}.</p>
  *
  * <p>When a nullable field is annotated with {@code @UK} and {@code nullsDistinct} is {@code true} (the
- * default), the metamodel processor emits a compile-time warning, and {@code slice} methods throw a
+ * default), the metamodel processor emits a compile-time warning, and {@code scroll} methods throw a
  * {@link PersistenceException} at runtime. To suppress the warning and enable keyset pagination, either make
  * the field non-nullable (use a primitive type or add {@code @Nonnull}), or set
  * {@code @UK(nullsDistinct = false)} to indicate that the database constraint prevents duplicate NULLs.</p>

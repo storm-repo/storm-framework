@@ -20,6 +20,7 @@ Storm can be configured through `StormConfig`, system properties, or Spring Boot
 | `storm.validation.schema_mode` | `none` | Schema validation mode: `none`, `warn`, or `fail` (Spring Boot only) |
 | `storm.validation.strict` | `false` | Treat schema validation warnings as errors |
 | `storm.validation.interpolation_mode` | `warn` | Interpolation safety mode: `warn`, `fail`, or `none` (see [Interpolation Safety](#interpolation-safety)) |
+| `st.orm.scrollable.maxSize` | `1000` | Maximum window size allowed in a serialized cursor (system property only) |
 
 ### Setting Properties
 
@@ -487,6 +488,22 @@ record Order(@PK Integer id,
 
 </TabItem>
 </Tabs>
+
+---
+
+## Scrolling Properties
+
+### st.orm.scrollable.maxSize
+
+Sets the maximum window size that a deserialized cursor (via `Scrollable.fromCursor()`) is allowed to carry. This is a safety limit that prevents untrusted clients from requesting excessively large pages through cursor manipulation. The limit is only enforced when deserializing a cursor string; programmatic usage via `Scrollable.of()` is not restricted.
+
+This property is a JVM system property only; it is not configurable through `StormConfig` or `application.yml`, because it applies at the `Scrollable` record level in storm-foundation, before any ORM template is created.
+
+```bash
+java -Dst.orm.scrollable.maxSize=5000 -jar myapp.jar
+```
+
+Repository or API layers may choose to enforce stricter per-endpoint limits on top of this framework-level bound.
 
 ---
 

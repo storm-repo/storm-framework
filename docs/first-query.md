@@ -129,7 +129,7 @@ Custom repositories inherit all built-in CRUD operations from `EntityRepository`
 </TabItem>
 </Tabs>
 
-See [Repositories](repositories.md) for the full repository pattern, Spring integration, and keyset pagination.
+See [Repositories](repositories.md) for the full repository pattern, Spring integration, and scrolling.
 
 ## Query Builder
 
@@ -195,7 +195,7 @@ List<CityCount> counts = users
 </TabItem>
 </Tabs>
 
-See [Queries](queries.md) for the full query reference, including keyset pagination, distinct results, and compound field handling.
+See [Queries](queries.md) for the full query reference, including scrolling, distinct results, and compound field handling.
 
 ## Streaming
 

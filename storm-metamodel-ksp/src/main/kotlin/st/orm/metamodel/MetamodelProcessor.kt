@@ -745,7 +745,7 @@ class MetamodelProcessor(
                     if (nullsDistinct && referencedDecl != null && hasNullableLeaf(referencedDecl)) {
                         logger.warn(
                             "Unique key field '$fieldName' has nullable constituent fields. " +
-                                "Keyset pagination (slice/sliceAfter/sliceBefore) will be rejected at runtime. " +
+                                "Scrolling (scroll/scrollAfter/scrollBefore) will be rejected at runtime. " +
                                 "Consider making constituent fields non-nullable, or setting @UK(nullsDistinct = false) " +
                                 "if the database constraint prevents duplicate NULLs.",
                             prop,
@@ -805,7 +805,7 @@ class MetamodelProcessor(
                     if (result) {
                         logger.warn(
                             "Unique key field '$fieldName' is nullable. " +
-                                "Keyset pagination (slice/sliceAfter/sliceBefore) will be rejected at runtime. " +
+                                "Scrolling (scroll/scrollAfter/scrollBefore) will be rejected at runtime. " +
                                 "Consider making the field non-nullable, or setting @UK(nullsDistinct = false) " +
                                 "if the database constraint prevents duplicate NULLs.",
                             prop,

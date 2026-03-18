@@ -13,56 +13,55 @@ import org.springframework.boot.test.autoconfigure.orm.jpa.DataJpaTest;
 import org.springframework.test.context.ContextConfiguration;
 import org.springframework.test.context.junit.jupiter.SpringExtension;
 import st.orm.PersistenceException;
-import st.orm.Slice;
+import st.orm.Scrollable;
 import st.orm.core.model.Vet;
 import st.orm.core.model.Vet_;
 import st.orm.core.template.ORMTemplate;
 
 /**
- * Integration tests for {@link st.orm.core.template.QueryBuilder} keyset pagination methods,
- * covering edge cases not tested elsewhere: slice(Key, size) with explicit orderBy,
- * slice(Key, Metamodel, size) with explicit orderBy, sliceBefore(Key, Metamodel, size)
- * with explicit orderBy, and orderByDescendingAny with empty array.
+ * Integration tests for {@link st.orm.core.template.QueryBuilder} scroll methods,
+ * covering edge cases not tested elsewhere: scroll with explicit orderBy,
+ * composite scroll with explicit orderBy, and orderByDescendingAny with empty array.
  */
 @ExtendWith(SpringExtension.class)
 @ContextConfiguration(classes = IntegrationConfig.class)
 @DataJpaTest(showSql = false)
-public class QueryBuilderKeysetPaginationIntegrationTest {
+public class QueryBuilderScrollIntegrationTest {
 
     @Autowired
     private DataSource dataSource;
 
-    // slice(Key, size) with explicit orderBy should throw
+    // Scrollable.of(key, size) with explicit orderBy should throw
 
     @Test
-    public void sliceWithKeyThrowsWhenExplicitOrderByIsPresent() {
+    public void scrollWithKeyThrowsWhenExplicitOrderByIsPresent() {
         assertThrows(PersistenceException.class, () ->
                 ORMTemplate.of(dataSource)
                         .selectFrom(Vet.class)
                         .orderBy(Vet_.lastName)
-                        .slice(Vet_.id, 3));
+                        .scroll(Scrollable.of(Vet_.id, 3)));
     }
 
-    // sliceBefore(Key, size) - cursorless descending
+    // Scrollable.of(key, size).backward() - cursorless descending
 
     @Test
-    public void sliceBeforeCursorlessWithKeyThrowsWhenExplicitOrderByIsPresent() {
+    public void scrollBeforeCursorlessWithKeyThrowsWhenExplicitOrderByIsPresent() {
         assertThrows(PersistenceException.class, () ->
                 ORMTemplate.of(dataSource)
                         .selectFrom(Vet.class)
                         .orderBy(Vet_.firstName)
-                        .sliceBefore(Vet_.id, 3));
+                        .scroll(Scrollable.of(Vet_.id, 3).backward()));
     }
 
-    // slice(Key, Metamodel, size) with explicit orderBy should throw
+    // Scrollable.of(key, sort, size) with explicit orderBy should throw
 
     @Test
-    public void sliceCompositeWithKeyAndSortThrowsWhenExplicitOrderByIsPresent() {
+    public void scrollCompositeWithKeyAndSortThrowsWhenExplicitOrderByIsPresent() {
         assertThrows(PersistenceException.class, () ->
                 ORMTemplate.of(dataSource)
                         .selectFrom(Vet.class)
                         .orderBy(Vet_.firstName)
-                        .slice(Vet_.id, Vet_.lastName, 3));
+                        .scroll(Scrollable.of(Vet_.id, Vet_.lastName, 3)));
     }
 
     // orderByDescendingAny with empty array should throw
@@ -78,49 +77,49 @@ public class QueryBuilderKeysetPaginationIntegrationTest {
     // Verify basic keyset pagination behavior with edge case sizes
 
     @Test
-    public void sliceWithKeySizeExactlyMatchingDataShouldHaveNoNext() {
+    public void scrollWithKeySizeExactlyMatchingDataShouldHaveNoNext() {
         // There are 6 vets. Requesting exactly 6 should return all with hasNext=false.
-        Slice<Vet> slice = ORMTemplate.of(dataSource)
+        var window = ORMTemplate.of(dataSource)
                 .selectFrom(Vet.class)
-                .slice(Vet_.id, 6);
-        assertEquals(6, slice.content().size());
-        assertFalse(slice.hasNext());
+                .scroll(Scrollable.of(Vet_.id, 6));
+        assertEquals(6, window.content().size());
+        assertFalse(window.hasNext());
     }
 
     @Test
-    public void sliceWithKeySizeOneLessThanDataShouldHaveNext() {
+    public void scrollWithKeySizeOneLessThanDataShouldHaveNext() {
         // There are 6 vets. Requesting 5 should return 5 with hasNext=true.
-        Slice<Vet> slice = ORMTemplate.of(dataSource)
+        var window = ORMTemplate.of(dataSource)
                 .selectFrom(Vet.class)
-                .slice(Vet_.id, 5);
-        assertEquals(5, slice.content().size());
-        assertTrue(slice.hasNext());
+                .scroll(Scrollable.of(Vet_.id, 5));
+        assertEquals(5, window.content().size());
+        assertTrue(window.hasNext());
     }
 
     // Composite keyset: full forward pagination
 
     @Test
-    public void compositeSliceAfterReturnsCorrectNextPageAndHasNext() {
+    public void compositeScrollAfterReturnsCorrectNextPageAndHasNext() {
         // First page of 2 vets ordered by lastName, id.
-        Slice<Vet> firstPage = ORMTemplate.of(dataSource)
+        var firstPage = ORMTemplate.of(dataSource)
                 .selectFrom(Vet.class)
-                .slice(Vet_.id, Vet_.lastName, 2);
+                .scroll(Scrollable.of(Vet_.id, Vet_.lastName, 2));
         assertEquals(2, firstPage.content().size());
         assertTrue(firstPage.hasNext());
 
         // Second page after the last item of first page.
         Vet lastOfFirstPage = firstPage.content().getLast();
-        Slice<Vet> secondPage = ORMTemplate.of(dataSource)
+        var secondPage = ORMTemplate.of(dataSource)
                 .selectFrom(Vet.class)
-                .sliceAfter(Vet_.id, lastOfFirstPage.id(), Vet_.lastName, lastOfFirstPage.lastName(), 2);
+                .scroll(Scrollable.of(Vet_.id, lastOfFirstPage.id(), Vet_.lastName, lastOfFirstPage.lastName(), 2));
         assertEquals(2, secondPage.content().size());
         assertTrue(secondPage.hasNext());
 
         // Third (last) page.
         Vet lastOfSecondPage = secondPage.content().getLast();
-        Slice<Vet> thirdPage = ORMTemplate.of(dataSource)
+        var thirdPage = ORMTemplate.of(dataSource)
                 .selectFrom(Vet.class)
-                .sliceAfter(Vet_.id, lastOfSecondPage.id(), Vet_.lastName, lastOfSecondPage.lastName(), 2);
+                .scroll(Scrollable.of(Vet_.id, lastOfSecondPage.id(), Vet_.lastName, lastOfSecondPage.lastName(), 2));
         assertEquals(2, thirdPage.content().size());
         assertFalse(thirdPage.hasNext());
     }
@@ -128,66 +127,66 @@ public class QueryBuilderKeysetPaginationIntegrationTest {
     // Composite keyset: full backward pagination
 
     @Test
-    public void compositeSliceBeforeReturnsCorrectPreviousPage() {
+    public void compositeScrollBeforeReturnsCorrectPreviousPage() {
         // Start from the end: first page descending.
-        Slice<Vet> lastPage = ORMTemplate.of(dataSource)
+        var lastPage = ORMTemplate.of(dataSource)
                 .selectFrom(Vet.class)
-                .sliceBefore(Vet_.id, Vet_.lastName, 2);
+                .scroll(Scrollable.of(Vet_.id, Vet_.lastName, 2).backward());
         assertEquals(2, lastPage.content().size());
         assertTrue(lastPage.hasNext());
 
         // Previous page before the first item of last page.
         Vet firstOfLastPage = lastPage.content().getLast();
-        Slice<Vet> previousPage = ORMTemplate.of(dataSource)
+        var previousPage = ORMTemplate.of(dataSource)
                 .selectFrom(Vet.class)
-                .sliceBefore(Vet_.id, firstOfLastPage.id(), Vet_.lastName, firstOfLastPage.lastName(), 2);
+                .scroll(Scrollable.of(Vet_.id, firstOfLastPage.id(), Vet_.lastName, firstOfLastPage.lastName(), 2).backward());
         assertEquals(2, previousPage.content().size());
         assertTrue(previousPage.hasNext());
     }
 
-    // sliceAfter with value cursor: verify WHERE condition is applied correctly
+    // scrollAfter with value cursor: verify WHERE condition is applied correctly
 
     @Test
-    public void sliceAfterWithValueCursorExcludesCursorValue() {
-        Slice<Vet> slice = ORMTemplate.of(dataSource)
+    public void scrollAfterWithValueCursorExcludesCursorValue() {
+        var window = ORMTemplate.of(dataSource)
                 .selectFrom(Vet.class)
-                .sliceAfter(Vet_.id, 3, 10);
+                .scroll(Scrollable.of(Vet_.id, 3, 10));
         // Only vets with id > 3 should be returned (4, 5, 6).
-        assertEquals(3, slice.content().size());
-        assertTrue(slice.content().stream().allMatch(vet -> vet.id() > 3));
+        assertEquals(3, window.content().size());
+        assertTrue(window.content().stream().allMatch(vet -> vet.id() > 3));
     }
 
-    // sliceBefore with value cursor: verify WHERE condition is applied correctly
+    // scrollBefore with value cursor: verify WHERE condition is applied correctly
 
     @Test
-    public void sliceBeforeWithValueCursorExcludesCursorValue() {
-        Slice<Vet> slice = ORMTemplate.of(dataSource)
+    public void scrollBeforeWithValueCursorExcludesCursorValue() {
+        var window = ORMTemplate.of(dataSource)
                 .selectFrom(Vet.class)
-                .sliceBefore(Vet_.id, 4, 10);
+                .scroll(Scrollable.of(Vet_.id, 4, 10).backward());
         // Only vets with id < 4 should be returned (3, 2, 1) in descending order.
-        assertEquals(3, slice.content().size());
-        assertTrue(slice.content().stream().allMatch(vet -> vet.id() < 4));
+        assertEquals(3, window.content().size());
+        assertTrue(window.content().stream().allMatch(vet -> vet.id() < 4));
         // Verify descending order.
-        assertTrue(slice.content().get(0).id() > slice.content().get(1).id());
+        assertTrue(window.content().get(0).id() > window.content().get(1).id());
     }
 
-    // slice with non-positive size should throw
+    // scroll with non-positive size should throw
 
     @Test
-    public void sliceWithZeroSizeThrows() {
+    public void scrollWithZeroSizeThrows() {
         assertThrows(IllegalArgumentException.class, () ->
                 ORMTemplate.of(dataSource)
                         .selectFrom(Vet.class)
                         .orderBy(Vet_.id)
-                        .slice(0));
+                        .scroll(0));
     }
 
     @Test
-    public void sliceWithNegativeSizeThrows() {
+    public void scrollWithNegativeSizeThrows() {
         assertThrows(IllegalArgumentException.class, () ->
                 ORMTemplate.of(dataSource)
                         .selectFrom(Vet.class)
                         .orderBy(Vet_.id)
-                        .slice(-1));
+                        .scroll(-1));
     }
 }

@@ -94,6 +94,17 @@ abstract class QueryBuilderImpl<T extends Data, R, ID> extends QueryBuilder<T, R
     }
 
     /**
+     * Returns the data type used in the FROM clause of the query. This is the entity or projection type {@code T}
+     * that the query is built against.
+     *
+     * @return the FROM clause data type.
+     */
+    @Override
+    protected Class<T> getFromType() {
+        return fromType;
+    }
+
+    /**
      * Returns a typed query builder for the specified primary key type.
      *
      * @param pkType the primary key type.
@@ -595,7 +606,7 @@ abstract class QueryBuilderImpl<T extends Data, R, ID> extends QueryBuilder<T, R
             return null;
         }
 
-        private QueryBuilder<TX, RX, IDX> build(List<TemplateString> templates) {
+        private QueryBuilder<TX, RX, IDX> build(@Nonnull List<TemplateString> templates) {
             var template = combine(templates);
             Where where;
             if (unwrap(template) instanceof Expression expression) {

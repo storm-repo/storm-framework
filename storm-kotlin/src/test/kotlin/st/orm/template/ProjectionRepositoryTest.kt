@@ -19,6 +19,7 @@ import st.orm.Metamodel
 import st.orm.NoResultException
 import st.orm.Operator.*
 import st.orm.Ref
+import st.orm.Scrollable
 import st.orm.repository.*
 import st.orm.template.model.*
 
@@ -884,21 +885,21 @@ open class ProjectionRepositoryTest(
     }
 
     @Test
-    fun `slice should return first page of projections`() {
+    fun `scroll should return first page of projections`() {
         val repo = orm.projection(OwnerView::class)
         val idPath = metamodel<OwnerView, Int>(repo.model, "id")
-        val slice = repo.select().orderBy(idPath).slice(3)
-        slice.content shouldHaveSize 3
-        slice.hasNext shouldBe true
+        val window = repo.select().orderBy(idPath).scroll(3)
+        window.content shouldHaveSize 3
+        window.hasNext shouldBe true
     }
 
     @Test
-    fun `slice with large size should not have next`() {
+    fun `scroll with large size should not have next`() {
         val repo = orm.projection(OwnerView::class)
         val idPath = metamodel<OwnerView, Int>(repo.model, "id")
-        val slice = repo.select().orderBy(idPath).slice(100)
-        slice.content shouldHaveSize 10
-        slice.hasNext shouldBe false
+        val window = repo.select().orderBy(idPath).scroll(100)
+        window.content shouldHaveSize 10
+        window.hasNext shouldBe false
     }
 
     @Test
@@ -1649,140 +1650,140 @@ open class ProjectionRepositoryTest(
     }
 
     @Test
-    fun `slice with Metamodel Key should return first page`() {
+    fun `scroll with Metamodel Key should return first page`() {
         val repo = orm.projection(OwnerView::class)
         val idKey = metamodel<OwnerView, Int>(repo.model, "id").key()
-        val slice = repo.slice(idKey, 3)
-        slice.content shouldHaveSize 3
-        slice.hasNext shouldBe true
+        val window = repo.scroll(Scrollable.of(idKey, 3))
+        window.content shouldHaveSize 3
+        window.hasNext shouldBe true
     }
 
     @Test
-    fun `slice with Metamodel Key should return all when size exceeds total`() {
+    fun `scroll with Metamodel Key should return all when size exceeds total`() {
         val repo = orm.projection(OwnerView::class)
         val idKey = metamodel<OwnerView, Int>(repo.model, "id").key()
-        val slice = repo.slice(idKey, 100)
-        slice.content shouldHaveSize 10
-        slice.hasNext shouldBe false
+        val window = repo.scroll(Scrollable.of(idKey, 100))
+        window.content shouldHaveSize 10
+        window.hasNext shouldBe false
     }
 
     @Test
-    fun `sliceBefore with Metamodel Key should return descending first page`() {
+    fun `scrollBefore with Metamodel Key should return descending first page`() {
         val repo = orm.projection(OwnerView::class)
         val idKey = metamodel<OwnerView, Int>(repo.model, "id").key()
-        val slice = repo.sliceBefore(idKey, 3)
-        slice.content shouldHaveSize 3
-        slice.hasNext shouldBe true
+        val window = repo.scroll(Scrollable.of(idKey, 3).backward())
+        window.content shouldHaveSize 3
+        window.hasNext shouldBe true
         // First item should be the highest id
-        slice.content[0].id shouldBe 10
+        window.content[0].id shouldBe 10
     }
 
     @Test
-    fun `sliceRef with Metamodel Key should return first page of refs`() {
+    fun `scrollRef with Metamodel Key should return first page of refs`() {
         val repo = orm.projection(OwnerView::class)
         val idKey = metamodel<OwnerView, Int>(repo.model, "id").key()
-        val slice = repo.sliceRef(idKey, 3)
-        slice.content shouldHaveSize 3
-        slice.hasNext shouldBe true
+        val window = repo.selectRef().scroll(Scrollable.of(idKey, 3))
+        window.content shouldHaveSize 3
+        window.hasNext shouldBe true
     }
 
     @Test
-    fun `sliceBeforeRef with Metamodel Key should return descending first page of refs`() {
+    fun `scrollBeforeRef with Metamodel Key should return descending first page of refs`() {
         val repo = orm.projection(OwnerView::class)
         val idKey = metamodel<OwnerView, Int>(repo.model, "id").key()
-        val slice = repo.sliceBeforeRef(idKey, 3)
-        slice.content shouldHaveSize 3
-        slice.hasNext shouldBe true
+        val window = repo.selectRef().scroll(Scrollable.of(idKey, 3).backward())
+        window.content shouldHaveSize 3
+        window.hasNext shouldBe true
     }
 
     @Test
-    fun `slice with Metamodel Key and WhereBuilder predicate should filter results`() {
-        val repo = orm.projection(OwnerView::class)
-        val idKey = metamodel<OwnerView, Int>(repo.model, "id").key()
-        val lastNamePath = metamodel<OwnerView, String>(repo.model, "last_name")
-        val slice = repo.slice(idKey, 10, lastNamePath eq "Davis")
-        slice.content shouldHaveSize 2
-        slice.hasNext shouldBe false
-    }
-
-    @Test
-    fun `slice with Metamodel Key and direct PredicateBuilder should filter results`() {
+    fun `scroll with Metamodel Key and WhereBuilder predicate should filter results`() {
         val repo = orm.projection(OwnerView::class)
         val idKey = metamodel<OwnerView, Int>(repo.model, "id").key()
         val lastNamePath = metamodel<OwnerView, String>(repo.model, "last_name")
-        val predicate = lastNamePath eq "Davis"
-        val slice = repo.slice(idKey, 10, predicate)
-        slice.content shouldHaveSize 2
-        slice.hasNext shouldBe false
+        val window = repo.select().where(lastNamePath eq "Davis").scroll(Scrollable.of(idKey, 10))
+        window.content shouldHaveSize 2
+        window.hasNext shouldBe false
     }
 
     @Test
-    fun `sliceRef with Metamodel Key and WhereBuilder predicate should filter results`() {
-        val repo = orm.projection(OwnerView::class)
-        val idKey = metamodel<OwnerView, Int>(repo.model, "id").key()
-        val lastNamePath = metamodel<OwnerView, String>(repo.model, "last_name")
-        val slice = repo.sliceRef(idKey, 10, lastNamePath eq "Davis")
-        slice.content shouldHaveSize 2
-        slice.hasNext shouldBe false
-    }
-
-    @Test
-    fun `sliceRef with Metamodel Key and direct PredicateBuilder should filter results`() {
+    fun `scroll with Metamodel Key and direct PredicateBuilder should filter results`() {
         val repo = orm.projection(OwnerView::class)
         val idKey = metamodel<OwnerView, Int>(repo.model, "id").key()
         val lastNamePath = metamodel<OwnerView, String>(repo.model, "last_name")
         val predicate = lastNamePath eq "Davis"
-        val slice = repo.sliceRef(idKey, 10, predicate)
-        slice.content shouldHaveSize 2
-        slice.hasNext shouldBe false
+        val window = repo.select().where(predicate).scroll(Scrollable.of(idKey, 10))
+        window.content shouldHaveSize 2
+        window.hasNext shouldBe false
     }
 
     @Test
-    fun `sliceBefore with Metamodel Key and WhereBuilder should filter results descending`() {
+    fun `scrollRef with Metamodel Key and WhereBuilder predicate should filter results`() {
         val repo = orm.projection(OwnerView::class)
         val idKey = metamodel<OwnerView, Int>(repo.model, "id").key()
         val lastNamePath = metamodel<OwnerView, String>(repo.model, "last_name")
-        val slice = repo.sliceBefore(idKey, 10, lastNamePath eq "Davis")
-        slice.content shouldHaveSize 2
-        slice.hasNext shouldBe false
+        val window = repo.selectRef().where(lastNamePath eq "Davis").scroll(Scrollable.of(idKey, 10))
+        window.content shouldHaveSize 2
+        window.hasNext shouldBe false
     }
 
     @Test
-    fun `sliceBefore with Metamodel Key and direct PredicateBuilder should filter results descending`() {
+    fun `scrollRef with Metamodel Key and direct PredicateBuilder should filter results`() {
         val repo = orm.projection(OwnerView::class)
         val idKey = metamodel<OwnerView, Int>(repo.model, "id").key()
         val lastNamePath = metamodel<OwnerView, String>(repo.model, "last_name")
         val predicate = lastNamePath eq "Davis"
-        val slice = repo.sliceBefore(idKey, 10, predicate)
-        slice.content shouldHaveSize 2
-        slice.hasNext shouldBe false
+        val window = repo.selectRef().where(predicate).scroll(Scrollable.of(idKey, 10))
+        window.content shouldHaveSize 2
+        window.hasNext shouldBe false
     }
 
     @Test
-    fun `sliceAfter with cursor should return next page`() {
+    fun `scrollBefore with Metamodel Key and WhereBuilder should filter results descending`() {
         val repo = orm.projection(OwnerView::class)
         val idKey = metamodel<OwnerView, Int>(repo.model, "id").key()
-        val firstSlice = repo.slice(idKey, 3)
-        firstSlice.content shouldHaveSize 3
-        // Get the last ID from the first slice to use as cursor
-        val lastId = firstSlice.content.last().id
-        val nextSlice = repo.select().sliceAfter(idKey, lastId, 3)
-        nextSlice.content shouldHaveSize 3
-        // All IDs in next slice should be greater than lastId
-        nextSlice.content.forEach { it.id shouldBe (it.id).also { id -> assert(id > lastId) } }
+        val lastNamePath = metamodel<OwnerView, String>(repo.model, "last_name")
+        val window = repo.select().where(lastNamePath eq "Davis").scroll(Scrollable.of(idKey, 10).backward())
+        window.content shouldHaveSize 2
+        window.hasNext shouldBe false
     }
 
     @Test
-    fun `sliceBefore with cursor should return previous page`() {
+    fun `scrollBefore with Metamodel Key and direct PredicateBuilder should filter results descending`() {
+        val repo = orm.projection(OwnerView::class)
+        val idKey = metamodel<OwnerView, Int>(repo.model, "id").key()
+        val lastNamePath = metamodel<OwnerView, String>(repo.model, "last_name")
+        val predicate = lastNamePath eq "Davis"
+        val window = repo.select().where(predicate).scroll(Scrollable.of(idKey, 10).backward())
+        window.content shouldHaveSize 2
+        window.hasNext shouldBe false
+    }
+
+    @Test
+    fun `scroll forward with cursor should return next page`() {
+        val repo = orm.projection(OwnerView::class)
+        val idKey = metamodel<OwnerView, Int>(repo.model, "id").key()
+        val firstWindow = repo.scroll(Scrollable.of(idKey, 3))
+        firstWindow.content shouldHaveSize 3
+        // Get the last ID from the first scroll to use as cursor
+        val lastId = firstWindow.content.last().id
+        val nextWindow = repo.select().scroll(Scrollable(idKey, lastId, null, null, 3, true))
+        nextWindow.content shouldHaveSize 3
+        // All IDs in next scroll should be greater than lastId
+        nextWindow.content.forEach { it.id shouldBe (it.id).also { id -> assert(id > lastId) } }
+    }
+
+    @Test
+    fun `scroll backward with cursor should return previous page`() {
         val repo = orm.projection(OwnerView::class)
         val idKey = metamodel<OwnerView, Int>(repo.model, "id").key()
         // Get the last page first
-        val lastSlice = repo.sliceBefore(idKey, 3)
-        lastSlice.content shouldHaveSize 3
+        val lastWindow = repo.scroll(Scrollable.of(idKey, 3).backward())
+        lastWindow.content shouldHaveSize 3
         // Navigate backward
-        val firstId = lastSlice.content.last().id
-        val previousSlice = repo.select().sliceBefore(idKey, firstId, 3)
-        previousSlice.content shouldHaveSize 3
+        val firstId = lastWindow.content.last().id
+        val previousWindow = repo.select().scroll(Scrollable(idKey, firstId, null, null, 3, false))
+        previousWindow.content shouldHaveSize 3
     }
 
     @Test
@@ -1828,249 +1829,249 @@ open class ProjectionRepositoryTest(
     }
 
     @Test
-    fun `projection query builder slice should return first page`() {
+    fun `projection query builder scroll should return first page`() {
         val repo = orm.projection(OwnerView::class)
         val idKey = metamodel<OwnerView, Int>(repo.model, "id").key()
-        val slice = repo.select().slice(idKey, 4)
-        slice.content shouldHaveSize 4
-        slice.hasNext shouldBe true
+        val window = repo.select().scroll(Scrollable.of(idKey, 4))
+        window.content shouldHaveSize 4
+        window.hasNext shouldBe true
     }
 
     @Test
-    fun `projection query builder sliceBefore should return descending first page`() {
+    fun `projection query builder scrollBefore should return descending first page`() {
         val repo = orm.projection(OwnerView::class)
         val idKey = metamodel<OwnerView, Int>(repo.model, "id").key()
-        val slice = repo.select().sliceBefore(idKey, 4)
-        slice.content shouldHaveSize 4
-        slice.hasNext shouldBe true
+        val window = repo.select().scroll(Scrollable.of(idKey, 4).backward())
+        window.content shouldHaveSize 4
+        window.hasNext shouldBe true
     }
 
     @Test
-    fun `projection query builder sliceRef should return refs`() {
+    fun `projection query builder scrollRef should return refs`() {
         val repo = orm.projection(OwnerView::class)
         val idKey = metamodel<OwnerView, Int>(repo.model, "id").key()
-        val slice = repo.selectRef().slice(idKey, 4)
-        slice.content shouldHaveSize 4
-        slice.hasNext shouldBe true
+        val window = repo.selectRef().scroll(Scrollable.of(idKey, 4))
+        window.content shouldHaveSize 4
+        window.hasNext shouldBe true
     }
 
     @Test
-    fun `repo slice with key and size should return first page`() {
+    fun `repo scroll with key and size should return first page`() {
         val repo = orm.projection(OwnerView::class)
         val idKey = metamodel<OwnerView, Int>(repo.model, "id").key()
-        val slice = repo.slice(idKey, 4)
-        slice.content shouldHaveSize 4
-        slice.hasNext shouldBe true
+        val window = repo.scroll(Scrollable.of(idKey, 4))
+        window.content shouldHaveSize 4
+        window.hasNext shouldBe true
     }
 
     @Test
-    fun `repo sliceBefore with key and size should return last page`() {
+    fun `repo scrollBefore with key and size should return last page`() {
         val repo = orm.projection(OwnerView::class)
         val idKey = metamodel<OwnerView, Int>(repo.model, "id").key()
-        val slice = repo.sliceBefore(idKey, 4)
-        slice.content shouldHaveSize 4
-        slice.hasNext shouldBe true
+        val window = repo.scroll(Scrollable.of(idKey, 4).backward())
+        window.content shouldHaveSize 4
+        window.hasNext shouldBe true
     }
 
     @Test
-    fun `repo sliceRef with key and size should return first page of refs`() {
+    fun `repo scrollRef with key and size should return first page of refs`() {
         val repo = orm.projection(OwnerView::class)
         val idKey = metamodel<OwnerView, Int>(repo.model, "id").key()
-        val slice = repo.sliceRef(idKey, 4)
-        slice.content shouldHaveSize 4
-        slice.hasNext shouldBe true
+        val window = repo.selectRef().scroll(Scrollable.of(idKey, 4))
+        window.content shouldHaveSize 4
+        window.hasNext shouldBe true
     }
 
     @Test
-    fun `repo sliceBeforeRef with key and size should return refs`() {
+    fun `repo scrollBeforeRef with key and size should return refs`() {
         val repo = orm.projection(OwnerView::class)
         val idKey = metamodel<OwnerView, Int>(repo.model, "id").key()
-        val slice = repo.sliceBeforeRef(idKey, 4)
-        slice.content shouldHaveSize 4
-        slice.hasNext shouldBe true
+        val window = repo.selectRef().scroll(Scrollable.of(idKey, 4).backward())
+        window.content shouldHaveSize 4
+        window.hasNext shouldBe true
     }
 
     @Test
-    fun `repo slice with key and predicate should return filtered first page`() {
+    fun `repo scroll with key and predicate should return filtered first page`() {
         val repo = orm.projection(OwnerView::class)
         val idKey = metamodel<OwnerView, Int>(repo.model, "id").key()
         val lastNamePath = metamodel<OwnerView, String>(repo.model, "last_name")
-        val slice = repo.slice(idKey, 10, lastNamePath eq "Davis")
-        slice.content shouldHaveSize 2
-        slice.hasNext shouldBe false
+        val window = repo.select().where(lastNamePath eq "Davis").scroll(Scrollable.of(idKey, 10))
+        window.content shouldHaveSize 2
+        window.hasNext shouldBe false
     }
 
     @Test
-    fun `repo sliceRef with key and predicate should return filtered refs`() {
+    fun `repo scrollRef with key and predicate should return filtered refs`() {
         val repo = orm.projection(OwnerView::class)
         val idKey = metamodel<OwnerView, Int>(repo.model, "id").key()
         val lastNamePath = metamodel<OwnerView, String>(repo.model, "last_name")
-        val slice = repo.sliceRef(idKey, 10, lastNamePath eq "Davis")
-        slice.content shouldHaveSize 2
-        slice.hasNext shouldBe false
+        val window = repo.selectRef().where(lastNamePath eq "Davis").scroll(Scrollable.of(idKey, 10))
+        window.content shouldHaveSize 2
+        window.hasNext shouldBe false
     }
 
     @Test
-    fun `repo sliceBefore with key and predicate should return filtered last page`() {
+    fun `repo scrollBefore with key and predicate should return filtered last page`() {
         val repo = orm.projection(OwnerView::class)
         val idKey = metamodel<OwnerView, Int>(repo.model, "id").key()
         val lastNamePath = metamodel<OwnerView, String>(repo.model, "last_name")
-        val slice = repo.sliceBefore(idKey, 10, lastNamePath eq "Davis")
-        slice.content shouldHaveSize 2
-        slice.hasNext shouldBe false
+        val window = repo.select().where(lastNamePath eq "Davis").scroll(Scrollable.of(idKey, 10).backward())
+        window.content shouldHaveSize 2
+        window.hasNext shouldBe false
     }
 
     @Test
-    fun `repo sliceBeforeRef with key and predicate should return filtered refs`() {
+    fun `repo scrollBeforeRef with key and predicate should return filtered refs`() {
         val repo = orm.projection(OwnerView::class)
         val idKey = metamodel<OwnerView, Int>(repo.model, "id").key()
         val lastNamePath = metamodel<OwnerView, String>(repo.model, "last_name")
-        val slice = repo.sliceBeforeRef(idKey, 10, lastNamePath eq "Davis")
-        slice.content shouldHaveSize 2
-        slice.hasNext shouldBe false
+        val window = repo.selectRef().where(lastNamePath eq "Davis").scroll(Scrollable.of(idKey, 10).backward())
+        window.content shouldHaveSize 2
+        window.hasNext shouldBe false
     }
 
     @Test
-    fun `repo sliceAfter with key after value and size should return next page`() {
+    fun `repo scrollAfter with key after value and size should return next page`() {
         val repo = orm.projection(OwnerView::class)
         val idKey = metamodel<OwnerView, Int>(repo.model, "id").key()
-        val slice = repo.sliceAfter(idKey, 3, 4)
-        slice.content shouldHaveSize 4
+        val window = repo.select().scroll(Scrollable(idKey, 3, null, null, 4, true))
+        window.content shouldHaveSize 4
     }
 
     @Test
-    fun `repo sliceAfterRef with key after value and size should return next page refs`() {
+    fun `repo scrollAfterRef with key after value and size should return next page refs`() {
         val repo = orm.projection(OwnerView::class)
         val idKey = metamodel<OwnerView, Int>(repo.model, "id").key()
-        val slice = repo.sliceAfterRef(idKey, 3, 4)
-        slice.content shouldHaveSize 4
+        val window = repo.selectRef().scroll(Scrollable(idKey, 3, null, null, 4, true))
+        window.content shouldHaveSize 4
     }
 
     @Test
-    fun `repo sliceBefore with key before value and size should return previous page`() {
+    fun `repo scrollBefore with key before value and size should return previous page`() {
         val repo = orm.projection(OwnerView::class)
         val idKey = metamodel<OwnerView, Int>(repo.model, "id").key()
-        val slice = repo.sliceBefore(idKey, 8, 4)
-        slice.content shouldHaveSize 4
+        val window = repo.select().scroll(Scrollable(idKey, 8, null, null, 4, false))
+        window.content shouldHaveSize 4
     }
 
     @Test
-    fun `repo sliceBeforeRef with key before value and size should return previous page refs`() {
+    fun `repo scrollBeforeRef with key before value and size should return previous page refs`() {
         val repo = orm.projection(OwnerView::class)
         val idKey = metamodel<OwnerView, Int>(repo.model, "id").key()
-        val slice = repo.sliceBeforeRef(idKey, 8, 4)
-        slice.content shouldHaveSize 4
+        val window = repo.selectRef().scroll(Scrollable(idKey, 8, null, null, 4, false))
+        window.content shouldHaveSize 4
     }
 
     @Test
-    fun `repo sliceAfter with key after value predicate and size should return filtered next page`() {
-        val repo = orm.projection(OwnerView::class)
-        val idKey = metamodel<OwnerView, Int>(repo.model, "id").key()
-        val lastNamePath = metamodel<OwnerView, String>(repo.model, "last_name")
-        val slice = repo.sliceAfter(idKey, 1, 10, lastNamePath eq "Davis")
-        slice.content shouldHaveSize 1
-    }
-
-    @Test
-    fun `repo sliceAfterRef with key after value predicate and size should return filtered next page refs`() {
+    fun `repo scrollAfter with key after value predicate and size should return filtered next page`() {
         val repo = orm.projection(OwnerView::class)
         val idKey = metamodel<OwnerView, Int>(repo.model, "id").key()
         val lastNamePath = metamodel<OwnerView, String>(repo.model, "last_name")
-        val slice = repo.sliceAfterRef(idKey, 1, 10, lastNamePath eq "Davis")
-        slice.content shouldHaveSize 1
+        val window = repo.select().where(lastNamePath eq "Davis").scroll(Scrollable(idKey, 1, null, null, 10, true))
+        window.content shouldHaveSize 1
     }
 
     @Test
-    fun `repo sliceBefore with key before value predicate and size should return filtered previous page`() {
+    fun `repo scrollAfterRef with key after value predicate and size should return filtered next page refs`() {
         val repo = orm.projection(OwnerView::class)
         val idKey = metamodel<OwnerView, Int>(repo.model, "id").key()
         val lastNamePath = metamodel<OwnerView, String>(repo.model, "last_name")
-        val slice = repo.sliceBefore(idKey, 10, 10, lastNamePath eq "Davis")
-        slice.content shouldHaveSize 2
+        val window = repo.selectRef().where(lastNamePath eq "Davis").scroll(Scrollable(idKey, 1, null, null, 10, true))
+        window.content shouldHaveSize 1
     }
 
     @Test
-    fun `repo sliceBeforeRef with key before value predicate and size should return filtered previous page refs`() {
+    fun `repo scrollBefore with key before value predicate and size should return filtered previous page`() {
         val repo = orm.projection(OwnerView::class)
         val idKey = metamodel<OwnerView, Int>(repo.model, "id").key()
         val lastNamePath = metamodel<OwnerView, String>(repo.model, "last_name")
-        val slice = repo.sliceBeforeRef(idKey, 10, 10, lastNamePath eq "Davis")
-        slice.content shouldHaveSize 2
+        val window = repo.select().where(lastNamePath eq "Davis").scroll(Scrollable(idKey, 10, null, null, 10, false))
+        window.content shouldHaveSize 2
     }
 
     @Test
-    fun `repo slice with key sort and size should return sorted first page`() {
+    fun `repo scrollBeforeRef with key before value predicate and size should return filtered previous page refs`() {
         val repo = orm.projection(OwnerView::class)
         val idKey = metamodel<OwnerView, Int>(repo.model, "id").key()
         val lastNamePath = metamodel<OwnerView, String>(repo.model, "last_name")
-        val slice = repo.slice(idKey, lastNamePath, 4)
-        slice.content shouldHaveSize 4
-        slice.hasNext shouldBe true
+        val window = repo.selectRef().where(lastNamePath eq "Davis").scroll(Scrollable(idKey, 10, null, null, 10, false))
+        window.content shouldHaveSize 2
     }
 
     @Test
-    fun `repo sliceBefore with key sort and size should return sorted last page`() {
+    fun `repo scroll with key sort and size should return sorted first page`() {
         val repo = orm.projection(OwnerView::class)
         val idKey = metamodel<OwnerView, Int>(repo.model, "id").key()
         val lastNamePath = metamodel<OwnerView, String>(repo.model, "last_name")
-        val slice = repo.sliceBefore(idKey, lastNamePath, 4)
-        slice.content shouldHaveSize 4
-        slice.hasNext shouldBe true
+        val window = repo.scroll(Scrollable.of(idKey, lastNamePath, 4))
+        window.content shouldHaveSize 4
+        window.hasNext shouldBe true
     }
 
     @Test
-    fun `repo sliceRef with key sort and size should return sorted first page refs`() {
+    fun `repo scrollBefore with key sort and size should return sorted last page`() {
         val repo = orm.projection(OwnerView::class)
         val idKey = metamodel<OwnerView, Int>(repo.model, "id").key()
         val lastNamePath = metamodel<OwnerView, String>(repo.model, "last_name")
-        val slice = repo.sliceRef(idKey, lastNamePath, 4)
-        slice.content shouldHaveSize 4
-        slice.hasNext shouldBe true
+        val window = repo.scroll(Scrollable.of(idKey, lastNamePath, 4).backward())
+        window.content shouldHaveSize 4
+        window.hasNext shouldBe true
     }
 
     @Test
-    fun `repo sliceBeforeRef with key sort and size should return sorted refs`() {
+    fun `repo scrollRef with key sort and size should return sorted first page refs`() {
         val repo = orm.projection(OwnerView::class)
         val idKey = metamodel<OwnerView, Int>(repo.model, "id").key()
         val lastNamePath = metamodel<OwnerView, String>(repo.model, "last_name")
-        val slice = repo.sliceBeforeRef(idKey, lastNamePath, 4)
-        slice.content shouldHaveSize 4
-        slice.hasNext shouldBe true
+        val window = repo.selectRef().scroll(Scrollable.of(idKey, lastNamePath, 4))
+        window.content shouldHaveSize 4
+        window.hasNext shouldBe true
     }
 
     @Test
-    fun `repo sliceAfter with key sort and cursors should return next sorted page`() {
+    fun `repo scrollBeforeRef with key sort and size should return sorted refs`() {
         val repo = orm.projection(OwnerView::class)
         val idKey = metamodel<OwnerView, Int>(repo.model, "id").key()
         val lastNamePath = metamodel<OwnerView, String>(repo.model, "last_name")
-        val slice = repo.sliceAfter(idKey, 3, lastNamePath, "Davis", 4)
-        slice.content shouldHaveSize 4
+        val window = repo.selectRef().scroll(Scrollable.of(idKey, lastNamePath, 4).backward())
+        window.content shouldHaveSize 4
+        window.hasNext shouldBe true
     }
 
     @Test
-    fun `repo sliceBefore with key sort and cursors should return previous sorted page`() {
+    fun `repo scrollAfter with key sort and cursors should return next sorted page`() {
         val repo = orm.projection(OwnerView::class)
         val idKey = metamodel<OwnerView, Int>(repo.model, "id").key()
         val lastNamePath = metamodel<OwnerView, String>(repo.model, "last_name")
-        val slice = repo.sliceBefore(idKey, 8, lastNamePath, "Smith", 4)
-        slice.content shouldHaveSize 4
+        val window = repo.select().scroll(Scrollable(idKey, 3, lastNamePath, "Davis", 4, true))
+        window.content shouldHaveSize 4
     }
 
     @Test
-    fun `repo sliceAfterRef with key sort and cursors should return next sorted page refs`() {
+    fun `repo scrollBefore with key sort and cursors should return previous sorted page`() {
         val repo = orm.projection(OwnerView::class)
         val idKey = metamodel<OwnerView, Int>(repo.model, "id").key()
         val lastNamePath = metamodel<OwnerView, String>(repo.model, "last_name")
-        val slice = repo.sliceAfterRef(idKey, 3, lastNamePath, "Davis", 4)
-        slice.content shouldHaveSize 4
+        val window = repo.select().scroll(Scrollable(idKey, 8, lastNamePath, "Smith", 4, false))
+        window.content shouldHaveSize 4
     }
 
     @Test
-    fun `repo sliceBeforeRef with key sort and cursors should return previous sorted page refs`() {
+    fun `repo scrollAfterRef with key sort and cursors should return next sorted page refs`() {
         val repo = orm.projection(OwnerView::class)
         val idKey = metamodel<OwnerView, Int>(repo.model, "id").key()
         val lastNamePath = metamodel<OwnerView, String>(repo.model, "last_name")
-        val slice = repo.sliceBeforeRef(idKey, 8, lastNamePath, "Smith", 4)
-        slice.content shouldHaveSize 4
+        val window = repo.selectRef().scroll(Scrollable(idKey, 3, lastNamePath, "Davis", 4, true))
+        window.content shouldHaveSize 4
+    }
+
+    @Test
+    fun `repo scrollBeforeRef with key sort and cursors should return previous sorted page refs`() {
+        val repo = orm.projection(OwnerView::class)
+        val idKey = metamodel<OwnerView, Int>(repo.model, "id").key()
+        val lastNamePath = metamodel<OwnerView, String>(repo.model, "last_name")
+        val window = repo.selectRef().scroll(Scrollable(idKey, 8, lastNamePath, "Smith", 4, false))
+        window.content shouldHaveSize 4
     }
 }
