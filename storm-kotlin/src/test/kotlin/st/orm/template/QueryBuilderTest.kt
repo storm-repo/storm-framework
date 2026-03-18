@@ -21,6 +21,7 @@ import st.orm.NonUniqueResultException
 import st.orm.Operator.*
 import st.orm.PersistenceException
 import st.orm.Ref
+import st.orm.Scrollable
 import st.orm.template.model.*
 
 @ExtendWith(SpringExtension::class)
@@ -1406,37 +1407,37 @@ open class QueryBuilderTest(
     }
 
     @Test
-    fun `slice with simple size should return correct page`() {
+    fun `scroll with simple size should return correct page`() {
         val repo = orm.entity(City::class)
         val idPath = metamodel<City, Int>(repo.model, "id")
-        val slice = repo.select().orderBy(idPath).slice(3)
-        slice.content shouldHaveSize 3
-        slice.hasNext shouldBe true
+        val window = repo.select().orderBy(idPath).scroll(3)
+        window.content shouldHaveSize 3
+        window.hasNext shouldBe true
     }
 
     @Test
-    fun `slice with size greater than total should not have next`() {
+    fun `scroll with size greater than total should not have next`() {
         val repo = orm.entity(City::class)
         val idPath = metamodel<City, Int>(repo.model, "id")
-        val slice = repo.select().orderBy(idPath).slice(10)
-        slice.content shouldHaveSize 6
-        slice.hasNext shouldBe false
+        val window = repo.select().orderBy(idPath).scroll(10)
+        window.content shouldHaveSize 6
+        window.hasNext shouldBe false
     }
 
     @Test
-    fun `slice with exact size should not have next`() {
+    fun `scroll with exact size should not have next`() {
         val repo = orm.entity(City::class)
         val idPath = metamodel<City, Int>(repo.model, "id")
-        val slice = repo.select().orderBy(idPath).slice(6)
-        slice.content shouldHaveSize 6
-        slice.hasNext shouldBe false
+        val window = repo.select().orderBy(idPath).scroll(6)
+        window.content shouldHaveSize 6
+        window.hasNext shouldBe false
     }
 
     @Test
-    fun `slice with zero size should throw IllegalArgumentException`() {
+    fun `scroll with zero size should throw IllegalArgumentException`() {
         val repo = orm.entity(City::class)
         assertThrows<IllegalArgumentException> {
-            repo.select().slice(0)
+            repo.select().scroll(0)
         }
     }
 
@@ -2127,94 +2128,94 @@ open class QueryBuilderTest(
         owners shouldHaveSize 4
     }
 
-    // QueryBuilder slice (no key) tests
+    // QueryBuilder scroll (no key) tests
 
     @Test
-    fun `slice without key should return first page with hasNext`() {
+    fun `scroll without key should return first page with hasNext`() {
         val repo = orm.entity(City::class)
         val idPath = metamodel<City, Int>(repo.model, "id")
-        val slice = repo.select().orderBy(idPath).slice(3)
-        slice.content shouldHaveSize 3
-        slice.hasNext shouldBe true
+        val window = repo.select().orderBy(idPath).scroll(3)
+        window.content shouldHaveSize 3
+        window.hasNext shouldBe true
     }
 
     @Test
-    fun `slice without key should return all when size exceeds count`() {
+    fun `scroll without key should return all when size exceeds count`() {
         val repo = orm.entity(City::class)
         val idPath = metamodel<City, Int>(repo.model, "id")
-        val slice = repo.select().orderBy(idPath).slice(10)
-        slice.content shouldHaveSize 6
-        slice.hasNext shouldBe false
+        val window = repo.select().orderBy(idPath).scroll(10)
+        window.content shouldHaveSize 6
+        window.hasNext shouldBe false
     }
 
-    // QueryBuilder: sliceAfter/sliceBefore with PK cursor
+    // QueryBuilder: scrollAfter/scrollBefore with PK cursor
 
     @Test
-    fun `sliceAfter should return next page`() {
+    fun `scrollAfter should return next page`() {
         val repo = orm.entity(Owner::class)
         val idKey = metamodel<Owner, Int>(repo.model, "id").key()
         // Owners have ids 1-10. After id > 5: ids 6,7,8,9,10 = 5 owners.
-        val slice = repo.select().sliceAfter(idKey, 5, 10)
-        slice.content shouldHaveSize 5
+        val window = repo.select().scroll(Scrollable(idKey, 5, null, null, 10, true))
+        window.content shouldHaveSize 5
     }
 
     @Test
-    fun `sliceBefore should return previous page`() {
+    fun `scrollBefore should return previous page`() {
         val repo = orm.entity(Owner::class)
         val idKey = metamodel<Owner, Int>(repo.model, "id").key()
         // Owners have ids 1-10. Before id < 6: ids 1,2,3,4,5 = 5 owners.
-        val slice = repo.select().sliceBefore(idKey, 6, 10)
-        slice.content shouldHaveSize 5
+        val window = repo.select().scroll(Scrollable(idKey, 6, null, null, 10, false))
+        window.content shouldHaveSize 5
     }
 
-    // QueryBuilder: sliceAfter/sliceBefore with sort + cursor (composite keyset)
+    // QueryBuilder: composite scroll with sort + cursor
 
     @Test
-    fun `sliceAfter with composite key and sort cursor should return next page`() {
+    fun `scrollAfter with composite key and sort cursor should return next page`() {
         val repo = orm.entity(City::class)
         val idKey = metamodel<City, Int>(repo.model, "id").key()
         val namePath = metamodel<City, String>(repo.model, "name")
         // Get first page sorted by name
-        val firstPage = repo.select().slice(idKey, namePath, 3)
+        val firstPage = repo.select().scroll(Scrollable.of(idKey, namePath, 3))
         firstPage.content shouldHaveSize 3
         val lastItem = firstPage.content.last()
         // Get next page after last item
-        val nextPage = repo.select().sliceAfter(idKey, lastItem.id, namePath, lastItem.name, 3)
+        val nextPage = repo.select().scroll(Scrollable(idKey, lastItem.id, namePath, lastItem.name, 3, true))
         nextPage.content shouldHaveSize 3
     }
 
     @Test
-    fun `sliceBefore with composite key and sort cursor should return previous page`() {
+    fun `scrollBefore with composite key and sort cursor should return previous page`() {
         val repo = orm.entity(City::class)
         val idKey = metamodel<City, Int>(repo.model, "id").key()
         val namePath = metamodel<City, String>(repo.model, "name")
         // Get last page (descending)
-        val lastPage = repo.select().sliceBefore(idKey, namePath, 3)
+        val lastPage = repo.select().scroll(Scrollable.of(idKey, namePath, 3).backward())
         lastPage.content shouldHaveSize 3
         val firstItem = lastPage.content.last()
         // Get previous page before first item
-        val previousPage = repo.select().sliceBefore(idKey, firstItem.id, namePath, firstItem.name, 3)
+        val previousPage = repo.select().scroll(Scrollable(idKey, firstItem.id, namePath, firstItem.name, 3, false))
         previousPage.content shouldHaveSize 3
     }
 
     @Test
-    fun `sliceAfter with composite key and sort cursor should return all matching owners`() {
+    fun `scrollAfter with composite key and sort cursor should return all matching owners`() {
         val repo = orm.entity(Owner::class)
         val idKey = metamodel<Owner, Int>(repo.model, "id").key()
         val lastNamePath = metamodel<Owner, String>(repo.model, "last_name")
         // After (lastName > "A" OR (lastName = "A" AND id > 1)): all 10 owners have lastName > "A".
-        val slice = repo.select().sliceAfter(idKey, 1, lastNamePath, "A", 10)
-        slice.content shouldHaveSize 10
+        val window = repo.select().scroll(Scrollable(idKey, 1, lastNamePath, "A", 10, true))
+        window.content shouldHaveSize 10
     }
 
     @Test
-    fun `sliceBefore with composite key and sort cursor should return all matching owners`() {
+    fun `scrollBefore with composite key and sort cursor should return all matching owners`() {
         val repo = orm.entity(Owner::class)
         val idKey = metamodel<Owner, Int>(repo.model, "id").key()
         val lastNamePath = metamodel<Owner, String>(repo.model, "last_name")
         // Before (lastName < "Z" OR (lastName = "Z" AND id < 10)): all 10 owners have lastName < "Z".
-        val slice = repo.select().sliceBefore(idKey, 10, lastNamePath, "Z", 10)
-        slice.content shouldHaveSize 10
+        val window = repo.select().scroll(Scrollable(idKey, 10, lastNamePath, "Z", 10, false))
+        window.content shouldHaveSize 10
     }
 
     // QueryBuilder: join with template

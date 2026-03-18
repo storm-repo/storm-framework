@@ -13,6 +13,7 @@ const sidebars: SidebarsConfig = {
         'relationships',
         'repositories',
         'queries',
+        'pagination-and-scrolling',
         'metamodel',
         'refs',
         'transactions',
@@ -53,6 +54,7 @@ const sidebars: SidebarsConfig = {
             'hydration',
             'dirty-checking',
             'entity-cache',
+            'cursors',
           ],
         },
         {

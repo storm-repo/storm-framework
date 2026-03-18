@@ -14,6 +14,7 @@ import st.orm.Data
 import st.orm.Metamodel
 import st.orm.Operator.*
 import st.orm.Ref
+import st.orm.Scrollable
 import st.orm.template.model.*
 
 @ExtendWith(SpringExtension::class)
@@ -149,29 +150,29 @@ open class RefsAndKeysTest(
     }
 
     @Test
-    fun `key should be usable in slice pagination`() {
+    fun `key should be usable in scrollpagination`() {
         val idMetamodel = Metamodel.of<City, Int>(City::class.java, "id")
         val key = idMetamodel.key()
-        // Use key in slice to verify it works with keyset pagination.
-        val slice = orm.entity(City::class).select().slice(key, 3)
-        slice.shouldNotBeNull()
-        slice.content shouldHaveSize 3
-        slice.hasNext shouldBe true
+        // Use key in scroll to verify it works with scrolling.
+        val window = orm.entity(City::class).select().scroll(Scrollable.of(key, 3))
+        window.shouldNotBeNull()
+        window.content shouldHaveSize 3
+        window.hasNext shouldBe true
     }
 
     @Test
-    fun `key should be usable in sliceAfter pagination`() {
+    fun `key should be usable in scrolling pagination`() {
         val idMetamodel = Metamodel.of<City, Int>(City::class.java, "id")
         val key = idMetamodel.key()
         // First page.
-        val firstSlice = orm.entity(City::class).select().slice(key, 3)
-        firstSlice.content shouldHaveSize 3
+        val firstWindow = orm.entity(City::class).select().scroll(Scrollable.of(key, 3))
+        firstWindow.content shouldHaveSize 3
 
-        // Next page using sliceAfter with cursor value from last item.
-        val lastId = firstSlice.content.last().id
-        val nextSlice = orm.entity(City::class).select().sliceAfter(key, lastId, 3)
-        nextSlice.content shouldHaveSize 3
-        nextSlice.hasNext shouldBe false
+        // Next page using scrolling with cursor value from last item.
+        val lastId = firstWindow.content.last().id
+        val nextWindow = orm.entity(City::class).select().scroll(Scrollable(key, lastId, null, null, 3, true))
+        nextWindow.content shouldHaveSize 3
+        nextWindow.hasNext shouldBe false
     }
 
     // Integration: using refs with QueryBuilder where clauses

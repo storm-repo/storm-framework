@@ -34,7 +34,7 @@ The following tables provide a side-by-side comparison of concrete features acro
 | SQL Templates | Yes | No | No | XML/Ann | Yes | Yes | No | No |
 | N+1 prevention | Yes | No | No | No | Manual | Manual | No | No |
 | Lazy loading | Refs | Yes | Yes | No | No | No | Yes | Yes |
-| Keyset pagination | Yes | No | Yes | No | Yes | No | No | No |
+| Scrolling | Yes | No | Yes | No | Yes | No | No | No |
 | JSON columns | Yes | Yes<sup>4</sup> | Via JPA | Manual | Yes | Module | Yes | Module |
 | JSON aggregation | Yes | No | No | No | Yes | No | No | No |
 

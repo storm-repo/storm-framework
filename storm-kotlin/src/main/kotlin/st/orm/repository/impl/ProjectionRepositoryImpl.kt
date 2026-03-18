@@ -20,13 +20,7 @@ import kotlinx.coroutines.flow.asFlow
 import kotlinx.coroutines.flow.fold
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.stream.consumeAsFlow
-import st.orm.Data
-import st.orm.Metamodel
-import st.orm.Page
-import st.orm.Pageable
-import st.orm.Projection
-import st.orm.Ref
-import st.orm.Slice
+import st.orm.*
 import st.orm.repository.ProjectionRepository
 import st.orm.template.*
 import st.orm.template.impl.ModelImpl
@@ -127,65 +121,9 @@ class ProjectionRepositoryImpl<P, ID : Any>(
         .map { chunk -> core.countByRef(chunk.stream()) }
         .fold(0L) { acc, v -> acc + v }
 
-    // Page methods.
-
     override fun page(pageNumber: Int, pageSize: Int): Page<P> = core.page(pageNumber, pageSize)
 
     override fun page(pageable: Pageable): Page<P> = core.page(pageable)
 
-    override fun pageRef(pageNumber: Int, pageSize: Int): Page<Ref<P>> = core.pageRef(pageNumber, pageSize)
-
-    override fun pageRef(pageable: Pageable): Page<Ref<P>> = core.pageRef(pageable)
-
-    // Slice methods.
-
-    override fun <V> slice(key: Metamodel.Key<P, V>, size: Int): Slice<P> = core.slice(key, size)
-
-    override fun <V> sliceBefore(key: Metamodel.Key<P, V>, size: Int): Slice<P> = core.sliceBefore(key, size)
-
-    override fun <V> sliceRef(key: Metamodel.Key<P, V>, size: Int): Slice<Ref<P>> = core.sliceRef(key, size)
-
-    override fun <V> sliceBeforeRef(key: Metamodel.Key<P, V>, size: Int): Slice<Ref<P>> = core.sliceBeforeRef(key, size)
-
-    override fun <V> sliceAfter(key: Metamodel.Key<P, V>, after: V, size: Int): Slice<P> = core.sliceAfter(key, after, size)
-
-    override fun <V> sliceAfterRef(key: Metamodel.Key<P, V>, after: V, size: Int): Slice<Ref<P>> = core.sliceAfterRef(key, after, size)
-
-    override fun <V> sliceBefore(key: Metamodel.Key<P, V>, before: V, size: Int): Slice<P> = core.sliceBefore(key, before, size)
-
-    override fun <V> sliceBeforeRef(key: Metamodel.Key<P, V>, before: V, size: Int): Slice<Ref<P>> = core.sliceBeforeRef(key, before, size)
-
-    override fun <V : Data> sliceAfter(key: Metamodel.Key<P, V>, after: Ref<V>, size: Int): Slice<P> = core.sliceAfter(key, after, size)
-
-    override fun <V : Data> sliceAfterRef(key: Metamodel.Key<P, V>, after: Ref<V>, size: Int): Slice<Ref<P>> = core.sliceAfterRef(key, after, size)
-
-    override fun <V : Data> sliceBefore(key: Metamodel.Key<P, V>, before: Ref<V>, size: Int): Slice<P> = core.sliceBefore(key, before, size)
-
-    override fun <V : Data> sliceBeforeRef(key: Metamodel.Key<P, V>, before: Ref<V>, size: Int): Slice<Ref<P>> = core.sliceBeforeRef(key, before, size)
-
-    // Composite keyset slice methods.
-
-    override fun <V, S> slice(key: Metamodel.Key<P, V>, sort: Metamodel<P, S>, size: Int): Slice<P> = core.slice(key, sort, size)
-
-    override fun <V, S> sliceBefore(key: Metamodel.Key<P, V>, sort: Metamodel<P, S>, size: Int): Slice<P> = core.sliceBefore(key, sort, size)
-
-    override fun <V, S> sliceAfter(key: Metamodel.Key<P, V>, keyAfter: V, sort: Metamodel<P, S>, sortAfter: S, size: Int): Slice<P> = core.sliceAfter(key, keyAfter, sort, sortAfter, size)
-
-    override fun <V, S> sliceBefore(key: Metamodel.Key<P, V>, keyBefore: V, sort: Metamodel<P, S>, sortBefore: S, size: Int): Slice<P> = core.sliceBefore(key, keyBefore, sort, sortBefore, size)
-
-    override fun <V : Data, S> sliceAfter(key: Metamodel.Key<P, V>, keyAfter: Ref<V>, sort: Metamodel<P, S>, sortAfter: S, size: Int): Slice<P> = core.sliceAfter(key, keyAfter, sort, sortAfter, size)
-
-    override fun <V : Data, S> sliceBefore(key: Metamodel.Key<P, V>, keyBefore: Ref<V>, sort: Metamodel<P, S>, sortBefore: S, size: Int): Slice<P> = core.sliceBefore(key, keyBefore, sort, sortBefore, size)
-
-    override fun <V, S> sliceRef(key: Metamodel.Key<P, V>, sort: Metamodel<P, S>, size: Int): Slice<Ref<P>> = core.sliceRef(key, sort, size)
-
-    override fun <V, S> sliceBeforeRef(key: Metamodel.Key<P, V>, sort: Metamodel<P, S>, size: Int): Slice<Ref<P>> = core.sliceBeforeRef(key, sort, size)
-
-    override fun <V, S> sliceAfterRef(key: Metamodel.Key<P, V>, keyAfter: V, sort: Metamodel<P, S>, sortAfter: S, size: Int): Slice<Ref<P>> = core.sliceAfterRef(key, keyAfter, sort, sortAfter, size)
-
-    override fun <V, S> sliceBeforeRef(key: Metamodel.Key<P, V>, keyBefore: V, sort: Metamodel<P, S>, sortBefore: S, size: Int): Slice<Ref<P>> = core.sliceBeforeRef(key, keyBefore, sort, sortBefore, size)
-
-    override fun <V : Data, S> sliceAfterRef(key: Metamodel.Key<P, V>, keyAfter: Ref<V>, sort: Metamodel<P, S>, sortAfter: S, size: Int): Slice<Ref<P>> = core.sliceAfterRef(key, keyAfter, sort, sortAfter, size)
-
-    override fun <V : Data, S> sliceBeforeRef(key: Metamodel.Key<P, V>, keyBefore: Ref<V>, sort: Metamodel<P, S>, sortBefore: S, size: Int): Slice<Ref<P>> = core.sliceBeforeRef(key, keyBefore, sort, sortBefore, size)
+    override fun scroll(scrollable: Scrollable<P>): Window<P> = Window.of(select().scroll(scrollable))
 }

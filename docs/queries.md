@@ -162,7 +162,7 @@ val users = orm.entity(User::class)
     .select()
     .where(
         (User_.city eq city) and (
-            (User_.role eq adminRole) or (User_.birthDate greaterOrEquals LocalDate.of(1990, 1, 1))
+            (User_.role eq adminRole) or (User_.birthDate greaterEq LocalDate.of(1990, 1, 1))
         )
     )
     .resultList
@@ -173,11 +173,11 @@ val users = orm.entity(User::class)
 | Operator | Description |
 |----------|-------------|
 | `eq` | Equals |
-| `notEq` | Not equals |
+| `neq` | Not equals |
 | `less` | Less than |
-| `lessOrEquals` | Less than or equals |
+| `lessEq` | Less than or equals |
 | `greater` | Greater than |
-| `greaterOrEquals` | Greater than or equals |
+| `greaterEq` | Greater than or equals |
 | `like` | LIKE pattern match |
 | `notLike` | NOT LIKE |
 | `isNull` | IS NULL |
@@ -451,324 +451,69 @@ List<CityCount> counts = orm.query(RAW."""
 </TabItem>
 </Tabs>
 
-## Pagination
+## Data Retrieval Strategies
 
-Storm supports three levels of pagination, from manual control to cursor-based navigation:
+When working with large result sets, Storm supports three strategies for retrieving subsets: manual offset/limit, offset-based pagination, and cursor-based scrolling.
 
-| Approach | Best for | Total count | Random access |
-|----------|----------|-------------|---------------|
-| **Manual** | Simple offset/limit control | No | Yes |
-| **Page** | Traditional numbered pages with total counts | Yes | Yes |
-| **Slice** | Large tables, infinite scroll, "load more" patterns | No | No (cursor-based) |
+| Strategy | Navigation | Result type | Typical use |
+|----------|------------|-------------|-------------|
+| **Offset and Limit** | manual | `List<R>` | simple queries with known bounds |
+| **Pagination** | page number | `Page<R>` | UI lists, reports |
+| **Scrolling** | sequential cursor | `Window<T>` | infinite scroll, batch processing |
 
-Start with manual offset/limit for simple cases. Use `Page` when the UI needs total counts and page numbers. Use `Slice` for large tables or sequential navigation where consistent performance matters.
+**Pagination** navigates by page number and includes a total count. It uses SQL `OFFSET` under the hood, which degrades on large tables. **Scrolling** uses keyset pagination for constant-time performance regardless of depth, but only supports sequential forward/backward navigation.
 
-### Manual
+For detailed usage, sorting, composite scrolling, `MappedWindow` vs `Window`, GROUP BY with scrolling, and REST cursor support, see [Pagination and Scrolling](pagination-and-scrolling.md).
 
-For direct offset/limit control, use `offset` and `limit` on the query builder. Always combine these with `orderBy` to ensure deterministic ordering across pages.
+### Quick examples
+
 
 <Tabs groupId="language">
 <TabItem value="kotlin" label="Kotlin" default>
 
 ```kotlin
-val results = orm.entity(User::class)
-    .select()
+// Offset and limit
+val results = orm.entity(User::class).select()
     .orderBy(User_.createdAt)
-    .offset(20)
-    .limit(10)
+    .offset(20).limit(10)
     .resultList
+
+// Pagination
+val page: Page<User> = orm.entity(User::class).select()
+    .where(User_.active, EQUALS, true)
+    .page(Pageable.ofSize(10))
+
+// Scrolling
+val window: Window<User> = userRepository.scroll(Scrollable.of(User_.id, 20))
+window.nextScrollable()?.let { scrollable ->
+    val next = userRepository.scroll(scrollable)
+}
 ```
 
 </TabItem>
 <TabItem value="java" label="Java">
 
 ```java
-List<User> results = orm.entity(User.class)
-    .select()
+// Offset and limit
+var results = orm.entity(User.class).select()
     .orderBy(User_.createdAt)
-    .offset(20)
-    .limit(10)
+    .offset(20).limit(10)
     .getResultList();
-```
 
-</TabItem>
-</Tabs>
-
-### Page and Pageable
-
-For a higher-level API that includes total counts and navigation helpers, use the `page` terminal method on the query builder. Pass a `Pageable` to specify the page number and page size. The builder executes two queries: a `SELECT COUNT(*)` for the total, and a query with `OFFSET`/`LIMIT` for the content. The result is a `Page` containing the content, total count, and navigation methods.
-
-<Tabs groupId="language">
-<TabItem value="kotlin" label="Kotlin" default>
-
-```kotlin
-val pageable = Pageable.ofSize(10)
-val page: Page<User> = orm.entity(User::class)
-    .select()
+// Pagination
+Page<User> page = orm.entity(User.class).select()
     .where(User_.active, EQUALS, true)
-    .page(pageable)
+    .page(Pageable.ofSize(10));
 
-// Navigate
-if (page.hasNext()) {
-    val nextPage = orm.entity(User::class)
-        .select()
-        .where(User_.active, EQUALS, true)
-        .page(page.nextPageable())
-}
-```
-
-</TabItem>
-<TabItem value="java" label="Java">
-
-```java
-Pageable pageable = Pageable.ofSize(10);
-Page<User> page = orm.entity(User.class)
-    .select()
-    .where(User_.active, EQUALS, true)
-    .page(pageable);
-
-// Navigate
-if (page.hasNext()) {
-    Page<User> nextPage = orm.entity(User.class)
-        .select()
-        .where(User_.active, EQUALS, true)
-        .page(page.nextPageable());
+// Scrolling
+Window<User> window = userRepository.scroll(Scrollable.of(User_.id, 20));
+if (window.hasNext()) {
+    var next = userRepository.scroll(window.nextScrollable());
 }
 ```
 
 </TabItem>
 </Tabs>
-
-#### Sorting
-
-Sort orders are specified on the `Pageable` using `sortBy` (ascending) and `sortByDescending` (descending). Multiple calls append columns to build a multi-column sort, and the orders carry over automatically when navigating with `nextPageable()` or `previousPageable()`. You do not need to call `orderBy` separately on the query builder.
-
-<Tabs groupId="language">
-<TabItem value="kotlin" label="Kotlin" default>
-
-```kotlin
-// Single column, ascending
-val pageable = Pageable.ofSize(10).sortBy(User_.createdAt)
-
-// Single column, descending
-val pageable = Pageable.ofSize(10).sortByDescending(User_.createdAt)
-
-// Multi-column: last name ascending, then first name descending
-val pageable = Pageable.ofSize(10)
-    .sortBy(User_.lastName)
-    .sortByDescending(User_.firstName)
-```
-
-</TabItem>
-<TabItem value="java" label="Java">
-
-```java
-// Single column, ascending
-Pageable pageable = Pageable.ofSize(10).sortBy(User_.createdAt);
-
-// Single column, descending
-Pageable pageable = Pageable.ofSize(10).sortByDescending(User_.createdAt);
-
-// Multi-column: last name ascending, then first name descending
-Pageable pageable = Pageable.ofSize(10)
-    .sortBy(User_.lastName)
-    .sortByDescending(User_.firstName);
-```
-
-</TabItem>
-</Tabs>
-
-For the full `Page` and `Pageable` API reference, see [Repositories: Offset-Based Pagination](repositories.md#offset-based-pagination).
-
-Both Manual and Page use offset-based pagination under the hood. This works well for small to medium tables or when users need to jump to arbitrary page numbers, but degrades on large tables because the database must scan and discard all skipped rows.
-
-### Slice
-
-Keyset pagination works by remembering the last value seen on the current page and asking the database for rows after (or before) that value. This avoids the performance cliff of `OFFSET` on large tables, because the database can seek directly to the cursor position using an index.
-
-:::warning Sort Stability Required
-Keyset pagination (`sliceAfter`/`sliceBefore`) requires a stable sort order. The final sort column must be unique (typically the primary key). Using a non-unique sort column like `createdAt` without a tiebreaker will produce duplicate or missing rows at page boundaries. Use the [two-column overloads](#sorting-by-non-unique-columns) when sorting by a non-unique column.
-:::
-
-The `slice`, `sliceAfter`, and `sliceBefore` methods are available directly on repositories and on the query builder. Each returns a `Slice<R>`, which is a simple record containing:
-
-| Field | Description |
-|-------|-------------|
-| `content` | The list of results for this page. |
-| `hasNext` | `true` if more results exist beyond this slice. |
-
-The four methods correspond to four paging operations:
-
-| Method | Purpose | SQL effect |
-|--------|---------|------------|
-| `slice(key, size)` | Fetch the first page (ascending). | `ORDER BY key ASC LIMIT size+1` |
-| `sliceAfter(key, cursor, size)` | Fetch the next page after a cursor value. | `WHERE key > cursor ORDER BY key ASC LIMIT size+1` |
-| `sliceBefore(key, size)` | Fetch the first page (descending). | `ORDER BY key DESC LIMIT size+1` |
-| `sliceBefore(key, cursor, size)` | Fetch the previous page before a cursor value. | `WHERE key < cursor ORDER BY key DESC LIMIT size+1` |
-
-The extra row (`size+1`) is used internally to determine the value of `hasNext`, then discarded from the returned content.
-
-**Result ordering.** `slice` and `sliceAfter` return results in ascending key order. `sliceBefore` returns results in **descending** key order, both when used with a cursor (to find the nearest rows before it) and without a cursor (to start from the most recent entries). If you need ascending order for display after navigating backward, reverse the list.
-
-**No total count.** Unlike offset-based pagination, keyset pagination does not include a total element count. A separate `COUNT(*)` query must execute the same joins, filters, and conditions as the main query, which can be expensive on large or complex result sets. Total counts are also inherently unstable: rows may be inserted or deleted while a user navigates through pages, so the count can become stale between requests. Keyset pagination is designed for sequential "load more" or infinite-scroll patterns where a total is rarely needed. If you do need a total count (for example, for a UI label like "showing 10 of 4,827 results"), call the `count` (Kotlin) or `getCount()` (Java) method on the query builder separately, keeping in mind that the value is a snapshot that may drift as the underlying data changes.
-
-**Basic usage.** Pass a `Metamodel.Key` that identifies a unique, indexed column (typically the primary key) and the desired page size. The key determines both ordering and the cursor column. Fields annotated with `@UK` or `@PK` automatically generate `Metamodel.Key` instances in the metamodel. See [Metamodel](metamodel.md#unique-keys-uk-and-metamodelkey) for details.
-
-> **Nullable keys.** If a `@UK` field is nullable and the default `nullsDistinct = true` applies, `slice` methods throw a `PersistenceException` at runtime. Either use a non-nullable type, or set `@UK(nullsDistinct = false)` if the database constraint prevents duplicate NULLs. See [Nullable Unique Keys](metamodel.md#nullable-unique-keys) for details.
-
-For repository convenience methods (`slice`, `sliceAfter`, `sliceBefore` called directly on a repository) and Ref variants, see [Repositories: Keyset Pagination](repositories.md#keyset-pagination).
-
-Use `slice` as a terminal operation on the query builder for filtering, joins, or projections:
-
-<Tabs groupId="language">
-<TabItem value="kotlin" label="Kotlin" default>
-
-```kotlin
-val page = userRepository.select()
-    .where(User_.active, EQUALS, true)
-    .slice(User_.id, 10)
-```
-
-</TabItem>
-<TabItem value="java" label="Java">
-
-```java
-Slice<User> activePage = userRepository.select()
-    .where(User_.active, EQUALS, true)
-    .slice(User_.id, 10);
-```
-
-</TabItem>
-</Tabs>
-
-:::warning Ordering is built in
-The `slice`, `sliceAfter`, and `sliceBefore` methods generate the ORDER BY clause from the key you provide (ascending for `slice`/`sliceAfter`, descending for `sliceBefore`). Adding your own `orderBy()` call conflicts with the ordering that keyset pagination depends on, so Storm rejects the combination at runtime with a `PersistenceException`.
-
-<Tabs groupId="language">
-<TabItem value="kotlin" label="Kotlin" default>
-
-```kotlin
-// Wrong: orderBy conflicts with slice
-userRepository.select()
-    .orderBy(User_.name)          // PersistenceException at runtime
-    .slice(User_.id, 10)
-
-// Correct: slice handles ordering via the key
-userRepository.select()
-    .slice(User_.id, 10)
-```
-
-</TabItem>
-<TabItem value="java" label="Java">
-
-```java
-// Wrong: orderBy conflicts with slice
-userRepository.select()
-    .orderBy(User_.name)          // PersistenceException at runtime
-    .slice(User_.id, 10);
-
-// Correct: slice handles ordering via the key
-userRepository.select()
-    .slice(User_.id, 10);
-```
-
-</TabItem>
-</Tabs>
-:::
-
-#### Sorting by Non-Unique Columns
-
-The single-key `slice` methods require the cursor column to also be the sort column, which means the column must contain unique values. When you want to sort by a non-unique column (for example, a timestamp or status), use the overloads that accept a separate sort column. These accept two metamodel fields: a unique `key` column (typically the primary key) as a tiebreaker for deterministic paging, and a `sort` column for the primary sort order.
-
-<Tabs groupId="language">
-<TabItem value="kotlin" label="Kotlin" default>
-
-```kotlin
-// First page sorted by creation date ascending, with ID as tiebreaker
-val page1: Slice<Post> = postRepository.select()
-    .slice(Post_.id, Post_.createdAt, 20)
-
-// Next page: pass both cursor values from the last item
-val last = page1.content.last()
-val page2: Slice<Post> = postRepository.select()
-    .sliceAfter(Post_.id, last.id, Post_.createdAt, last.createdAt, 20)
-
-// First page sorted by creation date descending (most recent first)
-val latest: Slice<Post> = postRepository.select()
-    .sliceBefore(Post_.id, Post_.createdAt, 20)
-
-// Previous page
-val prev: Slice<Post> = postRepository.select()
-    .sliceBefore(Post_.id, last.id, Post_.createdAt, last.createdAt, 20)
-```
-
-</TabItem>
-<TabItem value="java" label="Java">
-
-```java
-// First page sorted by creation date, with ID as tiebreaker
-Slice<Post> page1 = postRepository.select()
-    .slice(Post_.id, Post_.createdAt, 20);
-
-// Next page: pass both cursor values from the last item
-Post last = page1.content().getLast();
-Slice<Post> page2 = postRepository.select()
-    .sliceAfter(Post_.id, last.id(), Post_.createdAt, last.createdAt(), 20);
-
-// Previous page
-Slice<Post> prev = postRepository.select()
-    .sliceBefore(Post_.id, last.id(), Post_.createdAt, last.createdAt(), 20);
-```
-
-</TabItem>
-</Tabs>
-
-The generated SQL uses a composite WHERE condition that maintains correct ordering even when `sort` values repeat:
-
-```sql
-WHERE (created_at > ? OR (created_at = ? AND id > ?))
-ORDER BY created_at ASC, id ASC
-LIMIT 21
-```
-
-As with the single-key variants, these methods manage ORDER BY internally and reject any explicit `orderBy()` call. The client is responsible for extracting both cursor values from the last (or first) item of the current page and passing them to the next request.
-
-**Indexing.** For keyset pagination with sort to perform well, create a composite index that covers both columns in the correct order:
-
-```sql
-CREATE INDEX idx_post_created_id ON post (created_at, id);
-```
-
-This allows the database to seek directly to the cursor position and scan forward, giving consistent performance regardless of page depth.
-
-#### GROUP BY
-
-When a query uses GROUP BY, the grouped column produces unique values in the result set even if the column itself is not annotated with `@UK`. In this case, wrap the metamodel with `.key()` (Kotlin) or `Metamodel.key()` (Java) to indicate it can serve as a keyset pagination cursor:
-
-<Tabs groupId="language">
-<TabItem value="kotlin" label="Kotlin" default>
-
-```kotlin
-val page = orm.query(Order::class)
-    .select(Order_.city, "COUNT(*)")
-    .groupBy(Order_.city)
-    .slice(Order_.city.key(), 20)
-```
-
-</TabItem>
-<TabItem value="java" label="Java">
-
-```java
-var page = orm.query(Order.class)
-    .select(Order_.city, "COUNT(*)")
-    .groupBy(Order_.city)
-    .slice(Metamodel.key(Order_.city), 20);
-```
-
-</TabItem>
-</Tabs>
-
-See [Manual Key Wrapping](metamodel.md#manual-key-wrapping) for more details.
 
 ## Distinct Results
 
@@ -1024,18 +769,18 @@ ORDER BY o.address DESC, o.city_id DESC
 
 ### GROUP BY
 
-Inline records expand in GROUP BY the same way. This is particularly useful in combination with keyset pagination, where grouping by a column makes it unique in the result set. Wrap the metamodel with `.key()` to indicate it can serve as a cursor:
+Inline records expand in GROUP BY the same way. This is particularly useful in combination with scrolling, where grouping by a column makes it unique in the result set. Wrap the metamodel with `.key()` to indicate it can serve as a cursor:
 
 ```kotlin
 data class CityOrderCount(val city: City, val count: Long)
 
 val orders = orm.entity(Order::class)
-val slice = orders.select(CityOrderCount::class) { "${City::class}, COUNT(*)" }
+val window = orders.select(CityOrderCount::class) { "${City::class}, COUNT(*)" }
     .groupBy(Order_.city)
-    .slice(Order_.city.key(), 20)
+    .scroll(Scrollable.of(Order_.city.key(), 20))
 ```
 
-See [Slice: GROUP BY](#group-by) for details.
+See [Scrolling: GROUP BY](#group-by) for details.
 
 ---
 

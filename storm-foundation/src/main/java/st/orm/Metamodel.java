@@ -293,7 +293,7 @@ public interface Metamodel<T extends Data, E> {
          * meaning the UNIQUE constraint does not prevent multiple NULLs.
          *
          * <p>A nullable key is unsafe for keyset pagination because {@code WHERE key > cursor} silently excludes
-         * NULL rows. The {@code slice} methods check this flag and throw a {@link PersistenceException} if the key
+         * NULL rows. The {@code scroll} methods check this flag and throw a {@link PersistenceException} if the key
          * is nullable.</p>
          *
          * @return {@code true} if this key allows duplicate NULLs (nullable with {@code nullsDistinct = true}),

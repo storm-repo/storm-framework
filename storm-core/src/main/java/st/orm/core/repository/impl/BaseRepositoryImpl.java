@@ -60,13 +60,13 @@ abstract class BaseRepositoryImpl<E extends Data, ID> implements Repository {
     }
 
     /**
-     * Returns the default slice size for batch operations.
+     * Returns the default chunk size for batch operations.
      *
-     * <p>This method is aware of any registered {@code SqlInterceptor} instances and returns the default slice size
+     * <p>This method is aware of any registered {@code SqlInterceptor} instances and returns the default chunk size
      * that is optimized for the SQL dialect that is used by the underlying SQL template. The dialect is determined
      * based on the SQL template's configuration and the interceptors that have been applied to it.</p>
      *
-     * @return the default slice size for batch operations.
+     * @return the default chunk size for batch operations.
      * @since 1.5
      */
     public int getDefaultChunkSize() {

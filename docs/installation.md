@@ -25,7 +25,7 @@ Storm provides a Bill of Materials (BOM) for centralized version management. Imp
 
 ```kotlin
 dependencies {
-    implementation(platform("st.orm:storm-bom:1.10.0"))
+    implementation(platform("st.orm:storm-bom:1.11.0"))
 }
 ```
 
@@ -40,7 +40,7 @@ dependencies {
         <dependency>
             <groupId>st.orm</groupId>
             <artifactId>storm-bom</artifactId>
-            <version>1.10.0</version>
+            <version>1.11.0</version>
             <type>pom</type>
             <scope>import</scope>
         </dependency>
@@ -52,7 +52,7 @@ dependencies {
 
 ```kotlin
 dependencies {
-    implementation(platform("st.orm:storm-bom:1.10.0"))
+    implementation(platform("st.orm:storm-bom:1.11.0"))
 }
 ```
 
@@ -70,7 +70,7 @@ plugins {
 }
 
 dependencies {
-    implementation(platform("st.orm:storm-bom:1.10.0"))
+    implementation(platform("st.orm:storm-bom:1.11.0"))
 
     implementation("st.orm:storm-kotlin")
     runtimeOnly("st.orm:storm-core")
@@ -88,7 +88,7 @@ The `storm-metamodel-ksp` dependency generates type-safe metamodel classes (e.g.
 
 ```kotlin
 dependencies {
-    implementation(platform("st.orm:storm-bom:1.10.0"))
+    implementation(platform("st.orm:storm-bom:1.11.0"))
 
     implementation("st.orm:storm-java21")
     runtimeOnly("st.orm:storm-core")

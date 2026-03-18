@@ -72,6 +72,7 @@ import st.orm.Pageable;
 import st.orm.Persist;
 import st.orm.PersistenceException;
 import st.orm.Ref;
+import st.orm.Scrollable;
 import st.orm.SelectMode;
 import st.orm.Version;
 import st.orm.core.model.Address;
@@ -2287,57 +2288,57 @@ public class RepositoryPreparedStatementIntegrationTest {
     }
 
     @Test
-    public void testSliceWithInlineRecordKey() {
-        // slice with inline record key should expand inline record for ORDER BY.
-        var slice = ORMTemplate.of(dataSource)
+    public void testScrollWithInlineRecordKey() {
+        // scroll with inline record key should expand inline record for ORDER BY.
+        var window = ORMTemplate.of(dataSource)
                 .selectFrom(Owner.class)
-                .slice(Metamodel.key(Owner_.address), 5);
-        assertEquals(5, slice.content().size());
-        assertTrue(slice.hasNext());
+                .scroll(Scrollable.of(Metamodel.key(Owner_.address), 5));
+        assertEquals(5, window.content().size());
+        assertTrue(window.hasNext());
     }
 
     @Test
-    public void testSliceAfterWithInlineRecordKey() {
-        // sliceAfter should expand inline record for both WHERE and ORDER BY.
+    public void testScrollAfterWithInlineRecordKey() {
+        // scrollAfter should expand inline record for both WHERE and ORDER BY.
         var allOwners = ORMTemplate.of(dataSource)
                 .selectFrom(Owner.class)
                 .orderBy(Owner_.address)
                 .getResultList();
         // Get the address of the 5th owner (index 4) as cursor.
         var cursor = allOwners.get(4).address();
-        var slice = ORMTemplate.of(dataSource)
+        var window = ORMTemplate.of(dataSource)
                 .selectFrom(Owner.class)
-                .sliceAfter(Metamodel.key(Owner_.address), cursor, 10);
+                .scroll(new Scrollable<>(Metamodel.key(Owner_.address), cursor, null, null, 10, true));
         // Should return remaining owners after the cursor.
-        assertFalse(slice.content().isEmpty());
+        assertFalse(window.content().isEmpty());
     }
 
     @Test
-    public void testSliceBeforeWithInlineRecordKey() {
-        // sliceBefore (cursorless, descending) should expand inline record for ORDER BY.
-        var slice = ORMTemplate.of(dataSource)
+    public void testScrollBeforeWithInlineRecordKey() {
+        // scrollBefore (cursorless, descending) should expand inline record for ORDER BY.
+        var window = ORMTemplate.of(dataSource)
                 .selectFrom(Owner.class)
-                .sliceBefore(Metamodel.key(Owner_.address), 5);
-        assertEquals(5, slice.content().size());
-        assertTrue(slice.hasNext());
+                .scroll(Scrollable.of(Metamodel.key(Owner_.address), 5).backward());
+        assertEquals(5, window.content().size());
+        assertTrue(window.hasNext());
     }
 
     @Test
-    public void testSliceRejectsNullableCompoundKey() {
+    public void testScrollRejectsNullableCompoundKey() {
         // EntityWithNullableUK has @UK NullableCompoundUK(String, String) with nullable constituents.
-        // slice should throw PersistenceException because the compound key is effectively nullable.
+        // scroll should throw PersistenceException because the compound key is effectively nullable.
         var key = (Metamodel.Key<EntityWithNullableUK, NullableCompoundUK>) (Metamodel.Key) EntityWithNullableUK_.uniqueKey;
         assertTrue(key.isNullable());
         assertThrows(PersistenceException.class, () ->
                 ORMTemplate.of(dataSource)
                         .selectFrom(EntityWithNullableUK.class)
-                        .slice(key, 5));
+                        .scroll(Scrollable.of(key, 5)));
     }
 
     @Test
-    public void testSliceAcceptsNullsNotDistinctCompoundKey() {
+    public void testScrollAcceptsNullsNotDistinctCompoundKey() {
         // EntityWithNullsNotDistinctUK has @UK(nullsDistinct = false) NullableCompoundUK.
-        // The key should NOT be considered nullable, so slice should not throw PersistenceException.
+        // The key should NOT be considered nullable, so scroll should not throw PersistenceException.
         var key = (Metamodel.Key<EntityWithNullsNotDistinctUK, NullableCompoundUK>) (Metamodel.Key) EntityWithNullsNotDistinctUK_.uniqueKey;
         assertFalse(key.isNullable());
         // The query may fail due to missing table, but it should NOT throw PersistenceException
@@ -2366,13 +2367,13 @@ public class RepositoryPreparedStatementIntegrationTest {
     }
 
     @Test
-    public void testSliceWithPrimaryKey() {
-        // slice using Owner_.id directly (a Key via @PK).
-        var slice = ORMTemplate.of(dataSource)
+    public void testScrollWithPrimaryKey() {
+        // scroll using Owner_.id directly (a Key via @PK).
+        var window = ORMTemplate.of(dataSource)
                 .selectFrom(Owner.class)
-                .slice(Owner_.id, 5);
-        assertEquals(5, slice.content().size());
-        assertTrue(slice.hasNext());
+                .scroll(Scrollable.of(Owner_.id, 5));
+        assertEquals(5, window.content().size());
+        assertTrue(window.hasNext());
     }
 
     // Page pagination

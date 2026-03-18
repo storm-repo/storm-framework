@@ -277,8 +277,10 @@ public class EntityRepositoryBatchIntegrationTest {
     public void testStreamCountMatchesRepositoryCount() {
         var orm = ORMTemplate.of(dataSource);
         var cities = orm.entity(City.class);
-        long streamCount = cities.select().getResultStream().count();
-        assertEquals(cities.count(), streamCount);
+        try (var stream = cities.select().getResultStream()) {
+            long streamCount = stream.count();
+            assertEquals(cities.count(), streamCount);
+        }
     }
 
     // OrderBy

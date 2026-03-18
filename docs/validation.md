@@ -91,7 +91,7 @@ Schema validation checks that the database has the constraints your entity model
 
 **Mismatches (errors)** occur when a constraint exists in the database but contradicts the entity definition. For example, if `@FK val city: City` expects a foreign key referencing the `city` table, but the database has a foreign key on that column referencing the `account` table, that is a `FOREIGN_KEY_MISMATCH`. Similarly, if the entity declares `@PK` with columns `(id)` but the database primary key is `(user_id, role_id)`, that is a `PRIMARY_KEY_MISMATCH`. Mismatches are always hard errors because they indicate a bug in the entity definition.
 
-**Missing constraints (warnings)** occur when the database has no constraint at all for a declared `@PK`, `@FK`, or `@UK` field. These are warnings rather than errors because the ORM functions correctly without database-level enforcement: queries return the same results, inserts and updates succeed, and keyset pagination works as expected.
+**Missing constraints (warnings)** occur when the database has no constraint at all for a declared `@PK`, `@FK`, or `@UK` field. These are warnings rather than errors because the ORM functions correctly without database-level enforcement: queries return the same results, inserts and updates succeed, and scrolling works as expected.
 
 However, database constraints serve as a safety net that the application layer cannot replace:
 

@@ -184,7 +184,7 @@ Entities loaded within a transaction are cached. See [Entity Cache](entity-cache
 
 ## Offset-Based Pagination
 
-Storm provides built-in `Page` and `Pageable` types for offset-based pagination. These eliminate the need to write manual `LIMIT`/`OFFSET` queries or define your own page wrapper. The repository handles the count query and result slicing automatically. For query-builder-level pagination (manual offset/limit, Page with query builder), see [Queries: Pagination](queries.md#pagination).
+Storm provides built-in `Page` and `Pageable` types for offset-based pagination. These eliminate the need to write manual `LIMIT`/`OFFSET` queries or define your own page wrapper. The repository handles the count query and result slicing automatically. For query-builder-level pagination (manual offset/limit, Page with query builder), see [Pagination and Scrolling: Pagination](pagination-and-scrolling.md#pagination).
 
 ### Page and Pageable
 
@@ -272,140 +272,154 @@ Page<Ref<User>> refPage = userRepository.pageRef(0, 20);
 
 ---
 
-## Keyset Pagination
+## Scrolling
 
-Repositories provide convenience methods for keyset-based pagination, where a unique column value (typically the primary key) acts as a cursor. This approach avoids the performance issues of `OFFSET` on large tables, because the database can seek directly to the cursor position using an index rather than scanning and discarding skipped rows.
+Repositories provide convenience methods for scrolling through result sets, where a unique column value (typically the primary key) acts as a cursor. This approach avoids the performance issues of `OFFSET` on large tables, because the database can seek directly to the cursor position using an index rather than scanning and discarding skipped rows.
 
 The key parameter must be a `Metamodel.Key`, which is generated for fields annotated with `@UK` or `@PK`. See [Metamodel](metamodel.md#unique-keys-uk-and-metamodelkey) for details.
 
-The three methods map to the three paging operations you need:
+The `scroll` method accepts a `Scrollable<E>` that captures the cursor state (key, page size, direction, and cursor values) and returns a `Window<E>` containing the page content, a `hasNext` flag, and `Scrollable<E>` navigation tokens for fetching the adjacent window.
 
-- `slice(key, size)` fetches the **first page**, ordered by the key in ascending order.
-- `sliceAfter(key, cursor, size)` fetches the **next page** after a cursor value.
-- `sliceBefore(key, cursor, size)` fetches the **previous page** before a cursor value.
-
-Each returns a `Slice<E>` containing the page content and a `hasNext` flag that tells you whether more results exist beyond the current page.
+Create a `Scrollable` using the factory methods, then use the navigation tokens on the returned `Window` to move forward or backward:
 
 <Tabs groupId="language">
 <TabItem value="kotlin" label="Kotlin" default>
 
 ```kotlin
 // First page of 20 users ordered by ID
-val page1: Slice<User> = userRepository.slice(User_.id, 20)
+val window: Window<User> = userRepository.scroll(Scrollable.of(User_.id, 20))
 
-// Next page, using the last ID as cursor
-val page2: Slice<User> = userRepository.sliceAfter(User_.id, page1.content.last().id, 20)
+// Next page
+if (window.hasNext()) {
+    val next: Window<User> = userRepository.scroll(window.nextScrollable())
+}
 
-// Previous page before a known cursor
-val prev: Slice<User> = userRepository.sliceBefore(User_.id, someId, 20)
+// Previous page
+if (window.hasPrevious()) {
+    val previous: Window<User> = userRepository.scroll(window.previousScrollable())
+}
 ```
 
-All three methods accept an optional trailing-lambda predicate for filtering, following the same pattern as `findAll`. The filter is combined with the keyset condition using AND, so you can paginate over a subset of rows without dropping down to the query builder.
+To scroll through a filtered subset, use the query builder with `scroll` as a terminal operation. The filter and cursor conditions are combined with AND.
 
 ```kotlin
-val activePage = userRepository.slice(User_.id, 20) { User_.active eq true }
-val nextActive = userRepository.sliceAfter(User_.id, lastId, 20) { User_.active eq true }
+val activeWindow = userRepository.select()
+    .where(User_.active, EQUALS, true)
+    .scroll(Scrollable.of(User_.id, 20))
+activeWindow.nextScrollable()?.let { scrollable ->
+    val nextActive = userRepository.select()
+        .where(User_.active, EQUALS, true)
+        .scroll(scrollable)
+}
 ```
 
-Ref variants (`sliceRef`, `sliceAfterRef`, `sliceBeforeRef`) load only primary keys, returning a `Slice<Ref<E>>`. This is useful when you need identifiers for a subsequent batch operation without the overhead of fetching full entities.
+For backward scrolling (starting from the end of the result set), use `.backward()`:
 
 ```kotlin
-val refPage: Slice<Ref<User>> = userRepository.sliceRef(User_.id, 20)
+val lastWindow: Window<User> = userRepository.scroll(Scrollable.of(User_.id, 20).backward())
 ```
 
-The slice methods handle ordering internally and reject explicit `orderBy()` calls. `sliceBefore` returns results in descending key order; reverse the list if you need ascending order for display. See [Queries: Slice](queries.md#slice) for full details on ordering constraints.
+The scroll methods handle ordering internally and reject explicit `orderBy()` calls. Backward scrolling returns results in descending key order; reverse the list if you need ascending order for display. See [Pagination and Scrolling: Scrolling](pagination-and-scrolling.md#scrolling) for full details on ordering constraints.
 
 </TabItem>
 <TabItem value="java" label="Java">
 
-The same keyset pagination methods described in the Kotlin section are available on Java repositories. The `slice`, `sliceAfter`, and `sliceBefore` default methods each return a `Slice<E>` containing the page `content()` and a `hasNext()` flag.
+The same scrolling methods described in the Kotlin section are available on Java repositories. The `scroll` method accepts a `Scrollable<E>` and returns a `Window<E>` containing the page `content()`, a `hasNext()` flag, and `Scrollable<E>` navigation tokens.
 
 ```java
 // First page of 20 users ordered by ID
-Slice<User> page1 = userRepository.slice(User_.id, 20);
+Window<User> window = userRepository.scroll(Scrollable.of(User_.id, 20));
 
-// Next page, using the last ID as cursor
-User last = page1.content().getLast();
-Slice<User> page2 = userRepository.sliceAfter(User_.id, last.id(), 20);
+// Next page
+if (window.hasNext()) {
+    Window<User> next = userRepository.scroll(window.nextScrollable());
+}
 
-// Previous page before a known cursor
-Slice<User> prev = userRepository.sliceBefore(User_.id, someId, 20);
+// Previous page
+if (window.hasPrevious()) {
+    Window<User> previous = userRepository.scroll(window.previousScrollable());
+}
 ```
 
-For filtered results, use the query builder and call `slice` as a terminal operation. The filter and keyset conditions are combined with AND.
+For filtered results, use the query builder and call `scroll` as a terminal operation. The filter and cursor conditions are combined with AND.
 
 ```java
-Slice<User> activePage = userRepository.select()
+Window<User> activeWindow = userRepository.select()
     .where(User_.active, EQUALS, true)
-    .slice(User_.id, 20);
+    .scroll(Scrollable.of(User_.id, 20));
 ```
 
-As with Kotlin, the slice methods handle ordering internally and reject explicit `orderBy()` calls. `sliceBefore` returns results in descending key order. See [Queries: Slice](queries.md#slice) for full details.
+For backward scrolling (starting from the end of the result set), use `.backward()`:
+
+```java
+Window<User> lastWindow = userRepository.scroll(Scrollable.of(User_.id, 20).backward());
+```
+
+As with Kotlin, the scroll methods handle ordering internally and reject explicit `orderBy()` calls. Backward scrolling returns results in descending key order. See [Pagination and Scrolling: Scrolling](pagination-and-scrolling.md#scrolling) for full details.
 
 </TabItem>
 </Tabs>
 
-### Keyset Pagination with Sort
+### Scrolling with Sort
 
-When you need to sort by a non-unique column (for example, a date or status), use the overloads that accept a separate sort column. These accept a `key` column (typically the primary key) as a unique tiebreaker, and a `sort` column for the primary sort order, to guarantee deterministic paging even when `sort` values repeat.
+When you need to sort by a non-unique column (for example, a date or status), use the `Scrollable.of` overload that accepts a separate sort column. This accepts a `key` column (typically the primary key) as a unique tiebreaker, and a `sort` column for the primary sort order, to guarantee deterministic paging even when `sort` values repeat.
 
 <Tabs groupId="language">
 <TabItem value="kotlin" label="Kotlin" default>
 
 ```kotlin
 // First page sorted by creation date, with ID as tiebreaker
-val page1: Slice<Post> = postRepository.slice(Post_.id, Post_.createdAt, 20)
+val window: Window<Post> = postRepository.scroll(Scrollable.of(Post_.id, Post_.createdAt, 20))
 
-// Next page: pass both cursor values from the last item
-val last = page1.content.last()
-val page2: Slice<Post> = postRepository.sliceAfter(
-    Post_.id, last.id,
-    Post_.createdAt, last.createdAt,
-    20
-)
+// Next page
+if (window.hasNext()) {
+    val next: Window<Post> = postRepository.scroll(window.nextScrollable())
+}
 
-// With filter
-val activePage: Slice<Post> = postRepository.slice(Post_.id, Post_.createdAt, 20) {
-    Post_.active eq true
+// With filter (use query builder)
+val activeWindow = postRepository.select()
+    .where(Post_.active, EQUALS, true)
+    .scroll(Scrollable.of(Post_.id, Post_.createdAt, 20))
+```
+
+</TabItem>
+<TabItem value="java" label="Java">
+
+```java
+// First page sorted by creation date, with ID as tiebreaker
+Window<Post> window = postRepository.scroll(Scrollable.of(Post_.id, Post_.createdAt, 20));
+
+// Next page
+if (window.hasNext()) {
+    Window<Post> next = postRepository.scroll(window.nextScrollable());
 }
 ```
 
 </TabItem>
-<TabItem value="java" label="Java">
-
-```java
-// First page sorted by creation date, with ID as tiebreaker
-Slice<Post> page1 = postRepository.slice(Post_.id, Post_.createdAt, 20);
-
-// Next page: pass both cursor values from the last item
-Post last = page1.content().getLast();
-Slice<Post> page2 = postRepository.sliceAfter(
-    Post_.id, last.id(),
-    Post_.createdAt, last.createdAt(),
-    20);
-```
-
-</TabItem>
 </Tabs>
 
-The client is responsible for extracting both cursor values from the last (or first) item of the current page and passing them to the next request.
+The `Window` carries navigation tokens (`nextScrollable()`, `previousScrollable()`) that encode the cursor values internally, so the client does not need to extract cursor values manually.
 
-For queries that need joins, projections, or more complex filtering, use the query builder and call `slice` as a terminal operation. See [Queries](queries.md#slice) for the full details on how keyset pagination composes with WHERE and ORDER BY clauses, including indexing recommendations.
+For queries that need joins, projections, or more complex filtering, use the query builder and call `scroll` as a terminal operation. See [Pagination and Scrolling: Scrolling](pagination-and-scrolling.md#scrolling) for full details on how scrolling composes with WHERE and ORDER BY clauses, including indexing recommendations.
 
-## Offset vs. Keyset Pagination
+## Pagination vs. Scrolling
 
-Storm supports both offset-based and keyset-based pagination. The table below summarizes the trade-offs to help you choose.
+Storm supports two strategies for traversing large result sets. The table below summarizes the trade-offs to help you choose.
 
-| Factor | Offset-Based (`page`) | Keyset-Based (`slice`) |
+| Factor | Pagination (`page`) | Scrolling (`scroll`) |
 |---|---|---|
-| Implementation complexity | Simple | Moderate |
-| Jump to arbitrary page | Yes | No (sequential only) |
+| Request type | `Pageable` | `Scrollable<T>` |
+| Result type | `Page` | `Window` |
+| Navigation | page number | cursor |
+| Count query | yes | no |
+| Random access | yes | no |
 | Performance at page 1 | Good | Good |
 | Performance at page 1,000 | Degrades (database must skip rows) | Consistent (index seek) |
 | Handles concurrent inserts | Rows may shift between pages | Stable cursor |
-| Total element count | Included in `Page` | Not available in `Slice` |
+| Navigate forward | `page.nextPageable()` | `window.nextScrollable()` |
+| Navigate backward | `page.previousPageable()` | `window.previousScrollable()` |
 
-Use offset-based pagination when you need random page access or a total count (for example, displaying "Page 3 of 12" in a UI). Use keyset pagination when you need consistent performance over deep result sets or when the data changes frequently between requests.
+Use pagination when you need random page access or a total count (for example, displaying "Page 3 of 12" in a UI). Use scrolling when you need consistent performance over deep result sets or when the data changes frequently between requests.
 
 ---
 

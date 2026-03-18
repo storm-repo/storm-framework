@@ -856,10 +856,6 @@ interface QueryBuilder<T : Data, R, ID> {
      */
     fun prepare(): PreparedQuery = build().prepare()
 
-    //
-    // Page-based pagination.
-    //
-
     /**
      * Executes the query and returns a [Page] of results using offset-based pagination.
      *
@@ -914,7 +910,7 @@ interface QueryBuilder<T : Data, R, ID> {
      * @since 1.10
      */
     fun page(pageable: Pageable, totalCount: Long): Page<R> {
-        // Forbid combining explicit orderBy with Pageable sort orders for consistency with slice, which also
+        // Forbid combining explicit orderBy with Pageable sort orders for consistency with scroll, which also
         // manages ORDER BY internally and forbids explicit orderBy calls.
         if (hasOrderBy() && pageable.orders().isNotEmpty()) {
             throw PersistenceException("page with Pageable sort orders cannot be combined with explicit orderBy calls.")
@@ -931,400 +927,29 @@ interface QueryBuilder<T : Data, R, ID> {
         return Page(content, totalCount, pageable)
     }
 
-    //
-    // Slice-based pagination.
-    //
-
     /**
-     * Executes the query and returns a [Slice] of results.
+     * Executes the query and returns a [Window] of results.
      *
      * This method fetches `size + 1` rows to determine whether more results are available, then returns at
      * most `size` results along with a `hasNext` flag. The caller is responsible for managing any WHERE
      * and ORDER BY clauses externally.
      *
-     * @param size the maximum number of results to include in the slice (must be positive).
-     * @return a slice containing the results and a flag indicating whether more results exist.
+     * @param size the maximum number of results to include in the window (must be positive).
+     * @return a window containing the results and a flag indicating whether more results exist.
      * @throws IllegalArgumentException if [size] is not positive.
-     * @since 1.9
+     * @since 1.11
      */
-    fun slice(size: Int): Slice<R> {
-        require(size > 0) { "size must be positive." }
-        val results = this.limit(size + 1).resultList
-        val hasNext = results.size > size
-        val content = if (hasNext) results.subList(0, size) else results
-        return Slice(content, hasNext)
-    }
+    fun scroll(size: Int): MappedWindow<R, T>
 
     /**
-     * Validates that the given key is not nullable. Nullable keys are unsafe for keyset pagination because
-     * `WHERE key > cursor` silently excludes NULL rows.
+     * Executes a scroll request from a [Scrollable] token, typically obtained from
+     * [Window.nextScrollable] or [Window.previousScrollable].
      *
+     * @param scrollable the scroll request containing cursor state, key, sort, size, and direction.
+     * @return a window containing the results for the requested scroll position.
+     * @since 1.11
      */
-    private fun <E> validateKeyNotNullable(key: Metamodel.Key<T, E>) {
-        if (key.isNullable) {
-            throw PersistenceException(
-                "Keyset pagination requires a non-nullable unique key, but '${key.fieldPath()}' allows NULL values. " +
-                    "In SQL, NULL values are not comparable and will be silently excluded from paginated results. " +
-                    "Either use a non-nullable type, or set @UK(nullsDistinct = false) if the database constraint " +
-                    "prevents duplicate NULLs.",
-            )
-        }
-    }
-
-    /**
-     * Executes the query and returns the first [Slice] of results, ordered by the specified key in ascending order.
-     *
-     * This method manages the ORDER BY clause internally. An explicit `orderBy()` call must not be present
-     * on this builder; a [PersistenceException] is thrown if one is detected.
-     *
-     * @param key the metamodel path for a unique column used for ordering and as keyset cursor.
-     * @param size the maximum number of results to include in the slice.
-     * @return a slice containing the first page of results.
-     * @since 1.9
-     */
-    fun <E> slice(key: Metamodel.Key<T, E>, size: Int): Slice<R> {
-        validateKeyNotNullable(key)
-        if (hasOrderBy()) {
-            throw PersistenceException("slice with key manages ORDER BY internally; remove explicit orderBy calls.")
-        }
-        return this.orderBy(key).slice(size)
-    }
-
-    /**
-     * Executes the query and returns the first [Slice] of results, ordered by the specified key in descending order.
-     *
-     * This is the cursorless variant of descending keyset pagination, useful for starting at the most recent
-     * entries. Subsequent pages can be obtained with [sliceBefore].
-     *
-     * This method manages the ORDER BY clause internally. An explicit `orderBy()` call must not be present
-     * on this builder; a [PersistenceException] is thrown if one is detected.
-     *
-     * @param key the metamodel path for a unique column used for ordering and as keyset cursor.
-     * @param size the maximum number of results to include in the slice.
-     * @return a slice containing the first page of results in descending key order.
-     * @since 1.9
-     */
-    fun <E> sliceBefore(key: Metamodel.Key<T, E>, size: Int): Slice<R> {
-        validateKeyNotNullable(key)
-        if (hasOrderBy()) {
-            throw PersistenceException("sliceBefore with key manages ORDER BY internally; remove explicit orderBy calls.")
-        }
-        return this.orderByDescending(key).slice(size)
-    }
-
-    /**
-     * Executes the query and returns the next [Slice] of results after the specified cursor value, ordered by
-     * the specified key in ascending order.
-     *
-     * This method adds a `WHERE key > after` condition and an ascending ORDER BY clause internally.
-     * The additional WHERE condition is combined with any existing WHERE clauses using AND. An explicit
-     * `orderBy()` call must not be present on this builder; a [PersistenceException] is thrown if one is detected.
-     *
-     * @param key the metamodel path for a unique column used for ordering and as keyset cursor.
-     * @param after the cursor value; only results with a key value greater than this are returned.
-     * @param size the maximum number of results to include in the slice.
-     * @return a slice containing the next page of results.
-     * @since 1.9
-     */
-    fun <E> sliceAfter(key: Metamodel.Key<T, E>, after: E, size: Int): Slice<R> {
-        validateKeyNotNullable(key)
-        if (hasOrderBy()) {
-            throw PersistenceException("sliceAfter manages ORDER BY internally; remove explicit orderBy calls.")
-        }
-        return this.where(key, GREATER_THAN, after)
-            .orderBy(key)
-            .slice(size)
-    }
-
-    /**
-     * Executes the query and returns the previous [Slice] of results before the specified cursor value, ordered
-     * by the specified key in descending order.
-     *
-     * This method adds a `WHERE key < before` condition and a descending ORDER BY clause internally.
-     * The additional WHERE condition is combined with any existing WHERE clauses using AND. An explicit
-     * `orderBy()` call must not be present on this builder; a [PersistenceException] is thrown if one is detected.
-     *
-     * @param key the metamodel path for a unique column used for ordering and as keyset cursor.
-     * @param before the cursor value; only results with a key value less than this are returned.
-     * @param size the maximum number of results to include in the slice.
-     * @return a slice containing the previous page of results.
-     * @since 1.9
-     */
-    fun <E> sliceBefore(key: Metamodel.Key<T, E>, before: E, size: Int): Slice<R> {
-        validateKeyNotNullable(key)
-        if (hasOrderBy()) {
-            throw PersistenceException("sliceBefore manages ORDER BY internally; remove explicit orderBy calls.")
-        }
-        return this.where(key, LESS_THAN, before)
-            .orderByDescending(key)
-            .slice(size)
-    }
-
-    /**
-     * Executes the query and returns the next [Slice] of results after the specified ref cursor value, ordered by
-     * the specified key in ascending order.
-     *
-     * This method adds a `WHERE key > after` condition and an ascending ORDER BY clause internally.
-     * The additional WHERE condition is combined with any existing WHERE clauses using AND. An explicit
-     * `orderBy()` call must not be present on this builder; a [PersistenceException] is thrown if one is detected.
-     *
-     * @param key the metamodel path for a unique column used for ordering and as keyset cursor.
-     * @param after the ref cursor value; only results with a key value greater than this ref are returned.
-     * @param size the maximum number of results to include in the slice.
-     * @return a slice containing the next page of results.
-     * @since 1.9
-     */
-    fun <V : Data> sliceAfter(key: Metamodel.Key<T, V>, after: Ref<V>, size: Int): Slice<R> {
-        validateKeyNotNullable(key)
-        if (hasOrderBy()) {
-            throw PersistenceException("sliceAfter manages ORDER BY internally; remove explicit orderBy calls.")
-        }
-        return this.where(wrap(ObjectExpression(key, GREATER_THAN, after)))
-            .orderBy(key)
-            .slice(size)
-    }
-
-    /**
-     * Executes the query and returns the previous [Slice] of results before the specified ref cursor value, ordered
-     * by the specified key in descending order.
-     *
-     * This method adds a `WHERE key < before` condition and a descending ORDER BY clause internally.
-     * The additional WHERE condition is combined with any existing WHERE clauses using AND. An explicit
-     * `orderBy()` call must not be present on this builder; a [PersistenceException] is thrown if one is detected.
-     *
-     * @param key the metamodel path for a unique column used for ordering and as keyset cursor.
-     * @param before the ref cursor value; only results with a key value less than this ref are returned.
-     * @param size the maximum number of results to include in the slice.
-     * @return a slice containing the previous page of results.
-     * @since 1.9
-     */
-    fun <V : Data> sliceBefore(key: Metamodel.Key<T, V>, before: Ref<V>, size: Int): Slice<R> {
-        validateKeyNotNullable(key)
-        if (hasOrderBy()) {
-            throw PersistenceException("sliceBefore manages ORDER BY internally; remove explicit orderBy calls.")
-        }
-        return this.where(wrap(ObjectExpression(key, LESS_THAN, before)))
-            .orderByDescending(key)
-            .slice(size)
-    }
-
-    //
-    // Composite keyset pagination (key + sort).
-    //
-
-    /**
-     * Executes the query and returns the first [Slice] of results using composite keyset pagination, ordered by
-     * the [sort] column with [key] as a tiebreaker.
-     *
-     * Use this overload when sorting by a non-unique column (e.g., a name or timestamp). The [sort] defines
-     * the primary sort order, while the [key] (typically a primary key or another unique column) guarantees
-     * a deterministic, stable ordering even when [sort] values are identical.
-     *
-     * This method manages the ORDER BY clause internally. An explicit `orderBy()` call must not be present
-     * on this builder; a [PersistenceException] is thrown if one is detected.
-     *
-     * @param key the metamodel path for a unique tiebreaker column (typically the primary key) that ensures stable ordering.
-     * @param sort the metamodel path for the primary (potentially non-unique) sort column.
-     * @param size the maximum number of results to include in the slice.
-     * @return a slice containing the first page of results.
-     * @since 1.9
-     */
-    fun <E, S> slice(key: Metamodel.Key<T, E>, sort: Metamodel<T, S>, size: Int): Slice<R> {
-        validateKeyNotNullable(key)
-        if (hasOrderBy()) {
-            throw PersistenceException("slice with sort and key manages ORDER BY internally; remove explicit orderBy calls.")
-        }
-        return this.orderBy(sort, key).slice(size)
-    }
-
-    /**
-     * Executes the query and returns the first [Slice] of results for composite keyset pagination, sorting by
-     * a non-unique column ([sort]) with a unique tiebreaker ([key]) in descending order.
-     *
-     * This is the cursorless variant of descending composite keyset pagination, useful for starting at the most
-     * recent entries. Subsequent pages can be obtained with [sliceBefore].
-     *
-     * This method manages the ORDER BY clause internally. An explicit `orderBy()` call must not be present
-     * on this builder; a [PersistenceException] is thrown if one is detected.
-     *
-     * @param key the metamodel path for a unique tiebreaker column (typically the primary key) that ensures stable ordering.
-     * @param sort the metamodel path for the (potentially non-unique) primary sort column.
-     * @param size the maximum number of results to include in the slice.
-     * @return a slice containing the first page of results in descending order.
-     * @since 1.9
-     */
-    fun <E, S> sliceBefore(key: Metamodel.Key<T, E>, sort: Metamodel<T, S>, size: Int): Slice<R> {
-        validateKeyNotNullable(key)
-        if (hasOrderBy()) {
-            throw PersistenceException("sliceBefore with sort and key manages ORDER BY internally; remove explicit orderBy calls.")
-        }
-        return this.orderByDescending(sort, key).slice(size)
-    }
-
-    /**
-     * Executes the query and returns the next [Slice] of results after a composite cursor position, ordered by
-     * the [sort] column with [key] as a tiebreaker.
-     *
-     * Use this overload when sorting by a non-unique column (e.g., a name or timestamp). The [sort] defines
-     * the primary sort order, while the [key] (typically a primary key or another unique column) guarantees
-     * a deterministic, stable ordering even when [sort] values are identical.
-     *
-     * The client must supply both cursor values, [sortAfter] and [keyAfter], extracted from the **last** item
-     * of the current page. This method adds a composite WHERE condition equivalent to
-     * `WHERE (sort > sortAfter OR (sort = sortAfter AND key > keyAfter))` and ascending ORDER BY
-     * clauses internally. The additional WHERE condition is combined with any existing WHERE clauses using AND.
-     * An explicit `orderBy()` call must not be present on this builder; a [PersistenceException] is thrown if
-     * one is detected.
-     *
-     * @param key the metamodel path for a unique tiebreaker column (typically the primary key) that ensures stable ordering.
-     * @param keyAfter the cursor value for [key], taken from the last item of the current page.
-     * @param sort the metamodel path for the primary (potentially non-unique) sort column.
-     * @param sortAfter the cursor value for [sort], taken from the last item of the current page.
-     * @param size the maximum number of results to include in the slice.
-     * @return a slice containing the next page of results.
-     * @since 1.9
-     */
-    fun <E, S> sliceAfter(key: Metamodel.Key<T, E>, keyAfter: E, sort: Metamodel<T, S>, sortAfter: S, size: Int): Slice<R> {
-        validateKeyNotNullable(key)
-        if (hasOrderBy()) {
-            throw PersistenceException("sliceAfter manages ORDER BY internally; remove explicit orderBy calls.")
-        }
-        return this
-            .whereBuilder {
-                where(sort, GREATER_THAN, sortAfter)
-                    .or(
-                        where(sort, EQUALS, sortAfter)
-                            .and(where(key, GREATER_THAN, keyAfter)),
-                    )
-            }
-            .orderBy(sort, key)
-            .slice(size)
-    }
-
-    /**
-     * Executes the query and returns the previous [Slice] of results before a composite cursor position, ordered
-     * by the [sort] column (descending) with [key] as a tiebreaker (also descending).
-     *
-     * Use this overload when sorting by a non-unique column (e.g., a name or timestamp). The [sort] defines
-     * the primary sort order, while the [key] (typically a primary key or another unique column) guarantees
-     * a deterministic, stable ordering even when [sort] values are identical.
-     *
-     * The client must supply both cursor values, [sortBefore] and [keyBefore], extracted from the **first**
-     * item of the current page. This method adds a composite WHERE condition equivalent to
-     * `WHERE (sort < sortBefore OR (sort = sortBefore AND key < keyBefore))` and descending
-     * ORDER BY clauses internally. The additional WHERE condition is combined with any existing WHERE clauses
-     * using AND. An explicit `orderBy()` call must not be present on this builder; a [PersistenceException] is
-     * thrown if one is detected.
-     *
-     * @param key the metamodel path for a unique tiebreaker column (typically the primary key) that ensures stable ordering.
-     * @param keyBefore the cursor value for [key], taken from the first item of the current page.
-     * @param sort the metamodel path for the primary (potentially non-unique) sort column.
-     * @param sortBefore the cursor value for [sort], taken from the first item of the current page.
-     * @param size the maximum number of results to include in the slice.
-     * @return a slice containing the previous page of results.
-     * @since 1.9
-     */
-    fun <E, S> sliceBefore(key: Metamodel.Key<T, E>, keyBefore: E, sort: Metamodel<T, S>, sortBefore: S, size: Int): Slice<R> {
-        validateKeyNotNullable(key)
-        if (hasOrderBy()) {
-            throw PersistenceException("sliceBefore manages ORDER BY internally; remove explicit orderBy calls.")
-        }
-        return this
-            .whereBuilder {
-                where(sort, LESS_THAN, sortBefore)
-                    .or(
-                        where(sort, EQUALS, sortBefore)
-                            .and(where(key, LESS_THAN, keyBefore)),
-                    )
-            }
-            .orderByDescending(sort)
-            .orderByDescending(key)
-            .slice(size)
-    }
-
-    /**
-     * Executes the query and returns the next [Slice] of results after a composite cursor position with a ref
-     * unique key, ordered by the [sort] column with [key] as a tiebreaker.
-     *
-     * Use this overload when sorting by a non-unique column (e.g., a name or timestamp) and the tiebreaker
-     * column is a foreign key reference. The [sort] defines the primary sort order, while the [key]
-     * (a unique reference column) guarantees a deterministic, stable ordering even when [sort] values are
-     * identical.
-     *
-     * The client must supply both cursor values, [sortAfter] and [keyAfter], extracted from the **last** item
-     * of the current page. This method adds a composite WHERE condition equivalent to
-     * `WHERE (sort > sortAfter OR (sort = sortAfter AND key > keyAfter))` and ascending ORDER BY
-     * clauses internally. The additional WHERE condition is combined with any existing WHERE clauses using AND.
-     * An explicit `orderBy()` call must not be present on this builder; a [PersistenceException] is thrown if
-     * one is detected.
-     *
-     * @param key the metamodel path for a unique tiebreaker column (typically the primary key) that ensures stable ordering.
-     * @param keyAfter the ref cursor value for [key], taken from the last item of the current page.
-     * @param sort the metamodel path for the primary (potentially non-unique) sort column.
-     * @param sortAfter the cursor value for [sort], taken from the last item of the current page.
-     * @param size the maximum number of results to include in the slice.
-     * @return a slice containing the next page of results.
-     * @since 1.9
-     */
-    fun <V : Data, S> sliceAfter(key: Metamodel.Key<T, V>, keyAfter: Ref<V>, sort: Metamodel<T, S>, sortAfter: S, size: Int): Slice<R> {
-        validateKeyNotNullable(key)
-        if (hasOrderBy()) {
-            throw PersistenceException("sliceAfter manages ORDER BY internally; remove explicit orderBy calls.")
-        }
-        return this
-            .whereBuilder {
-                where(sort, GREATER_THAN, sortAfter)
-                    .or(
-                        where(sort, EQUALS, sortAfter)
-                            .and(where(wrap(ObjectExpression(key, GREATER_THAN, keyAfter)))),
-                    )
-            }
-            .orderBy(sort, key)
-            .slice(size)
-    }
-
-    /**
-     * Executes the query and returns the previous [Slice] of results before a composite cursor position with a
-     * ref unique key, ordered by the [sort] column (descending) with [key] as a tiebreaker (also
-     * descending).
-     *
-     * Use this overload when sorting by a non-unique column (e.g., a name or timestamp) and the tiebreaker
-     * column is a foreign key reference. The [sort] defines the primary sort order, while the [key]
-     * (a unique reference column) guarantees a deterministic, stable ordering even when [sort] values are
-     * identical.
-     *
-     * The client must supply both cursor values, [sortBefore] and [keyBefore], extracted from the **first**
-     * item of the current page. This method adds a composite WHERE condition equivalent to
-     * `WHERE (sort < sortBefore OR (sort = sortBefore AND key < keyBefore))` and descending
-     * ORDER BY clauses internally. The additional WHERE condition is combined with any existing WHERE clauses
-     * using AND. An explicit `orderBy()` call must not be present on this builder; a [PersistenceException] is
-     * thrown if one is detected.
-     *
-     * @param key the metamodel path for a unique tiebreaker column (typically the primary key) that ensures stable ordering.
-     * @param keyBefore the ref cursor value for [key], taken from the first item of the current page.
-     * @param sort the metamodel path for the primary (potentially non-unique) sort column.
-     * @param sortBefore the cursor value for [sort], taken from the first item of the current page.
-     * @param size the maximum number of results to include in the slice.
-     * @return a slice containing the previous page of results.
-     * @since 1.9
-     */
-    fun <V : Data, S> sliceBefore(key: Metamodel.Key<T, V>, keyBefore: Ref<V>, sort: Metamodel<T, S>, sortBefore: S, size: Int): Slice<R> {
-        validateKeyNotNullable(key)
-        if (hasOrderBy()) {
-            throw PersistenceException("sliceBefore manages ORDER BY internally; remove explicit orderBy calls.")
-        }
-        return this
-            .whereBuilder {
-                where(sort, LESS_THAN, sortBefore)
-                    .or(
-                        where(sort, EQUALS, sortBefore)
-                            .and(where(wrap(ObjectExpression(key, LESS_THAN, keyBefore)))),
-                    )
-            }
-            .orderByDescending(sort)
-            .orderByDescending(key)
-            .slice(size)
-    }
+    fun scroll(scrollable: Scrollable<T>): MappedWindow<R, T>
 
     //
     // Execution methods.
