@@ -60,9 +60,9 @@ class CursorHelper {
             } catch (InvocationTargetException e) {
                 throw e.getTargetException();
             } catch (ReflectiveOperationException e) {
-                throw new RuntimeException("Reflection invocation failed for CursorFactory.toCursor", e);
+                throw new PersistenceException("Reflection invocation failed for CursorFactory.toCursor.", e);
             }
-        } catch (RuntimeException e) {
+        } catch (RuntimeException | Error e) {
             throw e;
         } catch (Throwable t) {
             throw new PersistenceException(t);
@@ -81,9 +81,9 @@ class CursorHelper {
             } catch (InvocationTargetException e) {
                 throw e.getTargetException();
             } catch (ReflectiveOperationException e) {
-                throw new RuntimeException("Reflection invocation failed for CursorFactory.fromCursor", e);
+                throw new PersistenceException("Reflection invocation failed for CursorFactory.fromCursor.", e);
             }
-        } catch (RuntimeException e) {
+        } catch (RuntimeException | Error e) {
             throw e;
         } catch (Throwable t) {
             throw new PersistenceException(t);
