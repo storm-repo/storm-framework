@@ -655,8 +655,6 @@ public interface EntityRepository<E extends Entity<ID>, ID> extends Repository {
      */
     <V extends Data> E getByRef(@Nonnull Metamodel.Key<E, V> key, @Nonnull Ref<V> value);
 
-    // Page methods.
-
     /**
      * Returns a page of entities using offset-based pagination.
      *
@@ -718,8 +716,6 @@ public interface EntityRepository<E extends Entity<ID>, ID> extends Repository {
     default Page<Ref<E>> pageRef(@Nonnull Pageable pageable) {
         return selectRef().page(pageable, count());
     }
-
-    // Scroll methods.
 
     /**
      * Scrolls through entities using the given scrollable request.

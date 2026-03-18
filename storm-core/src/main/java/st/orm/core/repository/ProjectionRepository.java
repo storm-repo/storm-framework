@@ -296,8 +296,6 @@ public interface ProjectionRepository<P extends Projection<ID>, ID> extends Repo
      */
     <V extends Data> P getByRef(@Nonnull Metamodel.Key<P, V> key, @Nonnull Ref<V> value);
 
-    // Page methods.
-
     /**
      * Returns a page of projections using offset-based pagination.
      *
@@ -359,8 +357,6 @@ public interface ProjectionRepository<P extends Projection<ID>, ID> extends Repo
     default Page<Ref<P>> pageRef(@Nonnull Pageable pageable) {
         return selectRef().page(pageable, count());
     }
-
-    // Scroll methods.
 
     /**
      * Scrolls through projections using the given scrollable request.
