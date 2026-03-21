@@ -457,18 +457,16 @@ User user = userRepository.getBy(User_.email, "alice@example.com");  // throws i
 
 ```kotlin
 val window: Window<User> = userRepository.scroll(Scrollable.of(User_.id, 20))
-if (window.hasNext()) {
-    val nextWindow: Window<User> = userRepository.scroll(window.nextScrollable())
-}
+// nextScrollable() is non-null when the window has content.
+// hasNext() is informational; the developer decides whether to follow the cursor.
+val nextWindow: Window<User> = userRepository.scroll(window.nextScrollable())
 ```
 
 Compound unique keys work the same way. The inline record is used as the cursor value:
 
 ```kotlin
 val window: Window<SomeEntity> = repository.scroll(Scrollable.of(SomeEntity_.uniqueKey, 20))
-if (window.hasNext()) {
-    val nextWindow: Window<SomeEntity> = repository.scroll(window.nextScrollable())
-}
+val nextWindow: Window<SomeEntity> = repository.scroll(window.nextScrollable())
 ```
 
 </TabItem>
@@ -476,18 +474,16 @@ if (window.hasNext()) {
 
 ```java
 Window<User> window = userRepository.scroll(Scrollable.of(User_.id, 20));
-if (window.hasNext()) {
-    Window<User> next = userRepository.scroll(window.nextScrollable());
-}
+// nextScrollable() is non-null when the window has content.
+// hasNext() is informational; the developer decides whether to follow the cursor.
+Window<User> next = userRepository.scroll(window.nextScrollable());
 ```
 
 Compound unique keys work the same way:
 
 ```java
 Window<SomeEntity> window = repository.scroll(Scrollable.of(SomeEntity_.uniqueKey, 20));
-if (window.hasNext()) {
-    Window<SomeEntity> next = repository.scroll(window.nextScrollable());
-}
+Window<SomeEntity> next = repository.scroll(window.nextScrollable());
 ```
 
 </TabItem>

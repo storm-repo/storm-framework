@@ -772,7 +772,7 @@ public abstract class QueryBuilder<T extends Data, R, ID> {
         List<R> results = this.limit(size + 1).getResultList();
         boolean hasNext = results.size() > size;
         List<R> content = hasNext ? results.subList(0, size) : results;
-        return new MappedWindow<>(content, hasNext, null, null);
+        return new MappedWindow<>(content, hasNext, false, null, null);
     }
 
     /**
@@ -807,22 +807,18 @@ public abstract class QueryBuilder<T extends Data, R, ID> {
             // previousScrollable reverses from the first item in the window.
             // This holds regardless of whether the scroll is forward or backward, because the last item
             // is always the boundary in the scroll direction.
-            nextScrollable = raw.hasNext()
-                ? new Scrollable<>(key,
+            nextScrollable = new Scrollable<>(key,
                 key.getValue((T) last),
                 sort,
                 sort != null ? sort.getValue((T) last) : null,
-                size, forward)
-                : null;
-            previousScrollable = hasCursor
-                ? new Scrollable<>(key,
+                size, forward);
+            previousScrollable = new Scrollable<>(key,
                 key.getValue((T) first),
                 sort,
                 sort != null ? sort.getValue((T) first) : null,
-                size, !forward)
-                : null;
+                size, !forward);
         }
-        return new MappedWindow<>(raw.content(), raw.hasNext(), nextScrollable, previousScrollable);
+        return new MappedWindow<>(raw.content(), raw.hasNext(), hasCursor, nextScrollable, previousScrollable);
     }
 
     /**

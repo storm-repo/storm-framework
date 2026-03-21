@@ -278,7 +278,7 @@ Repositories provide convenience methods for scrolling through result sets, wher
 
 The key parameter must be a `Metamodel.Key`, which is generated for fields annotated with `@UK` or `@PK`. See [Metamodel](metamodel.md#unique-keys-uk-and-metamodelkey) for details.
 
-The `scroll` method accepts a `Scrollable<E>` that captures the cursor state (key, page size, direction, and cursor values) and returns a `Window<E>` containing the page content, a `hasNext` flag, and `Scrollable<E>` navigation tokens for fetching the adjacent window.
+The `scroll` method accepts a `Scrollable<E>` that captures the cursor state (key, page size, direction, and cursor values) and returns a `Window<E>` containing the page content, informational `hasNext`/`hasPrevious` flags, and `Scrollable<E>` navigation tokens for fetching the adjacent window. Navigation tokens (`nextScrollable()`, `previousScrollable()`) are always present when the window has content; they are only `null` when the window is empty. The `hasNext` and `hasPrevious` flags indicate whether more results existed at query time, but they do not gate access to the navigation tokens. Since new data may appear after the query, the developer decides whether to follow a cursor.
 
 Create a `Scrollable` using the factory methods, then use the navigation tokens on the returned `Window` to move forward or backward:
 
@@ -289,14 +289,16 @@ Create a `Scrollable` using the factory methods, then use the navigation tokens 
 // First page of 20 users ordered by ID
 val window: Window<User> = userRepository.scroll(Scrollable.of(User_.id, 20))
 
-// Next page
-if (window.hasNext()) {
-    val next: Window<User> = userRepository.scroll(window.nextScrollable())
-}
+// Next page (nextScrollable() is non-null whenever the window has content)
+val next: Window<User> = userRepository.scroll(window.nextScrollable())
 
 // Previous page
-if (window.hasPrevious()) {
-    val previous: Window<User> = userRepository.scroll(window.previousScrollable())
+val previous: Window<User> = userRepository.scroll(window.previousScrollable())
+
+// Optionally check hasNext/hasPrevious to decide whether to follow the cursor.
+// These flags reflect a snapshot at query time; new data may appear afterward.
+if (window.hasNext()) {
+    // more results existed when the query ran
 }
 ```
 
@@ -306,11 +308,9 @@ To scroll through a filtered subset, use the query builder with `scroll` as a te
 val activeWindow = userRepository.select()
     .where(User_.active, EQUALS, true)
     .scroll(Scrollable.of(User_.id, 20))
-activeWindow.nextScrollable()?.let { scrollable ->
-    val nextActive = userRepository.select()
-        .where(User_.active, EQUALS, true)
-        .scroll(scrollable)
-}
+val nextActive = userRepository.select()
+    .where(User_.active, EQUALS, true)
+    .scroll(activeWindow.nextScrollable())
 ```
 
 For backward scrolling (starting from the end of the result set), use `.backward()`:
@@ -324,20 +324,22 @@ The scroll methods handle ordering internally and reject explicit `orderBy()` ca
 </TabItem>
 <TabItem value="java" label="Java">
 
-The same scrolling methods described in the Kotlin section are available on Java repositories. The `scroll` method accepts a `Scrollable<E>` and returns a `Window<E>` containing the page `content()`, a `hasNext()` flag, and `Scrollable<E>` navigation tokens.
+The same scrolling methods described in the Kotlin section are available on Java repositories. The `scroll` method accepts a `Scrollable<E>` and returns a `Window<E>` containing the page `content()`, informational `hasNext()`/`hasPrevious()` flags, and `Scrollable<E>` navigation tokens that are always present when the window has content.
 
 ```java
 // First page of 20 users ordered by ID
 Window<User> window = userRepository.scroll(Scrollable.of(User_.id, 20));
 
-// Next page
-if (window.hasNext()) {
-    Window<User> next = userRepository.scroll(window.nextScrollable());
-}
+// Next page (nextScrollable() is non-null whenever the window has content)
+Window<User> next = userRepository.scroll(window.nextScrollable());
 
 // Previous page
-if (window.hasPrevious()) {
-    Window<User> previous = userRepository.scroll(window.previousScrollable());
+Window<User> previous = userRepository.scroll(window.previousScrollable());
+
+// Optionally check hasNext/hasPrevious to decide whether to follow the cursor.
+// These flags reflect a snapshot at query time; new data may appear afterward.
+if (window.hasNext()) {
+    // more results existed when the query ran
 }
 ```
 
@@ -372,9 +374,7 @@ When you need to sort by a non-unique column (for example, a date or status), us
 val window: Window<Post> = postRepository.scroll(Scrollable.of(Post_.id, Post_.createdAt, 20))
 
 // Next page
-if (window.hasNext()) {
-    val next: Window<Post> = postRepository.scroll(window.nextScrollable())
-}
+val next: Window<Post> = postRepository.scroll(window.nextScrollable())
 
 // With filter (use query builder)
 val activeWindow = postRepository.select()
@@ -390,15 +390,13 @@ val activeWindow = postRepository.select()
 Window<Post> window = postRepository.scroll(Scrollable.of(Post_.id, Post_.createdAt, 20));
 
 // Next page
-if (window.hasNext()) {
-    Window<Post> next = postRepository.scroll(window.nextScrollable());
-}
+Window<Post> next = postRepository.scroll(window.nextScrollable());
 ```
 
 </TabItem>
 </Tabs>
 
-The `Window` carries navigation tokens (`nextScrollable()`, `previousScrollable()`) that encode the cursor values internally, so the client does not need to extract cursor values manually.
+The `Window` carries navigation tokens (`nextScrollable()`, `previousScrollable()`) that encode the cursor values internally, so the client does not need to extract cursor values manually. These tokens are always non-null when the window contains content. For REST APIs, `nextCursor()` and `previousCursor()` provide a convenient serialized form: `nextCursor()` returns `null` when `hasNext` is false, and `previousCursor()` returns `null` when `hasPrevious` is false.
 
 For queries that need joins, projections, or more complex filtering, use the query builder and call `scroll` as a terminal operation. See [Pagination and Scrolling: Scrolling](pagination-and-scrolling.md#scrolling) for full details on how scrolling composes with WHERE and ORDER BY clauses, including indexing recommendations.
 
