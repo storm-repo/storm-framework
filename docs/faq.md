@@ -286,9 +286,9 @@ For large tables where users scroll through results sequentially, prefer **scrol
 
 ```kotlin
 val window = userRepository.scroll(Scrollable.of(User_.id, 20))
-if (window.hasNext()) {
-    val next = userRepository.scroll(window.nextScrollable())
-}
+// nextScrollable() is non-null when the window has content.
+// hasNext() is informational; the developer decides whether to follow the cursor.
+val next = userRepository.scroll(window.nextScrollable())
 ```
 
 </TabItem>
@@ -296,9 +296,9 @@ if (window.hasNext()) {
 
 ```java
 Window<User> window = userRepository.scroll(Scrollable.of(User_.id, 20));
-if (window.hasNext()) {
-    Window<User> next = userRepository.scroll(window.nextScrollable());
-}
+// nextScrollable() is non-null when the window has content.
+// hasNext() is informational; the developer decides whether to follow the cursor.
+Window<User> next = userRepository.scroll(window.nextScrollable());
 ```
 
 </TabItem>

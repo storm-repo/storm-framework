@@ -454,15 +454,13 @@ Use the `scroll()` method on any entity repository with a `Scrollable` that capt
 // First page of 20 users ordered by ID
 val window: Window<User> = userRepository.scroll(Scrollable.of(User_.id, 20))
 
-// Next page
-if (window.hasNext()) {
-    val next: Window<User> = userRepository.scroll(window.nextScrollable())
-}
+// Navigate forward: nextScrollable() is non-null whenever the window has content.
+// hasNext() is an informational flag indicating whether more rows existed at
+// query time, but the developer decides whether to follow the cursor.
+val next: Window<User> = userRepository.scroll(window.nextScrollable())
 
-// Previous page
-if (window.hasPrevious()) {
-    val previous: Window<User> = userRepository.scroll(window.previousScrollable())
-}
+// Navigate backward
+val previous: Window<User> = userRepository.scroll(window.previousScrollable())
 ```
 
 </TabItem>
@@ -472,21 +470,19 @@ if (window.hasPrevious()) {
 // First page of 20 users ordered by ID
 Window<User> window = userRepository.scroll(Scrollable.of(User_.id, 20));
 
-// Next page
-if (window.hasNext()) {
-    Window<User> next = userRepository.scroll(window.nextScrollable());
-}
+// Navigate forward: nextScrollable() is non-null whenever the window has content.
+// hasNext() is an informational flag indicating whether more rows existed at
+// query time, but the developer decides whether to follow the cursor.
+Window<User> next = userRepository.scroll(window.nextScrollable());
 
-// Previous page
-if (window.hasPrevious()) {
-    Window<User> previous = userRepository.scroll(window.previousScrollable());
-}
+// Navigate backward
+Window<User> previous = userRepository.scroll(window.previousScrollable());
 ```
 
 </TabItem>
 </Tabs>
 
-Each method returns a `Window` containing the page content, a `hasNext` flag, and navigation tokens (`nextScrollable()`, `previousScrollable()`) for sequential traversal. For REST APIs, `Window` also provides `nextCursor()` and `previousCursor()` to serialize the scroll position as an opaque string, and `Scrollable.fromCursor(key, cursor)` to reconstruct a `Scrollable` from a cursor string. See [Repositories: Scrolling](repositories.md#scrolling) for the full API, including sort overloads, filtering, and Ref variants.
+Each method returns a `Window` containing the page content and navigation cursors for sequential traversal. The `hasNext()` and `hasPrevious()` flags reflect whether additional rows existed at query time, but they are not prerequisites for calling `nextScrollable()` or `previousScrollable()`. Both methods return a non-null `Scrollable` whenever the window contains at least one element, and return `null` only when the window is empty. This means you can always follow the cursor if you choose to; for example, new rows may have been inserted after the original query. For REST APIs, `Window` also provides `nextCursor()` and `previousCursor()` to serialize the scroll position as an opaque string, and `Scrollable.fromCursor(key, cursor)` to reconstruct a `Scrollable` from a cursor string. See [Repositories: Scrolling](repositories.md#scrolling) for the full API, including sort overloads, filtering, and Ref variants.
 
 ### Choosing Between the Two
 
