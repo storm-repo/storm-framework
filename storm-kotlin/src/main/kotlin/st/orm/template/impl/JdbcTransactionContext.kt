@@ -438,8 +438,18 @@ internal class JdbcTransactionContext : TransactionContext {
                 }
                 state.ownsConnection -> {
                     logger.debug("Committing transaction on {} ({}).", connection, state.transactionId)
-                    if (!connection.autoCommit) connection.commit()
-                    close(connection, state)
+                    try {
+                        if (!connection.autoCommit) connection.commit()
+                    } finally {
+                        // Always return the connection to the pool — even if commit() threw — so the pool
+                        // does not retain a connection with autoCommit=false (which would fail the auto-commit
+                        // precondition on the next openNewTransaction()).
+                        try {
+                            close(connection, state)
+                        } catch (closeException: SQLException) {
+                            logger.warn("Failed to close connection after commit ({}).", state.transactionId, closeException)
+                        }
+                    }
                 }
                 else -> {
                     // joined REQUIRED: nothing to do yet.
@@ -473,8 +483,18 @@ internal class JdbcTransactionContext : TransactionContext {
                 }
                 state.ownsConnection && connection != null -> {
                     logger.debug("Rolling back transaction on {} ({}).", connection, state.transactionId)
-                    if (!connection.autoCommit) connection.rollback()
-                    close(connection, state)
+                    try {
+                        if (!connection.autoCommit) connection.rollback()
+                    } finally {
+                        // Always return the connection to the pool — even if rollback() threw — so the pool
+                        // does not retain a connection with autoCommit=false (which would fail the auto-commit
+                        // precondition on the next openNewTransaction()).
+                        try {
+                            close(connection, state)
+                        } catch (closeException: SQLException) {
+                            logger.warn("Failed to close connection after rollback ({}).", state.transactionId, closeException)
+                        }
+                    }
                 }
                 else -> {
                     // Joined REQUIRED or non-transactional scope (no connection):
