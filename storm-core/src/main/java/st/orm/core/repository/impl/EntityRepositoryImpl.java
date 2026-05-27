@@ -477,6 +477,24 @@ public class EntityRepositoryImpl<E extends Entity<ID>, ID>
     }
 
     /**
+     * Returns the failure message for an upsert that produced an unexpected affected-row count.
+     *
+     * <p>The message wording is tailored to the batch size: a single-entity batch uses singular phrasing,
+     * larger batches use plural phrasing.</p>
+     *
+     * @param batchSize the number of entities in the batch (1 for a single-entity upsert).
+     * @return the failure message, including a hint to check the {@code @PK} generation strategy.
+     * @since 1.11.3
+     */
+    protected String upsertFailureMessage(int batchSize) {
+        String typeName = model.type().getSimpleName();
+        if (batchSize == 1) {
+            return "Upsert of %s failed: unexpected affected-row count. If the primary key is not auto-generated, verify that the @PK generation strategy is configured correctly.".formatted(typeName);
+        }
+        return "Batch upsert of %s failed: unexpected affected-row count for one or more entities. If the primary key is not auto-generated, verify that the @PK generation strategy is configured correctly.".formatted(typeName);
+    }
+
+    /**
      * Returns the entity model associated with this repository.
      *
      * @return the entity model.
