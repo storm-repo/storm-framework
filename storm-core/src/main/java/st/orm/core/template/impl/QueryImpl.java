@@ -17,7 +17,6 @@ package st.orm.core.template.impl;
 
 import static java.lang.Integer.toHexString;
 import static java.lang.System.identityHashCode;
-import static java.util.stream.Stream.generate;
 import static st.orm.core.template.impl.LazySupplier.lazy;
 import static st.orm.core.template.impl.ObjectMapperFactory.getObjectMapper;
 
@@ -39,13 +38,16 @@ import java.time.ZoneOffset;
 import java.time.ZonedDateTime;
 import java.util.Calendar;
 import java.util.List;
-import java.util.Objects;
 import java.util.Optional;
+import java.util.Spliterator;
+import java.util.Spliterators;
 import java.util.TimeZone;
 import java.util.UUID;
+import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.Supplier;
 import java.util.stream.Stream;
+import java.util.stream.StreamSupport;
 import st.orm.Data;
 import st.orm.Entity;
 import st.orm.PersistenceException;
@@ -257,14 +259,7 @@ class QueryImpl implements Query {
                     int columnCount = resultSet.getMetaData().getColumnCount();
                     close = false;
                     return MonitoredResource.wrap(
-                            generate(() -> {
-                                try {
-                                    return readNext(resultSet, columnCount);
-                                } catch (Exception e) {
-                                    throw exceptionTransformer.apply(e);
-                                }
-                            })
-                                    .takeWhile(Objects::nonNull)
+                            StreamSupport.stream(rawRowSpliterator(resultSet, columnCount), false)
                                     .onClose(() -> close(resultSet, statement, streamingCleanup)));
                 } finally {
                     if (close) {
@@ -314,14 +309,7 @@ class QueryImpl implements Query {
                         .orElseThrow(() -> new SqlTemplateException("No suitable constructor found for %s.".formatted(type.getName())));
                 close = false;
                 return MonitoredResource.wrap(
-                        generate(() -> {
-                            try {
-                                return readNext(resultSet, columnCount, mapper);
-                            } catch (Exception e) {
-                                throw exceptionTransformer.apply(e);
-                            }
-                        })
-                                .takeWhile(Objects::nonNull)
+                        StreamSupport.stream(rowSpliterator(resultSet, columnCount, mapper), false)
                                 .onClose(() -> close(resultSet, statement, streamingCleanup)));
             } finally {
                 if (close && closeStatement()) {
@@ -354,7 +342,15 @@ class QueryImpl implements Query {
     public <T extends Data> Stream<Ref<T>> getRefStream(@Nonnull Class<T> type, @Nonnull Class<?> pkType) {
         var interner = new WeakInterner();
         return getResultStream(pkType)
-                .map(pk -> pk == null ? null : interner.intern(refFactory.create(type, pk)));
+                .map(pk -> {
+                    if (pk == null) {
+                        throw new PersistenceException(
+                            "Primary key for %s is NULL. This usually indicates an invalid query result or incorrect mapping."
+                                .formatted(type.getName())
+                        );
+                    }
+                    return interner.intern(refFactory.create(type, pk));
+                });
     }
 
     @Override
@@ -524,50 +520,66 @@ class QueryImpl implements Query {
     }
 
     /**
-     * Reads the next row from the ResultSet or returns null if no more rows are available.
-     *
-     * @param resultSet   result set to read from.
-     * @param columnCount number of columns in ResultSet.
-     * @return the next row from the ResultSet or null if no more rows are available.
+     * Returns a spliterator that yields raw {@code Object[]} rows from the ResultSet. End-of-stream is signaled by
+     * {@code tryAdvance} returning {@code false}, which allows individual row values to be {@code null} without
+     * prematurely terminating the stream.
      */
-    private Object[] readNext(@Nonnull ResultSet resultSet, int columnCount) {
-        try {
-            if (!resultSet.next()) {
-                return null;
+    private Spliterator<Object[]> rawRowSpliterator(@Nonnull ResultSet resultSet, int columnCount) {
+        return new Spliterators.AbstractSpliterator<>(Long.MAX_VALUE, Spliterator.ORDERED) {
+            @Override
+            public boolean tryAdvance(@Nonnull Consumer<? super Object[]> action) {
+                try {
+                    if (!resultSet.next()) {
+                        return false;
+                    }
+                    Object[] row = new Object[columnCount];
+                    for (int i = 0; i < columnCount; i++) {
+                        row[i] = resultSet.getObject(i + 1);
+                    }
+                    action.accept(row);
+                    return true;
+                } catch (SQLException e) {
+                    throw exceptionTransformer.apply(new PersistenceException(e));
+                } catch (Exception e) {
+                    throw exceptionTransformer.apply(e);
+                }
             }
-            Object[] row = new Object[columnCount];
-            for (int i = 0; i < columnCount; i++) {
-                row[i] = resultSet.getObject(i + 1);
-            }
-            return row;
-        } catch (SQLException e) {
-            throw new PersistenceException(e);
-        }
+        };
     }
 
     /**
-     * Reads the next row from the ResultSet or returns null if no more rows are available.
-     *
-     * @param resultSet   result set to read from.
-     * @param columnCount number of columns in ResultSet.
-     * @param mapper      mapper to use for creating instances.
-     * @return the next row from the ResultSet or null if no more rows are available.
+     * Returns a spliterator that yields mapped rows from the ResultSet. End-of-stream is signaled by {@code tryAdvance}
+     * returning {@code false}, which allows the mapper to legitimately return {@code null} (e.g. a value-type
+     * pass-through for a column whose value is SQL NULL) without prematurely terminating the stream.
      */
-    protected <T> T readNext(@Nonnull ResultSet resultSet, int columnCount, @Nonnull ObjectMapper<T> mapper) {
+    protected <T> Spliterator<T> rowSpliterator(@Nonnull ResultSet resultSet, int columnCount, @Nonnull ObjectMapper<T> mapper) {
+        Class<?>[] types;
         try {
-            if (!resultSet.next()) {
-                return null;
-            }
-            Object[] args = new Object[columnCount];
-            Class<?>[] types = mapper.getParameterTypes();
-            var calendarSupplier = lazy(() -> Calendar.getInstance(TimeZone.getTimeZone(ZoneOffset.UTC)));
-            for (int i = 0; i < columnCount; i++) {
-                args[i] = readColumnValue(resultSet, i + 1, types[i], calendarSupplier);
-            }
-            return mapper.newInstance(args);
-        } catch (SQLException e) {
+            types = mapper.getParameterTypes();
+        } catch (SqlTemplateException e) {
             throw new PersistenceException(e);
         }
+        var calendarSupplier = lazy(() -> Calendar.getInstance(TimeZone.getTimeZone(ZoneOffset.UTC)));
+        return new Spliterators.AbstractSpliterator<>(Long.MAX_VALUE, Spliterator.ORDERED) {
+            @Override
+            public boolean tryAdvance(@Nonnull Consumer<? super T> action) {
+                try {
+                    if (!resultSet.next()) {
+                        return false;
+                    }
+                    Object[] args = new Object[columnCount];
+                    for (int i = 0; i < columnCount; i++) {
+                        args[i] = readColumnValue(resultSet, i + 1, types[i], calendarSupplier);
+                    }
+                    action.accept(mapper.newInstance(args));
+                    return true;
+                } catch (SQLException e) {
+                    throw exceptionTransformer.apply(new PersistenceException(e));
+                } catch (Exception e) {
+                    throw exceptionTransformer.apply(e);
+                }
+            }
+        };
     }
 
     private static Object readColumnValue(

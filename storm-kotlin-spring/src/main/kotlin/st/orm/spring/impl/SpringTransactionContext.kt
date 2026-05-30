@@ -34,6 +34,7 @@ import st.orm.template.UnexpectedRollbackException
 import java.sql.Connection.*
 import java.sql.PreparedStatement
 import java.sql.SQLTimeoutException
+import java.util.Optional
 import javax.sql.DataSource
 import kotlin.math.min
 import kotlin.reflect.KClass
@@ -111,6 +112,22 @@ internal class SpringTransactionContext : TransactionContext {
         val rem = dl - nowNanos()
         if (rem <= 0L) 0 else (rem / 1_000_000_000L).toInt()
     }
+
+    private fun isolationName(isolation: Int?): String = when (isolation) {
+        null, ISOLATION_DEFAULT -> "DEFAULT"
+        TRANSACTION_NONE -> "NONE"
+        TRANSACTION_READ_UNCOMMITTED -> "READ_UNCOMMITTED"
+        TRANSACTION_READ_COMMITTED -> "READ_COMMITTED"
+        TRANSACTION_REPEATABLE_READ -> "REPEATABLE_READ"
+        TRANSACTION_SERIALIZABLE -> "SERIALIZABLE"
+        else -> "UNKNOWN ($isolation)"
+    }
+
+    private fun TransactionState.timeoutDescription(): String = "isolation=${
+        isolationName(transactionDefinition?.isolationLevel)
+    }, timeout=${if (timeoutSeconds == null) "<none>" else "${timeoutSeconds}s"}"
+
+    override fun describe(): Optional<String> = Optional.ofNullable(stack.lastOrNull()?.timeoutDescription())
 
     private fun isBoundary(propagation: Int?): Boolean = when (propagation) {
         PROPAGATION_REQUIRES_NEW,

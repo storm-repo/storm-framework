@@ -15,9 +15,12 @@
  */
 package st.orm.core.template.impl;
 
+import jakarta.annotation.Nonnull;
 import jakarta.annotation.Nullable;
 import java.util.function.Function;
 import st.orm.PersistenceException;
+import st.orm.core.spi.Providers;
+import st.orm.core.spi.TransactionContext;
 import st.orm.core.template.Sql;
 import st.orm.core.template.SqlTemplateException;
 
@@ -42,12 +45,34 @@ public final class ExceptionHelper {
                 }
             } catch (PersistenceException ex) {
                 if (sql != null) {
-                    e.addSuppressed(new SqlTemplateException(String.format(
-                            "SQL:%n%s", sql.statement()
-                    )));
+                    e.addSuppressed(new SqlTemplateException(buildSqlDetail(sql)));
                 }
                 throw ex;
             }
         };
+    }
+
+    private static String buildSqlDetail(@Nonnull Sql sql) {
+        String detail = String.format("SQL:%n%s", sql.statement());
+        String transaction = currentTransactionDescription();
+        if (transaction != null) {
+            detail = detail + String.format("%nTransaction: %s", transaction);
+        }
+        return detail;
+    }
+
+    /**
+     * Returns a description of the current transaction's characteristics (such as isolation level and timeout), or
+     * {@code null} when no transaction is active or the description cannot be determined.
+     */
+    private static @Nullable String currentTransactionDescription() {
+        try {
+            return Providers.getTransactionTemplate().currentContext()
+                    .flatMap(TransactionContext::describe)
+                    .orElse(null);
+        } catch (Throwable ignore) {
+            // Never let diagnostic enrichment mask the original exception.
+            return null;
+        }
     }
 }

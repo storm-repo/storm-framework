@@ -17,12 +17,28 @@ package st.orm.core.spi;
 
 import jakarta.annotation.Nonnull;
 import jakarta.annotation.Nullable;
+import java.util.Optional;
 import st.orm.Entity;
 
 /**
  * @since 1.5
  */
 public interface TransactionContext {
+
+    /**
+     * Returns a human-readable description of the current transaction's characteristics, such as isolation level and
+     * timeout.
+     *
+     * <p>This is used to enrich diagnostic messages (for example when a statement fails or times out) with the
+     * transaction settings that are in effect. Returns an empty optional when no description is available, for instance
+     * when no transaction is currently active.</p>
+     *
+     * @return a description of the transaction characteristics, or empty if not available.
+     * @since 1.12
+     */
+    default Optional<String> describe() {
+        return Optional.empty();
+    }
 
     /**
      * Returns true if the transaction has repeatable-read semantics.

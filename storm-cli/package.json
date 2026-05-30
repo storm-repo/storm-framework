@@ -1,6 +1,6 @@
 {
   "name": "@storm-orm/cli",
-  "version": "1.11.3",
+  "version": "1.11.4",
   "description": "Storm ORM - AI assistant configuration tool",
   "type": "module",
   "bin": {
