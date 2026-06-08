@@ -109,6 +109,22 @@ internal class JdbcTransactionContext : TransactionContext {
 
     private fun nowNanos(): Long = System.nanoTime()
 
+    private fun isolationName(isolation: Int?): String = when (isolation) {
+        TRANSACTION_NONE -> "NONE"
+        TRANSACTION_READ_UNCOMMITTED -> "READ_UNCOMMITTED"
+        TRANSACTION_READ_COMMITTED -> "READ_COMMITTED"
+        TRANSACTION_REPEATABLE_READ -> "REPEATABLE_READ"
+        TRANSACTION_SERIALIZABLE -> "SERIALIZABLE"
+        null -> "DEFAULT"
+        else -> "UNKNOWN ($isolation)"
+    }
+
+    private fun TransactionState.timeoutDescription(): String = "isolation=${isolationName(isolationLevel)}, timeout=${
+        if (timeoutSeconds == null) "<none>" else "${timeoutSeconds}s"
+    }"
+
+    override fun describe(): Optional<String> = Optional.ofNullable(stack.lastOrNull()?.timeoutDescription())
+
     private fun TransactionState.remainingSeconds(): Int? = deadlineNanos?.let { deadline ->
         val remaining = deadline - nowNanos()
         when {
@@ -239,17 +255,7 @@ internal class JdbcTransactionContext : TransactionContext {
             """
                 Starting transaction (${state.transactionId}):
                     propagation: $propagation
-                    isolation: ${
-                when (isolation) {
-                    TRANSACTION_NONE -> "NONE"
-                    TRANSACTION_READ_UNCOMMITTED -> "READ_UNCOMMITTED"
-                    TRANSACTION_READ_COMMITTED -> "READ_COMMITTED"
-                    TRANSACTION_REPEATABLE_READ -> "REPEATABLE_READ"
-                    TRANSACTION_SERIALIZABLE -> "SERIALIZABLE"
-                    null -> "DEFAULT"
-                    else -> "UNKNOWN ($isolation)"
-                }
-            }
+                    isolation: ${isolationName(isolation)}
                     timeout: ${if (timeoutSeconds == null) "<no timeout>" else "$timeoutSeconds second(s)"}
                     readOnly: $readOnly
             """.trimIndent(),
@@ -270,8 +276,9 @@ internal class JdbcTransactionContext : TransactionContext {
             when (e.cause) {
                 is SQLTimeoutException -> {
                     // TimeoutJob may not have registered timeout yet.
+                    val base = e.message ?: "Did not complete within timeout."
                     throw TransactionTimedOutException(
-                        e.message ?: "Did not complete within timeout (${state.timeoutSeconds}s).",
+                        "$base [${state.timeoutDescription()}]",
                         e,
                     )
                 }
@@ -420,7 +427,7 @@ internal class JdbcTransactionContext : TransactionContext {
             val expiredAfter = state.deadlineNanos?.let { nowNanos() >= it } == true
             if (expiredAfter) {
                 throw TransactionTimedOutException(
-                    "Did not complete within timeout (${state.timeoutSeconds}s).",
+                    "Did not complete within timeout [${state.timeoutDescription()}].",
                 )
             }
             return
@@ -515,7 +522,7 @@ internal class JdbcTransactionContext : TransactionContext {
         }
         if (!suppressException && expired) {
             throw TransactionTimedOutException(
-                "Did not complete within timeout (${state.timeoutSeconds}s).",
+                "Did not complete within timeout [${state.timeoutDescription()}].",
             )
         }
         if (!suppressException && state.rollbackInherited) {

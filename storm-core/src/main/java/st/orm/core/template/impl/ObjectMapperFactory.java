@@ -81,6 +81,15 @@ public final class ObjectMapperFactory {
         if (type.isEnum()) {
             return EnumMapper.getFactory(columnCount, type);
         }
+        // Leaf value types (UUID, String, BigDecimal, boxed primitives, java.time.*, etc.) are
+        // produced as-is by the column reader. Skip the constructor scan so we don't try to
+        // reflect into JDK-private constructors like UUID(byte[]).
+        if (ValueMapper.isValueType(type)) {
+            Optional<ObjectMapper<T>> valueMapper = ValueMapper.getFactory(columnCount, type);
+            if (valueMapper.isPresent()) {
+                return valueMapper;
+            }
+        }
         for (Constructor<?> constructor : type.getDeclaredConstructors()) {
             int parameterCount = constructor.getParameterTypes().length;
             if (parameterCount == columnCount) {

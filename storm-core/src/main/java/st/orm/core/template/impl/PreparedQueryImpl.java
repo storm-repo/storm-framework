@@ -15,7 +15,6 @@
  */
 package st.orm.core.template.impl;
 
-import static java.util.stream.Stream.generate;
 import static st.orm.core.template.impl.ObjectMapperFactory.getObjectMapper;
 
 import jakarta.annotation.Nonnull;
@@ -23,9 +22,9 @@ import jakarta.annotation.Nullable;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
-import java.util.Objects;
 import java.util.function.Function;
 import java.util.stream.Stream;
+import java.util.stream.StreamSupport;
 import st.orm.Data;
 import st.orm.PersistenceException;
 import st.orm.core.spi.RefFactory;
@@ -103,8 +102,7 @@ final class PreparedQueryImpl extends QueryImpl implements PreparedQuery {
                         .orElseThrow(() -> new PersistenceException("No suitable constructor found for %s.".formatted(type.getName())));
                 close = false;
                 return MonitoredResource.wrap(
-                        generate(() -> readNext(resultSet, columnCount, mapper))
-                                .takeWhile(Objects::nonNull)
+                        StreamSupport.stream(rowSpliterator(resultSet, columnCount, mapper), false)
                                 .onClose(() -> close(resultSet, statement)));
             } finally {
                 if (close) {

@@ -6,6 +6,8 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static st.orm.core.template.TemplateString.raw;
+import static st.orm.core.template.Templates.param;
 
 import jakarta.annotation.Nonnull;
 import jakarta.annotation.Nullable;
@@ -958,5 +960,24 @@ public class EntityRepositoryIntegrationTest {
         long before = apiKeys.count();
         apiKeys.removeById(SECONDARY_KEY_ID);
         assertEquals(before - 1, apiKeys.count());
+    }
+
+    @Test
+    public void testUuidScalarSingleResult() {
+        var orm = ORMTemplate.of(dataSource);
+        UUID id = orm.query(raw("SELECT id FROM api_key WHERE id = \0", param(DEFAULT_KEY_ID)))
+                .getSingleResult(UUID.class);
+        assertEquals(DEFAULT_KEY_ID, id);
+    }
+
+    @Test
+    public void testUuidScalarResultStream() {
+        var orm = ORMTemplate.of(dataSource);
+        try (var stream = orm.query(raw("SELECT id FROM api_key ORDER BY id")).getResultStream(UUID.class)) {
+            List<UUID> ids = stream.toList();
+            assertEquals(2, ids.size());
+            assertTrue(ids.contains(DEFAULT_KEY_ID));
+            assertTrue(ids.contains(SECONDARY_KEY_ID));
+        }
     }
 }
