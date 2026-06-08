@@ -25,7 +25,6 @@ import st.orm.template.TemplateString.Companion.raw
 import st.orm.template.TemplateString.Companion.wrap
 import st.orm.template.impl.create
 import st.orm.template.impl.createRef
-import java.util.function.Supplier
 import java.util.stream.Stream
 import kotlin.reflect.KClass
 
@@ -1015,15 +1014,22 @@ interface QueryBuilder<T : Data, R, ID> {
          * @return the single result.
          * @throws NoResultException if there is no result.
          * @throws NonUniqueResultException if more than one result.
-         * @throws PersistenceException if the query fails.
+         * @throws PersistenceException if the single row's value is null, or the query fails.
          */
         get() {
             resultStream.use { stream ->
-                return stream
-                    .reduce { _, _ ->
-                        throw NonUniqueResultException("Expected single result, but found more than one.")
-                    }
-                    .orElseThrow(Supplier { NoResultException("Expected single result, but found none.") })
+                val iterator = stream.iterator()
+                if (!iterator.hasNext()) {
+                    throw NoResultException("Expected single result, but found none.")
+                }
+                val result = iterator.next()
+                if (iterator.hasNext()) {
+                    throw NonUniqueResultException("Expected single result, but found more than one.")
+                }
+                if (result == null) {
+                    throw PersistenceException("Expected single result, but found null. Wrap the field in COALESCE() to provide a non-null default.")
+                }
+                return result
             }
         }
 
@@ -1031,16 +1037,24 @@ interface QueryBuilder<T : Data, R, ID> {
         /**
          * Executes the query and returns an optional result.
          *
-         * @return the optional result.
+         * @return the optional result; `null` when no row matched.
          * @throws NonUniqueResultException if more than one result.
-         * @throws PersistenceException if the query fails.
+         * @throws PersistenceException if the single row's value is null, or the query fails.
          */
         get() {
             resultStream.use { stream ->
-                return stream.reduce { _, _ ->
+                val iterator = stream.iterator()
+                if (!iterator.hasNext()) {
+                    return null
+                }
+                val result = iterator.next()
+                if (iterator.hasNext()) {
                     throw NonUniqueResultException("Expected single result, but found more than one.")
                 }
-                    .orElse(null)
+                if (result == null) {
+                    throw PersistenceException("Result is null. Wrap the field in COALESCE() to provide a non-null default.")
+                }
+                return result
             }
         }
 
