@@ -1,3 +1,4 @@
+drop table if exists tenant CASCADE;
 drop table if exists city CASCADE;
 drop table if exists owner CASCADE;
 drop table if exists pet CASCADE;
@@ -25,6 +26,9 @@ alter table vet_specialty add constraint vet_specialty_specialty_fk foreign key 
 alter table vet_specialty add constraint vet_specialty_vet_fk foreign key (vet_id) references vet (id);
 alter table visit add constraint visit_pet_fk foreign key (pet_id) references pet (id);
 alter table visit add constraint visit_vet_specialty_fk foreign key (vet_id, specialty_id) references vet_specialty (vet_id, specialty_id);
+create table tenant (id integer auto_increment, name varchar(255), owner_id integer not null, city_id integer not null, primary key (id));
+alter table tenant add constraint tenant_owner_fk foreign key (owner_id) references owner (id);
+alter table tenant add constraint tenant_city_fk foreign key (city_id) references city (id);
 create view owner_view as select * from owner;
 create view visit_view as select visit_date, description, pet_id, "timestamp" from visit;
 
@@ -206,3 +210,7 @@ INSERT INTO char_disc_animal (dtype, name, indoor) VALUES ('C', 'Whiskers', true
 INSERT INTO char_disc_animal (dtype, name, indoor) VALUES ('C', 'Luna', false);
 INSERT INTO char_disc_animal (dtype, name, weight) VALUES ('D', 'Rex', 30);
 INSERT INTO char_disc_animal (dtype, name, weight) VALUES ('D', 'Max', 15);
+
+-- Tenant creates a diamond join graph: tenant -> owner -> city and tenant -> city.
+INSERT INTO tenant (name, owner_id, city_id) VALUES ('Alpha', 1, 1);
+INSERT INTO tenant (name, owner_id, city_id) VALUES ('Beta', 2, 2);

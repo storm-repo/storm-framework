@@ -225,6 +225,41 @@ final class AliasMapper {
         throw exceptionSupplier.get();
     }
 
+    /**
+     * Returns the registered path for the specified table at the current nesting level, but only when the table is
+     * registered exactly once (after de-duplication on path).
+     *
+     * <p>This is used when columns originate from a sub-tree rooted at a different table than the query model root
+     * (for example, when {@code SELECT}ing a joined entity type from a repository whose root entity differs). In that
+     * case the column metamodel paths are relative to the column root, while the alias mapper has registered the
+     * paths relative to the query model root. The path returned here can be prepended to the column path to bridge
+     * the two coordinate systems.</p>
+     *
+     * @param table the table to look up.
+     * @return the single registered path for the table, or empty if the table is missing, ambiguous, or registered
+     *         without a path.
+     */
+    public Optional<String> findRegisteredPath(@Nonnull Class<? extends Data> table) {
+        var entries = aliasMap.get(table);
+        if (entries == null || entries.isEmpty()) {
+            return empty();
+        }
+        String selected = null;
+        for (var entry : entries) {
+            var entryPath = entry.path();
+            if (entryPath == null) {
+                continue;
+            }
+            if (selected == null) {
+                selected = entryPath;
+            } else if (!selected.equals(entryPath)) {
+                // Multiple distinct paths — caller cannot disambiguate.
+                return empty();
+            }
+        }
+        return Optional.ofNullable(selected);
+    }
+
     public Optional<String> findAlias(@Nonnull Class<? extends Data> table,
                                       @Nullable String path,
                                       @Nonnull ResolveScope scope) throws SqlTemplateException {

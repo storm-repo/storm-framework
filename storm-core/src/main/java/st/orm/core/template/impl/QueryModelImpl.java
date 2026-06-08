@@ -609,7 +609,18 @@ final class QueryModelImpl implements QueryModel {
             if (isRootTable && metamodel.path().isEmpty()) {
                 alias = table.alias();
             } else {
-                alias = aliasMapper.findAlias(metamodel.tableType(), metamodel.path(), INNER).orElse(null);
+                String lookupPath = metamodel.path();
+                if (!isRootTable && metamodel.root() != model.type()) {
+                    // The column's metamodel is rooted at a different table than the query model root
+                    // (typically because the SELECT target differs from the FROM table). The alias mapper
+                    // has paths relative to the query model root, so prepend the registered path of the
+                    // column root before lookup.
+                    String rootPrefix = aliasMapper.findRegisteredPath(metamodel.root()).orElse(null);
+                    if (rootPrefix != null && !rootPrefix.isEmpty()) {
+                        lookupPath = lookupPath.isEmpty() ? rootPrefix : rootPrefix + "." + lookupPath;
+                    }
+                }
+                alias = aliasMapper.findAlias(metamodel.tableType(), lookupPath, INNER).orElse(null);
             }
             if (alias == null) {
                 alias = aliasMapper.findAlias(metamodel.tableType(), null, INNER).orElse(null);
