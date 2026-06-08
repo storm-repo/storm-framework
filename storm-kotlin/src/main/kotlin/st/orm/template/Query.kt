@@ -20,8 +20,8 @@ import kotlinx.coroutines.stream.consumeAsFlow
 import st.orm.Data
 import st.orm.NoResultException
 import st.orm.NonUniqueResultException
+import st.orm.PersistenceException
 import st.orm.Ref
-import java.util.function.Supplier
 import java.util.stream.Stream
 import kotlin.reflect.KClass
 
@@ -318,29 +318,49 @@ interface Query {
      */
     private fun <T> singleResult(stream: Stream<T>): T {
         stream.use {
-            return stream
-                .reduce { _, _ ->
-                    throw NonUniqueResultException("Expected single result, but found more than one.")
-                }
-                .orElseThrow(Supplier { NoResultException("Expected single result, but found none.") })
+            val iterator = stream.iterator()
+            if (!iterator.hasNext()) {
+                throw NoResultException("Expected single result, but found none.")
+            }
+            val result = iterator.next()
+            if (iterator.hasNext()) {
+                throw NonUniqueResultException("Expected single result, but found more than one.")
+            }
+            if (result == null) {
+                throw PersistenceException("Expected single result, but found null. Wrap the field in COALESCE() to provide a non-null default.")
+            }
+            return result
         }
     }
 
     /**
-     * Returns the single result of the stream, or an empty optional if there is no result.
+     * Returns the single result of the stream, or `null` if there is no result.
+     *
+     * Iterates the stream explicitly rather than using [Stream.reduce] — the standard reduce internally
+     * calls `Optional.of(element)`, which throws a message-less [NullPointerException] when the only
+     * element is `null`. The iterator form lets the method detect that case and report it via a typed
+     * [PersistenceException] with a clear message.
      *
      * @param stream the stream to get the single result from.
-     * @return the single result of the stream.
      * @param <T> the type of the result.
+     * @return the single result of the stream, or `null` when no row matched.
      * @throws NonUniqueResultException if more than one result.
+     * @throws PersistenceException if the single row's value is SQL NULL.
      */
     private fun <T> optionalResult(stream: Stream<T>): T? {
         stream.use {
-            return stream
-                .reduce { _, _ ->
-                    throw NonUniqueResultException("Expected single result, but found more than one.")
-                }
-                .orElse(null)
+            val iterator = stream.iterator()
+            if (!iterator.hasNext()) {
+                return null
+            }
+            val result = iterator.next()
+            if (iterator.hasNext()) {
+                throw NonUniqueResultException("Expected single result, but found more than one.")
+            }
+            if (result == null) {
+                throw PersistenceException("Result is null. Wrap the field in COALESCE() to provide a non-null default.")
+            }
+            return result
         }
     }
 }

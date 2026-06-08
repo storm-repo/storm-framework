@@ -278,10 +278,18 @@ public interface Query {
      */
     private <T> T singleResult(@Nonnull Stream<T> stream) {
         try (stream) {
-            return stream
-                    .reduce((a, b) -> {
-                        throw new NonUniqueResultException("Expected single result, but found more than one.");
-                    }).orElseThrow(() -> new NoResultException("Expected single result, but found none."));
+            var iterator = stream.iterator();
+            if (!iterator.hasNext()) {
+                throw new NoResultException("Expected single result, but found none.");
+            }
+            T result = iterator.next();
+            if (iterator.hasNext()) {
+                throw new NonUniqueResultException("Expected single result, but found more than one.");
+            }
+            if (result == null) {
+                throw new PersistenceException("Expected single result, but found null. Wrap the field in COALESCE() to provide a non-null default.");
+            }
+            return result;
         }
     }
 
@@ -289,16 +297,25 @@ public interface Query {
      * Returns the single result of the stream, or an empty optional if there is no result.
      *
      * @param stream the stream to get the single result from.
-     * @return the single result of the stream.
      * @param <T> the type of the result.
+     * @return the single result of the stream.
      * @throws NonUniqueResultException if more than one result.
+     * @throws PersistenceException if the single row's value is null.
      */
     private <T> Optional<T> optionalResult(@Nonnull Stream<T> stream) {
         try (stream) {
-            return stream
-                    .reduce((a, b) -> {
-                        throw new NonUniqueResultException("Expected single result, but found more than one.");
-                    });
+            var iterator = stream.iterator();
+            if (!iterator.hasNext()) {
+                return Optional.empty();
+            }
+            T result = iterator.next();
+            if (iterator.hasNext()) {
+                throw new NonUniqueResultException("Expected single result, but found more than one.");
+            }
+            if (result == null) {
+                throw new PersistenceException("Result is null. Wrap the field in COALESCE() to provide a non-null default.");
+            }
+            return Optional.of(result);
         }
     }
 }

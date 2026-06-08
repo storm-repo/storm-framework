@@ -946,29 +946,46 @@ public abstract class QueryBuilder<T extends Data, R, ID> {
      * @return the single result.
      * @throws NoResultException if there is no result.
      * @throws NonUniqueResultException if more than one result.
-     * @throws PersistenceException if the query fails.
+     * @throws PersistenceException if the single row's value is null, or the query fails.
      */
     public final R getSingleResult() {
         try (var stream = getResultStream()) {
-            return stream
-                    .reduce((a, b) -> {
-                        throw new NonUniqueResultException("Expected single result, but found more than one.");
-                    }).orElseThrow(() -> new NoResultException("Expected single result, but found none."));
+            var iterator = stream.iterator();
+            if (!iterator.hasNext()) {
+                throw new NoResultException("Expected single result, but found none.");
+            }
+            R result = iterator.next();
+            if (iterator.hasNext()) {
+                throw new NonUniqueResultException("Expected single result, but found more than one.");
+            }
+            if (result == null) {
+                throw new PersistenceException("Expected single result, but found null. Wrap the field in COALESCE() to provide a non-null default.");
+            }
+            return result;
         }
     }
 
     /**
      * Executes the query and returns an optional result.
      *
-     * @return the optional result.
+     * @return the optional result; {@link Optional#empty()} when no row matched.
      * @throws NonUniqueResultException if more than one result.
-     * @throws PersistenceException if the query fails.
+     * @throws PersistenceException if the single row's value is null, or the query fails.
      */
     public final Optional<R> getOptionalResult() {
         try (var stream = getResultStream()) {
-            return stream.reduce((a, b) -> {
+            var iterator = stream.iterator();
+            if (!iterator.hasNext()) {
+                return Optional.empty();
+            }
+            R result = iterator.next();
+            if (iterator.hasNext()) {
                 throw new NonUniqueResultException("Expected single result, but found more than one.");
-            });
+            }
+            if (result == null) {
+                throw new PersistenceException("Result is null. Wrap the field in COALESCE() to provide a non-null default.");
+            }
+            return Optional.of(result);
         }
     }
 
