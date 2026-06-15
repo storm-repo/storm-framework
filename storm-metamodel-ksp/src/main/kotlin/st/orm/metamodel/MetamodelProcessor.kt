@@ -109,6 +109,27 @@ class MetamodelProcessor(
             K_FLOAT,
             K_DOUBLE,
         )
+
+        /**
+         * Kotlin array types. `==` on these compares references; the compiler warns and the
+         * semantically-correct comparison is `contentEquals`, whose stdlib extension on the
+         * nullable receiver handles the both-null case transparently.
+         */
+        private val KOTLIN_ARRAY_QNS: Set<String> = setOf(
+            "kotlin.Array",
+            "kotlin.BooleanArray",
+            "kotlin.ByteArray",
+            "kotlin.CharArray",
+            "kotlin.ShortArray",
+            "kotlin.IntArray",
+            "kotlin.LongArray",
+            "kotlin.FloatArray",
+            "kotlin.DoubleArray",
+            "kotlin.UByteArray",
+            "kotlin.UShortArray",
+            "kotlin.UIntArray",
+            "kotlin.ULongArray",
+        )
     }
 
     override fun process(resolver: Resolver): List<KSAnnotated> {
@@ -579,6 +600,11 @@ class MetamodelProcessor(
         }
     }
 
+    private fun isKotlinArrayType(typeRef: KSTypeReference): Boolean {
+        val qn = typeRef.resolve().declaration.qualifiedName?.asString() ?: return false
+        return qn in KOTLIN_ARRAY_QNS
+    }
+
     private fun ensureNullable(typeName: String): String = if (typeName.endsWith("?")) typeName else "$typeName?"
 
     private fun sameExpr(left: String, right: String, typeRef: KSTypeReference, forceNullableChain: Boolean): String {
@@ -606,7 +632,7 @@ class MetamodelProcessor(
                 PrimitiveKind.LONG,
                 PrimitiveKind.CHAR,
                 -> "$left == $right"
-                null -> "$left == $right"
+                null -> if (isKotlinArrayType(typeRef)) "($left).contentEquals($right)" else "$left == $right"
             }
         }
     }
