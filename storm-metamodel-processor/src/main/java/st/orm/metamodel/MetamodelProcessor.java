@@ -724,6 +724,12 @@ public final class MetamodelProcessor extends AbstractProcessor {
         if (isPrimitiveReturn(t)) {
             return left + " == " + right;
         }
+        // Java arrays don't override equals — Objects.equals would do reference comparison.
+        // Arrays.equals handles both null operands and shallow content equality for primitive
+        // and Object arrays.
+        if (t.getKind() == TypeKind.ARRAY) {
+            return "java.util.Arrays.equals(" + left + ", " + right + ")";
+        }
         return "Objects.equals(" + left + ", " + right + ")";
     }
 
