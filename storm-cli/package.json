@@ -4,7 +4,7 @@
   "description": "Storm ORM - AI assistant configuration tool",
   "type": "module",
   "bin": {
-    "storm": "./storm.mjs"
+    "storm": "storm.mjs"
   },
   "files": [
     "storm.mjs"
@@ -22,7 +22,7 @@
   "license": "Apache-2.0",
   "repository": {
     "type": "git",
-    "url": "https://github.com/storm-orm/storm-framework.git",
+    "url": "git+https://github.com/storm-orm/storm-framework.git",
     "directory": "storm-cli"
   },
   "homepage": "https://orm.st",
