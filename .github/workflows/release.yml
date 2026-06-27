@@ -58,6 +58,9 @@ jobs:
 
   publish-npm:
     runs-on: ubuntu-latest
+    permissions:
+      id-token: write   # Required for npm trusted publishing (OIDC).
+      contents: read
 
     steps:
       - name: Checkout repository
@@ -68,6 +71,9 @@ jobs:
         with:
           node-version: '22'
           registry-url: 'https://registry.npmjs.org'
+
+      - name: Update npm (trusted publishing requires >= 11.5.1)
+        run: npm install -g npm@latest
 
       - name: Extract version from tag
         id: version
@@ -82,8 +88,9 @@ jobs:
       - name: Publish to npm
         run: npm publish --access public
         working-directory: storm-cli
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+        # Authentication is handled via OIDC trusted publishing — no NPM_TOKEN needed.
+        # Configure the trusted publisher on npmjs.com: @storm-orm/cli > Settings >
+        # Trusted Publisher (repo: storm-orm/storm-framework, workflow: release.yml).
 
   version-docs:
     runs-on: ubuntu-latest
