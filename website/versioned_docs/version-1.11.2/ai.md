@@ -125,23 +125,24 @@ Beyond the data model, Storm provides dedicated tooling for AI-assisted workflow
 Storm fully supports both directions of working: starting from the database schema and generating entities to match, or starting from the entity model and generating the migration scripts to create the schema. Both approaches share the same development cycle; they just enter it at a different point.
 
 ```
-            Entity-first                          Schema-first
-            starts here                           starts here
+           Entity-first                          Schema-first
+           starts here                           starts here
                  │                                     │
                  ▼                                     ▼
         ┌─────────────────┐                   ┌─────────────────┐
-        │  Define/update  │──────────────────▶│ Generate/update │
-        │    entities     │                   │    migration    │
-        │                 │                   │                 │
-        │   [You / AI]    │                   │   [You / AI]    │
-        └─────────────────┘                   └─────────────────┘
-                 ▲                                     │
-                 │                                     ▼
-        ┌─────────────────┐                   ┌─────────────────┐
-        │    Validate     │◀──────────────────│  Apply schema   │
-        │                 │                   │                 │
-        │    [Storm]      │                   │  [Flyway / H2]  │
-        └─────────────────┘                   └─────────────────┘
+        │  Define/update  │◀─────────────────▶│ Generate/update │     ┐
+        │     entities    │                   │    migration    │     ├─ You / AI  (generate)
+        └────────┬────────┘                   └────────┬────────┘     ┘
+                 │                                     │
+                 └──────────────────┬──────────────────┘
+                                    ▼
+                     ┌─────────────────────────────┐                  ┐
+                     │         Apply schema        │                  ├─ Flyway / H2  (apply)
+                     └──────────────┬──────────────┘                  ┘
+                                    ▼
+                           ┌─────────────────┐                        ┐
+                           │     Validate    │                        ├─ Storm  (verify)
+                           └─────────────────┘                        ┘
 ```
 
 The AI generates and updates code (entities, migrations, queries). Storm validates correctness (`ORMTemplate.validateSchema()`, `SqlCapture`). The cycle repeats whenever either side changes: a schema change triggers entity updates; an entity change triggers a new migration. Schema validation closes the loop by proving that entities and schema agree after every change.
