@@ -14,7 +14,7 @@ const config: Config = {
   url: 'https://orm.st',
   baseUrl: '/',
 
-  organizationName: 'storm-repo',
+  organizationName: 'storm-orm',
   projectName: 'storm-framework',
 
   onBrokenLinks: 'warn',
@@ -26,6 +26,31 @@ const config: Config = {
 
   plugins: [
     [staticVersionReplace, { version: stormVersion }],
+    // Privacy-friendly analytics (Plausible). Injects the site-specific
+    // loader plus the init snippet into <head> on every page.
+    function plausibleAnalyticsPlugin() {
+      return {
+        name: 'plausible-analytics',
+        injectHtmlTags() {
+          return {
+            headTags: [
+              {
+                tagName: 'script',
+                attributes: {
+                  async: true,
+                  src: 'https://plausible.io/js/pa-tkVl2-A9dQBBULkKCv59f.js',
+                },
+              },
+              {
+                tagName: 'script',
+                innerHTML:
+                  "window.plausible=window.plausible||function(){(plausible.q=plausible.q||[]).push(arguments)},plausible.init=plausible.init||function(i){plausible.o=i||{}};plausible.init()",
+              },
+            ],
+          };
+        },
+      };
+    },
   ],
 
   presets: [
@@ -42,7 +67,7 @@ const config: Config = {
               path: 'next',
             },
           },
-          editUrl: 'https://github.com/storm-repo/storm-framework/edit/main/docs/',
+          editUrl: 'https://github.com/storm-orm/storm-framework/edit/main/docs/',
           beforeDefaultRemarkPlugins: [
             [remarkStormVersion, { version: stormVersion }],
           ],
@@ -56,6 +81,8 @@ const config: Config = {
   ],
 
   themeConfig: {
+    // TODO(campaign): replace with a purpose-built 1200x630 social card.
+    image: 'img/storm.png',
     navbar: {
       title: 'Storm',
       logo: {
@@ -75,7 +102,7 @@ const config: Config = {
           label: 'Documentation',
         },
         {
-          href: 'https://github.com/storm-repo/storm-framework',
+          href: 'https://github.com/storm-orm/storm-framework',
           label: 'GitHub',
           position: 'right',
         },
@@ -95,7 +122,7 @@ const config: Config = {
         {
           title: 'More',
           items: [
-            {label: 'GitHub', href: 'https://github.com/storm-repo/storm-framework'},
+            {label: 'GitHub', href: 'https://github.com/storm-orm/storm-framework'},
             {label: 'Maven Central', href: 'https://central.sonatype.com/namespace/st.orm'},
           ],
         },

@@ -34,7 +34,7 @@ Traditional ORMs carry invisible complexity (managed entity state, implicit flus
 **Get started in seconds:**
 
 ```bash
-npx @storm/cli
+npx @storm-orm/cli
 ```
 
 This configures your AI tool (Claude Code, Cursor, Copilot, Windsurf, or Codex) with Storm's patterns, conventions, and slash commands. See [AI-Assisted Development](ai.md) for details.
