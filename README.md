@@ -1,10 +1,10 @@
 # ST/ORM
 
 [![Maven Central](https://img.shields.io/maven-central/v/st.orm/storm-core.svg)](https://central.sonatype.com/namespace/st.orm)
-[![CI](https://github.com/storm-repo/storm-framework/actions/workflows/ci.yml/badge.svg)](https://github.com/storm-repo/storm-framework/actions/workflows/ci.yml)
-[![codecov](https://codecov.io/gh/storm-repo/storm-framework/graph/badge.svg)](https://codecov.io/gh/storm-repo/storm-framework)
+[![CI](https://github.com/storm-orm/storm-framework/actions/workflows/ci.yml/badge.svg)](https://github.com/storm-orm/storm-framework/actions/workflows/ci.yml)
+[![codecov](https://codecov.io/gh/storm-orm/storm-framework/graph/badge.svg)](https://codecov.io/gh/storm-orm/storm-framework)
 [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
-[![Docs](https://img.shields.io/badge/docs-storm--framework-blue)](https://storm-repo.github.io/storm-framework/)
+[![Docs](https://img.shields.io/badge/docs-orm.st-blue)](https://orm.st)
 [![Kotlin 2.0+](https://img.shields.io/badge/Kotlin-2.0%2B-purple)](https://kotlinlang.org/)
 [![Java 21+](https://img.shields.io/badge/Java-21%2B-blue)](https://openjdk.org/projects/jdk/21/)
 
@@ -219,7 +219,7 @@ dependencies {
 
 ## Documentation
 
-Full documentation is available at [storm-repo.github.io/storm-framework](https://storm-repo.github.io/storm-framework/).
+Full documentation is available at [orm.st](https://orm.st).
 
 ### Core Concepts
 
