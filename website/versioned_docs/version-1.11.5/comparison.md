@@ -225,18 +225,18 @@ The following frameworks are Kotlin-only. Storm supports both Kotlin and Java.
 
 Exposed is JetBrains' official Kotlin database framework. It offers two APIs: a DSL that mirrors SQL syntax and a DAO layer for ORM-style access. Exposed defines tables as Kotlin objects rather than annotations on data classes. Storm and Exposed share the goal of idiomatic Kotlin database access but differ in entity design (mutable DAO entities vs. immutable data classes) and relationship loading strategy (lazy references vs. eager single-query loading).
 
-| Aspect | Exposed | Storm                                |
-|--------|---------|--------------------------------------|
-| **Language** | Kotlin only | Kotlin + Java                        |
-| **Polymorphism** | No | Sealed types (Single-Table, Joined, Polymorphic FK) |
-| **APIs** | DSL (SQL) + DAO (ORM) | Unified ORM + SQL Templates          |
-| **Table Definition** | DSL objects (`object Users : Table()`) | Annotations on data classes          |
-| **Entities (DAO)** | Mutable, extend `Entity` class | Immutable data classes (Kotlin) / records (Java) |
-| **Relationships** | Lazy references, manual loading | Loading in single query              |
-| **N+1 Problem** | Possible with DAO | Prevented by design; requires explicit opt-in                 |
-| **Coroutines** | Supported (added later) | First-class from the start           |
-| **Type Safety** | Column references | Metamodel DSL                        |
-| **Transactions** | `transaction {}` block, declarative via Spring module | Optional, programmatic + declarative |
+| Aspect | Storm | Exposed |
+| --- | --- | --- |
+| **Language** | Kotlin + Java | Kotlin only |
+| **Polymorphism** | Sealed types (Single-Table, Joined, Polymorphic FK) | No |
+| **APIs** | Unified ORM + SQL Templates | DSL (SQL) + DAO (ORM) |
+| **Table Definition** | Annotations on data classes | DSL objects (`object Users : Table()`) |
+| **Entities (DAO)** | Immutable data classes (Kotlin) / records (Java) | Mutable, extend `Entity` class |
+| **Relationships** | Loading in single query | Lazy references, manual loading |
+| **N+1 Problem** | Prevented by design; requires explicit opt-in | Possible with DAO |
+| **Coroutines** | First-class from the start | Supported (added later) |
+| **Type Safety** | Metamodel DSL | Column references |
+| **Transactions** | Optional, programmatic + declarative | `transaction {}` block, declarative via Spring module |
 
 #### Transaction Propagation
 
@@ -327,7 +327,6 @@ Storm does not include schema management or migration utilities. Schema manageme
 
 ### When to Choose Exposed
 
-- You're building a Kotlin-only project
 - You prefer DSL-based table definitions
 - You want to switch between SQL DSL and DAO styles
 - You like the JetBrains ecosystem integration
@@ -340,19 +339,19 @@ Storm does not include schema management or migration utilities. Schema manageme
 
 Ktorm is a lightweight Kotlin ORM that uses entity interfaces and DSL-based table definitions. It requires no code generation and has minimal dependencies. Storm differs primarily in its use of immutable data classes (instead of mutable interfaces), automatic relationship loading, and optional metamodel generation for compile-time type safety.
 
-| Aspect | Ktorm | Storm |
-|--------|-------|-------|
-| **Language** | Kotlin only | Kotlin + Java |
-| **Polymorphism** | No | Sealed types (Single-Table, Joined, Polymorphic FK) |
-| **Entities** | Interfaces extending `Entity` | Data classes with annotations |
-| **Table Definition** | DSL objects (`object Users : Table<User>`) | Annotations on data classes |
-| **Query Style** | Sequence API, DSL | ORM DSL + SQL Templates |
-| **Relationships** | References, manual loading | Automatic loading |
-| **N+1 Problem** | Possible | Prevented by design; requires explicit opt-in |
-| **Code Generation** | None required | Optional metamodel |
-| **Immutability** | Mutable entity interfaces | Immutable data classes |
-| **Coroutines** | Limited | First-class support |
-| **Transactions** | `useTransaction {}` block | Programmatic + `@Transactional` (Spring) |
+| Aspect | Storm | Ktorm |
+| --- | --- | --- |
+| **Language** | Kotlin + Java | Kotlin only |
+| **Polymorphism** | Sealed types (Single-Table, Joined, Polymorphic FK) | No |
+| **Entities** | Data classes with annotations | Interfaces extending `Entity` |
+| **Table Definition** | Annotations on data classes | DSL objects (`object Users : Table<User>`) |
+| **Query Style** | ORM DSL + SQL Templates | Sequence API, DSL |
+| **Relationships** | Automatic loading | References, manual loading |
+| **N+1 Problem** | Prevented by design; requires explicit opt-in | Possible |
+| **Code Generation** | Optional metamodel | None required |
+| **Immutability** | Immutable data classes | Mutable entity interfaces |
+| **Coroutines** | First-class support | Limited |
+| **Transactions** | Programmatic + `@Transactional` (Spring) | `useTransaction {}` block |
 
 ### When to Choose Storm
 
@@ -364,7 +363,6 @@ Ktorm is a lightweight Kotlin ORM that uses entity interfaces and DSL-based tabl
 
 ### When to Choose Ktorm
 
-- You're building a Kotlin-only project
 - You prefer no code generation
 - You like the Sequence API style
 - You prefer DSL-based table definitions
