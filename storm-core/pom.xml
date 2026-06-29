@@ -43,6 +43,11 @@
                         --add-opens storm.core/st.orm.core.repository=ALL-UNNAMED
                         --add-opens storm.core/st.orm.core.repository.spring=ALL-UNNAMED
                         --add-opens storm.core/st.orm.core.model=ALL-UNNAMED
+                        <!-- storm.core only `requires static jakarta.persistence`, so the module is not resolved at
+                             runtime. @DataJpaTest boots Hibernate/JPA (on the classpath) which needs
+                             jakarta.persistence at runtime; resolve it explicitly so the JPA tests run on the module
+                             path too. -->
+                        --add-modules jakarta.persistence
                         -Dstorm.ansi_escaping=true
                     </argLine>
                 </configuration>

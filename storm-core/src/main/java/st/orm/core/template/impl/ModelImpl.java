@@ -15,7 +15,7 @@
  */
 package st.orm.core.template.impl;
 
-import static java.util.Collections.nCopies;
+import static java.util.Collections.unmodifiableList;
 import static java.util.List.copyOf;
 import static java.util.Objects.requireNonNull;
 import static java.util.Optional.empty;
@@ -42,6 +42,7 @@ import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.time.OffsetDateTime;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Calendar;
 import java.util.HashMap;
 import java.util.List;
@@ -130,6 +131,16 @@ public final class ModelImpl<E extends Data, ID> implements Model<E, ID> {
      */
     private final List<ORMConverter> converters;
 
+    /**
+     * Parent metamodel for each converter group, keyed by the group's 0-based start column index. A converter reads
+     * its value by reflectively invoking the field accessor on the record passed to
+     * {@link ORMConverter#toDatabase(Object)}, so that record must be the one that declares the field. This metamodel
+     * navigates the root record down to the enclosing inline component, or resolves to the root record itself for a
+     * top-level field. Precomputed so the per-row value loop is a single lookup plus {@code getValue}, with no
+     * string/metamodel allocation on the write path.
+     */
+    private final Map<Integer, Metamodel<Data, ?>> converterParents;
+
     public ModelImpl(@Nonnull RecordType recordType,
                      @Nonnull TableName tableName,
                      @Nonnull List<RecordField> fields,
@@ -165,6 +176,7 @@ public final class ModelImpl<E extends Data, ID> implements Model<E, ID> {
         this.discriminatorColumnIndex = initDiscriminatorColumnIndex(typeOverride);
         this.polymorphicFkDiscriminatorColumns = initPolymorphicFkDiscriminatorColumns(this.fields, this.columns);
         this.converters = initConverters(this.fields, this.columns);
+        this.converterParents = initConverterParents(this.converters, this.columns);
         this.primaryKeyField = initPrimaryKeyField(this.recordType);
         this.declaredColumns = initDeclaredColumns(this.columns);
         this.primaryKeyMetamodel = initPrimaryKeyMetamodel(this.declaredColumns);
@@ -225,14 +237,34 @@ public final class ModelImpl<E extends Data, ID> implements Model<E, ID> {
     }
 
     private static List<ORMConverter> initConverters(List<RecordField> fields, List<Column> columns) {
-        var converters = new ArrayList<ORMConverter>(nCopies(columns.size(), null));
+        var converters = new ORMConverter[columns.size()];
         for (int i = 0; i < columns.size(); i++) {
-            var converter = getORMConverter(fields.get(i)).orElse(null);
-            if (converter != null) {
-                converters.set(i, converter);
-            }
+            converters[i] = getORMConverter(fields.get(i)).orElse(null);
         }
-        return converters;
+        return unmodifiableList(Arrays.asList(converters));
+    }
+
+    /**
+     * Precomputes, for each converter-backed column, the metamodel that navigates the root record to the record
+     * declaring the converted field — the enclosing inline component, or the root record itself for a top-level field.
+     * Keyed by column index (0-based) so the value loop resolves a converter group's parent with a single lookup. A
+     * converter group's start column is always converter-backed, so its key is always present.
+     */
+    private static Map<Integer, Metamodel<Data, ?>> initConverterParents(List<ORMConverter> converters,
+                                                                          List<Column> columns) {
+        var parents = new HashMap<Integer, Metamodel<Data, ?>>();
+        for (int i = 0; i < columns.size(); i++) {
+            if (converters.get(i) == null) {
+                continue;
+            }
+            Metamodel<Data, ?> columnMetamodel = columns.get(i).metamodel();
+            String fieldPath = columnMetamodel.fieldPath();
+            int lastDot = fieldPath.lastIndexOf('.');
+            // The parent path is the field path without its final segment; empty resolves to the root record itself.
+            String parentPath = lastDot < 0 ? "" : fieldPath.substring(0, lastDot);
+            parents.put(i, Metamodel.of(columnMetamodel.root(), parentPath));
+        }
+        return Map.copyOf(parents);
     }
 
     private static RecordField initPrimaryKeyField(@Nonnull RecordType recordType) {
@@ -567,7 +599,9 @@ public final class ModelImpl<E extends Data, ID> implements Model<E, ID> {
                 int groupStart = findConverterGroupStart(index - 1, parameterCount);
                 int groupStartIndex = groupStart + 1;
                 if (groupStart != cachedGroupStart) {
-                    cachedValues = converter.toDatabase(record);
+                    // Navigate the root record down to the record that declares the converted field so the converter
+                    // reflects its accessor on the correct instance (the enclosing inline component, or the root).
+                    cachedValues = converter.toDatabase(converterParents.get(groupStart).getValue(record));
                     cachedGroupStart = groupStart;
                     cachedParamCount = parameterCount;
                 }
