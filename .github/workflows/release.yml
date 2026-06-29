@@ -8,6 +8,8 @@ on:
 jobs:
   publish:
     runs-on: ubuntu-latest
+    permissions:
+      contents: read   # Checkout only; deploy auth comes from Central/GPG secrets, not GITHUB_TOKEN.
 
     steps:
       - name: Checkout repository
