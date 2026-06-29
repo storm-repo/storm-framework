@@ -833,6 +833,11 @@ function mcpServerName(alias) {
   return alias === 'default' ? 'storm-schema' : `storm-schema-${alias}`;
 }
 
+// Escape regex metacharacters so dynamic values (e.g. a user-supplied alias) can be safely embedded in a RegExp.
+function escapeRegExp(value) {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
 // ─── Content (fetched from orm.st at runtime) ───────────────────────────────
 
 const SKILLS_BASE_URL = 'https://orm.st/skills';
@@ -1688,7 +1693,7 @@ function registerMcp(toolConfig, alias, connectionPath, created, appended) {
         appended.push('.codex/config.toml');
       } else {
         // Replace existing entry with updated args.
-        const regex = new RegExp(`\\[mcp_servers\\.${serverName}\\][\\s\\S]*?(?=\\n\\[|$)`);
+        const regex = new RegExp(`\\[mcp_servers\\.${escapeRegExp(serverName)}\\][\\s\\S]*?(?=\\n\\[|$)`);
         const updated = existing.replace(regex, tomlEntry.trimStart().trimEnd());
         if (updated !== existing) {
           writeFileSync(tomlPath, updated);
@@ -1735,7 +1740,7 @@ function unregisterMcp(toolConfig, alias) {
     const tomlPath = join(process.cwd(), '.codex', 'config.toml');
     if (!existsSync(tomlPath)) return false;
     const existing = readFileSync(tomlPath, 'utf-8');
-    const regex = new RegExp(`\\n?\\[mcp_servers\\.${serverName}\\][\\s\\S]*?(?=\\n\\[|$)`, 'g');
+    const regex = new RegExp(`\\n?\\[mcp_servers\\.${escapeRegExp(serverName)}\\][\\s\\S]*?(?=\\n\\[|$)`, 'g');
     const updated = existing.replace(regex, '');
     if (updated !== existing) {
       writeFileSync(tomlPath, updated);
