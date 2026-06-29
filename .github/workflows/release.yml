@@ -51,8 +51,14 @@ jobs:
         env:
           CENTRAL_USER_TOKEN: ${{ secrets.CENTRAL_USER_TOKEN }}
 
+      - name: Extract version from tag
+        id: version
+        run: echo "VERSION=${GITHUB_REF_NAME#v}" >> $GITHUB_OUTPUT
+
       - name: Publish all modules to Maven Central
-        run: mvn clean deploy -Prelease -Dgpg.passphrase="${GPG_PASSPHRASE}" -DskipTests -B
+        # The version comes from the tag: -Drevision overrides the ${revision} property and the
+        # flatten-maven-plugin (resolveCiFriendliesOnly) writes it into the published poms. No manual pom bump needed.
+        run: mvn clean deploy -Prelease -Drevision="${{ steps.version.outputs.VERSION }}" -Dgpg.passphrase="${GPG_PASSPHRASE}" -DskipTests -B
         env:
           GPG_PASSPHRASE: ${{ secrets.GPG_PASSPHRASE }}
 
