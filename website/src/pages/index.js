@@ -75,6 +75,10 @@ const CSS = `
     line-height:26px;user-select:none;border-right:1px solid var(--border-soft);flex:none}
   .storm-home .gutter div{padding-right:15px}
   .storm-home #code{margin:0;padding:22px 24px;font-family:var(--mono);font-size:14px;line-height:26px;white-space:pre;overflow-x:auto;flex:1}
+  /* Docusaurus styles bare <pre> with a light code-block background (and rounded box) in
+     light color mode; neutralize it so the landing editor keeps its dark chrome regardless
+     of the active Docusaurus theme. */
+  .storm-home pre{background:transparent;border:0;border-radius:0;box-shadow:none}
   .storm-home .cursor{display:inline-block;width:8px;height:1.05em;background:var(--accent);vertical-align:text-bottom;
     margin-bottom:1px;animation:storm-blink 1s steps(2,start) infinite;border-radius:1px}
   @keyframes storm-blink{50%{opacity:0}}
@@ -100,6 +104,8 @@ const CSS = `
   .storm-home .db-label{text-align:center;font-family:var(--mono);font-size:11px;letter-spacing:.16em;text-transform:uppercase;color:var(--faint);margin-bottom:18px}
   .storm-home .dbs{display:flex;flex-wrap:wrap;gap:10px;justify-content:center}
   .storm-home .dbs span{font-family:var(--mono);font-size:13px;color:var(--muted);background:var(--panel-2);border:1px solid var(--border-soft);border-radius:8px;padding:7px 14px}
+  .storm-home .strips{display:flex;flex-wrap:wrap;justify-content:center;align-items:flex-start;gap:34px 64px}
+  .storm-home .strip-col{display:flex;flex-direction:column;align-items:center}
   .storm-home .three{display:grid;grid-template-columns:repeat(3,1fr);gap:20px}
   .storm-home .card{border:1px solid var(--border-soft);border-radius:14px;padding:26px;background:var(--panel-2)}
   .storm-home .card h3{margin:0 0 9px;font-size:17px;font-weight:600;letter-spacing:-.01em}
@@ -120,7 +126,6 @@ const BODY = `
   <div class="brand"><img class="logo" src="/img/storm-light.png" alt="Storm" /><span>ST<b>/ORM</b></span><span class="tech-tag">Kotlin 2.0–2.4 · Java 21+ · Apache 2.0</span></div>
   <div class="nav-links">
     <a href="/docs/">Docs</a>
-    <a href="/docs/getting-started">Getting Started</a>
     <a class="gh" href="https://github.com/storm-orm/storm-framework">GitHub</a>
     <a href="/docs/getting-started" class="btn primary" style="height:36px">Get started</a>
   </div>
@@ -128,7 +133,7 @@ const BODY = `
 
 <header><div class="wrap">
   <h1>Radically Simple.<br><span class="grad">Predictable Persistence.</span></h1>
-  <p class="sub" style="max-width:940px">A clear data-model mapping keeps your entities reusable and your repositories extensible. Your codebase grows stronger as it scales, where traditional ORMs make your code more complex and repetitive.</p>
+  <p class="sub" style="max-width:940px">A clear data-model mapping keeps your entities reusable and your repositories extensible. Your codebase grows stronger as it scales, where traditional ORMs tend to make your code more complex and repetitive.</p>
 
   <div class="stage">
     <div class="editor">
@@ -175,15 +180,25 @@ const BODY = `
 </div></section>
 
 <div class="wrap dbstrip">
-  <div class="db-label">Optimized for all major SQL databases</div>
-  <div class="dbs">
-    <span>PostgreSQL</span><span>MySQL</span><span>MariaDB</span><span>Oracle</span><span>SQL&nbsp;Server</span><span>SQLite</span><span>H2</span>
+  <div class="strips">
+    <div class="strip-col">
+      <div class="db-label">Optimized for</div>
+      <div class="dbs">
+        <span>PostgreSQL</span><span>MySQL</span><span>MariaDB</span><span>Oracle</span><span>SQL&nbsp;Server</span><span>SQLite</span><span>H2</span>
+      </div>
+    </div>
+    <div class="strip-col">
+      <div class="db-label">Integrates with</div>
+      <div class="dbs">
+        <span>Ktor</span><span>Spring&nbsp;Boot&nbsp;3.x</span><span>Spring&nbsp;Boot&nbsp;4.x</span>
+      </div>
+    </div>
   </div>
 </div>
 
 <section class="endcta" style="padding-top:30px"><div class="wrap">
   <h2>Enjoy writing code that is worth reading.</h2>
-  <p class="sub" style="margin:0 auto 30px;text-align:center;max-width:940px">Concise entities and one-line queries keep you productive. Immutable records simplify your architecture by letting the same types flow through your application layers. Your persistence layer stays out of your way.</p>
+  <p class="sub" style="margin:0 auto 30px;text-align:center;max-width:940px">Concise entities and one-line queries keep you productive. Immutable records simplify your architecture by letting the same types flow through your application layers. Storm is built for engineers who care about beautiful code.</p>
   <div class="cta" style="justify-content:center">
     <a href="/docs/getting-started" class="btn primary">Get started →</a>
     <a href="https://github.com/storm-orm/storm-framework" class="btn">Star on GitHub</a>
