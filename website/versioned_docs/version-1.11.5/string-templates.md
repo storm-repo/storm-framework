@@ -54,6 +54,7 @@ Add the Storm compiler plugin to your Kotlin compiler configuration. The plugin 
 | 2.1.x | `storm-compiler-plugin-2.1` |
 | 2.2.x | `storm-compiler-plugin-2.2` |
 | 2.3.x | `storm-compiler-plugin-2.3` |
+| 2.4.x | `storm-compiler-plugin-2.4` |
 
 The artifact version matches the Storm version (e.g., `@@STORM_VERSION@@`).
 
