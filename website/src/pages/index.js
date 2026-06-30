@@ -79,6 +79,14 @@ const CSS = `
      light color mode; neutralize it so the landing editor keeps its dark chrome regardless
      of the active Docusaurus theme. */
   .storm-home pre{background:transparent;border:0;border-radius:0;box-shadow:none}
+  .storm-home #benefits{display:none}
+  .storm-home .codearea.show-benefits #code,.storm-home .codearea.show-benefits .gutter{display:none}
+  .storm-home .codearea.show-benefits #benefits{display:grid;flex:1}
+  .storm-home .bgrid{grid-template-columns:repeat(3,1fr);gap:12px;padding:22px 24px;align-content:start}
+  .storm-home .bcell{border:1px solid var(--border-soft);border-radius:11px;padding:15px 16px;background:var(--panel-2);opacity:0;transform:translateY(8px);transition:opacity .3s ease,transform .3s ease}
+  .storm-home .bcell.in{opacity:1;transform:none}
+  .storm-home .bcell .bt{display:block;font-size:13.5px;font-weight:600;letter-spacing:-.01em;color:var(--text);margin-bottom:5px}
+  .storm-home .bcell .bd{display:block;font-size:12px;line-height:1.5;color:var(--muted)}
   .storm-home .cursor{display:inline-block;width:8px;height:1.05em;background:var(--accent);vertical-align:text-bottom;
     margin-bottom:1px;animation:storm-blink 1s steps(2,start) infinite;border-radius:1px}
   @keyframes storm-blink{50%{opacity:0}}
@@ -118,7 +126,7 @@ const CSS = `
   .storm-home .foot{display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:14px}
   .storm-home .foot .links{display:flex;gap:22px;font-family:var(--mono)}.storm-home .foot a{color:var(--muted)}.storm-home .foot a:hover{color:var(--text)}
   @media(max-width:920px){.storm-home .tech-tag{display:none}}
-  @media(max-width:760px){.storm-home .three{grid-template-columns:1fr}.storm-home .nav-links a:not(.gh){display:none}}
+  @media(max-width:760px){.storm-home .three{grid-template-columns:1fr}.storm-home .nav-links a:not(.gh){display:none}.storm-home .bgrid{grid-template-columns:repeat(2,1fr)}}
 `;
 
 const BODY = `
@@ -133,7 +141,7 @@ const BODY = `
 
 <header><div class="wrap">
   <h1>Radically Simple.<br><span class="grad">Predictable Persistence.</span></h1>
-  <p class="sub" style="max-width:940px">A clear data-model mapping keeps your entities reusable and your repositories extensible. Your codebase grows stronger as it scales, where traditional ORMs tend to make your code more complex and repetitive.</p>
+  <p class="sub" style="max-width:940px">A clear mapping between your data model and database keeps entities reusable and repositories easy to extend. Your persistence layer remains small, expressive, and fully capable as your application grows.</p>
 
   <div class="stage">
     <div class="editor">
@@ -145,10 +153,10 @@ const BODY = `
       <div class="codearea">
         <div class="gutter" id="gutter"></div>
         <pre id="code"></pre>
+        <div id="benefits" class="bgrid"></div>
       </div>
       <div class="statusbar">
         <span id="status"><svg class="ck" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M20 6 9 17l-5-5"/></svg><span id="statustext"></span></span>
-        <span class="right">UTF-8 · Kotlin 2.0</span>
         <span class="sqllabel"><span class="ar">↳</span> generated sql</span>
       </div>
       <div class="sqlconsole">
@@ -275,6 +283,23 @@ export default function Home() {
           P("    "),K("FROM "),T("${User::class}"),P("\n"),
           P("    "),K("WHERE "),T("${User_.city.name}"),P(" = "),T("$city"),P("\n"),
           S('"""'),P(" }."),F("resultList"),P("<"),T("User"),P(">()"),P("   "),C("// $city → bind variable, never concatenated") ] },
+
+      { name:'6 · principles', file:'Core Principles',
+        caption:"the core principles",
+        grid:[
+          { t:"Enjoyable", d:"Write code that's a pleasure to read and maintain." },
+          { t:"Minimalist", d:"Concise entities and one-line queries. No ceremony." },
+          { t:"Predictable", d:"What you write is what runs. No surprises." },
+          { t:"Type-Safe", d:"Columns and types verified at compile time." },
+          { t:"Injection-Safe", d:"Interpolated values always become bind parameters." },
+          { t:"Immutable", d:"Plain data classes and records, safe to share." },
+          { t:"Stateless", d:"No session, no flush, no hidden state." },
+          { t:"No Proxies", d:"Real objects, never transaction-bound stand-ins. Laziness is explicit via Ref." },
+          { t:"No N+1", d:"Entity graphs load in a single query." },
+          { t:"Lightweight", d:"No heavyweight runtime, no external dependencies." },
+          { t:"Direct", d:"Direct database control, no hidden queries." },
+          { t:"SQL", d:"Full SQL whenever you need it. Never locked in." },
+        ] },
     ];
 
     // Generated SQL per scene (index-aligned with SCENES). Shown via the "Show SQL" toggle.
@@ -320,7 +345,8 @@ export default function Home() {
     const esc=s=>s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
     const codeEl=document.getElementById('code'), gutEl=document.getElementById('gutter'),
           fnameEl=document.getElementById('fname'), scenesEl=document.getElementById('scenes'),
-          statusEl=document.getElementById('status'), statusTextEl=document.getElementById('statustext');
+          statusEl=document.getElementById('status'), statusTextEl=document.getElementById('statustext'),
+          benefitsEl=document.getElementById('benefits'), codeareaEl=document.querySelector('.storm-home .codearea');
     if(!codeEl) return;
 
     // "Show SQL" toggle — reveals the generated SQL for the current scene.
@@ -386,6 +412,29 @@ export default function Home() {
       tabs.forEach((t,i)=>t.classList.toggle('on',i===idx));
       fnameEl.textContent=sc.file;
       statusEl.classList.remove('show');
+
+      // Benefits scene — render the core-benefits grid instead of typed code.
+      if(sc.grid){
+        codeareaEl.classList.add('show-benefits');
+        benefitsEl.innerHTML=sc.grid.map(b=>'<div class="bcell"><span class="bt">'+b.t+'</span><span class="bd">'+b.d+'</span></div>').join('');
+        const cells=[...benefitsEl.children];
+        if(reduce){
+          cells.forEach(c=>c.classList.add('in'));
+        } else {
+          // Reveal the tiles one by one, top-left to bottom-right (DOM order = row-major).
+          for(const cell of cells){
+            if(myGen!==gen) return;
+            cell.classList.add('in');
+            await wait(fast?70:120);
+          }
+        }
+        if(myGen!==gen) return;
+        statusTextEl.textContent=sc.caption;statusEl.classList.add('show');
+        await wait(fast?30000:8000);
+        return;
+      }
+      codeareaEl.classList.remove('show-benefits');
+
       const text=fullText(sc.code);
       setGutter(text);
 
@@ -411,7 +460,7 @@ export default function Home() {
       await wait(fast?160:360);
       if(myGen!==gen) return;
       statusTextEl.textContent=sc.caption;statusEl.classList.add('show');
-      await wait(fast?30000:3500); // 30s dwell on a clicked scene, else normal auto-advance
+      await wait(fast?30000:4800); // 30s dwell on a clicked scene, else normal auto-advance
     }
 
     async function runFrom(start,fast){
