@@ -26,6 +26,24 @@ const config: Config = {
 
   plugins: [
     [staticVersionReplace, { version: stormVersion }],
+    // Redirect the old root-level doc URLs (which used to serve at `/`) to their
+    // new `/docs/...` homes, so existing links, bookmarks, and SEO keep working
+    // now that the landing page owns `/`.
+    [
+      '@docusaurus/plugin-client-redirects',
+      {
+        createRedirects(existingPath: string) {
+          // Every doc now lives under `/docs/`; map `/docs/x` <- `/x`.
+          // The docs index (`/docs/`) is intentionally NOT redirected from `/`,
+          // because `/` is the landing page.
+          if (existingPath.startsWith('/docs/')) {
+            const rest = existingPath.slice('/docs/'.length);
+            if (rest) return ['/' + rest];
+          }
+          return undefined;
+        },
+      },
+    ],
     // Privacy-friendly analytics (Plausible). Injects the site-specific
     // loader plus the init snippet into <head> on every page.
     function plausibleAnalyticsPlugin() {
@@ -59,7 +77,13 @@ const config: Config = {
       {
         docs: {
           path: '../docs',
-          routeBasePath: '/',
+          // Docs are namespaced under `/docs` so the landing page
+          // (src/pages/index.js) owns `/`. Keep this as `/docs`: reverting to `/`
+          // would let the docs reclaim the homepage and hide the landing.
+          // Doc versioning (`docusaurus docs:version`) only writes to
+          // versioned_docs/ — it never touches src/pages — so the front page
+          // is safe across doc generation.
+          routeBasePath: '/docs',
           sidebarPath: './sidebars.ts',
           versions: {
             current: {
@@ -114,9 +138,9 @@ const config: Config = {
         {
           title: 'Docs',
           items: [
-            {label: 'Getting Started', to: '/getting-started'},
-            {label: 'Entities', to: '/entities'},
-            {label: 'Queries', to: '/queries'},
+            {label: 'Getting Started', to: '/docs/getting-started'},
+            {label: 'Entities', to: '/docs/entities'},
+            {label: 'Queries', to: '/docs/queries'},
           ],
         },
         {
