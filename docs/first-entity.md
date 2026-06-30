@@ -49,7 +49,7 @@ record User(@PK Integer id,
 
 In Java, record components are nullable by default. Use `@Nonnull` on fields that must always have a value. Primitive types (`int`, `long`, etc.) are inherently non-nullable.
 
-The `@Builder` annotation is from [Lombok](https://projectlombok.org/) and is optional. It generates a builder that lets you construct entities without specifying the primary key, and creates modified copies via `toBuilder()`. Without Lombok, you can pass `null` as the primary key (e.g., `new City(null, "Sunnyvale", 155_000)`) or define a convenience constructor that omits it. See [Modifying Entities](entities.md#modifying-entities) for details.
+The `@Builder` annotation is from [Lombok](https://projectlombok.org/) and is optional. It generates a builder that lets you construct entities without specifying the primary key, and creates modified copies via `toBuilder()`. Without Lombok, you can pass `null` as the primary key (e.g., `new City(null, "Sunnyvale", 161_884)`) or define a convenience constructor that omits it. See [Modifying Entities](entities.md#modifying-entities) for details.
 
 </TabItem>
 </Tabs>
@@ -113,7 +113,7 @@ Storm's Kotlin API provides infix operators for a concise syntax:
 
 ```kotlin
 // Insert a city -- the returned object has the database-generated ID
-val city = orm insert City(name = "Sunnyvale", population = 155_000)
+val city = orm insert City(name = "Sunnyvale", population = 161_884)
 
 // Insert a user that references the city
 val user = orm insert User(
@@ -135,7 +135,7 @@ var users = orm.entity(User.class);
 // Insert a city -- the returned object has the database-generated ID
 City city = cities.insertAndFetch(City.builder()
         .name("Sunnyvale")
-        .population(155_000)
+        .population(161_884)
         .build());
 
 // Insert a user that references the city
@@ -234,7 +234,7 @@ Storm provides a `transaction` block that commits on success and rolls back on e
 
 ```kotlin
 transaction {
-    val city = orm insert City(name = "Sunnyvale", population = 155_000)
+    val city = orm insert City(name = "Sunnyvale", population = 161_884)
     val user = orm insert User(email = "bob@example.com", name = "Bob", city = city)
 }
 ```
