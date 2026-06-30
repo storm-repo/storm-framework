@@ -18,7 +18,6 @@
         <module>kotlin-2.1</module>
         <module>kotlin-2.2</module>
         <module>kotlin-2.3</module>
-        <module>kotlin-2.4</module>
     </modules>
     <build>
         <resources>
@@ -173,4 +172,27 @@
             </dependency>
         </dependencies>
     </dependencyManagement>
+    <profiles>
+        <!--
+          CodeQL's Kotlin extractor (CodeQL 2.25.x) only supports Kotlin versions below
+          2.3.30 and aborts the build with "Kotlin version 2.4.0 is too recent" when its
+          autobuild compiles the kotlin-2.4 module. CodeQL exports CODEQL_DIST into the
+          build environment, so this profile (active whenever CODEQL_DIST is absent) drops
+          the kotlin-2.4 module from the reactor only under CodeQL. The module's sources are
+          the shared compiler-plugin sources, already extracted via the kotlin-2.0..2.3
+          modules, so no analysis coverage is lost. It builds normally everywhere else
+          (local, CI, and release).
+        -->
+        <profile>
+            <id>kotlin-2.4</id>
+            <activation>
+                <property>
+                    <name>!env.CODEQL_DIST</name>
+                </property>
+            </activation>
+            <modules>
+                <module>kotlin-2.4</module>
+            </modules>
+        </profile>
+    </profiles>
 </project>
