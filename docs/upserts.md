@@ -50,7 +50,7 @@ Upserts participate in transactions like any other Storm operation. When you nee
 
 ```kotlin
 transaction {
-    val city = orm insert City(name = "Sunnyvale", population = 155_000)
+    val city = orm insert City(name = "Sunnyvale", population = 161_884)
     val user = orm upsert User(
         email = "alice@example.com",
         name = "Alice",

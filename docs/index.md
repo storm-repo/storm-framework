@@ -8,10 +8,6 @@ import TabItem from '@theme/TabItem';
 
 # ST/ORM
 
-:::tip Give your AI tool access to your database schema
-Storm includes a schema-aware MCP server that exposes your table definitions, column types, and foreign keys to AI coding tools like Claude Code, Cursor, Copilot and Codex. Run `npx @storm-orm/cli` for full Storm ORM support including AI skills, conventions, and schema access. Using Python, Go, Ruby, or another language? Run `npx @storm-orm/cli mcp` to set up the MCP server standalone.
-:::
-
 **Storm** is a modern, high-performance ORM for Kotlin 2.0+ and Java 21+, built around a powerful SQL template engine. It focuses on simplicity, type safety, and predictable performance through immutable models and compile-time metadata.
 
 **Key benefits:**
@@ -24,20 +20,6 @@ Storm includes a schema-aware MCP server that exposes your table definitions, co
 - **Stateless**: Avoids hidden complexities and "magic" with stateless, record-based entities, ensuring simplicity and eliminating lazy initialization and transaction issues downstream.
 - **Performance**: Template caching, transaction-scoped entity caching, and zero-overhead dirty checking (thanks to immutability) ensure efficient database interactions. Batch processing, lazy streams, and upserts are built in.
 - **Universal Database Compatibility**: Fully compatible with all SQL databases, it offers flexibility and broad applicability across various database systems.
-
-## Built for the AI Era
-
-Storm is the ORM that AI coding assistants get right. Its stateless, immutable entities mean what you see in the source code is exactly what exists at runtime: no hidden proxies, no lazy loading surprises, no persistence context rules that trip up AI-generated code. When you ask your AI tool to write a query, define an entity, or build a repository, the output is straightforward data classes and explicit SQL, the same code a senior developer would write by hand.
-
-Traditional ORMs carry invisible complexity (managed entity state, implicit flushes, bytecode-enhanced proxies) that AI tools have no reliable way to reason about. Storm eliminates these failure modes entirely. Combined with its compile-time metamodel that catches errors before runtime, Storm and AI coding tools form a natural partnership.
-
-**Get started in seconds:**
-
-```bash
-npx @storm-orm/cli
-```
-
-This configures your AI tool (Claude Code, Cursor, Copilot, Windsurf, or Codex) with Storm's patterns, conventions, and slash commands. See [AI-Assisted Development](ai.md) for details.
 
 ## Why Storm?
 
@@ -83,7 +65,6 @@ val users = orm.findAll(User_.city.name eq "Sunnyvale")
 interface UserRepository : EntityRepository<User, Int> {
     fun findByCityName(name: String) = findAll(User_.city.name eq name)
 }
-val users = userRepository.findByCityName("Sunnyvale")
 
 // Block DSL — build queries with where, orderBy, joins, pagination
 val users = userRepository.select {
@@ -108,7 +89,7 @@ users.collect { user -> println(user.name) }
 
 // Programmatic transactions
 transaction {
-    val city = orm insert City(name = "Sunnyvale", population = 155_000)
+    val city = orm insert City(name = "Sunnyvale", population = 161_884)
     val user = orm insert User(email = "bob@example.com", name = "Bob", city = city)
 }
 ```
@@ -130,7 +111,6 @@ interface UserRepository extends EntityRepository<User, Integer> {
         return select().where(User_.city.name, EQUALS, name).getResultList();
     }
 }
-List<User> users = userRepository.findByCityName("Sunnyvale");
 
 // Query Builder for more complex operations
 List<User> users = orm.entity(User.class)
@@ -149,6 +129,18 @@ List<User> users = orm.query(RAW."""
 
 </TabItem>
 </Tabs>
+
+## AI Assisted Development
+
+Storm is the ORM that AI coding assistants get right. Its stateless, immutable entities mean what you see in the source code is exactly what exists at runtime: no hidden proxies, no lazy loading surprises, no persistence context rules that trip up AI-generated code. When you ask your AI tool to write a query, define an entity, or build a repository, the output is straightforward data classes and explicit SQL, the same code a senior developer would write by hand.
+
+**Get started in seconds:**
+
+```bash
+npx @storm-orm/cli
+```
+
+This configures your AI tool (Claude Code, Cursor, Copilot, Windsurf, or Codex) with Storm's patterns, conventions, and slash commands. See [more on ai](ai.md) for details.
 
 ## Quick Start
 

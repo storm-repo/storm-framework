@@ -94,7 +94,6 @@ val users = orm.findAll(User_.city.name eq "Sunnyvale")
 interface UserRepository : EntityRepository<User, Int> {
     fun findByCityName(name: String) = findAll(User_.city.name eq name)
 }
-val users = userRepository.findByCityName("Sunnyvale")
 
 // Block DSL — build queries with where, orderBy, joins, pagination
 val users = userRepository.select {
@@ -119,7 +118,7 @@ users.collect { user -> println(user.name) }
 
 // Programmatic transactions
 transaction {
-    val city = orm insert City(name = "Sunnyvale", population = 155_000)
+    val city = orm insert City(name = "Sunnyvale", population = 161_884)
     val user = orm insert User(email = "bob@example.com", name = "Bob", city = city)
 }
 ```
@@ -140,7 +139,6 @@ interface UserRepository extends EntityRepository<User, Integer> {
         return select().where(User_.city.name, EQUALS, name).getResultList();
     }
 }
-List<User> users = userRepository.findByCityName("Sunnyvale");
 
 // Query Builder for more complex operations
 List<User> users = orm.entity(User.class)

@@ -142,7 +142,7 @@ Kotlin:
 val orm = ORMTemplate.of(dataSource)
 
 // Insert (returns entity with generated ID)
-val city = orm insert City(name = "Sunnyvale", population = 155_000)
+val city = orm insert City(name = "Sunnyvale", population = 161_884)
 
 // Find by ID
 val found: City? = orm.findById<City>(city.id)
@@ -163,7 +163,7 @@ var orm = ORMTemplate.of(dataSource);
 var cities = orm.entity(City.class);
 
 // Insert
-City city = cities.insert(new City(0, "Sunnyvale", 155_000));
+City city = cities.insert(new City(0, "Sunnyvale", 161_884));
 
 // Find by ID
 Optional<City> found = cities.findById(city.id());
