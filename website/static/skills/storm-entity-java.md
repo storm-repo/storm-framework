@@ -45,7 +45,7 @@ Generation rules:
 6. NO COLLECTION FIELDS. Query the "many" side instead.
 
 7. Naming: camelCase to snake_case automatically. FK appends _id.
-   - For individual overrides: \`@DbTable("custom_name")\` / \`@DbColumn("custom_name")\`.
+   - For individual overrides: \`@DbTable("custom_name")\` / \`@DbColumn("custom_name")\`. For tables in another schema: \`@DbTable(name = "custom_name", schema = "other_schema")\`.
    - For database-wide conventions (e.g., UPPER_CASE, prefixed tables like \`tbl_\`, or non-standard FK naming): configure a custom \`TableNameResolver\`, \`ColumnNameResolver\`, or \`ForeignKeyResolver\` via the \`TemplateDecorator\` on \`ORMTemplate.of()\` instead of annotating every entity. Example:
      \`\`\`java
      var orm = ORMTemplate.of(dataSource, decorator -> decorator
@@ -104,7 +104,16 @@ Generation rules:
    - **Composite** (only when needed in code): use an inline record + `@UK @Persist(insertable = false, updatable = false)`. Only add this when the user explicitly needs a composite `Metamodel.Key` for keyset pagination or type-safe lookups. Composite unique constraints that don't need a Key don't need to be modeled.
    - `@UK(constraint = false)` suppresses schema validation when no database constraint exists.
 
-11. Embedded components, enums, optimistic locking: same rules as Kotlin.
+11. Embedded components, enums, optimistic locking: same rules as Kotlin. Enums are stored by name (string) by default; \`@DbEnum(ORDINAL)\` for integer storage (import \`st.orm.EnumType.ORDINAL\`).
+
+11b. Database-managed columns: annotate columns the database computes or maintains (e.g. \`DEFAULT CURRENT_TIMESTAMP\`, \`ON UPDATE\` timestamps, computed values) with \`@Persist(insertable = false, updatable = false)\`. Storm then never writes the column and always reads it back:
+   \`\`\`java
+   record User(@PK Integer id,
+               @Nonnull String email,
+               @Persist(insertable = false, updatable = false) Instant registeredAt
+   ) implements Entity<Integer> {}
+   \`\`\`
+   Use \`insertable = false\` alone for columns set by the database only on INSERT, or \`updatable = false\` alone for columns written once and never modified.
 
 12. Java records are immutable. Consider Lombok \`@Builder(toBuilder = true)\` for copy-with-modification.
 

@@ -96,7 +96,8 @@ After writing SQL templates, write a test using `@StormTest` and `SqlCapture` to
 Tell the user what you are doing and why: explain that `SqlCapture` records every SQL statement Storm generates. The goal is not to test Storm itself, but to verify that the SQL template produces the result the user intended — correct tables joined, correct grouping, correct aggregation. This is Storm's verify-then-trust pattern.
 
 ```java
-@StormTest(scripts = {"schema.sql", "data.sql"})
+// Leading "/" resolves scripts from the classpath root (src/test/resources/).
+@StormTest(scripts = {"/schema.sql", "/data.sql"})
 class CityCountQueryTest {
     @Test
     void citiesWithUserCounts(ORMTemplate orm, SqlCapture capture) {

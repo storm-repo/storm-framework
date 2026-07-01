@@ -5,9 +5,9 @@ Help the user write a Storm repository using Java.
 ## Key Imports
 
 ```java
-import st.orm.core.repository.EntityRepository;  // Repository base interface
-import st.orm.core.template.ORMTemplate;          // ORM entry point
-import st.orm.core.template.QueryBuilder;         // Query builder
+import st.orm.repository.EntityRepository;        // Repository base interface
+import st.orm.template.ORMTemplate;               // ORM entry point
+import st.orm.template.QueryBuilder;              // Query builder
 import st.orm.Operator;                           // EQUALS, NOT_EQUALS, IN, etc.
 import static st.orm.Operator.*;                  // Static import for operator constants
 import st.orm.Ref;                                // Lazy-loaded reference
@@ -17,8 +17,10 @@ import st.orm.Scrollable;                         // Keyset scrolling cursor
 import st.orm.Window;                             // Keyset scrolling result
 import st.orm.test.StormTest;                     // Test annotation
 import st.orm.test.SqlCapture;                    // SQL capture for verification
-import st.orm.test.CapturedSql.Operation;         // SELECT, INSERT, UPDATE, DELETE
+import st.orm.test.CapturedSql.Operation;         // SELECT, INSERT, UPDATE, DELETE, UNDEFINED
 ```
+
+Do NOT import from `st.orm.core.*` — those are Storm's internal core-engine packages. The Java API lives in `st.orm.repository` and `st.orm.template`; shared types (`Operator`, `Ref`, `Page`, `Metamodel`, ...) live in `st.orm`. `Operator` is an interface with static constants (not an enum) — the static import works as shown.
 
 Ask: which entity, what custom queries?
 
@@ -92,8 +94,10 @@ Three levels, from simplest to most powerful — always prefer the simplest that
 | Level | Approach | Best for |
 |-------|----------|----------|
 | 1 | Convenience methods (`findBy`, `findAllBy`, `removeAllBy`, `countBy`, `existsBy`) | Simple lookups and operations |
-| 2 | Builder with predicate (`select(predicate)`, `delete(predicate)`) or chained (`select().where()`) | Most application queries needing ordering, pagination, or joins |
+| 2 | Builder chained (`select().where(...)`, `delete().where(...)`) | Most application queries needing ordering, pagination, or joins |
 | 3 | SQL Templates (/storm-sql-java) | CTEs, window functions, database-specific features |
+
+Unlike Kotlin, Java has no `select(predicate)` / `delete(predicate)` shorthand and no block DSL — always chain `.where(...)` on the builder.
 
 **Level 1 — Convenience methods** execute immediately and return results directly:
 - **Read:** `findById()`, `findByRef()`, `findAll()`, `findAllRef()`, `findAllById()`, `findAllByRef()`, `findBy(key, value)`, `findAllBy(field, value)`, `findRefBy(...)`, `findAllRefBy(...)`
@@ -105,11 +109,6 @@ Three levels, from simplest to most powerful — always prefer the simplest that
 
 **Level 2 — Builder** returns `QueryBuilder` for chaining ordering, pagination, or joins:
 ```java
-// With predicate shorthand
-users.select(it -> it.where(User_.city, EQUALS, city))
-    .orderBy(User_.name).getResultList();
-
-// Or equivalently, chained with .where()
 users.select().where(User_.city, EQUALS, city)
     .orderBy(User_.name).getResultList();
 ```
@@ -165,17 +164,27 @@ Java records are immutable. For convenient copy-with-modification, consider Lomb
 
 ## Field-Based Lookups
 
-Query by a specific metamodel key without writing a full QueryBuilder chain:
+Query by a specific metamodel field without writing a full QueryBuilder chain (requires Storm 1.12+; on older versions use `select().where(...)`):
 
 ```java
-// Unique key lookups
+// Find by field value
 Optional<User> user = users.findBy(User_.email, "alice@example.com");
 User user = users.getBy(User_.email, "alice@example.com");   // throws if not found
 
-// Ref-based key lookups
-Optional<User> user = users.findByRef(User_.city, cityRef);
-User user = users.getByRef(User_.city, cityRef);
+// Find all by field value — pass the entity or a Ref for FK fields
+List<User> cityUsers = users.findAllBy(User_.city, city);
+List<User> byRef = users.findAllBy(User_.city, Ref.of(City.class, cityId));
+List<User> byNames = users.findAllBy(User_.name, List.of("Alice", "Bob"));
+
+// Count / Exists by field
+long count = users.countBy(User_.city, Ref.of(city));
+boolean exists = users.existsBy(User_.email, "alice@example.com");
+
+// Remove by field
+int deleted = users.removeAllBy(User_.city, Ref.of(city));
 ```
+
+Field-based methods accept a `Ref<V>` value for FK fields. Unique-key fields (`@PK`/`@UK`) additionally have `Metamodel.Key`-typed overloads (`findBy`, `getBy`, `findByRef`, `getByRef`) that were available before 1.12.
 
 ## Ref-Based Operations
 
@@ -279,12 +288,12 @@ Page<User> page = users.page(0, 20);
 Page<User> page = users.page(Pageable.ofSize(20).sortBy(User_.name));
 Page<User> next = users.page(page.nextPageable());
 
-// Page API:
+// Page API (record accessors):
 // page.content()       — List<User> of results for this page
 // page.totalPages()    — total number of pages
-// page.totalElements() — total number of elements across all pages
-// page.number()        — current page number (0-based)
-// page.size()          — page size
+// page.totalCount()    — total number of elements across all pages
+// page.pageNumber()    — current page number (0-based)
+// page.pageSize()      — page size
 // page.hasNext()       — whether a next page exists
 // page.hasPrevious()   — whether a previous page exists
 // page.nextPageable()  — Pageable for the next page
@@ -294,7 +303,8 @@ Page<Ref<User>> refPage = users.pageRef(0, 20);
 
 // Keyset scrolling (better for large tables — no COUNT, cursor-based)
 // ⚠️ Scrollable manages ORDER BY internally — do NOT add orderBy() when using scroll(Scrollable)
-// ⚠️ Requires a simple (non-composite) PK — junction tables with composite PKs cannot be scrolled.
+// ⚠️ The scroll key must be a single-column, non-nullable unique key (Metamodel.Key, e.g. a simple
+//    @PK or @UK field) — junction tables with composite PKs cannot be scrolled directly.
 //    To scroll filtered results from a junction table, query the entity with a simple PK
 //    and JOIN through the junction table (e.g., scroll User with a JOIN through UserRole).
 var window = users.scroll(Scrollable.of(User_.id, 20));    // prefer var — avoids Window<User> verbosity
@@ -321,7 +331,7 @@ var window = users.scroll(scrollable);
 ## Framework-Specific Repository Registration
 
 ### Spring Boot
-Define a `RepositoryBeanFactoryPostProcessor` with `repositoryBasePackages` to auto-register repos as beans:
+With `storm-spring-boot-starter`, repository interfaces are auto-discovered and registered as beans — no configuration needed; just inject them. Only when using plain `storm-spring` (no starter) do you define a `RepositoryBeanFactoryPostProcessor` with `repositoryBasePackages`:
 ```java
 @Service
 public class UserService {
@@ -338,6 +348,8 @@ UserRepository userRepository = orm.repository(UserRepository.class);
 
 ## Transactions
 
+The Java API has **no Storm-managed transaction API** (the `transaction { }` blocks are Kotlin-only). Do not invent methods like `orm.transaction(...)` — they do not exist.
+
 ### Spring Boot
 Use `@Transactional` on service methods (standard Spring):
 ```java
@@ -351,13 +363,11 @@ public class UserService {
 ```
 
 ### Standalone
-Use programmatic transaction blocks:
-```java
-orm.transactionBlocking(tx -> {
-    var user = tx.entity(User.class).insertAndFetch(new User(null, email, "Alice", city));
-    // All operations share the same transaction.
-});
-```
+Without Spring, manage transactions at the JDBC level: wrap the `DataSource` in a
+transaction-aware proxy or use a library that provides one (e.g. Spring's
+`DataSourceTransactionManager`/`TransactionTemplate` with
+`TransactionAwareDataSourceProxy`). Storm participates in whatever transaction is
+active on the connection it obtains from the `DataSource`.
 
 ## Verification
 
@@ -366,7 +376,9 @@ After writing repository methods, write a test using `@StormTest` and `SqlCaptur
 Tell the user what you are doing and why: explain that `SqlCapture` records every SQL statement Storm generates. The goal is not to test Storm itself, but to verify that the repository method produces the query the user intended — correct tables joined, correct columns filtered, correct ordering, correct number of statements. This is Storm's verify-then-trust pattern.
 
 ```java
-@StormTest(scripts = {"schema.sql", "data.sql"})
+// Leading "/" resolves scripts from the classpath root (src/test/resources/).
+// Without it, paths resolve relative to the test class's package.
+@StormTest(scripts = {"/schema.sql", "/data.sql"})
 class UserRepositoryTest {
     @Test
     void findByCity(ORMTemplate orm, SqlCapture capture) {
@@ -382,6 +394,8 @@ class UserRepositoryTest {
 ```
 
 Run the test. Show the user the captured SQL and explain how it aligns with the intended behavior. If a query produces unexpected SQL or the right approach is unclear, ask the user for feedback before changing the query.
+
+**SQL visibility outside tests:** annotate a repository interface or individual method with `@SqlLog` (`st.orm.SqlLog`) to log the generated SQL at runtime — useful for debugging without a test harness.
 
 **Test isolation:** `SqlCapture` accumulates SQL across the entire test method. When writing multiple verification tests in one class, use `capture.clear()` between logical operations, or put each verification in its own `@Test` method. To avoid order-dependent failures, make assertions idempotent (don't assume specific row counts from prior inserts in other test methods) or use `@TestMethodOrder(MethodOrderer.OrderAnnotation.class)` with `@Order` if test ordering matters.
 

@@ -35,6 +35,18 @@ Generation rules:
    - Use `Ref<T>` when the entity hierarchy gets too deep or loading the full related entity is overkill for the use case.
    - Non-nullable \`@FK val city: City\` produces INNER JOIN.
    - Nullable \`@FK val city: City?\` produces LEFT JOIN.
+   - For entities with `Ref<T>` FK fields, add a secondary constructor that accepts the entities and converts them — client code then never constructs refs by hand:
+   ```kotlin
+   data class Address(
+       @PK val id: Int = 0,
+       @FK val user: Ref<User>,
+       @FK val city: Ref<City>,
+       val street: String
+   ) : Entity<Int> {
+       constructor(user: User, city: City, street: String) :
+           this(0, user.ref(), city.ref(), street)
+   }
+   ```
 
 4. CIRCULAR REFERENCES ARE NOT SUPPORTED. If Entity A references B and B references A, at least one MUST use \`Ref<T>\`. Self-references MUST always use \`Ref<T>\`:
    \`@FK val invitedBy: Ref<User>?\`
@@ -106,7 +118,7 @@ Generation rules:
    ```
 
 10. Naming: camelCase to snake_case automatically. FK appends _id.
-   - For individual overrides: \`@DbTable("custom_name")\` / \`@DbColumn("custom_name")\`.
+   - For individual overrides: \`@DbTable("custom_name")\` / \`@DbColumn("custom_name")\`. For tables in another schema: \`@DbTable(name = "custom_name", schema = "other_schema")\`.
    - For database-wide conventions (e.g., UPPER_CASE, prefixed tables like \`tbl_\`, or non-standard FK naming): configure a custom \`TableNameResolver\`, \`ColumnNameResolver\`, or \`ForeignKeyResolver\` via the \`TemplateDecorator\` on \`ORMTemplate.of()\` instead of annotating every entity. Example:
      \`\`\`kotlin
      val orm = dataSource.orm { decorator ->
@@ -118,9 +130,19 @@ Generation rules:
    - Resolvers are functional interfaces. Compose them with built-in decorators (\`toUpperCase\`) or write custom lambdas that receive \`RecordType\` (for tables) or \`RecordField\` (for columns) with full access to class/field metadata and annotations.
    - Use \`@DbTable\`/\`@DbColumn\` only for exceptions to the global convention. If the entire database follows one pattern, a resolver handles it without any annotations.
 
-11. Enums: String by default. \`@DbEnum(ORDINAL)\` for integer.
+11. Enums: stored by name (string) by default. \`@DbEnum(ORDINAL)\` for integer storage (import \`st.orm.EnumType.ORDINAL\` — the \`EnumType\` constants are \`NAME\` and \`ORDINAL\`).
 
 12. Optimistic locking: \`@Version val version: Int\`.
+
+12b. Database-managed columns: annotate columns the database computes or maintains (e.g. \`DEFAULT CURRENT_TIMESTAMP\`, \`ON UPDATE\` timestamps, computed values) with \`@Persist(insertable = false, updatable = false)\` and give the field a default value so entity construction doesn't require it. Storm then never writes the column and always reads it back:
+   \`\`\`kotlin
+   data class User(
+       @PK val id: Int = 0,
+       val email: String,
+       @Persist(insertable = false, updatable = false) val registeredAt: Instant = Instant.EPOCH
+   ) : Entity<Int>
+   \`\`\`
+   Use \`insertable = false\` alone for columns set by the database only on INSERT, or \`updatable = false\` alone for columns that are written once and never modified.
 
 13. Use descriptive variable names, never abbreviated.
 

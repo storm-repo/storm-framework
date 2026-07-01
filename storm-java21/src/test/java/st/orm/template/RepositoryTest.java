@@ -30,6 +30,7 @@ import st.orm.template.model.Owner;
 import st.orm.template.model.OwnerView;
 import st.orm.template.model.OwnerView_;
 import st.orm.template.model.Pet;
+import st.orm.template.model.Pet_;
 import st.orm.template.model.Visit;
 
 @SuppressWarnings("ALL")
@@ -805,5 +806,119 @@ public class RepositoryTest {
         OwnerViewRepository viewRepo = orm.repository(OwnerViewRepository.class);
         Optional<OwnerView> view = viewRepo.findById(1);
         assertTrue(view.isPresent());
+    }
+
+    // Field-based finder methods (default methods on EntityRepository/ProjectionRepository).
+
+    @Test
+    public void testFindByField() {
+        var cities = orm.entity(City.class);
+        Optional<City> city = cities.findBy(City_.name, "Madison");
+        assertTrue(city.isPresent());
+        assertEquals("Madison", city.get().name());
+        assertTrue(cities.findBy(City_.name, "Nonexistent").isEmpty());
+    }
+
+    @Test
+    public void testGetByField() {
+        var cities = orm.entity(City.class);
+        City city = cities.getBy(City_.name, "Madison");
+        assertEquals("Madison", city.name());
+    }
+
+    @Test
+    public void testFindAllByField() {
+        var cities = orm.entity(City.class);
+        List<City> matches = cities.findAllBy(City_.name, "Madison");
+        assertEquals(1, matches.size());
+    }
+
+    @Test
+    public void testFindAllByFieldMultipleValues() {
+        var cities = orm.entity(City.class);
+        List<City> matches = cities.findAllBy(City_.name, List.of("Madison", "Monona"));
+        assertEquals(2, matches.size());
+    }
+
+    @Test
+    public void testFindAllByFieldRef() {
+        var pets = orm.entity(Pet.class);
+        List<Pet> petsOfOwner = pets.findAllBy(Pet_.owner, Ref.of(Owner.class, 1));
+        assertFalse(petsOfOwner.isEmpty());
+        assertTrue(petsOfOwner.stream().allMatch(pet -> pet.owner().id() == 1));
+    }
+
+    @Test
+    public void testFindAllByRefField() {
+        var pets = orm.entity(Pet.class);
+        List<Pet> matches = pets.findAllByRef(Pet_.owner,
+                List.of(Ref.of(Owner.class, 1), Ref.of(Owner.class, 6)));
+        assertEquals(3, matches.size());
+    }
+
+    @Test
+    public void testFindRefByField() {
+        var cities = orm.entity(City.class);
+        Optional<Ref<City>> ref = cities.findRefBy(City_.name, "Madison");
+        assertTrue(ref.isPresent());
+        assertEquals("Madison", ref.get().fetch().name());
+    }
+
+    @Test
+    public void testFindAllRefByField() {
+        var pets = orm.entity(Pet.class);
+        List<Ref<Pet>> refs = pets.findAllRefBy(Pet_.owner, Ref.of(Owner.class, 6));
+        assertEquals(2, refs.size());
+    }
+
+    @Test
+    public void testGetRefByField() {
+        var cities = orm.entity(City.class);
+        Ref<City> ref = cities.getRefBy(City_.name, "Madison");
+        assertNotNull(ref);
+        assertEquals("Madison", ref.fetch().name());
+    }
+
+    @Test
+    public void testCountByField() {
+        var pets = orm.entity(Pet.class);
+        assertEquals(2, pets.countBy(Pet_.owner, Ref.of(Owner.class, 6)));
+        var cities = orm.entity(City.class);
+        assertEquals(1, cities.countBy(City_.name, "Madison"));
+    }
+
+    @Test
+    public void testExistsByField() {
+        var cities = orm.entity(City.class);
+        assertTrue(cities.existsBy(City_.name, "Madison"));
+        assertFalse(cities.existsBy(City_.name, "Nonexistent"));
+    }
+
+    @Test
+    public void testRemoveAllByField() {
+        var cities = orm.entity(City.class);
+        cities.insertAndFetch(new City(null, "ToRemoveByField"));
+        int removed = cities.removeAllBy(City_.name, "ToRemoveByField");
+        assertEquals(1, removed);
+        assertFalse(cities.existsBy(City_.name, "ToRemoveByField"));
+    }
+
+    @Test
+    public void testFieldFinderThroughRepositoryProxy() {
+        // Default interface methods must dispatch correctly through the repository proxy.
+        CityRepository cityRepo = orm.repository(CityRepository.class);
+        Optional<City> city = cityRepo.findBy(City_.name, "Madison");
+        assertTrue(city.isPresent());
+        assertEquals(1, cityRepo.countBy(City_.name, "Madison"));
+        assertTrue(cityRepo.existsBy(City_.name, "Madison"));
+    }
+
+    @Test
+    public void testProjectionFieldFinder() {
+        var ownerViews = orm.projection(OwnerView.class);
+        List<OwnerView> views = ownerViews.findAllBy(OwnerView_.firstName, "George");
+        assertFalse(views.isEmpty());
+        assertTrue(views.stream().allMatch(view -> view.firstName().equals("George")));
+        assertTrue(ownerViews.existsBy(OwnerView_.firstName, "George"));
     }
 }

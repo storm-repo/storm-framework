@@ -15,6 +15,9 @@
  */
 package st.orm.repository;
 
+import static st.orm.Operator.EQUALS;
+import static st.orm.Operator.IN;
+
 import jakarta.annotation.Nonnull;
 import java.util.List;
 import java.util.Optional;
@@ -22,6 +25,7 @@ import java.util.stream.Stream;
 import st.orm.Data;
 import st.orm.Metamodel;
 import st.orm.NoResultException;
+import st.orm.NonUniqueResultException;
 import st.orm.Page;
 import st.orm.Pageable;
 import st.orm.PersistenceException;
@@ -286,6 +290,296 @@ public interface ProjectionRepository<P extends Projection<ID>, ID> extends Repo
      * @since 1.9
      */
     <V extends Data> P getByRef(@Nonnull Metamodel.Key<P, V> key, @Nonnull Ref<V> value);
+
+    // Field-based finder methods.
+
+    /**
+     * Retrieves a projection based on a single field and its value.
+     *
+     * @param field metamodel reference of the projection field.
+     * @param value the value to match against.
+     * @return the projection matching the given field value, or empty if none exists.
+     * @param <V> the type of the field.
+     * @throws PersistenceException if the retrieval operation fails due to underlying database issues.
+     * @since 1.12
+     */
+    default <V> Optional<P> findBy(@Nonnull Metamodel<P, V> field, @Nonnull V value) {
+        return select().where(field, EQUALS, value).getOptionalResult();
+    }
+
+    /**
+     * Retrieves a projection based on a single field and its referenced value.
+     *
+     * @param field metamodel reference of the projection field.
+     * @param value the referenced value to match against.
+     * @return the projection matching the given ref value, or empty if none exists.
+     * @param <V> the type of the referenced entity.
+     * @throws PersistenceException if the retrieval operation fails due to underlying database issues.
+     * @since 1.12
+     */
+    default <V extends Data> Optional<P> findBy(@Nonnull Metamodel<P, V> field, @Nonnull Ref<V> value) {
+        return select().where(field, value).getOptionalResult();
+    }
+
+    /**
+     * Retrieves projections matching a single field and a single value.
+     *
+     * @param field metamodel reference of the projection field.
+     * @param value the value to match against.
+     * @return a list of matching projections, or an empty list if none found.
+     * @param <V> the type of the field.
+     * @throws PersistenceException if the retrieval operation fails due to underlying database issues.
+     * @since 1.12
+     */
+    default <V> List<P> findAllBy(@Nonnull Metamodel<P, V> field, @Nonnull V value) {
+        return select().where(field, EQUALS, value).getResultList();
+    }
+
+    /**
+     * Retrieves projections matching a single field and a single referenced value.
+     *
+     * @param field metamodel reference of the projection field.
+     * @param value the referenced value to match against.
+     * @return a list of matching projections, or an empty list if none found.
+     * @param <V> the type of the referenced entity.
+     * @throws PersistenceException if the retrieval operation fails due to underlying database issues.
+     * @since 1.12
+     */
+    default <V extends Data> List<P> findAllBy(@Nonnull Metamodel<P, V> field, @Nonnull Ref<V> value) {
+        return select().where(field, value).getResultList();
+    }
+
+    /**
+     * Retrieves projections matching a single field against multiple values.
+     *
+     * @param field metamodel reference of the projection field.
+     * @param values the values to match against.
+     * @return a list of matching projections, or an empty list if none found.
+     * @param <V> the type of the field.
+     * @throws PersistenceException if the retrieval operation fails due to underlying database issues.
+     * @since 1.12
+     */
+    default <V> List<P> findAllBy(@Nonnull Metamodel<P, V> field, @Nonnull Iterable<? extends V> values) {
+        return select().where(field, IN, values).getResultList();
+    }
+
+    /**
+     * Retrieves projections matching a single field against multiple referenced values.
+     *
+     * @param field metamodel reference of the projection field.
+     * @param values the referenced values to match against.
+     * @return a list of matching projections, or an empty list if none found.
+     * @param <V> the type of the referenced entity.
+     * @throws PersistenceException if the retrieval operation fails due to underlying database issues.
+     * @since 1.12
+     */
+    default <V extends Data> List<P> findAllByRef(@Nonnull Metamodel<P, V> field, @Nonnull Iterable<? extends Ref<V>> values) {
+        return select().whereRef(field, values).getResultList();
+    }
+
+    /**
+     * Retrieves exactly one projection based on a single field and its value.
+     *
+     * @param field metamodel reference of the projection field.
+     * @param value the value to match against.
+     * @return the matching projection.
+     * @param <V> the type of the field.
+     * @throws NoResultException if there is no result.
+     * @throws NonUniqueResultException if more than one result.
+     * @throws PersistenceException if the retrieval operation fails due to underlying database issues.
+     * @since 1.12
+     */
+    default <V> P getBy(@Nonnull Metamodel<P, V> field, @Nonnull V value) {
+        return select().where(field, EQUALS, value).getSingleResult();
+    }
+
+    /**
+     * Retrieves exactly one projection based on a single field and its referenced value.
+     *
+     * @param field metamodel reference of the projection field.
+     * @param value the referenced value to match against.
+     * @return the matching projection.
+     * @param <V> the type of the referenced entity.
+     * @throws NoResultException if there is no result.
+     * @throws NonUniqueResultException if more than one result.
+     * @throws PersistenceException if the retrieval operation fails due to underlying database issues.
+     * @since 1.12
+     */
+    default <V extends Data> P getBy(@Nonnull Metamodel<P, V> field, @Nonnull Ref<V> value) {
+        return select().where(field, value).getSingleResult();
+    }
+
+    /**
+     * Retrieves a ref to a projection based on a single field and its value.
+     *
+     * @param field metamodel reference of the projection field.
+     * @param value the value to match against.
+     * @return a ref to the matching projection, or empty if none exists.
+     * @param <V> the type of the field.
+     * @throws PersistenceException if the retrieval operation fails due to underlying database issues.
+     * @since 1.12
+     */
+    default <V> Optional<Ref<P>> findRefBy(@Nonnull Metamodel<P, V> field, @Nonnull V value) {
+        return selectRef().where(field, EQUALS, value).getOptionalResult();
+    }
+
+    /**
+     * Retrieves a ref to a projection based on a single field and its referenced value.
+     *
+     * @param field metamodel reference of the projection field.
+     * @param value the referenced value to match against.
+     * @return a ref to the matching projection, or empty if none exists.
+     * @param <V> the type of the referenced entity.
+     * @throws PersistenceException if the retrieval operation fails due to underlying database issues.
+     * @since 1.12
+     */
+    default <V extends Data> Optional<Ref<P>> findRefBy(@Nonnull Metamodel<P, V> field, @Nonnull Ref<V> value) {
+        return selectRef().where(field, value).getOptionalResult();
+    }
+
+    /**
+     * Retrieves refs to projections matching a single field and a single value.
+     *
+     * @param field metamodel reference of the projection field.
+     * @param value the value to match against.
+     * @return a list of refs to matching projections, or an empty list if none found.
+     * @param <V> the type of the field.
+     * @throws PersistenceException if the retrieval operation fails due to underlying database issues.
+     * @since 1.12
+     */
+    default <V> List<Ref<P>> findAllRefBy(@Nonnull Metamodel<P, V> field, @Nonnull V value) {
+        return selectRef().where(field, EQUALS, value).getResultList();
+    }
+
+    /**
+     * Retrieves refs to projections matching a single field and a single referenced value.
+     *
+     * @param field metamodel reference of the projection field.
+     * @param value the referenced value to match against.
+     * @return a list of refs to matching projections, or an empty list if none found.
+     * @param <V> the type of the referenced entity.
+     * @throws PersistenceException if the retrieval operation fails due to underlying database issues.
+     * @since 1.12
+     */
+    default <V extends Data> List<Ref<P>> findAllRefBy(@Nonnull Metamodel<P, V> field, @Nonnull Ref<V> value) {
+        return selectRef().where(field, value).getResultList();
+    }
+
+    /**
+     * Retrieves refs to projections matching a single field against multiple values.
+     *
+     * @param field metamodel reference of the projection field.
+     * @param values the values to match against.
+     * @return a list of refs to matching projections, or an empty list if none found.
+     * @param <V> the type of the field.
+     * @throws PersistenceException if the retrieval operation fails due to underlying database issues.
+     * @since 1.12
+     */
+    default <V> List<Ref<P>> findAllRefBy(@Nonnull Metamodel<P, V> field, @Nonnull Iterable<? extends V> values) {
+        return selectRef().where(field, IN, values).getResultList();
+    }
+
+    /**
+     * Retrieves refs to projections matching a single field against multiple referenced values.
+     *
+     * @param field metamodel reference of the projection field.
+     * @param values the referenced values to match against.
+     * @return a list of refs to matching projections, or an empty list if none found.
+     * @param <V> the type of the referenced entity.
+     * @throws PersistenceException if the retrieval operation fails due to underlying database issues.
+     * @since 1.12
+     */
+    default <V extends Data> List<Ref<P>> findAllRefByRef(@Nonnull Metamodel<P, V> field, @Nonnull Iterable<? extends Ref<V>> values) {
+        return selectRef().whereRef(field, values).getResultList();
+    }
+
+    /**
+     * Retrieves a ref to exactly one projection based on a single field and its value.
+     *
+     * @param field metamodel reference of the projection field.
+     * @param value the value to match against.
+     * @return a ref to the matching projection.
+     * @param <V> the type of the field.
+     * @throws NoResultException if there is no result.
+     * @throws NonUniqueResultException if more than one result.
+     * @throws PersistenceException if the retrieval operation fails due to underlying database issues.
+     * @since 1.12
+     */
+    default <V> Ref<P> getRefBy(@Nonnull Metamodel<P, V> field, @Nonnull V value) {
+        return selectRef().where(field, EQUALS, value).getSingleResult();
+    }
+
+    /**
+     * Retrieves a ref to exactly one projection based on a single field and its referenced value.
+     *
+     * @param field metamodel reference of the projection field.
+     * @param value the referenced value to match against.
+     * @return a ref to the matching projection.
+     * @param <V> the type of the referenced entity.
+     * @throws NoResultException if there is no result.
+     * @throws NonUniqueResultException if more than one result.
+     * @throws PersistenceException if the retrieval operation fails due to underlying database issues.
+     * @since 1.12
+     */
+    default <V extends Data> Ref<P> getRefBy(@Nonnull Metamodel<P, V> field, @Nonnull Ref<V> value) {
+        return selectRef().where(field, value).getSingleResult();
+    }
+
+    /**
+     * Counts projections matching the specified field and value.
+     *
+     * @param field metamodel reference of the projection field.
+     * @param value the value to match against.
+     * @return the count of matching projections.
+     * @param <V> the type of the field.
+     * @throws PersistenceException if the count operation fails due to underlying database issues.
+     * @since 1.12
+     */
+    default <V> long countBy(@Nonnull Metamodel<P, V> field, @Nonnull V value) {
+        return selectCount().where(field, EQUALS, value).getSingleResult();
+    }
+
+    /**
+     * Counts projections matching the specified field and referenced value.
+     *
+     * @param field metamodel reference of the projection field.
+     * @param value the referenced value to match against.
+     * @return the count of matching projections.
+     * @param <V> the type of the referenced entity.
+     * @throws PersistenceException if the count operation fails due to underlying database issues.
+     * @since 1.12
+     */
+    default <V extends Data> long countBy(@Nonnull Metamodel<P, V> field, @Nonnull Ref<V> value) {
+        return selectCount().where(field, value).getSingleResult();
+    }
+
+    /**
+     * Checks if any projection matching the specified field and value exists.
+     *
+     * @param field metamodel reference of the projection field.
+     * @param value the value to match against.
+     * @return true if any matching projections exist, false otherwise.
+     * @param <V> the type of the field.
+     * @throws PersistenceException if the count operation fails due to underlying database issues.
+     * @since 1.12
+     */
+    default <V> boolean existsBy(@Nonnull Metamodel<P, V> field, @Nonnull V value) {
+        return countBy(field, value) > 0;
+    }
+
+    /**
+     * Checks if any projection matching the specified field and referenced value exists.
+     *
+     * @param field metamodel reference of the projection field.
+     * @param value the referenced value to match against.
+     * @return true if any matching projections exist, false otherwise.
+     * @param <V> the type of the referenced entity.
+     * @throws PersistenceException if the count operation fails due to underlying database issues.
+     * @since 1.12
+     */
+    default <V extends Data> boolean existsBy(@Nonnull Metamodel<P, V> field, @Nonnull Ref<V> value) {
+        return countBy(field, value) > 0;
+    }
 
     // Page methods.
 

@@ -17,7 +17,7 @@ import st.orm.Scrollable                         // Keyset scrolling cursor (sin
 import st.orm.Window                             // Keyset scrolling result (Window<R>)
 import st.orm.test.StormTest                     // Test annotation
 import st.orm.test.SqlCapture                    // SQL capture for verification
-import st.orm.test.CapturedSql.Operation         // SELECT, INSERT, UPDATE, DELETE
+import st.orm.test.CapturedSql.Operation         // SELECT, INSERT, UPDATE, DELETE, UNDEFINED
 import org.junit.jupiter.api.Assertions.*        // assertEquals, assertTrue, assertFalse
 ```
 
@@ -72,14 +72,13 @@ val users = orm.entity(User::class)          // also works, no import needed
 val userRepository = orm.repository<UserRepository>()  // import st.orm.repository.repository
 ```
 
-**Star projection caveat:** `orm.entity<User>()` returns `EntityRepository<User, *>` — the ID type is erased. Methods that depend on the ID type parameter (`existsById`, `findById`, `removeById`, etc.) will fail with star projection errors. For ID-based operations, use a typed custom repository (`EntityRepository<User, Int>`) or call the method via `orm.entity(User::class)` with an explicit cast.
+**Star projection caveat:** `orm.entity<User>()` returns `EntityRepository<User, *>` — the ID type is erased. Methods that depend on the ID type parameter (`existsById`, `findById`, `removeById`, etc.) will fail with star projection errors. For ID-based operations, use `orm.entityWithId<User, Int>()` (reified, preserves the ID type), a typed custom repository (`EntityRepository<User, Int>`), or `orm.entity(User::class)` (the ID type is inferred from context).
 
 ```kotlin
-// ⚠️ Repository interfaces MUST import predicate operators — they are Kotlin extension functions:
-// import st.orm.template.eq   (and neq, like, greater, less, etc.)
-// import st.orm.template.and
-// import st.orm.template.or
-// Without these imports, `eq`, `and`, `or` etc. will not resolve in the interface file.
+// ⚠️ Repository interfaces MUST import the predicate operators — they are Kotlin extension functions:
+// import st.orm.template.eq   (and neq, like, greater, less, etc.) — or simply import st.orm.template.*
+// Without the import, `eq` etc. will not resolve in the interface file.
+// (`and`/`or` are member functions on PredicateBuilder — they need no import.)
 
 interface UserRepository : EntityRepository<User, Int> {
     fun findByEmail(email: String): User? = find(User_.email eq email)
@@ -387,22 +386,23 @@ users.removeAll()   // removes all entities
 // When accepting 1-based page numbers from a URL (e.g., ?page=1), pass page - 1.
 val page: Page<User> = users.page(0, 20)
 val page: Page<User> = users.page(Pageable.ofSize(20).sortBy(User_.name))
-val nextPage = users.page(page.nextPageable)
+val nextPage = users.page(page.nextPageable())
 
-// Page API — note: these are methods (not properties), call with ()
+// Page API — Page is a Java record; ALL accessors are methods, call with ()
 // page.content()       — List<User> of results for this page
 // page.totalPages()    — total number of pages
-// page.totalElements() — total number of elements across all pages
-// page.number()        — current page number (0-based)
-// page.size()          — page size
+// page.totalCount()    — total number of elements across all pages
+// page.pageNumber()    — current page number (0-based)
+// page.pageSize()      — page size
 // page.hasNext()       — whether a next page exists
 // page.hasPrevious()   — whether a previous page exists
-// page.nextPageable    — Pageable for the next page (property, not method)
+// page.nextPageable()  — Pageable for the next page
 
 // Keyset scrolling (better for large tables — no COUNT, cursor-based)
 // Scrollable<T> takes a single type parameter (the entity type)
 // ⚠️ Scrollable manages ORDER BY internally — do NOT add orderBy() when using scroll(Scrollable)
-// ⚠️ Requires a simple (non-composite) PK — junction tables with composite PKs cannot be scrolled.
+// ⚠️ The scroll key must be a single-column, non-nullable unique key (e.g. a simple @PK or @UK
+//    field) — junction tables with composite PKs cannot be scrolled directly.
 //    To scroll filtered results from a junction table, query the entity with a simple PK
 //    and JOIN through the junction table (e.g., scroll User with a JOIN through UserRole).
 val window = users.scroll(Scrollable.of(User_.id, 20))
@@ -420,12 +420,12 @@ val scrollable = if (cursor != null) {
 val window = users.scroll(scrollable)
 
 // Window<R> is the scroll result record. Both scroll() methods return Window.
-// Window API:
-// window.content — List<User> of results
-// window.hasNext / window.hasPrevious — bounds checking
+// Window API — Window is a Java record; ALL accessors are methods, call with ()
+// window.content() — List<User> of results
+// window.hasNext() / window.hasPrevious() — bounds checking
 // window.nextCursor() / window.previousCursor() — serialized cursors for REST APIs
 // window.next() / window.previous() — typed Scrollable<T> for programmatic navigation
-// window.nextScrollable / window.previousScrollable — raw Scrollable<?> record component accessors (use next()/previous() instead)
+// window.nextScrollable() / window.previousScrollable() — raw Scrollable<?> record component accessors (use next()/previous() instead)
 ```
 
 ## Framework-Specific Repository Registration
@@ -433,7 +433,7 @@ val window = users.scroll(scrollable)
 Detect the project's framework from its build file and dependencies, then suggest the appropriate pattern:
 
 ### Spring Boot
-Define a `RepositoryBeanFactoryPostProcessor` with `repositoryBasePackages` to auto-register repos as beans. Or use the Spring Boot Starter which auto-discovers them.
+With `storm-kotlin-spring-boot-starter`, repository interfaces are auto-discovered and registered as beans — no configuration needed; just inject them. Only when using plain `storm-kotlin-spring` (no starter) do you define a `RepositoryBeanFactoryPostProcessor` with `repositoryBasePackages`.
 ```kotlin
 @Service
 class UserService(private val userRepository: UserRepository) {
@@ -478,25 +478,21 @@ class UserService(private val userRepository: UserRepository) {
 }
 ```
 
-### Ktor
-Use `transaction { }` blocks:
+### Ktor / Standalone
+
+Use the top-level `transaction { }` function (import `st.orm.template.transaction`). It is a **suspend function**, not a method on `ORMTemplate` — never write `orm.transaction { }` or `call.orm.transaction { }`. The lambda receiver is a `Transaction` (exposing `setRollbackOnly()`, `onCommit { }`, `onRollback { }`) — it does NOT provide `entity(...)`; use repositories or `orm` captured from the enclosing scope:
+
 ```kotlin
 get("/users") {
-    call.orm.transaction {
-        val users = entity(User::class).findAll()
-        call.respond(users)
+    val users = call.repository<UserRepository>()
+    transaction {
+        // All operations within the block share the same transaction.
+        call.respond(users.findAll())
     }
 }
 ```
 
-### Standalone
-Use programmatic `transaction { }` blocks on the ORM template:
-```kotlin
-orm.transaction {
-    val user = entity(User::class).insertAndFetch(User(email = "alice@example.com", city = city))
-    // All operations within the block share the same transaction.
-}
-```
+Outside a coroutine, use `transactionBlocking { }` instead. Transaction options are available via `withTransactionOptions { }` (isolation via `TransactionIsolation`, propagation via `TransactionPropagation`).
 
 ## Block-Based Query DSL
 
@@ -568,9 +564,9 @@ users.select(User_.active eq true).resultList
 users.delete(User_.active eq false).executeUpdate()
 ```
 
-Standalone usage on `ORMTemplate`:
+Standalone usage via `ORMTemplate` — note there is **no** `orm.select<T> { block }` reified form; get the entity repository first:
 ```kotlin
-val users = orm.select<User> {
+val users = orm.entity<User>().select {
     where(User_.name eq "Alice")
     orderBy(User_.email)
     limit(10)
@@ -584,7 +580,9 @@ After writing repository methods, write a test using `@StormTest` and `SqlCaptur
 Tell the user what you are doing and why: explain that `SqlCapture` records every SQL statement Storm generates. The goal is not to test Storm itself, but to verify that the repository method produces the query the user intended — correct tables joined, correct columns filtered, correct ordering, correct number of statements. This is Storm's verify-then-trust pattern.
 
 ```kotlin
-@StormTest(scripts = ["schema.sql", "data.sql"])
+// Leading "/" resolves scripts from the classpath root (src/test/resources/).
+// Without it, paths resolve relative to the test class's package.
+@StormTest(scripts = ["/schema.sql", "/data.sql"])
 class UserRepositoryTest {
     @Test
     fun findByCity(orm: ORMTemplate, capture: SqlCapture) {
@@ -600,6 +598,8 @@ class UserRepositoryTest {
 ```
 
 Run the test. Show the user the captured SQL and explain how it aligns with the intended behavior. If a query produces unexpected SQL or the right approach is unclear, ask the user for feedback before changing the query.
+
+**SQL visibility outside tests:** annotate a repository interface or individual method with `@SqlLog` (`st.orm.SqlLog`) to log the generated SQL at runtime — useful for debugging without a test harness.
 
 **Test isolation:** `SqlCapture` accumulates SQL across the entire test method. When writing multiple verification tests in one class, use `capture.clear()` between logical operations, or put each verification in its own `@Test` method. To avoid order-dependent failures, make assertions idempotent (don't assume specific row counts from prior inserts in other test methods) or use `@TestMethodOrder(MethodOrderer.OrderAnnotation::class)` with `@Order` if test ordering matters.
 

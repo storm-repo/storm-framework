@@ -57,8 +57,8 @@ When using SQL templates directly, embedded values are also parameterized:
 
 ```kotlin
 // Both 'status' and 'minAge' become JDBC parameters.
-val users = orm.query("SELECT * FROM user WHERE status = $status AND age > $minAge")
-    .getResultList(User::class)
+val users = orm.query { "SELECT * FROM user WHERE status = $status AND age > $minAge" }
+    .resultList<User>()
 ```
 
 </TabItem>
