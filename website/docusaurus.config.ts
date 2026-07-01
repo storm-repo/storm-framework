@@ -96,6 +96,23 @@ const config: Config = {
             [remarkStormVersion, { version: stormVersion }],
           ],
         },
+        sitemap: {
+          // Only advertise the current (latest) docs version to crawlers.
+          // Old numbered versions and the unreleased `/docs/next` dev docs are
+          // near-duplicate content that splits ranking signal across ~10 copies
+          // of each page. They stay reachable via the version dropdown; we just
+          // keep them out of the sitemap so Google consolidates on the canonical
+          // (unversioned) `/docs/*` pages.
+          createSitemapItems: async (params) => {
+            const {defaultCreateSitemapItems, ...rest} = params;
+            const items = await defaultCreateSitemapItems(rest);
+            return items.filter(
+              (item) =>
+                !item.url.includes('/docs/next') &&
+                !/\/docs\/\d+\.\d+\.\d+(\/|$)/.test(item.url),
+            );
+          },
+        },
         blog: false,
         theme: {
           customCss: './src/css/custom.css',

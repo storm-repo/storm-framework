@@ -205,7 +205,7 @@ const BODY = `
 </div>
 
 <section class="endcta" style="padding-top:30px"><div class="wrap">
-  <h2>Enjoy writing code that is worth reading.</h2>
+  <h2>Write code worth reading.</h2>
   <p class="sub" style="margin:0 auto 30px;text-align:center;max-width:940px">Concise entities and one-line queries keep you productive. Immutable records simplify your architecture by letting the same types flow through your application layers. Storm is built for engineers who care about beautiful code.</p>
   <div class="cta" style="justify-content:center">
     <a href="/docs/getting-started" class="btn primary">Get started →</a>
@@ -496,11 +496,65 @@ export default function Home() {
     <>
       <Head>
         <html lang="en" />
-        <title>Storm — Radically Simple, Predictable Persistence</title>
+        <title>Storm — Type-safe ORM for Kotlin & Java 21+</title>
         <meta
           name="description"
-          content="Storm is a modern, type-safe, SQL-first ORM for Kotlin 2.0+ and Java 21+. Predictable persistence with no magic, no N+1, and full SQL control."
+          content="Type-safe, SQL-first ORM for Kotlin 2.0+ and Java 21+. Concise entities, one-line queries, immutable records — every query explicit, no proxies, no N+1."
         />
+        {/* Open Graph / Twitter: default og:title is just the site name
+            ("Storm Framework") and og:description is absent, so set the
+            keyword-rich title + description used when the page is shared. */}
+        <meta property="og:type" content="website" />
+        <meta
+          property="og:title"
+          content={'Storm — Type-safe ORM for Kotlin & Java 21+'}
+        />
+        <meta
+          property="og:description"
+          content="Type-safe, SQL-first ORM for Kotlin 2.0+ and Java 21+. Concise entities, one-line queries, immutable records — every query explicit, no proxies, no N+1."
+        />
+        <meta
+          name="twitter:title"
+          content={'Storm — Type-safe ORM for Kotlin & Java 21+'}
+        />
+        <meta
+          name="twitter:description"
+          content="Type-safe, SQL-first ORM for Kotlin 2.0+ and Java 21+. Concise entities, one-line queries, immutable records — every query explicit, no proxies, no N+1."
+        />
+        {/* Structured data so search engines can identify Storm as a
+            developer tool for Kotlin/Java and consolidate it with its GitHub
+            and Maven Central listings (helps knowledge-graph + rich results). */}
+        <script type="application/ld+json">
+          {JSON.stringify({
+            '@context': 'https://schema.org',
+            '@type': 'SoftwareApplication',
+            name: 'Storm',
+            alternateName: 'Storm ORM',
+            applicationCategory: 'DeveloperApplication',
+            operatingSystem: 'JVM (Kotlin, Java)',
+            description:
+              'Storm is a type-safe, SQL-first ORM for Kotlin 2.0+ and Java 21+. Define concise, immutable entities and write one-line queries — nested predicates and entity graphs compile to a single efficient query, eliminating hidden queries and N+1. Drop to full SQL templates whenever you want; never locked in.',
+            featureList: [
+              'Direct database control — every query explicit, no hidden N+1',
+              'Stateless, immutable records — no proxies, no flush, no hidden state',
+              'Type-safe and injection-safe — compile-time column and type checks, automatic bind parameters',
+              'One-line queries with an optional full SQL template engine',
+              'Works with PostgreSQL, MySQL, MariaDB, Oracle, SQL Server, SQLite and H2',
+              'Integrates with Spring Boot 3.x/4.x and Ktor',
+            ],
+            url: 'https://orm.st',
+            sameAs: [
+              'https://github.com/storm-orm/storm-framework',
+              'https://central.sonatype.com/namespace/st.orm',
+            ],
+            offers: {'@type': 'Offer', price: '0', priceCurrency: 'USD'},
+            author: {
+              '@type': 'Organization',
+              name: 'Storm',
+              url: 'https://github.com/storm-orm',
+            },
+          })}
+        </script>
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
         <link
