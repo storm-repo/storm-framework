@@ -122,6 +122,16 @@ const CSS = `
     background:rgba(129,140,248,.1);border:1px solid rgba(129,140,248,.2);margin-bottom:16px}
   .storm-home .endcta{text-align:center}
   .storm-home .endcta h2{font-size:clamp(32px,5vw,54px);letter-spacing:-.035em;font-weight:800;margin:0 0 18px}
+  .storm-home .values{margin:6px 0 30px}
+  .storm-home .values-lead{display:block;font-family:var(--mono);font-size:12px;letter-spacing:.14em;text-transform:uppercase;color:var(--faint);margin-bottom:16px}
+  /* Rotating principles: all four stay in the DOM (stacked in one grid cell so
+     the box sizes to the tallest line and never shifts as they swap); the JS
+     toggles the .in class to fade one in at a time. */
+  .storm-home .values-rot{display:grid;justify-items:center;align-items:center}
+  .storm-home .values-rot span{grid-area:1/1;font-size:clamp(24px,4vw,40px);font-weight:800;letter-spacing:-.03em;line-height:1.15;
+    opacity:0;transform:translateY(10px);transition:opacity .55s ease,transform .55s ease;pointer-events:none}
+  .storm-home .values-rot span.in{opacity:1;transform:none}
+  @media(prefers-reduced-motion:reduce){.storm-home .values-rot span{transition:none}}
   .storm-home footer{border-top:1px solid var(--border-soft);padding:36px 0;color:var(--faint);font-size:13.5px}
   .storm-home .foot{display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:14px}
   .storm-home .foot .links{display:flex;gap:22px;font-family:var(--mono)}.storm-home .foot a{color:var(--muted)}.storm-home .foot a:hover{color:var(--text)}
@@ -207,6 +217,15 @@ const BODY = `
 <section class="endcta" style="padding-top:30px"><div class="wrap">
   <h2>Write code worth reading.</h2>
   <p class="sub" style="margin:0 auto 30px;text-align:center;max-width:940px">Concise entities and one-line queries keep you productive. Immutable records simplify your architecture by letting the same types flow through your application layers. Storm is built for engineers who care about beautiful code.</p>
+  <div class="values">
+    <span class="values-lead">Choose Storm if you value</span>
+    <div class="values-rot" id="valuesRotator">
+      <span class="grad in">Simplicity over complexity</span>
+      <span class="grad">Predictability over magic</span>
+      <span class="grad">Immutability over managed state</span>
+      <span class="grad">Explicit over implicit behavior</span>
+    </div>
+  </div>
   <div class="cta" style="justify-content:center">
     <a href="/docs/getting-started" class="btn primary">Get started →</a>
     <a href="https://github.com/storm-orm/storm-framework" class="btn">Star on GitHub</a>
@@ -483,10 +502,24 @@ export default function Home() {
     }
     runFrom(0);
 
+    // Rotate the "Choose Storm if you value …" principles, one at a time.
+    const valuesRotator = document.getElementById('valuesRotator');
+    let valuesTimer = null;
+    if (valuesRotator) {
+      const valueItems = valuesRotator.querySelectorAll('span');
+      let valueIndex = 0;
+      valuesTimer = setInterval(() => {
+        valueItems[valueIndex].classList.remove('in');
+        valueIndex = (valueIndex + 1) % valueItems.length;
+        valueItems[valueIndex].classList.add('in');
+      }, 4000);
+    }
+
     // Stop the loop and undo DOM mutations when the page unmounts.
     return () => {
       gen++;
       clearTimeout(timer);
+      clearInterval(valuesTimer);
       if(scenesEl) scenesEl.innerHTML='';
       if(sqlBtn) sqlBtn.removeEventListener('click',onSqlClick);
     };
