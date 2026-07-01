@@ -339,7 +339,7 @@ export default function Home() {
       '<span class="sqlk">ORDER BY</span> <span class="sqlk">COUNT</span>(*) <span class="sqlk">DESC</span>\n'+
       '<span class="sqlk">LIMIT</span> <span class="sqlq">?</span>',
 
-      '<span class="sqlc">-- same two inserts either way; the options wrap them in one tx</span>\n'+
+      '<span class="sqlc">-- the second block wraps these two inserts in one configured transaction:</span>\n'+
       '<span class="sqlc">-- transaction(REQUIRES_NEW, REPEATABLE_READ, timeoutSeconds = 5)</span>\n'+
       '<span class="sqlk">SET TRANSACTION ISOLATION LEVEL REPEATABLE READ</span>\n'+
       '<span class="sqlk">BEGIN</span>\n'+
