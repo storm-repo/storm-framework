@@ -1248,7 +1248,7 @@ template.setTimeout(30);  // 30 seconds
 template.setReadOnly(true);
 
 List<User> users = template.execute(status -> {
-    return orm.entity(User.class).selectAll().getResultList();
+    return orm.entity(User.class).select().getResultList();
 });
 ```
 

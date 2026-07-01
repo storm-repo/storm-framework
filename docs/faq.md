@@ -485,7 +485,7 @@ Yes. Storm adds minimal overhead on top of JDBC. There are no runtime proxies, n
 Loading millions of rows into a `List` consumes proportional memory and delays processing until the entire result set is fetched. Streaming processes rows one at a time as the database returns them, keeping memory usage constant regardless of result set size. In Kotlin, Storm exposes streams as `Flow`, which integrates naturally with coroutines.
 
 ```kotlin
-val users: Flow<User> = orm.entity(User::class).selectAll()
+val users: Flow<User> = orm.entity(User::class).select().resultFlow
 users.collect { processUser(it) }
 ```
 
@@ -573,14 +573,14 @@ Storm's Java streams are backed by a JDBC `ResultSet`, which is tied to the data
 ```java
 // Wrong: stream closed before consumption
 Stream<User> getUsers() {
-    try (var users = orm.entity(User.class).selectAll()) {
+    try (var users = orm.entity(User.class).select().getResultStream()) {
         return users;  // Stream is closed when method returns
     }
 }
 
 // Right: consume within the block
 List<User> getUsers() {
-    try (var users = orm.entity(User.class).selectAll()) {
+    try (var users = orm.entity(User.class).select().getResultStream()) {
         return users.toList();
     }
 }

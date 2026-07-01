@@ -207,7 +207,7 @@ For large result sets, streaming avoids loading all rows into memory at once. Ro
 Kotlin uses `Flow`, which provides automatic resource management through structured concurrency:
 
 ```kotlin
-val users: Flow<User> = orm.entity(User::class).selectAll()
+val users: Flow<User> = orm.entity(User::class).select().resultFlow
 
 // Process each row
 users.collect { user -> println(user.name) }
@@ -222,7 +222,7 @@ val emails: List<String> = users.map { it.email }.toList()
 Java uses `Stream`, which holds an open database cursor. Always close streams to release resources:
 
 ```java
-try (Stream<User> users = orm.entity(User.class).selectAll()) {
+try (Stream<User> users = orm.entity(User.class).select().getResultStream()) {
     List<String> emails = users.map(User::email).toList();
 }
 ```

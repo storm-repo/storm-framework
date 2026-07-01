@@ -549,10 +549,10 @@ List<City> cities = orm.entity(User.class)
 <Tabs groupId="language">
 <TabItem value="kotlin" label="Kotlin" default>
 
-For large result sets, use `selectAll()` or `select()` which return a Kotlin `Flow<T>`. Rows are fetched lazily from the database as you collect, so memory usage stays constant regardless of result set size. Flow also handles resource cleanup automatically when collection completes or is cancelled.
+For large result sets, use `select().resultFlow`, which returns a Kotlin `Flow<T>`. Rows are fetched lazily from the database as you collect, so memory usage stays constant regardless of result set size. Flow also handles resource cleanup automatically when collection completes or is cancelled.
 
 ```kotlin
-val users: Flow<User> = orm.entity(User::class).selectAll()
+val users: Flow<User> = orm.entity(User::class).select().resultFlow
 
 // Process each
 users.collect { user -> process(user) }
@@ -570,7 +570,7 @@ val count: Int = users.count()
 Java streams hold an open database cursor and JDBC resources. Unlike Kotlin's `Flow` (which handles cleanup automatically), Java `Stream` results must be explicitly closed. Always wrap them in a try-with-resources block to prevent connection leaks.
 
 ```java
-try (Stream<User> users = orm.entity(User.class).selectAll()) {
+try (Stream<User> users = orm.entity(User.class).select().getResultStream()) {
     List<String> emails = users.map(User::email).toList();
 }
 ```

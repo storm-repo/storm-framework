@@ -134,7 +134,7 @@ Storm uses dirty checking to determine which columns to include in the UPDATE st
 For result sets that may be large, streaming avoids loading all rows into memory at once. Kotlin's `Flow` provides automatic resource management through structured concurrency: the underlying database cursor and connection are released when the flow completes or is cancelled, without requiring explicit cleanup.
 
 ```kotlin
-val users: Flow<User> = userRepository.selectAll()
+val users: Flow<User> = userRepository.select().resultFlow
 val count = users.count()
 
 // Collect to list
@@ -147,7 +147,7 @@ val userList: List<User> = users.toList()
 Java streams over database results hold open a database cursor and connection. You must close the stream explicitly, either with try-with-resources or by calling `close()`. Failing to close the stream leaks database connections.
 
 ```java
-try (Stream<User> users = userRepository.selectAll()) {
+try (Stream<User> users = userRepository.select().getResultStream()) {
     List<Integer> userIds = users.map(User::id).toList();
 }
 ```
@@ -434,7 +434,7 @@ Refs are lightweight identifiers that carry only the record type and primary key
 
 ```kotlin
 // Select refs (lightweight identifiers)
-val refs: Flow<Ref<User>> = userRepository.selectAllRef()
+val refs: Flow<Ref<User>> = userRepository.selectRef().resultFlow
 
 // Select by refs
 val users: Flow<User> = userRepository.selectByRef(refs)
@@ -447,7 +447,7 @@ Ref operations in Java return `Stream` objects that must be closed. Refs carry o
 
 ```java
 // Select refs (lightweight identifiers)
-try (Stream<Ref<User>> refs = userRepository.selectAllRef()) {
+try (Stream<Ref<User>> refs = userRepository.selectRef().getResultStream()) {
     // Process refs
 }
 

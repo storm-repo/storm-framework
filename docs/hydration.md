@@ -454,7 +454,7 @@ The interner only retains entities while your code uses them. Once released, the
 
 ```kotlin
 // Safe for large result sets - processed entities don't accumulate
-orderRepository.selectAll().collect { order ->
+orderRepository.select().resultFlow.collect { order ->
     process(order)
     // order can be cleaned up after this iteration
 }
