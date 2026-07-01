@@ -42,11 +42,18 @@ jobs:
 
       - name: Generate Javadoc (aggregate)
         run: |
+          # The aggregate covers the Java API only. Kotlin modules (Ktor and the
+          # compiler-plugin variants) have no module descriptor; mixing these
+          # "unnamed" modules with the named Java modules makes javadoc:aggregate
+          # fail ("named and unnamed modules"), which — with failOnError=false —
+          # silently produced no output and left /api/java 404. Exclude them here
+          # (Kotlin APIs are documented separately via KDoc under /api/kotlin).
+          # NOTE: add any future storm-compiler-plugin-<kotlin> variant below.
           mvn javadoc:aggregate -q \
             -Dmaven.javadoc.failOnError=false \
             -DadditionalJOption=--enable-preview \
             -Ddoclint=none \
-            -pl '!:storm-kotlin,!:storm-kotlin-spring,!:storm-kotlin-spring-boot-starter,!:storm-kotlinx-serialization,!:storm-metamodel-ksp,!:storm-spring-boot-starter,!:storm-jackson3'
+            -pl '!:storm-kotlin,!:storm-kotlin-spring,!:storm-kotlin-spring-boot-starter,!:storm-kotlinx-serialization,!:storm-metamodel-ksp,!:storm-spring-boot-starter,!:storm-jackson3,!:storm-ktor,!:storm-ktor-test,!:storm-compiler-plugin-2.0,!:storm-compiler-plugin-2.1,!:storm-compiler-plugin-2.2,!:storm-compiler-plugin-2.3,!:storm-compiler-plugin-2.4'
 
       - name: Copy Javadoc to website/static/api/java
         run: |
@@ -54,8 +61,11 @@ jobs:
           # The aggregate report goal writes under the reporting output dir:
           # target/site/apidocs on Maven 3.x, target/reports/apidocs on Maven 4.x.
           copied=""
+          # Require index.html specifically: a failed aggregate can still leave
+          # an empty apidocs dir, and a plain -d check would treat that as success
+          # and deploy an empty /api/java.
           for src in target/site/apidocs target/reports/apidocs; do
-            if [ -d "$src" ]; then
+            if [ -f "$src/index.html" ]; then
               cp -r "$src"/* website/static/api/java/
               copied="$src"
               break
