@@ -167,7 +167,7 @@ Streams returned by Storm must be closed after use. Use `.use {}` (Kotlin) or tr
 Kotlin uses `Flow` for streaming, which provides automatic resource cleanup through structured concurrency. When the Flow completes or the coroutine is cancelled, database cursors and connections are released without explicit cleanup code.
 
 ```kotlin
-val users: Flow<User> = orm.entity(User::class).selectAll()
+val users: Flow<User> = orm.entity(User::class).select().resultFlow
 
 // Process one at a time -- only one row in memory
 users.collect { user ->
@@ -190,19 +190,19 @@ Java uses `Stream` for streaming. Unlike Kotlin's Flow, Java streams do not have
 
 ```java
 // Process one at a time
-try (Stream<User> users = orm.entity(User.class).selectAll()) {
+try (Stream<User> users = orm.entity(User.class).select().getResultStream()) {
     users.forEach(user -> processUser(user));
 }
 
 // Transform and collect
-try (Stream<User> users = orm.entity(User.class).selectAll()) {
+try (Stream<User> users = orm.entity(User.class).select().getResultStream()) {
     List<String> emails = users
         .map(User::email)
         .toList();
 }
 
 // Count without loading all entities
-try (Stream<User> users = orm.entity(User.class).selectAll()) {
+try (Stream<User> users = orm.entity(User.class).select().getResultStream()) {
     long count = users.count();
 }
 ```
@@ -245,7 +245,7 @@ When you need to read and update rows as part of a single atomic operation, wrap
 
 ```kotlin
 transaction {
-    val users: Flow<User> = orm.selectAll<User>()
+    val users: Flow<User> = orm.select<User>().resultFlow
     users.collect { user ->
         // Process within the same transaction
         orm update user.copy(processed = true)

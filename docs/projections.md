@@ -220,7 +220,7 @@ val exists = ownerViews.existsById(1)
 val allOwners = ownerViews.findAll()
 
 // Fetch all as a lazy stream
-ownerViews.selectAll().forEach { owner ->
+ownerViews.select().resultFlow.collect { owner ->
     println(owner.firstName)
 }
 ```
@@ -245,7 +245,7 @@ boolean exists = ownerViews.existsById(1);
 List<OwnerView> allOwners = ownerViews.findAll();
 
 // Fetch all as a stream (must close)
-try (Stream<OwnerView> owners = ownerViews.selectAll()) {
+try (Stream<OwnerView> owners = ownerViews.select().getResultStream()) {
     owners.forEach(o -> System.out.println(o.firstName()));
 }
 ```
@@ -489,7 +489,7 @@ Use `@DbColumn` to map fields to columns with different names.
 | `existsById(id)` | Check if projection exists |
 | `findAll()` | Fetch all as a list |
 | `findAllById(ids)` | Fetch multiple by IDs |
-| `selectAll()` | Lazy Flow of all projections |
+| `select().resultFlow` | Lazy Flow of all projections |
 | `selectById(ids)` | Lazy Flow by IDs |
 | `select()` | Query builder for filtering |
 | `selectCount()` | Query builder for counting |
