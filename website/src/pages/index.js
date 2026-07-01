@@ -181,7 +181,7 @@ const BODY = `
     </div>
     <div class="card">
       <div class="ic"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2 4 6v6c0 5 3.5 8 8 10 4.5-2 8-5 8-10V6z"/></svg></div>
-      <h3>Type-safe and injection-safe</h3>
+      <h3>Type-safe and Injection-safe</h3>
       <p>Compile-time detection of column and type errors. Automatic conversion of interpolated values into bind parameters.</p>
     </div>
   </div>
@@ -267,12 +267,20 @@ export default function Home() {
           P("            .resultList\n"),
           P("}") ] },
 
-      { name:'4 · insert', file:'Seed.kt',
-        caption:"explicit writes — one transaction",
+      { name:'4 · transactions', file:'Transactions.kt',
+        caption:"full control with programmatic tx · Spring's declarative tx also supported",
         code:[ C("// Writes are explicit. One transaction.\n"),
           F("transaction"),P(" {\n"),
           P("    "),K("val "),P("city = orm "),K("insert "),T("City"),P("(name = "),S('"Sunnyvale"'),P(", population = "),N("161_884"),P(", country = "),S('"US"'),P(")\n"),
           P("    orm "),K("insert "),T("User"),P("(email = "),S('"bob@acme.io"'),P(", name = "),S('"Bob"'),P(", city = city)\n"),
+          P("}\n"),
+          P("\n"),
+          C("// Full control when you need it: propagation, isolation, timeout — plus post-tx hooks.\n"),
+          F("transaction"),P("(propagation = "),T("REQUIRES_NEW"),P(", isolation = "),T("REPEATABLE_READ"),P(", timeoutSeconds = "),N("5"),P(") {\n"),
+          P("    "),K("val "),P("austin = orm "),K("insert "),T("City"),P("(name = "),S('"Austin"'),P(", population = "),N("979_882"),P(", country = "),S('"US"'),P(")\n"),
+          P("    "),K("val "),P("user = orm "),K("insert "),T("User"),P("(email = "),S('"carol@acme.io"'),P(", name = "),S('"Carol"'),P(", city = austin)\n"),
+          P("\n"),
+          P("    "),F("onCommit"),P(" { events."),F("publish"),P("("),T("UserCreated"),P("(user)) }"),P("   "),C("// runs only after successful commit\n"),
           P("}") ] },
 
       { name:'5 · sql', file:'UserService.kt',
@@ -289,16 +297,16 @@ export default function Home() {
         grid:[
           { t:"Enjoyable", d:"Write code that's a pleasure to read and maintain." },
           { t:"Minimalist", d:"Concise entities and one-line queries. No ceremony." },
-          { t:"Predictable", d:"What you write is what runs. No surprises." },
+          { t:"Modern", d:"Keeps pace with modern language features, e.g. coroutine-aware tx." },
+          { t:"Predictable", d:"All database calls are explicit. No surprises like hidden N+1 queries." },
           { t:"Type-Safe", d:"Columns and types verified at compile time." },
-          { t:"Injection-Safe", d:"Interpolated values always become bind parameters." },
+          { t:"Secure", d:"Interpolated values become bind variables, preventing SQL injection." },
           { t:"Immutable", d:"Plain data classes and records, safe to share." },
-          { t:"Stateless", d:"No session, no flush, no hidden state." },
-          { t:"No Proxies", d:"Real objects, never transaction-bound stand-ins. Laziness is explicit via Ref." },
-          { t:"No N+1", d:"Entity graphs load in a single query." },
-          { t:"Lightweight", d:"No heavyweight runtime, no external dependencies." },
-          { t:"Direct", d:"Direct database control, no hidden queries." },
-          { t:"SQL", d:"Full SQL whenever you need it. Never locked in." },
+          { t:"Stateless", d:"No session, flush, or transaction-bound proxies." },
+          { t:"Portable", d:"Database specifics offered in a portable way, across all major databases." },
+          { t:"Flexible", d:"From a simple DSL to full SQL templates when you need them." },
+          { t:"Fast", d:"Optimized for performance and memory, e.g. generated code instead of reflection." },
+          { t:"Efficient", d:"No heavyweight runtime, no external dependencies." },
         ] },
     ];
 
@@ -331,9 +339,14 @@ export default function Home() {
       '<span class="sqlk">ORDER BY</span> <span class="sqlk">COUNT</span>(*) <span class="sqlk">DESC</span>\n'+
       '<span class="sqlk">LIMIT</span> <span class="sqlq">?</span>',
 
-      '<span class="sqlc">-- two inserts, one transaction</span>\n'+
+      '<span class="sqlc">-- same two inserts either way; the options wrap them in one tx</span>\n'+
+      '<span class="sqlc">-- transaction(REQUIRES_NEW, REPEATABLE_READ, timeoutSeconds = 5)</span>\n'+
+      '<span class="sqlk">SET TRANSACTION ISOLATION LEVEL REPEATABLE READ</span>\n'+
+      '<span class="sqlk">BEGIN</span>\n'+
       '<span class="sqlk">INSERT INTO</span> city (name, population, country) <span class="sqlk">VALUES</span> (<span class="sqlq">?</span>, <span class="sqlq">?</span>, <span class="sqlq">?</span>)\n'+
-      '<span class="sqlk">INSERT INTO</span> "user" (email, name, city_id) <span class="sqlk">VALUES</span> (<span class="sqlq">?</span>, <span class="sqlq">?</span>, <span class="sqlq">?</span>)',
+      '<span class="sqlk">INSERT INTO</span> "user" (email, name, city_id) <span class="sqlk">VALUES</span> (<span class="sqlq">?</span>, <span class="sqlq">?</span>, <span class="sqlq">?</span>)\n'+
+      '<span class="sqlk">COMMIT</span>\n'+
+      '<span class="sqlc">-- onCommit hook runs here, only after COMMIT succeeds</span>',
 
       '<span class="sqlc">-- ${User::class} expands to columns · $city becomes ?</span>\n'+
       '<span class="sqlk">SELECT</span> u.id, u.email, u.name, c.id, c.name, c.population, c.country\n'+
