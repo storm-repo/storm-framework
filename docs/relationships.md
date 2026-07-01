@@ -68,8 +68,8 @@ data class User(
 When you query a `User`, the related `City` is automatically loaded:
 
 ```kotlin
-val user = orm.find(User_.id eq userId)
-println(user?.city.name)  // City is already loaded
+val user = orm.get(User_.id eq userId)
+println(user.city.name)  // City is already loaded
 ```
 
 </TabItem>

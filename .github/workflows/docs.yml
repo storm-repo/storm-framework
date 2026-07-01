@@ -51,9 +51,21 @@ jobs:
       - name: Copy Javadoc to website/static/api/java
         run: |
           mkdir -p website/static/api/java
-          if [ -d target/reports/apidocs ]; then
-            cp -r target/reports/apidocs/* website/static/api/java/
+          # The aggregate report goal writes under the reporting output dir:
+          # target/site/apidocs on Maven 3.x, target/reports/apidocs on Maven 4.x.
+          copied=""
+          for src in target/site/apidocs target/reports/apidocs; do
+            if [ -d "$src" ]; then
+              cp -r "$src"/* website/static/api/java/
+              copied="$src"
+              break
+            fi
+          done
+          if [ -z "$copied" ]; then
+            echo "::error::Aggregate Javadoc not found (checked target/site/apidocs and target/reports/apidocs); /api/java/index.html would 404"
+            exit 1
           fi
+          echo "Copied aggregate Javadoc from $copied"
 
       - name: Copy KDoc to website/static/api/kotlin
         run: |

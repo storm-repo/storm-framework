@@ -67,7 +67,7 @@ Storm never issues DDL statements (CREATE TABLE, ALTER TABLE, DROP TABLE). It re
 
 ### No Lazy-Loading Proxies
 
-Storm does not use bytecode manipulation or runtime proxies to intercept field access. This eliminates `LazyInitializationException`, hidden database queries, and session-dependent entity behavior. Relationships declared with `@FK` are loaded eagerly in a single query. When you need deferred loading (for example, a rarely-accessed large sub-graph), use `Ref<T>` to make the database access explicit and intentional. See [Entities: Deferred Loading](entities.md#deferred-loading-with-ref) for details.
+Storm does not use bytecode manipulation or runtime proxies to intercept field access. This eliminates `LazyInitializationException`, hidden database queries, and session-dependent entity behavior. Relationships declared with `@FK` are loaded eagerly in a single query. When you need deferred loading (for example, a rarely-accessed large sub-graph), use `Ref<T>` to make the database access explicit and intentional. See [Refs: Deferred Loading](refs.md#deferred-loading) for details.
 
 ### No Second-Level Cache
 
