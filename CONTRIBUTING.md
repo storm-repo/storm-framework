@@ -33,29 +33,43 @@ mvn clean install
 ```
 storm-framework/
 ├── storm-bom/                         # Bill of Materials (BOM) for version management
-├── storm-core/                        # Core library (no preview dependencies)
-├── storm-java21/                      # Java 21+ API (uses String Templates)
+├── storm-foundation/                  # Base annotations, interfaces, and metamodel base classes
+├── storm-core/                        # Core library and SQL template engine
+├── storm-test/                        # Test support (@StormTest, SqlCapture)
+│
+├── storm-metamodel-ksp/               # Metamodel generation via Kotlin Symbol Processing (KSP)
+├── storm-metamodel-processor/         # Metamodel generation via Java annotation processor
+├── storm-compiler-plugin/             # Kotlin compiler plugin
+│
 ├── storm-kotlin/                      # Kotlin API
-├── storm-spring/                      # Spring integration (Java)
+├── storm-java21/                      # Java 21+ API (uses String Templates)
+│
 ├── storm-kotlin-spring/               # Spring integration (Kotlin)
-├── storm-spring-boot-starter/         # Spring Boot Starter (Java)
-├── storm-kotlin-spring-boot-starter/  # Spring Boot Starter (Kotlin)
-├── storm-oracle/                      # Oracle dialect
+├── storm-spring/                      # Spring integration (Java)
+├── storm-kotlin-spring-boot-starter/  # Spring Boot starter (Kotlin)
+├── storm-spring-boot-starter/         # Spring Boot starter (Java)
+├── storm-ktor/                        # Ktor integration (Kotlin)
+├── storm-ktor-test/                   # Ktor integration test support
+│
+├── storm-kotlinx-serialization/       # kotlinx.serialization support
+├── storm-jackson2/                    # Jackson 2.x JSON support
+├── storm-jackson3/                    # Jackson 3.x JSON support
+│
+├── storm-postgresql/                  # PostgreSQL dialect
 ├── storm-mysql/                       # MySQL dialect
 ├── storm-mariadb/                     # MariaDB dialect
-├── storm-postgresql/                  # PostgreSQL dialect
+├── storm-oracle/                      # Oracle dialect
 ├── storm-mssqlserver/                 # MS SQL Server dialect
-├── storm-jackson/                     # Jackson JSON support
-├── storm-kotlinx-serialization/       # Kotlinx serialization support
-└── storm-metamodel-processor/         # Annotation processor
+├── storm-sqlite/                      # SQLite dialect
+└── storm-h2/                          # H2 dialect
 ```
 
 ## Code Formatting
 
 Storm uses [Spotless](https://github.com/diffplug/spotless) to enforce consistent code formatting across the project. Formatting is checked automatically in CI and can be enforced locally with a git pre-push hook.
 
-- **Java** is formatted with [Palantir Java Format](https://github.com/palantir/palantir-java-format) (4-space indentation)
 - **Kotlin** is formatted with [ktlint](https://github.com/pinterest/ktlint) (Kotlin coding conventions)
+- **Java** is formatted with [Palantir Java Format](https://github.com/palantir/palantir-java-format) (4-space indentation)
 
 ### Auto-fix formatting
 
@@ -114,14 +128,40 @@ mvn test
 mvn test -pl storm-kotlin
 ```
 
+## Use of AI
+
+AI tools (assistants, code generation, and similar) are welcome in your workflow. The condition is ownership: you are the author of what you submit and take full responsibility for it. Review, understand, and test any AI-assisted output as if you had written it yourself — the same correctness, style, and licensing standards apply.
+
+Because the work is yours, do not add AI attribution to commits or pull requests — no `Co-authored-by:` trailers naming an AI, and no "Generated with …" notes.
+
 ## Submitting Changes
+
+### Issues and Branch Naming
+
+Not every change needs an issue first:
+
+- **New features, API changes, or behavior changes:** open an issue first so the design can be discussed before you invest time in code.
+- **Bug fixes, documentation, tests, CI/infra, chores, and dependency bumps:** open a PR directly. Link an existing issue if there is one, but you do not need to create one.
+
+Name branches `<type>/<short-description>`, using the same types as our commit messages ([Conventional Commits](https://www.conventionalcommits.org/)):
+
+- `feat/` — new functionality
+- `fix/` — bug fixes
+- `docs/` — documentation
+- `ci/` — CI and build configuration
+- `chore/` — tooling, dependencies, and housekeeping
+- `perf/` / `refactor/` — performance or internal refactors
+
+For example: `feat/composite-foreign-keys`, `fix/cli-regex-injection`, `docs/faq-typos`.
+
+Link related issues from the PR description with `Fixes #123` or `Closes #123`, and GitHub will close them automatically on merge — there is no need to put the issue number in the branch name.
 
 ### Pull Request Process
 
 1. **Fork** the repository
 2. **Create a branch** for your changes
    ```bash
-   git checkout -b feature/your-feature-name
+   git checkout -b feat/your-change
    ```
 3. **Make your changes** with clear, atomic commits
 4. **Test** your changes thoroughly
@@ -131,7 +171,7 @@ mvn test -pl storm-kotlin
 ### PR Guidelines
 
 - Provide a clear description of the changes
-- Reference any related issues
+- Link related issues with `Fixes #123` / `Closes #123`
 - Keep PRs focused and reasonably sized
 - Respond to review feedback promptly
 
@@ -154,7 +194,7 @@ Fixes #123
 When reporting bugs, please include:
 
 - Storm version
-- Java/Kotlin version
+- Kotlin/Java version
 - Database and JDBC driver version
 - Minimal code example reproducing the issue
 - Expected vs actual behavior
