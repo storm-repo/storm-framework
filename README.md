@@ -21,17 +21,6 @@
 - **Performance**: Template caching, transaction-scoped entity caching, and zero-overhead dirty checking (thanks to immutability) ensure efficient database interactions. Batch processing, lazy streams, and upserts are built in.
 - **Universal Database Compatibility**: Fully compatible with all SQL databases, it offers flexibility and broad applicability across various database systems.
 
-Storm also includes an AI-assisted workflow for database development. It gives AI tools full schema awareness through a local MCP server, guides them with Storm-specific skills, and closes the loop with automated tests. The AI generates code, but the final checks are done by running code against the schema and captured SQL, not by trusting LLM reasoning.
-
-To set up the AI workflow in your project:
-
-```bash
-npm install -g @storm-orm/cli
-storm init
-```
-
-This installs Storm's rules, skills, and optional local MCP setup for supported AI coding tools. See [AI-Assisted Development](docs/ai.md) for the full workflow.
-
 ## Why Storm?
 
 Storm draws inspiration from established ORMs such as Hibernate, but is built from scratch around a clear design philosophy: capturing exactly what you want to do using the minimum amount of code, optimized for Kotlin and modern Java.
@@ -52,25 +41,6 @@ Storm embraces SQL rather than abstracting it away. It simplifies database inter
 | SQL hidden behind abstraction layers | SQL-first design—stay close to the database |
 
 **Storm is ideal for** developers who understand that the best solutions emerge when object model and database model work in harmony. If you value a database-first approach where records naturally mirror your schema, Storm is built for you. Custom mappings are supported when needed, but the real elegance comes from alignment, not abstraction.
-
-## AI Workflow
-
-AI tools can write a lot of database code quickly, but subtle mistakes are still common: wrong joins, missing constraints, stale schema assumptions, or queries that compile but do the wrong thing.
-
-Storm addresses that in two ways.
-
-First, it improves generation quality. A local MCP server gives the AI full schema awareness without exposing credentials or data, and Storm skills teach the AI how to create entities, queries, repositories, and migrations that follow Storm's conventions.
-
-Second, it verifies the result with automated tests. Storm can validate that generated entities still match the schema and that generated queries behave as intended. These checks run in unit tests, so the final gate is actual code execution rather than model self-evaluation.
-
-The workflow is simple:
-
-1. You prompt the AI.
-2. The AI uses Storm skills and local schema context to generate code.
-3. Storm verifies the generated entities and queries in tests.
-4. You review the result and keep moving with more confidence.
-
-This is the core idea: AI generates database code, and Storm closes the loop with context and verification.
 
 ## Choose Your Language
 
@@ -214,6 +184,17 @@ dependencies {
     <scope>runtime</scope>
 </dependency>
 ```
+
+## AI-Assisted Development
+
+Storm's stateless, immutable model is a natural fit for AI coding tools: what you see in the source is exactly what runs — no proxies, lazy loading, or hidden persistence-context rules to trip up generated code. An optional workflow gives AI tools full schema awareness through a local MCP server, guides them with Storm-specific skills, and closes the loop by verifying generated entities and queries with real tests rather than trusting model reasoning.
+
+```bash
+npm install -g @storm-orm/cli
+storm init
+```
+
+See [AI-Assisted Development](docs/ai.md) for the full workflow.
 
 ## Documentation
 
