@@ -42,6 +42,19 @@ const CSS = `
   .storm-home header{padding:46px 0 34px}
   .storm-home h1{font-size:clamp(42px,7vw,78px);line-height:.97;letter-spacing:-.04em;font-weight:800;margin:0}
   .storm-home .grad{background:linear-gradient(100deg,#a78bfa,#818cf8 50%,#7dd3fc);-webkit-background-clip:text;background-clip:text;color:transparent}
+  /* Rotating hero line (replaces the static "Predictable Persistence"): all four
+     principles live in the DOM, stacked in one grid cell so the line never
+     reflows; the JS toggles the .in class to fade one in at a time. nowrap keeps
+     each principle on a single line, and the font scales with the viewport so
+     the longest one still fits. */
+  .storm-home .hero-rot{display:inline-grid;justify-items:start;vertical-align:top}
+  .storm-home .hero-rot span{grid-area:1/1;white-space:nowrap;font-size:clamp(30px,7vw,78px);font-weight:800;letter-spacing:-.04em;line-height:1.2;padding-bottom:.14em;
+    opacity:0;transform:translateY(10px);transition:opacity .55s ease,transform .55s ease;pointer-events:none}
+  .storm-home .hero-rot span.in{opacity:1;transform:none}
+  @media(prefers-reduced-motion:reduce){.storm-home .hero-rot span{transition:none}}
+  /* On small screens the h1 min (42px) is too large for the longer principles to
+     stay on one line, so scale the rotating line down a little below the hero. */
+  @media(max-width:600px){.storm-home .hero-rot span{font-size:clamp(20px,6vw,30px)}}
   .storm-home .sub{max-width:600px;margin:24px 0 0;color:var(--muted);font-size:18px;line-height:1.62}
   .storm-home .cta{display:flex;gap:14px;margin-top:32px;flex-wrap:wrap}
 
@@ -140,7 +153,13 @@ const BODY = `
 </div></nav>
 
 <header><div class="wrap">
-  <h1>Radically Simple.<br><span class="grad">Predictable Persistence.</span></h1>
+  <h1>Radically Simple.<br><span class="hero-rot" id="valuesRotator">
+    <span class="grad in">Predictability over magic.</span>
+    <span class="grad">Stateless over sessions.</span>
+    <span class="grad">Immutable over managed.</span>
+    <span class="grad">Explicit over surprises.</span>
+    <span class="grad">Intent over ceremony.</span>
+  </span></h1>
   <p class="sub" style="max-width:940px">A clear mapping between your data model and database keeps entities reusable and repositories easy to extend. Your persistence layer remains small, expressive, and fully capable as your application grows.</p>
 
   <div class="stage">
@@ -204,10 +223,10 @@ const BODY = `
   </div>
 </div>
 
-<section class="endcta" style="padding-top:30px"><div class="wrap">
+<section class="endcta" style="padding-top:64px"><div class="wrap">
   <h2>Write code worth reading.</h2>
   <p class="sub" style="margin:0 auto 30px;text-align:center;max-width:940px">Concise entities and one-line queries keep you productive. Immutable records simplify your architecture by letting the same types flow through your application layers. Storm is built for engineers who care about beautiful code.</p>
-  <div class="cta" style="justify-content:center">
+  <div class="cta" style="justify-content:center;margin-top:56px">
     <a href="/docs/getting-started" class="btn primary">Get started →</a>
     <a href="https://github.com/storm-orm/storm-framework" class="btn">Star on GitHub</a>
   </div>
@@ -483,10 +502,24 @@ export default function Home() {
     }
     runFrom(0);
 
+    // Rotate the "Choose Storm if you value …" principles, one at a time.
+    const valuesRotator = document.getElementById('valuesRotator');
+    let valuesTimer = null;
+    if (valuesRotator) {
+      const valueItems = valuesRotator.querySelectorAll('span');
+      let valueIndex = 0;
+      valuesTimer = setInterval(() => {
+        valueItems[valueIndex].classList.remove('in');
+        valueIndex = (valueIndex + 1) % valueItems.length;
+        valueItems[valueIndex].classList.add('in');
+      }, 4500);
+    }
+
     // Stop the loop and undo DOM mutations when the page unmounts.
     return () => {
       gen++;
       clearTimeout(timer);
+      clearInterval(valuesTimer);
       if(scenesEl) scenesEl.innerHTML='';
       if(sqlBtn) sqlBtn.removeEventListener('click',onSqlClick);
     };
