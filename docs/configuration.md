@@ -605,7 +605,7 @@ Controls whether record (structural) validation runs when Storm first encounters
 | `warn` | Errors are logged as warnings; startup continues. |
 | `none` | Record validation is skipped entirely. |
 
-### storm.validation.schema_mode
+### storm.validation.schema_mode {#schema-validation}
 
 Controls whether schema validation runs at startup (Spring Boot only; for programmatic use, see [Validation](validation.md#programmatic-api)).
 

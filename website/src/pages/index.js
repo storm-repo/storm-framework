@@ -327,7 +327,7 @@ export default function Home() {
       '<span class="sqlk">FROM</span> "user" u\n'+
       '<span class="sqlk">INNER JOIN</span> city c <span class="sqlk">ON</span> c.id = u.city_id\n'+
       '<span class="sqlk">WHERE</span> c.country = <span class="sqlq">?</span>\n'+
-      '<span class="sqlk">GROUP BY</span> c.id, c.name, c.population, c.country\n'+
+      '<span class="sqlk">GROUP BY</span> u.city_id\n'+
       '<span class="sqlk">ORDER BY</span> <span class="sqlk">COUNT</span>(*) <span class="sqlk">DESC</span>\n'+
       '<span class="sqlk">LIMIT</span> <span class="sqlq">?</span>',
 
