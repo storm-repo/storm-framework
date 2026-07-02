@@ -82,7 +82,7 @@ The `Data` interface marks types for SQL generation without CRUD. It tells Storm
 
 All interpolated values become bind parameters. SQL injection safe by design.
 
-**Note:** `Query.resultList` (Kotlin property, no type parameter) returns `List<Array<Any>>` — raw rows. For typed results, use the reified extension `query.resultList<T>()` (since 1.12, `import st.orm.template.resultList`), or `query.getResultList(T::class)` on earlier versions. Reified counterparts also exist for `singleResult<T>()`, `optionalResult<T>()`, `resultStream<T>()`, and `resultFlow<T>()`. This is different from QueryBuilder's `.resultList` which returns `List<R>` already typed to the query's result type.
+**Note:** `Query.resultList` (Kotlin property, no type parameter) returns `List<Array<Any>>` — raw rows. For typed results, use the reified extension `query.resultList<T>()` (`import st.orm.template.resultList`) or `query.getResultList(T::class)`. Reified counterparts also exist for `singleResult<T>()`, `optionalResult<T>()`, `resultStream<T>()`, and `resultFlow<T>()`. This is different from QueryBuilder's `.resultList` which returns `List<R>` already typed to the query's result type.
 
 Critical rules:
 - **Always use lambdas, never `TemplateString.raw()`**: Template expressions should always be written as lambdas (`{ "..." }`) so the compiler plugin can process them. Never construct `TemplateString.raw("...")` manually.

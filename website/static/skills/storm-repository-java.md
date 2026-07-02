@@ -164,7 +164,7 @@ Java records are immutable. For convenient copy-with-modification, consider Lomb
 
 ## Field-Based Lookups
 
-Query by a specific metamodel field without writing a full QueryBuilder chain (requires Storm 1.12+; on older versions use `select().where(...)`):
+Query by a specific metamodel field without writing a full QueryBuilder chain:
 
 ```java
 // Find by field value
@@ -184,7 +184,7 @@ boolean exists = users.existsBy(User_.email, "alice@example.com");
 int deleted = users.removeAllBy(User_.city, Ref.of(city));
 ```
 
-Field-based methods accept a `Ref<V>` value for FK fields. Unique-key fields (`@PK`/`@UK`) additionally have `Metamodel.Key`-typed overloads (`findBy`, `getBy`, `findByRef`, `getByRef`) that were available before 1.12.
+Field-based methods accept a `Ref<V>` value for FK fields. Unique-key fields (`@PK`/`@UK`) additionally have `Metamodel.Key`-typed overloads (`findBy`, `getBy`, `findByRef`, `getByRef`).
 
 ## Ref-Based Operations
 
