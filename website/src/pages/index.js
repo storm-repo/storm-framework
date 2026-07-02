@@ -302,7 +302,15 @@ export default function Home() {
 
       { name:'5 · sql', file:'UserService.kt',
         caption:"full SQL when you want it — never locked in",
-        code:[ C("// Need full control of SQL? Use the powerful template engine behind the ORM.\n// You can also use plain SQL here.\n"),
+        code:[ C("// Need full control of SQL? Plain SQL works — rows map to any data class.\n"),
+          K("data class "),T("CityCount"),P("("),K("val "),P("city: "),T("String"),P(", "),K("val "),P("count: "),T("Long"),P(")\n\n"),
+          K("val "),P("cityCounts = orm."),F("query"),P(" { "),S('"""'),P("\n"),
+          P("    "),K("SELECT "),P("c.name, COUNT(*)\n"),
+          P("    "),K("FROM "),P('"user" u\n'),
+          P("    "),K("INNER JOIN "),P("city c "),K("ON "),P("u.city_id = c.id\n"),
+          P("    "),K("GROUP BY "),P("c.id\n"),
+          S('"""'),P(" }."),F("resultList"),P("<"),T("CityCount"),P(">()\n\n"),
+          C("// Or use the powerful template engine behind the ORM.\n"),
           K("val "),P("users = orm."),F("query"),P(" { "),S('"""'),P("\n"),
           P("    "),K("SELECT "),T("${User::class}"),P("\n"),
           P("    "),K("FROM "),T("${User::class}"),P("\n"),
@@ -363,6 +371,11 @@ export default function Home() {
       '<span class="sqlk">COMMIT</span>\n'+
       '<span class="sqlc">-- onCommit hook runs here, only after COMMIT succeeds</span>',
 
+      '<span class="sqlc">-- plain SQL runs exactly as written</span>\n'+
+      '<span class="sqlk">SELECT</span> c.name, <span class="sqlk">COUNT</span>(*)\n'+
+      '<span class="sqlk">FROM</span> "user" u\n'+
+      '<span class="sqlk">INNER JOIN</span> city c <span class="sqlk">ON</span> u.city_id = c.id\n'+
+      '<span class="sqlk">GROUP BY</span> c.id\n\n'+
       '<span class="sqlc">-- ${User::class} expands to columns · $city becomes ?</span>\n'+
       '<span class="sqlk">SELECT</span> u.id, u.email, u.name, c.id, c.name, c.population, c.country\n'+
       '<span class="sqlk">FROM</span> "user" u\n'+
