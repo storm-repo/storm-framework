@@ -42,14 +42,13 @@ After writing a migration, rebuild the project for metamodel regeneration.
 
 After generating or updating entities and migrations, offer to write a temporary `@StormTest` to verify that the entities and migration are consistent:
 ```kotlin
-@StormTest(scripts = ["V1__create_users.sql"])
+// Leading "/" resolves scripts from the classpath root (src/test/resources/).
+@StormTest(scripts = ["/V1__create_users.sql"])
 class MigrationVerificationTest {
     @Test
     fun validateEntities(orm: ORMTemplate) {
-        val errors = orm.validateSchema(listOf(
-            User::class.java,
-            City::class.java
-        ))
+        // Kotlin: vararg KClass form. (Java: orm.validateSchema(List.of(User.class, City.class)))
+        val errors = orm.validateSchema(User::class, City::class)
         assertTrue(errors.isEmpty()) { "Schema validation errors: $errors" }
     }
 }

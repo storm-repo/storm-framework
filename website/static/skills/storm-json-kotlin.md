@@ -69,7 +69,7 @@ When writing migrations, use the correct JSON column type for the target databas
 
 ### JSON aggregation functions
 
-JSON aggregation syntax differs by database. Always ask or detect which dialect the user is targeting:
+In Storm templates, `JSON_OBJECTAGG(${Role::class})` with the entity class as single argument is valid — Storm expands `${Role::class}` to the entity's projected columns, producing the dialect-appropriate key/value arguments. The table below shows the underlying raw SQL forms per database (relevant when writing the SQL by hand or debugging generated SQL). Always ask or detect which dialect the user is targeting:
 
 | Database | Object aggregation | Array aggregation |
 |----------|-------------------|-------------------|

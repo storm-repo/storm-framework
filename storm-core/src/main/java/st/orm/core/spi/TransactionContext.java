@@ -34,7 +34,7 @@ public interface TransactionContext {
      * when no transaction is currently active.</p>
      *
      * @return a description of the transaction characteristics, or empty if not available.
-     * @since 1.12
+     * @since 1.11
      */
     default Optional<String> describe() {
         return Optional.empty();

@@ -50,6 +50,8 @@ install(ContentNegotiation) {
 
 ## Kotlinx Serialization Setup
 
+Both `StormSerializersModule()` and the pre-built `StormSerializers` instance live in package `st.orm.serialization` (import `st.orm.serialization.StormSerializersModule` / `st.orm.serialization.StormSerializers`):
+
 ```kotlin
 val json = Json {
     serializersModule = StormSerializersModule()
@@ -81,7 +83,7 @@ data class TeamMembers(
 )
 ```
 
-Without `@Contextual`, the kotlinx compiler plugin tries to serialize `Ref` directly and fails at runtime with "RefImpl is not found in the polymorphic scope".
+Without `@Contextual`, the kotlinx compiler plugin tries to serialize `Ref` directly and fails at runtime with "Class 'RefImpl' is not registered for polymorphic serialization in the scope of 'Ref'".
 
 ## Kotlinx Serialization Cascade Rule
 
@@ -136,8 +138,8 @@ The format is fully round-trippable. Jackson and kotlinx.serialization produce i
 
 ## Rules
 
-- Refs deserialized from JSON are **detached**: they carry the ID but have no database connection. Calling `fetch()` on a deserialized ref throws `PersistenceException`. Use the deserialized ID to query the database directly.
+- Refs deserialized from JSON are **detached** by default: they carry the ID but have no database connection. Calling `fetch()` on a deserialized ref throws `PersistenceException`. Use the deserialized ID to query the database directly. (Supplying a `RefFactory` to the Storm module yields attached, fetchable refs instead.)
 - Entities without `Ref` fields need no Storm module registration.
 - Both Jackson modules (`storm-jackson2`, `storm-jackson3`) provide the same `StormModule` API.
 - **Kotlinx cascade**: if an entity is `@Serializable`, every entity it references (directly or via `Ref<T>`) must also be `@Serializable`.
-- **`@Contextual` on `Ref<T>`**: without it, the kotlinx compiler plugin tries to serialize `Ref` directly and fails at runtime with "RefImpl is not found in the polymorphic scope".
+- **`@Contextual` on `Ref<T>`**: without it, the kotlinx compiler plugin tries to serialize `Ref` directly and fails at runtime with "Class 'RefImpl' is not registered for polymorphic serialization in the scope of 'Ref'".

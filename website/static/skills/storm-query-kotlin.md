@@ -59,6 +59,7 @@ User_.name like "%alice%"          // LIKE
 User_.name notLike "%test%"        // NOT_LIKE
 User_.roles inList listOf("a","b") // IN
 User_.roles notInList listOf("x")  // NOT_IN
+User_.city inRefs cityRefs         // IN over Iterable<Ref<T>> — for FK fields with refs
 User_.age.between(18, 65)          // BETWEEN
 User_.active.isTrue()              // IS_TRUE
 User_.archived.isFalse()           // IS_FALSE
@@ -157,7 +158,7 @@ val users = orm.entity<User>()
 Compound filters: `(A eq x) and (B eq y)`, `(A eq x) or (B eq y)`
 Nested paths: `User_.city.country.code eq "US"`
 Ordering: `.orderBy(User_.name)`, `.orderByDescending(User_.createdAt)`
-Pagination: `.page(0, 20)` or `.page(Pageable.ofSize(20).sortBy(User_.name))`. Page API methods: `page.content()`, `page.totalPages()`, `page.totalElements()`, `page.number()`, `page.size()`, `page.hasNext()`, `page.hasPrevious()` — all are methods, not properties.
+Pagination: `.page(0, 20)` or `.page(Pageable.ofSize(20).sortBy(User_.name))`. Page API methods (Java record accessors — always call with `()`): `page.content()`, `page.totalPages()`, `page.totalCount()`, `page.pageNumber()`, `page.pageSize()`, `page.hasNext()`, `page.hasPrevious()`, `page.nextPageable()`.
 Scrolling (keyset, better for large tables): `.scroll(Scrollable.of(User_.id, 20))` — do NOT combine with `orderBy()` (Scrollable manages ORDER BY internally, see Keyset Scrolling section)
 Explicit joins — two syntax forms depending on context:
 - **Block DSL** (inside `select { }`): `innerJoin(UserRole::class, Role::class)` — two-arg, no `.on()`
@@ -190,7 +191,7 @@ val citySummaries = orm.entity(City::class)
 
 **Computed aggregates (COUNT, AVG, SUM, etc.):** When the SELECT clause needs expressions that QueryBuilder can't produce, use `select(ResultType::class) { template }` for the SELECT only — keep joins, groupBy, having, orderBy, and limit in code.
 
-**Important:** The `{ template }` provides the SELECT list only — not a full SQL query. If you put a full `SELECT ... FROM ... WHERE ...` inside, Storm wraps it as a scalar subquery, causing errors. For full custom SQL, use `orm.query { }.getResultList(T::class)` (see /storm-sql-kotlin).
+**Important:** The `{ template }` provides the SELECT list only — not a full SQL query. If you put a full `SELECT ... FROM ... WHERE ...` inside, Storm wraps it as a scalar subquery, causing errors. For full custom SQL, use `orm.query { }.resultList<T>()` (see /storm-sql-kotlin).
 
 ```kotlin
 data class CityUserCount(val city: City, val userCount: Long) : Data
@@ -322,7 +323,7 @@ The `where()` and `orderBy()` methods in the block DSL are typed to the root ent
 - `whereAny(predicate)` — accepts `PredicateBuilder<*, *, *>` (any entity type)
 - `orderByAny(path)` — accepts `Metamodel<*, *>` (any entity type)
 - `orderByDescendingAny(path)` — same, descending
-- `groupByAny(path)` — accepts `Metamodel<*, *>` (any entity type)
+- `groupByAny(path)` — accepts `Metamodel<*, *>` (any entity type; chained API only, not in the block DSL)
 
 The `Any` variants (`whereAny`, `orderByAny`, `orderByDescendingAny`, `groupByAny`) are needed when referencing fields from joined (non-root) entities.
 
@@ -340,7 +341,7 @@ These are also available on the chained QueryBuilder API: `.whereAny(...)`, `.or
 
 Keyset scrolling uses cursor-based navigation instead of offset, making it efficient for large tables. `Scrollable<T>` takes a **single type parameter** — the entity type (e.g., `Scrollable<User>`). Do not pass a second type parameter. **Scrollable manages ORDER BY internally** — do NOT add `orderBy()` when using `scroll(Scrollable)`, or Storm throws `PersistenceException`.
 
-**Composite PK limitation:** Keyset scrolling requires a simple (non-composite) primary key as the scroll key. Entities with composite PKs (e.g., junction tables) cannot be scrolled directly — Storm throws `SqlTemplateException: Column not found for metamodel`. To scroll filtered results from a junction table, query the related entity with a simple PK and JOIN through the junction table for filtering:
+**Composite PK limitation:** The scroll key must be a single-column, non-nullable unique key (e.g. a simple `@PK` or `@UK` field). Entities whose only unique key is a composite PK (e.g., junction tables) cannot be scrolled directly — the key doesn't resolve to a single column. To scroll filtered results from a junction table, query the related entity with a simple PK and JOIN through the junction table for filtering:
 ```kotlin
 // ❌ Cannot scroll a junction table with composite PK
 userRoles.scroll(Scrollable.of(UserRole_.id, 20))  // fails — UserRole has composite PK
@@ -383,13 +384,13 @@ val scrollable = Scrollable.of(User_.id, User_.name, 20)
 val window = users.scroll(scrollable)
 ```
 
-**Backward scrolling and navigation:**
+**Backward scrolling and navigation** (`Window` is a Java record — accessors are methods, call with `()`):
 ```kotlin
 val window = users.scroll(Scrollable.of(User_.id, 20))
-if (window.hasNext) {
+if (window.hasNext()) {
     val next = users.scroll(window.next()!!)
 }
-if (window.hasPrevious) {
+if (window.hasPrevious()) {
     val previous = users.scroll(window.previous()!!)
 }
 ```
@@ -417,7 +418,8 @@ users.removeAll()
 Use `select { }` / `delete { }` to build queries without chaining. Both are **builder methods** that return `QueryBuilder` -- they never execute immediately. Inside the block, use scope methods like `where()`, `orderBy()`, `limit()` to construct the query. Then call a terminal operation to execute:
 
 ```kotlin
-orm.select<User> {
+// Standalone: get the entity repository first — there is NO orm.select<T> { block } reified form
+orm.entity<User>().select {
     where(User_.active eq true)
     orderBy(User_.name)
     limit(10)
@@ -472,7 +474,7 @@ select {
 }.page(page, size)
 ```
 
-Available in the block: `where`, `whereAny`, `orderBy`, `orderByAny`, `orderByDescending`, `orderByDescendingAny`, `groupBy`, `groupByAny`, `having`, `limit`, `offset`, `distinct`, `forUpdate`, `forShare`, `innerJoin`, `leftJoin`, `rightJoin`, `crossJoin`, `append`.
+Available in the block: `where`, `whereAny`, `whereBuilder`, `whereExists`, `whereNotExists`, `orderBy`, `orderByAny`, `orderByDescending`, `orderByDescendingAny`, `groupBy`, `having`, `limit`, `offset`, `distinct`, `unsafe`, `forUpdate`, `forShare`, `innerJoin`, `leftJoin`, `rightJoin`, `crossJoin`, `append`. Note: `groupByAny` is NOT available in the block — it exists only on the chained QueryBuilder API.
 
 **Note:** The block DSL has `orderBy { template }` but NOT `orderByDescending { template }`. For template-based descending order, use the chained API: `.orderByDescending { template }` or escape to raw SQL.
 
@@ -536,7 +538,9 @@ After writing queries, write a test using `@StormTest` and `SqlCapture` to verif
 Tell the user what you are doing and why: explain that `SqlCapture` records every SQL statement Storm generates. The goal is not to test Storm itself, but to verify that the query produces the result the user intended — correct tables joined, correct columns filtered, correct ordering, correct number of statements. This is Storm's verify-then-trust pattern.
 
 ```kotlin
-@StormTest(scripts = ["schema.sql", "data.sql"])
+// Leading "/" resolves scripts from the classpath root (src/test/resources/).
+// Without it, paths resolve relative to the test class's package.
+@StormTest(scripts = ["/schema.sql", "/data.sql"])
 class UserQueryTest {
     @Test
     fun findActiveUsersInCity(orm: ORMTemplate, capture: SqlCapture) {

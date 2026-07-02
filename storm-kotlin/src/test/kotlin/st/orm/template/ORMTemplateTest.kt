@@ -1189,6 +1189,51 @@ open class ORMTemplateTest(
         city.name shouldBe "Sun Paririe"
     }
 
+    // Query: reified resultList, singleResult, optionalResult, resultStream, resultFlow extensions
+
+    @Test
+    fun `query resultList with reified type should return typed results`() {
+        val query = orm.query { "SELECT ${t(City::class)} FROM ${t(City::class)}" }
+        val cities = query.resultList<City>()
+        cities shouldHaveSize 6
+    }
+
+    @Test
+    fun `query resultList with reified type should work on prepared query`() {
+        orm.entity(City::class).select().prepare().use { query ->
+            val cities = query.resultList<City>()
+            cities shouldHaveSize 6
+        }
+    }
+
+    @Test
+    fun `query singleResult with reified type should return typed result`() {
+        val query = orm.query { "SELECT ${t(City::class)} FROM ${t(City::class)} WHERE ${t(Templates.alias(City::class))}.id = ${t(1)}" }
+        val city = query.singleResult<City>()
+        city.name shouldBe "Sun Paririe"
+    }
+
+    @Test
+    fun `query optionalResult with reified type should return null when no match`() {
+        val query = orm.query { "SELECT ${t(City::class)} FROM ${t(City::class)} WHERE ${t(Templates.alias(City::class))}.id = ${t(-1)}" }
+        val city = query.optionalResult<City>()
+        city.shouldBeNull()
+    }
+
+    @Test
+    fun `query resultStream with reified type should return typed stream`() {
+        val query = orm.query { "SELECT ${t(City::class)} FROM ${t(City::class)}" }
+        val count = query.resultStream<City>().use { it.count() }
+        count shouldBe 6L
+    }
+
+    @Test
+    fun `query resultFlow with reified type should return typed flow`() {
+        val query = orm.query { "SELECT ${t(City::class)} FROM ${t(City::class)}" }
+        val cities = runBlocking { query.resultFlow<City>().toList() }
+        cities shouldHaveSize 6
+    }
+
     // QueryTemplate: selectFrom variants
 
     @Test

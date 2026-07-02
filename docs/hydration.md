@@ -90,7 +90,7 @@ val sales = orm.query("""
     SELECT DATE_TRUNC('month', order_date), COUNT(*), SUM(amount)
     FROM orders
     GROUP BY DATE_TRUNC('month', order_date)
-""").getResultList(MonthlySales::class)
+""").resultList<MonthlySales>()
 ```
 
 </TabItem>

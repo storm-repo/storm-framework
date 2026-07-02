@@ -45,7 +45,7 @@ The format is fully round-trippable.
 
 ## Rules
 
-- Refs deserialized from JSON are **detached**: they carry the ID but have no database connection. Calling `fetch()` on a deserialized ref throws `PersistenceException`. Use the deserialized ID to query the database directly.
+- Refs deserialized from JSON are **detached** by default: they carry the ID but have no database connection. Calling `fetch()` on a deserialized ref throws `PersistenceException`. Use the deserialized ID to query the database directly. (Supplying a `RefFactory` to `StormModule` yields attached, fetchable refs instead.)
 - Entities without `Ref` fields need no Storm module registration.
 - Both Jackson modules (`storm-jackson2`, `storm-jackson3`) provide the same `StormModule` API.
 - Jackson supports `java.time` natively via the `jackson-datatype-jsr310` module (included by Spring Boot).

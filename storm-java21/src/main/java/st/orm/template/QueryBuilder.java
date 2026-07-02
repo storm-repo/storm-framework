@@ -446,7 +446,7 @@ public abstract class QueryBuilder<T extends Data, R, ID> {
      * @return the query builder.
      * @since 1.2
      */
-    protected abstract QueryBuilder<T, R, ID> groupBy(@Nonnull StringTemplate template);
+    public abstract QueryBuilder<T, R, ID> groupBy(@Nonnull StringTemplate template);
 
     /**
      * Adds a HAVING clause to the query using the specified expression.
@@ -490,7 +490,7 @@ public abstract class QueryBuilder<T extends Data, R, ID> {
      * @return the query builder.
      * @since 1.2
      */
-    protected abstract QueryBuilder<T, R, ID> having(@Nonnull StringTemplate template);
+    public abstract QueryBuilder<T, R, ID> having(@Nonnull StringTemplate template);
 
     /**
      * Adds an ORDER BY clause to the query for the field at the specified path in the table graph.
@@ -600,7 +600,7 @@ public abstract class QueryBuilder<T extends Data, R, ID> {
      * @return the query builder.
      * @since 1.2
      */
-    protected abstract QueryBuilder<T, R, ID> orderBy(@Nonnull StringTemplate template);
+    public abstract QueryBuilder<T, R, ID> orderBy(@Nonnull StringTemplate template);
 
     /**
      * Returns {@code true} if any ORDER BY columns have been added to this query builder.

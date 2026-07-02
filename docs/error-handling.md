@@ -49,15 +49,15 @@ When you call `getSingleResult()` on a query that returns zero rows, Storm throw
 
 ```kotlin
 // Throws NoResultException if no user has this email.
-val user = orm.entity(User::class).select(User_.email eq "nobody@example.com").getSingleResult()
+val user = orm.entity(User::class).select(User_.email eq "nobody@example.com").singleResult
 ```
 
-To handle the missing-result case without exceptions, use `getOptionalResult()`:
+To handle the missing-result case without exceptions, use `optionalResult`:
 
 ```kotlin
 val user: User? = orm.entity(User::class)
     .select(User_.email eq "nobody@example.com")
-    .getOptionalResult(User::class)
+    .optionalResult
 ```
 
 Or use the repository's `findById` method:

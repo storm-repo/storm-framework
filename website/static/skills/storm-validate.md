@@ -29,16 +29,13 @@ Projections intentionally map a subset of columns; do not flag extra DB columns 
 
 After LLM-assisted entity changes, write a targeted test to verify only the affected entities:
 ```kotlin
-@StormTest(scripts = ["schema.sql"])
+@StormTest(scripts = ["/schema.sql"])
 class EntitySchemaTest {
     @Test
     fun validateNewEntities(orm: ORMTemplate) {
         // Validate only the specific entities that were created or modified.
-        val errors = orm.validateSchema(listOf(
-            User::class.java,
-            City::class.java,
-            Address::class.java
-        ))
+        // Kotlin: vararg KClass form. (Java: orm.validateSchema(List.of(User.class, ...)))
+        val errors = orm.validateSchema(User::class, City::class, Address::class)
         assertTrue(errors.isEmpty()) { "Schema validation errors: $errors" }
     }
 }

@@ -364,3 +364,87 @@ interface Query {
         }
     }
 }
+
+/**
+ * Execute a SELECT query and returns a single row, where the columns of the row are mapped to the constructor
+ * arguments of type [T].
+ *
+ * @param T the type of the result.
+ * @return a single row, where the columns of the row corresponds to the order of values the list.
+ * @throws st.orm.NoResultException if there is no result.
+ * @throws st.orm.NonUniqueResultException if more than one result.
+ * @throws st.orm.PersistenceException if the query fails.
+ * @see Query.getSingleResult
+ * @since 1.11
+ */
+inline fun <reified T : Any> Query.singleResult(): T = getSingleResult(T::class)
+
+/**
+ * Execute a SELECT query and returns a single row, where the columns of the row are mapped to the constructor
+ * arguments of type [T].
+ *
+ * @param T the type of the result.
+ * @return a single row, where the columns of the row corresponds to the order of values the list, or `null` if there
+ * is no result.
+ * @throws st.orm.NonUniqueResultException if more than one result.
+ * @throws st.orm.PersistenceException if the query fails.
+ * @see Query.getOptionalResult
+ * @since 1.11
+ */
+inline fun <reified T : Any> Query.optionalResult(): T? = getOptionalResult(T::class)
+
+/**
+ * Execute a SELECT query and return the resulting rows as a list of row instances.
+ *
+ * Each element in the list represents a row in the result, where the columns of the row are mapped to the
+ * constructor arguments of type [T]:
+ * ```kotlin
+ * val users = orm.query { """
+ *     SELECT ${User::class}
+ *     FROM ${User::class}
+ *     WHERE ${User_.city.name} = $city"""
+ * }.resultList<User>()
+ * ```
+ *
+ * @param T the type of the result.
+ * @return the result list.
+ * @throws st.orm.PersistenceException if the query fails.
+ * @see Query.getResultList
+ * @since 1.11
+ */
+inline fun <reified T : Any> Query.resultList(): List<T> = getResultList(T::class)
+
+/**
+ * Execute a SELECT query and return the resulting rows as a stream of row instances.
+ *
+ * Each element in the stream represents a row in the result, where the columns of the row are mapped to the
+ * constructor arguments of type [T].
+ *
+ * **Note:** Calling this method does trigger the execution of the underlying query, so it should
+ * only be invoked when the query is intended to run. Since the stream holds resources open while in use, it must be
+ * closed after usage to prevent resource leaks. As the stream is `AutoCloseable`, it is recommended to use it
+ * within a `use` block.
+ *
+ * @param T the type of the result.
+ * @return a stream of results.
+ * @throws st.orm.PersistenceException if the query operation fails due to underlying database issues, such as
+ * connectivity.
+ * @see Query.getResultStream
+ * @since 1.11
+ */
+inline fun <reified T : Any> Query.resultStream(): Stream<T> = getResultStream(T::class)
+
+/**
+ * Execute a SELECT query and return the resulting rows as a flow of row instances.
+ *
+ * Each element in the flow represents a row in the result, where the columns of the row are mapped to the
+ * constructor arguments of type [T].
+ *
+ * @param T the type of the result.
+ * @return a flow of results.
+ * @throws st.orm.PersistenceException if the query operation fails due to underlying database issues, such as
+ * connectivity.
+ * @see Query.getResultFlow
+ * @since 1.11
+ */
+inline fun <reified T : Any> Query.resultFlow(): Flow<T> = getResultFlow(T::class)

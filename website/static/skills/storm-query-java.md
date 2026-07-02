@@ -5,7 +5,7 @@ Help the user write Storm queries using Java.
 ## Key Imports
 
 ```java
-import st.orm.core.template.QueryBuilder;         // Query builder
+import st.orm.template.QueryBuilder;              // Query builder
 import st.orm.Operator;                           // EQUALS, NOT_EQUALS, LIKE, IN, IS_NULL, etc.
 import static st.orm.Operator.*;                  // Static import for operator constants
 import st.orm.Metamodel;                          // Generated metamodel fields (User_, City_, etc.)
@@ -16,7 +16,7 @@ import st.orm.Scrollable;                         // Keyset scrolling cursor (si
 import st.orm.Window;                             // Keyset scrolling result (Window<R>)
 ```
 
-The `Operator` enum is in `st.orm` and contains: `EQUALS`, `NOT_EQUALS`, `LESS_THAN`, `LESS_THAN_OR_EQUAL`, `GREATER_THAN`, `GREATER_THAN_OR_EQUAL`, `LIKE`, `NOT_LIKE`, `IS_NULL`, `IS_NOT_NULL`, `IS_TRUE`, `IS_FALSE`, `IN`, `NOT_IN`, `BETWEEN`.
+Do NOT import from `st.orm.core.*` — those are Storm's internal core-engine packages; the Java API lives in `st.orm.repository` and `st.orm.template`. `st.orm.Operator` is an interface with static constants (static-importable like an enum): `EQUALS`, `NOT_EQUALS`, `LESS_THAN`, `LESS_THAN_OR_EQUAL`, `GREATER_THAN`, `GREATER_THAN_OR_EQUAL`, `LIKE`, `NOT_LIKE`, `IS_NULL`, `IS_NOT_NULL`, `IS_TRUE`, `IS_FALSE`, `IN`, `NOT_IN`, `BETWEEN`.
 
 Ask what data they need, filters, ordering, or pagination.
 
@@ -27,10 +27,12 @@ Ask what data they need, filters, ordering, or pagination.
 Repository/entity methods fall into two categories:
 
 **Builder methods** return `QueryBuilder` for composable, chainable queries. They never execute immediately:
-- `select()`, `select(predicate)` -- build SELECT queries
-- `selectRef()`, `selectRef(predicate)` -- build SELECT queries returning Refs
+- `select()` -- build SELECT queries
+- `selectRef()` -- build SELECT queries returning Refs
 - `selectCount()` -- build COUNT queries
-- `delete()`, `delete(predicate)` -- build DELETE queries
+- `delete()` -- build DELETE queries
+
+(The `select(predicate)` / `delete(predicate)` shorthands are Kotlin-only — in Java, chain `.where(...)` on the builder.)
 
 Terminal operations: `.getResultList()`, `.getSingleResult()`, `.getOptionalResult()`, `.getResultStream()`, `.getResultCount()`, `.page()`, `.scroll()`, `.executeUpdate()`
 
@@ -44,7 +46,7 @@ Prefer the simplest approach that works. Three query levels, from simplest to mo
 | Level | Approach | Best for |
 |-------|----------|----------|
 | 1 | Convenience methods (`findBy`, `findAllBy`, `removeAllBy`, `countBy`, `existsBy`) | Simple lookups and operations |
-| 2 | Builder with predicate (`select(predicate)`, `delete(predicate)`) or chained (`select().where()`) | Most application queries needing ordering, pagination, or joins |
+| 2 | Builder chained (`select().where(...)`, `delete().where(...)`) | Most application queries needing ordering, pagination, or joins |
 | 3 | SQL Templates (/storm-sql-java) | CTEs, window functions, database-specific features |
 
 ### When to use each — and when NOT to
@@ -74,12 +76,6 @@ long count = users.count();
 
 **Level 2 — Builder** (returns `QueryBuilder`, chain terminal + ordering/pagination):
 ```java
-// With predicate shorthand
-List<User> list = users.select(it -> it.where(User_.city, EQUALS, city))
-    .orderBy(User_.name)
-    .getResultList();
-
-// Or equivalently, chained with .where()
 List<User> list = users.select()
     .where(User_.city, EQUALS, city)
     .orderBy(User_.name)
@@ -210,17 +206,19 @@ List<Ref<User>> refs = orm.entity(User.class).selectRef()
 
 ## Subqueries (EXISTS / NOT EXISTS)
 
+In Java, EXISTS conditions are expressed inside the where-lambda via `WhereBuilder.exists(subquery)` / `notExists(subquery)` — there is no `whereExists` method on the Java QueryBuilder (that form is Kotlin-only). Build the subquery with `orm.selectFrom(...)`; it is automatically correlated with the outer query:
+
 ```java
 // WHERE EXISTS — filter entities that have related data
 List<City> citiesWithUsers = orm.entity(City.class)
     .select()
-    .whereExists(it -> it.subquery(User.class))
+    .where(it -> it.exists(orm.selectFrom(User.class)))
     .getResultList();
 
 // WHERE NOT EXISTS
 List<City> citiesWithoutUsers = orm.entity(City.class)
     .select()
-    .whereNotExists(it -> it.subquery(User.class))
+    .where(it -> it.notExists(orm.selectFrom(User.class)))
     .getResultList();
 ```
 
@@ -253,7 +251,7 @@ users.select()
 
 Keyset scrolling uses cursor-based navigation instead of offset, making it efficient for large tables. **Scrollable manages ORDER BY internally** — do NOT add `orderBy()` when using `scroll(Scrollable)`, or Storm throws `PersistenceException`.
 
-**Composite PK limitation:** Keyset scrolling requires a simple (non-composite) primary key as the scroll key. Entities with composite PKs (e.g., junction tables) cannot be scrolled directly — Storm throws `SqlTemplateException: Column not found for metamodel`. To scroll filtered results from a junction table, query the related entity with a simple PK and JOIN through the junction table for filtering:
+**Composite PK limitation:** The scroll key must be a single-column, non-nullable unique key (a `Metamodel.Key`, e.g. a simple `@PK` or `@UK` field). Entities whose only unique key is a composite PK (e.g., junction tables) cannot be scrolled directly — the key doesn't resolve to a single column. To scroll filtered results from a junction table, query the related entity with a simple PK and JOIN through the junction table for filtering:
 ```java
 // ❌ Cannot scroll a junction table with composite PK
 userRoles.scroll(Scrollable.of(UserRole_.id, 20));  // fails — UserRole has composite PK
@@ -368,7 +366,9 @@ After writing queries, write a test using `@StormTest` and `SqlCapture` to verif
 Tell the user what you are doing and why: explain that `SqlCapture` records every SQL statement Storm generates. The goal is not to test Storm itself, but to verify that the query produces the result the user intended — correct tables joined, correct columns filtered, correct ordering, correct number of statements. This is Storm's verify-then-trust pattern.
 
 ```java
-@StormTest(scripts = {"schema.sql", "data.sql"})
+// Leading "/" resolves scripts from the classpath root (src/test/resources/).
+// Without it, paths resolve relative to the test class's package.
+@StormTest(scripts = {"/schema.sql", "/data.sql"})
 class UserQueryTest {
     @Test
     void findActiveUsersInCity(ORMTemplate orm, SqlCapture capture) {

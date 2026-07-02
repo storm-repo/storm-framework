@@ -82,7 +82,7 @@ The `Data` interface marks types for SQL generation without CRUD. It tells Storm
 
 All interpolated values become bind parameters. SQL injection safe by design.
 
-**Note:** `Query.resultList` (Kotlin property, no type parameter) returns `List<Array<Any>>`. For typed results, use `query.resultList<T>()` or `query.getResultList(T::class)`. This is different from QueryBuilder's `.resultList` which returns `List<R>` already typed to the query's result type.
+**Note:** `Query.resultList` (Kotlin property, no type parameter) returns `List<Array<Any>>` — raw rows. For typed results, use the reified extension `query.resultList<T>()` (`import st.orm.template.resultList`) or `query.getResultList(T::class)`. Reified counterparts also exist for `singleResult<T>()`, `optionalResult<T>()`, `resultStream<T>()`, and `resultFlow<T>()`. This is different from QueryBuilder's `.resultList` which returns `List<R>` already typed to the query's result type.
 
 Critical rules:
 - **Always use lambdas, never `TemplateString.raw()`**: Template expressions should always be written as lambdas (`{ "..." }`) so the compiler plugin can process them. Never construct `TemplateString.raw("...")` manually.
@@ -116,7 +116,8 @@ After writing SQL templates, write a test using `@StormTest` and `SqlCapture` to
 Tell the user what you are doing and why: explain that `SqlCapture` records every SQL statement Storm generates. The goal is not to test Storm itself, but to verify that the SQL template produces the result the user intended — correct tables joined, correct grouping, correct aggregation. This is Storm's verify-then-trust pattern.
 
 ```kotlin
-@StormTest(scripts = ["schema.sql", "data.sql"])
+// Leading "/" resolves scripts from the classpath root (src/test/resources/).
+@StormTest(scripts = ["/schema.sql", "/data.sql"])
 class CityCountQueryTest {
     @Test
     fun citiesWithUserCounts(orm: ORMTemplate, capture: SqlCapture) {

@@ -112,7 +112,7 @@ public final class QueryBuilderImpl<T extends Data, R, ID> extends QueryBuilder<
      * @since 1.2
      */
     @Override
-    protected QueryBuilder<T, R, ID> orderBy(@Nonnull StringTemplate template) {
+    public QueryBuilder<T, R, ID> orderBy(@Nonnull StringTemplate template) {
         return new QueryBuilderImpl<>(core.orderBy(convert(template)));
     }
 
@@ -125,7 +125,7 @@ public final class QueryBuilderImpl<T extends Data, R, ID> extends QueryBuilder<
      * @since 1.2
      */
     @Override
-    protected QueryBuilder<T, R, ID> groupBy(@Nonnull StringTemplate template) {
+    public QueryBuilder<T, R, ID> groupBy(@Nonnull StringTemplate template) {
         return new QueryBuilderImpl<>(core.groupBy(convert(template)));
     }
 
@@ -138,7 +138,7 @@ public final class QueryBuilderImpl<T extends Data, R, ID> extends QueryBuilder<
      * @since 1.2
      */
     @Override
-    protected QueryBuilder<T, R, ID> having(@Nonnull StringTemplate template) {
+    public QueryBuilder<T, R, ID> having(@Nonnull StringTemplate template) {
         return new QueryBuilderImpl<>(core.having(convert(template)));
     }
 

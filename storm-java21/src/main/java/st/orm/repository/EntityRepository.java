@@ -15,6 +15,9 @@
  */
 package st.orm.repository;
 
+import static st.orm.Operator.EQUALS;
+import static st.orm.Operator.IN;
+
 import jakarta.annotation.Nonnull;
 import java.util.List;
 import java.util.Optional;
@@ -25,6 +28,7 @@ import st.orm.FK;
 import st.orm.Inline;
 import st.orm.Metamodel;
 import st.orm.NoResultException;
+import st.orm.NonUniqueResultException;
 import st.orm.PK;
 import st.orm.Page;
 import st.orm.Pageable;
@@ -633,6 +637,352 @@ public interface EntityRepository<E extends Entity<ID>, ID> extends Repository {
      * @since 1.9
      */
     <V extends Data> E getByRef(@Nonnull Metamodel.Key<E, V> key, @Nonnull Ref<V> value);
+
+    // Field-based finder methods.
+
+    /**
+     * Retrieves an entity based on a single field and its value.
+     *
+     * @param field metamodel reference of the entity field.
+     * @param value the value to match against.
+     * @return the entity matching the given field value, or empty if none exists.
+     * @param <V> the type of the field.
+     * @throws PersistenceException if the retrieval operation fails due to underlying database issues.
+     * @since 1.11
+     */
+    default <V> Optional<E> findBy(@Nonnull Metamodel<E, V> field, @Nonnull V value) {
+        return select().where(field, EQUALS, value).getOptionalResult();
+    }
+
+    /**
+     * Retrieves an entity based on a single field and its referenced value.
+     *
+     * @param field metamodel reference of the entity field.
+     * @param value the referenced value to match against.
+     * @return the entity matching the given ref value, or empty if none exists.
+     * @param <V> the type of the referenced entity.
+     * @throws PersistenceException if the retrieval operation fails due to underlying database issues.
+     * @since 1.11
+     */
+    default <V extends Data> Optional<E> findBy(@Nonnull Metamodel<E, V> field, @Nonnull Ref<V> value) {
+        return select().where(field, value).getOptionalResult();
+    }
+
+    /**
+     * Retrieves entities matching a single field and a single value.
+     *
+     * @param field metamodel reference of the entity field.
+     * @param value the value to match against.
+     * @return a list of matching entities, or an empty list if none found.
+     * @param <V> the type of the field.
+     * @throws PersistenceException if the retrieval operation fails due to underlying database issues.
+     * @since 1.11
+     */
+    default <V> List<E> findAllBy(@Nonnull Metamodel<E, V> field, @Nonnull V value) {
+        return select().where(field, EQUALS, value).getResultList();
+    }
+
+    /**
+     * Retrieves entities matching a single field and a single referenced value.
+     *
+     * @param field metamodel reference of the entity field.
+     * @param value the referenced value to match against.
+     * @return a list of matching entities, or an empty list if none found.
+     * @param <V> the type of the referenced entity.
+     * @throws PersistenceException if the retrieval operation fails due to underlying database issues.
+     * @since 1.11
+     */
+    default <V extends Data> List<E> findAllBy(@Nonnull Metamodel<E, V> field, @Nonnull Ref<V> value) {
+        return select().where(field, value).getResultList();
+    }
+
+    /**
+     * Retrieves entities matching a single field against multiple values.
+     *
+     * @param field metamodel reference of the entity field.
+     * @param values the values to match against.
+     * @return a list of matching entities, or an empty list if none found.
+     * @param <V> the type of the field.
+     * @throws PersistenceException if the retrieval operation fails due to underlying database issues.
+     * @since 1.11
+     */
+    default <V> List<E> findAllBy(@Nonnull Metamodel<E, V> field, @Nonnull Iterable<? extends V> values) {
+        return select().where(field, IN, values).getResultList();
+    }
+
+    /**
+     * Retrieves entities matching a single field against multiple referenced values.
+     *
+     * @param field metamodel reference of the entity field.
+     * @param values the referenced values to match against.
+     * @return a list of matching entities, or an empty list if none found.
+     * @param <V> the type of the referenced entity.
+     * @throws PersistenceException if the retrieval operation fails due to underlying database issues.
+     * @since 1.11
+     */
+    default <V extends Data> List<E> findAllByRef(@Nonnull Metamodel<E, V> field, @Nonnull Iterable<? extends Ref<V>> values) {
+        return select().whereRef(field, values).getResultList();
+    }
+
+    /**
+     * Retrieves exactly one entity based on a single field and its value.
+     *
+     * @param field metamodel reference of the entity field.
+     * @param value the value to match against.
+     * @return the matching entity.
+     * @param <V> the type of the field.
+     * @throws NoResultException if there is no result.
+     * @throws NonUniqueResultException if more than one result.
+     * @throws PersistenceException if the retrieval operation fails due to underlying database issues.
+     * @since 1.11
+     */
+    default <V> E getBy(@Nonnull Metamodel<E, V> field, @Nonnull V value) {
+        return select().where(field, EQUALS, value).getSingleResult();
+    }
+
+    /**
+     * Retrieves exactly one entity based on a single field and its referenced value.
+     *
+     * @param field metamodel reference of the entity field.
+     * @param value the referenced value to match against.
+     * @return the matching entity.
+     * @param <V> the type of the referenced entity.
+     * @throws NoResultException if there is no result.
+     * @throws NonUniqueResultException if more than one result.
+     * @throws PersistenceException if the retrieval operation fails due to underlying database issues.
+     * @since 1.11
+     */
+    default <V extends Data> E getBy(@Nonnull Metamodel<E, V> field, @Nonnull Ref<V> value) {
+        return select().where(field, value).getSingleResult();
+    }
+
+    /**
+     * Retrieves a ref to an entity based on a single field and its value.
+     *
+     * @param field metamodel reference of the entity field.
+     * @param value the value to match against.
+     * @return a ref to the matching entity, or empty if none exists.
+     * @param <V> the type of the field.
+     * @throws PersistenceException if the retrieval operation fails due to underlying database issues.
+     * @since 1.11
+     */
+    default <V> Optional<Ref<E>> findRefBy(@Nonnull Metamodel<E, V> field, @Nonnull V value) {
+        return selectRef().where(field, EQUALS, value).getOptionalResult();
+    }
+
+    /**
+     * Retrieves a ref to an entity based on a single field and its referenced value.
+     *
+     * @param field metamodel reference of the entity field.
+     * @param value the referenced value to match against.
+     * @return a ref to the matching entity, or empty if none exists.
+     * @param <V> the type of the referenced entity.
+     * @throws PersistenceException if the retrieval operation fails due to underlying database issues.
+     * @since 1.11
+     */
+    default <V extends Data> Optional<Ref<E>> findRefBy(@Nonnull Metamodel<E, V> field, @Nonnull Ref<V> value) {
+        return selectRef().where(field, value).getOptionalResult();
+    }
+
+    /**
+     * Retrieves refs to entities matching a single field and a single value.
+     *
+     * @param field metamodel reference of the entity field.
+     * @param value the value to match against.
+     * @return a list of refs to matching entities, or an empty list if none found.
+     * @param <V> the type of the field.
+     * @throws PersistenceException if the retrieval operation fails due to underlying database issues.
+     * @since 1.11
+     */
+    default <V> List<Ref<E>> findAllRefBy(@Nonnull Metamodel<E, V> field, @Nonnull V value) {
+        return selectRef().where(field, EQUALS, value).getResultList();
+    }
+
+    /**
+     * Retrieves refs to entities matching a single field and a single referenced value.
+     *
+     * @param field metamodel reference of the entity field.
+     * @param value the referenced value to match against.
+     * @return a list of refs to matching entities, or an empty list if none found.
+     * @param <V> the type of the referenced entity.
+     * @throws PersistenceException if the retrieval operation fails due to underlying database issues.
+     * @since 1.11
+     */
+    default <V extends Data> List<Ref<E>> findAllRefBy(@Nonnull Metamodel<E, V> field, @Nonnull Ref<V> value) {
+        return selectRef().where(field, value).getResultList();
+    }
+
+    /**
+     * Retrieves refs to entities matching a single field against multiple values.
+     *
+     * @param field metamodel reference of the entity field.
+     * @param values the values to match against.
+     * @return a list of refs to matching entities, or an empty list if none found.
+     * @param <V> the type of the field.
+     * @throws PersistenceException if the retrieval operation fails due to underlying database issues.
+     * @since 1.11
+     */
+    default <V> List<Ref<E>> findAllRefBy(@Nonnull Metamodel<E, V> field, @Nonnull Iterable<? extends V> values) {
+        return selectRef().where(field, IN, values).getResultList();
+    }
+
+    /**
+     * Retrieves refs to entities matching a single field against multiple referenced values.
+     *
+     * @param field metamodel reference of the entity field.
+     * @param values the referenced values to match against.
+     * @return a list of refs to matching entities, or an empty list if none found.
+     * @param <V> the type of the referenced entity.
+     * @throws PersistenceException if the retrieval operation fails due to underlying database issues.
+     * @since 1.11
+     */
+    default <V extends Data> List<Ref<E>> findAllRefByRef(@Nonnull Metamodel<E, V> field, @Nonnull Iterable<? extends Ref<V>> values) {
+        return selectRef().whereRef(field, values).getResultList();
+    }
+
+    /**
+     * Retrieves a ref to exactly one entity based on a single field and its value.
+     *
+     * @param field metamodel reference of the entity field.
+     * @param value the value to match against.
+     * @return a ref to the matching entity.
+     * @param <V> the type of the field.
+     * @throws NoResultException if there is no result.
+     * @throws NonUniqueResultException if more than one result.
+     * @throws PersistenceException if the retrieval operation fails due to underlying database issues.
+     * @since 1.11
+     */
+    default <V> Ref<E> getRefBy(@Nonnull Metamodel<E, V> field, @Nonnull V value) {
+        return selectRef().where(field, EQUALS, value).getSingleResult();
+    }
+
+    /**
+     * Retrieves a ref to exactly one entity based on a single field and its referenced value.
+     *
+     * @param field metamodel reference of the entity field.
+     * @param value the referenced value to match against.
+     * @return a ref to the matching entity.
+     * @param <V> the type of the referenced entity.
+     * @throws NoResultException if there is no result.
+     * @throws NonUniqueResultException if more than one result.
+     * @throws PersistenceException if the retrieval operation fails due to underlying database issues.
+     * @since 1.11
+     */
+    default <V extends Data> Ref<E> getRefBy(@Nonnull Metamodel<E, V> field, @Nonnull Ref<V> value) {
+        return selectRef().where(field, value).getSingleResult();
+    }
+
+    /**
+     * Counts entities matching the specified field and value.
+     *
+     * @param field metamodel reference of the entity field.
+     * @param value the value to match against.
+     * @return the count of matching entities.
+     * @param <V> the type of the field.
+     * @throws PersistenceException if the count operation fails due to underlying database issues.
+     * @since 1.11
+     */
+    default <V> long countBy(@Nonnull Metamodel<E, V> field, @Nonnull V value) {
+        return selectCount().where(field, EQUALS, value).getSingleResult();
+    }
+
+    /**
+     * Counts entities matching the specified field and referenced value.
+     *
+     * @param field metamodel reference of the entity field.
+     * @param value the referenced value to match against.
+     * @return the count of matching entities.
+     * @param <V> the type of the referenced entity.
+     * @throws PersistenceException if the count operation fails due to underlying database issues.
+     * @since 1.11
+     */
+    default <V extends Data> long countBy(@Nonnull Metamodel<E, V> field, @Nonnull Ref<V> value) {
+        return selectCount().where(field, value).getSingleResult();
+    }
+
+    /**
+     * Checks if any entity matching the specified field and value exists.
+     *
+     * @param field metamodel reference of the entity field.
+     * @param value the value to match against.
+     * @return true if any matching entities exist, false otherwise.
+     * @param <V> the type of the field.
+     * @throws PersistenceException if the count operation fails due to underlying database issues.
+     * @since 1.11
+     */
+    default <V> boolean existsBy(@Nonnull Metamodel<E, V> field, @Nonnull V value) {
+        return countBy(field, value) > 0;
+    }
+
+    /**
+     * Checks if any entity matching the specified field and referenced value exists.
+     *
+     * @param field metamodel reference of the entity field.
+     * @param value the referenced value to match against.
+     * @return true if any matching entities exist, false otherwise.
+     * @param <V> the type of the referenced entity.
+     * @throws PersistenceException if the count operation fails due to underlying database issues.
+     * @since 1.11
+     */
+    default <V extends Data> boolean existsBy(@Nonnull Metamodel<E, V> field, @Nonnull Ref<V> value) {
+        return countBy(field, value) > 0;
+    }
+
+    /**
+     * Removes entities matching the specified field and value.
+     *
+     * @param field metamodel reference of the entity field.
+     * @param value the value to match against.
+     * @return the number of entities removed.
+     * @param <V> the type of the field.
+     * @throws PersistenceException if the removal operation fails due to underlying database issues.
+     * @since 1.11
+     */
+    default <V> int removeAllBy(@Nonnull Metamodel<E, V> field, @Nonnull V value) {
+        return delete().where(field, EQUALS, value).executeUpdate();
+    }
+
+    /**
+     * Removes entities matching the specified field and referenced value.
+     *
+     * @param field metamodel reference of the entity field.
+     * @param value the referenced value to match against.
+     * @return the number of entities removed.
+     * @param <V> the type of the referenced entity.
+     * @throws PersistenceException if the removal operation fails due to underlying database issues.
+     * @since 1.11
+     */
+    default <V extends Data> int removeAllBy(@Nonnull Metamodel<E, V> field, @Nonnull Ref<V> value) {
+        return delete().where(field, value).executeUpdate();
+    }
+
+    /**
+     * Removes entities matching the specified field against multiple values.
+     *
+     * @param field metamodel reference of the entity field.
+     * @param values the values to match against.
+     * @return the number of entities removed.
+     * @param <V> the type of the field.
+     * @throws PersistenceException if the removal operation fails due to underlying database issues.
+     * @since 1.11
+     */
+    default <V> int removeAllBy(@Nonnull Metamodel<E, V> field, @Nonnull Iterable<? extends V> values) {
+        return delete().where(field, IN, values).executeUpdate();
+    }
+
+    /**
+     * Removes entities matching the specified field against multiple referenced values.
+     *
+     * @param field metamodel reference of the entity field.
+     * @param values the referenced values to match against.
+     * @return the number of entities removed.
+     * @param <V> the type of the referenced entity.
+     * @throws PersistenceException if the removal operation fails due to underlying database issues.
+     * @since 1.11
+     */
+    default <V extends Data> int removeAllByRef(@Nonnull Metamodel<E, V> field, @Nonnull Iterable<? extends Ref<V>> values) {
+        return delete().whereRef(field, values).executeUpdate();
+    }
 
     // Page methods.
 

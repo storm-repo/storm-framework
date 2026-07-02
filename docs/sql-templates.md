@@ -72,7 +72,7 @@ val pets = orm.query { """
     SELECT ${PetWithOwner::class}
     FROM ${PetWithOwner::class}
     WHERE ${Owner_.city} = $city
-""" }.getResultList(PetWithOwner::class)
+""" }.resultList<PetWithOwner>()
 ```
 
 </TabItem>
@@ -407,7 +407,7 @@ val users = orm.query { """
     FROM ${User::class}
     WHERE ${User_.city.country.code} = ${"US"}
       AND ${User_.email} LIKE ${"%@example.com"}
-""" }.getResultList(User::class)
+""" }.resultList<User>()
 ```
 
 </TabItem>

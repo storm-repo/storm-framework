@@ -1,29 +1,30 @@
 # Storm Framework - Complete Documentation
 
-> Storm is an AI-first ORM framework for Kotlin 2.0+ and Java 21+.
+> Storm is an AI-first ORM framework for Kotlin 2.0+ and Java 21+, the gold
+> standard for AI-assisted database development.
+>
 > It uses immutable data classes and records instead of proxied entities,
 > providing type-safe queries, predictable performance, and zero hidden magic.
 > Storm works perfectly standalone, but its design and tooling make it uniquely
 > suited for AI-assisted development: immutable entities produce stable code,
 > the CLI installs per-tool skills, and a locally running MCP server exposes
 > only schema metadata (table definitions, column types, constraints) while
-> shielding your database credentials and data from the LLM.
+> shielding your database credentials and data from the LLM. Built-in
+> verification (validateSchema(), SqlCapture) lets the AI validate its own work
+> correct before anything is committed.
 >
 > Get started: `npx @storm-orm/cli`
 > Website: https://orm.st
 > GitHub: https://github.com/storm-orm/storm-framework
 > License: Apache 2.0
 
-# Generated: 2026-03-23T08:27:40Z
+# Generated: 2026-07-01T22:23:42Z
 
 ========================================
 ## Source: index.md
 ========================================
 
 # ST/ORM
-
-> **Info:**
-Storm's concise API, strict conventions, and absence of hidden complexity make it optimized for AI-assisted development. Combined with AI skills and secure schema access via MCP, AI coding tools generate correct Storm code consistently. Install with `npm install -g @storm-orm/cli` and run `storm init` in your project. See [AI-Assisted Development](ai.md).
 
 **Storm** is a modern, high-performance ORM for Kotlin 2.0+ and Java 21+, built around a powerful SQL template engine. It focuses on simplicity, type safety, and predictable performance through immutable models and compile-time metadata.
 
@@ -141,6 +142,18 @@ List<User> users = orm.query(RAW."""
         WHERE \{User_.city.name} = \{cityName}
         """).getResultList(User.class);
 ```
+## AI Assisted Development
+
+Storm is the ORM that AI coding assistants get right. Its stateless, immutable entities mean what you see in the source code is exactly what exists at runtime: no hidden proxies, no lazy loading surprises, no persistence context rules that trip up AI-generated code. When you ask your AI tool to write a query, define an entity, or build a repository, the output is straightforward data classes and explicit SQL, the same code a senior developer would write by hand.
+
+**Get started in seconds:**
+
+```bash
+npx @storm-orm/cli
+```
+
+This configures your AI tool (Claude Code, Cursor, Copilot, Windsurf, or Codex) with Storm's patterns, conventions, and slash commands. See [more on ai](ai.md) for details.
+
 ## Quick Start
 
 Storm provides a Bill of Materials (BOM) for centralized version management. Import the BOM once and omit version numbers from individual Storm dependencies.
@@ -149,7 +162,7 @@ Storm provides a Bill of Materials (BOM) for centralized version management. Imp
 
 ```kotlin
 dependencies {
-    implementation(platform("st.orm:storm-bom:1.11.0"))
+    implementation(platform("st.orm:storm-bom:@@STORM_VERSION@@"))
     implementation("st.orm:storm-kotlin")
     runtimeOnly("st.orm:storm-core")
     // Use storm-compiler-plugin-2.0 for Kotlin 2.0.x, -2.1 for 2.1.x, etc.
@@ -165,7 +178,7 @@ dependencies {
         <dependency>
             <groupId>st.orm</groupId>
             <artifactId>storm-bom</artifactId>
-            <version>1.11.0</version>
+            <version>@@STORM_VERSION@@</version>
             <type>pom</type>
             <scope>import</scope>
         </dependency>
@@ -219,7 +232,8 @@ If you are a tech lead or architect evaluating Storm for a production system, th
 
 1. [Storm vs Other Frameworks](comparison.md) -- feature-level comparison across frameworks
 2. [Spring Integration](spring-integration.md) -- Spring Boot auto-configuration, repository scanning, DI
-3. [Batch Processing and Streaming](batch-streaming.md) -- bulk operations and large dataset handling
+3. [Ktor Integration](ktor-integration.md) -- Ktor plugin, HOCON configuration, coroutine-native transactions
+4. [Batch Processing and Streaming](batch-streaming.md) -- bulk operations and large dataset handling
 4. [Testing](testing.md) -- JUnit 5 integration, statement capture, and test isolation
 5. [Configuration](configuration.md) -- runtime tuning, dirty checking modes, cache retention
 6. [Database Dialects](dialects.md) -- database-specific optimizations
@@ -228,7 +242,7 @@ If you are a tech lead or architect evaluating Storm for a production system, th
 
 Storm is focused on being a great ORM and SQL template engine. It intentionally does not include:
 
-- **Schema migration or DDL generation.** Storm does not automatically create, alter, or drop tables at runtime. With Storm's AI integration, your coding assistant can read your database schema and generate Flyway or Liquibase migration scripts on demand. For schema versioning, use Flyway (https://flywaydb.org/) or Liquibase (https://www.liquibase.com/).
+- **Schema migration or DDL generation.** Storm does not automatically create, alter, or drop tables at runtime. With Storm's [AI integration](ai.md), your coding assistant can read your database schema and generate Flyway or Liquibase migration scripts on demand. For schema versioning, use [Flyway](https://flywaydb.org/) or [Liquibase](https://www.liquibase.com/).
 - **Second-level cache.** Storm's entity cache is transaction-scoped and cleared on commit. For cross-transaction caching, use Spring's `@Cacheable` or a dedicated cache layer like Caffeine or Redis.
 - **Lazy loading proxies.** Entities are plain records with no proxies. Related entities are loaded eagerly in a single query via JOINs. For deferred loading, use [Refs](refs.md) to explicitly control when related data is fetched.
 
@@ -236,7 +250,7 @@ Storm is focused on being a great ORM and SQL template engine. It intentionally 
 
 Storm works with any JDBC-compatible database. Dialect packages provide optimized support for:
 
-![PostgreSQL](https://img.shields.io/badge/PostgreSQL-4169E1?logo=postgresql&logoColor=white) ![MySQL](https://img.shields.io/badge/MySQL-4479A1?logo=mysql&logoColor=white) ![MariaDB](https://img.shields.io/badge/MariaDB-003545?logo=mariadb&logoColor=white) ![Oracle](https://img.shields.io/badge/Oracle-F80000?logo=oracle&logoColor=white) ![SQL Server](https://img.shields.io/badge/SQL_Server-CC2927?logo=microsoftsqlserver&logoColor=white) ![H2](https://img.shields.io/badge/H2-0000bb?logoColor=white)
+![Oracle](https://img.shields.io/badge/Oracle-F80000?logo=oracle&logoColor=white) ![SQL Server](https://img.shields.io/badge/SQL_Server-CC2927?logo=microsoftsqlserver&logoColor=white) ![PostgreSQL](https://img.shields.io/badge/PostgreSQL-4169E1?logo=postgresql&logoColor=white) ![MySQL](https://img.shields.io/badge/MySQL-4479A1?logo=mysql&logoColor=white) ![MariaDB](https://img.shields.io/badge/MariaDB-003545?logo=mariadb&logoColor=white) ![SQLite](https://img.shields.io/badge/SQLite-003B57?logo=sqlite&logoColor=white) ![H2](https://img.shields.io/badge/H2-0000bb?logoColor=white)
 
 See [Database Dialects](dialects.md) for installation and configuration details.
 
@@ -266,7 +280,7 @@ Storm is a modern SQL Template and ORM framework for Kotlin 2.0+ and Java 21+. I
 
 Storm is built around a simple idea: your data model should be a plain value, not a framework-managed object. In Storm, entities are Kotlin data classes or Java records. They carry no hidden state, no change-tracking proxies, and no lazy-loading hooks. You can create them, pass them across layers, serialize them, compare them by value, and store them in collections without worrying about session scope, detachment, or side effects. What you see in the source code is exactly what exists at runtime.
 
-This stateless design is a deliberate trade-off. Traditional ORMs like JPA/Hibernate give you automatic dirty checking and transparent lazy loading, but at the cost of complexity: you must reason about managed vs. detached state, proxy initialization, persistence context boundaries, and cascading rules that interact in subtle ways. Storm avoids all of this. When you call `update`, you pass the full entity. When you query a relationship, you get the result in the same query. There are no surprises.
+This stateless design is a deliberate trade-off. Traditional ORMs like JPA/Hibernate give you transparent lazy loading and proxy-based dirty checking, but at the cost of complexity: you must reason about managed vs. detached state, proxy initialization, persistence context boundaries, and cascading rules that interact in subtle ways. Storm avoids all of this. It still performs dirty checking, but by comparing entity state within a transaction rather than through proxies or bytecode manipulation. When you query a relationship, you get the result in the same query. There are no surprises.
 
 Storm is also SQL-first. Rather than abstracting SQL away behind a query language (like JPQL) or a verbose criteria builder, Storm embraces SQL directly. Its SQL Template API lets you write real SQL with type-safe parameter interpolation and automatic result mapping. For common CRUD patterns, the type-safe DSL and repository interfaces provide concise, compiler-checked alternatives, but the full power of SQL is always available when you need it.
 
@@ -278,32 +292,62 @@ The framework is organized around three core abstractions:
 
 These abstractions share a common principle: explicit behavior over implicit magic. Every query is visible in the source code. Every relationship is loaded when you ask for it. Every transaction boundary is declared, not inferred. This makes Storm applications straightforward to debug, profile, and reason about.
 
-## How Storm Differs from JPA
+## Choose Your Path
 
-If you are coming from JPA/Hibernate, the biggest shift is moving from mutable, proxy-backed entities with a managed lifecycle to stateless, immutable values. Storm has no persistence context, no first-level cache, no `EntityManager`, and no automatic change detection. This eliminates entire categories of bugs (LazyInitializationException, detached entity errors, unexpected flush ordering) while making performance predictable. For a detailed comparison, see the [Migration from JPA](migration-from-jpa.md) guide and the [Storm vs Other Frameworks](comparison.md) feature comparison.
+Storm supports two ways to get started. Pick the one that fits your workflow.
+[AI-Assisted]
 
-## Step-by-Step Setup
+### AI-Assisted Setup
 
-This guide is split into three steps. Follow them in order for the fastest path from zero to a working application.
+If you use an AI coding tool (Claude Code, Cursor, GitHub Copilot, Windsurf, or Codex), Storm provides rules, skills, and an optional database-aware MCP server that give the AI deep knowledge of Storm's conventions. The AI can generate entities from your schema, write queries, and verify its own work against a real database.
 
-## 1. Installation
+**1. Install the Storm CLI and run it in your project:**
+
+```bash
+npx @storm-orm/cli init
+```
+
+The interactive setup configures your AI tool with Storm's rules and skills, and optionally connects it to your development database for schema-aware code generation.
+
+**2. Ask your AI tool to set up Storm:**
+
+Once `storm init` has configured your tool, you can ask it to add the right dependencies, create entities from your database tables, and write queries. The AI has access to Storm's full documentation and your database schema.
+
+For example:
+- "Add Storm to this project with Spring Boot and PostgreSQL"
+- "Set up Storm with Ktor and PostgreSQL"
+- "Create entities for the users and orders tables"
+- "Write a repository method that finds orders by status with pagination"
+
+**3. Verify:**
+
+Storm's AI workflow includes built-in verification. The AI can run `ORMTemplate.validateSchema()` to prove entities match the database and `SqlCapture` to inspect generated SQL, all in an isolated H2 test database before anything touches production.
+
+See [AI-Assisted Development](ai.md) for the full setup guide, available skills, and MCP server configuration.
+
+[Manual]
+
+### Manual Setup
+
+Follow these three steps in order for the fastest path from zero to a working application.
+
+**1. Installation**
 
 Set up your project with the right dependencies, build flags, and optional modules.
 
 **[Go to Installation](installation.md)**
 
-## 2. First Entity
+**2. First Entity**
 
 Define your first entity, create an ORM template, and perform insert, read, update, and remove operations.
 
 **[Go to First Entity](first-entity.md)**
 
-## 3. First Query
+**3. First Query**
 
 Write custom queries, build repositories, stream results, and use the type-safe metamodel.
 
 **[Go to First Query](first-query.md)**
-
 ---
 
 ## What's Next
@@ -366,7 +410,7 @@ Storm provides a Bill of Materials (BOM) for centralized version management. Imp
 
 ```kotlin
 dependencies {
-    implementation(platform("st.orm:storm-bom:1.11.0"))
+    implementation(platform("st.orm:storm-bom:@@STORM_VERSION@@"))
 }
 ```
 
@@ -380,7 +424,7 @@ dependencies {
         <dependency>
             <groupId>st.orm</groupId>
             <artifactId>storm-bom</artifactId>
-            <version>1.11.0</version>
+            <version>@@STORM_VERSION@@</version>
             <type>pom</type>
             <scope>import</scope>
         </dependency>
@@ -392,7 +436,7 @@ dependencies {
 
 ```kotlin
 dependencies {
-    implementation(platform("st.orm:storm-bom:1.11.0"))
+    implementation(platform("st.orm:storm-bom:@@STORM_VERSION@@"))
 }
 ```
 ## Add the Core Dependencies
@@ -405,7 +449,7 @@ plugins {
 }
 
 dependencies {
-    implementation(platform("st.orm:storm-bom:1.11.0"))
+    implementation(platform("st.orm:storm-bom:@@STORM_VERSION@@"))
 
     implementation("st.orm:storm-kotlin")
     runtimeOnly("st.orm:storm-core")
@@ -422,7 +466,7 @@ The `storm-metamodel-ksp` dependency generates type-safe metamodel classes (e.g.
 
 ```kotlin
 dependencies {
-    implementation(platform("st.orm:storm-bom:1.11.0"))
+    implementation(platform("st.orm:storm-bom:@@STORM_VERSION@@"))
 
     implementation("st.orm:storm-java21")
     runtimeOnly("st.orm:storm-core")
@@ -485,11 +529,13 @@ Storm works with any JDBC-compatible database out of the box. Dialect modules pr
 
 | Module | Database |
 |--------|----------|
+| `storm-oracle` | Oracle |
+| `storm-mssqlserver` | SQL Server |
 | `storm-postgresql` | PostgreSQL |
 | `storm-mysql` | MySQL |
 | `storm-mariadb` | MariaDB |
-| `storm-oracle` | Oracle |
-| `storm-mssqlserver` | SQL Server |
+| `storm-sqlite` | SQLite |
+| `storm-h2` | H2 |
 
 ```kotlin
 runtimeOnly("st.orm:storm-postgresql")
@@ -515,6 +561,20 @@ implementation("st.orm:storm-kotlin-spring-boot-starter")
     <artifactId>storm-spring-boot-starter</artifactId>
 </dependency>
 ```
+### Ktor Integration
+
+For Ktor applications, add the Ktor plugin module. It provides a `Storm` plugin that manages the DataSource lifecycle, reads HOCON configuration, and exposes the `ORMTemplate` through extension properties on `Application`, `ApplicationCall`, and `RoutingContext`. See [Ktor Integration](ktor-integration.md) for full setup details.
+
+```kotlin
+implementation("st.orm:storm-ktor")
+```
+
+For testing:
+
+```kotlin
+testImplementation("st.orm:storm-ktor-test")
+```
+
 ### JSON Support
 
 Storm supports storing and reading JSON-typed columns. Pick the module that matches your serialization library:
@@ -536,7 +596,9 @@ storm-foundation (base interfaces)
 └── storm-kotlin / storm-java21 (your primary dependency)
     ├── storm-kotlin-spring / storm-spring (Spring Framework)
     │   └── storm-kotlin-spring-boot-starter / storm-spring-boot-starter
-    ├── dialect modules (postgresql, mysql, mariadb, oracle, mssqlserver)
+    ├── storm-ktor (Ktor)
+    │   └── storm-ktor-test (testing support)
+    ├── dialect modules (postgresql, mysql, mariadb, oracle, mssqlserver, sqlite, h2)
     └── JSON modules (jackson2, jackson3, kotlinx-serialization)
 ```
 
@@ -609,7 +671,7 @@ Storm automatically appends `_id` to foreign key column names. See [Entities](en
 
 ## Create the ORM Template
 
-The `ORMTemplate` is the central entry point for all database operations. It is thread-safe and typically created once at application startup (or provided as a Spring bean). You can create one from a JDBC `DataSource` or `Connection`.
+The `ORMTemplate` is the central entry point for all database operations. It is thread-safe and typically created once at application startup (or provided as a Spring bean). You can create one from a JDBC `DataSource`, `Connection`, or JPA `EntityManager`.
 
 [Kotlin]
 
@@ -621,6 +683,9 @@ val orm = dataSource.orm
 
 // From a Connection
 val orm = connection.orm
+
+// From a JPA EntityManager
+val orm = entityManager.orm
 ```
 
 [Java]
@@ -633,6 +698,9 @@ var orm = ORMTemplate.of(dataSource);
 
 // From a Connection
 var orm = ORMTemplate.of(connection);
+
+// From a JPA EntityManager
+var orm = ORMTemplate.of(entityManager);
 ```
 If you are using Spring Boot with one of the starter modules, the `ORMTemplate` bean is created automatically. See [Spring Integration](spring-integration.md) for details.
 
@@ -683,7 +751,7 @@ The `insertAndFetch` method sends an INSERT statement, retrieves the auto-genera
 
 ```kotlin
 // Find by ID
-val user: User? = orm.entity(User::class).findById(userId)
+val user: User? = orm.entity<User>().findById(userId)
 
 // Find by field value using the metamodel (requires storm-metamodel-processor)
 val user: User? = orm.find(User_.email eq "alice@example.com")
@@ -857,7 +925,7 @@ interface UserRepository : EntityRepository<User, Int> {
         findAll((User_.city eq city) and (User_.name eq name))
 
     fun streamByCity(city: City): Flow<User> =
-        select { User_.city eq city }.resultFlow
+        select { User_.city eq city }
 }
 
 // Get the repository from the ORM template
@@ -1229,9 +1297,7 @@ Use `NONE` when:
 
 ## Composite Primary Keys
 
-For join tables or entities whose identity is defined by a combination of columns, wrap the key fields in a separate data class and annotate the entity field with `@PK(generation = NONE)`. Storm treats all fields in the composite key class as part of the primary key. The PK class is implicitly `@Inline` — its fields become columns in the parent table.
-
-**Important:** The composite PK class must contain only raw column types (`Int`, `String`, etc.). Never place `@FK`, entity types, or `Ref<T>` inside the PK class — this causes model initialization errors. Instead, declare `@FK` fields on the entity itself with `@Persist(insertable = false, updatable = false)` so that Storm loads the related entities via JOIN without duplicating column values on insert/update.
+For join tables or entities whose identity is defined by a combination of columns, wrap the key fields in a separate data class and annotate it with `@PK`. Storm treats all fields in the composite key class as part of the primary key.
 
 [Kotlin]
 
@@ -1242,9 +1308,9 @@ data class UserRolePk(
 )
 
 data class UserRole(
-    @PK(generation = NONE) val id: UserRolePk,
-    @FK @Persist(insertable = false, updatable = false) val user: User,
-    @FK @Persist(insertable = false, updatable = false) val role: Role
+    @PK val userRolePk: UserRolePk,
+    @FK val user: User,
+    @FK val role: Role
 ) : Entity<UserRolePk>
 ```
 
@@ -1253,9 +1319,9 @@ data class UserRole(
 ```java
 record UserRolePk(int userId, int roleId) {}
 
-record UserRole(@PK(generation = NONE) UserRolePk id,
-                @Nonnull @FK @Persist(insertable = false, updatable = false) User user,
-                @Nonnull @FK @Persist(insertable = false, updatable = false) Role role
+record UserRole(@PK UserRolePk userRolePk,
+                @Nonnull @FK User user,
+                @Nonnull @FK Role role
 ) implements Entity<UserRolePk> {}
 ```
 ---
@@ -1305,19 +1371,6 @@ data class User(
 ) : Entity<Int>
 ```
 
-For compound unique constraints spanning multiple columns, use an inline record annotated with `@UK`. When the compound key columns overlap with other fields on the entity, use `@Persist(insertable = false, updatable = false)` to prevent duplicate persistence:
-
-```kotlin
-data class UserEmailUK(val userId: Int, val email: String)
-
-data class SomeEntity(
-    @PK val id: Int = 0,
-    @FK val user: User,
-    val email: String,
-    @UK @Persist(insertable = false, updatable = false) val uniqueKey: UserEmailUK
-) : Entity<Int>
-```
-
 [Java]
 
 ```java
@@ -1326,18 +1379,38 @@ record User(@PK Integer id,
             String name
 ) implements Entity<Integer> {}
 ```
+### Compound Unique Keys
 
-For compound unique constraints spanning multiple columns, use an inline record annotated with `@UK`. When the compound key columns overlap with other fields on the entity, use `@Persist(insertable = false, updatable = false)` to prevent duplicate persistence:
+For compound unique constraints that need a metamodel key (e.g., for keyset pagination or type-safe lookups), use an inline record annotated with `@UK`. When the compound key columns overlap with other fields on the entity, use `@Persist(insertable = false, updatable = false)` to prevent duplicate persistence:
+
+[Kotlin]
+
+```kotlin
+data class UserEmailUk(val userId: Int, val email: String)
+
+data class SomeEntity(
+    @PK val id: Int = 0,
+    @FK val user: User,
+    val email: String,
+    @UK @Persist(insertable = false, updatable = false) val uniqueKey: UserEmailUk
+) : Entity<Int>
+```
+
+[Java]
 
 ```java
-record UserEmailUK(int userId, String email) {}
+record UserEmailUk(int userId, String email) {}
 
 record SomeEntity(@PK Integer id,
                   @Nonnull @FK User user,
                   @Nonnull String email,
-                  @UK @Persist(insertable = false, updatable = false) UserEmailUK uniqueKey
+                  @UK @Persist(insertable = false, updatable = false) UserEmailUk uniqueKey
 ) implements Entity<Integer> {}
 ```
+Compound unique constraints that do not require a metamodel key do not need to be modeled in the entity. Schema validation does not warn about unmodeled compound constraints.
+
+Use `@UK(constraint = false)` when the unique constraint does not exist in the database — for example, when uniqueness is enforced at the application level.
+
 When a column is not annotated with `@UK` but becomes unique in a specific query context (for example, a GROUP BY column produces unique values in the result set), wrap the metamodel with `.key()` (Kotlin) or `Metamodel.key()` (Java) to indicate it can serve as a scrolling cursor. See [Manual Key Wrapping](metamodel.md#manual-key-wrapping) for details.
 
 ---
@@ -1345,8 +1418,6 @@ When a column is not annotated with `@UK` but becomes unique in a specific query
 ## Embedded Components
 
 Embedded components group related fields into a reusable data class without creating a separate database table. The component's fields are stored as columns in the parent entity's table. This is useful for value objects like addresses, coordinates, or monetary amounts that appear in multiple entities.
-
-Inlining is implicit — `@Inline` never needs to be specified explicitly on embedded component fields. Storm automatically inlines any non-entity, non-`@FK` data class or record field. When `@Inline` is used explicitly, the field must be an inline (embedded) type, not a scalar or entity.
 
 [Kotlin]
 
@@ -2039,8 +2110,8 @@ val ids = listOf(1, 2, 3)
 val owners = ownerViews.findAllById(ids)
 
 // Flow-based batch fetching (lazy evaluation)
-val allOwners: Flow<OwnerView> = ownerViews.select().resultFlow
-allOwners.collect { owner ->
+val idFlow = flowOf(1, 2, 3, 4, 5)
+ownerViews.selectById(idFlow).collect { owner ->
     // Process each owner
 }
 ```
@@ -2052,8 +2123,8 @@ allOwners.collect { owner ->
 List<Integer> ids = List.of(1, 2, 3);
 List<OwnerView> owners = ownerViews.findAllById(ids);
 
-// Stream-based fetching (must close)
-try (Stream<OwnerView> stream = ownerViews.select().getResultStream()) {
+// Stream-based batch fetching (must close)
+try (Stream<OwnerView> stream = ownerViews.selectById(ids.stream())) {
     stream.forEach(owner -> {
         // Process each owner
     });
@@ -2200,6 +2271,7 @@ Use `@DbColumn` to map fields to columns with different names.
 | `findAll()` | Fetch all as a list |
 | `findAllById(ids)` | Fetch multiple by IDs |
 | `select().resultFlow` | Lazy Flow of all projections |
+| `selectById(ids)` | Lazy Flow by IDs |
 | `select()` | Query builder for filtering |
 | `selectCount()` | Query builder for counting |
 
@@ -2379,8 +2451,8 @@ data class User(
 When you query a `User`, the related `City` is automatically loaded:
 
 ```kotlin
-val user = orm.find(User_.id eq userId)
-println(user?.city.name)  // City is already loaded
+val user = orm.get(User_.id eq userId)
+println(user.city.name)  // City is already loaded
 ```
 
 [Java]
@@ -2472,13 +2544,13 @@ data class UserRolePk(
 )
 
 data class UserRole(
-    @PK(generation = NONE) val id: UserRolePk,
+    @PK val userRolePk: UserRolePk,
     @FK @Persist(insertable = false, updatable = false) val user: User,
     @FK @Persist(insertable = false, updatable = false) val role: Role
 ) : Entity<UserRolePk>
 ```
 
-The composite PK class contains only raw column types — never `@FK`, entity types, or `Ref<T>`. The `@FK` fields on the entity use `@Persist(insertable = false, updatable = false)` because their columns overlap with the PK columns. The FK fields are used to load the related entities via JOIN, but the column values come from the PK during insert/update operations.
+The `@Persist(insertable = false, updatable = false)` annotation indicates that the FK columns overlap with the composite PK columns. The FK fields are used to load the related entities, but the column values come from the PK during insert/update operations.
 
 Query through the join entity:
 
@@ -2507,13 +2579,13 @@ val roles: List<Role> = orm.entity(Role::class)
 ```java
 record UserRolePk(int userId, int roleId) {}
 
-record UserRole(@PK(generation = NONE) UserRolePk id,
+record UserRole(@PK UserRolePk userRolePk,
                 @Nonnull @FK @Persist(insertable = false, updatable = false) User user,
                 @Nonnull @FK @Persist(insertable = false, updatable = false) Role role
 ) implements Entity<UserRolePk> {}
 ```
 
-The composite PK record contains only raw column types — never `@FK`, entity types, or `Ref<T>`. The `@FK` fields on the entity use `@Persist(insertable = false, updatable = false)` because their columns overlap with the PK columns. The FK fields are used to load the related entities via JOIN, but the column values come from the PK during insert/update operations.
+The `@Persist(insertable = false, updatable = false)` annotation indicates that the FK columns overlap with the composite PK columns. The FK fields are used to load the related entities, but the column values come from the PK during insert/update operations.
 
 Query through the join entity:
 
@@ -2903,7 +2975,7 @@ EntityRepository<User, Integer> userRepository = orm.entity(User.class);
 
 [Kotlin]
 
-All CRUD operations use the entity's primary key (marked with `@PK`) for identity. Insert returns the entity with any database-generated fields populated (such as auto-increment IDs). Update and delete match by primary key. Query methods accept metamodel-based filter expressions that compile to parameterized WHERE clauses.
+All CRUD operations use the entity's primary key (marked with `@PK`) for identity. Insert returns the entity with any database-generated fields populated (such as auto-increment IDs). Update and remove match by primary key. Query methods accept metamodel-based filter expressions that compile to parameterized WHERE clauses.
 
 ```kotlin
 // Create
@@ -2914,7 +2986,8 @@ val user = orm insert User(
 )
 
 // Read
-val found: User? = orm.find(User_.id eq user.id)
+val found: User? = orm.entity<User>().findById(user.id)
+val alice: User? = orm.find(User_.name eq "Alice")
 val all: List<User> = orm.findAll(User_.city eq city)
 
 // Update
@@ -2923,8 +2996,11 @@ orm update user.copy(name = "Alice Johnson")
 // Remove
 orm remove user
 
-// Remove by field
+// Remove by condition
 orm.removeBy(User_.city, city)
+
+// Remove by predicate
+orm.removeAll(User_.active eq false)
 
 // Remove all
 orm.removeAll<User>()
@@ -3149,7 +3225,7 @@ The scroll methods handle ordering internally and reject explicit `orderBy()` ca
 
 [Java]
 
-The same scrolling methods described in the Kotlin section are available on Java repositories. The `scroll` method accepts a `Scrollable<E>` and returns a `Window<E>` containing the page `content()`, informational `hasNext()`/`hasPrevious()` flags, and `Scrollable<E>` navigation tokens that are always present when the window has content.
+The same scrolling methods described in the Kotlin section are available on Java repositories. The `scroll` method accepts a `Scrollable<E>` and returns a `Window<E>` containing the page `content()`, informational `hasNext()`/`hasPrevious()` flags, and `Scrollable<E>` navigation tokens (`next()`, `previous()`) that are always present when the window has content.
 
 ```java
 // First page of 20 users ordered by ID
@@ -3243,11 +3319,11 @@ Refs are lightweight identifiers that carry only the record type and primary key
 [Kotlin]
 
 ```kotlin
-// Select refs (lightweight identifiers, builder method + terminal)
+// Select refs (lightweight identifiers)
 val refs: Flow<Ref<User>> = userRepository.selectRef().resultFlow
 
-// Find all by refs (convenience method, executes immediately)
-val users: List<User> = userRepository.findAllByRef(refList)
+// Select by refs
+val users: Flow<User> = userRepository.selectByRef(refs)
 ```
 
 [Java]
@@ -3255,14 +3331,16 @@ val users: List<User> = userRepository.findAllByRef(refList)
 Ref operations in Java return `Stream` objects that must be closed. Refs carry only the primary key and record type, making them suitable for batch operations where loading full records would be wasteful.
 
 ```java
-// Select refs (lightweight identifiers, builder method + terminal)
+// Select refs (lightweight identifiers)
 try (Stream<Ref<User>> refs = userRepository.selectRef().getResultStream()) {
     // Process refs
 }
 
-// Find all by refs (convenience method, executes immediately)
+// Select by refs
 List<Ref<User>> refList = ...;
-List<User> users = userRepository.findAllByRef(refList);
+try (Stream<User> users = userRepository.selectByRef(refList.stream())) {
+    // Process users
+}
 ```
 ---
 
@@ -3417,34 +3495,11 @@ Storm offers three ways to query data, each suited to different complexity level
 
 | Approach | Best for | Type safety | Flexibility |
 |----------|----------|-------------|-------------|
-| **Convenience methods** (`find`, `findAll`, `findBy`, `removeAll`, `count`, `exists`) | Simple lookups and operations | Full compile-time | Low (single-field or predicate equality) |
+| **Repository `findBy`** | Simple key lookups by primary key or unique key | Full compile-time | Low (single-field equality only) |
 | **Query DSL** | Filtering, ordering, pagination with type-safe conditions | Full compile-time | Medium (AND/OR predicates, joins, ordering) |
-| **SQL Templates** | CTEs, window functions, UNIONs, database-specific SQL | Column references checked at compile time, SQL structure at runtime | High (full SQL control) |
+| **SQL Templates** | Complex joins, subqueries, CTEs, window functions, database-specific SQL | Column references checked at compile time, SQL structure at runtime | High (full SQL control) |
 
-Start with the simplest approach that meets your needs. Escalate only when the simpler level cannot express what you need.
-
-### When to use each — and when NOT to
-
-| Need | Use (simplest) | Don't use (unnecessarily complex) |
-|------|----------------|-----------------------------------|
-| All rows as list | `findAll()` | `select().resultList` / `select().getResultList()` |
-| Filter by single field | `findAllBy(field, value)` | `select().where(field, op, value).resultList` |
-| Filter by predicate (Kotlin) | `findAll(predicate)` | `select(predicate).resultList` |
-| Single result by predicate (Kotlin) | `find(predicate)` | `select(predicate).optionalResult` |
-| Count by predicate (Kotlin) | `count(predicate)` | `selectCount().where(predicate).singleResult` |
-| Delete by predicate (Kotlin) | `removeAll(predicate)` | `delete(predicate).executeUpdate()` |
-| Delete by field | `removeAllBy(field, value)` | `delete().where(field, op, value).executeUpdate()` |
-| Filtered + **ordering/pagination** | `select(predicate).orderBy(...)` | convenience methods (can't add ordering) |
-| Filtered + **joins** | `select().innerJoin(...)` or block DSL | convenience methods (can't add joins) |
-| Filtered + **streaming** | `select(predicate).resultFlow` / `.getResultStream()` | convenience methods (return List) |
-| Aggregates, CTEs, window functions | SQL Template | QueryBuilder (can't express these) |
-
-### SQL Template Escalation
-
-SQL Templates are an escape hatch for things the QueryBuilder cannot express. Three rules:
-1. **Code-first:** If it can be done with QueryBuilder methods (joins, where, orderBy, groupBy, having), do it in code. Never use a template for a WHERE clause or ORDER BY that the QueryBuilder can express.
-2. **Metamodel in templates:** When you do need a template fragment (e.g., `COUNT(*)` in a SELECT clause), still use metamodel references inside it (`${User_.email}`, not `"email"`). This keeps column references type-safe and refactor-proof.
-3. **Full SQL last resort:** A full `SELECT ... FROM ...` SQL template should only be used for totally custom queries (CTEs, UNIONs, window functions) that cannot be built at all with the QueryBuilder. Even then, users benefit from bind variables and metamodel references.
+Start with the simplest approach that meets your needs. Use `findBy` or `findAll` for straightforward lookups. Move to the query builder when you need compound filters or pagination. Use SQL templates when you need SQL features the DSL does not cover.
 
 ---
 
@@ -3919,7 +3974,7 @@ List<City> cities = orm.entity(User.class)
 
 [Kotlin]
 
-For large result sets, use `select().resultFlow` which returns a Kotlin `Flow<T>`. Rows are fetched lazily from the database as you collect, so memory usage stays constant regardless of result set size. Flow also handles resource cleanup automatically when collection completes or is cancelled.
+For large result sets, use `select().resultFlow`, which returns a Kotlin `Flow<T>`. Rows are fetched lazily from the database as you collect, so memory usage stays constant regardless of result set size. Flow also handles resource cleanup automatically when collection completes or is cancelled.
 
 ```kotlin
 val users: Flow<User> = orm.entity(User::class).select().resultFlow
@@ -4215,7 +4270,7 @@ Storm provides three ways to retrieve a subset of query results. The right choic
 | Feature | Offset and Limit | Pagination | Scrolling |
 |---------|-----------------|------------|-----------|
 | Navigation | manual | page number | cursor |
-| Result type | `List<R>` | `Page<R>` | `Window<T>` |
+| Result type | `List<R>` | `Page<R>` | `Window<R>` |
 | Count query | no | yes | no |
 | Random access | yes | yes | no |
 | Navigation tokens | no | `nextPageable()` / `previousPageable()` | `next()` / `previous()` |
@@ -4342,22 +4397,24 @@ For the full `Page` and `Pageable` API reference, see [Repositories: Offset-Base
 
 ## Scrolling
 
-Scrolling navigates sequentially using a cursor and returns a `Window<T>`. A `Window` represents a portion of the result set: it contains the data, informational flags (`hasNext`, `hasPrevious`) that indicate whether adjacent results existed at query time, and `Scrollable<T>` navigation tokens for sequential traversal, but no total count or page number. The navigation tokens `next()` and `previous()` are always available when the window has content, regardless of whether `hasNext` or `hasPrevious` is `true`. This allows the developer to decide whether to follow a cursor, since new data may appear after the query was executed.
+Scrolling navigates sequentially using a cursor and returns a `Window<R>`. A `Window` represents a portion of the result set: it contains the data, informational flags (`hasNext`, `hasPrevious`) that indicate whether adjacent results existed at query time, and navigation tokens for sequential traversal, but no total count or page number. The typed navigation methods `next()` and `previous()` are always available when the window has content, regardless of whether `hasNext` or `hasPrevious` is `true`. This allows the developer to decide whether to follow a cursor, since new data may appear after the query was executed.
 
 Under the hood, scrolling uses keyset pagination: it remembers the last value seen on the current page and asks the database for rows after (or before) that value. This avoids the performance cliff of `OFFSET` on large tables, because the database can seek directly to the cursor position using an index.
 
 > **Info:**
 Scrolling requires a stable sort order. The final sort column must be unique (typically the primary key). Using a non-unique sort column like `createdAt` without a tiebreaker will produce duplicate or missing rows at page boundaries. Use the [sort overload](#sorting-by-non-unique-columns) (`Scrollable.of(key, sort, size)`) when sorting by a non-unique column.
 
-The `scroll` method is available directly on repositories and on the query builder. It accepts a `Scrollable<T>` that captures the cursor state and returns a `Window<T>` containing:
+The `scroll` method is available directly on repositories and on the query builder. It accepts a `Scrollable<T>` that captures the cursor state and returns a `Window<R>` containing:
 
 | Field / Method | Description |
 |-------|-------------|
 | `content()` | The list of results for this window. |
 | `hasNext()` | `true` if more results existed beyond this window at query time. |
 | `hasPrevious()` | `true` if this window was fetched with a cursor position (i.e., not the first page). |
-| `next()` | Returns a `Scrollable<T>` for the next window, or `null` if the window is empty. |
-| `previous()` | Returns a `Scrollable<T>` for the previous window, or `null` if the window is empty. |
+| `next()` | Returns a typed `Scrollable<T>` for the next window, or `null` if the window is empty. |
+| `previous()` | Returns a typed `Scrollable<T>` for the previous window, or `null` if the window is empty. |
+
+The `nextScrollable()` and `previousScrollable()` raw record component accessors also exist, returning `Scrollable<?>`. The typed `next()` and `previous()` methods are preferred for programmatic navigation.
 
 Create a `Scrollable` using the factory methods, or obtain one from a `Window`:
 
@@ -4486,17 +4543,17 @@ var window = postRepository.select()
 // You can check hasNext() if you only want to proceed when more results
 // were known to exist at query time, or follow the cursor unconditionally
 // to pick up data that may have arrived after the query.
-var nextPage = window.next();
-if (nextPage != null) {
-    var next = postRepository.select()
-        .scroll(nextPage);
+var next = window.next();
+if (next != null) {
+    var nextWindow = postRepository.select()
+        .scroll(next);
 }
 
 // Previous page
-var previousPage = window.previous();
-if (previousPage != null) {
+var previous = window.previous();
+if (previous != null) {
     var prev = postRepository.select()
-        .scroll(previousPage);
+        .scroll(previous);
 }
 ```
 The `Window` carries navigation tokens (`next()`, `previous()`) that encode the cursor values internally, so the client does not need to extract cursor values manually.
@@ -4544,7 +4601,9 @@ See [Manual Key Wrapping](metamodel.md#manual-key-wrapping) for more details.
 
 ### Window Type Parameters
 
-When calling `scroll` on the query builder directly (rather than through a repository), the return type is `Window<R>` where `R` is the result type and `T` is the entity type from the FROM clause. For entity queries where `R` and `T` are the same type, `Window` carries `Scrollable<T>` navigation tokens. Repository convenience methods return `Window<E>`.
+`Window<R>` is a record with a single type parameter: `R` is the result type. It provides result content, cursor-based string navigation (`nextCursor()`, `previousCursor()`), and typed `Scrollable<T>` navigation via the generic `next()` and `previous()` convenience methods for programmatic traversal. The raw record component accessors `nextScrollable()` and `previousScrollable()` return `Scrollable<?>`.
+
+The repository convenience method `scroll()` returns `Window<E>`. The query builder `scroll()` also returns `Window<R>`. For entity queries, `Window` carries `Scrollable<?>` navigation tokens and the typed `next()` / `previous()` methods provide typed access.
 
 For queries where the result type differs from the entity type (for example, selecting into a data class that combines columns from multiple sources), `Window` does not carry navigation tokens because Storm cannot extract cursor values from a result type it does not know how to navigate. In this case, `next()` and `previous()` return `null` (even when the window has content), and `hasNext()` still works correctly as an informational flag. To continue scrolling, check `hasNext()` and construct the next `Scrollable` manually using cursor values from your result:
 
@@ -4648,14 +4707,14 @@ plugins {
 }
 
 dependencies {
-    ksp("st.orm:storm-metamodel-processor:1.11.0")
+    ksp("st.orm:storm-metamodel-processor:@@STORM_VERSION@@")
 }
 ```
 
 ### Gradle (Java)
 
 ```kotlin
-annotationProcessor("st.orm:storm-metamodel-processor:1.11.0")
+annotationProcessor("st.orm:storm-metamodel-processor:@@STORM_VERSION@@")
 ```
 
 ### Maven (Java)
@@ -4664,7 +4723,7 @@ annotationProcessor("st.orm:storm-metamodel-processor:1.11.0")
 <dependency>
     <groupId>st.orm</groupId>
     <artifactId>storm-metamodel-processor</artifactId>
-    <version>1.11.0</version>
+    <version>@@STORM_VERSION@@</version>
     <scope>provided</scope>
 </dependency>
 ```
@@ -4983,25 +5042,25 @@ For compound unique constraints spanning multiple columns, use an inline record 
 [Kotlin]
 
 ```kotlin
-data class UserEmailUK(val userId: Int, val email: String)
+data class UserEmailUk(val userId: Int, val email: String)
 
 data class SomeEntity(
     @PK val id: Int = 0,
     @FK val user: User,
     val email: String,
-    @UK @Persist(insertable = false, updatable = false) val uniqueKey: UserEmailUK
+    @UK @Persist(insertable = false, updatable = false) val uniqueKey: UserEmailUk
 ) : Entity<Int>
 ```
 
 [Java]
 
 ```java
-record UserEmailUK(int userId, String email) {}
+record UserEmailUk(int userId, String email) {}
 
 record SomeEntity(@PK Integer id,
                   @Nonnull @FK User user,
                   @Nonnull String email,
-                  @UK @Persist(insertable = false, updatable = false) UserEmailUK uniqueKey
+                  @UK @Persist(insertable = false, updatable = false) UserEmailUk uniqueKey
 ) implements Entity<Integer> {}
 ```
 The metamodel processor generates a `Metamodel.Key` for the compound field, which can be used for lookups and scrolling just like a single-column key.
@@ -6896,6 +6955,28 @@ try (Connection connection = dataSource.getConnection()) {
 }
 ```
 
+### JPA EntityManager
+
+Storm can coexist with JPA in the same application. This is useful when migrating from JPA to Storm gradually, or when you want to use Storm for specific operations (like bulk inserts or complex queries) while keeping JPA for others. Storm can create an `ORMTemplate` directly from a JPA `EntityManager`, sharing the same underlying connection and transaction.
+
+```java
+@Service
+public class HybridService {
+
+    @PersistenceContext
+    private EntityManager entityManager;
+
+    @Transactional
+    public void processWithBothOrms(User user) {
+        // Use Storm for efficient bulk operations
+        var orm = ORMTemplate.of(entityManager);
+        orm.entity(User.class).insert(user);
+
+        // JPA and Storm share the same transaction
+        entityManager.flush();
+    }
+}
+```
 ---
 
 ## Important Notes
@@ -6937,7 +7018,7 @@ The starter modules provide zero-configuration setup: an `ORMTemplate` bean is c
 
 ```kotlin
 // Gradle (Kotlin DSL)
-implementation("st.orm:storm-kotlin-spring-boot-starter:1.11.0")
+implementation("st.orm:storm-kotlin-spring-boot-starter:@@STORM_VERSION@@")
 ```
 
 ```xml
@@ -6945,7 +7026,7 @@ implementation("st.orm:storm-kotlin-spring-boot-starter:1.11.0")
 <dependency>
     <groupId>st.orm</groupId>
     <artifactId>storm-kotlin-spring-boot-starter</artifactId>
-    <version>1.11.0</version>
+    <version>@@STORM_VERSION@@</version>
 </dependency>
 ```
 
@@ -6956,13 +7037,13 @@ implementation("st.orm:storm-kotlin-spring-boot-starter:1.11.0")
 <dependency>
     <groupId>st.orm</groupId>
     <artifactId>storm-spring-boot-starter</artifactId>
-    <version>1.11.0</version>
+    <version>@@STORM_VERSION@@</version>
 </dependency>
 ```
 
 ```kotlin
 // Gradle (Kotlin DSL)
-implementation("st.orm:storm-spring-boot-starter:1.11.0")
+implementation("st.orm:storm-spring-boot-starter:@@STORM_VERSION@@")
 ```
 ### Spring Integration Without Auto-Configuration
 
@@ -6972,7 +7053,7 @@ If you prefer manual configuration, or need to customize the setup beyond what t
 
 ```kotlin
 // Gradle (Kotlin DSL)
-implementation("st.orm:storm-kotlin-spring:1.11.0")
+implementation("st.orm:storm-kotlin-spring:@@STORM_VERSION@@")
 ```
 
 ```xml
@@ -6980,7 +7061,7 @@ implementation("st.orm:storm-kotlin-spring:1.11.0")
 <dependency>
     <groupId>st.orm</groupId>
     <artifactId>storm-kotlin-spring</artifactId>
-    <version>1.11.0</version>
+    <version>@@STORM_VERSION@@</version>
 </dependency>
 ```
 
@@ -6991,13 +7072,13 @@ implementation("st.orm:storm-kotlin-spring:1.11.0")
 <dependency>
     <groupId>st.orm</groupId>
     <artifactId>storm-spring</artifactId>
-    <version>1.11.0</version>
+    <version>@@STORM_VERSION@@</version>
 </dependency>
 ```
 
 ```kotlin
 // Gradle (Kotlin DSL)
-implementation("st.orm:storm-spring:1.11.0")
+implementation("st.orm:storm-spring:@@STORM_VERSION@@")
 ```
 The Spring integration modules provide transaction integration and repository auto-discovery. They are in addition to the base `storm-kotlin` or `storm-java21` dependency.
 
@@ -7453,6 +7534,21 @@ This gives you:
 - Transaction integration between Spring and Storm
 - Repository auto-discovery and injection
 
+## JPA Entity Manager
+
+Storm can create an `ORMTemplate` from a JPA `EntityManager`, which lets you use Storm queries within existing JPA transactions and services. This is particularly useful during incremental [migration from JPA](migration-from-jpa.md), where you can convert one repository or query at a time without changing your transaction management strategy.
+
+```java
+@PersistenceContext
+private EntityManager entityManager;
+
+@Transactional
+public void doWork() {
+    var orm = ORMTemplate.of(entityManager);
+    // Use orm alongside existing JPA code
+}
+```
+
 ## Transaction Propagation
 
 When `@EnableTransactionIntegration` is active, Storm's programmatic transactions participate in Spring's transaction propagation. This means a `transaction` or `transactionBlocking` block checks for an existing Spring-managed transaction before starting a new one. If a transaction already exists, the block joins it. If not, it creates a new independent transaction.
@@ -7554,12 +7650,13 @@ Storm works with any JDBC-compatible database using standard SQL. However, datab
 
 | | Database | Dialect Package | Key Features |
 |---|----------|-----------------|--------------|
+| ![Oracle](https://img.shields.io/badge/Oracle-F80000?logo=oracle&logoColor=white) | Oracle | `storm-oracle` | Merge (`MERGE INTO`), sequences |
+| ![SQL Server](https://img.shields.io/badge/SQL_Server-CC2927?logo=microsoftsqlserver&logoColor=white) | MS SQL Server | `storm-mssqlserver` | Merge (`MERGE INTO`), identity columns |
 | ![PostgreSQL](https://img.shields.io/badge/PostgreSQL-4169E1?logo=postgresql&logoColor=white) | PostgreSQL | `storm-postgresql` | Upsert (`ON CONFLICT`), JSONB, arrays |
 | ![MySQL](https://img.shields.io/badge/MySQL-4479A1?logo=mysql&logoColor=white) | MySQL | `storm-mysql` | Upsert (`ON DUPLICATE KEY`), JSON |
 | ![MariaDB](https://img.shields.io/badge/MariaDB-003545?logo=mariadb&logoColor=white) | MariaDB | `storm-mariadb` | Upsert (`ON DUPLICATE KEY`), JSON |
-| ![Oracle](https://img.shields.io/badge/Oracle-F80000?logo=oracle&logoColor=white) | Oracle | `storm-oracle` | Merge (`MERGE INTO`), sequences |
-| ![SQL Server](https://img.shields.io/badge/SQL_Server-CC2927?logo=microsoftsqlserver&logoColor=white) | MS SQL Server | `storm-mssqlserver` | Merge (`MERGE INTO`), identity columns |
-| ![H2](https://img.shields.io/badge/H2-0000bb?logoColor=white) | H2 | Built-in | Testing and development (no extra dependency) |
+| ![SQLite](https://img.shields.io/badge/SQLite-003B57?logo=sqlite&logoColor=white) | SQLite | `storm-sqlite` | Upsert (`ON CONFLICT`), file-based storage |
+| ![H2](https://img.shields.io/badge/H2-0000bb?logoColor=white) | H2 | `storm-h2` | Merge (`MERGE INTO`), sequences, native UUID |
 
 ## Installation
 
@@ -7568,35 +7665,11 @@ Add the dialect dependency for your database. Dialects are runtime-only dependen
 ### Maven
 
 ```xml
-<!-- PostgreSQL -->
-<dependency>
-    <groupId>st.orm</groupId>
-    <artifactId>storm-postgresql</artifactId>
-    <version>1.11.0</version>
-    <scope>runtime</scope>
-</dependency>
-
-<!-- MySQL -->
-<dependency>
-    <groupId>st.orm</groupId>
-    <artifactId>storm-mysql</artifactId>
-    <version>1.11.0</version>
-    <scope>runtime</scope>
-</dependency>
-
-<!-- MariaDB -->
-<dependency>
-    <groupId>st.orm</groupId>
-    <artifactId>storm-mariadb</artifactId>
-    <version>1.11.0</version>
-    <scope>runtime</scope>
-</dependency>
-
 <!-- Oracle -->
 <dependency>
     <groupId>st.orm</groupId>
     <artifactId>storm-oracle</artifactId>
-    <version>1.11.0</version>
+    <version>@@STORM_VERSION@@</version>
     <scope>runtime</scope>
 </dependency>
 
@@ -7604,7 +7677,47 @@ Add the dialect dependency for your database. Dialects are runtime-only dependen
 <dependency>
     <groupId>st.orm</groupId>
     <artifactId>storm-mssqlserver</artifactId>
-    <version>1.11.0</version>
+    <version>@@STORM_VERSION@@</version>
+    <scope>runtime</scope>
+</dependency>
+
+<!-- PostgreSQL -->
+<dependency>
+    <groupId>st.orm</groupId>
+    <artifactId>storm-postgresql</artifactId>
+    <version>@@STORM_VERSION@@</version>
+    <scope>runtime</scope>
+</dependency>
+
+<!-- MySQL -->
+<dependency>
+    <groupId>st.orm</groupId>
+    <artifactId>storm-mysql</artifactId>
+    <version>@@STORM_VERSION@@</version>
+    <scope>runtime</scope>
+</dependency>
+
+<!-- MariaDB -->
+<dependency>
+    <groupId>st.orm</groupId>
+    <artifactId>storm-mariadb</artifactId>
+    <version>@@STORM_VERSION@@</version>
+    <scope>runtime</scope>
+</dependency>
+
+<!-- SQLite -->
+<dependency>
+    <groupId>st.orm</groupId>
+    <artifactId>storm-sqlite</artifactId>
+    <version>@@STORM_VERSION@@</version>
+    <scope>runtime</scope>
+</dependency>
+
+<!-- H2 -->
+<dependency>
+    <groupId>st.orm</groupId>
+    <artifactId>storm-h2</artifactId>
+    <version>@@STORM_VERSION@@</version>
     <scope>runtime</scope>
 </dependency>
 ```
@@ -7612,39 +7725,51 @@ Add the dialect dependency for your database. Dialects are runtime-only dependen
 ### Gradle (Groovy DSL)
 
 ```groovy
-// PostgreSQL
-runtimeOnly 'st.orm:storm-postgresql:1.11.0'
-
-// MySQL
-runtimeOnly 'st.orm:storm-mysql:1.11.0'
-
-// MariaDB
-runtimeOnly 'st.orm:storm-mariadb:1.11.0'
-
 // Oracle
-runtimeOnly 'st.orm:storm-oracle:1.11.0'
+runtimeOnly 'st.orm:storm-oracle:@@STORM_VERSION@@'
 
 // MS SQL Server
-runtimeOnly 'st.orm:storm-mssqlserver:1.11.0'
+runtimeOnly 'st.orm:storm-mssqlserver:@@STORM_VERSION@@'
+
+// PostgreSQL
+runtimeOnly 'st.orm:storm-postgresql:@@STORM_VERSION@@'
+
+// MySQL
+runtimeOnly 'st.orm:storm-mysql:@@STORM_VERSION@@'
+
+// MariaDB
+runtimeOnly 'st.orm:storm-mariadb:@@STORM_VERSION@@'
+
+// SQLite
+runtimeOnly 'st.orm:storm-sqlite:@@STORM_VERSION@@'
+
+// H2
+runtimeOnly 'st.orm:storm-h2:@@STORM_VERSION@@'
 ```
 
 ### Gradle (Kotlin DSL)
 
 ```kotlin
-// PostgreSQL
-runtimeOnly("st.orm:storm-postgresql:1.11.0")
-
-// MySQL
-runtimeOnly("st.orm:storm-mysql:1.11.0")
-
-// MariaDB
-runtimeOnly("st.orm:storm-mariadb:1.11.0")
-
 // Oracle
-runtimeOnly("st.orm:storm-oracle:1.11.0")
+runtimeOnly("st.orm:storm-oracle:@@STORM_VERSION@@")
 
 // MS SQL Server
-runtimeOnly("st.orm:storm-mssqlserver:1.11.0")
+runtimeOnly("st.orm:storm-mssqlserver:@@STORM_VERSION@@")
+
+// PostgreSQL
+runtimeOnly("st.orm:storm-postgresql:@@STORM_VERSION@@")
+
+// MySQL
+runtimeOnly("st.orm:storm-mysql:@@STORM_VERSION@@")
+
+// MariaDB
+runtimeOnly("st.orm:storm-mariadb:@@STORM_VERSION@@")
+
+// SQLite
+runtimeOnly("st.orm:storm-sqlite:@@STORM_VERSION@@")
+
+// H2
+runtimeOnly("st.orm:storm-h2:@@STORM_VERSION@@")
 ```
 
 ## Automatic Detection
@@ -7661,11 +7786,13 @@ Upsert operations are the primary reason most applications need a dialect. Witho
 
 | Database | SQL Strategy | Conflict Detection |
 |----------|--------------|--------------------|
+| Oracle | `MERGE INTO ...` | Explicit match conditions |
+| MS SQL Server | `MERGE INTO ...` | Explicit match conditions |
 | PostgreSQL | `INSERT ... ON CONFLICT DO UPDATE` | Targets a specific unique constraint or index |
 | MySQL | `INSERT ... ON DUPLICATE KEY UPDATE` | Primary key or any unique constraint |
 | MariaDB | `INSERT ... ON DUPLICATE KEY UPDATE` | Primary key or any unique constraint |
-| Oracle | `MERGE INTO ...` | Explicit match conditions |
-| MS SQL Server | `MERGE INTO ...` | Explicit match conditions |
+| SQLite | `INSERT ... ON CONFLICT DO UPDATE` | Targets a specific unique constraint |
+| H2 | `MERGE INTO ...` | Explicit match conditions |
 
 See [Upserts](upserts.md) for usage examples.
 
@@ -7677,23 +7804,47 @@ PostgreSQL's JSONB and MySQL/MariaDB's JSON types are fully supported when using
 
 Beyond SQL syntax differences, databases support different native data types. Dialects handle the mapping between Kotlin/Java types and database-specific types automatically, so you can use idiomatic types in your entities without worrying about the underlying storage format.
 
-- **PostgreSQL:** JSONB, UUID, arrays, INET, CIDR
-- **MySQL/MariaDB:** JSON, TINYINT for booleans, ENUM
 - **Oracle:** NUMBER, CLOB, sequences for ID generation
 - **MS SQL Server:** NVARCHAR, UNIQUEIDENTIFIER, IDENTITY
+- **PostgreSQL:** JSONB, UUID, arrays, INET, CIDR
+- **MySQL/MariaDB:** JSON, TINYINT for booleans, ENUM
+- **SQLite:** Dynamic typing, AUTOINCREMENT, file-based storage
+- **H2:** Native UUID, sequences, ARRAY types
 
 ## Without a Dialect
 
-Storm works without a specific dialect package by generating standard SQL. This is the typical setup during development and testing when using H2 as an in-memory database. The core framework handles entity mapping, queries, joins, transactions, streaming, dirty checking, and caching using only standard SQL. However, some features require database-specific syntax and will be unavailable without a dialect:
+Storm works without a specific dialect package by generating standard SQL. The core framework handles entity mapping, queries, joins, transactions, streaming, dirty checking, and caching using only standard SQL. However, some features require database-specific syntax and will be unavailable without a dialect:
 
 - **Upsert operations** require database-specific syntax
 - **Database-specific optimizations** such as native pagination strategies
 
 All other features (entity mapping, queries, joins, transactions, streaming, dirty checking, and caching) work identically regardless of dialect.
 
+## Testing with SQLite
+
+SQLite is a lightweight option for testing. It stores data in a single file (or in memory) and requires no server process. Add the `storm-sqlite` dialect dependency to enable SQLite-specific features like upsert support.
+
+[Kotlin]
+
+```kotlin
+val dataSource = SQLiteDataSource().apply {
+    url = "jdbc:sqlite::memory:"
+}
+val orm = ORMTemplate.of(dataSource)
+```
+
+[Java]
+
+```java
+var dataSource = new SQLiteDataSource();
+dataSource.setUrl("jdbc:sqlite::memory:");
+var orm = ORMTemplate.of(dataSource);
+```
+Note that SQLite does not support sequences, row-level locking, or `INFORMATION_SCHEMA`. Constraint discovery uses JDBC metadata, and locking relies on SQLite's file-level locking mechanism.
+
 ## Testing with H2
 
-H2 is an in-memory Java SQL database that starts instantly and requires no external processes. Storm includes built-in support for H2, making it the default choice for unit tests. Because H2 runs in-process, tests start in milliseconds and do not require Docker, network access, or database installation.
+H2 is an in-memory Java SQL database that starts instantly and requires no external processes, making it the default choice for unit tests. Because H2 runs in-process, tests start in milliseconds and do not require Docker, network access, or database installation.
 
 [Kotlin]
 
@@ -7711,7 +7862,7 @@ var dataSource = new JdbcDataSource();
 dataSource.setUrl("jdbc:h2:mem:test;DB_CLOSE_DELAY=-1");
 var orm = ORMTemplate.of(dataSource);
 ```
-No additional dialect dependency is needed for H2. This makes it easy to write fast tests that run without Docker or external databases.
+For basic testing without upsert support, H2 works without any dialect dependency. To enable upsert support and other H2-specific optimizations (native UUID handling, tuple comparisons), add the `storm-h2` dialect dependency.
 
 ## Integration Testing with Real Databases
 
@@ -7726,10 +7877,10 @@ mvn test -pl storm-postgresql
 ## Tips
 
 1. **Always include the dialect** for production databases to unlock all features
-2. **Use H2** for unit tests; no additional dialect needed, fast startup
+2. **Use H2 or SQLite** for unit tests; add `storm-h2` or `storm-sqlite` for upsert support
 3. **Dialect is runtime-only**; it doesn't affect your compile-time code or entity definitions
 4. **One dialect per application**; Storm auto-detects the right dialect from your connection URL
-5. **Test with both**: Use H2 for fast unit tests and the production dialect for integration tests
+5. **Test with both**: Use H2/SQLite for fast unit tests and the production dialect for integration tests
 
 ---
 
@@ -7775,14 +7926,9 @@ Add `storm-test` as a test dependency.
 testImplementation("st.orm:storm-test")
 ```
 
-The module uses H2 as its default in-memory database. Both the Storm H2 dialect and the H2 JDBC driver are required as test dependencies (`storm-h2` declares H2 as `provided`, so it must be added explicitly):
+The module uses H2 as its default in-memory database. To use H2, add it as a test dependency if it is not already present:
 
 ```xml
-<dependency>
-    <groupId>st.orm</groupId>
-    <artifactId>storm-h2</artifactId>
-    <scope>test</scope>
-</dependency>
 <dependency>
     <groupId>com.h2database</groupId>
     <artifactId>h2</artifactId>
@@ -7838,9 +7984,9 @@ The annotation accepts the following attributes:
 | Attribute  | Default                         | Description                                                                               |
 |------------|---------------------------------|-------------------------------------------------------------------------------------------|
 | `scripts`  | `{}`                            | Classpath SQL scripts to execute before tests run. Executed once per test class.           |
-| `url`      | `""`                            | JDBC URL. Defaults to an H2 in-memory database with a unique name derived from the class. |
-| `username` | `"sa"`                          | Database username.                                                                        |
-| `password` | `""`                            | Database password.                                                                        |
+| `url`      | `""`                            | JDBC URL. Defaults to an H2 in-memory database with a unique name derived from the class. Ignored when a static `dataSource()` factory method is present (see [DataSource Factory Method](#datasource-factory-method)). |
+| `username` | `"sa"`                          | Database username. Ignored when a static `dataSource()` factory method is present.        |
+| `password` | `""`                            | Database password. Ignored when a static `dataSource()` factory method is present.        |
 
 ### Parameter Injection
 
@@ -7913,7 +8059,9 @@ class ItemRepositoryTest {
 ```
 ### Using a Custom Database
 
-By default, `@StormTest` creates an H2 in-memory database. To test against a different database, specify a JDBC URL:
+By default, `@StormTest` creates an H2 in-memory database. This works well for dialect-agnostic logic, but H2 has its own SQL dialect. If your schema scripts or queries use database-specific syntax (for example, PostgreSQL's `SERIAL` type, MySQL's `AUTO_INCREMENT`, or Oracle's sequence syntax), they will not run against H2. In these cases, you need to test against the actual target database.
+
+To point `@StormTest` at a different database, specify a JDBC URL. Storm auto-detects the correct `SqlDialect` from the URL:
 
 ```java
 @StormTest(
@@ -7926,6 +8074,74 @@ class PostgresTest {
     // ...
 }
 ```
+
+This requires a running database instance at the given URL. For local development you can start one manually (the dialect modules include `docker-compose.yml` files as a reference), but for automated and CI testing, [Testcontainers](https://testcontainers.com/) is the recommended approach. Testcontainers starts a disposable Docker container before the test and tears it down afterwards, so tests remain self-contained and reproducible.
+
+### DataSource Factory Method
+
+Since `@StormTest` takes its URL as a compile-time annotation attribute, it cannot receive the dynamic URL that Testcontainers assigns at runtime. To solve this, define a static `dataSource()` method on the test class. When `StormExtension` finds this method, it uses the returned `DataSource` instead of creating one from the annotation's `url`, `username`, and `password` attributes. SQL scripts still execute against the returned `DataSource`, and all parameter injection (including `ORMTemplate`, `SqlCapture`, and `DataSource`) works as usual.
+
+[Kotlin]
+
+```kotlin
+@StormTest(scripts = ["/schema-postgres.sql", "/data.sql"])
+@Testcontainers
+class PostgresTest {
+
+    companion object {
+        @Container
+        val postgres = PostgreSQLContainer("postgres:latest")
+            .withDatabaseName("test")
+            .withUsername("test")
+            .withPassword("test")
+
+        @JvmStatic
+        fun dataSource(): DataSource {
+            val dataSource = PGSimpleDataSource()
+            dataSource.setUrl(postgres.jdbcUrl)
+            dataSource.user = postgres.username
+            dataSource.password = postgres.password
+            return dataSource
+        }
+    }
+
+    @Test
+    fun `should use PostgreSQL dialect`(orm: ORMTemplate) {
+        // orm is connected to the Testcontainers PostgreSQL instance,
+        // scripts have been executed, and parameter injection works as usual.
+    }
+}
+```
+
+[Java]
+
+```java
+@StormTest(scripts = {"/schema-postgres.sql", "/data.sql"})
+@Testcontainers
+class PostgresTest {
+
+    @Container
+    static PostgreSQLContainer<?> postgres = new PostgreSQLContainer<>("postgres:latest")
+            .withDatabaseName("test")
+            .withUsername("test")
+            .withPassword("test");
+
+    static DataSource dataSource() {
+        var dataSource = new PGSimpleDataSource();
+        dataSource.setUrl(postgres.getJdbcUrl());
+        dataSource.setUser(postgres.getUsername());
+        dataSource.setPassword(postgres.getPassword());
+        return dataSource;
+    }
+
+    @Test
+    void shouldUsePostgreSQLDialect(ORMTemplate orm) {
+        // orm is connected to the Testcontainers PostgreSQL instance,
+        // scripts have been executed, and parameter injection works as usual.
+    }
+}
+```
+The factory method must be static, take no arguments, and return a `DataSource`. Kotlin companion object methods are also supported.
 
 ---
 
@@ -8130,6 +8346,49 @@ class QueryCountTest {
     }
 }
 ```
+
+---
+
+## Ktor Testing
+
+The `storm-ktor-test` module provides a `testStormApplication` function that combines Storm's H2 setup with Ktor's `testApplication` builder. It creates an in-memory database, executes SQL scripts, and exposes a `StormTestScope` with `stormDataSource`, `stormOrm`, and `stormSqlCapture`.
+
+```kotlin
+@Test
+fun `GET users returns list`() = testStormApplication(
+    scripts = listOf("/schema.sql", "/data.sql"),
+) { scope ->
+    application {
+        install(Storm) { dataSource = scope.stormDataSource }
+        routing { userRoutes() }
+    }
+
+    client.get("/users").apply {
+        assertEquals(HttpStatusCode.OK, status)
+    }
+}
+```
+
+You can also combine the existing `@StormTest` annotation with Ktor's `testApplication` for a more concise setup:
+
+```kotlin
+@StormTest(scripts = ["/schema.sql", "/data.sql"])
+class UserRouteTest {
+
+    @Test
+    fun `users endpoint returns data`(dataSource: DataSource) = testApplication {
+        application {
+            install(Storm) { this.dataSource = dataSource }
+            routing { userRoutes() }
+        }
+        client.get("/users").apply {
+            assertEquals(HttpStatusCode.OK, status)
+        }
+    }
+}
+```
+
+See [Ktor Integration](ktor-integration.md#testing) for more details.
 
 ---
 
@@ -8470,12 +8729,12 @@ Works with both Kotlin and Java projects. Two variants are available, matching t
 <dependency>
     <groupId>st.orm</groupId>
     <artifactId>storm-jackson2</artifactId>
-    <version>1.11.0</version>
+    <version>@@STORM_VERSION@@</version>
 </dependency>
 ```
 
 ```groovy
-implementation 'st.orm:storm-jackson2:1.11.0'
+implementation 'st.orm:storm-jackson2:@@STORM_VERSION@@'
 ```
 
 **Jackson 3** (requires Jackson 3.0+):
@@ -8484,12 +8743,12 @@ implementation 'st.orm:storm-jackson2:1.11.0'
 <dependency>
     <groupId>st.orm</groupId>
     <artifactId>storm-jackson3</artifactId>
-    <version>1.11.0</version>
+    <version>@@STORM_VERSION@@</version>
 </dependency>
 ```
 
 ```groovy
-implementation 'st.orm:storm-jackson3:1.11.0'
+implementation 'st.orm:storm-jackson3:@@STORM_VERSION@@'
 ```
 
 The two modules are mutually exclusive on the classpath. Both provide the same public API (`st.orm.jackson` package), so switching between them requires only changing the Maven dependency.
@@ -8504,7 +8763,7 @@ plugins {
 }
 
 dependencies {
-    implementation("st.orm:storm-kotlinx-serialization:1.11.0")
+    implementation("st.orm:storm-kotlinx-serialization:@@STORM_VERSION@@")
 }
 ```
 
@@ -10845,7 +11104,7 @@ By default, warnings (type narrowing and nullability mismatches) do not cause va
 [Kotlin]
 
 ```kotlin
-val config = StormConfig.of(mapOf("storm.validation.strict" to "true"))
+val config = StormConfig.of(mapOf(VALIDATION_STRICT to "true"))
 val orm = ORMTemplate.of(dataSource, config)
 orm.validateSchemaOrThrow()  // Warnings now cause failure
 ```
@@ -10853,7 +11112,7 @@ orm.validateSchemaOrThrow()  // Warnings now cause failure
 [Java]
 
 ```java
-var config = StormConfig.of(Map.of("storm.validation.strict", "true"));
+var config = StormConfig.of(Map.of(VALIDATION_STRICT, "true"));
 var orm = ORMTemplate.of(dataSource, config);
 orm.validateSchemaOrThrow();  // Warnings now cause failure
 ```
@@ -11311,16 +11570,19 @@ Storm does not implement upsert logic in application code. Instead, it delegates
 
 | Database | SQL Strategy | Conflict Detection |
 |----------|--------------|--------------------|
-| PostgreSQL | `INSERT ... ON CONFLICT DO UPDATE` | Targets a specific unique constraint or index |
-| MySQL/MariaDB | `INSERT ... ON DUPLICATE KEY UPDATE` | Primary key or any unique constraint |
 | Oracle | `MERGE INTO ...` | Explicit match conditions |
 | MS SQL Server | `MERGE INTO ...` | Explicit match conditions |
+| PostgreSQL | `INSERT ... ON CONFLICT DO UPDATE` | Targets a specific unique constraint or index |
+| MySQL/MariaDB | `INSERT ... ON DUPLICATE KEY UPDATE` | Primary key or any unique constraint |
+| SQLite | `INSERT ... ON CONFLICT DO UPDATE` | Targets a specific unique constraint |
+| H2 | `MERGE INTO ...` | Explicit match conditions |
 
 ### Database-Specific Behavior
 
+- **Oracle**, **MS SQL Server**, and **H2** define upsert behavior through explicit match conditions in the `MERGE` statement, giving you control over how conflicts are detected.
 - **PostgreSQL** upserts target a specific conflict source (a unique constraint or index), making conflict resolution explicit and predictable. This is the most granular approach.
 - **MySQL/MariaDB** upserts trigger the update branch when an insert would violate the primary key **or any unique constraint**. When multiple unique constraints exist, the database decides which conflict applies. Be aware of this if your table has multiple unique constraints.
-- **Oracle** and **MS SQL Server** define upsert behavior through explicit match conditions in the `MERGE` statement, giving you control over how conflicts are detected.
+- **SQLite** uses the same `ON CONFLICT` syntax as PostgreSQL, targeting a specific unique constraint (available since SQLite 3.24).
 
 ## Failure Modes
 
@@ -11329,9 +11591,10 @@ Understanding how upserts fail helps you diagnose issues quickly and design your
 **Missing dialect dependency:** Upsert requires a database-specific dialect module (e.g., `storm-postgresql`, `storm-mysql`). If no dialect is on the classpath, Storm throws an `UnsupportedOperationException` at runtime when you call `upsert()`. The error message indicates that the current dialect does not support upsert operations. Add the appropriate dialect dependency to resolve this. See [Dialects](dialects.md) for the full list.
 
 **Missing unique constraint:** Upsert relies on database-level unique constraints to detect conflicts. If the table has no unique constraint (or the constraint does not cover the fields you expect), the behavior depends on the database:
+- **Oracle/MS SQL Server/H2:** The `MERGE` statement's match condition determines conflict detection. If the match condition references columns without a unique constraint, concurrent upserts may produce duplicates.
 - **PostgreSQL:** The `ON CONFLICT` clause references a specific constraint. If the constraint does not exist, the database returns a SQL error.
 - **MySQL/MariaDB:** Without any unique constraint, every row is treated as a new insert. No update branch is triggered, and duplicates accumulate silently.
-- **Oracle/MS SQL Server:** The `MERGE` statement's match condition determines conflict detection. If the match condition references columns without a unique constraint, concurrent upserts may produce duplicates.
+- **SQLite:** Behaves similarly to PostgreSQL. The `ON CONFLICT` clause references a specific constraint.
 
 In all cases, Storm does **not** fall back to a plain insert. It always generates the upsert SQL for the configured dialect. If the SQL fails at the database level, the exception propagates to the caller.
 
@@ -11480,7 +11743,7 @@ val pets = orm.query { """
     SELECT ${PetWithOwner::class}
     FROM ${PetWithOwner::class}
     WHERE ${Owner_.city} = $city
-""" }.getResultList(PetWithOwner::class)
+""" }.resultList<PetWithOwner>()
 ```
 
 [Java]
@@ -11785,7 +12048,7 @@ val users = orm.query { """
     FROM ${User::class}
     WHERE ${User_.city.country.code} = ${"US"}
       AND ${User_.email} LIKE ${"%@example.com"}
-""" }.getResultList(User::class)
+""" }.resultList<User>()
 ```
 
 [Java]
@@ -11925,7 +12188,7 @@ Add the Storm compiler plugin to your Kotlin compiler configuration. The plugin 
 | 2.3.x | `storm-compiler-plugin-2.3` |
 | 2.4.x | `storm-compiler-plugin-2.4` |
 
-The artifact version matches the Storm version (e.g., `1.11.0`).
+The artifact version matches the Storm version (e.g., `@@STORM_VERSION@@`).
 
 [Gradle (Kotlin DSL)]
 
@@ -12212,7 +12475,7 @@ val sales = orm.query("""
     SELECT DATE_TRUNC('month', order_date), COUNT(*), SUM(amount)
     FROM orders
     GROUP BY DATE_TRUNC('month', order_date)
-""").getResultList(MonthlySales::class)
+""").resultList<MonthlySales>()
 ```
 
 [Java]
@@ -13131,7 +13394,7 @@ data class User(
 Globally via `StormConfig` or system property:
 
 ```kotlin
-val config = StormConfig.of(mapOf("storm.update.dirty_check" to "VALUE"))
+val config = StormConfig.of(mapOf(UPDATE_DIRTY_CHECK to "VALUE"))
 ```
 
 ```bash
@@ -13182,7 +13445,7 @@ Storm enforces a **maximum number of UPDATE shapes per entity**. Once this limit
 **Configure via `StormConfig` or system property:**
 
 ```kotlin
-val config = StormConfig.of(mapOf("storm.update.max_shapes" to "10"))
+val config = StormConfig.of(mapOf(UPDATE_MAX_SHAPES to "10"))
 ```
 
 ```bash
@@ -13220,9 +13483,9 @@ For cache retention settings, see [Entity Cache Configuration](entity-cache.md#c
 ```kotlin
 // Via StormConfig
 val config = StormConfig.of(mapOf(
-    "storm.update.default_mode" to "FIELD",
-    "storm.update.dirty_check" to "VALUE",
-    "storm.update.max_shapes" to "10"
+    UPDATE_DEFAULT_MODE to "FIELD",
+    UPDATE_DIRTY_CHECK to "VALUE",
+    UPDATE_MAX_SHAPES to "10"
 ))
 val orm = ORMTemplate.of(dataSource, config)
 ```
@@ -13534,6 +13797,7 @@ transaction {
 This applies to:
 - `findById()` / `getById()`
 - `findByRef()` / `getByRef()`
+- `selectById()` / `selectByRef()`
 
 ### Ref Resolution
 
@@ -13663,7 +13927,7 @@ The `default` mode retains entities for the duration of the transaction, which p
 Configure retention behavior via `StormConfig` or system property:
 
 ```kotlin
-val config = StormConfig.of(mapOf("storm.entity_cache.retention" to "light"))
+val config = StormConfig.of(mapOf(ENTITY_CACHE_RETENTION to "light"))
 val orm = ORMTemplate.of(dataSource, config)
 ```
 
@@ -13994,7 +14258,7 @@ Cursor strings carry a page size that is validated during deserialization. The m
 
 # Configuration
 
-Storm can be configured through `StormConfig`, system properties, or Spring Boot's `application.yml`. These properties control runtime behavior for features like dirty checking and entity caching. All properties have sensible defaults, so **configuration is optional**. Storm works out of the box without any configuration.
+Storm can be configured through `StormConfig`, system properties, Spring Boot's `application.yml`, or Ktor's `application.conf`. These properties control runtime behavior for features like dirty checking and entity caching. All properties have sensible defaults, so **configuration is optional**. Storm works out of the box without any configuration.
 
 ---
 
@@ -14008,7 +14272,7 @@ Storm can be configured through `StormConfig`, system properties, or Spring Boot
 | `storm.entity_cache.retention` | `default` | Cache retention mode: `default` or `light` |
 | `storm.template_cache.size` | `2048` | Maximum number of compiled templates to cache |
 | `storm.validation.record_mode` | `fail` | Record validation mode: `fail`, `warn`, or `none` |
-| `storm.validation.schema_mode` | `none` | Schema validation mode: `none`, `warn`, or `fail` (Spring Boot only) |
+| `storm.validation.schema_mode` | `none` | Schema validation mode: `none`, `warn`, or `fail` (Spring Boot and Ktor) |
 | `storm.validation.strict` | `false` | Treat schema validation warnings as errors |
 | `storm.validation.interpolation_mode` | `warn` | Interpolation safety mode: `warn`, `fail`, or `none` (see [Interpolation Safety](#interpolation-safety)) |
 | `st.orm.scrollable.maxSize` | `1000` | Maximum window size allowed in a serialized cursor (system property only) |
@@ -14034,9 +14298,9 @@ java -Dstorm.update.default_mode=FIELD \
 
 ```kotlin
 val config = StormConfig.of(mapOf(
-    "storm.update.default_mode" to "FIELD",
-    "storm.entity_cache.retention" to "light",
-    "storm.template_cache.size" to "4096"
+    UPDATE_DEFAULT_MODE to "FIELD",
+    ENTITY_CACHE_RETENTION to "light",
+    TEMPLATE_CACHE_SIZE to "4096"
 ))
 
 val orm = ORMTemplate.of(dataSource, config)
@@ -14049,9 +14313,9 @@ val orm = dataSource.orm(config)
 
 ```java
 var config = StormConfig.of(Map.of(
-    "storm.update.default_mode", "FIELD",
-    "storm.entity_cache.retention", "light",
-    "storm.template_cache.size", "4096"
+    UPDATE_DEFAULT_MODE, "FIELD",
+    ENTITY_CACHE_RETENTION, "light",
+    TEMPLATE_CACHE_SIZE, "4096"
 ));
 
 var orm = ORMTemplate.of(dataSource, config);
@@ -14078,6 +14342,32 @@ storm:
 ```
 
 The Spring Boot Starter binds these properties and builds a `StormConfig` that is passed to the `ORMTemplate` factory. Values not set in YAML fall back to system properties and then to built-in defaults. See [Spring Integration](spring-integration.md#configuration-via-applicationyml) for details.
+
+**In Ktor's `application.conf`** (requires `storm-ktor`):
+
+```hocon
+storm {
+    ansiEscaping = false
+    update {
+        defaultMode = "ENTITY"
+        dirtyCheck = "INSTANCE"
+        maxShapes = 5
+    }
+    entityCache {
+        retention = "default"
+    }
+    templateCache {
+        size = 2048
+    }
+    validation {
+        recordMode = "fail"
+        schemaMode = "none"
+        strict = false
+    }
+}
+```
+
+The Storm Ktor plugin reads these properties and builds a `StormConfig` that is passed to the `ORMTemplate` factory. HOCON supports environment variable substitution with `${?VAR_NAME}` syntax. See [Ktor Integration](ktor-integration.md#configuration) for details.
 
 ---
 
@@ -14522,7 +14812,7 @@ Controls whether record (structural) validation runs when Storm first encounters
 | `warn` | Errors are logged as warnings; startup continues. |
 | `none` | Record validation is skipped entirely. |
 
-### storm.validation.schema_mode
+### storm.validation.schema_mode {#schema-validation}
 
 Controls whether schema validation runs at startup (Spring Boot only; for programmatic use, see [Validation](validation.md#programmatic-api)).
 
@@ -15111,8 +15401,8 @@ When using SQL templates directly, embedded values are also parameterized:
 
 ```kotlin
 // Both 'status' and 'minAge' become JDBC parameters.
-val users = orm.query("SELECT * FROM user WHERE status = $status AND age > $minAge")
-    .getResultList(User::class)
+val users = orm.query { "SELECT * FROM user WHERE status = $status AND age > $minAge" }
+    .resultList<User>()
 ```
 
 [Java]
@@ -15516,15 +15806,15 @@ When you call `getSingleResult()` on a query that returns zero rows, Storm throw
 
 ```kotlin
 // Throws NoResultException if no user has this email.
-val user = orm.entity(User::class).select(User_.email eq "nobody@example.com").getSingleResult()
+val user = orm.entity(User::class).select(User_.email eq "nobody@example.com").singleResult
 ```
 
-To handle the missing-result case without exceptions, use `getOptionalResult()`:
+To handle the missing-result case without exceptions, use `optionalResult`:
 
 ```kotlin
 val user: User? = orm.entity(User::class)
     .select(User_.email eq "nobody@example.com")
-    .getOptionalResult(User::class)
+    .optionalResult
 ```
 
 Or use the repository's `findById` method:
@@ -15964,7 +16254,7 @@ Or configure programmatically:
 
 ```java
 StormConfig config = StormConfig.of(Map.of(
-    "storm.template_cache.size", "4096"
+    TEMPLATE_CACHE_SIZE, "4096"
 ));
 ORMTemplate orm = ORMTemplate.of(dataSource, config);
 ```
@@ -16988,18 +17278,18 @@ The following frameworks are Kotlin-only. Storm supports both Kotlin and Java.
 
 Exposed is JetBrains' official Kotlin database framework. It offers two APIs: a DSL that mirrors SQL syntax and a DAO layer for ORM-style access. Exposed defines tables as Kotlin objects rather than annotations on data classes. Storm and Exposed share the goal of idiomatic Kotlin database access but differ in entity design (mutable DAO entities vs. immutable data classes) and relationship loading strategy (lazy references vs. eager single-query loading).
 
-| Aspect | Exposed | Storm                                |
-|--------|---------|--------------------------------------|
-| **Language** | Kotlin only | Kotlin + Java                        |
-| **Polymorphism** | No | Sealed types (Single-Table, Joined, Polymorphic FK) |
-| **APIs** | DSL (SQL) + DAO (ORM) | Unified ORM + SQL Templates          |
-| **Table Definition** | DSL objects (`object Users : Table()`) | Annotations on data classes          |
-| **Entities (DAO)** | Mutable, extend `Entity` class | Immutable data classes (Kotlin) / records (Java) |
-| **Relationships** | Lazy references, manual loading | Loading in single query              |
-| **N+1 Problem** | Possible with DAO | Prevented by design; requires explicit opt-in                 |
-| **Coroutines** | Supported (added later) | First-class from the start           |
-| **Type Safety** | Column references | Metamodel DSL                        |
-| **Transactions** | `transaction {}` block, declarative via Spring module | Optional, programmatic + declarative |
+| Aspect | Storm | Exposed |
+| --- | --- | --- |
+| **Language** | Kotlin + Java | Kotlin only |
+| **Polymorphism** | Sealed types (Single-Table, Joined, Polymorphic FK) | No |
+| **APIs** | Unified ORM + SQL Templates | DSL (SQL) + DAO (ORM) |
+| **Table Definition** | Annotations on data classes | DSL objects (`object Users : Table()`) |
+| **Entities (DAO)** | Immutable data classes (Kotlin) / records (Java) | Mutable, extend `Entity` class |
+| **Relationships** | Loading in single query | Lazy references, manual loading |
+| **N+1 Problem** | Prevented by design; requires explicit opt-in | Possible with DAO |
+| **Coroutines** | First-class from the start | Supported (added later) |
+| **Type Safety** | Metamodel DSL | Column references |
+| **Transactions** | Optional, programmatic + declarative | `transaction {}` block, declarative via Spring module |
 
 #### Transaction Propagation
 
@@ -17090,7 +17380,6 @@ Storm does not include schema management or migration utilities. Schema manageme
 
 ### When to Choose Exposed
 
-- You're building a Kotlin-only project
 - You prefer DSL-based table definitions
 - You want to switch between SQL DSL and DAO styles
 - You like the JetBrains ecosystem integration
@@ -17103,19 +17392,19 @@ Storm does not include schema management or migration utilities. Schema manageme
 
 Ktorm is a lightweight Kotlin ORM that uses entity interfaces and DSL-based table definitions. It requires no code generation and has minimal dependencies. Storm differs primarily in its use of immutable data classes (instead of mutable interfaces), automatic relationship loading, and optional metamodel generation for compile-time type safety.
 
-| Aspect | Ktorm | Storm |
-|--------|-------|-------|
-| **Language** | Kotlin only | Kotlin + Java |
-| **Polymorphism** | No | Sealed types (Single-Table, Joined, Polymorphic FK) |
-| **Entities** | Interfaces extending `Entity` | Data classes with annotations |
-| **Table Definition** | DSL objects (`object Users : Table<User>`) | Annotations on data classes |
-| **Query Style** | Sequence API, DSL | ORM DSL + SQL Templates |
-| **Relationships** | References, manual loading | Automatic loading |
-| **N+1 Problem** | Possible | Prevented by design; requires explicit opt-in |
-| **Code Generation** | None required | Optional metamodel |
-| **Immutability** | Mutable entity interfaces | Immutable data classes |
-| **Coroutines** | Limited | First-class support |
-| **Transactions** | `useTransaction {}` block | Programmatic + `@Transactional` (Spring) |
+| Aspect | Storm | Ktorm |
+| --- | --- | --- |
+| **Language** | Kotlin + Java | Kotlin only |
+| **Polymorphism** | Sealed types (Single-Table, Joined, Polymorphic FK) | No |
+| **Entities** | Data classes with annotations | Interfaces extending `Entity` |
+| **Table Definition** | Annotations on data classes | DSL objects (`object Users : Table<User>`) |
+| **Query Style** | ORM DSL + SQL Templates | Sequence API, DSL |
+| **Relationships** | Automatic loading | References, manual loading |
+| **N+1 Problem** | Prevented by design; requires explicit opt-in | Possible |
+| **Code Generation** | Optional metamodel | None required |
+| **Immutability** | Immutable data classes | Mutable entity interfaces |
+| **Coroutines** | First-class support | Limited |
+| **Transactions** | Programmatic + `@Transactional` (Spring) | `useTransaction {}` block |
 
 ### When to Choose Storm
 
@@ -17127,7 +17416,6 @@ Ktorm is a lightweight Kotlin ORM that uses entity interfaces and DSL-based tabl
 
 ### When to Choose Ktorm
 
-- You're building a Kotlin-only project
 - You prefer no code generation
 - You like the Sequence API style
 - You prefer DSL-based table definitions
@@ -17221,7 +17509,7 @@ Storm never issues DDL statements (CREATE TABLE, ALTER TABLE, DROP TABLE). It re
 
 ### No Lazy-Loading Proxies
 
-Storm does not use bytecode manipulation or runtime proxies to intercept field access. This eliminates `LazyInitializationException`, hidden database queries, and session-dependent entity behavior. Relationships declared with `@FK` are loaded eagerly in a single query. When you need deferred loading (for example, a rarely-accessed large sub-graph), use `Ref<T>` to make the database access explicit and intentional. See [Entities: Deferred Loading](entities.md#deferred-loading-with-ref) for details.
+Storm does not use bytecode manipulation or runtime proxies to intercept field access. This eliminates `LazyInitializationException`, hidden database queries, and session-dependent entity behavior. Relationships declared with `@FK` are loaded eagerly in a single query. When you need deferred loading (for example, a rarely-accessed large sub-graph), use `Ref<T>` to make the database access explicit and intentional. See [Refs: Deferred Loading](refs.md#deferred-loading) for details.
 
 ### No Second-Level Cache
 
@@ -18404,7 +18692,7 @@ A plain data class or record (without implementing `Entity`) that is embedded wi
 A set of companion classes (e.g., `User_`, `City_`) generated at compile time by Storm's KSP processor (Kotlin) or annotation processor (Java). The metamodel provides type-safe references to entity fields for use in queries, predicates, and ordering. See [Metamodel](metamodel.md).
 
 **ORM Template**
-The central entry point for all Storm database operations (`ORMTemplate`). Created from a JDBC `DataSource` or `Connection`, it is thread-safe and typically instantiated once at application startup. It provides access to entity repositories, query builders, and SQL template execution. See [First Entity](first-entity.md#create-the-orm-template).
+The central entry point for all Storm database operations (`ORMTemplate`). Created from a JDBC `DataSource`, `Connection`, or JPA `EntityManager`, it is thread-safe and typically instantiated once at application startup. It provides access to entity repositories, query builders, and SQL template execution. See [First Entity](first-entity.md#create-the-orm-template).
 
 **Projection**
 A read-only data class or record that implements the `Projection<ID>` interface. Projections represent database views or complex query results defined via `@ProjectionQuery`. Unlike entities, projections only support read operations. See [Projections](projections.md).
@@ -18436,9 +18724,10 @@ A window of query results from a scrolling operation. A `Window<R>` contains the
 ========================================
 
 # AI-Assisted Development
-Storm is an AI-first ORM. It works perfectly standalone, but its design and tooling make it uniquely suited for AI-assisted development. Immutable entities produce stable, predictable code. Skills guide AI tools through entity creation, queries, repositories, and migrations. A locally running MCP server exposes only schema metadata (table definitions, column types, constraints) while shielding your database credentials and data from the LLM.
+Storm is an AI-first ORM. Entities are plain Kotlin data classes or Java records. Queries are explicit SQL. Built-in verification lets AI validate its own work before anything touches production.
 
-Traditional ORMs carry hidden complexity (proxies, lazy loading, persistence contexts, cascading rules) that AI tools struggle to reason about. Storm eliminates all of that: entities are plain data classes, queries are explicit SQL, and what you see in the source code is exactly what happens at runtime.
+> **Info:**
+Storm keeps you in control. `ORMTemplate.validateSchema()` validates that entities match the database. `SqlCapture` validates that queries match the intent. `@StormTest` runs both checks in an isolated in-memory database before anything reaches production. The AI generates code, then Storm verifies it. That is what AI-first means here.
 
 ---
 
@@ -18461,59 +18750,30 @@ The interactive setup walks you through three steps:
 
 ### 1. Select AI tools
 
-Choose which AI coding tools to configure. Storm supports:
-
-| Tool | Rules | Skills | MCP |
-|------|-------|--------|-----|
-| Claude Code | CLAUDE.md (optional) | .claude/skills/ | .mcp.json |
-| Cursor | - | .cursor/rules/ | .cursor/mcp.json |
-| GitHub Copilot | .github/copilot-instructions.md | .github/instructions/ | (tool-dependent) |
-| Windsurf | - | .windsurf/rules/ | (manual config) |
-| Codex | AGENTS.md | - | (experimental) |
-
-The MCP server configuration file location depends on the AI tool.
+Choose which AI coding tools you use. Storm configures each one with rules, skills, and (optionally) a database-aware MCP server. You can select multiple tools if your team uses different editors. Storm currently supports Claude Code, Cursor, GitHub Copilot, Windsurf, and Codex. Each tool stores its configuration in a different location, but the content is the same: Storm's conventions, entity rules, query patterns, and verification guidelines. See [AI Tools Reference](ai-reference.md) for the full list of configuration locations.
 
 ### 2. Rules and skills
 
-For each selected tool, Storm installs:
+For each selected tool, Storm installs two types of AI context:
 
-- **Rules**: A project-level configuration file with Storm's key patterns and conventions.
-- **Skills**: Per-topic guides fetched from orm.st that help the AI tool with specific tasks. Skills can be updated automatically on each run without requiring a CLI update.
+**Rules** are a project-level configuration file that is always loaded by the AI tool. They contain Storm's key patterns, naming conventions, and critical constraints (immutable QueryBuilder, no collection fields on entities, `Ref<T>` for circular references, etc.). The rules ensure the AI follows Storm's conventions in every interaction, without you having to repeat them.
 
-Available skills:
-
-| Skill | Purpose |
-|-------|---------|
-| storm-docs | Load full Storm documentation |
-| storm-entity-kotlin | Create Kotlin entities |
-| storm-entity-java | Create Java entities |
-| storm-repository-kotlin | Write Kotlin repositories |
-| storm-repository-java | Write Java repositories |
-| storm-query-kotlin | Kotlin QueryBuilder queries |
-| storm-query-java | Java QueryBuilder queries |
-| storm-sql-kotlin | Kotlin SQL Templates |
-| storm-sql-java | Java SQL Templates |
-| storm-migration | Write Flyway/Liquibase migration SQL |
+**Skills** are per-topic guides that the AI loads on demand when working on a specific task. Each skill contains focused instructions, code examples, and common pitfalls for one area of Storm (entities, queries, repositories, migrations, JSON, serialization, and more). Skills are fetched from orm.st during setup and can be updated automatically on each run without requiring a CLI update. See [AI Tools Reference](ai-reference.md#skills) for the full list.
 
 ### 3. Database connection (optional)
 
 If you have a local development database running, Storm can set up a schema-aware MCP server. This gives your AI tool access to your actual database structure (table definitions, column types, foreign keys) without exposing credentials or data.
 
-The MCP server:
-- Runs locally on your machine
-- Exposes only schema metadata, never actual data
-- Stores credentials in `~/.storm/` (outside your project, outside the LLM's reach)
-- Supports PostgreSQL, MySQL, MariaDB, Oracle, SQL Server, SQLite, and H2
+The MCP server runs locally on your machine, exposes only schema metadata by default, and stores credentials in `~/.storm/` (outside your project, outside the LLM's reach). It supports PostgreSQL, MySQL, MariaDB, Oracle, SQL Server, SQLite, and H2. You can connect multiple databases to a single project, even across different database types.
 
-With the database connected, three additional skills become available:
+Optionally, you can enable read-only data access per connection. This lets the AI query individual records to inform type decisions — for example, recognizing that a `VARCHAR` column contains enum-like values, or that a `TEXT` column stores JSON. Data access is disabled by default because it means actual data from your database flows through the AI's context. When enabled, the database connection is read-only (enforced at both the application and database driver level), and the AI cannot write, modify, or delete data. See [Database Connections & MCP — Security](database-and-mcp.md#security) for the full details.
 
-| Skill | Purpose |
-|-------|---------|
-| storm-schema | Inspect your live database schema |
-| storm-validate | Compare entities against the live schema |
-| storm-entity-from-schema | Generate, update, or refactor entities from database tables |
+With the database connected, three additional skills become available for schema inspection, entity validation against the live schema, and entity generation from database tables. See [AI Tools Reference](ai-reference.md#database-skills) for details.
 
-To reconfigure the database connection later, run `storm mcp`.
+To manage database connections later, use `storm db` for the global connection library and `storm mcp` for project-level configuration. See [Database Connections & MCP](database-and-mcp.md) for the full guide.
+
+> **Tip:**
+The Storm MCP server works standalone — no Storm ORM required. Run `npx @storm-orm/cli mcp` to set up schema access and optional read-only data queries without installing Storm rules or skills. See [Using Without Storm ORM](database-and-mcp.md#using-without-storm-orm).
 
 ---
 
@@ -18549,18 +18809,221 @@ Most AI coding tools support adding context through URLs or pasted text. Point y
 
 ## Why Storm Works Well With AI
 
-Storm's design principles align naturally with how AI coding tools operate:
+AI works better when framework behavior is explicit and visible in source code.
 
-| Design Choice | Why it helps AI |
-|---------------|-----------------|
-| **Immutable entities** | No hidden state transitions for the AI to track or miss |
-| **No proxies** | The entity class *is* the entity; no invisible bytecode transformations to account for |
-| **No persistence context** | No session scope, flush ordering, or detachment rules that require deep framework knowledge |
-| **Convention over configuration** | Fewer annotations and config files for the AI to keep consistent |
-| **Compile-time metamodel** | Type errors caught at build time, not at runtime; the AI gets immediate feedback |
-| **Secure schema access** | The MCP server gives AI tools structural database knowledge without exposing credentials or data |
+Traditional ORMs rely on mechanisms that are powerful but implicit: proxy objects that intercept field access, lazy loading that triggers queries at unpredictable moments, persistence contexts that track entity state across transaction boundaries, and cascading rules that propagate changes through the object graph. These features serve real purposes, but they make AI-assisted development harder. The AI has to account for behavior that does not appear in the code. Code that compiles and looks correct can still break at runtime because of invisible framework state.
 
-When you ask an AI tool to write Storm code, it produces the same straightforward data classes and explicit queries that a human developer would write. There is no framework magic to get wrong.
+Storm eliminates all of that. Entities are plain Kotlin data classes or Java records. There are no proxies, no managed state, no persistence context, and no lazy loading. Queries are explicit, and what you see in the source code is exactly what happens at runtime. This makes Storm's behavior predictable for AI tools: the code is the complete picture.
+
+The design choices that matter most:
+
+- **Immutable entities.** No hidden state transitions for the AI to track or miss.
+- **No proxies.** The entity class is the entity. No invisible bytecode transformations to account for.
+- **No persistence context.** No session scope, flush ordering, or detachment rules that require deep framework knowledge.
+- **Convention over configuration.** Fewer annotations and config files for the AI to keep consistent.
+- **Compile-time metamodel.** Type errors caught at build time, not at runtime. The AI gets immediate feedback.
+- **Secure schema access.** The MCP server gives AI tools structural database knowledge without exposing credentials. Data access is opt-in, read-only by construction, and enforced at the database driver level.
+
+Beyond the data model, Storm provides dedicated tooling for AI-assisted workflows:
+
+- **Skills** guide AI tools through specific tasks (entity creation, queries, repositories, migrations) with framework-aware conventions and rules.
+- **A locally running MCP server** gives AI tools access to your live database schema: table definitions, column types, constraints, and foreign keys. Optionally, the AI can also query individual records (read-only) when sample data would improve type decisions. The AI can inspect your actual database structure to generate entities that match, or validate entities it just created.
+- **Built-in verification** through `ORMTemplate.validateSchema()` and `SqlCapture` lets the AI validate its own work. After generating entities, the AI can validate them against the database. After writing queries, it can capture and inspect the actual SQL. Both checks run in an isolated in-memory database through `@StormTest`, so verification happens before anything touches production. For dialect-specific code, `@StormTest` supports a static `dataSource()` factory method on the test class, allowing integration with Testcontainers to test against the actual target database.
+
+---
+
+## Schema-First and Entity-First
+
+Storm fully supports both directions of working: starting from the database schema and generating entities to match, or starting from the entity model and generating the migration scripts to create the schema. Both approaches share the same development cycle; they just enter it at a different point.
+
+```
+           Entity-first                          Schema-first
+           starts here                           starts here
+                 │                                     │
+                 ▼                                     ▼
+        ┌─────────────────┐                   ┌─────────────────┐
+        │  Define/update  │◀─────────────────▶│ Generate/update │     ┐
+        │     entities    │                   │    migration    │     ├─ You / AI  (generate)
+        └────────┬────────┘                   └────────┬────────┘     ┘
+                 │                                     │
+                 └──────────────────┬──────────────────┘
+                                    ▼
+                     ┌─────────────────────────────┐                  ┐
+                     │         Apply schema        │                  ├─ Flyway / H2  (apply)
+                     └──────────────┬──────────────┘                  ┘
+                                    ▼
+                           ┌─────────────────┐                        ┐
+                           │     Validate    │                        ├─ Storm  (verify)
+                           └─────────────────┘                        ┘
+```
+
+The AI generates and updates code (entities, migrations, queries). Storm validates correctness (`ORMTemplate.validateSchema()`, `SqlCapture`). The cycle repeats whenever either side changes: a schema change triggers entity updates; an entity change triggers a new migration. Schema validation closes the loop by proving that entities and schema agree after every change.
+
+### Schema-first
+
+In a schema-first workflow, the database is the source of truth. The schema already exists (or is managed by a DBA), and entities need to match it.
+
+When the MCP server is configured, the AI has access to the live database through `list_tables` and `describe_table`. This gives it full visibility into table definitions, column types, constraints, and foreign key relationships. When data access is enabled, the AI can also use `select_data` to sample individual records — useful when the schema alone is ambiguous about intent (e.g., a `VARCHAR` that holds enum values, or a `TEXT` column that stores JSON).
+
+The AI workflow:
+
+1. **Inspect the schema.** The AI calls `list_tables` to discover tables, then `describe_table` for each relevant table.
+2. **Sample data (if available).** When `select_data` is enabled and the schema leaves a type decision ambiguous, the AI queries a few rows to inform the choice.
+3. **Generate entities.** Based on the schema metadata (and optional sample data) and Storm's entity conventions (naming, `@PK`, `@FK`, `@UK`, nullability, `Ref<T>` for circular or self-references), the AI generates Kotlin data classes or Java records.
+4. **Validate.** The AI writes a temporary test that validates the generated entities against the database using `ORMTemplate.validateSchema()`.
+
+When the database schema evolves, the same flow applies: the AI inspects the changed tables, updates the affected entities, and re-validates.
+
+### Entity-first
+
+In an entity-first workflow, the code is the source of truth. You design your domain model as entities, and the database schema is derived from them.
+
+The AI workflow:
+
+1. **Design entities.** The AI creates Kotlin data classes or Java records based on the domain model you describe.
+2. **Generate migration.** The AI writes a Flyway or Liquibase migration script that creates the tables, columns, constraints, and indexes to match the entity definitions, following Storm's naming conventions.
+3. **Validate.** The AI writes a temporary test that applies the migration to an H2 in-memory database and validates the entities against the resulting schema using `ORMTemplate.validateSchema()`. This confirms that the entity definitions and the migration script are consistent with each other, before anything touches the real database.
+
+### Verification with Schema Validation
+
+Both approaches converge on the same verification step. `ORMTemplate.validateSchema()` checks entities against the database at the JDBC level, catching mismatches that are difficult to spot by inspection: type incompatibilities, nullability disagreements, missing constraints, unmapped NOT NULL columns, and more. The AI can validate only the specific entities it created or modified:
+
+[Kotlin]
+
+```kotlin
+@StormTest(scripts = ["schema.sql"])
+class EntitySchemaTest {
+    @Test
+    fun validateNewEntities(orm: ORMTemplate) {
+        val errors = orm.validateSchema(
+            Order::class,
+            OrderLine::class,
+            Product::class
+        )
+        assertTrue(errors.isEmpty()) { "Schema validation errors: $errors" }
+    }
+}
+```
+
+[Java]
+
+```java
+@StormTest(scripts = {"schema.sql"})
+class EntitySchemaTest {
+    @Test
+    void validateNewEntities(ORMTemplate orm) {
+        orm.validateSchemaOrThrow(List.of(
+            Order.class,
+            OrderLine.class,
+            Product.class
+        ));
+    }
+}
+```
+In the schema-first case, `schema.sql` is the existing migration or DDL. In the entity-first case, it is the migration the AI just generated. Either way, schema validation confirms that entities and schema agree.
+
+---
+
+## Query Verification With SqlCapture
+
+The same pattern applies to queries. A query that compiles and runs without errors is not necessarily correct: the WHERE clause might filter on the wrong column, a JOIN might be missing, or an ORDER BY might not match the user's intent. After the AI writes a query, it can write a test that captures the actual SQL Storm generates and verifies it matches the intended behavior.
+
+`SqlCapture` records every SQL statement, its operation type, and its bind parameters:
+
+[Kotlin]
+
+```kotlin
+@StormTest(scripts = ["schema.sql", "data.sql"])
+class OrderQueryTest {
+    @Test
+    fun findShippedOrders(orm: ORMTemplate, capture: SqlCapture) {
+        val orders = capture.execute {
+            orm.entity(Order::class).select()
+                .where(Order_.status eq "SHIPPED")
+                .orderBy(Order_.createdAt)
+                .resultList
+        }
+        // Verify the query structure matches the intent.
+        val sql = capture.statements().first().statement()
+        assertContains(sql, "WHERE")
+        assertContains(sql, "ORDER BY")
+    }
+}
+```
+
+[Java]
+
+```java
+@StormTest(scripts = {"schema.sql", "data.sql"})
+class OrderQueryTest {
+    @Test
+    void findShippedOrders(ORMTemplate orm, SqlCapture capture) {
+        List<Order> orders = capture.execute(() ->
+            orm.entity(Order.class).select()
+                .where(Order_.status, EQUALS, "SHIPPED")
+                .orderBy(Order_.createdAt)
+                .getResultList());
+        // Verify the query structure matches the intent.
+        String sql = capture.statements().getFirst().statement();
+        assertTrue(sql.contains("WHERE"));
+        assertTrue(sql.contains("ORDER BY"));
+    }
+}
+```
+`SqlCapture` is injected automatically in `@StormTest` methods. The AI can verify:
+
+- **SQL structure**: check that the expected WHERE, JOIN, GROUP BY, and ORDER BY clauses are present.
+- **Query count**: `capture.count(SELECT)` confirms the expected number of statements were issued.
+- **Operation types**: `capture.count(INSERT)`, `capture.count(UPDATE)`, etc. for mutation tests.
+- **Bind parameters**: `capture.statements().first().parameters()` to inspect parameterized values.
+
+If the test fails, the AI has the actual SQL in the failure output and can correct the query immediately.
+
+---
+
+## Temporary Self-Verification Tests
+
+The verification tests the AI writes do not need to become part of your codebase. The AI can write a test, run it, and remove it again, all within a single conversation. This gives the AI a way to validate its own work without leaving behind test artifacts you did not ask for.
+
+The workflow:
+
+1. **Write.** The AI creates a test file in the project's test source directory (e.g., `src/test/kotlin/StormAIVerificationTest.kt`). For entity-first work, it may also write a temporary schema SQL file to `src/test/resources/`.
+2. **Run.** The AI executes only that test using a targeted command:
+   ```bash
+   # Maven
+   mvn test -pl your-module -Dtest=StormAIVerificationTest
+
+   # Gradle
+   ./gradlew :your-module:test --tests StormAIVerificationTest
+   ```
+3. **Fix (if needed).** If the test fails, the error messages tell the AI exactly what is wrong. It fixes the entities, queries, or migration and re-runs the test.
+4. **Clean up.** Once the test passes, the AI deletes the temporary test file (and any temporary SQL scripts it created). The verified code stays; the scaffolding goes.
+
+This works because `@StormTest` spins up an H2 in-memory database by default, executes the setup scripts, and tears everything down after the test. No external database, no persistent state, no side effects. When the code under test uses dialect-specific SQL, define a static `dataSource()` factory method on the test class to provide a Testcontainers-backed `DataSource` for the target database instead of H2.
+
+You can also ask the AI to keep the test as a permanent regression test. The choice is yours, and the AI should ask.
+
+---
+
+## The Gold Standard: Verify, Then Trust
+
+This is what makes Storm the gold standard for AI-assisted database development. The AI does not just generate code and hope for the best. It generates code, then validates it through Storm's own verification, before anything is committed.
+
+| Task | AI generates | Storm verifies |
+|------|-------------|-------------------|
+| **Entities (schema-first)** | Data classes/records from live schema | `validateSchema()` checks types, nullability, constraints, unmapped columns |
+| **Entities (entity-first)** | Data classes/records + migration script | `validateSchema()` confirms entity and migration agree |
+| **Queries** | QueryBuilder or SQL Template code | `SqlCapture` verifies the generated SQL matches the intended structure and parameters |
+| **Repositories** | Custom query methods | `SqlCapture` confirms each method produces the expected SQL |
+
+Storm's immutable entities, explicit queries, and convention-based naming make AI-generated code straightforward to verify. The verify-then-trust pattern below closes the gap between "looks right" and "is right":
+
+1. **The AI generates code** using Storm's skills, documentation, and (when configured) live schema metadata from the MCP server.
+2. **The AI writes a focused test** that exercises exactly the code it just wrote, using `ORMTemplate.validateSchema()` for entities or `SqlCapture` for queries.
+3. **The AI runs the test.** If it passes, the code is correct by construction, verified by the same validation logic that Storm uses internally. If it fails, the error messages tell the AI exactly what to fix.
+4. **The test stays or goes.** Keep it as a regression test, or let the AI remove it once verified. Either way, the verification happened.
+
+This is the combination that makes it work: an AI-friendly data model that produces stable code, a schema-aware MCP server that gives the AI structural knowledge, and built-in test tooling that lets the AI verify its own work through the framework rather than around it.
 
 
 ========================================
@@ -18580,7 +19043,7 @@ The main Kotlin API module. It provides the `ORMTemplate` interface, extension f
 
 ```kotlin
 // Gradle (Kotlin DSL)
-implementation("st.orm:storm-kotlin:1.11.0")
+implementation("st.orm:storm-kotlin:@@STORM_VERSION@@")
 ```
 
 ```xml
@@ -18588,7 +19051,7 @@ implementation("st.orm:storm-kotlin:1.11.0")
 <dependency>
     <groupId>st.orm</groupId>
     <artifactId>storm-kotlin</artifactId>
-    <version>1.11.0</version>
+    <version>@@STORM_VERSION@@</version>
 </dependency>
 ```
 
@@ -18599,7 +19062,7 @@ The Kotlin API does not depend on any preview features. All APIs are stable and 
 Spring Framework integration for Kotlin. Provides `RepositoryBeanFactoryPostProcessor` for repository auto-discovery and injection, `@EnableTransactionIntegration` for bridging Storm's programmatic transactions with Spring's `@Transactional`, and transaction-aware coroutine support. Add this module when you use Spring Framework without Spring Boot.
 
 ```kotlin
-implementation("st.orm:storm-kotlin-spring:1.11.0")
+implementation("st.orm:storm-kotlin-spring:@@STORM_VERSION@@")
 ```
 
 See [Spring Integration](spring-integration.md) for configuration details.
@@ -18609,7 +19072,7 @@ See [Spring Integration](spring-integration.md) for configuration details.
 Spring Boot auto-configuration for Kotlin. Automatically creates an `ORMTemplate` bean from the `DataSource`, discovers repositories, enables transaction integration, and binds `storm.*` properties from `application.yml`. This is the recommended dependency for Spring Boot applications.
 
 ```kotlin
-implementation("st.orm:storm-kotlin-spring-boot-starter:1.11.0")
+implementation("st.orm:storm-kotlin-spring-boot-starter:@@STORM_VERSION@@")
 ```
 
 See [Spring Integration: Spring Boot Starter](spring-integration.md#spring-boot-starter) for what the starter provides and how to override its defaults.
@@ -18662,7 +19125,7 @@ plugins {
 }
 
 dependencies {
-    ksp("st.orm:storm-metamodel-ksp:1.11.0")
+    ksp("st.orm:storm-metamodel-ksp:@@STORM_VERSION@@")
 }
 ```
 
@@ -18681,7 +19144,7 @@ dependencies {
                     <path>
                         <groupId>st.orm</groupId>
                         <artifactId>storm-metamodel-processor</artifactId>
-                        <version>1.11.0</version>
+                        <version>@@STORM_VERSION@@</version>
                     </path>
                 </annotationProcessorPaths>
             </configuration>
@@ -18724,7 +19187,7 @@ The main Java API module. It provides the `ORMTemplate` entry point, repository 
 <dependency>
     <groupId>st.orm</groupId>
     <artifactId>storm-java21</artifactId>
-    <version>1.11.0</version>
+    <version>@@STORM_VERSION@@</version>
 </dependency>
 ```
 
@@ -18752,7 +19215,7 @@ Spring Framework integration for Java. Provides `RepositoryBeanFactoryPostProces
 <dependency>
     <groupId>st.orm</groupId>
     <artifactId>storm-spring</artifactId>
-    <version>1.11.0</version>
+    <version>@@STORM_VERSION@@</version>
 </dependency>
 ```
 
@@ -18766,7 +19229,7 @@ Spring Boot auto-configuration for Java. Automatically creates an `ORMTemplate` 
 <dependency>
     <groupId>st.orm</groupId>
     <artifactId>storm-spring-boot-starter</artifactId>
-    <version>1.11.0</version>
+    <version>@@STORM_VERSION@@</version>
 </dependency>
 ```
 
@@ -18791,7 +19254,7 @@ The `storm-metamodel-processor` annotation processor generates type-safe metamod
 <dependency>
     <groupId>st.orm</groupId>
     <artifactId>storm-metamodel-processor</artifactId>
-    <version>1.11.0</version>
+    <version>@@STORM_VERSION@@</version>
     <scope>provided</scope>
 </dependency>
 ```
@@ -18802,6 +19265,6 @@ See [Metamodel](metamodel.md) for setup and usage.
 
 The aggregated Javadoc covers all Java modules in the Storm framework:
 
-[Browse the Javadoc](../api/java/index.html)
+[Browse the Javadoc](../api/java/storm.foundation/st/orm/package-summary.html)
 
 
