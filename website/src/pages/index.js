@@ -277,12 +277,10 @@ export default function Home() {
           K("interface "),T("UserRepository"),P(" : "),T("EntityRepository"),P("<"),T("User"),P(", "),T("Int"),P("> {\n"),
           P("    "),K("fun "),F("findByCity"),P("(city: "),T("City"),P(") = "),F("findAll"),P("(User_.city "),K("eq "),P("city)\n\n"),
           C("    // Query builder with SQL templates for the aggregate.\n"),
-          P("    "),K("fun "),F("topCities"),P("(country: "),T("String"),P(", limit: "),T("Int"),P(") =\n"),
+          P("    "),K("fun "),F("usersPerCity"),P("(country: "),T("String"),P(") =\n"),
           P("        "),F("select"),P("("),T("CityCount"),P("::"),K("class"),P(") { "),S('"${City::class}, COUNT(*)"'),P(" }\n"),
           P("            ."),F("where"),P("(User_.city.country "),K("eq "),P("country)\n"),
           P("            ."),F("groupBy"),P("(User_.city)\n"),
-          P("            ."),F("orderByDescending"),P(" { "),S('"COUNT(*)"'),P(" }\n"),
-          P("            ."),F("limit"),P("(limit)\n"),
           P("            .resultList\n"),
           P("}") ] },
 
@@ -349,14 +347,12 @@ export default function Home() {
       '<span class="sqlk">FROM</span> "user" u\n'+
       '<span class="sqlk">INNER JOIN</span> city c <span class="sqlk">ON</span> c.id = u.city_id\n'+
       '<span class="sqlk">WHERE</span> u.city_id = <span class="sqlq">?</span>\n\n'+
-      '<span class="sqlc">-- topCities(country, limit)</span>\n'+
+      '<span class="sqlc">-- usersPerCity(country)</span>\n'+
       '<span class="sqlk">SELECT</span> c.id, c.name, c.population, c.country, <span class="sqlk">COUNT</span>(*)\n'+
       '<span class="sqlk">FROM</span> "user" u\n'+
       '<span class="sqlk">INNER JOIN</span> city c <span class="sqlk">ON</span> c.id = u.city_id\n'+
       '<span class="sqlk">WHERE</span> c.country = <span class="sqlq">?</span>\n'+
-      '<span class="sqlk">GROUP BY</span> u.city_id\n'+
-      '<span class="sqlk">ORDER BY</span> <span class="sqlk">COUNT</span>(*) <span class="sqlk">DESC</span>\n'+
-      '<span class="sqlk">LIMIT</span> <span class="sqlq">?</span>',
+      '<span class="sqlk">GROUP BY</span> u.city_id',
 
       '<span class="sqlc">-- the second block wraps these two inserts in one configured transaction:</span>\n'+
       '<span class="sqlc">-- transaction(REQUIRES_NEW, REPEATABLE_READ, timeoutSeconds = 5)</span>\n'+
