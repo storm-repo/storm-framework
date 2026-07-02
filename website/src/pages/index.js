@@ -294,8 +294,8 @@ export default function Home() {
           P("\n"),
           C("// Full control when you need it: propagation, isolation, timeout — plus post-tx hooks.\n"),
           F("transaction"),P("(propagation = "),T("REQUIRES_NEW"),P(", isolation = "),T("REPEATABLE_READ"),P(", timeoutSeconds = "),N("5"),P(") {\n"),
-          P("    "),K("val "),P("austin = orm "),K("insert "),T("City"),P("(name = "),S('"Austin"'),P(", population = "),N("979_882"),P(", country = "),S('"US"'),P(")\n"),
-          P("    "),K("val "),P("user = orm "),K("insert "),T("User"),P("(email = "),S('"carol@acme.io"'),P(", name = "),S('"Carol"'),P(", city = austin)\n"),
+          P("    "),K("val "),P("city = orm "),K("insert "),T("City"),P("(name = "),S('"San Jose"'),P(", population = "),N("1_013_240"),P(", country = "),S('"US"'),P(")\n"),
+          P("    "),K("val "),P("user = orm "),K("insert "),T("User"),P("(email = "),S('"alice@acme.io"'),P(", name = "),S('"Alice"'),P(", city = city)\n"),
           P("\n"),
           P("    "),F("onCommit"),P(" { events."),F("publish"),P("("),T("UserCreated"),P("(user)) }"),P("   "),C("// runs only after successful commit\n"),
           P("}") ] },
@@ -305,8 +305,7 @@ export default function Home() {
         code:[ C("// Need full control of SQL? Plain SQL works — rows map to any data class.\n"),
           K("data class "),T("RankedCity"),P("("),K("val "),P("name: "),T("String"),P(", "),K("val "),P("population: "),T("Int"),P(", "),K("val "),P("rank: "),T("Long"),P(")\n\n"),
           K("val "),P("ranked = orm."),F("query"),P(" { "),S('"""'),P("\n"),
-          P("    "),K("SELECT "),P("name, population,\n"),
-          P("           RANK() "),K("OVER"),P(" ("),K("ORDER BY "),P("population "),K("DESC"),P(")\n"),
+          P("    "),K("SELECT "),P("name, population, RANK() "),K("OVER"),P(" ("),K("ORDER BY "),P("population "),K("DESC"),P(")\n"),
           P("    "),K("FROM "),P("city\n"),
           P("    "),K("WHERE "),P("country = "),T("$country"),P("   "),C("-- bind variable\n"),
           S('"""'),P(" }."),F("resultList"),P("<"),T("RankedCity"),P(">()\n\n"),
@@ -372,8 +371,7 @@ export default function Home() {
       '<span class="sqlc">-- onCommit hook runs here, only after COMMIT succeeds</span>',
 
       '<span class="sqlc">-- plain SQL passes through · $country becomes ?</span>\n'+
-      '<span class="sqlk">SELECT</span> name, population,\n'+
-      '       <span class="sqlk">RANK</span>() <span class="sqlk">OVER</span> (<span class="sqlk">ORDER BY</span> population <span class="sqlk">DESC</span>)\n'+
+      '<span class="sqlk">SELECT</span> name, population, <span class="sqlk">RANK</span>() <span class="sqlk">OVER</span> (<span class="sqlk">ORDER BY</span> population <span class="sqlk">DESC</span>)\n'+
       '<span class="sqlk">FROM</span> city\n'+
       '<span class="sqlk">WHERE</span> country = <span class="sqlq">?</span>\n\n'+
       '<span class="sqlc">-- ${User::class} expands to columns · $city becomes ?</span>\n'+
