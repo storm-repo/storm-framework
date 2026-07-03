@@ -16,17 +16,24 @@
 package st.orm.core.template.impl;
 
 import static java.util.Optional.empty;
+import static java.util.stream.Collectors.joining;
 import static st.orm.StormConfig.VALIDATION_RECORD_MODE;
 import static st.orm.core.spi.Providers.getORMConverter;
 import static st.orm.core.template.impl.RecordReflection.findPkField;
+import static st.orm.core.template.impl.RecordReflection.getFkFields;
 import static st.orm.core.template.impl.RecordReflection.getRecordType;
 import static st.orm.core.template.impl.RecordReflection.getRefDataType;
 import static st.orm.core.template.impl.RecordReflection.getRefPkType;
+import static st.orm.core.template.impl.RecordReflection.getTableName;
 import static st.orm.core.template.impl.RecordReflection.isRecord;
+import static st.orm.core.template.impl.RecordReflection.isTableJoinCandidate;
 
 import jakarta.annotation.Nonnull;
 import java.math.BigInteger;
+import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.HashSet;
+import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
@@ -61,6 +68,7 @@ import st.orm.core.template.SqlTemplate.PositionalParameter;
 import st.orm.core.template.SqlTemplateException;
 import st.orm.mapping.RecordField;
 import st.orm.mapping.RecordType;
+import st.orm.mapping.TableNameResolver;
 
 /**
  * Helper class for validating record types and named parameters.
@@ -116,6 +124,7 @@ final class RecordValidation {
                         }
                     }
             );
+            findAmbiguousTableJoins(dataTypes).forEach(LOGGER::warn);
             if (!warningsOnly && firstError.getPlain() != null) {
                 throw new PersistenceException(firstError.getPlain());
             }
@@ -141,6 +150,68 @@ final class RecordValidation {
             return recordMode.trim();
         }
         return "fail";
+    }
+
+    /**
+     * Scans the discovered data types for foreign key constellations that make a table-based
+     * auto-join ambiguous: a type with multiple foreign keys referencing the same table, combined
+     * with another type mapping that table, such as a projection of it. Auto-joining such a pair
+     * fails at query time with an ambiguity error; this scan reports the pairs at startup.
+     *
+     * <p>Ambiguity is inherently usage-dependent — an explicit ON clause resolves it — so the
+     * result is reported as warnings and never fails validation. Table names are derived with the
+     * default table name resolver, as validation runs before any template (and its custom
+     * resolver) exists.</p>
+     *
+     * @param dataTypes the discovered data types.
+     * @return a warning message per ambiguous type pair.
+     */
+    static List<String> findAmbiguousTableJoins(@Nonnull List<Class<? extends Data>> dataTypes) {
+        var warnings = new ArrayList<String>();
+        var candidatesByTable = new HashMap<String, List<Class<? extends Data>>>();
+        for (var dataType : dataTypes) {
+            try {
+                if (isTableJoinCandidate(dataType)) {
+                    var tableName = getTableName(dataType, TableNameResolver.DEFAULT).table();
+                    candidatesByTable.computeIfAbsent(tableName, ignore -> new ArrayList<>()).add(dataType);
+                }
+            } catch (Exception ignore) {
+                // Best-effort scan; types that fail reflection are reported by the per-type validation.
+            }
+        }
+        for (var dataType : dataTypes) {
+            try {
+                var fkFieldsByTable = new LinkedHashMap<String, List<RecordField>>();
+                var declaredTargets = new HashSet<Class<?>>();
+                for (var field : getFkFields(dataType).toList()) {
+                    Class<?> targetType = Ref.class.isAssignableFrom(field.type()) ? getRefDataType(field) : field.type();
+                    if (!Data.class.isAssignableFrom(targetType)) {
+                        continue;
+                    }
+                    declaredTargets.add(targetType);
+                    var tableName = getTableName((Class<? extends Data>) targetType, TableNameResolver.DEFAULT).table();
+                    fkFieldsByTable.computeIfAbsent(tableName, ignore -> new ArrayList<>()).add(field);
+                }
+                for (var entry : fkFieldsByTable.entrySet()) {
+                    if (entry.getValue().size() < 2) {
+                        continue;
+                    }
+                    for (var candidate : candidatesByTable.getOrDefault(entry.getKey(), List.of())) {
+                        if (candidate == dataType || declaredTargets.contains(candidate)) {
+                            continue;   // Exact-type matches take precedence over the table-based fallback.
+                        }
+                        warnings.add("Auto-joining %s with %s is ambiguous: multiple foreign keys reference table '%s' (fields: %s). Such joins require an explicit ON clause with a template-based join.".formatted(
+                                dataType.getSimpleName(),
+                                candidate.getSimpleName(),
+                                entry.getKey(),
+                                entry.getValue().stream().map(RecordField::name).collect(joining(", "))));
+                    }
+                }
+            } catch (Exception ignore) {
+                // Best-effort scan; types that fail reflection are reported by the per-type validation.
+            }
+        }
+        return warnings;
     }
 
     /**

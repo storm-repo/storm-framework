@@ -1,6 +1,7 @@
 package st.orm.core.template.impl;
 
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -9,6 +10,7 @@ import jakarta.annotation.Nullable;
 import java.util.List;
 import org.junit.jupiter.api.Test;
 import st.orm.Data;
+import st.orm.DbTable;
 import st.orm.Entity;
 import st.orm.FK;
 import st.orm.GenerationStrategy;
@@ -563,5 +565,56 @@ class RecordValidationTest {
                 () -> RecordValidation.validateDataType(EntityWithProjectionInside.class));
         assertTrue(exception.getMessage().contains("@FK") || exception.getMessage().contains("@Inline"),
                 "Expected error message to mention @FK or @Inline, got: " + exception.getMessage());
+    }
+
+    // Ambiguous table-based joins (startup warning scan)
+
+    public record JoinTarget(
+            @PK Integer id,
+            @Nonnull String name
+    ) implements Entity<Integer> {}
+
+    @DbTable("join_target")
+    public record JoinTargetSummary(
+            @PK Integer id,
+            @Nonnull String name
+    ) implements Projection<Integer> {}
+
+    public record DoubleFkEntity(
+            @PK Integer id,
+            @Nonnull @FK JoinTarget first,
+            @Nonnull @FK JoinTarget second
+    ) implements Entity<Integer> {}
+
+    public record SingleFkJoinEntity(
+            @PK Integer id,
+            @Nonnull @FK JoinTarget target
+    ) implements Entity<Integer> {}
+
+    @Test
+    void testAmbiguousTableJoinReportedForTableBasedCandidate() {
+        var warnings = RecordValidation.findAmbiguousTableJoins(
+                List.of(DoubleFkEntity.class, JoinTarget.class, JoinTargetSummary.class));
+        assertEquals(1, warnings.size());
+        var warning = warnings.getFirst();
+        assertTrue(warning.contains("DoubleFkEntity"), warning);
+        assertTrue(warning.contains("JoinTargetSummary"), warning);
+        assertTrue(warning.contains("'join_target'"), warning);
+        assertTrue(warning.contains("first"), warning);
+        assertTrue(warning.contains("second"), warning);
+    }
+
+    @Test
+    void testNoAmbiguityForExactTypeTarget() {
+        // JoinTarget is the declared foreign key type: the exact-type match takes
+        // precedence over the table-based fallback, so no ambiguity arises.
+        assertTrue(RecordValidation.findAmbiguousTableJoins(
+                List.of(DoubleFkEntity.class, JoinTarget.class)).isEmpty());
+    }
+
+    @Test
+    void testNoAmbiguityForSingleForeignKey() {
+        assertTrue(RecordValidation.findAmbiguousTableJoins(
+                List.of(SingleFkJoinEntity.class, JoinTarget.class, JoinTargetSummary.class)).isEmpty());
     }
 }

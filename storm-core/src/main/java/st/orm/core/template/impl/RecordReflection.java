@@ -46,6 +46,7 @@ import st.orm.GenerationStrategy;
 import st.orm.PK;
 import st.orm.PersistenceException;
 import st.orm.Polymorphic;
+import st.orm.ProjectionQuery;
 import st.orm.Ref;
 import st.orm.Version;
 import st.orm.core.spi.ORMReflection;
@@ -279,10 +280,28 @@ final class RecordReflection {
     }
 
     /**
+     * Returns whether the specified type can serve as the target of a table-based join: a
+     * table-backed Data type with a primary key to join on. Query-backed projections have no
+     * table, and types without a primary key expose no key column to join.
+     *
+     * @param type the type to check.
+     * @return {@code true} if the type is a table-based join candidate, {@code false} otherwise.
+     */
+    static boolean isTableJoinCandidate(@Nonnull Class<? extends Data> type) {
+        if (findPkField(type).isEmpty()) {
+            return false;
+        }
+        if (type.isSealed() && isSealedEntity(type)) {
+            return true;    // Sealed entity interfaces are not records and carry no ProjectionQuery.
+        }
+        return !getRecordType(type).isAnnotationPresent(ProjectionQuery.class);
+    }
+
+    /**
      * Returns the foreign key fields whose referenced type maps to the same table as the
-     * specified type. This is the table-based fallback used to join projections: a projection of
-     * a table can be joined by any foreign key that references that table, even though the Java
-     * types differ.
+     * specified type. This is the fallback used for table-based joins: a table-backed type, such
+     * as a projection of a table or an alternative entity mapping it, can be joined by any
+     * foreign key that references that table, even though the Java types differ.
      *
      * @param fields the candidate (foreign key) fields.
      * @param table the type whose table name the referenced types are matched against.

@@ -25,6 +25,7 @@ import static st.orm.core.template.impl.RecordReflection.getFkFields;
 import static st.orm.core.template.impl.RecordReflection.getForeignKeys;
 import static st.orm.core.template.impl.RecordReflection.getPrimaryKeys;
 import static st.orm.core.template.impl.RecordReflection.getTableName;
+import static st.orm.core.template.impl.RecordReflection.isTableJoinCandidate;
 import static st.orm.core.template.impl.RecordValidation.validateDataType;
 
 import jakarta.annotation.Nonnull;
@@ -32,8 +33,6 @@ import jakarta.annotation.Nullable;
 import java.util.Optional;
 import st.orm.Data;
 import st.orm.Metamodel;
-import st.orm.Projection;
-import st.orm.ProjectionQuery;
 import st.orm.core.template.SqlTemplateException;
 import st.orm.core.template.impl.Elements.TableSource;
 import st.orm.core.template.impl.Elements.TableTarget;
@@ -152,18 +151,19 @@ final class JoinProcessor implements ElementProcessor<Join> {
             return compileJoinCondition(toTable, toAlias, fromTable, alias, leftComponent.get(),
                     findPkField(toTable).orElseThrow(), compiler);
         }
-        // Table-based fallback for projections: foreign keys reference entity types, but a
-        // projection maps an entity's table — any foreign key referencing that table can join it.
-        var rightProjectionComponent = findProjectionJoinField(toTable, fromTable, compiler);
-        if (rightProjectionComponent.isPresent()) {
+        // Table-based fallback: foreign keys reference entity types, but other table-backed types
+        // (projections, alternative entities over the same table) map the same table — any foreign
+        // key referencing that table can join them.
+        var rightTableComponent = findTableJoinField(toTable, fromTable, compiler);
+        if (rightTableComponent.isPresent()) {
             validateDataType(fromTable, true);
-            return compileJoinCondition(fromTable, alias, toTable, toAlias, rightProjectionComponent.get(),
+            return compileJoinCondition(fromTable, alias, toTable, toAlias, rightTableComponent.get(),
                     findPkField(fromTable).orElseThrow(), compiler);
         }
-        var leftProjectionComponent = findProjectionJoinField(fromTable, toTable, compiler);
-        if (leftProjectionComponent.isPresent()) {
+        var leftTableComponent = findTableJoinField(fromTable, toTable, compiler);
+        if (leftTableComponent.isPresent()) {
             validateDataType(toTable, true);
-            return compileJoinCondition(toTable, toAlias, fromTable, alias, leftProjectionComponent.get(),
+            return compileJoinCondition(toTable, toAlias, fromTable, alias, leftTableComponent.get(),
                     findPkField(toTable).orElseThrow(), compiler);
         }
         throw new SqlTemplateException(
@@ -172,29 +172,27 @@ final class JoinProcessor implements ElementProcessor<Join> {
 
     /**
      * Attempts to resolve the foreign key field of {@code fkSide} that joins the specified
-     * projection by matching the referenced type's table against the projection's table. Returns
-     * empty when the projection side is not a table-backed projection with a primary key, or when
+     * table-backed type by matching the referenced type's table against that type's table.
+     * Returns empty when {@code tableSide} is not a table-backed type with a primary key, or when
      * no foreign key references its table; throws when multiple foreign keys reference the table,
      * as the join is ambiguous and must be specified explicitly.
      */
-    private Optional<RecordField> findProjectionJoinField(
+    private Optional<RecordField> findTableJoinField(
             @Nonnull Class<? extends Data> fkSide,
-            @Nonnull Class<? extends Data> projectionSide,
+            @Nonnull Class<? extends Data> tableSide,
             @Nonnull TemplateCompiler compiler
     ) throws SqlTemplateException {
-        if (!Projection.class.isAssignableFrom(projectionSide)
-                || projectionSide.isAnnotationPresent(ProjectionQuery.class)    // Query-backed projections have no table.
-                || findPkField(projectionSide).isEmpty()) {                     // The join targets the projection's primary key.
+        if (!isTableJoinCandidate(tableSide)) {
             return empty();
         }
         var tableNameResolver = compiler.template().tableNameResolver();
-        var matches = findRecordFieldsByTable(getFkFields(fkSide).toList(), projectionSide, tableNameResolver);
+        var matches = findRecordFieldsByTable(getFkFields(fkSide).toList(), tableSide, tableNameResolver);
         if (matches.size() > 1) {
             throw new SqlTemplateException(
-                    "Failed to join %s with projection %s: multiple foreign keys reference table '%s' (fields: %s). Use an explicit ON clause with a template-based join to select the intended foreign key.".formatted(
+                    "Failed to join %s with %s: multiple foreign keys reference table '%s' (fields: %s). Use an explicit ON clause with a template-based join to select the intended foreign key.".formatted(
                             fkSide.getSimpleName(),
-                            projectionSide.getSimpleName(),
-                            getTableName(projectionSide, tableNameResolver).table(),
+                            tableSide.getSimpleName(),
+                            getTableName(tableSide, tableNameResolver).table(),
                             matches.stream().map(RecordField::name).collect(joining(", "))));
         }
         return matches.stream().findFirst();
