@@ -6,6 +6,8 @@ DROP TABLE IF EXISTS specialty_note CASCADE;
 DROP TABLE IF EXISTS vet CASCADE;
 DROP TABLE IF EXISTS vet_specialty CASCADE;
 DROP TABLE IF EXISTS vet_specialty_note CASCADE;
+DROP TABLE IF EXISTS vet_specialty_note_audit CASCADE;
+DROP TABLE IF EXISTS specialty_note_history CASCADE;
 DROP TABLE IF EXISTS visit CASCADE;
 DROP VIEW IF EXISTS owner_view;
 DROP VIEW IF EXISTS visit_view;
@@ -71,6 +73,20 @@ CREATE TABLE vet_specialty_note (
     specialty_id integer NOT NULL,
     note varchar(255) NOT NULL,
     PRIMARY KEY (vet_id, specialty_id)
+);
+
+-- Dependent one-to-one on vet_specialty_note: the referenced key chain is two levels deep.
+CREATE TABLE vet_specialty_note_audit (
+    vet_id integer NOT NULL,
+    specialty_id integer NOT NULL,
+    remark varchar(255) NOT NULL,
+    PRIMARY KEY (vet_id, specialty_id)
+);
+
+-- Dependent one-to-one on specialty_note: a single-column key chain, two levels deep.
+CREATE TABLE specialty_note_history (
+    note_id integer PRIMARY KEY,
+    remark varchar(255) NOT NULL
 );
 
 CREATE TABLE visit (

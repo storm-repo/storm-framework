@@ -21,7 +21,6 @@ import static st.orm.GenerationStrategy.SEQUENCE;
 
 import jakarta.annotation.Nonnull;
 import jakarta.annotation.Nullable;
-import java.lang.reflect.RecordComponent;
 import java.math.BigDecimal;
 import java.math.BigInteger;
 import java.sql.Timestamp;
@@ -32,16 +31,13 @@ import java.time.LocalTime;
 import java.time.OffsetDateTime;
 import java.time.OffsetTime;
 import java.time.ZonedDateTime;
-import java.util.ArrayList;
 import java.util.Calendar;
 import java.util.Date;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
-import st.orm.Data;
 import st.orm.Entity;
-import st.orm.PK;
 import st.orm.PersistenceException;
 import st.orm.core.repository.EntityRepository;
 import st.orm.core.repository.impl.MergeEntityRepositoryImpl;
@@ -108,22 +104,7 @@ public class H2EntityRepositoryImpl<E extends Entity<ID>, ID> extends MergeEntit
     @Nullable
     @Override
     protected String castType(@Nonnull Column column) {
-        Class<?> type = column.type();
-        if (column.foreignKey()) {
-            var secondary = column.secondaryMetamodel();
-            if (secondary == null) {
-                return null;
-            }
-            // Foreign key columns store the referenced entity's primary key. For compound keys the foreign key
-            // spans multiple columns; keyIndex identifies this column's position within the flattened key.
-            var leaves = new ArrayList<Class<?>>();
-            flattenKeyTypes(secondary.fieldType(), leaves);
-            int index = column.keyIndex();
-            if (index < 1 || index > leaves.size()) {
-                return null;
-            }
-            type = leaves.get(index - 1);
-        }
+        Class<?> type = column.persistedType();
         String mapped = CAST_TYPES.get(type);
         if (mapped != null) {
             return mapped;
@@ -135,30 +116,6 @@ public class H2EntityRepositoryImpl<E extends Entity<ID>, ID> extends MergeEntit
             return "TIMESTAMP";
         }
         return null;
-    }
-
-    /**
-     * Flattens a key type into the Java types of its database columns, in declaration order: records recurse into
-     * their components, entity references resolve to their primary key, and simple types are the leaves.
-     */
-    private static void flattenKeyTypes(@Nonnull Class<?> type, @Nonnull List<Class<?>> leaves) {
-        if (type.isRecord()) {
-            if (Data.class.isAssignableFrom(type)) {
-                for (RecordComponent component : type.getRecordComponents()) {
-                    if (component.isAnnotationPresent(PK.class)) {
-                        flattenKeyTypes(component.getType(), leaves);
-                        return;
-                    }
-                }
-                leaves.add(type);   // No primary key found; unmappable.
-                return;
-            }
-            for (RecordComponent component : type.getRecordComponents()) {
-                flattenKeyTypes(component.getType(), leaves);
-            }
-            return;
-        }
-        leaves.add(type);
     }
 
     @Override

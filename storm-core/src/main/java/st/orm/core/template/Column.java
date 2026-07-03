@@ -49,9 +49,25 @@ public interface Column {
     /**
      * Gets the type of the column.
      *
+     * <p>This is the declared field type: for foreign key columns the referenced entity type, for
+     * converter-backed columns the converted field type's parameter type, and the field type otherwise.</p>
+     *
      * @return the type of the column.
      */
     Class<?> type();
+
+    /**
+     * Gets the Java type of the value as it is persisted to this column.
+     *
+     * <p>Unlike {@link #type()}, this is the terminal type after following key chains: for a foreign key
+     * column it is the type of the referenced key's terminal field (following foreign keys that are
+     * themselves primary keys, and record key components), letting callers reason about the physical column
+     * without knowledge of key structure. For all other columns it equals {@link #type()}.</p>
+     *
+     * @return the Java type persisted to this column.
+     * @since 1.11
+     */
+    Class<?> persistedType();
 
     /**
      * Determines if the column is a primary key.

@@ -24,6 +24,7 @@ import static st.orm.core.template.impl.RecordReflection.getBaseFieldNames;
 import static st.orm.core.template.impl.RecordReflection.getColumnName;
 import static st.orm.core.template.impl.RecordReflection.getDiscriminatorColumn;
 import static st.orm.core.template.impl.RecordReflection.getDiscriminatorColumnJavaType;
+import static st.orm.core.template.impl.RecordReflection.getFkLeaves;
 import static st.orm.core.template.impl.RecordReflection.getForeignKeys;
 import static st.orm.core.template.impl.RecordReflection.getGenerationStrategy;
 import static st.orm.core.template.impl.RecordReflection.getRecordType;
@@ -130,7 +131,7 @@ final class ModelFactory {
                 if (ci.primaryKey()) {
                     // PK: override generation to NONE (PK is provided from base INSERT).
                     adjusted.add(new ColumnImpl(
-                            ci.columnName(), ci.index(), ci.type(), true,
+                            ci.columnName(), ci.index(), ci.type(), ci.persistedType(), true,
                             GenerationStrategy.NONE, "",
                             ci.foreignKey(), ci.foreignKeyGeneration(), ci.keyIndex(), ci.nullable(),
                             ci.insertable(), ci.updatable(), ci.version(), ci.ref(),
@@ -147,7 +148,7 @@ final class ModelFactory {
                     if (isBaseField) {
                         // Base non-PK field: not insertable or updatable in extension table.
                         adjusted.add(new ColumnImpl(
-                                ci.columnName(), ci.index(), ci.type(), false,
+                                ci.columnName(), ci.index(), ci.type(), ci.persistedType(), false,
                                 ci.generation(), ci.sequence(),
                                 ci.foreignKey(), ci.foreignKeyGeneration(), ci.keyIndex(), ci.nullable(),
                                 false, false, ci.version(), ci.ref(),
@@ -203,6 +204,7 @@ final class ModelFactory {
         columns.add(new ColumnImpl(
                 new ColumnName(discriminatorColumnName, false),
                 index.getAndIncrement(),
+                getDiscriminatorColumnJavaType(sealedType),
                 getDiscriminatorColumnJavaType(sealedType),
                 false,  // not primary key
                 GenerationStrategy.NONE,
@@ -294,6 +296,7 @@ final class ModelFactory {
             columns.add(new ColumnImpl(
                     columnName,
                     index.getAndIncrement(),
+                    field.type(),
                     field.type(),
                     isPk,
                     isPk ? getGenerationStrategy(field) : GenerationStrategy.NONE,
@@ -398,7 +401,7 @@ final class ModelFactory {
                     throw new SqlTemplateException("Column count does not match value count.");
                 }
                 ColumnSpec spec = buildSpec(field, effectivePrimaryKey, fkAnnotation, parentNullable, inheritedPersist, pkContext);
-                emitColumns(ctx, field, columnMetamodel, null, spec, keyScope, columnNames, columnTypes);
+                emitColumns(ctx, field, columnMetamodel, null, spec, keyScope, columnNames, columnTypes, columnTypes);
                 return;
             }
             if (isRecord(field.type()) && !fkAnnotation) {
@@ -434,14 +437,18 @@ final class ModelFactory {
                             (Class<? extends Data>) ownMetamodel.root(),
                             ownMetamodel.fieldPath().isEmpty() ? field.name() : ownMetamodel.fieldPath() + "." + pkField.name());
                 }
-                emitColumns(ctx, field, ownMetamodel, secondaryMetamodel, spec, keyScope, fkNames, nCopies(fkNames.size(), spec.dataType()));
+                var leaves = getFkLeaves(field);
+                List<Class<?>> persistedTypes = leaves != null && leaves.size() == fkNames.size()
+                        ? leaves.stream().<Class<?>>map(leaf -> leaf.field().type()).toList()
+                        : nCopies(fkNames.size(), spec.dataType());
+                emitColumns(ctx, field, ownMetamodel, secondaryMetamodel, spec, keyScope, fkNames, nCopies(fkNames.size(), spec.dataType()), persistedTypes);
                 if (!spec.ref()) {
                     expandForeignRelation(ctx, ownMetamodel, field, spec.nullable());
                 }
                 return;
             }
             ColumnName columnName = getColumnName(field, ctx.builder().columnNameResolver());
-            emitColumns(ctx, field, columnMetamodel, null, spec, keyScope, List.of(columnName), List.of(spec.dataType()));
+            emitColumns(ctx, field, columnMetamodel, null, spec, keyScope, List.of(columnName), List.of(spec.dataType()), List.of(spec.dataType()));
         } catch (SqlTemplateException e) {
             throw new UncheckedSqlTemplateException(e);
         }
@@ -499,8 +506,9 @@ final class ModelFactory {
                                     @Nonnull ColumnSpec spec,
                                     @Nonnull KeyScope keyScope,
                                     @Nonnull List<? extends Name> names,
-                                    @Nonnull List<Class<?>> types) throws SqlTemplateException {
-        if (names.size() != types.size()) {
+                                    @Nonnull List<Class<?>> types,
+                                    @Nonnull List<Class<?>> persistedTypes) throws SqlTemplateException {
+        if (names.size() != types.size() || names.size() != persistedTypes.size()) {
             throw new SqlTemplateException("Column count does not match type count.");
         }
         for (int i = 0; i < names.size(); i++) {
@@ -509,6 +517,7 @@ final class ModelFactory {
                     names.get(i),
                     ctx.index().getAndIncrement(),
                     types.get(i),
+                    persistedTypes.get(i),
                     spec.primaryKey(),
                     spec.generation(),
                     spec.sequence(),

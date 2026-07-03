@@ -232,29 +232,32 @@ class RecordReflectionTest {
         assertEquals(CompoundPk.class, pkField.get().type());
     }
 
-    // getNestedPkFields tests
+    // getPkLeaves tests
 
     @Test
-    void testGetNestedPkFieldsSimple() {
-        List<RecordField> pkFields = RecordReflection.getNestedPkFields(SimpleEntity.class).toList();
-        assertEquals(1, pkFields.size());
-        assertEquals("id", pkFields.get(0).name());
+    void testGetPkLeavesSimple() throws SqlTemplateException {
+        var leaves = RecordReflection.getPkLeaves(SimpleEntity.class);
+        assertEquals(1, leaves.size());
+        assertEquals("id", leaves.get(0).field().name());
     }
 
     @Test
-    void testGetNestedPkFieldsCompound() {
-        List<RecordField> pkFields = RecordReflection.getNestedPkFields(EntityWithCompoundPk.class).toList();
-        assertEquals(2, pkFields.size());
-        assertEquals("partA", pkFields.get(0).name());
-        assertEquals("partB", pkFields.get(1).name());
+    void testGetPkLeavesCompound() throws SqlTemplateException {
+        var leaves = RecordReflection.getPkLeaves(EntityWithCompoundPk.class);
+        assertEquals(2, leaves.size());
+        assertEquals("partA", leaves.get(0).field().name());
+        assertEquals("partB", leaves.get(1).field().name());
     }
 
     @Test
-    void testGetNestedPkFieldsFkPk() {
-        // When PK is also FK, the field itself is returned (not the nested PK of the referenced entity).
-        List<RecordField> pkFields = RecordReflection.getNestedPkFields(EntityWithFkPk.class).toList();
-        assertEquals(1, pkFields.size());
-        assertEquals("ref", pkFields.get(0).name());
+    void testGetPkLeavesFkPk() throws SqlTemplateException {
+        // When PK is also FK, the key chain is followed into the referenced entity's primary key.
+        var leaves = RecordReflection.getPkLeaves(EntityWithFkPk.class);
+        assertEquals(1, leaves.size());
+        assertEquals("id", leaves.get(0).field().name());
+        // The accessor path steps through the FK field into the referenced key.
+        assertEquals(2, leaves.get(0).path().size());
+        assertEquals("ref", leaves.get(0).path().get(0).name());
     }
 
     // getFkFields tests
@@ -573,13 +576,13 @@ class RecordReflectionTest {
         assertEquals(SealedData.class, refDataType);
     }
 
-    // Sealed entity: getNestedPkFields on sealed type delegates to first permitted subclass
+    // Sealed entity: getPkLeaves on sealed type delegates to first permitted subclass
 
     @Test
-    void testGetNestedPkFieldsSealedEntity() {
-        List<RecordField> pkFields = RecordReflection.getNestedPkFields(SealedAnimal.class).toList();
-        assertEquals(1, pkFields.size());
-        assertEquals("id", pkFields.get(0).name());
+    void testGetPkLeavesSealedEntity() throws SqlTemplateException {
+        var leaves = RecordReflection.getPkLeaves(SealedAnimal.class);
+        assertEquals(1, leaves.size());
+        assertEquals("id", leaves.get(0).field().name());
     }
 
     // Multiple table names in @DbTable for sealed entity (L387)
@@ -622,14 +625,13 @@ class RecordReflectionTest {
         assertEquals("sealed_empty_db_table", tableName.name());
     }
 
-    // getNestedPkFields for type with no PK (L185)
+    // getPkLeaves for type with no PK fails fast
 
     public record NoPkData(String value) implements Data {}
 
     @Test
-    void testGetNestedPkFieldsNoPk() {
-        List<RecordField> pkFields = RecordReflection.getNestedPkFields(NoPkData.class).toList();
-        assertTrue(pkFields.isEmpty());
+    void testGetPkLeavesNoPkThrows() {
+        assertThrows(SqlTemplateException.class, () -> RecordReflection.getPkLeaves(NoPkData.class));
     }
 
     // getRefPkType error for non-entity Ref type (L314, L318-324)

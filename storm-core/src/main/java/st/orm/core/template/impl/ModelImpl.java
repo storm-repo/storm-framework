@@ -25,6 +25,7 @@ import static st.orm.EnumType.NAME;
 import static st.orm.core.spi.Providers.getORMConverter;
 import static st.orm.core.template.impl.ObjectMapperFactory.nullableHint;
 import static st.orm.core.template.impl.RecordReflection.getDiscriminatorValue;
+import static st.orm.core.template.impl.RecordReflection.getFkLeaves;
 import static st.orm.core.template.impl.RecordReflection.getRefDataType;
 import static st.orm.core.template.impl.RecordReflection.isJoinedEntity;
 import static st.orm.core.template.impl.RecordReflection.isPolymorphicData;
@@ -132,6 +133,14 @@ public final class ModelImpl<E extends Data, ID> implements Model<E, ID> {
     private final List<ORMConverter> converters;
 
     /**
+     * Per-column accessor paths for foreign key columns, following the referenced key chain from the foreign
+     * key field's value down to the terminal field bound to the column. Precomputed at model construction so
+     * value extraction is a plain loop of accessor invocations; {@code null} for columns that do not use chain
+     * extraction (non-foreign-key columns and polymorphic foreign keys).
+     */
+    private final RecordField[][] keyPaths;
+
+    /**
      * Parent metamodel for each converter group, keyed by the group's 0-based start column index. A converter reads
      * its value by reflectively invoking the field accessor on the record passed to
      * {@link ORMConverter#toDatabase(Object)}, so that record must be the one that declares the field. This metamodel
@@ -177,6 +186,7 @@ public final class ModelImpl<E extends Data, ID> implements Model<E, ID> {
         this.polymorphicFkDiscriminatorColumns = initPolymorphicFkDiscriminatorColumns(this.fields, this.columns);
         this.converters = initConverters(this.fields, this.columns);
         this.converterParents = initConverterParents(this.converters, this.columns);
+        this.keyPaths = initKeyPaths(this.fields, this.columns);
         this.primaryKeyField = initPrimaryKeyField(this.recordType);
         this.declaredColumns = initDeclaredColumns(this.columns);
         this.primaryKeyMetamodel = initPrimaryKeyMetamodel(this.declaredColumns);
@@ -234,6 +244,63 @@ public final class ModelImpl<E extends Data, ID> implements Model<E, ID> {
             }
         }
         return map.isEmpty() ? Map.of() : Map.copyOf(map);
+    }
+
+    private static RecordField[][] initKeyPaths(@Nonnull List<RecordField> fields,
+                                                @Nonnull List<Column> columns) throws SqlTemplateException {
+        var paths = new RecordField[columns.size()][];
+        Map<RecordField, Integer> columnsByField = new HashMap<>();
+        for (int i = 0; i < columns.size(); i++) {
+            if (columns.get(i).foreignKey()) {
+                columnsByField.merge(fields.get(i), 1, Integer::sum);
+            }
+        }
+        Map<RecordField, Optional<List<RecordReflection.KeyLeaf>>> leavesByField = new HashMap<>();
+        for (int i = 0; i < columns.size(); i++) {
+            var column = columns.get(i);
+            if (!column.foreignKey()) {
+                continue;
+            }
+            var field = fields.get(i);
+            var cached = leavesByField.get(field);
+            if (cached == null) {
+                cached = Optional.ofNullable(getFkLeaves(field));
+                leavesByField.put(field, cached);
+            }
+            // Only use chain extraction when the flattened key matches the emitted columns one-to-one;
+            // polymorphic foreign keys keep the legacy extraction.
+            var leaves = cached.orElse(null);
+            if (leaves == null || leaves.size() != columnsByField.get(field)) {
+                continue;
+            }
+            int keyIndex = column.keyIndex();
+            if (keyIndex >= 1 && keyIndex <= leaves.size()) {
+                paths[i] = leaves.get(keyIndex - 1).path().toArray(new RecordField[0]);
+            }
+        }
+        return paths;
+    }
+
+    /**
+     * Extracts the value bound to a foreign key column by walking the column's key chain path. {@link Ref}
+     * values substitute their identifier for the next step of the path.
+     */
+    @Nullable
+    private Object extractKeyValue(@Nullable Object value,
+                                   @Nonnull RecordField[] path,
+                                   @Nonnull Column column) throws SqlTemplateException {
+        if (value == null) {
+            return null;
+        }
+        if (!(value instanceof Ref) && !(value instanceof Data)) {
+            throw new SqlTemplateException("Invalid foreign key type for column '%s'. Expected a Ref or Data type, but got an unrecognized value type. Ensure the foreign key field is correctly typed.".formatted(column.name()));
+        }
+        for (int i = 0; i < path.length && value != null; i++) {
+            value = value instanceof Ref<?> ref
+                    ? ref.id()                          // The identifier is the result of the next accessor.
+                    : REFLECTION.invoke(path[i], value);
+        }
+        return value;
     }
 
     private static List<ORMConverter> initConverters(List<RecordField> fields, List<Column> columns) {
@@ -487,6 +554,10 @@ public final class ModelImpl<E extends Data, ID> implements Model<E, ID> {
         Object value;
         if (object instanceof Data data) {
             value = REFLECTION.getId(data);
+            // Follow the key chain: the identifier of an entity-keyed entity is itself an entity.
+            while (value instanceof Data nested) {
+                value = REFLECTION.getId(nested);
+            }
         } else {
             value = object;
         }
@@ -549,12 +620,21 @@ public final class ModelImpl<E extends Data, ID> implements Model<E, ID> {
                         .formatted(componentName, object.getClass().getSimpleName()));
             }
             Object value = REFLECTION.getRecordValue(object, componentIndex);
-            // Handle FK components: extract the primary key ID from the Data object.
-            if (column.foreignKey() && value instanceof Data data) {
-                value = REFLECTION.getId(data);
-            }
-            // Handle compound keys (e.g., compound FK or compound PK within the inline record).
-            if (value != null && (column.primaryKey() || column.foreignKey()) && isRecord(value.getClass())) {
+            if (column.foreignKey()) {
+                // Handle FK components: walk the key chain from the referenced Data object to the column value.
+                var path = keyPaths[column.index() - 1];
+                if (path != null) {
+                    value = extractKeyValue(value, path, column);
+                } else {
+                    if (value instanceof Data data) {
+                        value = REFLECTION.getId(data);
+                    }
+                    if (value != null && isRecord(value.getClass())) {
+                        value = REFLECTION.getRecordValue(value, column.keyIndex() - 1);
+                    }
+                }
+            } else if (value != null && column.primaryKey() && isRecord(value.getClass())) {
+                // Handle compound primary keys within the inline record.
                 value = REFLECTION.getRecordValue(value, column.keyIndex() - 1);
             }
             consumer.accept(column, map(column, value));
@@ -627,20 +707,28 @@ public final class ModelImpl<E extends Data, ID> implements Model<E, ID> {
                 throw new SqlTemplateException("Cannot write NULL to non-nullable column '%s'. Ensure the entity field has a value before inserting or updating, or %s if NULL is intended.".formatted(column.name(), nullableHint(type())));
             }
             if (column.foreignKey()) {
-                if (value instanceof Ref<?> ref) {
-                    Class<?> polymorphicSealedType = polymorphicFkDiscriminatorColumns.get(column.index());
+                if (value instanceof Ref<?> ref && polymorphicFkDiscriminatorColumns.containsKey(column.index())) {
                     // Polymorphic FK discriminator column: extract the discriminator value from the Ref's
                     // concrete type instead of the FK id.
-                    value = polymorphicSealedType != null
-                            ? getDiscriminatorValue(ref.type(), polymorphicSealedType)
-                            : ref.id();
-                } else if (value instanceof Data data) {
-                    value = REFLECTION.getId(data);
-                } else if (value != null) {
-                    throw new SqlTemplateException("Invalid foreign key type for column '%s'. Expected a Ref or Data type, but got an unrecognized value type. Ensure the foreign key field is correctly typed.".formatted(column.name()));
+                    value = getDiscriminatorValue(ref.type(), polymorphicFkDiscriminatorColumns.get(column.index()));
+                } else {
+                    var path = keyPaths[index - 1];
+                    if (path != null) {
+                        value = extractKeyValue(value, path, column);
+                    } else {
+                        if (value instanceof Ref<?> ref) {
+                            value = ref.id();
+                        } else if (value instanceof Data data) {
+                            value = REFLECTION.getId(data);
+                        } else if (value != null) {
+                            throw new SqlTemplateException("Invalid foreign key type for column '%s'. Expected a Ref or Data type, but got an unrecognized value type. Ensure the foreign key field is correctly typed.".formatted(column.name()));
+                        }
+                        if (value != null && isRecord(value.getClass())) {
+                            value = REFLECTION.getRecordValue(value, column.keyIndex() - 1);
+                        }
+                    }
                 }
-            }
-            if (value != null && (column.primaryKey() || column.foreignKey()) && isRecord(value.getClass())) {
+            } else if (value != null && column.primaryKey() && isRecord(value.getClass())) {
                 value = REFLECTION.getRecordValue(value, column.keyIndex() - 1);
             }
             consumer.accept(column, map(column, value));
