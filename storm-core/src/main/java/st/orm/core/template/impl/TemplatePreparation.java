@@ -791,8 +791,8 @@ class TemplatePreparation {
      * JoinedTruck subtypes, this produces:</p>
      *
      * <pre>
-     * LEFT JOIN joined_car jc ON jv.id = jc.id
-     * LEFT JOIN joined_truck jt ON jv.id = jt.id
+     * LEFT JOIN joined_car jc ON jc.id = jv.id
+     * LEFT JOIN joined_truck jt ON jt.id = jv.id
      * </pre>
      *
      * @param sealedType  the sealed entity interface (the base/FROM table).
@@ -822,7 +822,8 @@ class TemplatePreparation {
         for (Class<?> subtype : permitted) {
             Class<? extends Data> extensionType = (Class<? extends Data>) subtype;
             String extensionAlias = aliasMapper.generateAlias(extensionType, null, template.dialect());
-            // Build ON clause: baseAlias.pk = extensionAlias.pk (supports compound PKs).
+            // Build ON clause: extensionAlias.pk = baseAlias.pk (supports compound PKs). The extension table's PK
+            // doubles as the FK to the base table, so the FK side goes first, consistent with JoinProcessor.
             StringBuilder onClause = new StringBuilder();
             for (int i = 0; i < pkColumnNames.size(); i++) {
                 if (i > 0) {
@@ -830,7 +831,7 @@ class TemplatePreparation {
                 }
                 String pkCol = pkColumnNames.get(i).qualified(template.dialect());
                 onClause.append(dialectTemplate.process("\0.\0 = \0.\0",
-                        baseAlias, pkCol, extensionAlias, pkCol));
+                        extensionAlias, pkCol, baseAlias, pkCol));
             }
             joins.add(new Join(
                     new TableSource(extensionType),
