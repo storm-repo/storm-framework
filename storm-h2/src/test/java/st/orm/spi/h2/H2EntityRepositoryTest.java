@@ -542,6 +542,84 @@ public class H2EntityRepositoryTest {
     }
 
     @Builder(toBuilder = true)
+    @DbTable("vet_specialty_note_audit")
+    public record VetSpecialtyNoteAudit(
+            @Nonnull @PK(generation = NONE) @FK VetSpecialtyNote note,  // The referenced key chain is two levels deep.
+            @Nonnull String remark
+    ) implements Entity<VetSpecialtyNote> {}
+
+    @Test
+    public void testCrudNestedCompoundKeyChain() {
+        // The FK resolves through VetSpecialtyNote's PK — the VetSpecialty entity keyed by the compound
+        // VetSpecialtyPK record — flattening to the (vet_id, specialty_id) columns.
+        var noteRepo = PreparedStatementTemplate.ORM(dataSource).entity(VetSpecialtyNote.class);
+        var vetSpecialty = new VetSpecialty(new VetSpecialtyPK(3, 2));
+        noteRepo.upsert(VetSpecialtyNote.builder().vetSpecialty(vetSpecialty).note("base note").build());
+        var note = noteRepo.getById(vetSpecialty);
+
+        var repo = PreparedStatementTemplate.ORM(dataSource).entity(VetSpecialtyNoteAudit.class);
+        repo.insert(VetSpecialtyNoteAudit.builder().note(note).remark("created").build());
+        var stored = repo.getById(note);
+        assertEquals("created", stored.remark());
+        assertEquals(vetSpecialty.id(), stored.note().vetSpecialty().id());
+        repo.update(stored.toBuilder().remark("updated").build());
+        assertEquals("updated", repo.getById(note).remark());
+        repo.remove(stored.toBuilder().remark("updated").build());
+        assertTrue(repo.findById(note).isEmpty());
+    }
+
+    @Test
+    public void testUpsertNestedCompoundKeyChain() {
+        var noteRepo = PreparedStatementTemplate.ORM(dataSource).entity(VetSpecialtyNote.class);
+        var vetSpecialty = new VetSpecialty(new VetSpecialtyPK(4, 2));
+        noteRepo.upsert(VetSpecialtyNote.builder().vetSpecialty(vetSpecialty).note("base note").build());
+        var note = noteRepo.getById(vetSpecialty);
+
+        var repo = PreparedStatementTemplate.ORM(dataSource).entity(VetSpecialtyNoteAudit.class);
+        repo.upsert(VetSpecialtyNoteAudit.builder().note(note).remark("created").build());
+        assertEquals("created", repo.getById(note).remark());
+        repo.upsert(VetSpecialtyNoteAudit.builder().note(note).remark("revised").build());
+        assertEquals("revised", repo.getById(note).remark());
+    }
+
+    @Builder(toBuilder = true)
+    @DbTable("specialty_note_history")
+    public record SpecialtyNoteHistory(
+            @Nonnull @PK(generation = NONE) @FK SpecialtyNote note,  // Single-column key chain, two levels deep.
+            @Nonnull String remark
+    ) implements Entity<SpecialtyNote> {}
+
+    @Test
+    public void testUpsertNestedSingleColumnKeyChain() {
+        // The chain SpecialtyNote -> Specialty -> Integer collapses to a single column named after the field.
+        var specialty = PreparedStatementTemplate.ORM(dataSource).entity(Specialty.class).getById(3);
+        var noteRepo = PreparedStatementTemplate.ORM(dataSource).entity(SpecialtyNote.class);
+        noteRepo.upsert(SpecialtyNote.builder()
+                .specialty(specialty)
+                .note("dentistry note")
+                .updatedAt(Instant.parse("2026-01-01T10:00:00Z"))
+                .build());
+        var note = noteRepo.getById(specialty);
+
+        var repo = PreparedStatementTemplate.ORM(dataSource).entity(SpecialtyNoteHistory.class);
+        repo.upsert(SpecialtyNoteHistory.builder().note(note).remark("created").build());
+        assertEquals("created", repo.getById(note).remark());
+        repo.upsert(SpecialtyNoteHistory.builder().note(note).remark("revised").build());
+        assertEquals("revised", repo.getById(note).remark());
+    }
+
+    public record CycleA(@PK(generation = NONE) @FK CycleB other) implements Entity<CycleB> {}
+    public record CycleB(@PK(generation = NONE) @FK CycleA other) implements Entity<CycleA> {}
+
+    @Test
+    public void testCircularKeyChainFailsFast() {
+        // A key chain that references itself cannot be flattened; model construction must fail with a clear
+        // message instead of looping or emitting a broken model.
+        assertThrows(PersistenceException.class, () ->
+                PreparedStatementTemplate.ORM(dataSource).entity(CycleA.class).findAll());
+    }
+
+    @Builder(toBuilder = true)
     @DbTable("pet")
     public record Pet(
             @PK(generation = SEQUENCE, sequence = "pet_id_seq") Integer id,

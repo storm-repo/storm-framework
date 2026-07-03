@@ -1156,7 +1156,13 @@ final class RecordMapper {
         // For composite PKs (record types), we need the constructor.
         Constructor<?> pkConstructor = null;
         if (isRecord(pkField.type()) && pkColumnCount > 1) {
-            pkConstructor = getRecordType(pkField.type()).constructor();
+            var pkRecordType = getRecordType(pkField.type());
+            // The shortcut only applies to flat key records. When the key spans nested records or entities
+            // (key chains), its flat column count exceeds the constructor arity and the key must be built
+            // through the regular argument plan; the early cache lookup is skipped in that case.
+            if (pkRecordType.constructor().getParameterCount() == pkColumnCount) {
+                pkConstructor = pkRecordType.constructor();
+            }
         }
         return new PkInfo(offset, pkColumnCount, pkConstructor);
     }

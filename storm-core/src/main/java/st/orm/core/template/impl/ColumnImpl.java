@@ -47,6 +47,7 @@ public record ColumnImpl(
         @Nonnull Name columnName,
         int index,
         @Nonnull Class<?> type,
+        @Nonnull Class<?> persistedType,
         boolean primaryKey,
         @Nonnull GenerationStrategy generation,
         @Nonnull String sequence,

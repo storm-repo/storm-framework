@@ -180,19 +180,102 @@ final class RecordReflection {
      *
      * @param table the table to obtain the primary key components for.
      */
-    static Stream<RecordField> getNestedPkFields(@Nonnull Class<?> table) {
-        var pkField = findPkField(table).orElse(null);
-        if (pkField == null) {
-            return Stream.of();
+    /**
+     * A terminal field of a primary key, together with the accessor path that navigates to it from a value of
+     * the key's declaring table.
+     *
+     * <p>The path follows the key chain: a primary key that is a foreign key to another entity steps through
+     * that entity's primary key, and so on; plain record keys contribute their components. The path therefore
+     * ends at a field that is bound to a single database column.</p>
+     *
+     * @param path the accessor path from the declaring table's key to the terminal field.
+     */
+    record KeyLeaf(@Nonnull List<RecordField> path) {
+        RecordField field() {
+            return path.getLast();
         }
-        if (pkField.isAnnotationPresent(FK.class)) {
-            // If the primary key component is also a foreign key, return the component itself.
-            return Stream.of(pkField);
+    }
+
+    /**
+     * Flattens the primary key of the given table into its terminal fields, in declaration order — one leaf
+     * per database column of the key.
+     *
+     * @param table the table whose primary key to flatten.
+     * @return the terminal fields of the key with their accessor paths.
+     * @throws SqlTemplateException if the key chain is circular or a referenced entity lacks a primary key.
+     */
+    static List<KeyLeaf> getPkLeaves(@Nonnull Class<?> table) throws SqlTemplateException {
+        var leaves = new ArrayList<KeyLeaf>();
+        flattenPk(table, new ArrayList<>(), new HashSet<>(), leaves);
+        return leaves;
+    }
+
+    /**
+     * Returns the flattened key leaves for the target of the given foreign key field, or {@code null} when the
+     * target's key cannot be flattened — polymorphic foreign keys bind a discriminator and an identifier
+     * instead of the target's key columns.
+     */
+    @Nullable
+    static List<KeyLeaf> getFkLeaves(@Nonnull RecordField field) throws SqlTemplateException {
+        Class<?> target = getFkTargetType(field);
+        if (isPolymorphicData(target)) {
+            return null;
         }
-        if (!REFLECTION.findRecordType(pkField.type()).isPresent()) {
-            return Stream.of(pkField);
+        return getPkLeaves(target);
+    }
+
+    /**
+     * Resolves the entity type a foreign key field refers to, unwrapping {@link Ref} fields and selecting the
+     * first permitted subclass for sealed entity hierarchies.
+     */
+    static Class<?> getFkTargetType(@Nonnull RecordField field) throws SqlTemplateException {
+        Class<?> fkType = Ref.class.isAssignableFrom(field.type())
+                ? getRefDataType(field)
+                : field.type();
+        if (fkType.isSealed() && isSealedEntity(fkType)) {
+            Class<?>[] permitted = fkType.getPermittedSubclasses();
+            if (permitted != null && permitted.length > 0) {
+                fkType = permitted[0];
+            }
         }
-        return RecordReflection.getRecordFields(pkField.type()).stream();
+        return fkType;
+    }
+
+    private static void flattenPk(@Nonnull Class<?> table,
+                                  @Nonnull List<RecordField> path,
+                                  @Nonnull Set<Class<?>> visited,
+                                  @Nonnull List<KeyLeaf> leaves) throws SqlTemplateException {
+        if (!visited.add(table)) {
+            throw new SqlTemplateException(
+                    "Circular key chain detected at %s. A primary key must not reference itself through its foreign keys."
+                            .formatted(table.getSimpleName()));
+        }
+        var pkField = findPkField(table).orElseThrow(() ->
+                new SqlTemplateException("No primary key found for type: %s.".formatted(table.getSimpleName())));
+        path.add(pkField);
+        flattenKeyField(pkField, path, visited, leaves);
+        path.removeLast();
+        visited.remove(table);
+    }
+
+    private static void flattenKeyField(@Nonnull RecordField field,
+                                        @Nonnull List<RecordField> path,
+                                        @Nonnull Set<Class<?>> visited,
+                                        @Nonnull List<KeyLeaf> leaves) throws SqlTemplateException {
+        if (field.isAnnotationPresent(FK.class)) {
+            flattenPk(getFkTargetType(field), path, visited, leaves);
+            return;
+        }
+        var recordType = REFLECTION.findRecordType(field.type()).orElse(null);
+        if (recordType == null) {
+            leaves.add(new KeyLeaf(List.copyOf(path)));
+            return;
+        }
+        for (var component : recordType.fields()) {
+            path.add(component);
+            flattenKeyField(component, path, visited, leaves);
+            path.removeLast();
+        }
     }
 
     @SuppressWarnings("unchecked")
@@ -615,14 +698,15 @@ final class RecordReflection {
         DbColumn[] dbColumns = field.getAnnotations(DbColumn.class);
         RecordType fieldType = REFLECTION.findRecordType(field.type()).orElse(null);
         if (fieldType != null) {
-            columnNames = new ArrayList<>();
-            var pkFields = fieldType.fields();
-            for (int i = 0; i < pkFields.size(); i++) {
-                var pkField = pkFields.get(i);
+            var leaves = new ArrayList<KeyLeaf>();
+            flattenKeyField(field, new ArrayList<>(), new HashSet<>(), leaves);
+            columnNames = new ArrayList<>(leaves.size());
+            for (int i = 0; i < leaves.size(); i++) {
+                var leafField = leaves.get(i).field();
                 DbColumn nestedDbColumn = i < dbColumns.length
                         ? dbColumns[i]
-                        : pkField.getAnnotation(DbColumn.class);    // Top level is prioritized over nested.
-                String name = columnNameResolver.resolveColumnName(pkField);
+                        : leafField.getAnnotation(DbColumn.class);    // Top level is prioritized over nested.
+                String name = columnNameResolver.resolveColumnName(leafField);
                 columnNames.add(new ColumnName(name, nestedDbColumn != null && nestedDbColumn.escape()));
             }
         } else {
@@ -672,22 +756,22 @@ final class RecordReflection {
             }
         }
         DbColumn[] dbColumns = field.getAnnotations(DbColumn.class);
-        List<RecordField> pkFields = getNestedPkFields(fkType).toList();
-        if (pkFields.size() == 1) {
-            // If there is only one PK component, use the column name of the FK component.
+        List<KeyLeaf> leaves = getPkLeaves(fkType);
+        if (leaves.size() == 1) {
+            // If the key resolves to a single column, use the column name of the FK component.
             DbColumn dbColumn = dbColumns.length > 0
                     ? dbColumns[0]
-                    : pkFields.getFirst().getAnnotation(DbColumn.class);
+                    : leaves.getFirst().field().getAnnotation(DbColumn.class);
             String name = foreignKeyResolver.resolveColumnName(field, REFLECTION.getRecordType(fkType));
             return List.of(new ColumnName(name, dbColumn != null && dbColumn.escape()));
         }
-        columnNames = new ArrayList<>(pkFields.size());
-        for (int i = 0; i < pkFields.size(); i++) {
-            var pkComponent = pkFields.get(i);
+        columnNames = new ArrayList<>(leaves.size());
+        for (int i = 0; i < leaves.size(); i++) {
+            var leafField = leaves.get(i).field();
             DbColumn nestedDbColumn = i < dbColumns.length
                     ? dbColumns[i]
-                    : pkComponent.getAnnotation(DbColumn.class); // Top-level prioritized.
-            String name = columnNameResolver.resolveColumnName(pkComponent);
+                    : leafField.getAnnotation(DbColumn.class); // Top-level prioritized.
+            String name = columnNameResolver.resolveColumnName(leafField);
             columnNames.add(new ColumnName(name, nestedDbColumn != null && nestedDbColumn.escape()));
         }
         return columnNames;
