@@ -94,7 +94,7 @@ Key rules:
 6. DELETE/UPDATE without WHERE throws. Use `unsafe()` for intentional bulk ops.
 7. Pagination: `page(0, 20)` for offset-based. `scroll(scrollable)` for keyset on large tables.
 8. **Prefer entity/metamodel-based methods over templates.** Use `.innerJoin(Entity.class).on(OtherEntity.class)` for joins unless it cannot be expressed with entity classes. Only fall back to template lambdas when QueryBuilder cannot express the query.
-   **Template joins are a code smell.** If you need a template-based ON clause (`.innerJoin(T.class).on(RAW."...")`) or a full `orm.query(RAW."...")` to express a join that follows a database FK constraint, the entity model is missing an `@FK` annotation. Fix the entity first — add `@FK` (with `Ref<T>` for PK fields, full entity for non-PK fields) — then the join becomes `.innerJoin(Entity.class).on(OtherEntity.class)`, pure code with no templates. Template joins are only justified when there is genuinely no FK constraint in the database.
+   **Template joins are a code smell.** If you need a template-based ON clause (`.innerJoin(T.class).on(RAW."...")`) or a full `orm.query(RAW."...")` to express a join that follows a database FK constraint, the entity model is missing an `@FK` annotation. Fix the entity first — add `@FK` (with `Ref<T>` for PK fields, full entity for non-PK fields) — then the join becomes `.innerJoin(Entity.class).on(OtherEntity.class)`, pure code with no templates. Template joins are only justified when there is genuinely no FK constraint in the database. Projections join like entities: `.on(ProjectionType.class)` resolves the foreign key by matching the referenced entity's table against the projection's table. When multiple foreign keys reference that table the join is ambiguous — Storm fails with an error naming the candidate fields; disambiguate with a template ON clause.
 9. **Use `Ref` for map keys and set membership**: Prefer `Ref<Entity>` (via `.ref()`) for map keys, set membership, and identity-based lookups. `Ref` provides identity-based `equals`/`hashCode` on the primary key.
 10. **Prefer typed parameters over raw IDs — full entities by default.** Repository method signatures take the full entity for FK parameters when callers naturally hold one (the common case): predicates accept entities directly, so no ref conversion is needed at the call sites. `Ref<Entity>` parameters remain fine — use them for identity-only flows, where callers hold refs (e.g. from `Ref<T>` fields) or only an id, converted at the system boundary using `Ref.of(Entity.class, id)`. Never accept raw IDs like `String` or `int` — they are untyped and lose the entity association.
 11. **Typed ID from `Ref`:** Use `Ref.entityId(ref)` to extract a type-safe ID. For projections, use `Ref.projectionId(ref)`. Avoid `ref.id()` — it returns `Object` and requires an unsafe cast.
@@ -139,6 +139,8 @@ users.removeAll();
 // delete — build a query with filtering
 users.delete().where(User_.active, EQUALS, false).executeUpdate();
 ```
+
+> ⚠️ There is **no** `delete(entity)` or `delete(id)` overload (unlike JPA / Spring Data `CrudRepository`). `delete()` returns a `QueryBuilder`, so it takes no entity argument. To delete an entity or id you already hold, use `remove(entity)` / `removeById(id)` / `removeByRef(ref)`.
 
 ## CRUD Operations
 
@@ -325,7 +327,12 @@ var window = users.scroll(Scrollable.of(User_.id, 20));    // prefer var — avo
 var window = users.scroll(Scrollable.of(User_.id, User_.name, 20));
 
 // First request vs subsequent: use Scrollable.of() when no cursor exists,
-// Scrollable.fromCursor() when resuming (cursor encodes size, direction, position)
+// Scrollable.fromCursor() when resuming. The cursor is opaque and exists for
+// client-server communication: it contains exactly what the client needs to
+// navigate the scroll window (key position, size, direction) — clients echo
+// it back unchanged, never parse or construct it. Server-side code never
+// needs the cursor: window.next()/previous() return a ready-to-use typed
+// Scrollable<T> — the cursor is merely its serialized form.
 var scrollable = cursor != null
     ? Scrollable.fromCursor(User_.id, cursor)
     : Scrollable.of(User_.id, 20);
@@ -335,7 +342,7 @@ var window = users.scroll(scrollable);
 // Window API:
 // window.content() — List<User>
 // window.hasNext() / window.hasPrevious()
-// window.nextCursor() / window.previousCursor() — serialized cursors for REST APIs
+// window.nextCursor() / window.previousCursor() — opaque cursors for REST APIs (see above)
 // window.next() / window.previous() — typed Scrollable<T> for programmatic navigation
 // window.nextScrollable() / window.previousScrollable() — raw Scrollable<?> record component accessors (use next()/previous() instead)
 ```

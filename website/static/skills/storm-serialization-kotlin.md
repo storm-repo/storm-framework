@@ -3,6 +3,8 @@ This is about serializing entities for API responses or caching (Jackson, kotlin
 
 Ask: which serialization library (Jackson or kotlinx.serialization), whether entities have `Ref<T>` fields.
 
+**Library preference for Kotlin:** prefer kotlinx.serialization — compile-time checked, Kotlin-native, paired with `st.orm:storm-kotlinx-serialization` (add the `kotlin("plugin.serialization")` plugin and `kotlinx-serialization-json`). Use Jackson (`storm-jackson2` for Spring Boot 3.x, `storm-jackson3` for Spring Boot 4.x) when the project already standardizes on it — and note that Spring MVC's HTTP layer serializes `@RestController` responses with Jackson by default, so the two often coexist: Jackson for HTTP responses, kotlinx.serialization for caching and messaging.
+
 Detect the project's framework from its build file (pom.xml or build.gradle.kts): look for `storm-kotlin-spring-boot-starter` or `spring-boot-starter` (Spring Boot), `storm-ktor` or `ktor-server-core` (Ktor), or neither (standalone). Adapt setup examples to the detected framework.
 
 ## When You Need the Storm Module
@@ -124,6 +126,8 @@ val serializer = KotlinxSerializationRedisSerializer(
 ```
 
 The same cascade rule applies: all entities reachable from a cached entity must be `@Serializable`, and all `Ref<T>` fields must have `@Contextual`.
+
+**Spring cache annotations:** with `@EnableCaching` + `@Cacheable` on the service method, back the cache with serialized values — e.g. a `ConcurrentMapCache` subclass whose `toStoreValue`/`fromStoreValue` encode/decode JSON with kotlinx.serialization, or Redis as above. Storing serialized JSON instead of object references mirrors production external caches and proves the entities round-trip losslessly (immutable data classes decode value-equal). Two caveats: `@Cacheable` does not support suspend functions without the Reactor bridge (`kotlinx-coroutines-reactor`) — make the cached method non-suspend and open its transaction with `transactionBlocking { }` — and kotlinx.serialization has no built-in `BigDecimal` or `java.time` support, so such fields need custom serializers.
 
 ## Ref Serialization Format
 

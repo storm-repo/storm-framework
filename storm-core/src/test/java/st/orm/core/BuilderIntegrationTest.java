@@ -3,6 +3,7 @@ package st.orm.core;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static st.orm.Operator.EQUALS;
 import static st.orm.ResolveScope.INNER;
@@ -10,6 +11,7 @@ import static st.orm.ResolveScope.OUTER;
 import static st.orm.core.template.TemplateString.raw;
 import static st.orm.core.template.Templates.alias;
 
+import jakarta.annotation.Nonnull;
 import javax.sql.DataSource;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -17,6 +19,9 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.orm.jpa.DataJpaTest;
 import org.springframework.test.context.ContextConfiguration;
 import org.springframework.test.context.junit.jupiter.SpringExtension;
+import st.orm.Entity;
+import st.orm.FK;
+import st.orm.PK;
 import st.orm.PersistenceException;
 import st.orm.core.model.Address;
 import st.orm.core.model.City;
@@ -24,6 +29,7 @@ import st.orm.core.model.City_;
 import st.orm.core.model.Owner;
 import st.orm.core.model.Owner_;
 import st.orm.core.model.Pet;
+import st.orm.core.model.PetSummary;
 import st.orm.core.model.PetType;
 import st.orm.core.model.Pet_;
 import st.orm.core.model.Visit;
@@ -54,6 +60,37 @@ public class BuilderIntegrationTest {
                 .rightJoin(Visit.class).on(Pet.class)
                 .getResultList();
         assertEquals(14, list.size());
+    }
+
+    // 1b. Projection joins: the FK references the entity, resolved by table.
+
+    @Test
+    public void testInnerJoinProjectionByTable() {
+        // Visit's foreign key references the Pet entity; PetSummary is a
+        // projection of the pet table, so the join resolves by table match.
+        var list = ORMTemplate.of(dataSource)
+                .projection(PetSummary.class)
+                .select()
+                .innerJoin(Visit.class).on(PetSummary.class)
+                .getResultList();
+        assertEquals(14, list.size());
+    }
+
+    @Test
+    public void testInnerJoinProjectionAmbiguousForeignKeys() {
+        // Two foreign keys reference the pet table: the join is ambiguous
+        // and must fail with a message naming the candidate fields.
+        record PetPair(@PK Integer id,
+                       @Nonnull @FK Pet first,
+                       @Nonnull @FK Pet second) implements Entity<Integer> {}
+        var exception = assertThrows(PersistenceException.class, () -> ORMTemplate.of(dataSource)
+                .projection(PetSummary.class)
+                .select()
+                .innerJoin(PetPair.class).on(PetSummary.class)
+                .getResultList());
+        assertTrue(exception.getMessage().contains("multiple foreign keys reference table 'pet'"), exception.getMessage());
+        assertTrue(exception.getMessage().contains("first"), exception.getMessage());
+        assertTrue(exception.getMessage().contains("second"), exception.getMessage());
     }
 
     // 2. crossJoin

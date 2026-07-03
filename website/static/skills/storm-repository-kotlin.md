@@ -109,7 +109,7 @@ Key rules:
 6. DELETE/UPDATE without WHERE throws. Use `unsafe()` for intentional bulk ops.
 7. Pagination: `page(0, 20)` for offset-based. `scroll(Scrollable.of(User_.id, 20))` for keyset on large tables (see Keyset Scrolling section).
 8. **Prefer entity/metamodel-based methods over templates.** For joins, use `innerJoin(Entity::class, OnEntity::class)` in the block DSL, or `.innerJoin(Entity::class).on(OnEntity::class)` in the chained API. Only fall back to template lambdas when QueryBuilder cannot express the query.
-   **Template joins are a code smell.** If you need a template-based ON clause (`.innerJoin(T::class).on { "..." }`) or a full `orm.query { }` to express a join that follows a database FK constraint, the entity model is missing an `@FK` annotation. Fix the entity first — add `@FK` (with `Ref<T>` for PK fields, full entity for non-PK fields) — then the join becomes `.innerJoin(Entity::class).on(OnEntity::class)`, pure code with no templates. Template joins are only justified when there is genuinely no FK constraint in the database.
+   **Template joins are a code smell.** If you need a template-based ON clause (`.innerJoin(T::class).on { "..." }`) or a full `orm.query { }` to express a join that follows a database FK constraint, the entity model is missing an `@FK` annotation. Fix the entity first — add `@FK` (with `Ref<T>` for PK fields, full entity for non-PK fields) — then the join becomes `.innerJoin(Entity::class).on(OnEntity::class)`, pure code with no templates. Template joins are only justified when there is genuinely no FK constraint in the database. Projections join like entities: `.on(ProjectionType::class)` resolves the foreign key by matching the referenced entity's table against the projection's table. When multiple foreign keys reference that table the join is ambiguous — Storm fails with an error naming the candidate fields; disambiguate with a template ON clause.
 9. **Use `Ref` for map keys and set membership**: Prefer `Ref<Entity>` (via `.ref()`) for map keys, set membership, and identity-based lookups. `Ref` provides identity-based `equals`/`hashCode` on the primary key. When a projection already returns `Ref<T>`, use it directly without calling `.ref()` again.
 10. **Prefer typed parameters over raw IDs — full entities by default.** Repository method signatures take the full entity for FK parameters when callers naturally hold one (the common case): predicates like `eq` and `inList` accept entities directly, so no `.ref()` conversion is needed at the call sites. `Ref<Entity>` parameters remain fine — use them for identity-only flows, where callers hold refs (e.g. from `Ref<T>` fields) or only an id, converted at the system boundary with `refById<T>(id)` (import `st.orm.template.refById`). Never accept raw IDs like `String` or `Int` — they are untyped and lose the entity association.
 11. **Typed ID from `Ref`:** Use `ref.entityId()` (import `st.orm.template.entityId`) to extract a type-safe ID. Avoid `ref.id()` — it returns `Any` and requires an unsafe cast.
@@ -181,6 +181,8 @@ val removed: Int = users.removeAll(User_.active eq false)
 users.delete(User_.active eq false).executeUpdate()
 users.delete { where(User_.score less 10) }.executeUpdate()
 ```
+
+> ⚠️ There is **no** `delete(entity)` or `delete(id)` overload (unlike JPA / Spring Data `CrudRepository`). Every `delete(...)` returns a `QueryBuilder`, so a bare `users.delete(entity)` treats the entity as a predicate argument and does **not** compile as an immediate delete. To delete an entity or id you already hold, use `remove(entity)` / `removeById(id)` / `removeByRef(ref)`.
 
 ## CRUD Operations
 
@@ -423,7 +425,12 @@ val window = users.scroll(Scrollable.of(User_.id, 20))
 val window = users.scroll(Scrollable.of(User_.id, User_.name, 20))
 
 // First request vs subsequent: use Scrollable.of() when no cursor exists,
-// Scrollable.fromCursor() when resuming (cursor encodes size, direction, position)
+// Scrollable.fromCursor() when resuming. The cursor is opaque and exists for
+// client-server communication: it contains exactly what the client needs to
+// navigate the scroll window (key position, size, direction) — clients echo
+// it back unchanged, never parse or construct it. Server-side code never
+// needs the cursor: window.next()/previous() return a ready-to-use typed
+// Scrollable<T> — the cursor is merely its serialized form.
 val scrollable = if (cursor != null) {
     Scrollable.fromCursor(User_.id, cursor)
 } else {
@@ -435,7 +442,7 @@ val window = users.scroll(scrollable)
 // Window API — Window is a Java record; ALL accessors are methods, call with ()
 // window.content() — List<User> of results
 // window.hasNext() / window.hasPrevious() — bounds checking
-// window.nextCursor() / window.previousCursor() — serialized cursors for REST APIs
+// window.nextCursor() / window.previousCursor() — opaque cursors for REST APIs (see above)
 // window.next() / window.previous() — typed Scrollable<T> for programmatic navigation
 // window.nextScrollable() / window.previousScrollable() — raw Scrollable<?> record component accessors (use next()/previous() instead)
 ```

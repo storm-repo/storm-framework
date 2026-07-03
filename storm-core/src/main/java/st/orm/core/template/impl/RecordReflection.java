@@ -279,6 +279,35 @@ final class RecordReflection {
     }
 
     /**
+     * Returns the foreign key fields whose referenced type maps to the same table as the
+     * specified type. This is the table-based fallback used to join projections: a projection of
+     * a table can be joined by any foreign key that references that table, even though the Java
+     * types differ.
+     *
+     * @param fields the candidate (foreign key) fields.
+     * @param table the type whose table name the referenced types are matched against.
+     * @param tableNameResolver the resolver used to derive table names.
+     * @return the matching fields; empty when none match.
+     */
+    static List<RecordField> findRecordFieldsByTable(@Nonnull List<RecordField> fields,
+                                                     @Nonnull Class<? extends Data> table,
+                                                     @Nonnull TableNameResolver tableNameResolver) throws SqlTemplateException {
+        var tableName = getTableName(table, tableNameResolver);
+        var matches = new ArrayList<RecordField>();
+        for (var field : fields) {
+            Class<?> targetType = Ref.class.isAssignableFrom(field.type()) ? getRefDataType(field) : field.type();
+            if (!Data.class.isAssignableFrom(targetType)) {
+                continue;
+            }
+            //noinspection unchecked
+            if (tableName.equals(getTableName((Class<? extends Data>) targetType, tableNameResolver))) {
+                matches.add(field);
+            }
+        }
+        return matches;
+    }
+
+    /**
      * Represents a key for a record field.
      */
     record FieldKey(Class<?> declaringType, String name) {
