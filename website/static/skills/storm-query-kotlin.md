@@ -22,6 +22,8 @@ Ask what data they need, filters, ordering, or pagination.
 
 **Repository rule:** All database queries must live in repository interfaces, not inline in services or other classes. In Spring Boot or Ktor projects, repositories are constructor-injected (see /storm-repository-kotlin). Use `orm.entity<T>()` and `orm.repository<T>()` lookups only in standalone (non-DI) contexts and tests.
 
+**Layering rule:** Follow the codebase's existing convention first — if handlers already use repositories directly, or a service layer is consistently in place, match that style rather than introduce a competing one. Absent a clear stance (new code, greenfield), promote the layered architecture: controller → service → repository, where controllers never inject repositories — all data access flows through services, which own the transaction boundaries and return view-model types. Whatever the stance, do not mix styles: layer-skipping controllers undermine the service layer's cross-cutting concerns (transactions, caching, authorization).
+
 **Code-first WHERE clauses:** Always express WHERE conditions using metamodel-based predicates (`eq`, `isFalse()`, `isNotNull()`, etc.) instead of template strings. Only fall back to template expressions for conditions that predicates cannot express (e.g., `COALESCE`, date arithmetic, aggregate functions). When a WHERE clause mixes expressible and inexpressible conditions, split it: use code-based predicates for what you can, templates only for what you must. Multiple `where()` calls are AND-combined automatically. FK paths through the object graph (e.g., `User_.city eq city`) do not require explicit joins.
 
 ```kotlin
@@ -191,10 +193,16 @@ val citySummaries = orm.entity(City::class)
 
 **Computed aggregates (COUNT, AVG, SUM, etc.):** When the SELECT clause needs expressions that QueryBuilder can't produce, use `select(ResultType::class) { template }` for the SELECT only — keep joins, groupBy, having, orderBy, and limit in code.
 
+**`Data` means "represents a table".** Only types that map to a database table implement `Data` (or its subtypes `Entity`/`Projection`). Ad-hoc query result types — aggregation DTOs, computed shapes — are plain data classes with no marker at all. Storm maps result columns to any suitable data class, including nested entity and `Ref<T>` components. Implementing `Data` on a result type pulls it into Storm's type discovery, so schema validation (`validateSchema()` without arguments, or `storm.validation.schema-mode` at startup) fails with `TABLE_NOT_FOUND` — which then requires `@DbIgnore` to suppress. `: Data` + `@DbIgnore` on a result type is an anti-pattern (opting in and immediately opting out); a plain data class expresses the intent directly. Define result types next to the code that produces them — typically top-level in the repository file whose queries return them; the model package is reserved for table-backed types — and document them as query result shapes (not backed by a table or view) so readers immediately see why they carry no marker.
+
 **Important:** The `{ template }` provides the SELECT list only — not a full SQL query. If you put a full `SELECT ... FROM ... WHERE ...` inside, Storm wraps it as a scalar subquery, causing errors. For full custom SQL, use `orm.query { }.resultList<T>()` (see /storm-sql-kotlin).
 
 ```kotlin
-data class CityUserCount(val city: City, val userCount: Long) : Data
+/**
+ * Query result shape: user count per city. Not backed by a database table
+ * or view, so it is a plain data class — deliberately not a Data type.
+ */
+data class CityUserCount(val city: City, val userCount: Long)
 
 val cityCounts = orm.entity<City>()
     .select(CityUserCount::class) { "${City::class}, COUNT(*)" }
@@ -203,7 +211,7 @@ val cityCounts = orm.entity<City>()
     .resultList
 
 // More complex example with WHERE, HAVING, and ORDER BY — all in code:
-data class CityUserStats(val cityName: String, val averageAge: Double, val userCount: Long) : Data
+data class CityUserStats(val cityName: String, val averageAge: Double, val userCount: Long)
 
 val minUsers = 10
 val topCities = orm.entity<City>()
@@ -215,7 +223,7 @@ val topCities = orm.entity<City>()
     .resultList
 
 // Multi-field groupBy — always use the varargs metamodel form:
-data class CityActiveCount(val city: Ref<City>, val active: Boolean, val userCount: Long) : Data
+data class CityActiveCount(val city: Ref<City>, val active: Boolean, val userCount: Long)
 
 val counts = orm.entity<User>()
     .select(CityActiveCount::class) { "${User_.city}, ${User_.active}, COUNT(*)" }
@@ -414,6 +422,8 @@ users.removeAll()
 ```
 
 ## Block-Based Query DSL
+
+**Prefer the chained API for linear queries.** A straight filter/order/limit pipeline reads best as a chain — `select(predicate).orderBy(...).limit(...).resultList`, or `select().where { template }...` when the condition needs a template. Reach for the `select { }` block only when you truly need the block structure: conditional predicates or joins (`if`/`when` inside the block), or queries with many clauses where the scoped layout helps.
 
 Use `select { }` / `delete { }` to build queries without chaining. Both are **builder methods** that return `QueryBuilder` -- they never execute immediately. Inside the block, use scope methods like `where()`, `orderBy()`, `limit()` to construct the query. Then call a terminal operation to execute:
 

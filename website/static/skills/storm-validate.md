@@ -19,6 +19,7 @@ Compare Storm entities against the live database schema.
 Respect suppression annotations:
 - Skip types annotated with `@DbIgnore` or `@ProjectionQuery`
 - Skip fields annotated with `@DbIgnore`
+- If a type carries both `Data` and `@DbIgnore` and is only used as a query result shape (an aggregation DTO), suggest rewriting it as a plain data class/record without the `Data` marker — that removes it from validation scope altogether instead of suppressing it
 - `@PK(constraint = false)` suppresses missing PK constraint warning
 - `@UK(constraint = false)` suppresses missing unique constraint warning
 - Composite (multi-column) DB unique constraints that are not modeled in the entity do NOT produce a warning — modeling them requires structural changes that should be a deliberate choice

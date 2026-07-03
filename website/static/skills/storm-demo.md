@@ -54,6 +54,16 @@ stormRepositories {
 routing { ... }
 ```
 
+**Transactions (Kotlin):** Whenever Kotlin is used, the demo uses Storm's programmatic transactions — never `@Transactional`. Services are `suspend` and open suspend `transaction { }` blocks, with `suspend` propagated as close to the start of the call stack as possible. Spring MVC controllers stay non-suspend and bridge with `runBlocking { }` at the handler — the entry point; with virtual threads enabled the blocking bridge is cheap. Transactions belong at the service level (the business operation) — never in controllers; controllers that only read directly from repositories do not open transactions. A service that assembles a multi-query view can use `transaction(readOnly = true) { }`, like the home page service. Storm's Spring transaction integration is incompatible with suspend mode and must be excluded:
+```yaml
+spring:
+  autoconfigure:
+    exclude:
+      - st.orm.spring.boot.autoconfigure.StormTransactionAutoConfiguration
+```
+
+**Layering:** The web application follows controller → service → repository strictly. Controllers inject services only — never repositories — and handle HTTP concerns (params, model, status codes). Services own the transaction boundaries and return view-model data classes. Repositories own all queries.
+
 Use the Storm skills (/storm-setup) for correct dependency configuration.
 
 ### Database
@@ -133,7 +143,7 @@ The data import runs once at application startup — check whether data already 
 
 1. Download TSV.gz files from https://datasets.imdbws.com/ (cache locally so restarts don't re-download)
 2. Stream, decompress, parse TSV (handle `\N` as null)
-3. Convert each row into an entity instance and use Storm's batch insert (`orm insert listOf(...)` or `orm.entity(...).insert(flow, chunkSize)`) to bulk-load the data. This demonstrates Storm's write path with real volume.
+3. Use Flow-based processing for the bulk load: parse each row into an entity inside a Kotlin `Flow` and hand it to Storm's suspending batch insert (`repository.insert(flow, batchSize)`, e.g. batch size 1000). Parsing and inserting happen in a single streaming pass with fixed-size JDBC batches — do NOT materialize full entity lists and insert them afterwards. The importer entry point (`ApplicationRunner`) wraps the import in `runBlocking { }` — the only place `runBlocking` is allowed is a non-suspend framework entry point — and the whole import runs inside one suspend `transaction { }` so a failed import rolls back completely. This demonstrates Storm's coroutine-friendly write path with real volume. (Id-to-entity maps needed by later import steps can be filled as a side effect while the flow streams.)
 4. Import order: titles → persons → principals → ratings
 5. Filter: only movies (`titleType = 'movie'`) with at least 1000 votes to keep the dataset manageable
 
@@ -150,7 +160,7 @@ Build these pages. The UI must be polished — clean typography, consistent spac
 5. **Person detail** — Filmography via repository query, with the person's movies sorted by rating. Show aggregate stats: number of movies, average rating across their filmography (demonstrates `selectCount` and aggregation queries).
 6. **Top movies** — Filterable by genre, sortable by rating or year (demonstrate query composition with conditional predicates inside `select { }`).
 7. **Watchlist** — A personal watchlist feature. Add a `watchlist` table (movie FK + timestamp). The movie detail page has a toggle button (add/remove) that demonstrates Storm's `insert`/`remove`/`exists` cycle. The home page shows a "My Watchlist" section if any entries exist. A dedicated watchlist page shows all saved movies with pagination (`.page()`), demonstrating offset-based pagination alongside keyset scrolling used elsewhere.
-8. **Statistics** — A stats page showing aggregate data: movies per decade (GROUP BY), top genres by average rating (GROUP BY + HAVING), most prolific actors (COUNT + ORDER BY). Use QueryBuilder for joins, where, groupBy, having, orderBy, and limit — only the SELECT clause needs a template string for computed expressions like `COUNT(*)` or `AVG(rating)`. Do NOT write the entire query as a raw SQL template. Map results to custom data classes via `select(ResultType::class, template)`.
+8. **Statistics** — A stats page showing aggregate data: movies per decade (GROUP BY), top genres by average rating (GROUP BY + HAVING), most prolific actors (COUNT + ORDER BY). Use QueryBuilder for joins, where, groupBy, having, orderBy, and limit — only the SELECT clause needs a template string for computed expressions like `COUNT(*)` or `AVG(rating)`. Do NOT write the entire query as a raw SQL template. Map results to custom data classes via `select(ResultType::class, template)` — plain data classes without the `Data` marker (`Data` is reserved for table-backed types; a `Data` result type would be picked up by schema validation and need `@DbIgnore`). Define these result classes in the repository file whose queries return them and document them as query result shapes (not backed by a table or view) — the model package holds only table-backed types.
 
 ### UI Requirements
 

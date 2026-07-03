@@ -22,6 +22,8 @@ Ask what data they need, filters, ordering, or pagination.
 
 **DI preference:** In Spring Boot projects, repositories should be constructor-injected (see /storm-repository-java). Use `orm.entity(T.class)` and `orm.repository(T.class)` lookups only in standalone (non-DI) contexts and tests. In DI environments, write queries on injected repository instances.
 
+**Layering rule:** Follow the codebase's existing convention first — if handlers already use repositories directly, or a service layer is consistently in place, match that style rather than introduce a competing one. Absent a clear stance (new code, greenfield), promote the layered architecture: controller → service → repository, where controllers never inject repositories — all data access flows through services, which own the transaction boundaries (e.g. `@Transactional` on service methods) and return view-model types. Whatever the stance, do not mix styles: layer-skipping controllers undermine the service layer's cross-cutting concerns (transactions, caching, authorization).
+
 ## API Design: Builder Methods vs Convenience Methods
 
 Repository/entity methods fall into two categories:
@@ -118,10 +120,16 @@ List<CitySummary> citySummaries = orm.entity(City.class)
 
 **Computed aggregates (COUNT, AVG, SUM, etc.):** When the SELECT clause needs expressions that QueryBuilder can't produce, use `select(ResultType.class, RAW."template")` for the SELECT only — keep joins, groupBy, having, orderBy, and limit in code.
 
+**`Data` means "represents a table".** Only types that map to a database table implement `Data` (or its subinterfaces `Entity`/`Projection`). Ad-hoc query result types — aggregation DTOs, computed shapes — are plain records with no marker at all. Storm maps result columns to any suitable record, including nested entity and `Ref<T>` components. Implementing `Data` on a result type pulls it into Storm's type discovery, so schema validation (`validateSchema()` without arguments, or startup schema validation) fails with `TABLE_NOT_FOUND` — which then requires `@DbIgnore` to suppress. `implements Data` + `@DbIgnore` on a result type is an anti-pattern (opting in and immediately opting out); a plain record expresses the intent directly. Define result types next to the code that produces them — typically in or beside the repository whose queries return them; the entity package is reserved for table-backed types — and document them as query result shapes (not backed by a table or view) so readers immediately see why they carry no marker.
+
 **Important:** The `RAW."template"` provides the SELECT list only — not a full SQL query. If you put a full `SELECT ... FROM ... WHERE ...` inside, Storm wraps it as a scalar subquery, causing errors. For full custom SQL, use `orm.query(RAW."...").getResultList(T.class)` (see /storm-sql-java).
 
 ```java
-record CityUserCount(@FK City city, long userCount) implements Data {}
+/**
+ * Query result shape: user count per city. Not backed by a database table
+ * or view, so it is a plain record — deliberately not a Data type.
+ */
+record CityUserCount(City city, long userCount) {}
 
 List<CityUserCount> cityCounts = orm.entity(City.class)
     .select(CityUserCount.class, RAW."\{City.class}, COUNT(*)")
@@ -130,7 +138,7 @@ List<CityUserCount> cityCounts = orm.entity(City.class)
     .getResultList();
 
 // More complex example with WHERE, HAVING, and ORDER BY — all in code:
-record CityUserStats(String cityName, double averageAge, long userCount) implements Data {}
+record CityUserStats(String cityName, double averageAge, long userCount) {}
 
 int minUsers = 10;
 List<CityUserStats> topCities = orm.entity(City.class)
@@ -142,7 +150,7 @@ List<CityUserStats> topCities = orm.entity(City.class)
     .getResultList();
 
 // Multi-field groupBy — always use the varargs metamodel form:
-record CityActiveCount(@FK Ref<City> city, boolean active, long userCount) implements Data {}
+record CityActiveCount(@FK Ref<City> city, boolean active, long userCount) {}
 
 List<CityActiveCount> counts = orm.entity(User.class)
     .select(CityActiveCount.class, RAW."\{User_.city}, \{User_.active}, COUNT(*)")

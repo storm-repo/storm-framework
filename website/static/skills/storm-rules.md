@@ -27,7 +27,7 @@ Before suggesting dependencies, patterns, or configuration, detect which framewo
 - **Standalone**: neither Spring Boot nor Ktor detected. The project uses Storm directly with `ORMTemplate.of(dataSource)`.
 
 Adapt your suggestions to the detected framework:
-- **Spring Boot**: use `@Transactional`, constructor injection, `application.yml` for config.
+- **Spring Boot**: use Storm's programmatic transactions — suspend `transaction { }` at the service level (never in controllers), bridged with `runBlocking` only at non-suspend entry points such as MVC handlers (declarative `@Transactional` also works), constructor injection, `application.yml` for config.
 - **Ktor**: use `install(Storm)` plugin, `transaction { }` blocks, `application.conf` (HOCON) for config, `call.orm` for route access.
 - **Standalone**: use `DataSource.orm` or `ORMTemplate.of(dataSource)`, programmatic `transaction { }` blocks.
 

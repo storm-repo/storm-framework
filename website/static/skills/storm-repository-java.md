@@ -24,9 +24,21 @@ Do NOT import from `st.orm.core.*` — those are Storm's internal core-engine pa
 
 Ask: which entity, what custom queries?
 
+**Result types:** Custom query result types (aggregation DTOs, computed shapes) are plain records — they do NOT implement `Data`, which is reserved for table-backed types. Define them in or beside the repository whose queries return them (not in the entity package), and document each one as a query result shape:
+
+```java
+/**
+ * Query result shape: user count per city. Not backed by a database table
+ * or view, so it is a plain record — deliberately not a Data type.
+ */
+record CityUserCount(City city, long userCount) {}
+```
+
 Detect the project's framework from its build file (pom.xml or build.gradle): look for `storm-spring-boot-starter` or `spring-boot-starter` (Spring Boot) or neither (standalone). Use the detected framework to suggest the appropriate repository registration pattern.
 
 **DI preference:** In Spring Boot projects, always prefer constructor-injected repositories over `orm.entity(T.class)` or `orm.repository(T.class)` lookups. Repository lookup via `orm` is for standalone (non-DI) use and tests only. In DI environments, repositories are beans — inject them.
+
+**Layering rule:** Follow the codebase's existing convention first — if handlers already use repositories directly, or a service layer is consistently in place, match that style rather than introduce a competing one. Absent a clear stance (new code, greenfield), promote the layered architecture: controller → service → repository, where controllers never inject repositories — all data access flows through services, which own the transaction boundaries (e.g. `@Transactional` on service methods) and return view-model types. Whatever the stance, do not mix styles: layer-skipping controllers undermine the service layer's cross-cutting concerns (transactions, caching, authorization).
 
 ## Getting a Repository
 
@@ -84,7 +96,7 @@ Key rules:
 8. **Prefer entity/metamodel-based methods over templates.** Use `.innerJoin(Entity.class).on(OtherEntity.class)` for joins unless it cannot be expressed with entity classes. Only fall back to template lambdas when QueryBuilder cannot express the query.
    **Template joins are a code smell.** If you need a template-based ON clause (`.innerJoin(T.class).on(RAW."...")`) or a full `orm.query(RAW."...")` to express a join that follows a database FK constraint, the entity model is missing an `@FK` annotation. Fix the entity first — add `@FK` (with `Ref<T>` for PK fields, full entity for non-PK fields) — then the join becomes `.innerJoin(Entity.class).on(OtherEntity.class)`, pure code with no templates. Template joins are only justified when there is genuinely no FK constraint in the database.
 9. **Use `Ref` for map keys and set membership**: Prefer `Ref<Entity>` (via `.ref()`) for map keys, set membership, and identity-based lookups. `Ref` provides identity-based `equals`/`hashCode` on the primary key.
-10. **Prefer typed parameters over raw IDs.** Repository method signatures should accept entity or `Ref<Entity>` parameters for FK fields — not raw IDs like `String` or `int`. Raw IDs are untyped and lose the entity association. Convert IDs to `Ref` at the system boundary (controller/route handler) using `Ref.of(Entity.class, id)`.
+10. **Prefer typed parameters over raw IDs — full entities by default.** Repository method signatures take the full entity for FK parameters when callers naturally hold one (the common case): predicates accept entities directly, so no ref conversion is needed at the call sites. `Ref<Entity>` parameters remain fine — use them for identity-only flows, where callers hold refs (e.g. from `Ref<T>` fields) or only an id, converted at the system boundary using `Ref.of(Entity.class, id)`. Never accept raw IDs like `String` or `int` — they are untyped and lose the entity association.
 11. **Typed ID from `Ref`:** Use `Ref.entityId(ref)` to extract a type-safe ID. For projections, use `Ref.projectionId(ref)`. Avoid `ref.id()` — it returns `Object` and requires an unsafe cast.
 
 ## API Design: Prefer the Simplest Approach
