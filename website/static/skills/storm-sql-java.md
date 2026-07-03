@@ -60,11 +60,14 @@ Template elements:
 
 ## Aggregate example — the primary use case
 
-Define a custom `Data` type for the result shape, then use a SQL Template for the aggregate:
+Define a plain record for the result shape, then use a SQL Template for the aggregate:
 
 \`\`\`java
-// Custom result type — not an entity, just a data carrier
-record CityUserCount(@FK City city, long userCount) implements Data {}
+/**
+ * Query result shape: user count per city. Not backed by a database table
+ * or view, so it is a plain record — deliberately not a Data type.
+ */
+record CityUserCount(City city, long userCount) {}
 
 // Use select() with custom return type + minimal SQL template for the aggregate only
 List<CityUserCount> cityCounts = orm.entity(City.class)
@@ -76,7 +79,7 @@ List<CityUserCount> cityCounts = orm.entity(City.class)
 
 The join, grouping, and result retrieval are all code-based. Only the `COUNT(*)` aggregate — which QueryBuilder cannot express — uses a SQL template fragment. This keeps the template to the absolute minimum.
 
-The `Data` interface marks types for SQL generation without CRUD. It tells Storm how to map the result columns to the record fields.
+Storm maps the result columns positionally onto the result type's components — entity components, `Ref<T>` components, and scalars all work without any marker interface. Do not implement `Data` on result types — it is reserved for table-backed types, and a `Data` result type would be picked up by schema validation (requiring `@DbIgnore` to suppress).
 
 **`Ref<T>` in result types:** When a SELECT clause references a FK field (`\{User_.city}`) rather than a full entity (`\{City.class}`), use `Ref<T>` in the result type — not the raw ID type and not the full entity. `Ref<City>` maps correctly to the FK column value. Use the full entity type only when selecting all its columns via `\{City.class}`.
 

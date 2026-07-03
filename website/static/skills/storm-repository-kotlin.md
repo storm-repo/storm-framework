@@ -25,6 +25,18 @@ Ask: which entity, what custom queries?
 
 **Repository rule:** All database queries must live in repository interfaces, not inline in services or other classes. Services orchestrate by calling repository methods — they never build queries directly. When a skill or tool generates a query, always place it in the appropriate repository interface.
 
+**Layering rule:** Follow the codebase's existing convention first — if handlers already use repositories directly, or a service layer is consistently in place, match that style rather than introduce a competing one. Absent a clear stance (new code, greenfield), promote the layered architecture: controller → service → repository, where controllers never inject repositories — all data access flows through services, which own the transaction boundaries and return view-model types. Whatever the stance, do not mix styles: layer-skipping controllers undermine the service layer's cross-cutting concerns (transactions, caching, authorization).
+
+**Result types:** Custom query result types (aggregation DTOs, computed shapes) are plain data classes — they do NOT implement `Data`, which is reserved for table-backed types. Define them top-level in the repository file whose queries return them (not in the model package), and document each one as a query result shape:
+
+```kotlin
+/**
+ * Query result shape: user count per city. Not backed by a database table
+ * or view, so it is a plain data class — deliberately not a Data type.
+ */
+data class CityUserCount(val city: City, val userCount: Long)
+```
+
 Detect the project's framework from its build file (pom.xml or build.gradle.kts): look for `storm-kotlin-spring-boot-starter` or `spring-boot-starter` (Spring Boot), `storm-ktor` or `ktor-server-core` (Ktor), or neither (standalone). Use the detected framework to suggest the appropriate repository registration pattern below.
 
 **DI preference:** In Spring Boot or Ktor projects, always prefer constructor-injected repositories over `orm.entity<T>()` or `orm.repository<T>()` lookups. Repository lookup via `orm` is for standalone (non-DI) use and tests only. In DI environments, repositories are beans/components — inject them.
@@ -99,7 +111,7 @@ Key rules:
 8. **Prefer entity/metamodel-based methods over templates.** For joins, use `innerJoin(Entity::class, OnEntity::class)` in the block DSL, or `.innerJoin(Entity::class).on(OnEntity::class)` in the chained API. Only fall back to template lambdas when QueryBuilder cannot express the query.
    **Template joins are a code smell.** If you need a template-based ON clause (`.innerJoin(T::class).on { "..." }`) or a full `orm.query { }` to express a join that follows a database FK constraint, the entity model is missing an `@FK` annotation. Fix the entity first — add `@FK` (with `Ref<T>` for PK fields, full entity for non-PK fields) — then the join becomes `.innerJoin(Entity::class).on(OnEntity::class)`, pure code with no templates. Template joins are only justified when there is genuinely no FK constraint in the database.
 9. **Use `Ref` for map keys and set membership**: Prefer `Ref<Entity>` (via `.ref()`) for map keys, set membership, and identity-based lookups. `Ref` provides identity-based `equals`/`hashCode` on the primary key. When a projection already returns `Ref<T>`, use it directly without calling `.ref()` again.
-10. **Prefer typed parameters over raw IDs.** Repository method signatures should accept entity or `Ref<Entity>` parameters for FK fields — not raw IDs like `String` or `Int`. Raw IDs are untyped and lose the entity association. Convert IDs to `Ref` at the system boundary (controller/route handler) using `refById<T>(id)` (import `st.orm.template.refById`).
+10. **Prefer typed parameters over raw IDs — full entities by default.** Repository method signatures take the full entity for FK parameters when callers naturally hold one (the common case): predicates like `eq` and `inList` accept entities directly, so no `.ref()` conversion is needed at the call sites. `Ref<Entity>` parameters remain fine — use them for identity-only flows, where callers hold refs (e.g. from `Ref<T>` fields) or only an id, converted at the system boundary with `refById<T>(id)` (import `st.orm.template.refById`). Never accept raw IDs like `String` or `Int` — they are untyped and lose the entity association.
 11. **Typed ID from `Ref`:** Use `ref.entityId()` (import `st.orm.template.entityId`) to extract a type-safe ID. Avoid `ref.id()` — it returns `Any` and requires an unsafe cast.
 
 ## API Design: Prefer the Simplest Approach
@@ -273,12 +285,12 @@ val activeUsers: List<User> = users.findAll(User_.active eq true)
 // Compare by entity — use the FK field directly, don't extract the ID
 val cityUsers: List<User> = users.findAll(User_.city eq city)
 
-// Repository methods should accept entity or Ref<T>, not raw IDs:
+// Repository methods take typed parameters — the full entity by default:
 // ✅ fun findByCity(city: City): List<User> = findAll(User_.city eq city)
-// ✅ fun findByCity(city: Ref<City>): List<User> = findAll(User_.city eq city)
+// ✅ fun findByCity(city: Ref<City>): List<User> = findAll(User_.city eq city)  // for identity-only flows
 // ❌ fun findByCity(cityId: Int): List<User> = ...  // untyped, loses entity association
 
-// At the call site (controller/route handler), convert IDs to Ref:
+// For the Ref variant, callers holding only an id convert at the boundary:
 // val users = userRepository.findByCity(refById<City>(cityId))
 
 // Ref variants (return Ref<User> instead of User — lightweight, only loads PK)
@@ -467,20 +479,47 @@ val userRepository = orm.repository<UserRepository>()
 
 ## Transactions
 
+**Respect an existing stance first.** When the codebase has already settled on a convention — declarative `@Transactional` throughout, no coroutines at all, or fully suspend — Storm code should follow that convention rather than introduce a competing style. The preference below applies when the project has not taken a clear stance (new code, greenfield modules).
+
+Prefer Storm's programmatic transactions over declarative `@Transactional` — in every environment, including Spring Boot. The boundary is explicit code, so there are no AOP proxy pitfalls (self-invocation and non-public methods silently skip `@Transactional`), it is coroutine-native, and the `Transaction` receiver exposes `setRollbackOnly()`, `onCommit { }`, and `onRollback { }` as typed API. In Spring Boot, suspend mode requires disabling Storm's Spring transaction integration (see below); Storm then manages transactions directly on the DataSource. Declarative `@Transactional` remains fully supported for teams standardized on it — in that mode, use `transactionBlocking { }` instead of suspend mode.
+
+Use the top-level suspend function `transaction { }` (import `st.orm.template.transaction`). Two placement rules apply, and they are separate concerns. **Transactions open at the service level** — the method that represents one business operation — never in controllers or route handlers, which handle HTTP and delegate. Controllers that only read directly from repositories do not open transactions. (In minimal route-based apps without a service layer, the route handler doubles as the operation boundary.) **`suspend` propagates toward the start of the call stack** — services and any intermediate functions that open a `transaction { }` are `suspend`; never use `runBlocking` merely to wrap a `transaction { }` deeper in the stack — the bridge to blocking code, if one is needed at all, belongs at the entry point. `transaction { }` is NOT a method on `ORMTemplate` — never write `orm.transaction { }` or `call.orm.transaction { }`. The lambda receiver is a `Transaction` — it does NOT provide `entity(...)`; use repositories or `orm` captured from the enclosing scope. Optional parameters: `propagation`, `isolation`, `timeoutSeconds`, and `readOnly` (e.g. `transaction(readOnly = true) { }` around multi-query reads for a consistent snapshot on one connection).
+
+**`runBlocking` belongs at entry points only.** When a non-suspend framework callback starts the call chain (a Spring MVC handler, an `ApplicationRunner`, a `@Scheduled` method, a message listener, a test), bridge with `runBlocking { }` at that entry point and keep everything below it suspend; never bury `runBlocking` inside services or repositories. In coroutine-native servers (Ktor, WebFlux) the handler itself is suspend and no bridge is needed. For Spring MVC, prefer non-suspend handlers with `runBlocking` over suspend handlers: MVC is a blocking servlet stack — with virtual threads the blocking bridge is cheap, whereas suspend MVC handlers require `kotlinx-coroutines-reactor` and route responses through async dispatch machinery that buys nothing there. `transactionBlocking { }` exists for code that is genuinely outside any coroutine context.
+
 ### Spring Boot
-Use `@Transactional` on service methods (standard Spring):
+
+Suspend mode is incompatible with Spring-managed Storm transactions (Spring's transaction context is thread-bound, coroutines are not) — Storm fails fast with "Suspend mode is not supported when spring-managed transactions are enabled". When using suspend `transaction { }`, exclude the integration; keep it (the default) when using `@Transactional` or `transactionBlocking { }` that must join Spring-managed transactions:
+
+```yaml
+spring:
+  autoconfigure:
+    exclude:
+      - st.orm.spring.boot.autoconfigure.StormTransactionAutoConfiguration
+```
+
 ```kotlin
 @Service
 class UserService(private val userRepository: UserRepository) {
-    @Transactional
-    fun createUser(email: String, city: City): User =
+    suspend fun createUser(email: String, city: City): User = transaction {
         userRepository.insertAndFetch(User(email = email, city = city))
+    }
+}
+
+@RestController
+class UserController(private val userService: UserService) {
+    // The MVC handler is the entry point: bridge with runBlocking here and
+    // keep the call chain below it suspend.
+    @PostMapping("/users")
+    fun createUser(@RequestBody request: CreateUserRequest): User = runBlocking {
+        userService.createUser(request.email, request.city)
+    }
 }
 ```
 
-### Ktor / Standalone
+Declarative `@Transactional` on service methods also works (standard Spring) for teams that prefer it.
 
-Use the top-level `transaction { }` function (import `st.orm.template.transaction`). It is a **suspend function**, not a method on `ORMTemplate` — never write `orm.transaction { }` or `call.orm.transaction { }`. The lambda receiver is a `Transaction` (exposing `setRollbackOnly()`, `onCommit { }`, `onRollback { }`) — it does NOT provide `entity(...)`; use repositories or `orm` captured from the enclosing scope:
+### Ktor
 
 ```kotlin
 get("/users") {
@@ -492,9 +531,11 @@ get("/users") {
 }
 ```
 
-Outside a coroutine, use `transactionBlocking { }` instead. Transaction options are available via `withTransactionOptions { }` (isolation via `TransactionIsolation`, propagation via `TransactionPropagation`).
+Transaction options are also available globally via `withTransactionOptions { }` (isolation via `TransactionIsolation`, propagation via `TransactionPropagation`).
 
 ## Block-Based Query DSL
+
+**Prefer the chained API for linear queries.** A straight filter/order/limit pipeline reads best as a chain — `select(predicate).orderBy(...).limit(...).resultList`, or `select().where { template }...` when the condition needs a template. Reach for the `select { }` block only when you truly need the block structure: conditional predicates or joins (`if`/`when` inside the block), or queries with many clauses where the scoped layout helps.
 
 Repository methods can use the `select { }` / `delete { }` DSL for building queries. Both are **builder methods** that return `QueryBuilder` -- they never execute immediately. Inside the block, use scope methods like `where()`, `orderBy()`, `limit()` to construct the query. Then call a terminal operation to execute:
 

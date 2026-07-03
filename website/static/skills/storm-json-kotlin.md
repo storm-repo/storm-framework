@@ -34,7 +34,12 @@ data class User(
 Use JSON aggregation functions to load one-to-many relationships in a single query:
 
 ```kotlin
-data class RolesByUser(val user: User, @Json val roles: List<Role>) : Data
+/**
+ * Query result shape: a user with their roles aggregated from JSON. Not
+ * backed by a database table or view, so it is a plain data class —
+ * deliberately not a Data type.
+ */
+data class RolesByUser(val user: User, @Json val roles: List<Role>)
 
 val results = orm.entity(User::class)
     .select(RolesByUser::class) { "${User::class}, JSON_OBJECTAGG(${Role::class})" }

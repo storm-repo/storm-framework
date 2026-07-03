@@ -796,8 +796,8 @@ With `@Discriminator`, the discriminator column is read directly from the base t
 ```sql
 SELECT p.id, p.dtype, p.name, c.indoor, d.weight
 FROM pet p
-LEFT JOIN cat c ON p.id = c.id
-LEFT JOIN dog d ON p.id = d.id
+LEFT JOIN cat c ON c.id = p.id
+LEFT JOIN dog d ON d.id = p.id
 ```
 
 Without `@Discriminator`, Storm generates a `CASE` expression that resolves the concrete type by checking which extension table has a matching row:
@@ -809,9 +809,9 @@ SELECT p.id,
             WHEN b.id IS NOT NULL THEN 'Bird' END,
        p.name, c.indoor, d.weight
 FROM pet p
-LEFT JOIN cat c ON p.id = c.id
-LEFT JOIN dog d ON p.id = d.id
-LEFT JOIN bird b ON p.id = b.id
+LEFT JOIN cat c ON c.id = p.id
+LEFT JOIN dog d ON d.id = p.id
+LEFT JOIN bird b ON b.id = p.id
 ```
 
 Unlike Single-Table, DML operations for Joined Table entities are multi-statement: they involve more than one table. Storm executes all statements within the current transaction to ensure atomicity. Each operation follows a specific order to respect foreign key constraints between the base and extension tables.
@@ -891,8 +891,8 @@ When querying Visit with a join to Pet, Storm generates:
 SELECT v.*, p.id, p.dtype, p.name, c.indoor, d.weight
 FROM visit v
 INNER JOIN pet p ON v.pet_id = p.id
-LEFT JOIN cat c ON p.id = c.id
-LEFT JOIN dog d ON p.id = d.id
+LEFT JOIN cat c ON c.id = p.id
+LEFT JOIN dog d ON d.id = p.id
 ```
 
 ### Hydration

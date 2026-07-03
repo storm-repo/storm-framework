@@ -29,7 +29,7 @@ Generation/update rules:
 - `describe_table` reports unique constraints (top-level `uniqueConstraints` array with constraint name and column list) and FK cascade rules (onDelete/onUpdate). Both are exposed for context only. **Storm does not model cascade behavior or enforce uniqueness** — these are database-level concerns. Do not generate annotations or code for cascade rules.
 - @Version for version columns (confirm with user).
 - When updating, preserve existing field order and custom annotations. Only add/modify what changed.
-- Use `@DbIgnore` on fields or types that should be excluded from schema validation.
+- Use `@DbIgnore` on fields or types that should be excluded from schema validation. Note: ad-hoc query result types (aggregation DTOs) should not need this — write them as plain data classes/records without the `Data` marker instead of declaring `Data` and then suppressing validation with `@DbIgnore`.
 - Use `@PK(constraint = false)` if the table intentionally has no PK constraint in the database.
 - Use `@FK(constraint = false)` if a FK column intentionally has no FK constraint in the database.
 - Use `@UK(constraint = false)` if a unique field intentionally has no unique constraint in the database.

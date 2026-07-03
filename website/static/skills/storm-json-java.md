@@ -29,7 +29,12 @@ record User(@PK Integer id,
 Use JSON aggregation functions to load one-to-many relationships in a single query:
 
 ```java
-record RolesByUser(User user, @Json List<Role> roles) implements Data {}
+/**
+ * Query result shape: a user with their roles aggregated from JSON. Not
+ * backed by a database table or view, so it is a plain record —
+ * deliberately not a Data type.
+ */
+record RolesByUser(User user, @Json List<Role> roles) {}
 
 var results = orm.entity(User.class)
     .select(RolesByUser.class, RAW."\{User.class}, JSON_OBJECTAGG(\{Role.class})")
