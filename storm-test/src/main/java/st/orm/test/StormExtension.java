@@ -27,6 +27,8 @@ import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.SQLException;
 import java.sql.SQLFeatureNotSupportedException;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.logging.Logger;
 import javax.sql.DataSource;
 import org.junit.jupiter.api.extension.BeforeAllCallback;
@@ -225,14 +227,70 @@ public class StormExtension implements BeforeAllCallback, ParameterResolver {
     }
 
     private static void executeScript(Connection conn, String sql) throws SQLException {
-        for (String statement : sql.split(";")) {
-            String trimmed = statement.trim();
-            if (!trimmed.isEmpty()) {
-                try (var stmt = conn.createStatement()) {
-                    stmt.execute(trimmed);
-                }
+        for (String statement : splitStatements(sql)) {
+            try (var stmt = conn.createStatement()) {
+                stmt.execute(statement);
             }
         }
+    }
+
+    /**
+     * Splits a SQL script into individual statements on semicolons, ignoring semicolons that appear inside line
+     * comments, block comments, string literals and quoted identifiers. Fragments that contain only comments and
+     * whitespace are dropped.
+     */
+    static List<String> splitStatements(String script) {
+        var statements = new ArrayList<String>();
+        var current = new StringBuilder();
+        boolean hasContent = false;
+        int length = script.length();
+        int i = 0;
+        while (i < length) {
+            char c = script.charAt(i);
+            char next = i + 1 < length ? script.charAt(i + 1) : '\0';
+            if (c == '-' && next == '-') {
+                int end = script.indexOf('\n', i);
+                end = end == -1 ? length : end;
+                current.append(script, i, end);
+                i = end;
+            } else if (c == '/' && next == '*') {
+                int end = script.indexOf("*/", i + 2);
+                end = end == -1 ? length : end + 2;
+                current.append(script, i, end);
+                i = end;
+            } else if (c == '\'' || c == '"') {
+                int end = i + 1;
+                while (end < length) {
+                    if (script.charAt(end) == c) {
+                        if (c == '\'' && end + 1 < length && script.charAt(end + 1) == '\'') {
+                            end += 2; // A doubled quote escapes itself within a string literal.
+                            continue;
+                        }
+                        end++;
+                        break;
+                    }
+                    end++;
+                }
+                current.append(script, i, end);
+                hasContent = true;
+                i = end;
+            } else if (c == ';') {
+                if (hasContent) {
+                    statements.add(current.toString().trim());
+                }
+                current.setLength(0);
+                hasContent = false;
+                i++;
+            } else {
+                current.append(c);
+                hasContent |= !Character.isWhitespace(c);
+                i++;
+            }
+        }
+        if (hasContent) {
+            statements.add(current.toString().trim());
+        }
+        return statements;
     }
 
     // --- Simple DataSource implementation ---

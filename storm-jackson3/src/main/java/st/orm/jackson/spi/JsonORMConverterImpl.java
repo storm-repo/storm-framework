@@ -29,6 +29,7 @@ import java.lang.reflect.Type;
 import java.util.List;
 import java.util.Optional;
 import st.orm.Json;
+import st.orm.core.spi.JsonString;
 import st.orm.core.spi.Name;
 import st.orm.core.spi.ORMConverter;
 import st.orm.core.spi.ORMReflection;
@@ -168,7 +169,7 @@ public final class JsonORMConverterImpl implements ORMConverter {
     public List<Object> toDatabase(@Nullable Object record) throws SqlTemplateException {
         try {
             Object o = record == null ? null : REFLECTION.invoke(field, record);
-            return singletonList(o == null ? null : mapper.writeValueAsString(o));
+            return singletonList(o == null ? null : new JsonString(mapper.writeValueAsString(o)));
         } catch (Throwable e) {
             throw new SqlTemplateException(e);
         }

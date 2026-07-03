@@ -8,6 +8,7 @@ import org.junit.jupiter.api.Test;
 import st.orm.DbTable;
 import st.orm.Entity;
 import st.orm.PK;
+import st.orm.core.spi.JsonString;
 import st.orm.core.template.Sql;
 import st.orm.core.template.SqlTemplate;
 import st.orm.core.template.SqlTemplateException;
@@ -26,6 +27,17 @@ class InlineParametersTest {
      * SqlTemplate with inline parameters enabled to trigger toLiteral paths.
      */
     private static final SqlTemplate INLINE_TEMPLATE = SqlTemplate.PS.withInlineParameters(true);
+
+    // toLiteral: JsonString value
+
+    @Test
+    void testInlineJsonStringParameter() throws SqlTemplateException {
+        Sql sql = INLINE_TEMPLATE.process(raw("SELECT * FROM test_entity WHERE name = \0",
+                new JsonString("{\"name\":\"O'Brien\"}")));
+        assertNotNull(sql);
+        // The JSON renders as a quoted literal with the embedded single quote doubled.
+        assertTrue(sql.statement().contains("'{\"name\":\"O''Brien\"}'"));
+    }
 
     // toLiteral: null value
 

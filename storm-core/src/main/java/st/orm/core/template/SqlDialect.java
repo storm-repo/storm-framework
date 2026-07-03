@@ -38,6 +38,7 @@ import java.util.UUID;
 import java.util.function.Function;
 import java.util.regex.Pattern;
 import st.orm.Operator;
+import st.orm.core.spi.JsonString;
 
 /**
  * Represents a specific SQL dialect with methods to determine feature support and handle identifier escaping.
@@ -388,6 +389,25 @@ public interface SqlDialect {
     default void setParameter(@Nonnull PreparedStatement preparedStatement, int index,
                               @Nonnull Timestamp timestamp, @Nonnull Calendar calendar) throws SQLException {
         preparedStatement.setTimestamp(index, timestamp, calendar);
+    }
+
+    /**
+     * Sets a serialized JSON parameter on the given prepared statement.
+     *
+     * <p>The default implementation sets the JSON as a string, which is compatible with databases that store JSON
+     * in character types or have implicit string-to-JSON conversion. Dialects with strictly typed native JSON
+     * columns should override this method — PostgreSQL, for example, binds the value as an untyped parameter so
+     * the server casts it to {@code json} or {@code jsonb}.</p>
+     *
+     * @param preparedStatement the prepared statement.
+     * @param index the parameter index.
+     * @param json the serialized JSON value.
+     * @throws SQLException if a database access error occurs.
+     * @since 1.12
+     */
+    default void setParameter(@Nonnull PreparedStatement preparedStatement, int index,
+                              @Nonnull JsonString json) throws SQLException {
+        preparedStatement.setString(index, json.value());
     }
 
     /**

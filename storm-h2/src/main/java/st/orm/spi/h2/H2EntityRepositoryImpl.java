@@ -15,166 +15,154 @@
  */
 package st.orm.spi.h2;
 
-import static java.util.function.Predicate.not;
 import static java.util.stream.Collectors.joining;
 import static st.orm.GenerationStrategy.IDENTITY;
 import static st.orm.GenerationStrategy.SEQUENCE;
-import static st.orm.core.template.SqlInterceptor.intercept;
-import static st.orm.core.template.TemplateString.combine;
-import static st.orm.core.template.TemplateString.raw;
-import static st.orm.core.template.TemplateString.wrap;
-import static st.orm.core.template.Templates.bindVar;
-import static st.orm.core.template.Templates.table;
-import static st.orm.core.template.impl.StringTemplates.flatten;
 
 import jakarta.annotation.Nonnull;
 import jakarta.annotation.Nullable;
+import java.lang.reflect.RecordComponent;
+import java.math.BigDecimal;
 import java.math.BigInteger;
 import java.sql.Timestamp;
 import java.time.Instant;
+import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.time.LocalTime;
+import java.time.OffsetDateTime;
+import java.time.OffsetTime;
+import java.time.ZonedDateTime;
+import java.util.ArrayList;
 import java.util.Calendar;
 import java.util.Date;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
-import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.concurrent.atomic.AtomicReference;
-import java.util.stream.IntStream;
-import st.orm.BindVars;
+import java.util.UUID;
+import st.orm.Data;
 import st.orm.Entity;
+import st.orm.PK;
 import st.orm.PersistenceException;
 import st.orm.core.repository.EntityRepository;
-import st.orm.core.repository.impl.EntityRepositoryImpl;
-import st.orm.core.spi.EntityCache;
+import st.orm.core.repository.impl.MergeEntityRepositoryImpl;
 import st.orm.core.template.Column;
 import st.orm.core.template.Model;
 import st.orm.core.template.ORMTemplate;
-import st.orm.core.template.PreparedQuery;
-import st.orm.core.template.SqlTemplateException;
 import st.orm.core.template.TemplateString;
 
 /**
  * Implementation of {@link EntityRepository} for H2.
  */
-public class H2EntityRepositoryImpl<E extends Entity<ID>, ID> extends EntityRepositoryImpl<E, ID> {
+public class H2EntityRepositoryImpl<E extends Entity<ID>, ID> extends MergeEntityRepositoryImpl<E, ID> {
+
+    /**
+     * H2 types used to cast bound parameters in the MERGE source query, keyed by the Java type of the column.
+     * The temporal mappings follow how the ORM binds values: Instant, OffsetDateTime and ZonedDateTime are bound
+     * as {@link Timestamp}, so they cast to TIMESTAMP. BigDecimal casts to DECFLOAT rather than NUMERIC, as a
+     * bare NUMERIC in H2 has scale 0 and would truncate the fraction.
+     */
+    private static final Map<Class<?>, String> CAST_TYPES = Map.ofEntries(
+            Map.entry(String.class, "VARCHAR"),
+            Map.entry(char.class, "CHAR"),
+            Map.entry(Character.class, "CHAR"),
+            Map.entry(boolean.class, "BOOLEAN"),
+            Map.entry(Boolean.class, "BOOLEAN"),
+            Map.entry(byte.class, "TINYINT"),
+            Map.entry(Byte.class, "TINYINT"),
+            Map.entry(short.class, "SMALLINT"),
+            Map.entry(Short.class, "SMALLINT"),
+            Map.entry(int.class, "INTEGER"),
+            Map.entry(Integer.class, "INTEGER"),
+            Map.entry(long.class, "BIGINT"),
+            Map.entry(Long.class, "BIGINT"),
+            Map.entry(float.class, "REAL"),
+            Map.entry(Float.class, "REAL"),
+            Map.entry(double.class, "DOUBLE PRECISION"),
+            Map.entry(Double.class, "DOUBLE PRECISION"),
+            Map.entry(BigDecimal.class, "DECFLOAT"),
+            Map.entry(BigInteger.class, "DECFLOAT"),
+            Map.entry(byte[].class, "VARBINARY"),
+            Map.entry(UUID.class, "UUID"),
+            Map.entry(LocalDate.class, "DATE"),
+            Map.entry(LocalTime.class, "TIME"),
+            Map.entry(LocalDateTime.class, "TIMESTAMP"),
+            Map.entry(OffsetTime.class, "TIME WITH TIME ZONE"),
+            Map.entry(Instant.class, "TIMESTAMP"),
+            Map.entry(OffsetDateTime.class, "TIMESTAMP"),
+            Map.entry(ZonedDateTime.class, "TIMESTAMP"),
+            Map.entry(java.sql.Date.class, "DATE"),
+            Map.entry(java.sql.Time.class, "TIME"),
+            Map.entry(Timestamp.class, "TIMESTAMP"));
 
     public H2EntityRepositoryImpl(@Nonnull ORMTemplate ormTemplate, @Nonnull Model<E, ID> model) {
         super(ormTemplate, model);
     }
 
     /**
-     * Returns {@code true} when the entity should be routed to {@link #insert(Entity)} during an upsert.
+     * Returns the H2 type used to cast a bound parameter of the given column, or {@code null} when no mapping is
+     * known — the parameter is left uncast in that case.
      *
-     * <p>H2 cannot perform a SQL-level MERGE with auto-generated primary keys, so when the primary key
-     * is auto-generated, the upsert is routed to insert instead.</p>
-     *
-     * @param entity the entity to check.
-     * @return {@code true} if the primary key is auto-generated.
+     * <p>H2 cannot infer the type of a bare {@code ?} in the projection of the MERGE source query and fails with
+     * "Unknown data type". Casting each parameter gives the parser the missing type information.</p>
      */
+    @Nullable
     @Override
-    protected boolean isUpsertInsert(@Nonnull E entity) {
-        return isAutoGeneratedPrimaryKey();
-    }
-
-    private String getVersionString(@Nonnull Column column) {
-        String columnName = column.qualifiedName(ormTemplate.dialect());
-        String updateExpression = switch (column.type()) {
-            case Class<?> c when Integer.TYPE.isAssignableFrom(c)
-                    || Long.TYPE.isAssignableFrom(c)
-                    || Integer.class.isAssignableFrom(c)
-                    || Long.class.isAssignableFrom(c)
-                    || BigInteger.class.isAssignableFrom(c) -> "src.%s + 1".formatted(columnName);
-            case Class<?> c when Instant.class.isAssignableFrom(c)
-                    || Date.class.isAssignableFrom(c)
-                    || Calendar.class.isAssignableFrom(c)
-                    || Timestamp.class.isAssignableFrom(c) -> "CURRENT_TIMESTAMP";
-            default ->
-                    throw new PersistenceException("Unsupported version type: %s.".formatted(column.type().getSimpleName()));
-        };
-        return "t.%s = %s".formatted(columnName, updateExpression);
-    }
-
-    private TemplateString mergeSelect(@Nonnull E entity) {
-        assert !isAutoGeneratedPrimaryKey();
-        var dialect = ormTemplate.dialect();
-        var duplicates = new HashSet<>();
-        try {
-            var mapped = model.values(entity);
-            return mapped.entrySet()
-                    .stream()
-                    .filter(entry -> duplicates.add(entry.getKey().name()))
-                    .map(entry -> {
-                        Object value = entry.getValue();
-                        if (entry.getKey().primaryKey()) {
-                            //noinspection unchecked
-                            if (model.isDefaultPrimaryKey((ID) value)) {
-                                value = null;
-                            }
-                        }
-                        return combine(wrap(value), TemplateString.of(" AS %s".formatted(entry.getKey().qualifiedName(dialect))));
-                    })
-                    .reduce((left, right) -> combine(left, TemplateString.of(", "), right))
-                    .map(t -> combine(TemplateString.of("SELECT "), t))
-                    .orElseThrow();
-        } catch (SqlTemplateException e) {
-            throw new PersistenceException("Failed to map entity to SQL parameters.", e);
-        }
-    }
-
-    private TemplateString mergeSelect(@Nonnull BindVars bindVars) {
-        var dialect = ormTemplate.dialect();
-        var values = new AtomicReference<Map<Column, ?>>();
-        bindVars.setRecordListener(record -> {
-            try {
-                //noinspection unchecked
-                values.setPlain(model.values((E) record));
-            } catch (SqlTemplateException e) {
-                throw new PersistenceException("Failed to map entity to SQL parameters.", e);
+    protected String castType(@Nonnull Column column) {
+        Class<?> type = column.type();
+        if (column.foreignKey()) {
+            var secondary = column.secondaryMetamodel();
+            if (secondary == null) {
+                return null;
             }
-        });
-        var duplicates = new HashSet<>();
-        return model.declaredColumns().stream()
-                .filter(column -> duplicates.add(column.name()))
-                .map(c -> combine(wrap(bindVar(bindVars, ignore -> values.getPlain().get(c))), TemplateString.of(" AS %s".formatted(c.qualifiedName(dialect)))))
-                .reduce((left, right) -> combine(left, TemplateString.of(", "), right))
-                .map(t -> combine(TemplateString.of("SELECT "), t))
-                .orElseThrow();
-    }
-
-    private TemplateString mergeOn() {
-        var dialect = ormTemplate.dialect();
-        var primaryKeys = model.declaredColumns().stream()
-                .filter(Column::primaryKey)
-                .toList();
-        String sql = primaryKeys.stream()
-                .map(c -> "t.%s = src.%s".formatted(c.qualifiedName(dialect), c.qualifiedName(dialect)))
-                .collect(joining(" AND "));
-        return TemplateString.of(sql);
-    }
-
-    private TemplateString mergeUpdate(@Nonnull AtomicBoolean versionAware) {
-        var dialect = ormTemplate.dialect();
-        var duplicates = new HashSet<>();
-        var args = model.declaredColumns().stream()
-                .filter(not(Column::primaryKey))
-                .filter(Column::updatable)
-                .filter(column -> duplicates.add(column.name()))
-                .map(column -> {
-                    if (column.version()) {
-                        versionAware.setPlain(true);
-                        return getVersionString(column);
-                    }
-                    return "t.%s = src.%s".formatted(column.qualifiedName(dialect), column.qualifiedName(dialect));
-                })
-                .toList();
-        if (args.isEmpty()) {
-            return TemplateString.of("");
+            // Foreign key columns store the referenced entity's primary key. For compound keys the foreign key
+            // spans multiple columns; keyIndex identifies this column's position within the flattened key.
+            var leaves = new ArrayList<Class<?>>();
+            flattenKeyTypes(secondary.fieldType(), leaves);
+            int index = column.keyIndex();
+            if (index < 1 || index > leaves.size()) {
+                return null;
+            }
+            type = leaves.get(index - 1);
         }
-        String sql = args.stream().collect(joining(", ", "UPDATE SET ", ""));
-        return TemplateString.of("\nWHEN MATCHED THEN\n\t%s".formatted(sql));
+        String mapped = CAST_TYPES.get(type);
+        if (mapped != null) {
+            return mapped;
+        }
+        if (type.isEnum()) {
+            return "VARCHAR";   // Enums are bound by name.
+        }
+        if (Date.class.isAssignableFrom(type) || Calendar.class.isAssignableFrom(type)) {
+            return "TIMESTAMP";
+        }
+        return null;
     }
 
-    private TemplateString mergeInsert() {
+    /**
+     * Flattens a key type into the Java types of its database columns, in declaration order: records recurse into
+     * their components, entity references resolve to their primary key, and simple types are the leaves.
+     */
+    private static void flattenKeyTypes(@Nonnull Class<?> type, @Nonnull List<Class<?>> leaves) {
+        if (type.isRecord()) {
+            if (Data.class.isAssignableFrom(type)) {
+                for (RecordComponent component : type.getRecordComponents()) {
+                    if (component.isAnnotationPresent(PK.class)) {
+                        flattenKeyTypes(component.getType(), leaves);
+                        return;
+                    }
+                }
+                leaves.add(type);   // No primary key found; unmappable.
+                return;
+            }
+            for (RecordComponent component : type.getRecordComponents()) {
+                flattenKeyTypes(component.getType(), leaves);
+            }
+            return;
+        }
+        leaves.add(type);
+    }
+
+    @Override
+    protected TemplateString mergeInsert() {
         var dialect = ormTemplate.dialect();
         var insertDuplicates = new HashSet<>();
         var insertArgs = model.declaredColumns().stream()
@@ -204,112 +192,11 @@ public class H2EntityRepositoryImpl<E extends Entity<ID>, ID> extends EntityRepo
     }
 
     @Override
-    protected E validateUpsert(@Nonnull E entity) {
-        assert !isAutoGeneratedPrimaryKey();
-        if (model.isDefaultPrimaryKey(entity.id())) {
-            throw new PersistenceException("Primary key must be set for non-auto-generated primary keys for upserts.");
-        }
-        return entity;
-    }
-
-    @Override
-    protected void doUpsert(@Nonnull E entity) {
-        validateUpsert(entity);
-        entityCache().ifPresent(cache -> {
-            if (!model.isDefaultPrimaryKey(entity.id())) {
-                cache.remove(entity.id());
-            }
-        });
-        var versionAware = new AtomicBoolean();
-        intercept(sql -> sql.versionAware(versionAware.getPlain()), () -> {
-            var query = ormTemplate.query(flatten(raw("""
-                    MERGE INTO \0 t
-                    USING (\0) src
-                    ON (\0)\0\0""", table(model.type()), mergeSelect(entity), mergeOn(), mergeUpdate(versionAware), mergeInsert()))).managed();
-            query.executeUpdate();
-        });
-    }
-
-    @Override
-    protected ID doUpsertAndFetchId(@Nonnull E entity) {
-        validateUpsert(entity);
-        entityCache().ifPresent(cache -> {
-            if (!model.isDefaultPrimaryKey(entity.id())) {
-                cache.remove(entity.id());
-            }
-        });
-        var versionAware = new AtomicBoolean();
-        intercept(sql -> sql.versionAware(versionAware.getPlain()), () -> {
-            var query = ormTemplate.query(flatten(raw("""
-                    MERGE INTO \0 t
-                    USING (\0) src
-                    ON (\0)\0\0""", table(model.type()), mergeSelect(entity), mergeOn(), mergeUpdate(versionAware), mergeInsert())))
-                    .managed();
-            query.executeUpdate();
-        });
-        return entity.id();
-    }
-
-    @Override
     public List<ID> upsertAndFetchIds(@Nonnull Iterable<E> entities) {
         if (isAutoGeneratedPrimaryKey() && generationStrategy == SEQUENCE) {
             throw new PersistenceException("H2 does not support using sequence-based ID generation together with fetch mode for upserts.");
         }
         return super.upsertAndFetchIds(entities);
-    }
-
-    @Override
-    protected PreparedQuery prepareUpsertQuery() {
-        var bindVars = ormTemplate.createBindVars();
-        var versionAware = new AtomicBoolean();
-        return intercept(sql -> sql.versionAware(versionAware.getPlain()), () ->
-                ormTemplate.query(flatten(raw("""
-                    MERGE INTO \0 t
-                    USING (\0) src
-                    ON (\0)\0\0""", table(model.type()), mergeSelect(bindVars), mergeOn(), mergeUpdate(versionAware), mergeInsert())))
-                        .managed().prepare());
-    }
-
-    @Override
-    protected void doUpsertBatch(@Nonnull List<E> batch, @Nonnull PreparedQuery query,
-                                 @Nullable EntityCache<E, ID> cache) {
-        if (batch.isEmpty()) {
-            return;
-        }
-        batch.stream().map(this::validateUpsert).forEach(query::addBatch);
-        if (cache != null) {
-            batch.stream()
-                    .filter(e -> !model.isDefaultPrimaryKey(e.id()))
-                    .forEach(e -> cache.remove(e.id()));
-        }
-        int[] result = query.executeBatch();
-        if (IntStream.of(result).anyMatch(r -> r != 0 && r != 1 && r != 2)) {
-            throw new PersistenceException(upsertFailureMessage(batch.size()));
-        }
-    }
-
-    @Override
-    protected List<ID> doUpsertAndFetchIdsBatch(@Nonnull List<E> batch, @Nonnull PreparedQuery query,
-                                                @Nullable EntityCache<E, ID> cache) {
-        if (batch.isEmpty()) {
-            return List.of();
-        }
-        batch.stream().map(this::validateUpsert).forEach(query::addBatch);
-        if (cache != null) {
-            batch.stream()
-                    .filter(e -> !model.isDefaultPrimaryKey(e.id()))
-                    .forEach(e -> cache.remove(e.id()));
-        }
-        int[] result = query.executeBatch();
-        if (IntStream.of(result).anyMatch(r -> r != 0 && r != 1 && r != 2)) {
-            throw new PersistenceException(upsertFailureMessage(batch.size()));
-        }
-        if (isAutoGeneratedPrimaryKey()) {
-            try (var generatedKeys = query.getGeneratedKeys(model.primaryKeyType())) {
-                return generatedKeys.toList();
-            }
-        }
-        return batch.stream().map(Entity::id).toList();
     }
 
     @Override

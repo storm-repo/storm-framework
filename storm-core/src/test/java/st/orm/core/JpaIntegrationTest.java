@@ -23,6 +23,7 @@ import st.orm.core.model.Owner;
 import st.orm.core.model.Pet;
 import st.orm.core.model.PetTypeEnum;
 import st.orm.core.model.Vet;
+import st.orm.core.spi.JsonString;
 import st.orm.core.template.JpaTemplate;
 import st.orm.core.template.ORMTemplate;
 
@@ -384,6 +385,20 @@ public class JpaIntegrationTest {
     void jpaOrm_selectVetRecord() {
         try (var q = ORM(entityManager).query(raw("SELECT \0 FROM \0", Vet.class, Vet.class)).prepare()) {
             assertEquals(6, q.getResultCount());
+        }
+    }
+
+    @Test
+    void jpaOrm_bindsJsonStringParameter() {
+        // JsonString parameters are unwrapped to their JSON text before being handed to the JPA provider;
+        // without the unwrap, the provider cannot map the type.
+        try (var q = ORM(entityManager).query(raw("UPDATE owner SET address = \0 WHERE id = \0",
+                new JsonString("{\"street\":\"271 University Ave\",\"city\":\"Palo Alto\"}"), 1)).prepare()) {
+            assertEquals(1, q.executeUpdate());
+        }
+        try (var q = ORM(entityManager).query(raw("SELECT address FROM owner WHERE id = \0", 1)).prepare()) {
+            assertEquals("{\"street\":\"271 University Ave\",\"city\":\"Palo Alto\"}",
+                    q.getResultStream(String.class).findFirst().orElseThrow());
         }
     }
 
