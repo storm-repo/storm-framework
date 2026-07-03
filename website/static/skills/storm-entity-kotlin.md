@@ -109,6 +109,7 @@ Generation rules:
 
 9. Primary key as foreign key (dependent one-to-one, extension tables):
    - Use both `@PK(generation = NONE)` and `@FK` on the same field. The entity's type parameter is the related entity type.
+   - Key chains are supported: the referenced entity's primary key may itself be a foreign key or a compound key record. The columns resolve to the chain's terminal key columns. Circular key chains are rejected at model construction.
    ```kotlin
    data class UserProfile(
        @PK(generation = NONE) @FK val user: User,

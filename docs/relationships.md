@@ -463,6 +463,34 @@ Storm extracts the primary key from the `User` entity and uses it as the value f
 </TabItem>
 </Tabs>
 
+### Key Chains
+
+The referenced entity's primary key may itself be a foreign key — or a compound key record. Storm follows this *key chain* to its terminal columns. A dependent one-to-one on an entity that is itself a dependent one-to-one works the same way as the single-level case:
+
+<Tabs groupId="language">
+<TabItem value="kotlin" label="Kotlin" default>
+
+```kotlin
+data class ProfileAudit(
+    @PK(generation = NONE) @FK val profile: UserProfile,  // UserProfile's own PK is the FK to User
+    val remark: String
+) : Entity<UserProfile>
+```
+
+</TabItem>
+<TabItem value="java" label="Java">
+
+```java
+record ProfileAudit(@PK(generation = NONE) @FK UserProfile profile,  // UserProfile's own PK is the FK to User
+                    String remark
+) implements Entity<UserProfile> {}
+```
+
+</TabItem>
+</Tabs>
+
+The foreign key spans the same columns as the terminal key of the chain: a single-column chain resolves to one column named by the FK convention (`profile_id` here), and a compound key contributes the referenced key's column names. Circular key chains are rejected at model construction with a clear error.
+
 ---
 
 ## Relationship Loading Behavior
