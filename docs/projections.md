@@ -138,7 +138,7 @@ Use `@ProjectionQuery` to define a projection backed by custom SQL:
     SELECT b.id, COUNT(*) AS item_count, SUM(i.price) AS total_price
     FROM basket b
     JOIN basket_item bi ON bi.basket_id = b.id
-    JOIN item i ON i.id = bi.item_id
+    JOIN item i ON bi.item_id = i.id
     GROUP BY b.id
 """)
 data class BasketSummary(
@@ -156,7 +156,7 @@ data class BasketSummary(
     SELECT b.id, COUNT(*) AS item_count, SUM(i.price) AS total_price
     FROM basket b
     JOIN basket_item bi ON bi.basket_id = b.id
-    JOIN item i ON i.id = bi.item_id
+    JOIN item i ON bi.item_id = i.id
     GROUP BY b.id
     """)
 record BasketSummary(

@@ -341,23 +341,23 @@ export default function Home() {
       '<span class="sqlc">-- getById(1) — joins the city graph, no N+1</span>\n'+
       '<span class="sqlk">SELECT</span> u.id, u.email, u.name, c.id, c.name, c.population, c.country\n'+
       '<span class="sqlk">FROM</span> "user" u\n'+
-      '<span class="sqlk">INNER JOIN</span> city c <span class="sqlk">ON</span> c.id = u.city_id\n'+
+      '<span class="sqlk">INNER JOIN</span> city c <span class="sqlk">ON</span> u.city_id = c.id\n'+
       '<span class="sqlk">WHERE</span> u.id = <span class="sqlq">?</span>\n\n'+
       '<span class="sqlc">-- findAll(User_.city.name eq "Sunnyvale")</span>\n'+
       '<span class="sqlk">SELECT</span> u.id, u.email, u.name, c.id, c.name, c.population, c.country\n'+
       '<span class="sqlk">FROM</span> "user" u\n'+
-      '<span class="sqlk">INNER JOIN</span> city c <span class="sqlk">ON</span> c.id = u.city_id\n'+
+      '<span class="sqlk">INNER JOIN</span> city c <span class="sqlk">ON</span> u.city_id = c.id\n'+
       '<span class="sqlk">WHERE</span> c.name = <span class="sqlq">?</span>',
 
       '<span class="sqlc">-- findByCity(city)</span>\n'+
       '<span class="sqlk">SELECT</span> u.id, u.email, u.name, c.id, c.name, c.population, c.country\n'+
       '<span class="sqlk">FROM</span> "user" u\n'+
-      '<span class="sqlk">INNER JOIN</span> city c <span class="sqlk">ON</span> c.id = u.city_id\n'+
+      '<span class="sqlk">INNER JOIN</span> city c <span class="sqlk">ON</span> u.city_id = c.id\n'+
       '<span class="sqlk">WHERE</span> u.city_id = <span class="sqlq">?</span>\n\n'+
       '<span class="sqlc">-- usersPerCity(country)</span>\n'+
       '<span class="sqlk">SELECT</span> c.id, c.name, c.population, c.country, <span class="sqlk">COUNT</span>(*)\n'+
       '<span class="sqlk">FROM</span> "user" u\n'+
-      '<span class="sqlk">INNER JOIN</span> city c <span class="sqlk">ON</span> c.id = u.city_id\n'+
+      '<span class="sqlk">INNER JOIN</span> city c <span class="sqlk">ON</span> u.city_id = c.id\n'+
       '<span class="sqlk">WHERE</span> c.country = <span class="sqlq">?</span>\n'+
       '<span class="sqlk">GROUP BY</span> u.city_id',
 
@@ -377,7 +377,7 @@ export default function Home() {
       '<span class="sqlc">-- ${User::class} expands to columns · $city becomes ?</span>\n'+
       '<span class="sqlk">SELECT</span> u.id, u.email, u.name, c.id, c.name, c.population, c.country\n'+
       '<span class="sqlk">FROM</span> "user" u\n'+
-      '<span class="sqlk">INNER JOIN</span> city c <span class="sqlk">ON</span> c.id = u.city_id\n'+
+      '<span class="sqlk">INNER JOIN</span> city c <span class="sqlk">ON</span> u.city_id = c.id\n'+
       '<span class="sqlk">WHERE</span> c.name = <span class="sqlq">?</span>',
     ];
 
