@@ -26,7 +26,7 @@ import jakarta.annotation.Nonnull;
  * {@code jsonb} columns.</p>
  *
  * @param value the serialized JSON text.
- * @since 1.12
+ * @since 1.11
  */
 public record JsonString(@Nonnull String value) {
 
