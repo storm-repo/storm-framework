@@ -98,6 +98,22 @@ public class BuilderIntegrationTest {
     }
 
     @Test
+    public void testInnerJoinEntityAmbiguousForeignKeys() {
+        // Exact-type matches are ambiguous too: two foreign keys reference the Pet
+        // entity, so the join must fail rather than silently pick the first field.
+        record PetPair(@PK Integer id,
+                       @Nonnull @FK Pet first,
+                       @Nonnull @FK Pet second) implements Entity<Integer> {}
+        var exception = assertThrows(PersistenceException.class, () -> ORMTemplate.of(dataSource)
+                .selectFrom(Pet.class)
+                .innerJoin(PetPair.class).on(Pet.class)
+                .getResultList());
+        assertTrue(exception.getMessage().contains("multiple foreign keys reference Pet"), exception.getMessage());
+        assertTrue(exception.getMessage().contains("first"), exception.getMessage());
+        assertTrue(exception.getMessage().contains("second"), exception.getMessage());
+    }
+
+    @Test
     public void testInnerJoinAlternativeEntityByTable() {
         // A second entity mapping the pet table: Visit's foreign key references the
         // Pet entity, but the join resolves by table match.

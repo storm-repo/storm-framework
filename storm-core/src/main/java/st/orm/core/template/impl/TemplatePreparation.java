@@ -930,7 +930,7 @@ class TemplatePreparation {
                         ? new TableSource(fieldType.requireDataType())
                         : new Elements.TemplateSource(TemplateString.of(query.value()));
                 Elements.Target target = query == null
-                        ? new Elements.TableTarget(table)
+                        ? new Elements.TableTarget(table, field)
                         : getTemplateTarget(
                         fromAlias,
                         alias,

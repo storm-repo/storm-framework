@@ -19,7 +19,7 @@ import static java.util.Optional.empty;
 import static java.util.stream.Collectors.joining;
 import static st.orm.ResolveScope.INNER;
 import static st.orm.core.template.impl.RecordReflection.findPkField;
-import static st.orm.core.template.impl.RecordReflection.findRecordField;
+import static st.orm.core.template.impl.RecordReflection.findRecordFields;
 import static st.orm.core.template.impl.RecordReflection.findRecordFieldsByTable;
 import static st.orm.core.template.impl.RecordReflection.getFkFields;
 import static st.orm.core.template.impl.RecordReflection.getForeignKeys;
@@ -110,8 +110,8 @@ final class JoinProcessor implements ElementProcessor<Join> {
             throws SqlTemplateException {
         String joinType = join.type().sql();
         String onClause = join.type().hasOnClause() ? switch (join.target()) {
-            case TableTarget(var toTable) when join.source() instanceof TableSource(var fromTable) ->
-                    compileJoinCondition(fromTable, join.sourceAlias(), toTable, join.targetAlias(), compiler);
+            case TableTarget(var toTable, var toField) when join.source() instanceof TableSource(var fromTable) ->
+                    compileJoinCondition(fromTable, join.sourceAlias(), toTable, join.targetAlias(), toField, compiler);
             case TemplateTarget ts -> compiler.compile(ts.template(), true);
             default -> throw new SqlTemplateException("Unsupported join target type: %s. Join targets must be either a table type (Class<? extends Data>) or a template expression.".formatted(join.target().getClass().getSimpleName()));
         } : "";
@@ -135,16 +135,25 @@ final class JoinProcessor implements ElementProcessor<Join> {
             @Nonnull String alias,
             @Nonnull Class<? extends Data> toTable,
             @Nullable String toAlias,
+            @Nullable RecordField toField,
             @Nonnull TemplateCompiler compiler
     ) throws SqlTemplateException {
-        var rightComponent = findRecordField(getFkFields(toTable).toList(), fromTable);
+        if (toField != null) {
+            // Graph-derived joins carry the resolved foreign key field of the target table; no
+            // type-based resolution is needed, so multiple foreign keys of the same type stay
+            // unambiguous.
+            validateDataType(fromTable, true);
+            return compileJoinCondition(fromTable, alias, toTable, toAlias, toField,
+                    findPkField(fromTable).orElseThrow(), compiler);
+        }
+        var rightComponent = findExactJoinField(toTable, fromTable);
         if (rightComponent.isPresent()) {
             validateDataType(fromTable, true);
             // Joins foreign key of right table to the primary key of left table.
             return compileJoinCondition(fromTable, alias, toTable, toAlias, rightComponent.get(),
                     findPkField(fromTable).orElseThrow(), compiler);
         }
-        var leftComponent = findRecordField(getFkFields(fromTable).toList(), toTable);
+        var leftComponent = findExactJoinField(fromTable, toTable);
         if (leftComponent.isPresent()) {
             validateDataType(toTable, true);
             // Joins foreign key of left table to the primary key of right table.
@@ -168,6 +177,28 @@ final class JoinProcessor implements ElementProcessor<Join> {
         }
         throw new SqlTemplateException(
                 "Failed to join %s with %s: no matching foreign key relationship found. Ensure one of the types has an @FK-annotated field referencing the other, or use an explicit ON clause with a template-based join.".formatted(fromTable.getSimpleName(), toTable.getSimpleName()));
+    }
+
+    /**
+     * Attempts to resolve the foreign key field of {@code fkSide} whose declared type matches the
+     * specified target type. Returns empty when no foreign key matches; throws when multiple
+     * foreign keys reference the target type, as the join is ambiguous and must be specified
+     * explicitly.
+     */
+    private Optional<RecordField> findExactJoinField(
+            @Nonnull Class<? extends Data> fkSide,
+            @Nonnull Class<? extends Data> targetSide
+    ) throws SqlTemplateException {
+        var matches = findRecordFields(getFkFields(fkSide).toList(), targetSide);
+        if (matches.size() > 1) {
+            throw new SqlTemplateException(
+                    "Failed to join %s with %s: multiple foreign keys reference %s (fields: %s). Use an explicit ON clause with a template-based join to select the intended foreign key.".formatted(
+                            fkSide.getSimpleName(),
+                            targetSide.getSimpleName(),
+                            targetSide.getSimpleName(),
+                            matches.stream().map(RecordField::name).collect(joining(", "))));
+        }
+        return matches.stream().findFirst();
     }
 
     /**

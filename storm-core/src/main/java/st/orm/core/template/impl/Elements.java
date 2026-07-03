@@ -31,6 +31,7 @@ import st.orm.Operator;
 import st.orm.ResolveScope;
 import st.orm.SelectMode;
 import st.orm.core.template.TemplateString;
+import st.orm.mapping.RecordField;
 
 public final class Elements {
 
@@ -110,7 +111,17 @@ public final class Elements {
     public record TemplateSource(@Nonnull TemplateString template) implements Source {}
 
     public sealed interface Target {}
-    public record TableTarget(@Nonnull Class<? extends Data> table) implements Target {}
+
+    /**
+     * @param table the table to join against.
+     * @param field the resolved foreign key field for graph-derived joins, or {@code null} when
+     *              the field must be resolved from the table types.
+     */
+    public record TableTarget(@Nonnull Class<? extends Data> table, @Nullable RecordField field) implements Target {
+        public TableTarget(@Nonnull Class<? extends Data> table) {
+            this(table, null);
+        }
+    }
     public record TemplateTarget(@Nonnull TemplateString template) implements Target {}
 
     public record From(@Nonnull Source source, @Nonnull String alias, boolean autoJoin) implements Element {

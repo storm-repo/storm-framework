@@ -270,13 +270,27 @@ final class RecordReflection {
 
     static Optional<RecordField> findRecordField(@Nonnull List<RecordField> fields,
                                                  @Nonnull Class<?> table) throws SqlTemplateException {
+        return findRecordFields(fields, table).stream().findFirst();
+    }
+
+    /**
+     * Returns the fields whose declared type matches the specified type, either directly or as
+     * the data type of a Ref.
+     *
+     * @param fields the candidate (foreign key) fields.
+     * @param table the type the fields are matched against.
+     * @return the matching fields; empty when none match.
+     */
+    static List<RecordField> findRecordFields(@Nonnull List<RecordField> fields,
+                                              @Nonnull Class<?> table) throws SqlTemplateException {
+        var matches = new ArrayList<RecordField>();
         for (var field : fields) {
             if (field.type() == table
                     || (Ref.class.isAssignableFrom(field.type()) && getRefDataType(field).equals(table))) {
-                return Optional.of(field);
+                matches.add(field);
             }
         }
-        return empty();
+        return matches;
     }
 
     /**
