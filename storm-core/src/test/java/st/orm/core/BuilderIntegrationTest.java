@@ -3,6 +3,7 @@ package st.orm.core;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static st.orm.Operator.EQUALS;
 import static st.orm.ResolveScope.INNER;
@@ -10,6 +11,7 @@ import static st.orm.ResolveScope.OUTER;
 import static st.orm.core.template.TemplateString.raw;
 import static st.orm.core.template.Templates.alias;
 
+import jakarta.annotation.Nonnull;
 import javax.sql.DataSource;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -17,6 +19,11 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.orm.jpa.DataJpaTest;
 import org.springframework.test.context.ContextConfiguration;
 import org.springframework.test.context.junit.jupiter.SpringExtension;
+import st.orm.Data;
+import st.orm.DbTable;
+import st.orm.Entity;
+import st.orm.FK;
+import st.orm.PK;
 import st.orm.PersistenceException;
 import st.orm.core.model.Address;
 import st.orm.core.model.City;
@@ -24,6 +31,7 @@ import st.orm.core.model.City_;
 import st.orm.core.model.Owner;
 import st.orm.core.model.Owner_;
 import st.orm.core.model.Pet;
+import st.orm.core.model.PetSummary;
 import st.orm.core.model.PetType;
 import st.orm.core.model.Pet_;
 import st.orm.core.model.Visit;
@@ -54,6 +62,78 @@ public class BuilderIntegrationTest {
                 .rightJoin(Visit.class).on(Pet.class)
                 .getResultList();
         assertEquals(14, list.size());
+    }
+
+    // 1b. Table-based joins: the FK references the entity; other types mapping the
+    // same table (projections, alternative entities, plain Data records) resolve by
+    // table match.
+
+    @Test
+    public void testInnerJoinProjectionByTable() {
+        // Visit's foreign key references the Pet entity; PetSummary is a
+        // projection of the pet table, so the join resolves by table match.
+        var list = ORMTemplate.of(dataSource)
+                .projection(PetSummary.class)
+                .select()
+                .innerJoin(Visit.class).on(PetSummary.class)
+                .getResultList();
+        assertEquals(14, list.size());
+    }
+
+    @Test
+    public void testInnerJoinProjectionAmbiguousForeignKeys() {
+        // Two foreign keys reference the pet table: the join is ambiguous
+        // and must fail with a message naming the candidate fields.
+        record PetPair(@PK Integer id,
+                       @Nonnull @FK Pet first,
+                       @Nonnull @FK Pet second) implements Entity<Integer> {}
+        var exception = assertThrows(PersistenceException.class, () -> ORMTemplate.of(dataSource)
+                .projection(PetSummary.class)
+                .select()
+                .innerJoin(PetPair.class).on(PetSummary.class)
+                .getResultList());
+        assertTrue(exception.getMessage().contains("multiple foreign keys reference table 'pet'"), exception.getMessage());
+        assertTrue(exception.getMessage().contains("first"), exception.getMessage());
+        assertTrue(exception.getMessage().contains("second"), exception.getMessage());
+    }
+
+    @Test
+    public void testInnerJoinAlternativeEntityByTable() {
+        // A second entity mapping the pet table: Visit's foreign key references the
+        // Pet entity, but the join resolves by table match.
+        @DbTable("pet")
+        record PetLite(@PK Integer id, @Nonnull String name) implements Entity<Integer> {}
+        var list = ORMTemplate.of(dataSource)
+                .selectFrom(Visit.class)
+                .innerJoin(PetLite.class).on(Visit.class)
+                .getResultList();
+        assertEquals(14, list.size());
+    }
+
+    @Test
+    public void testInnerJoinPlainDataByTable() {
+        // A plain Data record mapping the pet table qualifies as a table-based join
+        // target: it is table-backed and has a primary key.
+        @DbTable("pet")
+        record PetView(@PK Integer id, @Nonnull String name) implements Data {}
+        var list = ORMTemplate.of(dataSource)
+                .selectFrom(Visit.class)
+                .innerJoin(PetView.class).on(Visit.class)
+                .getResultList();
+        assertEquals(14, list.size());
+    }
+
+    @Test
+    public void testInnerJoinDataWithoutPrimaryKeyFails() {
+        // A record without a primary key exposes no key column to join on: it must
+        // not silently match by table.
+        @DbTable("pet")
+        record PetName(@Nonnull String name) implements Data {}
+        var exception = assertThrows(PersistenceException.class, () -> ORMTemplate.of(dataSource)
+                .selectFrom(Visit.class)
+                .innerJoin(PetName.class).on(Visit.class)
+                .getResultList());
+        assertTrue(exception.getMessage().contains("No primary key found"), exception.getMessage());
     }
 
     // 2. crossJoin
