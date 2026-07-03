@@ -431,17 +431,18 @@ public final class SchemaValidator {
                 continue;
             }
             DbColumn dbCol = dbColumn.get();
-            // Type compatibility check.
-            Compatibility compatibility = typeCompatibility.check(column.type(), dbCol.dataType(), dbCol.typeName());
+            // Type compatibility check against the persisted type, so foreign key columns are validated
+            // against the referenced key's terminal type rather than being skipped as unknown entity types.
+            Compatibility compatibility = typeCompatibility.check(column.persistedType(), dbCol.dataType(), dbCol.typeName());
             if (compatibility == Compatibility.NARROWING) {
                 errors.add(new SchemaValidationError(type, ErrorKind.TYPE_NARROWING,
                         "Column '%s' in table '%s': Java type '%s' mapped to SQL type '%s' (%d) may involve precision or range loss."
-                                .formatted(columnName, qualifiedTableName, column.type().getSimpleName(),
+                                .formatted(columnName, qualifiedTableName, column.persistedType().getSimpleName(),
                                         dbCol.typeName(), dbCol.dataType())));
             } else if (compatibility == Compatibility.INCOMPATIBLE) {
                 errors.add(new SchemaValidationError(type, ErrorKind.TYPE_INCOMPATIBLE,
                         "Column '%s' in table '%s': Java type '%s' is not compatible with SQL type '%s' (%d)."
-                                .formatted(columnName, qualifiedTableName, column.type().getSimpleName(),
+                                .formatted(columnName, qualifiedTableName, column.persistedType().getSimpleName(),
                                         dbCol.typeName(), dbCol.dataType())));
             }
             // Nullability check: entity field is non-nullable but database column allows NULL.
