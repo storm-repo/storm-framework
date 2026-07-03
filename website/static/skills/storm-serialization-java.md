@@ -49,3 +49,5 @@ The format is fully round-trippable.
 - Entities without `Ref` fields need no Storm module registration.
 - Both Jackson modules (`storm-jackson2`, `storm-jackson3`) provide the same `StormModule` API.
 - Jackson supports `java.time` natively via the `jackson-datatype-jsr310` module (included by Spring Boot).
+- kotlinx.serialization is Kotlin-only; Java projects use Jackson. For Kotlin projects, see /storm-serialization-kotlin (which prefers kotlinx.serialization).
+- **Caching with Spring's cache annotations:** back the cache with serialized values (e.g. Redis with a Jackson-based serializer and `StormModule` registered) rather than object references — Storm's immutable records round-trip losslessly, which is what makes them safe to cache.

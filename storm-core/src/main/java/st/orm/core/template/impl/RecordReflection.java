@@ -46,6 +46,7 @@ import st.orm.GenerationStrategy;
 import st.orm.PK;
 import st.orm.PersistenceException;
 import st.orm.Polymorphic;
+import st.orm.ProjectionQuery;
 import st.orm.Ref;
 import st.orm.Version;
 import st.orm.core.spi.ORMReflection;
@@ -269,13 +270,74 @@ final class RecordReflection {
 
     static Optional<RecordField> findRecordField(@Nonnull List<RecordField> fields,
                                                  @Nonnull Class<?> table) throws SqlTemplateException {
+        return findRecordFields(fields, table).stream().findFirst();
+    }
+
+    /**
+     * Returns the fields whose declared type matches the specified type, either directly or as
+     * the data type of a Ref.
+     *
+     * @param fields the candidate (foreign key) fields.
+     * @param table the type the fields are matched against.
+     * @return the matching fields; empty when none match.
+     */
+    static List<RecordField> findRecordFields(@Nonnull List<RecordField> fields,
+                                              @Nonnull Class<?> table) throws SqlTemplateException {
+        var matches = new ArrayList<RecordField>();
         for (var field : fields) {
             if (field.type() == table
                     || (Ref.class.isAssignableFrom(field.type()) && getRefDataType(field).equals(table))) {
-                return Optional.of(field);
+                matches.add(field);
             }
         }
-        return empty();
+        return matches;
+    }
+
+    /**
+     * Returns whether the specified type can serve as the target of a table-based join: a
+     * table-backed Data type with a primary key to join on. Query-backed projections have no
+     * table, and types without a primary key expose no key column to join.
+     *
+     * @param type the type to check.
+     * @return {@code true} if the type is a table-based join candidate, {@code false} otherwise.
+     */
+    static boolean isTableJoinCandidate(@Nonnull Class<? extends Data> type) {
+        if (findPkField(type).isEmpty()) {
+            return false;
+        }
+        if (type.isSealed() && isSealedEntity(type)) {
+            return true;    // Sealed entity interfaces are not records and carry no ProjectionQuery.
+        }
+        return !getRecordType(type).isAnnotationPresent(ProjectionQuery.class);
+    }
+
+    /**
+     * Returns the foreign key fields whose referenced type maps to the same table as the
+     * specified type. This is the fallback used for table-based joins: a table-backed type, such
+     * as a projection of a table or an alternative entity mapping it, can be joined by any
+     * foreign key that references that table, even though the Java types differ.
+     *
+     * @param fields the candidate (foreign key) fields.
+     * @param table the type whose table name the referenced types are matched against.
+     * @param tableNameResolver the resolver used to derive table names.
+     * @return the matching fields; empty when none match.
+     */
+    static List<RecordField> findRecordFieldsByTable(@Nonnull List<RecordField> fields,
+                                                     @Nonnull Class<? extends Data> table,
+                                                     @Nonnull TableNameResolver tableNameResolver) throws SqlTemplateException {
+        var tableName = getTableName(table, tableNameResolver);
+        var matches = new ArrayList<RecordField>();
+        for (var field : fields) {
+            Class<?> targetType = Ref.class.isAssignableFrom(field.type()) ? getRefDataType(field) : field.type();
+            if (!Data.class.isAssignableFrom(targetType)) {
+                continue;
+            }
+            //noinspection unchecked
+            if (tableName.equals(getTableName((Class<? extends Data>) targetType, tableNameResolver))) {
+                matches.add(field);
+            }
+        }
+        return matches;
     }
 
     /**

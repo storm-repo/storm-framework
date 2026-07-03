@@ -564,4 +564,5 @@ class RecordValidationTest {
         assertTrue(exception.getMessage().contains("@FK") || exception.getMessage().contains("@Inline"),
                 "Expected error message to mention @FK or @Inline, got: " + exception.getMessage());
     }
+
 }
