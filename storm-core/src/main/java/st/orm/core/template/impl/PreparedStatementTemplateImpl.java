@@ -53,6 +53,7 @@ import javax.sql.DataSource;
 import st.orm.BindVars;
 import st.orm.PersistenceException;
 import st.orm.StormConfig;
+import st.orm.core.spi.JsonString;
 import st.orm.core.spi.Provider;
 import st.orm.core.spi.Providers;
 import st.orm.core.spi.QueryFactory;
@@ -395,6 +396,7 @@ public final class PreparedStatementTemplateImpl implements PreparedStatementTem
                         case Byte b            -> preparedStatement.setByte(idx, b);
                         case Boolean b         -> preparedStatement.setBoolean(idx, b);
                         case String s          -> preparedStatement.setString(idx, s);
+                        case JsonString js     -> dialect.setParameter(preparedStatement, idx, js);
                         case BigDecimal bd     -> preparedStatement.setBigDecimal(idx, bd);
                         case ByteBuffer buf -> {
                             byte[] bytes = new byte[buf.remaining()];

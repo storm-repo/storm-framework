@@ -32,6 +32,7 @@ import st.orm.BindVars;
 import st.orm.Data;
 import st.orm.Ref;
 import st.orm.StormConfig;
+import st.orm.core.spi.JsonString;
 import st.orm.core.spi.Provider;
 import st.orm.core.spi.Providers;
 import st.orm.core.spi.QueryFactory;
@@ -131,6 +132,7 @@ public final class JpaTemplateImpl implements JpaTemplate, QueryFactory {
                         case java.sql.Date d -> query.setParameter(p.position(), d, DATE);
                         case java.sql.Time d -> query.setParameter(p.position(), d, TIME);
                         case java.sql.Timestamp d -> query.setParameter(p.position(), d, TIMESTAMP);
+                        case JsonString js -> query.setParameter(p.position(), js.value());
                         default -> query.setParameter(p.position(), dbValue);
                     }
                 }
@@ -140,6 +142,7 @@ public final class JpaTemplateImpl implements JpaTemplate, QueryFactory {
                         case java.sql.Date d -> query.setParameter(n.name(), d, DATE);
                         case java.sql.Time d -> query.setParameter(n.name(), d, TIME);
                         case java.sql.Timestamp d -> query.setParameter(n.name(), d, TIMESTAMP);
+                        case JsonString js -> query.setParameter(n.name(), js.value());
                         default -> query.setParameter(n.name(), dbValue);
                     }
                 }

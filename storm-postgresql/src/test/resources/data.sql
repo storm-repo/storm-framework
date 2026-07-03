@@ -5,6 +5,8 @@ DROP TABLE IF EXISTS specialty CASCADE;
 DROP TABLE IF EXISTS vet CASCADE;
 DROP TABLE IF EXISTS vet_specialty CASCADE;
 DROP TABLE IF EXISTS visit CASCADE;
+DROP TABLE IF EXISTS user_profile CASCADE;
+DROP TABLE IF EXISTS document CASCADE;
 DROP VIEW IF EXISTS owner_view;
 DROP VIEW IF EXISTS visit_view;
 
@@ -16,6 +18,19 @@ CREATE TABLE owner (
     city varchar(255),
     telephone varchar(255),
     version integer DEFAULT 0
+);
+
+-- Native JSON columns for the @Json converter tests.
+CREATE TABLE user_profile (
+    id serial PRIMARY KEY,
+    name varchar(255) NOT NULL,
+    attributes jsonb NOT NULL,
+    address jsonb
+);
+
+CREATE TABLE document (
+    key varchar(64) PRIMARY KEY,
+    payload jsonb NOT NULL
 );
 
 CREATE SEQUENCE pet_id_seq

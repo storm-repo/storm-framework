@@ -178,7 +178,7 @@ class JsonORMConverterImpl(
 
     override fun toDatabase(record: Any?): List<Any?> = try {
         val v = if (record == null) null else REFLECTION.invoke(field, record)
-        listOf(v?.let { this@JsonORMConverterImpl.json.encodeToString(serializer, it) })
+        listOf(v?.let { JsonString(this@JsonORMConverterImpl.json.encodeToString(serializer, it)) })
     } catch (t: Throwable) {
         throw SqlTemplateException(t)
     }

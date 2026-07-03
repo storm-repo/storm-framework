@@ -29,6 +29,7 @@ import static st.orm.Operator.NOT_IN;
 import jakarta.annotation.Nonnull;
 import java.sql.PreparedStatement;
 import java.sql.SQLException;
+import java.sql.Types;
 import java.util.List;
 import java.util.SequencedMap;
 import java.util.Set;
@@ -39,6 +40,7 @@ import java.util.stream.Stream;
 import st.orm.Operator;
 import st.orm.StormConfig;
 import st.orm.core.spi.DefaultSqlDialect;
+import st.orm.core.spi.JsonString;
 import st.orm.core.template.SqlDialect;
 import st.orm.core.template.SqlTemplateException;
 
@@ -282,6 +284,25 @@ public class PostgreSQLSqlDialect extends DefaultSqlDialect implements SqlDialec
     public void setParameter(@Nonnull PreparedStatement preparedStatement, int index,
                              @Nonnull UUID uuid) throws SQLException {
         preparedStatement.setObject(index, uuid);
+    }
+
+    /**
+     * Sets a serialized JSON parameter on the given prepared statement.
+     *
+     * <p>PostgreSQL rejects string-typed parameters for {@code json} and {@code jsonb} columns ("column is of
+     * type jsonb but expression is of type character varying"). Binding the value as an untyped parameter lets
+     * the server cast it to the column's JSON type.</p>
+     *
+     * @param preparedStatement the prepared statement.
+     * @param index the parameter index.
+     * @param json the serialized JSON value.
+     * @throws SQLException if a database access error occurs.
+     * @since 1.12
+     */
+    @Override
+    public void setParameter(@Nonnull PreparedStatement preparedStatement, int index,
+                             @Nonnull JsonString json) throws SQLException {
+        preparedStatement.setObject(index, json.value(), Types.OTHER);
     }
 
     /**
