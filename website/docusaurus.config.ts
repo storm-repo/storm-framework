@@ -5,6 +5,7 @@ import type * as Preset from '@docusaurus/preset-classic';
 const stormVersion = require('./plugins/read-storm-version');
 const remarkStormVersion = require('./plugins/remark-storm-version');
 const staticVersionReplace = require('./plugins/static-version-replace');
+const exampleReadmes = require('./plugins/example-readmes');
 
 const config: Config = {
   title: 'Storm Framework',
@@ -26,6 +27,9 @@ const config: Config = {
 
   plugins: [
     [staticVersionReplace, { version: stormVersion }],
+    // Renders the example-project READMEs inline at /examples/<slug>,
+    // fetched from GitHub at build time (see plugins/example-readmes.js).
+    exampleReadmes,
     // Redirect the old root-level doc URLs (which used to serve at `/`) to their
     // new `/docs/...` homes, so existing links, bookmarks, and SEO keep working
     // now that the landing page owns `/`.
