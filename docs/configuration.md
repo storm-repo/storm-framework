@@ -607,13 +607,15 @@ Controls whether record (structural) validation runs when Storm first encounters
 
 ### storm.validation.schema_mode {#schema-validation}
 
-Controls whether schema validation runs at startup (Spring Boot only; for programmatic use, see [Validation](validation.md#programmatic-api)).
+Controls whether schema validation runs at startup (Spring Boot and Ktor; for programmatic use, see [Validation](validation.md#programmatic-api)).
 
 | Value | Behavior |
 |-------|----------|
-| `none` | Schema validation is skipped (default). |
+| `none` | Schema validation is skipped. |
 | `warn` | Mismatches are logged at WARN level; startup continues. |
-| `fail` | Mismatches cause startup to fail with a `PersistenceException`. |
+| `fail` | Mismatches cause startup to fail with a `PersistenceException` (default). |
+
+Validation runs after all singleton beans are initialized, so migrations executed by beans such as Flyway or Liquibase complete first. The Ktor plugin behaves the same way; run migrations in its `migration { }` hook.
 
 ### storm.validation.strict
 

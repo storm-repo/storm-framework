@@ -62,11 +62,11 @@ class CityService(private val cities: EntityRepository<City, Int>) {
 
 ### Ktor
 
-Access repositories via `call.repository<T>()` after registering them with `stormRepositories { }`:
+Repositories from the compile-time index are registered automatically when the `Storm` plugin is installed (since 1.12); access them with a bare `repository<T>()` in route handlers:
 
 ```kotlin
 get("/users/{email}") {
-    val users = call.repository<UserRepository>()
+    val users = repository<UserRepository>()
     call.respond(users.findByEmail(call.parameters.getOrFail("email")))
 }
 ```
@@ -461,17 +461,13 @@ class UserService(private val userRepository: UserRepository) {
 ```
 
 ### Ktor
-Register repositories via `stormRepositories { }`, then access them in routes:
+Repositories auto-register at `install(Storm)` from the compile-time index (narrow with `repositories("com.myapp")` in the plugin config, or disable with `autoRegisterRepositories = false`); access them in routes with a bare `repository<T>()`:
 ```kotlin
 fun Application.module() {
     install(Storm)
-    stormRepositories {
-        register(UserRepository::class)       // register individually
-        // or: register("com.myapp.repository") // register all in package
-    }
     routing {
         get("/users/{email}") {
-            val users = call.repository<UserRepository>()
+            val users = repository<UserRepository>()
             call.respond(users.findByEmail(call.parameters.getOrFail("email")))
         }
     }
@@ -530,7 +526,7 @@ Declarative `@Transactional` on service methods also works (standard Spring) for
 
 ```kotlin
 get("/users") {
-    val users = call.repository<UserRepository>()
+    val users = repository<UserRepository>()
     transaction {
         // All operations within the block share the same transaction.
         call.respond(users.findAll())

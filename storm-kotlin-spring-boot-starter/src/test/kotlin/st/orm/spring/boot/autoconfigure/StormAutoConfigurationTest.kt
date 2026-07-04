@@ -19,10 +19,13 @@ import io.kotest.matchers.shouldBe
 import io.kotest.matchers.shouldNotBe
 import io.kotest.matchers.types.shouldBeInstanceOf
 import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.extension.ExtendWith
 import org.springframework.boot.autoconfigure.AutoConfigurations
 import org.springframework.boot.autoconfigure.jdbc.DataSourceAutoConfiguration
 import org.springframework.boot.autoconfigure.jdbc.DataSourceTransactionManagerAutoConfiguration
 import org.springframework.boot.test.context.runner.ApplicationContextRunner
+import org.springframework.boot.test.system.CapturedOutput
+import org.springframework.boot.test.system.OutputCaptureExtension
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
 import st.orm.Entity
@@ -32,6 +35,7 @@ import st.orm.spring.SpringTransactionConfiguration
 import st.orm.template.ORMTemplate
 import javax.sql.DataSource
 
+@ExtendWith(OutputCaptureExtension::class)
 class StormAutoConfigurationTest {
 
     private val contextRunner = ApplicationContextRunner()
@@ -253,6 +257,22 @@ class StormAutoConfigurationTest {
     }
 
     @Test
+    fun `schema validation defaults to fail mode`(output: CapturedOutput) {
+        // No schema-mode property: validation must run in fail mode by default.
+        // With no entities on the test classpath there is nothing to reject, so
+        // the success log proves the default dispatched into the fail branch.
+        contextRunner
+            .withPropertyValues(
+                "spring.datasource.url=jdbc:h2:mem:schemaDefaultTest;DB_CLOSE_DELAY=-1",
+                "spring.datasource.driver-class-name=org.h2.Driver",
+            )
+            .run { context ->
+                context.getBean(ORMTemplate::class.java) shouldNotBe null
+                output.out.contains("Storm schema validation passed (mode=fail).") shouldBe true
+            }
+    }
+
+    @Test
     fun `schema validation fail mode should start context when no entities are registered`() {
         // With no entities registered, validateOrThrow should succeed (nothing to validate).
         // This exercises the "fail" branch in runSchemaValidation.
@@ -268,8 +288,9 @@ class StormAutoConfigurationTest {
     }
 
     @Test
-    fun `schema validation blank mode should not trigger validation`() {
-        // A blank (whitespace-only) schema-mode should be treated the same as "none".
+    fun `schema validation blank mode falls back to fail default`(output: CapturedOutput) {
+        // A blank (whitespace-only) schema-mode is treated as unset and falls back
+        // to the fail default.
         contextRunner
             .withPropertyValues(
                 "spring.datasource.url=jdbc:h2:mem:schemaBlankTest;DB_CLOSE_DELAY=-1",
@@ -278,6 +299,7 @@ class StormAutoConfigurationTest {
             )
             .run { context ->
                 context.getBean(ORMTemplate::class.java) shouldNotBe null
+                output.out.contains("Storm schema validation passed (mode=fail).") shouldBe true
             }
     }
 

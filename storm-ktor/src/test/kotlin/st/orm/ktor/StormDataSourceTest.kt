@@ -13,6 +13,7 @@ class StormDataSourceTest {
     fun `creates DataSource from HOCON config`() = testApplication {
         environment {
             config = io.ktor.server.config.MapApplicationConfig(
+                "storm.validation.schemaMode" to "none", // not exercising schema validation here
                 "storm.datasource.jdbcUrl" to "jdbc:h2:mem:ds-test-${System.nanoTime()};DB_CLOSE_DELAY=-1",
                 "storm.datasource.driverClassName" to "org.h2.Driver",
                 "storm.datasource.username" to "sa",
@@ -31,6 +32,7 @@ class StormDataSourceTest {
     fun `creates DataSource with all optional HikariCP properties`() = testApplication {
         environment {
             config = io.ktor.server.config.MapApplicationConfig(
+                "storm.validation.schemaMode" to "none", // not exercising schema validation here
                 "storm.datasource.jdbcUrl" to "jdbc:h2:mem:ds-full-${System.nanoTime()};DB_CLOSE_DELAY=-1",
                 "storm.datasource.driverClassName" to "org.h2.Driver",
                 "storm.datasource.username" to "sa",
@@ -52,6 +54,7 @@ class StormDataSourceTest {
     fun `creates DataSource with minimal config`() = testApplication {
         environment {
             config = io.ktor.server.config.MapApplicationConfig(
+                "storm.validation.schemaMode" to "none", // not exercising schema validation here
                 "storm.datasource.jdbcUrl" to "jdbc:h2:mem:ds-minimal-${System.nanoTime()};DB_CLOSE_DELAY=-1",
             )
         }
@@ -65,6 +68,7 @@ class StormDataSourceTest {
     fun `DataSource is closed on application stop`() = testApplication {
         environment {
             config = io.ktor.server.config.MapApplicationConfig(
+                "storm.validation.schemaMode" to "none", // not exercising schema validation here
                 "storm.datasource.jdbcUrl" to "jdbc:h2:mem:ds-close-${System.nanoTime()};DB_CLOSE_DELAY=-1",
                 "storm.datasource.driverClassName" to "org.h2.Driver",
                 "storm.datasource.username" to "sa",
@@ -99,6 +103,7 @@ class StormDataSourceTest {
         testApplication {
             application {
                 install(Storm) {
+                    schemaValidation = "none" // not exercising schema validation here
                     dataSource = simpleDataSource
                 }
                 stormDataSource shouldBe simpleDataSource

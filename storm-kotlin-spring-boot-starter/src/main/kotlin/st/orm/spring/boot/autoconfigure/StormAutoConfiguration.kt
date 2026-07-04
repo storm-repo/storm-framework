@@ -42,6 +42,8 @@ import javax.sql.DataSource
 @EnableConfigurationProperties(StormProperties::class)
 open class StormAutoConfiguration {
 
+    private val logger = org.slf4j.LoggerFactory.getLogger(StormAutoConfiguration::class.java)
+
     /**
      * Creates an [ORMTemplate] bean using the provided [DataSource] and [StormProperties].
      *
@@ -64,21 +66,29 @@ open class StormAutoConfiguration {
 
     /**
      * Runs schema validation after all singleton beans have been fully initialized. This guarantees that migration
-     * tools like Flyway and Liquibase have completed their work before validation occurs.
+     * tools like Flyway and Liquibase (or any bean-based migration mechanism) have completed their work before
+     * validation occurs.
+     *
+     * Validation defaults to `fail`: every entity and projection is validated against the live database schema and
+     * mismatches abort startup. Set `storm.validation.schema_mode` to `warn` or `none` to relax or opt out.
      */
     @Bean
     open fun stormSchemaValidator(
         dataSource: DataSource,
         properties: StormProperties,
     ): SmartInitializingSingleton = SmartInitializingSingleton {
-        val schemaMode = properties.validation.schemaMode?.trim() ?: return@SmartInitializingSingleton
-        if (schemaMode.isBlank() || schemaMode.equals("none", ignoreCase = true)) {
+        val schemaMode = properties.validation.schemaMode?.trim()?.ifBlank { null } ?: "fail"
+        if (schemaMode.equals("none", ignoreCase = true)) {
             return@SmartInitializingSingleton
         }
         val validator = SchemaValidator.of(dataSource)
         when {
-            schemaMode.equals("fail", ignoreCase = true) -> validator.validateOrThrow()
+            schemaMode.equals("fail", ignoreCase = true) -> {
+                validator.validateOrThrow()
+                logger.info("Storm schema validation passed (mode=fail).")
+            }
             schemaMode.equals("warn", ignoreCase = true) -> validator.validateOrWarn()
+            else -> logger.warn("Unknown schema validation mode: '$schemaMode'. Expected 'none', 'warn', or 'fail'.")
         }
     }
 

@@ -43,12 +43,10 @@ Set up the project structure quickly and without much commentary:
 - Docker Compose for the database (see below)
 - The `storm-test` dependency for verification (`st.orm:storm-test` as test scope)
 
-**Ktor repository registration (required):** After `install(Storm)`, register all repository interfaces using `stormRepositories { }`. This must be called before `routing { }`. Without it, `call.repository<T>()` throws at runtime. Use package-based registration to auto-discover all repositories:
+**Ktor repositories (automatic since 1.12):** `install(Storm)` auto-registers every repository interface from the compile-time index, created eagerly so a broken definition fails at startup. No `stormRepositories { }` block is needed; `repository<T>()` (also bare in route handlers via the `RoutingContext` extension) resolves anywhere. Run migrations in the plugin's `migration { }` hook so the default fail-mode schema validation sees the migrated schema:
 ```kotlin
-install(Storm) { this.dataSource = dataSource }
-
-stormRepositories {
-    register()  // auto-discovers all repositories from the compile-time index
+install(Storm) {
+    migration { dataSource -> Flyway.configure().dataSource(dataSource).load().migrate() }
 }
 
 routing { ... }

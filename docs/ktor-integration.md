@@ -102,7 +102,13 @@ install(Storm) {
     // Storm config: auto-read from HOCON if not provided
     config = StormConfig.of(mapOf(UPDATE_DEFAULT_MODE to "FIELD"))
 
-    // Schema validation: "none" (default), "warn", or "fail"
+    // Schema migrations: runs after the DataSource is available, before validation
+    migration { dataSource ->
+        Flyway.configure().dataSource(dataSource).load().migrate()
+    }
+
+    // Schema validation: "none", "warn", or "fail".
+    // When omitted, read from storm.validation.schemaMode in the application config; defaults to "fail".
     schemaValidation = "warn"
 
     // Entity callbacks for lifecycle hooks
@@ -118,7 +124,8 @@ install(Storm) {
 |--------|---------|-------------|
 | `dataSource` | Created from HOCON | The JDBC DataSource to use. When omitted, a HikariCP pool is created from `storm.datasource.*` in `application.conf`. |
 | `config` | Read from HOCON | A `StormConfig` with ORM properties. When omitted, properties are read from `storm.*` in `application.conf`. |
-| `schemaValidation` | `"none"` | Validates entity definitions against the database schema at startup. `"warn"` logs mismatches; `"fail"` blocks startup. |
+| `migration(...)` | None | A hook that runs after the DataSource is available and before schema validation. The place for Flyway or Liquibase migrations, guaranteeing validation sees the migrated schema. |
+| `schemaValidation` | From config, else `"fail"` | Validates entity definitions against the database schema during installation. `"fail"` (the default) blocks startup on mismatches; `"warn"` logs them; `"none"` opts out. When not set, the mode is read from `storm.validation.schemaMode` in the application configuration. |
 | `entityCallback(...)` | None | Registers entity lifecycle callbacks for insert, update, and delete operations. |
 | `autoRegisterRepositories` | `true` | Registers all repository interfaces from the compile-time type index during installation, so `repository<T>()` works without further setup. |
 | `repositories(...)` | All indexed | Narrows repository auto-registration to the given packages (including sub-packages). |

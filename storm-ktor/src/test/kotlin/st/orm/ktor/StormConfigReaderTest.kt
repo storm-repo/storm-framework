@@ -54,6 +54,7 @@ class StormConfigReaderTest {
     fun `plugin reads config from HOCON environment`() = testApplication {
         environment {
             config = MapApplicationConfig(
+                "storm.validation.schemaMode" to "none", // not exercising schema validation here
                 "storm.datasource.jdbcUrl" to "jdbc:h2:mem:cfgenv-${System.nanoTime()};DB_CLOSE_DELAY=-1",
                 "storm.datasource.driverClassName" to "org.h2.Driver",
                 "storm.datasource.username" to "sa",

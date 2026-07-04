@@ -7,6 +7,7 @@ import io.kotest.matchers.shouldNotBe
 import io.ktor.client.request.get
 import io.ktor.http.HttpStatusCode
 import io.ktor.server.application.install
+import io.ktor.server.config.MapApplicationConfig
 import io.ktor.server.response.respondText
 import io.ktor.server.routing.get
 import io.ktor.server.routing.routing
@@ -166,6 +167,119 @@ class StormPluginTest {
                     install(Storm) {
                         this.dataSource = dataSource
                         schemaValidation = "fail"
+                    }
+                    orm shouldNotBe null
+                }
+            }
+        } finally {
+            dataSource.close()
+        }
+    }
+
+    @Test
+    fun `migration hook runs before schema validation`() {
+        // Empty database: default fail-mode schema validation would abort startup,
+        // but the migration hook creates the schema first.
+        val dataSource = createTestDataSource()
+        try {
+            testApplication {
+                application {
+                    install(Storm) {
+                        this.dataSource = dataSource
+                        migration { initializeSchema(dataSource) }
+                    }
+                    orm shouldNotBe null
+                    repository<st.orm.ktor.model.PetRepository>().findAll().size shouldBe 3
+                }
+            }
+        } finally {
+            dataSource.close()
+        }
+    }
+
+    @Test
+    fun `schema validation fails startup by default on missing schema`() {
+        // No migration hook and no schema: the fail default must abort startup.
+        val dataSource = createTestDataSource()
+        try {
+            testApplication {
+                application {
+                    try {
+                        install(Storm) {
+                            this.dataSource = dataSource
+                        }
+                        throw AssertionError("Expected schema validation to fail startup")
+                    } catch (expected: st.orm.PersistenceException) {
+                        // Validation ran in fail mode by default.
+                    }
+                }
+            }
+        } finally {
+            dataSource.close()
+        }
+    }
+
+    @Test
+    fun `schema validation mode is read from application config`() {
+        val dataSource = createTestDataSource()
+        initializeSchema(dataSource)
+        try {
+            testApplication {
+                environment {
+                    config = MapApplicationConfig("storm.validation.schemaMode" to "fail")
+                }
+                application {
+                    install(Storm) {
+                        this.dataSource = dataSource
+                    }
+                    orm shouldNotBe null
+                }
+            }
+        } finally {
+            dataSource.close()
+        }
+    }
+
+    @Test
+    fun `schema validation from config fails startup on missing schema`() {
+        // No schema initialized: "fail" from the application config must
+        // surface as a startup failure, proving the config fallback triggers.
+        val dataSource = createTestDataSource()
+        try {
+            testApplication {
+                environment {
+                    config = MapApplicationConfig("storm.validation.schemaMode" to "fail")
+                }
+                application {
+                    try {
+                        install(Storm) {
+                            this.dataSource = dataSource
+                        }
+                        throw AssertionError("Expected schema validation to fail startup")
+                    } catch (expected: st.orm.PersistenceException) {
+                        // Schema validation ran in fail mode, as configured.
+                    }
+                }
+            }
+        } finally {
+            dataSource.close()
+        }
+    }
+
+    @Test
+    fun `plugin option overrides schema validation mode from config`() {
+        // No schema initialized: "fail" from the config would throw, but the
+        // explicit plugin option takes precedence and disables validation.
+        val dataSource = createTestDataSource()
+        try {
+            testApplication {
+                environment {
+                    config = MapApplicationConfig("storm.validation.schemaMode" to "fail")
+                }
+                application {
+                    install(Storm) {
+                        this.dataSource = dataSource
+                        schemaValidation = "none"
                     }
                     orm shouldNotBe null
                 }
