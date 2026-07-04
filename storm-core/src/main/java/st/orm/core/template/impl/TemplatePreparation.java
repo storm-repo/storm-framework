@@ -15,7 +15,6 @@
  */
 package st.orm.core.template.impl;
 
-import static java.util.Comparator.comparing;
 import static java.util.List.copyOf;
 import static java.util.stream.Collectors.joining;
 import static st.orm.ResolveScope.CASCADE;
@@ -52,8 +51,10 @@ import static st.orm.core.template.impl.SqlParser.removeComments;
 import jakarta.annotation.Nonnull;
 import jakarta.annotation.Nullable;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
 import java.util.ListIterator;
+import java.util.Set;
 import java.util.stream.Stream;
 import java.util.stream.StreamSupport;
 import st.orm.BindVars;
@@ -722,37 +723,60 @@ class TemplatePreparation {
             joins = customJoins;
         }
         if (!joins.isEmpty()) {
+            mutableElements.stream()
+                .filter(Select.class::isInstance)
+                .map(Select.class::cast)
+                .findAny().ifPresent(select -> joins.replaceAll(join ->
+                    join.source() instanceof TableSource(var joinTable)
+                        && joinTable == select.table() && join.type().isOuter()
+                        ? new Join(join.source(), join.sourceAlias(), join.target(), join.targetAlias(),
+                        DefaultJoinType.INNER, join.autoJoin())
+                        : join));
             List<ElementNode> elementNodes = new ArrayList<>();
             elementNodes.add(new ElementNode(from, false));
-            Select select = mutableElements.stream()
-                    .filter(Select.class::isInstance)
-                    .map(Select.class::cast)
-                    .findAny()
-                    .orElse(null);
-            if (select == null) {
-                elementNodes.addAll(joins.stream().map(it -> new ElementNode(it, it.autoJoin())).toList());
-            } else {
-                for (var join : joins) {
-                    if (join instanceof Join(TableSource(var joinTable), var ignore1, var ignore2, var ignore3, var ignore4, var autoJoin)
-                            && joinTable == select.table() && join.type().isOuter()) {
-                        elementNodes.add(new ElementNode(
-                                new Join(new TableSource(joinTable), join.sourceAlias(), join.target(), DefaultJoinType.INNER, autoJoin),
-                                autoJoin
-                        ));
-                    } else {
-                        elementNodes.add(new ElementNode(join, join.autoJoin()));
-                    }
-                }
-            }
+            elementNodes.addAll(orderJoins(joins).stream().map(it -> new ElementNode(it, it.autoJoin())).toList());
             mutableElements.replaceAll(element -> element instanceof From ? new Wrapped(elementNodes) : element);
         }
     }
 
     /**
+     * Orders joins so that outer joins come last to improve portability across databases, without breaking
+     * declaration-order dependencies: a join whose ON clause references an outer-joined table must stay behind
+     * that outer join.
+     *
+     * <p>Auto-joins reference their parent table's alias, so a derived join depends on its parent join. Custom
+     * joins can reference any table in the join graph through their ON clause, so they are conservatively treated
+     * as depending on every join that precedes them. Joins within the same group keep their relative order.</p>
+     *
+     * @param joins the joins in declaration order.
+     * @return the ordered joins.
+     */
+    private static List<Join> orderJoins(@Nonnull List<Join> joins) {
+        List<Join> ordered = new ArrayList<>(joins.size());
+        List<Join> deferred = new ArrayList<>(joins.size());
+        Set<String> deferredAliases = new HashSet<>();
+        for (var join : joins) {
+            boolean defer = join.type().isOuter()
+                    || (join.autoJoin()
+                            ? join.targetAlias() != null && deferredAliases.contains(join.targetAlias())
+                            : !deferred.isEmpty());
+            if (defer) {
+                deferred.add(join);
+                deferredAliases.add(join.sourceAlias());
+            } else {
+                ordered.add(join);
+            }
+        }
+        ordered.addAll(deferred);
+        return ordered;
+    }
+
+    /**
      * Computes auto-joins for a FROM table and merges them with any custom joins.
      *
-     * <p>Auto-joins are derived from {@link FK} fields of the record type graph. Outer joins are moved to the end of the
-     * list to improve portability across databases.</p>
+     * <p>Auto-joins are derived from {@link FK} fields of the record type graph. The resulting list is in declaration
+     * order: derived joins first, custom joins last. Ordering for portability is applied afterwards by
+     * {@link #orderJoins(List)}.</p>
      *
      * @param table        the FROM table.
      * @param rootTable    the root table for mapping purposes.
@@ -780,7 +804,6 @@ class TemplatePreparation {
             addJoinedExtensionJoins(table, aliasMapper, joins);
         }
         joins.addAll(customJoins);
-        joins.sort(comparing(join -> join.type().isOuter()));
     }
 
     /**

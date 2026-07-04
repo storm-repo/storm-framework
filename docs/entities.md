@@ -86,7 +86,7 @@ data class User(
 </TabItem>
 <TabItem value="java" label="Java">
 
-In Java, record components are nullable by default. Use `@Nonnull` to mark fields that must always have a value. Primitive types (`int`, `long`, etc.) are inherently non-nullable. As with Kotlin, nullability determines JOIN behavior: a non-nullable `@FK` field produces an `INNER JOIN`, while a `@Nullable` one produces a `LEFT JOIN`.
+In Java, record components are nullable by default. Use `@Nonnull` to mark fields that must always have a value — Storm recognizes `jakarta.annotation.Nonnull`, `javax.annotation.Nonnull`, and JSpecify's `org.jspecify.annotations.NonNull` on the component; other null-marker annotations (Lombok, JetBrains, Spring) are not recognized, and JSpecify `@NullMarked` scope defaults are not applied. `@PK` fields and primitive types (`int`, `long`, etc.) are inherently non-nullable. As with Kotlin, nullability determines JOIN behavior: a non-nullable `@FK` field produces an `INNER JOIN`, while a nullable one — including a bare `@FK` field without `@Nonnull` — produces a `LEFT JOIN`. If the FK column is `NOT NULL` in the database, annotate the field with `@Nonnull`, or joins silently degrade to `LEFT JOIN`.
 
 ```java
 record User(@PK Integer id,

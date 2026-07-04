@@ -31,7 +31,11 @@ Generation rules:
 
 3. Nullability:
    - Record components nullable by default. Use \`@Nonnull\` for required fields.
-   - Use primitives (\`int\`, \`long\`) for inherently non-nullable numerics.
+   - Storm recognizes \`jakarta.annotation.Nonnull\`, \`javax.annotation.Nonnull\`, and JSpecify's
+     \`org.jspecify.annotations.NonNull\` on the component. Other null-marker annotations (Lombok,
+     JetBrains, Spring) are NOT recognized, and JSpecify \`@NullMarked\` scope defaults are NOT
+     applied — only per-component annotations count.
+   - \`@PK\` fields and primitives (\`int\`, \`long\`) are implicitly non-nullable.
 
 4. Foreign keys (\`@FK\`):
    - **Every column with a FK constraint in the database must be modeled with `@FK` in the entity.** Without `@FK`, Storm has no FK metadata and cannot resolve joins automatically — forcing template-based joins that defeat the QueryBuilder.
@@ -39,6 +43,9 @@ Generation rules:
    - Use `Ref<T>` when the entity hierarchy gets too deep or loading the full related entity is overkill for the use case.
    - Non-nullable: \`@Nonnull @FK City city\` produces INNER JOIN.
    - Nullable: \`@Nullable @FK City city\` produces LEFT JOIN.
+   - **A bare \`@FK City city\` without a non-null marker is treated as nullable and produces a LEFT JOIN.**
+     Match the database: if the FK column is NOT NULL, the field MUST carry \`@Nonnull\`
+     (\`jakarta.annotation.Nonnull\`) or JSpecify \`@NonNull\`, otherwise queries silently degrade to LEFT JOINs.
 
 5. CIRCULAR REFERENCES ARE NOT SUPPORTED. At least one side MUST use \`Ref<T>\`. Self-references MUST use \`Ref<T>\`: \`@Nullable @FK Ref<User> invitedBy\`.
 

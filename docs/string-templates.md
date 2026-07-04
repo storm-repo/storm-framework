@@ -192,7 +192,7 @@ The `\{expression}` syntax is Java's string template interpolation. The `RAW` pr
 
 Java String Templates are a **preview feature** that is still evolving in the JDK. Storm is a forward-looking framework, and String Templates are the best way to write SQL in Java that is both readable and injection-safe by design.
 
-Rather than wait for the feature to stabilize, Storm ships with String Template support today. The Java API is production-ready from a quality perspective, but its API surface will adapt as String Templates move toward a stable release.
+Rather than wait for the feature to stabilize, Storm ships with String Template support today. The Java API is production-ready from a quality perspective, but its API surface will adapt as String Templates move toward a stable release. Once the redesigned string templates land in the JDK as a stable feature, the Java API moves front and center alongside Kotlin — same first-class status, no preview flags, no version pin.
 
 Only `storm-java21` depends on this preview feature. The core framework and the Kotlin API are unaffected.
 
