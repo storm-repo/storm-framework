@@ -18,7 +18,7 @@
 > GitHub: https://github.com/storm-orm/storm-framework
 > License: Apache 2.0
 
-# Generated: 2026-07-04T11:53:49Z
+# Generated: 2026-07-04T14:18:50Z
 
 ========================================
 ## Source: index.md

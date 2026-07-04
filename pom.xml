@@ -67,6 +67,7 @@
         <module>storm-spring-boot-starter</module>
         <module>storm-kotlin-spring-boot-starter</module>
         <module>storm-ktor</module>
+        <module>storm-ktor-koin</module>
         <module>storm-ktor-test</module>
     </modules>
     <dependencyManagement>
