@@ -13,7 +13,7 @@ The simplest way to query is with predicate methods directly on the ORM template
 <TabItem value="kotlin" label="Kotlin" default>
 
 ```kotlin
-val users = orm.entity(User::class)
+val users = orm.entity<User, _>()
 
 // Find all users in a city
 val usersInCity: List<User> = users.findAll(User_.city eq city)
@@ -139,7 +139,7 @@ For queries that need ordering, pagination, joins, or aggregation, use the fluen
 <TabItem value="kotlin" label="Kotlin" default>
 
 ```kotlin
-val users = orm.entity(User::class)
+val users = orm.entity<User>()
 
 // Ordering and pagination
 val page = users.select()
@@ -149,16 +149,16 @@ val page = users.select()
     .resultList
 
 // Joins (for entities not directly referenced by @FK)
-val roles = orm.entity(Role::class)
+val roles = orm.entity<Role>()
     .select()
-    .innerJoin(UserRole::class).on(Role::class)
+    .innerJoin<UserRole>().on<Role>()
     .whereAny(UserRole_.user eq user)
     .resultList
 
 // Aggregation
 data class CityCount(val city: City, val count: Long)
 
-val counts = users.select(CityCount::class) { "${City::class}, COUNT(*)" }
+val counts = users.select<CityCount, _, _> { "${City::class}, COUNT(*)" }
     .groupBy(User_.city)
     .resultList
 ```
@@ -207,7 +207,7 @@ For large result sets, streaming avoids loading all rows into memory at once. Ro
 Kotlin uses `Flow`, which provides automatic resource management through structured concurrency:
 
 ```kotlin
-val users: Flow<User> = orm.entity(User::class).select().resultFlow
+val users: Flow<User> = orm.entity<User>().select().resultFlow
 
 // Process each row
 users.collect { user -> println(user.name) }

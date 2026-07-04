@@ -11,10 +11,13 @@ import org.springframework.test.context.junit.jupiter.SpringExtension
 import st.orm.Data
 import st.orm.Metamodel
 import st.orm.Operator.*
+import st.orm.repository.entity
 import st.orm.repository.removeAll
 import st.orm.repository.select
 import st.orm.template.model.City
+import st.orm.template.model.Owner
 import st.orm.template.model.OwnerView
+import st.orm.template.model.Pet
 import st.orm.template.model.Visit
 
 @ExtendWith(SpringExtension::class)
@@ -115,6 +118,25 @@ open class SqlDslTest(
         }.resultList
         cities shouldHaveSize 2
         cities[0].id shouldBe 2
+    }
+
+    @Test
+    fun `select entities with reified inner join`() {
+        // data.sql: 13 pets total, but Pet(id=13, name='Sly') has NULL owner_id.
+        // Inner join excludes pets with no matching owner, yielding 12.
+        val pets = orm.entity<Pet>().select {
+            innerJoin<Owner, Pet>()
+        }.resultList
+        pets shouldHaveSize 12
+    }
+
+    @Test
+    fun `select entities with reified left join`() {
+        // data.sql: 13 pets total. Left join preserves all pets, including Pet 13 with NULL owner.
+        val pets = orm.entity<Pet>().select {
+            leftJoin<Owner, Pet>()
+        }.resultList
+        pets shouldHaveSize 13
     }
 
     @Test

@@ -49,13 +49,13 @@ When you call `getSingleResult()` on a query that returns zero rows, Storm throw
 
 ```kotlin
 // Throws NoResultException if no user has this email.
-val user = orm.entity(User::class).select(User_.email eq "nobody@example.com").singleResult
+val user = orm.entity<User>().select(User_.email eq "nobody@example.com").singleResult
 ```
 
 To handle the missing-result case without exceptions, use `optionalResult`:
 
 ```kotlin
-val user: User? = orm.entity(User::class)
+val user: User? = orm.entity<User>()
     .select(User_.email eq "nobody@example.com")
     .optionalResult
 ```
@@ -313,10 +313,10 @@ When using `@Version` columns, always have a strategy for handling `OptimisticLo
 
 ```kotlin
 // Collect into a list (automatically closes the stream).
-val users = userRepository.select().getResultList()
+val users = userRepository.select().resultList
 
-// Or use try-with-resources for lazy processing.
-userRepository.select().getResultStream().use { stream ->
+// Or use `use` for lazy processing.
+userRepository.select().resultStream.use { stream ->
     stream.forEach { user -> process(user) }
 }
 ```

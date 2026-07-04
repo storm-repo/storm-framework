@@ -23,7 +23,7 @@ import kotlin.reflect.KClass
 
 class QueryBuilderImpl<T : Data, R, ID>(
     private val core: st.orm.core.template.QueryBuilder<T, R, ID>,
-) : QueryBuilder<T, R, ID>,
+) : QueryBuilder<T, R, ID>(),
     Subqueryable {
 
     /**
@@ -206,7 +206,7 @@ class QueryBuilderImpl<T : Data, R, ID>(
         alias: String,
     ): TypedJoinBuilder<T, R, ID> {
         val joinBuilder = core.join(type, relation.java, alias)
-        return object : TypedJoinBuilder<T, R, ID> {
+        return object : TypedJoinBuilder<T, R, ID>() {
             override fun on(relation: KClass<out Data>): QueryBuilder<T, R, ID> = QueryBuilderImpl(joinBuilder.on(relation.java))
 
             override fun on(template: TemplateString): QueryBuilder<T, R, ID> = QueryBuilderImpl<T, R, ID>(joinBuilder.on(template.unwrap))
@@ -262,7 +262,7 @@ class QueryBuilderImpl<T : Data, R, ID>(
         alias: String,
     ): JoinBuilder<T, R, ID> {
         val joinBuilder = core.join(type, template.unwrap, alias)
-        return object : JoinBuilder<T, R, ID> {
+        return object : JoinBuilder<T, R, ID>() {
             override fun on(template: TemplateString): QueryBuilder<T, R, ID> = QueryBuilderImpl<T, R, ID>(joinBuilder.on(template.unwrap))
         }
     }
@@ -281,7 +281,7 @@ class QueryBuilderImpl<T : Data, R, ID>(
         alias: String,
     ): JoinBuilder<T, R, ID> {
         val joinBuilder = core.join(type, (subquery as QueryBuilderImpl<*, *, *>).core, alias)
-        return object : JoinBuilder<T, R, ID> {
+        return object : JoinBuilder<T, R, ID>() {
             override fun on(template: TemplateString): QueryBuilder<T, R, ID> = QueryBuilderImpl<T, R, ID>(joinBuilder.on(template.unwrap))
         }
     }

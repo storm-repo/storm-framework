@@ -62,7 +62,7 @@ import st.orm.core.template.TemplateString;
  * FROM clause (Oracle), {@link #statementSuffix()} for dialects that require a statement terminator (SQL Server),
  * the version expressions, and {@link #mergeInsert()} for the dialect-specific WHEN NOT MATCHED clause.</p>
  *
- * @since 1.11
+ * @since 1.12
  */
 public abstract class MergeEntityRepositoryImpl<E extends Entity<ID>, ID> extends EntityRepositoryImpl<E, ID> {
 

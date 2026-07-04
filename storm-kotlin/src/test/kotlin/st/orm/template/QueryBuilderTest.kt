@@ -22,6 +22,7 @@ import st.orm.Operator.*
 import st.orm.PersistenceException
 import st.orm.Ref
 import st.orm.Scrollable
+import st.orm.repository.entity
 import st.orm.template.model.*
 
 @ExtendWith(SpringExtension::class)
@@ -293,6 +294,21 @@ open class QueryBuilderTest(
         // data.sql: 13 pets total. Left join preserves all pets, including Pet 13 with NULL owner.
         val repo = orm.entity(Pet::class)
         val pets = repo.select().leftJoin(Owner::class).on(Pet::class).resultList
+        pets shouldHaveSize 13
+    }
+
+    @Test
+    fun `innerJoin with reified type arguments should return entities with matching join`() {
+        // data.sql: 13 pets total, but Pet(id=13, name='Sly') has NULL owner_id.
+        // Inner join excludes pets with no matching owner, yielding 12.
+        val pets = orm.entity<Pet>().select().innerJoin<Owner>().on<Pet>().resultList
+        pets shouldHaveSize 12
+    }
+
+    @Test
+    fun `leftJoin with reified type arguments should include entities without matching join`() {
+        // data.sql: 13 pets total. Left join preserves all pets, including Pet 13 with NULL owner.
+        val pets = orm.entity<Pet>().select().leftJoin<Owner>().on<Pet>().resultList
         pets shouldHaveSize 13
     }
 

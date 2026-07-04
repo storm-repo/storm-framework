@@ -34,7 +34,7 @@ For direct offset/limit control, use `offset` and `limit` on the query builder. 
 <TabItem value="kotlin" label="Kotlin" default>
 
 ```kotlin
-val results = orm.entity(User::class)
+val results = orm.entity<User>()
     .select()
     .orderBy(User_.createdAt)
     .offset(20)
@@ -68,14 +68,14 @@ Use the `page` terminal method on the query builder. Pass a `Pageable` to specif
 
 ```kotlin
 val pageable = Pageable.ofSize(10)
-val page: Page<User> = orm.entity(User::class)
+val page: Page<User> = orm.entity<User>()
     .select()
     .where(User_.active, EQUALS, true)
     .page(pageable)
 
 // Navigate
 if (page.hasNext()) {
-    val nextPage = orm.entity(User::class)
+    val nextPage = orm.entity<User>()
         .select()
         .where(User_.active, EQUALS, true)
         .page(page.nextPageable())
@@ -407,7 +407,7 @@ For queries where the result type differs from the entity type (for example, sel
 ```kotlin
 data class OrderSummary(val city: Ref<City>, val orderCount: Long) : Data
 
-val window: Window<OrderSummary> = orm.selectFrom(Order::class, OrderSummary::class) {
+val window: Window<OrderSummary> = orm.selectFrom<Order, OrderSummary> {
     """${Order_.city.id}, COUNT(*)"""
 }
 .groupBy(Order_.city)
@@ -417,7 +417,7 @@ val window: Window<OrderSummary> = orm.selectFrom(Order::class, OrderSummary::cl
 // Construct the next scrollable manually from the last result.
 // hasNext() is informational; the developer decides whether to follow the cursor.
 val lastCity = window.content.last().city.id()
-val next: Window<OrderSummary> = orm.selectFrom(Order::class, OrderSummary::class) { ... }
+val next: Window<OrderSummary> = orm.selectFrom<Order, OrderSummary> { ... }
     .groupBy(Order_.city)
     .scroll(Scrollable.of(Order_.city.key(), lastCity, 20))
 ```

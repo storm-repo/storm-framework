@@ -84,7 +84,7 @@ Full coroutine support with `Flow` for streaming and programmatic transactions:
 
 ```kotlin
 // Streaming with Flow
-val users: Flow<User> = orm.entity(User::class).select().resultFlow
+val users: Flow<User> = orm.entity<User>().select().resultFlow
 users.collect { user -> println(user.name) }
 
 // Programmatic transactions

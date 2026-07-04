@@ -43,6 +43,13 @@ open class ProjectionRepositoryTest(
         views shouldHaveSize 10
     }
 
+    @Test
+    fun `select with reified result type and template should return typed results`() {
+        // data.sql inserts exactly 10 owners (ids 1-10). OwnerView is backed by owner_view.
+        val views = orm.projection(OwnerView::class).select<OwnerView, _, _> { t(OwnerView::class) }.resultList
+        views shouldHaveSize 10
+    }
+
     // ProjectionRepository: findById
 
     @Test

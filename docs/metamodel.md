@@ -87,7 +87,7 @@ val users = orm.findAll(User_.email eq email)
 val users = orm.findAll(User_.city.country.code eq "US")
 
 // Multiple conditions
-val users = orm.entity(User::class)
+val users = orm.entity<User>()
     .select()
     .where(
         (User_.city eq city) and (User_.birthDate less LocalDate.of(2000, 1, 1))
@@ -191,7 +191,7 @@ data class User(
 ) : Entity<Int>
 
 // Short form works - Country appears only once in User's entity graph
-val users = orm.entity(User::class)
+val users = orm.entity<User>()
     .select()
     .whereAny(Country_.name eq "United States")  // Resolves to User → City → Country
     .resultList
@@ -229,18 +229,18 @@ data class User(
 ) : Entity<Int>
 
 // ERROR: Multiple paths to Country in User's entity graph
-val users = orm.entity(User::class)
+val users = orm.entity<User>()
     .select()
     .whereAny(Country_.name eq "United States")
     .resultList
 
 // OK: Nested paths are unambiguous (and can use where since they're rooted at User_)
-val users = orm.entity(User::class)
+val users = orm.entity<User>()
     .select()
     .where(User_.city.country.name eq "United States")
     .resultList
 
-val users = orm.entity(User::class)
+val users = orm.entity<User>()
     .select()
     .where(User_.birthCountry.name eq "United States")
     .resultList
@@ -268,9 +268,9 @@ Entity Graph                          Custom Join
 When you add custom joins to a query, those joined tables can **only** be referenced using short form:
 
 ```kotlin
-val users = orm.entity(User::class)
+val users = orm.entity<User>()
     .select()
-    .innerJoin(Order::class).on(User::class)  // Custom join
+    .innerJoin<Order>().on<User>()  // Custom join
     .whereAny(Order_.total greater BigDecimal(100))  // Short form required, use whereAny
     .resultList
 ```
@@ -280,7 +280,7 @@ Custom joins are not part of the entity graph traversal, so nested paths cannot 
 **Uniqueness still applies:** If you join the same table multiple times, you must use the `join` method with explicit aliases to disambiguate:
 
 ```kotlin
-val users = orm.entity(User::class)
+val users = orm.entity<User>()
     .select()
     .join(JoinType.inner(), Order::class, "recent").on(User::class)
     .join(JoinType.inner(), Order::class, "first").on(User::class)

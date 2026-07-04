@@ -1775,3 +1775,22 @@ interface EntityRepository<E, ID : Any> : Repository where E : Entity<ID> {
      */
     fun scroll(scrollable: Scrollable<E>): Window<E> = select().scroll(scrollable)
 }
+
+/**
+ * Constructs a SELECT query with a custom select clause producing results of type [R].
+ *
+ * The entity type and primary key type are inferred from the repository; use the underscore operator for their
+ * type arguments:
+ *
+ * ```kotlin
+ * userRepository.select<UserSummary, _, _> { "${t(User_.id)}, ${t(User_.email)}" }.resultList
+ * ```
+ *
+ * @param R the result type of the query.
+ * @param template the select clause template.
+ * @return a query builder producing results of type [R].
+ * @since 1.12
+ */
+inline fun <reified R : Any, E : Entity<ID>, ID : Any> EntityRepository<E, ID>.select(
+    noinline template: TemplateBuilder,
+): QueryBuilder<E, R, ID> = select(R::class, template)

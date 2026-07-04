@@ -65,7 +65,7 @@ public interface Column {
      * without knowledge of key structure. For all other columns it equals {@link #type()}.</p>
      *
      * @return the Java type persisted to this column.
-     * @since 1.11
+     * @since 1.12
      */
     Class<?> persistedType();
 

@@ -90,23 +90,45 @@ interface RepositoryLookup {
 // Kotlin specific DSL
 
 /**
- * Extensions for [RepositoryLookup] to provide convenient access to entity repositories.
+ * Returns the repository for entity type [T] with primary key type [ID].
+ *
+ * The primary key type can be inferred from the entity declaration with the underscore operator:
+ * ```kotlin
+ * val users = orm.entity<User, _>()   // EntityRepository<User, Int>
+ * ```
+ *
+ * @since 1.12
  */
-inline fun <reified T : Entity<ID>, ID : Any> RepositoryLookup.entityWithId(): EntityRepository<T, ID> = entity(T::class)
+@JvmName("entityTyped")
+inline fun <reified T : Entity<ID>, ID : Any> RepositoryLookup.entity(): EntityRepository<T, ID> = entity(T::class)
 
 /**
- * Extensions for [RepositoryLookup] to provide convenient access to entity repositories.
+ * Returns the repository for entity type [T] without binding the primary key type.
+ *
+ * The resulting repository supports query building and record-based operations, but not ID-based operations such
+ * as `findById`; use `entity<T, _>()` when the primary key type is needed.
  */
 @Suppress("UNCHECKED_CAST")
 inline fun <reified T : Entity<*>> RepositoryLookup.entity(): EntityRepository<T, *> = entity(T::class as KClass<Entity<Any>>) as EntityRepository<T, *>
 
 /**
- * Extensions for [RepositoryLookup] to provide convenient access to projection repositories.
+ * Returns the repository for projection type [T] with primary key type [ID].
+ *
+ * The primary key type can be inferred from the projection declaration with the underscore operator:
+ * ```kotlin
+ * val ownerViews = orm.projection<OwnerView, _>()   // ProjectionRepository<OwnerView, Int>
+ * ```
+ *
+ * @since 1.12
  */
-inline fun <reified T : Projection<ID>, ID : Any> RepositoryLookup.projectionWithId(): ProjectionRepository<T, ID> = projection(T::class)
+@JvmName("projectionTyped")
+inline fun <reified T : Projection<ID>, ID : Any> RepositoryLookup.projection(): ProjectionRepository<T, ID> = projection(T::class)
 
 /**
- * Extensions for [RepositoryLookup] to provide convenient access to projection repositories.
+ * Returns the repository for projection type [T] without binding the primary key type.
+ *
+ * The resulting repository supports query building and record-based operations, but not ID-based operations such
+ * as `findById`; use `projection<T, _>()` when the primary key type is needed.
  */
 @Suppress("UNCHECKED_CAST")
 inline fun <reified T : Projection<*>> RepositoryLookup.projection(): ProjectionRepository<T, *> = projection(T::class as KClass<Projection<Any>>) as ProjectionRepository<T, *>

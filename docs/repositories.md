@@ -17,11 +17,11 @@ Storm provides two ways to obtain a repository. The generic `entity()` method re
 ```kotlin
 val orm = ORMTemplate.of(dataSource)
 
-// Generic entity repository
-val userRepository = orm.entity(User::class)
-
-// Or using extension function
+// Generic entity repository (reified extension function, preferred)
 val userRepository = orm.entity<User>()
+
+// Or passing the class explicitly
+val userRepository = orm.entity(User::class)
 ```
 
 </TabItem>
@@ -77,7 +77,7 @@ orm.removeAll(User_.active eq false)
 orm.removeAll<User>()
 
 // Delete all (builder approach, requires unsafe() to confirm intent)
-orm.entity(User::class).delete().unsafe().executeUpdate()
+orm.entity<User>().delete().unsafe().executeUpdate()
 ```
 
 </TabItem>
