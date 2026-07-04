@@ -62,7 +62,7 @@ class CityService(private val cities: EntityRepository<City, Int>) {
 
 ### Ktor
 
-Repositories from the compile-time index are registered automatically when the `Storm` plugin is installed (since 1.12); access them with a bare `repository<T>()` in route handlers:
+Repositories from the compile-time index are registered automatically when the `Storm` plugin is installed; access them with a bare `repository<T>()` in route handlers:
 
 ```kotlin
 get("/users/{email}") {
@@ -470,6 +470,22 @@ fun Application.module() {
             val users = repository<UserRepository>()
             call.respond(users.findByEmail(call.parameters.getOrFail("email")))
         }
+    }
+}
+```
+
+When the app has a service layer, wire it with Koin via `st.orm:storm-ktor-koin`: `stormModule()` exposes the `ORMTemplate` and every auto-registered repository by type, so services take repositories as constructor parameters and register with `singleOf`:
+```kotlin
+class UserService(private val userRepository: UserRepository) { ... }
+
+fun Application.module() {
+    install(Storm)
+    install(Koin) {
+        modules(stormModule(), module { singleOf(::UserService) })
+    }
+    routing {
+        val userService by inject<UserService>()
+        get("/users/{email}") { call.respond(userService.find(call.parameters.getOrFail("email"))) }
     }
 }
 ```

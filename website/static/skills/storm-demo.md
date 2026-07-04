@@ -43,7 +43,7 @@ Set up the project structure quickly and without much commentary:
 - Docker Compose for the database (see below)
 - The `storm-test` dependency for verification (`st.orm:storm-test` as test scope)
 
-**Ktor repositories (automatic since 1.12):** `install(Storm)` auto-registers every repository interface from the compile-time index, created eagerly so a broken definition fails at startup. No `stormRepositories { }` block is needed; `repository<T>()` (also bare in route handlers via the `RoutingContext` extension) resolves anywhere. Run migrations in the plugin's `migration { }` hook so the default fail-mode schema validation sees the migrated schema:
+**Ktor repositories (automatic):** `install(Storm)` auto-registers every repository interface from the compile-time index, created eagerly so a broken definition fails at startup. No `stormRepositories { }` block is needed; `repository<T>()` (also bare in route handlers via the `RoutingContext` extension) resolves anywhere. Run migrations in the plugin's `migration { }` hook so the default fail-mode schema validation sees the migrated schema:
 ```kotlin
 install(Storm) {
     migration { dataSource -> Flyway.configure().dataSource(dataSource).load().migrate() }
