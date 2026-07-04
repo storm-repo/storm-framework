@@ -10,9 +10,9 @@ SQL Templates exist for two scenarios:
 **1. Template fragments** — a single clause (SELECT, HAVING) needs SQL that QueryBuilder cannot express, but the rest of the query is code-based. This is the most common case:
 ```kotlin
 // Prefer code over templates — use templates only for expressions QueryBuilder can't produce
-orm.entity(City::class)
-    .select(CityUserCount::class) { "${City::class}, COUNT(*)" }
-    .leftJoin(User::class).on(City::class)
+orm.entity<City>()
+    .select<CityUserCount, _, _> { "${City::class}, COUNT(*)" }
+    .leftJoin<User>().on<City>()
     .groupBy(City_.id)
     .resultList
 ```
@@ -69,10 +69,11 @@ Define a plain data class for the result shape, then use a SQL Template for the 
  */
 data class CityUserCount(val city: City, val userCount: Long)
 
-// Use select() with custom return type + minimal SQL template for the aggregate only
-val cityCounts = orm.entity(City::class)
-    .select(CityUserCount::class) { "${City::class}, COUNT(*)" }
-    .leftJoin(User::class).on(City::class)
+// Use select() with custom return type + minimal SQL template for the aggregate only.
+// The result type is explicit; the underscores let Kotlin infer the entity and ID types.
+val cityCounts = orm.entity<City>()
+    .select<CityUserCount, _, _> { "${City::class}, COUNT(*)" }
+    .leftJoin<User>().on<City>()
     .groupBy(City_.id)
     .resultList
 ```
@@ -94,15 +95,15 @@ Critical rules:
   ```kotlin
   // ❌ Wrong - two levels from joined entity
   orm.entity<Role>()
-      .select(RoleSummary::class) { "..." }
-      .innerJoin(UserRole::class).on(Role::class)
+      .select<RoleSummary, _, _> { "..." }
+      .innerJoin<UserRole>().on<Role>()
       .having { "COUNT(DISTINCT ${UserRole_.user.city}) > 1" }
 
   // ✅ Correct - explicitly join intermediate, then one level
   orm.entity<Role>()
-      .select(RoleSummary::class) { "..." }
-      .innerJoin(UserRole::class).on(Role::class)
-      .innerJoin(User::class).on(UserRole::class)
+      .select<RoleSummary, _, _> { "..." }
+      .innerJoin<UserRole>().on<Role>()
+      .innerJoin<User>().on<UserRole>()
       .having { "COUNT(DISTINCT ${User_.city}) > 1" }
   ```
 

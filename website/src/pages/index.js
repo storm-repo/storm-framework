@@ -147,6 +147,7 @@ const BODY = `
   <div class="brand"><img class="logo" src="/img/storm-light.png" alt="Storm" /><span>ST<b>/ORM</b></span><span class="tech-tag">Kotlin 2.0–2.4 · Java 21+ · Apache 2.0</span></div>
   <div class="nav-links">
     <a href="/docs/">Docs</a>
+    <a href="/tutorials/">Tutorials</a>
     <a class="gh" href="https://github.com/storm-orm/storm-framework">GitHub</a>
     <a href="/docs/getting-started" class="btn primary" style="height:36px">Get started</a>
   </div>
@@ -278,7 +279,7 @@ export default function Home() {
           P("    "),K("fun "),F("findByCity"),P("(city: "),T("City"),P(") = "),F("findAll"),P("(User_.city "),K("eq "),P("city)\n\n"),
           C("    // Query builder with SQL templates for the aggregate.\n"),
           P("    "),K("fun "),F("usersPerCity"),P("(country: "),T("String"),P(") =\n"),
-          P("        "),F("select"),P("("),T("CityCount"),P("::"),K("class"),P(") { "),S('"${City::class}, COUNT(*)"'),P(" }\n"),
+          P("        "),F("select"),P("<"),T("CityCount"),P(", _, _> { "),S('"${City::class}, COUNT(*)"'),P(" }\n"),
           P("            ."),F("where"),P("(User_.city.country "),K("eq "),P("country)\n"),
           P("            ."),F("groupBy"),P("(User_.city)\n"),
           P("            .resultList\n"),
