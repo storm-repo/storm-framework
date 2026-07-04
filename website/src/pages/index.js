@@ -147,7 +147,9 @@ const BODY = `
   <div class="brand"><img class="logo" src="/img/storm-light.png" alt="Storm" /><span>ST<b>/ORM</b></span><span class="tech-tag">Kotlin 2.0–2.4 · Java 21+ · Apache 2.0</span></div>
   <div class="nav-links">
     <a href="/docs/">Docs</a>
-    <a class="gh" href="https://github.com/storm-orm/storm-framework">GitHub</a>
+    <a href="/tutorials/">Tutorials</a>
+    <a href="/examples/">Examples</a>
+    <a class="gh" href="https://github.com/orgs/storm-orm/repositories">GitHub</a>
     <a href="/docs/getting-started" class="btn primary" style="height:36px">Get started</a>
   </div>
 </div></nav>
@@ -228,13 +230,14 @@ const BODY = `
   <p class="sub" style="margin:0 auto 30px;text-align:center;max-width:940px">Concise entities and one-line queries keep you productive. Immutable records simplify your architecture by letting the same types flow through your application layers. Storm is built for engineers who care about beautiful code.</p>
   <div class="cta" style="justify-content:center;margin-top:56px">
     <a href="/docs/getting-started" class="btn primary">Get started →</a>
+    <a href="/examples/" class="btn">Example apps</a>
     <a href="https://github.com/storm-orm/storm-framework" class="btn">Star on GitHub</a>
   </div>
 </div></section>
 
 <footer><div class="wrap foot">
   <div class="brand"><img class="logo" src="/img/storm-light.png" alt="Storm" /></div>
-  <div class="links"><a href="/">orm.st</a><a href="https://github.com/storm-orm/storm-framework">GitHub</a><a href="https://central.sonatype.com/namespace/st.orm">Maven Central</a></div>
+  <div class="links"><a href="/">orm.st</a><a href="/tutorials/">Tutorials</a><a href="/examples/">Examples</a><a href="https://github.com/storm-orm/storm-framework">GitHub</a><a href="https://central.sonatype.com/namespace/st.orm">Maven Central</a></div>
 </div></footer>
 `;
 
@@ -278,7 +281,7 @@ export default function Home() {
           P("    "),K("fun "),F("findByCity"),P("(city: "),T("City"),P(") = "),F("findAll"),P("(User_.city "),K("eq "),P("city)\n\n"),
           C("    // Query builder with SQL templates for the aggregate.\n"),
           P("    "),K("fun "),F("usersPerCity"),P("(country: "),T("String"),P(") =\n"),
-          P("        "),F("select"),P("("),T("CityCount"),P("::"),K("class"),P(") { "),S('"${City::class}, COUNT(*)"'),P(" }\n"),
+          P("        "),F("select"),P("<"),T("CityCount"),P(", _, _> { "),S('"${City::class}, COUNT(*)"'),P(" }\n"),
           P("            ."),F("where"),P("(User_.city.country "),K("eq "),P("country)\n"),
           P("            ."),F("groupBy"),P("(User_.city)\n"),
           P("            .resultList\n"),

@@ -18,7 +18,7 @@
 > GitHub: https://github.com/storm-orm/storm-framework
 > License: Apache 2.0
 
-# Generated: 2026-07-01T22:23:42Z
+# Generated: 2026-07-04T08:28:47Z
 
 ========================================
 ## Source: index.md
@@ -101,7 +101,7 @@ Full coroutine support with `Flow` for streaming and programmatic transactions:
 
 ```kotlin
 // Streaming with Flow
-val users: Flow<User> = orm.entity(User::class).select().resultFlow
+val users: Flow<User> = orm.entity<User>().select().resultFlow
 users.collect { user -> println(user.name) }
 
 // Programmatic transactions
@@ -860,7 +860,7 @@ The simplest way to query is with predicate methods directly on the ORM template
 [Kotlin]
 
 ```kotlin
-val users = orm.entity(User::class)
+val users = orm.entity<User, _>()
 
 // Find all users in a city
 val usersInCity: List<User> = users.findAll(User_.city eq city)
@@ -974,7 +974,7 @@ For queries that need ordering, pagination, joins, or aggregation, use the fluen
 [Kotlin]
 
 ```kotlin
-val users = orm.entity(User::class)
+val users = orm.entity<User>()
 
 // Ordering and pagination
 val page = users.select()
@@ -984,16 +984,16 @@ val page = users.select()
     .resultList
 
 // Joins (for entities not directly referenced by @FK)
-val roles = orm.entity(Role::class)
+val roles = orm.entity<Role>()
     .select()
-    .innerJoin(UserRole::class).on(Role::class)
+    .innerJoin<UserRole>().on<Role>()
     .whereAny(UserRole_.user eq user)
     .resultList
 
 // Aggregation
 data class CityCount(val city: City, val count: Long)
 
-val counts = users.select(CityCount::class) { "${City::class}, COUNT(*)" }
+val counts = users.select<CityCount, _, _> { "${City::class}, COUNT(*)" }
     .groupBy(User_.city)
     .resultList
 ```
@@ -1036,7 +1036,7 @@ For large result sets, streaming avoids loading all rows into memory at once. Ro
 Kotlin uses `Flow`, which provides automatic resource management through structured concurrency:
 
 ```kotlin
-val users: Flow<User> = orm.entity(User::class).select().resultFlow
+val users: Flow<User> = orm.entity<User>().select().resultFlow
 
 // Process each row
 users.collect { user -> println(user.name) }
@@ -1840,7 +1840,7 @@ The optional `value` parameter documents why the mismatch is acceptable. When pl
 # Projections
 ## What Are Projections?
 
-Projections are **read-only** data structures that represent database views or complex queries defined via `@ProjectionQuery`. Like entities, they are plain Kotlin data classes or Java records with no proxies and no bytecode manipulation. Unlike entities, projections support only read operations: no insert, update, or remove.
+Projections are **read-only** data structures for the query side of your application. A projection can map a database view, a subset of a table's columns, or the result of a custom SQL query defined with `@ProjectionQuery`. Like entities, they are plain Kotlin data classes or Java records with no proxies and no bytecode manipulation, so you get purpose-built read models without writing a DTO mapping layer by hand. Unlike entities, projections support only read operations: no insert, update, or remove.
 
 ```
 ┌─────────────────────────────────────────────────────────────────────┐
@@ -1861,6 +1861,8 @@ Projections are **read-only** data structures that represent database views or c
 
 **Database views:** Represent database views or materialized views as first-class types in your application.
 
+**Lightweight table reads:** Map a subset of a table's columns for list views, dropdowns, and search results without loading full entities.
+
 **Complex reusable queries:** Use `@ProjectionQuery` to define projections backed by complex SQL involving joins, aggregations, or subqueries that you want to reuse across your application.
 
 For simple ad-hoc queries or one-off aggregations, prefer using a plain data class. Projections are best suited for reusable, view-like structures. See [SQL Templates](sql-templates.md) for details.
@@ -1876,6 +1878,7 @@ A projection is a data class (Kotlin) or record (Java) that implements `Projecti
 [Kotlin]
 
 ```kotlin
+@DbTable("owner")
 data class OwnerView(
     @PK val id: Int,
     val firstName: String,
@@ -1887,6 +1890,7 @@ data class OwnerView(
 [Java]
 
 ```java
+@DbTable("owner")
 record OwnerView(
     @PK Integer id,
     @Nonnull String firstName,
@@ -1894,7 +1898,7 @@ record OwnerView(
     @Nullable String telephone
 ) implements Projection<Integer> {}
 ```
-Storm maps this projection to the `owner` table (derived from the class name) and selects only the specified columns.
+By default, Storm derives the table name from the class name using camelCase to snake_case conversion, so `OwnerView` would map to `owner_view`. The `@DbTable` annotation points the projection at the `owner` table instead, so it reads a subset of that table's columns. Leave the annotation out when the class name already matches the view or table you are mapping.
 
 ### Projection Without Primary Key
 
@@ -1919,6 +1923,8 @@ record VisitSummary(
     @Nonnull String petName
 ) implements Projection<Void> {}
 ```
+This projection reads from a `visit_summary` view, following the default class name to table name conversion.
+
 ### Projection with Foreign Keys
 
 Projections can reference entities or other projections using `@FK`:
@@ -1926,6 +1932,7 @@ Projections can reference entities or other projections using `@FK`:
 [Kotlin]
 
 ```kotlin
+@DbTable("pet")
 data class PetView(
     @PK val id: Int,
     val name: String,
@@ -1936,6 +1943,7 @@ data class PetView(
 [Java]
 
 ```java
+@DbTable("pet")
 record PetView(@PK Integer id,
                @Nonnull String name,
                @FK OwnerView owner  // References another projection
@@ -1954,7 +1962,7 @@ Use `@ProjectionQuery` to define a projection backed by custom SQL:
     SELECT b.id, COUNT(*) AS item_count, SUM(i.price) AS total_price
     FROM basket b
     JOIN basket_item bi ON bi.basket_id = b.id
-    JOIN item i ON i.id = bi.item_id
+    JOIN item i ON bi.item_id = i.id
     GROUP BY b.id
 """)
 data class BasketSummary(
@@ -1971,7 +1979,7 @@ data class BasketSummary(
     SELECT b.id, COUNT(*) AS item_count, SUM(i.price) AS total_price
     FROM basket b
     JOIN basket_item bi ON bi.basket_id = b.id
-    JOIN item i ON i.id = bi.item_id
+    JOIN item i ON bi.item_id = i.id
     GROUP BY b.id
     """)
 record BasketSummary(
@@ -1993,7 +2001,7 @@ Obtain a `ProjectionRepository` from the ORM template. This is the read-only cou
 [Kotlin]
 
 ```kotlin
-val ownerViews = orm.projection(OwnerView::class)
+val ownerViews = orm.projection<OwnerView, _>()
 ```
 
 [Java]
@@ -2012,7 +2020,7 @@ The `ProjectionRepository` supports the same query patterns as `EntityRepository
 val count = ownerViews.count()
 
 // Find by primary key (returns null if not found)
-val owner = ownerViews.findById(1)
+val foundOwner = ownerViews.findById(1)
 
 // Get by primary key (throws if not found)
 val owner = ownerViews.getById(1)
@@ -2023,7 +2031,7 @@ val exists = ownerViews.existsById(1)
 // Fetch all as a list
 val allOwners = ownerViews.findAll()
 
-// Fetch all as a lazy stream
+// Fetch all as a lazy Flow (collect from a coroutine)
 ownerViews.select().resultFlow.collect { owner ->
     println(owner.firstName)
 }
@@ -2035,8 +2043,8 @@ ownerViews.select().resultFlow.collect { owner ->
 // Count all
 long count = ownerViews.count();
 
-// Find by primary key
-Optional<OwnerView> owner = ownerViews.findById(1);
+// Find by primary key (empty Optional if not found)
+Optional<OwnerView> foundOwner = ownerViews.findById(1);
 
 // Get by primary key (throws if not found)
 OwnerView owner = ownerViews.getById(1);
@@ -2062,22 +2070,22 @@ Use the `select()` method for type-safe queries with the generated metamodel:
 // Filter by field value
 val owners = ownerViews.select()
     .where(OwnerView_.lastName, EQUALS, "Smith")
-    .getResultList()
+    .resultList
 
 // Filter with comparison operators
-val recentVisits = orm.projection(VisitView::class).select()
+val recentVisits = orm.projection<VisitView>().select()
     .where(VisitView_.visitDate, GREATER_THAN, LocalDate.of(2024, 1, 1))
-    .getResultList()
+    .resultList
 
 // Filter by nested foreign key
-val ownerPets = orm.projection(PetView::class).select()
+val ownerPets = orm.projection<PetView>().select()
     .where(PetView_.owner.id, EQUALS, 1)
-    .getResultList()
+    .resultList
 
 // Count with filter
 val count = ownerViews.selectCount()
     .where(OwnerView_.lastName, EQUALS, "Smith")
-    .getSingleResult()
+    .singleResult
 ```
 
 [Java]
@@ -2109,11 +2117,13 @@ Efficiently fetch multiple projections by ID:
 val ids = listOf(1, 2, 3)
 val owners = ownerViews.findAllById(ids)
 
-// Flow-based batch fetching (lazy evaluation)
-val idFlow = flowOf(1, 2, 3, 4, 5)
-ownerViews.selectById(idFlow).collect { owner ->
-    // Process each owner
-}
+// Flow-based fetching (lazy evaluation, collect from a coroutine)
+ownerViews.select()
+    .where(OwnerView_.id, IN, ids)
+    .resultFlow
+    .collect { owner ->
+        // Process each owner
+    }
 ```
 
 [Java]
@@ -2132,7 +2142,7 @@ try (Stream<OwnerView> stream = ownerViews.selectById(ids.stream())) {
 ```
 ---
 
-## Projections vs Entities: Choosing the Right Tool
+## Choosing Between Entities and Projections
 
 ```
 ┌─────────────────────────────────────────────────────────────────────┐
@@ -2142,11 +2152,12 @@ try (Stream<OwnerView> stream = ownerViews.selectById(ids.stream())) {
 │  Use Entity when you need to:                                       │
 │  • Create, update, or delete records                                │
 │  • Work with the full row including all columns                     │
-│  • Leverage dirty checking and optimistic locking                   │
+│  • Use dirty checking and optimistic locking                        │
 │  • Maintain referential integrity through the ORM                   │
 │                                                                     │
 │  Use Projection when you need to:                                   │
 │  • Map database views or materialized views                         │
+│  • Read a subset of a table's columns for lists and search results  │
 │  • Define reusable complex queries via @ProjectionQuery             │
 │                                                                     │
 └─────────────────────────────────────────────────────────────────────┘
@@ -2169,6 +2180,7 @@ data class Owner(
 ) : Entity<Int>
 
 // Lightweight projection for list views
+@DbTable("owner")
 data class OwnerListItem(
     @PK val id: Int,
     val firstName: String,
@@ -2176,6 +2188,7 @@ data class OwnerListItem(
 ) : Projection<Int>
 
 // Detailed projection for detail views
+@DbTable("owner")
 data class OwnerDetail(
     @PK val id: Int,
     val firstName: String,
@@ -2200,12 +2213,14 @@ record Owner(@PK Integer id,
 ) implements Entity<Integer> {}
 
 // Lightweight projection for list views
+@DbTable("owner")
 record OwnerListItem(@PK Integer id,
                      @Nonnull String firstName,
                      @Nonnull String lastName
 ) implements Projection<Integer> {}
 
 // Detailed projection for detail views
+@DbTable("owner")
 record OwnerDetail(@PK Integer id,
                    @Nonnull String firstName,
                    @Nonnull String lastName,
@@ -2223,6 +2238,7 @@ Use `Owner` when creating or updating owners. Use `OwnerListItem` for displaying
 When a projection references another entity or projection but you do not need the full related object in every query, use `Ref<T>` to store only the foreign key value. This avoids the cost of an additional JOIN when you only need the key. You can resolve the reference later by fetching the full object on demand.
 
 ```kotlin
+@DbTable("pet")
 data class PetListItem(
     @PK val id: Int,
     val name: String,
@@ -2233,20 +2249,22 @@ data class PetListItem(
 The `Ref` contains only the foreign key value. You can resolve it later if needed:
 
 ```kotlin
-val pet = orm.projection(PetListItem::class).getById(1)
+val pet = orm.projection<PetListItem, _>().getById(1)
 
 // Access the foreign key without loading the owner
-val ownerId = pet.owner.id()
+val ownerId = pet.owner.projectionId()  // import st.orm.template.projectionId
 
 // Load the full owner when needed
-val owner = orm.projection(OwnerView::class).getById(ownerId)
+val owner = pet.owner.fetch()
 ```
+
+See [Refs](refs.md) for the full lifecycle, including detached refs and fetch semantics.
 
 ---
 
 ## Mapping to Custom Tables
 
-By default, Storm derives the table name from the projection class name. Override this with `@DbTable`:
+By default, Storm derives the table name from the projection class name using camelCase to snake_case conversion, so `OwnerSummary` maps to `owner_summary`. Override this with `@DbTable`:
 
 ```kotlin
 @DbTable("owner")
@@ -2265,13 +2283,14 @@ Use `@DbColumn` to map fields to columns with different names.
 | Method | Description |
 |--------|-------------|
 | `count()` | Count all projections |
-| `findById(id)` | Find by primary key, returns null if not found |
+| `findById(id)` | Find by primary key; returns null (Kotlin) or an empty `Optional` (Java) if not found |
 | `getById(id)` | Get by primary key, throws if not found |
 | `existsById(id)` | Check if projection exists |
 | `findAll()` | Fetch all as a list |
 | `findAllById(ids)` | Fetch multiple by IDs |
-| `select().resultFlow` | Lazy Flow of all projections |
-| `selectById(ids)` | Lazy Flow by IDs |
+| `select().resultFlow` | Lazy Flow of all projections (Kotlin) |
+| `select().getResultStream()` | Lazy Stream of all projections (Java) |
+| `selectById(ids)` | Lazy Stream by IDs (Java) |
 | `select()` | Query builder for filtering |
 | `selectCount()` | Query builder for counting |
 
@@ -2287,11 +2306,16 @@ Design projections for specific use cases rather than trying to reuse one projec
 
 ```kotlin
 // Good: Purpose-built projections
+@ProjectionQuery("""
+    SELECT id, first_name || ' ' || last_name AS display_name
+    FROM owner
+""")
 data class OwnerDropdownItem(
     @PK val id: Int,
-    val displayName: String  // Computed: firstName + lastName
+    val displayName: String
 ) : Projection<Int>
 
+@DbTable("owner")
 data class OwnerSearchResult(
     @PK val id: Int,
     val firstName: String,
@@ -2300,6 +2324,7 @@ data class OwnerSearchResult(
 ) : Projection<Int>
 
 // Avoid: One projection trying to serve all purposes
+@DbTable("owner")
 data class OwnerProjection(
     @PK val id: Int,
     val firstName: String,
@@ -2340,10 +2365,10 @@ In read-heavy scenarios (dashboards, lists, search results), projections reduce 
 
 ```kotlin
 // Instead of loading full entities
-val owners = orm.entity(Owner::class).findAll()  // Loads all columns
+val owners = orm.entity<Owner>().findAll()  // Loads all columns
 
 // Load only what you need
-val owners = orm.projection(OwnerListItem::class).findAll()  // Loads 3 columns
+val owners = orm.projection<OwnerListItem>().findAll()  // Loads 3 columns
 ```
 
 ### 4. Use Void for Keyless Results
@@ -2353,7 +2378,7 @@ Aggregations and analytics often don't have a natural primary key:
 ```kotlin
 @ProjectionQuery("""
     SELECT
-        DATE_TRUNC('month', visit_date) AS month,
+        CAST(DATE_TRUNC('month', visit_date) AS DATE) AS month,
         COUNT(*) AS visit_count,
         COUNT(DISTINCT pet_id) AS unique_pets
     FROM visit
@@ -2371,6 +2396,7 @@ data class MonthlyVisitStats(
 For complex object graphs, you can mix projections with entity relationships:
 
 ```kotlin
+@DbTable("pet")
 data class PetWithOwnerSummary(
     @PK val id: Int,
     val name: String,
@@ -2567,9 +2593,9 @@ val users: List<User> = userRoles.map { it.user }
 For more control, use explicit join queries:
 
 ```kotlin
-val roles: List<Role> = orm.entity(Role::class)
+val roles: List<Role> = orm.entity<Role>()
     .select()
-    .innerJoin(UserRole::class).on(Role::class)
+    .innerJoin<UserRole>().on<Role>()
     .whereAny(UserRole_.user eq user)
     .resultList
 ```
@@ -2805,6 +2831,28 @@ orm.entity(UserProfile.class).insert(profile);
 ```
 
 Storm extracts the primary key from the `User` entity and uses it as the value for the `user_id` column.
+### Key Chains
+
+The referenced entity's primary key may itself be a foreign key — or a compound key record. Storm follows this *key chain* to its terminal columns. A dependent one-to-one on an entity that is itself a dependent one-to-one works the same way as the single-level case:
+
+[Kotlin]
+
+```kotlin
+data class ProfileAudit(
+    @PK(generation = NONE) @FK val profile: UserProfile,  // UserProfile's own PK is the FK to User
+    val remark: String
+) : Entity<UserProfile>
+```
+
+[Java]
+
+```java
+record ProfileAudit(@PK(generation = NONE) @FK UserProfile profile,  // UserProfile's own PK is the FK to User
+                    String remark
+) implements Entity<UserProfile> {}
+```
+The foreign key spans the same columns as the terminal key of the chain: a single-column chain resolves to one column named by the FK convention (`profile_id` here), and a compound key contributes the referenced key's column names. Circular key chains are rejected at model construction with a clear error.
+
 ---
 
 ## Relationship Loading Behavior
@@ -2952,11 +3000,11 @@ Storm provides two ways to obtain a repository. The generic `entity()` method re
 ```kotlin
 val orm = ORMTemplate.of(dataSource)
 
-// Generic entity repository
-val userRepository = orm.entity(User::class)
-
-// Or using extension function
+// Generic entity repository (reified extension function, preferred)
 val userRepository = orm.entity<User>()
+
+// Or passing the class explicitly
+val userRepository = orm.entity(User::class)
 ```
 
 [Java]
@@ -3006,7 +3054,7 @@ orm.removeAll(User_.active eq false)
 orm.removeAll<User>()
 
 // Delete all (builder approach, requires unsafe() to confirm intent)
-orm.entity(User::class).delete().unsafe().executeUpdate()
+orm.entity<User>().delete().unsafe().executeUpdate()
 ```
 
 [Java]
@@ -3557,7 +3605,7 @@ long count = users.count();
 For more complex operations, use the repository:
 
 ```kotlin
-val users = orm.entity(User::class)
+val users = orm.entity<User, _>()
 
 // Find by ID
 val user: User? = users.findById(userId)
@@ -3621,7 +3669,7 @@ val users = orm.findAll(
 )
 
 // Complex conditions
-val users = orm.entity(User::class)
+val users = orm.entity<User>()
     .select()
     .where(
         (User_.city eq city) and (
@@ -3717,7 +3765,7 @@ Multiple `where()` calls on the same query builder are combined with AND. This l
 [Kotlin]
 
 ```kotlin
-val results = orm.entity(User::class)
+val results = orm.entity<User>()
     .select()
     .where(User_.active, EQUALS, true)
     .where(User_.city eq city)           // AND-combined with previous where
@@ -3727,7 +3775,7 @@ val results = orm.entity(User::class)
 Builder-style `where()` calls (with `and`/`or` predicates) compose with other `where()` calls in the same way:
 
 ```kotlin
-val results = orm.entity(User::class)
+val results = orm.entity<User>()
     .select()
     .where(User_.active, EQUALS, true)
     .where(                              // AND-combined with the active filter above
@@ -3765,19 +3813,19 @@ List<User> results = orm.entity(User.class)
 Use `orderBy` to control result ordering. Pass multiple fields as arguments to sort by more than one column. Use `orderByDescending` for descending order on a single field.
 
 ```kotlin
-val users = orm.entity(User::class)
+val users = orm.entity<User>()
     .select()
     .orderBy(User_.name)
     .resultList
 
 // Descending
-val users = orm.entity(User::class)
+val users = orm.entity<User>()
     .select()
     .orderByDescending(User_.createdAt)
     .resultList
 
 // Multiple fields (all ascending)
-val users = orm.entity(User::class)
+val users = orm.entity<User>()
     .select()
     .orderBy(User_.lastName, User_.firstName)
     .resultList
@@ -3787,7 +3835,7 @@ Multiple `orderBy` and `orderByDescending` calls can be chained to build multi-c
 
 ```kotlin
 // Mixed sort directions: last name ascending, first name descending
-val users = orm.entity(User::class)
+val users = orm.entity<User>()
     .select()
     .orderBy(User_.lastName)
     .orderByDescending(User_.firstName)
@@ -3800,7 +3848,7 @@ For full control over the ORDER BY clause (for example, to use SQL expressions o
 
 ```kotlin
 // Mixed sort directions (template)
-val users = orm.entity(User::class)
+val users = orm.entity<User>()
     .select()
     .orderBy { "${User_.lastName}, ${User_.firstName} DESC" }
     .resultList
@@ -3861,8 +3909,8 @@ To perform GROUP BY queries with aggregate functions like COUNT, SUM, or AVG, de
 ```kotlin
 data class CityCount(val city: City, val count: Long)
 
-val counts: List<CityCount> = orm.entity(User::class)
-    .select(CityCount::class) { "${City::class}, COUNT(*)" }
+val counts: List<CityCount> = orm.entity<User>()
+    .select<CityCount, _, _> { "${City::class}, COUNT(*)" }
     .groupBy(User_.city)
     .resultList
 ```
@@ -3910,13 +3958,13 @@ For detailed usage, sorting, composite scrolling, `Window` type parameters, GROU
 
 ```kotlin
 // Offset and limit
-val results = orm.entity(User::class).select()
+val results = orm.entity<User>().select()
     .orderBy(User_.createdAt)
     .offset(20).limit(10)
     .resultList
 
 // Pagination
-val page: Page<User> = orm.entity(User::class).select()
+val page: Page<User> = orm.entity<User>().select()
     .where(User_.active, EQUALS, true)
     .page(Pageable.ofSize(10))
 
@@ -3954,7 +4002,7 @@ Add `.distinct()` to eliminate duplicate rows from the result set. This is usefu
 [Kotlin]
 
 ```kotlin
-val cities = orm.entity(User::class)
+val cities = orm.entity<User>()
     .select(City::class)
     .distinct()
     .resultList
@@ -3977,7 +4025,7 @@ List<City> cities = orm.entity(User.class)
 For large result sets, use `select().resultFlow`, which returns a Kotlin `Flow<T>`. Rows are fetched lazily from the database as you collect, so memory usage stays constant regardless of result set size. Flow also handles resource cleanup automatically when collection completes or is cancelled.
 
 ```kotlin
-val users: Flow<User> = orm.entity(User::class).select().resultFlow
+val users: Flow<User> = orm.entity<User>().select().resultFlow
 
 // Process each
 users.collect { user -> process(user) }
@@ -4007,9 +4055,9 @@ try (Stream<User> users = orm.entity(User.class).select().getResultStream()) {
 Storm automatically joins entities referenced by `@FK` fields. When you need to join entities that are not directly referenced in the result type (for example, filtering through a many-to-many join table), use explicit `innerJoin` or `leftJoin` calls. The `on` clause specifies which existing entity in the query the joined table relates to.
 
 ```kotlin
-val roles = orm.entity(Role::class)
+val roles = orm.entity<Role>()
     .select()
-    .innerJoin(UserRole::class).on(Role::class)
+    .innerJoin<UserRole>().on<Role>()
     .whereAny(UserRole_.user eq user)
     .resultList
 ```
@@ -4064,7 +4112,7 @@ Inline records expand differently depending on the operator:
 [Kotlin]
 
 ```kotlin
-val owner = orm.entity(Owner::class)
+val owner = orm.entity<Owner>()
     .select()
     .where(Owner_.address, EQUALS, address)
     .singleResult
@@ -4093,7 +4141,7 @@ WHERE NOT (o.address = ? AND o.city_id = ?)
 [Kotlin]
 
 ```kotlin
-val owners = orm.entity(Owner::class)
+val owners = orm.entity<Owner>()
     .select()
     .where(Owner_.address, GREATER_THAN, address)
     .resultList
@@ -4128,7 +4176,7 @@ WHERE (o.address, o.city_id) > (?, ?)
 [Kotlin]
 
 ```kotlin
-val owners = orm.entity(Owner::class)
+val owners = orm.entity<Owner>()
     .select()
     .where(Owner_.address.address, LIKE, "%Main%")
     .resultList
@@ -4147,7 +4195,7 @@ List<Owner> owners = orm.entity(Owner.class)
 Passing an inline record to `orderBy` or `orderByDescending` expands it into its leaf columns. For example, if `Owner_.address` is an inline record with `address` and `city` fields:
 
 ```kotlin
-val owners = orm.entity(Owner::class)
+val owners = orm.entity<Owner>()
     .select()
     .orderBy(Owner_.address)
     .resultList
@@ -4170,8 +4218,8 @@ Inline records expand in GROUP BY the same way. This is particularly useful in c
 ```kotlin
 data class CityOrderCount(val city: City, val count: Long)
 
-val orders = orm.entity(Order::class)
-val window = orders.select(CityOrderCount::class) { "${City::class}, COUNT(*)" }
+val orders = orm.entity<Order>()
+val window = orders.select<CityOrderCount, _, _> { "${City::class}, COUNT(*)" }
     .groupBy(Order_.city)
     .scroll(Scrollable.of(Order_.city.key(), 20))
 ```
@@ -4207,7 +4255,7 @@ Combine `where` with `count` to count rows matching a condition without loading 
 [Kotlin]
 
 ```kotlin
-val count: Long = orm.entity(User::class)
+val count: Long = orm.entity<User>()
     .select()
     .where(User_.city eq city)
     .count
@@ -4289,7 +4337,7 @@ For direct offset/limit control, use `offset` and `limit` on the query builder. 
 [Kotlin]
 
 ```kotlin
-val results = orm.entity(User::class)
+val results = orm.entity<User>()
     .select()
     .orderBy(User_.createdAt)
     .offset(20)
@@ -4317,14 +4365,14 @@ Use the `page` terminal method on the query builder. Pass a `Pageable` to specif
 
 ```kotlin
 val pageable = Pageable.ofSize(10)
-val page: Page<User> = orm.entity(User::class)
+val page: Page<User> = orm.entity<User>()
     .select()
     .where(User_.active, EQUALS, true)
     .page(pageable)
 
 // Navigate
 if (page.hasNext()) {
-    val nextPage = orm.entity(User::class)
+    val nextPage = orm.entity<User>()
         .select()
         .where(User_.active, EQUALS, true)
         .page(page.nextPageable())
@@ -4612,7 +4660,7 @@ For queries where the result type differs from the entity type (for example, sel
 ```kotlin
 data class OrderSummary(val city: Ref<City>, val orderCount: Long) : Data
 
-val window: Window<OrderSummary> = orm.selectFrom(Order::class, OrderSummary::class) {
+val window: Window<OrderSummary> = orm.selectFrom<Order, OrderSummary> {
     """${Order_.city.id}, COUNT(*)"""
 }
 .groupBy(Order_.city)
@@ -4622,7 +4670,7 @@ val window: Window<OrderSummary> = orm.selectFrom(Order::class, OrderSummary::cl
 // Construct the next scrollable manually from the last result.
 // hasNext() is informational; the developer decides whether to follow the cursor.
 val lastCity = window.content.last().city.id()
-val next: Window<OrderSummary> = orm.selectFrom(Order::class, OrderSummary::class) { ... }
+val next: Window<OrderSummary> = orm.selectFrom<Order, OrderSummary> { ... }
     .groupBy(Order_.city)
     .scroll(Scrollable.of(Order_.city.key(), lastCity, 20))
 ```
@@ -4744,7 +4792,7 @@ val users = orm.findAll(User_.email eq email)
 val users = orm.findAll(User_.city.country.code eq "US")
 
 // Multiple conditions
-val users = orm.entity(User::class)
+val users = orm.entity<User>()
     .select()
     .where(
         (User_.city eq city) and (User_.birthDate less LocalDate.of(2000, 1, 1))
@@ -4843,7 +4891,7 @@ data class User(
 ) : Entity<Int>
 
 // Short form works - Country appears only once in User's entity graph
-val users = orm.entity(User::class)
+val users = orm.entity<User>()
     .select()
     .whereAny(Country_.name eq "United States")  // Resolves to User → City → Country
     .resultList
@@ -4881,18 +4929,18 @@ data class User(
 ) : Entity<Int>
 
 // ERROR: Multiple paths to Country in User's entity graph
-val users = orm.entity(User::class)
+val users = orm.entity<User>()
     .select()
     .whereAny(Country_.name eq "United States")
     .resultList
 
 // OK: Nested paths are unambiguous (and can use where since they're rooted at User_)
-val users = orm.entity(User::class)
+val users = orm.entity<User>()
     .select()
     .where(User_.city.country.name eq "United States")
     .resultList
 
-val users = orm.entity(User::class)
+val users = orm.entity<User>()
     .select()
     .where(User_.birthCountry.name eq "United States")
     .resultList
@@ -4920,9 +4968,9 @@ Entity Graph                          Custom Join
 When you add custom joins to a query, those joined tables can **only** be referenced using short form:
 
 ```kotlin
-val users = orm.entity(User::class)
+val users = orm.entity<User>()
     .select()
-    .innerJoin(Order::class).on(User::class)  // Custom join
+    .innerJoin<Order>().on<User>()  // Custom join
     .whereAny(Order_.total greater BigDecimal(100))  // Short form required, use whereAny
     .resultList
 ```
@@ -4932,7 +4980,7 @@ Custom joins are not part of the entity graph traversal, so nested paths cannot 
 **Uniqueness still applies:** If you join the same table multiple times, you must use the `join` method with explicit aliases to disambiguate:
 
 ```kotlin
-val users = orm.entity(User::class)
+val users = orm.entity<User>()
     .select()
     .join(JoinType.inner(), Order::class, "recent").on(User::class)
     .join(JoinType.inner(), Order::class, "first").on(User::class)
@@ -5460,7 +5508,7 @@ When you need to collect entity identifiers without loading full rows, select re
 
 ```kotlin
 val role: Role = ...
-val userRefs: Flow<Ref<User>> = orm.entity(UserRole::class)
+val userRefs: Flow<Ref<User>> = orm.entity<UserRole>()
     .selectRef(User::class)
     .where(UserRole_.role eq role)
     .resultFlow
@@ -5497,7 +5545,7 @@ Refs integrate directly into query filter expressions. You can pass a collection
 
 ```kotlin
 val userRefs: List<Ref<User>> = ...
-val roles: List<Role> = orm.entity(UserRole::class)
+val roles: List<Role> = orm.entity<UserRole>()
     .select(Role::class)
     .distinct()
     .where(UserRole_.user inRefs userRefs)
@@ -5588,8 +5636,8 @@ data class GroupedByCity(
     val count: Long
 )
 
-val counts: Map<Ref<City>, Long> = orm.entity(User::class)
-    .select(GroupedByCity::class) { "${select(City::class, SelectMode.PK)}, COUNT(*)" }
+val counts: Map<Ref<City>, Long> = orm.entity<User>()
+    .select<GroupedByCity, _, _> { "${select(City::class, SelectMode.PK)}, COUNT(*)" }
     .groupBy(User_.city)
     .resultList
     .associate { it.city to it.count }
@@ -6302,7 +6350,7 @@ transaction {
 
 Database transactions often need to trigger side effects, but only when the outcome is certain. Sending a confirmation email before the order is committed risks notifying a customer about an order that never persisted. Conversely, cleanup logic (releasing external locks, closing temporary resources) should run after a rollback, not during regular flow where it might mask the real failure.
 
-Storm's `onCommit` and `onRollback` callbacks solve this by letting you register logic that fires **after** the physical transaction completes. Callbacks are registered inside the transaction block but execute outside it, once the outcome is final.
+Storm's `onCommit` and `onRollback` callbacks solve this by letting you register logic that fires **after** the physical transaction completes. Callbacks are registered inside the transaction block but execute outside it, once the outcome is final. Note that running such logic right after the block is not a substitute: with `REQUIRED` propagation the block may have joined an outer transaction, in which case the end of the block commits nothing and the outer transaction may still roll back. Callbacks bind to the physical transaction, so they remain correct however deeply the block is nested.
 
 #### Basic Usage
 
@@ -7960,7 +8008,7 @@ class UserRepositoryTest {
 
     @Test
     fun `should find all users`(orm: ORMTemplate) {
-        val users = orm.entity(User::class).findAll()
+        val users = orm.entity<User>().findAll()
         users.size shouldBe 3
     }
 }
@@ -8010,9 +8058,9 @@ class ItemRepositoryTest {
 
     @Test
     fun `should insert and retrieve`(orm: ORMTemplate) {
-        orm.entity(Item::class).insert(Item(name = "NewItem"))
+        orm.entity<Item>().insert(Item(name = "NewItem"))
 
-        val items = orm.entity(Item::class).findAll()
+        val items = orm.entity<Item>().findAll()
         items.size shouldBe 4
     }
 
@@ -8172,7 +8220,7 @@ Wrap any Storm operation in a `run`, `execute`, or `executeThrowing` call to cap
 ```kotlin
 val capture = SqlCapture()
 
-capture.run { orm.entity(User::class).findAll() }
+capture.run { orm.entity<User>().findAll() }
 
 capture.count(Operation.SELECT) shouldBe 1
 ```
@@ -8193,7 +8241,7 @@ The `execute` variant returns the result of the captured operation, so you can c
 ```kotlin
 val capture = SqlCapture()
 
-val users = capture.execute { orm.entity(User::class).findAll() }
+val users = capture.execute { orm.entity<User>().findAll() }
 
 users.size shouldBe 3
 capture.count(Operation.SELECT) shouldBe 1
@@ -8275,7 +8323,7 @@ A count assertion is the simplest and most common use of `SqlCapture`. It protec
 @Test
 fun `bulk insert should use single statement`(orm: ORMTemplate, capture: SqlCapture) {
     val items = listOf(Item(name = "A"), Item(name = "B"), Item(name = "C"))
-    capture.run { orm.entity(Item::class).insertAll(items) }
+    capture.run { orm.entity<Item>().insertAll(items) }
 
     capture.count(Operation.INSERT) shouldBe 1
 }
@@ -8851,8 +8899,8 @@ data class RolesByUser(
 interface UserRepository : EntityRepository<User, Int> {
 
     fun getUserRoles(): List<RolesByUser> =
-        select(RolesByUser::class) { "${User::class}, JSON_OBJECTAGG(${Role::class})" }
-            .innerJoin(UserRole::class).on(User::class)
+        select<RolesByUser, _, _> { "${User::class}, JSON_OBJECTAGG(${Role::class})" }
+            .innerJoin<UserRole>().on<User>()
             .groupBy(User_.id)
             .resultList
 }
@@ -9356,7 +9404,7 @@ All CRUD operations go through the sealed interface type. Storm determines the c
 [Kotlin]
 
 ```kotlin
-val pets = orm.entity(Pet::class)
+val pets = orm.entity<Pet>()
 
 // Select all pets - returns Cat and Dog instances
 val all: List<Pet> = pets.select().resultList
@@ -9685,7 +9733,7 @@ CRUD operations work through the sealed interface type, just like Single-Table. 
 [Kotlin]
 
 ```kotlin
-val pets = orm.entity(Pet::class)
+val pets = orm.entity<Pet>()
 
 // Select all - Storm auto-joins extension tables
 val all: List<Pet> = pets.select().resultList
@@ -9726,8 +9774,8 @@ With `@Discriminator`, the discriminator column is read directly from the base t
 ```sql
 SELECT p.id, p.dtype, p.name, c.indoor, d.weight
 FROM pet p
-LEFT JOIN cat c ON p.id = c.id
-LEFT JOIN dog d ON p.id = d.id
+LEFT JOIN cat c ON c.id = p.id
+LEFT JOIN dog d ON d.id = p.id
 ```
 
 Without `@Discriminator`, Storm generates a `CASE` expression that resolves the concrete type by checking which extension table has a matching row:
@@ -9739,9 +9787,9 @@ SELECT p.id,
             WHEN b.id IS NOT NULL THEN 'Bird' END,
        p.name, c.indoor, d.weight
 FROM pet p
-LEFT JOIN cat c ON p.id = c.id
-LEFT JOIN dog d ON p.id = d.id
-LEFT JOIN bird b ON p.id = b.id
+LEFT JOIN cat c ON c.id = p.id
+LEFT JOIN dog d ON d.id = p.id
+LEFT JOIN bird b ON b.id = p.id
 ```
 
 Unlike Single-Table, DML operations for Joined Table entities are multi-statement: they involve more than one table. Storm executes all statements within the current transaction to ensure atomicity. Each operation follows a specific order to respect foreign key constraints between the base and extension tables.
@@ -9815,8 +9863,8 @@ When querying Visit with a join to Pet, Storm generates:
 SELECT v.*, p.id, p.dtype, p.name, c.indoor, d.weight
 FROM visit v
 INNER JOIN pet p ON v.pet_id = p.id
-LEFT JOIN cat c ON p.id = c.id
-LEFT JOIN dog d ON p.id = d.id
+LEFT JOIN cat c ON c.id = p.id
+LEFT JOIN dog d ON d.id = p.id
 ```
 
 ### Hydration
@@ -10050,11 +10098,11 @@ Each subtype is an independent entity with its own repository. You insert, updat
 
 ```kotlin
 // CRUD on subtypes - standard entity operations
-val posts = orm.entity(Post::class)
+val posts = orm.entity<Post>()
 val post = posts.insertAndFetch(Post(title = "New Post"))
 
 // Insert a comment referencing the post
-val comments = orm.entity(Comment::class)
+val comments = orm.entity<Comment>()
 comments.insert(Comment(
     text = "Great post!",
     target = post.ref()
@@ -10097,7 +10145,7 @@ Polymorphic FK targets cannot be auto-joined. With Single-Table and Joined Table
 [Kotlin]
 
 ```kotlin
-val comments = orm.entity(Comment::class).select().resultList
+val comments = orm.entity<Comment>().select().resultList
 for (comment in comments) {
     val target: Commentable = comment.target.fetch()
     when (target) {
@@ -11331,7 +11379,7 @@ Storm automatically groups batch operations for optimal performance. Batch opera
 
 ```kotlin
 // Insert in batches of 500
-orm.entity(User::class).insert(users, 500)
+orm.entity<User>().insert(users, 500)
 ```
 
 [Java]
@@ -11354,7 +11402,7 @@ Streams returned by Storm must be closed after use. Use `.use {}` (Kotlin) or tr
 Kotlin uses `Flow` for streaming, which provides automatic resource cleanup through structured concurrency. When the Flow completes or the coroutine is cancelled, database cursors and connections are released without explicit cleanup code.
 
 ```kotlin
-val users: Flow<User> = orm.entity(User::class).select().resultFlow
+val users: Flow<User> = orm.entity<User>().select().resultFlow
 
 // Process one at a time -- only one row in memory
 users.collect { user ->
@@ -11399,7 +11447,7 @@ You can combine streaming with query filters to process only rows that match you
 [Kotlin]
 
 ```kotlin
-val filteredUsers: Flow<User> = orm.entity(User::class)
+val filteredUsers: Flow<User> = orm.entity<User>()
     .select()
     .where(User_.name like "A%")
     .resultFlow
@@ -11732,6 +11780,7 @@ Use `Data` for query-specific result types that do not need full repository supp
 [Kotlin]
 
 ```kotlin
+@DbTable("pet")
 data class PetWithOwner(
     val name: String,
     val birthDate: LocalDate?,
@@ -11749,6 +11798,7 @@ val pets = orm.query { """
 [Java]
 
 ```java
+@DbTable("pet")
 record PetWithOwner(
     @Nonnull String name,
     @Nullable LocalDate birthDate,
@@ -11762,6 +11812,8 @@ List<PetWithOwner> pets = orm.query(RAW."""
         WHERE \{Owner_.city} = \{city}""")
     .getResultList(PetWithOwner.class);
 ```
+As with entities and projections, the table name derives from the class name using camelCase to snake_case conversion, so `PetWithOwner` would map to `pet_with_owner`. The `@DbTable` annotation points it at the `pet` table instead.
+
 **When to use:** Single-use queries where you want Storm's SQL generation, automatic joins via `@FK`, and type-safe column references.
 
 ---
@@ -11994,7 +12046,7 @@ The `alias()` and `column()` template functions accept an optional `ResolveScope
 [Kotlin]
 
 ```kotlin
-val pets = orm.entity(Pet::class)
+val pets = orm.entity<Pet>()
     .select()
     .whereExists { subquery(Visit::class)
         .where { "${column(Visit_.pet, INNER)} = ${column(Pet_.id, OUTER)}" }
@@ -15446,7 +15498,7 @@ When you intentionally need to perform such an operation, call `unsafe()` on the
 // userRepository.delete().executeUpdate()
 
 // Explicitly marking as unsafe allows the operation.
-orm.entity(User::class).delete().unsafe().executeUpdate()
+orm.entity<User>().delete().unsafe().executeUpdate()
 ```
 
 [Java]
@@ -15806,13 +15858,13 @@ When you call `getSingleResult()` on a query that returns zero rows, Storm throw
 
 ```kotlin
 // Throws NoResultException if no user has this email.
-val user = orm.entity(User::class).select(User_.email eq "nobody@example.com").singleResult
+val user = orm.entity<User>().select(User_.email eq "nobody@example.com").singleResult
 ```
 
 To handle the missing-result case without exceptions, use `optionalResult`:
 
 ```kotlin
-val user: User? = orm.entity(User::class)
+val user: User? = orm.entity<User>()
     .select(User_.email eq "nobody@example.com")
     .optionalResult
 ```
@@ -16040,10 +16092,10 @@ When using `@Version` columns, always have a strategy for handling `OptimisticLo
 
 ```kotlin
 // Collect into a list (automatically closes the stream).
-val users = userRepository.select().getResultList()
+val users = userRepository.select().resultList
 
-// Or use try-with-resources for lazy processing.
-userRepository.select().getResultStream().use { stream ->
+// Or use `use` for lazy processing.
+userRepository.select().resultStream.use { stream ->
     stream.forEach { user -> process(user) }
 }
 ```
@@ -16364,7 +16416,7 @@ For large data sets that do not fit in memory, use the streaming batch methods:
 
 ```kotlin
 // Insert a stream of entities in batches of 1000.
-orm.entity(User::class).insert(userStream, batchSize = 1000)
+orm.entity<User>().insert(userStream, batchSize = 1000)
 ```
 
 [Java]
@@ -16562,8 +16614,8 @@ data class OrderWithItems(
 )
 
 fun findOrderWithItems(orderId: Long): OrderWithItems? {
-    val order = orm.entity(Order::class).findById(orderId) ?: return null
-    val lineItems = orm.entity(LineItem::class).findAll(LineItem_.order eq order)
+    val order = orm.entity<Order, _>().findById(orderId) ?: return null
+    val lineItems = orm.entity<LineItem>().findAll(LineItem_.order eq order)
     return OrderWithItems(order, lineItems)
 }
 ```
@@ -16949,13 +17001,13 @@ For large-scale data imports, use Storm's streaming batch methods. These process
 val entityStream = csvReader.lines()
     .map { line -> parseUser(line) }
 
-orm.entity(User::class).insert(entityStream, batchSize = 500)
+orm.entity<User>().insert(entityStream, batchSize = 500)
 ```
 
 For imports where auto-generated primary keys should be ignored (e.g., migrating data with existing IDs):
 
 ```kotlin
-orm.entity(User::class).insert(entityStream, batchSize = 500, ignoreAutoGenerate = true)
+orm.entity<User>().insert(entityStream, batchSize = 500, ignoreAutoGenerate = true)
 ```
 
 [Java]
@@ -17684,7 +17736,7 @@ Storm supports two strategies. **Offset-based pagination** uses `offset()` and `
 [Kotlin]
 
 ```kotlin
-val page = orm.entity(User::class)
+val page = orm.entity<User>()
     .select()
     .orderByDescending(User_.createdAt)
     .offset(20)
@@ -17878,7 +17930,7 @@ Yes. Storm adds minimal overhead on top of JDBC. There are no runtime proxies, n
 Loading millions of rows into a `List` consumes proportional memory and delays processing until the entire result set is fetched. Streaming processes rows one at a time as the database returns them, keeping memory usage constant regardless of result set size. In Kotlin, Storm exposes streams as `Flow`, which integrates naturally with coroutines.
 
 ```kotlin
-val users: Flow<User> = orm.entity(User::class).select().resultFlow
+val users: Flow<User> = orm.entity<User>().select().resultFlow
 users.collect { processUser(it) }
 ```
 
@@ -18938,7 +18990,7 @@ class OrderQueryTest {
     @Test
     fun findShippedOrders(orm: ORMTemplate, capture: SqlCapture) {
         val orders = capture.execute {
-            orm.entity(Order::class).select()
+            orm.entity<Order>().select()
                 .where(Order_.status eq "SHIPPED")
                 .orderBy(Order_.createdAt)
                 .resultList
@@ -19097,7 +19149,7 @@ Storm's Kotlin API provides first-class coroutine support. Query results can be 
 
 ```kotlin
 // Streaming with Flow
-val users: Flow<User> = orm.entity(User::class).select().resultFlow
+val users: Flow<User> = orm.entity<User>().select().resultFlow
 users.collect { processUser(it) }
 
 // Suspending transaction

@@ -163,13 +163,13 @@ Ordering: `.orderBy(User_.name)`, `.orderByDescending(User_.createdAt)`
 Pagination: `.page(0, 20)` or `.page(Pageable.ofSize(20).sortBy(User_.name))`. Page API methods (Java record accessors — always call with `()`): `page.content()`, `page.totalPages()`, `page.totalCount()`, `page.pageNumber()`, `page.pageSize()`, `page.hasNext()`, `page.hasPrevious()`, `page.nextPageable()`.
 Scrolling (keyset, better for large tables): `.scroll(Scrollable.of(User_.id, 20))` — do NOT combine with `orderBy()` (Scrollable manages ORDER BY internally, see Keyset Scrolling section)
 Explicit joins — two syntax forms depending on context:
-- **Block DSL** (inside `select { }`): `innerJoin(UserRole::class, Role::class)` — two-arg, no `.on()`
-- **Chained API**: `.innerJoin(UserRole::class).on(Role::class)` — returns builder, chain `.whereAny()` etc.
+- **Block DSL** (inside `select { }`): `innerJoin<UserRole, Role>()` — reified two-type-arg form, no `.on()`
+- **Chained API**: `.innerJoin<UserRole>().on<Role>()` — returns builder, chain `.whereAny()` etc.
 Select result type: `.select(ResultType::class)` to return a different type than the root entity
 
 **Always prefer entity/metamodel-based QueryBuilder methods over SQL template strings.** SQL templates are an escape hatch for things the QueryBuilder cannot express.
 
-**Template joins are a code smell.** If you need a template-based ON clause (`.innerJoin(T::class).on { "..." }`) or a full `orm.query { }` to express a join that follows a database FK constraint, the entity model is missing an `@FK` annotation. Fix the entity first — add `@FK` (with `Ref<T>` for PK fields, full entity for non-PK fields) — then the join becomes `.innerJoin(Entity::class).on(OnEntity::class)`, pure code with no templates. Template joins are only justified when there is genuinely no FK constraint in the database. Projections join like entities: `.on(ProjectionType::class)` resolves the foreign key by matching the referenced entity's table against the projection's table. When multiple foreign keys reference that table the join is ambiguous — Storm fails with an error naming the candidate fields; disambiguate with a template ON clause.
+**Template joins are a code smell.** If you need a template-based ON clause (`.innerJoin<T>().on { "..." }`) or a full `orm.query { }` to express a join that follows a database FK constraint, the entity model is missing an `@FK` annotation. Fix the entity first — add `@FK` (with `Ref<T>` for PK fields, full entity for non-PK fields) — then the join becomes `.innerJoin<Entity>().on<OnEntity>()`, pure code with no templates. Template joins are only justified when there is genuinely no FK constraint in the database. Projections join like entities: `.on<ProjectionType>()` resolves the foreign key by matching the referenced entity's table against the projection's table. When multiple foreign keys reference that table the join is ambiguous — Storm fails with an error naming the candidate fields; disambiguate with a template ON clause.
 
 Three rules:
 
@@ -182,16 +182,16 @@ When you do use template lambdas, use `${}` interpolation (the compiler plugin h
 ## Aggregation
 
 ```kotlin
-val userCount = orm.entity(User::class).selectCount().singleResult
+val userCount = orm.entity<User>().selectCount().singleResult
 
-val citySummaries = orm.entity(City::class)
+val citySummaries = orm.entity<City>()
     .select(CitySummary::class)
     .groupBy(City_.country)
     .having(City_.population, Operator.GREATER_THAN, 100000)
     .resultList
 ```
 
-**Computed aggregates (COUNT, AVG, SUM, etc.):** When the SELECT clause needs expressions that QueryBuilder can't produce, use `select(ResultType::class) { template }` for the SELECT only — keep joins, groupBy, having, orderBy, and limit in code.
+**Computed aggregates (COUNT, AVG, SUM, etc.):** When the SELECT clause needs expressions that QueryBuilder can't produce, use `select<ResultType, _, _> { template }` for the SELECT only — keep joins, groupBy, having, orderBy, and limit in code. The result type is explicit; the underscores let Kotlin infer the repository's entity and ID types. Style: use the underscore form only in code that is otherwise fully reified; if the surrounding query uses `::class` calls, write `select(ResultType::class) { template }` instead — keep each snippet internally consistent (template interpolations like `${City::class}` don't count).
 
 **`Data` means "represents a table".** Only types that map to a database table implement `Data` (or its subtypes `Entity`/`Projection`). Ad-hoc query result types — aggregation DTOs, computed shapes — are plain data classes with no marker at all. Storm maps result columns to any suitable data class, including nested entity and `Ref<T>` components. Implementing `Data` on a result type pulls it into Storm's type discovery, so schema validation (`validateSchema()` without arguments, or `storm.validation.schema-mode` at startup) fails with `TABLE_NOT_FOUND` — which then requires `@DbIgnore` to suppress. `: Data` + `@DbIgnore` on a result type is an anti-pattern (opting in and immediately opting out); a plain data class expresses the intent directly. Define result types next to the code that produces them — typically top-level in the repository file whose queries return them; the model package is reserved for table-backed types — and document them as query result shapes (not backed by a table or view) so readers immediately see why they carry no marker.
 
@@ -205,8 +205,8 @@ val citySummaries = orm.entity(City::class)
 data class CityUserCount(val city: City, val userCount: Long)
 
 val cityCounts = orm.entity<City>()
-    .select(CityUserCount::class) { "${City::class}, COUNT(*)" }
-    .leftJoin(User::class).on(City::class)
+    .select<CityUserCount, _, _> { "${City::class}, COUNT(*)" }
+    .leftJoin<User>().on<City>()
     .groupBy(City_.id)
     .resultList
 
@@ -215,8 +215,8 @@ data class CityUserStats(val cityName: String, val averageAge: Double, val userC
 
 val minUsers = 10
 val topCities = orm.entity<City>()
-    .select(CityUserStats::class) { "${City_.name}, AVG(${User_.age}), COUNT(*)" }
-    .leftJoin(User::class).on(City::class)
+    .select<CityUserStats, _, _> { "${City_.name}, AVG(${User_.age}), COUNT(*)" }
+    .leftJoin<User>().on<City>()
     .groupBy(City_.name)
     .having { "COUNT(*) >= $minUsers" }               // template form for aggregate expressions
     .orderByDescending { "AVG(${User_.age})" }
@@ -226,7 +226,7 @@ val topCities = orm.entity<City>()
 data class CityActiveCount(val city: Ref<City>, val active: Boolean, val userCount: Long)
 
 val counts = orm.entity<User>()
-    .select(CityActiveCount::class) { "${User_.city}, ${User_.active}, COUNT(*)" }
+    .select<CityActiveCount, _, _> { "${User_.city}, ${User_.active}, COUNT(*)" }
     .groupBy(User_.city, User_.active)    // ✅ varargs metamodel form
     .resultList
 
@@ -243,7 +243,7 @@ Always prefer code over templates. Templates are for expressions QueryBuilder ca
 ## Row Locking
 
 ```kotlin
-val user = orm.entity(User::class)
+val user = orm.entity<User>()
     .select()
     .where(User_.id eq userId)
     .forUpdate()         // SELECT ... FOR UPDATE
@@ -256,12 +256,12 @@ val user = orm.entity(User::class)
 ## Distinct and Count
 
 ```kotlin
-val uniqueCities = orm.entity(User::class)
+val uniqueCities = orm.entity<User>()
     .select(City::class)
     .distinct()
     .resultList
 
-val count = orm.entity(User::class)
+val count = orm.entity<User>()
     .selectCount()
     .where(User_.active eq true)
     .singleResult
@@ -271,19 +271,19 @@ val count = orm.entity(User::class)
 
 ```kotlin
 // Query by ref
-val user = orm.entity(User::class)
+val user = orm.entity<User>()
     .select()
     .where(userRef)
     .singleResult
 
 // Query by multiple refs
-val users = orm.entity(User::class)
+val users = orm.entity<User>()
     .select()
     .whereRef(userRefs)
     .resultList
 
 // Select refs instead of full entities (lightweight)
-val refs = orm.entity(User::class)
+val refs = orm.entity<User>()
     .selectRef()
     .where(User_.city eq city)
     .resultList
@@ -293,13 +293,13 @@ val refs = orm.entity(User::class)
 
 ```kotlin
 // WHERE EXISTS — filter entities that have related data
-val citiesWithUsers = orm.entity(City::class)
+val citiesWithUsers = orm.entity<City>()
     .select()
     .whereExists { subquery(User::class) }
     .resultList
 
 // WHERE NOT EXISTS
-val citiesWithoutUsers = orm.entity(City::class)
+val citiesWithoutUsers = orm.entity<City>()
     .select()
     .whereNotExists { subquery(User::class) }
     .resultList
@@ -312,7 +312,7 @@ The `whereExists { }` / `whereNotExists { }` lambdas receive a `SubqueryTemplate
 For complex WHERE clauses that need AND/OR grouping beyond what infix operators provide:
 
 ```kotlin
-val users = orm.entity(User::class)
+val users = orm.entity<User>()
     .select()
     .whereBuilder {
         where(User_.active, EQUALS, true)
@@ -337,7 +337,7 @@ The `Any` variants (`whereAny`, `orderByAny`, `orderByDescendingAny`, `groupByAn
 
 ```kotlin
 select {
-    innerJoin(UserRole::class, User::class)
+    innerJoin<UserRole, User>()
     whereAny(UserRole_.role eq role)
     orderByAny(User_.name)
 }.resultList
@@ -356,7 +356,7 @@ userRoles.scroll(Scrollable.of(UserRole_.id, 20))  // fails — UserRole has com
 
 // ✅ Scroll User (simple PK) with a JOIN through UserRole for filtering
 users.select {
-    innerJoin(UserRole::class, User::class)
+    innerJoin<UserRole, User>()
     whereAny(UserRole_.role eq role)
 }.scroll(Scrollable.of(User_.id, 20))
 ```
@@ -409,13 +409,13 @@ if (window.hasPrevious()) {
 
 ```kotlin
 // DELETE with WHERE (safe) -- builder returns QueryBuilder, terminal executes
-orm.entity(User::class).delete().where(User_.active eq false).executeUpdate()
+orm.entity<User>().delete().where(User_.active eq false).executeUpdate()
 
 // DELETE with predicate shorthand -- also returns QueryBuilder
-orm.entity(User::class).delete(User_.active eq false).executeUpdate()
+orm.entity<User>().delete(User_.active eq false).executeUpdate()
 
 // DELETE/UPDATE without WHERE throws by default. Use unsafe() to confirm intent:
-orm.entity(User::class).delete().unsafe().executeUpdate()
+orm.entity<User>().delete().unsafe().executeUpdate()
 
 // Convenience method: removeAll() executes immediately (calls unsafe() internally)
 users.removeAll()
@@ -477,7 +477,7 @@ This also works with joins — conditionally add a join only when needed:
 ```kotlin
 select {
     if (city != null) {
-        innerJoin(UserAddress::class, User::class)
+        innerJoin<UserAddress, User>()
         whereAny(UserAddress_.city eq city)
     }
     orderByDescending(User_.createdAt)
@@ -488,7 +488,7 @@ Available in the block: `where`, `whereAny`, `whereBuilder`, `whereExists`, `whe
 
 **Note:** The block DSL has `orderBy { template }` but NOT `orderByDescending { template }`. For template-based descending order, use the chained API: `.orderByDescending { template }` or escape to raw SQL.
 
-The block DSL is typed to the root entity. There is **no** `select(ResultType::class) { block }` form — `select { }` always returns the root entity type. To select a different result type, use the chained API:
+The block DSL is typed to the root entity. There is **no** `select(ResultType::class) { block }` form — `select { }` always returns the root entity type. (In `select(ResultType::class) { ... }` / `select<ResultType, _, _> { ... }` the trailing lambda is a SQL template for the SELECT clause, not a block DSL.) To select a different result type, use the chained API:
 ```kotlin
 // ❌ Not valid — no block DSL overload for result type
 select(UserSummary::class) {
@@ -500,16 +500,16 @@ select(UserSummary::class)
     .where(User_.active eq true)
     .resultList
 
-// ✅ With joins — chained API uses .innerJoin(A::class).on(B::class), not two-arg form
+// ✅ With joins — chained API uses .innerJoin<A>().on<B>(), not the two-type-arg form
 select(UserSummary::class)
-    .innerJoin(UserRole::class).on(User::class)
+    .innerJoin<UserRole>().on<User>()
     .whereAny(UserRole_.role eq role)
     .scroll(Scrollable.of(User_.id, 20))
 ```
 
 **What `select(ResultType::class)` is for:** It selects a different result type from the query. This works for:
 - **Joined entity types** — e.g., selecting `City::class` from a `User` query that joins `City`.
-- **Custom SELECT with template** — e.g., `select(Summary::class, template)` with a custom SQL select clause that maps to the result type's fields.
+- **Custom SELECT with template** — e.g., `select<Summary, _, _> { template }` with a custom SQL select clause that maps to the result type's fields.
 
 It does **not** work for selecting a column subset of the root entity — e.g., a `UserSummary` with only `id` and `name` from `User` will fail with "Cannot find alias for column." For column subsets, use a `Projection<T>` with `ProjectionRepository`.
 
@@ -554,9 +554,9 @@ Tell the user what you are doing and why: explain that `SqlCapture` records ever
 class UserQueryTest {
     @Test
     fun findActiveUsersInCity(orm: ORMTemplate, capture: SqlCapture) {
-        val city = orm.entity<City>().getById(1)
+        val city = orm.entity<City, _>().getById(1)   // getById is ID-based — use the two-type-arg form
         val users = capture.execute {
-            orm.entity(User::class).select()
+            orm.entity<User>().select()
                 .where((User_.city eq city) and (User_.active eq true))
                 .orderBy(User_.name)
                 .resultList

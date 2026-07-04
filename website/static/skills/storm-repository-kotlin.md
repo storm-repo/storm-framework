@@ -84,7 +84,7 @@ val users = orm.entity(User::class)          // also works, no import needed
 val userRepository = orm.repository<UserRepository>()  // import st.orm.repository.repository
 ```
 
-**Star projection caveat:** `orm.entity<User>()` returns `EntityRepository<User, *>` — the ID type is erased. Methods that depend on the ID type parameter (`existsById`, `findById`, `removeById`, etc.) will fail with star projection errors. For ID-based operations, use `orm.entityWithId<User, Int>()` (reified, preserves the ID type), a typed custom repository (`EntityRepository<User, Int>`), or `orm.entity(User::class)` (the ID type is inferred from context).
+**Star projection caveat:** `orm.entity<User>()` returns `EntityRepository<User, *>` — the ID type is erased. Methods that depend on the ID type parameter (`existsById`, `findById`, `removeById`, etc.) will fail with star projection errors. For ID-based operations, use `orm.entity<User, _>()` (reified; the underscore infers the ID type from the entity declaration), a typed custom repository (`EntityRepository<User, Int>`), or `orm.entity(User::class)` (the ID type is inferred from context).
 
 ```kotlin
 // ⚠️ Repository interfaces MUST import the predicate operators — they are Kotlin extension functions:
@@ -103,13 +103,13 @@ interface UserRepository : EntityRepository<User, Int> {
 Key rules:
 1. ALL query methods have EXPLICIT BODIES. Storm does NOT derive queries from method names.
 2. Inherited CRUD: insert, update, remove, removeById, removeByRef, removeAll, findById, findBy(Key), count, existsById, page, scroll.
-3. Descriptive variable names: `val users = orm.entity(User::class)`, not `val repo`.
+3. Descriptive variable names: `val users = orm.entity<User>()`, not `val repo`.
 4. QueryBuilder is IMMUTABLE. Always chain or capture the return value (or use the `select { }` DSL which handles this automatically).
 5. Streaming: `select().resultFlow` returns a `Flow` with automatic resource cleanup.
 6. DELETE/UPDATE without WHERE throws. Use `unsafe()` for intentional bulk ops.
 7. Pagination: `page(0, 20)` for offset-based. `scroll(Scrollable.of(User_.id, 20))` for keyset on large tables (see Keyset Scrolling section).
-8. **Prefer entity/metamodel-based methods over templates.** For joins, use `innerJoin(Entity::class, OnEntity::class)` in the block DSL, or `.innerJoin(Entity::class).on(OnEntity::class)` in the chained API. Only fall back to template lambdas when QueryBuilder cannot express the query.
-   **Template joins are a code smell.** If you need a template-based ON clause (`.innerJoin(T::class).on { "..." }`) or a full `orm.query { }` to express a join that follows a database FK constraint, the entity model is missing an `@FK` annotation. Fix the entity first — add `@FK` (with `Ref<T>` for PK fields, full entity for non-PK fields) — then the join becomes `.innerJoin(Entity::class).on(OnEntity::class)`, pure code with no templates. Template joins are only justified when there is genuinely no FK constraint in the database. Projections join like entities: `.on(ProjectionType::class)` resolves the foreign key by matching the referenced entity's table against the projection's table. When multiple foreign keys reference that table the join is ambiguous — Storm fails with an error naming the candidate fields; disambiguate with a template ON clause.
+8. **Prefer entity/metamodel-based methods over templates.** For joins, use `innerJoin<Entity, OnEntity>()` in the block DSL, or `.innerJoin<Entity>().on<OnEntity>()` in the chained API. Only fall back to template lambdas when QueryBuilder cannot express the query.
+   **Template joins are a code smell.** If you need a template-based ON clause (`.innerJoin<T>().on { "..." }`) or a full `orm.query { }` to express a join that follows a database FK constraint, the entity model is missing an `@FK` annotation. Fix the entity first — add `@FK` (with `Ref<T>` for PK fields, full entity for non-PK fields) — then the join becomes `.innerJoin<Entity>().on<OnEntity>()`, pure code with no templates. Template joins are only justified when there is genuinely no FK constraint in the database. Projections join like entities: `.on<ProjectionType>()` resolves the foreign key by matching the referenced entity's table against the projection's table. When multiple foreign keys reference that table the join is ambiguous — Storm fails with an error naming the candidate fields; disambiguate with a template ON clause.
 9. **Use `Ref` for map keys and set membership**: Prefer `Ref<Entity>` (via `.ref()`) for map keys, set membership, and identity-based lookups. `Ref` provides identity-based `equals`/`hashCode` on the primary key. When a projection already returns `Ref<T>`, use it directly without calling `.ref()` again.
 10. **Prefer typed parameters over raw IDs — full entities by default.** Repository method signatures take the full entity for FK parameters when callers naturally hold one (the common case): predicates like `eq` and `inList` accept entities directly, so no `.ref()` conversion is needed at the call sites. `Ref<Entity>` parameters remain fine — use them for identity-only flows, where callers hold refs (e.g. from `Ref<T>` fields) or only an id, converted at the system boundary with `refById<T>(id)` (import `st.orm.template.refById`). Never accept raw IDs like `String` or `Int` — they are untyped and lose the entity association.
 11. **Typed ID from `Ref`:** Use `ref.entityId()` (import `st.orm.template.entityId`) to extract a type-safe ID. Avoid `ref.id()` — it returns `Any` and requires an unsafe cast.
@@ -561,20 +561,20 @@ interface UserRepository : EntityRepository<User, Int> {
 
 Both `select { }` and `delete { }` return a `QueryBuilder`, so you pick the terminal: `.resultList`, `.singleResult`, `.optionalResult`, `.scroll(scrollable)`, `.page(0, 20)`, `.resultFlow`, `.resultCount` (for select), or `.executeUpdate()` (for delete). **Do NOT combine `orderBy()` with `.scroll(Scrollable)`** — see Keyset Scrolling section above.
 
-**Result types and the block DSL:** There is **no** `select(ResultType::class) { block }` form. The block DSL always returns the root entity type. To select a different result type, use the chained API:
+**Result types and the block DSL:** There is **no** `select(ResultType::class) { block }` form. The block DSL always returns the root entity type. (In `select(ResultType::class) { ... }` / `select<ResultType, _, _> { ... }` the trailing lambda is a SQL template for the SELECT clause, not a block DSL.) To select a different result type, use the chained API:
 ```kotlin
 // ❌ Not valid — no block DSL overload for result type
 fun findSummaries(): List<UserSummary> = select(UserSummary::class) {
     where(User_.active eq true)
 }.resultList
 
-// ✅ Use chained API — note: joins use .innerJoin(A::class).on(B::class), not two-arg form
+// ✅ Use chained API — note: joins use .innerJoin<A>().on<B>(), not the two-type-arg form
 fun findSummaries(): List<UserSummary> = select(UserSummary::class)
     .where(User_.active eq true)
     .resultList
 ```
 
-**What `select(ResultType::class)` is for:** It selects a different result type from the query. This works for joined entity types (e.g., `City::class` from a `User` query) and custom SELECT with a template string (`select(Summary::class, template)`). It does **not** work for column subsets of the root entity — `select(UserSummary::class)` where `UserSummary` has a subset of `User` fields will fail with "Cannot find alias for column." For column subsets, use a `Projection<T>` with `ProjectionRepository`.
+**What `select(ResultType::class)` is for:** It selects a different result type from the query. This works for joined entity types (e.g., `City::class` from a `User` query) and custom SELECT with a template string (`select<Summary, _, _> { template }` — the result type is explicit; the underscores let Kotlin infer the repository's entity and ID types). Style: use the underscore form only in code that is otherwise fully reified; in `::class`-style code write `select(Summary::class) { template }` — keep each snippet internally consistent. It does **not** work for column subsets of the root entity — `select(UserSummary::class)` where `UserSummary` has a subset of `User` fields will fail with "Cannot find alias for column." For column subsets, use a `Projection<T>` with `ProjectionRepository`.
 
 **Cross-entity pitfall:** Selecting a different entity type from the wrong root repository can fail with "Cannot find alias for column" when both entities have columns with the same name (e.g., `id`). Put the query on the target entity's repository instead.
 
@@ -596,7 +596,7 @@ This also works with conditional joins:
 fun findFiltered(city: Ref<City>?, page: Int, size: Int): Page<User> =
     select {
         if (city != null) {
-            innerJoin(UserAddress::class, User::class)
+            innerJoin<UserAddress, User>()
             whereAny(UserAddress_.city eq city)
         }
         orderByDescending(User_.createdAt)
@@ -635,7 +635,7 @@ class UserRepositoryTest {
     @Test
     fun findByCity(orm: ORMTemplate, capture: SqlCapture) {
         val userRepository = orm.repository<UserRepository>()
-        val city = orm.entity<City>().getById(1)
+        val city = orm.entity<City, _>().getById(1)   // getById is ID-based — use the two-type-arg form
         val users = capture.execute { userRepository.findByCity(city) }
         // Verify intent: single query, filtered by city, returns expected data.
         assertEquals(1, capture.count(Operation.SELECT))

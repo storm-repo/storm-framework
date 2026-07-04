@@ -5,7 +5,7 @@ import TabItem from '@theme/TabItem';
 
 ## What Are Projections?
 
-Projections are **read-only** data structures that represent database views or complex queries defined via `@ProjectionQuery`. Like entities, they are plain Kotlin data classes or Java records with no proxies and no bytecode manipulation. Unlike entities, projections support only read operations: no insert, update, or remove.
+Projections are **read-only** data structures for the query side of your application. A projection can map a database view, a subset of a table's columns, or the result of a custom SQL query defined with `@ProjectionQuery`. Like entities, they are plain Kotlin data classes or Java records with no proxies and no bytecode manipulation, so you get purpose-built read models without writing a DTO mapping layer by hand. Unlike entities, projections support only read operations: no insert, update, or remove.
 
 ```
 ┌─────────────────────────────────────────────────────────────────────┐
@@ -26,6 +26,8 @@ Projections are **read-only** data structures that represent database views or c
 
 **Database views:** Represent database views or materialized views as first-class types in your application.
 
+**Lightweight table reads:** Map a subset of a table's columns for list views, dropdowns, and search results without loading full entities.
+
 **Complex reusable queries:** Use `@ProjectionQuery` to define projections backed by complex SQL involving joins, aggregations, or subqueries that you want to reuse across your application.
 
 For simple ad-hoc queries or one-off aggregations, prefer using a plain data class. Projections are best suited for reusable, view-like structures. See [SQL Templates](sql-templates.md) for details.
@@ -42,6 +44,7 @@ A projection is a data class (Kotlin) or record (Java) that implements `Projecti
 <TabItem value="kotlin" label="Kotlin" default>
 
 ```kotlin
+@DbTable("owner")
 data class OwnerView(
     @PK val id: Int,
     val firstName: String,
@@ -54,6 +57,7 @@ data class OwnerView(
 <TabItem value="java" label="Java">
 
 ```java
+@DbTable("owner")
 record OwnerView(
     @PK Integer id,
     @Nonnull String firstName,
@@ -65,7 +69,7 @@ record OwnerView(
 </TabItem>
 </Tabs>
 
-Storm maps this projection to the `owner` table (derived from the class name) and selects only the specified columns.
+By default, Storm derives the table name from the class name using camelCase to snake_case conversion, so `OwnerView` would map to `owner_view`. The `@DbTable` annotation points the projection at the `owner` table instead, so it reads a subset of that table's columns. Leave the annotation out when the class name already matches the view or table you are mapping.
 
 ### Projection Without Primary Key
 
@@ -96,6 +100,8 @@ record VisitSummary(
 </TabItem>
 </Tabs>
 
+This projection reads from a `visit_summary` view, following the default class name to table name conversion.
+
 ### Projection with Foreign Keys
 
 Projections can reference entities or other projections using `@FK`:
@@ -104,6 +110,7 @@ Projections can reference entities or other projections using `@FK`:
 <TabItem value="kotlin" label="Kotlin" default>
 
 ```kotlin
+@DbTable("pet")
 data class PetView(
     @PK val id: Int,
     val name: String,
@@ -115,6 +122,7 @@ data class PetView(
 <TabItem value="java" label="Java">
 
 ```java
+@DbTable("pet")
 record PetView(@PK Integer id,
                @Nonnull String name,
                @FK OwnerView owner  // References another projection
@@ -208,7 +216,7 @@ The `ProjectionRepository` supports the same query patterns as `EntityRepository
 val count = ownerViews.count()
 
 // Find by primary key (returns null if not found)
-val owner = ownerViews.findById(1)
+val foundOwner = ownerViews.findById(1)
 
 // Get by primary key (throws if not found)
 val owner = ownerViews.getById(1)
@@ -219,7 +227,7 @@ val exists = ownerViews.existsById(1)
 // Fetch all as a list
 val allOwners = ownerViews.findAll()
 
-// Fetch all as a lazy stream
+// Fetch all as a lazy Flow (collect from a coroutine)
 ownerViews.select().resultFlow.collect { owner ->
     println(owner.firstName)
 }
@@ -232,8 +240,8 @@ ownerViews.select().resultFlow.collect { owner ->
 // Count all
 long count = ownerViews.count();
 
-// Find by primary key
-Optional<OwnerView> owner = ownerViews.findById(1);
+// Find by primary key (empty Optional if not found)
+Optional<OwnerView> foundOwner = ownerViews.findById(1);
 
 // Get by primary key (throws if not found)
 OwnerView owner = ownerViews.getById(1);
@@ -264,22 +272,22 @@ Use the `select()` method for type-safe queries with the generated metamodel:
 // Filter by field value
 val owners = ownerViews.select()
     .where(OwnerView_.lastName, EQUALS, "Smith")
-    .getResultList()
+    .resultList
 
 // Filter with comparison operators
 val recentVisits = orm.projection(VisitView::class).select()
     .where(VisitView_.visitDate, GREATER_THAN, LocalDate.of(2024, 1, 1))
-    .getResultList()
+    .resultList
 
 // Filter by nested foreign key
 val ownerPets = orm.projection(PetView::class).select()
     .where(PetView_.owner.id, EQUALS, 1)
-    .getResultList()
+    .resultList
 
 // Count with filter
 val count = ownerViews.selectCount()
     .where(OwnerView_.lastName, EQUALS, "Smith")
-    .getSingleResult()
+    .singleResult
 ```
 
 </TabItem>
@@ -317,11 +325,13 @@ Efficiently fetch multiple projections by ID:
 val ids = listOf(1, 2, 3)
 val owners = ownerViews.findAllById(ids)
 
-// Flow-based batch fetching (lazy evaluation)
-val idFlow = flowOf(1, 2, 3, 4, 5)
-ownerViews.selectById(idFlow).collect { owner ->
-    // Process each owner
-}
+// Flow-based fetching (lazy evaluation, collect from a coroutine)
+ownerViews.select()
+    .where(OwnerView_.id, IN, ids)
+    .resultFlow
+    .collect { owner ->
+        // Process each owner
+    }
 ```
 
 </TabItem>
@@ -345,7 +355,7 @@ try (Stream<OwnerView> stream = ownerViews.selectById(ids.stream())) {
 
 ---
 
-## Projections vs Entities: Choosing the Right Tool
+## Choosing Between Entities and Projections
 
 ```
 ┌─────────────────────────────────────────────────────────────────────┐
@@ -355,11 +365,12 @@ try (Stream<OwnerView> stream = ownerViews.selectById(ids.stream())) {
 │  Use Entity when you need to:                                       │
 │  • Create, update, or delete records                                │
 │  • Work with the full row including all columns                     │
-│  • Leverage dirty checking and optimistic locking                   │
+│  • Use dirty checking and optimistic locking                        │
 │  • Maintain referential integrity through the ORM                   │
 │                                                                     │
 │  Use Projection when you need to:                                   │
 │  • Map database views or materialized views                         │
+│  • Read a subset of a table's columns for lists and search results  │
 │  • Define reusable complex queries via @ProjectionQuery             │
 │                                                                     │
 └─────────────────────────────────────────────────────────────────────┘
@@ -383,6 +394,7 @@ data class Owner(
 ) : Entity<Int>
 
 // Lightweight projection for list views
+@DbTable("owner")
 data class OwnerListItem(
     @PK val id: Int,
     val firstName: String,
@@ -390,6 +402,7 @@ data class OwnerListItem(
 ) : Projection<Int>
 
 // Detailed projection for detail views
+@DbTable("owner")
 data class OwnerDetail(
     @PK val id: Int,
     val firstName: String,
@@ -415,12 +428,14 @@ record Owner(@PK Integer id,
 ) implements Entity<Integer> {}
 
 // Lightweight projection for list views
+@DbTable("owner")
 record OwnerListItem(@PK Integer id,
                      @Nonnull String firstName,
                      @Nonnull String lastName
 ) implements Projection<Integer> {}
 
 // Detailed projection for detail views
+@DbTable("owner")
 record OwnerDetail(@PK Integer id,
                    @Nonnull String firstName,
                    @Nonnull String lastName,
@@ -442,6 +457,7 @@ Use `Owner` when creating or updating owners. Use `OwnerListItem` for displaying
 When a projection references another entity or projection but you do not need the full related object in every query, use `Ref<T>` to store only the foreign key value. This avoids the cost of an additional JOIN when you only need the key. You can resolve the reference later by fetching the full object on demand.
 
 ```kotlin
+@DbTable("pet")
 data class PetListItem(
     @PK val id: Int,
     val name: String,
@@ -455,17 +471,19 @@ The `Ref` contains only the foreign key value. You can resolve it later if neede
 val pet = orm.projection(PetListItem::class).getById(1)
 
 // Access the foreign key without loading the owner
-val ownerId = pet.owner.id()
+val ownerId = pet.owner.projectionId()  // import st.orm.template.projectionId
 
 // Load the full owner when needed
-val owner = orm.projection(OwnerView::class).getById(ownerId)
+val owner = pet.owner.fetch()
 ```
+
+See [Refs](refs.md) for the full lifecycle, including detached refs and fetch semantics.
 
 ---
 
 ## Mapping to Custom Tables
 
-By default, Storm derives the table name from the projection class name. Override this with `@DbTable`:
+By default, Storm derives the table name from the projection class name using camelCase to snake_case conversion, so `OwnerSummary` maps to `owner_summary`. Override this with `@DbTable`:
 
 ```kotlin
 @DbTable("owner")
@@ -484,13 +502,14 @@ Use `@DbColumn` to map fields to columns with different names.
 | Method | Description |
 |--------|-------------|
 | `count()` | Count all projections |
-| `findById(id)` | Find by primary key, returns null if not found |
+| `findById(id)` | Find by primary key; returns null (Kotlin) or an empty `Optional` (Java) if not found |
 | `getById(id)` | Get by primary key, throws if not found |
 | `existsById(id)` | Check if projection exists |
 | `findAll()` | Fetch all as a list |
 | `findAllById(ids)` | Fetch multiple by IDs |
-| `select().resultFlow` | Lazy Flow of all projections |
-| `selectById(ids)` | Lazy Flow by IDs |
+| `select().resultFlow` | Lazy Flow of all projections (Kotlin) |
+| `select().getResultStream()` | Lazy Stream of all projections (Java) |
+| `selectById(ids)` | Lazy Stream by IDs (Java) |
 | `select()` | Query builder for filtering |
 | `selectCount()` | Query builder for counting |
 
@@ -506,11 +525,16 @@ Design projections for specific use cases rather than trying to reuse one projec
 
 ```kotlin
 // Good: Purpose-built projections
+@ProjectionQuery("""
+    SELECT id, first_name || ' ' || last_name AS display_name
+    FROM owner
+""")
 data class OwnerDropdownItem(
     @PK val id: Int,
-    val displayName: String  // Computed: firstName + lastName
+    val displayName: String
 ) : Projection<Int>
 
+@DbTable("owner")
 data class OwnerSearchResult(
     @PK val id: Int,
     val firstName: String,
@@ -519,6 +543,7 @@ data class OwnerSearchResult(
 ) : Projection<Int>
 
 // Avoid: One projection trying to serve all purposes
+@DbTable("owner")
 data class OwnerProjection(
     @PK val id: Int,
     val firstName: String,
@@ -572,7 +597,7 @@ Aggregations and analytics often don't have a natural primary key:
 ```kotlin
 @ProjectionQuery("""
     SELECT
-        DATE_TRUNC('month', visit_date) AS month,
+        CAST(DATE_TRUNC('month', visit_date) AS DATE) AS month,
         COUNT(*) AS visit_count,
         COUNT(DISTINCT pet_id) AS unique_pets
     FROM visit
@@ -590,6 +615,7 @@ data class MonthlyVisitStats(
 For complex object graphs, you can mix projections with entity relationships:
 
 ```kotlin
+@DbTable("pet")
 data class PetWithOwnerSummary(
     @PK val id: Int,
     val name: String,

@@ -34,7 +34,8 @@ Adapt your suggestions to the detected framework:
 ### Query and Template Rules
 
 - **Always prefer QueryBuilder and metamodel-based methods** for joins, where clauses, ordering, etc. Only fall back to SQL template lambdas when QueryBuilder cannot express the query.
-- **Joins**: use `.innerJoin(Entity::class).on(OtherEntity::class)` unless it cannot be expressed with entity classes.
+- **Joins**: use `.innerJoin<Entity>().on<OtherEntity>()` unless it cannot be expressed with entity classes.
+- **Reified vs `::class` style (Kotlin)**: prefer the reified forms (`orm.entity<User>()`, `.innerJoin<X>().on<Y>()`, `select<Result, _, _> { template }`, `resultList<T>()`), but keep each snippet internally consistent — never mix reified and `::class` API styles in one query or code block. When surrounding code uses the `::class` style (or a call has no reified equivalent, forcing `::class` into the snippet), match it: write `select(Result::class) { template }` rather than mixing in underscores. Template interpolations such as `${User::class}` are template syntax, not API style — they never count as mixing.
 - **Template lambdas**: when you must use a template expression, write it as a lambda (`{ "..." }`) — never use `TemplateString.raw()`.
 - **Compiler plugin interpolation**: with the Storm compiler plugin (which Kotlin projects should always use), standard `${}` interpolation inside template lambdas is automatically processed. Do not call `t()` manually — it exists only as a fallback for projects without the compiler plugin.
 - **Metamodel in templates**: even inside template lambdas, use metamodel references (`${User_.email}`) instead of hardcoded column names wherever possible.

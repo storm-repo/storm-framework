@@ -1,0 +1,70 @@
+import React from 'react';
+import Head from '@docusaurus/Head';
+import {TUT_CSS, navHtml, FOOT_HTML} from '../../components/tutorial/tutorialTheme';
+
+// The example-projects hub at /examples, rendered in the landing-page style
+// (see tutorialTheme.js). Three complete movie-browser applications built on
+// the public IMDB dataset: the same app on Ktor and Spring Boot, in Kotlin
+// and Java. Each card links to its GitHub repository.
+
+const TITLE = 'Storm Example Projects · Complete applications built with Storm';
+const DESC =
+  'Complete example applications built with Storm ORM: a movie browser on ' +
+  'the public IMDB dataset, implemented on Spring Boot 4 and Ktor, in Kotlin ' +
+  'and Java. Clone one, run it, and explore idiomatic Storm in a real project.';
+
+const BODY = `
+${navHtml('examples')}
+
+<div class="tuthero">
+  <h1>Real applications,<br><span class="grad">built with Storm.</span></h1>
+  <p class="sub">The same movie browser, implemented three times on the public IMDB dataset, so you can compare stacks and explore what idiomatic Storm looks like in a real project: immutable entities, metamodel-based queries, transactions, schema validation, and a full test suite. Clone one and run it with Docker and Gradle.</p>
+</div>
+
+<div class="shead" id="projects"><span class="mark">//</span>Example projects<span class="sdesc">Server-rendered movie browsers: entities, repositories, projections, pagination, transactions, and tests in a working application.</span></div>
+<div class="cards">
+  <a class="tcard" href="https://github.com/storm-orm/storm-example-kotlin-ktor">
+    <div class="tt">Storm Movies · Kotlin + Ktor<span class="arrow">→</span></div>
+    <div class="td">A server-rendered movie browser on Ktor 3 with the Storm plugin: automatic repository registration, coroutine-native transactions, kotlinx.serialization for the JSON APIs, and Playwright-driven interface tests.</div>
+    <div class="tm"><span>GitHub</span><span>Kotlin</span><span>Ktor</span></div>
+  </a>
+  <a class="tcard" href="https://github.com/storm-orm/storm-example-kotlin-spring-boot-4">
+    <div class="tt">Storm Movies · Kotlin + Spring Boot 4<span class="arrow">→</span></div>
+    <div class="td">The same movie browser on Spring Boot 4 with immutable data-class entities, metamodel-based queries, coroutine-native transactions, and schema validation. PostgreSQL with Flyway migrations; repository tests on H2 with storm-test.</div>
+    <div class="tm"><span>GitHub</span><span>Kotlin</span><span>Spring Boot 4</span></div>
+  </a>
+  <a class="tcard" href="https://github.com/storm-orm/storm-example-java-spring-boot-4">
+    <div class="tt">Storm Movies · Java + Spring Boot 4<span class="arrow">→</span></div>
+    <div class="td">The Java flavor on Java 21: immutable record entities, metamodel-based queries, Spring-managed transactions, and schema validation. No JPA, no proxies, no persistence context.</div>
+    <div class="tm"><span>GitHub</span><span>Java 21</span><span>Spring Boot 4</span></div>
+  </a>
+</div>
+
+${FOOT_HTML}
+`;
+
+export default function Examples() {
+  return (
+    <>
+      <Head>
+        <html lang="en" />
+        <title>{TITLE}</title>
+        <meta name="description" content={DESC} />
+        <link rel="canonical" href="https://orm.st/examples/" />
+        <meta property="og:type" content="website" />
+        <meta property="og:title" content={TITLE} />
+        <meta property="og:description" content={DESC} />
+        <meta name="twitter:title" content={TITLE} />
+        <meta name="twitter:description" content={DESC} />
+        <link rel="preconnect" href="https://fonts.googleapis.com" />
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
+        <link
+          href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;700&display=swap"
+          rel="stylesheet"
+        />
+      </Head>
+      <style dangerouslySetInnerHTML={{__html: TUT_CSS}} />
+      <div className="storm-tut" dangerouslySetInnerHTML={{__html: BODY}} />
+    </>
+  );
+}
