@@ -34,7 +34,9 @@ export const QC = (x) => `<span class="sqlc">${esc(x)}</span>`;
 // with the token helpers above. When `sql` is present the block gets a
 // "Show SQL" toggle that reveals the generated SQL, like the landing editor.
 export function editor({file, tag, code, sql}) {
-  const lines = code.replace(/<[^>]*>/g, '').split('\n').length;
+  // Newlines only occur in the escaped text tokens, never inside tag markup,
+  // so the line count can be taken from the HTML string directly.
+  const lines = code.split('\n').length;
   let gutter = '';
   for (let i = 1; i <= lines; i++) gutter += `<div>${i}</div>`;
   const sqlBtn = sql
@@ -136,7 +138,8 @@ export const navHtml = (active) => `
   <div class="nav-links">
     <a href="/docs/"${active === 'docs' ? ' class="on"' : ''}>Docs</a>
     <a href="/tutorials/"${active === 'tutorials' ? ' class="on"' : ''}>Tutorials</a>
-    <a class="gh" href="https://github.com/storm-orm/storm-framework">GitHub</a>
+    <a href="/examples/"${active === 'examples' ? ' class="on"' : ''}>Examples</a>
+    <a class="gh" href="https://github.com/orgs/storm-orm/repositories">GitHub</a>
     <a href="/docs/getting-started" class="btn primary" style="height:36px">Get started</a>
   </div>
 </div></nav>`;
@@ -144,7 +147,7 @@ export const navHtml = (active) => `
 export const FOOT_HTML = `
 <footer><div class="wrap foot">
   <div class="brand"><img class="logo" src="/img/storm-light.png" alt="Storm" /></div>
-  <div class="links"><a href="/">orm.st</a><a href="/tutorials/">Tutorials</a><a href="https://github.com/storm-orm/storm-framework">GitHub</a><a href="https://central.sonatype.com/namespace/st.orm">Maven Central</a></div>
+  <div class="links"><a href="/">orm.st</a><a href="/tutorials/">Tutorials</a><a href="/examples/">Examples</a><a href="https://github.com/storm-orm/storm-framework">GitHub</a><a href="https://central.sonatype.com/namespace/st.orm">Maven Central</a></div>
 </div></footer>`;
 
 export const TUT_CSS = `
