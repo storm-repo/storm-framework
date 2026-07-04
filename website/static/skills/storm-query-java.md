@@ -100,6 +100,7 @@ Limit/Offset: `.limit(10)`, `.offset(20)`
 Pagination: `.page(0, 20)` or `.page(Pageable.ofSize(20).sortBy(User_.name))`
 Scrolling (keyset): `.scroll(Scrollable.of(User_.id, 20))` — do NOT combine with `orderBy()` (Scrollable manages ORDER BY internally, see Keyset Scrolling section)
 Explicit joins: `.innerJoin(Entity.class).on(OtherEntity.class)`, `.leftJoin(Entity.class).on(OtherEntity.class)`, `.rightJoin(Entity.class).on(OtherEntity.class)`
+**Auto-join types follow FK nullability.** A `@FK` record component without a non-null marker (`jakarta.annotation.Nonnull` or JSpecify `@NonNull`) counts as nullable, so its auto-join is a LEFT JOIN. If generated SQL shows LEFT JOIN where you expect INNER JOIN, the FK component is missing the marker in the entity.
 Result type: `.select(ResultType.class)` to return a different type than the root entity. **Cross-entity pitfall:** Selecting a different entity type from the wrong root repository can fail with "Cannot find alias for column" when both entities have columns with the same name (e.g., `id`). Put the query on the target entity's repository instead.
 
 Operators: EQUALS, NOT_EQUALS, LESS_THAN, LESS_THAN_OR_EQUAL, GREATER_THAN, GREATER_THAN_OR_EQUAL, LIKE, NOT_LIKE, IS_NULL, IS_NOT_NULL, IN, NOT_IN

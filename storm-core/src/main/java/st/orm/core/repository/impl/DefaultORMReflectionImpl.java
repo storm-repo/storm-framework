@@ -256,12 +256,23 @@ public final class DefaultORMReflectionImpl implements ORMReflection {
             return null;
         }
     }).get();
+    @SuppressWarnings("unchecked")
+    static final Class<? extends Annotation> JSPECIFY_NONNULL = ((Supplier<Class<? extends Annotation>>) () -> {
+        try {
+            return (Class<? extends Annotation>) Class.forName("org.jspecify.annotations.NonNull");
+        } catch (ClassNotFoundException e) {
+            return null;
+        }
+    }).get();
 
     private boolean isNonnull(@Nonnull RecordComponent component) {
         return component.isAnnotationPresent(PK.class)
                 || component.getType().isPrimitive()
                 || (JAVAX_NONNULL != null && component.isAnnotationPresent(JAVAX_NONNULL))
-                || (JAKARTA_NONNULL != null && component.isAnnotationPresent(JAKARTA_NONNULL));
+                || (JAKARTA_NONNULL != null && component.isAnnotationPresent(JAKARTA_NONNULL))
+                // JSpecify's NonNull is a TYPE_USE annotation: it annotates the component's type
+                // rather than the component declaration.
+                || (JSPECIFY_NONNULL != null && component.getAnnotatedType().isAnnotationPresent(JSPECIFY_NONNULL));
     }
 
     @Override

@@ -22,6 +22,14 @@ public class DefaultORMReflectionImplTest {
     record SimpleEntity(@PK Integer id, String name) implements Entity<Integer> {}
     record AllDefaults(int value, String text) implements Data {}
 
+    record NullabilityMarkers(
+            @PK Integer id,
+            int primitiveValue,
+            String unmarked,
+            @jakarta.annotation.Nonnull String jakartaNonnull,
+            @org.jspecify.annotations.NonNull String jspecifyNonNull
+    ) implements Entity<Integer> {}
+
     sealed interface SealedData extends Data permits SubData1, SubData2 {}
     record SubData1(int id) implements SealedData {}
     record SubData2(int id) implements SealedData {}
@@ -57,6 +65,18 @@ public class DefaultORMReflectionImplTest {
     public void testFindRecordTypeNonRecord() {
         var result = reflection.findRecordType(String.class);
         assertFalse(result.isPresent());
+    }
+
+    // nullability
+
+    @Test
+    public void testFieldNullability() {
+        var fields = reflection.findRecordType(NullabilityMarkers.class).orElseThrow().fields();
+        assertFalse(fields.get(0).nullable(), "@PK implies non-null");
+        assertFalse(fields.get(1).nullable(), "primitives are non-null");
+        assertTrue(fields.get(2).nullable(), "unmarked components are nullable by default");
+        assertFalse(fields.get(3).nullable(), "jakarta.annotation.Nonnull marks non-null");
+        assertFalse(fields.get(4).nullable(), "org.jspecify.annotations.NonNull (TYPE_USE) marks non-null");
     }
 
     // getType
