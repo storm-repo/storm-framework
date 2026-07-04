@@ -403,7 +403,7 @@ public interface SqlDialect {
      * @param index the parameter index.
      * @param json the serialized JSON value.
      * @throws SQLException if a database access error occurs.
-     * @since 1.11
+     * @since 1.12
      */
     default void setParameter(@Nonnull PreparedStatement preparedStatement, int index,
                               @Nonnull JsonString json) throws SQLException {

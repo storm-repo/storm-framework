@@ -29,7 +29,7 @@ import st.orm.Data
  * @see TypedJoinBuilder
  * @see QueryBuilder
  */
-interface JoinBuilder<T : Data, R, ID> {
+abstract class JoinBuilder<T : Data, R, ID> {
     /**
      * Specifies the join condition using a custom expression.
      *
@@ -44,5 +44,5 @@ interface JoinBuilder<T : Data, R, ID> {
      * @param template the condition to join on.
      * @return the query builder.
      */
-    fun on(template: TemplateString): QueryBuilder<T, R, ID>
+    abstract fun on(template: TemplateString): QueryBuilder<T, R, ID>
 }

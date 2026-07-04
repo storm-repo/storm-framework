@@ -452,6 +452,36 @@ open class ORMTemplateTest(
         cities shouldHaveSize 6
     }
 
+    @Test
+    fun `select with reified result type and template should return typed results`() {
+        val cities = orm.entity(City::class).select<City, _, _> { t(City::class) }.resultList
+        cities shouldHaveSize 6
+    }
+
+    @Test
+    fun `entity with inferred id type should support id-based operations`() {
+        // The underscore operator infers the primary key type from City : Entity<Int>.
+        val cities = orm.entity<City, _>()
+        val city = cities.findById(1)
+        city.shouldNotBeNull()
+        city.id shouldBe 1
+    }
+
+    @Test
+    fun `projection with inferred id type should support id-based operations`() {
+        // The underscore operator infers the primary key type from OwnerView : Projection<Int>.
+        val ownerViews = orm.projection<OwnerView, _>()
+        val view = ownerViews.findById(1)
+        view.shouldNotBeNull()
+        view.id shouldBe 1
+    }
+
+    @Test
+    fun `selectFrom with reified types and template should return typed results`() {
+        val cities = orm.selectFrom<City, City> { t(City::class) }.resultList
+        cities shouldHaveSize 6
+    }
+
     // EntityRepository: Flow-based batch operations (default batch size)
 
     @Test

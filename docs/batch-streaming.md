@@ -137,7 +137,7 @@ Storm automatically groups batch operations for optimal performance. Batch opera
 
 ```kotlin
 // Insert in batches of 500
-orm.entity(User::class).insert(users, 500)
+orm.entity<User>().insert(users, 500)
 ```
 
 </TabItem>
@@ -167,7 +167,7 @@ Streams returned by Storm must be closed after use. Use `.use {}` (Kotlin) or tr
 Kotlin uses `Flow` for streaming, which provides automatic resource cleanup through structured concurrency. When the Flow completes or the coroutine is cancelled, database cursors and connections are released without explicit cleanup code.
 
 ```kotlin
-val users: Flow<User> = orm.entity(User::class).select().resultFlow
+val users: Flow<User> = orm.entity<User>().select().resultFlow
 
 // Process one at a time -- only one row in memory
 users.collect { user ->
@@ -218,7 +218,7 @@ You can combine streaming with query filters to process only rows that match you
 <TabItem value="kotlin" label="Kotlin" default>
 
 ```kotlin
-val filteredUsers: Flow<User> = orm.entity(User::class)
+val filteredUsers: Flow<User> = orm.entity<User>()
     .select()
     .where(User_.name like "A%")
     .resultFlow

@@ -49,6 +49,14 @@ import kotlin.reflect.KClass
  *     .getResultList()
  * ```
  *
+ * ## Example: Join with reified type arguments
+ * ```kotlin
+ * val users = userRepository
+ *     .select()
+ *     .innerJoin<Order>().on<User>()
+ *     .getResultList()
+ * ```
+ *
  * ## Example: Delete with WHERE clause
  * ```kotlin
  * val deleted = userRepository
@@ -81,7 +89,7 @@ import kotlin.reflect.KClass
  * @see st.orm.repository.ProjectionRepository
  * @see QueryTemplate
  */
-interface QueryBuilder<T : Data, R, ID> {
+abstract class QueryBuilder<T : Data, R, ID> {
     /**
      * Returns a typed query builder for the specified primary key type.
      *
@@ -91,7 +99,17 @@ interface QueryBuilder<T : Data, R, ID> {
      * @throws PersistenceException if the pk type is not valid.
      * @since 1.2
      */
-    fun <X : Any> typed(pkType: KClass<X>): QueryBuilder<T, R, X>
+    abstract fun <X : Any> typed(pkType: KClass<X>): QueryBuilder<T, R, X>
+
+    /**
+     * Returns a typed query builder for the specified primary key type.
+     *
+     * @param X the type of the primary key.
+     * @return the typed query builder.
+     * @throws PersistenceException if the pk type is not valid.
+     * @since 1.12
+     */
+    inline fun <reified X : Any> typed(): QueryBuilder<T, R, X> = typed(X::class)
 
     /**
      * Returns a query builder that allows UPDATE and DELETE queries without a WHERE clause.
@@ -102,14 +120,14 @@ interface QueryBuilder<T : Data, R, ID> {
      *
      * @since 1.2
      */
-    fun unsafe(): QueryBuilder<T, R, ID>
+    abstract fun unsafe(): QueryBuilder<T, R, ID>
 
     /**
      * Marks the current query as a distinct query.
      *
      * @return the query builder.
      */
-    fun distinct(): QueryBuilder<T, R, ID>
+    abstract fun distinct(): QueryBuilder<T, R, ID>
 
     /**
      * Adds a cross join to the query.
@@ -117,7 +135,16 @@ interface QueryBuilder<T : Data, R, ID> {
      * @param relation the relation to join.
      * @return the query builder.
      */
-    fun crossJoin(relation: KClass<out Data>): QueryBuilder<T, R, ID>
+    abstract fun crossJoin(relation: KClass<out Data>): QueryBuilder<T, R, ID>
+
+    /**
+     * Adds a cross join to the query.
+     *
+     * @param J the relation to join.
+     * @return the query builder.
+     * @since 1.12
+     */
+    inline fun <reified J : Data> crossJoin(): QueryBuilder<T, R, ID> = crossJoin(J::class)
 
     /**
      * Adds an inner join to the query.
@@ -125,7 +152,16 @@ interface QueryBuilder<T : Data, R, ID> {
      * @param relation the relation to join.
      * @return the query builder.
      */
-    fun innerJoin(relation: KClass<out Data>): TypedJoinBuilder<T, R, ID>
+    abstract fun innerJoin(relation: KClass<out Data>): TypedJoinBuilder<T, R, ID>
+
+    /**
+     * Adds an inner join to the query.
+     *
+     * @param J the relation to join.
+     * @return the query builder.
+     * @since 1.12
+     */
+    inline fun <reified J : Data> innerJoin(): TypedJoinBuilder<T, R, ID> = innerJoin(J::class)
 
     /**
      * Adds a left join to the query.
@@ -133,7 +169,16 @@ interface QueryBuilder<T : Data, R, ID> {
      * @param relation the relation to join.
      * @return the query builder.
      */
-    fun leftJoin(relation: KClass<out Data>): TypedJoinBuilder<T, R, ID>
+    abstract fun leftJoin(relation: KClass<out Data>): TypedJoinBuilder<T, R, ID>
+
+    /**
+     * Adds a left join to the query.
+     *
+     * @param J the relation to join.
+     * @return the query builder.
+     * @since 1.12
+     */
+    inline fun <reified J : Data> leftJoin(): TypedJoinBuilder<T, R, ID> = leftJoin(J::class)
 
     /**
      * Adds a right join to the query.
@@ -141,7 +186,16 @@ interface QueryBuilder<T : Data, R, ID> {
      * @param relation the relation to join.
      * @return the query builder.
      */
-    fun rightJoin(relation: KClass<out Data>): TypedJoinBuilder<T, R, ID>
+    abstract fun rightJoin(relation: KClass<out Data>): TypedJoinBuilder<T, R, ID>
+
+    /**
+     * Adds a right join to the query.
+     *
+     * @param J the relation to join.
+     * @return the query builder.
+     * @since 1.12
+     */
+    inline fun <reified J : Data> rightJoin(): TypedJoinBuilder<T, R, ID> = rightJoin(J::class)
 
     /**
      * Adds a join of the specified type to the query.
@@ -151,7 +205,7 @@ interface QueryBuilder<T : Data, R, ID> {
      * @param alias the alias to use for the joined relation.
      * @return the query builder.
      */
-    fun join(
+    abstract fun join(
         type: JoinType,
         relation: KClass<out Data>,
         alias: String,
@@ -171,7 +225,7 @@ interface QueryBuilder<T : Data, R, ID> {
      * @param template the condition to join.
      * @return the query builder.
      */
-    fun crossJoin(template: TemplateString): QueryBuilder<T, R, ID>
+    abstract fun crossJoin(template: TemplateString): QueryBuilder<T, R, ID>
 
     /**
      * Adds an inner join to the query.
@@ -189,7 +243,7 @@ interface QueryBuilder<T : Data, R, ID> {
      * @param alias the alias to use for the joined relation.
      * @return the query builder.
      */
-    fun innerJoin(template: TemplateString, alias: String): JoinBuilder<T, R, ID>
+    abstract fun innerJoin(template: TemplateString, alias: String): JoinBuilder<T, R, ID>
 
     /**
      * Adds a left join to the query.
@@ -207,7 +261,7 @@ interface QueryBuilder<T : Data, R, ID> {
      * @param alias the alias to use for the joined relation.
      * @return the query builder.
      */
-    fun leftJoin(template: TemplateString, alias: String): JoinBuilder<T, R, ID>
+    abstract fun leftJoin(template: TemplateString, alias: String): JoinBuilder<T, R, ID>
 
     /**
      * Adds a right join to the query.
@@ -225,7 +279,7 @@ interface QueryBuilder<T : Data, R, ID> {
      * @param alias the alias to use for the joined relation.
      * @return the query builder.
      */
-    fun rightJoin(template: TemplateString, alias: String): JoinBuilder<T, R, ID>
+    abstract fun rightJoin(template: TemplateString, alias: String): JoinBuilder<T, R, ID>
 
     /**
      * Adds a join of the specified type to the query using a template.
@@ -249,7 +303,7 @@ interface QueryBuilder<T : Data, R, ID> {
      * @param alias the alias to use for the joined relation.
      * @return the query builder.
      */
-    fun join(
+    abstract fun join(
         type: JoinType,
         template: TemplateString,
         alias: String,
@@ -263,7 +317,7 @@ interface QueryBuilder<T : Data, R, ID> {
      * @param alias the alias to use for the joined relation.
      * @return the query builder.
      */
-    fun join(
+    abstract fun join(
         type: JoinType,
         subquery: QueryBuilder<*, *, *>,
         alias: String,
@@ -490,7 +544,7 @@ interface QueryBuilder<T : Data, R, ID> {
      * @param predicate the predicate to add.
      * @return the query builder.
      */
-    fun whereBuilder(predicate: WhereBuilder<T, R, ID>.() -> PredicateBuilder<T, *, *>): QueryBuilder<T, R, ID>
+    abstract fun whereBuilder(predicate: WhereBuilder<T, R, ID>.() -> PredicateBuilder<T, *, *>): QueryBuilder<T, R, ID>
 
     /**
      * Adds a WHERE clause to the query using a [WhereBuilder].
@@ -498,7 +552,7 @@ interface QueryBuilder<T : Data, R, ID> {
      * @param predicate the predicate to add.
      * @return the query builder.
      */
-    fun whereAnyBuilder(predicate: WhereBuilder<T, R, ID>.() -> PredicateBuilder<*, *, *>): QueryBuilder<T, R, ID>
+    abstract fun whereAnyBuilder(predicate: WhereBuilder<T, R, ID>.() -> PredicateBuilder<*, *, *>): QueryBuilder<T, R, ID>
 
     /**
      * Adds a GROUP BY clause to the query for field at the specified path in the table graph. The metamodel can refer
@@ -556,7 +610,7 @@ interface QueryBuilder<T : Data, R, ID> {
      * @return the query builder.
      * @since 1.2
      */
-    fun groupBy(template: TemplateString): QueryBuilder<T, R, ID>
+    abstract fun groupBy(template: TemplateString): QueryBuilder<T, R, ID>
 
     /**
      * Adds a HAVING clause to the query using the specified expression.
@@ -607,7 +661,7 @@ interface QueryBuilder<T : Data, R, ID> {
      * @return the query builder.
      * @since 1.2
      */
-    fun having(template: TemplateString): QueryBuilder<T, R, ID>
+    abstract fun having(template: TemplateString): QueryBuilder<T, R, ID>
 
     /**
      * Adds an ORDER BY clause to the query for the field at the specified path in the table graph.
@@ -738,7 +792,7 @@ interface QueryBuilder<T : Data, R, ID> {
      * @return the query builder.
      * @since 1.2
      */
-    fun orderBy(template: TemplateString): QueryBuilder<T, R, ID>
+    abstract fun orderBy(template: TemplateString): QueryBuilder<T, R, ID>
 
     /**
      * Returns `true` if any ORDER BY columns have been added to this query builder.
@@ -746,7 +800,7 @@ interface QueryBuilder<T : Data, R, ID> {
      * @return `true` if ORDER BY columns are present, `false` otherwise.
      * @since 1.9
      */
-    fun hasOrderBy(): Boolean
+    abstract fun hasOrderBy(): Boolean
 
     /**
      * Adds a LIMIT clause to the query.
@@ -755,7 +809,7 @@ interface QueryBuilder<T : Data, R, ID> {
      * @return the query builder.
      * @since 1.2
      */
-    fun limit(limit: Int): QueryBuilder<T, R, ID>
+    abstract fun limit(limit: Int): QueryBuilder<T, R, ID>
 
     /**
      * Adds an OFFSET clause to the query.
@@ -764,7 +818,7 @@ interface QueryBuilder<T : Data, R, ID> {
      * @return the query builder.
      * @since 1.2
      */
-    fun offset(offset: Int): QueryBuilder<T, R, ID>
+    abstract fun offset(offset: Int): QueryBuilder<T, R, ID>
 
     /**
      * Append the query with a string template.
@@ -780,7 +834,7 @@ interface QueryBuilder<T : Data, R, ID> {
      * @param template the string template to append.
      * @return the query builder.
      */
-    fun append(template: TemplateString): QueryBuilder<T, R, ID>
+    abstract fun append(template: TemplateString): QueryBuilder<T, R, ID>
 
     //
     // Locking.
@@ -794,7 +848,7 @@ interface QueryBuilder<T : Data, R, ID> {
      * not supported for the current query.
      * @since 1.2
      */
-    fun forShare(): QueryBuilder<T, R, ID>
+    abstract fun forShare(): QueryBuilder<T, R, ID>
 
     /**
      * Locks the selected rows for reading.
@@ -804,7 +858,7 @@ interface QueryBuilder<T : Data, R, ID> {
      * not supported for the current query.
      * @since 1.2
      */
-    fun forUpdate(): QueryBuilder<T, R, ID>
+    abstract fun forUpdate(): QueryBuilder<T, R, ID>
 
     /**
      * Locks the selected rows using a custom lock mode.
@@ -828,7 +882,7 @@ interface QueryBuilder<T : Data, R, ID> {
      * @throws PersistenceException if the lock mode is not supported for the current query.
      * @since 1.2
      */
-    fun forLock(template: TemplateString): QueryBuilder<T, R, ID>
+    abstract fun forLock(template: TemplateString): QueryBuilder<T, R, ID>
 
     //
     // Finalization.
@@ -839,7 +893,7 @@ interface QueryBuilder<T : Data, R, ID> {
      *
      * @return the constructed query.
      */
-    fun build(): Query
+    abstract fun build(): Query
 
     /**
      * Prepares the query for execution.
@@ -938,7 +992,7 @@ interface QueryBuilder<T : Data, R, ID> {
      * @throws IllegalArgumentException if [size] is not positive.
      * @since 1.11
      */
-    fun scroll(size: Int): Window<R>
+    abstract fun scroll(size: Int): Window<R>
 
     /**
      * Executes a scroll request from a [Scrollable] token, typically obtained from
@@ -948,7 +1002,7 @@ interface QueryBuilder<T : Data, R, ID> {
      * @return a window containing the results for the requested scroll position.
      * @since 1.11
      */
-    fun scroll(scrollable: Scrollable<T>): Window<R>
+    abstract fun scroll(scrollable: Scrollable<T>): Window<R>
 
     //
     // Execution methods.
@@ -970,7 +1024,7 @@ interface QueryBuilder<T : Data, R, ID> {
      * @throws PersistenceException if the query operation fails due to underlying database issues, such as
      * connectivity.
      */
-    val resultStream: Stream<R>
+    abstract val resultStream: Stream<R>
 
     /**
      * Executes the query and returns a flow of results.
@@ -1252,9 +1306,19 @@ class SqlScope<T : Data, R, ID : Any> @PublishedApi internal constructor(
         builder = builder.innerJoin(relation).on(on)
     }
 
+    /** Adds an INNER JOIN with automatic ON resolution between [J] and [O] (e.g., `innerJoin<Order, User>()`). */
+    inline fun <reified J : Data, reified O : Data> innerJoin() {
+        builder = builder.innerJoin(J::class).on(O::class)
+    }
+
     /** Adds a LEFT JOIN with automatic ON resolution between [relation] and [on]. */
     fun leftJoin(relation: KClass<out Data>, on: KClass<out Data>) {
         builder = builder.leftJoin(relation).on(on)
+    }
+
+    /** Adds a LEFT JOIN with automatic ON resolution between [J] and [O] (e.g., `leftJoin<Order, User>()`). */
+    inline fun <reified J : Data, reified O : Data> leftJoin() {
+        builder = builder.leftJoin(J::class).on(O::class)
     }
 
     /** Adds a RIGHT JOIN with automatic ON resolution between [relation] and [on]. */
@@ -1262,9 +1326,19 @@ class SqlScope<T : Data, R, ID : Any> @PublishedApi internal constructor(
         builder = builder.rightJoin(relation).on(on)
     }
 
+    /** Adds a RIGHT JOIN with automatic ON resolution between [J] and [O] (e.g., `rightJoin<Order, User>()`). */
+    inline fun <reified J : Data, reified O : Data> rightJoin() {
+        builder = builder.rightJoin(J::class).on(O::class)
+    }
+
     /** Adds a CROSS JOIN for [relation]. */
     fun crossJoin(relation: KClass<out Data>) {
         builder = builder.crossJoin(relation)
+    }
+
+    /** Adds a CROSS JOIN for [J]. */
+    inline fun <reified J : Data> crossJoin() {
+        builder = builder.crossJoin(J::class)
     }
 
     /** Adds a GROUP BY clause for the specified metamodel path(s). */

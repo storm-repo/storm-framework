@@ -34,18 +34,35 @@ import kotlin.reflect.KClass
  *     .getResultList()
  * ```
  *
+ * The same join can be expressed with reified type arguments:
+ * ```kotlin
+ * val users = userRepository
+ *     .select()
+ *     .innerJoin<Order>().on<User>()
+ *     .getResultList()
+ * ```
+ *
  * @param T the type of the table being queried.
  * @param R the type of the result.
  * @param ID the type of the primary key.
  * @see JoinBuilder
  * @see QueryBuilder
  */
-interface TypedJoinBuilder<T : Data, R, ID> : JoinBuilder<T, R, ID> {
+abstract class TypedJoinBuilder<T : Data, R, ID> : JoinBuilder<T, R, ID>() {
     /**
      * Specifies the relation to join on.
      *
      * @param relation the relation to join on.
      * @return the query builder.
      */
-    fun on(relation: KClass<out Data>): QueryBuilder<T, R, ID>
+    abstract fun on(relation: KClass<out Data>): QueryBuilder<T, R, ID>
+
+    /**
+     * Specifies the relation to join on.
+     *
+     * @param O the relation to join on.
+     * @return the query builder.
+     * @since 1.12
+     */
+    inline fun <reified O : Data> on(): QueryBuilder<T, R, ID> = on(O::class)
 }

@@ -202,9 +202,9 @@ val users: List<User> = userRoles.map { it.user }
 For more control, use explicit join queries:
 
 ```kotlin
-val roles: List<Role> = orm.entity(Role::class)
+val roles: List<Role> = orm.entity<Role>()
     .select()
-    .innerJoin(UserRole::class).on(Role::class)
+    .innerJoin<UserRole>().on<Role>()
     .whereAny(UserRole_.user eq user)
     .resultList
 ```

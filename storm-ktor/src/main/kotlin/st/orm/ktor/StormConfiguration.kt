@@ -61,4 +61,33 @@ class StormConfiguration {
     fun entityCallback(callback: EntityCallback<*>) {
         entityCallbacks.add(callback)
     }
+
+    /**
+     * Whether to automatically register all repository interfaces from the compile-time type index when the
+     * plugin is installed. Enabled by default.
+     *
+     * Auto-registration creates the repository proxies eagerly, so an invalid repository definition fails at
+     * startup rather than at first request. Use [repositories] to narrow registration to specific packages, or
+     * set this to `false` to skip auto-registration entirely; repositories are then created lazily on first
+     * [repository] access, or explicitly via [stormRepositories].
+     *
+     * @since 1.12
+     */
+    var autoRegisterRepositories: Boolean = true
+
+    internal val repositoryPackages: MutableList<String> = mutableListOf()
+
+    /**
+     * Narrows repository auto-registration to the given packages (including sub-packages).
+     *
+     * Only repository interfaces from the compile-time type index whose package matches one of the given
+     * [packages] are registered at startup. Repositories outside these packages remain available through lazy
+     * creation on first [repository] access.
+     *
+     * @param packages one or more package names to register repositories from.
+     * @since 1.12
+     */
+    fun repositories(vararg packages: String) {
+        repositoryPackages.addAll(packages)
+    }
 }

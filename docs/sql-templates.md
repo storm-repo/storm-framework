@@ -61,6 +61,7 @@ Use `Data` for query-specific result types that do not need full repository supp
 <TabItem value="kotlin" label="Kotlin" default>
 
 ```kotlin
+@DbTable("pet")
 data class PetWithOwner(
     val name: String,
     val birthDate: LocalDate?,
@@ -79,6 +80,7 @@ val pets = orm.query { """
 <TabItem value="java" label="Java">
 
 ```java
+@DbTable("pet")
 record PetWithOwner(
     @Nonnull String name,
     @Nullable LocalDate birthDate,
@@ -95,6 +97,8 @@ List<PetWithOwner> pets = orm.query(RAW."""
 
 </TabItem>
 </Tabs>
+
+As with entities and projections, the table name derives from the class name using camelCase to snake_case conversion, so `PetWithOwner` would map to `pet_with_owner`. The `@DbTable` annotation points it at the `pet` table instead.
 
 **When to use:** Single-use queries where you want Storm's SQL generation, automatic joins via `@FK`, and type-safe column references.
 
@@ -347,7 +351,7 @@ The `alias()` and `column()` template functions accept an optional `ResolveScope
 <TabItem value="kotlin" label="Kotlin" default>
 
 ```kotlin
-val pets = orm.entity(Pet::class)
+val pets = orm.entity<Pet>()
     .select()
     .whereExists { subquery(Visit::class)
         .where { "${column(Visit_.pet, INNER)} = ${column(Pet_.id, OUTER)}" }

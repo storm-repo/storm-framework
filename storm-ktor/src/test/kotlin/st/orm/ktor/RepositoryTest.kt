@@ -7,7 +7,9 @@ import io.kotest.matchers.shouldNotBe
 import io.ktor.server.application.install
 import io.ktor.server.testing.testApplication
 import org.junit.jupiter.api.Test
+import st.orm.ktor.model.Pet
 import st.orm.ktor.model.PetRepository
+import st.orm.ktor.model.PetView
 
 class RepositoryTest {
 
@@ -106,23 +108,88 @@ class RepositoryTest {
     }
 
     @Test
-    fun `unregistered repository throws`() {
+    fun `repository resolves without any registration`() {
         val dataSource = createTestDataSource()
+        initializeSchema(dataSource)
         try {
             testApplication {
                 application {
                     install(Storm) {
                         this.dataSource = dataSource
                     }
-                    stormRepositories { }
-                    try {
-                        repository<PetRepository>()
-                        throw AssertionError("Expected IllegalStateException")
-                    } catch (expected: IllegalStateException) {
-                        expected.message!! shouldBe
-                            "Repository PetRepository is not registered. " +
-                            "Call register(PetRepository::class) or register(\"<package>\") in stormRepositories { }."
+                    // No stormRepositories block: the type index auto-registers at install.
+                    val petRepository = repository<PetRepository>()
+                    petRepository shouldNotBe null
+                    petRepository.findAll().size shouldBe 3
+                }
+            }
+        } finally {
+            dataSource.close()
+        }
+    }
+
+    @Test
+    fun `auto-registration registers indexed repositories eagerly`() {
+        val dataSource = createTestDataSource()
+        initializeSchema(dataSource)
+        try {
+            testApplication {
+                application {
+                    install(Storm) {
+                        this.dataSource = dataSource
                     }
+                    val types = mutableListOf<String>()
+                    stormRepositories { }.forEach { type, _ -> types.add(type.simpleName!!) }
+                    types shouldBe listOf("PetRepository")
+                }
+            }
+        } finally {
+            dataSource.close()
+        }
+    }
+
+    @Test
+    fun `auto-registration can be narrowed by package`() {
+        val dataSource = createTestDataSource()
+        initializeSchema(dataSource)
+        try {
+            testApplication {
+                application {
+                    install(Storm) {
+                        this.dataSource = dataSource
+                        repositories("com.example.nowhere")
+                    }
+                    // Nothing matches the package, so the registry starts empty ...
+                    val registeredTypes = mutableListOf<String>()
+                    stormRepositories { }.forEach { type, _ -> registeredTypes.add(type.simpleName!!) }
+                    registeredTypes shouldBe emptyList()
+                    // ... but lazy creation still resolves the repository on first access.
+                    val petRepository = repository<PetRepository>()
+                    petRepository.findAll().size shouldBe 3
+                }
+            }
+        } finally {
+            dataSource.close()
+        }
+    }
+
+    @Test
+    fun `auto-registration can be disabled`() {
+        val dataSource = createTestDataSource()
+        initializeSchema(dataSource)
+        try {
+            testApplication {
+                application {
+                    install(Storm) {
+                        this.dataSource = dataSource
+                        autoRegisterRepositories = false
+                    }
+                    val registeredTypes = mutableListOf<String>()
+                    stormRepositories { }.forEach { type, _ -> registeredTypes.add(type.simpleName!!) }
+                    registeredTypes shouldBe emptyList()
+                    // Lazy creation still resolves the repository on first access.
+                    val petRepository = repository<PetRepository>()
+                    petRepository.findAll().size shouldBe 3
                 }
             }
         } finally {
@@ -154,24 +221,58 @@ class RepositoryTest {
     }
 
     @Test
-    fun `repository throws when no registry configured`() {
+    fun `entity extension resolves with and without primary key type`() {
         val dataSource = createTestDataSource()
+        initializeSchema(dataSource)
         try {
             testApplication {
                 application {
                     install(Storm) {
                         this.dataSource = dataSource
                     }
-                    try {
-                        repository<PetRepository>()
-                        throw AssertionError("Expected IllegalStateException")
-                    } catch (expected: IllegalStateException) {
-                        expected.message shouldBe "No Storm repository registry configured. Call stormRepositories { } in your application module."
-                    }
+                    val typedPets = entity<Pet, _>()
+                    typedPets.findById(1) shouldNotBe null
+                    val pets = entity<Pet>()
+                    pets.findAll().size shouldBe 3
                 }
             }
         } finally {
             dataSource.close()
+        }
+    }
+
+    @Test
+    fun `projection extension resolves with and without primary key type`() {
+        val dataSource = createTestDataSource()
+        initializeSchema(dataSource)
+        try {
+            testApplication {
+                application {
+                    install(Storm) {
+                        this.dataSource = dataSource
+                    }
+                    val typedPetViews = projection<PetView, _>()
+                    typedPetViews.findById(1) shouldNotBe null
+                    val petViews = projection<PetView>()
+                    petViews.findAll().size shouldBe 3
+                }
+            }
+        } finally {
+            dataSource.close()
+        }
+    }
+
+    @Test
+    fun `repository throws when plugin not installed`() {
+        testApplication {
+            application {
+                try {
+                    repository<PetRepository>()
+                    throw AssertionError("Expected IllegalStateException")
+                } catch (expected: IllegalStateException) {
+                    expected.message shouldBe "Storm plugin is not installed. Call install(Storm) in your application module."
+                }
+            }
         }
     }
 }

@@ -88,7 +88,7 @@ long count = users.count();
 For more complex operations, use the repository:
 
 ```kotlin
-val users = orm.entity(User::class)
+val users = orm.entity<User, _>()
 
 // Find by ID
 val user: User? = users.findById(userId)
@@ -158,7 +158,7 @@ val users = orm.findAll(
 )
 
 // Complex conditions
-val users = orm.entity(User::class)
+val users = orm.entity<User>()
     .select()
     .where(
         (User_.city eq city) and (
@@ -260,7 +260,7 @@ Multiple `where()` calls on the same query builder are combined with AND. This l
 <TabItem value="kotlin" label="Kotlin" default>
 
 ```kotlin
-val results = orm.entity(User::class)
+val results = orm.entity<User>()
     .select()
     .where(User_.active, EQUALS, true)
     .where(User_.city eq city)           // AND-combined with previous where
@@ -270,7 +270,7 @@ val results = orm.entity(User::class)
 Builder-style `where()` calls (with `and`/`or` predicates) compose with other `where()` calls in the same way:
 
 ```kotlin
-val results = orm.entity(User::class)
+val results = orm.entity<User>()
     .select()
     .where(User_.active, EQUALS, true)
     .where(                              // AND-combined with the active filter above
@@ -314,19 +314,19 @@ List<User> results = orm.entity(User.class)
 Use `orderBy` to control result ordering. Pass multiple fields as arguments to sort by more than one column. Use `orderByDescending` for descending order on a single field.
 
 ```kotlin
-val users = orm.entity(User::class)
+val users = orm.entity<User>()
     .select()
     .orderBy(User_.name)
     .resultList
 
 // Descending
-val users = orm.entity(User::class)
+val users = orm.entity<User>()
     .select()
     .orderByDescending(User_.createdAt)
     .resultList
 
 // Multiple fields (all ascending)
-val users = orm.entity(User::class)
+val users = orm.entity<User>()
     .select()
     .orderBy(User_.lastName, User_.firstName)
     .resultList
@@ -336,7 +336,7 @@ Multiple `orderBy` and `orderByDescending` calls can be chained to build multi-c
 
 ```kotlin
 // Mixed sort directions: last name ascending, first name descending
-val users = orm.entity(User::class)
+val users = orm.entity<User>()
     .select()
     .orderBy(User_.lastName)
     .orderByDescending(User_.firstName)
@@ -349,7 +349,7 @@ For full control over the ORDER BY clause (for example, to use SQL expressions o
 
 ```kotlin
 // Mixed sort directions (template)
-val users = orm.entity(User::class)
+val users = orm.entity<User>()
     .select()
     .orderBy { "${User_.lastName}, ${User_.firstName} DESC" }
     .resultList
@@ -416,8 +416,8 @@ To perform GROUP BY queries with aggregate functions like COUNT, SUM, or AVG, de
 ```kotlin
 data class CityCount(val city: City, val count: Long)
 
-val counts: List<CityCount> = orm.entity(User::class)
-    .select(CityCount::class) { "${City::class}, COUNT(*)" }
+val counts: List<CityCount> = orm.entity<User>()
+    .select<CityCount, _, _> { "${City::class}, COUNT(*)" }
     .groupBy(User_.city)
     .resultList
 ```
@@ -473,13 +473,13 @@ For detailed usage, sorting, composite scrolling, `Window` type parameters, GROU
 
 ```kotlin
 // Offset and limit
-val results = orm.entity(User::class).select()
+val results = orm.entity<User>().select()
     .orderBy(User_.createdAt)
     .offset(20).limit(10)
     .resultList
 
 // Pagination
-val page: Page<User> = orm.entity(User::class).select()
+val page: Page<User> = orm.entity<User>().select()
     .where(User_.active, EQUALS, true)
     .page(Pageable.ofSize(10))
 
@@ -523,7 +523,7 @@ Add `.distinct()` to eliminate duplicate rows from the result set. This is usefu
 <TabItem value="kotlin" label="Kotlin" default>
 
 ```kotlin
-val cities = orm.entity(User::class)
+val cities = orm.entity<User>()
     .select(City::class)
     .distinct()
     .resultList
@@ -552,7 +552,7 @@ List<City> cities = orm.entity(User.class)
 For large result sets, use `select().resultFlow`, which returns a Kotlin `Flow<T>`. Rows are fetched lazily from the database as you collect, so memory usage stays constant regardless of result set size. Flow also handles resource cleanup automatically when collection completes or is cancelled.
 
 ```kotlin
-val users: Flow<User> = orm.entity(User::class).select().resultFlow
+val users: Flow<User> = orm.entity<User>().select().resultFlow
 
 // Process each
 users.collect { user -> process(user) }
@@ -588,9 +588,9 @@ try (Stream<User> users = orm.entity(User.class).select().getResultStream()) {
 Storm automatically joins entities referenced by `@FK` fields. When you need to join entities that are not directly referenced in the result type (for example, filtering through a many-to-many join table), use explicit `innerJoin` or `leftJoin` calls. The `on` clause specifies which existing entity in the query the joined table relates to.
 
 ```kotlin
-val roles = orm.entity(Role::class)
+val roles = orm.entity<Role>()
     .select()
-    .innerJoin(UserRole::class).on(Role::class)
+    .innerJoin<UserRole>().on<Role>()
     .whereAny(UserRole_.user eq user)
     .resultList
 ```
@@ -651,7 +651,7 @@ Inline records expand differently depending on the operator:
 <TabItem value="kotlin" label="Kotlin" default>
 
 ```kotlin
-val owner = orm.entity(Owner::class)
+val owner = orm.entity<Owner>()
     .select()
     .where(Owner_.address, EQUALS, address)
     .singleResult
@@ -686,7 +686,7 @@ WHERE NOT (o.address = ? AND o.city_id = ?)
 <TabItem value="kotlin" label="Kotlin" default>
 
 ```kotlin
-val owners = orm.entity(Owner::class)
+val owners = orm.entity<Owner>()
     .select()
     .where(Owner_.address, GREATER_THAN, address)
     .resultList
@@ -727,7 +727,7 @@ WHERE (o.address, o.city_id) > (?, ?)
 <TabItem value="kotlin" label="Kotlin" default>
 
 ```kotlin
-val owners = orm.entity(Owner::class)
+val owners = orm.entity<Owner>()
     .select()
     .where(Owner_.address.address, LIKE, "%Main%")
     .resultList
@@ -751,7 +751,7 @@ List<Owner> owners = orm.entity(Owner.class)
 Passing an inline record to `orderBy` or `orderByDescending` expands it into its leaf columns. For example, if `Owner_.address` is an inline record with `address` and `city` fields:
 
 ```kotlin
-val owners = orm.entity(Owner::class)
+val owners = orm.entity<Owner>()
     .select()
     .orderBy(Owner_.address)
     .resultList
@@ -774,8 +774,8 @@ Inline records expand in GROUP BY the same way. This is particularly useful in c
 ```kotlin
 data class CityOrderCount(val city: City, val count: Long)
 
-val orders = orm.entity(Order::class)
-val window = orders.select(CityOrderCount::class) { "${City::class}, COUNT(*)" }
+val orders = orm.entity<Order>()
+val window = orders.select<CityOrderCount, _, _> { "${City::class}, COUNT(*)" }
     .groupBy(Order_.city)
     .scroll(Scrollable.of(Order_.city.key(), 20))
 ```
@@ -818,7 +818,7 @@ Combine `where` with `count` to count rows matching a condition without loading 
 <TabItem value="kotlin" label="Kotlin" default>
 
 ```kotlin
-val count: Long = orm.entity(User::class)
+val count: Long = orm.entity<User>()
     .select()
     .where(User_.city eq city)
     .count

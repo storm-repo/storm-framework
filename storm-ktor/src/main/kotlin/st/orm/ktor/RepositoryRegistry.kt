@@ -20,6 +20,7 @@ import io.ktor.server.application.log
 import st.orm.core.spi.TypeDiscovery
 import st.orm.repository.Repository
 import st.orm.template.ORMTemplate
+import java.util.concurrent.ConcurrentHashMap
 import kotlin.reflect.KClass
 
 /**
@@ -34,7 +35,7 @@ class RepositoryRegistry internal constructor(
     private val application: Application,
 ) {
 
-    private val repositories = mutableMapOf<KClass<*>, Any>()
+    private val repositories = ConcurrentHashMap<KClass<*>, Any>()
 
     /**
      * Registers a custom repository type. The repository proxy is created immediately and cached.
@@ -69,7 +70,7 @@ class RepositoryRegistry internal constructor(
                 if (packages.none { typeName.startsWith("$it.") }) continue
             }
             val kotlinType = type.kotlin as KClass<out Repository>
-            if (kotlinType !in repositories) {
+            if (!repositories.containsKey(kotlinType)) {
                 val repository = ormTemplate.repository(kotlinType)
                 repositories[kotlinType] = repository
                 application.log.debug("Registered repository: ${type.simpleName}")
@@ -103,12 +104,33 @@ class RepositoryRegistry internal constructor(
             "Repository ${type.simpleName} is not registered. " +
                 "Call register(${type.simpleName}::class) or register(\"<package>\") in stormRepositories { }.",
         )
+
+    /**
+     * Retrieves a repository, creating and caching it on first access if it has not been registered.
+     *
+     * Repositories registered at startup (automatically from the compile-time type index, or explicitly via
+     * [register]) are returned from the cache. Unknown types are created lazily and cached for subsequent
+     * calls. Thread-safe.
+     *
+     * @param type the repository interface to retrieve or create.
+     * @return the cached or newly created repository instance.
+     * @since 1.12
+     */
+    @Suppress("UNCHECKED_CAST")
+    fun <T : Repository> getOrCreate(type: KClass<T>): T = repositories.computeIfAbsent(type) { ormTemplate.repository(type) } as T
 }
 
 /**
  * Configures Storm repositories for this application.
  *
- * Repositories are created once and cached for the lifetime of the application, avoiding per-request instantiation.
+ * Since 1.12, calling this is optional: the [Storm] plugin registers all repositories from the compile-time
+ * type index automatically during installation (see [StormConfiguration.autoRegisterRepositories]), and
+ * unregistered types are created lazily on first [repository] access. Use this block when you want explicit
+ * control over registration, or to iterate the registered repositories for DI integration via
+ * [RepositoryRegistry.forEach].
+ *
+ * The block operates on the registry created by the [Storm] plugin when one exists, so explicit registrations
+ * and auto-registrations share the same cache.
  *
  * ```kotlin
  * fun Application.module() {
@@ -130,8 +152,8 @@ class RepositoryRegistry internal constructor(
  * @since 1.11
  */
 fun Application.stormRepositories(block: RepositoryRegistry.() -> Unit): RepositoryRegistry {
-    val registry = RepositoryRegistry(orm, this)
+    val registry = attributes.getOrNull(RepositoryRegistryKey)
+        ?: RepositoryRegistry(orm, this).also { attributes.put(RepositoryRegistryKey, it) }
     registry.block()
-    attributes.put(RepositoryRegistryKey, registry)
     return registry
 }

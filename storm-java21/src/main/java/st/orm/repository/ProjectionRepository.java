@@ -301,7 +301,7 @@ public interface ProjectionRepository<P extends Projection<ID>, ID> extends Repo
      * @return the projection matching the given field value, or empty if none exists.
      * @param <V> the type of the field.
      * @throws PersistenceException if the retrieval operation fails due to underlying database issues.
-     * @since 1.11
+     * @since 1.12
      */
     default <V> Optional<P> findBy(@Nonnull Metamodel<P, V> field, @Nonnull V value) {
         return select().where(field, EQUALS, value).getOptionalResult();
@@ -315,7 +315,7 @@ public interface ProjectionRepository<P extends Projection<ID>, ID> extends Repo
      * @return the projection matching the given ref value, or empty if none exists.
      * @param <V> the type of the referenced entity.
      * @throws PersistenceException if the retrieval operation fails due to underlying database issues.
-     * @since 1.11
+     * @since 1.12
      */
     default <V extends Data> Optional<P> findBy(@Nonnull Metamodel<P, V> field, @Nonnull Ref<V> value) {
         return select().where(field, value).getOptionalResult();
@@ -329,7 +329,7 @@ public interface ProjectionRepository<P extends Projection<ID>, ID> extends Repo
      * @return a list of matching projections, or an empty list if none found.
      * @param <V> the type of the field.
      * @throws PersistenceException if the retrieval operation fails due to underlying database issues.
-     * @since 1.11
+     * @since 1.12
      */
     default <V> List<P> findAllBy(@Nonnull Metamodel<P, V> field, @Nonnull V value) {
         return select().where(field, EQUALS, value).getResultList();
@@ -343,7 +343,7 @@ public interface ProjectionRepository<P extends Projection<ID>, ID> extends Repo
      * @return a list of matching projections, or an empty list if none found.
      * @param <V> the type of the referenced entity.
      * @throws PersistenceException if the retrieval operation fails due to underlying database issues.
-     * @since 1.11
+     * @since 1.12
      */
     default <V extends Data> List<P> findAllBy(@Nonnull Metamodel<P, V> field, @Nonnull Ref<V> value) {
         return select().where(field, value).getResultList();
@@ -357,7 +357,7 @@ public interface ProjectionRepository<P extends Projection<ID>, ID> extends Repo
      * @return a list of matching projections, or an empty list if none found.
      * @param <V> the type of the field.
      * @throws PersistenceException if the retrieval operation fails due to underlying database issues.
-     * @since 1.11
+     * @since 1.12
      */
     default <V> List<P> findAllBy(@Nonnull Metamodel<P, V> field, @Nonnull Iterable<? extends V> values) {
         return select().where(field, IN, values).getResultList();
@@ -371,7 +371,7 @@ public interface ProjectionRepository<P extends Projection<ID>, ID> extends Repo
      * @return a list of matching projections, or an empty list if none found.
      * @param <V> the type of the referenced entity.
      * @throws PersistenceException if the retrieval operation fails due to underlying database issues.
-     * @since 1.11
+     * @since 1.12
      */
     default <V extends Data> List<P> findAllByRef(@Nonnull Metamodel<P, V> field, @Nonnull Iterable<? extends Ref<V>> values) {
         return select().whereRef(field, values).getResultList();
@@ -387,7 +387,7 @@ public interface ProjectionRepository<P extends Projection<ID>, ID> extends Repo
      * @throws NoResultException if there is no result.
      * @throws NonUniqueResultException if more than one result.
      * @throws PersistenceException if the retrieval operation fails due to underlying database issues.
-     * @since 1.11
+     * @since 1.12
      */
     default <V> P getBy(@Nonnull Metamodel<P, V> field, @Nonnull V value) {
         return select().where(field, EQUALS, value).getSingleResult();
@@ -403,7 +403,7 @@ public interface ProjectionRepository<P extends Projection<ID>, ID> extends Repo
      * @throws NoResultException if there is no result.
      * @throws NonUniqueResultException if more than one result.
      * @throws PersistenceException if the retrieval operation fails due to underlying database issues.
-     * @since 1.11
+     * @since 1.12
      */
     default <V extends Data> P getBy(@Nonnull Metamodel<P, V> field, @Nonnull Ref<V> value) {
         return select().where(field, value).getSingleResult();
@@ -417,7 +417,7 @@ public interface ProjectionRepository<P extends Projection<ID>, ID> extends Repo
      * @return a ref to the matching projection, or empty if none exists.
      * @param <V> the type of the field.
      * @throws PersistenceException if the retrieval operation fails due to underlying database issues.
-     * @since 1.11
+     * @since 1.12
      */
     default <V> Optional<Ref<P>> findRefBy(@Nonnull Metamodel<P, V> field, @Nonnull V value) {
         return selectRef().where(field, EQUALS, value).getOptionalResult();
@@ -431,7 +431,7 @@ public interface ProjectionRepository<P extends Projection<ID>, ID> extends Repo
      * @return a ref to the matching projection, or empty if none exists.
      * @param <V> the type of the referenced entity.
      * @throws PersistenceException if the retrieval operation fails due to underlying database issues.
-     * @since 1.11
+     * @since 1.12
      */
     default <V extends Data> Optional<Ref<P>> findRefBy(@Nonnull Metamodel<P, V> field, @Nonnull Ref<V> value) {
         return selectRef().where(field, value).getOptionalResult();
@@ -445,7 +445,7 @@ public interface ProjectionRepository<P extends Projection<ID>, ID> extends Repo
      * @return a list of refs to matching projections, or an empty list if none found.
      * @param <V> the type of the field.
      * @throws PersistenceException if the retrieval operation fails due to underlying database issues.
-     * @since 1.11
+     * @since 1.12
      */
     default <V> List<Ref<P>> findAllRefBy(@Nonnull Metamodel<P, V> field, @Nonnull V value) {
         return selectRef().where(field, EQUALS, value).getResultList();
@@ -459,7 +459,7 @@ public interface ProjectionRepository<P extends Projection<ID>, ID> extends Repo
      * @return a list of refs to matching projections, or an empty list if none found.
      * @param <V> the type of the referenced entity.
      * @throws PersistenceException if the retrieval operation fails due to underlying database issues.
-     * @since 1.11
+     * @since 1.12
      */
     default <V extends Data> List<Ref<P>> findAllRefBy(@Nonnull Metamodel<P, V> field, @Nonnull Ref<V> value) {
         return selectRef().where(field, value).getResultList();
@@ -473,7 +473,7 @@ public interface ProjectionRepository<P extends Projection<ID>, ID> extends Repo
      * @return a list of refs to matching projections, or an empty list if none found.
      * @param <V> the type of the field.
      * @throws PersistenceException if the retrieval operation fails due to underlying database issues.
-     * @since 1.11
+     * @since 1.12
      */
     default <V> List<Ref<P>> findAllRefBy(@Nonnull Metamodel<P, V> field, @Nonnull Iterable<? extends V> values) {
         return selectRef().where(field, IN, values).getResultList();
@@ -487,7 +487,7 @@ public interface ProjectionRepository<P extends Projection<ID>, ID> extends Repo
      * @return a list of refs to matching projections, or an empty list if none found.
      * @param <V> the type of the referenced entity.
      * @throws PersistenceException if the retrieval operation fails due to underlying database issues.
-     * @since 1.11
+     * @since 1.12
      */
     default <V extends Data> List<Ref<P>> findAllRefByRef(@Nonnull Metamodel<P, V> field, @Nonnull Iterable<? extends Ref<V>> values) {
         return selectRef().whereRef(field, values).getResultList();
@@ -503,7 +503,7 @@ public interface ProjectionRepository<P extends Projection<ID>, ID> extends Repo
      * @throws NoResultException if there is no result.
      * @throws NonUniqueResultException if more than one result.
      * @throws PersistenceException if the retrieval operation fails due to underlying database issues.
-     * @since 1.11
+     * @since 1.12
      */
     default <V> Ref<P> getRefBy(@Nonnull Metamodel<P, V> field, @Nonnull V value) {
         return selectRef().where(field, EQUALS, value).getSingleResult();
@@ -519,7 +519,7 @@ public interface ProjectionRepository<P extends Projection<ID>, ID> extends Repo
      * @throws NoResultException if there is no result.
      * @throws NonUniqueResultException if more than one result.
      * @throws PersistenceException if the retrieval operation fails due to underlying database issues.
-     * @since 1.11
+     * @since 1.12
      */
     default <V extends Data> Ref<P> getRefBy(@Nonnull Metamodel<P, V> field, @Nonnull Ref<V> value) {
         return selectRef().where(field, value).getSingleResult();
@@ -533,7 +533,7 @@ public interface ProjectionRepository<P extends Projection<ID>, ID> extends Repo
      * @return the count of matching projections.
      * @param <V> the type of the field.
      * @throws PersistenceException if the count operation fails due to underlying database issues.
-     * @since 1.11
+     * @since 1.12
      */
     default <V> long countBy(@Nonnull Metamodel<P, V> field, @Nonnull V value) {
         return selectCount().where(field, EQUALS, value).getSingleResult();
@@ -547,7 +547,7 @@ public interface ProjectionRepository<P extends Projection<ID>, ID> extends Repo
      * @return the count of matching projections.
      * @param <V> the type of the referenced entity.
      * @throws PersistenceException if the count operation fails due to underlying database issues.
-     * @since 1.11
+     * @since 1.12
      */
     default <V extends Data> long countBy(@Nonnull Metamodel<P, V> field, @Nonnull Ref<V> value) {
         return selectCount().where(field, value).getSingleResult();
@@ -561,7 +561,7 @@ public interface ProjectionRepository<P extends Projection<ID>, ID> extends Repo
      * @return true if any matching projections exist, false otherwise.
      * @param <V> the type of the field.
      * @throws PersistenceException if the count operation fails due to underlying database issues.
-     * @since 1.11
+     * @since 1.12
      */
     default <V> boolean existsBy(@Nonnull Metamodel<P, V> field, @Nonnull V value) {
         return countBy(field, value) > 0;
@@ -575,7 +575,7 @@ public interface ProjectionRepository<P extends Projection<ID>, ID> extends Repo
      * @return true if any matching projections exist, false otherwise.
      * @param <V> the type of the referenced entity.
      * @throws PersistenceException if the count operation fails due to underlying database issues.
-     * @since 1.11
+     * @since 1.12
      */
     default <V extends Data> boolean existsBy(@Nonnull Metamodel<P, V> field, @Nonnull Ref<V> value) {
         return countBy(field, value) > 0;

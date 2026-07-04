@@ -117,7 +117,7 @@ When you need to collect entity identifiers without loading full rows, select re
 
 ```kotlin
 val role: Role = ...
-val userRefs: Flow<Ref<User>> = orm.entity(UserRole::class)
+val userRefs: Flow<Ref<User>> = orm.entity<UserRole>()
     .selectRef(User::class)
     .where(UserRole_.role eq role)
     .resultFlow
@@ -160,7 +160,7 @@ Refs integrate directly into query filter expressions. You can pass a collection
 
 ```kotlin
 val userRefs: List<Ref<User>> = ...
-val roles: List<Role> = orm.entity(UserRole::class)
+val roles: List<Role> = orm.entity<UserRole>()
     .select(Role::class)
     .distinct()
     .where(UserRole_.user inRefs userRefs)
@@ -263,8 +263,8 @@ data class GroupedByCity(
     val count: Long
 )
 
-val counts: Map<Ref<City>, Long> = orm.entity(User::class)
-    .select(GroupedByCity::class) { "${select(City::class, SelectMode.PK)}, COUNT(*)" }
+val counts: Map<Ref<City>, Long> = orm.entity<User>()
+    .select<GroupedByCity, _, _> { "${select(City::class, SelectMode.PK)}, COUNT(*)" }
     .groupBy(User_.city)
     .resultList
     .associate { it.city to it.count }

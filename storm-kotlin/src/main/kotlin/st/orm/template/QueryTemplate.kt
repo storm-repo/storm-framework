@@ -192,3 +192,20 @@ interface QueryTemplate : SubqueryTemplate {
      */
     fun query(template: TemplateString): Query
 }
+
+/**
+ * Creates a query builder for table [T] producing results of type [R] using the given select clause `template`.
+ *
+ * ```kotlin
+ * orm.selectFrom<User, UserSummary> { "${t(User_.id)}, ${t(User_.email)}" }.resultList
+ * ```
+ *
+ * @param T the table type to select from.
+ * @param R the result type of the query.
+ * @param template the select clause template.
+ * @return the query builder.
+ * @since 1.12
+ */
+inline fun <reified T : Data, reified R : Any> QueryTemplate.selectFrom(
+    noinline template: TemplateBuilder,
+): QueryBuilder<T, R, *> = selectFrom(T::class, R::class, template)

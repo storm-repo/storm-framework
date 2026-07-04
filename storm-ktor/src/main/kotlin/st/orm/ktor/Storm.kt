@@ -28,6 +28,10 @@ import st.orm.core.template.impl.SchemaValidator
  * attributes and can be accessed via extension properties on [io.ktor.server.application.Application],
  * [io.ktor.server.application.ApplicationCall], and [io.ktor.server.routing.RoutingContext].
  *
+ * Repositories from the compile-time type index are registered automatically during installation and are
+ * available via `repository<T>()` without further setup. Narrow the registration with `repositories(...)` or
+ * disable it with `autoRegisterRepositories = false`.
+ *
  * Usage:
  * ```kotlin
  * fun Application.module() {
@@ -45,6 +49,9 @@ import st.orm.core.template.impl.SchemaValidator
  *
  *         // Optional: entity callbacks
  *         entityCallback(AuditCallback())
+ *
+ *         // Optional: narrow repository auto-registration
+ *         repositories("com.myapp.repository")
  *     }
  * }
  * ```
@@ -63,6 +70,16 @@ val Storm = createApplicationPlugin(name = "Storm", createConfiguration = ::Stor
 
     application.attributes.put(OrmTemplateKey, ormTemplate)
     application.attributes.put(DataSourceKey, dataSource)
+
+    // Create the repository registry and auto-register repositories from the compile-time type index.
+    // Eager registration creates the proxies now, so a broken repository definition fails at startup
+    // rather than at first request. Narrow with repositories("com.myapp") or disable with
+    // autoRegisterRepositories = false; unregistered types are still created lazily on first access.
+    val repositoryRegistry = RepositoryRegistry(ormTemplate, application)
+    if (pluginConfig.autoRegisterRepositories) {
+        repositoryRegistry.register(*pluginConfig.repositoryPackages.toTypedArray())
+    }
+    application.attributes.put(RepositoryRegistryKey, repositoryRegistry)
 
     // Run schema validation.
     val schemaMode = pluginConfig.schemaValidation.trim().lowercase()

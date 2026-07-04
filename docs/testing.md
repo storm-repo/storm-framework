@@ -67,7 +67,7 @@ class UserRepositoryTest {
 
     @Test
     fun `should find all users`(orm: ORMTemplate) {
-        val users = orm.entity(User::class).findAll()
+        val users = orm.entity<User>().findAll()
         users.size shouldBe 3
     }
 }
@@ -123,9 +123,9 @@ class ItemRepositoryTest {
 
     @Test
     fun `should insert and retrieve`(orm: ORMTemplate) {
-        orm.entity(Item::class).insert(Item(name = "NewItem"))
+        orm.entity<Item>().insert(Item(name = "NewItem"))
 
-        val items = orm.entity(Item::class).findAll()
+        val items = orm.entity<Item>().findAll()
         items.size shouldBe 4
     }
 
@@ -297,7 +297,7 @@ Wrap any Storm operation in a `run`, `execute`, or `executeThrowing` call to cap
 ```kotlin
 val capture = SqlCapture()
 
-capture.run { orm.entity(User::class).findAll() }
+capture.run { orm.entity<User>().findAll() }
 
 capture.count(Operation.SELECT) shouldBe 1
 ```
@@ -324,7 +324,7 @@ The `execute` variant returns the result of the captured operation, so you can c
 ```kotlin
 val capture = SqlCapture()
 
-val users = capture.execute { orm.entity(User::class).findAll() }
+val users = capture.execute { orm.entity<User>().findAll() }
 
 users.size shouldBe 3
 capture.count(Operation.SELECT) shouldBe 1
@@ -412,7 +412,7 @@ A count assertion is the simplest and most common use of `SqlCapture`. It protec
 @Test
 fun `bulk insert should use single statement`(orm: ORMTemplate, capture: SqlCapture) {
     val items = listOf(Item(name = "A"), Item(name = "B"), Item(name = "C"))
-    capture.run { orm.entity(Item::class).insertAll(items) }
+    capture.run { orm.entity<Item>().insertAll(items) }
 
     capture.count(Operation.INSERT) shouldBe 1
 }

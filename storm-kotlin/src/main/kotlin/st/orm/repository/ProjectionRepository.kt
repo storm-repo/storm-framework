@@ -825,3 +825,22 @@ interface ProjectionRepository<P, ID : Any> : Repository where P : Projection<ID
      */
     fun scroll(scrollable: Scrollable<P>): Window<P> = select().scroll(scrollable)
 }
+
+/**
+ * Constructs a SELECT query with a custom select clause producing results of type [R].
+ *
+ * The projection type and primary key type are inferred from the repository; use the underscore operator for
+ * their type arguments:
+ *
+ * ```kotlin
+ * ownerViewRepository.select<OwnerSummary, _, _> { "${t(OwnerView_.firstName)}, ${t(OwnerView_.lastName)}" }.resultList
+ * ```
+ *
+ * @param R the result type of the query.
+ * @param template the select clause template.
+ * @return a query builder producing results of type [R].
+ * @since 1.12
+ */
+inline fun <reified R : Any, P : Projection<ID>, ID : Any> ProjectionRepository<P, ID>.select(
+    noinline template: TemplateBuilder,
+): QueryBuilder<P, R, ID> = select(R::class, template)

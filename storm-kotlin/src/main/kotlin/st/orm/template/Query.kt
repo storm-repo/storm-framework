@@ -375,7 +375,7 @@ interface Query {
  * @throws st.orm.NonUniqueResultException if more than one result.
  * @throws st.orm.PersistenceException if the query fails.
  * @see Query.getSingleResult
- * @since 1.11
+ * @since 1.12
  */
 inline fun <reified T : Any> Query.singleResult(): T = getSingleResult(T::class)
 
@@ -389,7 +389,7 @@ inline fun <reified T : Any> Query.singleResult(): T = getSingleResult(T::class)
  * @throws st.orm.NonUniqueResultException if more than one result.
  * @throws st.orm.PersistenceException if the query fails.
  * @see Query.getOptionalResult
- * @since 1.11
+ * @since 1.12
  */
 inline fun <reified T : Any> Query.optionalResult(): T? = getOptionalResult(T::class)
 
@@ -410,7 +410,7 @@ inline fun <reified T : Any> Query.optionalResult(): T? = getOptionalResult(T::c
  * @return the result list.
  * @throws st.orm.PersistenceException if the query fails.
  * @see Query.getResultList
- * @since 1.11
+ * @since 1.12
  */
 inline fun <reified T : Any> Query.resultList(): List<T> = getResultList(T::class)
 
@@ -430,7 +430,7 @@ inline fun <reified T : Any> Query.resultList(): List<T> = getResultList(T::clas
  * @throws st.orm.PersistenceException if the query operation fails due to underlying database issues, such as
  * connectivity.
  * @see Query.getResultStream
- * @since 1.11
+ * @since 1.12
  */
 inline fun <reified T : Any> Query.resultStream(): Stream<T> = getResultStream(T::class)
 
@@ -445,6 +445,6 @@ inline fun <reified T : Any> Query.resultStream(): Stream<T> = getResultStream(T
  * @throws st.orm.PersistenceException if the query operation fails due to underlying database issues, such as
  * connectivity.
  * @see Query.getResultFlow
- * @since 1.11
+ * @since 1.12
  */
 inline fun <reified T : Any> Query.resultFlow(): Flow<T> = getResultFlow(T::class)
