@@ -5,7 +5,8 @@ import {TUT_CSS, navHtml, FOOT_HTML} from '../../components/tutorial/tutorialThe
 // The example-projects hub at /examples, rendered in the landing-page style
 // (see tutorialTheme.js). Three complete movie-browser applications built on
 // the public IMDB dataset: the same app on Ktor and Spring Boot, in Kotlin
-// and Java. Each card links to its GitHub repository.
+// and Java. Each card links to its detail page (README rendered inline by
+// the example-readmes plugin, with the clone command and GitHub link).
 
 const TITLE = 'Storm Example Projects · Complete applications built with Storm';
 const DESC =
@@ -23,20 +24,20 @@ ${navHtml('examples')}
 
 <div class="shead" id="projects"><span class="mark">//</span>Example projects<span class="sdesc">Server-rendered movie browsers: entities, repositories, projections, pagination, transactions, and tests in a working application.</span></div>
 <div class="cards">
-  <a class="tcard" href="https://github.com/storm-orm/storm-example-kotlin-ktor">
+  <a class="tcard" href="/examples/kotlin-ktor/">
     <div class="tt">Storm Movies · Kotlin + Ktor<span class="arrow">→</span></div>
-    <div class="td">A server-rendered movie browser on Ktor 3 with the Storm plugin: automatic repository registration, coroutine-native transactions, kotlinx.serialization for the JSON APIs, and Playwright-driven interface tests.</div>
-    <div class="tm"><span>GitHub</span><span>Kotlin</span><span>Ktor</span></div>
+    <div class="td">A server-rendered movie browser on Ktor 3 with the Storm plugin: automatic repository registration, Koin wiring via stormModule(), coroutine-native transactions, kotlinx.serialization for the JSON APIs, and Playwright-driven interface tests.</div>
+    <div class="tm"><span>Kotlin</span><span>Ktor 3</span><span>Koin</span></div>
   </a>
-  <a class="tcard" href="https://github.com/storm-orm/storm-example-kotlin-spring-boot-4">
+  <a class="tcard" href="/examples/kotlin-spring-boot/">
     <div class="tt">Storm Movies · Kotlin + Spring Boot 4<span class="arrow">→</span></div>
     <div class="td">The same movie browser on Spring Boot 4 with immutable data-class entities, metamodel-based queries, coroutine-native transactions, and schema validation. PostgreSQL with Flyway migrations; repository tests on H2 with storm-test.</div>
-    <div class="tm"><span>GitHub</span><span>Kotlin</span><span>Spring Boot 4</span></div>
+    <div class="tm"><span>Kotlin</span><span>Spring Boot 4</span></div>
   </a>
-  <a class="tcard" href="https://github.com/storm-orm/storm-example-java-spring-boot-4">
+  <a class="tcard" href="/examples/java-spring-boot/">
     <div class="tt">Storm Movies · Java + Spring Boot 4<span class="arrow">→</span></div>
     <div class="td">The Java flavor on Java 21: immutable record entities, metamodel-based queries, Spring-managed transactions, and schema validation. No JPA, no proxies, no persistence context.</div>
-    <div class="tm"><span>GitHub</span><span>Java 21</span><span>Spring Boot 4</span></div>
+    <div class="tm"><span>Java 21</span><span>Spring Boot 4</span></div>
   </a>
 </div>
 
