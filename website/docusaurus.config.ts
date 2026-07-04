@@ -143,7 +143,17 @@ const config: Config = {
           label: 'Documentation',
         },
         {
-          href: 'https://github.com/storm-orm/storm-framework',
+          to: '/tutorials/',
+          label: 'Tutorials',
+          position: 'left',
+        },
+        {
+          to: '/examples/',
+          label: 'Examples',
+          position: 'left',
+        },
+        {
+          href: 'https://github.com/orgs/storm-orm/repositories',
           label: 'GitHub',
           position: 'right',
         },
@@ -163,6 +173,8 @@ const config: Config = {
         {
           title: 'More',
           items: [
+            {label: 'Tutorials', to: '/tutorials/'},
+            {label: 'Example Projects', to: '/examples/'},
             {label: 'GitHub', href: 'https://github.com/storm-orm/storm-framework'},
             {label: 'Maven Central', href: 'https://central.sonatype.com/namespace/st.orm'},
           ],
