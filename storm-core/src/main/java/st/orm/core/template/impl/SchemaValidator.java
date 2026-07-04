@@ -169,10 +169,12 @@ public final class SchemaValidator {
      * @throws SchemaValidationException if one or more validation errors are detected.
      */
     public void validateOrThrow() throws SchemaValidationException {
-        List<SchemaValidationError> errors = validate();
+        List<Class<? extends Data>> types = TypeDiscovery.getDataTypes();
+        List<SchemaValidationError> errors = validate(types);
         if (!errors.isEmpty()) {
             throw new SchemaValidationException(errors);
         }
+        LOGGER.info("Successfully validated %s Data types against the database schema.".formatted(types.size()));
     }
 
     /**

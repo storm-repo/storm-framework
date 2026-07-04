@@ -63,6 +63,10 @@ val Storm = createApplicationPlugin(name = "Storm", createConfiguration = ::Stor
     val dataSource = pluginConfig.dataSource ?: createDataSourceFromConfig(application)
     val stormConfig = pluginConfig.config ?: readStormConfig(application)
 
+    // Run the migration hook (e.g., Flyway) before the ORM template is created and the schema is
+    // validated, so validation always sees the migrated schema.
+    pluginConfig.migration?.invoke(dataSource)
+
     var ormTemplate = st.orm.template.ORMTemplate.of(dataSource, stormConfig)
     if (pluginConfig.entityCallbacks.isNotEmpty()) {
         ormTemplate = ormTemplate.withEntityCallbacks(pluginConfig.entityCallbacks)
@@ -81,14 +85,22 @@ val Storm = createApplicationPlugin(name = "Storm", createConfiguration = ::Stor
     }
     application.attributes.put(RepositoryRegistryKey, repositoryRegistry)
 
-    // Run schema validation.
-    val schemaMode = pluginConfig.schemaValidation.trim().lowercase()
+    // Run schema validation. The mode comes from the plugin configuration, falling back to the
+    // application configuration (storm.validation.schemaMode), matching the Spring Boot starter.
+    val configuredSchemaMode = pluginConfig.schemaValidation
+        ?: application.environment.config.propertyOrNull("storm.validation.schemaMode")?.getString()
+        ?: application.environment.config.propertyOrNull("storm.validation.schema_mode")?.getString()
+        ?: "fail"
+    val schemaMode = configuredSchemaMode.trim().lowercase()
     if (schemaMode != "none" && schemaMode.isNotBlank()) {
         val validator = SchemaValidator.of(dataSource)
         when (schemaMode) {
-            "fail" -> validator.validateOrThrow()
+            "fail" -> {
+                validator.validateOrThrow()
+                application.log.info("Storm schema validation passed (mode=fail).")
+            }
             "warn" -> validator.validateOrWarn()
-            else -> application.log.warn("Unknown schema validation mode: '${pluginConfig.schemaValidation}'. Expected 'none', 'warn', or 'fail'.")
+            else -> application.log.warn("Unknown schema validation mode: '$configuredSchemaMode'. Expected 'none', 'warn', or 'fail'.")
         }
     }
 

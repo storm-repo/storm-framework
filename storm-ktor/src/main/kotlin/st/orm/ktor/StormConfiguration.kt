@@ -46,9 +46,38 @@ class StormConfiguration {
     var config: StormConfig? = null
 
     /**
-     * Schema validation mode: `"none"` (default), `"warn"`, or `"fail"`.
+     * Schema validation mode: `"none"`, `"warn"`, or `"fail"`.
+     *
+     * When not set, the mode is read from the application configuration under
+     * `storm.validation.schemaMode` (or `storm.validation.schema_mode`), matching the Spring Boot
+     * starter's property. Defaults to `"fail"`: every entity and projection is validated against the
+     * live database schema during installation, and mismatches abort startup. Run migrations in the
+     * [migration] hook so the schema is up to date before validation, or set this to `"none"` to opt out.
      */
-    var schemaValidation: String = "none"
+    var schemaValidation: String? = null
+
+    internal var migration: ((DataSource) -> Unit)? = null
+
+    /**
+     * Registers a migration hook that runs after the [DataSource] is available but before the
+     * ORM template is created and the schema is validated.
+     *
+     * This is the place to run schema migrations (e.g., Flyway or Liquibase) when the plugin creates
+     * the DataSource from configuration, guaranteeing that schema validation sees the migrated schema:
+     *
+     * ```kotlin
+     * install(Storm) {
+     *     migration { dataSource ->
+     *         Flyway.configure().dataSource(dataSource).load().migrate()
+     *     }
+     * }
+     * ```
+     *
+     * @since 1.12
+     */
+    fun migration(block: (DataSource) -> Unit) {
+        migration = block
+    }
 
     /**
      * Entity callbacks for lifecycle hooks on insert, update, and delete operations.

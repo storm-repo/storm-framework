@@ -65,8 +65,8 @@ Match the compiler plugin suffix to the project's Kotlin version: 2.0.x uses `st
 - Kotlin: `st.orm:storm-ktor`
 - Optionally: `st.orm:storm-ktor-test` (test scope, for `testStormApplication` DSL)
 - Add `com.zaxxer:HikariCP` when using the built-in HOCON-configured DataSource (`storm.datasource.jdbcUrl` etc. in application.conf) — not needed when passing your own DataSource to `install(Storm)`
-- Install with `install(Storm)`, access ORM via `call.orm` in routes
-- Register repositories via `stormRepositories { register(UserRepository::class) }`
+- Install with `install(Storm)`; repositories from the compile-time index auto-register (since 1.12), accessed via a bare `repository<T>()` in routes; `orm`, `entity<T>()`, and `projection<T>()` extensions are available too
+- Run migrations in the plugin's `migration { }` hook so the default fail-mode schema validation sees the migrated schema
 
 ## Getting ORMTemplate
 
@@ -122,7 +122,7 @@ Database dialects (add as runtime dependency):
 - `st.orm:storm-sqlite`
 - `st.orm:storm-h2` (also usable as a runtime dialect, not just for tests)
 
-**Validation on startup:** Storm automatically validates the *structure* of all discovered entity types (PK/FK/inline consistency, cyclic references) when the `ORMTemplate` is created, logging "Successfully validated N Data types for correctness". This does NOT check the database schema. Schema validation is a separate, opt-in step: call `validateSchema()`/`validateSchemaOrThrow()` (e.g. at startup or in a `@StormTest`), or in Ktor set `storm.validation.schemaMode` in the plugin config to run it automatically at startup.
+**Validation on startup:** Storm automatically validates the *structure* of all discovered entity types (PK/FK/inline consistency, cyclic references) when the `ORMTemplate` is created, logging "Successfully validated N Data types for correctness". Schema validation (against the live database) is also on by default in the Spring Boot starters and the Ktor plugin since 1.12: it runs after migrations (after all singletons in Spring; after the `migration { }` hook in Ktor), fails startup on mismatches, and logs "Successfully validated N Data types against the database schema". Set `storm.validation.schema_mode` (Spring) / `storm.validation.schemaMode` (Ktor) to `warn` or `none` to relax or opt out. Programmatic use: `validateSchema()`/`validateSchemaOrThrow()` (e.g. in a `@StormTest`).
 
 After configuring dependencies, remind the user to rebuild so the metamodel classes are generated.
 

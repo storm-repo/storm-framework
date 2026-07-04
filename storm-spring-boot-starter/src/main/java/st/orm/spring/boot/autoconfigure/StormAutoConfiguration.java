@@ -46,6 +46,8 @@ import st.orm.template.ORMTemplate;
 @EnableConfigurationProperties(StormProperties.class)
 public class StormAutoConfiguration {
 
+    private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(StormAutoConfiguration.class);
+
     /**
      * Creates an {@link ORMTemplate} bean using the provided {@link DataSource} and {@link StormProperties}.
      *
@@ -68,20 +70,29 @@ public class StormAutoConfiguration {
 
     /**
      * Runs schema validation after all singleton beans have been fully initialized. This guarantees that migration
-     * tools like Flyway and Liquibase have completed their work before validation occurs.
+     * tools like Flyway and Liquibase (or any bean-based migration mechanism) have completed their work before
+     * validation occurs.
+     *
+     * <p>Validation defaults to {@code fail}: every entity and projection is validated against the live database
+     * schema and mismatches abort startup. Set {@code storm.validation.schema_mode} to {@code warn} or {@code none}
+     * to relax or opt out.</p>
      */
     @Bean
     SmartInitializingSingleton stormSchemaValidator(DataSource dataSource, StormProperties properties) {
         return () -> {
-            String schemaMode = properties.getValidation().getSchemaMode();
-            if (schemaMode == null || schemaMode.isBlank() || "none".equalsIgnoreCase(schemaMode.trim())) {
+            String configured = properties.getValidation().getSchemaMode();
+            String schemaMode = configured == null || configured.isBlank() ? "fail" : configured.trim();
+            if ("none".equalsIgnoreCase(schemaMode)) {
                 return;
             }
             SchemaValidator validator = SchemaValidator.of(dataSource);
-            if ("fail".equalsIgnoreCase(schemaMode.trim())) {
+            if ("fail".equalsIgnoreCase(schemaMode)) {
                 validator.validateOrThrow();
-            } else if ("warn".equalsIgnoreCase(schemaMode.trim())) {
+                logger.info("Storm schema validation passed (mode=fail).");
+            } else if ("warn".equalsIgnoreCase(schemaMode)) {
                 validator.validateOrWarn();
+            } else {
+                logger.warn("Unknown schema validation mode: '{}'. Expected 'none', 'warn', or 'fail'.", schemaMode);
             }
         };
     }

@@ -4,7 +4,6 @@ import st.orm.DbTable
 import st.orm.PK
 import st.orm.Projection
 
-@JvmRecord
 @DbTable("pet")
 data class PetView(
     @PK val id: Int = 0,

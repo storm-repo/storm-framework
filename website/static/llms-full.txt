@@ -18,7 +18,7 @@
 > GitHub: https://github.com/storm-orm/storm-framework
 > License: Apache 2.0
 
-# Generated: 2026-07-04T08:28:47Z
+# Generated: 2026-07-04T11:53:49Z
 
 ========================================
 ## Source: index.md
@@ -1189,7 +1189,7 @@ data class User(
 
 [Java]
 
-In Java, record components are nullable by default. Use `@Nonnull` to mark fields that must always have a value. Primitive types (`int`, `long`, etc.) are inherently non-nullable. As with Kotlin, nullability determines JOIN behavior: a non-nullable `@FK` field produces an `INNER JOIN`, while a `@Nullable` one produces a `LEFT JOIN`.
+In Java, record components are nullable by default. Use `@Nonnull` to mark fields that must always have a value — Storm recognizes `jakarta.annotation.Nonnull`, `javax.annotation.Nonnull`, and JSpecify's `org.jspecify.annotations.NonNull` on the component; other null-marker annotations (Lombok, JetBrains, Spring) are not recognized, and JSpecify `@NullMarked` scope defaults are not applied. `@PK` fields and primitive types (`int`, `long`, etc.) are inherently non-nullable. As with Kotlin, nullability determines JOIN behavior: a non-nullable `@FK` field produces an `INNER JOIN`, while a nullable one — including a bare `@FK` field without `@Nonnull` — produces a `LEFT JOIN`. If the FK column is `NOT NULL` in the database, annotate the field with `@Nonnull`, or joins silently degrade to `LEFT JOIN`.
 
 ```java
 record User(@PK Integer id,
@@ -12370,7 +12370,7 @@ The `\{expression}` syntax is Java's string template interpolation. The `RAW` pr
 
 Java String Templates are a **preview feature** that is still evolving in the JDK. Storm is a forward-looking framework, and String Templates are the best way to write SQL in Java that is both readable and injection-safe by design.
 
-Rather than wait for the feature to stabilize, Storm ships with String Template support today. The Java API is production-ready from a quality perspective, but its API surface will adapt as String Templates move toward a stable release.
+Rather than wait for the feature to stabilize, Storm ships with String Template support today. The Java API is production-ready from a quality perspective, but its API surface will adapt as String Templates move toward a stable release. Once the redesigned string templates land in the JDK as a stable feature, the Java API moves front and center alongside Kotlin — same first-class status, no preview flags, no version pin.
 
 Only `storm-java21` depends on this preview feature. The core framework and the Kotlin API are unaffected.
 
@@ -14866,13 +14866,15 @@ Controls whether record (structural) validation runs when Storm first encounters
 
 ### storm.validation.schema_mode {#schema-validation}
 
-Controls whether schema validation runs at startup (Spring Boot only; for programmatic use, see [Validation](validation.md#programmatic-api)).
+Controls whether schema validation runs at startup (Spring Boot and Ktor; for programmatic use, see [Validation](validation.md#programmatic-api)).
 
 | Value | Behavior |
 |-------|----------|
-| `none` | Schema validation is skipped (default). |
+| `none` | Schema validation is skipped. |
 | `warn` | Mismatches are logged at WARN level; startup continues. |
-| `fail` | Mismatches cause startup to fail with a `PersistenceException`. |
+| `fail` | Mismatches cause startup to fail with a `PersistenceException` (default). |
+
+Validation runs after all singleton beans are initialized, so migrations executed by beans such as Flyway or Liquibase complete first. The Ktor plugin behaves the same way; run migrations in its `migration { }` hook.
 
 ### storm.validation.strict
 

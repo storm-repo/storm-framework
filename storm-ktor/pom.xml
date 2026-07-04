@@ -74,6 +74,27 @@
                             </sourceDirs>
                         </configuration>
                     </execution>
+                    <!-- Run the metamodel annotation processor (via kapt) over the Kotlin test
+                         sources so the compile-time type index (META-INF/storm/*.idx) is
+                         generated automatically, exactly as in real applications. -->
+                    <execution>
+                        <id>test-kapt</id>
+                        <goals>
+                            <goal>test-kapt</goal>
+                        </goals>
+                        <configuration>
+                            <sourceDirs>
+                                <sourceDir>${project.basedir}/src/test/kotlin</sourceDir>
+                            </sourceDirs>
+                            <annotationProcessorPaths>
+                                <annotationProcessorPath>
+                                    <groupId>st.orm</groupId>
+                                    <artifactId>storm-metamodel-processor</artifactId>
+                                    <version>${project.version}</version>
+                                </annotationProcessorPath>
+                            </annotationProcessorPaths>
+                        </configuration>
+                    </execution>
                     <execution>
                         <id>test-compile</id>
                         <phase>test-compile</phase>

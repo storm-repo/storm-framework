@@ -166,15 +166,21 @@ public class StormProperties {
          * <p>When set to {@code "fail"}, validation errors cause startup to fail with a {@code PersistenceException}.
          * When set to {@code "warn"}, errors are logged as warnings; startup continues.
          * When set to {@code "none"}, record validation is skipped entirely.</p>
+         *
+         * <p>Defaults to {@code "fail"} when not set. Validation runs after all singleton beans are initialized,
+         * so migrations executed by beans such as Flyway or Liquibase complete first.</p>
          */
         private String recordMode;
 
         /**
-         * Schema validation mode: {@code "none"} (default), {@code "warn"}, or {@code "fail"}.
+         * Schema validation mode: {@code "none"}, {@code "warn"}, or {@code "fail"} (default).
          *
          * <p>When set to {@code "fail"}, schema validation runs at startup and blocks if mismatches are found.
          * When set to {@code "warn"}, mismatches are logged at WARN level but startup continues.
          * When set to {@code "none"}, schema validation is skipped entirely.</p>
+         *
+         * <p>Defaults to {@code "fail"} when not set. Validation runs after all singleton beans are initialized,
+         * so migrations executed by beans such as Flyway or Liquibase complete first.</p>
          */
         private String schemaMode;
 
