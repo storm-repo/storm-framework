@@ -1,4 +1,4 @@
-import React from 'react';
+import React, {useEffect} from 'react';
 import Head from '@docusaurus/Head';
 import {TUT_CSS, navHtml, FOOT_HTML} from '../../components/tutorial/tutorialTheme';
 
@@ -161,7 +161,38 @@ ${navHtml('tutorials')}
 ${FOOT_HTML}
 `;
 
+// Wires the series chips in the hero: clicking one shows only that section
+// (its header and cards) and highlights the chip; clicking it again clears the
+// filter and shows all. Falls back to anchor jumps when JS is unavailable.
+function wireTutorialFilters() {
+  const root = document.querySelector('.storm-tut');
+  if (!root) return () => {};
+  const chips = Array.from(root.querySelectorAll('.catnav a'));
+  const sections = Array.from(root.querySelectorAll('.shead'));
+  const handlers = [];
+  const apply = (filter) => {
+    chips.forEach((c) => c.classList.toggle('on', !!filter && (c.getAttribute('href') || '').slice(1) === filter));
+    sections.forEach((shead) => {
+      const cards = shead.nextElementSibling;
+      const show = !filter || shead.id === filter;
+      shead.style.display = show ? '' : 'none';
+      if (cards && cards.classList.contains('cards')) cards.style.display = show ? '' : 'none';
+    });
+  };
+  chips.forEach((chip) => {
+    const onClick = (e) => {
+      e.preventDefault();
+      const id = (chip.getAttribute('href') || '').slice(1);
+      apply(chip.classList.contains('on') ? '' : id);
+    };
+    chip.addEventListener('click', onClick);
+    handlers.push([chip, onClick]);
+  });
+  return () => handlers.forEach(([chip, fn]) => chip.removeEventListener('click', fn));
+}
+
 export default function Tutorials() {
+  useEffect(() => wireTutorialFilters(), []);
   return (
     <>
       <Head>

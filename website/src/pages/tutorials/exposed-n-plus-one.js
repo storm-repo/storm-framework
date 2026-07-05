@@ -103,7 +103,7 @@ ${navHtml('tutorials')}
   ${editor({file: 'FeedService.kt', tag: 'Kotlin · Storm', code: CODE_STORM_MODEL, sql: SQL_STORM_MODEL})}
   <p>There is no eager-loading call to remember because there is no lazy default to escape. And when deferring the load is genuinely the right call, that decision is also made in the model, as a type:</p>
   ${editor({file: 'Entities.kt', tag: 'Kotlin · Storm', code: CODE_STORM_REF})}
-  <p>Refs that point to the same id share one instance inside a transaction, so fetching across a result list loads each distinct city once. The <a class="tlink" href="/tutorials/n-plus-one">JPA edition of this tutorial</a> covers the mechanics in more depth, and query counts are one-line assertions with <a class="tlink" href="/tutorials/testing">SqlCapture</a>, so "no N+1" can be a test rather than a review comment.</p>
+  <p>Refs that point to the same id share one instance inside a transaction, so fetching across a result list loads each distinct city once. The <a class="tlink" href="/tutorials/n-plus-one">JPA edition of this tutorial</a> covers the mechanics in more depth, and query counts are one-line assertions with <a class="tlink" href="/tutorials/testing">SqlCapture</a>.</p>
 
   <h2><span class="hno">04</span>Side by side</h2>
   <table class="cmp">

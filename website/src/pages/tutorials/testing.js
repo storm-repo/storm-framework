@@ -84,7 +84,7 @@ ${navHtml('tutorials')}
   <div class="refs">
     <a href="/docs/testing">Testing</a>
     <a href="/docs/sql-logging">SQL Logging</a>
-    <a href="/docs/getting-started">Getting Started</a>
+    <a href="/docs/getting-started">Get Started</a>
   </div>
   <div class="cta">
     <a href="/docs/getting-started" class="btn primary">Get started →</a>

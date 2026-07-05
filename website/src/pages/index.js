@@ -146,9 +146,10 @@ const BODY = `
 <nav><div class="wrap nav">
   <div class="brand"><img class="logo" src="/img/storm-light.png" alt="Storm" /><span>ST<b>/ORM</b></span><span class="tech-tag">Kotlin 2.0–2.4 · Java 21+ · Apache 2.0</span></div>
   <div class="nav-links">
-    <a href="/docs/">Docs</a>
     <a href="/tutorials/">Tutorials</a>
     <a href="/examples/">Examples</a>
+    <a href="/blog/">Blog</a>
+    <a href="/docs/">Docs</a>
     <a class="gh" href="https://github.com/orgs/storm-orm/repositories">GitHub</a>
     <a href="/docs/getting-started" class="btn primary" style="height:36px">Get started</a>
   </div>
@@ -237,7 +238,7 @@ const BODY = `
 
 <footer><div class="wrap foot">
   <div class="brand"><img class="logo" src="/img/storm-light.png" alt="Storm" /></div>
-  <div class="links"><a href="/">orm.st</a><a href="/tutorials/">Tutorials</a><a href="/examples/">Examples</a><a href="https://github.com/storm-orm/storm-framework">GitHub</a><a href="https://central.sonatype.com/namespace/st.orm">Maven Central</a></div>
+  <div class="links"><a href="/">orm.st</a><a href="/tutorials/">Tutorials</a><a href="/examples/">Examples</a><a href="/blog/">Blog</a><a href="https://github.com/storm-orm/storm-framework">GitHub</a><a href="https://central.sonatype.com/namespace/st.orm">Maven Central</a></div>
 </div></footer>
 `;
 
@@ -305,14 +306,14 @@ export default function Home() {
 
       { name:'5 · sql', file:'UserService.kt',
         caption:"full SQL when you want it — never locked in",
-        code:[ C("// Need full control of SQL? Plain SQL works — rows map to any data class.\n"),
-          K("data class "),T("RankedCity"),P("("),K("val "),P("name: "),T("String"),P(", "),K("val "),P("population: "),T("Int"),P(", "),K("val "),P("rank: "),T("Long"),P(")\n\n"),
+        code:[ C("// Full control of SQL, with typed columns and tables; rows map to any data class.\n"),
+          K("data class "),T("RankedCity"),P("("),K("val "),P("name: "),T("String"),P(", "),K("val "),P("rank: "),T("Long"),P(")\n\n"),
           K("val "),P("ranked = orm."),F("query"),P(" { "),S('"""'),P("\n"),
-          P("    "),K("SELECT "),P("name, population, RANK() "),K("OVER"),P(" ("),K("ORDER BY "),P("population "),K("DESC"),P(")\n"),
-          P("    "),K("FROM "),P("city\n"),
-          P("    "),K("WHERE "),P("country = "),T("$country"),P("   "),C("-- bind variable\n"),
+          P("    "),K("SELECT "),T("${City_.name}"),P(", RANK() "),K("OVER"),P(" ("),K("ORDER BY "),T("${City_.population}"),P(" "),K("DESC"),P(")\n"),
+          P("    "),K("FROM "),T("${City::class}"),P("\n"),
+          P("    "),K("WHERE "),T("${City_.country}"),P(" = "),T("$country"),P("   "),C("-- typed columns · bound value\n"),
           S('"""'),P(" }."),F("resultList"),P("<"),T("RankedCity"),P(">()\n\n"),
-          C("// Or use the powerful template engine behind the ORM.\n"),
+          C("// Or expand a whole entity to its columns and joins.\n"),
           K("val "),P("users = orm."),F("query"),P(" { "),S('"""'),P("\n"),
           P("    "),K("SELECT "),T("${User::class}"),P("\n"),
           P("    "),K("FROM "),T("${User::class}"),P("\n"),
@@ -373,10 +374,10 @@ export default function Home() {
       '<span class="sqlk">COMMIT</span>\n'+
       '<span class="sqlc">-- onCommit hook runs here, only after COMMIT succeeds</span>',
 
-      '<span class="sqlc">-- plain SQL passes through · $country becomes ?</span>\n'+
-      '<span class="sqlk">SELECT</span> name, population, <span class="sqlk">RANK</span>() <span class="sqlk">OVER</span> (<span class="sqlk">ORDER BY</span> population <span class="sqlk">DESC</span>)\n'+
-      '<span class="sqlk">FROM</span> city\n'+
-      '<span class="sqlk">WHERE</span> country = <span class="sqlq">?</span>\n\n'+
+      '<span class="sqlc">-- typed columns resolve to the city alias · $country becomes ?</span>\n'+
+      '<span class="sqlk">SELECT</span> c.name, <span class="sqlk">RANK</span>() <span class="sqlk">OVER</span> (<span class="sqlk">ORDER BY</span> c.population <span class="sqlk">DESC</span>)\n'+
+      '<span class="sqlk">FROM</span> city c\n'+
+      '<span class="sqlk">WHERE</span> c.country = <span class="sqlq">?</span>\n\n'+
       '<span class="sqlc">-- ${User::class} expands to columns · $city becomes ?</span>\n'+
       '<span class="sqlk">SELECT</span> u.id, u.email, u.name, c.id, c.name, c.population, c.country\n'+
       '<span class="sqlk">FROM</span> "user" u\n'+

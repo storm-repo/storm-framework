@@ -1,32 +1,41 @@
-# Getting Started
+# Get Started
 
 Storm is a modern SQL Template and ORM framework for Kotlin 2.0+ and Java 21+. It uses immutable data classes and records instead of proxied entities, giving you predictable behavior, type-safe queries, and high performance.
 
-## Design Philosophy
-
-Storm is built around a simple idea: your data model should be a plain value, not a framework-managed object. In Storm, entities are Kotlin data classes or Java records. They carry no hidden state, no change-tracking proxies, and no lazy-loading hooks. You can create them, pass them across layers, serialize them, compare them by value, and store them in collections without worrying about session scope, detachment, or side effects. What you see in the source code is exactly what exists at runtime.
-
-This stateless design is a deliberate trade-off. Traditional ORMs like JPA/Hibernate give you transparent lazy loading and proxy-based dirty checking, but at the cost of complexity: you must reason about managed vs. detached state, proxy initialization, persistence context boundaries, and cascading rules that interact in subtle ways. Storm avoids all of this. It still performs dirty checking, but by comparing entity state within a transaction rather than through proxies or bytecode manipulation. When you query a relationship, you get the result in the same query. There are no surprises.
-
-Storm is also SQL-first. Rather than abstracting SQL away behind a query language (like JPQL) or a verbose criteria builder, Storm embraces SQL directly. Its SQL Template API lets you write real SQL with type-safe parameter interpolation and automatic result mapping. For common CRUD patterns, the type-safe DSL and repository interfaces provide concise, compiler-checked alternatives, but the full power of SQL is always available when you need it.
-
-The framework is organized around three core abstractions:
-
-- **Entity** is your data model. A Kotlin data class or Java record with a few annotations (`@PK`, `@FK`) that describe its mapping to the database. Storm derives table and column names automatically, so annotations are only needed for primary keys, foreign keys, and cases where the naming convention does not match.
-- **Repository** provides CRUD operations and type-safe queries for a specific entity. You define an interface, write query methods with explicit bodies using the DSL, and Storm handles the rest. No magic method-name parsing, no hidden query generation.
-- **SQL Template** gives you direct access to SQL with type-safe parameter binding and result mapping. You write real SQL, embed parameters and entity types directly in the query string, and get back typed results. This is the escape hatch when the DSL is not enough, and it is a first-class citizen in Storm, not an afterthought.
-
-These abstractions share a common principle: explicit behavior over implicit magic. Every query is visible in the source code. Every relationship is loaded when you ask for it. Every transaction boundary is declared, not inferred. This makes Storm applications straightforward to debug, profile, and reason about.
-
 ## Choose Your Path
 
-Storm supports two ways to get started. Pick the one that fits your workflow.
+Two ways to get started, and both reach the same working setup: follow the guides by hand, or let your AI coding tool do it. Pick whichever fits your workflow.
 
 import Tabs from '@theme/Tabs';
 import TabItem from '@theme/TabItem';
 
 <Tabs>
-<TabItem value="ai" label="AI-Assisted" default>
+<TabItem value="manual" label="Manual" default>
+
+### Manual Setup
+
+Follow these three steps in order for the fastest path from zero to a working application.
+
+**1. Installation**
+
+Set up your project with the right dependencies, build flags, and optional modules.
+
+**[Go to Installation](installation.md)**
+
+**2. First Entity**
+
+Define your first entity, create an ORM template, and perform insert, read, update, and remove operations.
+
+**[Go to First Entity](first-entity.md)**
+
+**3. First Query**
+
+Write custom queries, build repositories, stream results, and use the type-safe metamodel.
+
+**[Go to First Query](first-query.md)**
+
+</TabItem>
+<TabItem value="ai" label="AI-Assisted">
 
 ### AI-Assisted Setup
 
@@ -57,38 +66,13 @@ Storm's AI workflow includes built-in verification. The AI can run `ORMTemplate.
 See [AI-Assisted Development](ai.md) for the full setup guide, available skills, and MCP server configuration.
 
 </TabItem>
-<TabItem value="manual" label="Manual">
-
-### Manual Setup
-
-Follow these three steps in order for the fastest path from zero to a working application.
-
-**1. Installation**
-
-Set up your project with the right dependencies, build flags, and optional modules.
-
-**[Go to Installation](installation.md)**
-
-**2. First Entity**
-
-Define your first entity, create an ORM template, and perform insert, read, update, and remove operations.
-
-**[Go to First Entity](first-entity.md)**
-
-**3. First Query**
-
-Write custom queries, build repositories, stream results, and use the type-safe metamodel.
-
-**[Go to First Query](first-query.md)**
-
-</TabItem>
 </Tabs>
 
 ---
 
 ## What's Next
 
-Once you have completed the getting-started guides, explore the features that match your needs:
+Once you have completed the steps above, explore the features that match your needs:
 
 **Core Concepts:**
 - [Entities](entities.md) -- annotations, nullability, naming conventions

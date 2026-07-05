@@ -121,7 +121,7 @@ ${navHtml('tutorials')}
 <div class="art">
   <div class="crumbs"><a href="/tutorials/">Tutorials</a><span class="sep">/</span>Solving the N+1 problem</div>
   <h1>Solving the <span class="grad">N+1 problem</span></h1>
-  <p class="dek">The most common performance bug in JPA applications, and how Storm removes the conditions that create it. Side by side, with the SQL each approach actually runs.</p>
+  <p class="dek">The most common performance problem in JPA applications, and how Storm removes the conditions that create it. Side by side, with the SQL each approach actually runs.</p>
   <div class="meta"><span>Series · JPA to Storm</span><span>7 min read</span><span>Kotlin</span></div>
 
   <h2><span class="hno">01</span>The task</h2>
