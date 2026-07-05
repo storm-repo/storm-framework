@@ -3,7 +3,7 @@
 import Tabs from '@theme/Tabs';
 import TabItem from '@theme/TabItem';
 
-Automatic relationship loading is a core part of Storm's design. Your data model is fully captured by immutable entity classes. When you define a foreign key, Storm automatically joins the related entity and returns complete, fully populated records in a single query.
+Automatic relationship loading is a core part of Storm's design. The database owns your data model, and your entities capture it as immutable classes. When you define a foreign key, Storm automatically joins the related entity and returns complete, fully populated records in a single query.
 
 This design enables:
 

@@ -6,7 +6,7 @@ slug: /
 import Tabs from '@theme/Tabs';
 import TabItem from '@theme/TabItem';
 
-# ST/ORM
+# Storm
 
 **Storm** is a modern, high-performance ORM for Kotlin 2.0+ and Java 21+, built around a powerful SQL template engine. It focuses on simplicity, type safety, and predictable performance through immutable models and compile-time metadata.
 

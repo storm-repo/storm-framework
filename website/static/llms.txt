@@ -5,7 +5,7 @@
 >
 > It uses immutable data classes and records instead of proxied entities, providing
 > type-safe queries, predictable performance, and zero hidden magic. There is no
-> persistence context, no lazy loading, no proxy generation, and no entity state
+> persistence context, no transparent lazy loading, no proxy generation, and no entity state
 > management. Entities are plain Kotlin data classes or Java records.
 >
 > Storm works perfectly as a standalone ORM, but its design and tooling make it

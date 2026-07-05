@@ -101,7 +101,7 @@ AI works better when framework behavior is explicit and visible in source code.
 
 Traditional ORMs rely on mechanisms that are powerful but implicit: proxy objects that intercept field access, lazy loading that triggers queries at unpredictable moments, persistence contexts that track entity state across transaction boundaries, and cascading rules that propagate changes through the object graph. These features serve real purposes, but they make AI-assisted development harder. The AI has to account for behavior that does not appear in the code. Code that compiles and looks correct can still break at runtime because of invisible framework state.
 
-Storm eliminates all of that. Entities are plain Kotlin data classes or Java records. There are no proxies, no managed state, no persistence context, and no lazy loading. Queries are explicit, and what you see in the source code is exactly what happens at runtime. This makes Storm's behavior predictable for AI tools: the code is the complete picture.
+Storm eliminates all of that. Entities are plain Kotlin data classes or Java records. There are no proxies, no managed state, no persistence context, and no transparent lazy loading: deferred loading is explicit, through `Ref<T>`. Queries are explicit, and what you see in the source code is exactly what happens at runtime. This makes Storm's behavior predictable for AI tools: the code is the complete picture.
 
 The design choices that matter most:
 

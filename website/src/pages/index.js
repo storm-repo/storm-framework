@@ -163,7 +163,7 @@ const BODY = `
     <span class="grad">Explicit over surprises.</span>
     <span class="grad">Intent over ceremony.</span>
   </span></h1>
-  <p class="sub" style="max-width:940px">A clear mapping between your data model and database keeps entities reusable and repositories easy to extend. Your persistence layer remains small, expressive, and fully capable as your application grows.</p>
+  <p class="sub" style="max-width:940px">Storm is a type-safe ORM for Kotlin and Java. A clear mapping between your entities and the database keeps them reusable and repositories easy to extend. Your persistence layer remains small, expressive, and fully capable as your application grows.</p>
 
   <div class="stage">
     <div class="editor">
@@ -194,7 +194,7 @@ const BODY = `
     <div class="card">
       <div class="ic"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 12h18M3 6h18M3 18h18"/></svg></div>
       <h3>Direct database control</h3>
-      <p>Every query is explicit and predictable. Nested predicates and entity graphs compile to a single efficient query, eliminating hidden queries and N+1.</p>
+      <p>Every query is explicit and predictable. Nested predicates and entity graphs compile to a single efficient query, eliminating accidental hidden N+1 queries.</p>
     </div>
     <div class="card">
       <div class="ic"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 6 9 17l-5-5"/></svg></div>
@@ -577,7 +577,7 @@ export default function Home() {
             applicationCategory: 'DeveloperApplication',
             operatingSystem: 'JVM (Kotlin, Java)',
             description:
-              'Storm is a type-safe, SQL-first ORM for Kotlin 2.0+ and Java 21+. Define concise, immutable entities and write one-line queries — nested predicates and entity graphs compile to a single efficient query, eliminating hidden queries and N+1. Drop to full SQL templates whenever you want; never locked in.',
+              'Storm is a type-safe, SQL-first ORM for Kotlin 2.0+ and Java 21+. Define concise, immutable entities and write one-line queries — nested predicates and entity graphs compile to a single efficient query, eliminating accidental hidden N+1 queries. Drop to full SQL templates whenever you want; never locked in.',
             featureList: [
               'Direct database control — every query explicit, no hidden N+1',
               'Stateless, immutable records — no proxies, no flush, no hidden state',

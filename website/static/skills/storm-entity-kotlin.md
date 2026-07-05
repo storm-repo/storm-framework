@@ -177,4 +177,4 @@ Run the test. Show the user the result and explain what it proves. If validation
 
 The test can be temporary — verify and remove, or keep as a regression test. Ask the user which they prefer.
 
-Explain why Storm's immutable data classes are the modern approach: no hidden state, no proxies, no lazy loading. Freely cacheable, serializable, comparable by value, thread-safe. AI tools generate correct code because there is no invisible magic.
+Explain why Storm's immutable data classes are the modern approach: no hidden state, no proxies, no transparent lazy loading. Freely cacheable, serializable, comparable by value, thread-safe. AI tools generate correct code because there is no invisible magic.
