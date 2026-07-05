@@ -6,6 +6,7 @@ const stormVersion = require('./plugins/read-storm-version');
 const remarkStormVersion = require('./plugins/remark-storm-version');
 const staticVersionReplace = require('./plugins/static-version-replace');
 const exampleReadmes = require('./plugins/example-readmes');
+const versionedDocsCanonical = require('./plugins/versioned-docs-canonical');
 
 const config: Config = {
   title: 'Storm Framework',
@@ -27,6 +28,9 @@ const config: Config = {
 
   plugins: [
     [staticVersionReplace, { version: stormVersion }],
+    // Point versioned and `next` docs canonicals at the current /docs/ page so
+    // old snapshots do not compete with the live docs (see the plugin).
+    versionedDocsCanonical,
     // Renders the example-project READMEs inline at /examples/<slug>,
     // fetched from GitHub at build time (see plugins/example-readmes.js).
     exampleReadmes,
@@ -110,11 +114,18 @@ const config: Config = {
           createSitemapItems: async (params) => {
             const {defaultCreateSitemapItems, ...rest} = params;
             const items = await defaultCreateSitemapItems(rest);
-            return items.filter(
+            const filtered = items.filter(
               (item) =>
                 !item.url.includes('/docs/next') &&
                 !/\/docs\/\d+\.\d+\.\d+(\/|$)/.test(item.url),
             );
+            // The AI-facing docs indexes are static files, so they are not in
+            // the route table the sitemap is built from; add them explicitly.
+            filtered.push(
+              {url: 'https://orm.st/llms.txt', changefreq: 'weekly', priority: 0.5},
+              {url: 'https://orm.st/llms-full.txt', changefreq: 'weekly', priority: 0.5},
+            );
+            return filtered;
           },
         },
         blog: false,
