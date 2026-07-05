@@ -25,40 +25,40 @@ License: Apache 2.0
 
 ## Documentation
 
-- [Introduction](https://orm.st/)
-- [Getting Started](https://orm.st/getting-started)
-- [Entities](https://orm.st/entities)
-- [Projections](https://orm.st/projections)
-- [Relationships](https://orm.st/relationships)
-- [Repositories](https://orm.st/repositories)
-- [Queries](https://orm.st/queries)
-- [Metamodel](https://orm.st/metamodel)
-- [Refs](https://orm.st/refs)
-- [Transactions](https://orm.st/transactions)
-- [Spring Integration](https://orm.st/spring-integration)
-- [Ktor Integration](https://orm.st/ktor-integration)
-- [Database Dialects](https://orm.st/dialects)
-- [Testing](https://orm.st/testing)
-- [Converters](https://orm.st/converters)
-- [JSON Columns](https://orm.st/json)
-- [Polymorphism](https://orm.st/polymorphism)
-- [Entity Lifecycle](https://orm.st/entity-lifecycle)
-- [Serialization](https://orm.st/serialization)
-- [Validation](https://orm.st/validation)
-- [Batch Processing and Streaming](https://orm.st/batch-streaming)
-- [Upserts](https://orm.st/upserts)
-- [SQL Templates](https://orm.st/sql-templates)
-- [Hydration](https://orm.st/hydration)
-- [Dirty Checking](https://orm.st/dirty-checking)
-- [Entity Cache](https://orm.st/entity-cache)
-- [Configuration](https://orm.st/configuration)
-- [SQL Logging](https://orm.st/sql-logging)
-- [Metrics](https://orm.st/metrics)
-- [Storm vs Other Frameworks](https://orm.st/comparison)
-- [FAQ](https://orm.st/faq)
-- [Migration from JPA](https://orm.st/migration-from-jpa)
-- [API Reference: Kotlin](https://orm.st/api-kotlin)
-- [API Reference: Java](https://orm.st/api-java)
+- [Introduction](https://orm.st/docs/)
+- [Getting Started](https://orm.st/docs/getting-started)
+- [Entities](https://orm.st/docs/entities)
+- [Projections](https://orm.st/docs/projections)
+- [Relationships](https://orm.st/docs/relationships)
+- [Repositories](https://orm.st/docs/repositories)
+- [Queries](https://orm.st/docs/queries)
+- [Metamodel](https://orm.st/docs/metamodel)
+- [Refs](https://orm.st/docs/refs)
+- [Transactions](https://orm.st/docs/transactions)
+- [Spring Integration](https://orm.st/docs/spring-integration)
+- [Ktor Integration](https://orm.st/docs/ktor-integration)
+- [Database Dialects](https://orm.st/docs/dialects)
+- [Testing](https://orm.st/docs/testing)
+- [Converters](https://orm.st/docs/converters)
+- [JSON Columns](https://orm.st/docs/json)
+- [Polymorphism](https://orm.st/docs/polymorphism)
+- [Entity Lifecycle](https://orm.st/docs/entity-lifecycle)
+- [Serialization](https://orm.st/docs/serialization)
+- [Validation](https://orm.st/docs/validation)
+- [Batch Processing and Streaming](https://orm.st/docs/batch-streaming)
+- [Upserts](https://orm.st/docs/upserts)
+- [SQL Templates](https://orm.st/docs/sql-templates)
+- [Hydration](https://orm.st/docs/hydration)
+- [Dirty Checking](https://orm.st/docs/dirty-checking)
+- [Entity Cache](https://orm.st/docs/entity-cache)
+- [Configuration](https://orm.st/docs/configuration)
+- [SQL Logging](https://orm.st/docs/sql-logging)
+- [Metrics](https://orm.st/docs/metrics)
+- [Storm vs Other Frameworks](https://orm.st/docs/comparison)
+- [FAQ](https://orm.st/docs/faq)
+- [Migration from JPA](https://orm.st/docs/migration-from-jpa)
+- [API Reference: Kotlin](https://orm.st/docs/api-kotlin)
+- [API Reference: Java](https://orm.st/docs/api-java)
 
 ## Full Documentation
 
@@ -243,7 +243,7 @@ val cityName = user.city.fetch().name  // Fetches when needed
 Kotlin (Gradle):
 ```kotlin
 dependencies {
-    implementation(platform("st.orm:storm-bom:1.10.0"))
+    implementation(platform("st.orm:storm-bom:@@STORM_VERSION@@"))
     implementation("st.orm:storm-kotlin")
     runtimeOnly("st.orm:storm-core")
     kotlinCompilerPluginClasspath("st.orm:storm-compiler-plugin-2.0")
@@ -257,7 +257,7 @@ Java (Maven):
         <dependency>
             <groupId>st.orm</groupId>
             <artifactId>storm-bom</artifactId>
-            <version>1.10.0</version>
+            <version>@@STORM_VERSION@@</version>
             <type>pom</type>
             <scope>import</scope>
         </dependency>
@@ -281,7 +281,7 @@ Java (Maven):
 Kotlin (Gradle):
 ```kotlin
 dependencies {
-    implementation(platform("st.orm:storm-bom:1.10.0"))
+    implementation(platform("st.orm:storm-bom:@@STORM_VERSION@@"))
     implementation("st.orm:storm-kotlin-spring-boot-starter")
     runtimeOnly("st.orm:storm-core")
     kotlinCompilerPluginClasspath("st.orm:storm-compiler-plugin-2.0")
@@ -301,7 +301,7 @@ Java (Maven):
 Kotlin (Gradle):
 ```kotlin
 dependencies {
-    implementation(platform("st.orm:storm-bom:1.11.0"))
+    implementation(platform("st.orm:storm-bom:@@STORM_VERSION@@"))
     implementation("st.orm:storm-kotlin")
     implementation("st.orm:storm-ktor")
     runtimeOnly("st.orm:storm-core")
