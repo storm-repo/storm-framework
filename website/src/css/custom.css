@@ -18,3 +18,28 @@
   --ifm-color-primary-lighter: #c5cae9;
   --ifm-color-primary-lightest: #e8eaf6;
 }
+
+/* Cleaner tables in docs and blog. Infima draws a full cell grid (vertical +
+   horizontal borders), which reads as a heavy spreadsheet. Drop the vertical
+   rules so it becomes clean horizontal rows, give the header a subtle fill, and
+   keep the header/last-row lines so the table reads as framed top and bottom.
+   Uses Infima variables, so it works in both light and dark themes. Left as a
+   normal `display:table` (no forced overflow) so wide docs tables still reflow
+   and scroll as before. */
+.markdown table {
+  width: 100%;
+}
+.markdown table th,
+.markdown table td {
+  border-left: 0;
+  border-right: 0;
+}
+.markdown table thead th {
+  background: var(--ifm-table-stripe-background);
+  border-top: 0;
+  border-bottom-width: 2px;
+  font-size: 0.82rem;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  color: var(--ifm-color-emphasis-700);
+}

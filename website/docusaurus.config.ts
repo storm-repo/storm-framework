@@ -21,6 +21,14 @@ const config: Config = {
 
   onBrokenLinks: 'warn',
 
+  // Exposed to client-side page components (e.g. the hand-built /quickstart
+  // page) so install snippets can render the resolved release version. The
+  // static-version-replace plugin only rewrites static files, not src/pages
+  // output, so pages read the version from here instead of @@STORM_VERSION@@.
+  customFields: {
+    stormVersion,
+  },
+
   i18n: {
     defaultLocale: 'en',
     locales: ['en'],
@@ -46,7 +54,10 @@ const config: Config = {
           // because `/` is the landing page.
           if (existingPath.startsWith('/docs/')) {
             const rest = existingPath.slice('/docs/'.length);
-            if (rest) return ['/' + rest];
+            // Do not shadow real top-level pages that live under src/pages
+            // (e.g. /comparison, /quickstart) with a /docs redirect.
+            const reserved = new Set(['comparison', 'quickstart']);
+            if (rest && !reserved.has(rest)) return ['/' + rest];
           }
           return undefined;
         },
@@ -162,6 +173,11 @@ const config: Config = {
           position: 'left',
         },
         {
+          to: '/comparison',
+          label: 'Comparison',
+          position: 'left',
+        },
+        {
           to: '/blog/',
           label: 'Blog',
           position: 'left',
@@ -185,7 +201,7 @@ const config: Config = {
         {
           title: 'Docs',
           items: [
-            {label: 'Get Started', to: '/docs/getting-started'},
+            {label: 'Get Started', to: '/quickstart'},
             {label: 'Entities', to: '/docs/entities'},
             {label: 'Queries', to: '/docs/queries'},
           ],
@@ -197,6 +213,7 @@ const config: Config = {
             {label: 'Example Projects', to: '/examples/'},
             {label: 'Blog', to: '/blog/'},
             {label: 'GitHub', href: 'https://github.com/storm-orm/storm-framework'},
+            {label: 'Discussions', href: 'https://github.com/storm-orm/storm-framework/discussions'},
             {label: 'Maven Central', href: 'https://central.sonatype.com/namespace/st.orm'},
           ],
         },

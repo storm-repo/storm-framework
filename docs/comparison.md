@@ -11,14 +11,14 @@ The following tables provide a side-by-side comparison of concrete features acro
 
 ### Entity & Data Modeling
 
-| Feature | Storm | JPA | Spring Data | MyBatis | jOOQ | JDBI | Exposed | Ktorm |
-|---------|-------|-----|-------------|---------|------|------|---------|-------|
-| Lines per entity | ~5 | ~30<sup>1</sup> | ~30<sup>1</sup> | ~20+ | Generated | ~15 | ~12 | ~15 |
-| Immutable entities | Yes | No | No | Yes | Yes | Yes | DSL only | No |
-| Polymorphism | Yes<sup>2</sup> | Yes | Via JPA | No | No | No | No | No |
-| Automatic relationships | Yes | Yes<sup>3</sup> | Via JPA | No | No | No | DAO only | No |
-| Cascade persist | No | Yes | Yes | No | No | No | No | No |
-| Lifecycle callbacks | Yes | Yes | Via JPA | No | Yes | No | DAO only | No |
+| Feature | Storm | JPA | Spring Data | MyBatis | jOOQ | JDBI | Exposed | Ktorm | Jimmer |
+|---------|-------|-----|-------------|---------|------|------|---------|-------|--------|
+| Lines per entity | ~5 | ~30<sup>1</sup> | ~30<sup>1</sup> | ~20+ | Generated | ~15 | ~12 | ~15 | ~10 |
+| Immutable entities | Yes | No | No | Yes | Yes | Yes | DSL only | No | Yes |
+| Polymorphism | Yes<sup>2</sup> | Yes | Via JPA | No | No | No | No | No | No<sup>8</sup> |
+| Automatic relationships | Yes | Yes<sup>3</sup> | Via JPA | No | No | No | DAO only | No | Yes |
+| Cascade persist | No | Yes | Yes | No | No | No | No | No | Yes |
+| Lifecycle callbacks | Yes | Yes | Via JPA | No | Yes | No | DAO only | No | Yes |
 
 <sup>1</sup> JPA/Spring Data lines without Lombok; ~10 lines with Lombok.
 
@@ -26,32 +26,36 @@ The following tables provide a side-by-side comparison of concrete features acro
 
 <sup>3</sup> JPA relationships are runtime-managed via proxies.
 
+<sup>8</sup> Jimmer supports `@MappedSuperclass` for sharing fields across entities, but not JPA-style single-table, joined, or table-per-class inheritance strategies.
+
 ### Querying & Data Access
 
-| Feature | Storm | JPA | Spring Data | MyBatis | jOOQ | JDBI | Exposed | Ktorm |
-|---------|-------|-----|-------------|---------|------|------|---------|-------|
-| Type-safe queries | Yes | Criteria | No | No | Yes | No | Yes | Yes |
-| SQL Templates | Yes | No | No | XML/Ann | Yes | Yes | No | No |
-| N+1 prevention | Yes | No | No | No | Manual | Manual | No | No |
-| Lazy loading | Refs | Yes | Yes | No | No | No | Yes | Yes |
-| Scrolling | Yes | No | Yes | No | Yes | No | No | No |
-| JSON columns | Yes | Yes<sup>4</sup> | Via JPA | Manual | Yes | Module | Yes | Module |
-| JSON aggregation | Yes | No | No | No | Yes | No | No | No |
+| Feature | Storm | JPA | Spring Data | MyBatis | jOOQ | JDBI | Exposed | Ktorm | Jimmer |
+|---------|-------|-----|-------------|---------|------|------|---------|-------|--------|
+| Type-safe queries | Yes | Criteria | No | No | Yes | No | Yes | Yes | Yes |
+| SQL Templates | Yes | No | No | XML/Ann | Yes | Yes | No | No | Native<sup>9</sup> |
+| N+1 prevention | Yes | No | No | No | Manual | Manual | No | No | Yes |
+| Lazy loading | Refs | Yes | Yes | No | No | No | Yes | Yes | Fetchers |
+| Scrolling | Yes | No | Yes | No | Yes | No | No | No | No |
+| JSON columns | Yes | Yes<sup>4</sup> | Via JPA | Manual | Yes | Module | Yes | Module | Yes |
+| JSON aggregation | Yes | No | No | No | Yes | No | No | No | No |
 
 <sup>4</sup> JPA requires Hibernate 6.2+ for built-in JSON support; older versions need a third-party library or custom `AttributeConverter`.
 
+<sup>9</sup> Jimmer has no SQL template engine, but native SQL fragments can be embedded in its type-safe DSL via `sql(...)`.
+
 ### Runtime & Ecosystem
 
-| Feature | Storm | JPA | Spring Data | MyBatis | jOOQ | JDBI | Exposed | Ktorm |
-|---------|-------|-----|-------------|---------|------|------|---------|-------|
-| Transactions | Both | Both | Declarative | Both | Programmatic | Both | Both<sup>6</sup> | Required |
-| Schema validation | Yes | Yes | Via JPA | No | N/A<sup>5</sup> | No | Yes | No |
-| Java support | Yes | Yes | Yes | Yes | Yes | Yes | No | No |
-| Kotlin support | First-class | Good | Good | Good | Good | Good | Native | Native |
-| Coroutines | Yes | No | No | No | No | No | Yes | Limited |
-| Spring integration | Yes | Yes | Native | Yes | Yes | Yes | Yes | Yes |
-| Runtime mechanism | Codegen<sup>7</sup> | Bytecode | Bytecode | Reflection | Codegen | Reflection | Reflection | Reflection |
-| Community | New | Huge | Huge | Large | Medium | Medium | Medium | Small |
+| Feature | Storm | JPA | Spring Data | MyBatis | jOOQ | JDBI | Exposed | Ktorm | Jimmer |
+|---------|-------|-----|-------------|---------|------|------|---------|-------|--------|
+| Transactions | Both | Both | Declarative | Both | Programmatic | Both | Both<sup>6</sup> | Required | Both |
+| Schema validation | Yes | Yes | Via JPA | No | N/A<sup>5</sup> | No | Yes | No | No |
+| Java support | Yes | Yes | Yes | Yes | Yes | Yes | No | No | Yes |
+| Kotlin support | First-class | Good | Good | Good | Good | Good | Native | Native | First-class |
+| Coroutines | Yes | No | No | No | No | No | Yes | Limited | No |
+| Spring integration | Yes | Yes | Native | Yes | Yes | Yes | Yes | Yes | Yes |
+| Runtime mechanism | Codegen<sup>7</sup> | Bytecode | Bytecode | Reflection | Codegen | Reflection | Reflection | Reflection | Codegen |
+| Community | New | Huge | Huge | Large | Medium | Medium | Medium | Small | Small |
 
 <sup>5</sup> jOOQ generates code from the database schema, so schema validation is inherent in its code generation step.
 
@@ -214,6 +218,80 @@ JDBI is a lightweight SQL convenience library that sits just above JDBC. It hand
 - You want full SQL control
 - You prefer minimal abstraction
 - You have mostly complex queries that don't fit ORM patterns
+
+## Storm vs Jimmer
+
+Jimmer is a modern Kotlin and Java ORM that, like Storm, is built on immutable entities and a stateless model with no persistence context, and it eliminates the N+1 problem by design. The two frameworks share a great deal of philosophy. Where they differ is conciseness and concept count. Jimmer trades some concision for GraphQL-style dynamic object fetching: entities are interfaces you interact with through generated drafts, reading a foreign-key id without loading the association requires an extra `@IdView` property, and every query ends in an explicit `select` with an object fetcher. That fetcher, together with Jimmer's dedicated DTO language, is a genuine strength for shape-controlled API responses. Storm keeps the model a plain data class and the query a single line, and treats any data class as a result type.
+
+Defining an entity:
+
+```kotlin
+// Jimmer
+@Entity
+interface Book {
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    val id: Long
+    val name: String
+    val price: BigDecimal
+
+    @ManyToOne
+    val store: BookStore?
+
+    @IdView("store")           // extra property to read the FK id without loading
+    val storeId: Long?
+}
+
+// Storm — book.store.id is already available, so no extra property is needed
+data class Book(
+    @PK val id: Long = 0,
+    val name: String,
+    val price: BigDecimal,
+    @FK val store: BookStore?
+) : Entity<Long>
+```
+
+Loading a book together with its store:
+
+```kotlin
+// Jimmer — explicit query and object fetcher
+val books = sqlClient.createQuery(Book::class) {
+    where(table.store.name eq "Manning")
+    select(table.fetchBy {
+        allScalarFields()
+        store { allScalarFields() }
+    })
+}.execute()
+
+// Storm — the store is loaded in the same query
+val books = books.findAll(Book_.store.name eq "Manning")
+```
+
+| Aspect | Storm | Jimmer |
+|--------|-------|--------|
+| **Entities** | Immutable data classes, constructed directly | Immutable interfaces, constructed and copied via generated drafts |
+| **Foreign-key id** | `book.store.id`, always available | Declare an extra `@IdView` property per association |
+| **Simple query** | `findAll(Book_.store.name eq "...")` | `createQuery { where(...); select(table.fetchBy { ... }) }.execute()` |
+| **Result shaping** | Any data class is a result type | Object fetchers and a dedicated `.dto` language |
+| **N+1 Problem** | Prevented via single joined query | Prevented via batched separate queries (DataLoader-style) |
+| **State** | Stateless; no persistence context | Stateless; no persistence context |
+| **Caching** | Transaction-scoped identity cache | Multi-level cache with automatic invalidation |
+| **Languages** | Kotlin + Java | Kotlin + Java |
+| **License** | Apache 2.0 | Apache 2.0 |
+
+### When to Choose Storm
+
+- You want the smallest possible entity model and one-line queries
+- Your reads mostly map to entities and projections
+- You prefer plain data classes over interfaces and generated drafts
+- You want relationships loaded in a single query
+
+### When to Choose Jimmer
+
+- You want GraphQL-style dynamic object fetching with precise shape control
+- Its DTO language for typed, reusable projections fits your API contracts
+- You rely on its multi-level caching with automatic invalidation
+- You want to save arbitrary object graphs with its save command
 
 ---
 
@@ -389,3 +467,4 @@ Ready to try it? See the [Getting Started](getting-started.md) guide.
 - [JDBI](https://jdbi.org/)
 - [Exposed](https://github.com/JetBrains/Exposed)
 - [Ktorm](https://www.ktorm.org/)
+- [Jimmer](https://github.com/babyfish-ct/jimmer)

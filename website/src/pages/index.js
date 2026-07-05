@@ -144,26 +144,27 @@ const CSS = `
 
 const BODY = `
 <nav><div class="wrap nav">
-  <div class="brand"><img class="logo" src="/img/storm-light.png" alt="Storm" /><span>ST<b>/ORM</b></span><span class="tech-tag">Kotlin 2.0–2.4 · Java 21+ · Apache 2.0</span></div>
+  <div class="brand"><img class="logo" src="/img/storm-light.png" alt="Storm" /><span>ST<b>/ORM</b></span><span class="tech-tag">Kotlin 2.0–2.4 · Apache 2.0</span></div>
   <div class="nav-links">
     <a href="/tutorials/">Tutorials</a>
     <a href="/examples/">Examples</a>
+    <a href="/comparison">Comparison</a>
     <a href="/blog/">Blog</a>
     <a href="/docs/">Docs</a>
     <a class="gh" href="https://github.com/orgs/storm-orm/repositories">GitHub</a>
-    <a href="/docs/getting-started" class="btn primary" style="height:36px">Get started</a>
+    <a href="/quickstart" class="btn primary" style="height:36px">Get started</a>
   </div>
 </div></nav>
 
 <header><div class="wrap">
   <h1>Radically Simple.<br><span class="hero-rot" id="valuesRotator">
-    <span class="grad in">Predictability over magic.</span>
+    <span class="grad in">Kotlin&nbsp;ORM.</span>
+    <span class="grad">Predictability over magic.</span>
     <span class="grad">Stateless over sessions.</span>
     <span class="grad">Immutable over managed.</span>
     <span class="grad">Explicit over surprises.</span>
-    <span class="grad">Intent over ceremony.</span>
   </span></h1>
-  <p class="sub" style="max-width:940px">Storm is a type-safe ORM for Kotlin and Java. A clear mapping between your entities and the database keeps them reusable and repositories easy to extend. Your persistence layer remains small, expressive, and fully capable as your application grows.</p>
+  <p class="sub" style="max-width:940px">Storm is a type-safe, SQL-first ORM for Kotlin. Concise data-class entities map cleanly to your database, and one-line queries keep your persistence layer small and expressive as your application grows. No proxies, no N+1, no persistence context.</p>
 
   <div class="stage">
     <div class="editor">
@@ -230,7 +231,7 @@ const BODY = `
   <h2>Write code worth reading.</h2>
   <p class="sub" style="margin:0 auto 30px;text-align:center;max-width:940px">Concise entities and one-line queries keep you productive. Immutable records simplify your architecture by letting the same types flow through your application layers. Storm is built for engineers who care about beautiful code.</p>
   <div class="cta" style="justify-content:center;margin-top:56px">
-    <a href="/docs/getting-started" class="btn primary">Get started →</a>
+    <a href="/quickstart" class="btn primary">Get started →</a>
     <a href="/examples/" class="btn">Example apps</a>
     <a href="https://github.com/storm-orm/storm-framework" class="btn">Star on GitHub</a>
   </div>
@@ -238,7 +239,7 @@ const BODY = `
 
 <footer><div class="wrap foot">
   <div class="brand"><img class="logo" src="/img/storm-light.png" alt="Storm" /></div>
-  <div class="links"><a href="/">orm.st</a><a href="/tutorials/">Tutorials</a><a href="/examples/">Examples</a><a href="/blog/">Blog</a><a href="https://github.com/storm-orm/storm-framework">GitHub</a><a href="https://central.sonatype.com/namespace/st.orm">Maven Central</a></div>
+  <div class="links"><a href="/">orm.st</a><a href="/tutorials/">Tutorials</a><a href="/examples/">Examples</a><a href="/comparison">Comparison</a><a href="/blog/">Blog</a><a href="https://github.com/storm-orm/storm-framework">GitHub</a><a href="https://central.sonatype.com/namespace/st.orm">Maven Central</a></div>
 </div></footer>
 `;
 
@@ -333,8 +334,8 @@ export default function Home() {
           { t:"Stateless", d:"No session, flush, or transaction-bound proxies." },
           { t:"Portable", d:"Database specifics offered in a portable way, across all major databases." },
           { t:"Flexible", d:"From a simple DSL to full SQL templates when you need them." },
-          { t:"Fast", d:"Optimized for performance and memory, e.g. generated code instead of reflection." },
-          { t:"Efficient", d:"No heavyweight runtime, no external dependencies." },
+          { t:"Fast", d:"Optimized for performance, e.g. generated code instead of reflection." },
+          { t:"Efficient", d:"Low memory footprint, no heavyweight runtime, no external dependencies." },
         ] },
     ];
 
@@ -518,19 +519,24 @@ export default function Home() {
     let valuesTimer = null;
     if (valuesRotator) {
       const valueItems = valuesRotator.querySelectorAll('span');
+      const baseDwell = 4000;
+      // The Kotlin ORM line (index 0) stays twice as long as the principles.
+      const dwellFor = (i) => (i === 0 ? baseDwell * 2 : baseDwell);
       let valueIndex = 0;
-      valuesTimer = setInterval(() => {
+      const advance = () => {
         valueItems[valueIndex].classList.remove('in');
         valueIndex = (valueIndex + 1) % valueItems.length;
         valueItems[valueIndex].classList.add('in');
-      }, 4500);
+        valuesTimer = setTimeout(advance, dwellFor(valueIndex));
+      };
+      valuesTimer = setTimeout(advance, dwellFor(valueIndex));
     }
 
     // Stop the loop and undo DOM mutations when the page unmounts.
     return () => {
       gen++;
       clearTimeout(timer);
-      clearInterval(valuesTimer);
+      clearTimeout(valuesTimer);
       if(scenesEl) scenesEl.innerHTML='';
       if(sqlBtn) sqlBtn.removeEventListener('click',onSqlClick);
     };
@@ -540,10 +546,14 @@ export default function Home() {
     <>
       <Head>
         <html lang="en" />
-        <title>Storm — Type-safe ORM for Kotlin & Java 21+</title>
+        <title>Storm · The type-safe Kotlin ORM</title>
         <meta
           name="description"
-          content="Type-safe, SQL-first ORM for Kotlin 2.0+ and Java 21+. Concise entities, one-line queries, immutable records — every query explicit, no proxies, no N+1."
+          content="Storm is a type-safe, SQL-first Kotlin ORM. Concise data-class entities, one-line queries, immutable records. Every query explicit: no proxies, no N+1, no persistence context."
+        />
+        <meta
+          name="keywords"
+          content="Kotlin ORM, type-safe ORM, SQL-first ORM, Kotlin database library, Hibernate alternative, JPA alternative, Exposed alternative, Storm ORM"
         />
         {/* Open Graph / Twitter: default og:title is just the site name
             ("Storm Framework") and og:description is absent, so set the
@@ -551,19 +561,19 @@ export default function Home() {
         <meta property="og:type" content="website" />
         <meta
           property="og:title"
-          content={'Storm — Type-safe ORM for Kotlin & Java 21+'}
+          content={'Storm · The type-safe Kotlin ORM'}
         />
         <meta
           property="og:description"
-          content="Type-safe, SQL-first ORM for Kotlin 2.0+ and Java 21+. Concise entities, one-line queries, immutable records — every query explicit, no proxies, no N+1."
+          content="Storm is a type-safe, SQL-first Kotlin ORM. Concise data-class entities, one-line queries, immutable records. Every query explicit: no proxies, no N+1, no persistence context."
         />
         <meta
           name="twitter:title"
-          content={'Storm — Type-safe ORM for Kotlin & Java 21+'}
+          content={'Storm · The type-safe Kotlin ORM'}
         />
         <meta
           name="twitter:description"
-          content="Type-safe, SQL-first ORM for Kotlin 2.0+ and Java 21+. Concise entities, one-line queries, immutable records — every query explicit, no proxies, no N+1."
+          content="Storm is a type-safe, SQL-first Kotlin ORM. Concise data-class entities, one-line queries, immutable records. Every query explicit: no proxies, no N+1, no persistence context."
         />
         {/* Structured data so search engines can identify Storm as a
             developer tool for Kotlin/Java and consolidate it with its GitHub
@@ -573,11 +583,11 @@ export default function Home() {
             '@context': 'https://schema.org',
             '@type': 'SoftwareApplication',
             name: 'Storm',
-            alternateName: 'Storm ORM',
+            alternateName: ['Storm ORM', 'Storm Kotlin ORM'],
             applicationCategory: 'DeveloperApplication',
             operatingSystem: 'JVM (Kotlin, Java)',
             description:
-              'Storm is a type-safe, SQL-first ORM for Kotlin 2.0+ and Java 21+. Define concise, immutable entities and write one-line queries — nested predicates and entity graphs compile to a single efficient query, eliminating accidental hidden N+1 queries. Drop to full SQL templates whenever you want; never locked in.',
+              'Storm is a type-safe, SQL-first Kotlin ORM. Define concise, immutable data-class entities and write one-line queries. Nested predicates and entity graphs compile to a single efficient query, eliminating accidental hidden N+1 queries. Drop to full SQL templates whenever you want; never locked in.',
             featureList: [
               'Direct database control — every query explicit, no hidden N+1',
               'Stateless, immutable records — no proxies, no flush, no hidden state',

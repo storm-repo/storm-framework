@@ -129,6 +129,24 @@ List<User> users = orm.query(RAW."""
 
 ## Quick Start
 
+New to Storm? The fastest path is the **5-minute [Quickstart](https://orm.st/quickstart)**: install, define an entity, run a type-safe query.
+
+### Which modules do I need?
+
+Storm is modular; you add only what your stack uses. Versions come from the BOM (below), so you never specify them per module.
+
+| Your stack              | Add |
+|-------------------------|-----|
+| **Kotlin** (any)        | `storm-kotlin` + `storm-core` (runtime) + `storm-metamodel-ksp` (ksp) + `storm-compiler-plugin-2.x` |
+| **Kotlin + Spring Boot** | `storm-kotlin-spring-boot-starter` |
+| **Kotlin + Ktor**       | `storm-kotlin` + `storm-ktor` |
+| **Java 21**             | `storm-java21` + `storm-core` (runtime) + `storm-metamodel-processor` |
+| **Java + Spring Boot**  | `storm-spring-boot-starter` |
+| **+ your database**     | one dialect (runtime): `storm-postgresql`, `storm-mysql`, `storm-mariadb`, `storm-oracle`, `storm-mssqlserver`, `storm-sqlite`, `storm-h2` |
+| **+ JSON columns**      | `storm-jackson2`, `storm-jackson3`, or `storm-kotlinx-serialization` |
+
+The `storm-compiler-plugin-2.x` suffix matches your Kotlin major.minor version (e.g. `storm-compiler-plugin-2.0` for Kotlin 2.0.x). See [Installation](https://orm.st/docs/installation) for the full module overview.
+
 ### Dependency Management (BOM)
 
 Storm provides a Bill of Materials (BOM) for centralized version management. Import the BOM once and omit version numbers from individual Storm dependencies.
@@ -195,6 +213,16 @@ storm init
 ```
 
 See [AI-Assisted Development](docs/ai.md) for the full workflow.
+
+## Examples
+
+Three complete, runnable **Storm Movies** applications, each importing the public IMDB dataset and rendered inline at [orm.st/examples](https://orm.st/examples):
+
+| Example | Stack | Repository |
+|---------|-------|------------|
+| [Kotlin + Ktor](https://orm.st/examples/kotlin-ktor) | Kotlin, Ktor 3, Koin, PostgreSQL | [storm-example-kotlin-ktor](https://github.com/storm-orm/storm-example-kotlin-ktor) |
+| [Kotlin + Spring Boot](https://orm.st/examples/kotlin-spring-boot) | Kotlin, Spring Boot 4, PostgreSQL | [storm-example-kotlin-spring-boot-4](https://github.com/storm-orm/storm-example-kotlin-spring-boot-4) |
+| [Java + Spring Boot](https://orm.st/examples/java-spring-boot) | Java 21, Spring Boot 4, PostgreSQL | [storm-example-java-spring-boot-4](https://github.com/storm-orm/storm-example-java-spring-boot-4) |
 
 ## Documentation
 
@@ -273,6 +301,16 @@ Storm targets Kotlin 2.0+ and Java 21+ as minimum supported versions. These base
 
 We welcome contributions! See [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines.
 
+## Community
+
+Have a question, an idea, or something you built with Storm? Join the conversation in [GitHub Discussions](https://github.com/storm-orm/storm-framework/discussions):
+
+- [Ask a question](https://github.com/storm-orm/storm-framework/discussions/categories/q-a) if you are getting started or stuck.
+- [Share an idea](https://github.com/storm-orm/storm-framework/discussions/categories/ideas) for a future release.
+- [Show what you built](https://github.com/storm-orm/storm-framework/discussions/categories/show-and-tell).
+
+If Storm is useful to you, a [star](https://github.com/storm-orm/storm-framework) helps other developers find it.
+
 ## License
 
-Storm is released under the [Apache 2.0 License](LICENSE).
+Storm is released under the [Apache 2.0 License](LICENSE.txt).

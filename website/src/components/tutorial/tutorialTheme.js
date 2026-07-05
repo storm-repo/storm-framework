@@ -134,21 +134,22 @@ export function TutorialPage({title, description, slug, body}) {
 
 export const navHtml = (active) => `
 <nav><div class="wrap nav">
-  <div class="brand"><a class="bhome" href="/"><img class="logo" src="/img/storm-light.png" alt="Storm" /><span>ST<b>/ORM</b></span></a><span class="tech-tag">Kotlin 2.0–2.4 · Java 21+ · Apache 2.0</span></div>
+  <div class="brand"><a class="bhome" href="/"><img class="logo" src="/img/storm-light.png" alt="Storm" /><span>ST<b>/ORM</b></span></a><span class="tech-tag">Kotlin 2.0–2.4 · Apache 2.0</span></div>
   <div class="nav-links">
     <a href="/tutorials/"${active === 'tutorials' ? ' class="on"' : ''}>Tutorials</a>
     <a href="/examples/"${active === 'examples' ? ' class="on"' : ''}>Examples</a>
+    <a href="/comparison"${active === 'comparison' ? ' class="on"' : ''}>Comparison</a>
     <a href="/blog/"${active === 'blog' ? ' class="on"' : ''}>Blog</a>
     <a href="/docs/"${active === 'docs' ? ' class="on"' : ''}>Docs</a>
     <a class="gh" href="https://github.com/orgs/storm-orm/repositories">GitHub</a>
-    <a href="/docs/getting-started" class="btn primary" style="height:36px">Get started</a>
+    <a href="/quickstart" class="btn primary" style="height:36px">Get started</a>
   </div>
 </div></nav>`;
 
 export const FOOT_HTML = `
 <footer><div class="wrap foot">
   <div class="brand"><img class="logo" src="/img/storm-light.png" alt="Storm" /></div>
-  <div class="links"><a href="/">orm.st</a><a href="/tutorials/">Tutorials</a><a href="/examples/">Examples</a><a href="/blog/">Blog</a><a href="https://github.com/storm-orm/storm-framework">GitHub</a><a href="https://central.sonatype.com/namespace/st.orm">Maven Central</a></div>
+  <div class="links"><a href="/">orm.st</a><a href="/tutorials/">Tutorials</a><a href="/examples/">Examples</a><a href="/comparison">Comparison</a><a href="/blog/">Blog</a><a href="https://github.com/storm-orm/storm-framework">GitHub</a><a href="https://central.sonatype.com/namespace/st.orm">Maven Central</a></div>
 </div></footer>`;
 
 export const TUT_CSS = `
@@ -250,12 +251,24 @@ export const TUT_CSS = `
   .storm-tut .note a{color:var(--accent)}
   .storm-tut .note a:hover{text-decoration:underline}
 
-  /* comparison table */
-  .storm-tut table.cmp{width:100%;border-collapse:collapse;margin:26px 0 0;font-size:14px}
-  .storm-tut .cmp th{font-family:var(--mono);font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:var(--faint);
-    text-align:left;padding:10px 14px;border-bottom:1px solid var(--border)}
-  .storm-tut .cmp td{padding:13px 14px;border-bottom:1px solid var(--border-soft);color:var(--body);line-height:1.6;vertical-align:top}
-  .storm-tut .cmp td:first-child{color:var(--text);font-weight:550}
+  /* comparison table — framed card, horizontal rules only (no boxy grid),
+     the outer border closes the bottom so the last row never looks unfinished.
+     Explicitly zeroes cell borders so Infima's default grid does not bleed
+     through. Column 2 is the Storm column in every comparison, so it is tinted. */
+  .storm-tut table.cmp{width:100%;border-collapse:separate;border-spacing:0;margin:26px 0 0;font-size:14px;
+    background:var(--panel-2);border:1px solid var(--border);border-radius:12px;overflow:hidden}
+  .storm-tut .cmp th,.storm-tut .cmp td{border:0;text-align:left;padding:13px 16px;vertical-align:top;line-height:1.55}
+  .storm-tut .cmp thead th{font-family:var(--mono);font-size:10.5px;letter-spacing:.1em;text-transform:uppercase;
+    color:var(--muted);background:rgba(255,255,255,.022);border-bottom:1px solid var(--border);white-space:nowrap}
+  .storm-tut .cmp tbody td{border-top:1px solid var(--border-soft);color:var(--body)}
+  .storm-tut .cmp tbody tr:first-child td{border-top:0}
+  .storm-tut .cmp tbody tr:nth-child(even) td{background:rgba(255,255,255,.014)}
+  .storm-tut .cmp td:first-child{color:var(--text);font-weight:600}
+  .storm-tut .cmp thead th:nth-child(2){color:var(--accent-2)}
+  .storm-tut .cmp tbody tr td:nth-child(2){background:rgba(129,140,248,.07);color:var(--text)}
+  /* let long inline code wrap inside cells instead of forcing the table wider
+     than its container (which the rounded overflow:hidden would then clip) */
+  .storm-tut .cmp th code,.storm-tut .cmp td code{white-space:normal;word-break:break-word}
 
   /* cta + doc refs */
   .storm-tut .cta{display:flex;gap:14px;margin-top:36px;flex-wrap:wrap}

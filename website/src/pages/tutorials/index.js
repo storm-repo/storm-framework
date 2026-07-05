@@ -20,10 +20,20 @@ ${navHtml('tutorials')}
   <h1>A fresh wind<br><span class="grad">for your data layer.</span></h1>
   <p class="sub">Task-focused tutorials for engineers coming from JPA, Hibernate, or Exposed, plus how-to recipes for Storm itself. Each comparison takes a persistence task you already know, shows both approaches side by side, and lets you inspect the SQL they produce.</p>
   <div class="catnav">
+    <a href="#start-here">Start here<b>1</b></a>
     <a href="#from-jpa">From JPA<b>9</b></a>
     <a href="#from-exposed">From Exposed<b>7</b></a>
     <a href="#storm-way">The Storm way<b>6</b></a>
   </div>
+</div>
+
+<div class="shead" id="start-here"><span class="mark">//</span>Start here<span class="sdesc">New to Storm? Build a complete REST API from an empty project, then use the task recipes below as you go.</span></div>
+<div class="cards">
+  <a class="tcard" href="/tutorials/build-a-rest-api" style="grid-column:1 / -1">
+    <div class="tt">Build a REST API from scratch<span class="arrow">→</span></div>
+    <div class="td">Empty project to a running, tested API: two entities, their relationship loaded in a single query, CRUD routes on Ktor, and a test that asserts the SQL. The whole end-to-end path in about twenty minutes.</div>
+    <div class="tm"><span>Kotlin</span><span>Ktor 3</span><span>~20 min</span></div>
+  </a>
 </div>
 
 <div class="shead" id="from-jpa"><span class="mark">//</span>From JPA<span class="sdesc">You know Spring Data JPA and Hibernate. Each tutorial shows a task the JPA way and the Storm way, side by side.</span></div>
