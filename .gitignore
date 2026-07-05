@@ -49,3 +49,6 @@ website/node_modules/
 website/build/
 website/.docusaurus/
 website/static/api/
+
+# Working analysis doc — not for check-in
+ADOPTION_ANALYSIS.md
