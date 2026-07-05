@@ -110,7 +110,7 @@ cat > "$OUTPUT" <<'HEADER'
 > only schema metadata (table definitions, column types, constraints) while
 > shielding your database credentials and data from the LLM. Built-in
 > verification (validateSchema(), SqlCapture) lets the AI validate its own work
-> correct before anything is committed.
+> before anything is committed.
 >
 > Get started: `npx @storm-orm/cli`
 > Website: https://orm.st
