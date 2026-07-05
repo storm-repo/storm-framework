@@ -141,12 +141,6 @@ const config: Config = {
           position: 'right',
         },
         {
-          type: 'docSidebar',
-          sidebarId: 'docs',
-          position: 'left',
-          label: 'Documentation',
-        },
-        {
           to: '/tutorials/',
           label: 'Tutorials',
           position: 'left',
@@ -155,6 +149,17 @@ const config: Config = {
           to: '/examples/',
           label: 'Examples',
           position: 'left',
+        },
+        {
+          to: '/blog/',
+          label: 'Blog',
+          position: 'left',
+        },
+        {
+          type: 'docSidebar',
+          sidebarId: 'docs',
+          position: 'left',
+          label: 'Documentation',
         },
         {
           href: 'https://github.com/orgs/storm-orm/repositories',
@@ -169,7 +174,7 @@ const config: Config = {
         {
           title: 'Docs',
           items: [
-            {label: 'Getting Started', to: '/docs/getting-started'},
+            {label: 'Get Started', to: '/docs/getting-started'},
             {label: 'Entities', to: '/docs/entities'},
             {label: 'Queries', to: '/docs/queries'},
           ],
@@ -179,6 +184,7 @@ const config: Config = {
           items: [
             {label: 'Tutorials', to: '/tutorials/'},
             {label: 'Example Projects', to: '/examples/'},
+            {label: 'Blog', to: '/blog/'},
             {label: 'GitHub', href: 'https://github.com/storm-orm/storm-framework'},
             {label: 'Maven Central', href: 'https://central.sonatype.com/namespace/st.orm'},
           ],

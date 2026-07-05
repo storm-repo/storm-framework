@@ -136,9 +136,10 @@ export const navHtml = (active) => `
 <nav><div class="wrap nav">
   <div class="brand"><a class="bhome" href="/"><img class="logo" src="/img/storm-light.png" alt="Storm" /><span>ST<b>/ORM</b></span></a><span class="tech-tag">Kotlin 2.0–2.4 · Java 21+ · Apache 2.0</span></div>
   <div class="nav-links">
-    <a href="/docs/"${active === 'docs' ? ' class="on"' : ''}>Docs</a>
     <a href="/tutorials/"${active === 'tutorials' ? ' class="on"' : ''}>Tutorials</a>
     <a href="/examples/"${active === 'examples' ? ' class="on"' : ''}>Examples</a>
+    <a href="/blog/"${active === 'blog' ? ' class="on"' : ''}>Blog</a>
+    <a href="/docs/"${active === 'docs' ? ' class="on"' : ''}>Docs</a>
     <a class="gh" href="https://github.com/orgs/storm-orm/repositories">GitHub</a>
     <a href="/docs/getting-started" class="btn primary" style="height:36px">Get started</a>
   </div>
@@ -147,7 +148,7 @@ export const navHtml = (active) => `
 export const FOOT_HTML = `
 <footer><div class="wrap foot">
   <div class="brand"><img class="logo" src="/img/storm-light.png" alt="Storm" /></div>
-  <div class="links"><a href="/">orm.st</a><a href="/tutorials/">Tutorials</a><a href="/examples/">Examples</a><a href="https://github.com/storm-orm/storm-framework">GitHub</a><a href="https://central.sonatype.com/namespace/st.orm">Maven Central</a></div>
+  <div class="links"><a href="/">orm.st</a><a href="/tutorials/">Tutorials</a><a href="/examples/">Examples</a><a href="/blog/">Blog</a><a href="https://github.com/storm-orm/storm-framework">GitHub</a><a href="https://central.sonatype.com/namespace/st.orm">Maven Central</a></div>
 </div></footer>`;
 
 export const TUT_CSS = `
@@ -266,9 +267,11 @@ export const TUT_CSS = `
   .storm-tut .tuthero{max-width:1080px;margin:0 auto;padding:64px 24px 6px}
   .storm-tut .tuthero .sub{color:var(--muted);font-size:17.5px;line-height:1.66;margin:20px 0 0;max-width:700px}
   .storm-tut .catnav{display:flex;gap:10px;margin-top:28px;flex-wrap:wrap}
-  .storm-tut .catnav a{font-family:var(--mono);font-size:12.5px;color:var(--muted);border:1px solid var(--border-soft);border-radius:999px;padding:8px 16px;transition:.16s;background:var(--panel-2)}
-  .storm-tut .catnav a:hover{color:var(--accent);border-color:rgba(129,140,248,.4)}
-  .storm-tut .catnav a b{color:var(--faint);font-weight:500;margin-left:7px}
+  .storm-tut .catnav a{font-family:var(--mono);font-size:12.5px;color:#b1b5da;border:1px solid rgba(129,140,248,.20);border-radius:999px;padding:8px 16px;transition:.16s;background:rgba(129,140,248,.07);cursor:pointer}
+  .storm-tut .catnav a:hover{color:#e9eaf7;border-color:rgba(129,140,248,.45);background:rgba(129,140,248,.13)}
+  .storm-tut .catnav a.on{color:#0a0a0f;background:var(--accent);border-color:var(--accent);font-weight:600}
+  .storm-tut .catnav a b{color:rgba(178,182,220,.55);font-weight:500;margin-left:7px}
+  .storm-tut .catnav a.on b{color:rgba(10,10,15,.55)}
   .storm-tut .shead{max-width:1080px;margin:0 auto;padding:52px 24px 0;font-family:var(--mono);font-size:12px;letter-spacing:.16em;text-transform:uppercase;color:var(--text);scroll-margin-top:86px}
   .storm-tut .shead .mark{color:var(--accent);margin-right:10px}
   .storm-tut .shead .sdesc{display:block;margin-top:9px;font-family:var(--sans);font-size:14.5px;letter-spacing:0;text-transform:none;color:var(--muted);line-height:1.6}
