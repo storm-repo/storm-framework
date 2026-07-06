@@ -19,11 +19,11 @@ Storm offers three ways to query data, each suited to different complexity level
 
 | Approach | Best for | Type safety | Flexibility |
 |----------|----------|-------------|-------------|
-| **Repository `findBy`** | Simple key lookups by primary key or unique key | Full compile-time | Low (single-field equality only) |
+| **Repository `findBy` / `findAllBy`** | Lookups by primary key or any single field | Full compile-time | Low (single-field equality or `IN`) |
 | **Query DSL** | Filtering, ordering, pagination with type-safe conditions | Full compile-time | Medium (AND/OR predicates, joins, ordering) |
 | **SQL Templates** | Complex joins, subqueries, CTEs, window functions, database-specific SQL | Column references checked at compile time, SQL structure at runtime | High (full SQL control) |
 
-Start with the simplest approach that meets your needs. Use `findBy` or `findAll` for straightforward lookups. Move to the query builder when you need compound filters or pagination. Use SQL templates when you need SQL features the DSL does not cover.
+Start with the simplest approach that meets your needs. Use `findById`, `findBy`, or `findAllBy` for straightforward lookups. Move to the query builder when you need compound filters or pagination. Use SQL templates when you need SQL features the DSL does not cover.
 
 ---
 
@@ -53,7 +53,7 @@ val exists: Boolean = orm.existsBy(User_.email, email)
 </TabItem>
 <TabItem value="java" label="Java">
 
-The Java DSL uses the same `EntityRepository` interface as Kotlin. Obtain a repository with `orm.entity(Class)` and use its fluent query builder. Return types use `Optional` for single results and `List` for collections.
+The Java repository exposes the same `EntityRepository` interface as Kotlin. Obtain it with `orm.entity(Class)`. Field-based finders (`findBy`, `findAllBy`, `getBy`) cover single-column lookups; the fluent query builder handles anything more complex. Return types use `Optional` for single results and `List` for collections.
 
 ```java
 var users = orm.entity(User.class);
@@ -61,15 +61,14 @@ var users = orm.entity(User.class);
 // Find by ID
 Optional<User> user = users.findById(userId);
 
-// Find all matching
-List<User> usersInCity = users.select()
-    .where(User_.city, EQUALS, city)
-    .getResultList();
+// Find one by a field value
+Optional<User> byEmail = users.findBy(User_.email, email);
 
-// Find first matching
-Optional<User> user = users.select()
-    .where(User_.email, EQUALS, email)
-    .getOptionalResult();
+// Find all matching a field value
+List<User> usersInCity = users.findAllBy(User_.city, city);
+
+// Find all whose field matches any of several values (WHERE ... IN)
+List<User> selected = users.findAllBy(User_.city, cities);
 
 // Count
 long count = users.count();
@@ -117,20 +116,17 @@ var users = orm.entity(User.class);
 // Find by ID
 Optional<User> user = users.findById(userId);
 
-// Find with predicate
-Optional<User> user = users.select()
-    .where(User_.email, EQUALS, email)
-    .getOptionalResult();
+// Find one by a field value
+Optional<User> byEmail = users.findBy(User_.email, email);
 
-// Find all matching
-List<User> usersInCity = users.select()
-    .where(User_.city, EQUALS, city)
-    .getResultList();
+// Require exactly one (throws if none, or if more than one)
+User owner = users.getBy(User_.email, email);
 
-// Count
+// Find all matching a field value
+List<User> usersInCity = users.findAllBy(User_.city, city);
+
+// Count and exists
 long count = users.count();
-
-// Exists
 boolean exists = users.existsById(userId);
 ```
 

@@ -321,7 +321,7 @@ When using the Spring Boot Starter, both record and schema validation can be con
 storm:
   validation:
     record-mode: fail   # or "warn" or "none" (default: fail)
-    schema-mode: none   # or "warn" or "fail" (default: none)
+    schema-mode: fail   # or "warn" or "none" (default: fail)
     strict: false       # treat schema warnings as errors (default: false)
 ```
 
@@ -329,14 +329,14 @@ The `schema-mode` values:
 
 | Value | Behavior |
 |-------|----------|
-| `none` | Schema validation is skipped (default). |
+| `fail` | Mismatches cause startup to fail with a `PersistenceException` (default). |
 | `warn` | Mismatches are logged at WARN level; startup continues. |
-| `fail` | Mismatches cause startup to fail with a `PersistenceException`. |
+| `none` | Schema validation is skipped. |
 
 ### Configuration Properties
 
 | Property | Default | Description |
 |----------|---------|-------------|
 | `storm.validation.record_mode` | `fail` | Record validation mode: `fail`, `warn`, or `none` |
-| `storm.validation.schema_mode` | `none` | Schema validation mode: `none`, `warn`, or `fail` (Spring Boot only) |
+| `storm.validation.schema_mode` | `fail` | Schema validation mode: `none`, `warn`, or `fail` (Spring Boot and Ktor) |
 | `storm.validation.strict` | `false` | When `true`, schema validation warnings are treated as errors |

@@ -530,7 +530,7 @@ See the [Spring Integration](spring-integration.md#template-decorator) section o
 
 ## Schema Validation
 
-Storm can validate entity definitions against the live database schema at startup. This catches common mapping errors (missing columns, type mismatches, nullability differences) before your application serves its first request. Configure the validation mode in the plugin or in `application.conf`:
+Storm can validate entity definitions against the live database schema at startup. This catches common mapping errors (missing columns, type mismatches, nullability differences) before your application serves its first request. Validation runs in `fail` mode by default; set it to `warn` or `none` in the plugin or in `application.conf` to relax it:
 
 ```kotlin
 install(Storm) {
@@ -550,9 +550,9 @@ storm {
 
 | Mode | Behavior |
 |------|----------|
-| `none` | Skip validation (default). Suitable for production when schemas are managed by migrations. |
-| `warn` | Log mismatches at startup without blocking. Recommended during development. |
-| `fail` | Block startup if any entity definitions do not match the database schema. Useful in CI/CD pipelines. |
+| `fail` | Block startup if any entity definitions do not match the database schema (default). |
+| `warn` | Log mismatches at startup without blocking. Useful while the schema is still evolving. |
+| `none` | Skip validation. Suitable when schemas are managed entirely by migrations. |
 
 See [Validation](validation.md) for details on what is validated and how to interpret the output.
 
