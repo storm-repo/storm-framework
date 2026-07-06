@@ -84,7 +84,7 @@ interface UserRepository : EntityRepository<User, Int> {
         findAll((User_.city eq city) and (User_.name eq name))
 
     fun streamByCity(city: City): Flow<User> =
-        select { User_.city eq city }
+        select(User_.city eq city).resultFlow
 }
 
 // Get the repository from the ORM template
