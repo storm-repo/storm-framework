@@ -75,7 +75,11 @@ const CSS = `
   .storm-home .sqlbtn .ico{width:13px;height:13px;opacity:.9}
   .storm-home .sqlconsole{display:none;border-top:1px solid var(--border-soft);background:var(--statusbg)}
   .storm-home .editor.show-sql .sqlconsole{display:block}
-  .storm-home #sqlpanel{margin:0;padding:14px 18px 18px;font-family:var(--mono);font-size:12.5px;line-height:1.75;white-space:pre;overflow-x:auto;color:var(--plain)}
+  /* Solid background required on the horizontal scroller: on iOS Safari an
+     overflow-x:auto element gets its own compositing layer, and a transparent
+     one paints the scrolled-in region black instead of showing the ancestor
+     background. Match .sqlconsole so it's visually identical. */
+  .storm-home #sqlpanel{margin:0;padding:14px 18px 18px;font-family:var(--mono);font-size:12.5px;line-height:1.75;white-space:pre;overflow-x:auto;color:var(--plain);background:var(--statusbg)}
   .storm-home .statusbar .sqllabel{display:none;align-items:center;gap:9px;font-family:var(--mono);font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:var(--faint)}
   .storm-home .statusbar .sqllabel .ar{color:var(--accent)}
   .storm-home .editor.show-sql .statusbar #status,
@@ -89,7 +93,10 @@ const CSS = `
   .storm-home .gutter{padding:22px 0;width:48px;text-align:right;color:#3b3b46;font-family:var(--mono);font-size:13px;
     line-height:26px;user-select:none;border-right:1px solid var(--border-soft);flex:none}
   .storm-home .gutter div{padding-right:15px}
-  .storm-home #code{margin:0;padding:22px 24px;font-family:var(--mono);font-size:14px;line-height:26px;white-space:pre;overflow-x:auto;flex:1}
+  /* Opaque background (see #sqlpanel note): the horizontal scroller must paint
+     its own background or iOS renders the off-screen columns black. --panel is
+     the codearea gradient's top stop, so the seam is imperceptible. */
+  .storm-home #code{margin:0;padding:22px 24px;font-family:var(--mono);font-size:14px;line-height:26px;white-space:pre;overflow-x:auto;flex:1;background:var(--panel)}
   /* Docusaurus styles bare <pre> with a light code-block background (and rounded box) in
      light color mode; neutralize it so the landing editor keeps its dark chrome regardless
      of the active Docusaurus theme. */
