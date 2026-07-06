@@ -6,14 +6,20 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: write
+  contents: read
+  pages: write
+  id-token: write
 
+# GitHub's recommended settings for Pages deployments: serialize on the "pages"
+# group and let an in-progress deployment finish (cancelling it mid-flight is
+# what left the legacy branch build in a "Deployment failed, try again later"
+# state that only cleared on a manual rerun).
 concurrency:
-  group: docs-deploy
-  cancel-in-progress: true
+  group: "pages"
+  cancel-in-progress: false
 
 jobs:
-  deploy:
+  build:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -105,9 +111,20 @@ jobs:
         run: npm run build
         working-directory: website
 
-      - name: Deploy to GitHub Pages
-        uses: peaceiris/actions-gh-pages@v4
+      - name: Upload Pages artifact
+        uses: actions/upload-pages-artifact@v3
         with:
-          github_token: ${{ secrets.GITHUB_TOKEN }}
-          publish_dir: ./website/build
-          force_orphan: true
+          path: ./website/build
+
+  # Deploy the artifact with the official Pages action instead of pushing to a
+  # gh-pages branch and relying on GitHub's flaky legacy branch builder.
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
