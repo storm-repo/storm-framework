@@ -3,10 +3,10 @@ import {BlogPage} from '../../components/blog/blogTheme';
 
 const TITLE = 'Why we built ST/ORM';
 const DESC =
-  'We used JPA and Hibernate for years and mostly liked them. This is the ' +
-  'quieter story of why we still built ST/ORM: a backend we had to replace, an ' +
-  'entity model that pushed us toward DTOs, and an idea, sparked by Java ' +
-  'String Templates, for a model we actually wanted to program against.';
+  'If you have worked with JPA and Hibernate long enough, you probably know ' +
+  'the feeling. Most of the time, things are fine. Then the model grows, the ' +
+  'codebase gets larger, and there is some drama. One day we got the ' +
+  'opportunity to start over. That is where our story starts.';
 const SLUG = 'why-we-built-storm';
 const DATE = '2025-09-02';
 

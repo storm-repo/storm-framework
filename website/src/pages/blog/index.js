@@ -102,7 +102,7 @@ const POSTS = [
     tag: 'Origin',
     title: 'Why we built ST/ORM',
     blurb:
-      'We used JPA and Hibernate for years and mostly liked them. This is the quieter reason we built a different ORM anyway: 300 tables, and managed entities you cannot pass around without ceremony.',
+      'If you have worked with JPA and Hibernate long enough, you probably know the feeling. Most of the time, things are fine. Then the model grows, the codebase gets larger, and there is some drama. One day we got the opportunity to start over. That is where our story starts.',
   },
 ];
 
