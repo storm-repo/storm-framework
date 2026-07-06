@@ -135,6 +135,8 @@ export function TutorialPage({title, description, slug, body}) {
 export const navHtml = (active) => `
 <nav><div class="wrap nav">
   <div class="brand"><a class="bhome" href="/"><img class="logo" src="/img/storm-light.png" alt="Storm" /><span>ST<b>/ORM</b></span></a><span class="tech-tag">Kotlin 2.0–2.4 · Apache 2.0</span></div>
+  <input type="checkbox" id="storm-nav-toggle" class="nav-toggle-cb" aria-hidden="true" />
+  <label for="storm-nav-toggle" class="nav-toggle" aria-label="Toggle navigation menu"><span></span><span></span><span></span></label>
   <div class="nav-links">
     <a href="/tutorials/"${active === 'tutorials' ? ' class="on"' : ''}>Tutorials</a>
     <a href="/examples/"${active === 'examples' ? ' class="on"' : ''}>Examples</a>
@@ -179,6 +181,8 @@ export const TUT_CSS = `
   .storm-tut .nav-links{display:flex;align-items:center;gap:24px;font-size:14px;color:var(--muted)}
   .storm-tut .nav-links a:hover{color:var(--text)}
   .storm-tut .nav-links a.on{color:var(--text)}
+  .storm-tut .nav-toggle{display:none}
+  .storm-tut .nav-toggle-cb{display:none}
   .storm-tut .btn{display:inline-flex;align-items:center;gap:8px;height:40px;padding:0 18px;border-radius:9px;font-size:14.5px;
     font-weight:550;border:1px solid var(--border);background:var(--panel);transition:.16s;cursor:pointer}
   .storm-tut .btn:hover{border-color:#34343d;transform:translateY(-1px)}
@@ -309,5 +313,17 @@ export const TUT_CSS = `
   .storm-tut .foot{display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:14px}
   .storm-tut .foot .links{display:flex;gap:22px;font-family:var(--mono)}.storm-tut .foot a{color:var(--muted)}.storm-tut .foot a:hover{color:var(--text)}
   @media(max-width:920px){.storm-tut .tech-tag{display:none}}
-  @media(max-width:760px){.storm-tut .nav-links a:not(.gh){display:none}}
+  /* Mobile: replace the row of links with a hamburger that drops down a full
+     menu (CSS-only via a hidden checkbox, so no JS is needed on any page). */
+  @media(max-width:760px){
+    .storm-tut .nav-toggle{display:flex;flex-direction:column;justify-content:center;gap:5px;width:40px;height:38px;padding:9px 8px;cursor:pointer;border:1px solid var(--border);border-radius:9px;background:var(--panel)}
+    .storm-tut .nav-toggle span{display:block;height:2px;width:100%;background:var(--text);border-radius:2px;transition:transform .2s,opacity .2s}
+    .storm-tut .nav-toggle-cb:checked ~ .nav-toggle span:nth-child(1){transform:translateY(7px) rotate(45deg)}
+    .storm-tut .nav-toggle-cb:checked ~ .nav-toggle span:nth-child(2){opacity:0}
+    .storm-tut .nav-toggle-cb:checked ~ .nav-toggle span:nth-child(3){transform:translateY(-7px) rotate(-45deg)}
+    .storm-tut .nav-links{position:absolute;top:100%;left:0;right:0;flex-direction:column;align-items:stretch;gap:0;background:rgba(7,7,9,.98);backdrop-filter:blur(12px);border-bottom:1px solid var(--border-soft);padding:8px 0;display:none}
+    .storm-tut .nav-toggle-cb:checked ~ .nav-links{display:flex}
+    .storm-tut .nav-links a{padding:13px 24px;font-size:15px}
+    .storm-tut .nav-links a.btn{margin:10px 24px 6px;justify-content:center}
+  }
 `;
