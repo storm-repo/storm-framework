@@ -420,7 +420,7 @@ export default function Home() {
     const editorEl=document.querySelector('.storm-home .editor'), sqlBtn=document.getElementById('sqlbtn'),
           sqlBtnText=document.getElementById('sqlbtntext'), sqlPanel=document.getElementById('sqlpanel');
     let showSql=false, curIdx=0;
-    function renderSql(){ sqlPanel.innerHTML=SQL[curIdx]||'<span class="sqlc">-- no query</span>'; }
+    function renderSql(){ sqlPanel.innerHTML=SQL[curIdx]||'<span class="sqlc">-- no query</span>'; sqlPanel.scrollLeft=0; }
     function onSqlClick(){
       showSql=!showSql;
       editorEl.classList.toggle('show-sql',showSql);
@@ -504,6 +504,13 @@ export default function Home() {
 
       const text=fullText(sc.code);
       setGutter(text);
+      // Rewind the horizontal scroller before typing. Desktop resets it for
+      // free (the near-empty first render collapses scrollWidth, clamping
+      // scrollLeft to 0), but iOS Safari keeps the stale offset when content
+      // shrinks — so one touch pan (even an accidental diagonal swipe while
+      // scrolling the page) would leave every later scene with the start of
+      // each line cut off.
+      codeEl.scrollLeft=0;
 
       if(reduce){
         codeEl.innerHTML=render(sc.code,text.length,false);
@@ -524,6 +531,7 @@ export default function Home() {
       }
       if(myGen!==gen) return;
       codeEl.innerHTML=render(sc.code,text.length,false);
+      codeEl.scrollLeft=0; // settle the finished snippet at its line starts
       await wait(fast?160:360);
       if(myGen!==gen) return;
       statusTextEl.textContent=sc.caption;statusEl.classList.add('show');
