@@ -231,7 +231,7 @@ const BODY = `
     <span class="grad"><a href="https://github.com/storm-orm/storm-framework/discussions">Join us.</a></span>
   </span></h1>
   <p class="sub" style="max-width:940px">How would you design an ORM you would enjoy using? Immutable data-class entities? One-line queries, checked at compile time? No proxies, no N+1, no persistence context? That is ST/ORM.</p>
-  <p class="sub" style="max-width:940px;margin-top:12px">After 18 months of commercial use, it is ready to be challenged.</p>
+  <p class="sub" style="max-width:940px;margin-top:12px">After 18 months of commercial use, it is ready to be challenged. <span class="grad" style="font-weight:600">Your move.</span></p>
 
   <div class="stage">
     <div class="editor">
