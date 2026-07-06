@@ -17,7 +17,7 @@ Storm can be configured through `StormConfig`, system properties, Spring Boot's 
 | `storm.entity_cache.retention` | `default` | Cache retention mode: `default` or `light` |
 | `storm.template_cache.size` | `2048` | Maximum number of compiled templates to cache |
 | `storm.validation.record_mode` | `fail` | Record validation mode: `fail`, `warn`, or `none` |
-| `storm.validation.schema_mode` | `none` | Schema validation mode: `none`, `warn`, or `fail` (Spring Boot and Ktor) |
+| `storm.validation.schema_mode` | `fail` | Schema validation mode: `none`, `warn`, or `fail` (Spring Boot and Ktor) |
 | `storm.validation.strict` | `false` | Treat schema validation warnings as errors |
 | `storm.validation.interpolation_mode` | `warn` | Interpolation safety mode: `warn`, `fail`, or `none` (see [Interpolation Safety](#interpolation-safety)) |
 | `st.orm.scrollable.maxSize` | `1000` | Maximum window size allowed in a serialized cursor (system property only) |
@@ -88,7 +88,7 @@ storm:
     size: 2048
   validation:
     record-mode: fail
-    schema-mode: none
+    schema-mode: fail
     strict: false
 ```
 
@@ -112,7 +112,7 @@ storm {
     }
     validation {
         recordMode = "fail"
-        schemaMode = "none"
+        schemaMode = "fail"
         strict = false
     }
 }
@@ -759,4 +759,4 @@ java -Dstorm.validation.schema_mode=fail \
 - `storm.validation.schema_mode=fail` catches entity-to-schema mismatches at startup rather than at runtime.
 - `storm.validation.interpolation_mode=fail` prevents execution of templates that were not processed by the compiler plugin and do not use explicit `t()` calls, protecting against accidental SQL injection.
 
-During development, the defaults (`schema_mode=none`, `interpolation_mode=warn`) provide a smoother experience: schema validation is skipped (since the schema may be evolving), and missing compiler plugin usage is logged as a warning rather than blocking execution.
+In the Spring Boot starter and Ktor plugin, `schema_mode` already defaults to `fail`, so entity-to-schema mismatches abort startup out of the box; relax it to `warn` or `none` while a schema is still evolving. `interpolation_mode` defaults to `warn`, so missing compiler plugin usage is logged rather than blocking execution until you opt into `fail`.
