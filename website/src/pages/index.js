@@ -160,6 +160,15 @@ const CSS = `
     .storm-home .nav-toggle-cb:checked ~ .nav-links{display:flex}
     .storm-home .nav-links a{padding:13px 24px;font-size:15px}
     .storm-home .nav-links a.btn{margin:10px 24px 6px;justify-content:center}
+    /* On phones the editor wraps long lines instead of scrolling them. iOS
+       Safari desyncs the painted content of a composited overflow-x scroller
+       whose DOM is mutated per frame by the typewriter (stale tiles render at
+       an old scroll offset; #188 and #189 attacked paint and scroll position
+       and neither cured it). No scroller, no bug. The gutter goes too: line
+       numbers cannot align once a logical line spans several visual rows. */
+    .storm-home .gutter{display:none}
+    .storm-home #code{white-space:pre-wrap;overflow-wrap:break-word;overflow-x:visible;font-size:12.5px;line-height:22px;padding:18px 16px}
+    .storm-home #sqlpanel{white-space:pre-wrap;overflow-wrap:break-word;overflow-x:visible}
   }
 `;
 
