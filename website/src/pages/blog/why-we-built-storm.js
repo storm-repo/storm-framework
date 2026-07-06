@@ -14,7 +14,7 @@ const BODY = `
 <div class="art">
   <div class="crumbs"><a href="/blog/">Blog</a><span class="sep">/</span>Why we built ST/ORM</div>
   <h1>Why we built <span class="grad">ST/ORM</span></h1>
-  <p class="dek">This is not an ORM horror story. It is the story of how a team that was reasonably happy with its ORM still ended up building something different.</p>
+  <p class="dek"><em>&ldquo;We set out to build the model we would enjoy programming against.&rdquo;</em></p>
   <div class="meta"><span>September 2, 2025</span><span>Origin</span><span>6 min read</span></div>
 
   <h2>We used to reach for Hibernate by default</h2>
