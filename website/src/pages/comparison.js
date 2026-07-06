@@ -66,15 +66,15 @@ function buildBody() {
   const matrix = `
 <table class="cmp">
   <thead><tr>
-    <th>Feature</th><th>Storm</th><th>JPA / Hibernate</th><th>jOOQ</th><th>Exposed</th><th>Jimmer</th>
+    <th>Feature</th><th>Storm</th><th>JPA / Hibernate</th><th>jOOQ</th><th>Jimmer</th><th>Exposed</th>
   </tr></thead>
   <tbody>
-    <tr><td>Entity model</td><td>Immutable data class (~5 lines)</td><td>Mutable class (~30, ~10 with Lombok)</td><td>Generated from schema</td><td>DSL table object (+ optional DAO)</td><td>Immutable interface (KSP-generated)</td></tr>
-    <tr><td>Immutable entities</td><td>Yes</td><td>No</td><td>Yes</td><td>DSL only</td><td>Yes</td></tr>
+    <tr><td>Entity model</td><td>Immutable data class (~5 lines)</td><td>Mutable class (~30, ~10 with Lombok)</td><td>Generated from schema</td><td>Immutable interface (KSP-generated)</td><td>DSL table object (+ optional DAO)</td></tr>
+    <tr><td>Immutable entities</td><td>Yes</td><td>No</td><td>Yes</td><td>Yes</td><td>DSL only</td></tr>
     <tr><td>Type-safe queries</td><td>Yes</td><td>Criteria API</td><td>Yes</td><td>Yes</td><td>Yes</td></tr>
-    <tr><td>N+1 handling</td><td>Single-query entity graph</td><td>Common pitfall</td><td>Manual</td><td>Manual</td><td>Batched queries</td></tr>
-    <tr><td>Full SQL escape hatch</td><td>SQL templates</td><td>Native queries</td><td>It is SQL</td><td>Raw exec()</td><td>SQL expressions</td></tr>
-    <tr><td>Languages</td><td>Kotlin + Java</td><td>Kotlin + Java</td><td>Kotlin + Java</td><td>Kotlin only</td><td>Kotlin + Java</td></tr>
+    <tr><td>N+1 handling</td><td>Single-query entity graph</td><td>Common pitfall</td><td>Manual</td><td>Batched queries</td><td>Manual</td></tr>
+    <tr><td>Full SQL escape hatch</td><td>SQL templates</td><td>Native queries</td><td>It is SQL</td><td>SQL expressions</td><td>Raw exec()</td></tr>
+    <tr><td>Languages</td><td>Kotlin + Java</td><td>Kotlin + Java</td><td>Kotlin + Java</td><td>Kotlin + Java</td><td>Kotlin only</td></tr>
     <tr><td>License</td><td>Apache 2.0</td><td>LGPL 2.1</td><td>Commercial for some DBs</td><td>Apache 2.0</td><td>Apache 2.0</td></tr>
   </tbody>
 </table>`;
