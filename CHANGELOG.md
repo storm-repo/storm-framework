@@ -10,6 +10,22 @@ for the CLI, to [npm](https://www.npmjs.com/package/@storm-orm/cli)
 (`@storm-orm/cli`). Full release notes for every version are on the
 [GitHub Releases](https://github.com/storm-orm/storm-framework/releases) page.
 
+## [1.12.0] - 2026-07-06
+
+Feature release centered on the reified Kotlin query API. Breaking changes are accepted with no deprecation shims (1.12 policy).
+
+- `QueryBuilder`, `JoinBuilder`, and `TypedJoinBuilder` are now abstract classes (were interfaces) so they can host reified members; recompile against 1.12.
+- Schema validation now defaults to `fail` in the Spring Boot starters and the Ktor plugin; set `storm.validation.schema_mode` / `schemaMode` to `warn` or `none` to relax.
+- Added a reified Kotlin query API: reified joins (`innerJoin<Rating>().on<Movie>()`, `innerJoin<Owner, Pet>()`), selects (`select<R, _, _>`, `selectFrom<T, R>`), repository lookup (`entity<T, ID>()`), and `Query` result terminals (`resultList<T>()`, `resultFlow<T>()`, and friends).
+- Added `findBy` / `getBy` / `findAllBy` repository shortcuts (and `Ref` variants) for Java 21.
+- Added the `storm-ktor-koin` module: `Application.stormModule()` bridges the ORM template and auto-registered repositories into Koin.
+- Ktor: repositories auto-register when the `Storm` plugin is installed (`stormRepositories { }` is now optional); added a `migration { }` hook that runs before schema validation.
+- Foreign keys now follow key chains, resolving to the referenced key's columns for dependent one-to-one relationships; FK columns are schema-validated through the chain.
+- Dependency-aware join ordering fixes forward alias references that PostgreSQL rejected when outer joins are present; JSpecify `@NonNull` is now recognized for record-component nullability.
+- Typed joins onto projections resolve by table match; ambiguous foreign-key joins now fail fast with a descriptive error instead of a silent first match.
+- Fixed `@Json` binding to PostgreSQL `jsonb`, H2 natural-key upserts, and `@StormTest` script splitting on semicolons inside comments and literals.
+- Spring Boot 4 auto-configuration compatibility.
+
 ## [1.11.6] - 2026-07-01
 - Kotlin 2.4 support: added the `storm-compiler-plugin-2.4` variant built against the Kotlin 2.4.0 compiler API.
 - Fixed `@Convert` on an embedded (`@Inline`) component field failing on save.
@@ -116,6 +132,7 @@ for the CLI, to [npm](https://www.npmjs.com/package/@storm-orm/cli)
 For releases prior to 1.3.2, see the
 [GitHub Releases](https://github.com/storm-orm/storm-framework/releases) page.
 
+[1.12.0]: https://github.com/storm-orm/storm-framework/releases/tag/v1.12.0
 [1.11.6]: https://github.com/storm-orm/storm-framework/releases/tag/v1.11.6
 [1.11.5]: https://github.com/storm-orm/storm-framework/releases/tag/v1.11.5
 [1.11.4]: https://github.com/storm-orm/storm-framework/releases/tag/v1.11.4
