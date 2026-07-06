@@ -44,20 +44,47 @@ const CSS = `
   .storm-home header{padding:46px 0 34px}
   .storm-home h1{font-size:clamp(42px,7vw,78px);line-height:.97;letter-spacing:-.04em;font-weight:800;margin:0}
   .storm-home .grad{background:linear-gradient(100deg,#a78bfa,#818cf8 50%,#7dd3fc);-webkit-background-clip:text;background-clip:text;color:transparent}
-  /* Rotating hero line (replaces the static "Predictable Persistence"): all four
-     principles live in the DOM, stacked in one grid cell so the line never
-     reflows; the JS toggles the .in class to fade one in at a time. nowrap keeps
-     each principle on a single line, and the font scales with the viewport so
-     the longest one still fits. */
+  /* Rotating hero line: all taglines live in the DOM, stacked in one grid cell
+     so the line never reflows; the JS toggles the .in class to fade one in at a
+     time. nowrap keeps each tagline on a single line, and the font scales with
+     the viewport so the longest one still fits. */
   .storm-home .hero-rot{display:inline-grid;justify-items:start;vertical-align:top}
-  .storm-home .hero-rot span{grid-area:1/1;white-space:nowrap;font-size:clamp(30px,7vw,78px);font-weight:800;letter-spacing:-.04em;line-height:1.2;padding-bottom:.14em;
+  /* Direct children only ( > ): the ST/ORM copies contain a nested .slash span
+     that must not be hidden or animated as if it were a line of its own. */
+  .storm-home .hero-rot>span{grid-area:1/1;white-space:nowrap;font-size:clamp(30px,7vw,78px);font-weight:800;letter-spacing:-.04em;line-height:1.2;padding-bottom:.14em;
     opacity:0;transform:translateY(10px);transition:opacity .55s ease,transform .55s ease;pointer-events:none}
-  .storm-home .hero-rot span.in{opacity:1;transform:none}
-  @media(prefers-reduced-motion:reduce){.storm-home .hero-rot span{transition:none}}
+  /* The two "ST/ORM." copies (.travel on the bottom line, .ko on the top)
+     hide at each other's position, so toggling .in reads as one line of text
+     travelling between the hero rows while its color crossfades between white
+     and the gradient. --hero-gap (line distance) and --hero-up/--hero-down
+     (font-size ratio between the rows) are measured by the rotator JS since
+     they depend on the viewport. */
+  .storm-home .hero-rot>span.travel{transform:translateY(calc(var(--hero-gap,64px) * -1)) scale(var(--hero-up,1));transform-origin:left top}
+  .storm-home .hero-rot>span.in{opacity:1;transform:none;pointer-events:auto}
+  /* Each tagline is a door: the visible line (pointer-events on .in only) links
+     to quickstart, the comparison, or GitHub. Underline color is set explicitly
+     because the gradient text itself is transparent. */
+  .storm-home .hero-rot a:hover{text-decoration:underline;text-decoration-color:#a5b4fc;text-decoration-thickness:3px;text-underline-offset:7px}
+  /* Top hero line swaps in sync with the rotator: "Radically Simple." while the
+     bottom line reads "ST/ORM.", then "ST/ORM." moves up while the
+     taglines cycle below, so the product name is always on screen. Font metrics
+     inherit from the h1 (unlike .hero-rot, which scales down for long lines).
+     "Radically Simple." exits and re-enters from above, matching the direction
+     the travelling line pushes it. */
+  .storm-home .hero-swap{display:inline-grid;justify-items:start;vertical-align:top}
+  .storm-home .hero-swap>span{grid-area:1/1;white-space:nowrap;opacity:0;transform:translateY(-12px);transition:opacity .55s ease,transform .55s ease;pointer-events:none}
+  .storm-home .hero-swap>span.ko{transform:translateY(var(--hero-gap,64px)) scale(var(--hero-down,1));transform-origin:left top}
+  .storm-home .hero-swap>span.in{opacity:1;transform:none}
+  /* Inter's solidus descends below the baseline; raise it so it sits centered
+     on the caps in "ST/ORM." */
+  .storm-home h1 .slash{vertical-align:.06em}
+  @media(prefers-reduced-motion:reduce){.storm-home .hero-rot>span,.storm-home .hero-swap>span{transition:none}}
   /* On small screens the h1 min (42px) is too large for the longer principles to
      stay on one line, so scale the rotating line down a little below the hero. */
-  @media(max-width:600px){.storm-home .hero-rot span{font-size:clamp(20px,6vw,30px)}}
+  @media(max-width:600px){.storm-home .hero-rot>span{font-size:clamp(20px,6vw,30px)}}
   .storm-home .sub{max-width:600px;margin:24px 0 0;color:var(--muted);font-size:18px;line-height:1.62}
+  .storm-home .sub a{color:var(--accent);text-decoration:underline;text-underline-offset:3px}
+  .storm-home .sub a:hover{color:#9aa3ff}
   .storm-home .cta{display:flex;gap:14px;margin-top:32px;flex-wrap:wrap}
 
   /* editor */
@@ -189,14 +216,22 @@ const BODY = `
 </div></nav>
 
 <header><div class="wrap">
-  <h1>Radically Simple.<br><span class="hero-rot" id="valuesRotator">
-    <span class="grad in">Kotlin&nbsp;ORM.</span>
-    <span class="grad">Predictability over magic.</span>
-    <span class="grad">Stateless over sessions.</span>
-    <span class="grad">Immutable over managed.</span>
-    <span class="grad">Explicit over surprises.</span>
+  <h1><span class="hero-swap" id="heroTop">
+    <span class="in">Radically Simple.</span>
+    <span class="ko">ST<span class="slash">/</span>ORM for Kotlin.</span>
+  </span><br><span class="hero-rot" id="valuesRotator">
+    <span class="grad travel in">ST<span class="slash">/</span>ORM for Kotlin.</span>
+    <span class="grad"><a href="/quickstart">Try it.</a></span>
+    <span class="grad"><a href="/quickstart">Break it.</a></span>
+    <span class="grad"><a href="/comparison">Challenge it.</a></span>
+    <span class="grad"><a href="https://github.com/storm-orm/storm-framework">Love it.</a></span>
+    <span class="grad"><a href="https://github.com/storm-orm/storm-framework/discussions">Hate it.</a></span>
+    <span class="grad"><a href="https://github.com/storm-orm/storm-framework/discussions">Tell us.</a></span>
+    <span class="grad"><a href="https://github.com/storm-orm/storm-framework">Follow us.</a></span>
+    <span class="grad"><a href="https://github.com/storm-orm/storm-framework/discussions">Join us.</a></span>
   </span></h1>
-  <p class="sub" style="max-width:940px">Storm is a type-safe, SQL-first ORM for Kotlin. Concise data-class entities map cleanly to your database, and one-line queries keep your persistence layer small and expressive as your application grows. No proxies, no N+1, no persistence context.</p>
+  <p class="sub" style="max-width:940px">How would you design an ORM you would enjoy using? Immutable data-class entities? One-line queries, checked at compile time? No proxies, no N+1, no persistence context? That is ST/ORM.</p>
+  <p class="sub" style="max-width:940px;margin-top:12px">After 18 months of commercial use, it is ready to be challenged.</p>
 
   <div class="stage">
     <div class="editor">
@@ -554,19 +589,47 @@ export default function Home() {
     }
     runFrom(0);
 
-    // Rotate the "Choose Storm if you value …" principles, one at a time.
+    // Rotate the hero taglines, one at a time. While a tagline is showing, the
+    // top hero line swaps from "Radically Simple." to "ST/ORM." so the
+    // product name never leaves the screen. The two "ST/ORM." copies hide
+    // at each other's position (.travel/.ko in the CSS), which makes the swap
+    // look like the line physically moving between the hero rows; the distance
+    // and font-size ratio depend on the viewport, so measure them here.
     const valuesRotator = document.getElementById('valuesRotator');
+    const heroTop = document.getElementById('heroTop');
+    const measureHero = () => {
+      if (!heroTop || !valuesRotator) return;
+      const heroHeading = heroTop.parentElement;
+      const lineGap = valuesRotator.getBoundingClientRect().top - heroTop.getBoundingClientRect().top;
+      const topFontSize = parseFloat(getComputedStyle(heroTop.querySelector('span')).fontSize);
+      const bottomFontSize = parseFloat(getComputedStyle(valuesRotator.querySelector('span')).fontSize);
+      heroHeading.style.setProperty('--hero-gap', lineGap + 'px');
+      heroHeading.style.setProperty('--hero-up', String(topFontSize / bottomFontSize));
+      heroHeading.style.setProperty('--hero-down', String(bottomFontSize / topFontSize));
+    };
     let valuesTimer = null;
     if (valuesRotator) {
-      const valueItems = valuesRotator.querySelectorAll('span');
-      const baseDwell = 4000;
-      // The Kotlin ORM line (index 0) stays twice as long as the principles.
-      const dwellFor = (i) => (i === 0 ? baseDwell * 2 : baseDwell);
+      measureHero();
+      window.addEventListener('resize', measureHero);
+      if (document.fonts) document.fonts.ready.then(measureHero);
+      // Direct children only: the ST/ORM copies contain a nested .slash span
+      // that must not join the rotation.
+      const valueItems = valuesRotator.querySelectorAll(':scope > span');
+      const topItems = heroTop ? heroTop.querySelectorAll(':scope > span') : [];
+      // The two-word taglines read in a beat, so they cycle quickly; the
+      // ST/ORM line (index 0) is the resting state and holds much longer.
+      const taglineDwell = 2800;
+      const brandDwell = 8000;
+      const dwellFor = (i) => (i === 0 ? brandDwell : taglineDwell);
       let valueIndex = 0;
       const advance = () => {
         valueItems[valueIndex].classList.remove('in');
         valueIndex = (valueIndex + 1) % valueItems.length;
         valueItems[valueIndex].classList.add('in');
+        if (topItems.length === 2) {
+          topItems[0].classList.toggle('in', valueIndex === 0);
+          topItems[1].classList.toggle('in', valueIndex !== 0);
+        }
         valuesTimer = setTimeout(advance, dwellFor(valueIndex));
       };
       valuesTimer = setTimeout(advance, dwellFor(valueIndex));
@@ -577,6 +640,7 @@ export default function Home() {
       gen++;
       clearTimeout(timer);
       clearTimeout(valuesTimer);
+      window.removeEventListener('resize', measureHero);
       if(scenesEl) scenesEl.innerHTML='';
       if(sqlBtn) sqlBtn.removeEventListener('click',onSqlClick);
     };
