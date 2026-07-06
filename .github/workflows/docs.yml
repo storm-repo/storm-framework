@@ -123,8 +123,23 @@ jobs:
     runs-on: ubuntu-latest
     environment:
       name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
+      url: ${{ steps.deploy.outputs.page_url || steps.deploy-retry.outputs.page_url }}
     steps:
+      # GitHub Pages' backend intermittently fails during "syncing_files"
+      # ("Deployment failed, try again later"), and a fresh deployment then
+      # succeeds — which is why a manual rerun always worked. actions/deploy-pages
+      # does not retry a failed deployment, so do it here: attempt once, wait,
+      # and retry once before failing the job.
       - name: Deploy to GitHub Pages
-        id: deployment
+        id: deploy
+        continue-on-error: true
+        uses: actions/deploy-pages@v4
+
+      - name: Wait before retry
+        if: steps.deploy.outcome == 'failure'
+        run: sleep 45
+
+      - name: Deploy to GitHub Pages (retry)
+        id: deploy-retry
+        if: steps.deploy.outcome == 'failure'
         uses: actions/deploy-pages@v4
