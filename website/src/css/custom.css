@@ -27,7 +27,12 @@
    normal `display:table` (no forced overflow) so wide docs tables still reflow
    and scroll as before. */
 .markdown table {
-  width: 100%;
+  /* Wide comparison tables (e.g. Runtime & Ecosystem, 9 columns) exceed the
+     content column. Make the table a scroll container so it fits the screen
+     with an internal horizontal scrollbar instead of overflowing the page. */
+  display: block;
+  max-width: 100%;
+  overflow-x: auto;
 }
 .markdown table th,
 .markdown table td {

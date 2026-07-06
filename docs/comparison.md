@@ -11,14 +11,14 @@ The following tables provide a side-by-side comparison of concrete features acro
 
 ### Entity & Data Modeling
 
-| Feature | Storm | JPA | Spring Data | MyBatis | jOOQ | JDBI | Exposed | Ktorm | Jimmer |
-|---------|-------|-----|-------------|---------|------|------|---------|-------|--------|
-| Lines per entity | ~5 | ~30<sup>1</sup> | ~30<sup>1</sup> | ~20+ | Generated | ~15 | ~12 | ~15 | ~10 |
-| Immutable entities | Yes | No | No | Yes | Yes | Yes | DSL only | No | Yes |
-| Polymorphism | Yes<sup>2</sup> | Yes | Via JPA | No | No | No | No | No | No<sup>8</sup> |
-| Automatic relationships | Yes | Yes<sup>3</sup> | Via JPA | No | No | No | DAO only | No | Yes |
-| Cascade persist | No | Yes | Yes | No | No | No | No | No | Yes |
-| Lifecycle callbacks | Yes | Yes | Via JPA | No | Yes | No | DAO only | No | Yes |
+| Feature | Storm | JPA | Spring Data | MyBatis | jOOQ | JDBI | Jimmer | Exposed | Ktorm |
+|---------|-------|-----|-------------|---------|------|------|--------|---------|-------|
+| Lines per entity | ~5 | ~30<sup>1</sup> | ~30<sup>1</sup> | ~20+ | Generated | ~15 | ~10 | ~12 | ~15 |
+| Immutable entities | Yes | No | No | Yes | Yes | Yes | Yes | DSL only | No |
+| Polymorphism | Yes<sup>2</sup> | Yes | Via JPA | No | No | No | No<sup>8</sup> | No | No |
+| Automatic relationships | Yes | Yes<sup>3</sup> | Via JPA | No | No | No | Yes | DAO only | No |
+| Cascade persist | No | Yes | Yes | No | No | No | Yes | No | No |
+| Lifecycle callbacks | Yes | Yes | Via JPA | No | Yes | No | Yes | DAO only | No |
 
 <sup>1</sup> JPA/Spring Data lines without Lombok; ~10 lines with Lombok.
 
@@ -30,14 +30,14 @@ The following tables provide a side-by-side comparison of concrete features acro
 
 ### Querying & Data Access
 
-| Feature | Storm | JPA | Spring Data | MyBatis | jOOQ | JDBI | Exposed | Ktorm | Jimmer |
-|---------|-------|-----|-------------|---------|------|------|---------|-------|--------|
+| Feature | Storm | JPA | Spring Data | MyBatis | jOOQ | JDBI | Jimmer | Exposed | Ktorm |
+|---------|-------|-----|-------------|---------|------|------|--------|---------|-------|
 | Type-safe queries | Yes | Criteria | No | No | Yes | No | Yes | Yes | Yes |
-| SQL Templates | Yes | No | No | XML/Ann | Yes | Yes | No | No | Native<sup>9</sup> |
-| N+1 prevention | Yes | No | No | No | Manual | Manual | No | No | Yes |
-| Lazy loading | Refs | Yes | Yes | No | No | No | Yes | Yes | Fetchers |
+| SQL Templates | Yes | No | No | XML/Ann | Yes | Yes | Native<sup>9</sup> | No | No |
+| N+1 prevention | Yes | No | No | No | Manual | Manual | Yes | No | No |
+| Lazy loading | Refs | Yes | Yes | No | No | No | Fetchers | Yes | Yes |
 | Scrolling | Yes | No | Yes | No | Yes | No | No | No | No |
-| JSON columns | Yes | Yes<sup>4</sup> | Via JPA | Manual | Yes | Module | Yes | Module | Yes |
+| JSON columns | Yes | Yes<sup>4</sup> | Via JPA | Manual | Yes | Module | Yes | Yes | Module |
 | JSON aggregation | Yes | No | No | No | Yes | No | No | No | No |
 
 <sup>4</sup> JPA requires Hibernate 6.2+ for built-in JSON support; older versions need a third-party library or custom `AttributeConverter`.
@@ -46,16 +46,16 @@ The following tables provide a side-by-side comparison of concrete features acro
 
 ### Runtime & Ecosystem
 
-| Feature | Storm | JPA | Spring Data | MyBatis | jOOQ | JDBI | Exposed | Ktorm | Jimmer |
-|---------|-------|-----|-------------|---------|------|------|---------|-------|--------|
-| Transactions | Both | Both | Declarative | Both | Programmatic | Both | Both<sup>6</sup> | Required | Both |
-| Schema validation | Yes | Yes | Via JPA | No | N/A<sup>5</sup> | No | Yes | No | No |
-| Java support | Yes | Yes | Yes | Yes | Yes | Yes | No | No | Yes |
-| Kotlin support | First-class | Good | Good | Good | Good | Good | Native | Native | First-class |
-| Coroutines | Yes | No | No | No | No | No | Yes | Limited | No |
+| Feature | Storm | JPA | Spring Data | MyBatis | jOOQ | JDBI | Jimmer | Exposed | Ktorm |
+|---------|-------|-----|-------------|---------|------|------|--------|---------|-------|
+| Transactions | Both | Both | Declarative | Both | Programmatic | Both | Both | Both<sup>6</sup> | Required |
+| Schema validation | Yes | Yes | Via JPA | No | N/A<sup>5</sup> | No | No | Yes | No |
+| Java support | Yes | Yes | Yes | Yes | Yes | Yes | Yes | No | No |
+| Kotlin support | First-class | Good | Good | Good | Good | Good | First-class | Native | Native |
+| Coroutines | Yes | No | No | No | No | No | No | Yes | Limited |
 | Spring integration | Yes | Yes | Native | Yes | Yes | Yes | Yes | Yes | Yes |
-| Runtime mechanism | Codegen<sup>7</sup> | Bytecode | Bytecode | Reflection | Codegen | Reflection | Reflection | Reflection | Codegen |
-| Community | New | Huge | Huge | Large | Medium | Medium | Medium | Small | Small |
+| Runtime mechanism | Codegen<sup>7</sup> | Bytecode | Bytecode | Reflection | Codegen | Reflection | Codegen | Reflection | Reflection |
+| Community | New | Huge | Huge | Large | Medium | Medium | Small | Medium | Small |
 
 <sup>5</sup> jOOQ generates code from the database schema, so schema validation is inherent in its code generation step.
 
