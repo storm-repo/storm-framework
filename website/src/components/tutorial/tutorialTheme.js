@@ -380,7 +380,7 @@ export const TUT_CSS = `
   /* comparison table — framed card, horizontal rules only (no boxy grid),
      the outer border closes the bottom so the last row never looks unfinished.
      Explicitly zeroes cell borders so Infima's default grid does not bleed
-     through. Column 2 is the Storm column in every comparison, so it is tinted. */
+     through. */
   .storm-tut table.cmp{width:100%;border-collapse:separate;border-spacing:0;margin:26px 0 0;font-size:14px;
     background:var(--panel-2);border:1px solid var(--border);border-radius:12px;overflow:hidden}
   .storm-tut .cmp th,.storm-tut .cmp td{border:0;text-align:left;padding:13px 16px;vertical-align:top;line-height:1.55}
@@ -390,11 +390,13 @@ export const TUT_CSS = `
   .storm-tut .cmp tbody tr:first-child td{border-top:0}
   .storm-tut .cmp tbody tr:nth-child(even) td{background:rgba(255,255,255,.014)}
   .storm-tut .cmp td:first-child{color:var(--text);font-weight:600}
-  /* The Storm column carries the brand gradient: clipped into the header text
-     (like .grad) and washed at low alpha across the cells, so the column reads
-     as one highlighted band. */
-  .storm-tut .cmp thead th:nth-child(2){background:linear-gradient(100deg,#a78bfa,#818cf8 50%,#7dd3fc);-webkit-background-clip:text;background-clip:text;color:transparent}
-  .storm-tut .cmp tbody tr td:nth-child(2){background:linear-gradient(100deg,rgba(129,140,248,.30),rgba(96,165,250,.26) 50%,rgba(125,211,252,.34));color:var(--text);font-weight:500}
+  /* The brand gradient on the Storm column is reserved for the .cmp-brand
+     matrix on the /comparison page, so it stays a distinctive flourish there.
+     Tutorial comparison tables use plain .cmp and keep column 2 unstyled.
+     Clipped into the header text (like .grad) and washed at low alpha across
+     the cells, so the column reads as one highlighted band. */
+  .storm-tut .cmp-brand thead th:nth-child(2){background:linear-gradient(100deg,#a78bfa,#818cf8 50%,#7dd3fc);-webkit-background-clip:text;background-clip:text;color:transparent}
+  .storm-tut .cmp-brand tbody tr td:nth-child(2){background:linear-gradient(100deg,rgba(129,140,248,.30),rgba(96,165,250,.26) 50%,rgba(125,211,252,.34));color:var(--text);font-weight:500}
   /* let long inline code wrap inside cells instead of forcing the table wider
      than its container (which the rounded overflow:hidden would then clip) */
   .storm-tut .cmp th code,.storm-tut .cmp td code{white-space:normal;word-break:break-word}
