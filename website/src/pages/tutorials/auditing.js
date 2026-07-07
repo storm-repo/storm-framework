@@ -90,7 +90,7 @@ ${navHtml('tutorials')}
   </div>
   <div class="cta">
     <a href="/docs/getting-started" class="btn primary">Get started →</a>
-    <a href="https://github.com/storm-orm/storm-framework" class="btn">Star on GitHub</a>
+    <a href="https://github.com/storm-orm/storm-framework" target="_blank" rel="noopener" class="btn">Star on GitHub</a>
   </div>
 </div>
 

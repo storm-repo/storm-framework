@@ -5,10 +5,12 @@ import {TUT_CSS, navHtml, FOOT_HTML, wireSqlToggles} from '../components/tutoria
 // The comparison page at /comparison, in the landing/tutorial style. A
 // scannable, code-light companion to the in-depth docs/comparison.md: a
 // decision matrix plus a compact card per framework, each linking to the full
-// docs pairing. Jimmer is treated exactly like the other frameworks (a matrix
-// column and a card), with its detailed pairing living in the docs alongside
-// the rest. Kept fair per the project's competitor-copy rule: only differences
-// that are real and that the rival does not already cover are called out.
+// docs pairing. Jimmer has a card but no matrix column: the matrix stays at
+// the mainstream decision set for readability, while the card and its docs
+// pairing cover the closest peer in the place that can express the real
+// difference (conciseness). Kept fair per the project's competitor-copy rule:
+// only differences that are real and that the rival does not already cover
+// are called out.
 
 const TITLE = 'Comparison · Storm vs JPA, jOOQ, Exposed, Jimmer';
 const DESC =
@@ -66,16 +68,21 @@ function buildBody() {
   const matrix = `
 <table class="cmp">
   <thead><tr>
-    <th>Feature</th><th>Storm</th><th>JPA / Hibernate</th><th>jOOQ</th><th>Jimmer</th><th>Exposed</th><th>Ktorm</th>
+    <th>Feature</th><th>Storm</th><th>JPA / Hibernate</th><th>jOOQ</th><th>Exposed</th><th>Ktorm</th>
   </tr></thead>
   <tbody>
-    <tr><td>Entity model</td><td>Immutable data class (~5 lines)</td><td>Mutable class (~30, ~10 with Lombok)</td><td>Generated from schema</td><td>Immutable interface (KSP-generated)</td><td>DSL table object (+ optional DAO)</td><td>Mutable interface (+ DSL table)</td></tr>
-    <tr><td>Immutable entities</td><td>Yes</td><td>No</td><td>Yes</td><td>Yes</td><td>DSL only</td><td>No</td></tr>
-    <tr><td>Type-safe queries</td><td>Yes</td><td>Criteria API</td><td>Yes</td><td>Yes</td><td>Yes</td><td>Yes</td></tr>
-    <tr><td>N+1 handling</td><td>Single-query entity graph</td><td>Common pitfall</td><td>Manual</td><td>Batched queries</td><td>Manual</td><td>Manual</td></tr>
-    <tr><td>Full SQL escape hatch</td><td>SQL templates</td><td>Native queries</td><td>It is SQL</td><td>SQL expressions</td><td>Raw exec()</td><td>Raw JDBC</td></tr>
-    <tr><td>Languages</td><td>Kotlin + Java</td><td>Kotlin + Java</td><td>Kotlin + Java</td><td>Kotlin + Java</td><td>Kotlin only</td><td>Kotlin only</td></tr>
-    <tr><td>License</td><td>Apache 2.0</td><td>LGPL 2.1</td><td>Commercial for some DBs</td><td>Apache 2.0</td><td>Apache 2.0</td><td>Apache 2.0</td></tr>
+    <tr><td>Entity model</td><td>Immutable data class (~5 lines)</td><td>Mutable class (~30, ~10 with Lombok)</td><td>Generated from schema</td><td>DSL table object (+ optional DAO)</td><td>Mutable interface (+ DSL table)</td></tr>
+    <tr><td>Immutable entities</td><td>Yes</td><td>No</td><td>Yes</td><td>DSL only</td><td>No</td></tr>
+    <tr><td>Type-safe queries</td><td>Yes</td><td>Criteria API</td><td>Yes</td><td>Yes</td><td>Yes</td></tr>
+    <tr><td>N+1 handling</td><td>Single-query entity graph</td><td>Common pitfall</td><td>Manual</td><td>Manual</td><td>Manual</td></tr>
+    <tr><td>Query across relations</td><td>One line: joins and mapping derived from @FK</td><td>JPQL strings or Criteria builders</td><td>Implicit path joins + multiset</td><td>Manual joins and row mapping</td><td>Manual joins</td></tr>
+    <tr><td>Session state</td><td>None: no session, no flush</td><td>Persistence context, flush, dirty checking</td><td>None</td><td>DSL none · DAO transaction-bound</td><td>Per-entity change tracking</td></tr>
+    <tr><td>Deferred loading</td><td>Explicit Ref&lt;T&gt;</td><td>Proxies, session-bound</td><td>Not applicable</td><td>DAO lazy, transaction-bound</td><td>Manual joins</td></tr>
+    <tr><td>Standalone transactions</td><td>Propagation, isolation, timeout, commit hooks</td><td>EntityTransaction · JTA/Spring for more</td><td>Lambda API, nested</td><td>Nested, isolation config</td><td>Lambda API</td></tr>
+    <tr><td>Row mapping</td><td>Compile-time generated, reflection-free</td><td>Reflection / bytecode</td><td>Generated records</td><td>Manual (DSL)</td><td>Dynamic proxies</td></tr>
+    <tr><td>Full SQL escape hatch</td><td>SQL / SQL templates</td><td>Native queries</td><td>It is SQL</td><td>Raw exec()</td><td>Raw JDBC</td></tr>
+    <tr><td>Languages</td><td>Kotlin + Java</td><td>Kotlin + Java</td><td>Kotlin + Java</td><td>Kotlin only</td><td>Kotlin only</td></tr>
+    <tr><td>License</td><td>Apache 2.0</td><td>LGPL 2.1</td><td>Commercial for some DBs</td><td>Apache 2.0</td><td>Apache 2.0</td></tr>
   </tbody>
 </table>`;
 
