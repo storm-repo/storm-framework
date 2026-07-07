@@ -66,7 +66,7 @@ const FRAMEWORKS = [
 
 function buildBody() {
   const matrix = `
-<table class="cmp">
+<table class="cmp cmp-brand">
   <thead><tr>
     <th>Feature</th><th>Storm</th><th>JPA / Hibernate</th><th>jOOQ</th><th>Exposed</th><th>Ktorm</th>
   </tr></thead>
