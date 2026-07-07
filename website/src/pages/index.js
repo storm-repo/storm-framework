@@ -39,6 +39,12 @@ const CSS = `
   .storm-home .btn:hover{border-color:#34343d;transform:translateY(-1px)}
   .storm-home .btn.primary{background:var(--accent);color:#0a0a0f;border-color:var(--accent);font-weight:600}
   .storm-home .btn.primary:hover{background:#9aa3ff}
+  /* The hero conversion button is filled with the brand gradient (the same one
+     .grad clips into the hero text), so it pops by brightness while staying
+     perfectly on-palette. Border off: it can't take a gradient and the fill
+     supplies the edge. */
+  .storm-home .btn.primary.go{background:linear-gradient(100deg,#a78bfa,#818cf8 50%,#7dd3fc);border-color:transparent}
+  .storm-home .btn.primary.go:hover{filter:brightness(1.12)}
 
   /* hero — left aligned */
   .storm-home header{padding:46px 0 34px}
@@ -81,15 +87,24 @@ const CSS = `
   @media(prefers-reduced-motion:reduce){.storm-home .hero-rot>span,.storm-home .hero-swap>span{transition:none}}
   /* On small screens the h1 min (42px) is too large for the longer principles to
      stay on one line, so scale the rotating line down a little below the hero. */
-  @media(max-width:600px){.storm-home .hero-rot>span{font-size:clamp(20px,6vw,30px)}}
+  @media(max-width:600px){
+    .storm-home .hero-rot>span{font-size:clamp(20px,6vw,30px)}
+    /* Tighten the fold: campaign traffic is ~100% mobile and the hero CTA must
+       be tappable without scrolling, so shrink the header spacing and sub copy
+       and stack the buttons full-width. */
+    .storm-home header{padding:30px 0 26px}
+    .storm-home .sub{font-size:15.5px;margin-top:18px}
+    .storm-home .hero-cta{margin-top:20px}
+    .storm-home .hero-cta .btn{flex:1 1 100%;justify-content:center;height:44px}
+    .storm-home .stage{margin-top:34px}
+  }
   .storm-home .sub{max-width:600px;margin:24px 0 0;color:var(--muted);font-size:18px;line-height:1.62}
   .storm-home .sub a{color:var(--accent);text-decoration:underline;text-underline-offset:3px}
   .storm-home .sub a:hover{color:#9aa3ff}
-  /* "Your move." keeps the hero gradient (transparent color, so the generic
-     .sub a accent must not win) and only reveals its underline on hover. */
-  .storm-home .sub a.hero-move{font-weight:600;color:transparent;text-decoration:none}
-  .storm-home .sub a.hero-move:hover{text-decoration:underline;text-decoration-color:#a5b4fc;text-decoration-thickness:2px;text-underline-offset:4px}
   .storm-home .cta{display:flex;gap:14px;margin-top:32px;flex-wrap:wrap}
+  /* Hero CTA: the primary conversion action, kept high so it sits above the
+     fold on phones. */
+  .storm-home .hero-cta{margin-top:26px}
 
   /* editor */
   .storm-home .stage{margin:54px 0 0;max-width:880px}
@@ -214,7 +229,7 @@ const BODY = `
     <a href="/comparison">Comparison</a>
     <a href="/blog/">Blog</a>
     <a href="/docs/">Docs</a>
-    <a class="gh" href="https://github.com/orgs/storm-orm/repositories">GitHub</a>
+    <a class="gh" href="https://github.com/orgs/storm-orm/repositories" target="_blank" rel="noopener">GitHub</a>
     <a href="/quickstart" class="btn primary" style="height:36px">Get started</a>
   </div>
 </div></nav>
@@ -228,14 +243,17 @@ const BODY = `
     <span class="grad"><a href="/quickstart">Try it.</a></span>
     <span class="grad"><a href="/quickstart">Break it.</a></span>
     <span class="grad"><a href="/comparison">Challenge it.</a></span>
-    <span class="grad"><a href="https://github.com/storm-orm/storm-framework">Love it.</a></span>
-    <span class="grad"><a href="https://github.com/storm-orm/storm-framework/discussions">Hate it.</a></span>
-    <span class="grad"><a href="https://github.com/storm-orm/storm-framework/discussions">Tell us.</a></span>
-    <span class="grad"><a href="https://github.com/storm-orm/storm-framework">Follow us.</a></span>
-    <span class="grad"><a href="https://github.com/storm-orm/storm-framework/discussions">Join us.</a></span>
+    <span class="grad"><a href="https://github.com/storm-orm/storm-framework" target="_blank" rel="noopener">Love it.</a></span>
+    <span class="grad"><a href="https://github.com/storm-orm/storm-framework/discussions" target="_blank" rel="noopener">Hate it.</a></span>
+    <span class="grad"><a href="https://github.com/storm-orm/storm-framework/discussions" target="_blank" rel="noopener">Tell us.</a></span>
+    <span class="grad"><a href="https://github.com/storm-orm/storm-framework" target="_blank" rel="noopener">Follow us.</a></span>
+    <span class="grad"><a href="https://github.com/storm-orm/storm-framework/discussions" target="_blank" rel="noopener">Join us.</a></span>
   </span></h1>
   <p class="sub" style="max-width:940px">How would you design an ORM you would enjoy using? Immutable data-class entities? One-line queries, checked at compile time? No proxies, no N+1, no persistence context? That is ST/ORM.</p>
-  <p class="sub" style="max-width:940px;margin-top:12px">After 18 months of commercial use, it is ready to be challenged. <a href="/quickstart" class="grad hero-move">Your move.</a></p>
+  <div class="cta hero-cta">
+    <a href="/quickstart" class="btn primary go">Try it in 5 minutes →</a>
+    <a href="/comparison" class="btn">Compare with your ORM</a>
+  </div>
 
   <div class="stage">
     <div class="editor">
@@ -304,13 +322,13 @@ const BODY = `
   <div class="cta" style="justify-content:center;margin-top:56px">
     <a href="/quickstart" class="btn primary">Get started →</a>
     <a href="/examples/" class="btn">Example apps</a>
-    <a href="https://github.com/storm-orm/storm-framework" class="btn">Star on GitHub</a>
+    <a href="https://github.com/storm-orm/storm-framework" target="_blank" rel="noopener" class="btn">Star on GitHub</a>
   </div>
 </div></section>
 
 <footer><div class="wrap foot">
   <div class="brand"><img class="logo" src="/img/storm-light.png" alt="Storm" /></div>
-  <div class="links"><a href="/">orm.st</a><a href="/tutorials/">Tutorials</a><a href="/examples/">Examples</a><a href="/comparison">Comparison</a><a href="/blog/">Blog</a><a href="https://github.com/storm-orm/storm-framework">GitHub</a><a href="https://central.sonatype.com/namespace/st.orm">Maven Central</a></div>
+  <div class="links"><a href="/">orm.st</a><a href="/tutorials/">Tutorials</a><a href="/examples/">Examples</a><a href="/comparison">Comparison</a><a href="/blog/">Blog</a><a href="https://github.com/storm-orm/storm-framework" target="_blank" rel="noopener">GitHub</a><a href="https://central.sonatype.com/namespace/st.orm">Maven Central</a></div>
 </div></footer>
 `;
 

@@ -15,6 +15,7 @@ The following tables provide a side-by-side comparison of concrete features acro
 |---------|-------|-----|-------------|---------|------|------|--------|---------|-------|
 | Lines per entity | ~5 | ~30<sup>1</sup> | ~30<sup>1</sup> | ~20+ | Generated | ~15 | ~10 | ~12 | ~15 |
 | Immutable entities | Yes | No | No | Yes | Yes | Yes | Yes | DSL only | No |
+| Session state | None | Persistence context | Via JPA | None | None | None | None | DAO only | Entity tracking |
 | Polymorphism | Yes<sup>2</sup> | Yes | Via JPA | No | No | No | No<sup>8</sup> | No | No |
 | Automatic relationships | Yes | Yes<sup>3</sup> | Via JPA | No | No | No | Yes | DAO only | No |
 | Cascade persist | No | Yes | Yes | No | No | No | Yes | No | No |
@@ -33,8 +34,9 @@ The following tables provide a side-by-side comparison of concrete features acro
 | Feature | Storm | JPA | Spring Data | MyBatis | jOOQ | JDBI | Jimmer | Exposed | Ktorm |
 |---------|-------|-----|-------------|---------|------|------|--------|---------|-------|
 | Type-safe queries | Yes | Criteria | No | No | Yes | No | Yes | Yes | Yes |
-| SQL Templates | Yes | No | No | XML/Ann | Yes | Yes | Native<sup>9</sup> | No | No |
+| SQL / SQL templates | Yes | Native queries | Via JPA | XML/Ann | Yes | Yes | Native<sup>9</sup> | exec() | Raw JDBC |
 | N+1 prevention | Yes | No | No | No | Manual | Manual | Yes | No | No |
+| Query across relations | One line | JPQL/Criteria | Derived/JPQL | Manual SQL | Path joins | Manual SQL | Implicit joins | Manual joins | Manual joins |
 | Lazy loading | Refs | Yes | Yes | No | No | No | Fetchers | Yes | Yes |
 | Scrolling | Yes | No | Yes | No | Yes | No | No | No | No |
 | JSON columns | Yes | Yes<sup>4</sup> | Via JPA | Manual | Yes | Module | Yes | Yes | Module |

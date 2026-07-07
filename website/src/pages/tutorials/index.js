@@ -165,7 +165,7 @@ ${navHtml('tutorials')}
     <span>Composite and natural keys</span>
     <span>Entity caching and dirty checking</span>
   </div>
-  <p>Want one of these sooner, or a topic that is not listed? <a href="https://github.com/storm-orm/storm-framework/issues">Open an issue on GitHub</a>.</p>
+  <p>Want one of these sooner, or a topic that is not listed? <a href="https://github.com/storm-orm/storm-framework/issues" target="_blank" rel="noopener">Open an issue on GitHub</a>.</p>
 </div>
 
 ${FOOT_HTML}
