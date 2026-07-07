@@ -85,6 +85,10 @@ const CSS = `
   .storm-home .sub{max-width:600px;margin:24px 0 0;color:var(--muted);font-size:18px;line-height:1.62}
   .storm-home .sub a{color:var(--accent);text-decoration:underline;text-underline-offset:3px}
   .storm-home .sub a:hover{color:#9aa3ff}
+  /* "Your move." keeps the hero gradient (transparent color, so the generic
+     .sub a accent must not win) and only reveals its underline on hover. */
+  .storm-home .sub a.hero-move{font-weight:600;color:transparent;text-decoration:none}
+  .storm-home .sub a.hero-move:hover{text-decoration:underline;text-decoration-color:#a5b4fc;text-decoration-thickness:2px;text-underline-offset:4px}
   .storm-home .cta{display:flex;gap:14px;margin-top:32px;flex-wrap:wrap}
 
   /* editor */
@@ -231,7 +235,7 @@ const BODY = `
     <span class="grad"><a href="https://github.com/storm-orm/storm-framework/discussions">Join us.</a></span>
   </span></h1>
   <p class="sub" style="max-width:940px">How would you design an ORM you would enjoy using? Immutable data-class entities? One-line queries, checked at compile time? No proxies, no N+1, no persistence context? That is ST/ORM.</p>
-  <p class="sub" style="max-width:940px;margin-top:12px">After 18 months of commercial use, it is ready to be challenged.</p>
+  <p class="sub" style="max-width:940px;margin-top:12px">After 18 months of commercial use, it is ready to be challenged. <a href="/quickstart" class="grad hero-move">Your move.</a></p>
 
   <div class="stage">
     <div class="editor">
