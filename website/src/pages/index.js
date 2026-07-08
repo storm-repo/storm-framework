@@ -675,7 +675,7 @@ export default function Home() {
         <title>Storm · The type-safe Kotlin ORM</title>
         <meta
           name="description"
-          content="Storm is a type-safe, SQL-first Kotlin ORM. Concise data-class entities, one-line queries, immutable records. Every query explicit: no proxies, no N+1, no persistence context."
+          content="Storm is a type-safe, SQL-first Kotlin ORM. Immutable data-class entities, one-line queries checked at compile time, no proxies, no N+1. Try it in 5 minutes."
         />
         <meta
           name="keywords"
@@ -691,7 +691,7 @@ export default function Home() {
         />
         <meta
           property="og:description"
-          content="Storm is a type-safe, SQL-first Kotlin ORM. Concise data-class entities, one-line queries, immutable records. Every query explicit: no proxies, no N+1, no persistence context."
+          content="Storm is a type-safe, SQL-first Kotlin ORM. Immutable data-class entities, one-line queries checked at compile time, no proxies, no N+1. Try it in 5 minutes."
         />
         <meta
           name="twitter:title"
@@ -699,7 +699,7 @@ export default function Home() {
         />
         <meta
           name="twitter:description"
-          content="Storm is a type-safe, SQL-first Kotlin ORM. Concise data-class entities, one-line queries, immutable records. Every query explicit: no proxies, no N+1, no persistence context."
+          content="Storm is a type-safe, SQL-first Kotlin ORM. Immutable data-class entities, one-line queries checked at compile time, no proxies, no N+1. Try it in 5 minutes."
         />
         {/* Structured data so search engines can identify Storm as a
             developer tool for Kotlin/Java and consolidate it with its GitHub
