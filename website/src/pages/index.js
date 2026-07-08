@@ -320,8 +320,8 @@ const BODY = `
   <h2>Write code worth reading.</h2>
   <p class="sub" style="margin:0 auto 30px;text-align:center;max-width:940px">Concise entities and one-line queries keep you productive. Immutable records simplify your architecture by letting the same types flow through your application layers. Storm is built for engineers who care about beautiful code.</p>
   <div class="cta" style="justify-content:center;margin-top:56px">
-    <a href="/quickstart" class="btn primary">Get started →</a>
-    <a href="/examples/" class="btn">Example apps</a>
+    <a href="/quickstart" class="btn primary go">Try it in 5 minutes →</a>
+    <a href="/comparison" class="btn">Compare with your ORM</a>
     <a href="https://github.com/storm-orm/storm-framework" target="_blank" rel="noopener" class="btn">Star on GitHub</a>
   </div>
 </div></section>
