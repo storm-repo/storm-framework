@@ -49,6 +49,7 @@ import st.orm.DbColumn;
 import st.orm.DbTable;
 import st.orm.Entity;
 import st.orm.FK;
+import st.orm.Metamodel;
 import st.orm.PK;
 import st.orm.Persist;
 import st.orm.PersistenceException;
@@ -82,6 +83,17 @@ public class TemplatePreparedStatementIntegrationTest {
 
     @Autowired
     private PetRepository petRepository;
+
+    @Test
+    public void testSelectCompoundPkComponent() {
+        // Compound key component metamodels resolve to their individual column in templates.
+        try (var query = ORMTemplate.of(dataSource).query(raw("""
+                SELECT DISTINCT \0
+                FROM \0""", Metamodel.of(VetSpecialty.class, "id.specialtyId"), VetSpecialty.class)).prepare();
+             var stream = query.getResultStream(Integer.class)) {
+            assertFalse(stream.filter(Objects::nonNull).toList().isEmpty());
+        }
+    }
 
     @Test
     public void testSelectPet() {

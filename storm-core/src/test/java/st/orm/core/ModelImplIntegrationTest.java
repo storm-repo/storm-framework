@@ -2,6 +2,7 @@ package st.orm.core;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -14,6 +15,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.orm.jpa.DataJpaTest;
 import org.springframework.test.context.ContextConfiguration;
 import org.springframework.test.context.junit.jupiter.SpringExtension;
+import st.orm.Metamodel;
 import st.orm.core.model.City;
 import st.orm.core.model.Owner;
 import st.orm.core.model.Pet;
@@ -320,6 +322,23 @@ public class ModelImplIntegrationTest {
         var declaredColumns = model.declaredColumns();
         long primaryKeyColumnCount = declaredColumns.stream().filter(Column::primaryKey).count();
         assertEquals(2, primaryKeyColumnCount, "VetSpecialty should have 2 primary key columns");
+    }
+
+    @Test
+    public void testVetSpecialtyCompoundPkComponentColumns() throws Exception {
+        // Per-component metamodels of a compound key resolve to their individual column, while the
+        // compound key's own metamodel keeps resolving to all key columns.
+        var orm = ORMTemplate.of(dataSource);
+        var model = orm.entity(VetSpecialty.class).model();
+        var vetIdColumns = model.getColumns(Metamodel.of(VetSpecialty.class, "id.vetId"));
+        assertEquals(1, vetIdColumns.size());
+        var specialtyIdColumns = model.getColumns(Metamodel.of(VetSpecialty.class, "id.specialtyId"));
+        assertEquals(1, specialtyIdColumns.size());
+        assertNotEquals(vetIdColumns.getFirst().name(), specialtyIdColumns.getFirst().name());
+        var compoundColumns = model.getColumns(Metamodel.of(VetSpecialty.class, "id"));
+        assertEquals(2, compoundColumns.size());
+        assertTrue(compoundColumns.contains(vetIdColumns.getFirst()));
+        assertTrue(compoundColumns.contains(specialtyIdColumns.getFirst()));
     }
 
     // Visit model with @Version timestamp
