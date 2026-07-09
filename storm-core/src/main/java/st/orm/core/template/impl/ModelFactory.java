@@ -448,7 +448,12 @@ final class ModelFactory {
                 return;
             }
             ColumnName columnName = getColumnName(field, ctx.builder().columnNameResolver());
-            emitColumns(ctx, field, columnMetamodel, null, spec, keyScope, List.of(columnName), List.of(spec.dataType()), List.of(spec.dataType()));
+            // Compound key components are registered under the key's group metamodel so that compound
+            // lookups resolve to all key columns. The component's own metamodel is retained as the
+            // secondary metamodel so that per-component metamodels, as exposed by generated metamodel
+            // classes and Key.flatten(), resolve to their individual column as well.
+            Metamodel<Data, ?> componentMetamodel = columnMetamodel != ownMetamodel ? ownMetamodel : null;
+            emitColumns(ctx, field, columnMetamodel, componentMetamodel, spec, keyScope, List.of(columnName), List.of(spec.dataType()), List.of(spec.dataType()));
         } catch (SqlTemplateException e) {
             throw new UncheckedSqlTemplateException(e);
         }

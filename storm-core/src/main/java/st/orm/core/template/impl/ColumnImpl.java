@@ -41,7 +41,8 @@ import st.orm.core.template.SqlDialect;
  * @param version whether the column is a version column.
  * @param ref whether the column is a lazily fetched record.
  * @param metamodel the metamodel for the column.
- * @param secondaryMetamodel the secondary metamodel for the column, in case of foreign keys.
+ * @param secondaryMetamodel the secondary metamodel for the column: the referenced primary key metamodel for
+ *                           foreign keys, or the component's own metamodel for compound key components.
  */
 public record ColumnImpl(
         @Nonnull Name columnName,
