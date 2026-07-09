@@ -114,15 +114,18 @@ class ORMConfiguration(private val dataSource: DataSource) {
 
 ### Transaction Integration
 
-By default, Storm manages its own transactions independently of Spring's transaction context. The `@EnableTransactionIntegration` annotation bridges the two systems so that Storm's programmatic `transaction` and `transactionBlocking` blocks participate in Spring-managed transactions. Without this annotation, a transaction block inside a `@Transactional` method would open a separate database connection and transaction.
+A template created with `dataSource.orm` manages its own transactions, independently of Spring's transaction context: a transaction block inside a `@Transactional` method would open a separate database connection and transaction. To wire a template to Spring's transaction management instead, compose it with `springOrmTemplate`, which hands the Spring-aware connection and transaction providers to that specific template. Since 1.13 the integration is per template rather than JVM-global, so multiple application contexts, and plain templates next to Spring-managed ones, coexist without interference.
 
 ```kotlin
-@EnableTransactionIntegration
 @Configuration
-class ORMConfiguration(private val dataSource: DataSource) {
+@EnableTransactionManagement
+class ORMConfiguration {
 
     @Bean
-    fun ormTemplate(): ORMTemplate = dataSource.orm
+    fun ormTemplate(
+        dataSource: DataSource,
+        transactionManagers: ObjectProvider<PlatformTransactionManager>,
+    ): ORMTemplate = springOrmTemplate(dataSource) { transactionManagers.orderedStream().toList() }
 }
 ```
 
@@ -460,9 +463,9 @@ The Spring Boot Starter modules provide zero-configuration setup for Storm. Add 
 
 The starter auto-configures:
 
-1. **`ORMTemplate` bean** created from the auto-configured `DataSource`. If you define your own `ORMTemplate` bean, the auto-configured one backs off.
+1. **`ORMTemplate` bean** created from the auto-configured `DataSource`, composed with the Spring-aware integration strategies below. If you define your own `ORMTemplate` bean, the auto-configured one backs off.
 2. **Repository scanning** via `AutoConfiguredRepositoryBeanFactoryPostProcessor`, which discovers repository interfaces in the `@SpringBootApplication` base package (and its sub-packages). If you define your own `RepositoryBeanFactoryPostProcessor` bean, the auto-configured one backs off.
-3. **Transaction integration** (Kotlin only) by automatically activating `SpringTransactionConfiguration`, removing the need for `@EnableTransactionIntegration`.
+3. **Transaction integration** through Spring-aware `ConnectionProvider` and `TransactionTemplateProvider` beans, contributed when a `PlatformTransactionManager` is present and handed to the template it creates. Nothing is registered globally: each application context gets its own, correctly matched transaction integration. Define your own `ConnectionProvider` or `TransactionTemplateProvider` bean to override, and optionally contribute `ExceptionMapper` or `QueryObserver` beans, which are applied to the template the same way.
 4. **Configuration properties** bound from `storm.*` in `application.yml`/`application.properties`, passed to the `ORMTemplate` via `StormConfig`.
 
 ### Minimal Spring Boot Setup (with Starter)
@@ -549,11 +552,13 @@ If you use the integration module directly (without the starter), you need to co
 class Application
 
 @Configuration
-@EnableTransactionIntegration
-class StormConfig(private val dataSource: DataSource) {
+class StormConfig {
 
     @Bean
-    fun ormTemplate() = dataSource.orm
+    fun ormTemplate(
+        dataSource: DataSource,
+        transactionManagers: ObjectProvider<PlatformTransactionManager>,
+    ): ORMTemplate = springOrmTemplate(dataSource) { transactionManagers.orderedStream().toList() }
 }
 
 @Configuration
@@ -586,7 +591,7 @@ public void doWork() {
 
 ## Transaction Propagation
 
-When `@EnableTransactionIntegration` is active, Storm's programmatic transactions participate in Spring's transaction propagation. This means a `transaction` or `transactionBlocking` block checks for an existing Spring-managed transaction before starting a new one. If a transaction already exists, the block joins it. If not, it creates a new independent transaction.
+When a template is wired to Spring's transaction management (via `springOrmTemplate` or the starter), Storm's programmatic transactions participate in Spring's transaction propagation. This means a `transaction` or `transactionBlocking` block checks for an existing Spring-managed transaction before starting a new one. If a transaction already exists, the block joins it. If not, it creates a new independent transaction.
 
 Understanding this behavior is important for controlling atomicity. When multiple operations must commit or roll back as a unit, they need to share the same transaction. When operations should be independent (for example, logging that should persist even if the main operation fails), they need separate transactions.
 

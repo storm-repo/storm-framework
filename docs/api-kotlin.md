@@ -30,7 +30,7 @@ The Kotlin API does not depend on any preview features. All APIs are stable and 
 
 ### storm-kotlin-spring
 
-Spring Framework integration for Kotlin. Provides `RepositoryBeanFactoryPostProcessor` for repository auto-discovery and injection, `@EnableTransactionIntegration` for bridging Storm's programmatic transactions with Spring's `@Transactional`, and transaction-aware coroutine support. Add this module when you use Spring Framework without Spring Boot.
+Spring Framework integration for Kotlin. Provides `RepositoryBeanFactoryPostProcessor` for repository auto-discovery and injection, and `springOrmTemplate` for composing a template that bridges Storm's programmatic transactions with Spring's `@Transactional`. Add this module when you use Spring Framework without Spring Boot.
 
 ```kotlin
 implementation("st.orm:storm-kotlin-spring:@@STORM_VERSION@@")
