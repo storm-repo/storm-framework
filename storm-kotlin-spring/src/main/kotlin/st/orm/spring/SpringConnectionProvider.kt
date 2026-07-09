@@ -13,24 +13,31 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package st.orm.spring.impl
+package st.orm.spring
 
 import org.springframework.jdbc.CannotGetJdbcConnectionException
 import org.springframework.jdbc.datasource.DataSourceUtils
 import st.orm.PersistenceException
 import st.orm.core.spi.ConnectionProvider
-import st.orm.core.spi.Orderable.BeforeAny
 import st.orm.core.spi.TransactionContext
-import st.orm.spring.SpringTransactionConfiguration
+import st.orm.spring.impl.SpringTransactionContext
 import java.sql.Connection
 import javax.sql.DataSource
 
 /**
- * @since 1.5
+ * Connection provider that binds connections to Spring's transaction management.
+ *
+ * Connections are acquired through [DataSourceUtils], so statements executed by the template participate in
+ * Spring-managed (`@Transactional`) transactions via thread-bound connections. When Storm's own `transaction { }`
+ * API drives the transaction, the active [SpringTransactionContext] is bound to the data source before the
+ * connection is acquired, which starts the Spring transaction through the matching `PlatformTransactionManager`.
+ *
+ * Configure this provider on the template that belongs to the owning application context, together with
+ * [SpringTransactionTemplateProvider]; see [springOrmTemplate].
+ *
+ * @since 1.13
  */
-@BeforeAny
-class SpringConnectionProviderImpl : ConnectionProvider {
-    override fun isEnabled(): Boolean = SpringTransactionConfiguration.transactionManagers.isNotEmpty()
+class SpringConnectionProvider : ConnectionProvider {
 
     override fun getConnection(dataSource: DataSource, context: TransactionContext?): Connection {
         if (context != null) {

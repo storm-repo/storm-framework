@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package st.orm.spring.impl;
+package st.orm.spring;
 
 import jakarta.annotation.Nonnull;
 import jakarta.annotation.Nullable;
@@ -25,7 +25,24 @@ import st.orm.PersistenceException;
 import st.orm.core.spi.ConnectionProvider;
 import st.orm.core.spi.TransactionContext;
 
-public class TransactionAwareConnectionProviderImpl implements ConnectionProvider {
+/**
+ * Connection provider that binds connections to Spring's transaction management.
+ *
+ * <p>Connections are acquired through {@link DataSourceUtils}, so statements executed by the template participate in
+ * Spring-managed ({@code @Transactional}) transactions via thread-bound connections, and degrade gracefully to plain
+ * connections when no transaction is active. Storm's own transaction API is not bridged by this provider.</p>
+ *
+ * <p>Configure this provider on the template that belongs to the owning application context:
+ * <pre>{@code
+ * ORMTemplate orm = ORMTemplate.builder(dataSource)
+ *         .connectionProvider(new SpringConnectionProvider())
+ *         .transactionTemplateProvider(new SpringTransactionTemplateProvider())
+ *         .build();
+ * }</pre>
+ *
+ * @since 1.13
+ */
+public class SpringConnectionProvider implements ConnectionProvider {
 
     @Override
     public Connection getConnection(@Nonnull DataSource dataSource, @Nullable TransactionContext context) {

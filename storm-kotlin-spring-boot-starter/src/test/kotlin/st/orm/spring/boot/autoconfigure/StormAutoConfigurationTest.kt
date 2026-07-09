@@ -30,8 +30,11 @@ import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
 import st.orm.Entity
 import st.orm.EntityCallback
+import st.orm.core.spi.ConnectionProvider
+import st.orm.core.spi.TransactionTemplateProvider
 import st.orm.spring.RepositoryBeanFactoryPostProcessor
-import st.orm.spring.SpringTransactionConfiguration
+import st.orm.spring.SpringConnectionProvider
+import st.orm.spring.SpringTransactionTemplateProvider
 import st.orm.template.ORMTemplate
 import javax.sql.DataSource
 
@@ -122,17 +125,43 @@ class StormAutoConfigurationTest {
     }
 
     @Test
-    fun `transaction auto-configuration activates SpringTransactionConfiguration`() {
-        // StormTransactionAutoConfiguration should register a SpringTransactionConfiguration bean
-        // when a PlatformTransactionManager is present (provided by DataSourceTransactionManagerAutoConfiguration).
+    fun `transaction auto-configuration provides spring-aware providers when a transaction manager is present`() {
+        // StormTransactionAutoConfiguration should contribute the Spring-aware ConnectionProvider and
+        // TransactionTemplateProvider beans when a PlatformTransactionManager is present (provided by
+        // DataSourceTransactionManagerAutoConfiguration).
         contextRunner
             .withPropertyValues(
                 "spring.datasource.url=jdbc:h2:mem:testdb;DB_CLOSE_DELAY=-1",
                 "spring.datasource.driver-class-name=org.h2.Driver",
             )
             .run { context ->
-                context.getBean(SpringTransactionConfiguration::class.java) shouldNotBe null
+                context.getBean(ConnectionProvider::class.java).shouldBeInstanceOf<SpringConnectionProvider>()
+                context.getBean(TransactionTemplateProvider::class.java)
+                    .shouldBeInstanceOf<SpringTransactionTemplateProvider>()
             }
+    }
+
+    @Test
+    fun `user-defined provider beans take precedence over the auto-configured ones`() {
+        // The auto-configured providers back off via @ConditionalOnMissingBean when the user defines their own.
+        contextRunner
+            .withPropertyValues(
+                "spring.datasource.url=jdbc:h2:mem:testdb;DB_CLOSE_DELAY=-1",
+                "spring.datasource.driver-class-name=org.h2.Driver",
+            )
+            .withUserConfiguration(CustomProviderConfig::class.java)
+            .run { context ->
+                context.getBean(ConnectionProvider::class.java)
+                    .shouldBeInstanceOf<CustomProviderConfig.CustomConnectionProvider>()
+            }
+    }
+
+    @Configuration
+    open class CustomProviderConfig {
+        class CustomConnectionProvider(private val delegate: ConnectionProvider = SpringConnectionProvider()) : ConnectionProvider by delegate
+
+        @Bean
+        open fun customConnectionProvider(): ConnectionProvider = CustomConnectionProvider()
     }
 
     @Test

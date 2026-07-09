@@ -46,8 +46,7 @@ import st.orm.template.transactionBlocking
  * - RepositoryBeanFactoryPostProcessor: getOrmTemplateBeanName, getRepositoryBasePackages
  * - RepositoryAopAutoConfiguration: constructor, repositoryProxyingPostProcessor
  */
-@ContextConfiguration(classes = [IntegrationConfig::class])
-@EnableTransactionIntegration
+@ContextConfiguration(classes = [SpringIntegrationConfig::class])
 @SpringBootTest
 @Sql("/data.sql")
 open class AdditionalTest(

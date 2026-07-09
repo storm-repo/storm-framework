@@ -19,6 +19,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import javax.sql.DataSource;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.beans.factory.SmartInitializingSingleton;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnBean;
@@ -28,7 +29,12 @@ import org.springframework.boot.context.properties.EnableConfigurationProperties
 import org.springframework.context.annotation.Bean;
 import st.orm.EntityCallback;
 import st.orm.StormConfig;
+import st.orm.core.spi.ConnectionProvider;
+import st.orm.core.spi.ExceptionMapper;
+import st.orm.core.spi.QueryObserver;
+import st.orm.core.spi.TransactionTemplateProvider;
 import st.orm.core.template.impl.SchemaValidator;
+import st.orm.spring.SpringConnectionProvider;
 import st.orm.template.ORMTemplate;
 
 /**
@@ -63,9 +69,30 @@ public class StormAutoConfiguration {
     @Bean
     @ConditionalOnMissingBean(ORMTemplate.class)
     public ORMTemplate ormTemplate(DataSource dataSource, StormProperties properties,
-                                   List<EntityCallback<?>> entityCallbacks) {
-        return ORMTemplate.of(dataSource, toStormConfig(properties))
-                .withEntityCallbacks(entityCallbacks);
+                                   List<EntityCallback<?>> entityCallbacks,
+                                   ObjectProvider<ConnectionProvider> connectionProvider,
+                                   ObjectProvider<TransactionTemplateProvider> transactionTemplateProvider,
+                                   ObjectProvider<ExceptionMapper> exceptionMapper,
+                                   ObjectProvider<QueryObserver> queryObserver) {
+        var builder = ORMTemplate.builder(dataSource).config(toStormConfig(properties));
+        connectionProvider.ifAvailable(builder::connectionProvider);
+        transactionTemplateProvider.ifAvailable(builder::transactionTemplateProvider);
+        exceptionMapper.ifAvailable(builder::exceptionMapper);
+        queryObserver.ifAvailable(builder::queryObserver);
+        return builder.build().withEntityCallbacks(entityCallbacks);
+    }
+
+    /**
+     * Provides the connection provider that binds connections to Spring's transaction management.
+     *
+     * <p>Connections are acquired through Spring's {@code DataSourceUtils}, so statements executed by the template
+     * participate in Spring-managed ({@code @Transactional}) transactions and degrade gracefully to plain
+     * connections when no transaction is active. Define your own {@link ConnectionProvider} bean to override.</p>
+     */
+    @Bean
+    @ConditionalOnMissingBean(ConnectionProvider.class)
+    public ConnectionProvider stormConnectionProvider() {
+        return new SpringConnectionProvider();
     }
 
     /**

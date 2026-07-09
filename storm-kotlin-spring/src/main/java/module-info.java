@@ -20,6 +20,4 @@ module storm.kotlin.spring {
     requires spring.boot.autoconfigure;
     exports st.orm.spring;
     opens st.orm.spring.impl to kotlin.reflect;
-    provides st.orm.core.spi.ConnectionProvider with st.orm.spring.impl.SpringConnectionProviderImpl;
-    provides st.orm.core.spi.TransactionTemplateProvider with st.orm.spring.impl.SpringTransactionTemplateProviderImpl;
 }

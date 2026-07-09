@@ -19,6 +19,8 @@ import io.ktor.server.application.ApplicationStopped
 import io.ktor.server.application.createApplicationPlugin
 import io.ktor.server.application.log
 import st.orm.core.template.impl.SchemaValidator
+import st.orm.template.impl.CoroutineAwareConnectionProviderImpl
+import st.orm.template.impl.TransactionTemplateProviderImpl
 
 /**
  * Ktor plugin that configures Storm ORM for the application.
@@ -67,7 +69,16 @@ val Storm = createApplicationPlugin(name = "Storm", createConfiguration = ::Stor
     // validated, so validation always sees the migrated schema.
     pluginConfig.migration?.invoke(dataSource)
 
-    var ormTemplate = st.orm.template.ORMTemplate.of(dataSource, stormConfig)
+    // Compose the template with explicit, plugin-scoped integration strategies: one provider instance per
+    // install, so all repositories of this application share transactions, and the ambient transaction { }
+    // API binds to this template's provider when it executes inside a transaction block.
+    val builder = st.orm.template.ORMTemplate.builder(dataSource)
+        .config(stormConfig)
+        .connectionProvider(pluginConfig.connectionProvider ?: CoroutineAwareConnectionProviderImpl())
+        .transactionTemplateProvider(pluginConfig.transactionTemplateProvider ?: TransactionTemplateProviderImpl())
+    pluginConfig.exceptionMapper?.let { builder.exceptionMapper(it) }
+    pluginConfig.queryObserver?.let { builder.queryObserver(it) }
+    var ormTemplate = builder.build()
     if (pluginConfig.entityCallbacks.isNotEmpty()) {
         ormTemplate = ormTemplate.withEntityCallbacks(pluginConfig.entityCallbacks)
     }

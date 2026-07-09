@@ -15,6 +15,7 @@
  */
 package st.orm.spring.boot.autoconfigure
 
+import org.springframework.beans.factory.ObjectProvider
 import org.springframework.beans.factory.SmartInitializingSingleton
 import org.springframework.boot.autoconfigure.AutoConfiguration
 import org.springframework.boot.autoconfigure.condition.ConditionalOnBean
@@ -24,6 +25,10 @@ import org.springframework.boot.context.properties.EnableConfigurationProperties
 import org.springframework.context.annotation.Bean
 import st.orm.EntityCallback
 import st.orm.StormConfig
+import st.orm.core.spi.ConnectionProvider
+import st.orm.core.spi.ExceptionMapper
+import st.orm.core.spi.QueryObserver
+import st.orm.core.spi.TransactionTemplateProvider
 import st.orm.core.template.impl.SchemaValidator
 import st.orm.template.ORMTemplate
 import javax.sql.DataSource
@@ -50,6 +55,11 @@ open class StormAutoConfiguration {
      * A [StormConfig] is built from the bound properties. Fields not explicitly configured in `application.yml`
      * fall back to system properties and then to built-in defaults.
      *
+     * Integration strategies are consumed from the application context when present: the Spring-aware connection and
+     * transaction template providers contributed by [StormTransactionAutoConfiguration] (or user-defined
+     * replacements), and optional [ExceptionMapper] and [QueryObserver] beans. Without such beans the template falls
+     * back to `ServiceLoader` discovery, matching standalone behavior.
+     *
      * This bean backs off if the user has already defined their own `ORMTemplate` bean.
      *
      * @param dataSource the data source to use for database operations.
@@ -62,7 +72,18 @@ open class StormAutoConfiguration {
         dataSource: DataSource,
         properties: StormProperties,
         entityCallbacks: List<EntityCallback<*>>,
-    ): ORMTemplate = ORMTemplate.of(dataSource, toStormConfig(properties)).withEntityCallbacks(entityCallbacks)
+        connectionProvider: ObjectProvider<ConnectionProvider>,
+        transactionTemplateProvider: ObjectProvider<TransactionTemplateProvider>,
+        exceptionMapper: ObjectProvider<ExceptionMapper>,
+        queryObserver: ObjectProvider<QueryObserver>,
+    ): ORMTemplate {
+        val builder = ORMTemplate.builder(dataSource).config(toStormConfig(properties))
+        connectionProvider.ifAvailable { builder.connectionProvider(it) }
+        transactionTemplateProvider.ifAvailable { builder.transactionTemplateProvider(it) }
+        exceptionMapper.ifAvailable { builder.exceptionMapper(it) }
+        queryObserver.ifAvailable { builder.queryObserver(it) }
+        return builder.build().withEntityCallbacks(entityCallbacks)
+    }
 
     /**
      * Runs schema validation after all singleton beans have been fully initialized. This guarantees that migration
