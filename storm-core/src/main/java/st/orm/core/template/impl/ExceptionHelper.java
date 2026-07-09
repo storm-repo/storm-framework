@@ -17,15 +17,21 @@ package st.orm.core.template.impl;
 
 import jakarta.annotation.Nonnull;
 import jakarta.annotation.Nullable;
+import java.util.Optional;
 import java.util.function.Function;
+import st.orm.Data;
 import st.orm.PersistenceException;
-import st.orm.core.spi.Providers;
+import st.orm.core.spi.ExceptionContext;
+import st.orm.core.spi.ExceptionMapper;
 import st.orm.core.spi.TransactionContext;
+import st.orm.core.spi.TransactionScope;
+import st.orm.core.spi.TransactionTemplateProvider;
 import st.orm.core.template.Sql;
+import st.orm.core.template.SqlOperation;
 import st.orm.core.template.SqlTemplateException;
 
 /**
- * Helper class for augmenting exceptions with SQL statements.
+ * Helper class for augmenting exceptions with SQL statements and mapping them via the template's exception mapper.
  *
  * @since 1.3
  */
@@ -33,30 +39,55 @@ public final class ExceptionHelper {
 
     private ExceptionHelper() {}
 
-    public static Function<Throwable, PersistenceException> getExceptionTransformer(@Nullable Sql sql) {
+    /**
+     * Returns a transformer that enriches failures with SQL diagnostics and maps them to the exception thrown to the
+     * caller via the given exception mapper.
+     *
+     * <p>The SQL statement and transaction description are attached to the original failure as a suppressed
+     * exception, so every mapper receives full diagnostics; the mapper only decides the thrown type. If the mapper
+     * itself fails or returns {@code null}, the failure is wrapped in a {@link PersistenceException} with the mapper
+     * failure suppressed; diagnostic mapping must never mask the original error.</p>
+     *
+     * @param sql the SQL statement to attach, or {@code null} when no statement is associated.
+     * @param exceptionMapper the exception mapper configured on the template.
+     * @param transactionTemplateProvider the transaction template provider of the template, used to describe the
+     *                                    active transaction.
+     * @return the exception transformer.
+     */
+    public static Function<Throwable, RuntimeException> getExceptionTransformer(
+            @Nullable Sql sql,
+            @Nonnull ExceptionMapper exceptionMapper,
+            @Nonnull TransactionTemplateProvider transactionTemplateProvider) {
         return e -> {
+            String transactionDescription = currentTransactionDescription(transactionTemplateProvider);
+            if (sql != null) {
+                e.addSuppressed(new SqlTemplateException(buildSqlDetail(sql, transactionDescription)));
+            }
+            var context = new ExceptionContextImpl(
+                    sql != null ? sql.operation() : SqlOperation.UNDEFINED,
+                    sql != null ? sql.statement() : null,
+                    sql != null ? sql.affectedType().orElse(null) : null,
+                    transactionDescription);
             try {
-                try {
-                    throw e;
-                } catch (PersistenceException ex) {
-                    throw ex;
-                } catch (Throwable t) {
-                    throw new PersistenceException(t);
+                var mapped = exceptionMapper.map(e, context);
+                if (mapped != null) {
+                    return mapped;
                 }
-            } catch (PersistenceException ex) {
-                if (sql != null) {
-                    e.addSuppressed(new SqlTemplateException(buildSqlDetail(sql)));
-                }
-                throw ex;
+                return new PersistenceException(e);
+            } catch (Throwable mapperFailure) {
+                var fallback = e instanceof PersistenceException persistenceException
+                        ? persistenceException
+                        : new PersistenceException(e);
+                fallback.addSuppressed(mapperFailure);
+                return fallback;
             }
         };
     }
 
-    private static String buildSqlDetail(@Nonnull Sql sql) {
+    private static String buildSqlDetail(@Nonnull Sql sql, @Nullable String transactionDescription) {
         String detail = String.format("SQL:%n%s", sql.statement());
-        String transaction = currentTransactionDescription();
-        if (transaction != null) {
-            detail = detail + String.format("%nTransaction: %s", transaction);
+        if (transactionDescription != null) {
+            detail = detail + String.format("%nTransaction: %s", transactionDescription);
         }
         return detail;
     }
@@ -65,14 +96,35 @@ public final class ExceptionHelper {
      * Returns a description of the current transaction's characteristics (such as isolation level and timeout), or
      * {@code null} when no transaction is active or the description cannot be determined.
      */
-    private static @Nullable String currentTransactionDescription() {
+    private static @Nullable String currentTransactionDescription(
+            @Nonnull TransactionTemplateProvider transactionTemplateProvider) {
         try {
-            return Providers.getTransactionTemplate().currentContext()
+            return Optional.ofNullable(TransactionScope.peekContext(transactionTemplateProvider))
                     .flatMap(TransactionContext::describe)
                     .orElse(null);
         } catch (Throwable ignore) {
             // Never let diagnostic enrichment mask the original exception.
             return null;
+        }
+    }
+
+    private record ExceptionContextImpl(@Nonnull SqlOperation operation,
+                                        @Nullable String statementText,
+                                        @Nullable Class<? extends Data> affectedType,
+                                        @Nullable String description) implements ExceptionContext {
+        @Override
+        public Optional<String> statement() {
+            return Optional.ofNullable(statementText);
+        }
+
+        @Override
+        public Optional<Class<? extends Data>> dataType() {
+            return Optional.ofNullable(affectedType);
+        }
+
+        @Override
+        public Optional<String> transactionDescription() {
+            return Optional.ofNullable(description);
         }
     }
 }

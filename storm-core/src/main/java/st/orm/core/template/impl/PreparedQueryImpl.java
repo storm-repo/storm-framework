@@ -22,7 +22,6 @@ import jakarta.annotation.Nullable;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
-import java.util.function.Function;
 import java.util.stream.Stream;
 import java.util.stream.StreamSupport;
 import st.orm.Data;
@@ -39,7 +38,7 @@ final class PreparedQueryImpl extends QueryImpl implements PreparedQuery {
     private final PreparedStatement statement;
     private final BindVarsHandle bindVarsHandle;
 
-    public PreparedQueryImpl(@Nonnull RefFactory refFactory,
+    public PreparedQueryImpl(@Nonnull Environment environment,
                              @Nonnull PreparedStatement statement,
                              @Nullable BindVarsHandle bindVarsHandle,
                              @Nullable Class<? extends Data> affectedType,
@@ -47,10 +46,9 @@ final class PreparedQueryImpl extends QueryImpl implements PreparedQuery {
                              boolean managed,
                              int defaultFetchSize,
                              boolean streamOnlyFetchSize,
-                             boolean streamingRequiresTransaction,
-                             @Nonnull Function<Throwable, PersistenceException> exceptionTransformer) {
-        super(refFactory, ignore -> statement, bindVarsHandle, affectedType, versionAware, managed, false, defaultFetchSize, streamOnlyFetchSize, streamingRequiresTransaction, exceptionTransformer);
-        this.refFactory = refFactory;
+                             boolean streamingRequiresTransaction) {
+        super(environment, ignore -> statement, bindVarsHandle, affectedType, versionAware, managed, false, defaultFetchSize, streamOnlyFetchSize, streamingRequiresTransaction);
+        this.refFactory = environment.refFactory();
         this.statement = statement;
         this.bindVarsHandle = bindVarsHandle;
     }

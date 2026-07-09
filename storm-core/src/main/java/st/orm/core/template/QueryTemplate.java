@@ -40,6 +40,19 @@ public interface QueryTemplate extends SubqueryTemplate {
     SqlDialect dialect();
 
     /**
+     * Returns the transaction template provider used by this template.
+     *
+     * <p>The default implementation resolves the fallback provider via {@code ServiceLoader} discovery; templates
+     * that carry instance-scoped integration strategies return their configured provider.</p>
+     *
+     * @return the transaction template provider.
+     * @since 1.13
+     */
+    default st.orm.core.spi.TransactionTemplateProvider transactionTemplateProvider() {
+        return st.orm.core.spi.Providers.getTransactionTemplateProvider();
+    }
+
+    /**
      * Create a new bind variables instance that can be used to add bind variables to a batch.
      *
      * @return a new bind variables instance.

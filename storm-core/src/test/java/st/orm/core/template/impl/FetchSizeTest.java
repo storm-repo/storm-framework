@@ -72,8 +72,17 @@ public class FetchSizeTest {
                                                int defaultFetchSize,
                                                boolean streamOnlyFetchSize,
                                                boolean streamingRequiresTransaction) {
-        return new QueryImpl(
+        var environment = new QueryImpl.Environment(
                 DETACHED_REF_FACTORY,
+                st.orm.core.spi.Providers.getTransactionTemplateProvider(),
+                st.orm.core.spi.QueryObserver.noop(),
+                e -> e instanceof PersistenceException persistenceException
+                        ? persistenceException
+                        : new PersistenceException(e),
+                st.orm.core.template.SqlOperation.SELECT,
+                sql);
+        return new QueryImpl(
+                environment,
                 unsafe -> {
                     try {
                         return connection.prepareStatement(sql);
@@ -88,8 +97,7 @@ public class FetchSizeTest {
                 false,
                 defaultFetchSize,
                 streamOnlyFetchSize,
-                streamingRequiresTransaction,
-                e -> new PersistenceException(e)
+                streamingRequiresTransaction
         );
     }
 

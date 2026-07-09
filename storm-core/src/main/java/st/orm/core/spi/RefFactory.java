@@ -16,6 +16,7 @@
 package st.orm.core.spi;
 
 import jakarta.annotation.Nonnull;
+import jakarta.annotation.Nullable;
 import st.orm.Data;
 import st.orm.Ref;
 
@@ -25,6 +26,19 @@ import st.orm.Ref;
  * @since 1.3
  */
 public interface RefFactory {
+
+    /**
+     * Returns the transaction context that is active for the template backing this factory, or {@code null} when no
+     * transaction is active.
+     *
+     * <p>This is an observing lookup: it never starts a transaction.</p>
+     *
+     * @return the active transaction context, or {@code null}.
+     * @since 1.13
+     */
+    default @Nullable TransactionContext transactionContext() {
+        return null;
+    }
 
     /**
      * Creates a ref instance for the specified record {@code type} and {@code pk}. This method can be used to generate

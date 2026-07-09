@@ -36,7 +36,6 @@ import st.orm.PK;
 import st.orm.core.spi.ORMReflection;
 import st.orm.core.spi.Providers;
 import st.orm.core.spi.RefFactory;
-import st.orm.core.spi.TransactionTemplate;
 import st.orm.core.template.SqlTemplateException;
 
 /**
@@ -44,7 +43,6 @@ import st.orm.core.template.SqlTemplateException;
  */
 public final class ObjectMapperFactory {
 
-    private static final TransactionTemplate TRANSACTION_TEMPLATE = Providers.getTransactionTemplate();
     private static final ORMReflection REFLECTION = Providers.getORMReflection();
 
     private ObjectMapperFactory() {
@@ -72,11 +70,11 @@ public final class ObjectMapperFactory {
         }
         if (isSealedEntity(type)) {
             return RecordMapper.getSealedFactory(columnCount, type, refFactory,
-                    TRANSACTION_TEMPLATE.currentContext().orElse(null));
+                    refFactory.transactionContext());
         }
         if (isRecord(type)) {
             return RecordMapper.getFactory(columnCount, getRecordType(type), refFactory,
-                    TRANSACTION_TEMPLATE.currentContext().orElse(null));
+                    refFactory.transactionContext());
         }
         if (type.isEnum()) {
             return EnumMapper.getFactory(columnCount, type);

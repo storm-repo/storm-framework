@@ -13,41 +13,40 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package st.orm.core.spi;
+package st.orm.core.testsupport;
 
 import jakarta.annotation.Nonnull;
 import jakarta.annotation.Nullable;
 import java.sql.Connection;
-import java.sql.SQLException;
 import javax.sql.DataSource;
+import org.springframework.jdbc.datasource.DataSourceUtils;
 import st.orm.PersistenceException;
-import st.orm.core.spi.Orderable.AfterAny;
+import st.orm.core.spi.ConnectionProvider;
+import st.orm.core.spi.Orderable.BeforeAny;
+import st.orm.core.spi.TransactionContext;
 
 /**
- * Default connection provider that acquires and closes connections directly on the data source.
+ * Test-only connection provider that binds connections to Spring's transaction management.
  *
- * <p>This provider is platform-neutral: it never participates in externally managed transactions. Integrations that
- * bind connections to a transaction subsystem supply their own {@link ConnectionProvider} via the template
- * builder.</p>
+ * <p>The storm-core test suite runs under Spring's test framework ({@code @DataJpaTest}), which wraps each test in a
+ * transaction that is rolled back afterwards. Templates created with {@code ORMTemplate.of(dataSource)} pick up this
+ * provider through the {@code ServiceLoader} fallback, so their statements join the test-managed transaction and the
+ * shared database stays clean between tests.</p>
  */
-@AfterAny
-public class DefaultConnectionProviderImpl implements ConnectionProvider {
+@BeforeAny
+public class TestSpringConnectionProvider implements ConnectionProvider {
 
     @Override
     public Connection getConnection(@Nonnull DataSource dataSource, @Nullable TransactionContext context) {
         try {
-            return dataSource.getConnection();
-        } catch (SQLException e) {
+            return DataSourceUtils.getConnection(dataSource);
+        } catch (Exception e) {
             throw new PersistenceException("Failed to get connection from DataSource.", e);
         }
     }
 
     @Override
     public void releaseConnection(@Nonnull Connection connection, @Nonnull DataSource dataSource, @Nullable TransactionContext context) {
-        try {
-            connection.close();
-        } catch (SQLException e) {
-            throw new PersistenceException("Failed to release connection.", e);
-        }
+        DataSourceUtils.releaseConnection(connection, dataSource);
     }
 }

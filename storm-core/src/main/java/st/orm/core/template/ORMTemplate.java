@@ -15,7 +15,10 @@
  */
 package st.orm.core.template;
 
+import static java.util.Objects.requireNonNull;
+
 import jakarta.annotation.Nonnull;
+import jakarta.annotation.Nullable;
 import java.sql.Connection;
 import java.util.List;
 import java.util.function.Predicate;
@@ -28,6 +31,10 @@ import st.orm.StormConfig;
 import st.orm.core.repository.EntityRepository;
 import st.orm.core.repository.ProjectionRepository;
 import st.orm.core.repository.RepositoryLookup;
+import st.orm.core.spi.ConnectionProvider;
+import st.orm.core.spi.ExceptionMapper;
+import st.orm.core.spi.QueryObserver;
+import st.orm.core.spi.TransactionTemplateProvider;
 import st.orm.core.template.impl.PreparedStatementTemplateImpl;
 import st.orm.mapping.TemplateDecorator;
 
@@ -369,5 +376,169 @@ public interface ORMTemplate extends QueryTemplate, RepositoryLookup {
             throw new PersistenceException("Decorator must return the same template type.");
         }
         return ((PreparedStatementTemplateImpl) decorated).toORM();
+    }
+
+    /**
+     * Returns a builder for constructing an {@link ORMTemplate} with instance-scoped integration strategies.
+     *
+     * <p>The builder is the injection point for platform services: integrations hand their connection provider,
+     * transaction template provider, exception mapper and query observer to the template they construct, instead of
+     * relying on JVM-global discovery. Strategies that are not set fall back to {@code ServiceLoader} discovery for
+     * the connection and transaction template providers, and to the built-in defaults for the exception mapper and
+     * query observer.</p>
+     *
+     * <p>Example usage:
+     * <pre>{@code
+     * ORMTemplate orm = ORMTemplate.builder(dataSource)
+     *         .config(config)
+     *         .connectionProvider(connectionProvider)
+     *         .transactionTemplateProvider(transactionTemplateProvider)
+     *         .build();
+     * }</pre>
+     *
+     * @param dataSource the {@link DataSource} to use for database operations; must not be {@code null}.
+     * @return a builder for constructing the ORM template.
+     * @since 1.13
+     */
+    static Builder builder(@Nonnull DataSource dataSource) {
+        return new Builder(requireNonNull(dataSource, "dataSource"), null);
+    }
+
+    /**
+     * Returns a builder for constructing an {@link ORMTemplate} backed by a single connection, with instance-scoped
+     * integration strategies.
+     *
+     * <p><strong>Note:</strong> The caller is responsible for closing the connection after usage. Connection backed
+     * templates never acquire connections themselves, so no connection provider can be configured.</p>
+     *
+     * @param connection the {@link Connection} to use for database operations; must not be {@code null}.
+     * @return a builder for constructing the ORM template.
+     * @since 1.13
+     */
+    static Builder builder(@Nonnull Connection connection) {
+        return new Builder(null, requireNonNull(connection, "connection"));
+    }
+
+    /**
+     * Builder for constructing an {@link ORMTemplate} with instance-scoped integration strategies.
+     *
+     * @since 1.13
+     */
+    final class Builder {
+        private final @Nullable DataSource dataSource;
+        private final @Nullable Connection connection;
+        private StormConfig config = StormConfig.defaults();
+        private @Nullable UnaryOperator<TemplateDecorator> decorator;
+        private @Nullable ConnectionProvider connectionProvider;
+        private @Nullable TransactionTemplateProvider transactionTemplateProvider;
+        private @Nullable ExceptionMapper exceptionMapper;
+        private @Nullable QueryObserver queryObserver;
+
+        private Builder(@Nullable DataSource dataSource, @Nullable Connection connection) {
+            this.dataSource = dataSource;
+            this.connection = connection;
+        }
+
+        /**
+         * Sets the Storm configuration to apply to the template instance.
+         *
+         * @param config the Storm configuration; must not be {@code null}.
+         * @return this builder.
+         */
+        public Builder config(@Nonnull StormConfig config) {
+            this.config = requireNonNull(config, "config");
+            return this;
+        }
+
+        /**
+         * Sets a function that transforms the {@link TemplateDecorator} to customize template processing.
+         *
+         * @param decorator the decorator function; must not be {@code null}.
+         * @return this builder.
+         */
+        public Builder decorator(@Nonnull UnaryOperator<TemplateDecorator> decorator) {
+            this.decorator = requireNonNull(decorator, "decorator");
+            return this;
+        }
+
+        /**
+         * Sets the connection provider used by the template to acquire and release connections.
+         *
+         * <p>Only valid for data source backed templates; {@link #build()} fails fast otherwise.</p>
+         *
+         * @param connectionProvider the connection provider; must not be {@code null}.
+         * @return this builder.
+         */
+        public Builder connectionProvider(@Nonnull ConnectionProvider connectionProvider) {
+            this.connectionProvider = requireNonNull(connectionProvider, "connectionProvider");
+            return this;
+        }
+
+        /**
+         * Sets the transaction template provider used by the template to participate in transactions.
+         *
+         * <p>Templates that should share transactions must be configured with the <em>same provider instance</em>.</p>
+         *
+         * @param transactionTemplateProvider the transaction template provider; must not be {@code null}.
+         * @return this builder.
+         */
+        public Builder transactionTemplateProvider(@Nonnull TransactionTemplateProvider transactionTemplateProvider) {
+            this.transactionTemplateProvider = requireNonNull(transactionTemplateProvider, "transactionTemplateProvider");
+            return this;
+        }
+
+        /**
+         * Sets the exception mapper that maps failures raised during query execution to the runtime exception thrown
+         * to the caller.
+         *
+         * @param exceptionMapper the exception mapper; must not be {@code null}.
+         * @return this builder.
+         */
+        public Builder exceptionMapper(@Nonnull ExceptionMapper exceptionMapper) {
+            this.exceptionMapper = requireNonNull(exceptionMapper, "exceptionMapper");
+            return this;
+        }
+
+        /**
+         * Sets the query observer that is notified of query executions performed by the template.
+         *
+         * @param queryObserver the query observer; must not be {@code null}.
+         * @return this builder.
+         */
+        public Builder queryObserver(@Nonnull QueryObserver queryObserver) {
+            this.queryObserver = requireNonNull(queryObserver, "queryObserver");
+            return this;
+        }
+
+        /**
+         * Builds the ORM template.
+         *
+         * @return the ORM template.
+         * @throws PersistenceException if the configuration is invalid, such as a connection provider configured for
+         * a connection backed template.
+         */
+        public ORMTemplate build() {
+            PreparedStatementTemplateImpl template;
+            if (dataSource != null) {
+                template = new PreparedStatementTemplateImpl(dataSource, config, connectionProvider,
+                        transactionTemplateProvider, exceptionMapper, queryObserver);
+            } else {
+                if (connectionProvider != null) {
+                    throw new PersistenceException(
+                            "A connection provider cannot be configured for a connection backed template.");
+                }
+                assert connection != null;
+                template = new PreparedStatementTemplateImpl(connection, config,
+                        transactionTemplateProvider, exceptionMapper, queryObserver);
+            }
+            if (decorator != null) {
+                var decorated = decorator.apply(template);
+                if (!(decorated instanceof PreparedStatementTemplateImpl decoratedTemplate)) {
+                    throw new PersistenceException("Decorator must return the same template type.");
+                }
+                template = decoratedTemplate;
+            }
+            return template.toORM();
+        }
     }
 }

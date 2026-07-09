@@ -317,4 +317,127 @@ public interface ORMTemplate extends QueryTemplate, RepositoryLookup {
                           @Nonnull UnaryOperator<TemplateDecorator> decorator) {
         return new ORMTemplateImpl(st.orm.core.template.ORMTemplate.of(connection, config, decorator));
     }
+
+    /**
+     * Returns a builder for constructing an {@link ORMTemplate} with instance-scoped integration strategies.
+     *
+     * <p>The builder is the injection point for platform services: integrations hand their connection provider,
+     * transaction template provider, exception mapper and query observer to the template they construct, instead of
+     * relying on JVM-global discovery.</p>
+     *
+     * @param dataSource the {@link DataSource} to use for database operations; must not be {@code null}.
+     * @return a builder for constructing the ORM template.
+     * @since 1.13
+     */
+    static Builder builder(@Nonnull DataSource dataSource) {
+        return new Builder(st.orm.core.template.ORMTemplate.builder(dataSource));
+    }
+
+    /**
+     * Returns a builder for constructing an {@link ORMTemplate} backed by a single connection, with instance-scoped
+     * integration strategies.
+     *
+     * <p><strong>Note:</strong> The caller is responsible for closing the connection after usage.</p>
+     *
+     * @param connection the {@link Connection} to use for database operations; must not be {@code null}.
+     * @return a builder for constructing the ORM template.
+     * @since 1.13
+     */
+    static Builder builder(@Nonnull Connection connection) {
+        return new Builder(st.orm.core.template.ORMTemplate.builder(connection));
+    }
+
+    /**
+     * Builder for constructing an {@link ORMTemplate} with instance-scoped integration strategies.
+     *
+     * @since 1.13
+     */
+    final class Builder {
+        private final st.orm.core.template.ORMTemplate.Builder core;
+
+        private Builder(@Nonnull st.orm.core.template.ORMTemplate.Builder core) {
+            this.core = core;
+        }
+
+        /**
+         * Sets the Storm configuration to apply to the template instance.
+         *
+         * @param config the Storm configuration; must not be {@code null}.
+         * @return this builder.
+         */
+        public Builder config(@Nonnull StormConfig config) {
+            core.config(config);
+            return this;
+        }
+
+        /**
+         * Sets a function that transforms the {@link TemplateDecorator} to customize template processing.
+         *
+         * @param decorator the decorator function; must not be {@code null}.
+         * @return this builder.
+         */
+        public Builder decorator(@Nonnull UnaryOperator<TemplateDecorator> decorator) {
+            core.decorator(decorator);
+            return this;
+        }
+
+        /**
+         * Sets the connection provider used by the template to acquire and release connections.
+         *
+         * <p>Only valid for data source backed templates; {@link #build()} fails fast otherwise.</p>
+         *
+         * @param connectionProvider the connection provider; must not be {@code null}.
+         * @return this builder.
+         */
+        public Builder connectionProvider(@Nonnull st.orm.core.spi.ConnectionProvider connectionProvider) {
+            core.connectionProvider(connectionProvider);
+            return this;
+        }
+
+        /**
+         * Sets the transaction template provider used by the template to participate in transactions.
+         *
+         * <p>Templates that should share transactions must be configured with the <em>same provider instance</em>.</p>
+         *
+         * @param transactionTemplateProvider the transaction template provider; must not be {@code null}.
+         * @return this builder.
+         */
+        public Builder transactionTemplateProvider(
+                @Nonnull st.orm.core.spi.TransactionTemplateProvider transactionTemplateProvider) {
+            core.transactionTemplateProvider(transactionTemplateProvider);
+            return this;
+        }
+
+        /**
+         * Sets the exception mapper that maps failures raised during query execution to the runtime exception thrown
+         * to the caller.
+         *
+         * @param exceptionMapper the exception mapper; must not be {@code null}.
+         * @return this builder.
+         */
+        public Builder exceptionMapper(@Nonnull st.orm.core.spi.ExceptionMapper exceptionMapper) {
+            core.exceptionMapper(exceptionMapper);
+            return this;
+        }
+
+        /**
+         * Sets the query observer that is notified of query executions performed by the template.
+         *
+         * @param queryObserver the query observer; must not be {@code null}.
+         * @return this builder.
+         */
+        public Builder queryObserver(@Nonnull st.orm.core.spi.QueryObserver queryObserver) {
+            core.queryObserver(queryObserver);
+            return this;
+        }
+
+        /**
+         * Builds the ORM template.
+         *
+         * @return the ORM template.
+         */
+        public ORMTemplate build() {
+            return new ORMTemplateImpl(core.build());
+        }
+    }
 }

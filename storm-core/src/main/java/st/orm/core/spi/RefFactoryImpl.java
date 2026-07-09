@@ -16,7 +16,6 @@
 package st.orm.core.spi;
 
 import static java.util.Objects.requireNonNull;
-import static st.orm.core.spi.Providers.getTransactionTemplate;
 
 import jakarta.annotation.Nonnull;
 import jakarta.annotation.Nullable;
@@ -49,6 +48,18 @@ public final class RefFactoryImpl implements RefFactory {
     }
 
     /**
+     * Returns the transaction context that is active for the template backing this factory, or {@code null} when no
+     * transaction is active.
+     *
+     * @return the active transaction context, or {@code null}.
+     * @since 1.13
+     */
+    @Override
+    public @Nullable TransactionContext transactionContext() {
+        return TransactionScope.peekContext(template.transactionTemplateProvider());
+    }
+
+    /**
      * Creates a ref instance for the specified record {@code type} and {@code pk}. This method can be used to generate
      * ref instances for entities, projections and regular records.
      *
@@ -66,9 +77,9 @@ public final class RefFactoryImpl implements RefFactory {
         var supplier = new LazySupplier<>(() -> {
             // Cache-first lookup for entities.
             if (Entity.class.isAssignableFrom(type)) {
-                var context = getTransactionTemplate().currentContext();
-                if (context.isPresent()) {
-                    var cache = (EntityCache<?, ID>) context.get()
+                var context = transactionContext();
+                if (context != null) {
+                    var cache = (EntityCache<?, ID>) context
                         .findEntityCache((Class<? extends Entity<?>>) type);
                     if (cache != null) {
                         var cached = cache.get(pk);
