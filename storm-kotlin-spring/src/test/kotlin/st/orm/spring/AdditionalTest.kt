@@ -391,7 +391,7 @@ open class AdditionalTest(
         }
     }
 
-    // SpringConnectionProviderImpl: getConnection with transaction context
+    // SpringConnectionProvider: getConnection with transaction context
 
     @Test
     fun `connection within transaction should be managed by Spring`(): Unit = runBlocking {

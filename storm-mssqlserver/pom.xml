@@ -36,11 +36,14 @@
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-surefire-plugin</artifactId>
                 <configuration>
+                    <!-- Run tests on the classpath: the test suite registers a Spring-aware ConnectionProvider via
+                         META-INF/services (see st.orm.spi.mssqlserver.testsupport), which ServiceLoader only picks up for
+                         the unnamed module. This keeps the @Transactional test rollback applying to Storm
+                         statements. -->
+                    <useModulePath>false</useModulePath>
                     <argLine>
                         @{argLine}
                         --add-opens java.base/java.lang=ALL-UNNAMED
-                        --add-opens storm.mssqlserver/st.orm.spi.mssqlserver=ALL-UNNAMED
-                        --add-opens storm.mssqlserver/st.orm.spi.mssqlserver=storm.core
                     </argLine>
                 </configuration>
             </plugin>
