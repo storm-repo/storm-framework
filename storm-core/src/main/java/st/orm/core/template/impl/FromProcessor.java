@@ -63,6 +63,11 @@ final class FromProcessor implements ElementProcessor<From> {
      * @throws SqlTemplateException if compilation fails.
      */
     public CompiledElement compile(@Nonnull From from, @Nonnull TemplateCompiler compiler) throws SqlTemplateException {
+        if (from.source() instanceof TableSource(var table)) {
+            // Observability fallback for statements without a select list, such as count queries; a preceding
+            // select element takes precedence because the first recorded data type wins.
+            compiler.setDataType(table);
+        }
         final String alias = from.alias().isEmpty() ? "" : " " + from.alias();
         return new CompiledElement(switch (from) {
             case From(TableSource ts, String s, boolean b) ->

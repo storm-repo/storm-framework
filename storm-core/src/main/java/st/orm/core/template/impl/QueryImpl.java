@@ -78,6 +78,7 @@ class QueryImpl implements Query {
                        @Nonnull QueryObserver queryObserver,
                        @Nonnull Function<Throwable, RuntimeException> exceptionTransformer,
                        @Nonnull SqlOperation operation,
+                       @Nullable Class<? extends Data> dataType,
                        @Nullable String statementText) {
     }
 
@@ -213,7 +214,7 @@ class QueryImpl implements Query {
     private Observation observe(@Nonnull ExecutionKind kind) {
         try {
             return environment.queryObserver().onExecute(
-                    new QueryContextImpl(environment.operation(), affectedType, kind, environment.statementText()));
+                    new QueryContextImpl(environment.operation(), environment.dataType(), kind, environment.statementText()));
         } catch (Throwable ignore) {
             return Observation.NOOP;
         }
@@ -727,12 +728,12 @@ class QueryImpl implements Query {
      * Describes a statement execution for the query observer.
      */
     private record QueryContextImpl(@Nonnull SqlOperation operation,
-                                    @Nullable Class<? extends Data> affectedType,
+                                    @Nullable Class<? extends Data> type,
                                     @Nonnull ExecutionKind kind,
                                     @Nullable String statementText) implements QueryContext {
         @Override
         public Optional<Class<? extends Data>> dataType() {
-            return ofNullable(affectedType);
+            return ofNullable(type);
         }
 
         @Override

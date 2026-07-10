@@ -16,12 +16,17 @@
 package st.orm.ktor
 
 import io.ktor.server.application.Application
+import io.ktor.server.application.ApplicationStarted
 import io.ktor.server.application.ApplicationStopped
 import io.ktor.server.application.createApplicationPlugin
 import io.ktor.server.application.log
 import io.ktor.server.plugins.di.DependencyKey
 import io.ktor.server.plugins.di.dependencies
+import io.ktor.server.plugins.di.getBlocking
 import io.ktor.util.reflect.TypeInfo
+import io.micrometer.common.KeyValues
+import io.micrometer.observation.ObservationRegistry
+import st.orm.micrometer.MicrometerQueryObserver
 import st.orm.template.ORMTemplate
 import st.orm.template.impl.CoroutineAwareConnectionProviderImpl
 import st.orm.template.impl.TransactionTemplateProviderImpl
@@ -94,6 +99,11 @@ val Storm = createApplicationPlugin(name = "Storm", createConfiguration = ::Stor
         }
     }
 
+    // Query observers, keyed by database name (null for the primary database). An explicit queryObserver always
+    // wins; otherwise a delegating observer is installed that binds to the ObservationRegistry from the
+    // dependency container once the application has started.
+    val delegatingObservers = LinkedHashMap<String?, DelegatingQueryObserver>()
+
     // ---- Primary database ----
 
     val dataSource = pluginConfig.dataSource ?: createDataSourceFromConfig(application)
@@ -111,7 +121,9 @@ val Storm = createApplicationPlugin(name = "Storm", createConfiguration = ::Stor
         .connectionProvider(pluginConfig.connectionProvider ?: CoroutineAwareConnectionProviderImpl())
         .transactionTemplateProvider(pluginConfig.transactionTemplateProvider ?: TransactionTemplateProviderImpl())
     pluginConfig.exceptionMapper?.let { builder.exceptionMapper(it) }
-    pluginConfig.queryObserver?.let { builder.queryObserver(it) }
+    builder.queryObserver(
+        pluginConfig.queryObserver ?: DelegatingQueryObserver().also { delegatingObservers[null] = it },
+    )
     var ormTemplate = builder.build()
     if (pluginConfig.entityCallbacks.isNotEmpty()) {
         ormTemplate = ormTemplate.withEntityCallbacks(pluginConfig.entityCallbacks)
@@ -151,7 +163,9 @@ val Storm = createApplicationPlugin(name = "Storm", createConfiguration = ::Stor
                 databaseConfig.transactionTemplateProvider ?: TransactionTemplateProviderImpl(),
             )
         databaseConfig.exceptionMapper?.let { databaseBuilder.exceptionMapper(it) }
-        databaseConfig.queryObserver?.let { databaseBuilder.queryObserver(it) }
+        databaseBuilder.queryObserver(
+            databaseConfig.queryObserver ?: DelegatingQueryObserver().also { delegatingObservers[name] = it },
+        )
         var databaseTemplate = databaseBuilder.build()
         if (databaseConfig.entityCallbacks.isNotEmpty()) {
             databaseTemplate = databaseTemplate.withEntityCallbacks(databaseConfig.entityCallbacks)
@@ -213,11 +227,43 @@ val Storm = createApplicationPlugin(name = "Storm", createConfiguration = ::Stor
         ) { type -> databaseConfig.repositoryPackages.any { type.java.name.startsWith("$it.") } }
     }
 
+    // ---- Observability ----
+
+    // The ObservationRegistry may be registered by any module, so it only becomes resolvable once the
+    // application has started. Bind the delegating observers then; without a registry they stay no-op. Queries
+    // issued during installation (such as schema validation) run before binding and are not observed.
+    if (delegatingObservers.isNotEmpty()) {
+        application.monitor.subscribe(ApplicationStarted) {
+            application.bindQueryObservations(delegatingObservers)
+        }
+    }
+
     // Register shutdown hook to close the DataSources that are managed HikariDataSources.
     application.monitor.subscribe(ApplicationStopped) {
         closeDataSourceIfManaged(dataSource)
         namedDataSources.values.forEach { closeDataSourceIfManaged(it) }
     }
+}
+
+/**
+ * Binds the delegating query observers to the [ObservationRegistry] from the dependency container, if one is
+ * registered. Every observation carries a `storm.database` key value: the database name, or `primary` for the
+ * primary database. The tag is always present because meters of one name must share a single set of tag keys;
+ * registries such as Prometheus drop series whose tag keys differ.
+ */
+private fun Application.bindQueryObservations(delegatingObservers: Map<String?, DelegatingQueryObserver>) {
+    val registryKey = DependencyKey(TypeInfo(ObservationRegistry::class, ObservationRegistry::class.starProjectedType))
+    if (!dependencies.contains(registryKey)) {
+        return
+    }
+    val observationRegistry = dependencies.getBlocking<ObservationRegistry>(registryKey)
+    for ((databaseName, observer) in delegatingObservers) {
+        observer.delegate = MicrometerQueryObserver(
+            observationRegistry,
+            KeyValues.of("storm.database", databaseName ?: "primary"),
+        )
+    }
+    log.info("Storm query observations enabled via the ObservationRegistry from the dependency container.")
 }
 
 /**

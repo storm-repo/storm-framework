@@ -62,7 +62,7 @@ jobs:
           #     they are published separately as KDoc under /api/kotlin.
           #   - storm-core is the internal engine (st.orm.core.*).
           #   - dialect SPIs, storm-test and storm-metamodel-processor are not
-          #     part of the user-facing API; Spring/Jackson are integrations.
+          #     part of the user-facing API; Spring/Jackson/Micrometer are integrations.
           # Keep >= 2 named modules so javadoc stays in module mode and pages keep
           # their <module>/<package> paths (the docs link to storm.foundation/...).
           mvn javadoc:aggregate -q \
@@ -70,7 +70,7 @@ jobs:
             -Dmaven.javadoc.failOnError=false \
             -DadditionalJOption=--enable-preview \
             -Ddoclint=none \
-            -pl '!:storm-kotlin,!:storm-kotlin-spring,!:storm-kotlin-spring-boot-starter,!:storm-kotlinx-serialization,!:storm-metamodel-ksp,!:storm-spring-boot-starter,!:storm-jackson3,!:storm-ktor,!:storm-ktor-test,!:storm-compiler-plugin-2.0,!:storm-compiler-plugin-2.1,!:storm-compiler-plugin-2.2,!:storm-compiler-plugin-2.3,!:storm-compiler-plugin-2.4,!:storm-metamodel-processor,!:storm-core,!:storm-test,!:storm-jackson2,!:storm-oracle,!:storm-mssqlserver,!:storm-postgresql,!:storm-mysql,!:storm-mariadb,!:storm-sqlite,!:storm-h2,!:storm-spring'
+            -pl '!:storm-kotlin,!:storm-kotlin-spring,!:storm-kotlin-spring-boot-starter,!:storm-kotlinx-serialization,!:storm-metamodel-ksp,!:storm-spring-boot-starter,!:storm-jackson3,!:storm-micrometer,!:storm-ktor,!:storm-ktor-test,!:storm-compiler-plugin-2.0,!:storm-compiler-plugin-2.1,!:storm-compiler-plugin-2.2,!:storm-compiler-plugin-2.3,!:storm-compiler-plugin-2.4,!:storm-metamodel-processor,!:storm-core,!:storm-test,!:storm-jackson2,!:storm-oracle,!:storm-mssqlserver,!:storm-postgresql,!:storm-mysql,!:storm-mariadb,!:storm-sqlite,!:storm-h2,!:storm-spring'
 
       - name: Copy Javadoc to website/static/api/java
         run: |

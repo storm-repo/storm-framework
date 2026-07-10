@@ -25,6 +25,7 @@ public class SqlImplTest {
                 Optional.empty(),
                 List.of(),
                 Optional.empty(),
+                Optional.empty(),
                 false,
                 Optional.empty()
         );
@@ -39,6 +40,7 @@ public class SqlImplTest {
         assertTrue(sql.bindVariables().isEmpty());
         assertTrue(sql.generatedKeys().isEmpty());
         assertTrue(sql.affectedType().isEmpty());
+        assertTrue(sql.dataType().isEmpty());
         assertFalse(sql.versionAware());
         assertTrue(sql.unsafeWarning().isEmpty());
     }
@@ -113,6 +115,7 @@ public class SqlImplTest {
                 Optional.empty(),
                 List.of(),
                 Optional.empty(),
+                Optional.empty(),
                 false,
                 Optional.of("existing warning")
         );
@@ -129,6 +132,7 @@ public class SqlImplTest {
                 Optional.empty(),
                 List.of(),
                 Optional.empty(),
+                Optional.empty(),
                 false,
                 Optional.empty()
         ));
@@ -142,6 +146,7 @@ public class SqlImplTest {
                 List.of(),
                 Optional.empty(),
                 List.of(),
+                Optional.empty(),
                 Optional.empty(),
                 false,
                 Optional.empty()
@@ -157,6 +162,7 @@ public class SqlImplTest {
                     List.of(),
                     Optional.empty(),
                     List.of(),
+                    Optional.empty(),
                     Optional.empty(),
                     false,
                     Optional.empty()
@@ -176,6 +182,7 @@ public class SqlImplTest {
                 Optional.empty(),
                 List.of(),
                 Optional.empty(),
+                Optional.empty(),
                 false,
                 Optional.empty()
         );
@@ -190,6 +197,7 @@ public class SqlImplTest {
                 List.of(),
                 Optional.empty(),
                 List.of("id"),
+                Optional.empty(),
                 Optional.empty(),
                 false,
                 Optional.empty()

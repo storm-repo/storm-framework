@@ -612,6 +612,7 @@ public final class PreparedStatementTemplateImpl implements PreparedStatementTem
                     strategies.queryObserver(),
                     getExceptionTransformer(sql, strategies.exceptionMapper(), strategies.transactionTemplateProvider()),
                     sql.operation(),
+                    sql.dataType().orElse(null),
                     sql.statement());
             return new QueryImpl(environment, unsafe -> {
                 try {
