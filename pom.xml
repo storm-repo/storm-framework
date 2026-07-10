@@ -14,6 +14,8 @@
         <kotlin.coroutines.version>1.9.0</kotlin.coroutines.version>
         <kotlinx.serialization.version>1.7.3</kotlinx.serialization.version>
         <ktor.version>3.2.3</ktor.version>
+        <micrometer.version>1.15.4</micrometer.version>
+        <micrometer-tracing.version>1.5.4</micrometer-tracing.version>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <spring-boot.version>3.5.6</spring-boot.version>
         <jacoco.version>0.8.12</jacoco.version>
@@ -54,6 +56,7 @@
         <module>storm-jackson2</module>
         <module>storm-jackson3</module>
         <module>storm-kotlinx-serialization</module>
+        <module>storm-micrometer</module>
         <module>storm-oracle</module>
         <module>storm-mssqlserver</module>
         <module>storm-postgresql</module>

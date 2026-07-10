@@ -138,6 +138,20 @@ public interface Sql {
     Sql affectedType(@Nullable Class<? extends Data> affectedType);
 
     /**
+     * Returns the primary entity or projection type of the statement, if known: the selected type for SELECT
+     * statements, or the affected type for INSERT, UPDATE, and DELETE statements.
+     *
+     * <p>This is purely informational metadata, exposed to query observers as the statement's data type. Unlike
+     * {@link #affectedType()}, it carries no cache invalidation semantics.</p>
+     *
+     * @return the primary entity or projection type of the statement, or empty if unknown.
+     * @since 1.13
+     */
+    default Optional<Class<? extends Data>> dataType() {
+        return affectedType();
+    }
+
+    /**
      * Returns a warning message if the statement is deemed potentially unsafe, an empty optional otherwise.
      *
      * @since 1.2

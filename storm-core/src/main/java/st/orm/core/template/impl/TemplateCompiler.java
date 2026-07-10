@@ -215,4 +215,15 @@ interface TemplateCompiler {
      * @param type the type affected by the operation.
      */
     void setAffectedType(@Nonnull Class<? extends Data> type);
+
+    /**
+     * Records the primary entity or projection type of the statement for observability purposes.
+     *
+     * <p>Unlike {@link #setAffectedType(Class)}, this is purely informational metadata: the first recorded type wins
+     * and subsequent calls are ignored, so the outermost select takes precedence over the sources it queries.</p>
+     *
+     * @param type the entity or projection type the statement operates on.
+     * @since 1.13
+     */
+    void setDataType(@Nonnull Class<? extends Data> type);
 }

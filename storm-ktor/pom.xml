@@ -191,6 +191,11 @@
             <scope>provided</scope>
         </dependency>
         <dependency>
+            <groupId>st.orm</groupId>
+            <artifactId>storm-micrometer</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+        <dependency>
             <groupId>io.ktor</groupId>
             <artifactId>ktor-server-core-jvm</artifactId>
             <version>${ktor.version}</version>
@@ -227,6 +232,12 @@
         <dependency>
             <groupId>com.h2database</groupId>
             <artifactId>h2</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>io.micrometer</groupId>
+            <artifactId>micrometer-observation-test</artifactId>
+            <version>${micrometer.version}</version>
             <scope>test</scope>
         </dependency>
         <dependency>

@@ -619,6 +619,45 @@ See [Validation](validation.md) for details on what is validated and how to inte
 
 ---
 
+## Observability
+
+The plugin turns query executions into [Micrometer Observations](https://docs.micrometer.io/micrometer/reference/observation.html) automatically. Register an `ObservationRegistry` in the dependency container, in any module, and every Storm query is observed from then on:
+
+```kotlin
+fun Application.module() {
+    dependencies {
+        provide<ObservationRegistry> { observationRegistry }
+    }
+    install(Storm)
+}
+```
+
+No further configuration is needed; without a registry, queries run unobserved at no cost. What each observation produces depends on the handlers attached to the registry: timing metrics, tracing spans, or both. Storm spans nest under the current trace context, so with context propagation in place (for example the OpenTelemetry agent, or micrometer-tracing with a `TracingObservationHandler`) queries appear under the active request span.
+
+Observations are named `storm.query` and carry the following key values:
+
+| Key | Cardinality | Value |
+|-----|-------------|-------|
+| `storm.operation` | low | The SQL operation: `SELECT`, `INSERT`, `UPDATE`, `DELETE`, or `UNDEFINED`. |
+| `storm.execution` | low | How the statement executed: `QUERY`, `UPDATE`, or `BATCH`. |
+| `storm.data_type` | low | Simple name of the entity or projection type the statement operates on, or `none` for raw queries. |
+| `storm.database` | low | The database name; `primary` for the primary database. |
+| `db.statement` | high | The SQL statement. Available to trace handlers as a span attribute; never a metric tag. |
+
+Queries against a named database are tagged `storm.database=<name>`; the primary database is tagged `storm.database=primary`. The tag is always present because meters of one name must share a single set of tag keys; registries such as Prometheus drop series whose tag keys differ. Queries issued during plugin installation, such as schema validation, run before the registry is resolved and are not observed.
+
+For full control, set an explicit observer in the plugin configuration; it takes precedence over the automatic binding. The `queryObserver` slot accepts any `st.orm.core.spi.QueryObserver`, including a hand-configured `MicrometerQueryObserver` from the `storm-micrometer` module (custom `ObservationConvention`, extra key values):
+
+```kotlin
+install(Storm) {
+    queryObserver = MicrometerQueryObserver(observationRegistry, KeyValues.of("app.tenant", "acme"))
+}
+```
+
+Non-Ktor applications can use `storm-micrometer` directly by configuring the observer on the template builder: `ORMTemplate.builder(dataSource).queryObserver(MicrometerQueryObserver(registry))`.
+
+---
+
 ## Testing
 
 Storm provides two complementary approaches for testing Ktor applications, both designed to eliminate database setup boilerplate.

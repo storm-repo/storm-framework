@@ -162,6 +162,12 @@ class TemplateProcessor {
     private Class<? extends Data> affectedType;
 
     /**
+     * Compile-time only: the primary entity or projection type of the statement, recorded for observability.
+     */
+    @Nullable
+    private Class<? extends Data> dataType;
+
+    /**
      * The compiled SQL string.
      *
      * <p>This is set exactly once by {@link #compile(CompilationContext, boolean)}.</p>
@@ -538,6 +544,7 @@ class TemplateProcessor {
                 ofNullable(session.bindVariables),
                 generatedKeys != null ? generatedKeys : List.of(),
                 ofNullable(affectedType),
+                ofNullable(dataType != null ? dataType : affectedType),
                 versionAware != null && versionAware,
                 checkSafety(sql, operation)
         );
@@ -839,6 +846,20 @@ class TemplateProcessor {
                 throw new IllegalStateException("Affected type already set.");
             }
             affectedType = type;
+        }
+
+        /**
+         * Records the primary entity or projection type of the statement for observability purposes.
+         *
+         * <p>The first recorded type wins, so the outermost select takes precedence over the sources it queries.</p>
+         *
+         * @param type the entity or projection type the statement operates on.
+         */
+        @Override
+        public void setDataType(@Nonnull Class<? extends Data> type) {
+            if (dataType == null) {
+                dataType = type;
+            }
         }
 
         /**

@@ -18,12 +18,15 @@ Framework integration points are now instance-scoped (#198), and the Ktor integr
 
 - `ORMTemplate.builder(dataSource)` / `builder(connection)` (core, Java 21 and Kotlin APIs) with instance-scoped integration strategies: `connectionProvider`, `transactionTemplateProvider`, `exceptionMapper` and `queryObserver`. `ServiceLoader` discovery remains the fallback for templates built without explicit strategies.
 - `ExceptionMapper` SPI: maps failures raised during query execution to the exception thrown to the caller, enabling platform hierarchies such as Spring's `DataAccessException` (the translation itself lands with #199).
-- `QueryObserver` SPI: observes query executions (operation, entity/projection type, execution kind, timing, outcome) for metrics and tracing bindings (the Micrometer binding lands with #203 and #207).
+- `QueryObserver` SPI: observes query executions (operation, entity/projection type, execution kind, timing, outcome) for metrics and tracing bindings (the Spring Boot auto-configuration lands with #203).
 - `springOrmTemplate(dataSource) { transactionManagers }` (storm-kotlin-spring): the canonical plain-Spring composition, replacing `@EnableTransactionIntegration`.
 - `st.orm.spring.SpringTransactionTemplateProvider` (storm-spring): gives Java applications transaction-scoped entity caching under Spring-managed transactions without reflective probes.
 - The Ktor plugin gains `connectionProvider`, `transactionTemplateProvider`, `exceptionMapper` and `queryObserver` slots on `install(Storm) { }`.
 - The Ktor plugin exposes the `ORMTemplate` and every registered repository through Ktor's built-in dependency injection (`ktor-server-di`), each repository under its own interface type: `val visits: VisitRepository by dependencies`. Disable with `registerDependencies = false`.
 - The Ktor plugin supports multiple databases: `database("name") { }` blocks declare additional databases with their own template, repositories, schema validation, migration hook and lifecycle, configured in code or under `storm.databases.<name>.*` in HOCON. The packages declared per database partition repositories and schema validation; access goes through `orm("name")`, `repository<T>("name")` and named dependency injection.
+- New `storm-micrometer` module: `MicrometerQueryObserver` reports query executions as Micrometer Observations named `storm.query`, with low-cardinality key values for the operation, execution kind and data type, and the SQL statement as a high-cardinality value for trace handlers. Naming and key values are overridable via a custom `ObservationConvention`.
+- The Ktor plugin binds query observations automatically: register an `ObservationRegistry` in the dependency container and every query is observed, tagged `storm.database=<name>` (`primary` for the primary database). An explicit `queryObserver` takes precedence; without a registry, queries run unobserved.
+- `Sql.dataType()`: the primary entity or projection type of a statement, now also derived for SELECT statements from the selected or queried table, and reported to query observers as the statement's data type.
 
 ### Changed
 
