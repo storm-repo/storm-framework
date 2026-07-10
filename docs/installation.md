@@ -16,6 +16,66 @@ This page covers everything you need to add Storm to your project: prerequisites
 
 Kotlin users do not need any preview flags. Java users must enable `--enable-preview` in their compiler configuration because the Java API uses String Templates (JEP 430).
 
+## Gradle Plugin (Recommended)
+
+The Storm Gradle plugin collapses the whole setup into one plugin application. It imports the BOM, adds the core dependencies for your language, wires the metamodel processor, selects the Kotlin compiler-plugin variant matching your Kotlin version, and configures the Java preview flags. Requires Gradle 8.5+.
+
+<Tabs groupId="language">
+<TabItem value="kotlin" label="Kotlin" default>
+
+```kotlin
+plugins {
+    kotlin("jvm") version "2.4.0"
+    id("com.google.devtools.ksp") version "2.3.10"
+    id("st.orm") version "@@STORM_VERSION@@"
+}
+```
+
+That is the entire Storm setup. KSP stays in your plugins block because its version is paired to your Kotlin version; when it is missing, the build fails with the exact line to add.
+
+</TabItem>
+<TabItem value="java" label="Java">
+
+```kotlin
+plugins {
+    java
+    id("st.orm") version "@@STORM_VERSION@@"
+}
+```
+
+That is the entire Storm setup, including the `--enable-preview` flags on compilation, tests, and execution that storm-java21's String Templates (JEP 430) require. Use a JDK 21 toolchain: preview class files are version-locked, so storm-java21 runs on JDK 21 exactly.
+
+</TabItem>
+</Tabs>
+
+The plugin configures, per language path:
+
+| | Kotlin | Java |
+|---|--------|------|
+| BOM | `storm-bom` imported as a platform | `storm-bom` imported as a platform |
+| API | `storm-kotlin` | `storm-java21` |
+| Engine | `storm-core` (runtime only) | `storm-core` (runtime only) |
+| Metamodel | `storm-metamodel-ksp` on `ksp` | `storm-metamodel-processor` on `annotationProcessor` |
+| Compiler plugin | `storm-compiler-plugin-<variant>` matching the Kotlin version | — |
+| Compiler flags | — | `--enable-preview` on compile, test, and exec tasks |
+
+All Storm coordinates use the plugin's own version; the plugin and the artifacts are released together. Because the BOM is imported, optional modules stay version-less: `runtimeOnly("st.orm:storm-postgresql")` just works.
+
+The `storm { }` extension covers the cases where the defaults do not fit:
+
+```kotlin
+storm {
+    metamodel.set(true)               // metamodel generation (default true)
+    compilerPlugin.set(true)          // Kotlin: Storm compiler plugin (default true)
+    compilerPluginVariant.set("2.4")  // pin the variant, e.g. for a newer Kotlin than the plugin knows
+    javaPreview.set(true)             // Java: --enable-preview flags (default true)
+}
+```
+
+In mixed Kotlin/Java projects the Kotlin path wins: KSP processes Java declarations too. If you specifically need the Java annotation processor as well, add `annotationProcessor("st.orm:storm-metamodel-processor")` manually.
+
+Maven users and Gradle users who prefer explicit configuration continue with the manual setup below.
+
 ## Add the BOM
 
 Storm provides a Bill of Materials (BOM) for centralized version management. Import the BOM once, then omit version numbers from individual Storm dependencies. This prevents version mismatches between modules.
