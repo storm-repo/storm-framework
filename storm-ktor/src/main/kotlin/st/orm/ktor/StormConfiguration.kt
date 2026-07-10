@@ -46,6 +46,39 @@ class StormConfiguration {
     var config: StormConfig? = null
 
     /**
+     * Optional [st.orm.core.spi.ConnectionProvider] override. When not set, the plugin uses the coroutine-aware
+     * provider that binds connections to Storm's programmatic transactions.
+     *
+     * @since 1.13
+     */
+    var connectionProvider: st.orm.core.spi.ConnectionProvider? = null
+
+    /**
+     * Optional [st.orm.core.spi.TransactionTemplateProvider] override. When not set, the plugin uses the JDBC
+     * transaction provider that backs Storm's `transaction { }` API. Templates that should share transactions must
+     * use the same provider instance.
+     *
+     * @since 1.13
+     */
+    var transactionTemplateProvider: st.orm.core.spi.TransactionTemplateProvider? = null
+
+    /**
+     * Optional [st.orm.core.spi.ExceptionMapper] that maps failures raised during query execution to the runtime
+     * exception thrown to the caller.
+     *
+     * @since 1.13
+     */
+    var exceptionMapper: st.orm.core.spi.ExceptionMapper? = null
+
+    /**
+     * Optional [st.orm.core.spi.QueryObserver] that is notified of query executions, for metrics and tracing
+     * bindings.
+     *
+     * @since 1.13
+     */
+    var queryObserver: st.orm.core.spi.QueryObserver? = null
+
+    /**
      * Schema validation mode: `"none"`, `"warn"`, or `"fail"`.
      *
      * When not set, the mode is read from the application configuration under

@@ -17,6 +17,7 @@ package st.orm.core.template.impl;
 
 import static java.lang.Integer.toHexString;
 import static java.lang.System.identityHashCode;
+import static java.util.Optional.ofNullable;
 import static st.orm.core.template.impl.LazySupplier.lazy;
 import static st.orm.core.template.impl.ObjectMapperFactory.getObjectMapper;
 
@@ -39,6 +40,7 @@ import java.time.ZonedDateTime;
 import java.util.Calendar;
 import java.util.List;
 import java.util.Optional;
+import java.util.OptionalInt;
 import java.util.Spliterator;
 import java.util.Spliterators;
 import java.util.TimeZone;
@@ -52,18 +54,34 @@ import st.orm.Data;
 import st.orm.Entity;
 import st.orm.PersistenceException;
 import st.orm.Ref;
-import st.orm.core.spi.Providers;
+import st.orm.core.spi.QueryContext;
+import st.orm.core.spi.QueryContext.ExecutionKind;
+import st.orm.core.spi.QueryObserver;
+import st.orm.core.spi.QueryObserver.Observation;
 import st.orm.core.spi.RefFactory;
-import st.orm.core.spi.TransactionTemplate;
+import st.orm.core.spi.TransactionScope;
+import st.orm.core.spi.TransactionTemplateProvider;
 import st.orm.core.spi.WeakInterner;
 import st.orm.core.template.PreparedQuery;
 import st.orm.core.template.Query;
+import st.orm.core.template.SqlOperation;
 import st.orm.core.template.SqlTemplateException;
 
 @SuppressWarnings("ALL")
 class QueryImpl implements Query {
-    private static final TransactionTemplate TRANSACTION_TEMPLATE = Providers.getTransactionTemplate();
 
+    /**
+     * The template-scoped services and statement metadata shared by a query and the prepared queries derived from it.
+     */
+    record Environment(@Nonnull RefFactory refFactory,
+                       @Nonnull TransactionTemplateProvider transactionTemplateProvider,
+                       @Nonnull QueryObserver queryObserver,
+                       @Nonnull Function<Throwable, RuntimeException> exceptionTransformer,
+                       @Nonnull SqlOperation operation,
+                       @Nullable String statementText) {
+    }
+
+    private final Environment environment;
     private final RefFactory refFactory;
     private final Function<Boolean, PreparedStatement> statement;
     private final BindVarsHandle bindVarsHandle;
@@ -74,47 +92,9 @@ class QueryImpl implements Query {
     private final int defaultFetchSize;
     private final boolean streamOnlyFetchSize;
     private final boolean streamingRequiresTransaction;
-    private final Function<Throwable, PersistenceException> exceptionTransformer;
+    private final Function<Throwable, RuntimeException> exceptionTransformer;
 
-    QueryImpl(@Nonnull RefFactory refFactory,
-              @Nonnull Function<Boolean, PreparedStatement> statement,
-              @Nullable BindVarsHandle bindVarsHandle,
-              boolean versionAware,
-              @Nonnull Function<Throwable, PersistenceException> exceptionTransformer) {
-        this(refFactory, statement, bindVarsHandle, null, versionAware, false, false, 0, false, false, exceptionTransformer);
-    }
-
-    QueryImpl(@Nonnull RefFactory refFactory,
-              @Nonnull Function<Boolean, PreparedStatement> statement,
-              @Nullable BindVarsHandle bindVarsHandle,
-              boolean versionAware,
-              boolean unsafe,
-              @Nonnull Function<Throwable, PersistenceException> exceptionTransformer) {
-        this(refFactory, statement, bindVarsHandle, null, versionAware, false, unsafe, 0, false, false, exceptionTransformer);
-    }
-
-    QueryImpl(@Nonnull RefFactory refFactory,
-              @Nonnull Function<Boolean, PreparedStatement> statement,
-              @Nullable BindVarsHandle bindVarsHandle,
-              @Nullable Class<? extends Data> affectedType,
-              boolean versionAware,
-              boolean unsafe,
-              @Nonnull Function<Throwable, PersistenceException> exceptionTransformer) {
-        this(refFactory, statement, bindVarsHandle, affectedType, versionAware, false, unsafe, 0, false, false, exceptionTransformer);
-    }
-
-    QueryImpl(@Nonnull RefFactory refFactory,
-              @Nonnull Function<Boolean, PreparedStatement> statement,
-              @Nullable BindVarsHandle bindVarsHandle,
-              @Nullable Class<? extends Data> affectedType,
-              boolean versionAware,
-              boolean managed,
-              boolean unsafe,
-              @Nonnull Function<Throwable, PersistenceException> exceptionTransformer) {
-        this(refFactory, statement, bindVarsHandle, affectedType, versionAware, managed, unsafe, 0, false, false, exceptionTransformer);
-    }
-
-    QueryImpl(@Nonnull RefFactory refFactory,
+    QueryImpl(@Nonnull Environment environment,
               @Nonnull Function<Boolean, PreparedStatement> statement,
               @Nullable BindVarsHandle bindVarsHandle,
               @Nullable Class<? extends Data> affectedType,
@@ -123,9 +103,9 @@ class QueryImpl implements Query {
               boolean unsafe,
               int defaultFetchSize,
               boolean streamOnlyFetchSize,
-              boolean streamingRequiresTransaction,
-              @Nonnull Function<Throwable, PersistenceException> exceptionTransformer) {
-        this.refFactory = refFactory;
+              boolean streamingRequiresTransaction) {
+        this.environment = environment;
+        this.refFactory = environment.refFactory();
         this.statement = statement;
         this.bindVarsHandle = bindVarsHandle;
         this.versionAware = versionAware;
@@ -135,7 +115,7 @@ class QueryImpl implements Query {
         this.defaultFetchSize = defaultFetchSize;
         this.streamOnlyFetchSize = streamOnlyFetchSize;
         this.streamingRequiresTransaction = streamingRequiresTransaction;
-        this.exceptionTransformer = exceptionTransformer;
+        this.exceptionTransformer = environment.exceptionTransformer();
     }
 
     /**
@@ -152,7 +132,7 @@ class QueryImpl implements Query {
      */
     @Override
     public PreparedQuery prepare() {
-        return MonitoredResource.wrap(new PreparedQueryImpl(refFactory, statement.apply(unsafe), bindVarsHandle, affectedType, versionAware, managed, defaultFetchSize, streamOnlyFetchSize, streamingRequiresTransaction, exceptionTransformer));
+        return MonitoredResource.wrap(new PreparedQueryImpl(environment, statement.apply(unsafe), bindVarsHandle, affectedType, versionAware, managed, defaultFetchSize, streamOnlyFetchSize, streamingRequiresTransaction));
     }
 
     /**
@@ -163,7 +143,7 @@ class QueryImpl implements Query {
      */
     @Override
     public Query managed() {
-        return new QueryImpl(refFactory, statement, bindVarsHandle, affectedType, versionAware, true, unsafe, defaultFetchSize, streamOnlyFetchSize, streamingRequiresTransaction, exceptionTransformer);
+        return new QueryImpl(environment, statement, bindVarsHandle, affectedType, versionAware, true, unsafe, defaultFetchSize, streamOnlyFetchSize, streamingRequiresTransaction);
     }
 
     /**
@@ -174,11 +154,11 @@ class QueryImpl implements Query {
      */
     @Override
     public Query unsafe() {
-        return new QueryImpl(refFactory, statement, bindVarsHandle, affectedType, versionAware, managed, true, defaultFetchSize, streamOnlyFetchSize, streamingRequiresTransaction, exceptionTransformer);
+        return new QueryImpl(environment, statement, bindVarsHandle, affectedType, versionAware, managed, true, defaultFetchSize, streamOnlyFetchSize, streamingRequiresTransaction);
     }
 
     private QueryImpl withoutFetchSize() {
-        return new QueryImpl(refFactory, statement, bindVarsHandle, affectedType, versionAware, managed, unsafe, 0, false, false, exceptionTransformer);
+        return new QueryImpl(environment, statement, bindVarsHandle, affectedType, versionAware, managed, unsafe, 0, false, false);
     }
 
     private PreparedStatement getStatement() {
@@ -228,6 +208,34 @@ class QueryImpl implements Query {
     }
 
     /**
+     * Notifies the query observer of a starting execution. Observer failures never affect query execution.
+     */
+    private Observation observe(@Nonnull ExecutionKind kind) {
+        try {
+            return environment.queryObserver().onExecute(
+                    new QueryContextImpl(environment.operation(), affectedType, kind, environment.statementText()));
+        } catch (Throwable ignore) {
+            return Observation.NOOP;
+        }
+    }
+
+    private static void observationError(@Nonnull Observation observation, @Nonnull Throwable throwable) {
+        try {
+            observation.error(throwable);
+        } catch (Throwable ignore) {
+            // Observer failures never affect query execution.
+        }
+    }
+
+    private static void closeObservation(@Nonnull Observation observation) {
+        try {
+            observation.close();
+        } catch (Throwable ignore) {
+            // Observer failures never affect query execution.
+        }
+    }
+
+    /**
      * Execute a SELECT query and return the resulting rows as a stream of row instances.
      *
      * <p>Each element in the stream represents a row in the result, where the columns of the row corresponds to the
@@ -248,6 +256,8 @@ class QueryImpl implements Query {
      */
     @Override
     public Stream<Object[]> getResultStream() {
+        var observation = observe(ExecutionKind.QUERY);
+        boolean handedOff = false;
         try {
             PreparedStatement statement = getStatement();
             boolean close = true;
@@ -258,9 +268,16 @@ class QueryImpl implements Query {
                 try {
                     int columnCount = resultSet.getMetaData().getColumnCount();
                     close = false;
+                    handedOff = true;
                     return MonitoredResource.wrap(
                             StreamSupport.stream(rawRowSpliterator(resultSet, columnCount), false)
-                                    .onClose(() -> close(resultSet, statement, streamingCleanup)));
+                                    .onClose(() -> {
+                                        try {
+                                            close(resultSet, statement, streamingCleanup);
+                                        } finally {
+                                            closeObservation(observation);
+                                        }
+                                    }));
                 } finally {
                     if (close) {
                         resultSet.close();
@@ -272,6 +289,10 @@ class QueryImpl implements Query {
                 }
             }
         } catch (Exception e) {
+            if (!handedOff) {
+                observationError(observation, e);
+                closeObservation(observation);
+            }
             throw exceptionTransformer.apply(e);
         }
     }
@@ -297,9 +318,12 @@ class QueryImpl implements Query {
      */
     @Override
     public <T> Stream<T> getResultStream(@Nonnull Class<T> type) {
-        PreparedStatement statement = getStatement();
-        boolean close = true;
+        var observation = observe(ExecutionKind.QUERY);
+        boolean handedOff = false;
+        PreparedStatement statement = null;
         try {
+            statement = getStatement();
+            boolean close = true;
             try {
                 applyFetchSize(statement);
                 Runnable streamingCleanup = configureStreamingTransaction(statement);
@@ -308,15 +332,27 @@ class QueryImpl implements Query {
                 var mapper = getObjectMapper(columnCount, type, refFactory)
                         .orElseThrow(() -> new SqlTemplateException("No suitable constructor found for %s.".formatted(type.getName())));
                 close = false;
+                handedOff = true;
+                var closeableStatement = statement;
                 return MonitoredResource.wrap(
                         StreamSupport.stream(rowSpliterator(resultSet, columnCount, mapper), false)
-                                .onClose(() -> close(resultSet, statement, streamingCleanup)));
+                                .onClose(() -> {
+                                    try {
+                                        close(resultSet, closeableStatement, streamingCleanup);
+                                    } finally {
+                                        closeObservation(observation);
+                                    }
+                                }));
             } finally {
                 if (close && closeStatement()) {
                     statement.close();
                 }
             }
         } catch (Exception e) {
+            if (!handedOff) {
+                observationError(observation, e);
+                closeObservation(observation);
+            }
             throw exceptionTransformer.apply(e);
         }
     }
@@ -452,19 +488,27 @@ class QueryImpl implements Query {
      */
     @Override
     public int executeUpdate() {
-        PreparedStatement statement = getStatement();
+        var observation = observe(ExecutionKind.UPDATE);
         try {
+            PreparedStatement statement = getStatement();
             try {
-                int result = statement.executeUpdate();
-                invalidateAffectedEntityCaches();
-                return result;
-            } finally {
-                if (closeStatement()) {
-                    statement.close();
+                try {
+                    int result = statement.executeUpdate();
+                    invalidateAffectedEntityCaches();
+                    return result;
+                } finally {
+                    if (closeStatement()) {
+                        statement.close();
+                    }
                 }
+            } catch (SQLException e) {
+                throw exceptionTransformer.apply(e);
             }
-        } catch (SQLException e) {
-            throw exceptionTransformer.apply(e);
+        } catch (Throwable t) {
+            observationError(observation, t);
+            throw t;
+        } finally {
+            closeObservation(observation);
         }
     }
 
@@ -480,17 +524,19 @@ class QueryImpl implements Query {
         if (managed) {
             return;  // Caller is managing cache.
         }
-        TRANSACTION_TEMPLATE.currentContext().ifPresent(ctx -> {
-            if (affectedType == null) {
-                // Unknown affected type: clear all caches to avoid stale observed state.
-                ctx.clearAllEntityCaches();
-            } else if (Entity.class.isAssignableFrom(affectedType)) {
-                var cache = ctx.findEntityCache((Class<? extends Entity<?>>) affectedType);
-                if (cache != null) {
-                    cache.clear();
-                }
+        var context = TransactionScope.peekContext(environment.transactionTemplateProvider());
+        if (context == null) {
+            return;
+        }
+        if (affectedType == null) {
+            // Unknown affected type: clear all caches to avoid stale observed state.
+            context.clearAllEntityCaches();
+        } else if (Entity.class.isAssignableFrom(affectedType)) {
+            var cache = context.findEntityCache((Class<? extends Entity<?>>) affectedType);
+            if (cache != null) {
+                cache.clear();
             }
-        });
+        }
     }
 
     /**
@@ -503,19 +549,27 @@ class QueryImpl implements Query {
      */
     @Override
     public int[] executeBatch() {
-        PreparedStatement statement = getStatement();
+        var observation = observe(ExecutionKind.BATCH);
         try {
+            PreparedStatement statement = getStatement();
             try {
-                int[] result = statement.executeBatch();
-                invalidateAffectedEntityCaches();
-                return result;
-            } finally {
-                if (closeStatement()) {
-                    statement.close();
+                try {
+                    int[] result = statement.executeBatch();
+                    invalidateAffectedEntityCaches();
+                    return result;
+                } finally {
+                    if (closeStatement()) {
+                        statement.close();
+                    }
                 }
+            } catch (SQLException e) {
+                throw exceptionTransformer.apply(e);
             }
-        } catch (SQLException e) {
-            throw exceptionTransformer.apply(e);
+        } catch (Throwable t) {
+            observationError(observation, t);
+            throw t;
+        } finally {
+            closeObservation(observation);
         }
     }
 
@@ -666,6 +720,29 @@ class QueryImpl implements Query {
             }
         } catch (SQLException e) {
             throw new PersistenceException(e);
+        }
+    }
+
+    /**
+     * Describes a statement execution for the query observer.
+     */
+    private record QueryContextImpl(@Nonnull SqlOperation operation,
+                                    @Nullable Class<? extends Data> affectedType,
+                                    @Nonnull ExecutionKind kind,
+                                    @Nullable String statementText) implements QueryContext {
+        @Override
+        public Optional<Class<? extends Data>> dataType() {
+            return ofNullable(affectedType);
+        }
+
+        @Override
+        public OptionalInt batchSize() {
+            return OptionalInt.empty();
+        }
+
+        @Override
+        public Optional<String> statement() {
+            return ofNullable(statementText);
         }
     }
 }

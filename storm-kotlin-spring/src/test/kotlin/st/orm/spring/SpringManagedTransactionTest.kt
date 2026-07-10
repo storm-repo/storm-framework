@@ -19,8 +19,7 @@ import st.orm.template.*
 import st.orm.template.TransactionIsolation.*
 import st.orm.template.TransactionPropagation.*
 
-@ContextConfiguration(classes = [IntegrationConfig::class])
-@EnableTransactionIntegration
+@ContextConfiguration(classes = [SpringIntegrationConfig::class])
 @SpringBootTest
 @Sql("/data.sql")
 open class SpringManagedTransactionTest(

@@ -13,25 +13,30 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package st.orm.spring.impl;
+package st.orm.spi.mysql.testsupport;
 
 import jakarta.annotation.Nonnull;
 import jakarta.annotation.Nullable;
 import java.sql.Connection;
 import javax.sql.DataSource;
-import org.springframework.jdbc.CannotGetJdbcConnectionException;
 import org.springframework.jdbc.datasource.DataSourceUtils;
 import st.orm.PersistenceException;
 import st.orm.core.spi.ConnectionProvider;
+import st.orm.core.spi.Orderable.BeforeAny;
 import st.orm.core.spi.TransactionContext;
 
-public class TransactionAwareConnectionProviderImpl implements ConnectionProvider {
+/**
+ * Test-only connection provider that binds connections to Spring's transaction management, so the test suite's
+ * transaction-per-test isolation applies to statements executed by Storm templates.
+ */
+@BeforeAny
+public class TestSpringConnectionProvider implements ConnectionProvider {
 
     @Override
     public Connection getConnection(@Nonnull DataSource dataSource, @Nullable TransactionContext context) {
         try {
             return DataSourceUtils.getConnection(dataSource);
-        } catch (CannotGetJdbcConnectionException e) {
+        } catch (Exception e) {
             throw new PersistenceException("Failed to get connection from DataSource.", e);
         }
     }

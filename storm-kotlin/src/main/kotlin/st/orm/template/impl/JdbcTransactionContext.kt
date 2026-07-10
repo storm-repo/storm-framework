@@ -234,22 +234,22 @@ internal class JdbcTransactionContext : TransactionContext {
     private fun Int.toDeadlineFromNowNanos(): Long = System.nanoTime() + this.toLong() * 1_000_000_000L
 
     /**
-     * Executes a transaction block with specified attributes.
+     * Begins a transaction frame with the specified attributes.
+     *
+     * <p>The physical connection is bound lazily, when the first data source touches this context via
+     * [useDataSource]. The frame is finished with [complete].</p>
      *
      * @param propagation Transaction propagation behavior
      * @param isolation Transaction isolation level
+     * @param timeoutSeconds Transaction timeout in seconds
      * @param readOnly Transaction read-only setting
-     * @param callback Transaction operation to execute
-     * @return Result of the transaction operation
-     * @throws PersistenceException on transaction or database errors
      */
-    fun <T> execute(
+    internal fun begin(
         propagation: TransactionPropagation,
         isolation: Int?,
         timeoutSeconds: Int?,
         readOnly: Boolean?,
-        callback: TransactionCallback<T>,
-    ): T {
+    ) {
         val state = TransactionState(propagation, isolation, timeoutSeconds, readOnly)
         logger.debug(
             """
@@ -262,44 +262,37 @@ internal class JdbcTransactionContext : TransactionContext {
         )
         state.deadlineNanos = timeoutSeconds?.toDeadlineFromNowNanos()
         stack.add(state)
-        val result = try {
-            callback.doInTransaction(object : TransactionStatus {
-                override fun isRollbackOnly(): Boolean = this@JdbcTransactionContext.isRollbackOnly
+    }
 
-                override fun setRollbackOnly() {
-                    this@JdbcTransactionContext.setRollbackOnly()
-                }
-            })
-        } catch (e: Throwable) {
-            logger.trace("Transaction failed (${state.transactionId}).", e)
+    /**
+     * Completes the current transaction frame.
+     *
+     * <p>When [rollback] is `true`, the frame rolls back and any rollback failure is suppressed so the caller can
+     * surface the original error. Otherwise the frame commits; the commit path detects timeouts and rollback-only
+     * marks and rolls back instead, throwing accordingly.</p>
+     *
+     * @param rollback whether the transactional work failed and the frame must be rolled back.
+     */
+    internal fun complete(rollback: Boolean) {
+        if (rollback) {
+            logger.trace("Transaction failed (${stack.lastOrNull()?.transactionId}).")
             rollback(suppressException = true) // Suppress any rollback exception to ensure handling of exception.
-            when (e.cause) {
-                is SQLTimeoutException -> {
-                    // TimeoutJob may not have registered timeout yet.
-                    val base = e.message ?: "Did not complete within timeout."
-                    throw TransactionTimedOutException(
-                        "$base [${state.timeoutDescription()}]",
-                        e,
-                    )
-                }
-                else -> throw e
-            }
+        } else {
+            // Let commit detect timeout or rollback-only.
+            commit()
         }
-        // Let commit detect timeout or rollback-only.
-        commit()
-        return result as T
     }
 
     /**
      * Check if the current transaction is marked for rollback-only.
      */
-    private val isRollbackOnly: Boolean
-        get() = currentState.rollbackOnly
+    internal val isRollbackOnly: Boolean
+        get() = stack.lastOrNull()?.rollbackOnly ?: false
 
     /**
      * Mark the current transaction so that it will roll back on completion.
      */
-    private fun setRollbackOnly() {
+    internal fun setRollbackOnly() {
         val lastIndex = stack.lastIndex
         val currentState = stack[lastIndex]
         logger.debug("Marking transaction for rollback (${currentState.transactionId}).")

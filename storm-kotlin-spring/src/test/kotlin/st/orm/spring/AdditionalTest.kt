@@ -46,8 +46,7 @@ import st.orm.template.transactionBlocking
  * - RepositoryBeanFactoryPostProcessor: getOrmTemplateBeanName, getRepositoryBasePackages
  * - RepositoryAopAutoConfiguration: constructor, repositoryProxyingPostProcessor
  */
-@ContextConfiguration(classes = [IntegrationConfig::class])
-@EnableTransactionIntegration
+@ContextConfiguration(classes = [SpringIntegrationConfig::class])
 @SpringBootTest
 @Sql("/data.sql")
 open class AdditionalTest(
@@ -392,7 +391,7 @@ open class AdditionalTest(
         }
     }
 
-    // SpringConnectionProviderImpl: getConnection with transaction context
+    // SpringConnectionProvider: getConnection with transaction context
 
     @Test
     fun `connection within transaction should be managed by Spring`(): Unit = runBlocking {

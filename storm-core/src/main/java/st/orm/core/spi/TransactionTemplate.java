@@ -17,13 +17,17 @@ package st.orm.core.spi;
 
 import static java.util.Optional.ofNullable;
 
-import jakarta.annotation.Nonnull;
+import jakarta.annotation.Nullable;
 import java.util.Optional;
 import st.orm.PersistenceException;
 
 /**
- * The transaction template is a functional interface that allows callers to let logic be executed in the scope of a
- * new transaction.
+ * The transaction template allows a transaction to be opened for the template's configuration and completed once the
+ * transactional work has finished.
+ *
+ * <p>Transactions are opened and completed in two separate steps rather than around a callback. This enables lazy
+ * binding: a {@link TransactionScope} is materialized by the first template that executes inside it, at which point
+ * the transactional block is already running.</p>
  *
  * @since 1.5
  */
@@ -78,12 +82,21 @@ public interface TransactionTemplate {
     TransactionTemplate timeout(int timeoutSeconds);
 
     /**
-     * Creates a new transaction context based on the current configuration of this transaction template.
+     * Opens a transaction based on the current configuration of this transaction template.
      *
+     * <p>When {@code existing} is {@code null}, a new transaction context is created. When an existing context is
+     * given, the opened transaction joins, nests in, or suspends the existing transaction according to the configured
+     * propagation; the returned handle exposes the same context instance.</p>
+     *
+     * <p>The physical transaction may start lazily, when the first connection is bound to the context.</p>
+     *
+     * @param existing the transaction context to join, or {@code null} to create a new context.
      * @param suspendMode whether the transaction is created to be used in suspend mode.
+     * @return a handle used to observe and complete the opened transaction.
      * @throws PersistenceException if the transaction subsystem raised an issue, such as an invalid configuration.
+     * @since 1.13
      */
-    TransactionContext newContext(boolean suspendMode) throws PersistenceException;
+    TransactionHandle open(@Nullable TransactionContext existing, boolean suspendMode) throws PersistenceException;
 
     /**
      * Returns the current transaction context if any.
@@ -102,13 +115,36 @@ public interface TransactionTemplate {
     ThreadLocal<TransactionContext> contextHolder();
 
     /**
-     * Executes the specified action in the scope of a transaction. Exceptions raised by the action will be relayed
-     * and will mark the transaction as rollback only.
+     * Handle for a transaction opened via {@link #open}.
      *
-     * @param action action to preform in the scope of a transaction.
-     * @return result object.
-     * @param <R> result object type.
-     * @throws PersistenceException if the transaction subsystem raised an issue.
+     * @since 1.13
      */
-    <R> R execute(@Nonnull TransactionCallback<R> action, @Nonnull TransactionContext context) throws PersistenceException;
+    interface TransactionHandle {
+
+        /**
+         * Returns the transaction context of the opened transaction.
+         *
+         * @return the transaction context; never {@code null}.
+         */
+        TransactionContext context();
+
+        /**
+         * Returns the status of the opened transaction.
+         *
+         * @return the transaction status; never {@code null}.
+         */
+        TransactionStatus status();
+
+        /**
+         * Completes the opened transaction.
+         *
+         * <p>The transaction rolls back when {@code rollback} is {@code true} or the transaction has been marked
+         * rollback-only, and commits otherwise. Must be invoked exactly once.</p>
+         *
+         * @param rollback whether the transactional work failed and the transaction must be rolled back.
+         * @throws PersistenceException if the transaction subsystem raised an issue while completing, or to signal an
+         * unexpected rollback or timeout.
+         */
+        void complete(boolean rollback) throws PersistenceException;
+    }
 }

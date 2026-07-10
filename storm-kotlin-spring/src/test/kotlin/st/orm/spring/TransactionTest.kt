@@ -439,11 +439,12 @@ open class TransactionTest(
 
     @Transactional
     @Test
-    open fun `programmatic transactions not allowed with spring managed transactions`(): Unit = runBlocking {
-        assertThrows<PersistenceException> {
-            transactionBlocking {
-                orm.removeAll<Visit>()
-            }
+    open fun `programmatic transactions are independent of spring managed transactions on a plain template`(): Unit = runBlocking {
+        // This template is configured with the platform-neutral JDBC providers, so a programmatic transaction runs
+        // independently of the surrounding Spring-managed transaction: it executes on its own connection instead of
+        // failing fast, as templates never silently enlist in Spring transactions.
+        transactionBlocking {
+            orm.countAll<Visit>()
         }
     }
 

@@ -19,7 +19,6 @@ import st.orm.repository.Repository;
 import st.orm.spring.impl.RepositoryAopAutoConfiguration;
 import st.orm.spring.impl.RepositoryProxyingPostProcessor;
 import st.orm.spring.impl.ResolverRegistration;
-import st.orm.spring.impl.TransactionAwareConnectionProviderImpl;
 
 /**
  * Unit tests for coverage of implementation classes in st.orm.spring.impl.
@@ -77,13 +76,13 @@ public class ImplTest {
         assertSame(bean, result);
     }
 
-    // TransactionAwareConnectionProviderImpl error path (2 lines)
+    // SpringConnectionProvider error path (2 lines)
 
     @Test
     public void connectionProviderShouldWrapSqlExceptionInPersistenceException() {
-        // When the underlying DataSource throws a SQLException, the TransactionAwareConnectionProviderImpl
+        // When the underlying DataSource throws a SQLException, the SpringConnectionProvider
         // should wrap it in a PersistenceException to maintain the framework's exception hierarchy.
-        var provider = new TransactionAwareConnectionProviderImpl();
+        var provider = new SpringConnectionProvider();
         var dataSource = mock(DataSource.class);
         try {
             when(dataSource.getConnection()).thenThrow(new SQLException("Connection failed"));

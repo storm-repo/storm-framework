@@ -49,9 +49,8 @@ import st.orm.core.repository.EntityRepository;
 import st.orm.core.spi.CacheRetention;
 import st.orm.core.spi.EntityCache;
 import st.orm.core.spi.EntityCacheMetrics;
-import st.orm.core.spi.Providers;
 import st.orm.core.spi.TransactionContext;
-import st.orm.core.spi.TransactionTemplate;
+import st.orm.core.spi.TransactionScope;
 import st.orm.core.template.Column;
 import st.orm.core.template.Model;
 import st.orm.core.template.ORMTemplate;
@@ -81,8 +80,6 @@ public class EntityRepositoryImpl<E extends Entity<ID>, ID>
      * static and thread-local so that it applies across all repository instances on the current thread.
      */
     private static final ThreadLocal<Boolean> CALLBACK_ACTIVE = ThreadLocal.withInitial(() -> Boolean.FALSE);
-
-    private final TransactionTemplate TRANSACTION_TEMPLATE = Providers.getTransactionTemplate();
 
     protected final int defaultBatchSize;
     protected final List<Column> primaryKeyColumns;
@@ -672,8 +669,16 @@ public class EntityRepositoryImpl<E extends Entity<ID>, ID>
      */
     protected Optional<EntityCache<E, ID>> entityCache() {
         //noinspection unchecked
-        return TRANSACTION_TEMPLATE.currentContext()
+        return currentTransactionContext()
                 .map(ctx -> (EntityCache<E, ID>) ctx.entityCache(model().type(), cacheRetention));
+    }
+
+    /**
+     * Returns the transaction context that is active for this repository's template, or empty when no transaction is
+     * active. This is an observing lookup: it never starts a transaction.
+     */
+    private Optional<TransactionContext> currentTransactionContext() {
+        return Optional.ofNullable(TransactionScope.peekContext(ormTemplate.transactionTemplateProvider()));
     }
 
     /**
@@ -686,7 +691,7 @@ public class EntityRepositoryImpl<E extends Entity<ID>, ID>
      * @since 1.8
      */
     protected boolean isRepeatableRead() {
-        return TRANSACTION_TEMPLATE.currentContext()
+        return currentTransactionContext()
                 .map(TransactionContext::isRepeatableRead)
                 .orElse(false);
     }

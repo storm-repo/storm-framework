@@ -971,43 +971,52 @@ withTransactionOptionsBlocking(isolation = SERIALIZABLE) {
 }
 ```
 
+### How Transactions Bind to Templates
+
+Since 1.13, a `transaction` or `transactionBlocking` block binds to the first `ORMTemplate` that executes inside it. Opening the block only records the requested options (propagation, isolation, timeout, read-only); the actual transaction is opened by that first template's transaction provider. This means the block automatically uses whatever transaction system the template is configured with, whether that is Storm's own JDBC transactions or a platform bridge such as Spring's transaction management. A block that never touches a template completes as a no-op.
+
+Templates that should share a transaction must use the same transaction provider instance. This is automatic for repositories of one application (the Spring Boot starter and the Ktor plugin configure one provider per application context or plugin installation). Mixing templates with *different* transaction providers inside one block fails fast with a descriptive error, since a single commit cannot span two transaction systems.
+
 ### Spring-Managed Transactions
 
 While Storm's programmatic transaction API works standalone, many applications use Spring's transaction management for its declarative `@Transactional` support and integration with other Spring components. Storm integrates seamlessly with Spring's transaction management.
 
-When `@EnableTransactionIntegration` is configured, Storm's programmatic `transaction` blocks automatically detect and participate in Spring-managed transactions. This gives you the best of both worlds: Spring's declarative transaction boundaries with Storm's coroutine-friendly transaction blocks.
+When a template is wired to Spring's transaction management, Storm's programmatic `transactionBlocking` blocks run through Spring's `PlatformTransactionManager` and participate in Spring-managed transactions. This gives you the best of both worlds: Spring's declarative transaction boundaries with Storm's programmatic transaction blocks. The suspending `transaction` variant is not supported with Spring-managed transactions; use `transactionBlocking` there.
 
 #### Configuration
 
-Enable Spring integration in your configuration class:
+The Spring Boot starter wires this automatically when a `PlatformTransactionManager` is present. Without the starter, compose the template with `springOrmTemplate`:
 
 ```kotlin
-@EnableTransactionIntegration
 @Configuration
-class ORMConfiguration(private val dataSource: DataSource) {
+@EnableTransactionManagement
+class ORMConfiguration {
     @Bean
-    fun ormTemplate() = ORMTemplate.of(dataSource)
+    fun ormTemplate(
+        dataSource: DataSource,
+        transactionManagers: ObjectProvider<PlatformTransactionManager>,
+    ): ORMTemplate = springOrmTemplate(dataSource) { transactionManagers.orderedStream().toList() }
 }
 ```
 
 #### Combining Declarative and Programmatic Transactions
 
-You can use Spring's `@Transactional` annotation alongside Storm's programmatic `transaction` blocks. Storm will join the existing Spring transaction:
+You can use Spring's `@Transactional` annotation alongside Storm's programmatic `transactionBlocking` blocks. Storm will join the existing Spring transaction:
 
 ```kotlin
 @Service
 class UserService(private val orm: ORMTemplate) {
 
     @Transactional
-    suspend fun createUserWithOrders(user: User, orders: List<Order>) {
+    fun createUserWithOrders(user: User, orders: List<Order>) {
         // Spring starts the transaction
 
-        transaction {
+        transactionBlocking {
             // Storm joins the Spring transaction (REQUIRED propagation by default)
             orm insert user
         }
 
-        transaction {
+        transactionBlocking {
             // Still in the same Spring transaction
             orders.forEach { orm insert it }
         }

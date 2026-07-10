@@ -25,8 +25,7 @@ import st.orm.template.TransactionPropagation.*
  * isRepeatableRead, getDecorator timeout behavior, nested cache sharing/isolation,
  * and timeout edge cases.
  */
-@ContextConfiguration(classes = [IntegrationConfig::class])
-@EnableTransactionIntegration
+@ContextConfiguration(classes = [SpringIntegrationConfig::class])
 @SpringBootTest
 @Sql("/data.sql")
 open class SpringTransactionContextTest(

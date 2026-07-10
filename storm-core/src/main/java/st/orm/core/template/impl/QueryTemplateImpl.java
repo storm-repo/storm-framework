@@ -63,6 +63,17 @@ class QueryTemplateImpl implements QueryTemplate {
     }
 
     /**
+     * Returns the transaction template provider used by this template.
+     *
+     * @return the transaction template provider.
+     * @since 1.13
+     */
+    @Override
+    public st.orm.core.spi.TransactionTemplateProvider transactionTemplateProvider() {
+        return queryFactory.transactionTemplateProvider();
+    }
+
+    /**
      * Create a new bind variables instance that can be used to add bind variables to a batch.
      *
      * @return a new bind variables instance.

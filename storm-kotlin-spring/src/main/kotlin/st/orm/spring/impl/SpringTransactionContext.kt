@@ -26,14 +26,11 @@ import st.orm.PersistenceException
 import st.orm.core.spi.CacheRetention
 import st.orm.core.spi.EntityCache
 import st.orm.core.spi.EntityCacheImpl
-import st.orm.core.spi.TransactionCallback
 import st.orm.core.spi.TransactionContext
-import st.orm.spring.SpringTransactionConfiguration
 import st.orm.template.TransactionTimedOutException
 import st.orm.template.UnexpectedRollbackException
 import java.sql.Connection.*
 import java.sql.PreparedStatement
-import java.sql.SQLTimeoutException
 import java.util.Optional
 import javax.sql.DataSource
 import kotlin.math.min
@@ -52,22 +49,20 @@ import kotlin.reflect.KClass
  * - Integration with Spring's PlatformTransactionManager
  * - Transaction state management including rollback flags
  *
- * Example usage:
- * ```
- * val context = SpringTransactionContext()
- * context.execute(definition) { status ->
- *     // Execute transactional operations
- * }
- * ```
+ * Transaction frames are opened with [begin] and finished with [complete]; the physical Spring transaction starts
+ * lazily, when the first data source touches this context via [useDataSource].
  *
  * @property stack Maintains the stack of transaction states for nested transaction support
  * @property currentState Provides access to the current transaction state or throws if no transaction is active
  *
+ * @param transactionManagers supplies the transaction managers of the owning application context.
  * @see TransactionContext
  * @see PlatformTransactionManager
  * @since 1.5
  */
-internal class SpringTransactionContext : TransactionContext {
+internal class SpringTransactionContext(
+    private val transactionManagers: () -> List<PlatformTransactionManager>,
+) : TransactionContext {
     companion object {
         val logger = LoggerFactory.getLogger("st.orm.transaction")
     }
@@ -261,10 +256,13 @@ internal class SpringTransactionContext : TransactionContext {
         }
     }
 
-    fun <T> execute(
-        definition: TransactionDefinition,
-        callback: TransactionCallback<T>,
-    ): T {
+    /**
+     * Begins a transaction frame with the specified definition.
+     *
+     * The physical Spring transaction starts lazily, when the first data source touches this context via
+     * [useDataSource]. The frame is finished with [complete].
+     */
+    fun begin(definition: TransactionDefinition) {
         val state = TransactionState(
             transactionDefinition = definition,
             timeoutSeconds = definition.timeout.takeIf { it > 0 },
@@ -303,24 +301,21 @@ internal class SpringTransactionContext : TransactionContext {
             )
         }
         stack.add(state)
-        val result = try {
-            callback.doInTransaction(object : st.orm.core.spi.TransactionStatus {
-                override fun isRollbackOnly(): Boolean = this@SpringTransactionContext.isRollbackOnly
-                override fun setRollbackOnly() {
-                    this@SpringTransactionContext.setRollbackOnly()
-                }
-            })
-        } catch (e: Throwable) {
-            // Let Spring roll back if a transaction was actually started for this frame.
+    }
+
+    /**
+     * Completes the current transaction frame.
+     *
+     * When [rollback] is `true`, the frame rolls back; Spring rolls back the physical transaction if one was
+     * actually started for this frame. Otherwise the frame commits; the commit path detects timeouts and
+     * rollback-only marks and rolls back instead, throwing accordingly.
+     */
+    fun complete(rollback: Boolean) {
+        if (rollback) {
             rollback()
-            when (e.cause) {
-                is SQLTimeoutException ->
-                    throw TransactionTimedOutException(e.message ?: "Did not complete within timeout.", e)
-                else -> throw e
-            }
+        } else {
+            commit()
         }
-        commit()
-        return result as T
     }
 
     /**
@@ -339,10 +334,10 @@ internal class SpringTransactionContext : TransactionContext {
         ensureStartedInRange(startIndex, index, dataSource)
     }
 
-    private val isRollbackOnly: Boolean
+    internal val isRollbackOnly: Boolean
         get() = (currentState.rollbackOnly || (currentState.transactionStatus?.isRollbackOnly ?: false))
 
-    private fun setRollbackOnly() {
+    internal fun setRollbackOnly() {
         val index = stack.lastIndex
         if (index < 0) throw IllegalStateException("No transaction active.")
         val startIndex = ownerIndexFor(index)
@@ -355,7 +350,7 @@ internal class SpringTransactionContext : TransactionContext {
         currentState.transactionStatus?.setRollbackOnly()
     }
 
-    private fun resolveTransactionManager(dataSource: DataSource): PlatformTransactionManager = SpringTransactionConfiguration.transactionManagers
+    private fun resolveTransactionManager(dataSource: DataSource): PlatformTransactionManager = transactionManagers()
         .mapNotNull { it as? DataSourceTransactionManager }
         .firstOrNull { it.dataSource === dataSource }
         ?: throw IllegalStateException("No TransactionManager found for DataSource $dataSource.")

@@ -68,4 +68,17 @@ public interface QueryFactory {
     default @Nullable DataSource dataSource() {
         return null;
     }
+
+    /**
+     * Returns the transaction template provider used by this factory.
+     *
+     * <p>The default implementation resolves the fallback provider via {@code ServiceLoader} discovery;
+     * implementations that carry instance-scoped integration strategies return their configured provider.</p>
+     *
+     * @return the transaction template provider.
+     * @since 1.13
+     */
+    default TransactionTemplateProvider transactionTemplateProvider() {
+        return Providers.getTransactionTemplateProvider();
+    }
 }

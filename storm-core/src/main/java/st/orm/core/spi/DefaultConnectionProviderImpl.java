@@ -17,65 +17,37 @@ package st.orm.core.spi;
 
 import jakarta.annotation.Nonnull;
 import jakarta.annotation.Nullable;
-import java.lang.reflect.InvocationTargetException;
-import java.lang.reflect.Method;
 import java.sql.Connection;
+import java.sql.SQLException;
 import javax.sql.DataSource;
 import st.orm.PersistenceException;
 import st.orm.core.spi.Orderable.AfterAny;
 
+/**
+ * Default connection provider that acquires and closes connections directly on the data source.
+ *
+ * <p>This provider is platform-neutral: it never participates in externally managed transactions. Integrations that
+ * bind connections to a transaction subsystem supply their own {@link ConnectionProvider} via the template
+ * builder.</p>
+ */
 @AfterAny
 public class DefaultConnectionProviderImpl implements ConnectionProvider {
-
-    private static final Method GET_CONNECTION_METHOD;
-    private static final Method RELEASE_CONNECTION_METHOD;
-
-    static {
-        Method getConnection;
-        Method releaseConnection;
-        try {
-            Class<?> utilsClass = Class.forName("org.springframework.jdbc.datasource.DataSourceUtils");
-            getConnection = utilsClass.getMethod("getConnection", DataSource.class);
-            releaseConnection = utilsClass.getMethod("releaseConnection", Connection.class, DataSource.class);
-        } catch (ClassNotFoundException | NoSuchMethodException e) {
-            getConnection = null;
-            releaseConnection = null;
-        }
-        GET_CONNECTION_METHOD = getConnection;
-        RELEASE_CONNECTION_METHOD = releaseConnection;
-    }
 
     @Override
     public Connection getConnection(@Nonnull DataSource dataSource, @Nullable TransactionContext context) {
         try {
-            if (GET_CONNECTION_METHOD != null) {
-                try {
-                    return (Connection) GET_CONNECTION_METHOD.invoke(null, dataSource);
-                } catch (InvocationTargetException e) {
-                    throw e.getTargetException();
-                }
-            } else {
-                return dataSource.getConnection();
-            }
-        } catch (Throwable t) {
-            throw new PersistenceException("Failed to get connection from DataSource.", t);
+            return dataSource.getConnection();
+        } catch (SQLException e) {
+            throw new PersistenceException("Failed to get connection from DataSource.", e);
         }
     }
 
     @Override
     public void releaseConnection(@Nonnull Connection connection, @Nonnull DataSource dataSource, @Nullable TransactionContext context) {
         try {
-            if (RELEASE_CONNECTION_METHOD != null) {
-                try {
-                    RELEASE_CONNECTION_METHOD.invoke(null, connection, dataSource);
-                } catch (InvocationTargetException e) {
-                    throw e.getTargetException();
-                }
-            } else {
-                connection.close();
-            }
-        } catch (Throwable t) {
-            throw new PersistenceException("Failed to release connection.", t);
+            connection.close();
+        } catch (SQLException e) {
+            throw new PersistenceException("Failed to release connection.", e);
         }
     }
 }

@@ -1,0 +1,60 @@
+/*
+ * Copyright 2024 - 2026 the original author or authors.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *      https://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+package st.orm.spring;
+
+import jakarta.annotation.Nonnull;
+import jakarta.annotation.Nullable;
+import java.sql.Connection;
+import javax.sql.DataSource;
+import org.springframework.jdbc.CannotGetJdbcConnectionException;
+import org.springframework.jdbc.datasource.DataSourceUtils;
+import st.orm.PersistenceException;
+import st.orm.core.spi.ConnectionProvider;
+import st.orm.core.spi.TransactionContext;
+
+/**
+ * Connection provider that binds connections to Spring's transaction management.
+ *
+ * <p>Connections are acquired through {@link DataSourceUtils}, so statements executed by the template participate in
+ * Spring-managed ({@code @Transactional}) transactions via thread-bound connections, and degrade gracefully to plain
+ * connections when no transaction is active. Storm's own transaction API is not bridged by this provider.</p>
+ *
+ * <p>Configure this provider on the template that belongs to the owning application context:
+ * <pre>{@code
+ * ORMTemplate orm = ORMTemplate.builder(dataSource)
+ *         .connectionProvider(new SpringConnectionProvider())
+ *         .transactionTemplateProvider(new SpringTransactionTemplateProvider())
+ *         .build();
+ * }</pre>
+ *
+ * @since 1.13
+ */
+public class SpringConnectionProvider implements ConnectionProvider {
+
+    @Override
+    public Connection getConnection(@Nonnull DataSource dataSource, @Nullable TransactionContext context) {
+        try {
+            return DataSourceUtils.getConnection(dataSource);
+        } catch (CannotGetJdbcConnectionException e) {
+            throw new PersistenceException("Failed to get connection from DataSource.", e);
+        }
+    }
+
+    @Override
+    public void releaseConnection(@Nonnull Connection connection, @Nonnull DataSource dataSource, @Nullable TransactionContext context) {
+        DataSourceUtils.releaseConnection(connection, dataSource);
+    }
+}

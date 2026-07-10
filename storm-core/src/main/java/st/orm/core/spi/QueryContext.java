@@ -1,0 +1,90 @@
+/*
+ * Copyright 2024 - 2026 the original author or authors.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *      https://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+package st.orm.core.spi;
+
+import java.util.Optional;
+import java.util.OptionalInt;
+import st.orm.Data;
+import st.orm.core.template.SqlOperation;
+
+/**
+ * Describes a single statement execution observed by a {@link QueryObserver}.
+ *
+ * <p>The {@link #operation()}, {@link #dataType()} and {@link #kind()} properties are low-cardinality and suitable
+ * as metric tags. The {@link #statement()} property is high-cardinality and is intended for trace attributes only;
+ * it must never be used as a metric tag.</p>
+ *
+ * @see QueryObserver
+ * @since 1.13
+ */
+public interface QueryContext {
+
+    /**
+     * Classifies the kind of SQL statement being executed.
+     *
+     * @return the SQL operation; {@link SqlOperation#UNDEFINED} when the operation is unknown.
+     */
+    SqlOperation operation();
+
+    /**
+     * Returns the entity or projection type primarily targeted by the statement.
+     *
+     * @return the data type, or empty when the statement is not associated with a specific type.
+     */
+    Optional<Class<? extends Data>> dataType();
+
+    /**
+     * Returns how the statement is executed.
+     *
+     * @return the execution kind.
+     */
+    ExecutionKind kind();
+
+    /**
+     * Returns the number of statements in the batch.
+     *
+     * @return the batch size; present only for {@link ExecutionKind#BATCH} executions when the size is known at
+     * execution time.
+     */
+    OptionalInt batchSize();
+
+    /**
+     * Returns the SQL statement being executed, with all parameters replaced by placeholders.
+     *
+     * <p><strong>Note:</strong> this value is high-cardinality; use it for trace attributes only, never as a metric
+     * tag.</p>
+     *
+     * @return the SQL statement, or empty when no statement text is available.
+     */
+    Optional<String> statement();
+
+    /**
+     * Classifies how a statement is executed.
+     *
+     * @since 1.13
+     */
+    enum ExecutionKind {
+
+        /** The statement produces a result set. */
+        QUERY,
+
+        /** The statement is executed as a single update. */
+        UPDATE,
+
+        /** The statement is executed as a batch of updates. */
+        BATCH
+    }
+}

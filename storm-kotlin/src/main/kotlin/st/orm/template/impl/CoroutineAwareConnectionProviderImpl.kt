@@ -21,13 +21,17 @@ import st.orm.core.spi.TransactionContext
 import java.lang.System.identityHashCode
 import java.lang.ref.ReferenceQueue
 import java.lang.ref.WeakReference
-import java.lang.reflect.InvocationTargetException
-import java.lang.reflect.Method
 import java.sql.Connection
 import java.util.concurrent.ConcurrentHashMap
 import javax.sql.DataSource
 
 /**
+ * Coroutine-aware connection provider that binds connections to the active [JdbcTransactionContext].
+ *
+ * <p>This provider is platform-neutral: outside a programmatic transaction, connections are acquired and closed
+ * directly on the data source. Integrations that bind connections to an external transaction subsystem supply their
+ * own [ConnectionProvider] via the template builder.</p>
+ *
  * @since 1.5
  */
 class CoroutineAwareConnectionProviderImpl : ConnectionProvider {
@@ -35,7 +39,6 @@ class CoroutineAwareConnectionProviderImpl : ConnectionProvider {
     override fun getConnection(dataSource: DataSource, context: TransactionContext?): Connection {
         if (context != null) {
             require(context is JdbcTransactionContext) { "Transaction context must be of type JdbcTransactionContext." }
-            validateState()
             val connection = context.getConnection(dataSource)
             ConcurrencyDetector.beforeAccess(connection, context)
             return connection
@@ -57,38 +60,9 @@ class CoroutineAwareConnectionProviderImpl : ConnectionProvider {
         releaseRegularConnection(connection, dataSource)
     }
 
-    private fun validateState() {
-        try {
-            if (IS_ACTUAL_TRANSACTION_ACTIVE != null) {
-                try {
-                    if (IS_ACTUAL_TRANSACTION_ACTIVE.invoke(null) as Boolean) {
-                        throw PersistenceException(
-                            "Programmatic transactions and Spring managed transactions cannot be mixed when spring-managed transactions are disabled for storm. " +
-                                "Use `@EnableTransactionIntegration` to enable spring-managed transactions for storm.",
-                        )
-                    }
-                } catch (e: InvocationTargetException) {
-                    throw e.targetException
-                }
-            }
-        } catch (e: PersistenceException) {
-            throw e
-        } catch (t: Throwable) {
-            throw PersistenceException("Failed to validate connection.", t)
-        }
-    }
-
     private fun getRegularConnection(dataSource: DataSource): Connection {
         try {
-            return if (GET_CONNECTION_METHOD != null) {
-                try {
-                    GET_CONNECTION_METHOD.invoke(null, dataSource) as Connection
-                } catch (e: InvocationTargetException) {
-                    throw e.targetException
-                }
-            } else {
-                dataSource.connection
-            }
+            return dataSource.connection
         } catch (t: Throwable) {
             throw PersistenceException("Failed to get connection from DataSource.", t)
         }
@@ -96,15 +70,7 @@ class CoroutineAwareConnectionProviderImpl : ConnectionProvider {
 
     private fun releaseRegularConnection(connection: Connection, dataSource: DataSource) {
         try {
-            if (RELEASE_CONNECTION_METHOD != null) {
-                try {
-                    RELEASE_CONNECTION_METHOD.invoke(null, connection, dataSource)
-                } catch (e: InvocationTargetException) {
-                    throw e.targetException
-                }
-            } else {
-                connection.close()
-            }
+            connection.close()
         } catch (t: Throwable) {
             throw PersistenceException("Failed to release connection.", t)
         }
@@ -166,38 +132,6 @@ class CoroutineAwareConnectionProviderImpl : ConnectionProvider {
                 }
             }
             if (clear) owners.remove(key, owner)
-        }
-    }
-
-    companion object {
-        private val GET_CONNECTION_METHOD: Method?
-        private val RELEASE_CONNECTION_METHOD: Method?
-        private val IS_ACTUAL_TRANSACTION_ACTIVE: Method?
-
-        init {
-            var getConnection: Method?
-            var releaseConnection: Method?
-            var isActualTransactionActive: Method?
-            try {
-                val utilsClass = Class.forName("org.springframework.jdbc.datasource.DataSourceUtils")
-                val transactionSynchonizationManagerClass =
-                    Class.forName("org.springframework.transaction.support.TransactionSynchronizationManager")
-                getConnection = utilsClass.getMethod("getConnection", DataSource::class.java)
-                releaseConnection =
-                    utilsClass.getMethod("releaseConnection", Connection::class.java, DataSource::class.java)
-                isActualTransactionActive = transactionSynchonizationManagerClass.getMethod("isActualTransactionActive")
-            } catch (_: ClassNotFoundException) {
-                getConnection = null
-                releaseConnection = null
-                isActualTransactionActive = null
-            } catch (_: NoSuchMethodException) {
-                getConnection = null
-                releaseConnection = null
-                isActualTransactionActive = null
-            }
-            GET_CONNECTION_METHOD = getConnection
-            RELEASE_CONNECTION_METHOD = releaseConnection
-            IS_ACTUAL_TRANSACTION_ACTIVE = isActualTransactionActive
         }
     }
 }

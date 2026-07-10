@@ -10,6 +10,33 @@ for the CLI, to [npm](https://www.npmjs.com/package/@storm-orm/cli)
 (`@storm-orm/cli`). Full release notes for every version are on the
 [GitHub Releases](https://github.com/storm-orm/storm-framework/releases) page.
 
+## [Unreleased]
+
+Framework integration points are now instance-scoped (#198). Breaking changes are accepted with no deprecation shims.
+
+### Added
+
+- `ORMTemplate.builder(dataSource)` / `builder(connection)` (core, Java 21 and Kotlin APIs) with instance-scoped integration strategies: `connectionProvider`, `transactionTemplateProvider`, `exceptionMapper` and `queryObserver`. `ServiceLoader` discovery remains the fallback for templates built without explicit strategies.
+- `ExceptionMapper` SPI: maps failures raised during query execution to the exception thrown to the caller, enabling platform hierarchies such as Spring's `DataAccessException` (the translation itself lands with #199).
+- `QueryObserver` SPI: observes query executions (operation, entity/projection type, execution kind, timing, outcome) for metrics and tracing bindings (the Micrometer binding lands with #203 and #207).
+- `springOrmTemplate(dataSource) { transactionManagers }` (storm-kotlin-spring): the canonical plain-Spring composition, replacing `@EnableTransactionIntegration`.
+- `st.orm.spring.SpringTransactionTemplateProvider` (storm-spring): gives Java applications transaction-scoped entity caching under Spring-managed transactions without reflective probes.
+- The Ktor plugin gains `connectionProvider`, `transactionTemplateProvider`, `exceptionMapper` and `queryObserver` slots on `install(Storm) { }`.
+
+### Changed
+
+- `transaction { }` / `transactionBlocking { }` now bind to the first template that executes inside the block: the block records the requested options, and the template's transaction provider opens the actual transaction on first use. Signatures and semantics are unchanged for single-integration applications; a block that never touches a template completes as a no-op, and mixing templates with different transaction providers in one block fails fast.
+- The `TransactionTemplate` SPI is reshaped from callback-wrapping `execute()` to `open()`/`complete()` handles to support the lazy binding.
+- Ambiguous `ServiceLoader` resolution of connection or transaction template providers (two enabled candidates without a defined order) now throws a descriptive error naming the candidates instead of silently picking one; provider enablement is re-evaluated per resolution instead of being frozen at first use.
+- The Spring Boot starters contribute Spring-aware `ConnectionProvider`/`TransactionTemplateProvider` beans (backing off to user-defined beans) and consume optional `ExceptionMapper`/`QueryObserver` beans when creating the template.
+
+### Removed
+
+- `@EnableTransactionIntegration` and `SpringTransactionConfiguration` (storm-kotlin-spring): the static, JVM-global transaction manager list is gone. Use `springOrmTemplate(...)` (plain Spring) or the starter (Spring Boot); multiple application contexts in one JVM no longer interfere.
+- The Spring modules no longer register `ServiceLoader` providers, and the reflective Spring probes are removed from storm-core and storm-kotlin: templates never silently enlist in Spring transactions based on classpath presence. Plain templates created with `ORMTemplate.of(dataSource)` inside a Spring application now run independently of Spring transactions; compose with `springOrmTemplate` or the builder to integrate. This also removes the "programmatic and Spring managed transactions cannot be mixed" guard, superseded by the per-block provider check.
+- `Providers.getConnection` / `Providers.releaseConnection`: connections are acquired through the template's own connection provider.
+- `st.orm.spring.impl.SpringConnectionProviderImpl`, `SpringTransactionTemplateProviderImpl` and `TransactionAwareConnectionProviderImpl` are replaced by the public `st.orm.spring.SpringConnectionProvider` and `SpringTransactionTemplateProvider`.
+
 ## [1.12.0] - 2026-07-06
 
 Feature release centered on the reified Kotlin query API. Breaking changes are accepted with no deprecation shims (1.12 policy).

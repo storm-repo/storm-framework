@@ -22,11 +22,10 @@ import st.orm.template.TransactionPropagation.*
  * Tests for the SUPPORTS, MANDATORY, NOT_SUPPORTED, and NEVER transaction propagation modes.
  *
  * These tests cover both programmatic transactions (without Spring-managed transaction integration)
- * and Spring-managed transactions (with [EnableTransactionIntegration]), verifying that each
+ * and Spring-managed transactions (with [SpringIntegrationConfig]), verifying that each
  * propagation mode behaves correctly in single-layer and two-layer (nested) scenarios.
  */
-@ContextConfiguration(classes = [IntegrationConfig::class])
-@EnableTransactionIntegration
+@ContextConfiguration(classes = [SpringIntegrationConfig::class])
 @SpringBootTest
 @Sql("/data.sql")
 open class TransactionPropagationTest(

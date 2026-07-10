@@ -1,9 +1,10 @@
 package st.orm.template.impl
 
 import st.orm.PersistenceException
-import st.orm.core.spi.TransactionCallback
 import st.orm.core.spi.TransactionContext
+import st.orm.core.spi.TransactionStatus
 import st.orm.core.spi.TransactionTemplate
+import st.orm.core.spi.TransactionTemplate.TransactionHandle
 import st.orm.core.spi.TransactionTemplateProvider
 import st.orm.template.TransactionPropagation.*
 
@@ -48,17 +49,29 @@ class TransactionTemplateProviderImpl : TransactionTemplateProvider {
                 return this
             }
 
-            override fun newContext(suspendMode: Boolean): TransactionContext = // Suspend mode is supported in this implementation.
-                JdbcTransactionContext()
+            override fun open(existing: TransactionContext?, suspendMode: Boolean): TransactionHandle {
+                // Suspend mode is supported by this implementation; the JDBC context binds state to the context
+                // object rather than the thread.
+                val context = when (existing) {
+                    null -> JdbcTransactionContext()
+                    is JdbcTransactionContext -> existing
+                    else -> throw PersistenceException("Transaction context must be of type JdbcTransactionContext.")
+                }
+                context.begin(propagation, isolation, timeoutSeconds, readOnly)
+                return object : TransactionHandle {
+                    override fun context(): TransactionContext = context
+
+                    override fun status(): TransactionStatus = object : TransactionStatus {
+                        override fun setRollbackOnly() = context.setRollbackOnly()
+
+                        override fun isRollbackOnly(): Boolean = context.isRollbackOnly
+                    }
+
+                    override fun complete(rollback: Boolean) = context.complete(rollback)
+                }
+            }
 
             override fun contextHolder(): ThreadLocal<TransactionContext> = CONTEXT_HOLDER
-
-            override fun <T> execute(callback: TransactionCallback<T>, context: TransactionContext): T {
-                if (context !is JdbcTransactionContext) {
-                    throw PersistenceException("Transaction context must be of type JdbcTransactionContext.")
-                }
-                return context.execute(propagation, isolation, timeoutSeconds, readOnly, callback)
-            }
         }
     }
 }

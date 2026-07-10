@@ -305,6 +305,79 @@ interface ORMTemplate :
             config: StormConfig,
             decorator: (TemplateDecorator) -> TemplateDecorator,
         ): ORMTemplate = ORMTemplateImpl(st.orm.core.template.ORMTemplate.of(connection, config, decorator))
+
+        /**
+         * Returns a builder for constructing an [ORMTemplate] with instance-scoped integration strategies.
+         *
+         * The builder is the injection point for platform services: integrations hand their connection provider,
+         * transaction template provider, exception mapper and query observer to the template they construct, instead
+         * of relying on JVM-global discovery.
+         *
+         * @param dataSource the [DataSource] to use for database operations.
+         * @return a builder for constructing the ORM template.
+         * @since 1.13
+         */
+        fun builder(dataSource: DataSource): Builder = Builder(st.orm.core.template.ORMTemplate.builder(dataSource))
+
+        /**
+         * Returns a builder for constructing an [ORMTemplate] backed by a single connection, with instance-scoped
+         * integration strategies.
+         *
+         * **Note:** The caller is responsible for closing the connection after usage.
+         *
+         * @param connection the [Connection] to use for database operations.
+         * @return a builder for constructing the ORM template.
+         * @since 1.13
+         */
+        fun builder(connection: Connection): Builder = Builder(st.orm.core.template.ORMTemplate.builder(connection))
+    }
+
+    /**
+     * Builder for constructing an [ORMTemplate] with instance-scoped integration strategies.
+     *
+     * @since 1.13
+     */
+    class Builder internal constructor(private val core: st.orm.core.template.ORMTemplate.Builder) {
+
+        /**
+         * Sets the Storm configuration to apply to the template instance.
+         */
+        fun config(config: StormConfig): Builder = apply { core.config(config) }
+
+        /**
+         * Sets a function that transforms the [TemplateDecorator] to customize template processing.
+         */
+        fun decorator(decorator: (TemplateDecorator) -> TemplateDecorator): Builder = apply { core.decorator(decorator) }
+
+        /**
+         * Sets the connection provider used by the template to acquire and release connections.
+         *
+         * Only valid for data source backed templates; [build] fails fast otherwise.
+         */
+        fun connectionProvider(connectionProvider: st.orm.core.spi.ConnectionProvider): Builder = apply { core.connectionProvider(connectionProvider) }
+
+        /**
+         * Sets the transaction template provider used by the template to participate in transactions.
+         *
+         * Templates that should share transactions must be configured with the *same provider instance*.
+         */
+        fun transactionTemplateProvider(transactionTemplateProvider: st.orm.core.spi.TransactionTemplateProvider): Builder = apply { core.transactionTemplateProvider(transactionTemplateProvider) }
+
+        /**
+         * Sets the exception mapper that maps failures raised during query execution to the runtime exception thrown
+         * to the caller.
+         */
+        fun exceptionMapper(exceptionMapper: st.orm.core.spi.ExceptionMapper): Builder = apply { core.exceptionMapper(exceptionMapper) }
+
+        /**
+         * Sets the query observer that is notified of query executions performed by the template.
+         */
+        fun queryObserver(queryObserver: st.orm.core.spi.QueryObserver): Builder = apply { core.queryObserver(queryObserver) }
+
+        /**
+         * Builds the ORM template.
+         */
+        fun build(): ORMTemplate = ORMTemplateImpl(core.build())
     }
 }
 
