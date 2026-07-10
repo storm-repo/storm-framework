@@ -140,7 +140,8 @@ class RepositoryTest {
                     }
                     val types = mutableListOf<String>()
                     stormRepositories { }.forEach { type, _ -> types.add(type.simpleName!!) }
-                    types shouldBe listOf("PetRepository")
+                    // Without named databases, all indexed repositories register against the primary.
+                    types.sorted() shouldBe listOf("PetRepository", "VetRepository")
                 }
             }
         } finally {
@@ -212,7 +213,8 @@ class RepositoryTest {
                     }
                     val types = mutableListOf<String>()
                     registry.forEach { type, _ -> types.add(type.simpleName!!) }
-                    types shouldBe listOf("PetRepository")
+                    // Without named databases, all indexed repositories register against the primary.
+                    types.sorted() shouldBe listOf("PetRepository", "VetRepository")
                 }
             }
         } finally {

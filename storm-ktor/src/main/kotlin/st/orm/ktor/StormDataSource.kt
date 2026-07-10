@@ -36,32 +36,32 @@ import javax.sql.DataSource
  * }
  * ```
  */
-internal fun createDataSourceFromConfig(application: Application): DataSource {
+internal fun createDataSourceFromConfig(application: Application, path: String = "storm.datasource"): DataSource {
     val config = application.environment.config
     val hikariConfig = HikariConfig().apply {
-        jdbcUrl = config.property("storm.datasource.jdbcUrl").getString()
-        config.propertyOrNull("storm.datasource.driverClassName")?.getString()?.let {
+        jdbcUrl = config.property("$path.jdbcUrl").getString()
+        config.propertyOrNull("$path.driverClassName")?.getString()?.let {
             driverClassName = it
         }
-        config.propertyOrNull("storm.datasource.username")?.getString()?.let {
+        config.propertyOrNull("$path.username")?.getString()?.let {
             username = it
         }
-        config.propertyOrNull("storm.datasource.password")?.getString()?.let {
+        config.propertyOrNull("$path.password")?.getString()?.let {
             password = it
         }
-        config.propertyOrNull("storm.datasource.maximumPoolSize")?.getString()?.toIntOrNull()?.let {
+        config.propertyOrNull("$path.maximumPoolSize")?.getString()?.toIntOrNull()?.let {
             maximumPoolSize = it
         }
-        config.propertyOrNull("storm.datasource.connectionTimeout")?.getString()?.toLongOrNull()?.let {
+        config.propertyOrNull("$path.connectionTimeout")?.getString()?.toLongOrNull()?.let {
             connectionTimeout = it
         }
-        config.propertyOrNull("storm.datasource.idleTimeout")?.getString()?.toLongOrNull()?.let {
+        config.propertyOrNull("$path.idleTimeout")?.getString()?.toLongOrNull()?.let {
             idleTimeout = it
         }
-        config.propertyOrNull("storm.datasource.maxLifetime")?.getString()?.toLongOrNull()?.let {
+        config.propertyOrNull("$path.maxLifetime")?.getString()?.toLongOrNull()?.let {
             maxLifetime = it
         }
-        config.propertyOrNull("storm.datasource.minimumIdle")?.getString()?.toIntOrNull()?.let {
+        config.propertyOrNull("$path.minimumIdle")?.getString()?.toIntOrNull()?.let {
             minimumIdle = it
         }
     }

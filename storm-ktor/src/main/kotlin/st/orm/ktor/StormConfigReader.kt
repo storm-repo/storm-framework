@@ -58,7 +58,7 @@ import st.orm.StormConfig.VALIDATION_STRICT
  * }
  * ```
  */
-internal fun readStormConfig(application: Application): StormConfig {
+internal fun readStormConfig(application: Application, prefix: String = "storm"): StormConfig {
     val config = application.environment.config
     val properties = mutableMapOf<String, String>()
     val keys = listOf(
@@ -74,10 +74,13 @@ internal fun readStormConfig(application: Application): StormConfig {
         VALIDATION_INTERPOLATION_MODE,
     )
     for (key in keys) {
+        // Storm property keys are rooted at "storm."; secondary databases read the same keys relative to their
+        // own prefix, e.g. "storm.databases.analytics.update.default_mode". The prefix itself (which may contain
+        // a user-chosen database name) is looked up verbatim; only the relative key gets the camelCase variant.
+        val relativeKey = key.removePrefix("storm")
         // Try camelCase (HOCON convention) first, then snake_case (Storm convention).
-        val hoconKey = snakeToCamel(key)
-        val value = config.propertyOrNull(hoconKey)?.getString()
-            ?: config.propertyOrNull(key)?.getString()
+        val value = config.propertyOrNull(prefix + snakeToCamel(relativeKey))?.getString()
+            ?: config.propertyOrNull(prefix + relativeKey)?.getString()
             ?: continue
         properties[key] = value
     }
