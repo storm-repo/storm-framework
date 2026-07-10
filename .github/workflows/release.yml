@@ -100,6 +100,38 @@ jobs:
         # Configure the trusted publisher on npmjs.com: @storm-orm/cli > Settings >
         # Trusted Publisher (repo: storm-orm/storm-framework, workflow: release.yml).
 
+  publish-gradle-plugin:
+    runs-on: ubuntu-latest
+    needs: publish            # The plugin references st.orm artifacts of the same version on Central.
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 21
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '21'
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v4
+
+      - name: Extract version from tag
+        id: version
+        run: echo "VERSION=${GITHUB_REF_NAME#v}" >> $GITHUB_OUTPUT
+
+      - name: Publish to the Gradle Plugin Portal
+        working-directory: storm-gradle-plugin
+        run: ./gradlew publishPlugins -Pversion="${{ steps.version.outputs.VERSION }}"
+        # The first publication of the st.orm plugin id must be done manually: new ids go
+        # through a manual Portal review that can take days, and a release tag must never
+        # hang on that. Credentials come from an API key created on plugins.gradle.org.
+        env:
+          GRADLE_PUBLISH_KEY: ${{ secrets.GRADLE_PUBLISH_KEY }}
+          GRADLE_PUBLISH_SECRET: ${{ secrets.GRADLE_PUBLISH_SECRET }}
+
   version-docs:
     runs-on: ubuntu-latest
     needs: publish

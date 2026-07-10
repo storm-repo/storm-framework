@@ -1,0 +1,106 @@
+plugins {
+    `java-gradle-plugin`
+    id("com.gradle.plugin-publish") version "2.1.1"
+    id("com.diffplug.spotless") version "8.8.0"
+}
+
+group = "st.orm"
+// The tag-driven release passes -Pversion=X.Y.Z, mirroring the Maven reactor's -Drevision.
+if (version.toString() == Project.DEFAULT_VERSION) {
+    version = "0.0.0-SNAPSHOT"
+}
+
+repositories {
+    mavenCentral()
+}
+
+java {
+    toolchain {
+        languageVersion = JavaLanguageVersion.of(21)
+    }
+}
+
+tasks.compileJava {
+    // Gradle daemons commonly run on older JDKs; the plugin supports Gradle 8.5+.
+    options.release = 17
+}
+
+// Bake the plugin's own version into a resource, so the plugin resolves matching st.orm artifacts at
+// runtime. A generated resource is deterministic and works under TestKit classloaders, where the jar
+// manifest's Implementation-Version is not visible.
+val generateVersionResource by tasks.registering {
+    val outputDir = layout.buildDirectory.dir("generated/resources/version")
+    val versionValue = project.version.toString()
+    inputs.property("version", versionValue)
+    outputs.dir(outputDir)
+    doLast {
+        val file = outputDir.get().file("st/orm/gradle/storm-version.properties").asFile
+        file.parentFile.mkdirs()
+        file.writeText("version=$versionValue\n")
+    }
+}
+
+sourceSets.main {
+    resources.srcDir(generateVersionResource)
+}
+
+val functionalTest: SourceSet = sourceSets.create("functionalTest")
+configurations[functionalTest.implementationConfigurationName].extendsFrom(configurations.testImplementation.get())
+configurations[functionalTest.runtimeOnlyConfigurationName].extendsFrom(configurations.testRuntimeOnly.get())
+
+dependencies {
+    testImplementation(gradleApi())
+    testImplementation(platform("org.junit:junit-bom:5.11.4"))
+    testImplementation("org.junit.jupiter:junit-jupiter")
+    testRuntimeOnly("org.junit.platform:junit-platform-launcher")
+    "functionalTestImplementation"(gradleTestKit())
+}
+
+tasks.test {
+    useJUnitPlatform()
+}
+
+val functionalTestTask = tasks.register<Test>("functionalTest") {
+    description = "Runs the TestKit functional tests."
+    group = "verification"
+    testClassesDirs = functionalTest.output.classesDirs
+    classpath = functionalTest.runtimeClasspath
+    useJUnitPlatform()
+    // Opt-in gate for the smoke test that compiles a real project against mavenLocal snapshots.
+    systemProperty("storm.smoke", System.getProperty("storm.smoke", "false"))
+    shouldRunAfter(tasks.test)
+}
+
+tasks.check {
+    dependsOn(functionalTestTask)
+}
+
+gradlePlugin {
+    website = "https://orm.st"
+    vcsUrl = "https://github.com/storm-orm/storm-framework"
+    testSourceSets(functionalTest)
+    plugins {
+        create("storm") {
+            id = "st.orm"
+            implementationClass = "st.orm.gradle.StormPlugin"
+            displayName = "Storm ORM"
+            description = "Applies Storm ORM to Kotlin or Java projects: BOM import, core dependencies, " +
+                "metamodel generation (KSP or annotation processor), Kotlin compiler-plugin variant " +
+                "selection, and Java preview flags."
+            tags = listOf("orm", "sql", "database", "persistence", "kotlin", "ksp")
+        }
+    }
+}
+
+spotless {
+    java {
+        importOrder()
+        removeUnusedImports()
+        trimTrailingWhitespace()
+        endWithNewline()
+    }
+    kotlinGradle {
+        trimTrailingWhitespace()
+        endWithNewline()
+    }
+}

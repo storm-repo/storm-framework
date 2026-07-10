@@ -31,6 +31,16 @@ jobs:
       - name: Build and test
         run: mvn verify -B
 
+      - name: Install Storm artifacts for the Gradle plugin smoke test
+        run: mvn install -DskipTests -B
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v4
+
+      - name: Build and test Gradle plugin
+        working-directory: storm-gradle-plugin
+        run: ./gradlew build -Dstorm.smoke=true
+
       - name: Upload coverage to Codecov
         if: github.event_name == 'push' || github.event.pull_request.head.repo.full_name == github.repository
         uses: codecov/codecov-action@v5
