@@ -208,6 +208,38 @@ post("/users") {
 
 Because `transaction { }` is a suspend function, it integrates naturally with Ktor's coroutine-based request handling. You can call it from any route handler without blocking the event loop.
 
+### Route-Scoped Transactions
+
+To remove the per-handler boilerplate, wrap a group of routes in `transactional { }`: every call to a route inside the block runs in its own transaction, opened before the handler, committed when it completes, and rolled back when it throws. The handlers contain no transaction code at all:
+
+```kotlin
+routing {
+    // Writes: each call runs in its own read-write transaction.
+    transactional {
+        post("/owners") {
+            val request = call.receive<CreateOwnerRequest>()
+            val owner = repository<OwnerRepository>().insertAndFetch(request.toEntity())
+            call.respond(HttpStatusCode.Created, owner)
+        }
+        put("/owners/{id}") { ... }
+    }
+
+    // Reads that need one consistent snapshot across several queries.
+    transactional(readOnly = true) {
+        get("/reports/summary") { ... }
+    }
+
+    // Simple reads outside the block keep running without a transaction.
+    get("/owners/{id}") { ... }
+}
+```
+
+The parameters mirror `transaction { }` (`propagation`, `isolation`, `timeoutSeconds`, `readOnly`, `dispatcher`) and apply uniformly to every route in the block, whatever the HTTP method. Group routes by their transactional needs rather than wrapping everything: simple single-query reads are cheapest with no transaction at all.
+
+The transaction binds to the first ORM template the handler touches, so nothing needs to be configured for [multiple databases](#multiple-databases): a route that works against a named database transacts against that database. Nested `transactional` blocks compose exactly like nested `transaction { }` calls: with the default propagation the inner block joins the outer transaction.
+
+One semantic difference from calling `transaction { }` manually: the handler, including `call.respond`, runs inside the transaction, and the commit happens after the handler completes. A commit failure can therefore not change a response that has already been sent. When that distinction matters, for example when the client must only see 201 Created after a guaranteed commit, call `transaction { }` inside the handler and respond after it returns.
+
 ### Nested Transactions and Propagation
 
 Storm supports all standard propagation modes. Nested transactions are useful when composing services that each define their own transactional requirements. For example, an audit log that should persist even if the main operation fails needs its own independent transaction.
@@ -244,6 +276,47 @@ get("/reports/summary") {
 ```
 
 Read-only transactions hint the database driver to optimize for reads and enable Storm's entity cache to serve repeated lookups within the same transaction without re-querying the database.
+
+---
+
+## Error Handling
+
+Storm's exceptions map naturally onto HTTP status codes through Ktor's [StatusPages](https://ktor.io/docs/server-status-pages.html) plugin. Ktor has no platform exception hierarchy to translate into, so this is plain application configuration; the recipes below cover the common cases:
+
+```kotlin
+install(StatusPages) {
+    // getById on a missing row.
+    exception<NoResultException> { call, _ ->
+        call.respond(HttpStatusCode.NotFound)
+    }
+    // A @Version conflict: the row was modified by another transaction.
+    exception<OptimisticLockException> { call, _ ->
+        call.respond(HttpStatusCode.Conflict)
+    }
+    // Constraint violations (unique key, foreign key, not-null) and everything else.
+    exception<PersistenceException> { call, cause ->
+        val constraintViolation = generateSequence<Throwable>(cause) { it.cause }
+            .filterIsInstance<SQLException>()
+            .any { it.sqlState?.startsWith("23") == true }
+        if (constraintViolation) {
+            call.respond(HttpStatusCode.Conflict)
+        } else {
+            application.log.error("Unhandled persistence failure.", cause)
+            call.respond(HttpStatusCode.InternalServerError)
+        }
+    }
+}
+```
+
+A few notes on the recipes:
+
+- **Missing rows.** `getById` throws `NoResultException`; `findById` returns null instead. Prefer `findById` when a missing row is an expected outcome you handle in the route, and `getById` with the recipe when it should uniformly become a 404.
+- **Constraint violations.** Storm wraps the JDBC failure in `PersistenceException` with the driver's `SQLException` as the cause. The recipe walks the cause chain and checks for SQL state class `23` (integrity-constraint violation), which is portable across databases; checking `instanceof SQLIntegrityConstraintViolationException` is not, because some drivers (PostgreSQL, for example) throw a plain `SQLException` subclass with state `23505` instead.
+- **Optimistic locking.** `OptimisticLockException` carries the conflicting entity via `entity`; include it in the response body if the client can resolve the conflict. Some APIs prefer 412 Precondition Failed over 409 when the client sent a version precondition.
+- **Never leak SQL.** The fallback logs the failure server-side and returns a bare 500; Storm attaches the SQL statement to the exception for diagnostics, which belongs in logs, not in responses.
+- **Ordering with transactions.** StatusPages handles the exception after the route pipeline unwinds, so a `transactional { }` route has already rolled back by the time the error response is rendered.
+
+For translating Storm exceptions into a custom exception hierarchy at the ORM level, before they reach Ktor, set an `exceptionMapper` in the plugin configuration; the StatusPages recipes then match on your own types. See [Error Handling](error-handling.md) for the full exception reference.
 
 ---
 
