@@ -31,7 +31,7 @@ import javax.sql.DataSource
  * }
  * ```
  */
-class StormConfiguration {
+class StormPluginConfig {
 
     /**
      * The [DataSource] to use. If not provided, one will be created from the HOCON configuration under
@@ -77,6 +77,21 @@ class StormConfiguration {
      * @since 1.13
      */
     var queryObserver: st.orm.core.spi.QueryObserver? = null
+
+    /**
+     * Whether to expose the [st.orm.template.ORMTemplate] and the registered repositories through Ktor's
+     * dependency injection (`ktor-server-di`). Each repository is registered under its own interface type, so
+     * modules and routes can inject them directly:
+     *
+     * ```kotlin
+     * val visits: VisitRepository by dependencies
+     * ```
+     *
+     * Enabled by default; set to `false` to leave the dependency container untouched.
+     *
+     * @since 1.13
+     */
+    var registerDependencies: Boolean = true
 
     /**
      * Schema validation mode: `"none"`, `"warn"`, or `"fail"`.

@@ -33,7 +33,7 @@ dependencies {
 }
 ```
 
-If your project uses [Koin](https://insert-koin.io/) for dependency injection, also add `st.orm:storm-ktor-koin` (see [Using with Koin](#using-with-koin)).
+Storm integrates with Ktor's built-in dependency injection out of the box (see [Dependency Injection](#dependency-injection)); if your project uses [Koin](https://insert-koin.io/) instead, see [Using with Koin](#using-with-koin).
 
 ---
 
@@ -329,18 +329,50 @@ get("/owners") {
 
 Repositories are stateless, so these are cheap to create; custom repository interfaces remain the better home for query logic you want to name, share, and test.
 
-### Using with Koin
+### Dependency Injection
 
-If your project uses Koin for dependency injection, add the `storm-ktor-koin` module. It provides `stormModule()`, a Koin module that exposes the `ORMTemplate` and every registered Storm repository, each bound under its own interface type:
+The Storm plugin integrates with Ktor's built-in dependency injection (`ktor-server-di`). When the plugin is installed, it registers the `ORMTemplate` and every registered repository in the application's dependency container, each repository under its own interface type. Modules and routes can then inject them directly:
 
 ```kotlin
-dependencies {
-    implementation("st.orm:storm-ktor-koin")
-    implementation("io.insert-koin:koin-ktor:4.0.4")
+fun Application.module() {
+    install(Storm)
+
+    val orm: ORMTemplate by dependencies
+    val visits: VisitRepository by dependencies
 }
 ```
 
+Because Ktor injects module parameters from the same container, repositories can also be declared as plain parameters on modules that are installed after Storm:
+
 ```kotlin
+fun Application.visitRoutes(visits: VisitRepository) {
+    routing {
+        get("/visits") {
+            call.respond(visits.findAll())
+        }
+    }
+}
+```
+
+Install the Storm plugin before any module that injects Storm types, so the providers are registered by the time they are resolved. With auto-registration (the default), the container covers the application's entire repository layer; repositories created lazily after installation (`autoRegisterRepositories = false`) are not added automatically. Set `registerDependencies = false` in the plugin configuration to leave the dependency container untouched.
+
+### Using with Koin
+
+If your project uses Koin for dependency injection, the same integration is a few lines of application code, because the plugin exposes `Application.orm` and the repository registry, which any DI framework can consume:
+
+```kotlin
+fun Application.stormModule(): Module {
+    val ormTemplate = orm
+    val registry = stormRepositories { }
+    return module {
+        single { ormTemplate }
+        registry.forEach { type, instance ->
+            @Suppress("UNCHECKED_CAST")
+            single { instance } bind (type as KClass<Repository>)
+        }
+    }
+}
+
 fun Application.module() {
     install(Storm)
 
@@ -357,9 +389,7 @@ fun Application.module() {
 }
 ```
 
-With auto-registration (the default), `stormModule()` covers the application's entire repository layer, so services declare repositories as plain constructor parameters and Koin's constructor DSL (`singleOf`) wires them without any Storm-specific code.
-
-The module requires the Storm plugin to be installed first. Storm's core `storm-ktor` module has no Koin dependency; if you prefer not to add `storm-ktor-koin`, the same integration can be written by hand, because the plugin exposes `Application.orm` and the registry's `forEach`, which any DI framework can consume.
+With auto-registration (the default), this module covers the application's entire repository layer, so services declare repositories as plain constructor parameters and Koin's constructor DSL (`singleOf`) wires them without any Storm-specific code. Install the Storm plugin before Koin so the repositories are registered when the module is built.
 
 ---
 

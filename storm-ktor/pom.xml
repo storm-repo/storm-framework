@@ -30,9 +30,6 @@
         <developerConnection>scm:git:ssh://github.com/storm-repo/storm-framework.git</developerConnection>
         <url>https://github.com/storm-repo/storm-framework/</url>
     </scm>
-    <properties>
-        <ktor.version>3.1.2</ktor.version>
-    </properties>
     <build>
         <plugins>
             <plugin>
@@ -196,6 +193,11 @@
         <dependency>
             <groupId>io.ktor</groupId>
             <artifactId>ktor-server-core-jvm</artifactId>
+            <version>${ktor.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>io.ktor</groupId>
+            <artifactId>ktor-server-di-jvm</artifactId>
             <version>${ktor.version}</version>
         </dependency>
         <dependency>

@@ -30,9 +30,6 @@
         <developerConnection>scm:git:ssh://github.com/storm-repo/storm-framework.git</developerConnection>
         <url>https://github.com/storm-repo/storm-framework/</url>
     </scm>
-    <properties>
-        <ktor.version>3.1.2</ktor.version>
-    </properties>
     <build>
         <plugins>
             <plugin>

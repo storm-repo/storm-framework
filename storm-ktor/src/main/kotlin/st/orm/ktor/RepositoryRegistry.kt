@@ -124,7 +124,7 @@ class RepositoryRegistry internal constructor(
  * Configures Storm repositories for this application.
  *
  * Since 1.12, calling this is optional: the [Storm] plugin registers all repositories from the compile-time
- * type index automatically during installation (see [StormConfiguration.autoRegisterRepositories]), and
+ * type index automatically during installation (see [StormPluginConfig.autoRegisterRepositories]), and
  * unregistered types are created lazily on first [repository] access. Use this block when you want explicit
  * control over registration, or to iterate the registered repositories for DI integration via
  * [RepositoryRegistry.forEach].

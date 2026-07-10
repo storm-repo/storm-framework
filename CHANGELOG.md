@@ -12,7 +12,7 @@ for the CLI, to [npm](https://www.npmjs.com/package/@storm-orm/cli)
 
 ## [Unreleased]
 
-Framework integration points are now instance-scoped (#198). Breaking changes are accepted with no deprecation shims.
+Framework integration points are now instance-scoped (#198), and the Ktor integration standardizes on Ktor's built-in dependency injection (#206). Breaking changes are accepted with no deprecation shims.
 
 ### Added
 
@@ -22,6 +22,7 @@ Framework integration points are now instance-scoped (#198). Breaking changes ar
 - `springOrmTemplate(dataSource) { transactionManagers }` (storm-kotlin-spring): the canonical plain-Spring composition, replacing `@EnableTransactionIntegration`.
 - `st.orm.spring.SpringTransactionTemplateProvider` (storm-spring): gives Java applications transaction-scoped entity caching under Spring-managed transactions without reflective probes.
 - The Ktor plugin gains `connectionProvider`, `transactionTemplateProvider`, `exceptionMapper` and `queryObserver` slots on `install(Storm) { }`.
+- The Ktor plugin exposes the `ORMTemplate` and every registered repository through Ktor's built-in dependency injection (`ktor-server-di`), each repository under its own interface type: `val visits: VisitRepository by dependencies`. Disable with `registerDependencies = false`.
 
 ### Changed
 
@@ -29,6 +30,8 @@ Framework integration points are now instance-scoped (#198). Breaking changes ar
 - The `TransactionTemplate` SPI is reshaped from callback-wrapping `execute()` to `open()`/`complete()` handles to support the lazy binding.
 - Ambiguous `ServiceLoader` resolution of connection or transaction template providers (two enabled candidates without a defined order) now throws a descriptive error naming the candidates instead of silently picking one; provider enablement is re-evaluated per resolution instead of being frozen at first use.
 - The Spring Boot starters contribute Spring-aware `ConnectionProvider`/`TransactionTemplateProvider` beans (backing off to user-defined beans) and consume optional `ExceptionMapper`/`QueryObserver` beans when creating the template.
+- Ktor is upgraded from 3.1.2 to 3.2.3, the newest Ktor consumable with the project's Kotlin 2.0 toolchain (Ktor 3.3+ requires Kotlin 2.2). The `ktor.version` property now lives in the parent pom.
+- The Ktor plugin's configuration class is renamed from `StormConfiguration` to `StormPluginConfig`, removing the confusion with core's `StormConfig`. Application code is unaffected unless it named the type explicitly; the `install(Storm) { }` receiver is inferred.
 
 ### Removed
 
@@ -36,6 +39,7 @@ Framework integration points are now instance-scoped (#198). Breaking changes ar
 - The Spring modules no longer register `ServiceLoader` providers, and the reflective Spring probes are removed from storm-core and storm-kotlin: templates never silently enlist in Spring transactions based on classpath presence. Plain templates created with `ORMTemplate.of(dataSource)` inside a Spring application now run independently of Spring transactions; compose with `springOrmTemplate` or the builder to integrate. This also removes the "programmatic and Spring managed transactions cannot be mixed" guard, superseded by the per-block provider check.
 - `Providers.getConnection` / `Providers.releaseConnection`: connections are acquired through the template's own connection provider.
 - `st.orm.spring.impl.SpringConnectionProviderImpl`, `SpringTransactionTemplateProviderImpl` and `TransactionAwareConnectionProviderImpl` are replaced by the public `st.orm.spring.SpringConnectionProvider` and `SpringTransactionTemplateProvider`.
+- `storm-ktor-koin`: Ktor's built-in dependency injection is the supported DI path. Koin users keep full capability with a few lines of application code; the Ktor integration docs include the recipe.
 
 ## [1.12.0] - 2026-07-06
 

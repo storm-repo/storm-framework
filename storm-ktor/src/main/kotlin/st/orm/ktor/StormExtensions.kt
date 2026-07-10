@@ -82,7 +82,7 @@ val RoutingContext.orm: ORMTemplate
  * Retrieves a Storm repository.
  *
  * Repositories from the compile-time type index are registered automatically when the [Storm] plugin is
- * installed (see [StormConfiguration.autoRegisterRepositories]); other types are created lazily on first
+ * installed (see [StormPluginConfig.autoRegisterRepositories]); other types are created lazily on first
  * access. Either way, the instance is cached for the lifetime of the application.
  *
  * @throws IllegalStateException if the Storm plugin is not installed.
