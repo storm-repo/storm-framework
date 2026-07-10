@@ -356,6 +356,37 @@ fun Application.visitRoutes(visits: VisitRepository) {
 
 Install the Storm plugin before any module that injects Storm types, so the providers are registered by the time they are resolved. With auto-registration (the default), the container covers the application's entire repository layer; repositories created lazily after installation (`autoRegisterRepositories = false`) are not added automatically. Set `registerDependencies = false` in the plugin configuration to leave the dependency container untouched.
 
+### Multiple Databases
+
+Working with one database requires no extra configuration. Additional databases are declared as named `database` blocks inside the plugin, each with the same options as the primary:
+
+```kotlin
+install(Storm) {
+    // primary database: zero-config from storm.datasource
+
+    database("analytics") {
+        repositories("com.myapp.analytics")
+    }
+}
+```
+
+Each named database gets its own `ORMTemplate`, repositories, schema validation, migration hook, and lifecycle. Provide a `dataSource` in the block, or let the plugin create one from the HOCON configuration under `storm.databases.<name>.datasource`, with the same properties as the primary's `storm.datasource` section. Storm configuration overrides for the database are read from `storm.databases.<name>.*`.
+
+The packages declared with `repositories(...)` partition the application between the databases: repository interfaces and entity types under those packages belong to that database. They are registered against its template, validated against its schema, and excluded from the primary database's registration and validation. Requesting a claimed repository from the primary fails with an error naming the owning database.
+
+Access the named database through the name-taking variants of the standard accessors, or through dependency injection:
+
+```kotlin
+val analytics = orm("analytics")
+val reports = repository<ReportRepository>("analytics")
+
+// Dependency injection: templates resolve by name, repositories simply by their type.
+val analyticsTemplate = dependencies.resolve<ORMTemplate>("analytics")
+val reportsByType: ReportRepository by dependencies
+```
+
+Repositories keep unnamed dependency keys because package partitioning makes each repository type belong to exactly one database; only the templates need names. Transactions bind to one database per physical transaction: a `transaction { }` block binds to the database of the first template that runs in it, and a single block cannot atomically span databases.
+
 ### Using with Koin
 
 If your project uses Koin for dependency injection, the same integration is a few lines of application code, because the plugin exposes `Application.orm` and the repository registry, which any DI framework can consume:

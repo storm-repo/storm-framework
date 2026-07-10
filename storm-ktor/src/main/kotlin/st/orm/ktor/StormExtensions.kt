@@ -79,6 +79,68 @@ val RoutingContext.orm: ORMTemplate
     get() = call.application.orm
 
 /**
+ * Returns the Storm [ORMTemplate] of the named database.
+ *
+ * Named databases are configured inside the [Storm] plugin via `database("name") { }`.
+ *
+ * @param name the database name as declared in the plugin configuration.
+ * @throws IllegalStateException if the Storm plugin is not installed or no database with the given name is
+ * configured.
+ * @since 1.13
+ */
+fun Application.orm(name: String): ORMTemplate {
+    val namedTemplates = attributes.getOrNull(NamedOrmTemplatesKey)
+        ?: throw IllegalStateException(
+            "Storm plugin is not installed. Call install(Storm) in your application module.",
+        )
+    return namedTemplates[name] ?: throw IllegalStateException(
+        "No database named '$name' is configured. Configured databases: " +
+            (namedTemplates.keys.takeIf { it.isNotEmpty() }?.joinToString(", ") ?: "<none>") +
+            ". Declare it with database(\"$name\") { } inside install(Storm).",
+    )
+}
+
+/**
+ * Returns the Storm [ORMTemplate] of the named database.
+ *
+ * Convenience extension for use in route handlers.
+ *
+ * @throws IllegalStateException if the Storm plugin is not installed or no database with the given name is
+ * configured.
+ * @since 1.13
+ */
+fun ApplicationCall.orm(name: String): ORMTemplate = application.orm(name)
+
+/**
+ * Returns the Storm [ORMTemplate] of the named database.
+ *
+ * Convenience extension for use in route handlers.
+ *
+ * @throws IllegalStateException if the Storm plugin is not installed or no database with the given name is
+ * configured.
+ * @since 1.13
+ */
+fun RoutingContext.orm(name: String): ORMTemplate = call.application.orm(name)
+
+/**
+ * Returns the [DataSource] of the named database.
+ *
+ * @param name the database name as declared in the plugin configuration.
+ * @throws IllegalStateException if the Storm plugin is not installed or no database with the given name is
+ * configured.
+ * @since 1.13
+ */
+fun Application.stormDataSource(name: String): DataSource {
+    val namedDataSources = attributes.getOrNull(NamedDataSourcesKey)
+        ?: throw IllegalStateException(
+            "Storm plugin is not installed. Call install(Storm) in your application module.",
+        )
+    return namedDataSources[name] ?: throw IllegalStateException(
+        "No database named '$name' is configured. Declare it with database(\"$name\") { } inside install(Storm).",
+    )
+}
+
+/**
  * Retrieves a Storm repository.
  *
  * Repositories from the compile-time type index are registered automatically when the [Storm] plugin is
@@ -95,6 +157,52 @@ inline fun <reified T : Repository> Application.repository(): T {
         )
     return registry.getOrCreate(T::class)
 }
+
+/**
+ * Retrieves a Storm repository from the named database.
+ *
+ * Repositories under the packages declared in the database's `repositories(...)` configuration are registered at
+ * startup; other types are created lazily against the named database's template and cached.
+ *
+ * @param name the database name as declared in the plugin configuration.
+ * @throws IllegalStateException if the Storm plugin is not installed or no database with the given name is
+ * configured.
+ * @since 1.13
+ */
+inline fun <reified T : Repository> Application.repository(name: String): T {
+    val namedRegistries = attributes.getOrNull(NamedRepositoryRegistriesKey)
+        ?: throw IllegalStateException(
+            "Storm plugin is not installed. Call install(Storm) in your application module.",
+        )
+    val registry = namedRegistries[name] ?: throw IllegalStateException(
+        "No database named '$name' is configured. Declare it with database(\"$name\") { } inside install(Storm).",
+    )
+    return registry.getOrCreate(T::class)
+}
+
+/**
+ * Retrieves a Storm repository from the named database.
+ *
+ * Convenience extension for use in route handlers. See [Application.repository] for registration and caching
+ * semantics.
+ *
+ * @throws IllegalStateException if the Storm plugin is not installed or no database with the given name is
+ * configured.
+ * @since 1.13
+ */
+inline fun <reified T : Repository> ApplicationCall.repository(name: String): T = application.repository<T>(name)
+
+/**
+ * Retrieves a Storm repository from the named database.
+ *
+ * Convenience extension for use in route handlers. See [Application.repository] for registration and caching
+ * semantics.
+ *
+ * @throws IllegalStateException if the Storm plugin is not installed or no database with the given name is
+ * configured.
+ * @since 1.13
+ */
+inline fun <reified T : Repository> RoutingContext.repository(name: String): T = call.application.repository<T>(name)
 
 /**
  * Retrieves a Storm repository.

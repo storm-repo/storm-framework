@@ -15,16 +15,18 @@
  */
 package st.orm.ktor
 
+import io.ktor.server.application.Application
 import io.ktor.server.application.ApplicationStopped
 import io.ktor.server.application.createApplicationPlugin
 import io.ktor.server.application.log
 import io.ktor.server.plugins.di.DependencyKey
 import io.ktor.server.plugins.di.dependencies
 import io.ktor.util.reflect.TypeInfo
-import st.orm.core.template.impl.SchemaValidator
 import st.orm.template.ORMTemplate
 import st.orm.template.impl.CoroutineAwareConnectionProviderImpl
 import st.orm.template.impl.TransactionTemplateProviderImpl
+import javax.sql.DataSource
+import kotlin.reflect.KClass
 import kotlin.reflect.full.starProjectedType
 
 /**
@@ -59,13 +61,40 @@ import kotlin.reflect.full.starProjectedType
  *
  *         // Optional: narrow repository auto-registration
  *         repositories("com.myapp.repository")
+ *
+ *         // Optional: additional, named databases
+ *         database("analytics") {
+ *             repositories("com.myapp.analytics")
+ *         }
  *     }
  * }
  * ```
  *
+ * Additional databases declared with `database("name") { }` get their own template, repositories, schema
+ * validation, and lifecycle, exposed under their name: `orm("name")`, `repository<T>("name")`, and named
+ * dependency injection. The packages declared inside a database block partition repositories and schema
+ * validation between the databases.
+ *
  * @since 1.11
  */
 val Storm = createApplicationPlugin(name = "Storm", createConfiguration = ::StormPluginConfig) {
+
+    // Packages claimed by the named databases (package name to database name). These partition repository
+    // registration and schema validation: types under a claimed package belong to that database only.
+    val claimedPackages = mutableMapOf<String, String>()
+    for (databaseConfig in pluginConfig.databases.values) {
+        for (packageName in databaseConfig.repositoryPackages) {
+            val existingOwner = claimedPackages.put(packageName, databaseConfig.name)
+            if (existingOwner != null && existingOwner != databaseConfig.name) {
+                throw IllegalStateException(
+                    "Package '$packageName' is declared by both database '$existingOwner' and " +
+                        "database '${databaseConfig.name}'. Each package can belong to only one database.",
+                )
+            }
+        }
+    }
+
+    // ---- Primary database ----
 
     val dataSource = pluginConfig.dataSource ?: createDataSourceFromConfig(application)
     val stormConfig = pluginConfig.config ?: readStormConfig(application)
@@ -75,9 +104,9 @@ val Storm = createApplicationPlugin(name = "Storm", createConfiguration = ::Stor
     pluginConfig.migration?.invoke(dataSource)
 
     // Compose the template with explicit, plugin-scoped integration strategies: one provider instance per
-    // install, so all repositories of this application share transactions, and the ambient transaction { }
-    // API binds to this template's provider when it executes inside a transaction block.
-    val builder = st.orm.template.ORMTemplate.builder(dataSource)
+    // database, so all repositories of a database share transactions, and the ambient transaction { }
+    // API binds to the database's provider when its template executes inside a transaction block.
+    val builder = ORMTemplate.builder(dataSource)
         .config(stormConfig)
         .connectionProvider(pluginConfig.connectionProvider ?: CoroutineAwareConnectionProviderImpl())
         .transactionTemplateProvider(pluginConfig.transactionTemplateProvider ?: TransactionTemplateProviderImpl())
@@ -95,48 +124,132 @@ val Storm = createApplicationPlugin(name = "Storm", createConfiguration = ::Stor
     // Eager registration creates the proxies now, so a broken repository definition fails at startup
     // rather than at first request. Narrow with repositories("com.myapp") or disable with
     // autoRegisterRepositories = false; unregistered types are still created lazily on first access.
+    // Types under packages claimed by a named database are excluded here and registered there instead.
     val repositoryRegistry = RepositoryRegistry(ormTemplate, application)
+    repositoryRegistry.claimedPackages = claimedPackages
     if (pluginConfig.autoRegisterRepositories) {
         repositoryRegistry.register(*pluginConfig.repositoryPackages.toTypedArray())
     }
     application.attributes.put(RepositoryRegistryKey, repositoryRegistry)
 
-    // Expose the template and the registered repositories through Ktor's dependency injection, each
-    // repository under its own interface type, so modules and routes can inject them directly:
-    // `val visits: VisitRepository by dependencies`. Repositories created lazily after installation
-    // (autoRegisterRepositories = false) are not added to the container; register those yourself if needed.
+    // ---- Named databases ----
+
+    val namedTemplates = LinkedHashMap<String, ORMTemplate>()
+    val namedDataSources = LinkedHashMap<String, DataSource>()
+    val namedRegistries = LinkedHashMap<String, RepositoryRegistry>()
+    for (databaseConfig in pluginConfig.databases.values) {
+        val name = databaseConfig.name
+        val databaseDataSource = databaseConfig.dataSource
+            ?: createDataSourceFromConfig(application, "storm.databases.$name.datasource")
+        val databaseStormConfig = databaseConfig.config
+            ?: readStormConfig(application, "storm.databases.$name")
+        databaseConfig.migration?.invoke(databaseDataSource)
+        val databaseBuilder = ORMTemplate.builder(databaseDataSource)
+            .config(databaseStormConfig)
+            .connectionProvider(databaseConfig.connectionProvider ?: CoroutineAwareConnectionProviderImpl())
+            .transactionTemplateProvider(
+                databaseConfig.transactionTemplateProvider ?: TransactionTemplateProviderImpl(),
+            )
+        databaseConfig.exceptionMapper?.let { databaseBuilder.exceptionMapper(it) }
+        databaseConfig.queryObserver?.let { databaseBuilder.queryObserver(it) }
+        var databaseTemplate = databaseBuilder.build()
+        if (databaseConfig.entityCallbacks.isNotEmpty()) {
+            databaseTemplate = databaseTemplate.withEntityCallbacks(databaseConfig.entityCallbacks)
+        }
+        val databaseRegistry = RepositoryRegistry(databaseTemplate, application)
+        databaseRegistry.claimedPackages = claimedPackages.filterValues { it != name }
+        if (databaseConfig.repositoryPackages.isNotEmpty()) {
+            databaseRegistry.register(*databaseConfig.repositoryPackages.toTypedArray())
+        }
+        namedTemplates[name] = databaseTemplate
+        namedDataSources[name] = databaseDataSource
+        namedRegistries[name] = databaseRegistry
+    }
+    application.attributes.put(NamedOrmTemplatesKey, namedTemplates)
+    application.attributes.put(NamedDataSourcesKey, namedDataSources)
+    application.attributes.put(NamedRepositoryRegistriesKey, namedRegistries)
+
+    // ---- Dependency injection ----
+
+    // Expose the templates and the registered repositories through Ktor's dependency injection. The primary
+    // template is registered unnamed and each named database's template under its name. Repositories are always
+    // registered unnamed under their own interface type: package partitioning guarantees each type belongs to
+    // exactly one database, so `val visits: VisitRepository by dependencies` works regardless of the database.
+    // Repositories created lazily after installation are not added to the container.
     if (pluginConfig.registerDependencies) {
         application.dependencies {
             provide<ORMTemplate> { ormTemplate }
         }
-        repositoryRegistry.forEach { type, instance ->
+        application.registerRepositories(repositoryRegistry)
+        for ((name, template) in namedTemplates) {
             application.dependencies {
-                set(DependencyKey(TypeInfo(type, type.starProjectedType))) { instance }
+                provide<ORMTemplate>(name) { template }
             }
+            application.registerRepositories(namedRegistries.getValue(name))
         }
     }
 
-    // Run schema validation. The mode comes from the plugin configuration, falling back to the
-    // application configuration (storm.validation.schemaMode), matching the Spring Boot starter.
-    val configuredSchemaMode = pluginConfig.schemaValidation
-        ?: application.environment.config.propertyOrNull("storm.validation.schemaMode")?.getString()
-        ?: application.environment.config.propertyOrNull("storm.validation.schema_mode")?.getString()
-        ?: "fail"
-    val schemaMode = configuredSchemaMode.trim().lowercase()
-    if (schemaMode != "none" && schemaMode.isNotBlank()) {
-        val validator = SchemaValidator.of(dataSource)
-        when (schemaMode) {
-            "fail" -> {
-                validator.validateOrThrow()
-                application.log.info("Storm schema validation passed (mode=fail).")
-            }
-            "warn" -> validator.validateOrWarn()
-            else -> application.log.warn("Unknown schema validation mode: '$configuredSchemaMode'. Expected 'none', 'warn', or 'fail'.")
-        }
+    // ---- Schema validation ----
+
+    // The packages declared by the named databases partition validation: each database validates only the entity
+    // and projection types under its packages, and the primary validates everything else.
+    application.runSchemaValidation(
+        template = ormTemplate,
+        configuredMode = pluginConfig.schemaValidation
+            ?: application.environment.config.propertyOrNull("storm.validation.schemaMode")?.getString()
+            ?: application.environment.config.propertyOrNull("storm.validation.schema_mode")?.getString()
+            ?: "fail",
+        description = "primary database",
+    ) { type -> claimedPackages.keys.none { type.java.name.startsWith("$it.") } }
+    for (databaseConfig in pluginConfig.databases.values) {
+        val name = databaseConfig.name
+        application.runSchemaValidation(
+            template = namedTemplates.getValue(name),
+            configuredMode = databaseConfig.schemaValidation
+                ?: application.environment.config.propertyOrNull("storm.databases.$name.validation.schemaMode")?.getString()
+                ?: application.environment.config.propertyOrNull("storm.databases.$name.validation.schema_mode")?.getString()
+                ?: "fail",
+            description = "database '$name'",
+        ) { type -> databaseConfig.repositoryPackages.any { type.java.name.startsWith("$it.") } }
     }
 
-    // Register shutdown hook to close the DataSource if it is a managed HikariDataSource.
+    // Register shutdown hook to close the DataSources that are managed HikariDataSources.
     application.monitor.subscribe(ApplicationStopped) {
         closeDataSourceIfManaged(dataSource)
+        namedDataSources.values.forEach { closeDataSourceIfManaged(it) }
+    }
+}
+
+/**
+ * Registers every repository of the given registry in the dependency container, each under its own interface type.
+ */
+private fun Application.registerRepositories(registry: RepositoryRegistry) {
+    registry.forEach { type, instance ->
+        dependencies {
+            set(DependencyKey(TypeInfo(type, type.starProjectedType))) { instance }
+        }
+    }
+}
+
+/**
+ * Runs schema validation for one database's template, limited to the types accepted by [filter].
+ */
+private fun Application.runSchemaValidation(
+    template: ORMTemplate,
+    configuredMode: String,
+    description: String,
+    filter: (KClass<out st.orm.Data>) -> Boolean,
+) {
+    val schemaMode = configuredMode.trim().lowercase()
+    if (schemaMode == "none" || schemaMode.isBlank()) {
+        return
+    }
+    when (schemaMode) {
+        "fail" -> {
+            template.validateSchemaOrThrow(filter)
+            log.info("Storm schema validation passed for $description (mode=fail).")
+        }
+        "warn" -> template.validateSchema(filter).forEach { log.warn(it) }
+        else -> log.warn("Unknown schema validation mode: '$configuredMode'. Expected 'none', 'warn', or 'fail'.")
     }
 }

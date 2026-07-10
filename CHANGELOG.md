@@ -23,6 +23,7 @@ Framework integration points are now instance-scoped (#198), and the Ktor integr
 - `st.orm.spring.SpringTransactionTemplateProvider` (storm-spring): gives Java applications transaction-scoped entity caching under Spring-managed transactions without reflective probes.
 - The Ktor plugin gains `connectionProvider`, `transactionTemplateProvider`, `exceptionMapper` and `queryObserver` slots on `install(Storm) { }`.
 - The Ktor plugin exposes the `ORMTemplate` and every registered repository through Ktor's built-in dependency injection (`ktor-server-di`), each repository under its own interface type: `val visits: VisitRepository by dependencies`. Disable with `registerDependencies = false`.
+- The Ktor plugin supports multiple databases: `database("name") { }` blocks declare additional databases with their own template, repositories, schema validation, migration hook and lifecycle, configured in code or under `storm.databases.<name>.*` in HOCON. The packages declared per database partition repositories and schema validation; access goes through `orm("name")`, `repository<T>("name")` and named dependency injection.
 
 ### Changed
 

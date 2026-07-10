@@ -38,12 +38,34 @@ class RepositoryRegistry internal constructor(
     private val repositories = ConcurrentHashMap<KClass<*>, Any>()
 
     /**
+     * Packages claimed by other, named databases (package name to database name). Types under these packages must
+     * not be created against this registry's template; lookups fail fast pointing to the owning database.
+     */
+    internal var claimedPackages: Map<String, String> = emptyMap()
+
+    private fun ownerOf(type: KClass<*>): String? {
+        val typeName = type.java.name
+        return claimedPackages.entries.firstOrNull { (packageName, _) -> typeName.startsWith("$packageName.") }?.value
+    }
+
+    private fun requireUnclaimed(type: KClass<*>) {
+        val owner = ownerOf(type)
+        if (owner != null) {
+            throw IllegalStateException(
+                "Repository ${type.simpleName} belongs to database '$owner'. " +
+                    "Use repository<${type.simpleName}>(\"$owner\") or orm(\"$owner\") to access it.",
+            )
+        }
+    }
+
+    /**
      * Registers a custom repository type. The repository proxy is created immediately and cached.
      *
      * @param type the repository interface to register.
      * @return the created repository instance.
      */
     fun <T : Repository> register(type: KClass<T>): T {
+        requireUnclaimed(type)
         val repository = ormTemplate.repository(type)
         repositories[type] = repository
         return repository
@@ -65,10 +87,11 @@ class RepositoryRegistry internal constructor(
     fun register(vararg packages: String) {
         val discovered = TypeDiscovery.getRepositoryTypes()
         for (type in discovered) {
-            if (packages.isNotEmpty()) {
-                val typeName = type.name
-                if (packages.none { typeName.startsWith("$it.") }) continue
-            }
+            val typeName = type.name
+            if (packages.isNotEmpty() && packages.none { typeName.startsWith("$it.") }) continue
+            // Skip types that belong to another, named database; they are registered against that database's
+            // template instead.
+            if (claimedPackages.keys.any { typeName.startsWith("$it.") }) continue
             val kotlinType = type.kotlin as KClass<out Repository>
             if (!repositories.containsKey(kotlinType)) {
                 val repository = ormTemplate.repository(kotlinType)
@@ -117,7 +140,10 @@ class RepositoryRegistry internal constructor(
      * @since 1.12
      */
     @Suppress("UNCHECKED_CAST")
-    fun <T : Repository> getOrCreate(type: KClass<T>): T = repositories.computeIfAbsent(type) { ormTemplate.repository(type) } as T
+    fun <T : Repository> getOrCreate(type: KClass<T>): T = repositories.computeIfAbsent(type) {
+        requireUnclaimed(type)
+        ormTemplate.repository(type)
+    } as T
 }
 
 /**

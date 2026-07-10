@@ -167,4 +167,37 @@ class StormPluginConfig {
     fun repositories(vararg packages: String) {
         repositoryPackages.addAll(packages)
     }
+
+    internal val databases = LinkedHashMap<String, StormDatabaseConfig>()
+
+    /**
+     * Configures an additional, named database.
+     *
+     * The block mirrors the primary database's options: provide a [StormDatabaseConfig.dataSource] or let the
+     * plugin create one from the HOCON configuration under `storm.databases.<name>.datasource`. The database's
+     * template and repositories are exposed under the given name via `orm("name")`, `repository<T>("name")`, and
+     * named dependency injection.
+     *
+     * Declare the packages that belong to this database with [StormDatabaseConfig.repositories]; they partition
+     * repository registration and schema validation between the databases:
+     *
+     * ```kotlin
+     * install(Storm) {
+     *     // primary database: unchanged, zero-config from storm.datasource
+     *
+     *     database("analytics") {
+     *         repositories("com.myapp.analytics")
+     *     }
+     * }
+     * ```
+     *
+     * @param name the database name; must be unique and not blank.
+     * @param block the configuration for the named database.
+     * @since 1.13
+     */
+    fun database(name: String, block: StormDatabaseConfig.() -> Unit) {
+        require(name.isNotBlank()) { "Database name must not be blank." }
+        require(name !in databases) { "Database '$name' is already configured." }
+        databases[name] = StormDatabaseConfig(name).apply(block)
+    }
 }
