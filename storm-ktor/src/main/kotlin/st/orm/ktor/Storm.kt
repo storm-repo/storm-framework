@@ -18,9 +18,14 @@ package st.orm.ktor
 import io.ktor.server.application.ApplicationStopped
 import io.ktor.server.application.createApplicationPlugin
 import io.ktor.server.application.log
+import io.ktor.server.plugins.di.DependencyKey
+import io.ktor.server.plugins.di.dependencies
+import io.ktor.util.reflect.TypeInfo
 import st.orm.core.template.impl.SchemaValidator
+import st.orm.template.ORMTemplate
 import st.orm.template.impl.CoroutineAwareConnectionProviderImpl
 import st.orm.template.impl.TransactionTemplateProviderImpl
+import kotlin.reflect.full.starProjectedType
 
 /**
  * Ktor plugin that configures Storm ORM for the application.
@@ -60,7 +65,7 @@ import st.orm.template.impl.TransactionTemplateProviderImpl
  *
  * @since 1.11
  */
-val Storm = createApplicationPlugin(name = "Storm", createConfiguration = ::StormConfiguration) {
+val Storm = createApplicationPlugin(name = "Storm", createConfiguration = ::StormPluginConfig) {
 
     val dataSource = pluginConfig.dataSource ?: createDataSourceFromConfig(application)
     val stormConfig = pluginConfig.config ?: readStormConfig(application)
@@ -95,6 +100,21 @@ val Storm = createApplicationPlugin(name = "Storm", createConfiguration = ::Stor
         repositoryRegistry.register(*pluginConfig.repositoryPackages.toTypedArray())
     }
     application.attributes.put(RepositoryRegistryKey, repositoryRegistry)
+
+    // Expose the template and the registered repositories through Ktor's dependency injection, each
+    // repository under its own interface type, so modules and routes can inject them directly:
+    // `val visits: VisitRepository by dependencies`. Repositories created lazily after installation
+    // (autoRegisterRepositories = false) are not added to the container; register those yourself if needed.
+    if (pluginConfig.registerDependencies) {
+        application.dependencies {
+            provide<ORMTemplate> { ormTemplate }
+        }
+        repositoryRegistry.forEach { type, instance ->
+            application.dependencies {
+                set(DependencyKey(TypeInfo(type, type.starProjectedType))) { instance }
+            }
+        }
+    }
 
     // Run schema validation. The mode comes from the plugin configuration, falling back to the
     // application configuration (storm.validation.schemaMode), matching the Spring Boot starter.

@@ -13,6 +13,7 @@
         <kotlin.ksp.version>2.0.21-1.0.25</kotlin.ksp.version>
         <kotlin.coroutines.version>1.9.0</kotlin.coroutines.version>
         <kotlinx.serialization.version>1.7.3</kotlinx.serialization.version>
+        <ktor.version>3.2.3</ktor.version>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <spring-boot.version>3.5.6</spring-boot.version>
         <jacoco.version>0.8.12</jacoco.version>
@@ -67,7 +68,6 @@
         <module>storm-spring-boot-starter</module>
         <module>storm-kotlin-spring-boot-starter</module>
         <module>storm-ktor</module>
-        <module>storm-ktor-koin</module>
         <module>storm-ktor-test</module>
     </modules>
     <dependencyManagement>
