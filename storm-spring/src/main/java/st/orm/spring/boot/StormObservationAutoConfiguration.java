@@ -17,14 +17,18 @@ package st.orm.spring.boot;
 
 import io.micrometer.observation.ObservationConvention;
 import io.micrometer.observation.ObservationRegistry;
+import javax.sql.DataSource;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnBean;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnClass;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
+import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
+import st.orm.PersistenceException;
 import st.orm.core.spi.QueryObserver;
 import st.orm.micrometer.MicrometerQueryObserver;
+import st.orm.micrometer.OtelDatabaseObservationConvention;
 import st.orm.micrometer.StormQueryObservationContext;
 
 /**
@@ -53,6 +57,7 @@ import st.orm.micrometer.StormQueryObservationContext;
         })
 @ConditionalOnClass({ObservationRegistry.class, MicrometerQueryObserver.class})
 @ConditionalOnBean(ObservationRegistry.class)
+@EnableConfigurationProperties(StormProperties.class)
 public class StormObservationAutoConfiguration {
 
     /**
@@ -65,10 +70,37 @@ public class StormObservationAutoConfiguration {
     @ConditionalOnMissingBean(QueryObserver.class)
     public QueryObserver stormQueryObserver(
             ObservationRegistry observationRegistry,
-            ObjectProvider<ObservationConvention<StormQueryObservationContext>> convention) {
+            ObjectProvider<ObservationConvention<StormQueryObservationContext>> convention,
+            StormProperties properties,
+            ObjectProvider<DataSource> dataSource) {
         ObservationConvention<StormQueryObservationContext> customConvention = convention.getIfAvailable();
+        if (customConvention == null) {
+            customConvention = conventionFor(properties, dataSource);
+        }
         return customConvention != null
                 ? new MicrometerQueryObserver(observationRegistry, customConvention, io.micrometer.common.KeyValues.empty())
                 : new MicrometerQueryObserver(observationRegistry);
+    }
+
+    private static ObservationConvention<StormQueryObservationContext> conventionFor(
+            StormProperties properties, ObjectProvider<DataSource> dataSource) {
+        String semanticConventions = properties.getObservations().getSemanticConventions();
+        if (semanticConventions == null || semanticConventions.isBlank()
+                || "storm".equalsIgnoreCase(semanticConventions.trim())) {
+            return null;
+        }
+        if (!"otel".equalsIgnoreCase(semanticConventions.trim())) {
+            throw new PersistenceException(("Unknown storm.observations.semantic-conventions value: '%s'. "
+                    + "Expected 'storm' or 'otel'.").formatted(semanticConventions));
+        }
+        DataSource uniqueDataSource = dataSource.getIfUnique();
+        if (uniqueDataSource != null) {
+            try (var connection = uniqueDataSource.getConnection()) {
+                return OtelDatabaseObservationConvention.fromJdbcUrl(connection.getMetaData().getURL());
+            } catch (Exception ignored) {
+                // Fall through: the database product could not be determined.
+            }
+        }
+        return new OtelDatabaseObservationConvention(OtelDatabaseObservationConvention.OTHER_SQL);
     }
 }

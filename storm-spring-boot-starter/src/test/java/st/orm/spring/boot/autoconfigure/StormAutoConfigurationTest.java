@@ -540,6 +540,41 @@ class StormAutoConfigurationTest {
                 });
     }
 
+    @Test
+    void otelSemanticConventionsActivatedByProperty() {
+        // storm.observations.semantic-conventions=otel adds the OTel database attributes, with the
+        // database product detected from the DataSource.
+        contextRunner
+                .withPropertyValues(
+                        "spring.datasource.url=jdbc:h2:mem:otelConventionTest;DB_CLOSE_DELAY=-1",
+                        "spring.datasource.driver-class-name=org.h2.Driver",
+                        "storm.observations.semantic-conventions=otel"
+                )
+                .withUserConfiguration(TestObservationRegistryConfig.class)
+                .run(context -> {
+                    ORMTemplate orm = context.getBean(ORMTemplate.class);
+                    orm.query("CREATE TABLE otel_check (id INT PRIMARY KEY)").executeUpdate();
+                    var registry = context.getBean(io.micrometer.observation.tck.TestObservationRegistry.class);
+                    io.micrometer.observation.tck.TestObservationRegistryAssert.assertThat(registry)
+                            .hasObservationWithNameEqualTo("storm.query")
+                            .that()
+                            .hasLowCardinalityKeyValue("db.system.name", "h2database")
+                            .hasLowCardinalityKeyValue("db.operation.name", "UNDEFINED");
+                });
+    }
+
+    @Test
+    void unknownSemanticConventionsValueFailsFast() {
+        contextRunner
+                .withPropertyValues(
+                        "spring.datasource.url=jdbc:h2:mem:otelBogusTest;DB_CLOSE_DELAY=-1",
+                        "spring.datasource.driver-class-name=org.h2.Driver",
+                        "storm.observations.semantic-conventions=bogus"
+                )
+                .withUserConfiguration(TestObservationRegistryConfig.class)
+                .run(context -> assertThat(context).hasFailed());
+    }
+
     @Configuration
     static class TestObservationRegistryConfig {
         @Bean

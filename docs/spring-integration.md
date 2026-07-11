@@ -531,6 +531,8 @@ storm:
     strict: false
   exception-translation:
     enabled: true
+  observations:
+    semantic-conventions: storm
 ```
 
 The `schema-mode` property controls startup schema validation: `fail` (default) blocks startup if any entity definitions do not match the database schema, `warn` logs mismatches without blocking startup, and `none` skips validation. The `strict` property controls whether warnings (type narrowing, nullability mismatches) are treated as errors. See the [Configuration](configuration.md#schema-validation) guide for details.
@@ -620,7 +622,15 @@ A generic DataSource proxy can only time statements. Storm knows the entity and 
 - **Low-cardinality key values** (become metric tags): the SQL operation (`SELECT`, `INSERT`, ...), the execution kind (query, update, batch), and the entity or projection type.
 - **High-cardinality key values** (visible to trace handlers only): the SQL statement with parameter placeholders. Parameter values are never reported.
 
-Customization follows the usual back-off rules: contribute an `ObservationConvention<StormQueryObservationContext>` bean to override the naming and key values, define your own `QueryObserver` bean to replace the binding entirely, or disable the observation at the registry level with `management.observations.enable.storm.query=false`.
+Observability backends key their database tooling — latency panels, service-map database nodes, query views — on the OpenTelemetry database client semantic conventions. Set `storm.observations.semantic-conventions: otel` and every observation additionally carries the standard attributes (`db.system.name` detected from the DataSource, `db.operation.name`, and `db.query.text` on spans), so Storm queries surface in the database UX of any OTLP-capable backend, from Elastic to Grafana to Datadog, while the `storm.*` key values remain for custom dashboards:
+
+```yaml
+storm:
+  observations:
+    semantic-conventions: otel
+```
+
+Customization follows the usual back-off rules: contribute an `ObservationConvention<StormQueryObservationContext>` bean to override the naming and key values (it wins over the property), define your own `QueryObserver` bean to replace the binding entirely, or disable the observation at the registry level with `management.observations.enable.storm.query=false`.
 
 ## Testing with @DataStormTest
 
