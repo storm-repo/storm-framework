@@ -79,6 +79,15 @@ class StormPluginConfig {
     var queryObserver: st.orm.core.spi.QueryObserver? = null
 
     /**
+     * Optional [st.orm.core.spi.SqlCommenter] that appends per-execution comment content to statements, such
+     * as the current trace context ([st.orm.micrometer.TraceContextSqlCommenter]). Note that per-execution
+     * content defeats prepared statement caching; enable selectively.
+     *
+     * @since 1.13
+     */
+    var sqlCommenter: st.orm.core.spi.SqlCommenter? = null
+
+    /**
      * Whether to expose the [st.orm.template.ORMTemplate] and the registered repositories through Ktor's
      * dependency injection (`ktor-server-di`). Each repository is registered under its own interface type, so
      * modules and routes can inject them directly:

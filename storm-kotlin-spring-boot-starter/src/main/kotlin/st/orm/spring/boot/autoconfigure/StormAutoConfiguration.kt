@@ -27,6 +27,7 @@ import st.orm.StormConfig
 import st.orm.core.spi.ConnectionProvider
 import st.orm.core.spi.ExceptionMapper
 import st.orm.core.spi.QueryObserver
+import st.orm.core.spi.SqlCommenter
 import st.orm.core.spi.TransactionTemplateProvider
 import st.orm.spring.boot.StormProperties
 import st.orm.template.ORMTemplate
@@ -75,12 +76,14 @@ open class StormAutoConfiguration {
         transactionTemplateProvider: ObjectProvider<TransactionTemplateProvider>,
         exceptionMapper: ObjectProvider<ExceptionMapper>,
         queryObserver: ObjectProvider<QueryObserver>,
+        sqlCommenter: ObjectProvider<SqlCommenter>,
     ): ORMTemplate {
         val builder = ORMTemplate.builder(dataSource).config(properties.toStormConfig())
         connectionProvider.ifAvailable { builder.connectionProvider(it) }
         transactionTemplateProvider.ifAvailable { builder.transactionTemplateProvider(it) }
         exceptionMapper.ifAvailable { builder.exceptionMapper(it) }
         queryObserver.ifAvailable { builder.queryObserver(it) }
+        sqlCommenter.ifAvailable { builder.sqlCommenter(it) }
         return builder.build().withEntityCallbacks(entityCallbacks)
     }
 }

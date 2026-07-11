@@ -32,6 +32,7 @@ import st.orm.spring.RepositoryBeanFactoryPostProcessor;
 import st.orm.spring.boot.StormExceptionTranslationAutoConfiguration;
 import st.orm.spring.boot.StormObservationAutoConfiguration;
 import st.orm.spring.boot.StormProperties;
+import st.orm.spring.boot.StormTracingAutoConfiguration;
 import st.orm.spring.boot.StormValidationAutoConfiguration;
 import st.orm.template.ORMTemplate;
 
@@ -45,7 +46,8 @@ class StormAutoConfigurationTest {
                     StormRepositoryAutoConfiguration.class,
                     StormValidationAutoConfiguration.class,
                     StormExceptionTranslationAutoConfiguration.class,
-                    StormObservationAutoConfiguration.class
+                    StormObservationAutoConfiguration.class,
+                    StormTracingAutoConfiguration.class
             ));
 
     @Test
@@ -573,6 +575,31 @@ class StormAutoConfigurationTest {
                 )
                 .withUserConfiguration(TestObservationRegistryConfig.class)
                 .run(context -> assertThat(context).hasFailed());
+    }
+
+    @Test
+    void traceSqlCommentsAreOptIn() {
+        // Off by default even with a Tracer present: a per-execution comment defeats prepared statement
+        // caching, so the correlation is enabled deliberately.
+        contextRunner
+                .withPropertyValues(
+                        "spring.datasource.url=jdbc:h2:mem:sqlCommentsDefaultTest;DB_CLOSE_DELAY=-1",
+                        "spring.datasource.driver-class-name=org.h2.Driver"
+                )
+                .withBean(io.micrometer.tracing.Tracer.class, () -> org.mockito.Mockito.mock(io.micrometer.tracing.Tracer.class))
+                .run(context -> assertThat(context).doesNotHaveBean(st.orm.core.spi.SqlCommenter.class));
+        contextRunner
+                .withPropertyValues(
+                        "spring.datasource.url=jdbc:h2:mem:sqlCommentsEnabledTest;DB_CLOSE_DELAY=-1",
+                        "spring.datasource.driver-class-name=org.h2.Driver",
+                        "storm.tracing.sql-comments=true"
+                )
+                .withBean(io.micrometer.tracing.Tracer.class, () -> org.mockito.Mockito.mock(io.micrometer.tracing.Tracer.class))
+                .run(context -> {
+                    assertThat(context).hasSingleBean(st.orm.core.spi.SqlCommenter.class);
+                    assertThat(context).getBean(st.orm.core.spi.SqlCommenter.class)
+                            .isInstanceOf(st.orm.micrometer.TraceContextSqlCommenter.class);
+                });
     }
 
     @Configuration

@@ -62,6 +62,7 @@ import st.orm.core.spi.QueryFactory;
 import st.orm.core.spi.QueryObserver;
 import st.orm.core.spi.RefFactory;
 import st.orm.core.spi.RefFactoryImpl;
+import st.orm.core.spi.SqlCommenter;
 import st.orm.core.spi.SqlDialectProvider;
 import st.orm.core.spi.TransactionContext;
 import st.orm.core.spi.TransactionScope;
@@ -98,7 +99,36 @@ public final class PreparedStatementTemplateImpl implements PreparedStatementTem
     record IntegrationStrategies(@Nullable ConnectionProvider connectionProvider,
                                  @Nonnull TransactionTemplateProvider transactionTemplateProvider,
                                  @Nonnull ExceptionMapper exceptionMapper,
-                                 @Nonnull QueryObserver queryObserver) {
+                                 @Nonnull QueryObserver queryObserver,
+                                 @Nullable SqlCommenter sqlCommenter) {
+    }
+
+    /**
+     * Appends the commenter's content to the statement, after all statement processing and caching. A
+     * commenter must never be able to alter the statement: content containing the comment terminator is
+     * rejected (the only escape from a block comment), and so are semicolons (inert to the SQL parser inside
+     * a comment, but naive statement splitters in drivers and proxies split on them; sqlcommenter values
+     * URL-encode them instead). The content is padded with spaces, which keeps MySQL and MariaDB from
+     * interpreting leading {@code !} or {@code +} as an executable comment or optimizer hint.
+     */
+    private static String applySqlCommenter(@Nullable SqlCommenter sqlCommenter, @Nonnull String statement) {
+        if (sqlCommenter == null) {
+            return statement;
+        }
+        var content = sqlCommenter.comment().orElse(null);
+        if (content == null || content.isBlank()) {
+            return statement;
+        }
+        if (content.contains("*/")) {
+            throw new PersistenceException(
+                    "SQL comment content must not contain the comment terminator '*/': %s".formatted(content));
+        }
+        if (content.indexOf(';') >= 0) {
+            throw new PersistenceException(
+                    "SQL comment content must not contain semicolons; URL-encode values instead: %s"
+                            .formatted(content));
+        }
+        return statement + " /* " + content + " */";
     }
 
     private final TemplateProcessor templateProcessor;
@@ -133,11 +163,29 @@ public final class PreparedStatementTemplateImpl implements PreparedStatementTem
                                          @Nullable TransactionTemplateProvider transactionTemplateProvider,
                                          @Nullable ExceptionMapper exceptionMapper,
                                          @Nullable QueryObserver queryObserver) {
+        this(dataSource, config, connectionProvider, transactionTemplateProvider, exceptionMapper, queryObserver,
+                null);
+    }
+
+    /**
+     * Creates a data source backed template with instance-scoped integration strategies and an optional
+     * SQL commenter.
+     *
+     * @since 1.13
+     */
+    public PreparedStatementTemplateImpl(@Nonnull DataSource dataSource,
+                                         @Nonnull StormConfig config,
+                                         @Nullable ConnectionProvider connectionProvider,
+                                         @Nullable TransactionTemplateProvider transactionTemplateProvider,
+                                         @Nullable ExceptionMapper exceptionMapper,
+                                         @Nullable QueryObserver queryObserver,
+                                         @Nullable SqlCommenter sqlCommenter) {
         this(new IntegrationStrategies(
                         requireNonNullElseGet(connectionProvider, Providers::getConnectionProvider),
                         requireNonNullElseGet(transactionTemplateProvider, Providers::getTransactionTemplateProvider),
                         requireNonNullElseGet(exceptionMapper, ExceptionMapper::defaultMapper),
-                        requireNonNullElseGet(queryObserver, QueryObserver::noop)),
+                        requireNonNullElseGet(queryObserver, QueryObserver::noop),
+                        sqlCommenter),
                 dataSource, config);
     }
 
@@ -182,11 +230,27 @@ public final class PreparedStatementTemplateImpl implements PreparedStatementTem
                                          @Nullable TransactionTemplateProvider transactionTemplateProvider,
                                          @Nullable ExceptionMapper exceptionMapper,
                                          @Nullable QueryObserver queryObserver) {
+        this(connection, config, transactionTemplateProvider, exceptionMapper, queryObserver, null);
+    }
+
+    /**
+     * Creates a connection backed template with instance-scoped integration strategies and an optional
+     * SQL commenter.
+     *
+     * @since 1.13
+     */
+    public PreparedStatementTemplateImpl(@Nonnull Connection connection,
+                                         @Nonnull StormConfig config,
+                                         @Nullable TransactionTemplateProvider transactionTemplateProvider,
+                                         @Nullable ExceptionMapper exceptionMapper,
+                                         @Nullable QueryObserver queryObserver,
+                                         @Nullable SqlCommenter sqlCommenter) {
         this(new IntegrationStrategies(
                         null,
                         requireNonNullElseGet(transactionTemplateProvider, Providers::getTransactionTemplateProvider),
                         requireNonNullElseGet(exceptionMapper, ExceptionMapper::defaultMapper),
-                        requireNonNullElseGet(queryObserver, QueryObserver::noop)),
+                        requireNonNullElseGet(queryObserver, QueryObserver::noop),
+                        sqlCommenter),
                 connection, config);
     }
 
@@ -240,7 +304,7 @@ public final class PreparedStatementTemplateImpl implements PreparedStatementTem
                     throw new PersistenceException("%s Use Query.unsafe() to allow this operation.".formatted(warning));
                 });
             }
-            var statement = sql.statement();
+            var statement = applySqlCommenter(strategies.sqlCommenter(), sql.statement());
             var parameters = sql.parameters();
             var bindVariables = sql.bindVariables().orElse(null);
             var generatedKeys = sql.generatedKeys();
@@ -297,7 +361,7 @@ public final class PreparedStatementTemplateImpl implements PreparedStatementTem
                     throw new PersistenceException("%s Use Query.unsafe() to allow this operation.".formatted(warning));
                 });
             }
-            var statement = sql.statement();
+            var statement = applySqlCommenter(strategies.sqlCommenter(), sql.statement());
             var parameters = sql.parameters();
             var bindVariables = sql.bindVariables().orElse(null);
             var generatedKeys = sql.generatedKeys();

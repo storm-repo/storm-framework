@@ -375,6 +375,14 @@ interface ORMTemplate :
         fun queryObserver(queryObserver: st.orm.core.spi.QueryObserver): Builder = apply { core.queryObserver(queryObserver) }
 
         /**
+         * Sets the SQL commenter that appends per-execution comment content to statements, such as the
+         * current trace context. Note that per-execution content defeats prepared statement caching.
+         *
+         * @since 1.13
+         */
+        fun sqlCommenter(sqlCommenter: st.orm.core.spi.SqlCommenter): Builder = apply { core.sqlCommenter(sqlCommenter) }
+
+        /**
          * Builds the ORM template.
          */
         fun build(): ORMTemplate = ORMTemplateImpl(core.build())

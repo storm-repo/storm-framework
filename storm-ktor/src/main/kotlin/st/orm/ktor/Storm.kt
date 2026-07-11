@@ -123,6 +123,7 @@ val Storm = createApplicationPlugin(name = "Storm", createConfiguration = ::Stor
         .connectionProvider(pluginConfig.connectionProvider ?: JdbcConnectionProviderImpl())
         .transactionTemplateProvider(pluginConfig.transactionTemplateProvider ?: JdbcTransactionTemplateProviderImpl())
     pluginConfig.exceptionMapper?.let { builder.exceptionMapper(it) }
+    pluginConfig.sqlCommenter?.let { builder.sqlCommenter(it) }
     builder.queryObserver(
         pluginConfig.queryObserver ?: DelegatingQueryObserver().also { delegatingObservers[null] = it },
     )
@@ -165,6 +166,7 @@ val Storm = createApplicationPlugin(name = "Storm", createConfiguration = ::Stor
                 databaseConfig.transactionTemplateProvider ?: JdbcTransactionTemplateProviderImpl(),
             )
         databaseConfig.exceptionMapper?.let { databaseBuilder.exceptionMapper(it) }
+        (databaseConfig.sqlCommenter ?: pluginConfig.sqlCommenter)?.let { databaseBuilder.sqlCommenter(it) }
         databaseBuilder.queryObserver(
             databaseConfig.queryObserver ?: DelegatingQueryObserver().also { delegatingObservers[name] = it },
         )

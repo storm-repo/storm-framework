@@ -34,6 +34,7 @@ import st.orm.core.repository.RepositoryLookup;
 import st.orm.core.spi.ConnectionProvider;
 import st.orm.core.spi.ExceptionMapper;
 import st.orm.core.spi.QueryObserver;
+import st.orm.core.spi.SqlCommenter;
 import st.orm.core.spi.TransactionTemplateProvider;
 import st.orm.core.template.impl.PreparedStatementTemplateImpl;
 import st.orm.mapping.TemplateDecorator;
@@ -433,6 +434,7 @@ public interface ORMTemplate extends QueryTemplate, RepositoryLookup {
         private @Nullable TransactionTemplateProvider transactionTemplateProvider;
         private @Nullable ExceptionMapper exceptionMapper;
         private @Nullable QueryObserver queryObserver;
+        private @Nullable SqlCommenter sqlCommenter;
 
         private Builder(@Nullable DataSource dataSource, @Nullable Connection connection) {
             this.dataSource = dataSource;
@@ -511,6 +513,19 @@ public interface ORMTemplate extends QueryTemplate, RepositoryLookup {
         }
 
         /**
+         * Sets the SQL commenter that appends per-execution comment content to statements, such as the
+         * current trace context. Note that per-execution content defeats prepared statement caching.
+         *
+         * @param sqlCommenter the SQL commenter; must not be {@code null}.
+         * @return this builder.
+         * @since 1.13
+         */
+        public Builder sqlCommenter(@Nonnull SqlCommenter sqlCommenter) {
+            this.sqlCommenter = requireNonNull(sqlCommenter, "sqlCommenter");
+            return this;
+        }
+
+        /**
          * Builds the ORM template.
          *
          * @return the ORM template.
@@ -521,7 +536,7 @@ public interface ORMTemplate extends QueryTemplate, RepositoryLookup {
             PreparedStatementTemplateImpl template;
             if (dataSource != null) {
                 template = new PreparedStatementTemplateImpl(dataSource, config, connectionProvider,
-                        transactionTemplateProvider, exceptionMapper, queryObserver);
+                        transactionTemplateProvider, exceptionMapper, queryObserver, sqlCommenter);
             } else {
                 if (connectionProvider != null) {
                     throw new PersistenceException(
@@ -529,7 +544,7 @@ public interface ORMTemplate extends QueryTemplate, RepositoryLookup {
                 }
                 assert connection != null;
                 template = new PreparedStatementTemplateImpl(connection, config,
-                        transactionTemplateProvider, exceptionMapper, queryObserver);
+                        transactionTemplateProvider, exceptionMapper, queryObserver, sqlCommenter);
             }
             if (decorator != null) {
                 var decorated = decorator.apply(template);

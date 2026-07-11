@@ -70,6 +70,14 @@ class StormDatabaseConfig internal constructor(internal val name: String) {
     var queryObserver: st.orm.core.spi.QueryObserver? = null
 
     /**
+     * Optional [st.orm.core.spi.SqlCommenter] for this database; inherits the plugin-level commenter when
+     * unset.
+     *
+     * @since 1.13
+     */
+    var sqlCommenter: st.orm.core.spi.SqlCommenter? = null
+
+    /**
      * Schema validation mode for this database: `"none"`, `"warn"`, or `"fail"`.
      *
      * When not set, the mode is read from the HOCON configuration under
