@@ -27,11 +27,22 @@ import st.orm.template.ORMTemplate
  * BeanFactoryPostProcessor that scans base packages for Repository interfaces and registers them as beans.
  *
  * The scanning and registration engine lives in [AbstractRepositoryBeanFactoryPostProcessor]; this class binds
- * it to the Kotlin API's repository types. Subclasses override the engine's methods, e.g.
- * `override fun getRepositoryBasePackages(): Array<String>`.
+ * it to the Kotlin API's repository types. Configure through the constructor (one bean per domain in
+ * multi-template applications), by subclassing (`override fun getRepositoryBasePackages(): Array<String>`),
+ * or with `@EnableStormRepositories`.
  */
 @Component
-open class RepositoryBeanFactoryPostProcessor : AbstractRepositoryBeanFactoryPostProcessor() {
+open class RepositoryBeanFactoryPostProcessor(
+    private val basePackages: Array<String> = emptyArray(),
+    private val ormTemplateBeanName: String? = null,
+    private val repositoryPrefix: String = "",
+) : AbstractRepositoryBeanFactoryPostProcessor() {
+
+    override fun getRepositoryBasePackages(): Array<String> = if (basePackages.isNotEmpty()) basePackages.copyOf() else super.getRepositoryBasePackages()
+
+    override fun getOrmTemplateBeanName(): String? = ormTemplateBeanName ?: super.getOrmTemplateBeanName()
+
+    override fun getRepositoryPrefix(): String = repositoryPrefix.ifEmpty { super.getRepositoryPrefix() }
 
     override fun getRepositoryType(): Class<*> = Repository::class.java
 
