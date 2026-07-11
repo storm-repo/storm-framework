@@ -193,6 +193,11 @@
             </dependency>
             <dependency>
                 <groupId>st.orm</groupId>
+                <artifactId>storm-spring-boot-test-autoconfigure</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>st.orm</groupId>
                 <artifactId>storm-micrometer</artifactId>
                 <version>${project.version}</version>
             </dependency>

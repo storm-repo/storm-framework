@@ -8,6 +8,8 @@ Writing tests for database code can involve repetitive setup: creating a `DataSo
 The module provides two categories of functionality:
 
 1. **JUnit 5 integration** (`@StormTest`) for automatic database setup, script execution, and parameter injection.
+
+Spring Boot applications additionally have the [`@DataStormTest` slice](spring-integration.md#testing-with-datastormtest), which boots the Storm part of the Spring context instead of bypassing it: repositories arrive as Spring beans, exceptions arrive translated, and each test rolls back a Spring-managed transaction. `@StormTest` stays the fastest option for query-level tests; the slice covers the Spring wiring.
 2. **Statement capture** (`SqlCapture`) for recording and inspecting SQL statements generated during test execution. This component is framework-agnostic and works independently of JUnit.
 
 ---
