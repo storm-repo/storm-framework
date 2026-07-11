@@ -16,6 +16,7 @@
 package st.orm.spring;
 
 import jakarta.annotation.Nonnull;
+import jakarta.annotation.Nullable;
 import java.util.Set;
 import org.springframework.beans.factory.config.ConfigurableListableBeanFactory;
 import org.springframework.stereotype.Component;
@@ -32,6 +33,49 @@ import st.orm.template.ORMTemplate;
  */
 @Component
 public class RepositoryBeanFactoryPostProcessor extends AbstractRepositoryBeanFactoryPostProcessor {
+
+    private final String[] basePackages;
+    private final String ormTemplateBeanName;
+    private final String repositoryPrefix;
+
+    /**
+     * Creates a post-processor configured through overrides; subclasses override
+     * {@link #getRepositoryBasePackages()} and friends.
+     */
+    public RepositoryBeanFactoryPostProcessor() {
+        this(new String[0], null, "");
+    }
+
+    /**
+     * Creates a fully configured post-processor, without subclassing.
+     *
+     * @param basePackages the base packages to scan for repository interfaces.
+     * @param ormTemplateBeanName the ORMTemplate bean repositories bind to, or {@code null} for the primary.
+     * @param repositoryPrefix prefix for the registered repository bean names; empty for none.
+     * @since 1.13
+     */
+    public RepositoryBeanFactoryPostProcessor(@Nonnull String[] basePackages,
+                                              @Nullable String ormTemplateBeanName,
+                                              @Nonnull String repositoryPrefix) {
+        this.basePackages = basePackages.clone();
+        this.ormTemplateBeanName = ormTemplateBeanName;
+        this.repositoryPrefix = repositoryPrefix;
+    }
+
+    @Override
+    public String[] getRepositoryBasePackages() {
+        return basePackages.length > 0 ? basePackages.clone() : super.getRepositoryBasePackages();
+    }
+
+    @Override
+    public String getOrmTemplateBeanName() {
+        return ormTemplateBeanName != null ? ormTemplateBeanName : super.getOrmTemplateBeanName();
+    }
+
+    @Override
+    protected String getRepositoryPrefix() {
+        return !repositoryPrefix.isEmpty() ? repositoryPrefix : super.getRepositoryPrefix();
+    }
 
     @Override
     protected Class<?> getRepositoryType() {

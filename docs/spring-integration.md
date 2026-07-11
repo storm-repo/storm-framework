@@ -145,14 +145,24 @@ fun processUsers() {
 
 ### Repository Injection
 
-Storm repositories are interfaces with default method implementations. Spring cannot discover them automatically because they are not annotated with `@Component` or `@Repository`. The `RepositoryBeanFactoryPostProcessor` (in `st.orm.spring.kotlin` since 1.13) scans specified packages for interfaces that extend `EntityRepository` or `ProjectionRepository` and registers them as Spring beans. This makes them available for constructor injection like any other Spring-managed dependency.
+Storm repositories are interfaces with default method implementations. Spring cannot discover them automatically because they are not annotated with `@Component` or `@Repository`. Enable scanning with `@EnableStormRepositories`, mirroring annotations like `@EnableJpaRepositories`: the given packages are scanned for interfaces that extend `EntityRepository` or `ProjectionRepository`, and each is registered as a Spring bean, available for constructor injection like any other Spring-managed dependency.
 
 ```kotlin
 @Configuration
-class AcmeRepositoryBeanFactoryPostProcessor : RepositoryBeanFactoryPostProcessor() {
+@EnableStormRepositories(basePackages = ["com.acme.repository"])
+class AcmeConfiguration
+```
 
-    override fun getRepositoryBasePackages(): Array<String> =
-        arrayOf("com.acme.repository")
+Without explicit packages, the package of the annotated class is scanned. For full control, or for multiple repository sets bound to different templates, define `RepositoryBeanFactoryPostProcessor` beans (from `st.orm.spring.kotlin`) instead:
+
+```kotlin
+@Configuration
+class AcmeRepositoryConfiguration {
+
+    @Bean
+    fun acmeRepositories() = RepositoryBeanFactoryPostProcessor(
+        basePackages = arrayOf("com.acme.repository"),
+    )
 }
 ```
 
@@ -220,15 +230,25 @@ A template created with `ORMTemplate.of(dataSource)` works too, but manages its 
 
 ### Repository Injection
 
-Register a `RepositoryBeanFactoryPostProcessor` that scans your repository packages. This works identically to the Kotlin version: Storm discovers interfaces extending `EntityRepository` or `ProjectionRepository` and registers them as Spring beans.
+Enable repository scanning with `@EnableStormRepositories`. This works identically to the Kotlin version: Storm discovers interfaces extending `EntityRepository` or `ProjectionRepository` and registers them as Spring beans.
 
 ```java
 @Configuration
-public class AcmeRepositoryBeanFactoryPostProcessor extends RepositoryBeanFactoryPostProcessor {
+@EnableStormRepositories(basePackages = "com.acme.repository")
+public class AcmeConfiguration {
+}
+```
 
-    @Override
-    public String[] getRepositoryBasePackages() {
-        return new String[] { "com.acme.repository" };
+For full control, or for multiple repository sets bound to different templates, define `RepositoryBeanFactoryPostProcessor` beans instead:
+
+```java
+@Configuration
+public class AcmeRepositoryConfiguration {
+
+    @Bean
+    public RepositoryBeanFactoryPostProcessor acmeRepositories() {
+        return new RepositoryBeanFactoryPostProcessor(
+                new String[] { "com.acme.repository" }, null, "");
     }
 }
 ```
@@ -537,11 +557,8 @@ class StormConfig(private val dataSource: DataSource) {
 
 ```kotlin
 @Configuration
-class MyRepositoryPostProcessor : RepositoryBeanFactoryPostProcessor() {
-
-    override fun getRepositoryBasePackages(): Array<String> =
-        arrayOf("com.myapp.repository", "com.myapp.other")
-}
+@EnableStormRepositories(basePackages = ["com.myapp.repository", "com.myapp.other"])
+class RepositoryConfiguration
 ```
 
 ### Minimal Spring Boot Setup (without Starter)
@@ -564,11 +581,8 @@ class StormConfig {
 }
 
 @Configuration
-class MyRepositoryBeanFactoryPostProcessor : RepositoryBeanFactoryPostProcessor() {
-
-    override fun getRepositoryBasePackages(): Array<String> =
-        arrayOf("com.myapp.repository")
-}
+@EnableStormRepositories(basePackages = ["com.myapp.repository"])
+class RepositoryConfiguration
 ```
 
 This gives you:
@@ -637,14 +651,14 @@ Repositories bind to a specific template through a per-domain post-processor. Th
 
 ```kotlin
 @Configuration
-class BillingRepositoryPostProcessor : RepositoryBeanFactoryPostProcessor() {
+class BillingRepositoryConfiguration {
 
-    override fun getOrmTemplateBeanName(): String = "billingTemplate"
-
-    override fun getRepositoryPrefix(): String = "billing"
-
-    override fun getRepositoryBasePackages(): Array<String> =
-        arrayOf("com.myapp.billing.repository")
+    @Bean
+    fun billingRepositories() = RepositoryBeanFactoryPostProcessor(
+        basePackages = arrayOf("com.myapp.billing.repository"),
+        ormTemplateBeanName = "billingTemplate",
+        repositoryPrefix = "billing",
+    )
 }
 ```
 

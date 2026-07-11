@@ -548,6 +548,27 @@ class StormAutoConfigurationTest {
         }
     }
 
+    @Test
+    void enableStormRepositoriesBacksOffAutoConfiguredScanning() {
+        // @EnableStormRepositories doubles as the explicit override in Boot: its registrar-provided
+        // post-processor makes the auto-configured one back off.
+        contextRunner
+                .withPropertyValues(
+                        "spring.datasource.url=jdbc:h2:mem:enableAnnotationTest;DB_CLOSE_DELAY=-1",
+                        "spring.datasource.driver-class-name=org.h2.Driver"
+                )
+                .withUserConfiguration(EnableStormRepositoriesConfig.class)
+                .run(context -> {
+                    assertThat(context).doesNotHaveBean(AutoConfiguredRepositoryBeanFactoryPostProcessor.class);
+                    assertThat(context).hasBean("stormRepositoriesPostProcessor");
+                });
+    }
+
+    @Configuration
+    @st.orm.spring.EnableStormRepositories(basePackages = "com.example.repository")
+    static class EnableStormRepositoriesConfig {
+    }
+
     @Configuration
     static class CustomExceptionMapperConfig {
         @Bean
