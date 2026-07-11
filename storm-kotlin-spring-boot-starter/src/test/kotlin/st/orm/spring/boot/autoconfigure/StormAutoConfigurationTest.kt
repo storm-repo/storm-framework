@@ -15,6 +15,7 @@
  */
 package st.orm.spring.boot.autoconfigure
 
+import io.kotest.matchers.collections.shouldBeEmpty
 import io.kotest.matchers.shouldBe
 import io.kotest.matchers.shouldNotBe
 import io.kotest.matchers.types.shouldBeInstanceOf
@@ -34,6 +35,7 @@ import st.orm.core.spi.ConnectionProvider
 import st.orm.core.spi.TransactionTemplateProvider
 import st.orm.spring.SpringConnectionProvider
 import st.orm.spring.SpringTransactionTemplateProvider
+import st.orm.spring.boot.StormExceptionTranslationAutoConfiguration
 import st.orm.spring.boot.StormProperties
 import st.orm.spring.boot.StormTransactionAutoConfiguration
 import st.orm.spring.boot.StormValidationAutoConfiguration
@@ -53,6 +55,7 @@ class StormAutoConfigurationTest {
                 StormRepositoryAutoConfiguration::class.java,
                 StormTransactionAutoConfiguration::class.java,
                 StormValidationAutoConfiguration::class.java,
+                StormExceptionTranslationAutoConfiguration::class.java,
             ),
         )
 
@@ -375,5 +378,27 @@ class StormAutoConfigurationTest {
                 override fun getRepositoryBasePackages(): Array<String> = arrayOf("com.example")
             }
         }
+    }
+
+    @Test
+    fun `exception mapper auto-configured by default and disabled by property`() {
+        contextRunner
+            .withPropertyValues(
+                "spring.datasource.url=jdbc:h2:mem:exceptionTestKt;DB_CLOSE_DELAY=-1",
+                "spring.datasource.driver-class-name=org.h2.Driver",
+            )
+            .run { context ->
+                context.getBean(st.orm.core.spi.ExceptionMapper::class.java)
+                    .shouldBeInstanceOf<st.orm.spring.SpringExceptionMapper>()
+            }
+        contextRunner
+            .withPropertyValues(
+                "spring.datasource.url=jdbc:h2:mem:exceptionDisabledTestKt;DB_CLOSE_DELAY=-1",
+                "spring.datasource.driver-class-name=org.h2.Driver",
+                "storm.exception-translation.enabled=false",
+            )
+            .run { context ->
+                context.getBeanNamesForType(st.orm.core.spi.ExceptionMapper::class.java).toList().shouldBeEmpty()
+            }
     }
 }

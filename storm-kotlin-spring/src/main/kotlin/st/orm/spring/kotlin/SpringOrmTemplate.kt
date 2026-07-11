@@ -19,6 +19,7 @@ import org.springframework.transaction.PlatformTransactionManager
 import st.orm.EntityCallback
 import st.orm.StormConfig
 import st.orm.spring.SpringConnectionProvider
+import st.orm.spring.SpringExceptionMapper
 import st.orm.spring.SpringTransactionTemplateProvider
 import st.orm.template.ORMTemplate
 import javax.sql.DataSource
@@ -50,5 +51,6 @@ fun springOrmTemplate(
     .config(config)
     .connectionProvider(SpringConnectionProvider())
     .transactionTemplateProvider(SpringTransactionTemplateProvider { transactionManagers() })
+    .exceptionMapper(SpringExceptionMapper(dataSource))
     .build()
     .withEntityCallbacks(entityCallbacks)

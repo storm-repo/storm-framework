@@ -34,6 +34,7 @@ Framework integration points are now instance-scoped (#198), and the Ktor integr
 - `Sql.dataType()`: the primary entity or projection type of a statement, now also derived for SELECT statements from the selected or queried table, and reported to query observers as the statement's data type.
 - Java Spring applications gain the full programmatic-transaction bridge: `SpringTransactionTemplateProvider` constructed with the application's transaction managers runs Storm's `Transactions.transaction(...)` blocks through Spring's `PlatformTransactionManager`, joins active `@Transactional` transactions, and picks the manager matching each template's `DataSource` in multi-data-source applications. `SpringOrmTemplate.of(dataSource, transactionManagers)` is the canonical plain-Spring composition for Java.
 - Shared Spring Boot auto-configurations in storm-spring (`st.orm.spring.boot`): `StormTransactionAutoConfiguration` (Spring-aware provider beans), `StormValidationAutoConfiguration` (startup schema validation), and the `storm.*` configuration properties (`StormProperties`), used by both starters. Configuration keys are unchanged.
+- SQL failures raised by Storm translate to Spring's `DataAccessException` hierarchy in Spring applications: `SpringExceptionMapper` (storm-spring) translates on vendor error codes with `SQLException` subclass and SQL state fallback, auto-configured by both starters (`storm.exception-translation.enabled=false` to disable) and applied by the `SpringOrmTemplate.of` / `springOrmTemplate` compositions. Failures without a `SQLException` cause keep Storm's own exceptions.
 
 ### Changed
 
@@ -49,6 +50,7 @@ Framework integration points are now instance-scoped (#198), and the Ktor integr
 - The auto-configured `ORMTemplate` and startup schema validation condition on a single `DataSource` candidate: applications exposing several `DataSource` beans (one pool per domain) boot cleanly with the auto-configured template backing off, or binding to the `@Primary` pool when one is marked.
 - The repository AOP post-processor bean is renamed from `javaRepositoryProxyingPostProcessor`/`kotlinRepositoryProxyingPostProcessor` to `stormRepositoryProxyingPostProcessor`.
 - Java applications without a `PlatformTransactionManager` no longer get a Spring-bound `ConnectionProvider`: the template falls back to Storm's own JDBC transactions (previously connections were bound through `DataSourceUtils` unconditionally).
+- Spring Boot applications: SQL failures from Storm repositories and templates now surface as Spring `DataAccessException` subtypes instead of `PersistenceException` (translation is auto-configured; see Added). Catch blocks and rollback rules that reference `PersistenceException` for SQL failures need updating, or set `storm.exception-translation.enabled=false` to keep the previous behavior.
 
 ### Removed
 

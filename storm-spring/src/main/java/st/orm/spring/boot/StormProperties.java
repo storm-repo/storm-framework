@@ -54,6 +54,9 @@ public class StormProperties {
     /** Validation configuration. */
     private Validation validation = new Validation();
 
+    /** Exception translation configuration. */
+    private ExceptionTranslation exceptionTranslation = new ExceptionTranslation();
+
     /** Whether to enable ANSI escape sequences in Storm's log output. */
     private Boolean ansiEscaping;
 
@@ -77,6 +80,12 @@ public class StormProperties {
 
     /** Returns the validation configuration. */
     public Validation getValidation() { return validation; }
+
+    /** Returns the exception translation configuration. */
+    public ExceptionTranslation getExceptionTranslation() { return exceptionTranslation; }
+
+    /** Sets the exception translation configuration. */
+    public void setExceptionTranslation(ExceptionTranslation exceptionTranslation) { this.exceptionTranslation = exceptionTranslation; }
 
     /** Sets the validation configuration. */
     public void setValidation(Validation validation) { this.validation = validation; }
@@ -214,6 +223,19 @@ public class StormProperties {
      *
      * @since 1.13
      */
+    /** Exception translation configuration. */
+    public static class ExceptionTranslation {
+
+        /** Whether SQL failures are translated to Spring's DataAccessException hierarchy. Defaults to true. */
+        private Boolean enabled;
+
+        /** Returns whether exception translation is enabled. */
+        public Boolean getEnabled() { return enabled; }
+
+        /** Sets whether exception translation is enabled. */
+        public void setEnabled(Boolean enabled) { this.enabled = enabled; }
+    }
+
     public StormConfig toStormConfig() {
         Map<String, String> map = new HashMap<>();
         if (update.getDefaultMode() != null) {
