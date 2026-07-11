@@ -28,7 +28,7 @@ import jakarta.annotation.Nullable;
 public interface TransactionCallback<T> {
 
     /**
-     * Gets called by {@link TransactionTemplate#execute} within a transactional context.
+     * Gets called within the transactional context opened through {@link TransactionTemplate#open}.
      *
      * @param status provides access to transaction status.
      * @return a result object, or null.
