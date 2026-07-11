@@ -624,6 +624,8 @@ A generic DataSource proxy can only time statements. Storm knows the entity and 
 - **Low-cardinality key values** (become metric tags): the SQL operation (`SELECT`, `INSERT`, ...), the execution kind (query, update, batch), and the entity or projection type.
 - **High-cardinality key values** (visible to trace handlers only): the SQL statement with parameter placeholders. Parameter values are never reported.
 
+Transactions are observed alongside the queries: every physical transaction — an outermost `transaction` block or a `REQUIRES_NEW` block, in any language stack and through the Spring bridge alike — reports as a `storm.transaction` observation with its duration, `storm.tx.outcome` (`committed` or `rolled_back`), `storm.tx.propagation`, and `storm.tx.read_only`. Joined blocks run inside an existing transaction and are deliberately not double-counted. Long-running transactions and rollback rates become queryable per application, and per domain with the multi-template tagging.
+
 Observability backends key their database tooling — latency panels, service-map database nodes, query views — on the OpenTelemetry database client semantic conventions. Set `storm.observations.semantic-conventions: otel` and every observation additionally carries the standard attributes (`db.system.name` detected from the DataSource, `db.operation.name`, and `db.query.text` on spans), so Storm queries surface in the database UX of any OTLP-capable backend, from Elastic to Grafana to Datadog, while the `storm.*` key values remain for custom dashboards:
 
 ```yaml

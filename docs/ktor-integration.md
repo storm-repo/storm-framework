@@ -725,7 +725,7 @@ install(Storm) {
 ```
  What each observation produces depends on the handlers attached to the registry: timing metrics, tracing spans, or both. Storm spans nest under the current trace context, so with context propagation in place (for example the OpenTelemetry agent, or micrometer-tracing with a `TracingObservationHandler`) queries appear under the active request span.
 
-Observations are named `storm.query` and carry the following key values:
+Physical transactions report as `storm.transaction` observations with their duration, outcome (`committed` or `rolled_back`), propagation, and read-only flag; joined blocks are not double-counted. Query observations are named `storm.query` and carry the following key values:
 
 | Key | Cardinality | Value |
 |-----|-------------|-------|
