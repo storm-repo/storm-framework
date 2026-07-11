@@ -622,6 +622,57 @@ A generic DataSource proxy can only time statements. Storm knows the entity and 
 
 Customization follows the usual back-off rules: contribute an `ObservationConvention<StormQueryObservationContext>` bean to override the naming and key values, define your own `QueryObserver` bean to replace the binding entirely, or disable the observation at the registry level with `management.observations.enable.storm.query=false`.
 
+## Testing with @DataStormTest
+
+`@DataStormTest` (from `storm-spring-boot-test-autoconfigure`, test scope) is the Storm test slice, the counterpart of `@DataJpaTest`: it starts only the `DataSource`, Storm's auto-configuration (template, repository scanning, transaction integration, schema validation, exception translation), and SQL initialization, plus Flyway or Liquibase when present. It complements [`@StormTest`](testing.md), which tests data logic without a Spring context: use `@StormTest` for fast query-level tests, and the slice when the test should see what production Spring code sees — injected repository beans, translated exceptions, Spring-managed transactions, and your `storm.*` configuration. Regular `@Component`, `@Service`, and `@Controller` beans stay out of the context. Each test method runs in a transaction that is rolled back afterwards, so tests cannot see each other's writes.
+
+On Spring Boot 3 the application's `DataSource` is replaced with an embedded in-memory database by default; put a `schema.sql` (and optionally `data.sql`) on the test classpath to initialize it, or let Flyway or Liquibase (included in the slice) create the schema as in production. On Spring Boot 4 the replacement activates when the `spring-boot-jdbc-test-autoconfigure` artifact is present; without it, point the slice at a database with the `properties` attribute:
+
+```kotlin
+@DataStormTest
+class VisitRepositoryTest(
+    @Autowired private val visitRepository: VisitRepository,
+) {
+
+    @Test
+    fun `finds all visits`() {
+        visitRepository.count() shouldBe 14
+    }
+
+    @Test
+    fun `insert rolls back after the test`() {
+        visitRepository.insert(Visit(description = "temporary"))
+    }
+}
+```
+
+To run against a real database instead, disable the replacement (`spring.test.database.replace=none` on Spring Boot 3; the default without the test-database artifact on Spring Boot 4) and hand the slice a Testcontainers-managed database through `@ServiceConnection`:
+
+```kotlin
+@DataStormTest(properties = ["spring.test.database.replace=none"])
+@Testcontainers
+class VisitRepositoryPostgresTest(
+    @Autowired private val visitRepository: VisitRepository,
+) {
+
+    companion object {
+        @Container
+        @ServiceConnection
+        @JvmStatic
+        val postgres = PostgreSQLContainer("postgres:17-alpine")
+    }
+
+    @Test
+    fun `finds all visits`() {
+        visitRepository.count() shouldBe 14
+    }
+}
+```
+
+The slice works with both starters — it pulls in the starter's auto-configuration classes by name, which are identical for the Java and Kotlin stacks — and with both Spring Boot 3 and 4: where Spring Boot moved classes between the releases, the slice is exclusion-based rather than annotation-composed. The annotation supports `properties` for per-test configuration (for example `properties = ["storm.validation.schema-mode=none"]` when the test schema deliberately diverges from the entity model) and `includeFilters`/`excludeFilters` to pull additional components into the slice.
+
+Two composition notes. Test fixtures loaded per test method participate in the rollback transaction, so identity-generated keys drift across methods (sequences do not roll back); load reference fixtures once with `@Sql(executionPhase = ExecutionPhase.BEFORE_TEST_CLASS)` and let each test's own writes roll back. And an application that excludes `StormTransactionAutoConfiguration` (the coroutine-native setup) should re-enable it for the slice with `properties = ["spring.autoconfigure.exclude="]` — without the transaction bridge, repository writes cannot join the rollback transaction.
+
 ## Multiple Data Sources
 
 Larger applications sometimes expose the same database through several `DataSource` beans: one connection pool per domain, each with its own pool size, timeout, and isolation settings, so heavy batch work cannot starve interactive traffic. Storm supports this topology with one `ORMTemplate` per `DataSource` and one repository post-processor per domain.

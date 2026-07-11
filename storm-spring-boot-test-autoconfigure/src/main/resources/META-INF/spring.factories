@@ -1,0 +1,2 @@
+org.springframework.test.context.ContextCustomizerFactory=\
+st.orm.spring.boot.test.DataStormTestContextCustomizerFactory
