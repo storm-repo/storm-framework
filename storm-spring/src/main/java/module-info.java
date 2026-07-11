@@ -1,5 +1,8 @@
 module storm.spring {
     requires static storm.java;
+    requires static storm.micrometer;
+    requires static micrometer.observation;
+    requires static micrometer.commons;
     requires spring.jdbc;
     requires spring.tx;
     requires spring.context;

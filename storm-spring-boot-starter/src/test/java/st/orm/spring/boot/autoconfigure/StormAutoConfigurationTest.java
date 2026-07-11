@@ -30,6 +30,7 @@ import org.springframework.context.annotation.Configuration;
 import st.orm.EntityCallback;
 import st.orm.spring.RepositoryBeanFactoryPostProcessor;
 import st.orm.spring.boot.StormExceptionTranslationAutoConfiguration;
+import st.orm.spring.boot.StormObservationAutoConfiguration;
 import st.orm.spring.boot.StormProperties;
 import st.orm.spring.boot.StormValidationAutoConfiguration;
 import st.orm.template.ORMTemplate;
@@ -43,7 +44,8 @@ class StormAutoConfigurationTest {
                     StormAutoConfiguration.class,
                     StormRepositoryAutoConfiguration.class,
                     StormValidationAutoConfiguration.class,
-                    StormExceptionTranslationAutoConfiguration.class
+                    StormExceptionTranslationAutoConfiguration.class,
+                    StormObservationAutoConfiguration.class
             ));
 
     @Test
@@ -505,6 +507,45 @@ class StormAutoConfigurationTest {
                                     orm.query("INSERT INTO dup_check VALUES (1)").executeUpdate())
                             .isInstanceOf(org.springframework.dao.DuplicateKeyException.class);
                 });
+    }
+
+    @Test
+    void queryObserverNotConfiguredWithoutObservationRegistry() {
+        contextRunner
+                .withPropertyValues(
+                        "spring.datasource.url=jdbc:h2:mem:observationAbsentTest;DB_CLOSE_DELAY=-1",
+                        "spring.datasource.driver-class-name=org.h2.Driver"
+                )
+                .run(context -> assertThat(context).doesNotHaveBean(st.orm.core.spi.QueryObserver.class));
+    }
+
+    @Test
+    void queryExecutionsObservedWhenRegistryPresent() {
+        // With an ObservationRegistry in the context, the auto-configured template reports each query
+        // as a storm.query observation with the operation as a low-cardinality key value.
+        contextRunner
+                .withPropertyValues(
+                        "spring.datasource.url=jdbc:h2:mem:observationTest;DB_CLOSE_DELAY=-1",
+                        "spring.datasource.driver-class-name=org.h2.Driver"
+                )
+                .withUserConfiguration(TestObservationRegistryConfig.class)
+                .run(context -> {
+                    assertThat(context).getBean(st.orm.core.spi.QueryObserver.class)
+                            .isInstanceOf(st.orm.micrometer.MicrometerQueryObserver.class);
+                    ORMTemplate orm = context.getBean(ORMTemplate.class);
+                    orm.query("CREATE TABLE observed (id INT PRIMARY KEY)").executeUpdate();
+                    var registry = context.getBean(io.micrometer.observation.tck.TestObservationRegistry.class);
+                    io.micrometer.observation.tck.TestObservationRegistryAssert.assertThat(registry)
+                            .hasObservationWithNameEqualTo("storm.query");
+                });
+    }
+
+    @Configuration
+    static class TestObservationRegistryConfig {
+        @Bean
+        public io.micrometer.observation.tck.TestObservationRegistry observationRegistry() {
+            return io.micrometer.observation.tck.TestObservationRegistry.create();
+        }
     }
 
     @Configuration

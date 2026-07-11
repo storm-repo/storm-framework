@@ -111,6 +111,11 @@
         </dependency>
         <dependency>
             <groupId>st.orm</groupId>
+            <artifactId>storm-micrometer</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>st.orm</groupId>
             <artifactId>storm-core</artifactId>
             <version>${project.version}</version>
         </dependency>
@@ -147,6 +152,12 @@
         <dependency>
             <groupId>com.h2database</groupId>
             <artifactId>h2</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>io.micrometer</groupId>
+            <artifactId>micrometer-observation-test</artifactId>
+            <version>${micrometer.version}</version>
             <scope>test</scope>
         </dependency>
     </dependencies>

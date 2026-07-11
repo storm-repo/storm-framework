@@ -36,6 +36,7 @@ import st.orm.core.spi.TransactionTemplateProvider
 import st.orm.spring.SpringConnectionProvider
 import st.orm.spring.SpringTransactionTemplateProvider
 import st.orm.spring.boot.StormExceptionTranslationAutoConfiguration
+import st.orm.spring.boot.StormObservationAutoConfiguration
 import st.orm.spring.boot.StormProperties
 import st.orm.spring.boot.StormTransactionAutoConfiguration
 import st.orm.spring.boot.StormValidationAutoConfiguration
@@ -56,6 +57,7 @@ class StormAutoConfigurationTest {
                 StormTransactionAutoConfiguration::class.java,
                 StormValidationAutoConfiguration::class.java,
                 StormExceptionTranslationAutoConfiguration::class.java,
+                StormObservationAutoConfiguration::class.java,
             ),
         )
 
@@ -399,6 +401,28 @@ class StormAutoConfigurationTest {
             )
             .run { context ->
                 context.getBeanNamesForType(st.orm.core.spi.ExceptionMapper::class.java).toList().shouldBeEmpty()
+            }
+    }
+
+    @Test
+    fun `query observer follows the observation registry`() {
+        contextRunner
+            .withPropertyValues(
+                "spring.datasource.url=jdbc:h2:mem:observationAbsentKt;DB_CLOSE_DELAY=-1",
+                "spring.datasource.driver-class-name=org.h2.Driver",
+            )
+            .run { context ->
+                context.getBeanNamesForType(st.orm.core.spi.QueryObserver::class.java).toList().shouldBeEmpty()
+            }
+        contextRunner
+            .withPropertyValues(
+                "spring.datasource.url=jdbc:h2:mem:observationKt;DB_CLOSE_DELAY=-1",
+                "spring.datasource.driver-class-name=org.h2.Driver",
+            )
+            .withBean(io.micrometer.observation.ObservationRegistry::class.java, { io.micrometer.observation.ObservationRegistry.create() })
+            .run { context ->
+                context.getBean(st.orm.core.spi.QueryObserver::class.java)
+                    .shouldBeInstanceOf<st.orm.micrometer.MicrometerQueryObserver>()
             }
     }
 }

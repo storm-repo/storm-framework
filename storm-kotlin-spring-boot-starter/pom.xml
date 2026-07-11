@@ -189,6 +189,11 @@
         </dependency>
         <dependency>
             <groupId>st.orm</groupId>
+            <artifactId>storm-micrometer</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>st.orm</groupId>
             <artifactId>storm-core</artifactId>
             <version>${project.version}</version>
         </dependency>

@@ -465,7 +465,8 @@ The starter auto-configures:
 2. **Repository scanning** via `AutoConfiguredRepositoryBeanFactoryPostProcessor`, which discovers repository interfaces in the `@SpringBootApplication` base package (and its sub-packages). If you define your own `RepositoryBeanFactoryPostProcessor` bean, the auto-configured one backs off.
 3. **Transaction integration** through Spring-aware `ConnectionProvider` and `TransactionTemplateProvider` beans, contributed when a `PlatformTransactionManager` is present and handed to the template it creates. Nothing is registered globally: each application context gets its own, correctly matched transaction integration. Define your own `ConnectionProvider` or `TransactionTemplateProvider` bean to override, and optionally contribute `ExceptionMapper` or `QueryObserver` beans, which are applied to the template the same way.
 4. **Exception translation** to Spring's `DataAccessException` hierarchy through an auto-configured `ExceptionMapper` bean. Disable with `storm.exception-translation.enabled=false`, or define your own `ExceptionMapper` bean to translate differently.
-5. **Configuration properties** bound from `storm.*` in `application.yml`/`application.properties`, passed to the `ORMTemplate` via `StormConfig`.
+5. **Query observations** through Micrometer when an `ObservationRegistry` bean is present: every query reports as a `storm.query` observation, yielding actuator metrics and tracing spans from a single instrumentation.
+6. **Configuration properties** bound from `storm.*` in `application.yml`/`application.properties`, passed to the `ORMTemplate` via `StormConfig`.
 
 ### Minimal Spring Boot Setup (with Starter)
 
@@ -595,6 +596,17 @@ fun updateStudy(study: Study) = transactionBlocking { studyRepository.update(stu
 ```
 
 Translation applies to the templates composed with it: the starter's auto-configured template, and templates created with `SpringOrmTemplate.of` (Java) or `springOrmTemplate` (Kotlin). Disable it with `storm.exception-translation.enabled=false`, define your own `ExceptionMapper` bean, or compose the template yourself with the builder and leave the mapper out.
+
+## Observability
+
+The starters ship with Storm's Micrometer binding. When an `ObservationRegistry` bean is present (Spring Boot Actuator provides one out of the box), every query executed by the auto-configured template is reported as a Micrometer Observation named `storm.query`. One instrumentation yields both actuator metrics (`storm.query` timers, tagged and queryable per operation and entity) and tracing spans when a tracing backend is configured.
+
+A generic DataSource proxy can only time statements. Storm knows the entity and operation behind every statement it generates, so the observations carry meaningful tags:
+
+- **Low-cardinality key values** (become metric tags): the SQL operation (`SELECT`, `INSERT`, ...), the execution kind (query, update, batch), and the entity or projection type.
+- **High-cardinality key values** (visible to trace handlers only): the SQL statement with parameter placeholders. Parameter values are never reported.
+
+Customization follows the usual back-off rules: contribute an `ObservationConvention<StormQueryObservationContext>` bean to override the naming and key values, define your own `QueryObserver` bean to replace the binding entirely, or disable the observation at the registry level with `management.observations.enable.storm.query=false`.
 
 ## Multiple Data Sources
 
