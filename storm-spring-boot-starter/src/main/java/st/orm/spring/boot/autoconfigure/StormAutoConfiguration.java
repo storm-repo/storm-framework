@@ -15,16 +15,13 @@
  */
 package st.orm.spring.boot.autoconfigure;
 
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 import javax.sql.DataSource;
 import org.springframework.beans.factory.ObjectProvider;
-import org.springframework.beans.factory.SmartInitializingSingleton;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
-import org.springframework.boot.autoconfigure.condition.ConditionalOnBean;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnClass;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnSingleCandidate;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
 import st.orm.EntityCallback;
@@ -33,8 +30,7 @@ import st.orm.core.spi.ConnectionProvider;
 import st.orm.core.spi.ExceptionMapper;
 import st.orm.core.spi.QueryObserver;
 import st.orm.core.spi.TransactionTemplateProvider;
-import st.orm.core.template.impl.SchemaValidator;
-import st.orm.spring.SpringConnectionProvider;
+import st.orm.spring.boot.StormProperties;
 import st.orm.template.ORMTemplate;
 
 /**
@@ -48,7 +44,7 @@ import st.orm.template.ORMTemplate;
  */
 @AutoConfiguration
 @ConditionalOnClass(ORMTemplate.class)
-@ConditionalOnBean(DataSource.class)
+@ConditionalOnSingleCandidate(DataSource.class)
 @EnableConfigurationProperties(StormProperties.class)
 public class StormAutoConfiguration {
 
@@ -74,7 +70,7 @@ public class StormAutoConfiguration {
                                    ObjectProvider<TransactionTemplateProvider> transactionTemplateProvider,
                                    ObjectProvider<ExceptionMapper> exceptionMapper,
                                    ObjectProvider<QueryObserver> queryObserver) {
-        var builder = ORMTemplate.builder(dataSource).config(toStormConfig(properties));
+        var builder = ORMTemplate.builder(dataSource).config(properties.toStormConfig());
         connectionProvider.ifAvailable(builder::connectionProvider);
         transactionTemplateProvider.ifAvailable(builder::transactionTemplateProvider);
         exceptionMapper.ifAvailable(builder::exceptionMapper);
@@ -82,78 +78,4 @@ public class StormAutoConfiguration {
         return builder.build().withEntityCallbacks(entityCallbacks);
     }
 
-    /**
-     * Provides the connection provider that binds connections to Spring's transaction management.
-     *
-     * <p>Connections are acquired through Spring's {@code DataSourceUtils}, so statements executed by the template
-     * participate in Spring-managed ({@code @Transactional}) transactions and degrade gracefully to plain
-     * connections when no transaction is active. Define your own {@link ConnectionProvider} bean to override.</p>
-     */
-    @Bean
-    @ConditionalOnMissingBean(ConnectionProvider.class)
-    public ConnectionProvider stormConnectionProvider() {
-        return new SpringConnectionProvider();
-    }
-
-    /**
-     * Runs schema validation after all singleton beans have been fully initialized. This guarantees that migration
-     * tools like Flyway and Liquibase (or any bean-based migration mechanism) have completed their work before
-     * validation occurs.
-     *
-     * <p>Validation defaults to {@code fail}: every entity and projection is validated against the live database
-     * schema and mismatches abort startup. Set {@code storm.validation.schema_mode} to {@code warn} or {@code none}
-     * to relax or opt out.</p>
-     */
-    @Bean
-    SmartInitializingSingleton stormSchemaValidator(DataSource dataSource, StormProperties properties) {
-        return () -> {
-            String configured = properties.getValidation().getSchemaMode();
-            String schemaMode = configured == null || configured.isBlank() ? "fail" : configured.trim();
-            if ("none".equalsIgnoreCase(schemaMode)) {
-                return;
-            }
-            SchemaValidator validator = SchemaValidator.of(dataSource);
-            if ("fail".equalsIgnoreCase(schemaMode)) {
-                validator.validateOrThrow();
-                logger.info("Storm schema validation passed (mode=fail).");
-            } else if ("warn".equalsIgnoreCase(schemaMode)) {
-                validator.validateOrWarn();
-            } else {
-                logger.warn("Unknown schema validation mode: '{}'. Expected 'none', 'warn', or 'fail'.", schemaMode);
-            }
-        };
-    }
-
-    private static StormConfig toStormConfig(StormProperties properties) {
-        Map<String, String> map = new HashMap<>();
-        var update = properties.getUpdate();
-        if (update.getDefaultMode() != null) {
-            map.put(StormConfig.UPDATE_DEFAULT_MODE, update.getDefaultMode().trim().toUpperCase());
-        }
-        if (update.getDirtyCheck() != null) {
-            map.put(StormConfig.UPDATE_DIRTY_CHECK, update.getDirtyCheck().trim().toUpperCase());
-        }
-        if (update.getMaxShapes() != null) {
-            map.put(StormConfig.UPDATE_MAX_SHAPES, update.getMaxShapes().toString());
-        }
-        var entityCache = properties.getEntityCache();
-        if (entityCache.getRetention() != null) {
-            map.put(StormConfig.ENTITY_CACHE_RETENTION, entityCache.getRetention().trim());
-        }
-        var templateCache = properties.getTemplateCache();
-        if (templateCache.getSize() != null) {
-            map.put(StormConfig.TEMPLATE_CACHE_SIZE, templateCache.getSize().toString());
-        }
-        if (properties.getAnsiEscaping() != null) {
-            map.put(StormConfig.ANSI_ESCAPING, properties.getAnsiEscaping().toString());
-        }
-        var validation = properties.getValidation();
-        if (validation.getRecordMode() != null) {
-            map.put(StormConfig.VALIDATION_RECORD_MODE, validation.getRecordMode().trim());
-        }
-        if (validation.getStrict() != null) {
-            map.put(StormConfig.VALIDATION_STRICT, validation.getStrict().toString());
-        }
-        return StormConfig.of(map);
-    }
 }

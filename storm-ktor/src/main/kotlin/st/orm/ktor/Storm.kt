@@ -26,10 +26,10 @@ import io.ktor.server.plugins.di.getBlocking
 import io.ktor.util.reflect.TypeInfo
 import io.micrometer.common.KeyValues
 import io.micrometer.observation.ObservationRegistry
+import st.orm.core.spi.JdbcConnectionProviderImpl
+import st.orm.core.spi.JdbcTransactionTemplateProviderImpl
 import st.orm.micrometer.MicrometerQueryObserver
 import st.orm.template.ORMTemplate
-import st.orm.template.impl.CoroutineAwareConnectionProviderImpl
-import st.orm.template.impl.TransactionTemplateProviderImpl
 import javax.sql.DataSource
 import kotlin.reflect.KClass
 import kotlin.reflect.full.starProjectedType
@@ -118,8 +118,8 @@ val Storm = createApplicationPlugin(name = "Storm", createConfiguration = ::Stor
     // API binds to the database's provider when its template executes inside a transaction block.
     val builder = ORMTemplate.builder(dataSource)
         .config(stormConfig)
-        .connectionProvider(pluginConfig.connectionProvider ?: CoroutineAwareConnectionProviderImpl())
-        .transactionTemplateProvider(pluginConfig.transactionTemplateProvider ?: TransactionTemplateProviderImpl())
+        .connectionProvider(pluginConfig.connectionProvider ?: JdbcConnectionProviderImpl())
+        .transactionTemplateProvider(pluginConfig.transactionTemplateProvider ?: JdbcTransactionTemplateProviderImpl())
     pluginConfig.exceptionMapper?.let { builder.exceptionMapper(it) }
     builder.queryObserver(
         pluginConfig.queryObserver ?: DelegatingQueryObserver().also { delegatingObservers[null] = it },
@@ -158,9 +158,9 @@ val Storm = createApplicationPlugin(name = "Storm", createConfiguration = ::Stor
         databaseConfig.migration?.invoke(databaseDataSource)
         val databaseBuilder = ORMTemplate.builder(databaseDataSource)
             .config(databaseStormConfig)
-            .connectionProvider(databaseConfig.connectionProvider ?: CoroutineAwareConnectionProviderImpl())
+            .connectionProvider(databaseConfig.connectionProvider ?: JdbcConnectionProviderImpl())
             .transactionTemplateProvider(
-                databaseConfig.transactionTemplateProvider ?: TransactionTemplateProviderImpl(),
+                databaseConfig.transactionTemplateProvider ?: JdbcTransactionTemplateProviderImpl(),
             )
         databaseConfig.exceptionMapper?.let { databaseBuilder.exceptionMapper(it) }
         databaseBuilder.queryObserver(

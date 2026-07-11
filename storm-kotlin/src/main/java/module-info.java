@@ -14,6 +14,4 @@ module storm.kotlin {
     requires org.jetbrains.annotations;
     uses st.orm.core.spi.ORMReflection;
     provides st.orm.core.spi.ORMReflectionProvider with st.orm.spi.ORMReflectionProviderImpl;
-    provides st.orm.core.spi.ConnectionProvider with st.orm.template.impl.CoroutineAwareConnectionProviderImpl;
-    provides st.orm.core.spi.TransactionTemplateProvider with st.orm.template.impl.TransactionTemplateProviderImpl;
 }

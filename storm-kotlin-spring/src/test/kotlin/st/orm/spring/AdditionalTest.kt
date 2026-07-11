@@ -21,20 +21,22 @@ import org.springframework.beans.factory.support.RootBeanDefinition
 import org.springframework.boot.test.context.SpringBootTest
 import org.springframework.test.context.ContextConfiguration
 import org.springframework.test.context.jdbc.Sql
+import st.orm.TransactionIsolation.REPEATABLE_READ
+import st.orm.TransactionPropagation.NESTED
+import st.orm.TransactionPropagation.REQUIRED
+import st.orm.TransactionPropagation.REQUIRES_NEW
+import st.orm.TransactionTimedOutException
+import st.orm.UnexpectedRollbackException
 import st.orm.repository.countAll
 import st.orm.repository.exists
 import st.orm.repository.removeAll
+import st.orm.spring.AbstractRepositoryBeanFactoryPostProcessor
 import st.orm.spring.impl.RepositoryAopAutoConfiguration
-import st.orm.spring.impl.ResolverRegistration
+import st.orm.spring.kotlin.RepositoryBeanFactoryPostProcessor
 import st.orm.spring.model.City
 import st.orm.spring.model.Pet
 import st.orm.spring.model.Visit
 import st.orm.template.ORMTemplate
-import st.orm.template.TransactionIsolation.REPEATABLE_READ
-import st.orm.template.TransactionPropagation.NESTED
-import st.orm.template.TransactionPropagation.REQUIRED
-import st.orm.template.TransactionPropagation.REQUIRES_NEW
-import st.orm.template.UnexpectedRollbackException
 import st.orm.template.setGlobalTransactionOptions
 import st.orm.template.transactionBlocking
 
@@ -177,8 +179,8 @@ open class AdditionalTest(
     @Test
     fun `register should install RepositoryAutowireCandidateResolver in bean factory`() {
         val beanFactory = DefaultListableBeanFactory()
-        RepositoryBeanFactoryPostProcessor.RepositoryAutowireCandidateResolver.register(beanFactory)
-        (beanFactory.autowireCandidateResolver is RepositoryBeanFactoryPostProcessor.RepositoryAutowireCandidateResolver).shouldBeTrue()
+        AbstractRepositoryBeanFactoryPostProcessor.RepositoryAutowireCandidateResolver.register(beanFactory)
+        (beanFactory.autowireCandidateResolver is AbstractRepositoryBeanFactoryPostProcessor.RepositoryAutowireCandidateResolver).shouldBeTrue()
     }
 
     // RepositoryAutowireCandidateResolver: getQualifierValue meta-annotation
@@ -193,7 +195,7 @@ open class AdditionalTest(
         // Create a resolver with a mock delegate
         val delegate = mock(AutowireCandidateResolver::class.java)
         val resolver =
-            RepositoryBeanFactoryPostProcessor.RepositoryAutowireCandidateResolver(delegate)
+            AbstractRepositoryBeanFactoryPostProcessor.RepositoryAutowireCandidateResolver(delegate)
 
         // Create a mock DependencyDescriptor with our meta-annotated annotation
         val descriptor = mock(DependencyDescriptor::class.java)
@@ -225,7 +227,7 @@ open class AdditionalTest(
     fun `getQualifierValue should return null for non-qualifier annotation`() {
         val delegate = mock(AutowireCandidateResolver::class.java)
         val resolver =
-            RepositoryBeanFactoryPostProcessor.RepositoryAutowireCandidateResolver(delegate)
+            AbstractRepositoryBeanFactoryPostProcessor.RepositoryAutowireCandidateResolver(delegate)
 
         val descriptor = mock(DependencyDescriptor::class.java)
         val beanDefinition = RootBeanDefinition(String::class.java)
@@ -239,15 +241,6 @@ open class AdditionalTest(
 
         // Without a qualifier annotation, isAutowireCandidate should return false
         resolver.isAutowireCandidate(holder, descriptor).shouldBeFalse()
-    }
-
-    // ResolverRegistration: constructor
-
-    @Test
-    fun `ResolverRegistration should be instantiable with bean factory`() {
-        val beanFactory = DefaultListableBeanFactory()
-        val registration = ResolverRegistration(beanFactory)
-        registration.shouldNotBeNull()
     }
 
     // RepositoryBeanFactoryPostProcessor: uncovered properties
@@ -280,8 +273,8 @@ open class AdditionalTest(
     }
 
     @Test
-    fun `RepositoryAopAutoConfiguration companion should provide repositoryProxyingPostProcessor`() {
-        val postProcessor = RepositoryAopAutoConfiguration.repositoryProxyingPostProcessor()
+    fun `RepositoryAopAutoConfiguration should provide stormRepositoryProxyingPostProcessor`() {
+        val postProcessor = RepositoryAopAutoConfiguration.stormRepositoryProxyingPostProcessor()
         postProcessor.shouldNotBeNull()
     }
 
@@ -488,7 +481,7 @@ open class AdditionalTest(
         // This exercises the defaultClassLoader fallback chain:
         // resourceLoader?.classLoader ?: ClassUtils.getDefaultClassLoader() ?: ClassLoader.getSystemClassLoader()
         val processor = object : RepositoryBeanFactoryPostProcessor() {
-            override val repositoryBasePackages: Array<String> get() = arrayOf("st.orm.spring.repository")
+            override fun getRepositoryBasePackages(): Array<String> = arrayOf("st.orm.spring.repository")
         }
         // Register an ORMTemplate bean in the factory
         val beanFactory = DefaultListableBeanFactory()
@@ -503,7 +496,7 @@ open class AdditionalTest(
     fun `commit with expired deadline should trigger rollback path`(): Unit = runBlocking {
         // When a transaction has a very short timeout and the callback takes longer,
         // the commit method detects the expired deadline and redirects to rollback.
-        assertThrows<st.orm.template.TransactionTimedOutException> {
+        assertThrows<st.orm.TransactionTimedOutException> {
             transactionBlocking(timeoutSeconds = 1) {
                 orm.entity(City::class).count() shouldBe 6
                 Thread.sleep(1500)
@@ -514,7 +507,7 @@ open class AdditionalTest(
 
     @Test
     fun `NESTED commit after inner timeout should propagate timeout`(): Unit = runBlocking {
-        assertThrows<st.orm.template.TransactionTimedOutException> {
+        assertThrows<st.orm.TransactionTimedOutException> {
             transactionBlocking(timeoutSeconds = 1) {
                 transactionBlocking(NESTED) {
                     orm.entity(City::class).count() shouldBe 6

@@ -13,25 +13,23 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package st.orm.spring.impl;
-
-import org.springframework.beans.factory.config.ConfigurableListableBeanFactory;
-import org.springframework.stereotype.Component;
+package st.orm.template;
 
 /**
- * Registers a resolver bean in the Spring application context.
+ * A block executed with scoped transaction defaults by
+ * {@link Transactions#withTransactionOptions(st.orm.TransactionOptions, TransactionSupplier)}.
+ *
+ * @param <R> the result type.
+ * @param <E> the checked exception type thrown by the block, if any.
+ * @since 1.13
  */
-@Component
-public class ResolverRegistration {
-
-    private final ConfigurableListableBeanFactory beanFactory;
+@FunctionalInterface
+public interface TransactionSupplier<R, E extends Exception> {
 
     /**
-     * Creates a new {@link ResolverRegistration} instance.
+     * Executes the block.
      *
-     * @param beanFactory the bean factory.
+     * @return the result of the block.
      */
-    public ResolverRegistration(ConfigurableListableBeanFactory beanFactory) {
-        this.beanFactory = beanFactory;
-    }
+    R get() throws E;
 }

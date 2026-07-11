@@ -32,9 +32,12 @@ import st.orm.Entity
 import st.orm.EntityCallback
 import st.orm.core.spi.ConnectionProvider
 import st.orm.core.spi.TransactionTemplateProvider
-import st.orm.spring.RepositoryBeanFactoryPostProcessor
 import st.orm.spring.SpringConnectionProvider
 import st.orm.spring.SpringTransactionTemplateProvider
+import st.orm.spring.boot.StormProperties
+import st.orm.spring.boot.StormTransactionAutoConfiguration
+import st.orm.spring.boot.StormValidationAutoConfiguration
+import st.orm.spring.kotlin.RepositoryBeanFactoryPostProcessor
 import st.orm.template.ORMTemplate
 import javax.sql.DataSource
 
@@ -49,6 +52,7 @@ class StormAutoConfigurationTest {
                 StormAutoConfiguration::class.java,
                 StormRepositoryAutoConfiguration::class.java,
                 StormTransactionAutoConfiguration::class.java,
+                StormValidationAutoConfiguration::class.java,
             ),
         )
 
@@ -368,7 +372,7 @@ class StormAutoConfigurationTest {
             @JvmStatic
             @Bean
             fun repositoryBeanFactoryPostProcessor(): RepositoryBeanFactoryPostProcessor = object : RepositoryBeanFactoryPostProcessor() {
-                override val repositoryBasePackages: Array<String> get() = arrayOf("com.example")
+                override fun getRepositoryBasePackages(): Array<String> = arrayOf("com.example")
             }
         }
     }

@@ -17,7 +17,7 @@ package st.orm.spring.boot.autoconfigure
 
 import org.springframework.beans.factory.config.ConfigurableListableBeanFactory
 import org.springframework.boot.autoconfigure.AutoConfigurationPackages
-import st.orm.spring.RepositoryBeanFactoryPostProcessor
+import st.orm.spring.kotlin.RepositoryBeanFactoryPostProcessor
 
 /**
  * A [RepositoryBeanFactoryPostProcessor] that automatically resolves base packages from Spring Boot's
@@ -48,6 +48,5 @@ class AutoConfiguredRepositoryBeanFactoryPostProcessor : RepositoryBeanFactoryPo
      * Returns the base packages resolved from [AutoConfigurationPackages], or an empty array if no packages were
      * resolved.
      */
-    override val repositoryBasePackages: Array<String>
-        get() = resolvedPackages ?: emptyArray()
+    override fun getRepositoryBasePackages(): Array<String> = resolvedPackages ?: emptyArray()
 }

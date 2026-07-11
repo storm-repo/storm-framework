@@ -12,11 +12,12 @@ import org.springframework.test.context.ContextConfiguration
 import org.springframework.test.context.TestConstructor
 import org.springframework.test.context.TestConstructor.AutowireMode.ALL
 import org.springframework.test.context.jdbc.Sql
+import st.orm.spring.kotlin.RepositoryBeanFactoryPostProcessor
 import st.orm.spring.repository.VisitRepository
 
 /**
  * Tests for [RepositoryBeanFactoryPostProcessor] with repository prefix (qualifier) support
- * and the [RepositoryBeanFactoryPostProcessor.RepositoryAutowireCandidateResolver].
+ * and the [AbstractRepositoryBeanFactoryPostProcessor.RepositoryAutowireCandidateResolver].
  */
 @Suppress("SpringJavaInjectionPointsAutowiringInspection")
 @ContextConfiguration(classes = [IntegrationConfig::class])
@@ -34,15 +35,15 @@ class RepositoryQualifierTest(
 
     @Configuration
     open class PrefixedRepositoryPostProcessor : RepositoryBeanFactoryPostProcessor() {
-        override val ormTemplateBeanName: String get() = "ormTemplate"
-        override val repositoryBasePackages: Array<String> get() = arrayOf("st.orm.spring.repository")
-        override val repositoryPrefix: String get() = "prefixed_"
+        override fun getOrmTemplateBeanName(): String = "ormTemplate"
+        override fun getRepositoryBasePackages(): Array<String> = arrayOf("st.orm.spring.repository")
+        override fun getRepositoryPrefix(): String = "prefixed_"
     }
 
     @Configuration
     open class DefaultRepositoryPostProcessor : RepositoryBeanFactoryPostProcessor() {
-        override val ormTemplateBeanName: String get() = "ormTemplate"
-        override val repositoryBasePackages: Array<String> get() = arrayOf("st.orm.spring.repository")
+        override fun getOrmTemplateBeanName(): String = "ormTemplate"
+        override fun getRepositoryBasePackages(): Array<String> = arrayOf("st.orm.spring.repository")
     }
 
     // Prefixed repository registration

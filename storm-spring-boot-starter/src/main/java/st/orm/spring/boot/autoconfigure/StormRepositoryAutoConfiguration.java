@@ -19,7 +19,7 @@ import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnClass;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.context.annotation.Bean;
-import st.orm.spring.RepositoryBeanFactoryPostProcessor;
+import st.orm.spring.AbstractRepositoryBeanFactoryPostProcessor;
 import st.orm.template.ORMTemplate;
 
 /**
@@ -43,7 +43,7 @@ public class StormRepositoryAutoConfiguration {
      * @return a new {@link AutoConfiguredRepositoryBeanFactoryPostProcessor} instance.
      */
     @Bean
-    @ConditionalOnMissingBean(RepositoryBeanFactoryPostProcessor.class)
+    @ConditionalOnMissingBean(AbstractRepositoryBeanFactoryPostProcessor.class)
     public static AutoConfiguredRepositoryBeanFactoryPostProcessor repositoryBeanFactoryPostProcessor() {
         return new AutoConfiguredRepositoryBeanFactoryPostProcessor();
     }

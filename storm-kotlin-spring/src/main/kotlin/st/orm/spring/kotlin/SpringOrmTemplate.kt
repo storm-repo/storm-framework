@@ -13,40 +13,32 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package st.orm.spring
+package st.orm.spring.kotlin
 
 import org.springframework.transaction.PlatformTransactionManager
 import st.orm.EntityCallback
 import st.orm.StormConfig
+import st.orm.spring.SpringConnectionProvider
+import st.orm.spring.SpringTransactionTemplateProvider
 import st.orm.template.ORMTemplate
 import javax.sql.DataSource
 
 /**
- * Creates an [ORMTemplate] wired to Spring's transaction management.
+ * The canonical plain-Spring (non-Boot) composition of an [ORMTemplate] for Kotlin applications: the template
+ * participates in Spring-managed transactions, and Storm's `transaction { }` API runs through Spring's
+ * transaction managers.
  *
- * This is the canonical composition for plain Spring (non-Boot) applications; the Spring Boot starter performs the
- * equivalent wiring automatically. The returned template participates in Spring-managed (`@Transactional`)
- * transactions and bridges Storm's `transaction { }` API into the given transaction managers.
- *
- * Example:
  * ```kotlin
- * @Configuration
- * @EnableTransactionManagement
- * open class AppConfig {
- *     @Bean
- *     open fun ormTemplate(
- *         dataSource: DataSource,
- *         transactionManagers: ObjectProvider<PlatformTransactionManager>,
- *     ): ORMTemplate = springOrmTemplate(dataSource) { transactionManagers.orderedStream().toList() }
- * }
+ * val orm = springOrmTemplate(dataSource) { listOf(transactionManager) }
  * ```
  *
- * @param dataSource the data source to use for database operations.
- * @param config the Storm configuration to apply.
- * @param entityCallbacks the entity callbacks to register on the template.
- * @param transactionManagers supplies the transaction managers of the owning application context; resolved lazily
- * on first use.
- * @return an ORM template wired to Spring's transaction management.
+ * Templates that should share transactions must use the same provider instances, so compose one template per
+ * application context (typically as a bean).
+ *
+ * @param dataSource the data source backing the template.
+ * @param config the Storm configuration.
+ * @param entityCallbacks the entity callbacks to apply.
+ * @param transactionManagers supplies the transaction managers of the owning application context.
  * @since 1.13
  */
 fun springOrmTemplate(
@@ -57,6 +49,6 @@ fun springOrmTemplate(
 ): ORMTemplate = ORMTemplate.builder(dataSource)
     .config(config)
     .connectionProvider(SpringConnectionProvider())
-    .transactionTemplateProvider(SpringTransactionTemplateProvider(transactionManagers))
+    .transactionTemplateProvider(SpringTransactionTemplateProvider { transactionManagers() })
     .build()
     .withEntityCallbacks(entityCallbacks)

@@ -9,6 +9,7 @@ import org.springframework.test.context.ContextConfiguration
 import org.springframework.test.context.TestConstructor
 import org.springframework.test.context.TestConstructor.AutowireMode.ALL
 import org.springframework.test.context.jdbc.Sql
+import st.orm.spring.kotlin.RepositoryBeanFactoryPostProcessor
 import st.orm.spring.repository.VisitRepository
 
 /**
@@ -30,7 +31,7 @@ class NullBeanNameRepositoryTest(
     open class NullBeanNamePostProcessor : RepositoryBeanFactoryPostProcessor() {
         // ormTemplateBeanName is null (default), so getBeanORMTemplate
         // will use beanFactory.getBean(ORMTemplate::class.java) by type lookup.
-        override val repositoryBasePackages: Array<String> get() = arrayOf("st.orm.spring.repository")
+        override fun getRepositoryBasePackages(): Array<String> = arrayOf("st.orm.spring.repository")
     }
 
     @Test

@@ -16,13 +16,13 @@ Storm for Kotlin provides a fully programmatic transaction solution (following t
 
 While Storm's `transaction { }` blocks look similar to Exposed's, Storm goes further by supporting all seven standard propagation modes (`REQUIRED`, `REQUIRES_NEW`, `NESTED`, `MANDATORY`, `SUPPORTS`, `NOT_SUPPORTED`, `NEVER`). Exposed's native transaction API only supports basic nesting (shared transaction) and savepoint-based nesting (`useNestedTransactions = true`), without the ability to suspend an outer transaction, enforce transactional context, or run non-transactionally. See [Storm vs Exposed](comparison.md#storm-vs-exposed) for a detailed comparison.
 
-The API is designed around Kotlin's type system and coroutine model. Import the transaction functions and enums from `st.orm.template`:
+The API is designed around Kotlin's type system and coroutine model. Import the transaction functions from `st.orm.template` and the option enums from `st.orm` (shared with the Java API):
 
 ```kotlin
 import st.orm.template.transaction
 import st.orm.template.transactionBlocking
-import st.orm.template.TransactionPropagation.*
-import st.orm.template.TransactionIsolation.*
+import st.orm.TransactionPropagation.*
+import st.orm.TransactionIsolation.*
 ```
 
 ### Suspend Transactions
@@ -1107,9 +1107,94 @@ class UserService(private val orm: ORMTemplate) {
 </TabItem>
 <TabItem value="java" label="Java">
 
-Storm for Java follows the principle of integration over invention. Rather than providing its own transaction API, Storm works with your existing transaction infrastructure. Whether you use Spring's `@Transactional` annotation, programmatic `TransactionTemplate`, or direct JDBC connection management, Storm participates correctly in the active transaction.
+Storm for Java provides a fully programmatic transaction API with the same semantics as the Kotlin `transaction { }` blocks: all seven propagation modes, isolation levels, timeouts, read-only transactions, rollback-only marks, and completion callbacks. The blocking API is virtual-thread friendly: the block parks on I/O rather than pinning carrier threads.
 
-This approach has several benefits: no new APIs to learn, full compatibility with existing code, and consistent behavior across your application. Storm simply uses the JDBC connection associated with the current transaction.
+Storm also integrates with your existing transaction infrastructure: inside Spring applications, `@Transactional` and Spring's own `TransactionTemplate` remain first-class citizens, and Storm participates correctly in the active transaction.
+
+### Programmatic Transactions
+
+Import the static entry points and the option enums:
+
+```java
+import static st.orm.template.Transactions.transaction;
+import static st.orm.template.Transactions.withTransactionOptions;
+import static st.orm.template.Transactions.setGlobalTransactionOptions;
+import st.orm.TransactionOptions;
+import st.orm.TransactionPropagation;
+import st.orm.TransactionIsolation;
+```
+
+The transaction binds to the first ORM template that executes inside the block: opening the block only records the requested options, and the template's transaction provider opens the actual transaction on first use. The block commits when it completes normally and rolls back when it throws; checked exceptions propagate to the caller unchanged and trigger rollback.
+
+```java
+// Commit on success; the block's value is returned.
+User created = transaction(tx -> users.insertAndFetch(user));
+
+// Roll back on exception: the original exception propagates.
+transaction(tx -> {
+    orders.insert(order);
+    inventory.update(stock);
+    return null;
+});
+
+// Checked exceptions need no wrapping: the call site declares what the block throws.
+void importFile(Path path) throws IOException {
+    transaction(tx -> {
+        var data = Files.readString(path);   // IOException propagates and rolls back.
+        return imports.insertAndFetch(parse(data));
+    });
+}
+```
+
+### Propagation, Isolation, Timeout, Read-Only
+
+The common case takes the propagation directly; full control goes through `TransactionOptions`, an immutable record with withers. Options left unset are inherited from the surrounding defaults.
+
+```java
+// Independent transaction: commits even if the surrounding transaction rolls back.
+transaction(TransactionPropagation.REQUIRES_NEW, tx -> audit.insertAndFetch(entry));
+
+// Full control.
+transaction(TransactionOptions.defaults()
+        .withIsolation(TransactionIsolation.SERIALIZABLE)
+        .withTimeoutSeconds(30)
+        .withReadOnly(true), tx -> reports.generate());
+```
+
+The propagation semantics are identical to the Kotlin API; see the propagation behavior matrix in the Kotlin tab. `MANDATORY` without an active transaction and `NEVER` inside one fail with a `PersistenceException`; an expired timeout raises `TransactionTimedOutException`; a joined inner scope that marks the transaction rollback-only makes the outer commit raise `UnexpectedRollbackException`.
+
+### Rollback Control and Callbacks
+
+The block receives a `Transaction` handle:
+
+```java
+transaction(tx -> {
+    orders.insert(order);
+    if (!validator.accepts(order)) {
+        tx.setRollbackOnly();   // Complete normally, then roll back.
+    }
+    tx.onCommit(() -> notifications.orderPlaced(order));
+    tx.onRollback(() -> log.warn("Order {} rolled back.", order.id()));
+    return order;
+});
+```
+
+Callbacks registered in a scope that joins an outer transaction are deferred to the outermost physical transaction's completion; `REQUIRES_NEW` scopes fire their own callbacks independently. Callbacks run in registration order after the transaction has fully completed; if one throws, the remaining callbacks still execute and the first exception is surfaced with the others suppressed.
+
+### Global and Scoped Defaults
+
+```java
+// Application-wide defaults, typically set once at startup.
+setGlobalTransactionOptions(TransactionOptions.defaults().withTimeoutSeconds(60));
+
+// Thread-scoped defaults for a code region; restored afterwards.
+withTransactionOptions(TransactionOptions.defaults().withReadOnly(true), () -> {
+    var summary = transaction(tx -> reports.summarize());
+    return summary;
+});
+```
+
+Explicit options on a `transaction(...)` call always win over scoped defaults, which win over the global defaults.
 
 ### Spring-Managed Transactions
 
@@ -1117,7 +1202,7 @@ Spring's transaction management is the most common approach for Java enterprise 
 
 #### Configuration
 
-Configure Storm with Spring's transaction management:
+Configure Storm with Spring's transaction management. The Spring Boot starter does this automatically when a `PlatformTransactionManager` is present; without the starter, compose the template with `SpringOrmTemplate.of`:
 
 ```java
 @Configuration
@@ -1125,16 +1210,19 @@ Configure Storm with Spring's transaction management:
 public class ORMConfiguration {
 
     @Bean
-    public ORMTemplate ormTemplate(DataSource dataSource) {
-        return ORMTemplate.of(dataSource);
-    }
-
-    @Bean
     public PlatformTransactionManager transactionManager(DataSource dataSource) {
         return new DataSourceTransactionManager(dataSource);
     }
+
+    @Bean
+    public ORMTemplate ormTemplate(DataSource dataSource,
+                                   ObjectProvider<PlatformTransactionManager> transactionManagers) {
+        return SpringOrmTemplate.of(dataSource, () -> transactionManagers.orderedStream().toList());
+    }
 }
 ```
+
+With this composition, Spring's `@Transactional` and Storm's programmatic `transaction(...)` blocks share the same transaction system: a Storm block inside a `@Transactional` method joins the Spring-managed transaction, and a standalone Storm block runs through Spring's transaction manager.
 
 #### Declarative Transactions with @Transactional
 

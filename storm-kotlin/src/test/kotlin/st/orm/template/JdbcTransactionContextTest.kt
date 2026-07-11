@@ -14,11 +14,13 @@ import org.springframework.test.context.ContextConfiguration
 import org.springframework.test.context.jdbc.Sql
 import org.springframework.test.context.junit.jupiter.SpringExtension
 import st.orm.PersistenceException
+import st.orm.TransactionIsolation.*
+import st.orm.TransactionPropagation.*
+import st.orm.TransactionTimedOutException
+import st.orm.UnexpectedRollbackException
 import st.orm.repository.countAll
 import st.orm.repository.exists
 import st.orm.repository.removeAll
-import st.orm.template.TransactionIsolation.*
-import st.orm.template.TransactionPropagation.*
 import st.orm.template.model.City
 import st.orm.template.model.Visit
 

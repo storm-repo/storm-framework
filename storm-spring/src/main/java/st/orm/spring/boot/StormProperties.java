@@ -13,9 +13,12 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package st.orm.spring.boot.autoconfigure;
+package st.orm.spring.boot;
 
+import java.util.HashMap;
+import java.util.Map;
 import org.springframework.boot.context.properties.ConfigurationProperties;
+import st.orm.StormConfig;
 
 /**
  * Configuration properties for the Storm ORM framework.
@@ -204,5 +207,39 @@ public class StormProperties {
 
         /** Sets whether strict validation is enabled. */
         public void setStrict(Boolean strict) { this.strict = strict; }
+    }
+
+    /**
+     * Maps these properties onto Storm's configuration.
+     *
+     * @since 1.13
+     */
+    public StormConfig toStormConfig() {
+        Map<String, String> map = new HashMap<>();
+        if (update.getDefaultMode() != null) {
+            map.put(StormConfig.UPDATE_DEFAULT_MODE, update.getDefaultMode().trim().toUpperCase());
+        }
+        if (update.getDirtyCheck() != null) {
+            map.put(StormConfig.UPDATE_DIRTY_CHECK, update.getDirtyCheck().trim().toUpperCase());
+        }
+        if (update.getMaxShapes() != null) {
+            map.put(StormConfig.UPDATE_MAX_SHAPES, update.getMaxShapes().toString());
+        }
+        if (entityCache.getRetention() != null) {
+            map.put(StormConfig.ENTITY_CACHE_RETENTION, entityCache.getRetention().trim());
+        }
+        if (templateCache.getSize() != null) {
+            map.put(StormConfig.TEMPLATE_CACHE_SIZE, templateCache.getSize().toString());
+        }
+        if (ansiEscaping != null) {
+            map.put(StormConfig.ANSI_ESCAPING, ansiEscaping.toString());
+        }
+        if (validation.getRecordMode() != null) {
+            map.put(StormConfig.VALIDATION_RECORD_MODE, validation.getRecordMode().trim());
+        }
+        if (validation.getStrict() != null) {
+            map.put(StormConfig.VALIDATION_STRICT, validation.getStrict().toString());
+        }
+        return StormConfig.of(map);
     }
 }

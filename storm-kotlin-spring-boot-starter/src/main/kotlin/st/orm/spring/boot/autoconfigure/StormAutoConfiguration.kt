@@ -16,11 +16,10 @@
 package st.orm.spring.boot.autoconfigure
 
 import org.springframework.beans.factory.ObjectProvider
-import org.springframework.beans.factory.SmartInitializingSingleton
 import org.springframework.boot.autoconfigure.AutoConfiguration
-import org.springframework.boot.autoconfigure.condition.ConditionalOnBean
 import org.springframework.boot.autoconfigure.condition.ConditionalOnClass
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean
+import org.springframework.boot.autoconfigure.condition.ConditionalOnSingleCandidate
 import org.springframework.boot.context.properties.EnableConfigurationProperties
 import org.springframework.context.annotation.Bean
 import st.orm.EntityCallback
@@ -29,7 +28,7 @@ import st.orm.core.spi.ConnectionProvider
 import st.orm.core.spi.ExceptionMapper
 import st.orm.core.spi.QueryObserver
 import st.orm.core.spi.TransactionTemplateProvider
-import st.orm.core.template.impl.SchemaValidator
+import st.orm.spring.boot.StormProperties
 import st.orm.template.ORMTemplate
 import javax.sql.DataSource
 
@@ -43,7 +42,7 @@ import javax.sql.DataSource
  */
 @AutoConfiguration
 @ConditionalOnClass(ORMTemplate::class)
-@ConditionalOnBean(DataSource::class)
+@ConditionalOnSingleCandidate(DataSource::class)
 @EnableConfigurationProperties(StormProperties::class)
 open class StormAutoConfiguration {
 
@@ -77,68 +76,11 @@ open class StormAutoConfiguration {
         exceptionMapper: ObjectProvider<ExceptionMapper>,
         queryObserver: ObjectProvider<QueryObserver>,
     ): ORMTemplate {
-        val builder = ORMTemplate.builder(dataSource).config(toStormConfig(properties))
+        val builder = ORMTemplate.builder(dataSource).config(properties.toStormConfig())
         connectionProvider.ifAvailable { builder.connectionProvider(it) }
         transactionTemplateProvider.ifAvailable { builder.transactionTemplateProvider(it) }
         exceptionMapper.ifAvailable { builder.exceptionMapper(it) }
         queryObserver.ifAvailable { builder.queryObserver(it) }
         return builder.build().withEntityCallbacks(entityCallbacks)
-    }
-
-    /**
-     * Runs schema validation after all singleton beans have been fully initialized. This guarantees that migration
-     * tools like Flyway and Liquibase (or any bean-based migration mechanism) have completed their work before
-     * validation occurs.
-     *
-     * Validation defaults to `fail`: every entity and projection is validated against the live database schema and
-     * mismatches abort startup. Set `storm.validation.schema_mode` to `warn` or `none` to relax or opt out.
-     */
-    @Bean
-    open fun stormSchemaValidator(
-        dataSource: DataSource,
-        properties: StormProperties,
-    ): SmartInitializingSingleton = SmartInitializingSingleton {
-        val schemaMode = properties.validation.schemaMode?.trim()?.ifBlank { null } ?: "fail"
-        if (schemaMode.equals("none", ignoreCase = true)) {
-            return@SmartInitializingSingleton
-        }
-        val validator = SchemaValidator.of(dataSource)
-        when {
-            schemaMode.equals("fail", ignoreCase = true) -> {
-                validator.validateOrThrow()
-                logger.info("Storm schema validation passed (mode=fail).")
-            }
-            schemaMode.equals("warn", ignoreCase = true) -> validator.validateOrWarn()
-            else -> logger.warn("Unknown schema validation mode: '$schemaMode'. Expected 'none', 'warn', or 'fail'.")
-        }
-    }
-
-    private fun toStormConfig(properties: StormProperties): StormConfig {
-        val map = mutableMapOf<String, String>()
-        properties.update.defaultMode?.let {
-            map[StormConfig.UPDATE_DEFAULT_MODE] = it.trim().uppercase()
-        }
-        properties.update.dirtyCheck?.let {
-            map[StormConfig.UPDATE_DIRTY_CHECK] = it.trim().uppercase()
-        }
-        properties.update.maxShapes?.let {
-            map[StormConfig.UPDATE_MAX_SHAPES] = it.toString()
-        }
-        properties.entityCache.retention?.let {
-            map[StormConfig.ENTITY_CACHE_RETENTION] = it.trim()
-        }
-        properties.templateCache.size?.let {
-            map[StormConfig.TEMPLATE_CACHE_SIZE] = it.toString()
-        }
-        properties.ansiEscaping?.let {
-            map[StormConfig.ANSI_ESCAPING] = it.toString()
-        }
-        properties.validation.recordMode?.let {
-            map[StormConfig.VALIDATION_RECORD_MODE] = it.trim()
-        }
-        properties.validation.strict?.let {
-            map[StormConfig.VALIDATION_STRICT] = it.toString()
-        }
-        return StormConfig.of(map)
     }
 }

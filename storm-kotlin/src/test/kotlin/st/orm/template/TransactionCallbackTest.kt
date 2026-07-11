@@ -12,9 +12,9 @@ import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.test.context.ContextConfiguration
 import org.springframework.test.context.jdbc.Sql
 import org.springframework.test.context.junit.jupiter.SpringExtension
+import st.orm.TransactionPropagation.*
 import st.orm.repository.exists
 import st.orm.repository.removeAll
-import st.orm.template.TransactionPropagation.*
 import st.orm.template.model.Visit
 
 @ExtendWith(SpringExtension::class)

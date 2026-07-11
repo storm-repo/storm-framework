@@ -1,0 +1,40 @@
+/*
+ * Copyright 2024 - 2026 the original author or authors.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *      https://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+package st.orm.template;
+
+import jakarta.annotation.Nonnull;
+import st.orm.Transaction;
+
+/**
+ * A transactional block executed by {@link Transactions#transaction}.
+ *
+ * <p>Checked exceptions thrown by the block propagate to the caller unchanged and trigger rollback.</p>
+ *
+ * @param <R> the result type.
+ * @param <E> the checked exception type thrown by the block, if any.
+ * @since 1.13
+ */
+@FunctionalInterface
+public interface TransactionBlock<R, E extends Exception> {
+
+    /**
+     * Executes the transactional logic.
+     *
+     * @param transaction the handle to the transaction the block runs in.
+     * @return the result of the block.
+     */
+    R execute(@Nonnull Transaction transaction) throws E;
+}

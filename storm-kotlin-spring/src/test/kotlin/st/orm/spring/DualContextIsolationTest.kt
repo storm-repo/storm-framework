@@ -13,6 +13,7 @@ import org.springframework.jdbc.datasource.init.ResourceDatabasePopulator
 import st.orm.PersistenceException
 import st.orm.repository.countAll
 import st.orm.repository.removeAll
+import st.orm.spring.kotlin.springOrmTemplate
 import st.orm.spring.model.Visit
 import st.orm.template.ORMTemplate
 import st.orm.template.transactionBlocking

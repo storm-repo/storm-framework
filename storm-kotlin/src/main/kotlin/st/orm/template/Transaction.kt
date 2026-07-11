@@ -16,33 +16,21 @@
 package st.orm.template
 
 /**
- * Interface for programmatic transaction management with ORMTemplate.
+ * Handle to the transaction a transactional block runs in.
  *
- * Provides methods to check if the transaction is rollback-only and to set it as such.
- * This interface extends ORMTemplate to allow access to ORM operations within a transaction context.
+ * Extends the language-neutral [st.orm.Transaction] with suspend-friendly callback overloads: `isRollbackOnly`,
+ * `setRollbackOnly()`, and the `Runnable`-based callback registrations are inherited.
  *
- * @property isRollbackOnly Indicates if the transaction is marked for rollback only.
- * @property setRollbackOnly Marks the transaction as rollback-only.
  * @since 1.5
  */
-interface Transaction {
-
-    /**
-     * Indicates if the transaction is marked for rollback only.
-     */
-    val isRollbackOnly: Boolean
-
-    /**
-     * Marks the transaction as rollback-only, preventing any further commits.
-     */
-    fun setRollbackOnly()
+interface Transaction : st.orm.Transaction {
 
     /**
      * Registers a callback that will be invoked after the physical transaction commits successfully.
      *
-     * If this scope is joined to an outer transaction (e.g. via [TransactionPropagation.REQUIRED] or
-     * [TransactionPropagation.NESTED]), the callback is deferred to the outermost physical transaction's commit.
-     * [TransactionPropagation.REQUIRES_NEW] scopes fire their own callbacks independently.
+     * If this scope is joined to an outer transaction (e.g. via [st.orm.TransactionPropagation.REQUIRED] or
+     * [st.orm.TransactionPropagation.NESTED]), the callback is deferred to the outermost physical transaction's
+     * commit. [st.orm.TransactionPropagation.REQUIRES_NEW] scopes fire their own callbacks independently.
      *
      * Multiple callbacks are executed in registration order. If a callback throws, remaining callbacks still execute;
      * the first exception is surfaced with others added as suppressed.
@@ -60,9 +48,9 @@ interface Transaction {
      * Registers a callback that will be invoked after the physical transaction rolls back.
      *
      * Rollback may be triggered by an exception, [setRollbackOnly], or a timeout. If this scope is joined to an
-     * outer transaction (e.g. via [TransactionPropagation.REQUIRED] or [TransactionPropagation.NESTED]), the callback
-     * is deferred to the outermost physical transaction's rollback. [TransactionPropagation.REQUIRES_NEW] scopes fire
-     * their own callbacks independently.
+     * outer transaction (e.g. via [st.orm.TransactionPropagation.REQUIRED] or [st.orm.TransactionPropagation.NESTED]),
+     * the callback is deferred to the outermost physical transaction's rollback.
+     * [st.orm.TransactionPropagation.REQUIRES_NEW] scopes fire their own callbacks independently.
      *
      * Multiple callbacks are executed in registration order. If a callback throws, remaining callbacks still execute;
      * the first exception is surfaced with others added as suppressed.

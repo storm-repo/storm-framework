@@ -2,6 +2,7 @@ package st.orm.spring
 
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
+import st.orm.spring.kotlin.springOrmTemplate
 import st.orm.template.ORMTemplate
 import javax.sql.DataSource
 

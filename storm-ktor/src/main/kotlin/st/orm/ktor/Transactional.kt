@@ -23,9 +23,9 @@ import io.ktor.server.routing.RouteSelector
 import io.ktor.server.routing.RouteSelectorEvaluation
 import io.ktor.server.routing.RoutingResolveContext
 import kotlinx.coroutines.CoroutineDispatcher
+import st.orm.TransactionIsolation
+import st.orm.TransactionPropagation
 import st.orm.template.TransactionDispatchers
-import st.orm.template.TransactionIsolation
-import st.orm.template.TransactionPropagation
 import st.orm.template.transaction
 
 /**

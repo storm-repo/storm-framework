@@ -18,6 +18,8 @@ package st.orm.core.spi;
 import jakarta.annotation.Nonnull;
 import jakarta.annotation.Nullable;
 import st.orm.PersistenceException;
+import st.orm.TransactionIsolation;
+import st.orm.TransactionPropagation;
 import st.orm.core.spi.TransactionTemplate.TransactionHandle;
 
 /**
@@ -50,15 +52,14 @@ public final class TransactionScope {
      *
      * @param propagation the propagation behavior, such as {@code REQUIRED} or {@code REQUIRES_NEW};
      *                    {@code null} for the provider default ({@code REQUIRED}).
-     * @param isolation the isolation level as defined by {@link java.sql.Connection}, or {@code null} for the
-     *                  provider default.
+     * @param isolation the isolation level, or {@code null} for the provider default.
      * @param timeoutSeconds the transaction timeout in seconds, or {@code null} for no timeout.
      * @param readOnly whether the transaction is read-only, or {@code null} for the provider default.
      * @param suspendMode whether the transaction is created to be used in suspend mode.
      * @since 1.13
      */
-    public record Options(@Nullable String propagation,
-                          @Nullable Integer isolation,
+    public record Options(@Nullable TransactionPropagation propagation,
+                          @Nullable TransactionIsolation isolation,
                           @Nullable Integer timeoutSeconds,
                           @Nullable Boolean readOnly,
                           boolean suspendMode) {
@@ -401,9 +402,9 @@ public final class TransactionScope {
     private boolean isJoining() {
         var propagation = options.propagation();
         return propagation == null
-                || propagation.equals("REQUIRED")
-                || propagation.equals("SUPPORTS")
-                || propagation.equals("MANDATORY");
+                || propagation == TransactionPropagation.REQUIRED
+                || propagation == TransactionPropagation.SUPPORTS
+                || propagation == TransactionPropagation.MANDATORY;
     }
 
     private static PersistenceException providerMismatch(@Nonnull TransactionTemplateProvider provider,

@@ -13,13 +13,21 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package st.orm.spring.impl
-
-import org.springframework.beans.factory.config.ConfigurableListableBeanFactory
-import org.springframework.stereotype.Component
+package st.orm;
 
 /**
- * Registers a resolver bean in the Spring application context.
+ * Thrown when a transaction completes with an unexpected rollback: the block finished normally, but the
+ * physical transaction was rolled back, for example because a joined inner scope marked it rollback-only.
+ *
+ * @since 1.13
  */
-@Component
-class ResolverRegistration(private val beanFactory: ConfigurableListableBeanFactory)
+public class UnexpectedRollbackException extends PersistenceException {
+
+    public UnexpectedRollbackException(String message) {
+        super(message);
+    }
+
+    public UnexpectedRollbackException(String message, Throwable cause) {
+        super(message, cause);
+    }
+}

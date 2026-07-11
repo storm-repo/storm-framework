@@ -36,18 +36,12 @@
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-surefire-plugin</artifactId>
                 <configuration>
-                    <useModulePath>true</useModulePath>
+                    <!-- Test classes live in st.orm.spring, which storm.spring exports since the scanning
+                         engine moved there; running them on the module path would be a split package. -->
+                    <useModulePath>false</useModulePath>
                     <argLine>
                         @{argLine}
-                        --add-reads kotlin.stdlib=kotlinx.coroutines.core
-                        --add-reads storm.core=storm.kotlin.spring
                         --add-opens java.base/java.lang=ALL-UNNAMED
-                        --add-opens storm.kotlin.spring/st.orm.spring=ALL-UNNAMED
-                        --add-opens storm.kotlin.spring/st.orm.spring.model=ALL-UNNAMED
-                        --add-opens storm.kotlin.spring/st.orm.spring=kotlin.reflect
-                        --add-opens storm.kotlin.spring/st.orm.spring=spring.core
-                        --add-opens storm.kotlin.spring/st.orm.spring.model=storm.kotlin
-                        --add-opens storm.kotlin.spring/st.orm.spring.model=storm.core
                         -Dstorm.ansi_escaping=true
                     </argLine>
                     <forkCount>1</forkCount>
@@ -165,6 +159,17 @@
             <groupId>st.orm</groupId>
             <artifactId>storm-kotlin</artifactId>
             <version>${project.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>st.orm</groupId>
+            <artifactId>storm-spring</artifactId>
+            <version>${project.version}</version>
+            <exclusions>
+                <exclusion>
+                    <groupId>st.orm</groupId>
+                    <artifactId>storm-java21</artifactId>
+                </exclusion>
+            </exclusions>
         </dependency>
         <dependency>
             <groupId>st.orm</groupId>

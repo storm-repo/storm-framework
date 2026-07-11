@@ -25,7 +25,7 @@ import org.springframework.context.annotation.Bean;
 public class RepositoryAopAutoConfiguration {
 
     @Bean
-    public static RepositoryProxyingPostProcessor javaRepositoryProxyingPostProcessor() {
+    public static RepositoryProxyingPostProcessor stormRepositoryProxyingPostProcessor() {
         return new RepositoryProxyingPostProcessor();
     }
 }

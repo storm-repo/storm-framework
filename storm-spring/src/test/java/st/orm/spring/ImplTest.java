@@ -12,29 +12,16 @@ import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.beans.factory.config.BeanDefinitionHolder;
 import org.springframework.beans.factory.config.DependencyDescriptor;
 import org.springframework.beans.factory.support.AutowireCandidateResolver;
-import org.springframework.beans.factory.support.DefaultListableBeanFactory;
 import org.springframework.beans.factory.support.GenericBeanDefinition;
 import st.orm.PersistenceException;
 import st.orm.repository.Repository;
 import st.orm.spring.impl.RepositoryAopAutoConfiguration;
 import st.orm.spring.impl.RepositoryProxyingPostProcessor;
-import st.orm.spring.impl.ResolverRegistration;
 
 /**
  * Unit tests for coverage of implementation classes in st.orm.spring.impl.
  */
 public class ImplTest {
-
-    // ResolverRegistration (3 lines)
-
-    @Test
-    public void resolverRegistrationShouldAcceptBeanFactory() {
-        // ResolverRegistration wraps a BeanFactory to register a custom AutowireCandidateResolver.
-        // Constructing it should succeed without errors.
-        var beanFactory = new DefaultListableBeanFactory();
-        var registration = new ResolverRegistration(beanFactory);
-        assertNotNull(registration);
-    }
 
     // RepositoryAopAutoConfiguration (2 lines)
 
@@ -45,7 +32,7 @@ public class ImplTest {
         var config = new RepositoryAopAutoConfiguration();
         assertNotNull(config);
 
-        var postProcessor = RepositoryAopAutoConfiguration.javaRepositoryProxyingPostProcessor();
+        var postProcessor = RepositoryAopAutoConfiguration.stormRepositoryProxyingPostProcessor();
         assertNotNull(postProcessor);
         assertInstanceOf(RepositoryProxyingPostProcessor.class, postProcessor);
     }

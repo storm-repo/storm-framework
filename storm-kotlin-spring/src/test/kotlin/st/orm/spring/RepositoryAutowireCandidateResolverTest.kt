@@ -12,13 +12,13 @@ import org.springframework.beans.factory.config.DependencyDescriptor
 import org.springframework.beans.factory.support.AutowireCandidateResolver
 
 /**
- * Unit tests for [RepositoryBeanFactoryPostProcessor.RepositoryAutowireCandidateResolver]
+ * Unit tests for [AbstractRepositoryBeanFactoryPostProcessor.RepositoryAutowireCandidateResolver]
  * delegation methods that are not exercised through integration tests.
  */
 class RepositoryAutowireCandidateResolverTest {
 
     private val delegate = mock(AutowireCandidateResolver::class.java)
-    private val resolver = RepositoryBeanFactoryPostProcessor.RepositoryAutowireCandidateResolver(delegate)
+    private val resolver = AbstractRepositoryBeanFactoryPostProcessor.RepositoryAutowireCandidateResolver(delegate)
 
     @Test
     fun `hasQualifier should delegate to underlying resolver`() {
