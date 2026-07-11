@@ -60,6 +60,9 @@ public class StormProperties {
     /** Query observation configuration. */
     private Observations observations = new Observations();
 
+    /** Tracing configuration. */
+    private Tracing tracing = new Tracing();
+
     /** Whether to enable ANSI escape sequences in Storm's log output. */
     private Boolean ansiEscaping;
 
@@ -89,6 +92,12 @@ public class StormProperties {
 
     /** Returns the query observation configuration. */
     public Observations getObservations() { return observations; }
+
+    /** Returns the tracing configuration. */
+    public Tracing getTracing() { return tracing; }
+
+    /** Sets the tracing configuration. */
+    public void setTracing(Tracing tracing) { this.tracing = tracing; }
 
     /** Sets the query observation configuration. */
     public void setObservations(Observations observations) { this.observations = observations; }
@@ -232,6 +241,22 @@ public class StormProperties {
      *
      * @since 1.13
      */
+    /** Tracing configuration. */
+    public static class Tracing {
+
+        /**
+         * Whether the current trace context is appended to SQL statements as a sqlcommenter-style comment.
+         * Defaults to false: a per-execution comment defeats prepared statement caching.
+         */
+        private Boolean sqlComments;
+
+        /** Returns whether trace context SQL comments are enabled. */
+        public Boolean getSqlComments() { return sqlComments; }
+
+        /** Sets whether trace context SQL comments are enabled. */
+        public void setSqlComments(Boolean sqlComments) { this.sqlComments = sqlComments; }
+    }
+
     /** Query observation configuration. */
     public static class Observations {
 

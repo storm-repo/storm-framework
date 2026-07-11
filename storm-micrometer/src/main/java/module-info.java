@@ -3,6 +3,7 @@ module storm.micrometer {
     requires storm.foundation;
     requires storm.core;
     requires micrometer.observation;
+    requires static micrometer.tracing;
     requires micrometer.commons;
     requires jakarta.annotation;
 }

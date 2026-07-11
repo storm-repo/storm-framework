@@ -4,3 +4,4 @@ st.orm.spring.boot.StormTransactionAutoConfiguration
 st.orm.spring.boot.StormValidationAutoConfiguration
 st.orm.spring.boot.StormExceptionTranslationAutoConfiguration
 st.orm.spring.boot.StormObservationAutoConfiguration
+st.orm.spring.boot.StormTracingAutoConfiguration

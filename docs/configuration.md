@@ -94,6 +94,8 @@ storm:
     enabled: true
   observations:
     semantic-conventions: storm
+  tracing:
+    sql-comments: false
 ```
 
 The Spring Boot Starter binds these properties and builds a `StormConfig` that is passed to the `ORMTemplate` factory. Values not set in YAML fall back to system properties and then to built-in defaults. See [Spring Integration](spring-integration.md#configuration-via-applicationyml) for details.

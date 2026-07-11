@@ -533,6 +533,8 @@ storm:
     enabled: true
   observations:
     semantic-conventions: storm
+  tracing:
+    sql-comments: false
 ```
 
 The `schema-mode` property controls startup schema validation: `fail` (default) blocks startup if any entity definitions do not match the database schema, `warn` logs mismatches without blocking startup, and `none` skips validation. The `strict` property controls whether warnings (type narrowing, nullability mismatches) are treated as errors. See the [Configuration](configuration.md#schema-validation) guide for details.
@@ -631,6 +633,8 @@ storm:
 ```
 
 Customization follows the usual back-off rules: contribute an `ObservationConvention<StormQueryObservationContext>` bean to override the naming and key values (it wins over the property), define your own `QueryObserver` bean to replace the binding entirely, or disable the observation at the registry level with `management.observations.enable.storm.query=false`.
+
+With tracing in place, `storm.tracing.sql-comments: true` additionally appends the current trace context to every statement as a sqlcommenter-style comment (`/*traceparent='00-…'*/`), so database-side diagnostics — MariaDB's slow query log, `pg_stat_activity` — correlate directly back to the trace that issued the statement. This is deliberately opt-in: a per-execution comment changes the statement text on every call, which defeats driver-side and server-side prepared statement caching. Enable it where the correlation is worth that trade-off.
 
 ## Testing with @DataStormTest
 

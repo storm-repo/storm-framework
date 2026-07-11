@@ -715,6 +715,14 @@ dependencies {
     }
 }
 ```
+
+With tracing in place, the `sqlCommenter` slot appends the current trace context to every statement as a sqlcommenter-style comment, correlating database-side diagnostics such as slow query logs back to the trace. Opt-in: a per-execution comment defeats prepared statement caching.
+
+```kotlin
+install(Storm) {
+    sqlCommenter = TraceContextSqlCommenter(tracer)
+}
+```
  What each observation produces depends on the handlers attached to the registry: timing metrics, tracing spans, or both. Storm spans nest under the current trace context, so with context propagation in place (for example the OpenTelemetry agent, or micrometer-tracing with a `TracingObservationHandler`) queries appear under the active request span.
 
 Observations are named `storm.query` and carry the following key values:

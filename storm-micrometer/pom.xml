@@ -70,7 +70,7 @@
             <groupId>io.micrometer</groupId>
             <artifactId>micrometer-tracing</artifactId>
             <version>${micrometer-tracing.version}</version>
-            <scope>test</scope>
+            <scope>provided</scope>
         </dependency>
         <dependency>
             <groupId>io.micrometer</groupId>

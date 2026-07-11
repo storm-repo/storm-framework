@@ -432,6 +432,19 @@ public interface ORMTemplate extends QueryTemplate, RepositoryLookup {
         }
 
         /**
+         * Sets the SQL commenter that appends per-execution comment content to statements, such as the
+         * current trace context. Note that per-execution content defeats prepared statement caching.
+         *
+         * @param sqlCommenter the SQL commenter; must not be {@code null}.
+         * @return this builder.
+         * @since 1.13
+         */
+        public Builder sqlCommenter(@Nonnull st.orm.core.spi.SqlCommenter sqlCommenter) {
+            core.sqlCommenter(sqlCommenter);
+            return this;
+        }
+
+        /**
          * Builds the ORM template.
          *
          * @return the ORM template.
