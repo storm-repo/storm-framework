@@ -15,19 +15,20 @@
  */
 package st.orm.template.impl
 
-import kotlinx.coroutines.runBlocking
-
 /**
- * Collects and executes transaction lifecycle callbacks.
+ * Collects and executes transaction lifecycle callbacks for the suspend transaction flow.
  *
  * Callbacks registered via [addOnCommit] and [addOnRollback] are stored in registration order. When
- * [fireCommit] or [fireRollback] is called, the corresponding list is executed sequentially. If any callback
- * throws, remaining callbacks still execute; the first exception is surfaced with subsequent ones added as
- * suppressed.
+ * [fireCommit] or [fireRollback] is called, the corresponding list is executed sequentially in the enclosing
+ * coroutine context. If any callback throws, remaining callbacks still execute; the first exception is surfaced
+ * with subsequent ones added as suppressed.
+ *
+ * Implements the language-neutral [st.orm.core.spi.TransactionCallbacks] registration contract, so blocking
+ * blocks nested inside a suspend transaction defer their callbacks to this holder.
  *
  * @since 1.11
  */
-internal class TransactionCallbacks {
+internal class TransactionCallbacks : st.orm.core.spi.TransactionCallbacks {
     private val onCommit = mutableListOf<suspend () -> Unit>()
     private val onRollback = mutableListOf<suspend () -> Unit>()
 
@@ -39,20 +40,20 @@ internal class TransactionCallbacks {
         onRollback += callback
     }
 
+    override fun addOnCommit(callback: Runnable) {
+        onCommit += { callback.run() }
+    }
+
+    override fun addOnRollback(callback: Runnable) {
+        onRollback += { callback.run() }
+    }
+
     suspend fun fireCommit() {
         execute(onCommit)
     }
 
     suspend fun fireRollback() {
         execute(onRollback)
-    }
-
-    fun fireCommitBlocking() {
-        runBlocking { execute(onCommit) }
-    }
-
-    fun fireRollbackBlocking() {
-        runBlocking { execute(onRollback) }
     }
 
     private suspend fun execute(callbacks: List<suspend () -> Unit>) {

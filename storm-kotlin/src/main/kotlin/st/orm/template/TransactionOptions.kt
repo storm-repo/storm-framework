@@ -15,6 +15,9 @@
  */
 package st.orm.template
 
+import st.orm.TransactionIsolation
+import st.orm.TransactionPropagation
+
 /**
  * Internal class to hold transaction options.
  *

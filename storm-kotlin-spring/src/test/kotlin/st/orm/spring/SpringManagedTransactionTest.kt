@@ -12,12 +12,14 @@ import org.springframework.test.context.ContextConfiguration
 import org.springframework.test.context.jdbc.Sql
 import org.springframework.transaction.annotation.Transactional
 import st.orm.PersistenceException
+import st.orm.TransactionIsolation.*
+import st.orm.TransactionPropagation.*
+import st.orm.TransactionTimedOutException
+import st.orm.UnexpectedRollbackException
 import st.orm.repository.exists
 import st.orm.repository.removeAll
 import st.orm.spring.model.Visit
 import st.orm.template.*
-import st.orm.template.TransactionIsolation.*
-import st.orm.template.TransactionPropagation.*
 
 @ContextConfiguration(classes = [SpringIntegrationConfig::class])
 @SpringBootTest

@@ -13,20 +13,20 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package st.orm.spring.impl
+package st.orm;
 
-import org.aspectj.lang.annotation.Aspect
-import org.springframework.boot.autoconfigure.AutoConfiguration
-import org.springframework.boot.autoconfigure.condition.ConditionalOnClass
-import org.springframework.context.annotation.Bean
+/**
+ * Thrown when a transaction does not complete within its timeout.
+ *
+ * @since 1.13
+ */
+public class TransactionTimedOutException extends PersistenceException {
 
-@AutoConfiguration
-@ConditionalOnClass(Aspect::class)
-open class RepositoryAopAutoConfiguration {
+    public TransactionTimedOutException(String message) {
+        super(message);
+    }
 
-    companion object {
-        @JvmStatic
-        @Bean
-        fun repositoryProxyingPostProcessor(): RepositoryProxyingPostProcessor = RepositoryProxyingPostProcessor()
+    public TransactionTimedOutException(String message, Throwable cause) {
+        super(message, cause);
     }
 }

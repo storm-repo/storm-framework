@@ -11,6 +11,7 @@ import org.springframework.test.context.ContextConfiguration
 import org.springframework.test.context.TestConstructor
 import org.springframework.test.context.TestConstructor.AutowireMode.ALL
 import org.springframework.test.context.jdbc.Sql
+import st.orm.spring.kotlin.RepositoryBeanFactoryPostProcessor
 
 /**
  * Tests for [RepositoryBeanFactoryPostProcessor] covering edge cases such as
@@ -28,10 +29,10 @@ class RepositoryBeanFactoryPostProcessorTest(
 
     @Configuration
     open class EmptyPackagesPostProcessor : RepositoryBeanFactoryPostProcessor() {
-        override val ormTemplateBeanName: String get() = "ormTemplate"
+        override fun getOrmTemplateBeanName(): String = "ormTemplate"
 
         // Empty packages: should return early without registering anything
-        override val repositoryBasePackages: Array<String> get() = emptyArray()
+        override fun getRepositoryBasePackages(): Array<String> = emptyArray()
     }
 
     // Empty packages early return

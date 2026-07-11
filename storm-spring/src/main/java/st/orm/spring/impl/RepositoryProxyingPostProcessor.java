@@ -16,17 +16,41 @@
 package st.orm.spring.impl;
 
 import jakarta.annotation.Nonnull;
+import jakarta.annotation.Nullable;
 import org.springframework.aop.framework.ProxyFactory;
 import org.springframework.beans.factory.config.BeanPostProcessor;
 import org.springframework.stereotype.Component;
-import st.orm.repository.Repository;
+import org.springframework.util.ClassUtils;
 
 @Component
 public class RepositoryProxyingPostProcessor implements BeanPostProcessor {
 
+    private final @Nullable Class<?> repositoryType;
+
+    /**
+     * Resolves the repository marker type reflectively: {@code st.orm.repository.Repository} exists in both
+     * the Java and the Kotlin stack (same fully qualified name, one per classpath). When neither stack is
+     * present, the post-processor is a no-op.
+     */
+    public RepositoryProxyingPostProcessor() {
+        this(resolveDefaultRepositoryType());
+    }
+
+    public RepositoryProxyingPostProcessor(@Nullable Class<?> repositoryType) {
+        this.repositoryType = repositoryType;
+    }
+
+    private static @Nullable Class<?> resolveDefaultRepositoryType() {
+        try {
+            return ClassUtils.forName("st.orm.repository.Repository", RepositoryProxyingPostProcessor.class.getClassLoader());
+        } catch (Throwable ignore) {
+            return null;
+        }
+    }
+
     @Override
     public Object postProcessAfterInitialization(@Nonnull Object bean, @Nonnull String beanName) {
-        if (bean instanceof Repository) {
+        if (repositoryType != null && repositoryType.isInstance(bean)) {
             ProxyFactory factory = new ProxyFactory(bean);
             factory.setProxyTargetClass(true);
             return factory.getProxy();

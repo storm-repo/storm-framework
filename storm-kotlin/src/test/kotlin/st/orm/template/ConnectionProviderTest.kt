@@ -13,15 +13,16 @@ import org.springframework.test.context.ContextConfiguration
 import org.springframework.test.context.jdbc.Sql
 import org.springframework.test.context.junit.jupiter.SpringExtension
 import st.orm.PersistenceException
+import st.orm.TransactionPropagation
+import st.orm.core.spi.JdbcConnectionProviderImpl
 import st.orm.core.spi.TransactionContext
 import st.orm.repository.countAll
-import st.orm.template.impl.CoroutineAwareConnectionProviderImpl
 import st.orm.template.model.City
 import st.orm.template.model.Visit
 import javax.sql.DataSource
 
 /**
- * Tests for [CoroutineAwareConnectionProviderImpl] covering connection acquisition,
+ * Tests for [JdbcConnectionProviderImpl] covering connection acquisition,
  * release, and the ConcurrencyDetector.
  */
 @ExtendWith(SpringExtension::class)
@@ -34,7 +35,7 @@ open class ConnectionProviderTest(
 
     @Test
     fun `getConnection without transaction should return new connection`() {
-        val provider = CoroutineAwareConnectionProviderImpl()
+        val provider = JdbcConnectionProviderImpl()
         val connection = provider.getConnection(dataSource, null)
         connection shouldNotBe null
         connection.isClosed.shouldBeFalse()
@@ -44,7 +45,7 @@ open class ConnectionProviderTest(
 
     @Test
     fun `releaseConnection without transaction should close connection`() {
-        val provider = CoroutineAwareConnectionProviderImpl()
+        val provider = JdbcConnectionProviderImpl()
         val connection = provider.getConnection(dataSource, null)
         connection.isClosed.shouldBeFalse()
         provider.releaseConnection(connection, dataSource, null)
@@ -82,8 +83,8 @@ open class ConnectionProviderTest(
         val connection = dataSource.connection
         val context = stubContext()
         try {
-            CoroutineAwareConnectionProviderImpl.ConcurrencyDetector.beforeAccess(connection, context)
-            CoroutineAwareConnectionProviderImpl.ConcurrencyDetector.afterAccess(connection, context)
+            JdbcConnectionProviderImpl.ConcurrencyDetector.beforeAccess(connection, context)
+            JdbcConnectionProviderImpl.ConcurrencyDetector.afterAccess(connection, context)
         } finally {
             connection.close()
         }
@@ -94,10 +95,10 @@ open class ConnectionProviderTest(
         val connection = dataSource.connection
         val context = stubContext()
         try {
-            CoroutineAwareConnectionProviderImpl.ConcurrencyDetector.beforeAccess(connection, context)
-            CoroutineAwareConnectionProviderImpl.ConcurrencyDetector.beforeAccess(connection, context)
-            CoroutineAwareConnectionProviderImpl.ConcurrencyDetector.afterAccess(connection, context)
-            CoroutineAwareConnectionProviderImpl.ConcurrencyDetector.afterAccess(connection, context)
+            JdbcConnectionProviderImpl.ConcurrencyDetector.beforeAccess(connection, context)
+            JdbcConnectionProviderImpl.ConcurrencyDetector.beforeAccess(connection, context)
+            JdbcConnectionProviderImpl.ConcurrencyDetector.afterAccess(connection, context)
+            JdbcConnectionProviderImpl.ConcurrencyDetector.afterAccess(connection, context)
         } finally {
             connection.close()
         }
@@ -108,12 +109,12 @@ open class ConnectionProviderTest(
         val connection = dataSource.connection
         val context = stubContext()
         try {
-            CoroutineAwareConnectionProviderImpl.ConcurrencyDetector.beforeAccess(connection, context)
-            CoroutineAwareConnectionProviderImpl.ConcurrencyDetector.afterAccess(connection, context)
+            JdbcConnectionProviderImpl.ConcurrencyDetector.beforeAccess(connection, context)
+            JdbcConnectionProviderImpl.ConcurrencyDetector.afterAccess(connection, context)
             // Same context, different thread — simulates virtual thread migration.
             val thread = Thread {
-                CoroutineAwareConnectionProviderImpl.ConcurrencyDetector.beforeAccess(connection, context)
-                CoroutineAwareConnectionProviderImpl.ConcurrencyDetector.afterAccess(connection, context)
+                JdbcConnectionProviderImpl.ConcurrencyDetector.beforeAccess(connection, context)
+                JdbcConnectionProviderImpl.ConcurrencyDetector.afterAccess(connection, context)
             }
             thread.start()
             thread.join()
@@ -128,10 +129,10 @@ open class ConnectionProviderTest(
         val context1 = stubContext()
         val context2 = stubContext()
         try {
-            CoroutineAwareConnectionProviderImpl.ConcurrencyDetector.beforeAccess(connection, context1)
+            JdbcConnectionProviderImpl.ConcurrencyDetector.beforeAccess(connection, context1)
             var caughtException: Throwable? = null
             val thread = Thread {
-                CoroutineAwareConnectionProviderImpl.ConcurrencyDetector.beforeAccess(connection, context2)
+                JdbcConnectionProviderImpl.ConcurrencyDetector.beforeAccess(connection, context2)
             }
             thread.setUncaughtExceptionHandler { _, throwable -> caughtException = throwable }
             thread.start()
@@ -139,7 +140,7 @@ open class ConnectionProviderTest(
             assertThrows<PersistenceException> {
                 caughtException?.let { throw it }
             }
-            CoroutineAwareConnectionProviderImpl.ConcurrencyDetector.afterAccess(connection, context1)
+            JdbcConnectionProviderImpl.ConcurrencyDetector.afterAccess(connection, context1)
         } finally {
             connection.close()
         }
@@ -151,7 +152,7 @@ open class ConnectionProviderTest(
         val context = stubContext()
         try {
             // afterAccess on a connection never registered should not throw
-            CoroutineAwareConnectionProviderImpl.ConcurrencyDetector.afterAccess(connection, context)
+            JdbcConnectionProviderImpl.ConcurrencyDetector.afterAccess(connection, context)
         } finally {
             connection.close()
         }

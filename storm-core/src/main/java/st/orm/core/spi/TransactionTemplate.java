@@ -17,9 +17,12 @@ package st.orm.core.spi;
 
 import static java.util.Optional.ofNullable;
 
+import jakarta.annotation.Nonnull;
 import jakarta.annotation.Nullable;
 import java.util.Optional;
 import st.orm.PersistenceException;
+import st.orm.TransactionIsolation;
+import st.orm.TransactionPropagation;
 
 /**
  * The transaction template allows a transaction to be opened for the template's configuration and completed once the
@@ -34,22 +37,21 @@ import st.orm.PersistenceException;
 public interface TransactionTemplate {
 
     /**
-     * Set the propagation, such as DEFAULT, REQUIRED, REQUIRES_NEW, NESTED.
+     * Set the propagation, such as REQUIRED, REQUIRES_NEW, NESTED.
      *
-     * @param propagation name of the propagation.
+     * @param propagation the propagation.
      * @return this transaction template instance.
-     * @throws IllegalArgumentException if the supplied value is invalid.
      */
-    TransactionTemplate propagation(String propagation);
+    TransactionTemplate propagation(@Nonnull TransactionPropagation propagation);
 
     /**
-     * Set the isolation level, such as DEFAULT, REPEATABLE_READ, READ_COMMITTED, READ_UNCOMMITTED and SERIALIZABLE.
+     * Set the isolation level, such as REPEATABLE_READ, READ_COMMITTED, READ_UNCOMMITTED and SERIALIZABLE.
+     * When not set, the provider's default applies.
      *
-     * @param isolation name of the isolation level.
+     * @param isolation the isolation level.
      * @return this transaction template instance.
-     * @throws IllegalArgumentException if the supplied value is invalid.
      */
-    TransactionTemplate isolation(int isolation);
+    TransactionTemplate isolation(@Nonnull TransactionIsolation isolation);
 
     /**
      * Set whether to optimize as read-only transaction. Default is "false".

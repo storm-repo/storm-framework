@@ -11,14 +11,16 @@ import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.test.context.SpringBootTest
 import org.springframework.test.context.ContextConfiguration
 import org.springframework.test.context.jdbc.Sql
+import st.orm.TransactionIsolation.*
+import st.orm.TransactionPropagation.*
+import st.orm.TransactionTimedOutException
+import st.orm.UnexpectedRollbackException
 import st.orm.repository.countAll
 import st.orm.repository.exists
 import st.orm.repository.removeAll
 import st.orm.spring.model.City
 import st.orm.spring.model.Visit
 import st.orm.template.*
-import st.orm.template.TransactionIsolation.*
-import st.orm.template.TransactionPropagation.*
 
 /**
  * Tests for [st.orm.spring.impl.SpringTransactionContext] covering entity caching,

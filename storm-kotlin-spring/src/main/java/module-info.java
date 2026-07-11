@@ -1,5 +1,6 @@
 module storm.kotlin.spring {
     requires storm.kotlin;
+    requires transitive storm.spring;
     requires spring.jdbc;
     requires spring.tx;
     requires spring.context;
@@ -18,6 +19,5 @@ module storm.kotlin.spring {
     requires storm.core;
     requires storm.foundation;
     requires spring.boot.autoconfigure;
-    exports st.orm.spring;
-    opens st.orm.spring.impl to kotlin.reflect;
+    exports st.orm.spring.kotlin;
 }

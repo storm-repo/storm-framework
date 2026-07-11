@@ -1,1 +1,1 @@
-st.orm.core.spi.DefaultConnectionProviderImpl
+st.orm.core.spi.JdbcConnectionProviderImpl

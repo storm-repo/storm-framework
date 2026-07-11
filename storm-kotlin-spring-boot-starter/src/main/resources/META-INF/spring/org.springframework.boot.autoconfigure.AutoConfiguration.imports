@@ -1,3 +1,4 @@
 st.orm.spring.boot.autoconfigure.StormAutoConfiguration
 st.orm.spring.boot.autoconfigure.StormRepositoryAutoConfiguration
-st.orm.spring.boot.autoconfigure.StormTransactionAutoConfiguration
+st.orm.spring.boot.StormTransactionAutoConfiguration
+st.orm.spring.boot.StormValidationAutoConfiguration

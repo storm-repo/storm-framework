@@ -55,12 +55,12 @@ public class TestSpringTransactionTemplateProvider implements TransactionTemplat
     public TransactionTemplate getTransactionTemplate() {
         return new TransactionTemplate() {
             @Override
-            public TransactionTemplate propagation(String propagation) {
+            public TransactionTemplate propagation(@Nonnull st.orm.TransactionPropagation propagation) {
                 throw new UnsupportedOperationException("Transaction template not supported.");
             }
 
             @Override
-            public TransactionTemplate isolation(int isolation) {
+            public TransactionTemplate isolation(@Nonnull st.orm.TransactionIsolation isolation) {
                 throw new UnsupportedOperationException("Transaction template not supported.");
             }
 

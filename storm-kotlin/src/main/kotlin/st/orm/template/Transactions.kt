@@ -15,13 +15,23 @@
  */
 package st.orm.template
 
-import kotlinx.coroutines.*
+import kotlinx.coroutines.CoroutineDispatcher
+import kotlinx.coroutines.asContextElement
+import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.withContext
+import st.orm.TransactionIsolation
+import st.orm.TransactionPropagation
+import st.orm.TransactionPropagation.MANDATORY
+import st.orm.TransactionPropagation.NESTED
+import st.orm.TransactionPropagation.NEVER
+import st.orm.TransactionPropagation.NOT_SUPPORTED
+import st.orm.TransactionPropagation.REQUIRED
+import st.orm.TransactionPropagation.REQUIRES_NEW
+import st.orm.TransactionPropagation.SUPPORTS
+import st.orm.core.spi.TransactionRunner
 import st.orm.core.spi.TransactionScope
-import st.orm.template.TransactionIsolation.*
-import st.orm.template.TransactionPropagation.*
 import st.orm.template.impl.TransactionCallbacks
-import java.sql.Connection.*
-import java.sql.SQLTimeoutException
 import java.util.concurrent.atomic.AtomicReference
 import kotlin.coroutines.AbstractCoroutineContextElement
 import kotlin.coroutines.CoroutineContext
@@ -45,7 +55,7 @@ import kotlin.coroutines.CoroutineContext
  *                       - `REQUIRED` (default): join or start if none
  *                       - `REQUIRES_NEW`: suspend outer, start fresh
  *                       - `NESTED`: create JDBC savepoint
- * @param isolation      The isolation level for the transaction. Defaults to [TransactionIsolation.DEFAULT].
+ * @param isolation      The isolation level for the transaction. If `null`, uses the provider default.
  * @param timeoutSeconds The transaction timeout in seconds. If `null`, uses provider default.
  * @param readOnly       Whether the transaction is read-only. Defaults to `false`.
  * @param block          The transactional logic to execute.
@@ -61,78 +71,18 @@ fun <T> transactionBlocking(
     block: Transaction.() -> T,
 ): T {
     val options = localTransactionOptions.get() ?: globalTransactionOptions.get()
-    val resolvedPropagation = propagation ?: options.propagation
-    val scopeOptions = scopeOptions(
-        propagation = resolvedPropagation,
-        isolation = isolation ?: options.isolation,
-        timeoutSeconds = timeoutSeconds ?: options.timeoutSeconds,
-        readOnly = readOnly ?: options.readOnly,
-        suspendMode = false,
+    val scopeOptions = TransactionScope.Options(
+        propagation ?: options.propagation,
+        isolation ?: options.isolation,
+        timeoutSeconds ?: options.timeoutSeconds,
+        readOnly ?: options.readOnly,
+        false,
     )
-    val scope = TransactionScope.open(scopeOptions)
-    val parentCallbacks = currentBlockingCallbacks.get()
-    if (resolvedPropagation.isJoining && scope.parent() != null && parentCallbacks != null) {
-        // Joining an outer transaction block: delegate callbacks to the outer holder; do not fire here.
-        val result = try {
-            block(scopeTransaction(scope, parentCallbacks))
-        } catch (e: Throwable) {
-            try {
-                completeAfterFailure(scope, e)
-            } finally {
-                scope.close()
-            }
-        }
-        try {
-            scope.complete(false)
-            afterSuccessfulCompletion(scope)
-        } finally {
-            scope.close()
-        }
-        return result
+    // The blocking orchestration lives once, in core's TransactionRunner; wrap the language-neutral handle in
+    // the Kotlin Transaction so the receiver keeps its suspend-friendly callback overloads.
+    return TransactionRunner.execute<T, RuntimeException>(scopeOptions) { transaction ->
+        block(transaction.asKotlinTransaction())
     }
-    // Owner of the callback lifecycle: outermost block, REQUIRES_NEW / NOT_SUPPORTED, or no parent callbacks.
-    val callbacks = TransactionCallbacks()
-    val previousCallbacks = currentBlockingCallbacks.get()
-    currentBlockingCallbacks.set(callbacks)
-    val outcome = try {
-        val value = block(scopeTransaction(scope, callbacks))
-        TransactionOutcome(value, scope.isRollbackOnly)
-    } catch (e: Throwable) {
-        // Restore and uninstall the scope before firing so callbacks see a clean state.
-        if (previousCallbacks == null) currentBlockingCallbacks.remove() else currentBlockingCallbacks.set(previousCallbacks)
-        val wrapped = try {
-            completeAfterFailure(scope, e)
-        } catch (completionException: Throwable) {
-            completionException
-        } finally {
-            scope.close()
-        }
-        try {
-            callbacks.fireRollbackBlocking()
-        } catch (callbackException: Throwable) {
-            wrapped.addSuppressed(callbackException)
-        }
-        throw wrapped
-    }
-    // Restore and uninstall the scope before firing so callbacks see a clean state.
-    if (previousCallbacks == null) currentBlockingCallbacks.remove() else currentBlockingCallbacks.set(previousCallbacks)
-    try {
-        try {
-            scope.complete(false)
-            afterSuccessfulCompletion(scope)
-        } finally {
-            scope.close()
-        }
-    } catch (completionException: Throwable) {
-        try {
-            callbacks.fireRollbackBlocking()
-        } catch (callbackException: Throwable) {
-            completionException.addSuppressed(callbackException)
-        }
-        throw completionException
-    }
-    if (outcome.rollbackOnly) callbacks.fireRollbackBlocking() else callbacks.fireCommitBlocking()
-    return outcome.value
 }
 
 /**
@@ -160,7 +110,7 @@ fun <T> transactionBlocking(
  *                          - `REQUIRED` (default): join or start if none
  *                          - `REQUIRES_NEW`: suspend outer, start fresh
  *                          - `NESTED`: create JDBC savepoint
- * @param isolation         The isolation level for the transaction. Defaults to [TransactionIsolation.DEFAULT].
+ * @param isolation         The isolation level for the transaction. If `null`, uses the provider default.
  * @param timeoutSeconds    The transaction timeout in seconds. If `null`, uses the provider's default.
  * @param readOnly          Whether the transaction is read-only. Defaults to `false`.
  * @param block             The transactional logic to execute, with `this` bound to a [Transaction].
@@ -179,12 +129,12 @@ suspend fun <T> transaction(
     val currentContext = currentCoroutineContext()
     val options = currentContext[Scoped]?.options ?: globalTransactionOptions.get()
     val resolvedPropagation = propagation ?: options.propagation
-    val scopeOptions = scopeOptions(
-        propagation = resolvedPropagation,
-        isolation = isolation ?: options.isolation,
-        timeoutSeconds = timeoutSeconds ?: options.timeoutSeconds,
-        readOnly = readOnly ?: options.readOnly,
-        suspendMode = true,
+    val scopeOptions = TransactionScope.Options(
+        resolvedPropagation,
+        isolation ?: options.isolation,
+        timeoutSeconds ?: options.timeoutSeconds,
+        readOnly ?: options.readOnly,
+        true,
     )
     val parentScope = TransactionScope.current()
     val scope = TransactionScope.create(scopeOptions, parentScope)
@@ -193,24 +143,24 @@ suspend fun <T> transaction(
         // Joining an outer transaction block: delegate callbacks to the outer holder; do not fire here.
         val elements = CallbacksKey(parentCallbacks) +
             TransactionScope.holder().asContextElement(scope) +
-            currentBlockingCallbacks.asContextElement(parentCallbacks) +
+            TransactionRunner.callbacksHolder().asContextElement(parentCallbacks) +
             localTransactionOptions.asContextElement(options)
         val result = try {
             withContext(currentContext + elements) {
                 block(scopeTransaction(scope, parentCallbacks))
             }
         } catch (e: Throwable) {
-            completeAfterFailure(scope, e)
+            throw TransactionRunner.completeAfterFailure(scope, e)
         }
         scope.complete(false)
-        afterSuccessfulCompletion(scope)
+        TransactionRunner.afterSuccessfulCompletion(scope)
         return result
     }
     // Owner of the callback lifecycle: outermost block, REQUIRES_NEW / NOT_SUPPORTED, or no parent callbacks.
     val callbacks = TransactionCallbacks()
     val elements = CallbacksKey(callbacks) +
         TransactionScope.holder().asContextElement(scope) + // Make the scope available via the ThreadLocal.
-        currentBlockingCallbacks.asContextElement(callbacks) +
+        TransactionRunner.callbacksHolder().asContextElement(callbacks) +
         localTransactionOptions.asContextElement(options) // Make the options available via the ThreadLocal in case the blocking variant is invoked from suspend context.
     // The dispatcher only applies to outermost transactions; nested blocks stay on the caller's dispatcher.
     val context = if (parentScope == null) currentContext + dispatcher + elements else currentContext + elements
@@ -222,7 +172,7 @@ suspend fun <T> transaction(
         }
     } catch (e: Throwable) {
         val wrapped = try {
-            completeAfterFailure(scope, e)
+            TransactionRunner.completeAfterFailure(scope, e)
         } catch (completionException: Throwable) {
             completionException
         }
@@ -235,7 +185,7 @@ suspend fun <T> transaction(
     }
     try {
         scope.complete(false)
-        afterSuccessfulCompletion(scope)
+        TransactionRunner.afterSuccessfulCompletion(scope)
     } catch (completionException: Throwable) {
         try {
             callbacks.fireRollback()
@@ -256,11 +206,6 @@ private class CallbacksKey(val callbacks: TransactionCallbacks) : AbstractCorout
 }
 
 /**
- * Thread-local that carries the [TransactionCallbacks] holder for the current physical transaction (blocking path).
- */
-private val currentBlockingCallbacks: ThreadLocal<TransactionCallbacks?> = ThreadLocal.withInitial { null }
-
-/**
  * Returns `true` when this propagation joins an existing physical transaction rather than starting a new one.
  */
 private val TransactionPropagation.isJoining: Boolean
@@ -275,35 +220,27 @@ private val TransactionPropagation.isJoining: Boolean
 private class TransactionOutcome<T>(val value: T, val rollbackOnly: Boolean)
 
 /**
- * Maps the resolved transaction options onto the provider-agnostic scope options.
+ * Wraps the language-neutral transaction handle in the Kotlin [Transaction], bridging suspend callbacks via
+ * `runBlocking` with an empty coroutine context (the blocking flow's documented callback semantics).
  */
-private fun scopeOptions(
-    propagation: TransactionPropagation,
-    isolation: TransactionIsolation?,
-    timeoutSeconds: Int?,
-    readOnly: Boolean,
-    suspendMode: Boolean,
-): TransactionScope.Options = TransactionScope.Options(
-    propagation.toString(),
-    isolation?.let {
-        when (it) {
-            READ_UNCOMMITTED -> TRANSACTION_READ_UNCOMMITTED
-            READ_COMMITTED -> TRANSACTION_READ_COMMITTED
-            REPEATABLE_READ -> TRANSACTION_REPEATABLE_READ
-            SERIALIZABLE -> TRANSACTION_SERIALIZABLE
+private fun st.orm.Transaction.asKotlinTransaction(): Transaction {
+    val base = this
+    return object : Transaction, st.orm.Transaction by base {
+        override fun onCommit(callback: suspend () -> Unit) {
+            base.onCommit { runBlocking { callback() } }
         }
-    },
-    timeoutSeconds,
-    readOnly,
-    suspendMode,
-)
+
+        override fun onRollback(callback: suspend () -> Unit) {
+            base.onRollback { runBlocking { callback() } }
+        }
+    }
+}
 
 /**
  * Returns the [Transaction] receiver for the given scope, delegating callback registration to [callbacks].
  */
 private fun scopeTransaction(scope: TransactionScope, callbacks: TransactionCallbacks): Transaction = object : Transaction {
-    override val isRollbackOnly: Boolean
-        get() = scope.isRollbackOnly
+    override fun isRollbackOnly(): Boolean = scope.isRollbackOnly
 
     override fun setRollbackOnly() {
         scope.setRollbackOnly()
@@ -316,54 +253,14 @@ private fun scopeTransaction(scope: TransactionScope, callbacks: TransactionCall
     override fun onRollback(callback: suspend () -> Unit) {
         callbacks.addOnRollback(callback)
     }
-}
 
-/**
- * Post-completion checks that mirror the semantics of eagerly entered transaction frames.
- *
- * A scope that never touched a template still fails deterministically when its deadline has passed, marking a joined
- * outer scope rollback-only. A scope whose rollback-only mark was inherited from a joined inner scope raises an
- * [UnexpectedRollbackException] when its block attempts to commit; materialized frames raise this from the provider's
- * commit path, this check covers marks that were propagated at the scope level.
- */
-private fun afterSuccessfulCompletion(scope: TransactionScope) {
-    if (!scope.isMaterialized && scope.isDeadlineExpired) {
-        val propagation = scope.options().propagation()
-        val joining = propagation == null || propagation == "REQUIRED" || propagation == "SUPPORTS" || propagation == "MANDATORY"
-        if (joining) {
-            scope.parent()?.setRollbackOnly()
-        }
-        throw TransactionTimedOutException("Did not complete within timeout.")
+    override fun onCommit(callback: Runnable) {
+        callbacks.addOnCommit(callback)
     }
-    if (scope.isRollbackInherited) {
-        throw UnexpectedRollbackException("Transaction was marked rollback-only by a joined scope.")
-    }
-}
 
-/**
- * Completes the scope after a failed block and returns the exception to throw: the original failure, or a
- * [TransactionTimedOutException] when the failure was caused by a statement timeout. Completion failures are
- * suppressed onto the original failure.
- */
-private fun completeAfterFailure(scope: TransactionScope, e: Throwable): Nothing {
-    val description = try {
-        scope.materializedContext()?.describe()?.orElse(null)
-    } catch (ignore: Throwable) {
-        null
+    override fun onRollback(callback: Runnable) {
+        callbacks.addOnRollback(callback)
     }
-    try {
-        scope.complete(true) // Suppresses rollback exceptions internally to surface the original error.
-    } catch (completionException: Throwable) {
-        e.addSuppressed(completionException)
-    }
-    if (e.cause is SQLTimeoutException) {
-        val base = e.message ?: "Did not complete within timeout."
-        throw TransactionTimedOutException(
-            if (description != null) "$base [$description]" else base,
-            e,
-        )
-    }
-    throw e
 }
 
 /**

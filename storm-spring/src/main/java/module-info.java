@@ -1,5 +1,5 @@
 module storm.spring {
-    requires storm.java;
+    requires static storm.java;
     requires spring.jdbc;
     requires spring.tx;
     requires spring.context;
@@ -16,5 +16,6 @@ module storm.spring {
     requires spring.boot.autoconfigure;
     requires java.sql;
     exports st.orm.spring;
+    exports st.orm.spring.boot;
     exports st.orm.spring.impl;
 }

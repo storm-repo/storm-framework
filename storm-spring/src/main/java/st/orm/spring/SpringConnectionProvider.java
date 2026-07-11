@@ -24,6 +24,7 @@ import org.springframework.jdbc.datasource.DataSourceUtils;
 import st.orm.PersistenceException;
 import st.orm.core.spi.ConnectionProvider;
 import st.orm.core.spi.TransactionContext;
+import st.orm.spring.impl.SpringTransactionContext;
 
 /**
  * Connection provider that binds connections to Spring's transaction management.
@@ -46,6 +47,10 @@ public class SpringConnectionProvider implements ConnectionProvider {
 
     @Override
     public Connection getConnection(@Nonnull DataSource dataSource, @Nullable TransactionContext context) {
+        if (context instanceof SpringTransactionContext springContext) {
+            // Storm-initiated transaction: lazily start the Spring transaction for the pending frames.
+            springContext.useDataSource(dataSource);
+        }
         try {
             return DataSourceUtils.getConnection(dataSource);
         } catch (CannotGetJdbcConnectionException e) {

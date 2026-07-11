@@ -1,1 +1,1 @@
-st.orm.core.spi.DefaultTransactionTemplateProviderImpl
+st.orm.core.spi.JdbcTransactionTemplateProviderImpl

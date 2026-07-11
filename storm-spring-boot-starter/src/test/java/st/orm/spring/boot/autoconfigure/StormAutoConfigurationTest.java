@@ -29,6 +29,8 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import st.orm.EntityCallback;
 import st.orm.spring.RepositoryBeanFactoryPostProcessor;
+import st.orm.spring.boot.StormProperties;
+import st.orm.spring.boot.StormValidationAutoConfiguration;
 import st.orm.template.ORMTemplate;
 
 @ExtendWith(OutputCaptureExtension.class)
@@ -38,7 +40,8 @@ class StormAutoConfigurationTest {
             .withConfiguration(AutoConfigurations.of(
                     DataSourceAutoConfiguration.class,
                     StormAutoConfiguration.class,
-                    StormRepositoryAutoConfiguration.class
+                    StormRepositoryAutoConfiguration.class,
+                    StormValidationAutoConfiguration.class
             ));
 
     @Test
@@ -375,4 +378,69 @@ class StormAutoConfigurationTest {
                     assertThat(props.getValidation().getStrict()).isNull();
                 });
     }
+    @Test
+    void multipleDataSourcesWithoutPrimaryBackOffCleanly() {
+        // With several DataSource beans and no @Primary (one connection pool per domain over the same
+        // database), there is no single candidate to build a template from: the ormTemplate and schema
+        // validation beans must back off instead of failing the context.
+        new ApplicationContextRunner()
+                .withConfiguration(AutoConfigurations.of(
+                        StormAutoConfiguration.class,
+                        StormRepositoryAutoConfiguration.class,
+                        StormValidationAutoConfiguration.class
+                ))
+                .withUserConfiguration(MultiDataSourceConfig.class)
+                .run(context -> {
+                    assertThat(context).hasNotFailed();
+                    assertThat(context).getBeans(DataSource.class).hasSize(2);
+                    assertThat(context).doesNotHaveBean(ORMTemplate.class);
+                });
+    }
+
+    @Test
+    void multipleDataSourcesWithPrimaryBuildTemplateForPrimary() {
+        // Marking one of the pools @Primary restores a single candidate: the auto-configured template
+        // binds to the primary DataSource.
+        new ApplicationContextRunner()
+                .withConfiguration(AutoConfigurations.of(
+                        StormAutoConfiguration.class,
+                        StormRepositoryAutoConfiguration.class,
+                        StormValidationAutoConfiguration.class
+                ))
+                .withUserConfiguration(MultiDataSourceWithPrimaryConfig.class)
+                .run(context -> {
+                    assertThat(context).hasNotFailed();
+                    assertThat(context).hasSingleBean(ORMTemplate.class);
+                });
+    }
+
+    @Configuration
+    static class MultiDataSourceConfig {
+        static DataSource h2(String name) {
+            var dataSource = new org.springframework.jdbc.datasource.DriverManagerDataSource();
+            dataSource.setUrl("jdbc:h2:mem:" + name + ";DB_CLOSE_DELAY=-1");
+            dataSource.setDriverClassName("org.h2.Driver");
+            return dataSource;
+        }
+
+        @Bean
+        public DataSource domainOneDataSource() {
+            return h2("multids");
+        }
+
+        @Bean
+        public DataSource domainTwoDataSource() {
+            return h2("multids");
+        }
+    }
+
+    @Configuration
+    static class MultiDataSourceWithPrimaryConfig extends MultiDataSourceConfig {
+        @Bean
+        @org.springframework.context.annotation.Primary
+        public DataSource primaryDataSource() {
+            return h2("multids");
+        }
+    }
+
 }

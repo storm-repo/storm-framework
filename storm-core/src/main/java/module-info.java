@@ -26,6 +26,6 @@ module storm.core {
     provides st.orm.core.spi.ProjectionRepositoryProvider with st.orm.core.spi.DefaultProjectionRepositoryProviderImpl;
     provides st.orm.core.spi.QueryBuilderProvider with st.orm.core.spi.DefaultQueryBuilderProviderImpl;
     provides st.orm.core.spi.SqlDialectProvider with st.orm.core.spi.DefaultSqlDialectProviderImpl;
-    provides st.orm.core.spi.ConnectionProvider with st.orm.core.spi.DefaultConnectionProviderImpl;
-    provides st.orm.core.spi.TransactionTemplateProvider with st.orm.core.spi.DefaultTransactionTemplateProviderImpl;
+    provides st.orm.core.spi.ConnectionProvider with st.orm.core.spi.JdbcConnectionProviderImpl;
+    provides st.orm.core.spi.TransactionTemplateProvider with st.orm.core.spi.JdbcTransactionTemplateProviderImpl;
 }

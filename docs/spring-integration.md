@@ -114,7 +114,7 @@ class ORMConfiguration(private val dataSource: DataSource) {
 
 ### Transaction Integration
 
-A template created with `dataSource.orm` manages its own transactions, independently of Spring's transaction context: a transaction block inside a `@Transactional` method would open a separate database connection and transaction. To wire a template to Spring's transaction management instead, compose it with `springOrmTemplate`, which hands the Spring-aware connection and transaction providers to that specific template. Since 1.13 the integration is per template rather than JVM-global, so multiple application contexts, and plain templates next to Spring-managed ones, coexist without interference.
+A template created with `dataSource.orm` manages its own transactions, independently of Spring's transaction context: a transaction block inside a `@Transactional` method would open a separate database connection and transaction. To wire a template to Spring's transaction management instead, compose it with `springOrmTemplate` (from `st.orm.spring.kotlin`), which hands the Spring-aware connection and transaction providers to that specific template. Since 1.13 the integration is per template rather than JVM-global, so multiple application contexts, and plain templates next to Spring-managed ones, coexist without interference.
 
 ```kotlin
 @Configuration
@@ -145,14 +145,14 @@ fun processUsers() {
 
 ### Repository Injection
 
-Storm repositories are interfaces with default method implementations. Spring cannot discover them automatically because they are not annotated with `@Component` or `@Repository`. The `RepositoryBeanFactoryPostProcessor` scans specified packages for interfaces that extend `EntityRepository` or `ProjectionRepository` and registers them as Spring beans. This makes them available for constructor injection like any other Spring-managed dependency.
+Storm repositories are interfaces with default method implementations. Spring cannot discover them automatically because they are not annotated with `@Component` or `@Repository`. The `RepositoryBeanFactoryPostProcessor` (in `st.orm.spring.kotlin` since 1.13) scans specified packages for interfaces that extend `EntityRepository` or `ProjectionRepository` and registers them as Spring beans. This makes them available for constructor injection like any other Spring-managed dependency.
 
 ```kotlin
 @Configuration
 class AcmeRepositoryBeanFactoryPostProcessor : RepositoryBeanFactoryPostProcessor() {
 
-    override val repositoryBasePackages: Array<String>
-        get() = arrayOf("com.acme.repository")
+    override fun getRepositoryBasePackages(): Array<String> =
+        arrayOf("com.acme.repository")
 }
 ```
 
@@ -201,24 +201,22 @@ class UserService(
 </TabItem>
 <TabItem value="java" label="Java">
 
-The configuration mirrors the Kotlin setup. Define a single `ORMTemplate` bean that wraps the Spring-managed `DataSource`.
+The configuration mirrors the Kotlin setup. Define a single `ORMTemplate` bean; `SpringOrmTemplate.of` wires it to Spring's transaction management, so Storm's programmatic `transaction` blocks run through Spring's transaction managers and cooperate with `@Transactional`.
 
 ```java
 @Configuration
+@EnableTransactionManagement
 public class ORMConfiguration {
 
-    private final DataSource dataSource;
-
-    public ORMConfiguration(DataSource dataSource) {
-        this.dataSource = dataSource;
-    }
-
     @Bean
-    public ORMTemplate ormTemplate() {
-        return ORMTemplate.of(dataSource);
+    public ORMTemplate ormTemplate(DataSource dataSource,
+                                   ObjectProvider<PlatformTransactionManager> transactionManagers) {
+        return SpringOrmTemplate.of(dataSource, () -> transactionManagers.orderedStream().toList());
     }
 }
 ```
+
+A template created with `ORMTemplate.of(dataSource)` works too, but manages its own transactions independently of Spring's transaction context.
 
 ### Repository Injection
 
@@ -537,8 +535,8 @@ class StormConfig(private val dataSource: DataSource) {
 @Configuration
 class MyRepositoryPostProcessor : RepositoryBeanFactoryPostProcessor() {
 
-    override val repositoryBasePackages: Array<String>
-        get() = arrayOf("com.myapp.repository", "com.myapp.other")
+    override fun getRepositoryBasePackages(): Array<String> =
+        arrayOf("com.myapp.repository", "com.myapp.other")
 }
 ```
 
@@ -564,8 +562,8 @@ class StormConfig {
 @Configuration
 class MyRepositoryBeanFactoryPostProcessor : RepositoryBeanFactoryPostProcessor() {
 
-    override val repositoryBasePackages: Array<String>
-        get() = arrayOf("com.myapp.repository")
+    override fun getRepositoryBasePackages(): Array<String> =
+        arrayOf("com.myapp.repository")
 }
 ```
 
@@ -573,6 +571,50 @@ This gives you:
 - Automatic DataSource from Spring Boot
 - Transaction integration between Spring and Storm
 - Repository auto-discovery and injection
+
+## Multiple Data Sources
+
+Larger applications sometimes expose the same database through several `DataSource` beans: one connection pool per domain, each with its own pool size, timeout, and isolation settings, so heavy batch work cannot starve interactive traffic. Storm supports this topology with one `ORMTemplate` per `DataSource` and one repository post-processor per domain.
+
+```kotlin
+@Configuration
+class BillingConfiguration {
+
+    @Bean
+    fun billingDataSource(): DataSource = /* dedicated pool for the billing domain */
+
+    @Bean
+    fun billingTransactionManager(@Qualifier("billingDataSource") dataSource: DataSource): PlatformTransactionManager =
+        DataSourceTransactionManager(dataSource)
+
+    @Bean
+    fun billingTemplate(
+        @Qualifier("billingDataSource") dataSource: DataSource,
+        transactionManagers: ObjectProvider<PlatformTransactionManager>,
+    ): ORMTemplate = springOrmTemplate(dataSource) { transactionManagers.orderedStream().toList() }
+}
+```
+
+Each template passes the full transaction manager list; the Spring bridge selects the manager that matches the template's `DataSource`, so every domain transacts through its own pool.
+
+Repositories bind to a specific template through a per-domain post-processor. The `repositoryPrefix` keeps bean names apart when the same repository interface is registered for several domains:
+
+```kotlin
+@Configuration
+class BillingRepositoryPostProcessor : RepositoryBeanFactoryPostProcessor() {
+
+    override fun getOrmTemplateBeanName(): String = "billingTemplate"
+
+    override fun getRepositoryPrefix(): String = "billing"
+
+    override fun getRepositoryBasePackages(): Array<String> =
+        arrayOf("com.myapp.billing.repository")
+}
+```
+
+The starter cooperates with this setup: with several `DataSource` beans and no `@Primary`, the auto-configured `ORMTemplate` and schema validation back off (there is no single candidate to bind to); mark one pool `@Primary` and they bind to that one. The auto-configured repository scanning backs off as soon as you define your own post-processors, and the Spring-aware `ConnectionProvider` and `TransactionTemplateProvider` beans remain available for injection into your own template definitions.
+
+Storm's programmatic transaction API needs no per-domain configuration: a `transaction` block binds to the template used inside it, so each domain's blocks run against that domain's pool and transaction manager.
 
 ## JPA Entity Manager
 
