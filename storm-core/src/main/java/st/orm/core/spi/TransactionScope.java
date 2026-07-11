@@ -67,6 +67,9 @@ public final class TransactionScope {
 
     private static final ThreadLocal<TransactionScope> CURRENT = new ThreadLocal<>();
 
+    private static final java.util.logging.Logger OBSERVER_LOGGER =
+            java.util.logging.Logger.getLogger("st.orm.transaction");
+
     /**
      * Returns the thread local that holds the current transaction scope.
      *
@@ -127,6 +130,19 @@ public final class TransactionScope {
      * @return the transaction context to execute under, or {@code null} when no transaction is active.
      * @throws PersistenceException if the active scope is owned by a different provider.
      */
+    public static @Nullable TransactionContext resolveContext(@Nonnull TransactionTemplateProvider provider,
+                                                               @Nullable QueryObserver queryObserver) {
+        var scope = current();
+        if (scope != null) {
+            return scope.getOrMaterializeContext(provider, queryObserver);
+        }
+        return provider.getTransactionTemplate().currentContext().orElse(null);
+    }
+
+    /**
+     * Resolves the transaction context without a query observer; physical transactions opened through this
+     * path are not observed.
+     */
     public static @Nullable TransactionContext resolveContext(@Nonnull TransactionTemplateProvider provider) {
         var scope = CURRENT.get();
         if (scope != null) {
@@ -165,6 +181,7 @@ public final class TransactionScope {
 
     private volatile @Nullable TransactionTemplateProvider owner;
     private volatile @Nullable TransactionHandle handle;
+    private @Nullable QueryObserver.TransactionObservation observation;
     private boolean rollbackOnly;       // Buffered until materialization; guarded by this.
     private boolean rollbackInherited;  // Set when the mark came from a joined inner scope; guarded by this.
 
@@ -232,6 +249,21 @@ public final class TransactionScope {
      * @throws PersistenceException if this scope, or an outer scope it must join, is owned by a different provider.
      */
     public synchronized TransactionContext getOrMaterializeContext(@Nonnull TransactionTemplateProvider provider) {
+        return getOrMaterializeContext(provider, null);
+    }
+
+    /**
+     * Returns the transaction context of this scope, materializing it through the given provider if needed and
+     * reporting a newly opened physical transaction to the given query observer.
+     *
+     * @param provider the transaction template provider of the executing template.
+     * @param queryObserver the query observer of the executing template, or {@code null} to observe nothing.
+     * @return the transaction context of this scope.
+     * @throws PersistenceException if this scope, or an outer scope it must join, is owned by a different provider.
+     * @since 1.13
+     */
+    public synchronized TransactionContext getOrMaterializeContext(@Nonnull TransactionTemplateProvider provider,
+                                                                   @Nullable QueryObserver queryObserver) {
         var existingHandle = handle;
         if (existingHandle != null) {
             if (owner != provider) {
@@ -243,7 +275,7 @@ public final class TransactionScope {
         // place before this scope opens. This preserves the semantics of eagerly entered transaction blocks: joining
         // propagations share the outer transaction, MANDATORY finds it, NEVER detects it, and REQUIRES_NEW suspends
         // it. The provider-identity check happens naturally in the ancestor's own materialization.
-        TransactionContext outerContext = parent != null ? parent.getOrMaterializeContext(provider) : null;
+        TransactionContext outerContext = parent != null ? parent.getOrMaterializeContext(provider, queryObserver) : null;
         var template = provider.getTransactionTemplate();
         if (options.propagation() != null) {
             template = template.propagation(options.propagation());
@@ -264,7 +296,31 @@ public final class TransactionScope {
         }
         this.owner = provider;
         this.handle = newHandle;
+        if (queryObserver != null && isPhysicalTransaction(outerContext)) {
+            try {
+                this.observation = queryObserver.onTransaction(options);
+            } catch (Throwable observerFailure) {
+                OBSERVER_LOGGER.log(java.util.logging.Level.WARNING,
+                        "Transaction observer failed on open; transaction unaffected.", observerFailure);
+            }
+        }
         return newHandle.context();
+    }
+
+    /**
+     * Returns whether this scope opens a physical transaction of its own: an outermost transactional block,
+     * or a block that suspends the enclosing transaction with {@code REQUIRES_NEW}. Joined blocks and
+     * savepoint scopes run inside an existing physical transaction.
+     */
+    private boolean isPhysicalTransaction(@Nullable TransactionContext outerContext) {
+        var propagation = options.propagation();
+        if (propagation == TransactionPropagation.REQUIRES_NEW) {
+            return true;
+        }
+        return outerContext == null
+                && (propagation == null
+                        || propagation == TransactionPropagation.REQUIRED
+                        || propagation == TransactionPropagation.MANDATORY);
     }
 
     /**
@@ -370,11 +426,36 @@ public final class TransactionScope {
     public synchronized void complete(boolean rollback) {
         var currentHandle = handle;
         if (currentHandle != null) {
-            currentHandle.complete(rollback);
+            var currentObservation = observation;
+            observation = null;
+            try {
+                currentHandle.complete(rollback);
+            } catch (Throwable completionFailure) {
+                closeObservation(currentObservation, true, completionFailure);
+                throw completionFailure;
+            }
+            closeObservation(currentObservation, rollback || rollbackOnly, null);
             return;
         }
         if ((rollback || rollbackOnly) && isJoining() && parent != null) {
             parent.markRollbackInherited();
+        }
+    }
+
+    private static void closeObservation(@Nullable QueryObserver.TransactionObservation observation,
+                                         boolean rolledBack,
+                                         @Nullable Throwable error) {
+        if (observation == null) {
+            return;
+        }
+        try {
+            if (error != null) {
+                observation.error(error);
+            }
+            observation.close(rolledBack);
+        } catch (Throwable observerFailure) {
+            OBSERVER_LOGGER.log(java.util.logging.Level.WARNING,
+                    "Transaction observer failed on completion; transaction unaffected.", observerFailure);
         }
     }
 

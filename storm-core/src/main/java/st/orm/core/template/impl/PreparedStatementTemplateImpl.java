@@ -308,7 +308,8 @@ public final class PreparedStatementTemplateImpl implements PreparedStatementTem
             var parameters = sql.parameters();
             var bindVariables = sql.bindVariables().orElse(null);
             var generatedKeys = sql.generatedKeys();
-            var transactionContext = TransactionScope.resolveContext(transactionTemplateProvider);
+            var transactionContext = TransactionScope.resolveContext(transactionTemplateProvider,
+                    strategies.queryObserver());
             Connection connection = connectionProvider.getConnection(dataSource, transactionContext);
             PreparedStatement preparedStatement = null;
             boolean success = false;

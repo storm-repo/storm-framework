@@ -44,6 +44,61 @@ public interface QueryObserver {
     Observation onExecute(@Nonnull QueryContext context);
 
     /**
+     * Called when a physical transaction opens: an outermost transaction block, or a {@code REQUIRES_NEW}
+     * block. Joined blocks and savepoint scopes are not physical transactions and are not observed.
+     *
+     * <p>The default implementation ignores transactions.</p>
+     *
+     * @param options the options the transaction was opened with; never {@code null}.
+     * @return the observation tracking this transaction; never {@code null}.
+     * @since 1.13
+     */
+    default TransactionObservation onTransaction(@Nonnull TransactionScope.Options options) {
+        return TransactionObservation.NOOP;
+    }
+
+    /**
+     * Tracks a single observed physical transaction.
+     *
+     * @since 1.13
+     */
+    interface TransactionObservation {
+
+        /**
+         * An observation that ignores all signals.
+         */
+        TransactionObservation NOOP = new TransactionObservation() {
+            @Override
+            public void error(@Nonnull Throwable throwable) {
+                // Ignore.
+            }
+
+            @Override
+            public void close(boolean rolledBack) {
+                // Ignore.
+            }
+        };
+
+        /**
+         * Signals that completing the observed transaction failed.
+         *
+         * <p>Invoked at most once, before {@link #close(boolean)}.</p>
+         *
+         * @param throwable the failure.
+         */
+        void error(@Nonnull Throwable throwable);
+
+        /**
+         * Signals that the observed transaction has completed.
+         *
+         * <p>Invoked exactly once per observation.</p>
+         *
+         * @param rolledBack whether the transaction rolled back rather than committed.
+         */
+        void close(boolean rolledBack);
+    }
+
+    /**
      * Tracks a single observed statement execution.
      *
      * @since 1.13

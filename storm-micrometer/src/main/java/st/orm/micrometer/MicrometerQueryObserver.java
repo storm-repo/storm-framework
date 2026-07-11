@@ -23,6 +23,7 @@ import io.micrometer.observation.ObservationRegistry;
 import jakarta.annotation.Nonnull;
 import st.orm.core.spi.QueryContext;
 import st.orm.core.spi.QueryObserver;
+import st.orm.core.spi.TransactionScope;
 
 /**
  * {@link QueryObserver} that reports Storm query executions as Micrometer
@@ -82,6 +83,33 @@ public class MicrometerQueryObserver implements QueryObserver {
         this.observationRegistry = requireNonNull(observationRegistry, "observationRegistry");
         this.convention = requireNonNull(convention, "convention");
         this.extraLowCardinalityKeyValues = requireNonNull(extraLowCardinalityKeyValues, "extraLowCardinalityKeyValues");
+    }
+
+    @Override
+    public TransactionObservation onTransaction(@Nonnull TransactionScope.Options options) {
+        var observation = io.micrometer.observation.Observation
+                .createNotStarted("storm.transaction", observationRegistry)
+                .contextualName("transaction")
+                .lowCardinalityKeyValue("storm.tx.propagation",
+                        options.propagation() != null ? options.propagation().name() : "REQUIRED")
+                .lowCardinalityKeyValue("storm.tx.read_only",
+                        String.valueOf(Boolean.TRUE.equals(options.readOnly())));
+        for (var keyValue : extraLowCardinalityKeyValues) {
+            observation = observation.lowCardinalityKeyValue(keyValue.getKey(), keyValue.getValue());
+        }
+        var started = observation.start();
+        return new TransactionObservation() {
+            @Override
+            public void error(@Nonnull Throwable throwable) {
+                started.error(throwable);
+            }
+
+            @Override
+            public void close(boolean rolledBack) {
+                started.lowCardinalityKeyValue("storm.tx.outcome", rolledBack ? "rolled_back" : "committed");
+                started.stop();
+            }
+        };
     }
 
     @Override
