@@ -70,6 +70,7 @@ public final class SpringOrmTemplate {
                 .config(config)
                 .connectionProvider(new SpringConnectionProvider())
                 .transactionTemplateProvider(new SpringTransactionTemplateProvider(transactionManagers))
+                .exceptionMapper(new SpringExceptionMapper(dataSource))
                 .build()
                 .withEntityCallbacks(entityCallbacks);
     }

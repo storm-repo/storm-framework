@@ -29,6 +29,7 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import st.orm.EntityCallback;
 import st.orm.spring.RepositoryBeanFactoryPostProcessor;
+import st.orm.spring.boot.StormExceptionTranslationAutoConfiguration;
 import st.orm.spring.boot.StormProperties;
 import st.orm.spring.boot.StormValidationAutoConfiguration;
 import st.orm.template.ORMTemplate;
@@ -41,7 +42,8 @@ class StormAutoConfigurationTest {
                     DataSourceAutoConfiguration.class,
                     StormAutoConfiguration.class,
                     StormRepositoryAutoConfiguration.class,
-                    StormValidationAutoConfiguration.class
+                    StormValidationAutoConfiguration.class,
+                    StormExceptionTranslationAutoConfiguration.class
             ));
 
     @Test
@@ -440,6 +442,76 @@ class StormAutoConfigurationTest {
         @org.springframework.context.annotation.Primary
         public DataSource primaryDataSource() {
             return h2("multids");
+        }
+    }
+
+    @Test
+    void exceptionMapperAutoConfiguredByDefault() {
+        // SQL failures translate to Spring's DataAccessException hierarchy out of the box.
+        contextRunner
+                .withPropertyValues(
+                        "spring.datasource.url=jdbc:h2:mem:exceptionTest;DB_CLOSE_DELAY=-1",
+                        "spring.datasource.driver-class-name=org.h2.Driver"
+                )
+                .run(context -> {
+                    assertThat(context).hasSingleBean(st.orm.core.spi.ExceptionMapper.class);
+                    assertThat(context).getBean(st.orm.core.spi.ExceptionMapper.class)
+                            .isInstanceOf(st.orm.spring.SpringExceptionMapper.class);
+                });
+    }
+
+    @Test
+    void exceptionTranslationCanBeDisabledByProperty() {
+        contextRunner
+                .withPropertyValues(
+                        "spring.datasource.url=jdbc:h2:mem:exceptionDisabledTest;DB_CLOSE_DELAY=-1",
+                        "spring.datasource.driver-class-name=org.h2.Driver",
+                        "storm.exception-translation.enabled=false"
+                )
+                .run(context -> {
+                    assertThat(context).doesNotHaveBean(st.orm.core.spi.ExceptionMapper.class);
+                });
+    }
+
+    @Test
+    void userDefinedExceptionMapperTakesPrecedence() {
+        contextRunner
+                .withPropertyValues(
+                        "spring.datasource.url=jdbc:h2:mem:exceptionCustomTest;DB_CLOSE_DELAY=-1",
+                        "spring.datasource.driver-class-name=org.h2.Driver"
+                )
+                .withUserConfiguration(CustomExceptionMapperConfig.class)
+                .run(context -> {
+                    assertThat(context).hasSingleBean(st.orm.core.spi.ExceptionMapper.class);
+                    assertThat(context).getBean(st.orm.core.spi.ExceptionMapper.class)
+                            .isSameAs(context.getBean("customExceptionMapper"));
+                });
+    }
+
+    @Test
+    void autoConfiguredTemplateThrowsSpringExceptions() {
+        // The mapper bean must actually reach the auto-configured template: a duplicate key raised through
+        // the template surfaces as Spring's DuplicateKeyException, not Storm's PersistenceException.
+        contextRunner
+                .withPropertyValues(
+                        "spring.datasource.url=jdbc:h2:mem:exceptionEndToEndTest;DB_CLOSE_DELAY=-1",
+                        "spring.datasource.driver-class-name=org.h2.Driver"
+                )
+                .run(context -> {
+                    ORMTemplate orm = context.getBean(ORMTemplate.class);
+                    orm.query("CREATE TABLE dup_check (id INT PRIMARY KEY)").executeUpdate();
+                    orm.query("INSERT INTO dup_check VALUES (1)").executeUpdate();
+                    org.assertj.core.api.Assertions.assertThatThrownBy(() ->
+                                    orm.query("INSERT INTO dup_check VALUES (1)").executeUpdate())
+                            .isInstanceOf(org.springframework.dao.DuplicateKeyException.class);
+                });
+    }
+
+    @Configuration
+    static class CustomExceptionMapperConfig {
+        @Bean
+        public st.orm.core.spi.ExceptionMapper customExceptionMapper() {
+            return st.orm.core.spi.ExceptionMapper.defaultMapper();
         }
     }
 

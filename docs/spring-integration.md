@@ -464,7 +464,8 @@ The starter auto-configures:
 1. **`ORMTemplate` bean** created from the auto-configured `DataSource`, composed with the Spring-aware integration strategies below. If you define your own `ORMTemplate` bean, the auto-configured one backs off.
 2. **Repository scanning** via `AutoConfiguredRepositoryBeanFactoryPostProcessor`, which discovers repository interfaces in the `@SpringBootApplication` base package (and its sub-packages). If you define your own `RepositoryBeanFactoryPostProcessor` bean, the auto-configured one backs off.
 3. **Transaction integration** through Spring-aware `ConnectionProvider` and `TransactionTemplateProvider` beans, contributed when a `PlatformTransactionManager` is present and handed to the template it creates. Nothing is registered globally: each application context gets its own, correctly matched transaction integration. Define your own `ConnectionProvider` or `TransactionTemplateProvider` bean to override, and optionally contribute `ExceptionMapper` or `QueryObserver` beans, which are applied to the template the same way.
-4. **Configuration properties** bound from `storm.*` in `application.yml`/`application.properties`, passed to the `ORMTemplate` via `StormConfig`.
+4. **Exception translation** to Spring's `DataAccessException` hierarchy through an auto-configured `ExceptionMapper` bean. Disable with `storm.exception-translation.enabled=false`, or define your own `ExceptionMapper` bean to translate differently.
+5. **Configuration properties** bound from `storm.*` in `application.yml`/`application.properties`, passed to the `ORMTemplate` via `StormConfig`.
 
 ### Minimal Spring Boot Setup (with Starter)
 
@@ -507,6 +508,8 @@ storm:
     warnings-only: false
     schema-mode: fail
     strict: false
+  exception-translation:
+    enabled: true
 ```
 
 The `schema-mode` property controls startup schema validation: `fail` (default) blocks startup if any entity definitions do not match the database schema, `warn` logs mismatches without blocking startup, and `none` skips validation. The `strict` property controls whether warnings (type narrowing, nullability mismatches) are treated as errors. See the [Configuration](configuration.md#schema-validation) guide for details.
@@ -571,6 +574,27 @@ This gives you:
 - Automatic DataSource from Spring Boot
 - Transaction integration between Spring and Storm
 - Repository auto-discovery and injection
+
+## Exception Translation
+
+Spring code is written against the `DataAccessException` hierarchy: retry setups key on `TransientDataAccessException` for deadlocks and lock timeouts, rollback rules and catch blocks reference the Spring types, and Spring's other data access integrations all translate consistently. With the starter, Storm participates in that convention out of the box: SQL failures raised by Storm repositories and templates surface as Spring exceptions, translated from vendor error codes for the application's database product, with `SQLException` subclass and SQL state translation as fallback.
+
+```kotlin
+try {
+    userRepository.insert(user)
+} catch (exception: DuplicateKeyException) {
+    // Same exception type a JdbcClient or JPA repository would raise.
+}
+```
+
+Failures without a `SQLException` cause keep Storm's own semantics: `PersistenceException` and its subtypes, such as optimistic locking and result cardinality failures, pass through unchanged. The boundary is the database: what the database reports is translated, what Storm's own logic detects stays a Storm exception in every composition. Retry setups that should also retry optimistic lock failures list both types:
+
+```kotlin
+@Retryable(retryFor = [TransientDataAccessException::class, OptimisticLockException::class])
+fun updateStudy(study: Study) = transactionBlocking { studyRepository.update(study) }
+```
+
+Translation applies to the templates composed with it: the starter's auto-configured template, and templates created with `SpringOrmTemplate.of` (Java) or `springOrmTemplate` (Kotlin). Disable it with `storm.exception-translation.enabled=false`, define your own `ExceptionMapper` bean, or compose the template yourself with the builder and leave the mapper out.
 
 ## Multiple Data Sources
 
