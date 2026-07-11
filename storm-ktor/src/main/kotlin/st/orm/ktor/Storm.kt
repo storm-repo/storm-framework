@@ -25,6 +25,7 @@ import io.ktor.server.plugins.di.dependencies
 import io.ktor.server.plugins.di.getBlocking
 import io.ktor.util.reflect.TypeInfo
 import io.micrometer.common.KeyValues
+import io.micrometer.observation.ObservationConvention
 import io.micrometer.observation.ObservationRegistry
 import st.orm.core.spi.JdbcConnectionProviderImpl
 import st.orm.core.spi.JdbcTransactionTemplateProviderImpl
@@ -33,6 +34,7 @@ import st.orm.template.ORMTemplate
 import javax.sql.DataSource
 import kotlin.reflect.KClass
 import kotlin.reflect.full.starProjectedType
+import kotlin.reflect.typeOf
 
 /**
  * Ktor plugin that configures Storm ORM for the application.
@@ -250,6 +252,11 @@ val Storm = createApplicationPlugin(name = "Storm", createConfiguration = ::Stor
  * registered. Every observation carries a `storm.database` key value: the database name, or `primary` for the
  * primary database. The tag is always present because meters of one name must share a single set of tag keys;
  * registries such as Prometheus drop series whose tag keys differ.
+ *
+ * An `ObservationConvention<StormQueryObservationContext>` registered in the dependency container overrides
+ * the naming and key values, mirroring the convention bean of the Spring Boot starters; register
+ * [st.orm.micrometer.OtelDatabaseObservationConvention] to report the OpenTelemetry database semantic
+ * conventions.
  */
 private fun Application.bindQueryObservations(delegatingObservers: Map<String?, DelegatingQueryObserver>) {
     val registryKey = DependencyKey(TypeInfo(ObservationRegistry::class, ObservationRegistry::class.starProjectedType))
@@ -257,13 +264,35 @@ private fun Application.bindQueryObservations(delegatingObservers: Map<String?, 
         return
     }
     val observationRegistry = dependencies.getBlocking<ObservationRegistry>(registryKey)
+    val convention = resolveObservationConvention()
     for ((databaseName, observer) in delegatingObservers) {
-        observer.delegate = MicrometerQueryObserver(
-            observationRegistry,
-            KeyValues.of("storm.database", databaseName ?: "primary"),
-        )
+        val extraKeyValues = KeyValues.of("storm.database", databaseName ?: "primary")
+        observer.delegate = if (convention != null) {
+            MicrometerQueryObserver(observationRegistry, convention, extraKeyValues)
+        } else {
+            MicrometerQueryObserver(observationRegistry, extraKeyValues)
+        }
     }
     log.info("Storm query observations enabled via the ObservationRegistry from the dependency container.")
+}
+
+/**
+ * Resolves a query observation convention from the dependency container, registered either under the
+ * parameterized type or under a plain [ObservationConvention].
+ */
+@Suppress("UNCHECKED_CAST")
+private fun Application.resolveObservationConvention(): ObservationConvention<st.orm.micrometer.StormQueryObservationContext>? {
+    val keys = listOf(
+        DependencyKey(
+            TypeInfo(
+                ObservationConvention::class,
+                typeOf<ObservationConvention<st.orm.micrometer.StormQueryObservationContext>>(),
+            ),
+        ),
+        DependencyKey(TypeInfo(ObservationConvention::class, ObservationConvention::class.starProjectedType)),
+    )
+    val key = keys.firstOrNull { dependencies.contains(it) } ?: return null
+    return dependencies.getBlocking<ObservationConvention<st.orm.micrometer.StormQueryObservationContext>>(key)
 }
 
 /**

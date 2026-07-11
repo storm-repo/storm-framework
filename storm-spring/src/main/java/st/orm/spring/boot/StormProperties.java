@@ -57,6 +57,9 @@ public class StormProperties {
     /** Exception translation configuration. */
     private ExceptionTranslation exceptionTranslation = new ExceptionTranslation();
 
+    /** Query observation configuration. */
+    private Observations observations = new Observations();
+
     /** Whether to enable ANSI escape sequences in Storm's log output. */
     private Boolean ansiEscaping;
 
@@ -83,6 +86,12 @@ public class StormProperties {
 
     /** Returns the exception translation configuration. */
     public ExceptionTranslation getExceptionTranslation() { return exceptionTranslation; }
+
+    /** Returns the query observation configuration. */
+    public Observations getObservations() { return observations; }
+
+    /** Sets the query observation configuration. */
+    public void setObservations(Observations observations) { this.observations = observations; }
 
     /** Sets the exception translation configuration. */
     public void setExceptionTranslation(ExceptionTranslation exceptionTranslation) { this.exceptionTranslation = exceptionTranslation; }
@@ -223,6 +232,22 @@ public class StormProperties {
      *
      * @since 1.13
      */
+    /** Query observation configuration. */
+    public static class Observations {
+
+        /**
+         * The key-value vocabulary of query observations: "storm" (default) for the storm.* key values,
+         * or "otel" to add the OpenTelemetry database client semantic conventions.
+         */
+        private String semanticConventions;
+
+        /** Returns the semantic conventions of query observations. */
+        public String getSemanticConventions() { return semanticConventions; }
+
+        /** Sets the semantic conventions of query observations. */
+        public void setSemanticConventions(String semanticConventions) { this.semanticConventions = semanticConventions; }
+    }
+
     /** Exception translation configuration. */
     public static class ExceptionTranslation {
 

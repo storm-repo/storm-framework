@@ -705,7 +705,17 @@ fun Application.module() {
 }
 ```
 
-No further configuration is needed; without a registry, queries run unobserved at no cost. What each observation produces depends on the handlers attached to the registry: timing metrics, tracing spans, or both. Storm spans nest under the current trace context, so with context propagation in place (for example the OpenTelemetry agent, or micrometer-tracing with a `TracingObservationHandler`) queries appear under the active request span.
+No further configuration is needed; without a registry, queries run unobserved at no cost. To report the OpenTelemetry database client semantic conventions — the standard attributes observability backends key their database tooling on — register the convention alongside the registry:
+
+```kotlin
+dependencies {
+    provide<ObservationRegistry> { observationRegistry }
+    provide<ObservationConvention<StormQueryObservationContext>> {
+        OtelDatabaseObservationConvention.fromJdbcUrl(jdbcUrl)
+    }
+}
+```
+ What each observation produces depends on the handlers attached to the registry: timing metrics, tracing spans, or both. Storm spans nest under the current trace context, so with context propagation in place (for example the OpenTelemetry agent, or micrometer-tracing with a `TracingObservationHandler`) queries appear under the active request span.
 
 Observations are named `storm.query` and carry the following key values:
 

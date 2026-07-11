@@ -53,6 +53,42 @@ class StormObservabilityTest {
     }
 
     @Test
+    fun `a convention from the dependency container overrides the naming and key values`() {
+        val observationRegistry = TestObservationRegistry.create()
+        val dataSource = createTestDataSource("storm-observed-otel", "/schema.sql")
+        try {
+            testApplication {
+                application {
+                    dependencies {
+                        provide<ObservationRegistry> { observationRegistry }
+                        // The OTel database semantic conventions, mirroring the starters' convention bean.
+                        provide<io.micrometer.observation.ObservationConvention<st.orm.micrometer.StormQueryObservationContext>> {
+                            st.orm.micrometer.OtelDatabaseObservationConvention("h2database")
+                        }
+                    }
+                    install(Storm) {
+                        this.dataSource = dataSource
+                    }
+                    routing {
+                        get("/pets") {
+                            call.respondText(repository<PetRepository>().findAll().size.toString())
+                        }
+                    }
+                }
+                client.get("/pets").status shouldBe HttpStatusCode.OK
+                TestObservationRegistryAssert.assertThat(observationRegistry)
+                    .hasObservationWithNameEqualTo("storm.query")
+                    .that()
+                    .hasLowCardinalityKeyValue("db.system.name", "h2database")
+                    .hasLowCardinalityKeyValue("db.operation.name", "SELECT")
+                    .hasLowCardinalityKeyValue("storm.database", "primary")
+            }
+        } finally {
+            dataSource.close()
+        }
+    }
+
+    @Test
     fun `queries are observed when an ObservationRegistry is registered`() {
         val observationRegistry = TestObservationRegistry.create()
         val dataSource = createTestDataSource("storm-observed", "/schema.sql")
