@@ -163,6 +163,20 @@ jobs:
         run: npx docusaurus docs:version ${{ steps.version.outputs.VERSION }}
         working-directory: website
 
+      # The README is served raw by GitHub (no @@STORM_VERSION@@ substitution),
+      # so its install snippets carry a literal version. Sync it to the release
+      # here, in the same commit as the docs snapshot, so it is never bumped by
+      # hand. Targets the Gradle plugin version and the storm-bom coordinate in
+      # both the Gradle and Maven examples.
+      - name: Sync README version
+        run: |
+          V="${{ steps.version.outputs.VERSION }}"
+          sed -i -E \
+            -e "s/(id\(\"st\.orm\"\) version \")[0-9]+\.[0-9]+\.[0-9]+/\1${V}/g" \
+            -e "s/(storm-bom:)[0-9]+\.[0-9]+\.[0-9]+/\1${V}/g" \
+            -e "s#(<version>)[0-9]+\.[0-9]+\.[0-9]+(</version>)#\1${V}\2#g" \
+            README.md
+
       - name: Commit and push
         run: |
           git config user.name "github-actions[bot]"

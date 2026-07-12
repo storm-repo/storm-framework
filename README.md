@@ -8,132 +8,112 @@
 [![Kotlin 2.0+](https://img.shields.io/badge/Kotlin-2.0%2B-purple)](https://kotlinlang.org/)
 [![Java 21+](https://img.shields.io/badge/Java-21%2B-blue)](https://openjdk.org/projects/jdk/21/)
 
-**Storm** is a modern, high-performance ORM for Kotlin 2.0+ and Java 21+, built around a powerful SQL template engine. It focuses on simplicity, type safety, and predictable performance through immutable models and compile-time metadata.
-
-**Core ORM benefits:**
-
-- **Minimal code**: Define entities with simple records/data classes and query with concise, readable syntax; no boilerplate.
-- **Parameterized by default**: String interpolations are automatically converted to bind variables, making queries SQL injection safe by design.
-- **Close to SQL**: Storm embraces SQL rather than abstracting it away, keeping you in control of your database operations.
-- **Type-safe**: Storm's DSL mirrors SQL, providing a type-safe, intuitive experience that makes queries easy to write and read while reducing the risk of runtime errors.
-- **Direct Database Interaction**: Storm translates method calls directly into database operations, offering a transparent and straightforward experience. It eliminates inefficiencies like the N+1 query problem for predictable and efficient interactions.
-- **Stateless**: Avoids hidden complexities and "magic" with stateless, record-based entities, ensuring simplicity and eliminating lazy initialization and transaction issues downstream.
-- **Performance**: Template caching, transaction-scoped entity caching, and zero-overhead dirty checking (thanks to immutability) ensure efficient database interactions. Batch processing, lazy streams, and upserts are built in.
-- **Universal Database Compatibility**: Fully compatible with all SQL databases, it offers flexibility and broad applicability across various database systems.
-
-## Why Storm?
-
-Storm draws inspiration from established ORMs such as Hibernate, but is built from scratch around a clear design philosophy: capturing exactly what you want to do using the minimum amount of code, optimized for Kotlin and modern Java.
-
-**Storm’s mission:** Make database development productive and enjoyable, with full developer control and high performance.
-
-Storm embraces SQL rather than abstracting it away. It simplifies database interactions while remaining transparent, and scales from prototypes to enterprise systems.
-
-| Traditional ORM Pain | Storm Solution |
-|----------------------|----------------|
-| N+1 queries from lazy loading | Entity graphs load in a single query |
-| Hidden magic (proxies, implicit flush, cascades) | Stateless records—explicit, predictable behavior |
-| Entity state confusion (managed/detached/transient) | Immutable records—no state to manage |
-| Entities tied to session/context | Stateless records easily cached and shared across layers |
-| Dirty checking via bytecode manipulation | Lightning-fast dirty checking thanks to immutability |
-| Complex mapping configuration | Convention over configuration |
-| Runtime query errors | Compile-time type-safe DSL |
-| SQL hidden behind abstraction layers | SQL-first design—stay close to the database |
-
-**Storm is ideal for** developers who understand that the best solutions emerge when object model and database model work in harmony. If you value a database-first approach where records naturally mirror your schema, Storm is built for you. Custom mappings are supported when needed, but the real elegance comes from alignment, not abstraction.
-
-## Choose Your Language
-
-Both Kotlin and Java support SQL Templates for powerful query composition. Kotlin additionally provides a type-safe DSL with infix operators for a more idiomatic experience.
-
-### Kotlin
+**Storm is the type-safe, SQL-first ORM for Kotlin 2.0+ and Java 21+.** Immutable data-class entities, one-line queries checked at compile time, and none of the machinery you fight in traditional ORMs: no proxies, no N+1, no persistence context.
 
 ```kotlin
-// Define an entity
+// An entity is a data class. This is the whole mapping.
 data class User(
     @PK val id: Int = 0,
     val email: String,
-    val name: String,
-    @FK val city: City
+    @FK val city: City,
 ) : Entity<Int>
 
-// Type-safe predicates — query nested properties like city.name in one go
+// Query nested properties in one line, checked at compile time.
 val users = orm.findAll(User_.city.name eq "Sunnyvale")
 
-// Custom repository — inherits all CRUD operations, add your own queries
+// Repositories inherit CRUD. Add only the queries that are yours.
 interface UserRepository : EntityRepository<User, Int> {
-    fun findByCityName(name: String) = findAll(User_.city.name eq name)
+    fun findByCity(name: String) = findAll(User_.city.name eq name)
 }
 
-// Block DSL — build queries with where, orderBy, joins, pagination
+// Drop to SQL whenever you want it. Interpolations become bind parameters.
+val users = orm.query { """
+    SELECT ${User::class}
+    FROM ${User::class}
+    WHERE ${User_.city.name} = $cityName""" }.resultList<User>()
+```
+
+The `city` graph loads in a single query, `User_` is generated at compile time so a typo is a compile error, and every interpolation is a bind parameter. What you write is what runs.
+
+## Why Storm
+
+Storm draws on decades of ORM experience but starts from a different premise: capture exactly what you want to do in the fewest lines, stay close to SQL, and keep the runtime transparent. Records mirror your schema, queries mirror SQL, and nothing happens that you did not write.
+
+| Traditional ORM pain | Storm |
+|----------------------|-------|
+| N+1 queries from lazy loading | Entity graphs load in a single query |
+| Hidden magic: proxies, implicit flush, cascades | Stateless records, explicit and predictable |
+| Entity state confusion: managed, detached, transient | Immutable records, no state to manage |
+| Entities tied to a session or context | Stateless records, cached and shared across layers |
+| Dirty checking via bytecode manipulation | Dirty checking is free, thanks to immutability |
+| Complex mapping configuration | Convention over configuration |
+| Runtime query errors | Compile-time, type-safe DSL |
+| SQL hidden behind abstraction layers | SQL-first: you stay close to the database |
+
+Storm is built for developers who want the object model and the database model to work in harmony. Custom mappings are there when you need them, but the elegance comes from alignment, not abstraction.
+
+## More Kotlin
+
+Both Kotlin and Java use SQL templates for query composition. Kotlin adds a type-safe DSL with infix operators, coroutines, and `Flow` streaming.
+
+```kotlin
+// Block DSL: where, orderBy, joins, pagination.
 val users = userRepository.select {
     where(User_.city.name eq "Sunnyvale")
     orderBy(User_.name)
 }.resultList
 
-// SQL Template for full control; parameterized by default, SQL injection safe
-val users = orm.query { """
-        SELECT ${User::class}
-        FROM ${User::class}
-        WHERE ${User_.city.name} = $cityName"""
-    }.resultList<User>()
-```
+// Stream results as a Flow.
+val stream: Flow<User> = orm.entity(User::class).select().resultFlow
 
-Full coroutine support with `Flow` for streaming and programmatic transactions:
-
-```kotlin
-// Streaming with Flow
-val users: Flow<User> = orm.entity(User::class).select().resultFlow
-users.collect { user -> println(user.name) }
-
-// Programmatic transactions
+// Programmatic transactions, coroutine-friendly.
 transaction {
     val city = orm insert City(name = "Sunnyvale", population = 161_884)
-    val user = orm insert User(email = "bob@example.com", name = "Bob", city = city)
+    orm insert User(email = "bob@example.com", name = "Bob", city = city)
 }
 ```
 
-### Java
+Prefer Java? The same model works with records and Java string templates. See the [Java + Spring Boot example](https://github.com/storm-orm/storm-example-java-spring-boot-4) and the [String Templates](docs/string-templates.md) guide.
 
-```java
-// Define an entity
-record User(@PK Integer id,
-            String email,
-            String name,
-            @FK City city
-) implements Entity<Integer> {}
-
-// Custom repository—inherits all CRUD operations, add your own queries
-interface UserRepository extends EntityRepository<User, Integer> {
-    default List<User> findByCityName(String name) {
-        return select().where(User_.city.name, EQUALS, name).getResultList();
-    }
-}
-
-// Query Builder for more complex operations
-List<User> users = orm.entity(User.class)
-    .select()
-    .where(User_.city.name, EQUALS, "Sunnyvale")
-    .orderBy(User_.name)
-    .getResultList();
-
-// SQL Template for full control; parameterized by default, SQL injection safe
-List<User> users = orm.query(RAW."""
-        SELECT \{User.class}
-        FROM \{User.class}
-        WHERE \{User_.city.name} = \{cityName}
-        """).getResultList(User.class);
-```
-
-> **String Templates:** Kotlin uses a compiler plugin that automatically wraps interpolations at compile time. Java uses String Templates, a preview feature. See [String Templates](docs/string-templates.md) for setup and details on both languages.
+> **String Templates:** Kotlin uses a compiler plugin that wraps interpolations at compile time; Java uses String Templates, a preview feature. See [String Templates](docs/string-templates.md) for setup in both languages.
 
 ## Quick Start
 
 New to Storm? The fastest path is the **5-minute [Quickstart](https://orm.st/quickstart)**: install, define an entity, run a type-safe query.
 
+### Gradle (recommended)
+
+The Storm Gradle plugin is the whole setup in one block: it imports the BOM, adds the core dependencies, wires the metamodel processor, selects the compiler-plugin variant for your Kotlin version, and sets the Java preview flags. Requires Gradle 8.5+.
+
+```kotlin
+plugins {
+    kotlin("jvm") version "2.4.0"
+    id("com.google.devtools.ksp") version "2.3.10"
+    id("st.orm") version "1.13.0"
+}
+```
+
+For Java, drop the Kotlin and KSP plugins:
+
+```kotlin
+plugins {
+    java
+    id("st.orm") version "1.13.0"
+}
+```
+
+Add a database dialect and any integrations as ordinary dependencies; versions come from the BOM the plugin imports, so you never specify them per module:
+
+```kotlin
+dependencies {
+    runtimeOnly("st.orm:storm-postgresql")
+    implementation("st.orm:storm-kotlin-spring-boot-starter")
+}
+```
+
 ### Which modules do I need?
 
-Storm is modular; you add only what your stack uses. Versions come from the BOM (below), so you never specify them per module.
+Storm is modular; you add only what your stack uses. Versions come from the BOM, so you never specify them per module.
 
 | Your stack              | Add |
 |-------------------------|-----|
@@ -147,11 +127,11 @@ Storm is modular; you add only what your stack uses. Versions come from the BOM 
 | **+ metrics & tracing** | `storm-micrometer` (included in the Spring Boot starters) |
 | **+ Spring Boot test slice** | `storm-spring-boot-test-autoconfigure` (test scope, `@DataStormTest`) |
 
-The `storm-compiler-plugin-2.x` suffix matches your Kotlin major.minor version (e.g. `storm-compiler-plugin-2.0` for Kotlin 2.0.x). Gradle projects can skip the per-module setup entirely with the Storm Gradle plugin: `id("st.orm")` applies the BOM, core dependencies, metamodel processing, and compiler flags in one block. See [Installation](https://orm.st/docs/installation) for the full module overview.
+See [Installation](https://orm.st/docs/installation) for the full module overview.
 
-### Dependency Management (BOM)
+### Without the plugin (Maven, or manual Gradle)
 
-Storm provides a Bill of Materials (BOM) for centralized version management. Import the BOM once and omit version numbers from individual Storm dependencies.
+Without the Gradle plugin, import the BOM once and add the modules yourself. On Gradle the compiler-plugin variant matches your Kotlin major.minor version (`storm-compiler-plugin-2.0` for Kotlin 2.0.x, `-2.1` for 2.1.x, and so on).
 
 **Maven:**
 
@@ -161,7 +141,7 @@ Storm provides a Bill of Materials (BOM) for centralized version management. Imp
         <dependency>
             <groupId>st.orm</groupId>
             <artifactId>storm-bom</artifactId>
-            <version>@@STORM_VERSION@@</version>
+            <version>1.13.0</version>
             <type>pom</type>
             <scope>import</scope>
         </dependency>
@@ -173,41 +153,18 @@ Storm provides a Bill of Materials (BOM) for centralized version management. Imp
 
 ```kotlin
 dependencies {
-    implementation(platform("st.orm:storm-bom:@@STORM_VERSION@@"))
-}
-```
-
-With the BOM imported, add Storm modules without specifying versions:
-
-### Kotlin
-
-```kotlin
-dependencies {
-    implementation(platform("st.orm:storm-bom:@@STORM_VERSION@@"))
+    implementation(platform("st.orm:storm-bom:1.13.0"))
     implementation("st.orm:storm-kotlin")
     runtimeOnly("st.orm:storm-core")
-    // Use storm-compiler-plugin-2.0 for Kotlin 2.0.x, -2.1 for 2.1.x, etc.
     kotlinCompilerPluginClasspath("st.orm:storm-compiler-plugin-2.0")
 }
 ```
 
-### Java
-
-```xml
-<dependency>
-    <groupId>st.orm</groupId>
-    <artifactId>storm-java21</artifactId>
-</dependency>
-<dependency>
-    <groupId>st.orm</groupId>
-    <artifactId>storm-core</artifactId>
-    <scope>runtime</scope>
-</dependency>
-```
+With the BOM imported, add Storm modules without specifying versions.
 
 ## AI-Assisted Development
 
-Storm's stateless, immutable model is a natural fit for AI coding tools: what you see in the source is exactly what runs — no proxies, lazy loading, or hidden persistence-context rules to trip up generated code. An optional workflow gives AI tools full schema awareness through a local MCP server, guides them with Storm-specific skills, and closes the loop by verifying generated entities and queries with real tests rather than trusting model reasoning.
+Storm's stateless, immutable model is a natural fit for AI coding tools: what you see in the source is exactly what runs, with no proxies, lazy loading, or hidden persistence-context rules to trip up generated code. An optional workflow gives AI tools full schema awareness through a local MCP server, guides them with Storm-specific skills, and closes the loop by verifying generated entities and queries with real tests rather than trusting model reasoning.
 
 ```bash
 npm install -g @storm-orm/cli
