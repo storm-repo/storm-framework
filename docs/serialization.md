@@ -117,6 +117,10 @@ An unloaded ref serializes as a bare value because there is nothing more to conv
 
 A loaded entity ref wraps the full entity data in an `@entity` object. This tells the deserializer that the enclosed data is a complete entity, from which it can reconstruct a loaded ref with `getOrNull()` returning the entity instance.
 
+:::warning Data exposure
+Serialization never triggers a fetch, but a ref that is already loaded (for example because a query joined it) serializes its full entity, including every field of the referenced type. When the response shape matters, such as a public REST API, return a projection that exposes only the intended fields rather than an entity whose refs may carry more than the endpoint should reveal. Serialization reflects exactly what is loaded; it does not filter.
+:::
+
 A loaded projection ref uses a different wrapper (`@projection`) and includes a separate `@id` field. The explicit ID is necessary because projections are partial views of an entity and may not expose an `id()` accessor. Without the separate `@id` field, the deserializer would have no reliable way to recover the primary key.
 
 Both Jackson and kotlinx.serialization produce identical JSON for the same ref state, so output from one library can be consumed by the other.

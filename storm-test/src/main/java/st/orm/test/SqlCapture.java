@@ -34,6 +34,10 @@ import st.orm.test.CapturedSql.Operation;
  *
  * <p>This class is not thread-safe by design: the scoped observer is bound to the calling thread.</p>
  *
+ * <p><strong>Testing only.</strong> Captured statements retain their bound parameter values, which may be
+ * sensitive (credentials, personal data). This class lives in the test-scoped {@code storm-test} module; do
+ * not route captured statements to logs or external systems from production code.</p>
+ *
  * @since 1.9
  */
 public final class SqlCapture {

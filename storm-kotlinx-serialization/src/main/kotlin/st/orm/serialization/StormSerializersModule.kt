@@ -314,19 +314,11 @@ private fun resolveTargetClass(serializer: KSerializer<*>): Class<out Data> {
     when {
         serializerClassName.endsWith("\$\$\$serializer") -> {
             val targetClassName = serializerClassName.removeSuffix("\$\$\$serializer")
-            try {
-                @Suppress("UNCHECKED_CAST")
-                return Class.forName(targetClassName, true, serializerClass.classLoader) as Class<out Data>
-            } catch (_: ClassNotFoundException) {
-            }
+            loadDataClassOrNull(targetClassName, serializerClass.classLoader)?.let { return it }
         }
         serializerClassName.endsWith("\$\$serializer") -> {
             val targetClassName = serializerClassName.removeSuffix("\$\$serializer")
-            try {
-                @Suppress("UNCHECKED_CAST")
-                return Class.forName(targetClassName, true, serializerClass.classLoader) as Class<out Data>
-            } catch (_: ClassNotFoundException) {
-            }
+            loadDataClassOrNull(targetClassName, serializerClass.classLoader)?.let { return it }
         }
     }
     // Strategy 2: Use serialName from descriptor.
@@ -345,23 +337,39 @@ private fun resolveTargetClass(serializer: KSerializer<*>): Class<out Data> {
 
 private fun resolveClassFromSerialName(name: String, classLoader: ClassLoader): Class<out Data> {
     // Try direct name first.
-    try {
-        @Suppress("UNCHECKED_CAST")
-        return Class.forName(name, true, classLoader) as Class<out Data>
-    } catch (_: ClassNotFoundException) {
-        // Try converting dots to $ for nested classes, from right to left.
-        val parts = name.split('.')
-        for (i in parts.size - 2 downTo 1) {
-            if (parts[i].firstOrNull()?.isUpperCase() == true) {
-                val nestedName = parts.take(i).joinToString(".") + "." + parts.drop(i).joinToString("$")
-                try {
-                    @Suppress("UNCHECKED_CAST")
-                    return Class.forName(nestedName, true, classLoader) as Class<out Data>
-                } catch (_: ClassNotFoundException) {
-                    continue
-                }
-            }
+    loadDataClassOrNull(name, classLoader)?.let { return it }
+    // Try converting dots to $ for nested classes, from right to left.
+    val parts = name.split('.')
+    for (i in parts.size - 2 downTo 1) {
+        if (parts[i].firstOrNull()?.isUpperCase() == true) {
+            val nestedName = parts.take(i).joinToString(".") + "." + parts.drop(i).joinToString("$")
+            loadDataClassOrNull(nestedName, classLoader)?.let { return it }
         }
     }
     throw ClassNotFoundException("Could not resolve class from serialName: $name")
+}
+
+/**
+ * Loads a [Data] class by name, or returns null when the name does not resolve to a loadable [Data] type.
+ *
+ * The class is loaded without initialization and validated to be a [Data] subtype before it is returned, so
+ * a name that resolves to an unrelated class never triggers that class's static initializers. The serial
+ * name a serializer reports is normally the declared entity or projection type, so this is defense in depth
+ * against a serializer configured to report an arbitrary name.
+ */
+private fun loadDataClassOrNull(name: String, classLoader: ClassLoader): Class<out Data>? {
+    val cls = try {
+        Class.forName(name, false, classLoader)
+    } catch (_: ClassNotFoundException) {
+        return null
+    } catch (_: LinkageError) {
+        return null
+    }
+    if (!Data::class.java.isAssignableFrom(cls)) {
+        throw SerializationException(
+            "Refusing to deserialize Ref target that is not a Storm Data type: $name.",
+        )
+    }
+    @Suppress("UNCHECKED_CAST")
+    return cls as Class<out Data>
 }
