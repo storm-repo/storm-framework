@@ -646,7 +646,7 @@ Storm's Kotlin API uses the Storm compiler plugin to automatically wrap string i
 See [String Templates](string-templates.md) for setup instructions for the compiler plugin.
 
 :::tip Monitoring
-Storm exposes runtime metrics for template compilation, dirty checking, and entity cache behavior through JMX MBeans. See [Metrics](metrics.md) for details.
+Storm exposes runtime metrics for template compilation, dirty checking, and entity cache behavior through JMX MBeans; see [Metrics](metrics.md). For query and transaction metrics and tracing through your observability stack, add the `storm-micrometer` module (included in the Spring Boot starters).
 :::
 
 ---

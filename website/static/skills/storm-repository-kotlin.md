@@ -452,7 +452,7 @@ val window = users.scroll(scrollable)
 Detect the project's framework from its build file and dependencies, then suggest the appropriate pattern:
 
 ### Spring Boot
-With `storm-kotlin-spring-boot-starter`, repository interfaces are auto-discovered and registered as beans — no configuration needed; just inject them. Only when using plain `storm-kotlin-spring` (no starter) do you define a `RepositoryBeanFactoryPostProcessor` with `repositoryBasePackages`.
+With `storm-kotlin-spring-boot-starter`, repository interfaces are auto-discovered and registered as beans — no configuration needed; just inject them. Only when using plain `storm-kotlin-spring` (no starter) do you switch scanning on with `@EnableStormRepositories(basePackages = [...])`, or define `RepositoryBeanFactoryPostProcessor(basePackages = ..., ormTemplateBeanName = ..., repositoryPrefix = ...)` beans when multiple repository sets bind to different templates.
 ```kotlin
 @Service
 class UserService(private val userRepository: UserRepository) {
@@ -474,21 +474,22 @@ fun Application.module() {
 }
 ```
 
-When the app has a service layer, wire it with Koin via `st.orm:storm-ktor-koin`: `stormModule()` exposes the `ORMTemplate` and every auto-registered repository by type, so services take repositories as constructor parameters and register with `singleOf`:
+When the app has a service layer, use Ktor's built-in dependency injection: the plugin registers every repository under its own interface type, so services declare repositories as constructor parameters and are provided in the dependency container:
 ```kotlin
 class UserService(private val userRepository: UserRepository) { ... }
 
 fun Application.module() {
     install(Storm)
-    install(Koin) {
-        modules(stormModule(), module { singleOf(::UserService) })
+    dependencies {
+        provide { UserService(resolve()) }
     }
     routing {
-        val userService by inject<UserService>()
+        val userService: UserService by dependencies
         get("/users/{email}") { call.respond(userService.find(call.parameters.getOrFail("email"))) }
     }
 }
 ```
+Koin users bridge the same repository registry with a few lines of application code; the Ktor integration docs include the recipe.
 
 ### Standalone
 Create repositories directly from the `ORMTemplate`:

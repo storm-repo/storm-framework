@@ -48,8 +48,11 @@ storm-framework/
 ├── storm-spring/                      # Spring integration (Java)
 ├── storm-kotlin-spring-boot-starter/  # Spring Boot starter (Kotlin)
 ├── storm-spring-boot-starter/         # Spring Boot starter (Java)
+├── storm-spring-boot-test-autoconfigure/ # @DataStormTest test slice (both starters)
 ├── storm-ktor/                        # Ktor integration (Kotlin)
 ├── storm-ktor-test/                   # Ktor integration test support
+├── storm-micrometer/                  # Micrometer Observations binding
+├── storm-gradle-plugin/               # Gradle plugin (id("st.orm"))
 │
 ├── storm-kotlinx-serialization/       # kotlinx.serialization support
 ├── storm-jackson2/                    # Jackson 2.x JSON support

@@ -279,6 +279,23 @@ Storm supports storing and reading JSON-typed columns. Pick the module that matc
 
 See [JSON Support](json.md) for usage details.
 
+### Observability
+
+| Module | Provides |
+|--------|----------|
+| `storm-micrometer` | Micrometer Observations for queries and transactions (`storm.query`, `storm.transaction`), the OpenTelemetry database semantic conventions, and trace-context SQL comments |
+
+The Spring Boot starters include `storm-micrometer`; Ktor applications add it explicitly. See the observability sections of [Spring Integration](spring-integration.md#observability) and [Ktor Integration](ktor-integration.md#observability).
+
+### Testing
+
+| Module | Provides |
+|--------|----------|
+| `storm-test` | `@StormTest` JUnit 5 extension and `SqlCapture`, framework-free |
+| `storm-spring-boot-test-autoconfigure` | The `@DataStormTest` Spring Boot test slice (test scope) |
+
+See [Testing](testing.md) and [Testing with @DataStormTest](spring-integration.md#testing-with-datastormtest).
+
 ## Module Overview
 
 The following diagram shows how Storm's modules relate to each other. You only need the modules relevant to your language and integration choices.

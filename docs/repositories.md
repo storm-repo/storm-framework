@@ -581,8 +581,8 @@ Storm repositories are plain interfaces, so Spring cannot discover them through 
 @Configuration
 class AcmeRepositoryBeanFactoryPostProcessor : RepositoryBeanFactoryPostProcessor() {
 
-    override val repositoryBasePackages: Array<String>
-        get() = arrayOf("com.acme.repository")
+    override fun getRepositoryBasePackages(): Array<String> =
+        arrayOf("com.acme.repository")
 }
 ```
 

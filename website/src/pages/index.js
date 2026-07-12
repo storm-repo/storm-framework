@@ -46,7 +46,7 @@ const CSS = `
   .storm-home .btn.primary.go{background:linear-gradient(100deg,#a78bfa,#818cf8 50%,#7dd3fc);border-color:transparent}
   .storm-home .btn.primary.go:hover{filter:brightness(1.12)}
 
-  /* hero — left aligned */
+  /* hero: left aligned */
   .storm-home header{padding:46px 0 34px}
   .storm-home h1{font-size:clamp(42px,7vw,78px);line-height:.97;letter-spacing:-.04em;font-weight:800;margin:0}
   .storm-home .grad{background:linear-gradient(100deg,#a78bfa,#818cf8 50%,#7dd3fc);-webkit-background-clip:text;background-clip:text;color:transparent}
@@ -359,15 +359,15 @@ export default function Home() {
         caption:"one-line queries to get all the data you need · no N+1",
         code:[ C("// A user's city is loaded in the same query.\n"),
           K("val "),P("user = userRepository."),F("getById"),P("("),N("1"),P(")\n"),
-          K("val "),P("cityName = user.city.name"),P("   "),C('// already loaded — no N+1, no lazy-init\n\n'),
+          K("val "),P("cityName = user.city.name"),P("   "),C('// already loaded: no N+1, no lazy-init\n\n'),
           C("// Filter across the graph, fully type-safe using the static metamodel.\n"),
           K("val "),P("users = userRepository."),F("findAll"),P("(User_.city.name "),K("eq "),S('"Sunnyvale"'),P(")") ] },
 
       { name:'3 · repository', file:'UserRepository.kt',
         caption:"your own type-safe queries · CRUD inherited",
-        code:[ C("// Custom return types are just records — define them in-place.\n"),
+        code:[ C("// Custom return types are just records. Define them in-place.\n"),
           K("data class "),T("CityCount"),P("("),K("val "),P("city: "),T("City"),P(", "),K("val "),P("count: "),T("Long"),P(")\n\n"),
-          C("// Extend EntityRepository — all CRUD comes for free.\n"),
+          C("// Extend EntityRepository: all CRUD comes for free.\n"),
           K("interface "),T("UserRepository"),P(" : "),T("EntityRepository"),P("<"),T("User"),P(", "),T("Int"),P("> {\n"),
           P("    "),K("fun "),F("findByCity"),P("(city: "),T("City"),P(") = "),F("findAll"),P("(User_.city "),K("eq "),P("city)\n\n"),
           C("    // Query builder with SQL templates for the aggregate.\n"),
@@ -386,7 +386,7 @@ export default function Home() {
           P("    orm "),K("insert "),T("User"),P("(email = "),S('"bob@acme.io"'),P(", name = "),S('"Bob"'),P(", city = city)\n"),
           P("}\n"),
           P("\n"),
-          C("// Full control when you need it: propagation, isolation, timeout — plus post-tx hooks.\n"),
+          C("// Full control when you need it: propagation, isolation, timeout, plus post-tx hooks.\n"),
           F("transaction"),P("(propagation = "),T("REQUIRES_NEW"),P(", isolation = "),T("REPEATABLE_READ"),P(", timeoutSeconds = "),N("5"),P(") {\n"),
           P("    "),K("val "),P("city = orm "),K("insert "),T("City"),P("(name = "),S('"San Jose"'),P(", population = "),N("1_013_240"),P(", country = "),S('"US"'),P(")\n"),
           P("    "),K("val "),P("user = orm "),K("insert "),T("User"),P("(email = "),S('"alice@acme.io"'),P(", name = "),S('"Alice"'),P(", city = city)\n"),
@@ -395,7 +395,7 @@ export default function Home() {
           P("}") ] },
 
       { name:'5 · sql', file:'UserService.kt',
-        caption:"full SQL when you want it — never locked in",
+        caption:"full SQL when you want it, never locked in",
         code:[ C("// Full control of SQL, with typed columns and tables; rows map to any data class.\n"),
           K("data class "),T("RankedCity"),P("("),K("val "),P("name: "),T("String"),P(", "),K("val "),P("rank: "),T("Long"),P(")\n\n"),
           K("val "),P("ranked = orm."),F("query"),P(" { "),S('"""'),P("\n"),
@@ -430,9 +430,9 @@ export default function Home() {
 
     // Generated SQL per scene (index-aligned with SCENES). Shown via the "Show SQL" toggle.
     const SQL=[
-      null, // entities — no query, so the Show SQL button is hidden for this scene
+      null, // entities: no query, so the Show SQL button is hidden for this scene
 
-      '<span class="sqlc">-- getById(1) — joins the city graph, no N+1</span>\n'+
+      '<span class="sqlc">-- getById(1): joins the city graph, no N+1</span>\n'+
       '<span class="sqlk">SELECT</span> u.id, u.email, u.name, c.id, c.name, c.population, c.country\n'+
       '<span class="sqlk">FROM</span> "user" u\n'+
       '<span class="sqlk">INNER JOIN</span> city c <span class="sqlk">ON</span> u.city_id = c.id\n'+
@@ -482,7 +482,7 @@ export default function Home() {
           benefitsEl=document.getElementById('benefits'), codeareaEl=document.querySelector('.storm-home .codearea');
     if(!codeEl) return;
 
-    // "Show SQL" toggle — reveals the generated SQL for the current scene.
+    // "Show SQL" toggle: reveals the generated SQL for the current scene.
     const editorEl=document.querySelector('.storm-home .editor'), sqlBtn=document.getElementById('sqlbtn'),
           sqlBtnText=document.getElementById('sqlbtntext'), sqlPanel=document.getElementById('sqlpanel');
     let showSql=false, curIdx=0;
@@ -546,7 +546,7 @@ export default function Home() {
       fnameEl.textContent=sc.file;
       statusEl.classList.remove('show');
 
-      // Benefits scene — render the core-benefits grid instead of typed code.
+      // Benefits scene: render the core-benefits grid instead of typed code.
       if(sc.grid){
         codeareaEl.classList.add('show-benefits');
         benefitsEl.innerHTML=sc.grid.map(b=>'<div class="bcell"><span class="bt">'+b.t+'</span><span class="bd">'+b.d+'</span></div>').join('');
@@ -573,7 +573,7 @@ export default function Home() {
       // Rewind the horizontal scroller before typing. Desktop resets it for
       // free (the near-empty first render collapses scrollWidth, clamping
       // scrollLeft to 0), but iOS Safari keeps the stale offset when content
-      // shrinks — so one touch pan (even an accidental diagonal swipe while
+      // shrinks, so one touch pan (even an accidental diagonal swipe while
       // scrolling the page) would leave every later scene with the start of
       // each line cut off.
       codeEl.scrollLeft=0;
@@ -715,9 +715,9 @@ export default function Home() {
             description:
               'Storm is a type-safe, SQL-first Kotlin ORM. Define concise, immutable data-class entities and write one-line queries. Nested predicates and entity graphs compile to a single efficient query, eliminating accidental hidden N+1 queries. Drop to full SQL templates whenever you want; never locked in.',
             featureList: [
-              'Direct database control — every query explicit, no hidden N+1',
-              'Stateless, immutable records — no proxies, no flush, no hidden state',
-              'Type-safe and injection-safe — compile-time column and type checks, automatic bind parameters',
+              'Direct database control: every query explicit, no hidden N+1',
+              'Stateless, immutable records: no proxies, no flush, no hidden state',
+              'Type-safe and injection-safe: compile-time column and type checks, automatic bind parameters',
               'One-line queries with an optional full SQL template engine',
               'Works with PostgreSQL, MySQL, MariaDB, Oracle, SQL Server, SQLite and H2',
               'Integrates with Spring Boot 3.x/4.x and Ktor',

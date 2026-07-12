@@ -351,7 +351,7 @@ var window = users.scroll(scrollable);
 ## Framework-Specific Repository Registration
 
 ### Spring Boot
-With `storm-spring-boot-starter`, repository interfaces are auto-discovered and registered as beans — no configuration needed; just inject them. Only when using plain `storm-spring` (no starter) do you define a `RepositoryBeanFactoryPostProcessor` with `repositoryBasePackages`:
+With `storm-spring-boot-starter`, repository interfaces are auto-discovered and registered as beans — no configuration needed; just inject them. Only when using plain `storm-spring` (no starter) do you switch scanning on with `@EnableStormRepositories(basePackages = ...)`, or define `RepositoryBeanFactoryPostProcessor(basePackages, ormTemplateBeanName, repositoryPrefix)` beans when multiple repository sets bind to different templates:
 ```java
 @Service
 public class UserService {
@@ -368,10 +368,21 @@ UserRepository userRepository = orm.repository(UserRepository.class);
 
 ## Transactions
 
-The Java API has **no Storm-managed transaction API** (the `transaction { }` blocks are Kotlin-only). Do not invent methods like `orm.transaction(...)` — they do not exist.
+Since 1.13, the Java API has a full programmatic transaction API: `Transactions.transaction(...)` with the same semantics as Kotlin's `transaction { }` blocks — all seven propagation modes, isolation, timeout, read-only, rollback-only, and commit/rollback callbacks. The block is value-returning (void blocks `return null`), checked exceptions propagate to the caller unchanged, and the transaction binds to the first `ORMTemplate` that executes inside it:
+```java
+import static st.orm.template.Transactions.transaction;
+import static st.orm.TransactionPropagation.REQUIRES_NEW;
+
+User created = transaction(tx -> userRepository.insertAndFetch(new User(null, email, "Alice", city)));
+
+transaction(REQUIRES_NEW, tx -> {
+    tx.onCommit(() -> log.info("audit committed"));
+    return auditRepository.insertAndFetch(entry);
+});
+```
 
 ### Spring Boot
-Use `@Transactional` on service methods (standard Spring):
+Both styles work and cooperate. `@Transactional` on service methods remains first-class, and Storm's `transaction(...)` blocks run through Spring's transaction managers when the template is Spring-composed (the starter does this automatically): a Storm block inside a `@Transactional` method joins it.
 ```java
 @Service
 public class UserService {
@@ -383,11 +394,7 @@ public class UserService {
 ```
 
 ### Standalone
-Without Spring, manage transactions at the JDBC level: wrap the `DataSource` in a
-transaction-aware proxy or use a library that provides one (e.g. Spring's
-`DataSourceTransactionManager`/`TransactionTemplate` with
-`TransactionAwareDataSourceProxy`). Storm participates in whatever transaction is
-active on the connection it obtains from the `DataSource`.
+Without Spring, `Transactions.transaction(...)` manages real JDBC transactions directly on the template's `DataSource` — no framework transaction manager is involved, and the blocking API is virtual-thread friendly.
 
 ## Verification
 

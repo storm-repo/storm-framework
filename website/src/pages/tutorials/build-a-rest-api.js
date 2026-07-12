@@ -79,7 +79,7 @@ function buildBody(version) {
     P('    ') + A('@PK') + P(' ') + K('val ') + P('id: ') + T('Int') + P(' = ') + N('0') + P(',\n') +
     P('    ') + K('val ') + P('name: ') + T('String') + P(',\n') +
     P(') : ') + T('Entity') + P('<') + T('Int') + P('>\n\n') +
-    C('// Bookmark.kt — @FK means the folder is loaded in the same query\n') +
+    C('// Bookmark.kt: @FK means the folder is loaded in the same query\n') +
     K('data class ') + T('Bookmark') + P('(\n') +
     P('    ') + A('@PK') + P(' ') + K('val ') + P('id: ') + T('Int') + P(' = ') + N('0') + P(',\n') +
     P('    ') + K('val ') + P('url: ') + T('String') + P(',\n') +
@@ -99,7 +99,7 @@ function buildBody(version) {
     P('}');
 
   const repo =
-    C('// Repositories.kt — CRUD is inherited; add only your own queries\n') +
+    C('// Repositories.kt: CRUD is inherited; add only your own queries\n') +
     K('interface ') + T('BookmarkRepository') + P(' : ') + T('EntityRepository') + P('<') + T('Bookmark') + P(', ') + T('Int') + P('> {\n') +
     P('    ') + K('fun ') + F('findByFolderName') + P('(name: ') + T('String') + P('): ') + T('List') + P('<') + T('Bookmark') + P('> =\n') +
     P('        ') + F('findAll') + P('(Bookmark_.folder.name ') + K('eq') + P(' name)\n') +
@@ -166,7 +166,7 @@ function buildBody(version) {
     P('curl -s -X POST localhost:8080/bookmarks \\\n') +
     P("  -H 'content-type: application/json' \\\n") +
     P('  -d ') + S('\'{"url":"https://orm.st","title":"Storm","folderId":1}\'') + P('\n\n') +
-    C('# list them back — each bookmark includes its folder object\n') +
+    C('# list them back: each bookmark includes its folder object\n') +
     P('curl -s localhost:8080/bookmarks');
 
   const test =
