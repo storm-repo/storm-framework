@@ -636,13 +636,15 @@ storm:
 
 Customization follows the usual back-off rules: contribute an `ObservationConvention<StormQueryObservationContext>` bean to override the naming and key values (it wins over the property), define your own `QueryObserver` bean to replace the binding entirely, or disable the observation at the registry level with `management.observations.enable.storm.query=false`.
 
-With tracing in place, `storm.tracing.sql-comments: true` additionally appends the current trace context to every statement as a sqlcommenter-style comment (`/*traceparent='00-…'*/`), so database-side diagnostics — MariaDB's slow query log, `pg_stat_activity` — correlate directly back to the trace that issued the statement. This is deliberately opt-in: a per-execution comment changes the statement text on every call, which defeats driver-side and server-side prepared statement caching. Enable it where the correlation is worth that trade-off.
+With tracing in place, `storm.tracing.sql-comments` additionally appends the current trace context to statements as a sqlcommenter-style comment (`/*traceparent='00-…'*/`), so database-side diagnostics — MariaDB's slow query log, `pg_stat_activity` — correlate directly back to the trace that issued the statement. `true` comments every statement inside a span; `sampled` comments only statements of sampled traces, which is the recommended mode when the sampling probability is below 1.0. This is deliberately opt-in: a per-execution comment changes the statement text on every call, which defeats driver-side and server-side prepared statement caching.
+
+One composition warning for applications that wire the integration beans themselves: define beans like the `ExceptionMapper`, `QueryObserver`, or `SqlCommenter` unconditionally in your `@Configuration` classes. A `@ConditionalOnBean` condition in a user configuration evaluates before auto-configurations contribute their beans (such as the `Tracer`), so it fails silently and the integration stays dormant while looking enabled.
 
 ## Testing with @DataStormTest
 
 `@DataStormTest` (from `storm-spring-boot-test-autoconfigure`, test scope) is the Storm test slice, the counterpart of `@DataJpaTest`: it starts only the `DataSource`, Storm's auto-configuration (template, repository scanning, transaction integration, schema validation, exception translation), and SQL initialization, plus Flyway or Liquibase when present. It complements [`@StormTest`](testing.md), which tests data logic without a Spring context: use `@StormTest` for fast query-level tests, and the slice when the test should see what production Spring code sees — injected repository beans, translated exceptions, Spring-managed transactions, and your `storm.*` configuration. Regular `@Component`, `@Service`, and `@Controller` beans stay out of the context. Each test method runs in a transaction that is rolled back afterwards, so tests cannot see each other's writes.
 
-On Spring Boot 3 the application's `DataSource` is replaced with an embedded in-memory database by default; put a `schema.sql` (and optionally `data.sql`) on the test classpath to initialize it, or let Flyway or Liquibase (included in the slice) create the schema as in production. On Spring Boot 4 the replacement activates when the `spring-boot-jdbc-test-autoconfigure` artifact is present; without it, point the slice at a database with the `properties` attribute:
+The application's `DataSource` is replaced with an embedded in-memory database by default, on Spring Boot 3 and 4 alike (the slice ships a fallback for Boot 4's relocated test-database support); put a `schema.sql` (and optionally `data.sql`) on the test classpath to initialize it, or let Flyway or Liquibase (included in the slice) create the schema as in production:
 
 ```kotlin
 @DataStormTest
@@ -662,7 +664,7 @@ class VisitRepositoryTest(
 }
 ```
 
-To run against a real database instead, disable the replacement (`spring.test.database.replace=none` on Spring Boot 3; the default without the test-database artifact on Spring Boot 4) and hand the slice a Testcontainers-managed database through `@ServiceConnection`:
+To run against a real database instead, disable the replacement with `spring.test.database.replace=none` and hand the slice a Testcontainers-managed database through `@ServiceConnection`:
 
 ```kotlin
 @DataStormTest(properties = ["spring.test.database.replace=none"])

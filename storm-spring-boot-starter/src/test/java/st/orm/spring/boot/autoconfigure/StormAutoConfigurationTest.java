@@ -578,6 +578,27 @@ class StormAutoConfigurationTest {
     }
 
     @Test
+    void traceSqlCommentsSupportSampledModeAndFailFastOnUnknownValues() {
+        contextRunner
+                .withPropertyValues(
+                        "spring.datasource.url=jdbc:h2:mem:sqlCommentsSampledTest;DB_CLOSE_DELAY=-1",
+                        "spring.datasource.driver-class-name=org.h2.Driver",
+                        "storm.tracing.sql-comments=sampled"
+                )
+                .withBean(io.micrometer.tracing.Tracer.class, () -> org.mockito.Mockito.mock(io.micrometer.tracing.Tracer.class))
+                .run(context -> assertThat(context).getBean(st.orm.core.spi.SqlCommenter.class)
+                        .isInstanceOf(st.orm.micrometer.TraceContextSqlCommenter.class));
+        contextRunner
+                .withPropertyValues(
+                        "spring.datasource.url=jdbc:h2:mem:sqlCommentsBogusTest;DB_CLOSE_DELAY=-1",
+                        "spring.datasource.driver-class-name=org.h2.Driver",
+                        "storm.tracing.sql-comments=bogus"
+                )
+                .withBean(io.micrometer.tracing.Tracer.class, () -> org.mockito.Mockito.mock(io.micrometer.tracing.Tracer.class))
+                .run(context -> assertThat(context).hasFailed());
+    }
+
+    @Test
     void traceSqlCommentsAreOptIn() {
         // Off by default even with a Tracer present: a per-execution comment defeats prepared statement
         // caching, so the correlation is enabled deliberately.

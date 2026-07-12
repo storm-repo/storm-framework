@@ -245,16 +245,18 @@ public class StormProperties {
     public static class Tracing {
 
         /**
-         * Whether the current trace context is appended to SQL statements as a sqlcommenter-style comment.
-         * Defaults to false: a per-execution comment defeats prepared statement caching.
+         * Whether the current trace context is appended to SQL statements as a sqlcommenter-style comment:
+         * "true" comments every statement inside a span, "sampled" comments only statements of sampled
+         * traces, "false" (default) disables the comments. A per-execution comment defeats prepared
+         * statement caching; prefer "sampled" when the sampling probability is below 1.0.
          */
-        private Boolean sqlComments;
+        private String sqlComments;
 
-        /** Returns whether trace context SQL comments are enabled. */
-        public Boolean getSqlComments() { return sqlComments; }
+        /** Returns the trace context SQL comment mode. */
+        public String getSqlComments() { return sqlComments; }
 
-        /** Sets whether trace context SQL comments are enabled. */
-        public void setSqlComments(Boolean sqlComments) { this.sqlComments = sqlComments; }
+        /** Sets the trace context SQL comment mode. */
+        public void setSqlComments(String sqlComments) { this.sqlComments = sqlComments; }
     }
 
     /** Query observation configuration. */

@@ -41,14 +41,30 @@ import st.orm.core.spi.SqlCommenter;
 public class TraceContextSqlCommenter implements SqlCommenter {
 
     private final Tracer tracer;
+    private final boolean onlySampled;
 
     /**
-     * Creates a commenter reading the current span from the given tracer.
+     * Creates a commenter that comments every statement executed inside a span.
      *
      * @param tracer the tracer providing the current trace context.
      */
     public TraceContextSqlCommenter(@Nonnull Tracer tracer) {
+        this(tracer, false);
+    }
+
+    /**
+     * Creates a commenter that optionally comments only statements of sampled traces.
+     *
+     * <p>With sampling below 1.0, commenting every statement pays the prepared statement caching cost for
+     * comments whose trace is mostly not exported; sampled-only mode aligns the cost with the correlation
+     * benefit.</p>
+     *
+     * @param tracer the tracer providing the current trace context.
+     * @param onlySampled whether to comment only when the current span is sampled.
+     */
+    public TraceContextSqlCommenter(@Nonnull Tracer tracer, boolean onlySampled) {
         this.tracer = requireNonNull(tracer, "tracer");
+        this.onlySampled = onlySampled;
     }
 
     @Override
@@ -58,6 +74,9 @@ public class TraceContextSqlCommenter implements SqlCommenter {
             return Optional.empty();
         }
         TraceContext context = span.context();
+        if (onlySampled && !Boolean.TRUE.equals(context.sampled())) {
+            return Optional.empty();
+        }
         String flags = Boolean.TRUE.equals(context.sampled()) ? "01" : "00";
         return Optional.of("traceparent='00-%s-%s-%s'".formatted(context.traceId(), context.spanId(), flags));
     }

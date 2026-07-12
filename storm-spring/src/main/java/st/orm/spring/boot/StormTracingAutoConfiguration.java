@@ -21,7 +21,9 @@ import org.springframework.boot.autoconfigure.condition.ConditionalOnBean;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnClass;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
+import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
+import st.orm.PersistenceException;
 import st.orm.core.spi.SqlCommenter;
 import st.orm.micrometer.TraceContextSqlCommenter;
 
@@ -40,15 +42,27 @@ import st.orm.micrometer.TraceContextSqlCommenter;
 @AutoConfiguration
 @ConditionalOnClass({Tracer.class, TraceContextSqlCommenter.class})
 @ConditionalOnBean(Tracer.class)
-@ConditionalOnProperty(name = "storm.tracing.sql-comments", havingValue = "true")
+@ConditionalOnProperty(name = "storm.tracing.sql-comments")
+@EnableConfigurationProperties(StormProperties.class)
 public class StormTracingAutoConfiguration {
 
     /**
-     * Provides the SQL commenter that appends the current trace context to statements.
+     * Provides the SQL commenter that appends the current trace context to statements: every statement
+     * inside a span with {@code storm.tracing.sql-comments=true}, or only statements of sampled traces
+     * with {@code sampled}.
      */
     @Bean
     @ConditionalOnMissingBean(SqlCommenter.class)
-    public SqlCommenter stormSqlCommenter(Tracer tracer) {
-        return new TraceContextSqlCommenter(tracer);
+    public SqlCommenter stormSqlCommenter(Tracer tracer, StormProperties properties) {
+        String mode = properties.getTracing().getSqlComments();
+        if ("true".equalsIgnoreCase(mode)) {
+            return new TraceContextSqlCommenter(tracer);
+        }
+        if ("sampled".equalsIgnoreCase(mode)) {
+            return new TraceContextSqlCommenter(tracer, true);
+        }
+        throw new PersistenceException(
+                "Unknown storm.tracing.sql-comments value: '%s'. Expected 'true', 'sampled' or 'false'."
+                        .formatted(mode));
     }
 }

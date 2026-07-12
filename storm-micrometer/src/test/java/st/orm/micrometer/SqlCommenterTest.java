@@ -117,6 +117,22 @@ public class SqlCommenterTest {
     }
 
     @Test
+    public void sampledOnlyModeSkipsUnsampledSpans() {
+        var tracer = new SimpleTracer();
+        var sampledOnly = new TraceContextSqlCommenter(tracer, true);
+        var always = new TraceContextSqlCommenter(tracer);
+        var span = tracer.nextSpan().start();
+        try (var ignored = tracer.withSpan(span)) {
+            // SimpleTracer spans are not sampled: the sampled-only commenter stays silent while the
+            // default commenter still renders the trace identity.
+            assertEquals(Optional.empty(), sampledOnly.comment());
+            assertTrue(always.comment().isPresent());
+        } finally {
+            span.end();
+        }
+    }
+
+    @Test
     public void traceContextCommenterRendersTraceparent() {
         var tracer = new SimpleTracer();
         var commenter = new TraceContextSqlCommenter(tracer);
