@@ -144,8 +144,10 @@ Storm is modular; you add only what your stack uses. Versions come from the BOM 
 | **Java + Spring Boot**  | `storm-spring-boot-starter` |
 | **+ your database**     | one dialect (runtime): `storm-postgresql`, `storm-mysql`, `storm-mariadb`, `storm-oracle`, `storm-mssqlserver`, `storm-sqlite`, `storm-h2` |
 | **+ JSON columns**      | `storm-jackson2`, `storm-jackson3`, or `storm-kotlinx-serialization` |
+| **+ metrics & tracing** | `storm-micrometer` (included in the Spring Boot starters) |
+| **+ Spring Boot test slice** | `storm-spring-boot-test-autoconfigure` (test scope, `@DataStormTest`) |
 
-The `storm-compiler-plugin-2.x` suffix matches your Kotlin major.minor version (e.g. `storm-compiler-plugin-2.0` for Kotlin 2.0.x). See [Installation](https://orm.st/docs/installation) for the full module overview.
+The `storm-compiler-plugin-2.x` suffix matches your Kotlin major.minor version (e.g. `storm-compiler-plugin-2.0` for Kotlin 2.0.x). Gradle projects can skip the per-module setup entirely with the Storm Gradle plugin: `id("st.orm")` applies the BOM, core dependencies, metamodel processing, and compiler flags in one block. See [Installation](https://orm.st/docs/installation) for the full module overview.
 
 ### Dependency Management (BOM)
 

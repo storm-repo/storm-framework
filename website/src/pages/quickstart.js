@@ -49,7 +49,7 @@ function buildBody(version) {
     P('}');
 
   const entity =
-    C('// Entities.kt — plain data classes. This is the whole data layer.\n') +
+    C('// Entities.kt: plain data classes. This is the whole data layer.\n') +
     K('data class ') + T('Director') + P('(\n') +
     P('    ') + A('@PK') + P(' ') + K('val ') + P('id: ') + T('Int') + P(' = ') + N('0') + P(',\n') +
     P('    ') + K('val ') + P('name: ') + T('String') + P(',\n') +

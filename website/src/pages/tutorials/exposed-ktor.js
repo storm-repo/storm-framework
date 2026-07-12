@@ -81,7 +81,7 @@ ${navHtml('tutorials')}
   <p>Repositories are stateless, so each read borrows a pooled connection just for the query; there is no transaction wrapper because none is needed. For quick endpoints, bare <code>entity&lt;User&gt;()</code> and <code>projection&lt;T&gt;()</code> extensions skip even the interface. Transactions appear where atomicity matters, and because they are suspend functions propagated through the coroutine context, they compose with Ktor naturally:</p>
   ${editor({file: 'Routes.kt', tag: 'Kotlin · Storm + Ktor', code: CODE_STORM_WRITE})}
   <p>The <code>onCommit</code> callback keeps the event publication out of the transaction, so a rollback never announces an order that does not exist. See the <a class="tlink" href="/tutorials/exposed-transactions">transactions comparison</a> for the full mapping.</p>
-  <p>For applications with a service layer, the optional <code>storm-ktor-koin</code> module bridges the same repositories into Koin: <code>stormModule()</code> exposes each one under its own interface type, so services declare repositories as constructor parameters and register with <code>singleOf(::OrderService)</code>.</p>
+  <p>For applications with a service layer, the plugin exposes the template and every repository through Ktor's built-in dependency injection, each under its own interface type: services resolve them with <code>by dependencies</code>. Koin users keep the same wiring with a few lines of application code; the integration docs include the recipe.</p>
 
   <h2><span class="hno">04</span>The translation table</h2>
   <table class="cmp">

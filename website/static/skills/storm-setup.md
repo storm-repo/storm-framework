@@ -59,12 +59,13 @@ Match the compiler plugin suffix to the project's Kotlin version: 2.0.x uses `st
 - Kotlin: `st.orm:storm-kotlin-spring-boot-starter` (replaces `storm-kotlin` + `storm-core`)
 - Java: `st.orm:storm-spring-boot-starter` (replaces `storm-java21` + `storm-core`)
 - These include auto-configuration: `ORMTemplate` is auto-registered as a Spring bean
-- The starters also auto-discover repository interfaces and register them as beans — no configuration needed. Only plain `storm-spring`/`storm-kotlin-spring` (without the starter) requires defining a `RepositoryBeanFactoryPostProcessor` with `repositoryBasePackages`
+- The starters also auto-discover repository interfaces and register them as beans — no configuration needed. Only plain `storm-spring`/`storm-kotlin-spring` (without the starter) requires switching scanning on: `@EnableStormRepositories(basePackages = ...)`, or a `RepositoryBeanFactoryPostProcessor(basePackages = ..., ormTemplateBeanName = ..., repositoryPrefix = ...)` bean per repository set in multi-template applications
+- Optionally: `st.orm:storm-spring-boot-test-autoconfigure` (test scope) for the `@DataStormTest` test slice — the Storm counterpart of `@DataJpaTest`
 
 ### Ktor
 - Kotlin: `st.orm:storm-ktor`
 - Optionally: `st.orm:storm-ktor-test` (test scope, for `testStormApplication` DSL)
-- Optionally: `st.orm:storm-ktor-koin` when the app uses Koin — `install(Koin) { modules(stormModule(), ...) }` exposes the `ORMTemplate` and every auto-registered repository by type, so services declare repositories as constructor parameters and wire with `singleOf(::MyService)`
+- The plugin exposes the `ORMTemplate` and every auto-registered repository through Ktor's built-in dependency injection (`ktor-server-di`), each under its own interface type: `val users: UserRepository by dependencies`. Koin users bridge the same registry with a few lines of application code; the Ktor integration docs include the recipe
 - Add `com.zaxxer:HikariCP` when using the built-in HOCON-configured DataSource (`storm.datasource.jdbcUrl` etc. in application.conf) — not needed when passing your own DataSource to `install(Storm)`
 - Install with `install(Storm)`; repositories from the compile-time index auto-register, accessed via a bare `repository<T>()` in routes; `orm`, `entity<T>()`, and `projection<T>()` extensions are available too
 - Run migrations in the plugin's `migration { }` hook so the default fail-mode schema validation sees the migrated schema

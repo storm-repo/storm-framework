@@ -5,6 +5,10 @@ import TabItem from '@theme/TabItem';
 
 Storm exposes runtime metrics through JMX (Java Management Extensions) MBeans. These metrics give you visibility into template compilation performance, dirty checking behavior, and entity cache efficiency. All MBeans are registered automatically when Storm initializes and aggregate across all `ORMTemplate` instances in the JVM.
 
+:::tip Micrometer Observations
+The metrics on this page are JMX-based and always on. For metrics and tracing through your observability stack, the `storm-micrometer` module reports every query and transaction as Micrometer Observations; see the observability sections of [Spring Integration](spring-integration.md#observability) and [Ktor Integration](ktor-integration.md#observability).
+:::
+
 To view these metrics, connect to the JVM with any JMX client (JConsole, VisualVM, or your monitoring platform) and navigate to the `st.orm` domain. If your application uses Spring Boot Actuator, the MBeans are also accessible through Actuator's JMX endpoint.
 
 ---
