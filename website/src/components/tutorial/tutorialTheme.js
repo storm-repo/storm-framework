@@ -70,8 +70,17 @@ export const DATABASE_VARIANTS = [
 export function editor({file, tag, code, sql, copy, variants}) {
   // The highlighted HTML is entirely esc()'d text inside spans, so dropping
   // the tags and unescaping recovers the source text exactly.
-  const toPlain = (html) =>
-    html.replace(/<[^>]+>/g, '').replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&amp;/g, '&');
+  const toPlain = (html) => {
+    // Strip tags to a fixed point before unescaping: a single pass is not idempotent, since removing an
+    // inner tag can splice two fragments into a fresh tag, so repeat until the markup stops changing.
+    let stripped = html;
+    let previous;
+    do {
+      previous = stripped;
+      stripped = stripped.replace(/<[^>]+>/g, '');
+    } while (stripped !== previous);
+    return stripped.replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&amp;/g, '&');
+  };
   // Newlines only occur in the escaped text tokens, never inside tag markup,
   // so the line count can be taken from the HTML string directly.
   const pane = (html) => {
