@@ -69,6 +69,11 @@ Framework integration points are now instance-scoped (#198), and the Ktor integr
 - `st.orm.spring.impl.ResolverRegistration` (both language stacks): the autowire-candidate resolver is installed by the scanning engine itself.
 - `storm-ktor-koin`: Ktor's built-in dependency injection is the supported DI path. Koin users keep full capability with a few lines of application code; the Ktor integration docs include the recipe.
 
+### Security
+
+- Schema validation reads database metadata through bound parameters instead of building the metadata queries with escaped string literals (storm-core `DatabaseSchema`). The catalog and schema names are database-supplied and were already correctly escaped, so this is defense in depth: no metadata query is assembled from concatenated values.
+- The kotlinx-serialization module validates that a `Ref` target resolves to a Storm `Data` type before loading it, and loads it without running static initializers until that check passes. A serializer that reported an unrelated class name can no longer trigger that class's initialization.
+
 ## [1.12.0] - 2026-07-06
 
 Feature release centered on the reified Kotlin query API. Breaking changes are accepted with no deprecation shims (1.12 policy).

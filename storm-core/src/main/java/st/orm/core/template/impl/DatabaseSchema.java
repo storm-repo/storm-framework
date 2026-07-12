@@ -19,6 +19,7 @@ import jakarta.annotation.Nonnull;
 import jakarta.annotation.Nullable;
 import java.sql.Connection;
 import java.sql.DatabaseMetaData;
+import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.ArrayList;
@@ -319,14 +320,37 @@ public final class DatabaseSchema {
             @Nonnull StringBuilder sql,
             boolean hasCondition,
             @Nonnull String column,
-            @Nullable String value
+            @Nullable String value,
+            @Nonnull List<String> parameters
     ) {
         if (value == null || value.isEmpty()) {
             return hasCondition;
         }
         sql.append(hasCondition ? " AND " : " WHERE ");
-        sql.append(column).append(" = '").append(value.replace("'", "''")).append("'");
+        // Bind the value as a parameter; the column is always a compile-time constant.
+        sql.append(column).append(" = ?");
+        parameters.add(value);
         return true;
+    }
+
+    /**
+     * Prepares the given metadata query and binds the collected filter values as parameters.
+     */
+    private static PreparedStatement prepareSchemaQuery(
+            @Nonnull Connection connection,
+            @Nonnull String sql,
+            @Nonnull List<String> parameters
+    ) throws SQLException {
+        var statement = connection.prepareStatement(sql);
+        try {
+            for (int index = 0; index < parameters.size(); index++) {
+                statement.setString(index + 1, parameters.get(index));
+            }
+        } catch (SQLException e) {
+            statement.close();
+            throw e;
+        }
+        return statement;
     }
 
     /**
@@ -351,10 +375,11 @@ public final class DatabaseSchema {
                       AND tc.CONSTRAINT_NAME = kcu.CONSTRAINT_NAME
                       AND tc.TABLE_NAME = kcu.TABLE_NAME
                     WHERE tc.CONSTRAINT_TYPE IN ('PRIMARY KEY', 'UNIQUE')""");
-            appendFilter(sql, true, "tc.TABLE_CATALOG", catalog);
-            appendFilter(sql, true, "tc.TABLE_SCHEMA", schemaPattern);
-            try (var statement = connection.createStatement();
-                 var resultSet = statement.executeQuery(sql.toString())) {
+            List<String> parameters = new ArrayList<>();
+            appendFilter(sql, true, "tc.TABLE_CATALOG", catalog, parameters);
+            appendFilter(sql, true, "tc.TABLE_SCHEMA", schemaPattern, parameters);
+            try (var statement = prepareSchemaQuery(connection, sql.toString(), parameters);
+                 var resultSet = statement.executeQuery()) {
                 while (resultSet.next()) {
                     String tableName = resultSet.getString("TABLE_NAME");
                     if (!columnsByTable.containsKey(tableName)) {
@@ -409,10 +434,11 @@ public final class DatabaseSchema {
                       AND rc.UNIQUE_CONSTRAINT_NAME = kcu2.CONSTRAINT_NAME
                       AND kcu.POSITION_IN_UNIQUE_CONSTRAINT = kcu2.ORDINAL_POSITION
                     WHERE 1=1""");
-            appendFilter(sql, true, "rc.CONSTRAINT_CATALOG", catalog);
-            appendFilter(sql, true, "rc.CONSTRAINT_SCHEMA", schemaPattern);
-            try (var statement = connection.createStatement();
-                 var resultSet = statement.executeQuery(sql.toString())) {
+            List<String> parameters = new ArrayList<>();
+            appendFilter(sql, true, "rc.CONSTRAINT_CATALOG", catalog, parameters);
+            appendFilter(sql, true, "rc.CONSTRAINT_SCHEMA", schemaPattern, parameters);
+            try (var statement = prepareSchemaQuery(connection, sql.toString(), parameters);
+                 var resultSet = statement.executeQuery()) {
                 while (resultSet.next()) {
                     String fkTableName = resultSet.getString("FK_TABLE");
                     if (!columnsByTable.containsKey(fkTableName)) {
@@ -454,9 +480,10 @@ public final class DatabaseSchema {
                     SELECT TABLE_NAME, COLUMN_NAME, REFERENCED_TABLE_NAME, REFERENCED_COLUMN_NAME
                     FROM INFORMATION_SCHEMA.KEY_COLUMN_USAGE
                     WHERE REFERENCED_TABLE_NAME IS NOT NULL""");
-            appendFilter(sql, true, "TABLE_SCHEMA", effectiveSchema);
-            try (var statement = connection.createStatement();
-                 var resultSet = statement.executeQuery(sql.toString())) {
+            List<String> parameters = new ArrayList<>();
+            appendFilter(sql, true, "TABLE_SCHEMA", effectiveSchema, parameters);
+            try (var statement = prepareSchemaQuery(connection, sql.toString(), parameters);
+                 var resultSet = statement.executeQuery()) {
                 while (resultSet.next()) {
                     String fkTableName = resultSet.getString("TABLE_NAME");
                     if (!columnsByTable.containsKey(fkTableName)) {
@@ -495,9 +522,10 @@ public final class DatabaseSchema {
                       ON ac.OWNER = acc.OWNER
                       AND ac.CONSTRAINT_NAME = acc.CONSTRAINT_NAME
                     WHERE ac.CONSTRAINT_TYPE IN ('P', 'U')""");
-            appendFilter(sql, true, "ac.OWNER", schemaPattern);
-            try (var statement = connection.createStatement();
-                 var resultSet = statement.executeQuery(sql.toString())) {
+            List<String> parameters = new ArrayList<>();
+            appendFilter(sql, true, "ac.OWNER", schemaPattern, parameters);
+            try (var statement = prepareSchemaQuery(connection, sql.toString(), parameters);
+                 var resultSet = statement.executeQuery()) {
                 while (resultSet.next()) {
                     String tableName = resultSet.getString("TABLE_NAME");
                     if (!columnsByTable.containsKey(tableName)) {
@@ -536,9 +564,10 @@ public final class DatabaseSchema {
                       AND pk.CONSTRAINT_NAME = pkc.CONSTRAINT_NAME
                       AND fkc.POSITION = pkc.POSITION
                     WHERE fk.CONSTRAINT_TYPE = 'R'""");
-            appendFilter(sql, true, "fk.OWNER", schemaPattern);
-            try (var statement = connection.createStatement();
-                 var resultSet = statement.executeQuery(sql.toString())) {
+            List<String> parameters = new ArrayList<>();
+            appendFilter(sql, true, "fk.OWNER", schemaPattern, parameters);
+            try (var statement = prepareSchemaQuery(connection, sql.toString(), parameters);
+                 var resultSet = statement.executeQuery()) {
                 while (resultSet.next()) {
                     String fkTableName = resultSet.getString("FK_TABLE");
                     if (!columnsByTable.containsKey(fkTableName)) {
@@ -590,17 +619,11 @@ public final class DatabaseSchema {
     ) {
         try {
             StringBuilder sql = new StringBuilder("SELECT SEQUENCE_NAME FROM INFORMATION_SCHEMA.SEQUENCES");
-            boolean hasCondition = false;
-            if (catalog != null && !catalog.isEmpty()) {
-                sql.append(" WHERE SEQUENCE_CATALOG = '").append(catalog.replace("'", "''")).append("'");
-                hasCondition = true;
-            }
-            if (schemaPattern != null && !schemaPattern.isEmpty()) {
-                sql.append(hasCondition ? " AND" : " WHERE");
-                sql.append(" SEQUENCE_SCHEMA = '").append(schemaPattern.replace("'", "''")).append("'");
-            }
-            try (var statement = connection.createStatement();
-                 var resultSet = statement.executeQuery(sql.toString())) {
+            List<String> parameters = new ArrayList<>();
+            boolean hasCondition = appendFilter(sql, false, "SEQUENCE_CATALOG", catalog, parameters);
+            appendFilter(sql, hasCondition, "SEQUENCE_SCHEMA", schemaPattern, parameters);
+            try (var statement = prepareSchemaQuery(connection, sql.toString(), parameters);
+                 var resultSet = statement.executeQuery()) {
                 while (resultSet.next()) {
                     sequences.put(resultSet.getString("SEQUENCE_NAME"), Boolean.TRUE);
                 }
@@ -620,11 +643,10 @@ public final class DatabaseSchema {
     ) {
         try {
             StringBuilder sql = new StringBuilder("SELECT SEQUENCE_NAME FROM ALL_SEQUENCES");
-            if (schemaPattern != null && !schemaPattern.isEmpty()) {
-                sql.append(" WHERE SEQUENCE_OWNER = '").append(schemaPattern.replace("'", "''")).append("'");
-            }
-            try (var statement = connection.createStatement();
-                 var resultSet = statement.executeQuery(sql.toString())) {
+            List<String> parameters = new ArrayList<>();
+            appendFilter(sql, false, "SEQUENCE_OWNER", schemaPattern, parameters);
+            try (var statement = prepareSchemaQuery(connection, sql.toString(), parameters);
+                 var resultSet = statement.executeQuery()) {
                 while (resultSet.next()) {
                     sequences.put(resultSet.getString("SEQUENCE_NAME"), Boolean.TRUE);
                 }
