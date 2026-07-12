@@ -1,3 +1,4 @@
+st.orm.spring.boot.test.DataStormTestDatabaseAutoConfiguration
 optional:org.springframework.boot.autoconfigure.jdbc.DataSourceAutoConfiguration
 optional:org.springframework.boot.jdbc.autoconfigure.DataSourceAutoConfiguration
 optional:org.springframework.boot.autoconfigure.jdbc.DataSourceTransactionManagerAutoConfiguration

@@ -716,7 +716,7 @@ dependencies {
 }
 ```
 
-With tracing in place, the `sqlCommenter` slot appends the current trace context to every statement as a sqlcommenter-style comment, correlating database-side diagnostics such as slow query logs back to the trace. Opt-in: a per-execution comment defeats prepared statement caching.
+With tracing in place, the `sqlCommenter` slot appends the current trace context to statements as a sqlcommenter-style comment, correlating database-side diagnostics such as slow query logs back to the trace. Opt-in: a per-execution comment defeats prepared statement caching; `TraceContextSqlCommenter(tracer, onlySampled = true)` limits the comments to sampled traces.
 
 ```kotlin
 install(Storm) {
