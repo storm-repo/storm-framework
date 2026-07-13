@@ -448,7 +448,7 @@ abstract class BaseRepositoryImpl<E extends Data, ID> implements Repository {
      * @param ids a stream of entity IDs to retrieve from the repository.
      * @return a stream of entities, materialized one batch at a time.
      */
-    private Stream<E> selectByIdMaterialized(@Nonnull Stream<ID> ids) {
+    protected Stream<E> selectByIdMaterialized(@Nonnull Stream<ID> ids) {
         return chunked(ids, getDefaultChunkSize(), batch -> select().whereId(batch).getResultList().stream());
     }
 
@@ -460,7 +460,7 @@ abstract class BaseRepositoryImpl<E extends Data, ID> implements Repository {
      * @param refs a stream of refs to retrieve from the repository.
      * @return a stream of entities, materialized one batch at a time.
      */
-    private Stream<E> selectByRefMaterialized(@Nonnull Stream<Ref<E>> refs) {
+    protected Stream<E> selectByRefMaterialized(@Nonnull Stream<Ref<E>> refs) {
         return chunked(refs, getDefaultChunkSize(), batch -> select().whereRef(batch).getResultList().stream());
     }
 

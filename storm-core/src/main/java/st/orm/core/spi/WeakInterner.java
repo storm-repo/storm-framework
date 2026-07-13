@@ -47,21 +47,21 @@ import st.orm.Ref;
 public final class WeakInterner {
 
     /** Map for non-entity objects, using object equality for lookup. Keys are held weakly. */
-    private final Map<Object, WeakReference<Object>> map;
+    private Map<Object, WeakReference<Object>> map;
 
     /** Queue for tracking garbage-collected entities to enable lazy cleanup of {@link #entityMap}. */
-    private final ReferenceQueue<Entity<?>> queue;
+    private ReferenceQueue<Entity<?>> queue;
 
     /** Map for entities, using {@link Ref} (primary key) for efficient lookup. Keys are held strongly. */
-    private final Map<Ref<?>, RefWeakReference> entityMap;
+    private Map<Ref<?>, RefWeakReference> entityMap;
 
     /**
      * Creates a new weak interner.
+     *
+     * <p>The internal structures are initialized lazily: an interner is created per query, and queries without
+     * record or entity results never intern anything.</p>
      */
     public WeakInterner() {
-        map = new WeakHashMap<>();
-        queue = new ReferenceQueue<>();
-        entityMap = new HashMap<>();
     }
 
     /**
@@ -97,6 +97,9 @@ public final class WeakInterner {
      * @return the cached entity, or {@code null} if not found or already garbage collected.
      */
     public <E extends Entity<?>> E get(@Nonnull Class<E> entityType, @Nonnull Object pk) {
+        if (entityMap == null) {
+            return null;
+        }
         drainQueue();
         Ref<?> ref = Ref.of(entityType, pk);
         WeakReference<Entity<?>> existing = entityMap.get(ref);
@@ -121,7 +124,12 @@ public final class WeakInterner {
      * @return the canonical instance for the entity's primary key.
      */
     private <E extends Entity<?>> E internEntity(@Nonnull E entity) {
-        drainQueue();
+        if (entityMap == null) {
+            entityMap = new HashMap<>();
+            queue = new ReferenceQueue<>();
+        } else {
+            drainQueue();
+        }
         Ref<?> ref = Ref.of(entity);
         WeakReference<Entity<?>> existing = entityMap.get(ref);
         if (existing != null) {
@@ -146,6 +154,9 @@ public final class WeakInterner {
      * @throws IllegalArgumentException if an equivalent object of a different class is already interned.
      */
     private <T> T internObject(@Nonnull T object) {
+        if (map == null) {
+            map = new WeakHashMap<>();
+        }
         WeakReference<Object> existing = map.get(object);
         if (existing != null) {
             // Equivalent object found; return existing instance
