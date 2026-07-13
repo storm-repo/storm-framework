@@ -23,7 +23,7 @@ class AbstractMetamodelTest {
         }
 
         @Override
-        public Object getValue(TestData record) {
+        public TestData getValue(TestData record) {
             return record;
         }
 
@@ -44,7 +44,7 @@ class AbstractMetamodelTest {
         }
 
         @Override
-        public Object getValue(TestData record) {
+        public Integer getValue(TestData record) {
             return record.id();
         }
 
@@ -65,7 +65,7 @@ class AbstractMetamodelTest {
         }
 
         @Override
-        public Object getValue(TestData record) {
+        public InlineData getValue(TestData record) {
             return null;
         }
 

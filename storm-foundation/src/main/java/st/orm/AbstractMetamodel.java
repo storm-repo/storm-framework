@@ -30,7 +30,7 @@ import java.util.Optional;
  * @param <V> the value type of the designated element.
  * @since 1.2
  */
-public abstract class AbstractMetamodel<T extends Data, E, V> implements Metamodel<T, E> {
+public abstract class AbstractMetamodel<T extends Data, E, V> implements TypedMetamodel<T, E, V> {
 
     private final Class<E> fieldType;
     private final String path;

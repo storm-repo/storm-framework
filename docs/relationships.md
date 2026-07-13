@@ -149,6 +149,17 @@ Storm does not store collections on the "one" side of a relationship. Instead, q
 val usersInCity: List<User> = orm.findAll(User_.city eq city)
 ```
 
+To load parents with their children, group the query by the parent path. The same select is executed; the
+results are grouped during hydration:
+
+```kotlin
+// Load cities with their users in one query
+val usersByCity: Map<City, List<User>> = orm.entity<User>()
+    .select()
+    .orderBy(User_.city)
+    .resultGroupedBy(User_.city)
+```
+
 </TabItem>
 <TabItem value="java" label="Java">
 
@@ -160,8 +171,27 @@ List<User> usersInCity = orm.entity(User.class)
     .getResultList();
 ```
 
+To load parents with their children, group the query by the parent path. The same select is executed; the
+results are grouped during hydration:
+
+```java
+// Load cities with their users in one query
+Map<City, List<User>> usersByCity = orm.entity(User.class)
+    .select()
+    .orderBy(User_.city)
+    .getResultGroupedBy(User_.city);
+```
+
 </TabItem>
 </Tabs>
+
+The grouped terminal returns an unmodifiable, insertion-ordered map: parents appear in the order
+their first row is encountered, children in row order within each parent. Because duplicate entities within a
+result set share the same instance, each child's reference to its parent is the map key itself, and repeated
+parents are materialized once rather than once per row. The path must resolve to a non-null record for every
+result; narrow queries over nullable foreign keys with a `where()` clause first. This replaces the manual
+pattern of querying the many side and grouping in memory, and it loads the whole graph in a single query,
+without the N+1 queries or the join duplication handling that collection-based ORMs need.
 
 ---
 
@@ -197,6 +227,13 @@ val roles: List<Role> = userRoles.map { it.role }
 // Find all users with a specific role
 val userRoles: List<UserRole> = orm.findAll(UserRole_.role eq role)
 val users: List<User> = userRoles.map { it.user }
+
+// Find roles for many users at once, grouped per user
+val rolesByUser: Map<User, List<Role>> = orm.entity<UserRole>()
+    .select()
+    .where(UserRole_.user inList users)
+    .resultGroupedBy(UserRole_.user)
+    .mapValues { (_, userRoles) -> userRoles.map { it.role } }
 ```
 
 For more control, use explicit join queries:
@@ -235,6 +272,12 @@ List<UserRole> userRoles = orm.entity(UserRole.class)
 List<Role> roles = userRoles.stream()
     .map(UserRole::role)
     .toList();
+
+// Find roles for many users at once, grouped per user
+Map<User, List<UserRole>> rolesByUser = orm.entity(UserRole.class)
+    .select()
+    .where(UserRole_.user, IN, users)
+    .getResultGroupedBy(UserRole_.user);
 ```
 
 For more control, use explicit join queries:

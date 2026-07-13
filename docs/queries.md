@@ -540,6 +540,82 @@ List<City> cities = orm.entity(User.class)
 
 ---
 
+## Grouped Results
+
+Group results by a related record, typically the parent entity of a foreign key. The metamodel path names the
+group key; the result is a map from parent to its children:
+
+<Tabs groupId="language">
+<TabItem value="kotlin" label="Kotlin" default>
+
+```kotlin
+// Load cities with their users in one query
+val usersByCity: Map<City, List<User>> = orm.entity<User>()
+    .select()
+    .where(User_.active eq true)
+    .orderBy(User_.city)
+    .resultGroupedBy(User_.city)
+```
+
+</TabItem>
+<TabItem value="java" label="Java">
+
+```java
+// Load cities with their users in one query
+Map<City, List<User>> usersByCity = orm.entity(User.class)
+    .select()
+    .where(User_.active, EQUALS, true)
+    .orderBy(User_.city)
+    .getResultGroupedBy(User_.city);
+```
+
+</TabItem>
+</Tabs>
+
+The SQL is not affected by the grouping: the same select is executed and the results are grouped during
+hydration, so the whole graph loads in a single query. Hydration does not pay for the duplication in the join
+result: repeated group records are materialized once and grouped by instance identity, not by comparing record
+fields. The returned map and its lists are unmodifiable and insertion-ordered; use `orderBy()` to control the
+order of groups and of results within each group. Because duplicate entities within a result set share the same
+instance, each result's reference to its group key is the map key itself.
+
+The where clause keeps its normal meaning: it filters the results, and a group appears only when at least one of
+its results matches. The path must resolve to a non-null record for every result; narrow queries over nullable
+foreign keys with a `where()` clause first. See [Relationships](relationships.md#one-to-many) for the
+one-to-many loading pattern.
+
+The ref-based variant `resultGroupedByRef` (Java: `getResultGroupedByRef`) returns `Map<Ref<V>, List<T>>`
+instead. Refs are compared by primary key, keeping map lookups constant-cost regardless of the size of the group
+record. For eagerly fetched entity paths the keys are loaded refs: `getOrNull()` returns the record the query
+already materialized, combining primary-key lookups with direct access to the data. The path may also reference
+a `Ref` field, in which case the group is taken directly from the foreign key without fetching the referenced
+record; such refs remain unloaded, and `findAllByRef(map.keys)` fetches them in a single query when needed:
+
+<Tabs groupId="language">
+<TabItem value="kotlin" label="Kotlin" default>
+
+```kotlin
+// Group visits by pet without fetching the pets
+val visitsByPet: Map<Ref<Pet>, List<Visit>> = orm.entity<Visit>()
+    .select()
+    .resultGroupedByRef(Visit_.pet)
+```
+
+</TabItem>
+<TabItem value="java" label="Java">
+
+```java
+// Group visits by pet without fetching the pets
+Map<Ref<Pet>, List<Visit>> visitsByPet = orm.entity(Visit.class)
+    .select()
+    .getResultGroupedByRef(Visit_.pet);
+```
+
+</TabItem>
+</Tabs>
+
+---
+
 ## Streaming
 
 <Tabs groupId="language">

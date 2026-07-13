@@ -19,7 +19,7 @@ class KeyDelegateTest {
         }
 
         @Override
-        public Object getValue(TestData record) {
+        public Integer getValue(TestData record) {
             return record.id();
         }
 
@@ -48,7 +48,7 @@ class KeyDelegateTest {
         }
 
         @Override
-        public Object getValue(TestData record) {
+        public Integer getValue(TestData record) {
             return record.id();
         }
 

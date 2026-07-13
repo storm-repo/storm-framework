@@ -161,6 +161,24 @@ class QueryBuilderImpl<T : Data, R, ID>(
         get() = core.getResultStream()
 
     /**
+     * Executes the query and returns the results grouped by the record reached via [path], in encounter order.
+     *
+     * @param path the metamodel path from the table type to the record to group by.
+     * @return the results grouped by the record reached via [path], in encounter order.
+     */
+    @Suppress("UNCHECKED_CAST")
+    override fun <V : Data> resultGroupedBy(path: TypedMetamodel<T, V, out V?>): Map<V, List<R>> = core.getResultGroupedBy(path as TypedMetamodel<T, V, V>)
+
+    /**
+     * Executes the query and returns the results grouped by a ref to the record reached via [path], in encounter
+     * order.
+     *
+     * @param path the metamodel path from the table type to the record to group by.
+     * @return the results grouped by a ref to the record reached via [path], in encounter order.
+     */
+    override fun <V : Data> resultGroupedByRef(path: Metamodel<T, V>): Map<Ref<V>, List<R>> = core.getResultGroupedByRef(path)
+
+    /**
      * Adds a cross join to the query.
      *
      * @param relation the relation to join.

@@ -22,6 +22,7 @@ import st.orm.Operator.*
 import st.orm.PersistenceException
 import st.orm.Ref
 import st.orm.Scrollable
+import st.orm.TypedMetamodel
 import st.orm.repository.entity
 import st.orm.template.model.*
 
@@ -2326,5 +2327,52 @@ open class QueryBuilderTest(
         val idPath = metamodel<City, Int>(repo.model, "id")
         val cities = repo.select().where(idPath.between(2, 4)).resultList
         cities shouldHaveSize 3
+    }
+
+    // resultGroupedBy tests
+
+    @Test
+    fun `resultGroupedBy should group pets by their owner in encounter order`() {
+        // data.sql: 12 pets have an owner (owners 3 and 6 have two pets each); pet 13 has none.
+        @Suppress("UNCHECKED_CAST")
+        val ownerPath = Metamodel.of<Pet, Owner>(Pet::class.java, "owner") as TypedMetamodel<Pet, Owner, Owner>
+        val groupedPets = orm.entity(Pet::class).select()
+            .whereId((1..12).toList())
+            .orderBy(ownerPath)
+            .resultGroupedBy(ownerPath)
+        groupedPets.size shouldBe 10
+        groupedPets.values.sumOf { it.size } shouldBe 12
+        groupedPets.keys.map { it.id }.zipWithNext().all { (previous, next) -> previous < next } shouldBe true
+        groupedPets.forEach { (owner, pets) ->
+            pets.forEach { pet -> (pet.owner === owner) shouldBe true }
+        }
+    }
+
+    @Test
+    fun `resultGroupedBy should fail when the path resolves to null`() {
+        // data.sql: pet 13 has no owner.
+        @Suppress("UNCHECKED_CAST")
+        val ownerPath = Metamodel.of<Pet, Owner>(Pet::class.java, "owner") as TypedMetamodel<Pet, Owner, Owner>
+        assertThrows<PersistenceException> {
+            orm.entity(Pet::class).select().resultGroupedBy(ownerPath)
+        }
+    }
+
+    @Test
+    fun `resultGroupedByRef should group pets by a ref to their owner`() {
+        // data.sql: 12 pets have an owner (owners 3 and 6 have two pets each); pet 13 has none.
+        val ownerPath: Metamodel<Pet, Owner> = Metamodel.of(Pet::class.java, "owner")
+        val groupedPets = orm.entity(Pet::class).select()
+            .whereId((1..12).toList())
+            .resultGroupedByRef(ownerPath)
+        groupedPets.size shouldBe 10
+        groupedPets.values.sumOf { it.size } shouldBe 12
+        groupedPets.forEach { (ownerRef, pets) ->
+            pets.forEach { pet ->
+                pet.owner?.id shouldBe ownerRef.id()
+                // Eager path: keys are loaded refs exposing the materialized record without a query.
+                (pet.owner === ownerRef.getOrNull()) shouldBe true
+            }
+        }
     }
 }
