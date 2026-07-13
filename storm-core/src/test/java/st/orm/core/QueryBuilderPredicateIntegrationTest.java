@@ -3,11 +3,13 @@ package st.orm.core;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static st.orm.Operator.EQUALS;
 import static st.orm.Operator.GREATER_THAN;
 import static st.orm.Operator.IN;
+import static st.orm.Operator.LESS_THAN;
 import static st.orm.core.template.TemplateString.raw;
 
 import java.util.List;
@@ -21,10 +23,13 @@ import org.springframework.test.context.junit.jupiter.SpringExtension;
 import st.orm.PersistenceException;
 import st.orm.Ref;
 import st.orm.Scrollable;
+import st.orm.TypedMetamodel;
 import st.orm.core.model.City;
 import st.orm.core.model.City_;
 import st.orm.core.model.Owner;
 import st.orm.core.model.Pet;
+import st.orm.core.model.PetOwnerRef;
+import st.orm.core.model.PetOwnerRef_;
 import st.orm.core.model.Pet_;
 import st.orm.core.model.Visit;
 import st.orm.core.model.Visit_;
@@ -542,5 +547,90 @@ public class QueryBuilderPredicateIntegrationTest {
                 .whereAny(predicate -> predicate.whereId(1).or(predicate.whereId(2)))
                 .getResultList();
         assertEquals(2, visits.size());
+    }
+
+    // QueryBuilder.getResultGroupedBy(path) - groups results by the record reached via the path.
+
+    @Test
+    public void testGetResultGroupedBy() {
+        var orm = ORMTemplate.of(dataSource);
+        var groupedPets = orm.selectFrom(Pet.class)
+                .where(Pet_.id, LESS_THAN, 13)   // Pet 13 has no owner.
+                .orderBy(Pet_.owner)
+                .getResultGroupedBy(Pet_.owner);
+        assertEquals(10, groupedPets.size());
+        assertEquals(12, groupedPets.values().stream().mapToInt(List::size).sum());
+        int previousOwnerId = 0;
+        for (var entry : groupedPets.entrySet()) {
+            Owner owner = entry.getKey();
+            assertTrue(owner.id() > previousOwnerId, "Owners must appear in encounter order.");
+            previousOwnerId = owner.id();
+            int expectedPets = owner.id() == 3 || owner.id() == 6 ? 2 : 1;
+            assertEquals(expectedPets, entry.getValue().size());
+            for (Pet pet : entry.getValue()) {
+                assertSame(owner, pet.owner(), "Grouped pets must share the owner instance of their map key.");
+            }
+        }
+    }
+
+    @Test
+    public void testGetResultGroupedByWithNullPath() {
+        var orm = ORMTemplate.of(dataSource);
+        var exception = assertThrows(PersistenceException.class, () -> orm.selectFrom(Pet.class)
+                .getResultGroupedBy(Pet_.owner));   // Pet 13 has no owner.
+        assertTrue(exception.getMessage().contains("resolved to null"));
+    }
+
+    @Test
+    public void testGetResultGroupedByWithRefPathFails() {
+        var orm = ORMTemplate.of(dataSource);
+        // Ref-mapped paths are rejected at compile time by the strict signature; the raw cast simulates a
+        // dynamically built path to exercise the runtime backstop.
+        @SuppressWarnings({"unchecked", "rawtypes"})
+        TypedMetamodel<PetOwnerRef, Owner, Owner> refPath = (TypedMetamodel) PetOwnerRef_.owner;
+        var exception = assertThrows(PersistenceException.class, () -> orm.selectFrom(PetOwnerRef.class)
+                .where(PetOwnerRef_.id, LESS_THAN, 13)
+                .getResultGroupedBy(refPath));
+        assertTrue(exception.getMessage().contains("getResultGroupedByRef"));
+    }
+
+    // QueryBuilder.getResultGroupedByRef(path) - groups results by a ref to the record reached via the path.
+
+    @Test
+    public void testGetResultGroupedByRefWithEagerPath() {
+        var orm = ORMTemplate.of(dataSource);
+        var groupedPets = orm.selectFrom(Pet.class)
+                .where(Pet_.id, LESS_THAN, 13)   // Pet 13 has no owner.
+                .orderBy(Pet_.owner)
+                .getResultGroupedByRef(Pet_.owner);
+        assertEquals(10, groupedPets.size());
+        assertEquals(12, groupedPets.values().stream().mapToInt(List::size).sum());
+        for (var entry : groupedPets.entrySet()) {
+            for (Pet pet : entry.getValue()) {
+                assertEquals(entry.getKey().id(), pet.owner().id());
+                // Eager path: keys are loaded refs exposing the materialized record without a query.
+                assertSame(pet.owner(), entry.getKey().getOrNull());
+            }
+        }
+        // Refs compare by primary key, so lookups work with any ref for the same entity.
+        assertEquals(2, groupedPets.get(Ref.of(Owner.class, 3)).size());
+        // The map and its lists are unmodifiable.
+        assertThrows(UnsupportedOperationException.class, groupedPets::clear);
+        assertThrows(UnsupportedOperationException.class, () -> groupedPets.firstEntry().getValue().removeFirst());
+    }
+
+    @Test
+    public void testGetResultGroupedByRefWithRefPath() {
+        var orm = ORMTemplate.of(dataSource);
+        var groupedPets = orm.selectFrom(PetOwnerRef.class)
+                .where(PetOwnerRef_.id, LESS_THAN, 13)   // Pet 13 has no owner.
+                .getResultGroupedByRef(PetOwnerRef_.owner);   // Ref path: owners are not fetched.
+        assertEquals(10, groupedPets.size());
+        assertEquals(12, groupedPets.values().stream().mapToInt(List::size).sum());
+        for (var entry : groupedPets.entrySet()) {
+            for (PetOwnerRef pet : entry.getValue()) {
+                assertEquals(entry.getKey(), pet.owner());
+            }
+        }
     }
 }

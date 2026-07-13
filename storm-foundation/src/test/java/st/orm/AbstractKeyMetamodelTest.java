@@ -32,7 +32,7 @@ class AbstractKeyMetamodelTest {
         }
 
         @Override
-        public Object getValue(TestData record) {
+        public Integer getValue(TestData record) {
             return record.id();
         }
 

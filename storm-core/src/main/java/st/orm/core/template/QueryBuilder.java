@@ -24,11 +24,19 @@ import static st.orm.core.template.TemplateString.wrap;
 
 import jakarta.annotation.Nonnull;
 import jakarta.annotation.Nullable;
+import java.util.AbstractList;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.IdentityHashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Optional;
+import java.util.RandomAccess;
+import java.util.SequencedMap;
 import java.util.function.Function;
 import java.util.stream.Stream;
 import st.orm.Data;
+import st.orm.Entity;
 import st.orm.JoinType;
 import st.orm.Metamodel;
 import st.orm.NoResultException;
@@ -39,6 +47,7 @@ import st.orm.Pageable;
 import st.orm.PersistenceException;
 import st.orm.Ref;
 import st.orm.Scrollable;
+import st.orm.TypedMetamodel;
 import st.orm.Window;
 import st.orm.core.template.impl.Elements.ObjectExpression;
 
@@ -937,6 +946,183 @@ public abstract class QueryBuilder<T extends Data, R, ID> {
     public final List<R> getResultList() {
         try (var stream = getResultStream()) {
             return stream.toList();
+        }
+    }
+
+    /**
+     * Executes the query and returns the results grouped by the record reached via {@code path}, typically the
+     * parent entity of a foreign key. The SQL is not affected by the grouping; the same select is executed and the
+     * results are grouped during hydration.
+     *
+     * <p>The returned map and its lists are unmodifiable and insertion-ordered: groups appear in the order their
+     * first result is encountered, and results appear in encounter order within each group. Use {@code orderBy()} to
+     * control both. Since duplicate entities within a result set share the same instance, each result's reference to
+     * its group key is the map key itself.</p>
+     *
+     * <p>This method requires an entity query: the result type must be the table type {@code T} so that the path can
+     * be resolved against the results. The path must also resolve to a non-null record for every result; paths over
+     * nullable foreign keys must be narrowed with a {@code where()} clause first.</p>
+     *
+     * <p>The signature requires a path whose component type equals its field type, which is how the generated
+     * metamodels type eagerly fetched fields. Paths over {@code Ref} fields are typed
+     * {@code TypedMetamodel<T, V, Ref<V>>} and therefore do not compile; use
+     * {@link #getResultGroupedByRef(Metamodel)} for those.</p>
+     *
+     * @param path the metamodel path from the table type to the record to group by, for example {@code Pet_.owner}.
+     * @param <V> the type of the record to group by.
+     * @return the results grouped by the record reached via {@code path}, in encounter order.
+     * @throws PersistenceException if the query fails, if the result type is not the table type, or if the path
+     *                              resolves to null for a result.
+     * @since 1.13
+     */
+    public final <V extends Data> SequencedMap<V, List<R>> getResultGroupedBy(@Nonnull TypedMetamodel<T, V, V> path) {
+        requireNonNull(path, "path");
+        try (var stream = getResultStream()) {
+            // Duplicate records within a result set share the same instance (query-scoped interning), so the per-row
+            // lookup can use reference identity instead of hashing every field of the group record. The identity map
+            // carries no order and no value semantics; both are restored during assembly below.
+            var groups = new IdentityHashMap<V, Group<R>>();
+            var order = new ArrayList<V>();
+            stream.forEach(element -> {
+                if (!path.root().isInstance(element)) {
+                    throw new PersistenceException(
+                            "Grouped results require an entity query rooted at %s, but got a result of type %s."
+                                    .formatted(path.root().getName(),
+                                            element == null ? "null" : element.getClass().getName()));
+                }
+                // Object intermediate on purpose: assigning the typed return directly would insert a checkcast to
+                // V's bound and fail with a bare ClassCastException for dynamically built ref paths, bypassing the
+                // descriptive backstop below.
+                //noinspection unchecked
+                Object value = path.getValue((T) element);
+                if (value == null) {
+                    throw new PersistenceException(
+                            "Cannot group by %s: the path resolved to null. Narrow the query with a where() clause to exclude results without a %s."
+                                    .formatted(path, path.fieldType().getSimpleName()));
+                }
+                if (value instanceof Ref<?>) {
+                    throw new PersistenceException(
+                            "Cannot group by %s: the path resolves to a ref because %s is mapped as a Ref field. Use getResultGroupedByRef() instead."
+                                    .formatted(path, path.fieldType().getSimpleName()));
+                }
+                //noinspection unchecked
+                V group = (V) value;
+                var elements = groups.get(group);
+                if (elements == null) {
+                    elements = new Group<>();
+                    groups.put(group, elements);
+                    order.add(group);
+                }
+                elements.elements.add(element);
+            });
+            // Assembly hashes each distinct group once; equal-by-value groups merge, so the result is correct even
+            // for records that were not interned. The group count is known here, so the map is allocated at its
+            // final size. The values are unmodifiable views over the lists built above, so no copy or re-wrapping
+            // is needed.
+            var result = LinkedHashMap.<V, List<R>>newLinkedHashMap(order.size());
+            for (V group : order) {
+                var elements = groups.get(group);
+                var existing = result.putIfAbsent(group, elements);
+                if (existing != null) {
+                    ((Group<R>) existing).elements.addAll(elements);
+                }
+            }
+            return Collections.unmodifiableSequencedMap(result);
+        }
+    }
+
+    /**
+     * Executes the query and returns the results grouped by a lightweight ref to the record reached via
+     * {@code path}, typically the parent entity of a foreign key. The SQL is not affected by the grouping; the same
+     * select is executed and the results are grouped during hydration.
+     *
+     * <p>This is the ref-based variant of {@link #getResultGroupedBy(TypedMetamodel)}: the map keys are {@link Ref}
+     * instances, which are compared by primary key, keeping map lookups constant-cost regardless of the size of the
+     * group record.</p>
+     *
+     * <p>The behavior of the keys follows how the foreign key is declared on the record:</p>
+     * <ul>
+     *   <li><strong>Entity field</strong> (for example {@code @FK Owner owner}): the referenced record is fetched
+     *       eagerly, as part of the query's auto-joined graph, and is materialized with each result. The keys are
+     *       <em>loaded</em> refs wrapping that record: {@link Ref#getOrNull()} returns it directly, without touching
+     *       the database.</li>
+     *   <li><strong>Ref field</strong> (for example {@code @FK Ref<Pet> pet}): the referenced record is fetched
+     *       lazily; the query reads only the foreign key column, without joining or fetching the referenced table.
+     *       The keys are the <em>unloaded</em> refs produced by the query, carrying just the primary key. When the
+     *       records are needed, fetch them afterwards in a single query with
+     *       {@code findAllByRef(map.keySet())}.</li>
+     * </ul>
+     *
+     * <p>The returned map and its lists are unmodifiable and insertion-ordered: groups appear in the order their
+     * first result is encountered, and results appear in encounter order within each group. Use {@code orderBy()} to
+     * control both.</p>
+     *
+     * <p>This method requires an entity query: the result type must be the table type {@code T} so that the path can
+     * be resolved against the results. The path must also resolve to a non-null value for every result; paths over
+     * nullable foreign keys must be narrowed with a {@code where()} clause first.</p>
+     *
+     * @param path the metamodel path from the table type to the record to group by, for example {@code Pet_.owner}.
+     * @param <V> the type of the record to group by.
+     * @return the results grouped by a ref to the record reached via {@code path}, in encounter order.
+     * @throws PersistenceException if the query fails, if the result type is not the table type, if the path does
+     *                              not reference an entity or ref, or if the path resolves to null for a result.
+     * @since 1.13
+     */
+    public final <V extends Data> SequencedMap<Ref<V>, List<R>> getResultGroupedByRef(@Nonnull Metamodel<T, V> path) {
+        requireNonNull(path, "path");
+        try (var stream = getResultStream()) {
+            // Refs hash and compare by primary key, so the grouping map is cheap without an identity-based fast path.
+            // The values are unmodifiable views appended through their backing lists, so no copy or re-wrapping is
+            // needed when the result is returned.
+            var groups = new LinkedHashMap<Ref<V>, List<R>>();
+            stream.forEach(element -> {
+                if (!path.root().isInstance(element)) {
+                    throw new PersistenceException(
+                            "Grouped results require an entity query rooted at %s, but got a result of type %s."
+                                    .formatted(path.root().getName(),
+                                            element == null ? "null" : element.getClass().getName()));
+                }
+                //noinspection unchecked
+                Object value = path.getValue((T) element);
+                if (value == null) {
+                    throw new PersistenceException(
+                            "Cannot group by %s: the path resolved to null. Narrow the query with a where() clause to exclude results without a %s."
+                                    .formatted(path, path.fieldType().getSimpleName()));
+                }
+                Ref<V> group;
+                if (value instanceof Ref<?> ref) {
+                    //noinspection unchecked
+                    group = (Ref<V>) ref;
+                } else if (value instanceof Entity<?> entity) {
+                    //noinspection unchecked
+                    group = (Ref<V>) Ref.of(entity);
+                } else {
+                    throw new PersistenceException(
+                            "Cannot group by ref at %s: the path must reference an entity or a ref, but resolved to %s."
+                                    .formatted(path, value.getClass().getName()));
+                }
+                ((Group<R>) groups.computeIfAbsent(group, ignore -> new Group<>())).elements.add(element);
+            });
+            return Collections.unmodifiableSequencedMap(groups);
+        }
+    }
+
+    /**
+     * Unmodifiable list view over a group's elements. The grouping terminals append through {@link #elements} while
+     * building, so the map values are unmodifiable from the start and require no copy or re-wrapping when the result
+     * is returned.
+     */
+    private static final class Group<R> extends AbstractList<R> implements RandomAccess {
+        final ArrayList<R> elements = new ArrayList<>();
+
+        @Override
+        public R get(int index) {
+            return elements.get(index);
+        }
+
+        @Override
+        public int size() {
+            return elements.size();
         }
     }
 

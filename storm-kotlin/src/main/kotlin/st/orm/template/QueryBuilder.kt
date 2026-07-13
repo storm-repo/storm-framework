@@ -1061,6 +1061,82 @@ abstract class QueryBuilder<T : Data, R, ID> {
             }
         }
 
+    /**
+     * Executes the query and returns the results grouped by the record reached via [path], typically the parent
+     * entity of a foreign key:
+     *
+     * ```kotlin
+     * val ownersWithPets: Map<Owner, List<Pet>> = orm.entity<Pet>()
+     *     .select()
+     *     .where(Pet_.owner.city eq city)
+     *     .orderBy(Pet_.owner)
+     *     .resultGroupedBy(Pet_.owner)
+     * ```
+     *
+     * The SQL is not affected by the grouping; the same select is executed and the results are grouped during
+     * hydration. The returned map and its lists are unmodifiable and insertion-ordered: groups appear in the order
+     * their first result is encountered, and results appear in encounter order within each group. Use `orderBy()` to
+     * control both. Since duplicate entities within a result set share the same instance, each result's reference to
+     * its group key is the map key itself.
+     *
+     * This method requires an entity query: the result type must be the table type `T` so that the path can be
+     * resolved against the results. The path must also resolve to a non-null record for every result; paths over
+     * nullable foreign keys must be narrowed with a `where()` clause first.
+     *
+     * The signature requires a path whose component type equals its field type, which is how the generated
+     * metamodels type eagerly fetched fields. Paths over `Ref` fields are typed
+     * `TypedMetamodel<T, V, Ref<V>>` and therefore do not compile; use [resultGroupedByRef] for those.
+     *
+     * @param path the metamodel path from the table type to the record to group by, for example `Pet_.owner`.
+     * @param V the type of the record to group by.
+     * @return the results grouped by the record reached via [path], in encounter order.
+     * @throws PersistenceException if the query fails, if the result type is not the table type, or if the path
+     * resolves to null for a result.
+     * @since 1.13
+     */
+    abstract fun <V : Data> resultGroupedBy(path: TypedMetamodel<T, V, out V?>): Map<V, List<R>>
+
+    /**
+     * Executes the query and returns the results grouped by a lightweight ref to the record reached via [path],
+     * typically the parent entity of a foreign key.
+     *
+     * This is the ref-based variant of [resultGroupedBy]: the map keys are [Ref] instances, which are compared by
+     * primary key, keeping map lookups constant-cost regardless of the size of the group record.
+     *
+     * The behavior of the keys follows how the foreign key is declared on the record:
+     *
+     * - **Entity field** (for example `@FK val owner: Owner`): the referenced record is fetched eagerly, as part
+     *   of the query's auto-joined graph, and is materialized with each result. The keys are *loaded* refs
+     *   wrapping that record: [Ref.getOrNull] returns it directly, without touching the database.
+     * - **Ref field** (for example `@FK val pet: Ref<Pet>`): the referenced record is fetched lazily; the query
+     *   reads only the foreign key column, without joining or fetching the referenced table. The keys are the
+     *   *unloaded* refs produced by the query, carrying just the primary key. When the records are needed, fetch
+     *   them afterwards in a single query with `findAllByRef(map.keys)`:
+     *
+     * ```kotlin
+     * val visitsByPet: Map<Ref<Pet>, List<Visit>> = orm.entity<Visit>()
+     *     .select()
+     *     .resultGroupedByRef(Visit_.pet)
+     * ```
+     *
+     * The SQL is not affected by the grouping; the same select is executed and the results are grouped during
+     * hydration. The returned map and its lists are unmodifiable and insertion-ordered: groups appear in the order
+     * their first result is encountered, and results appear in encounter order within each group. Use `orderBy()` to
+     * control both.
+     *
+     * This method requires an entity query: the result type must be the table type `T` so that the path can be
+     * resolved against the results. The path must also resolve to a non-null value for every result; paths over
+     * nullable foreign keys must be narrowed with a `where()` clause first.
+     *
+     * @param path the metamodel path from the table type to the record to group by, for example `Visit_.pet`.
+     * @param V the type of the record to group by.
+     * @return the results grouped by a ref to the record reached via [path], in encounter order.
+     * @throws PersistenceException if the query fails, if the result type is not the table type, if the path does
+     * not reference an entity or ref, or if the path resolves to null for a result.
+     * @since 1.13
+     */
+    abstract fun <V : Data> resultGroupedByRef(path: Metamodel<T, V>): Map<Ref<V>, List<R>>
+
     val singleResult: R
         /**
          * Executes the query and returns a single result.
