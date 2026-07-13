@@ -42,12 +42,13 @@ final class MonitoredResource {
     }
 
     private static <T extends AutoCloseable> T wrap(@Nonnull T resource, AtomicInteger openCount) {
-        Exception createStackTrace = new Exception("Create stack trace");
+        // Capturing the creation stack trace is expensive; only do so when debug logging is enabled.
+        Exception createStackTrace = LOGGER.isDebugEnabled() ? new Exception("Create stack trace") : null;
         openCount.getAndIncrement();
         var cleanable = new AtomicReference<Cleanable>();
         //noinspection unchecked
         T proxy = (T) Proxy.newProxyInstance(resource.getClass().getClassLoader(),
-                getInterfaces(resource.getClass()), (p, method, args) -> {
+                INTERFACES.get(resource.getClass()), (p, method, args) -> {
                     if (method.getName().equals("close")) {
                         // We can safely use plain mode here.
                         openCount.setPlain(-1);
@@ -72,7 +73,11 @@ final class MonitoredResource {
             // invoked by the garbage collector. It will be invoked at most once.
             int count = openCount.decrementAndGet();
             if (count == 0) {
-                LOGGER.warn("Resource was not closed properly.", createStackTrace);
+                if (createStackTrace != null) {
+                    LOGGER.warn("Resource was not closed properly.", createStackTrace);
+                } else {
+                    LOGGER.warn("Resource was not closed properly. Enable debug logging for 'st.orm.resource' to capture creation stack traces.");
+                }
             }
             if (count <= 0) {
                 try {
@@ -88,13 +93,17 @@ final class MonitoredResource {
         return proxy;
     }
 
-    private static Class<?>[] getInterfaces(Class<?> clazz) {
-        Set<Class<?>> allInterfaces = new HashSet<>();
-        Class<?> current = clazz;
-        while (current != null) {
-            allInterfaces.addAll(Arrays.asList(current.getInterfaces()));
-            current = current.getSuperclass();
+    /** Interface arrays per class; the walk is only performed once per resource type. */
+    private static final ClassValue<Class<?>[]> INTERFACES = new ClassValue<>() {
+        @Override
+        protected Class<?>[] computeValue(@Nonnull Class<?> clazz) {
+            Set<Class<?>> allInterfaces = new HashSet<>();
+            Class<?> current = clazz;
+            while (current != null) {
+                allInterfaces.addAll(Arrays.asList(current.getInterfaces()));
+                current = current.getSuperclass();
+            }
+            return allInterfaces.toArray(new Class<?>[0]);
         }
-        return allInterfaces.toArray(new Class<?>[0]);
-    }
+    };
 }

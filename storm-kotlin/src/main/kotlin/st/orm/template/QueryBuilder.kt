@@ -1048,7 +1048,7 @@ abstract class QueryBuilder<T : Data, R, ID> {
             }
         }
 
-    val resultList: List<R>
+    open val resultList: List<R>
         /**
          * Executes the query and returns a list of results.
          *
@@ -1137,7 +1137,7 @@ abstract class QueryBuilder<T : Data, R, ID> {
      */
     abstract fun <V : Data> resultGroupedByRef(path: Metamodel<T, V>): Map<Ref<V>, List<R>>
 
-    val singleResult: R
+    open val singleResult: R
         /**
          * Executes the query and returns a single result.
          *
@@ -1163,7 +1163,7 @@ abstract class QueryBuilder<T : Data, R, ID> {
             }
         }
 
-    val optionalResult: R?
+    open val optionalResult: R?
         /**
          * Executes the query and returns an optional result.
          *

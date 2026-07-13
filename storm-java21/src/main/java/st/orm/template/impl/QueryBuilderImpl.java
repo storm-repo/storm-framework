@@ -23,6 +23,8 @@ import static st.orm.JoinType.right;
 import static st.orm.template.impl.StringTemplates.convert;
 
 import jakarta.annotation.Nonnull;
+import java.util.List;
+import java.util.Optional;
 import java.util.function.Function;
 import java.util.stream.Stream;
 import st.orm.Data;
@@ -221,6 +223,35 @@ public final class QueryBuilderImpl<T extends Data, R, ID> extends QueryBuilder<
     @Override
     public Stream<R> getResultStream() {
         return core.getResultStream();
+    }
+
+    /**
+     * Eager terminals delegate to the core builder, which executes them without the fetch-size hint, avoiding
+     * transaction wrapping for eagerly consumed results.
+     */
+    @Override
+    public List<R> getResultList() {
+        return core.getResultList();
+    }
+
+    @Override
+    public R getSingleResult() {
+        return core.getSingleResult();
+    }
+
+    @Override
+    public Optional<R> getOptionalResult() {
+        return core.getOptionalResult();
+    }
+
+    @Override
+    public <V extends st.orm.Data> java.util.SequencedMap<V, List<R>> getResultGroupedBy(@Nonnull st.orm.TypedMetamodel<T, V, V> path) {
+        return core.getResultGroupedBy(path);
+    }
+
+    @Override
+    public <V extends st.orm.Data> java.util.SequencedMap<st.orm.Ref<V>, List<R>> getResultGroupedByRef(@Nonnull st.orm.Metamodel<T, V> path) {
+        return core.getResultGroupedByRef(path);
     }
 
     /**
