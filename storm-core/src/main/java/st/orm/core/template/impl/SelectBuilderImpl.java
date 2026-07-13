@@ -338,7 +338,19 @@ public class SelectBuilderImpl<T extends Data, R, ID> extends QueryBuilderImpl<T
      */
     @Override
     public Stream<R> getResultStream() {
-        Query query = build();
+        return getResultStream(build());
+    }
+
+    /**
+     * Executes without the fetch-size hint: eagerly consumed results gain nothing from cursor-based fetching, and
+     * on dialects where cursors require a transaction this avoids wrapping auto-commit queries in a transaction.
+     */
+    @Override
+    protected Stream<R> getMaterializedResultStream() {
+        return getResultStream(build().withoutFetchSize());
+    }
+
+    private Stream<R> getResultStream(@Nonnull Query query) {
         if (refType != null) {
             assert pkType != null : "Primary key type must be specified for ref queries.";
             //noinspection unchecked

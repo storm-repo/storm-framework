@@ -32,6 +32,22 @@ import st.orm.Ref;
 public interface Query {
 
     /**
+     * Returns a query that executes without a fetch-size hint, intended for results that are consumed eagerly and
+     * fully, such as {@code getResultList()} and {@code getSingleResult()}.
+     *
+     * <p>On dialects where cursor-based fetching requires a transaction, the fetch-size hint
+     * causes queries on auto-commit connections to be wrapped in a transaction, adding round trips. Eagerly consumed
+     * results gain nothing from cursor-based fetching, so executing them without the hint avoids that cost. Lazily
+     * consumed streams should keep the fetch-size hint to bound memory usage.</p>
+     *
+     * @return a query without a fetch-size hint; may return {@code this} if no hint is configured.
+     * @since 1.13
+     */
+    default Query withoutFetchSize() {
+        return this;
+    }
+
+    /**
      * Prepares the query for execution.
      *
      * <p>Queries are normally constructed in a lazy fashion, unlike prepared queries which are constructed eagerly.

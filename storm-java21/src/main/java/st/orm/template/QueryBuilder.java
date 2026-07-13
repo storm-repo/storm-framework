@@ -833,6 +833,26 @@ public abstract class QueryBuilder<T extends Data, R, ID> {
     public abstract Stream<R> getResultStream();
 
     /**
+     * Executes the query and returns a stream of results for eager, full consumption.
+     *
+     * <p>Unlike {@link #getResultStream()}, implementations may execute without a fetch-size hint, since eagerly
+     * consumed results gain nothing from cursor-based fetching. On dialects where cursors require a
+     * transaction, this avoids wrapping auto-commit queries in a transaction. The eager terminal
+     * operations, such as {@link #getResultList()} and {@link #getSingleResult()}, consume this stream.</p>
+     *
+     * <p>The same resource-handling rules as {@link #getResultStream()} apply: close the stream after usage,
+     * preferably with a {@code try-with-resources} block.</p>
+     *
+     * @return a stream of results for eager consumption.
+     * @throws PersistenceException if the query operation fails due to underlying database issues, such as
+     *                              connectivity.
+     * @since 1.13
+     */
+    protected Stream<R> getMaterializedResultStream() {
+        return getResultStream();
+    }
+
+    /**
      * Returns the number of results of this query.
      *
      * @return the total number of results of this query as a long value.
@@ -851,8 +871,8 @@ public abstract class QueryBuilder<T extends Data, R, ID> {
      * @return the list of results.
      * @throws PersistenceException if the query fails.
      */
-    public final List<R> getResultList() {
-        try (var stream = getResultStream()) {
+    public List<R> getResultList() {
+        try (var stream = getMaterializedResultStream()) {
             return stream.toList();
         }
     }
@@ -884,9 +904,9 @@ public abstract class QueryBuilder<T extends Data, R, ID> {
      *                              resolves to null for a result.
      * @since 1.13
      */
-    public final <V extends Data> SequencedMap<V, List<R>> getResultGroupedBy(@Nonnull TypedMetamodel<T, V, V> path) {
+    public <V extends Data> SequencedMap<V, List<R>> getResultGroupedBy(@Nonnull TypedMetamodel<T, V, V> path) {
         requireNonNull(path, "path");
-        try (var stream = getResultStream()) {
+        try (var stream = getMaterializedResultStream()) {
             // Duplicate records within a result set share the same instance (query-scoped interning), so the per-row
             // lookup can use reference identity instead of hashing every field of the group record. The identity map
             // carries no order and no value semantics; both are restored during assembly below.
@@ -977,9 +997,9 @@ public abstract class QueryBuilder<T extends Data, R, ID> {
      *                              not reference an entity or ref, or if the path resolves to null for a result.
      * @since 1.13
      */
-    public final <V extends Data> SequencedMap<Ref<V>, List<R>> getResultGroupedByRef(@Nonnull Metamodel<T, V> path) {
+    public <V extends Data> SequencedMap<Ref<V>, List<R>> getResultGroupedByRef(@Nonnull Metamodel<T, V> path) {
         requireNonNull(path, "path");
-        try (var stream = getResultStream()) {
+        try (var stream = getMaterializedResultStream()) {
             // Refs hash and compare by primary key, so the grouping map is cheap without an identity-based fast path.
             // The values are unmodifiable views appended through their backing lists, so no copy or re-wrapping is
             // needed when the result is returned.
@@ -1043,8 +1063,8 @@ public abstract class QueryBuilder<T extends Data, R, ID> {
      * @throws NonUniqueResultException if more than one result.
      * @throws PersistenceException if the query fails.
      */
-    public final R getSingleResult() {
-        try (var stream = getResultStream()) {
+    public R getSingleResult() {
+        try (var stream = getMaterializedResultStream()) {
             return stream
                     .reduce((_, _) -> {
                         throw new NonUniqueResultException("Expected single result, but found more than one.");
@@ -1059,8 +1079,8 @@ public abstract class QueryBuilder<T extends Data, R, ID> {
      * @throws NonUniqueResultException if more than one result.
      * @throws PersistenceException if the query fails.
      */
-    public final Optional<R> getOptionalResult() {
-        try (var stream = getResultStream()) {
+    public Optional<R> getOptionalResult() {
+        try (var stream = getMaterializedResultStream()) {
             return stream.reduce((_, _) -> {
                 throw new NonUniqueResultException("Expected single result, but found more than one.");
             });

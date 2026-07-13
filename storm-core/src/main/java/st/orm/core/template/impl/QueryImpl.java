@@ -158,7 +158,11 @@ class QueryImpl implements Query {
         return new QueryImpl(environment, statement, bindVarsHandle, affectedType, versionAware, managed, true, defaultFetchSize, streamOnlyFetchSize, streamingRequiresTransaction);
     }
 
-    private QueryImpl withoutFetchSize() {
+    @Override
+    public QueryImpl withoutFetchSize() {
+        if (defaultFetchSize == 0) {
+            return this;
+        }
         return new QueryImpl(environment, statement, bindVarsHandle, affectedType, versionAware, managed, unsafe, 0, false, false);
     }
 
@@ -213,7 +217,12 @@ class QueryImpl implements Query {
      */
     private Observation observe(@Nonnull ExecutionKind kind) {
         try {
-            return environment.queryObserver().onExecute(
+            var queryObserver = environment.queryObserver();
+            if (queryObserver == QueryObserver.NOOP) {
+                // Fast path: skip context creation when nothing is observing.
+                return Observation.NOOP;
+            }
+            return queryObserver.onExecute(
                     new QueryContextImpl(environment.operation(), environment.dataType(), kind, environment.statementText()));
         } catch (Throwable ignore) {
             return Observation.NOOP;

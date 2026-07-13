@@ -142,7 +142,13 @@ public interface QueryObserver {
      *
      * @return the no-op query observer.
      */
+    /**
+     * Observer that ignores all executions. Exposed as a constant so hot paths can skip context creation with an
+     * identity check.
+     */
+    QueryObserver NOOP = context -> Observation.NOOP;
+
     static QueryObserver noop() {
-        return context -> Observation.NOOP;
+        return NOOP;
     }
 }

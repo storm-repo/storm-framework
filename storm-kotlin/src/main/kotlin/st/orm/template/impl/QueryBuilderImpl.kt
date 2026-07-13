@@ -160,6 +160,19 @@ class QueryBuilderImpl<T : Data, R, ID>(
          */
         get() = core.getResultStream()
 
+    override val resultList: List<R>
+        /**
+         * Eager terminals delegate to the core builder, which executes them without the fetch-size hint,
+         * avoiding transaction wrapping for eagerly consumed results.
+         */
+        get() = core.resultList
+
+    override val singleResult: R
+        get() = core.singleResult
+
+    override val optionalResult: R?
+        get() = core.optionalResult.orElse(null)
+
     /**
      * Executes the query and returns the results grouped by the record reached via [path], in encounter order.
      *

@@ -203,6 +203,21 @@ public class PostgreSQLSqlDialect extends DefaultSqlDialect implements SqlDialec
     }
 
     /**
+     * Returns {@code true} so the fetch size only applies to streaming result consumption.
+     *
+     * <p>Cursor-based fetching requires a transaction on PostgreSQL, so applying the fetch size to eagerly
+     * consumed results would wrap every auto-commit query in a transaction, adding round trips without any
+     * benefit: eager methods materialize the full result either way.</p>
+     *
+     * @return {@code true}.
+     * @since 1.13
+     */
+    @Override
+    public boolean streamOnlyFetchSize() {
+        return true;
+    }
+
+    /**
      * Returns {@code true} because the PostgreSQL JDBC driver requires the connection to be in non-auto-commit
      * mode for the fetch size hint to activate cursor-based result batching. When auto-commit is enabled, the
      * driver silently ignores the fetch size and buffers the entire result set in memory.
