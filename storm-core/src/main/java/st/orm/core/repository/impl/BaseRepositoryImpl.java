@@ -409,7 +409,7 @@ abstract class BaseRepositoryImpl<E extends Data, ID> implements Repository {
      *         problems or invalid input parameters.
      */
     public List<E> findAllById(@Nonnull Iterable<ID> ids) {
-        try (var stream = selectById(toStream(ids))) {
+        try (var stream = selectByIdMaterialized(toStream(ids))) {
             return stream.toList();
         }
     }
@@ -432,9 +432,36 @@ abstract class BaseRepositoryImpl<E extends Data, ID> implements Repository {
      *         problems or invalid input parameters.
      */
     public List<E> findAllByRef(@Nonnull Iterable<Ref<E>> refs) {
-        try (var stream = selectByRef(toStream(refs))) {
+        try (var stream = selectByRefMaterialized(toStream(refs))) {
             return stream.toList();
         }
+    }
+
+    /**
+     * Streams entities by id in batches, materializing each batch without the fetch-size hint.
+     *
+     * <p>Backs {@link #findAllById(Iterable)}, which buffers the full result anyway. Cursor-based fetching would only
+     * add overhead here, wrapping each batch in a transaction on dialects where cursors require one. Unlike
+     * {@link #selectById(Stream)} this does not stream rows within a batch, so it is kept private rather than exposed
+     * as a lazy API.</p>
+     *
+     * @param ids a stream of entity IDs to retrieve from the repository.
+     * @return a stream of entities, materialized one batch at a time.
+     */
+    private Stream<E> selectByIdMaterialized(@Nonnull Stream<ID> ids) {
+        return chunked(ids, getDefaultChunkSize(), batch -> select().whereId(batch).getResultList().stream());
+    }
+
+    /**
+     * Streams entities by ref in batches, materializing each batch without the fetch-size hint.
+     *
+     * <p>The ref counterpart to {@link #selectByIdMaterialized(Stream)}, backing {@link #findAllByRef(Iterable)}.</p>
+     *
+     * @param refs a stream of refs to retrieve from the repository.
+     * @return a stream of entities, materialized one batch at a time.
+     */
+    private Stream<E> selectByRefMaterialized(@Nonnull Stream<Ref<E>> refs) {
+        return chunked(refs, getDefaultChunkSize(), batch -> select().whereRef(batch).getResultList().stream());
     }
 
     // Stream based methods. These methods operate in multiple batches.
