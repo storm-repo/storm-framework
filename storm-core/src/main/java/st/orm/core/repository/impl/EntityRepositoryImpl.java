@@ -32,6 +32,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
+import java.util.function.Function;
 import java.util.stream.IntStream;
 import java.util.stream.Stream;
 import org.slf4j.Logger;
@@ -778,6 +779,71 @@ public class EntityRepositoryImpl<E extends Entity<ID>, ID>
             }
         }
         return super.getByRef(ref);
+    }
+
+    /**
+     * Partitions a batch into cached entities and uncached items, fetching the uncached remainder with the given
+     * function. Shared by the cache-aware batch select variants.
+     */
+    private <X> Stream<E> partitionByCache(@Nonnull EntityCache<E, ID> entityCache,
+                                           @Nonnull List<X> batch,
+                                           @Nonnull Function<X, ID> idOf,
+                                           @Nonnull Function<List<X>, Stream<E>> fetchUncached) {
+        List<E> cached = new ArrayList<>();
+        List<X> uncached = new ArrayList<>();
+        for (X item : batch) {
+            Optional<E> cachedEntity = entityCache.get(idOf.apply(item));
+            if (cachedEntity.isPresent()) {
+                cached.add(cachedEntity.get());
+            } else {
+                uncached.add(item);
+            }
+        }
+        if (uncached.isEmpty()) {
+            return cached.stream();
+        }
+        return Stream.concat(cached.stream(), fetchUncached.apply(uncached));
+    }
+
+    /**
+     * {@inheritDoc}
+     *
+     * <p>This implementation partitions IDs into cached and uncached (when isolation is REPEATABLE_READ or higher),
+     * returning cached entities immediately and only querying the database for uncached IDs.</p>
+     */
+    @Override
+    protected Stream<E> selectByIdMaterialized(@Nonnull Stream<ID> ids) {
+        if (!isRepeatableRead()) {
+            return super.selectByIdMaterialized(ids);
+        }
+        var cache = entityCache();
+        if (cache.isEmpty()) {
+            return super.selectByIdMaterialized(ids);
+        }
+        EntityCache<E, ID> entityCache = cache.get();
+        return chunked(ids, getDefaultChunkSize(), batch -> partitionByCache(entityCache, batch,
+                Function.identity(), uncached -> select().whereId(uncached).getResultList().stream()));
+    }
+
+    /**
+     * {@inheritDoc}
+     *
+     * <p>This implementation partitions refs into cached and uncached (when isolation is REPEATABLE_READ or higher),
+     * returning cached entities immediately and only querying the database for uncached refs.</p>
+     */
+    @Override
+    @SuppressWarnings("unchecked")
+    protected Stream<E> selectByRefMaterialized(@Nonnull Stream<Ref<E>> refs) {
+        if (!isRepeatableRead()) {
+            return super.selectByRefMaterialized(refs);
+        }
+        var cache = entityCache();
+        if (cache.isEmpty()) {
+            return super.selectByRefMaterialized(refs);
+        }
+        EntityCache<E, ID> entityCache = cache.get();
+        return chunked(refs, getDefaultChunkSize(), batch -> partitionByCache(entityCache, batch,
+                ref -> (ID) ref.id(), uncached -> select().whereRef(uncached).getResultList().stream()));
     }
 
     /**

@@ -438,10 +438,9 @@ public final class JdbcTransactionContext implements TransactionContext {
             state.savepoint = savepoint;
             state.ownsConnection = false;
             // Share caches since this is the same JDBC connection/transaction. If we roll back to this
-            // savepoint, we will clear the shared cache to avoid stale state.
+            // savepoint, we will clear the shared cache to avoid stale state. The connection settings are not
+            // captured: close() only restores settings on frames that own the connection.
             state.entityCacheMap = outer.entityCacheMap;
-            state.originalIsolationLevel = outerConnection.getTransactionIsolation();
-            state.originalReadOnly = outerConnection.isReadOnly();
             Long innerRequested = state.timeoutSeconds == null ? null : deadlineFromNow(state.timeoutSeconds);
             if (outer.deadlineNanos == null && innerRequested == null) {
                 state.deadlineNanos = null;
@@ -612,12 +611,15 @@ public final class JdbcTransactionContext implements TransactionContext {
             if (!connection.getAutoCommit()) {
                 throw new PersistenceException("Connection returned from DataSource must be in auto-commit mode.");
             }
-            state.originalIsolationLevel = connection.getTransactionIsolation();
-            state.originalReadOnly = connection.isReadOnly();
+            // Only read and change the connection settings when explicitly requested: reading the isolation
+            // level can cost a round trip on some drivers, and close() restores (another round trip) only what
+            // was captured here.
             if (state.isolationLevel != null) {
+                state.originalIsolationLevel = connection.getTransactionIsolation();
                 connection.setTransactionIsolation(state.isolationLevel);
             }
             if (state.readOnly != null) {
+                state.originalReadOnly = connection.isReadOnly();
                 connection.setReadOnly(state.readOnly);
             }
             connection.setAutoCommit(false);
@@ -685,26 +687,21 @@ public final class JdbcTransactionContext implements TransactionContext {
         if (connection == null) {
             throw new PersistenceException("No outer connection to join.");
         }
-        try {
-            state.dataSource = outer.dataSource;
-            state.ownsConnection = false;
-            // Share the entity cache map with the transaction we joined.
-            state.entityCacheMap = outer.entityCacheMap;
-            state.originalIsolationLevel = connection.getTransactionIsolation();
-            state.originalReadOnly = connection.isReadOnly();
-            Long innerRequested = state.timeoutSeconds == null ? null : deadlineFromNow(state.timeoutSeconds);
-            if (outer.deadlineNanos == null && innerRequested == null) {
-                // Keep any deadline already set when the frame began.
-            } else if (outer.deadlineNanos == null) {
-                state.deadlineNanos = innerRequested;
-            } else if (innerRequested == null) {
-                state.deadlineNanos = outer.deadlineNanos;
-            } else {
-                state.deadlineNanos = Math.min(outer.deadlineNanos, innerRequested);
-            }
-            state.connection = connection;
-        } catch (SQLException e) {
-            throw new PersistenceException("Failed to join transaction.", e);
+        state.dataSource = outer.dataSource;
+        state.ownsConnection = false;
+        // Share the entity cache map with the transaction we joined. The connection settings are not
+        // captured: close() only restores settings on frames that own the connection.
+        state.entityCacheMap = outer.entityCacheMap;
+        Long innerRequested = state.timeoutSeconds == null ? null : deadlineFromNow(state.timeoutSeconds);
+        if (outer.deadlineNanos == null && innerRequested == null) {
+            // Keep any deadline already set when the frame began.
+        } else if (outer.deadlineNanos == null) {
+            state.deadlineNanos = innerRequested;
+        } else if (innerRequested == null) {
+            state.deadlineNanos = outer.deadlineNanos;
+        } else {
+            state.deadlineNanos = Math.min(outer.deadlineNanos, innerRequested);
         }
+        state.connection = connection;
     }
 }
