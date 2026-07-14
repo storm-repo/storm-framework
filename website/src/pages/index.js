@@ -358,11 +358,21 @@ const BODY = `
     <div class="strip-col">
       <div class="db-label">Integrates with</div>
       <div class="dbs">
-        <span>Ktor</span><span>Spring&nbsp;Boot&nbsp;3.x</span><span>Spring&nbsp;Boot&nbsp;4.x</span>
+        <span>Ktor</span><span>Spring&nbsp;Boot&nbsp;3.x</span><span>Spring&nbsp;Boot&nbsp;4.x</span><span>GraalVM</span>
       </div>
     </div>
   </div>
 </div>
+
+<section class="endcta" style="padding-top:64px;padding-bottom:0"><div class="wrap">
+  <h2>Compiles to native.</h2>
+  <p class="sub" style="margin:0 auto 30px;text-align:center;max-width:940px">Storm applications build as GraalVM native images out of the box. The framework ships its reachability metadata and registers your entities and repositories from the compile-time type index: through Spring AOT hints on Spring Boot, and through a built-in GraalVM feature everywhere else. The example movie browser starts in a quarter of a second and passes its full interface test suite as a native binary.</p>
+  <div class="cta" style="justify-content:center;margin-top:40px">
+    <a href="/docs/graalvm" class="btn primary">How it works</a>
+    <a href="/examples/kotlin-spring-boot-graal/" class="btn">Spring Boot example</a>
+    <a href="/examples/kotlin-ktor-graal/" class="btn">Ktor example</a>
+  </div>
+</div></section>
 
 <section class="endcta" style="padding-top:64px"><div class="wrap">
   <h2>Write code worth reading.</h2>

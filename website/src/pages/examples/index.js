@@ -19,15 +19,15 @@ ${navHtml('examples')}
 
 <div class="tuthero">
   <h1>Real applications,<br><span class="grad">built with Storm.</span></h1>
-  <p class="sub">The same movie browser, implemented three times on the public IMDB dataset, so you can compare stacks and explore what idiomatic Storm looks like in a real project: immutable entities, metamodel-based queries, transactions, schema validation, and a full test suite. Clone one and run it with Docker and Gradle.</p>
+  <p class="sub">The same movie browser on the public IMDB dataset, implemented on Ktor and Spring Boot, in Kotlin and Java, plus GraalVM native-image variants, so you can compare stacks and explore what idiomatic Storm looks like in a real project: immutable entities, metamodel-based queries, transactions, schema validation, and a full test suite. Clone one and run it with Docker and Gradle.</p>
 </div>
 
 <div class="shead" id="projects"><span class="mark">//</span>Example projects<span class="sdesc">Server-rendered movie browsers: entities, repositories, projections, pagination, transactions, and tests in a working application.</span></div>
 <div class="cards">
   <a class="tcard" href="/examples/kotlin-ktor/">
     <div class="tt">Storm Movies · Kotlin + Ktor<span class="arrow">→</span></div>
-    <div class="td">A server-rendered movie browser on Ktor 3 with the Storm plugin: automatic repository registration, Koin wiring via stormModule(), coroutine-native transactions, kotlinx.serialization for the JSON APIs, and Playwright-driven interface tests.</div>
-    <div class="tm"><span>Kotlin</span><span>Ktor 3</span><span>Koin</span></div>
+    <div class="td">A server-rendered movie browser on Ktor 3 with the Storm plugin: automatic repository registration, service wiring with ktor-server-di, coroutine-native transactions, kotlinx.serialization for the JSON APIs, and Playwright-driven interface tests.</div>
+    <div class="tm"><span>Kotlin</span><span>Ktor 3</span></div>
   </a>
   <a class="tcard" href="/examples/kotlin-spring-boot/">
     <div class="tt">Storm Movies · Kotlin + Spring Boot 4<span class="arrow">→</span></div>
@@ -38,6 +38,20 @@ ${navHtml('examples')}
     <div class="tt">Storm Movies · Java + Spring Boot 4<span class="arrow">→</span></div>
     <div class="td">The Java flavor on Java 21: immutable record entities, metamodel-based queries, Spring-managed transactions, and schema validation. No JPA, no proxies, no persistence context.</div>
     <div class="tm"><span>Java 21</span><span>Spring Boot 4</span></div>
+  </a>
+</div>
+
+<div class="shead" id="graalvm"><span class="mark">//</span>GraalVM native images<span class="sdesc">The same applications compiled to native binaries: sub-second startup, the data layer registered by Storm itself, verified by the same Playwright suites.</span></div>
+<div class="cards">
+  <a class="tcard" href="/examples/kotlin-spring-boot-graal/">
+    <div class="tt">Storm Movies · Spring Boot 4 · GraalVM<span class="arrow">→</span></div>
+    <div class="td">The Spring Boot movie browser as a native image: entities and scanned repositories registered automatically through Storm's Spring AOT hints, startup around a quarter of a second, and the full Playwright suite running against the native binary.</div>
+    <div class="tm"><span>Kotlin</span><span>Spring Boot 4</span><span>GraalVM</span></div>
+  </a>
+  <a class="tcard" href="/examples/kotlin-ktor-graal/">
+    <div class="tt">Storm Movies · Ktor · GraalVM<span class="arrow">→</span></div>
+    <div class="td">The Ktor movie browser as a native image: storm-core ships a GraalVM feature that registers entities and repositories from the compile-time type index, so the data layer needs no native configuration at all.</div>
+    <div class="tm"><span>Kotlin</span><span>Ktor 3</span><span>GraalVM</span></div>
   </a>
 </div>
 
