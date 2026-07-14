@@ -520,7 +520,8 @@ public final class ModelImpl<E extends Data, ID> implements Model<E, ID> {
                         "Foreign key '%s.%s' has a default primary key value. "
                                 .formatted(record.getClass().getSimpleName(), column.name())
                         + "This typically indicates an unsaved entity is being used as a reference. "
-                        + "Ensure the referenced entity has been persisted before using it as a foreign key.");
+                        + "Ensure the referenced entity has been persisted before using it as a foreign key, "
+                        + "or insert the whole graph in one operation via writeSet().");
             }
         }
     }

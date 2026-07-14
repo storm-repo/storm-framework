@@ -18,6 +18,8 @@ package st.orm.core.repository;
 import jakarta.annotation.Nonnull;
 import st.orm.Entity;
 import st.orm.Projection;
+import st.orm.WriteSet;
+import st.orm.core.repository.impl.WriteSetImpl;
 
 /**
  * Provides access to repositories.
@@ -76,4 +78,19 @@ public interface RepositoryLookup {
      * @return a proxy for the repository of the given type.
      */
     <R extends Repository> R repository(@Nonnull Class<R> type);
+
+    /**
+     * Returns dependency-aware write operations over mixed-type sets of entities.
+     *
+     * <p>A write set lifts the per-repository write verbs to collections spanning multiple entity types: entities
+     * are partitioned by type, ordered by their foreign key dependencies, and written with one batch statement per
+     * type per dependency level. Generated primary keys propagate to dependent entities within the set.</p>
+     *
+     * @return the write set operations bound to this lookup.
+     * @see WriteSet
+     * @since 1.13
+     */
+    default WriteSet writeSet() {
+        return new WriteSetImpl(this);
+    }
 }

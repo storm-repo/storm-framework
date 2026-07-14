@@ -31,6 +31,7 @@ import st.orm.Data;
 import st.orm.Entity;
 import st.orm.EntityCallback;
 import st.orm.Projection;
+import st.orm.WriteSet;
 import st.orm.core.spi.ORMReflection;
 import st.orm.core.spi.Providers;
 import st.orm.core.template.impl.SqlLogInterceptor;
@@ -88,6 +89,11 @@ public final class ORMTemplateImpl extends QueryTemplateImpl implements ORMTempl
     @Override
     public void validateSchemaOrThrow(@Nonnull Iterable<Class<? extends Data>> types) {
         core.validateSchemaOrThrow(types);
+    }
+
+    @Override
+    public WriteSet writeSet() {
+        return core.writeSet();
     }
 
     /**

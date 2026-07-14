@@ -19,6 +19,7 @@ import st.orm.Data
 import st.orm.Entity
 import st.orm.EntityCallback
 import st.orm.Projection
+import st.orm.WriteSet
 import st.orm.core.spi.ORMReflection
 import st.orm.core.spi.Providers
 import st.orm.core.template.impl.SqlLogInterceptor
@@ -97,6 +98,8 @@ class ORMTemplateImpl(private val core: st.orm.core.template.ORMTemplate) :
     override fun validateSchemaOrThrow(filter: (KClass<out Data>) -> Boolean) = core.validateSchemaOrThrow { filter(it.kotlin) }
 
     override fun validateSchemaOrThrow(vararg types: KClass<out Data>) = core.validateSchemaOrThrow(types.map { it.java })
+
+    override fun writeSet(): WriteSet = core.writeSet()
 
     /**
      * Returns the repository for the given entity type.

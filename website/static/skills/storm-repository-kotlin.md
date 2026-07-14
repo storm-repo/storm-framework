@@ -351,6 +351,39 @@ users.upsert(listOf(user1, user2))
 val upserted: List<User> = users.upsertAndFetch(listOf(user1, user2))
 ```
 
+## Write Sets (Mixed-Type Graphs)
+
+Apply one write operation to entities of multiple types. Storm orders the writes by foreign-key
+dependencies, batches per type per dependency level, and propagates generated keys. For insert and
+upsert, unsaved entities held in the passed entities' foreign-key fields are discovered and
+inserted automatically (the insertion closure). Children link to a new parent by holding the same
+instance; two equal but distinct unsaved instances describe two rows.
+
+```kotlin
+val owner = Owner(firstName = "Alice", lastName = "Bond", address = address)   // unsaved
+val wolfie = Pet(name = "Wolfie", birthDate = date, type = dog, owner = owner) // same owner instance
+val rex = Pet(name = "Rex", birthDate = date, type = dog, owner = owner)
+val visit = Visit(visitDate = today, description = "Check-up", pet = wolfie)
+
+orm.writeSet().insert(listOf(wolfie, rex, visit))   // owner discovered and inserted first
+
+// Typed single-root variant: whole graph in, keyed root out
+val fetched: Visit = orm.writeSet().insertAndFetch(visit)
+
+// Scoped block; each verb executes immediately, wrap in a transaction for atomicity
+transaction {
+    orm.writeSet {
+        insert(newPets)
+        update(changedOwners)      // update/remove write only the entities passed, no discovery
+        remove(staleVisits)        // children are removed before parents
+    }
+}
+```
+
+An entity is unsaved when its primary key is the default value on an auto-generated key. Also
+available on repositories: `users.writeSet()` (delegates to the template; not scoped to the
+repository's type).
+
 ## Flow-Based Streaming
 
 Use Kotlin `Flow` for memory-efficient processing of large datasets:

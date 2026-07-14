@@ -247,6 +247,34 @@ List<User> found = users.findAllById(List.of(1, 2, 3));
 List<User> found = users.findAllByRef(List.of(ref1, ref2));
 ```
 
+## Write Sets (Mixed-Type Graphs)
+
+Apply one write operation to entities of multiple types. Storm orders the writes by foreign-key
+dependencies, batches per type per dependency level, and propagates generated keys. For insert and
+upsert, unsaved entities held in the passed entities' foreign-key fields are discovered and
+inserted automatically (the insertion closure). Children link to a new parent by holding the same
+instance; two equal but distinct unsaved instances describe two rows.
+
+```java
+var owner = new Owner("Alice", "Bond", address);           // unsaved
+var wolfie = new Pet("Wolfie", date, dog, owner);          // same owner instance
+var rex = new Pet("Rex", date, dog, owner);
+var visit = new Visit(today, "Check-up", wolfie);
+
+orm.writeSet().insert(List.of(wolfie, rex, visit));        // owner discovered and inserted first
+
+// Typed single-root variant: whole graph in, keyed root out
+Visit fetched = orm.writeSet().insertAndFetch(visit);
+
+// update/remove write only the entities passed, no discovery; children are removed before parents
+orm.writeSet().update(List.of(changedOwner, changedPet));
+orm.writeSet().remove(List.of(visit, pet, owner));
+```
+
+An entity is unsaved when its primary key is the default value on an auto-generated key. Wrap
+write sets in a transaction when atomicity across the calls is required. Also available on
+repositories: `users.writeSet()` (delegates to the template; not scoped to the repository's type).
+
 ## Stream-Based Operations
 
 Use Java `Stream` for memory-efficient processing of large datasets. **ALWAYS use try-with-resources** to avoid connection leaks:

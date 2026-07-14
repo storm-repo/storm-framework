@@ -64,6 +64,12 @@ public interface Ref<T extends Data> {
     /**
      * Creates a fully loaded ref instance that wraps the given entity.
      *
+     * <p>The entity does not need to be persisted yet: a ref wrapping an unsaved entity can act as a graph edge for
+     * dependency-aware write sets (see {@link WriteSet}), which insert the wrapped instance first and bind the
+     * generated key. Outside a write set, using an unsaved wrapped ref as a foreign key value fails fast at persist
+     * time. Note that ref equality is based on type and id, so refs wrapping distinct unsaved entities compare equal
+     * until the entities are persisted.</p>
+     *
      * @param entity the fully loaded entity to wrap in a ref.
      * @param <E> the type of the entity, which must extend {@link Record} and implement {@link Entity}.
      * @return a fully loaded ref instance for the provided entity.
@@ -74,7 +80,6 @@ public interface Ref<T extends Data> {
 
             DetachedEntity(@Nonnull TE entity) {
                 requireNonNull(entity, "Entity cannot be null.");
-                requireNonNull(entity.id(), "Entity ID cannot be null.");
                 this.entity = entity;
             }
 
