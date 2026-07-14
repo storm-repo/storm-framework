@@ -19,6 +19,7 @@ const sidebars: SidebarsConfig = {
         'transactions',
         'spring-integration',
         'ktor-integration',
+        'graalvm',
         'dialects',
         'testing',
       ],

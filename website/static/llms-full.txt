@@ -18,13 +18,13 @@
 > GitHub: https://github.com/storm-orm/storm-framework
 > License: Apache 2.0
 
-# Generated: 2026-07-04T14:18:50Z
+# Generated: 2026-07-14T20:31:03Z
 
 ========================================
 ## Source: index.md
 ========================================
 
-# ST/ORM
+# Storm
 
 **Storm** is a modern, high-performance ORM for Kotlin 2.0+ and Java 21+, built around a powerful SQL template engine. It focuses on simplicity, type safety, and predictable performance through immutable models and compile-time metadata.
 
@@ -272,29 +272,37 @@ Storm is released under the [Apache 2.0 License](https://github.com/storm-repo/s
 ## Source: getting-started.md
 ========================================
 
-# Getting Started
+# Get Started
 
 Storm is a modern SQL Template and ORM framework for Kotlin 2.0+ and Java 21+. It uses immutable data classes and records instead of proxied entities, giving you predictable behavior, type-safe queries, and high performance.
 
-## Design Philosophy
-
-Storm is built around a simple idea: your data model should be a plain value, not a framework-managed object. In Storm, entities are Kotlin data classes or Java records. They carry no hidden state, no change-tracking proxies, and no lazy-loading hooks. You can create them, pass them across layers, serialize them, compare them by value, and store them in collections without worrying about session scope, detachment, or side effects. What you see in the source code is exactly what exists at runtime.
-
-This stateless design is a deliberate trade-off. Traditional ORMs like JPA/Hibernate give you transparent lazy loading and proxy-based dirty checking, but at the cost of complexity: you must reason about managed vs. detached state, proxy initialization, persistence context boundaries, and cascading rules that interact in subtle ways. Storm avoids all of this. It still performs dirty checking, but by comparing entity state within a transaction rather than through proxies or bytecode manipulation. When you query a relationship, you get the result in the same query. There are no surprises.
-
-Storm is also SQL-first. Rather than abstracting SQL away behind a query language (like JPQL) or a verbose criteria builder, Storm embraces SQL directly. Its SQL Template API lets you write real SQL with type-safe parameter interpolation and automatic result mapping. For common CRUD patterns, the type-safe DSL and repository interfaces provide concise, compiler-checked alternatives, but the full power of SQL is always available when you need it.
-
-The framework is organized around three core abstractions:
-
-- **Entity** is your data model. A Kotlin data class or Java record with a few annotations (`@PK`, `@FK`) that describe its mapping to the database. Storm derives table and column names automatically, so annotations are only needed for primary keys, foreign keys, and cases where the naming convention does not match.
-- **Repository** provides CRUD operations and type-safe queries for a specific entity. You define an interface, write query methods with explicit bodies using the DSL, and Storm handles the rest. No magic method-name parsing, no hidden query generation.
-- **SQL Template** gives you direct access to SQL with type-safe parameter binding and result mapping. You write real SQL, embed parameters and entity types directly in the query string, and get back typed results. This is the escape hatch when the DSL is not enough, and it is a first-class citizen in Storm, not an afterthought.
-
-These abstractions share a common principle: explicit behavior over implicit magic. Every query is visible in the source code. Every relationship is loaded when you ask for it. Every transaction boundary is declared, not inferred. This makes Storm applications straightforward to debug, profile, and reason about.
-
 ## Choose Your Path
 
-Storm supports two ways to get started. Pick the one that fits your workflow.
+Two ways to get started, and both reach the same working setup: follow the guides by hand, or let your AI coding tool do it. Pick whichever fits your workflow.
+[Manual]
+
+### Manual Setup
+
+Follow these three steps in order for the fastest path from zero to a working application.
+
+**1. Installation**
+
+Set up your project with the right dependencies, build flags, and optional modules.
+
+**[Go to Installation](installation.md)**
+
+**2. First Entity**
+
+Define your first entity, create an ORM template, and perform insert, read, update, and remove operations.
+
+**[Go to First Entity](first-entity.md)**
+
+**3. First Query**
+
+Write custom queries, build repositories, stream results, and use the type-safe metamodel.
+
+**[Go to First Query](first-query.md)**
+
 [AI-Assisted]
 
 ### AI-Assisted Setup
@@ -324,35 +332,11 @@ For example:
 Storm's AI workflow includes built-in verification. The AI can run `ORMTemplate.validateSchema()` to prove entities match the database and `SqlCapture` to inspect generated SQL, all in an isolated H2 test database before anything touches production.
 
 See [AI-Assisted Development](ai.md) for the full setup guide, available skills, and MCP server configuration.
-
-[Manual]
-
-### Manual Setup
-
-Follow these three steps in order for the fastest path from zero to a working application.
-
-**1. Installation**
-
-Set up your project with the right dependencies, build flags, and optional modules.
-
-**[Go to Installation](installation.md)**
-
-**2. First Entity**
-
-Define your first entity, create an ORM template, and perform insert, read, update, and remove operations.
-
-**[Go to First Entity](first-entity.md)**
-
-**3. First Query**
-
-Write custom queries, build repositories, stream results, and use the type-safe metamodel.
-
-**[Go to First Query](first-query.md)**
 ---
 
 ## What's Next
 
-Once you have completed the getting-started guides, explore the features that match your needs:
+Once you have completed the steps above, explore the features that match your needs:
 
 **Core Concepts:**
 - [Entities](entities.md) -- annotations, nullability, naming conventions
@@ -401,6 +385,60 @@ This page covers everything you need to add Storm to your project: prerequisites
 | Database | Any JDBC-compatible database |
 
 Kotlin users do not need any preview flags. Java users must enable `--enable-preview` in their compiler configuration because the Java API uses String Templates (JEP 430).
+
+## Gradle Plugin (Recommended)
+
+The Storm Gradle plugin collapses the whole setup into one plugin application. It imports the BOM, adds the core dependencies for your language, wires the metamodel processor, selects the Kotlin compiler-plugin variant matching your Kotlin version, and configures the Java preview flags. Requires Gradle 8.5+.
+
+[Kotlin]
+
+```kotlin
+plugins {
+    kotlin("jvm") version "2.4.0"
+    id("com.google.devtools.ksp") version "2.3.10"
+    id("st.orm") version "@@STORM_VERSION@@"
+}
+```
+
+That is the entire Storm setup. KSP stays in your plugins block because its version is paired to your Kotlin version; when it is missing, the build fails with the exact line to add.
+
+[Java]
+
+```kotlin
+plugins {
+    java
+    id("st.orm") version "@@STORM_VERSION@@"
+}
+```
+
+That is the entire Storm setup, including the `--enable-preview` flags on compilation, tests, and execution that storm-java21's String Templates (JEP 430) require. Use a JDK 21 toolchain: preview class files are version-locked, so storm-java21 runs on JDK 21 exactly.
+The plugin configures, per language path:
+
+| | Kotlin | Java |
+|---|--------|------|
+| BOM | `storm-bom` imported as a platform | `storm-bom` imported as a platform |
+| API | `storm-kotlin` | `storm-java21` |
+| Engine | `storm-core` (runtime only) | `storm-core` (runtime only) |
+| Metamodel | `storm-metamodel-ksp` on `ksp` | `storm-metamodel-processor` on `annotationProcessor` |
+| Compiler plugin | `storm-compiler-plugin-<variant>` matching the Kotlin version | — |
+| Compiler flags | — | `--enable-preview` on compile, test, and exec tasks |
+
+All Storm coordinates use the plugin's own version; the plugin and the artifacts are released together. Because the BOM is imported, optional modules stay version-less: `runtimeOnly("st.orm:storm-postgresql")` just works.
+
+The `storm { }` extension covers the cases where the defaults do not fit:
+
+```kotlin
+storm {
+    metamodel.set(true)               // metamodel generation (default true)
+    compilerPlugin.set(true)          // Kotlin: Storm compiler plugin (default true)
+    compilerPluginVariant.set("2.4")  // pin the variant, e.g. for a newer Kotlin than the plugin knows
+    javaPreview.set(true)             // Java: --enable-preview flags (default true)
+}
+```
+
+In mixed Kotlin/Java projects the Kotlin path wins: KSP processes Java declarations too. If you specifically need the Java annotation processor as well, add `annotationProcessor("st.orm:storm-metamodel-processor")` manually.
+
+Maven users and Gradle users who prefer explicit configuration continue with the manual setup below.
 
 ## Add the BOM
 
@@ -587,6 +625,23 @@ Storm supports storing and reading JSON-typed columns. Pick the module that matc
 
 See [JSON Support](json.md) for usage details.
 
+### Observability
+
+| Module | Provides |
+|--------|----------|
+| `storm-micrometer` | Micrometer Observations for queries and transactions (`storm.query`, `storm.transaction`), the OpenTelemetry database semantic conventions, and trace-context SQL comments |
+
+The Spring Boot starters include `storm-micrometer`; Ktor applications add it explicitly. See the observability sections of [Spring Integration](spring-integration.md#observability) and [Ktor Integration](ktor-integration.md#observability).
+
+### Testing
+
+| Module | Provides |
+|--------|----------|
+| `storm-test` | `@StormTest` JUnit 5 extension and `SqlCapture`, framework-free |
+| `storm-spring-boot-test-autoconfigure` | The `@DataStormTest` Spring Boot test slice (test scope) |
+
+See [Testing](testing.md) and [Testing with @DataStormTest](spring-integration.md#testing-with-datastormtest).
+
 ## Module Overview
 
 The following diagram shows how Storm's modules relate to each other. You only need the modules relevant to your language and integration choices.
@@ -657,7 +712,7 @@ record User(@PK Integer id,
 ) implements Entity<Integer> {}
 ```
 
-In Java, record components are nullable by default. Use `@Nonnull` on fields that must always have a value. Primitive types (`int`, `long`, etc.) are inherently non-nullable.
+In Java, record components are non-null by default, exactly like Kotlin. Mark nullable fields with `@Nullable` (JSpecify's `org.jspecify.annotations.Nullable` or `jakarta.annotation.Nullable`); see [Defining Entities](entities.md) for the full nullability rules.
 
 The `@Builder` annotation is from [Lombok](https://projectlombok.org/) and is optional. It generates a builder that lets you construct entities without specifying the primary key, and creates modified copies via `toBuilder()`. Without Lombok, you can pass `null` as the primary key (e.g., `new City(null, "Sunnyvale", 161_884)`) or define a convenience constructor that omits it. See [Modifying Entities](entities.md#modifying-entities) for details.
 These entities map to the following database tables:
@@ -925,7 +980,7 @@ interface UserRepository : EntityRepository<User, Int> {
         findAll((User_.city eq city) and (User_.name eq name))
 
     fun streamByCity(city: City): Flow<User> =
-        select { User_.city eq city }
+        select(User_.city eq city).resultFlow
 }
 
 // Get the repository from the ORM template
@@ -1155,7 +1210,7 @@ record User(@PK Integer id,
             String email,
             LocalDate birthDate,
             String street,
-            String postalCode,
+            @Nullable String postalCode,
             @FK City city
 ) implements Entity<Integer> {}
 ```
@@ -1189,13 +1244,13 @@ data class User(
 
 [Java]
 
-In Java, record components are nullable by default. Use `@Nonnull` to mark fields that must always have a value — Storm recognizes `jakarta.annotation.Nonnull`, `javax.annotation.Nonnull`, and JSpecify's `org.jspecify.annotations.NonNull` on the component; other null-marker annotations (Lombok, JetBrains, Spring) are not recognized, and JSpecify `@NullMarked` scope defaults are not applied. `@PK` fields and primitive types (`int`, `long`, etc.) are inherently non-nullable. As with Kotlin, nullability determines JOIN behavior: a non-nullable `@FK` field produces an `INNER JOIN`, while a nullable one — including a bare `@FK` field without `@Nonnull` — produces a `LEFT JOIN`. If the FK column is `NOT NULL` in the database, annotate the field with `@Nonnull`, or joins silently degrade to `LEFT JOIN`.
+In Java, record components are non-null by default, exactly like Kotlin: `String` means a value is always present, and nullable is the marked case. Mark nullable fields with `@Nullable` — Storm recognizes JSpecify's `org.jspecify.annotations.Nullable` (as a type-use annotation), `jakarta.annotation.Nullable`, and `javax.annotation.Nullable`. This matches JSpecify's `@NullMarked` semantics: annotating your model package `@NullMarked` is welcome documentation for static checkers, and `@NullUnmarked` on a class or package opts back into lenient, nullable-by-default components for that scope. As with Kotlin, nullability determines JOIN behavior: a non-nullable `@FK` field — including a bare, unannotated one — produces an `INNER JOIN`, while a `@Nullable @FK` field produces a `LEFT JOIN`. If the FK column allows `NULL` in the database, annotate the field `@Nullable`, or rows without the reference are silently filtered by the inner join.
 
 ```java
 record User(@PK Integer id,
-            @Nonnull String email,        // Non-nullable
-            @Nonnull LocalDate birthDate, // Non-nullable
-            String postalCode,            // Nullable (default)
+            String email,                 // Non-nullable (default)
+            LocalDate birthDate,          // Non-nullable (default)
+            @Nullable String postalCode,  // Nullable
             @Nullable @FK City city       // Nullable (results in LEFT JOIN)
 ) implements Entity<Integer> {}
 ```
@@ -1260,7 +1315,7 @@ Use `NONE` when:
 
 ```java
 record User(@PK Integer id,  // Database generates via auto-increment
-            @Nonnull String name
+            String name
 ) implements Entity<Integer> {}
 ```
 
@@ -1275,7 +1330,7 @@ var inserted = orm.entity(User.class).insert(user);  // Returns User with genera
 
 ```java
 record Order(@PK(generation = SEQUENCE, sequence = "order_seq") Long id,
-             @Nonnull BigDecimal total
+             BigDecimal total
 ) implements Entity<Long> {}
 ```
 
@@ -1285,7 +1340,7 @@ Storm fetches the next value from the sequence before inserting.
 
 ```java
 record Country(@PK(generation = NONE) String code,  // Caller provides the value
-               @Nonnull String name
+               String name
 ) implements Entity<String> {}
 ```
 
@@ -1320,8 +1375,8 @@ data class UserRole(
 record UserRolePk(int userId, int roleId) {}
 
 record UserRole(@PK UserRolePk userRolePk,
-                @Nonnull @FK User user,
-                @Nonnull @FK Role role
+                @FK User user,
+                @FK Role role
 ) implements Entity<UserRolePk> {}
 ```
 ---
@@ -1402,8 +1457,8 @@ data class SomeEntity(
 record UserEmailUk(int userId, String email) {}
 
 record SomeEntity(@PK Integer id,
-                  @Nonnull @FK User user,
-                  @Nonnull String email,
+                  @FK User user,
+                  String email,
                   @UK @Persist(insertable = false, updatable = false) UserEmailUk uniqueKey
 ) implements Entity<Integer> {}
 ```
@@ -1443,13 +1498,13 @@ data class Owner(
 Use records for embedded components:
 
 ```java
-record Address(String street,
-               @FK City city) {}
+record Address(@Nullable String street,
+               @Nullable @FK City city) {}
 
 record Owner(@PK Integer id,
-             @Nonnull String firstName,
-             @Nonnull String lastName,
-             @Nonnull Address address,
+             String firstName,
+             String lastName,
+             Address address,
              @Nullable String telephone
 ) implements Entity<Integer> {}
 ```
@@ -1479,9 +1534,9 @@ In this example, the `owner` and `city` foreign keys define the actual persisted
 record OwnerCityKey(int ownerId, int cityId) {}
 
 record Pet(@PK Integer id,
-           @Nonnull String name,
-           @Nonnull @FK Owner owner,
-           @Nonnull @FK City city,
+           String name,
+           @FK Owner owner,
+           @FK City city,
            @Persist(insertable = false, updatable = false) OwnerCityKey ownerCityKey
 ) implements Entity<Integer> {}
 ```
@@ -1531,8 +1586,8 @@ enum RoleType {
 }
 
 record Role(@PK Integer id,
-            @Nonnull String name,
-            @Nonnull RoleType type  // Stored as "USER" or "ADMIN"
+            String name,
+            RoleType type  // Stored as "USER" or "ADMIN"
 ) implements Entity<Integer> {}
 ```
 
@@ -1540,8 +1595,8 @@ To store by ordinal:
 
 ```java
 record Role(@PK Integer id,
-            @Nonnull String name,
-            @Nonnull @DbEnum(ORDINAL) RoleType type  // Stored as 0 or 1
+            String name,
+            @DbEnum(ORDINAL) RoleType type  // Stored as 0 or 1
 ) implements Entity<Integer> {}
 ```
 ---
@@ -1570,7 +1625,7 @@ record Money(BigDecimal amount) {}
 
 @DbTable("product")
 record Product(@PK Integer id,
-               @Nonnull String name,
+               String name,
                @Convert(converter = MoneyConverter.class) Money price
 ) implements Entity<Integer> {}
 ```
@@ -1613,8 +1668,8 @@ Use `@Version` for optimistic locking:
 
 ```java
 record Owner(@PK Integer id,
-             @Nonnull String firstName,
-             @Nonnull String lastName,
+             String firstName,
+             String lastName,
              @Version int version
 ) implements Entity<Integer> {}
 ```
@@ -1623,10 +1678,10 @@ Timestamps are also supported:
 
 ```java
 record Visit(@PK Integer id,
-             @Nonnull LocalDate visitDate,
+             LocalDate visitDate,
              @Nullable String description,
-             @Nonnull @FK Pet pet,
-             @Version Instant timestamp
+             @FK Pet pet,
+             @Nullable @Version Instant timestamp
 ) implements Entity<Integer> {}
 ```
 ---
@@ -1655,9 +1710,9 @@ Use `@Persist(updatable = false)` for fields that should only be set on insert:
 
 ```java
 record Pet(@PK Integer id,
-           @Nonnull String name,
-           @Nonnull @Persist(updatable = false) LocalDate birthDate,
-           @Nonnull @FK @Persist(updatable = false) PetType type,
+           String name,
+           @Persist(updatable = false) LocalDate birthDate,
+           @FK @Persist(updatable = false) PetType type,
            @Nullable @FK Owner owner
 ) implements Entity<Integer> {}
 ```
@@ -1670,8 +1725,8 @@ Since Storm entities are immutable, updating a field means creating a new instan
 ```java
 @Builder(toBuilder = true)
 record User(@PK Integer id,
-            @Nonnull String email,
-            @Nonnull String name,
+            String email,
+            String name,
             @FK City city
 ) implements Entity<Integer> {}
 ```
@@ -1820,14 +1875,14 @@ data class User(
 // Suppress all schema validation for a legacy entity.
 @DbIgnore
 record LegacyUser(@PK Integer id,
-                  @Nonnull String name
+                  String name
 ) implements Entity<Integer> {}
 
 // Suppress schema validation for a specific field.
 record User(@PK Integer id,
-            @Nonnull String name,
+            String name,
             @DbIgnore("DB uses FLOAT, but column only stores whole numbers")
-            @Nonnull Integer age
+            Integer age
 ) implements Entity<Integer> {}
 ```
 The optional `value` parameter documents why the mismatch is acceptable. When placed on an embedded component field, `@DbIgnore` suppresses validation for all columns within that component.
@@ -1893,8 +1948,8 @@ data class OwnerView(
 @DbTable("owner")
 record OwnerView(
     @PK Integer id,
-    @Nonnull String firstName,
-    @Nonnull String lastName,
+    String firstName,
+    String lastName,
     @Nullable String telephone
 ) implements Projection<Integer> {}
 ```
@@ -1918,9 +1973,9 @@ data class VisitSummary(
 
 ```java
 record VisitSummary(
-    @Nonnull LocalDate visitDate,
+    LocalDate visitDate,
     @Nullable String description,
-    @Nonnull String petName
+    String petName
 ) implements Projection<Void> {}
 ```
 This projection reads from a `visit_summary` view, following the default class name to table name conversion.
@@ -1945,7 +2000,7 @@ data class PetView(
 ```java
 @DbTable("pet")
 record PetView(@PK Integer id,
-               @Nonnull String name,
+               String name,
                @FK OwnerView owner  // References another projection
 ) implements Projection<Integer> {}
 ```
@@ -2204,10 +2259,10 @@ data class OwnerDetail(
 ```java
 // Full entity for writes
 record Owner(@PK Integer id,
-             @Nonnull String firstName,
-             @Nonnull String lastName,
-             @Nonnull String address,
-             @Nonnull String city,
+             String firstName,
+             String lastName,
+             String address,
+             String city,
              @Nullable String telephone,
              @Version int version
 ) implements Entity<Integer> {}
@@ -2215,17 +2270,17 @@ record Owner(@PK Integer id,
 // Lightweight projection for list views
 @DbTable("owner")
 record OwnerListItem(@PK Integer id,
-                     @Nonnull String firstName,
-                     @Nonnull String lastName
+                     String firstName,
+                     String lastName
 ) implements Projection<Integer> {}
 
 // Detailed projection for detail views
 @DbTable("owner")
 record OwnerDetail(@PK Integer id,
-                   @Nonnull String firstName,
-                   @Nonnull String lastName,
-                   @Nonnull String address,
-                   @Nonnull String city,
+                   String firstName,
+                   String lastName,
+                   String address,
+                   String city,
                    @Nullable String telephone
 ) implements Projection<Integer> {}
 ```
@@ -2413,7 +2468,7 @@ This fetches pet details with a lightweight owner summary in a single query.
 ========================================
 
 # Relationships
-Automatic relationship loading is a core part of Storm's design. Your data model is fully captured by immutable entity classes. When you define a foreign key, Storm automatically joins the related entity and returns complete, fully populated records in a single query.
+Automatic relationship loading is a core part of Storm's design. The database owns your data model, and your entities capture it as immutable classes. When you define a foreign key, Storm automatically joins the related entity and returns complete, fully populated records in a single query.
 
 This design enables:
 
@@ -2546,6 +2601,17 @@ Storm does not store collections on the "one" side of a relationship. Instead, q
 val usersInCity: List<User> = orm.findAll(User_.city eq city)
 ```
 
+To load parents with their children, group the query by the parent path. The same select is executed; the
+results are grouped during hydration:
+
+```kotlin
+// Load cities with their users in one query
+val usersByCity: Map<City, List<User>> = orm.entity<User>()
+    .select()
+    .orderBy(User_.city)
+    .resultGroupedBy(User_.city)
+```
+
 [Java]
 
 ```java
@@ -2555,6 +2621,25 @@ List<User> usersInCity = orm.entity(User.class)
     .where(User_.city, EQUALS, city)
     .getResultList();
 ```
+
+To load parents with their children, group the query by the parent path. The same select is executed; the
+results are grouped during hydration:
+
+```java
+// Load cities with their users in one query
+Map<City, List<User>> usersByCity = orm.entity(User.class)
+    .select()
+    .orderBy(User_.city)
+    .getResultGroupedBy(User_.city);
+```
+The grouped terminal returns an unmodifiable, insertion-ordered map: parents appear in the order
+their first row is encountered, children in row order within each parent. Because duplicate entities within a
+result set share the same instance, each child's reference to its parent is the map key itself, and repeated
+parents are materialized once rather than once per row. The path must resolve to a non-null record for every
+result; narrow queries over nullable foreign keys with a `where()` clause first. This replaces the manual
+pattern of querying the many side and grouping in memory, and it loads the whole graph in a single query,
+without the N+1 queries or the join duplication handling that collection-based ORMs need.
+
 ---
 
 ## Many-to-Many
@@ -2588,6 +2673,13 @@ val roles: List<Role> = userRoles.map { it.role }
 // Find all users with a specific role
 val userRoles: List<UserRole> = orm.findAll(UserRole_.role eq role)
 val users: List<User> = userRoles.map { it.user }
+
+// Find roles for many users at once, grouped per user
+val rolesByUser: Map<User, List<Role>> = orm.entity<UserRole>()
+    .select()
+    .where(UserRole_.user inList users)
+    .resultGroupedBy(UserRole_.user)
+    .mapValues { (_, userRoles) -> userRoles.map { it.role } }
 ```
 
 For more control, use explicit join queries:
@@ -2606,8 +2698,8 @@ val roles: List<Role> = orm.entity<Role>()
 record UserRolePk(int userId, int roleId) {}
 
 record UserRole(@PK UserRolePk userRolePk,
-                @Nonnull @FK @Persist(insertable = false, updatable = false) User user,
-                @Nonnull @FK @Persist(insertable = false, updatable = false) Role role
+                @FK @Persist(insertable = false, updatable = false) User user,
+                @FK @Persist(insertable = false, updatable = false) Role role
 ) implements Entity<UserRolePk> {}
 ```
 
@@ -2625,6 +2717,12 @@ List<UserRole> userRoles = orm.entity(UserRole.class)
 List<Role> roles = userRoles.stream()
     .map(UserRole::role)
     .toList();
+
+// Find roles for many users at once, grouped per user
+Map<User, List<UserRole>> rolesByUser = orm.entity(UserRole.class)
+    .select()
+    .where(UserRole_.user, IN, users)
+    .getResultGroupedBy(UserRole_.user);
 ```
 
 For more control, use explicit join queries:
@@ -2691,8 +2789,8 @@ data class AuditLog(
 record UserRolePk(int userId, int roleId) {}
 
 record UserRole(@PK UserRolePk pk,
-                @Nonnull @FK User user,
-                @Nonnull @FK Role role,
+                @FK User user,
+                @FK Role role,
                 Instant grantedAt
 ) implements Entity<UserRolePk> {}
 
@@ -3497,8 +3595,8 @@ Storm repositories are plain interfaces, so Spring cannot discover them through 
 @Configuration
 class AcmeRepositoryBeanFactoryPostProcessor : RepositoryBeanFactoryPostProcessor() {
 
-    override val repositoryBasePackages: Array<String>
-        get() = arrayOf("com.acme.repository")
+    override fun getRepositoryBasePackages(): Array<String> =
+        arrayOf("com.acme.repository")
 }
 ```
 
@@ -3543,11 +3641,11 @@ Storm offers three ways to query data, each suited to different complexity level
 
 | Approach | Best for | Type safety | Flexibility |
 |----------|----------|-------------|-------------|
-| **Repository `findBy`** | Simple key lookups by primary key or unique key | Full compile-time | Low (single-field equality only) |
+| **Repository `findBy` / `findAllBy`** | Lookups by primary key or any single field | Full compile-time | Low (single-field equality or `IN`) |
 | **Query DSL** | Filtering, ordering, pagination with type-safe conditions | Full compile-time | Medium (AND/OR predicates, joins, ordering) |
 | **SQL Templates** | Complex joins, subqueries, CTEs, window functions, database-specific SQL | Column references checked at compile time, SQL structure at runtime | High (full SQL control) |
 
-Start with the simplest approach that meets your needs. Use `findBy` or `findAll` for straightforward lookups. Move to the query builder when you need compound filters or pagination. Use SQL templates when you need SQL features the DSL does not cover.
+Start with the simplest approach that meets your needs. Use `findById`, `findBy`, or `findAllBy` for straightforward lookups. Move to the query builder when you need compound filters or pagination. Use SQL templates when you need SQL features the DSL does not cover.
 
 ---
 
@@ -3575,7 +3673,7 @@ val exists: Boolean = orm.existsBy(User_.email, email)
 
 [Java]
 
-The Java DSL uses the same `EntityRepository` interface as Kotlin. Obtain a repository with `orm.entity(Class)` and use its fluent query builder. Return types use `Optional` for single results and `List` for collections.
+The Java repository exposes the same `EntityRepository` interface as Kotlin. Obtain it with `orm.entity(Class)`. Field-based finders (`findBy`, `findAllBy`, `getBy`) cover single-column lookups; the fluent query builder handles anything more complex. Return types use `Optional` for single results and `List` for collections.
 
 ```java
 var users = orm.entity(User.class);
@@ -3583,15 +3681,14 @@ var users = orm.entity(User.class);
 // Find by ID
 Optional<User> user = users.findById(userId);
 
-// Find all matching
-List<User> usersInCity = users.select()
-    .where(User_.city, EQUALS, city)
-    .getResultList();
+// Find one by a field value
+Optional<User> byEmail = users.findBy(User_.email, email);
 
-// Find first matching
-Optional<User> user = users.select()
-    .where(User_.email, EQUALS, email)
-    .getOptionalResult();
+// Find all matching a field value
+List<User> usersInCity = users.findAllBy(User_.city, city);
+
+// Find all whose field matches any of several values (WHERE ... IN)
+List<User> selected = users.findAllBy(User_.city, cities);
 
 // Count
 long count = users.count();
@@ -3633,20 +3730,17 @@ var users = orm.entity(User.class);
 // Find by ID
 Optional<User> user = users.findById(userId);
 
-// Find with predicate
-Optional<User> user = users.select()
-    .where(User_.email, EQUALS, email)
-    .getOptionalResult();
+// Find one by a field value
+Optional<User> byEmail = users.findBy(User_.email, email);
 
-// Find all matching
-List<User> usersInCity = users.select()
-    .where(User_.city, EQUALS, city)
-    .getResultList();
+// Require exactly one (throws if none, or if more than one)
+User owner = users.getBy(User_.email, email);
 
-// Count
+// Find all matching a field value
+List<User> usersInCity = users.findAllBy(User_.city, city);
+
+// Count and exists
 long count = users.count();
-
-// Exists
 boolean exists = users.existsById(userId);
 ```
 ---
@@ -4015,6 +4109,70 @@ List<City> cities = orm.entity(User.class)
     .select(City.class)
     .distinct()
     .getResultList();
+```
+---
+
+## Grouped Results
+
+Group results by a related record, typically the parent entity of a foreign key. The metamodel path names the
+group key; the result is a map from parent to its children:
+
+[Kotlin]
+
+```kotlin
+// Load cities with their users in one query
+val usersByCity: Map<City, List<User>> = orm.entity<User>()
+    .select()
+    .where(User_.active eq true)
+    .orderBy(User_.city)
+    .resultGroupedBy(User_.city)
+```
+
+[Java]
+
+```java
+// Load cities with their users in one query
+Map<City, List<User>> usersByCity = orm.entity(User.class)
+    .select()
+    .where(User_.active, EQUALS, true)
+    .orderBy(User_.city)
+    .getResultGroupedBy(User_.city);
+```
+The SQL is not affected by the grouping: the same select is executed and the results are grouped during
+hydration, so the whole graph loads in a single query. Hydration does not pay for the duplication in the join
+result: repeated group records are materialized once and grouped by instance identity, not by comparing record
+fields. The returned map and its lists are unmodifiable and insertion-ordered; use `orderBy()` to control the
+order of groups and of results within each group. Because duplicate entities within a result set share the same
+instance, each result's reference to its group key is the map key itself.
+
+The where clause keeps its normal meaning: it filters the results, and a group appears only when at least one of
+its results matches. The path must resolve to a non-null record for every result; narrow queries over nullable
+foreign keys with a `where()` clause first. See [Relationships](relationships.md#one-to-many) for the
+one-to-many loading pattern.
+
+The ref-based variant `resultGroupedByRef` (Java: `getResultGroupedByRef`) returns `Map<Ref<V>, List<T>>`
+instead. Refs are compared by primary key, keeping map lookups constant-cost regardless of the size of the group
+record. For eagerly fetched entity paths the keys are loaded refs: `getOrNull()` returns the record the query
+already materialized, combining primary-key lookups with direct access to the data. The path may also reference
+a `Ref` field, in which case the group is taken directly from the foreign key without fetching the referenced
+record; such refs remain unloaded, and `findAllByRef(map.keys)` fetches them in a single query when needed:
+
+[Kotlin]
+
+```kotlin
+// Group visits by pet without fetching the pets
+val visitsByPet: Map<Ref<Pet>, List<Visit>> = orm.entity<Visit>()
+    .select()
+    .resultGroupedByRef(Visit_.pet)
+```
+
+[Java]
+
+```java
+// Group visits by pet without fetching the pets
+Map<Ref<Pet>, List<Visit>> visitsByPet = orm.entity(Visit.class)
+    .select()
+    .getResultGroupedByRef(Visit_.pet);
 ```
 ---
 
@@ -5106,8 +5264,8 @@ data class SomeEntity(
 record UserEmailUk(int userId, String email) {}
 
 record SomeEntity(@PK Integer id,
-                  @Nonnull @FK User user,
-                  @Nonnull String email,
+                  @FK User user,
+                  String email,
                   @UK @Persist(insertable = false, updatable = false) UserEmailUk uniqueKey
 ) implements Entity<Integer> {}
 ```
@@ -5213,7 +5371,7 @@ In standard SQL, `NULL != NULL`. This means a `UNIQUE` constraint typically allo
 
 Because of this, Storm validates nullable unique keys at two levels:
 
-1. **Compile-time warning.** The metamodel processor emits a warning when a `@UK` field is nullable (a nullable type in Kotlin, or a reference type without `@Nonnull` in Java) and the default `nullsDistinct = true` applies.
+1. **Compile-time warning.** The metamodel processor emits a warning when a `@UK` field is nullable (a nullable type in Kotlin, a `@Nullable` reference type in Java, or any reference type in a `@NullUnmarked` scope) and the default `nullsDistinct = true` applies.
 2. **Runtime check.** The `scroll` method throws a `PersistenceException` if the key's metamodel indicates that nulls are distinct for a nullable field, preventing silent data loss.
 
 Database behavior varies. Some databases offer stricter NULL handling for unique constraints:
@@ -5226,10 +5384,10 @@ The `@UK` annotation provides a `nullsDistinct` attribute to control this behavi
 
 | Field | `nullsDistinct` | Effect |
 |-------|-----------------|--------|
-| `@UK @Nonnull String email` | (irrelevant) | Safe. No warning, no runtime check. |
+| `@UK String email` | (irrelevant) | Safe. Non-null by default. No warning, no runtime check. |
 | `@UK int count` | (irrelevant) | Safe. Primitive is never null. |
-| `@UK String email` | `true` (default) | Compile-time warning. `scroll` throws `PersistenceException`. |
-| `@UK(nullsDistinct = false) String email` | `false` | No warning. `scroll` works (user asserts DB prevents duplicate NULLs). |
+| `@UK @Nullable String email` | `true` (default) | Compile-time warning. `scroll` throws `PersistenceException`. |
+| `@UK(nullsDistinct = false) @Nullable String email` | `false` | No warning. `scroll` works (user asserts DB prevents duplicate NULLs). |
 
 When `nullsDistinct` is set to `false`, you are telling Storm that your database constraint prevents duplicate `NULL` values in the column. Storm trusts this assertion and skips both the compile-time warning and the runtime check. Use this only when your database actually enforces this guarantee (for example, with a `NULLS NOT DISTINCT` unique index in PostgreSQL 15+, or on SQL Server where unique indexes allow at most one `NULL` by default).
 
@@ -5258,13 +5416,13 @@ data class User(
 ```java
 // Safe (non-nullable)
 record User(@PK Integer id,
-            @UK @Nonnull String email,  // Non-nullable, safe for scrolling
+            @UK String email,  // Non-null by default, safe for scrolling
             String name
 ) implements Entity<Integer> {}
 
 // Opt-in for nullable keys
 record User(@PK Integer id,
-            @UK(nullsDistinct = false) String email,  // DB prevents duplicate NULLs
+            @UK(nullsDistinct = false) @Nullable String email,  // DB prevents duplicate NULLs
             String name
 ) implements Entity<Integer> {}
 ```
@@ -5747,13 +5905,13 @@ Storm for Kotlin provides a fully programmatic transaction solution (following t
 
 While Storm's `transaction { }` blocks look similar to Exposed's, Storm goes further by supporting all seven standard propagation modes (`REQUIRED`, `REQUIRES_NEW`, `NESTED`, `MANDATORY`, `SUPPORTS`, `NOT_SUPPORTED`, `NEVER`). Exposed's native transaction API only supports basic nesting (shared transaction) and savepoint-based nesting (`useNestedTransactions = true`), without the ability to suspend an outer transaction, enforce transactional context, or run non-transactionally. See [Storm vs Exposed](comparison.md#storm-vs-exposed) for a detailed comparison.
 
-The API is designed around Kotlin's type system and coroutine model. Import the transaction functions and enums from `st.orm.template`:
+The API is designed around Kotlin's type system and coroutine model. Import the transaction functions from `st.orm.template` and the option enums from `st.orm` (shared with the Java API):
 
 ```kotlin
 import st.orm.template.transaction
 import st.orm.template.transactionBlocking
-import st.orm.template.TransactionPropagation.*
-import st.orm.template.TransactionIsolation.*
+import st.orm.TransactionPropagation.*
+import st.orm.TransactionIsolation.*
 ```
 
 ### Suspend Transactions
@@ -6702,43 +6860,52 @@ withTransactionOptionsBlocking(isolation = SERIALIZABLE) {
 }
 ```
 
+### How Transactions Bind to Templates
+
+Since 1.13, a `transaction` or `transactionBlocking` block binds to the first `ORMTemplate` that executes inside it. Opening the block only records the requested options (propagation, isolation, timeout, read-only); the actual transaction is opened by that first template's transaction provider. This means the block automatically uses whatever transaction system the template is configured with, whether that is Storm's own JDBC transactions or a platform bridge such as Spring's transaction management. A block that never touches a template completes as a no-op.
+
+Templates that should share a transaction must use the same transaction provider instance. This is automatic for repositories of one application (the Spring Boot starter and the Ktor plugin configure one provider per application context or plugin installation). Mixing templates with *different* transaction providers inside one block fails fast with a descriptive error, since a single commit cannot span two transaction systems.
+
 ### Spring-Managed Transactions
 
 While Storm's programmatic transaction API works standalone, many applications use Spring's transaction management for its declarative `@Transactional` support and integration with other Spring components. Storm integrates seamlessly with Spring's transaction management.
 
-When `@EnableTransactionIntegration` is configured, Storm's programmatic `transaction` blocks automatically detect and participate in Spring-managed transactions. This gives you the best of both worlds: Spring's declarative transaction boundaries with Storm's coroutine-friendly transaction blocks.
+When a template is wired to Spring's transaction management, Storm's programmatic `transactionBlocking` blocks run through Spring's `PlatformTransactionManager` and participate in Spring-managed transactions. This gives you the best of both worlds: Spring's declarative transaction boundaries with Storm's programmatic transaction blocks. The suspending `transaction` variant is not supported with Spring-managed transactions; use `transactionBlocking` there.
 
 #### Configuration
 
-Enable Spring integration in your configuration class:
+The Spring Boot starter wires this automatically when a `PlatformTransactionManager` is present. Without the starter, compose the template with `springOrmTemplate`:
 
 ```kotlin
-@EnableTransactionIntegration
 @Configuration
-class ORMConfiguration(private val dataSource: DataSource) {
+@EnableTransactionManagement
+class ORMConfiguration {
     @Bean
-    fun ormTemplate() = ORMTemplate.of(dataSource)
+    fun ormTemplate(
+        dataSource: DataSource,
+        transactionManagers: ObjectProvider<PlatformTransactionManager>,
+    ): ORMTemplate = springOrmTemplate(dataSource) { transactionManagers.orderedStream().toList() }
 }
 ```
 
 #### Combining Declarative and Programmatic Transactions
 
-You can use Spring's `@Transactional` annotation alongside Storm's programmatic `transaction` blocks. Storm will join the existing Spring transaction:
+You can use Spring's `@Transactional` annotation alongside Storm's programmatic `transactionBlocking` blocks. Storm will join the existing Spring transaction:
 
 ```kotlin
 @Service
 class UserService(private val orm: ORMTemplate) {
 
     @Transactional
-    suspend fun createUserWithOrders(user: User, orders: List<Order>) {
+    fun createUserWithOrders(user: User, orders: List<Order>) {
         // Spring starts the transaction
 
-        transaction {
+        transactionBlocking {
             // Storm joins the Spring transaction (REQUIRED propagation by default)
             orm insert user
         }
 
-        transaction {
+        transactionBlocking {
             // Still in the same Spring transaction
             orders.forEach { orm insert it }
         }
@@ -6828,9 +6995,94 @@ class UserService(private val orm: ORMTemplate) {
 
 [Java]
 
-Storm for Java follows the principle of integration over invention. Rather than providing its own transaction API, Storm works with your existing transaction infrastructure. Whether you use Spring's `@Transactional` annotation, programmatic `TransactionTemplate`, or direct JDBC connection management, Storm participates correctly in the active transaction.
+Storm for Java provides a fully programmatic transaction API with the same semantics as the Kotlin `transaction { }` blocks: all seven propagation modes, isolation levels, timeouts, read-only transactions, rollback-only marks, and completion callbacks. The blocking API is virtual-thread friendly: the block parks on I/O rather than pinning carrier threads.
 
-This approach has several benefits: no new APIs to learn, full compatibility with existing code, and consistent behavior across your application. Storm simply uses the JDBC connection associated with the current transaction.
+Storm also integrates with your existing transaction infrastructure: inside Spring applications, `@Transactional` and Spring's own `TransactionTemplate` remain first-class citizens, and Storm participates correctly in the active transaction.
+
+### Programmatic Transactions
+
+Import the static entry points and the option enums:
+
+```java
+import static st.orm.template.Transactions.transaction;
+import static st.orm.template.Transactions.withTransactionOptions;
+import static st.orm.template.Transactions.setGlobalTransactionOptions;
+import st.orm.TransactionOptions;
+import st.orm.TransactionPropagation;
+import st.orm.TransactionIsolation;
+```
+
+The transaction binds to the first ORM template that executes inside the block: opening the block only records the requested options, and the template's transaction provider opens the actual transaction on first use. The block commits when it completes normally and rolls back when it throws; checked exceptions propagate to the caller unchanged and trigger rollback.
+
+```java
+// Commit on success; the block's value is returned.
+User created = transaction(tx -> users.insertAndFetch(user));
+
+// Roll back on exception: the original exception propagates.
+transaction(tx -> {
+    orders.insert(order);
+    inventory.update(stock);
+    return null;
+});
+
+// Checked exceptions need no wrapping: the call site declares what the block throws.
+void importFile(Path path) throws IOException {
+    transaction(tx -> {
+        var data = Files.readString(path);   // IOException propagates and rolls back.
+        return imports.insertAndFetch(parse(data));
+    });
+}
+```
+
+### Propagation, Isolation, Timeout, Read-Only
+
+The common case takes the propagation directly; full control goes through `TransactionOptions`, an immutable record with withers. Options left unset are inherited from the surrounding defaults.
+
+```java
+// Independent transaction: commits even if the surrounding transaction rolls back.
+transaction(TransactionPropagation.REQUIRES_NEW, tx -> audit.insertAndFetch(entry));
+
+// Full control.
+transaction(TransactionOptions.defaults()
+        .withIsolation(TransactionIsolation.SERIALIZABLE)
+        .withTimeoutSeconds(30)
+        .withReadOnly(true), tx -> reports.generate());
+```
+
+The propagation semantics are identical to the Kotlin API; see the propagation behavior matrix in the Kotlin tab. `MANDATORY` without an active transaction and `NEVER` inside one fail with a `PersistenceException`; an expired timeout raises `TransactionTimedOutException`; a joined inner scope that marks the transaction rollback-only makes the outer commit raise `UnexpectedRollbackException`.
+
+### Rollback Control and Callbacks
+
+The block receives a `Transaction` handle:
+
+```java
+transaction(tx -> {
+    orders.insert(order);
+    if (!validator.accepts(order)) {
+        tx.setRollbackOnly();   // Complete normally, then roll back.
+    }
+    tx.onCommit(() -> notifications.orderPlaced(order));
+    tx.onRollback(() -> log.warn("Order {} rolled back.", order.id()));
+    return order;
+});
+```
+
+Callbacks registered in a scope that joins an outer transaction are deferred to the outermost physical transaction's completion; `REQUIRES_NEW` scopes fire their own callbacks independently. Callbacks run in registration order after the transaction has fully completed; if one throws, the remaining callbacks still execute and the first exception is surfaced with the others suppressed.
+
+### Global and Scoped Defaults
+
+```java
+// Application-wide defaults, typically set once at startup.
+setGlobalTransactionOptions(TransactionOptions.defaults().withTimeoutSeconds(60));
+
+// Thread-scoped defaults for a code region; restored afterwards.
+withTransactionOptions(TransactionOptions.defaults().withReadOnly(true), () -> {
+    var summary = transaction(tx -> reports.summarize());
+    return summary;
+});
+```
+
+Explicit options on a `transaction(...)` call always win over scoped defaults, which win over the global defaults.
 
 ### Spring-Managed Transactions
 
@@ -6838,7 +7090,7 @@ Spring's transaction management is the most common approach for Java enterprise 
 
 #### Configuration
 
-Configure Storm with Spring's transaction management:
+Configure Storm with Spring's transaction management. The Spring Boot starter does this automatically when a `PlatformTransactionManager` is present; without the starter, compose the template with `SpringOrmTemplate.of`:
 
 ```java
 @Configuration
@@ -6846,16 +7098,19 @@ Configure Storm with Spring's transaction management:
 public class ORMConfiguration {
 
     @Bean
-    public ORMTemplate ormTemplate(DataSource dataSource) {
-        return ORMTemplate.of(dataSource);
-    }
-
-    @Bean
     public PlatformTransactionManager transactionManager(DataSource dataSource) {
         return new DataSourceTransactionManager(dataSource);
     }
+
+    @Bean
+    public ORMTemplate ormTemplate(DataSource dataSource,
+                                   ObjectProvider<PlatformTransactionManager> transactionManagers) {
+        return SpringOrmTemplate.of(dataSource, () -> transactionManagers.orderedStream().toList());
+    }
 }
 ```
+
+With this composition, Spring's `@Transactional` and Storm's programmatic `transaction(...)` blocks share the same transaction system: a Storm block inside a `@Transactional` method joins the Spring-managed transaction, and a standalone Storm block runs through Spring's transaction manager.
 
 #### Declarative Transactions with @Transactional
 
@@ -7150,15 +7405,18 @@ class ORMConfiguration(private val dataSource: DataSource) {
 
 ### Transaction Integration
 
-By default, Storm manages its own transactions independently of Spring's transaction context. The `@EnableTransactionIntegration` annotation bridges the two systems so that Storm's programmatic `transaction` and `transactionBlocking` blocks participate in Spring-managed transactions. Without this annotation, a transaction block inside a `@Transactional` method would open a separate database connection and transaction.
+A template created with `dataSource.orm` manages its own transactions, independently of Spring's transaction context: a transaction block inside a `@Transactional` method would open a separate database connection and transaction. To wire a template to Spring's transaction management instead, compose it with `springOrmTemplate` (from `st.orm.spring.kotlin`), which hands the Spring-aware connection and transaction providers to that specific template. Since 1.13 the integration is per template rather than JVM-global, so multiple application contexts, and plain templates next to Spring-managed ones, coexist without interference.
 
 ```kotlin
-@EnableTransactionIntegration
 @Configuration
-class ORMConfiguration(private val dataSource: DataSource) {
+@EnableTransactionManagement
+class ORMConfiguration {
 
     @Bean
-    fun ormTemplate(): ORMTemplate = dataSource.orm
+    fun ormTemplate(
+        dataSource: DataSource,
+        transactionManagers: ObjectProvider<PlatformTransactionManager>,
+    ): ORMTemplate = springOrmTemplate(dataSource) { transactionManagers.orderedStream().toList() }
 }
 ```
 
@@ -7178,14 +7436,24 @@ fun processUsers() {
 
 ### Repository Injection
 
-Storm repositories are interfaces with default method implementations. Spring cannot discover them automatically because they are not annotated with `@Component` or `@Repository`. The `RepositoryBeanFactoryPostProcessor` scans specified packages for interfaces that extend `EntityRepository` or `ProjectionRepository` and registers them as Spring beans. This makes them available for constructor injection like any other Spring-managed dependency.
+Storm repositories are interfaces with default method implementations. Spring cannot discover them automatically because they are not annotated with `@Component` or `@Repository`. Enable scanning with `@EnableStormRepositories`, mirroring annotations like `@EnableJpaRepositories`: the given packages are scanned for interfaces that extend `EntityRepository` or `ProjectionRepository`, and each is registered as a Spring bean, available for constructor injection like any other Spring-managed dependency.
 
 ```kotlin
 @Configuration
-class AcmeRepositoryBeanFactoryPostProcessor : RepositoryBeanFactoryPostProcessor() {
+@EnableStormRepositories(basePackages = ["com.acme.repository"])
+class AcmeConfiguration
+```
 
-    override val repositoryBasePackages: Array<String>
-        get() = arrayOf("com.acme.repository")
+Without explicit packages, the package of the annotated class is scanned. For full control, or for multiple repository sets bound to different templates, define `RepositoryBeanFactoryPostProcessor` beans (from `st.orm.spring.kotlin`) instead:
+
+```kotlin
+@Configuration
+class AcmeRepositoryConfiguration {
+
+    @Bean
+    fun acmeRepositories() = RepositoryBeanFactoryPostProcessor(
+        basePackages = arrayOf("com.acme.repository"),
+    )
 }
 ```
 
@@ -7233,36 +7501,44 @@ class UserService(
 
 [Java]
 
-The configuration mirrors the Kotlin setup. Define a single `ORMTemplate` bean that wraps the Spring-managed `DataSource`.
+The configuration mirrors the Kotlin setup. Define a single `ORMTemplate` bean; `SpringOrmTemplate.of` wires it to Spring's transaction management, so Storm's programmatic `transaction` blocks run through Spring's transaction managers and cooperate with `@Transactional`.
 
 ```java
 @Configuration
+@EnableTransactionManagement
 public class ORMConfiguration {
 
-    private final DataSource dataSource;
-
-    public ORMConfiguration(DataSource dataSource) {
-        this.dataSource = dataSource;
-    }
-
     @Bean
-    public ORMTemplate ormTemplate() {
-        return ORMTemplate.of(dataSource);
+    public ORMTemplate ormTemplate(DataSource dataSource,
+                                   ObjectProvider<PlatformTransactionManager> transactionManagers) {
+        return SpringOrmTemplate.of(dataSource, () -> transactionManagers.orderedStream().toList());
     }
 }
 ```
 
+A template created with `ORMTemplate.of(dataSource)` works too, but manages its own transactions independently of Spring's transaction context.
+
 ### Repository Injection
 
-Register a `RepositoryBeanFactoryPostProcessor` that scans your repository packages. This works identically to the Kotlin version: Storm discovers interfaces extending `EntityRepository` or `ProjectionRepository` and registers them as Spring beans.
+Enable repository scanning with `@EnableStormRepositories`. This works identically to the Kotlin version: Storm discovers interfaces extending `EntityRepository` or `ProjectionRepository` and registers them as Spring beans.
 
 ```java
 @Configuration
-public class AcmeRepositoryBeanFactoryPostProcessor extends RepositoryBeanFactoryPostProcessor {
+@EnableStormRepositories(basePackages = "com.acme.repository")
+public class AcmeConfiguration {
+}
+```
 
-    @Override
-    public String[] getRepositoryBasePackages() {
-        return new String[] { "com.acme.repository" };
+For full control, or for multiple repository sets bound to different templates, define `RepositoryBeanFactoryPostProcessor` beans instead:
+
+```java
+@Configuration
+public class AcmeRepositoryConfiguration {
+
+    @Bean
+    public RepositoryBeanFactoryPostProcessor acmeRepositories() {
+        return new RepositoryBeanFactoryPostProcessor(
+                new String[] { "com.acme.repository" }, null, "");
     }
 }
 ```
@@ -7473,10 +7749,12 @@ The Spring Boot Starter modules provide zero-configuration setup for Storm. Add 
 
 The starter auto-configures:
 
-1. **`ORMTemplate` bean** created from the auto-configured `DataSource`. If you define your own `ORMTemplate` bean, the auto-configured one backs off.
+1. **`ORMTemplate` bean** created from the auto-configured `DataSource`, composed with the Spring-aware integration strategies below. If you define your own `ORMTemplate` bean, the auto-configured one backs off.
 2. **Repository scanning** via `AutoConfiguredRepositoryBeanFactoryPostProcessor`, which discovers repository interfaces in the `@SpringBootApplication` base package (and its sub-packages). If you define your own `RepositoryBeanFactoryPostProcessor` bean, the auto-configured one backs off.
-3. **Transaction integration** (Kotlin only) by automatically activating `SpringTransactionConfiguration`, removing the need for `@EnableTransactionIntegration`.
-4. **Configuration properties** bound from `storm.*` in `application.yml`/`application.properties`, passed to the `ORMTemplate` via `StormConfig`.
+3. **Transaction integration** through Spring-aware `ConnectionProvider` and `TransactionTemplateProvider` beans, contributed when a `PlatformTransactionManager` is present and handed to the template it creates. Nothing is registered globally: each application context gets its own, correctly matched transaction integration. Define your own `ConnectionProvider` or `TransactionTemplateProvider` bean to override, and optionally contribute `ExceptionMapper` or `QueryObserver` beans, which are applied to the template the same way.
+4. **Exception translation** to Spring's `DataAccessException` hierarchy through an auto-configured `ExceptionMapper` bean. Disable with `storm.exception-translation.enabled=false`, or define your own `ExceptionMapper` bean to translate differently.
+5. **Query observations** through Micrometer when an `ObservationRegistry` bean is present: every query reports as a `storm.query` observation, yielding actuator metrics and tracing spans from a single instrumentation.
+6. **Configuration properties** bound from `storm.*` in `application.yml`/`application.properties`, passed to the `ORMTemplate` via `StormConfig`.
 
 ### Minimal Spring Boot Setup (with Starter)
 
@@ -7517,11 +7795,17 @@ storm:
   validation:
     skip: false
     warnings-only: false
-    schema-mode: none
+    schema-mode: fail
     strict: false
+  exception-translation:
+    enabled: true
+  observations:
+    semantic-conventions: storm
+  tracing:
+    sql-comments: false
 ```
 
-The `schema-mode` property controls startup schema validation: `none` (default) skips validation, `warn` logs mismatches without blocking startup, and `fail` blocks startup if any entity definitions do not match the database schema. The `strict` property controls whether warnings (type narrowing, nullability mismatches) are treated as errors. See the [Configuration](configuration.md#schema-validation) guide for details.
+The `schema-mode` property controls startup schema validation: `fail` (default) blocks startup if any entity definitions do not match the database schema, `warn` logs mismatches without blocking startup, and `none` skips validation. The `strict` property controls whether warnings (type narrowing, nullability mismatches) are treated as errors. See the [Configuration](configuration.md#schema-validation) guide for details.
 
 See the [Configuration](configuration.md) guide for a description of each property and the full precedence rules.
 
@@ -7545,11 +7829,8 @@ class StormConfig(private val dataSource: DataSource) {
 
 ```kotlin
 @Configuration
-class MyRepositoryPostProcessor : RepositoryBeanFactoryPostProcessor() {
-
-    override val repositoryBasePackages: Array<String>
-        get() = arrayOf("com.myapp.repository", "com.myapp.other")
-}
+@EnableStormRepositories(basePackages = ["com.myapp.repository", "com.myapp.other"])
+class RepositoryConfiguration
 ```
 
 ### Minimal Spring Boot Setup (without Starter)
@@ -7562,25 +7843,165 @@ If you use the integration module directly (without the starter), you need to co
 class Application
 
 @Configuration
-@EnableTransactionIntegration
-class StormConfig(private val dataSource: DataSource) {
+class StormConfig {
 
     @Bean
-    fun ormTemplate() = dataSource.orm
+    fun ormTemplate(
+        dataSource: DataSource,
+        transactionManagers: ObjectProvider<PlatformTransactionManager>,
+    ): ORMTemplate = springOrmTemplate(dataSource) { transactionManagers.orderedStream().toList() }
 }
 
 @Configuration
-class MyRepositoryBeanFactoryPostProcessor : RepositoryBeanFactoryPostProcessor() {
-
-    override val repositoryBasePackages: Array<String>
-        get() = arrayOf("com.myapp.repository")
-}
+@EnableStormRepositories(basePackages = ["com.myapp.repository"])
+class RepositoryConfiguration
 ```
 
 This gives you:
 - Automatic DataSource from Spring Boot
 - Transaction integration between Spring and Storm
 - Repository auto-discovery and injection
+
+## Exception Translation
+
+Spring code is written against the `DataAccessException` hierarchy: retry setups key on `TransientDataAccessException` for deadlocks and lock timeouts, rollback rules and catch blocks reference the Spring types, and Spring's other data access integrations all translate consistently. With the starter, Storm participates in that convention out of the box: SQL failures raised by Storm repositories and templates surface as Spring exceptions, translated from vendor error codes for the application's database product, with `SQLException` subclass and SQL state translation as fallback.
+
+```kotlin
+try {
+    userRepository.insert(user)
+} catch (exception: DuplicateKeyException) {
+    // Same exception type a JdbcClient or JPA repository would raise.
+}
+```
+
+Failures without a `SQLException` cause keep Storm's own semantics: `PersistenceException` and its subtypes, such as optimistic locking and result cardinality failures, pass through unchanged. The boundary is the database: what the database reports is translated, what Storm's own logic detects stays a Storm exception in every composition. Retry setups that should also retry optimistic lock failures list both types:
+
+```kotlin
+@Retryable(retryFor = [TransientDataAccessException::class, OptimisticLockException::class])
+fun updateStudy(study: Study) = transactionBlocking { studyRepository.update(study) }
+```
+
+Translation applies to the templates composed with it: the starter's auto-configured template, and templates created with `SpringOrmTemplate.of` (Java) or `springOrmTemplate` (Kotlin). Disable it with `storm.exception-translation.enabled=false`, define your own `ExceptionMapper` bean, or compose the template yourself with the builder and leave the mapper out.
+
+## Observability
+
+The starters ship with Storm's Micrometer binding. When an `ObservationRegistry` bean is present (Spring Boot Actuator provides one out of the box), every query executed by the auto-configured template is reported as a Micrometer Observation named `storm.query`. One instrumentation yields both actuator metrics (`storm.query` timers, tagged and queryable per operation and entity) and tracing spans when a tracing backend is configured.
+
+A generic DataSource proxy can only time statements. Storm knows the entity and operation behind every statement it generates, so the observations carry meaningful tags:
+
+- **Low-cardinality key values** (become metric tags): the SQL operation (`SELECT`, `INSERT`, ...), the execution kind (query, update, batch), and the entity or projection type.
+- **High-cardinality key values** (visible to trace handlers only): the SQL statement with parameter placeholders. Parameter values are never reported.
+
+Transactions are observed alongside the queries: every physical transaction — an outermost `transaction` block or a `REQUIRES_NEW` block, in any language stack and through the Spring bridge alike — reports as a `storm.transaction` observation with its duration, `storm.tx.outcome` (`committed` or `rolled_back`), `storm.tx.propagation`, and `storm.tx.read_only`. Joined blocks run inside an existing transaction and are deliberately not double-counted. Long-running transactions and rollback rates become queryable per application, and per domain with the multi-template tagging.
+
+Observability backends key their database tooling — latency panels, service-map database nodes, query views — on the OpenTelemetry database client semantic conventions. Set `storm.observations.semantic-conventions: otel` and every observation additionally carries the standard attributes (`db.system.name` detected from the DataSource, `db.operation.name`, and `db.query.text` on spans), so Storm queries surface in the database UX of any OTLP-capable backend, from Elastic to Grafana to Datadog, while the `storm.*` key values remain for custom dashboards:
+
+```yaml
+storm:
+  observations:
+    semantic-conventions: otel
+```
+
+Customization follows the usual back-off rules: contribute an `ObservationConvention<StormQueryObservationContext>` bean to override the naming and key values (it wins over the property), define your own `QueryObserver` bean to replace the binding entirely, or disable the observation at the registry level with `management.observations.enable.storm.query=false`.
+
+With tracing in place, `storm.tracing.sql-comments` additionally appends the current trace context to statements as a sqlcommenter-style comment (`/*traceparent='00-…'*/`), so database-side diagnostics — MariaDB's slow query log, `pg_stat_activity` — correlate directly back to the trace that issued the statement. `true` comments every statement inside a span; `sampled` comments only statements of sampled traces, which is the recommended mode when the sampling probability is below 1.0. This is deliberately opt-in: a per-execution comment changes the statement text on every call, which defeats driver-side and server-side prepared statement caching.
+
+One composition warning for applications that wire the integration beans themselves: define beans like the `ExceptionMapper`, `QueryObserver`, or `SqlCommenter` unconditionally in your `@Configuration` classes. A `@ConditionalOnBean` condition in a user configuration evaluates before auto-configurations contribute their beans (such as the `Tracer`), so it fails silently and the integration stays dormant while looking enabled.
+
+## Testing with @DataStormTest
+
+`@DataStormTest` (from `storm-spring-boot-test-autoconfigure`, test scope) is the Storm test slice, the counterpart of `@DataJpaTest`: it starts only the `DataSource`, Storm's auto-configuration (template, repository scanning, transaction integration, schema validation, exception translation), and SQL initialization, plus Flyway or Liquibase when present. It complements [`@StormTest`](testing.md), which tests data logic without a Spring context: use `@StormTest` for fast query-level tests, and the slice when the test should see what production Spring code sees — injected repository beans, translated exceptions, Spring-managed transactions, and your `storm.*` configuration. Regular `@Component`, `@Service`, and `@Controller` beans stay out of the context. Each test method runs in a transaction that is rolled back afterwards, so tests cannot see each other's writes.
+
+The application's `DataSource` is replaced with an embedded in-memory database by default, on Spring Boot 3 and 4 alike (the slice ships a fallback for Boot 4's relocated test-database support); put a `schema.sql` (and optionally `data.sql`) on the test classpath to initialize it, or let Flyway or Liquibase (included in the slice) create the schema as in production:
+
+```kotlin
+@DataStormTest
+class VisitRepositoryTest(
+    @Autowired private val visitRepository: VisitRepository,
+) {
+
+    @Test
+    fun `finds all visits`() {
+        visitRepository.count() shouldBe 14
+    }
+
+    @Test
+    fun `insert rolls back after the test`() {
+        visitRepository.insert(Visit(description = "temporary"))
+    }
+}
+```
+
+To run against a real database instead, disable the replacement with `spring.test.database.replace=none` and hand the slice a Testcontainers-managed database through `@ServiceConnection`:
+
+```kotlin
+@DataStormTest(properties = ["spring.test.database.replace=none"])
+@Testcontainers
+class VisitRepositoryPostgresTest(
+    @Autowired private val visitRepository: VisitRepository,
+) {
+
+    companion object {
+        @Container
+        @ServiceConnection
+        @JvmStatic
+        val postgres = PostgreSQLContainer("postgres:17-alpine")
+    }
+
+    @Test
+    fun `finds all visits`() {
+        visitRepository.count() shouldBe 14
+    }
+}
+```
+
+The slice works with both starters — it pulls in the starter's auto-configuration classes by name, which are identical for the Java and Kotlin stacks — and with both Spring Boot 3 and 4: where Spring Boot moved classes between the releases, the slice is exclusion-based rather than annotation-composed. The annotation supports `properties` for per-test configuration (for example `properties = ["storm.validation.schema-mode=none"]` when the test schema deliberately diverges from the entity model) and `includeFilters`/`excludeFilters` to pull additional components into the slice.
+
+Two composition notes. Test fixtures loaded per test method participate in the rollback transaction, so identity-generated keys drift across methods (sequences do not roll back); load reference fixtures once with `@Sql(executionPhase = ExecutionPhase.BEFORE_TEST_CLASS)` and let each test's own writes roll back. And an application that excludes `StormTransactionAutoConfiguration` (the coroutine-native setup) should re-enable it for the slice with `properties = ["spring.autoconfigure.exclude="]` — without the transaction bridge, repository writes cannot join the rollback transaction.
+
+## Multiple Data Sources
+
+Larger applications sometimes expose the same database through several `DataSource` beans: one connection pool per domain, each with its own pool size, timeout, and isolation settings, so heavy batch work cannot starve interactive traffic. Storm supports this topology with one `ORMTemplate` per `DataSource` and one repository post-processor per domain.
+
+```kotlin
+@Configuration
+class BillingConfiguration {
+
+    @Bean
+    fun billingDataSource(): DataSource = /* dedicated pool for the billing domain */
+
+    @Bean
+    fun billingTransactionManager(@Qualifier("billingDataSource") dataSource: DataSource): PlatformTransactionManager =
+        DataSourceTransactionManager(dataSource)
+
+    @Bean
+    fun billingTemplate(
+        @Qualifier("billingDataSource") dataSource: DataSource,
+        transactionManagers: ObjectProvider<PlatformTransactionManager>,
+    ): ORMTemplate = springOrmTemplate(dataSource) { transactionManagers.orderedStream().toList() }
+}
+```
+
+Each template passes the full transaction manager list; the Spring bridge selects the manager that matches the template's `DataSource`, so every domain transacts through its own pool.
+
+Repositories bind to a specific template through a per-domain post-processor. The `repositoryPrefix` keeps bean names apart when the same repository interface is registered for several domains:
+
+```kotlin
+@Configuration
+class BillingRepositoryConfiguration {
+
+    @Bean
+    fun billingRepositories() = RepositoryBeanFactoryPostProcessor(
+        basePackages = arrayOf("com.myapp.billing.repository"),
+        ormTemplateBeanName = "billingTemplate",
+        repositoryPrefix = "billing",
+    )
+}
+```
+
+The starter cooperates with this setup: with several `DataSource` beans and no `@Primary`, the auto-configured `ORMTemplate` and schema validation back off (there is no single candidate to bind to); mark one pool `@Primary` and they bind to that one. The auto-configured repository scanning backs off as soon as you define your own post-processors, and the Spring-aware `ConnectionProvider` and `TransactionTemplateProvider` beans remain available for injection into your own template definitions.
+
+Storm's programmatic transaction API needs no per-domain configuration: a `transaction` block binds to the template used inside it, so each domain's blocks run against that domain's pool and transaction manager.
 
 ## JPA Entity Manager
 
@@ -7599,7 +8020,7 @@ public void doWork() {
 
 ## Transaction Propagation
 
-When `@EnableTransactionIntegration` is active, Storm's programmatic transactions participate in Spring's transaction propagation. This means a `transaction` or `transactionBlocking` block checks for an existing Spring-managed transaction before starting a new one. If a transaction already exists, the block joins it. If not, it creates a new independent transaction.
+When a template is wired to Spring's transaction management (via `springOrmTemplate` or the starter), Storm's programmatic transactions participate in Spring's transaction propagation. This means a `transaction` or `transactionBlocking` block checks for an existing Spring-managed transaction before starting a new one. If a transaction already exists, the block joins it. If not, it creates a new independent transaction.
 
 Understanding this behavior is important for controlling atomicity. When multiple operations must commit or roll back as a unit, they need to share the same transaction. When operations should be independent (for example, logging that should persist even if the main operation fails), they need separate transactions.
 
@@ -7950,6 +8371,8 @@ Writing tests for database code can involve repetitive setup: creating a `DataSo
 The module provides two categories of functionality:
 
 1. **JUnit 5 integration** (`@StormTest`) for automatic database setup, script execution, and parameter injection.
+
+Spring Boot applications additionally have the [`@DataStormTest` slice](spring-integration.md#testing-with-datastormtest), which boots the Storm part of the Spring context instead of bypassing it: repositories arrive as Spring beans, exceptions arrive translated, and each test rolls back a Spring-managed transaction. `@StormTest` stays the fastest option for query-level tests; the slice covers the Spring wiring.
 2. **Statement capture** (`SqlCapture`) for recording and inspecting SQL statements generated during test execution. This component is framework-agnostic and works independently of JUnit.
 
 ---
@@ -10739,6 +11162,9 @@ An unloaded ref serializes as a bare value because there is nothing more to conv
 
 A loaded entity ref wraps the full entity data in an `@entity` object. This tells the deserializer that the enclosed data is a complete entity, from which it can reconstruct a loaded ref with `getOrNull()` returning the entity instance.
 
+> **Warning:**
+Serialization never triggers a fetch, but a ref that is already loaded (for example because a query joined it) serializes its full entity, including every field of the referenced type. When the response shape matters, such as a public REST API, return a projection that exposes only the intended fields rather than an entity whose refs may carry more than the endpoint should reveal. Serialization reflects exactly what is loaded; it does not filter.
+
 A loaded projection ref uses a different wrapper (`@projection`) and includes a separate `@id` field. The explicit ID is necessary because projections are partial views of an entity and may not expose an `id()` accessor. Without the separate `@id` field, the deserializer would have no reliable way to recover the primary key.
 
 Both Jackson and kotlinx.serialization produce identical JSON for the same ref state, so output from one library can be consumed by the other.
@@ -11185,7 +11611,7 @@ data class LegacyUser(
 ```java
 @DbIgnore
 record LegacyUser(@PK Integer id,
-                  @Nonnull String name
+                  String name
 ) implements Entity<Integer> {}
 ```
 **Suppress validation for a specific field:**
@@ -11205,9 +11631,9 @@ data class User(
 
 ```java
 record User(@PK Integer id,
-            @Nonnull String name,
+            String name,
             @DbIgnore("DB uses FLOAT, but column only stores whole numbers")
-            @Nonnull Integer age
+            Integer age
 ) implements Entity<Integer> {}
 ```
 The optional `value` parameter documents why the mismatch is acceptable. When `@DbIgnore` is placed on an inline component field, validation is suppressed for all columns within that component.
@@ -11231,7 +11657,7 @@ data class Report(
 ```java
 @DbTable(schema = "reporting")
 record Report(@PK Integer id,
-              @Nonnull String name
+              String name
 ) implements Entity<Integer> {}
 ```
 ### Spring Boot Configuration
@@ -11242,7 +11668,7 @@ When using the Spring Boot Starter, both record and schema validation can be con
 storm:
   validation:
     record-mode: fail   # or "warn" or "none" (default: fail)
-    schema-mode: none   # or "warn" or "fail" (default: none)
+    schema-mode: fail   # or "warn" or "none" (default: fail)
     strict: false       # treat schema warnings as errors (default: false)
 ```
 
@@ -11250,16 +11676,16 @@ The `schema-mode` values:
 
 | Value | Behavior |
 |-------|----------|
-| `none` | Schema validation is skipped (default). |
+| `fail` | Mismatches cause startup to fail with a `PersistenceException` (default). |
 | `warn` | Mismatches are logged at WARN level; startup continues. |
-| `fail` | Mismatches cause startup to fail with a `PersistenceException`. |
+| `none` | Schema validation is skipped. |
 
 ### Configuration Properties
 
 | Property | Default | Description |
 |----------|---------|-------------|
 | `storm.validation.record_mode` | `fail` | Record validation mode: `fail`, `warn`, or `none` |
-| `storm.validation.schema_mode` | `none` | Schema validation mode: `none`, `warn`, or `fail` (Spring Boot only) |
+| `storm.validation.schema_mode` | `fail` | Schema validation mode: `none`, `warn`, or `fail` (Spring Boot and Ktor) |
 | `storm.validation.strict` | `false` | When `true`, schema validation warnings are treated as errors |
 
 
@@ -11800,7 +12226,7 @@ val pets = orm.query { """
 ```java
 @DbTable("pet")
 record PetWithOwner(
-    @Nonnull String name,
+    String name,
     @Nullable LocalDate birthDate,
     @FK Owner owner
 ) implements Data {}
@@ -11877,17 +12303,17 @@ orm.query { """
 
 ```java
 record Country(@PK Integer id,
-               @Nonnull String name,
-               @Nonnull String code
+               String name,
+               String code
 ) implements Entity<Integer> {}
 
 record City(@PK Integer id,
-            @Nonnull String name,
+            String name,
             @FK Country country
 ) implements Entity<Integer> {}
 
 record User(@PK Integer id,
-            @Nonnull String email,
+            String email,
             @FK City city
 ) implements Entity<Integer> {}
 ```
@@ -12994,15 +13420,17 @@ If a non-nullable field receives NULL from the database, Storm throws an excepti
 
 [Java]
 
-Use `@Nonnull` and `@Nullable` annotations:
+Record components are non-null by default, exactly like Kotlin. Mark nullable fields with `@Nullable`:
 
 ```java
 record User(
     int id,                    // Primitive = non-nullable
-    @Nonnull String email,     // Non-nullable
+    String email,              // Non-nullable (default)
     @Nullable String nickname  // Nullable
 ) {}
 ```
+
+If a non-nullable field receives NULL from the database, Storm throws an exception.
 ### Nullable Nested Records
 
 When a nested record field is nullable, Storm checks if **all** its columns are NULL:
@@ -13357,8 +13785,8 @@ data class User(
 ```java
 @DynamicUpdate(FIELD)
 record User(@PK Integer id,
-            @Nonnull String email,
-            @Nonnull String name,
+            String email,
+            String name,
             @FK City city
 ) implements Entity<Integer> {}
 ```
@@ -14324,7 +14752,7 @@ Storm can be configured through `StormConfig`, system properties, Spring Boot's 
 | `storm.entity_cache.retention` | `default` | Cache retention mode: `default` or `light` |
 | `storm.template_cache.size` | `2048` | Maximum number of compiled templates to cache |
 | `storm.validation.record_mode` | `fail` | Record validation mode: `fail`, `warn`, or `none` |
-| `storm.validation.schema_mode` | `none` | Schema validation mode: `none`, `warn`, or `fail` (Spring Boot and Ktor) |
+| `storm.validation.schema_mode` | `fail` | Schema validation mode: `none`, `warn`, or `fail` (Spring Boot and Ktor) |
 | `storm.validation.strict` | `false` | Treat schema validation warnings as errors |
 | `storm.validation.interpolation_mode` | `warn` | Interpolation safety mode: `warn`, `fail`, or `none` (see [Interpolation Safety](#interpolation-safety)) |
 | `st.orm.scrollable.maxSize` | `1000` | Maximum window size allowed in a serialized cursor (system property only) |
@@ -14389,8 +14817,14 @@ storm:
     size: 2048
   validation:
     record-mode: fail
-    schema-mode: none
+    schema-mode: fail
     strict: false
+  exception-translation:
+    enabled: true
+  observations:
+    semantic-conventions: storm
+  tracing:
+    sql-comments: false
 ```
 
 The Spring Boot Starter binds these properties and builds a `StormConfig` that is passed to the `ORMTemplate` factory. Values not set in YAML fall back to system properties and then to built-in defaults. See [Spring Integration](spring-integration.md#configuration-via-applicationyml) for details.
@@ -14413,7 +14847,7 @@ storm {
     }
     validation {
         recordMode = "fail"
-        schemaMode = "none"
+        schemaMode = "fail"
         strict = false
     }
 }
@@ -14899,7 +15333,7 @@ Storm's Kotlin API uses the Storm compiler plugin to automatically wrap string i
 See [String Templates](string-templates.md) for setup instructions for the compiler plugin.
 
 > **Tip:**
-Storm exposes runtime metrics for template compilation, dirty checking, and entity cache behavior through JMX MBeans. See [Metrics](metrics.md) for details.
+Storm exposes runtime metrics for template compilation, dirty checking, and entity cache behavior through JMX MBeans; see [Metrics](metrics.md). For query and transaction metrics and tracing through your observability stack, add the `storm-micrometer` module (included in the Spring Boot starters).
 
 ---
 
@@ -14928,8 +15362,8 @@ data class Article(
 @DynamicUpdate(FIELD)
 record Article(
     @PK Integer id,
-    @Nonnull String title,
-    @Nonnull String content
+    String title,
+    String content
 ) implements Entity<Integer> {}
 ```
 ### Dirty Check Strategy Per Entity
@@ -15011,7 +15445,7 @@ java -Dstorm.validation.schema_mode=fail \
 - `storm.validation.schema_mode=fail` catches entity-to-schema mismatches at startup rather than at runtime.
 - `storm.validation.interpolation_mode=fail` prevents execution of templates that were not processed by the compiler plugin and do not use explicit `t()` calls, protecting against accidental SQL injection.
 
-During development, the defaults (`schema_mode=none`, `interpolation_mode=warn`) provide a smoother experience: schema validation is skipped (since the schema may be evolving), and missing compiler plugin usage is logged as a warning rather than blocking execution.
+In the Spring Boot starter and Ktor plugin, `schema_mode` already defaults to `fail`, so entity-to-schema mismatches abort startup out of the box; relax it to `warn` or `none` while a schema is still evolving. `interpolation_mode` defaults to `warn`, so missing compiler plugin usage is logged rather than blocking execution until you opt into `fail`.
 
 
 ========================================
@@ -15247,6 +15681,9 @@ No additional configuration or dependencies are needed beyond the Storm dependen
 # Metrics
 
 Storm exposes runtime metrics through JMX (Java Management Extensions) MBeans. These metrics give you visibility into template compilation performance, dirty checking behavior, and entity cache efficiency. All MBeans are registered automatically when Storm initializes and aggregate across all `ORMTemplate` instances in the JVM.
+
+> **Tip:**
+The metrics on this page are JMX-based and always on. For metrics and tracing through your observability stack, the `storm-micrometer` module reports every query and transaction as Micrometer Observations; see the observability sections of [Spring Integration](spring-integration.md#observability) and [Ktor Integration](ktor-integration.md#observability).
 
 To view these metrics, connect to the JVM with any JMX client (JConsole, VisualVM, or your monitoring platform) and navigate to the `st.orm` domain. If your application uses Spring Boot Actuator, the MBeans are also accessible through Actuator's JMX endpoint.
 
@@ -15817,7 +16254,7 @@ public class WriteAccessCallback implements EntityCallback<User> {
 
 When something goes wrong, Storm communicates the problem through a small, well-defined set of exception types. Understanding which exceptions can be thrown and when helps you write robust error handling that distinguishes between recoverable situations (like a missing entity) and programming mistakes (like a schema mismatch).
 
-This page covers Storm's exception hierarchy, the most common error scenarios you will encounter, and strategies for diagnosing problems when they arise.
+This page covers Storm's exception hierarchy, the most common error scenarios you will encounter, and strategies for diagnosing problems when they arise. For mapping these exceptions to HTTP responses in a Ktor application, see the StatusPages recipes in [Ktor Integration](ktor-integration.md#error-handling).
 
 ---
 
@@ -17118,14 +17555,15 @@ The following tables provide a side-by-side comparison of concrete features acro
 
 ### Entity & Data Modeling
 
-| Feature | Storm | JPA | Spring Data | MyBatis | jOOQ | JDBI | Exposed | Ktorm |
-|---------|-------|-----|-------------|---------|------|------|---------|-------|
-| Lines per entity | ~5 | ~30<sup>1</sup> | ~30<sup>1</sup> | ~20+ | Generated | ~15 | ~12 | ~15 |
-| Immutable entities | Yes | No | No | Yes | Yes | Yes | DSL only | No |
-| Polymorphism | Yes<sup>2</sup> | Yes | Via JPA | No | No | No | No | No |
-| Automatic relationships | Yes | Yes<sup>3</sup> | Via JPA | No | No | No | DAO only | No |
-| Cascade persist | No | Yes | Yes | No | No | No | No | No |
-| Lifecycle callbacks | Yes | Yes | Via JPA | No | Yes | No | DAO only | No |
+| Feature | Storm | JPA | Spring Data | MyBatis | jOOQ | JDBI | Jimmer | Exposed | Ktorm |
+|---------|-------|-----|-------------|---------|------|------|--------|---------|-------|
+| Lines per entity | ~5 | ~30<sup>1</sup> | ~30<sup>1</sup> | ~20+ | Generated | ~15 | ~10 | ~12 | ~15 |
+| Immutable entities | Yes | No | No | Yes | Yes | Yes | Yes | DSL only | No |
+| Session state | None | Persistence context | Via JPA | None | None | None | None | DAO only | Entity tracking |
+| Polymorphism | Yes<sup>2</sup> | Yes | Via JPA | No | No | No | No<sup>8</sup> | No | No |
+| Automatic relationships | Yes | Yes<sup>3</sup> | Via JPA | No | No | No | Yes | DAO only | No |
+| Cascade persist | No | Yes | Yes | No | No | No | Yes | No | No |
+| Lifecycle callbacks | Yes | Yes | Via JPA | No | Yes | No | Yes | DAO only | No |
 
 <sup>1</sup> JPA/Spring Data lines without Lombok; ~10 lines with Lombok.
 
@@ -17133,38 +17571,48 @@ The following tables provide a side-by-side comparison of concrete features acro
 
 <sup>3</sup> JPA relationships are runtime-managed via proxies.
 
+<sup>8</sup> Jimmer supports `@MappedSuperclass` for sharing fields across entities, but not JPA-style single-table, joined, or table-per-class inheritance strategies.
+
 ### Querying & Data Access
 
-| Feature | Storm | JPA | Spring Data | MyBatis | jOOQ | JDBI | Exposed | Ktorm |
-|---------|-------|-----|-------------|---------|------|------|---------|-------|
-| Type-safe queries | Yes | Criteria | No | No | Yes | No | Yes | Yes |
-| SQL Templates | Yes | No | No | XML/Ann | Yes | Yes | No | No |
-| N+1 prevention | Yes | No | No | No | Manual | Manual | No | No |
-| Lazy loading | Refs | Yes | Yes | No | No | No | Yes | Yes |
-| Scrolling | Yes | No | Yes | No | Yes | No | No | No |
-| JSON columns | Yes | Yes<sup>4</sup> | Via JPA | Manual | Yes | Module | Yes | Module |
-| JSON aggregation | Yes | No | No | No | Yes | No | No | No |
+| Feature | Storm | JPA | Spring Data | MyBatis | jOOQ | JDBI | Jimmer | Exposed | Ktorm |
+|---------|-------|-----|-------------|---------|------|------|--------|---------|-------|
+| Type-safe queries | Yes | Criteria | No | No | Yes | No | Yes | Yes | Yes |
+| SQL / SQL templates | Yes | Native queries | Via JPA | XML/Ann | Yes | Yes | Native<sup>9</sup> | exec() | Raw JDBC |
+| N+1 prevention | Yes | No | No | No | Manual | Manual | Yes | No | No |
+| Query across relations | One line | JPQL/Criteria | Derived/JPQL | Manual SQL | Path joins | Manual SQL | Implicit joins | Manual joins | Manual joins |
+| Lazy loading | Refs | Yes | Yes | No | No | No | Fetchers | Yes | Yes |
+| Scrolling | Yes | No | Yes | No | Yes | No | No | No | No |
+| JSON columns | Yes | Yes<sup>4</sup> | Via JPA | Manual | Yes | Module | Yes | Yes | Module |
+| JSON aggregation | Yes | No | No | No | Yes | No | No | No | No |
 
 <sup>4</sup> JPA requires Hibernate 6.2+ for built-in JSON support; older versions need a third-party library or custom `AttributeConverter`.
 
+<sup>9</sup> Jimmer has no SQL template engine, but native SQL fragments can be embedded in its type-safe DSL via `sql(...)`.
+
 ### Runtime & Ecosystem
 
-| Feature | Storm | JPA | Spring Data | MyBatis | jOOQ | JDBI | Exposed | Ktorm |
-|---------|-------|-----|-------------|---------|------|------|---------|-------|
-| Transactions | Both | Both | Declarative | Both | Programmatic | Both | Both<sup>6</sup> | Required |
-| Schema validation | Yes | Yes | Via JPA | No | N/A<sup>5</sup> | No | Yes | No |
-| Java support | Yes | Yes | Yes | Yes | Yes | Yes | No | No |
-| Kotlin support | First-class | Good | Good | Good | Good | Good | Native | Native |
-| Coroutines | Yes | No | No | No | No | No | Yes | Limited |
-| Spring integration | Yes | Yes | Native | Yes | Yes | Yes | Yes | Yes |
-| Runtime mechanism | Codegen<sup>7</sup> | Bytecode | Bytecode | Reflection | Codegen | Reflection | Reflection | Reflection |
-| Community | New | Huge | Huge | Large | Medium | Medium | Medium | Small |
+| Feature | Storm | JPA | Spring Data | MyBatis | jOOQ | JDBI | Jimmer | Exposed | Ktorm |
+|---------|-------|-----|-------------|---------|------|------|--------|---------|-------|
+| Transactions | Both | Both | Declarative | Both | Programmatic | Both | Both | Both<sup>6</sup> | Required |
+| Schema validation | Yes | Yes | Via JPA | No | N/A<sup>5</sup> | No | No | Yes | No |
+| Java support | Yes | Yes | Yes | Yes | Yes | Yes | Yes | No | No |
+| Kotlin support | First-class | Good | Good | Good | Good | Good | First-class | Native | Native |
+| Coroutines | Yes | No | No | No | No | No | No | Yes | Limited |
+| Spring integration | Yes | Yes | Native | Yes | Yes | Yes | Yes | Yes | Yes |
+| Runtime mechanism | Codegen<sup>7</sup> | Bytecode | Bytecode | Reflection | Codegen | Reflection | Codegen | Reflection | Reflection |
+| GraalVM native images | Native support<sup>10</sup> | Via Spring AOT / Quarkus | Via Spring AOT | Manual | Manual<sup>11</sup> | Manual | Manual | Via Spring Boot | Manual |
+| Community | New | Huge | Huge | Large | Medium | Medium | Small | Medium | Small |
 
 <sup>5</sup> jOOQ generates code from the database schema, so schema validation is inherent in its code generation step.
 
 <sup>6</sup> Exposed requires `transaction {}` blocks natively, but supports declarative `@Transactional` via its Spring integration module.
 
 <sup>7</sup> Storm uses codegen with reflection fallback.
+
+<sup>10</sup> Storm ships its reachability metadata and registers entities and repositories from the compile-time type index, through Spring AOT hints on Spring Boot and through a built-in GraalVM feature elsewhere. See [GraalVM Native Images](/docs/graalvm).
+
+<sup>11</sup> jOOQ's generated record classes need reflection configuration, which framework tooling or the tracing agent can produce.
 
 ---
 
@@ -17321,6 +17769,80 @@ JDBI is a lightweight SQL convenience library that sits just above JDBC. It hand
 - You want full SQL control
 - You prefer minimal abstraction
 - You have mostly complex queries that don't fit ORM patterns
+
+## Storm vs Jimmer
+
+Jimmer is a modern Kotlin and Java ORM that, like Storm, is built on immutable entities and a stateless model with no persistence context, and it eliminates the N+1 problem by design. The two frameworks share a great deal of philosophy. Where they differ is conciseness and concept count. Jimmer trades some concision for GraphQL-style dynamic object fetching: entities are interfaces you interact with through generated drafts, reading a foreign-key id without loading the association requires an extra `@IdView` property, and every query ends in an explicit `select` with an object fetcher. That fetcher, together with Jimmer's dedicated DTO language, is a genuine strength for shape-controlled API responses. Storm keeps the model a plain data class and the query a single line, and treats any data class as a result type.
+
+Defining an entity:
+
+```kotlin
+// Jimmer
+@Entity
+interface Book {
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    val id: Long
+    val name: String
+    val price: BigDecimal
+
+    @ManyToOne
+    val store: BookStore?
+
+    @IdView("store")           // extra property to read the FK id without loading
+    val storeId: Long?
+}
+
+// Storm — book.store.id is already available, so no extra property is needed
+data class Book(
+    @PK val id: Long = 0,
+    val name: String,
+    val price: BigDecimal,
+    @FK val store: BookStore?
+) : Entity<Long>
+```
+
+Loading a book together with its store:
+
+```kotlin
+// Jimmer — explicit query and object fetcher
+val books = sqlClient.createQuery(Book::class) {
+    where(table.store.name eq "Manning")
+    select(table.fetchBy {
+        allScalarFields()
+        store { allScalarFields() }
+    })
+}.execute()
+
+// Storm — the store is loaded in the same query
+val books = books.findAll(Book_.store.name eq "Manning")
+```
+
+| Aspect | Storm | Jimmer |
+|--------|-------|--------|
+| **Entities** | Immutable data classes, constructed directly | Immutable interfaces, constructed and copied via generated drafts |
+| **Foreign-key id** | `book.store.id`, always available | Declare an extra `@IdView` property per association |
+| **Simple query** | `findAll(Book_.store.name eq "...")` | `createQuery { where(...); select(table.fetchBy { ... }) }.execute()` |
+| **Result shaping** | Any data class is a result type | Object fetchers and a dedicated `.dto` language |
+| **N+1 Problem** | Prevented via single joined query | Prevented via batched separate queries (DataLoader-style) |
+| **State** | Stateless; no persistence context | Stateless; no persistence context |
+| **Caching** | Transaction-scoped identity cache | Multi-level cache with automatic invalidation |
+| **Languages** | Kotlin + Java | Kotlin + Java |
+| **License** | Apache 2.0 | Apache 2.0 |
+
+### When to Choose Storm
+
+- You want the smallest possible entity model and one-line queries
+- Your reads mostly map to entities and projections
+- You prefer plain data classes over interfaces and generated drafts
+- You want relationships loaded in a single query
+
+### When to Choose Jimmer
+
+- You want GraphQL-style dynamic object fetching with precise shape control
+- Its DTO language for typed, reusable projections fits your API contracts
+- You rely on its multi-level caching with automatic invalidation
+- You want to save arbitrary object graphs with its save command
 
 ---
 
@@ -17496,6 +18018,7 @@ Ready to try it? See the [Getting Started](getting-started.md) guide.
 - [JDBI](https://jdbi.org/)
 - [Exposed](https://github.com/JetBrains/Exposed)
 - [Ktorm](https://www.ktorm.org/)
+- [Jimmer](https://github.com/babyfish-ct/jimmer)
 
 
 ========================================
@@ -17606,7 +18129,7 @@ var updated = new User(user.id(), "new@example.com", user.name(), user.city());
 **Custom wither methods:** Define `with*` methods on the record that return a new instance with a single field changed. Clean API but requires a method per field.
 
 ```java
-record User(@PK Integer id, @Nonnull String email, @Nonnull String name, @FK City city
+record User(@PK Integer id, String email, String name, @FK City city
 ) implements Entity<Integer> {
     User withEmail(String email) { return new User(id, email, name, city); }
 }
@@ -18159,8 +18682,8 @@ Storm derives the table name (`user`) from the class name and column names (`ema
 ```java
 record User(
     @PK Long id,
-    @Nonnull String email,
-    @Nonnull String name,
+    String email,
+    String name,
     @Nullable @FK City city,
     @Nullable LocalDateTime createdAt
 ) implements Entity<Long> {}
@@ -18867,7 +19390,7 @@ AI works better when framework behavior is explicit and visible in source code.
 
 Traditional ORMs rely on mechanisms that are powerful but implicit: proxy objects that intercept field access, lazy loading that triggers queries at unpredictable moments, persistence contexts that track entity state across transaction boundaries, and cascading rules that propagate changes through the object graph. These features serve real purposes, but they make AI-assisted development harder. The AI has to account for behavior that does not appear in the code. Code that compiles and looks correct can still break at runtime because of invisible framework state.
 
-Storm eliminates all of that. Entities are plain Kotlin data classes or Java records. There are no proxies, no managed state, no persistence context, and no lazy loading. Queries are explicit, and what you see in the source code is exactly what happens at runtime. This makes Storm's behavior predictable for AI tools: the code is the complete picture.
+Storm eliminates all of that. Entities are plain Kotlin data classes or Java records. There are no proxies, no managed state, no persistence context, and no transparent lazy loading: deferred loading is explicit, through `Ref<T>`. Queries are explicit, and what you see in the source code is exactly what happens at runtime. This makes Storm's behavior predictable for AI tools: the code is the complete picture.
 
 The design choices that matter most:
 
@@ -19113,7 +19636,7 @@ The Kotlin API does not depend on any preview features. All APIs are stable and 
 
 ### storm-kotlin-spring
 
-Spring Framework integration for Kotlin. Provides `RepositoryBeanFactoryPostProcessor` for repository auto-discovery and injection, `@EnableTransactionIntegration` for bridging Storm's programmatic transactions with Spring's `@Transactional`, and transaction-aware coroutine support. Add this module when you use Spring Framework without Spring Boot.
+Spring Framework integration for Kotlin. Provides `RepositoryBeanFactoryPostProcessor` for repository auto-discovery and injection, and `springOrmTemplate` for composing a template that bridges Storm's programmatic transactions with Spring's `@Transactional`. Add this module when you use Spring Framework without Spring Boot.
 
 ```kotlin
 implementation("st.orm:storm-kotlin-spring:@@STORM_VERSION@@")

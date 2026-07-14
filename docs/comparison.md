@@ -57,6 +57,7 @@ The following tables provide a side-by-side comparison of concrete features acro
 | Coroutines | Yes | No | No | No | No | No | No | Yes | Limited |
 | Spring integration | Yes | Yes | Native | Yes | Yes | Yes | Yes | Yes | Yes |
 | Runtime mechanism | Codegen<sup>7</sup> | Bytecode | Bytecode | Reflection | Codegen | Reflection | Codegen | Reflection | Reflection |
+| GraalVM native images | Native support<sup>10</sup> | Via Spring AOT / Quarkus | Via Spring AOT | Manual | Manual<sup>11</sup> | Manual | Manual | Via Spring Boot | Manual |
 | Community | New | Huge | Huge | Large | Medium | Medium | Small | Medium | Small |
 
 <sup>5</sup> jOOQ generates code from the database schema, so schema validation is inherent in its code generation step.
@@ -64,6 +65,10 @@ The following tables provide a side-by-side comparison of concrete features acro
 <sup>6</sup> Exposed requires `transaction {}` blocks natively, but supports declarative `@Transactional` via its Spring integration module.
 
 <sup>7</sup> Storm uses codegen with reflection fallback.
+
+<sup>10</sup> Storm ships its reachability metadata and registers entities and repositories from the compile-time type index, through Spring AOT hints on Spring Boot and through a built-in GraalVM feature elsewhere. See [GraalVM Native Images](/docs/graalvm).
+
+<sup>11</sup> jOOQ's generated record classes need reflection configuration, which framework tooling or the tracing agent can produce.
 
 ---
 

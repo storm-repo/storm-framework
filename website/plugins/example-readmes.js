@@ -16,10 +16,10 @@ const EXAMPLES = [
     title: 'Storm Movies · Kotlin + Ktor',
     description:
       'A server-rendered movie browser on Ktor 3 with the Storm plugin: ' +
-      'automatic repository registration, Koin wiring via stormModule(), ' +
+      'automatic repository registration, service wiring with ktor-server-di, ' +
       'coroutine-native transactions, kotlinx.serialization for the JSON ' +
       'APIs, and Playwright-driven interface tests.',
-    chips: ['Kotlin', 'Ktor 3', 'Koin', 'PostgreSQL'],
+    chips: ['Kotlin', 'Ktor 3', 'PostgreSQL'],
   },
   {
     slug: 'kotlin-spring-boot',
@@ -41,6 +41,27 @@ const EXAMPLES = [
       'metamodel-based queries, Spring-managed transactions, and schema ' +
       'validation. No JPA, no proxies, no persistence context.',
     chips: ['Java 21', 'Spring Boot 4', 'PostgreSQL'],
+  },
+  {
+    slug: 'kotlin-spring-boot-graalvm',
+    repo: 'storm-example-kotlin-spring-boot-4-graalvm',
+    title: 'Storm Movies · Spring Boot 4 · GraalVM',
+    description:
+      'The Spring Boot movie browser compiled to a GraalVM native image: ' +
+      'entities and scanned repositories registered automatically through ' +
+      "Storm's Spring AOT hints, startup around a quarter of a second, and " +
+      'the full Playwright suite running against the native binary.',
+    chips: ['Kotlin', 'Spring Boot 4', 'GraalVM'],
+  },
+  {
+    slug: 'kotlin-ktor-graalvm',
+    repo: 'storm-example-kotlin-ktor-graalvm',
+    title: 'Storm Movies · Ktor · GraalVM',
+    description:
+      'The Ktor movie browser as a native image: storm-core ships a GraalVM ' +
+      'feature that registers entities and repositories from the compile-time ' +
+      'type index, so the data layer needs no native configuration at all.',
+    chips: ['Kotlin', 'Ktor 3', 'GraalVM'],
   },
 ];
 
