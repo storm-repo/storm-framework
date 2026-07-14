@@ -1,6 +1,7 @@
 package st.orm.core.model;
 
 import jakarta.annotation.Nonnull;
+import jakarta.annotation.Nullable;
 import java.time.LocalDate;
 import st.orm.DbColumn;
 import st.orm.DbTable;
@@ -16,6 +17,6 @@ public record PetWithNullableOwnerRef(
         @Nonnull String name,
         @Nonnull @Persist(updatable = false) LocalDate birthDate,
         @Nonnull @FK @Persist(updatable = false) @DbColumn("type_id") PetType petType,
-        @FK Ref<Owner> owner
+        @Nullable @FK Ref<Owner> owner
 ) implements Entity<Integer> {
 }

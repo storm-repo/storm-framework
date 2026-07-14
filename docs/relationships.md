@@ -253,8 +253,8 @@ val roles: List<Role> = orm.entity<Role>()
 record UserRolePk(int userId, int roleId) {}
 
 record UserRole(@PK UserRolePk userRolePk,
-                @Nonnull @FK @Persist(insertable = false, updatable = false) User user,
-                @Nonnull @FK @Persist(insertable = false, updatable = false) Role role
+                @FK @Persist(insertable = false, updatable = false) User user,
+                @FK @Persist(insertable = false, updatable = false) Role role
 ) implements Entity<UserRolePk> {}
 ```
 
@@ -350,8 +350,8 @@ data class AuditLog(
 record UserRolePk(int userId, int roleId) {}
 
 record UserRole(@PK UserRolePk pk,
-                @Nonnull @FK User user,
-                @Nonnull @FK Role role,
+                @FK User user,
+                @FK Role role,
                 Instant grantedAt
 ) implements Entity<UserRolePk> {}
 

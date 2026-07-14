@@ -8,6 +8,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import static st.orm.core.template.TemplateString.raw;
 import static st.orm.core.template.Templates.param;
 
+import jakarta.annotation.Nullable;
 import java.nio.ByteBuffer;
 import java.sql.Timestamp;
 import java.util.Calendar;
@@ -46,7 +47,7 @@ public class QueryImplTest {
     @Autowired
     private DataSource dataSource;
 
-    record CalendarResult(Calendar value) {}
+    record CalendarResult(@Nullable Calendar value) {}
 
     @Test
     public void testCalendarTypeMapping() {
@@ -76,7 +77,7 @@ public class QueryImplTest {
         assertNotNull(result.value());
     }
 
-    record ByteBufferResult(ByteBuffer value) {}
+    record ByteBufferResult(@Nullable ByteBuffer value) {}
 
     @Test
     public void testByteBufferReadTypeMapping() {

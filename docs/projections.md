@@ -60,8 +60,8 @@ data class OwnerView(
 @DbTable("owner")
 record OwnerView(
     @PK Integer id,
-    @Nonnull String firstName,
-    @Nonnull String lastName,
+    String firstName,
+    String lastName,
     @Nullable String telephone
 ) implements Projection<Integer> {}
 ```
@@ -91,9 +91,9 @@ data class VisitSummary(
 
 ```java
 record VisitSummary(
-    @Nonnull LocalDate visitDate,
+    LocalDate visitDate,
     @Nullable String description,
-    @Nonnull String petName
+    String petName
 ) implements Projection<Void> {}
 ```
 
@@ -124,7 +124,7 @@ data class PetView(
 ```java
 @DbTable("pet")
 record PetView(@PK Integer id,
-               @Nonnull String name,
+               String name,
                @FK OwnerView owner  // References another projection
 ) implements Projection<Integer> {}
 ```
@@ -419,10 +419,10 @@ data class OwnerDetail(
 ```java
 // Full entity for writes
 record Owner(@PK Integer id,
-             @Nonnull String firstName,
-             @Nonnull String lastName,
-             @Nonnull String address,
-             @Nonnull String city,
+             String firstName,
+             String lastName,
+             String address,
+             String city,
              @Nullable String telephone,
              @Version int version
 ) implements Entity<Integer> {}
@@ -430,17 +430,17 @@ record Owner(@PK Integer id,
 // Lightweight projection for list views
 @DbTable("owner")
 record OwnerListItem(@PK Integer id,
-                     @Nonnull String firstName,
-                     @Nonnull String lastName
+                     String firstName,
+                     String lastName
 ) implements Projection<Integer> {}
 
 // Detailed projection for detail views
 @DbTable("owner")
 record OwnerDetail(@PK Integer id,
-                   @Nonnull String firstName,
-                   @Nonnull String lastName,
-                   @Nonnull String address,
-                   @Nonnull String city,
+                   String firstName,
+                   String lastName,
+                   String address,
+                   String city,
                    @Nullable String telephone
 ) implements Projection<Integer> {}
 ```

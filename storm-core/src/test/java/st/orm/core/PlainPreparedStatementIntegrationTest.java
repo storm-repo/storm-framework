@@ -3,11 +3,11 @@ package st.orm.core;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static st.orm.core.template.TemplateString.raw;
 
 import jakarta.annotation.Nonnull;
 import java.time.LocalDate;
-import java.util.Objects;
 import javax.sql.DataSource;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -118,16 +118,21 @@ public class PlainPreparedStatementIntegrationTest {
     }
 
     @Test
-    public void testSelectPetTypedWithLocalRecordAndEnumNull() {
-        // Selecting NULL as pet_type for all 13 pets. All types should be null.
+    public void testSelectPetTypedWithLocalRecordAndEnumNullThrows() {
+        // Unannotated components are non-null by default (null-marked contract). Selecting NULL for the
+        // unannotated enum field should throw PersistenceException (via SqlTemplateException).
         record Pet(int id, String name, LocalDate birthDate, PetTypeEnum type) {}
-        try (var query = ORMTemplate.of(dataSource).query("""
-            SELECT p.id, p.name, p.birth_date, NULL pet_type
-            FROM pet p
-              INNER JOIN pet_type pt ON p.type_id = pt.id""").prepare();
-             var stream = query.getResultStream(Pet.class)) {
-            assertEquals(13, stream.map(Pet::type).filter(Objects::isNull).count());
-        }
+        PersistenceException e = assertThrows(PersistenceException.class, () -> {
+            try (var query = ORMTemplate.of(dataSource).query("""
+                SELECT p.id, p.name, p.birth_date, NULL pet_type
+                FROM pet p
+                  INNER JOIN pet_type pt ON p.type_id = pt.id""").prepare();
+                 var stream = query.getResultStream(Pet.class)) {
+                stream.toList();
+            }
+        });
+        assertInstanceOf(SqlTemplateException.class, e.getCause());
+        assertTrue(e.getCause().getMessage().contains("non-nullable"));
     }
 
     @Test

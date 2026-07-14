@@ -6,6 +6,7 @@ import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static st.orm.core.template.TemplateString.raw;
 
+import jakarta.annotation.Nullable;
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.LocalDate;
@@ -118,7 +119,7 @@ public class QueryImplTypeMappingIntegrationTest {
 
     // String type mapping via record
 
-    record StringResult(String value) {}
+    record StringResult(@Nullable String value) {}
 
     @Test
     public void testStringTypeMapping() {
@@ -142,7 +143,7 @@ public class QueryImplTypeMappingIntegrationTest {
 
     // LocalDate type mapping via record
 
-    record LocalDateResult(LocalDate value) {}
+    record LocalDateResult(@Nullable LocalDate value) {}
 
     @Test
     public void testLocalDateTypeMapping() {
@@ -153,7 +154,7 @@ public class QueryImplTypeMappingIntegrationTest {
 
     // LocalDateTime type mapping via record
 
-    record LocalDateTimeResult(LocalDateTime value) {}
+    record LocalDateTimeResult(@Nullable LocalDateTime value) {}
 
     @Test
     public void testLocalDateTimeTypeMapping() {
@@ -168,7 +169,7 @@ public class QueryImplTypeMappingIntegrationTest {
 
     // LocalTime type mapping via record
 
-    record LocalTimeResult(LocalTime value) {}
+    record LocalTimeResult(@Nullable LocalTime value) {}
 
     @Test
     public void testLocalTimeTypeMapping() {
@@ -182,7 +183,7 @@ public class QueryImplTypeMappingIntegrationTest {
 
     // Instant type mapping via record
 
-    record InstantResult(Instant value) {}
+    record InstantResult(@Nullable Instant value) {}
 
     @Test
     public void testInstantTypeMapping() {
@@ -196,7 +197,7 @@ public class QueryImplTypeMappingIntegrationTest {
 
     // OffsetDateTime type mapping via record
 
-    record OffsetDateTimeResult(OffsetDateTime value) {}
+    record OffsetDateTimeResult(@Nullable OffsetDateTime value) {}
 
     @Test
     public void testOffsetDateTimeTypeMapping() {
@@ -209,7 +210,7 @@ public class QueryImplTypeMappingIntegrationTest {
 
     // ZonedDateTime type mapping via record
 
-    record ZonedDateTimeResult(ZonedDateTime value) {}
+    record ZonedDateTimeResult(@Nullable ZonedDateTime value) {}
 
     @Test
     public void testZonedDateTimeTypeMapping() {
@@ -258,7 +259,7 @@ public class QueryImplTypeMappingIntegrationTest {
 
     // java.util.Date type mapping via record
 
-    record JavaUtilDateResult(java.util.Date value) {}
+    record JavaUtilDateResult(@Nullable java.util.Date value) {}
 
     @Test
     public void testJavaUtilDateTypeMapping() {

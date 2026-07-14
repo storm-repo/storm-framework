@@ -414,8 +414,8 @@ data class SomeEntity(
 record UserEmailUk(int userId, String email) {}
 
 record SomeEntity(@PK Integer id,
-                  @Nonnull @FK User user,
-                  @Nonnull String email,
+                  @FK User user,
+                  String email,
                   @UK @Persist(insertable = false, updatable = false) UserEmailUk uniqueKey
 ) implements Entity<Integer> {}
 ```
@@ -549,7 +549,7 @@ In standard SQL, `NULL != NULL`. This means a `UNIQUE` constraint typically allo
 
 Because of this, Storm validates nullable unique keys at two levels:
 
-1. **Compile-time warning.** The metamodel processor emits a warning when a `@UK` field is nullable (a nullable type in Kotlin, or a reference type without `@Nonnull` in Java) and the default `nullsDistinct = true` applies.
+1. **Compile-time warning.** The metamodel processor emits a warning when a `@UK` field is nullable (a nullable type in Kotlin, a `@Nullable` reference type in Java, or any reference type in a `@NullUnmarked` scope) and the default `nullsDistinct = true` applies.
 2. **Runtime check.** The `scroll` method throws a `PersistenceException` if the key's metamodel indicates that nulls are distinct for a nullable field, preventing silent data loss.
 
 Database behavior varies. Some databases offer stricter NULL handling for unique constraints:
@@ -562,10 +562,10 @@ The `@UK` annotation provides a `nullsDistinct` attribute to control this behavi
 
 | Field | `nullsDistinct` | Effect |
 |-------|-----------------|--------|
-| `@UK @Nonnull String email` | (irrelevant) | Safe. No warning, no runtime check. |
+| `@UK String email` | (irrelevant) | Safe. Non-null by default. No warning, no runtime check. |
 | `@UK int count` | (irrelevant) | Safe. Primitive is never null. |
-| `@UK String email` | `true` (default) | Compile-time warning. `scroll` throws `PersistenceException`. |
-| `@UK(nullsDistinct = false) String email` | `false` | No warning. `scroll` works (user asserts DB prevents duplicate NULLs). |
+| `@UK @Nullable String email` | `true` (default) | Compile-time warning. `scroll` throws `PersistenceException`. |
+| `@UK(nullsDistinct = false) @Nullable String email` | `false` | No warning. `scroll` works (user asserts DB prevents duplicate NULLs). |
 
 When `nullsDistinct` is set to `false`, you are telling Storm that your database constraint prevents duplicate `NULL` values in the column. Storm trusts this assertion and skips both the compile-time warning and the runtime check. Use this only when your database actually enforces this guarantee (for example, with a `NULLS NOT DISTINCT` unique index in PostgreSQL 15+, or on SQL Server where unique indexes allow at most one `NULL` by default).
 
@@ -596,13 +596,13 @@ data class User(
 ```java
 // Safe (non-nullable)
 record User(@PK Integer id,
-            @UK @Nonnull String email,  // Non-nullable, safe for scrolling
+            @UK String email,  // Non-null by default, safe for scrolling
             String name
 ) implements Entity<Integer> {}
 
 // Opt-in for nullable keys
 record User(@PK Integer id,
-            @UK(nullsDistinct = false) String email,  // DB prevents duplicate NULLs
+            @UK(nullsDistinct = false) @Nullable String email,  // DB prevents duplicate NULLs
             String name
 ) implements Entity<Integer> {}
 ```

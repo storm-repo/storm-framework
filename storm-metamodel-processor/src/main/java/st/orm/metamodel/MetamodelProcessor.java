@@ -545,11 +545,56 @@ public final class MetamodelProcessor extends AbstractProcessor {
         return false;
     }
 
-    private static boolean hasNonnullAnnotation(@Nonnull Element element) {
+    /** Nullable markers, matching the runtime contract (JetBrains covers Kotlin kapt stubs). */
+    private static final Set<String> NULLABLE_ANNOTATIONS = Set.of(
+            "org.jspecify.annotations.Nullable",
+            "jakarta.annotation.Nullable",
+            "javax.annotation.Nullable",
+            "org.jetbrains.annotations.Nullable");
+
+    /** Non-null markers, matching the runtime contract (JetBrains covers Kotlin kapt stubs). */
+    private static final Set<String> NONNULL_ANNOTATIONS = Set.of(
+            "org.jspecify.annotations.NonNull",
+            "jakarta.annotation.Nonnull",
+            "javax.annotation.Nonnull",
+            "org.jetbrains.annotations.NotNull");
+
+    private static final String NULL_MARKED = "org.jspecify.annotations.NullMarked";
+    private static final String NULL_UNMARKED = "org.jspecify.annotations.NullUnmarked";
+
+    /**
+     * Returns whether the element carries any of the given annotations, checking both the declaration and the
+     * type use (JSpecify annotations annotate the type rather than the declaration).
+     */
+    private static boolean hasAnyAnnotation(@Nonnull Element element, @Nonnull Set<String> names) {
         for (AnnotationMirror am : element.getAnnotationMirrors()) {
-            String name = am.getAnnotationType().toString();
-            if ("jakarta.annotation.Nonnull".equals(name) || "javax.annotation.Nonnull".equals(name)) {
+            if (names.contains(am.getAnnotationType().toString())) {
                 return true;
+            }
+        }
+        for (AnnotationMirror am : element.asType().getAnnotationMirrors()) {
+            if (names.contains(am.getAnnotationType().toString())) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /**
+     * Resolves the nearest {@code @NullUnmarked} / {@code @NullMarked} marker by walking the enclosing elements
+     * (class, enclosing classes, package, module). Without a marker the scope is null-marked: this mirrors the
+     * runtime contract, where models are null-marked by default.
+     */
+    private static boolean isNullUnmarkedScope(@Nonnull Element element) {
+        for (Element enclosing = element; enclosing != null; enclosing = enclosing.getEnclosingElement()) {
+            for (AnnotationMirror am : enclosing.getAnnotationMirrors()) {
+                String name = am.getAnnotationType().toString();
+                if (NULL_UNMARKED.equals(name)) {
+                    return true;
+                }
+                if (NULL_MARKED.equals(name)) {
+                    return false;
+                }
             }
         }
         return false;
@@ -582,11 +627,13 @@ public final class MetamodelProcessor extends AbstractProcessor {
         TypeMirror fieldType = getTypeElement(recordElement, fieldName);
         if (fieldType != null && isPrimitiveReturn(fieldType)) return false;
 
-        // Check for @Nonnull annotations on record components.
+        // Explicit annotations win, nullable before non-null, matching the runtime contract.
+        // Check record components first.
         if (recordElement.getKind() == RECORD && recordElement instanceof TypeElement te) {
             for (RecordComponentElement rc : te.getRecordComponents()) {
                 if (rc.getSimpleName().toString().equals(fieldName)) {
-                    if (hasNonnullAnnotation(rc)) return false;
+                    if (hasAnyAnnotation(rc, NULLABLE_ANNOTATIONS)) return true;
+                    if (hasAnyAnnotation(rc, NONNULL_ANNOTATIONS)) return false;
                 }
             }
         }
@@ -595,11 +642,13 @@ public final class MetamodelProcessor extends AbstractProcessor {
             if (enclosed.getKind() != CONSTRUCTOR) continue;
             for (VariableElement param : ((ExecutableElement) enclosed).getParameters()) {
                 if (param.getSimpleName().toString().equals(fieldName)) {
-                    if (hasNonnullAnnotation(param)) return false;
+                    if (hasAnyAnnotation(param, NULLABLE_ANNOTATIONS)) return true;
+                    if (hasAnyAnnotation(param, NONNULL_ANNOTATIONS)) return false;
                 }
             }
         }
-        return true;
+        // Models are null-marked by default; only a @NullUnmarked scope makes unannotated fields nullable.
+        return isNullUnmarkedScope(recordElement);
     }
 
     /**

@@ -678,8 +678,8 @@ data class Article(
 @DynamicUpdate(FIELD)
 record Article(
     @PK Integer id,
-    @Nonnull String title,
-    @Nonnull String content
+    String title,
+    String content
 ) implements Entity<Integer> {}
 ```
 

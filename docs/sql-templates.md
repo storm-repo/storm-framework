@@ -82,7 +82,7 @@ val pets = orm.query { """
 ```java
 @DbTable("pet")
 record PetWithOwner(
-    @Nonnull String name,
+    String name,
     @Nullable LocalDate birthDate,
     @FK Owner owner
 ) implements Data {}
@@ -165,17 +165,17 @@ orm.query { """
 
 ```java
 record Country(@PK Integer id,
-               @Nonnull String name,
-               @Nonnull String code
+               String name,
+               String code
 ) implements Entity<Integer> {}
 
 record City(@PK Integer id,
-            @Nonnull String name,
+            String name,
             @FK Country country
 ) implements Entity<Integer> {}
 
 record User(@PK Integer id,
-            @Nonnull String email,
+            String email,
             @FK City city
 ) implements Entity<Integer> {}
 ```

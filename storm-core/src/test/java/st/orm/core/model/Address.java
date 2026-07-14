@@ -1,5 +1,6 @@
 package st.orm.core.model;
 
+import jakarta.annotation.Nullable;
 import lombok.Builder;
 import st.orm.FK;
 
@@ -9,5 +10,5 @@ import st.orm.FK;
 @Builder(toBuilder = true)
 public record Address(
         String address,
-        @FK City city
+        @Nullable @FK City city
 ) {}

@@ -22,7 +22,7 @@ Before generating, ask about their relationship loading preference:
 Generation rules:
 
 1. Use Java records implementing \`Entity<ID>\`:
-   \`record City(@PK Integer id, @Nonnull String name, long population) implements Entity<Integer> {}\`
+   \`record City(@PK Integer id, String name, long population) implements Entity<Integer> {}\`
 
 2. Primary keys (\`@PK\`):
    - IDENTITY (default): \`@PK Integer id\` with null on insert.
@@ -30,7 +30,9 @@ Generation rules:
    - NONE: \`@PK(generation = NONE) String code\` for natural keys.
 
 3. Nullability:
-   - Record components nullable by default. Use \`@Nonnull\` for required fields.
+   - Record components are non-null by default, exactly like Kotlin. Mark nullable fields with \`@Nullable\`
+     (JSpecify \`org.jspecify.annotations.Nullable\`, \`jakarta.annotation.Nullable\`, or \`javax.annotation.Nullable\`).
+     \`@NullUnmarked\` on a class or package restores nullable-by-default components for that scope.
    - Storm recognizes \`jakarta.annotation.Nonnull\`, \`javax.annotation.Nonnull\`, and JSpecify's
      \`org.jspecify.annotations.NonNull\` on the component. Other null-marker annotations (Lombok,
      JetBrains, Spring) are NOT recognized, and JSpecify \`@NullMarked\` scope defaults are NOT
@@ -39,13 +41,13 @@ Generation rules:
 
 4. Foreign keys (\`@FK\`):
    - **Every column with a FK constraint in the database must be modeled with `@FK` in the entity.** Without `@FK`, Storm has no FK metadata and cannot resolve joins automatically — forcing template-based joins that defeat the QueryBuilder.
-   - Prefer full entity types (`@Nonnull @FK City city`) over `Ref<T>` (`@FK Ref<City> city`). Full entities load the related data in one query with automatic JOINs.
+   - Prefer full entity types (`@FK City city`) over `Ref<T>` (`@FK Ref<City> city`). Full entities load the related data in one query with automatic JOINs.
    - Use `Ref<T>` when the entity hierarchy gets too deep or loading the full related entity is overkill for the use case.
-   - Non-nullable: \`@Nonnull @FK City city\` produces INNER JOIN.
+   - Non-nullable: \`@FK City city\` produces INNER JOIN (non-null is the default).
    - Nullable: \`@Nullable @FK City city\` produces LEFT JOIN.
-   - **A bare \`@FK City city\` without a non-null marker is treated as nullable and produces a LEFT JOIN.**
-     Match the database: if the FK column is NOT NULL, the field MUST carry \`@Nonnull\`
-     (\`jakarta.annotation.Nonnull\`) or JSpecify \`@NonNull\`, otherwise queries silently degrade to LEFT JOINs.
+   - **A bare \`@FK City city\` is non-null and produces an INNER JOIN.**
+     Match the database: if the FK column allows NULL, the field MUST carry \`@Nullable\`,
+     otherwise the INNER JOIN silently filters rows without the reference.
 
 5. CIRCULAR REFERENCES ARE NOT SUPPORTED. At least one side MUST use \`Ref<T>\`. Self-references MUST use \`Ref<T>\`: \`@Nullable @FK Ref<User> invitedBy\`.
 
@@ -73,8 +75,8 @@ Generation rules:
    record UserRolePk(int userId, int roleId) {}
 
    record UserRole(@PK(generation = NONE) UserRolePk id,
-                   @Nonnull @FK @Persist(insertable = false, updatable = false) User user,
-                   @Nonnull @FK @Persist(insertable = false, updatable = false) Role role
+                   @FK @Persist(insertable = false, updatable = false) User user,
+                   @FK @Persist(insertable = false, updatable = false) Role role
    ) implements Entity<UserRolePk> {
        UserRole(User user, Role role) {
            this(new UserRolePk(user.id(), role.id()), user, role);
@@ -88,8 +90,8 @@ Generation rules:
    record UserAddressPk(int userId, int addressNumber) {}
 
    record UserAddress(@PK(generation = NONE) UserAddressPk id,
-                      @Nonnull @FK @Persist(insertable = false, updatable = false) User user,  // userId in PK → non-insertable
-                      @Nonnull @FK City city                                                    // city_id NOT in PK → insertable
+                      @FK @Persist(insertable = false, updatable = false) User user,  // userId in PK → non-insertable
+                      @FK City city                                                             // city_id NOT in PK → insertable
    ) implements Entity<UserAddressPk> {
        UserAddress(User user, int addressNumber, City city) {
            this(new UserAddressPk(user.id(), addressNumber), user, city);
@@ -108,7 +110,7 @@ Generation rules:
    ```
 
 10. Unique keys:
-   - **Single-column** (apply by default): `@UK @Nonnull String email`. Generates a `Metamodel.Key` for type-safe lookups and scrolling. Always add `@UK` when the database has a single-column unique constraint — it's one annotation for free value.
+   - **Single-column** (apply by default): `@UK String email`. Generates a `Metamodel.Key` for type-safe lookups and scrolling. Always add `@UK` when the database has a single-column unique constraint — it's one annotation for free value.
    - **Composite** (only when needed in code): use an inline record + `@UK @Persist(insertable = false, updatable = false)`. Only add this when the user explicitly needs a composite `Metamodel.Key` for keyset pagination or type-safe lookups. Composite unique constraints that don't need a Key don't need to be modeled.
    - `@UK(constraint = false)` suppresses schema validation when no database constraint exists.
 
@@ -117,7 +119,7 @@ Generation rules:
 11b. Database-managed columns: annotate columns the database computes or maintains (e.g. \`DEFAULT CURRENT_TIMESTAMP\`, \`ON UPDATE\` timestamps, computed values) with \`@Persist(insertable = false, updatable = false)\`. Storm then never writes the column and always reads it back:
    \`\`\`java
    record User(@PK Integer id,
-               @Nonnull String email,
+               String email,
                @Persist(insertable = false, updatable = false) Instant registeredAt
    ) implements Entity<Integer> {}
    \`\`\`

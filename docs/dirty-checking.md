@@ -309,8 +309,8 @@ data class User(
 ```java
 @DynamicUpdate(FIELD)
 record User(@PK Integer id,
-            @Nonnull String email,
-            @Nonnull String name,
+            String email,
+            String name,
             @FK City city
 ) implements Entity<Integer> {}
 ```
