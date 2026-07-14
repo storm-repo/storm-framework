@@ -256,6 +256,7 @@ export const navHtml = (active) => `
     <a href="/tutorials/"${active === 'tutorials' ? ' class="on"' : ''}>Tutorials</a>
     <a href="/examples/"${active === 'examples' ? ' class="on"' : ''}>Examples</a>
     <a href="/comparison"${active === 'comparison' ? ' class="on"' : ''}>Comparison</a>
+    <a href="/benchmarks"${active === 'benchmarks' ? ' class="on"' : ''}>Benchmarks</a>
     <a href="/blog/"${active === 'blog' ? ' class="on"' : ''}>Blog</a>
     <a href="/docs/"${active === 'docs' ? ' class="on"' : ''}>Docs</a>
     <a class="gh" href="https://github.com/orgs/storm-orm/repositories" target="_blank" rel="noopener">GitHub</a>
@@ -266,7 +267,7 @@ export const navHtml = (active) => `
 export const FOOT_HTML = `
 <footer><div class="wrap foot">
   <div class="brand"><img class="logo" src="/img/storm-light.png" alt="Storm" /></div>
-  <div class="links"><a href="/">orm.st</a><a href="/tutorials/">Tutorials</a><a href="/examples/">Examples</a><a href="/comparison">Comparison</a><a href="/blog/">Blog</a><a href="https://github.com/storm-orm/storm-framework" target="_blank" rel="noopener">GitHub</a><a href="https://central.sonatype.com/namespace/st.orm">Maven Central</a></div>
+  <div class="links"><a href="/">orm.st</a><a href="/tutorials/">Tutorials</a><a href="/examples/">Examples</a><a href="/comparison">Comparison</a><a href="/benchmarks">Benchmarks</a><a href="/blog/">Blog</a><a href="https://github.com/storm-orm/storm-framework" target="_blank" rel="noopener">GitHub</a><a href="https://central.sonatype.com/namespace/st.orm">Maven Central</a></div>
 </div></footer>`;
 
 export const TUT_CSS = `

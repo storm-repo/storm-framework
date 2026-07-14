@@ -50,6 +50,31 @@ const CSS = `
   .storm-home header{padding:46px 0 34px}
   .storm-home h1{font-size:clamp(42px,7vw,78px);line-height:.97;letter-spacing:-.04em;font-weight:800;margin:0}
   .storm-home .grad{background:linear-gradient(100deg,#a78bfa,#818cf8 50%,#7dd3fc);-webkit-background-clip:text;background-clip:text;color:transparent}
+  .storm-home .vs-chips{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:18px}
+  .storm-home .vs-label{font-size:12.5px;color:var(--faint);margin-right:2px}
+  .storm-home .vs-chips button{font-family:var(--mono);font-size:11.5px;color:var(--faint);border:1px solid var(--border-soft);background:none;border-radius:999px;padding:6px 12px;cursor:pointer;transition:all .15s ease}
+  .storm-home .vs-chips button:hover{color:var(--muted);border-color:var(--border)}
+  .storm-home .vs-chips button.on{color:#fde68a;border-color:rgba(251,191,36,.65);background:rgba(251,191,36,.14);box-shadow:0 0 14px rgba(251,191,36,.18);font-weight:700}
+  .storm-home .vs-bench{margin-left:auto;font-size:12.5px;font-weight:600;color:#fbbf24;text-decoration:none;white-space:nowrap}
+  .storm-home .vs-bench:hover{text-decoration:underline;color:#fde68a}
+  .storm-home .card.bcard{padding:18px 22px}
+  .storm-home .bcard.bench{min-height:186px}
+  .storm-home .bcard{position:relative;overflow:hidden}
+  .storm-home .bcard .bfront p{font-size:12.5px;line-height:1.5}
+  .storm-home .bcard .bfront .ic{width:26px;height:26px;margin-bottom:8px}
+  .storm-home .bcard .bfront h3{font-size:15px;margin-bottom:6px}
+  .storm-home .bcard .bback p{font-size:12.5px;line-height:1.5}
+  .storm-home .bcard .bback h3{font-size:15.5px;margin-bottom:7px}
+  .storm-home .bface{transition:opacity .55s ease,transform .55s ease}
+  .storm-home .bcard:nth-child(2) .bface{transition-delay:.12s}
+  .storm-home .bcard:nth-child(3) .bface{transition-delay:.24s}
+  .storm-home .bfront{position:relative}
+  .storm-home .bback{position:absolute;inset:0;padding:inherit;opacity:0;transform:translateY(10px);pointer-events:none}
+  .storm-home .bcard.bench .bfront{position:absolute;inset:0;padding:inherit;opacity:0;transform:translateY(-10px);pointer-events:none}
+  .storm-home .bcard.bench .bback{position:relative;inset:auto;padding:0;opacity:1;transform:none;pointer-events:auto}
+  .storm-home .bnum{font-size:42px;font-weight:800;line-height:1;margin-bottom:8px;letter-spacing:-.02em;background:linear-gradient(100deg,#fde68a,#fbbf24 55%,#f59e0b);-webkit-background-clip:text;background-clip:text;color:transparent}
+  .storm-home .bback a{color:var(--accent);text-decoration:none;font-weight:600;white-space:nowrap}
+  .storm-home .bback a:hover{text-decoration:underline}
   /* Rotating hero line: all taglines live in the DOM, stacked in one grid cell
      so the line never reflows; the JS toggles the .in class to fade one in at a
      time. nowrap keeps each tagline on a single line, and the font scales with
@@ -135,14 +160,14 @@ const CSS = `
   .storm-home .sqlq{color:var(--num)}
   .storm-home .sqlc{color:var(--com)}
 
-  .storm-home .codearea{display:flex;min-height:460px;background:linear-gradient(180deg,var(--panel),var(--panel-2))}
+  .storm-home .codearea{display:flex;min-height:352px;background:linear-gradient(180deg,var(--panel),var(--panel-2))}
   .storm-home .gutter{padding:22px 0;width:48px;text-align:right;color:#3b3b46;font-family:var(--mono);font-size:13px;
     line-height:26px;user-select:none;border-right:1px solid var(--border-soft);flex:none}
   .storm-home .gutter div{padding-right:15px}
   /* Opaque background (see #sqlpanel note): the horizontal scroller must paint
      its own background or iOS renders the off-screen columns black. --panel is
      the codearea gradient's top stop, so the seam is imperceptible. */
-  .storm-home #code{margin:0;padding:22px 24px;font-family:var(--mono);font-size:14px;line-height:26px;white-space:pre;overflow-x:auto;flex:1;background:var(--panel)}
+  .storm-home #code{margin:0;padding:20px 24px 14px;font-family:var(--mono);font-size:14px;line-height:26px;white-space:pre;overflow-x:auto;flex:1;background:var(--panel)}
   /* Docusaurus styles bare <pre> with a light code-block background (and rounded box) in
      light color mode; neutralize it so the landing editor keeps its dark chrome regardless
      of the active Docusaurus theme. */
@@ -227,6 +252,7 @@ const BODY = `
     <a href="/tutorials/">Tutorials</a>
     <a href="/examples/">Examples</a>
     <a href="/comparison">Comparison</a>
+    <a href="/benchmarks">Benchmarks</a>
     <a href="/blog/">Blog</a>
     <a href="/docs/">Docs</a>
     <a class="gh" href="https://github.com/orgs/storm-orm/repositories" target="_blank" rel="noopener">GitHub</a>
@@ -280,21 +306,43 @@ const BODY = `
 </div></header>
 
 <section style="padding-top:48px;padding-bottom:30px"><div class="wrap">
+  <div class="vs-chips"><span class="vs-label">Benchmark against</span><button data-vs="hibernate">Hibernate</button><button data-vs="jooq">jOOQ</button><button data-vs="exposed">Exposed</button><button data-vs="exposedDao">Exposed DAO</button><button data-vs="jimmer">Jimmer</button><button data-vs="jdbc">JDBC</button><a class="vs-bench" href="/benchmarks">See the benchmarks →</a></div>
   <div class="three">
-    <div class="card">
+    <div class="card bcard">
+      <div class="bface bfront">
       <div class="ic"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 12h18M3 6h18M3 18h18"/></svg></div>
       <h3>Direct database control</h3>
       <p>Every query is explicit and predictable. Nested predicates and entity graphs compile to a single efficient query, eliminating accidental hidden N+1 queries.</p>
+      </div>
+      <div class="bface bback" data-slot="speed">
+        <div class="bnum"></div>
+        <h3></h3>
+        <p><span class="btext"></span></p>
+      </div>
     </div>
-    <div class="card">
+    <div class="card bcard">
+      <div class="bface bfront">
       <div class="ic"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 6 9 17l-5-5"/></svg></div>
       <h3>Stateless and Immutable</h3>
       <p>Immutable data classes. No proxies, no flush, no hidden state. What you see is what you get. Safe to cache, share, and serialize across every layer.</p>
+      </div>
+      <div class="bface bback" data-slot="entities">
+        <div class="bnum"></div>
+        <h3></h3>
+        <p><span class="btext"></span></p>
+      </div>
     </div>
-    <div class="card">
+    <div class="card bcard">
+      <div class="bface bfront">
       <div class="ic"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2 4 6v6c0 5 3.5 8 8 10 4.5-2 8-5 8-10V6z"/></svg></div>
       <h3>Type-safe and Injection-safe</h3>
       <p>Compile-time detection of column and type errors. Automatic conversion of interpolated values into bind parameters.</p>
+      </div>
+      <div class="bface bback" data-slot="queries">
+        <div class="bnum"></div>
+        <h3></h3>
+        <p><span class="btext"></span></p>
+      </div>
     </div>
   </div>
 </div></section>
@@ -328,31 +376,97 @@ const BODY = `
 
 <footer><div class="wrap foot">
   <div class="brand"><img class="logo" src="/img/storm-light.png" alt="Storm" /></div>
-  <div class="links"><a href="/">orm.st</a><a href="/tutorials/">Tutorials</a><a href="/examples/">Examples</a><a href="/comparison">Comparison</a><a href="/blog/">Blog</a><a href="https://github.com/storm-orm/storm-framework" target="_blank" rel="noopener">GitHub</a><a href="https://central.sonatype.com/namespace/st.orm">Maven Central</a></div>
+  <div class="links"><a href="/">orm.st</a><a href="/tutorials/">Tutorials</a><a href="/examples/">Examples</a><a href="/comparison">Comparison</a><a href="/benchmarks">Benchmarks</a><a href="/blog/">Blog</a><a href="https://github.com/storm-orm/storm-framework" target="_blank" rel="noopener">GitHub</a><a href="https://central.sonatype.com/namespace/st.orm">Maven Central</a></div>
 </div></footer>
 `;
 
 export default function Home() {
   useEffect(() => {
+    // Pick your ORM: the feature cards flip to Storm-vs-X measured figures (run of 2026-07-14).
+    const VS = {
+      hibernate: {
+        speed: ['11%', 'faster than Hibernate', 'Averaged across 8 workloads.'],
+        entities: ['72%', 'fewer entity lines', 'The five-table model: 29 lines in Storm, 105 in Hibernate.'],
+        queries: ['19%', 'fewer query lines', 'All eight workloads: 100 lines in Storm, 123 in Hibernate, with no query strings.'],
+      },
+      jooq: {
+        speed: ['7%', 'faster than jOOQ', 'Averaged across 8 workloads.'],
+        entities: ['29 lines', 'instead of manual mapping', 'jOOQ maps results by hand into DTOs; Storm turns one 29-line model into typed rows everywhere.'],
+        queries: ['24%', 'fewer query lines', 'All eight workloads: 100 lines in Storm, 131 in jOOQ, no hand-written row mapping.'],
+      },
+      exposed: {
+        speed: ['18%', 'faster than Exposed', 'Averaged across 8 workloads.'],
+        entities: ['43%', 'fewer entity lines', 'The five-table model: 29 lines in Storm, 51 lines of Exposed table objects and data classes.'],
+        queries: ['22%', 'fewer query lines', 'All eight workloads: 100 lines in Storm, 128 in Exposed, no hand-written row mapping.'],
+      },
+      exposedDao: {
+        speed: ['39%', 'faster than Exposed DAO', 'Averaged across 8 workloads.'],
+        entities: ['58%', 'fewer entity lines', 'One data class per table in Storm; Exposed DAO needs the table object, the DAO class and a DTO.'],
+        queries: ['19%', 'fewer query lines', 'All eight workloads: 100 lines in Storm, 124 in Exposed DAO.'],
+      },
+      jimmer: {
+        speed: ['30%', 'faster than Jimmer', 'Averaged across 8 workloads.'],
+        entities: ['47%', 'fewer entity lines', 'The five-table model: 29 lines of data classes in Storm, 55 lines of interfaces in Jimmer.'],
+        queries: ['31%', 'fewer query lines', 'All eight workloads: 100 lines in Storm, 144 in Jimmer.'],
+      },
+      jdbc: {
+        speed: ['+10 µs', 'over raw JDBC', 'on a primary key lookup. The network round trip dominates every workload; the abstraction barely registers.'],
+        entities: ['29 lines', 'instead of manual mapping', 'JDBC has no entities: every row stays untyped until you map it by hand.'],
+        queries: ['61%', 'fewer query lines', 'All eight workloads: 100 lines in Storm, 257 of hand-written JDBC and mapping.'],
+      },
+    };
+    const vsCards = [...document.querySelectorAll('.storm-home .bcard')];
+    const vsChips = [...document.querySelectorAll('.storm-home .vs-chips button')];
+    let vsActive = null;
+    function applyVs(key) {
+      vsActive = key;
+      vsChips.forEach((chip) => chip.classList.toggle('on', chip.dataset.vs === key));
+      if (!key) {
+        vsCards.forEach((card) => card.classList.remove('bench'));
+        return;
+      }
+      const data = VS[key];
+      vsCards.forEach((card) => {
+        const back = card.querySelector('.bback');
+        const [num, cap, text] = data[back.dataset.slot];
+        back.querySelector('.bnum').textContent = num;
+        back.querySelector('h3').textContent = cap;
+        back.querySelector('.btext').textContent = text;
+        card.classList.add('bench');
+      });
+    }
+    // Cycle through the comparisons until the visitor picks one; hovering pauses the cycle.
+    const vsOrder = ['hibernate', 'jooq', 'exposed', 'exposedDao', 'jimmer', 'jdbc'];
+    let vsIdx = 0;
+    const vsSection = document.querySelector('.storm-home .vs-chips');
+    const vsAuto = setInterval(() => {
+      if (vsCards.some((card) => card.matches(':hover')) || (vsSection && vsSection.matches(':hover'))) return;
+      vsIdx = (vsIdx + 1) % vsOrder.length;
+      applyVs(vsOrder[vsIdx]);
+    }, 7000);
+    vsChips.forEach((chip) => chip.addEventListener('click', () => {
+      clearInterval(vsAuto);
+      applyVs(vsActive === chip.dataset.vs ? null : chip.dataset.vs);
+    }));
+    applyVs('hibernate');
+
     const K=(x)=>({x,c:'code-k'}),T=(x)=>({x,c:'code-t'}),S=(x)=>({x,c:'code-s'}),C=(x)=>({x,c:'code-c'}),
           F=(x)=>({x,c:'code-f'}),N=(x)=>({x,c:'code-n'}),A=(x)=>({x,c:'code-a'}),P=(x)=>({x,c:'code-pl'});
 
     const SCENES=[
       { name:'1 · entities', file:'Entities.kt',
         caption:"the most concise way to define your entities",
-        code:[ C("// Records mirror your schema.\n"),
-          K("data class "),T("City"),P("(\n"),
+        code:[ K("data class "),T("City"),P("(\n"),
           P("    "),A("@PK"),P(" "),K("val "),P("id: "),T("Int"),P(" = "),N("0"),P(",\n"),
           P("    "),K("val "),P("name: "),T("String"),P(",\n"),
           P("    "),K("val "),P("population: "),T("Int"),P(",\n"),
-          P("    "),K("val "),P("country: "),T("String"),P(",\n"),
+          P("    "),K("val "),P("country: "),T("String"),P("\n"),
           P(") : "),T("Entity"),P("<"),T("Int"),P(">\n\n"),
-          C("// Foreign entities are available in queries and results.\n"),
           K("data class "),T("User"),P("(\n"),
           P("    "),A("@PK"),P(" "),K("val "),P("id: "),T("Int"),P(" = "),N("0"),P(",\n"),
           P("    "),K("val "),P("email: "),T("String"),P(",\n"),
           P("    "),K("val "),P("name: "),T("String"),P(",\n"),
-          P("    "),A("@FK"),P(" "),K("val "),P("city: "),T("City"),P(",\n"),
+          P("    "),A("@FK"),P(" "),K("val "),P("city: "),T("City"),P("   "),C("// foreign entities are available in queries and results\n"),
           P(") : "),T("Entity"),P("<"),T("Int"),P(">") ] },
 
       { name:'2 · query', file:'UserService.kt',
@@ -370,9 +484,8 @@ export default function Home() {
           C("// Extend EntityRepository: all CRUD comes for free.\n"),
           K("interface "),T("UserRepository"),P(" : "),T("EntityRepository"),P("<"),T("User"),P(", "),T("Int"),P("> {\n"),
           P("    "),K("fun "),F("findByCity"),P("(city: "),T("City"),P(") = "),F("findAll"),P("(User_.city "),K("eq "),P("city)\n\n"),
-          C("    // Query builder with SQL templates for the aggregate.\n"),
           P("    "),K("fun "),F("usersPerCity"),P("(country: "),T("String"),P(") =\n"),
-          P("        "),F("select"),P("<"),T("CityCount"),P(", _, _> { "),S('"${City::class}, COUNT(*)"'),P(" }\n"),
+          P("        "),F("select"),P("<"),T("CityCount"),P(", _, _> { "),S('"${City::class}, COUNT(*)"'),P(" }"),P("   "),C("// SQL template\n"),
           P("            ."),F("where"),P("(User_.city.country "),K("eq "),P("country)\n"),
           P("            ."),F("groupBy"),P("(User_.city)\n"),
           P("            .resultList\n"),
@@ -402,13 +515,7 @@ export default function Home() {
           P("    "),K("SELECT "),T("${City_.name}"),P(", RANK() "),K("OVER"),P(" ("),K("ORDER BY "),T("${City_.population}"),P(" "),K("DESC"),P(")\n"),
           P("    "),K("FROM "),T("${City::class}"),P("\n"),
           P("    "),K("WHERE "),T("${City_.country}"),P(" = "),T("$country"),P("   "),C("-- typed columns · bound value\n"),
-          S('"""'),P(" }."),F("resultList"),P("<"),T("RankedCity"),P(">()\n\n"),
-          C("// Or expand a whole entity to its columns and joins.\n"),
-          K("val "),P("users = orm."),F("query"),P(" { "),S('"""'),P("\n"),
-          P("    "),K("SELECT "),T("${User::class}"),P("\n"),
-          P("    "),K("FROM "),T("${User::class}"),P("\n"),
-          P("    "),K("WHERE "),T("${User_.city.name}"),P(" = "),T("$city"),P("   "),C("-- bind variable\n"),
-          S('"""'),P(" }."),F("resultList"),P("<"),T("User"),P(">()") ] },
+          S('"""'),P(" }."),F("resultList"),P("<"),T("RankedCity"),P(">()") ] },
 
       { name:'6 · principles', file:'Core Principles',
         caption:"the core principles",
@@ -467,12 +574,7 @@ export default function Home() {
       '<span class="sqlc">-- typed columns resolve to the city alias · $country becomes ?</span>\n'+
       '<span class="sqlk">SELECT</span> c.name, <span class="sqlk">RANK</span>() <span class="sqlk">OVER</span> (<span class="sqlk">ORDER BY</span> c.population <span class="sqlk">DESC</span>)\n'+
       '<span class="sqlk">FROM</span> city c\n'+
-      '<span class="sqlk">WHERE</span> c.country = <span class="sqlq">?</span>\n\n'+
-      '<span class="sqlc">-- ${User::class} expands to columns · $city becomes ?</span>\n'+
-      '<span class="sqlk">SELECT</span> u.id, u.email, u.name, c.id, c.name, c.population, c.country\n'+
-      '<span class="sqlk">FROM</span> "user" u\n'+
-      '<span class="sqlk">INNER JOIN</span> city c <span class="sqlk">ON</span> u.city_id = c.id\n'+
-      '<span class="sqlk">WHERE</span> c.name = <span class="sqlq">?</span>',
+      '<span class="sqlk">WHERE</span> c.country = <span class="sqlq">?</span>',
     ];
 
     const esc=s=>s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
