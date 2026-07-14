@@ -37,19 +37,19 @@ public class H2SchemaValidatorTest {
 
     public record Vet(
             @PK Integer id,
-            String firstName,
-            String lastName
+            @Nullable String firstName,
+            @Nullable String lastName
     ) implements Entity<Integer> {}
 
     public record Address(
-            String address,
-            String city
+            @Nullable String address,
+            @Nullable String city
     ) {}
 
     public record Owner(
             @PK Integer id,
-            String firstName,
-            String lastName,
+            @Nullable String firstName,
+            @Nullable String lastName,
             Address address,
             @Nullable String telephone,
             @Nullable Integer version

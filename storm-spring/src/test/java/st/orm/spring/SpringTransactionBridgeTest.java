@@ -23,6 +23,7 @@ import static st.orm.TransactionPropagation.REQUIRES_NEW;
 import static st.orm.template.Transactions.transaction;
 
 import java.io.IOException;
+import java.time.Instant;
 import java.time.LocalDate;
 import java.util.List;
 import javax.sql.DataSource;
@@ -69,7 +70,7 @@ class SpringTransactionBridgeTest {
     }
 
     private void insertVisit(String description) {
-        visits.insert(new Visit(null, LocalDate.now(), description, pet, null));
+        visits.insert(new Visit(null, LocalDate.now(), description, pet, Instant.now()));
     }
 
     @Test
@@ -156,7 +157,7 @@ class SpringTransactionBridgeTest {
         EntityRepository<Visit, Integer> unbridgedVisits = unbridged.entity(Visit.class);
         PersistenceException exception = assertThrows(PersistenceException.class, () ->
                 transaction(tx -> {
-                    unbridgedVisits.insert(new Visit(null, LocalDate.now(), "never", pet, null));
+                    unbridgedVisits.insert(new Visit(null, LocalDate.now(), "never", pet, Instant.now()));
                     return null;
                 }));
         assertTrue(exception.getMessage().contains("PlatformTransactionManager supplier"));
