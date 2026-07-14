@@ -83,10 +83,8 @@
             <scope>provided</scope>
         </dependency>
         <dependency>
-            <!-- Build-time API for the GraalVM native-image feature; never loaded at runtime. -->
             <groupId>org.graalvm.sdk</groupId>
             <artifactId>nativeimage</artifactId>
-            <version>24.2.2</version>
             <scope>provided</scope>
         </dependency>
         <dependency>
