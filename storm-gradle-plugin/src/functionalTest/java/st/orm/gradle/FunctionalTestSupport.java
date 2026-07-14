@@ -22,7 +22,9 @@ import java.nio.file.Path;
 /**
  * Helpers for TestKit projects. The generated build script registers a {@code stormDump} task that queries
  * the declared dependencies (triggering the plugin's dependency callbacks without resolving artifacts) and
- * prints the compiler argument providers, so assertions run offline and fast.
+ * prints the compiler argument providers, so assertions run offline and fast. The dump is captured at
+ * configuration time and the task action only replays the captured lines, so the task itself is
+ * configuration-cache compatible and the same assertions hold on a cache-reusing run.
  */
 final class FunctionalTestSupport {
 
@@ -39,15 +41,18 @@ final class FunctionalTestSupport {
     static final String DUMP_TASK = """
 
             tasks.register("stormDump") {
-                doLast {
+                val lines = buildList {
                     listOf("implementation", "runtimeOnly", "annotationProcessor", "ksp", "kotlinCompilerPluginClasspath").forEach { name ->
                         configurations.findByName(name)?.incoming?.dependencies?.forEach { d ->
-                            println("DEP $name ${d.group}:${d.name}:${d.version}")
+                            add("DEP $name ${d.group}:${d.name}:${d.version}")
                         }
                     }
                     tasks.withType(JavaCompile::class).forEach { t ->
-                        println("ARGS ${t.name} " + t.options.compilerArgumentProviders.flatMap { it.asArguments() })
+                        add("ARGS ${t.name} " + t.options.compilerArgumentProviders.flatMap { it.asArguments() })
                     }
+                }
+                doLast {
+                    lines.forEach { println(it) }
                 }
             }
             """;

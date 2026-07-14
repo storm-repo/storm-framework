@@ -1,3 +1,5 @@
+import org.gradle.plugin.compatibility.compatibility
+
 plugins {
     `java-gradle-plugin`
     id("com.gradle.plugin-publish") version "2.1.1"
@@ -88,6 +90,13 @@ gradlePlugin {
                 "metamodel generation (KSP or annotation processor), Kotlin compiler-plugin variant " +
                 "selection, and Java preview flags."
             tags = listOf("orm", "sql", "database", "persistence", "kotlin", "ksp")
+            // Backed by ConfigurationCacheFunctionalTest and the smoke tests, which build with
+            // --configuration-cache on both language paths.
+            compatibility {
+                features {
+                    configurationCache = true
+                }
+            }
         }
     }
 }
