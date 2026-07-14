@@ -623,6 +623,7 @@ class QueryImpl implements Query {
         } catch (SqlTemplateException e) {
             throw new PersistenceException(e);
         }
+        var columnSkipper = mapper.columnSkipper();
         var calendarSupplier = lazy(() -> Calendar.getInstance(TimeZone.getTimeZone(ZoneOffset.UTC)));
         return new Spliterators.AbstractSpliterator<>(Long.MAX_VALUE, Spliterator.ORDERED) {
             @Override
@@ -632,8 +633,14 @@ class QueryImpl implements Query {
                         return false;
                     }
                     Object[] args = new Object[columnCount];
-                    for (int i = 0; i < columnCount; i++) {
-                        args[i] = readColumnValue(resultSet, i + 1, types[i], calendarSupplier);
+                    if (columnSkipper != null) {
+                        // Skip decoding non-key columns of entities that are already cached.
+                        columnSkipper.readRow(args, index ->
+                                readColumnValue(resultSet, index + 1, types[index], calendarSupplier));
+                    } else {
+                        for (int i = 0; i < columnCount; i++) {
+                            args[i] = readColumnValue(resultSet, i + 1, types[i], calendarSupplier);
+                        }
                     }
                     action.accept(mapper.newInstance(args));
                     return true;

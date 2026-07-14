@@ -160,25 +160,28 @@ public final class ObjectMapperFactory {
      */
     static <T> T construct(@Nonnull Constructor<T> constructor, @Nonnull Object[] args, int offset) throws SqlTemplateException {
         try {
-            Class<?>[] parameterTypes = constructor.getParameterTypes();
-            Parameter[] parameters = constructor.getParameters();
-            for (int i = 0; i < parameterTypes.length; i++) {
-                Object arg = args[i];
-                Class<?> paramType = parameterTypes[i];
-                if (arg == null) {
-                    if (isNonnull(parameters[i])) {
+            // Constructor metadata is precomputed and cached: per-invocation getParameterTypes/getParameters calls
+            // clone their arrays, which is measurable on the row mapping hot path.
+            ConstructorMeta meta = CONSTRUCTOR_META.computeIfAbsent(constructor, ObjectMapperFactory::constructorMeta);
+            boolean[] nonNull = meta.nonNull();
+            boolean[] primitive = meta.primitive();
+            for (int i = 0; i < nonNull.length; i++) {
+                if (args[i] == null) {
+                    if (nonNull[i]) {
                         throw new SqlTemplateException("Database returned NULL for non-nullable field '%s.%s' at column position %d. Either %s, ensure the column has a NOT NULL constraint with a default value, or verify the query returns the expected data."
-                                .formatted(constructor.getDeclaringClass().getSimpleName(), parameters[i].getName(), offset + i + 1, nullableHint(constructor.getDeclaringClass())));
+                                .formatted(constructor.getDeclaringClass().getSimpleName(), meta.parameterNames()[i], offset + i + 1, nullableHint(constructor.getDeclaringClass())));
                     }
-                    if (paramType.isPrimitive()) {
+                    if (primitive[i]) {
                         throw new SqlTemplateException("Database returned NULL for primitive field '%s.%s' at column position %d. Primitive types cannot hold null values. Change the field type to its wrapper class (e.g., int to Integer) and %s, or ensure the column is NOT NULL."
-                                .formatted(constructor.getDeclaringClass().getSimpleName(), parameters[i].getName(), offset + i + 1, nullableHint(constructor.getDeclaringClass())));
+                                .formatted(constructor.getDeclaringClass().getSimpleName(), meta.parameterNames()[i], offset + i + 1, nullableHint(constructor.getDeclaringClass())));
                     }
                 }
             }
-            constructor.setAccessible(true);
             try {
-                return constructor.newInstance(args);
+                // Use the map's constructor instance: its accessible flag was set before publication, so the
+                // happens-before edge of the concurrent map makes the flag visible to all threads.
+                //noinspection unchecked
+                return (T) meta.constructor().newInstance(args);
             } catch (InvocationTargetException e) {
                 throw e.getTargetException();
             }
@@ -187,6 +190,37 @@ public final class ObjectMapperFactory {
         } catch (Throwable t) {
             throw new SqlTemplateException("Failed to create a new instance of %s.".formatted(constructor.getDeclaringClass().getSimpleName()), t);
         }
+    }
+
+    /**
+     * Precomputed constructor metadata for the row mapping hot path.
+     *
+     * @param constructor the constructor with its accessible flag set.
+     * @param parameterNames the parameter names, for error messages.
+     * @param nonNull whether each parameter is marked as non-null.
+     * @param primitive whether each parameter is a primitive type.
+     */
+    private record ConstructorMeta(@Nonnull Constructor<?> constructor,
+                                   @Nonnull String[] parameterNames,
+                                   @Nonnull boolean[] nonNull,
+                                   @Nonnull boolean[] primitive) {}
+
+    /** Cache of precomputed constructor metadata, keyed by constructor. Thread-safe for concurrent access. */
+    private static final Map<Constructor<?>, ConstructorMeta> CONSTRUCTOR_META = new ConcurrentHashMap<>();
+
+    private static ConstructorMeta constructorMeta(@Nonnull Constructor<?> constructor) {
+        Class<?>[] parameterTypes = constructor.getParameterTypes();
+        Parameter[] parameters = constructor.getParameters();
+        String[] parameterNames = new String[parameters.length];
+        boolean[] nonNull = new boolean[parameters.length];
+        boolean[] primitive = new boolean[parameters.length];
+        for (int i = 0; i < parameters.length; i++) {
+            parameterNames[i] = parameters[i].getName();
+            nonNull[i] = isNonnull(parameters[i]);
+            primitive[i] = parameterTypes[i].isPrimitive();
+        }
+        constructor.setAccessible(true);
+        return new ConstructorMeta(constructor, parameterNames, nonNull, primitive);
     }
 
     @SuppressWarnings("unchecked")
@@ -234,20 +268,17 @@ public final class ObjectMapperFactory {
         }
     }).get();
 
-    private static final Map<Parameter, Boolean> NONNULL_CACHE = new ConcurrentHashMap<>();
-
     /**
      * Returns true if the specified parameter is marked as non-null, false otherwise.
+     *
+     * <p>Only called when building {@link ConstructorMeta}, which caches the result per constructor parameter.</p>
      *
      * @param parameter the parameter to check for a non-null characteristics.
      * @return true if the specified parameter is marked as non-null, false otherwise.
      */
     static boolean isNonnull(@Nonnull Parameter parameter) {
-        // Use the cache to return the result if it's already calculated
-        return NONNULL_CACHE.computeIfAbsent(parameter, param ->
-                param.isAnnotationPresent(PK.class)
-                        || (JAVAX_NONNULL != null && param.isAnnotationPresent(JAVAX_NONNULL))
-                        || (JAKARTA_NONNULL != null && param.isAnnotationPresent(JAKARTA_NONNULL))
-        );
+        return parameter.isAnnotationPresent(PK.class)
+                || (JAVAX_NONNULL != null && parameter.isAnnotationPresent(JAVAX_NONNULL))
+                || (JAKARTA_NONNULL != null && parameter.isAnnotationPresent(JAKARTA_NONNULL));
     }
 }

@@ -16,6 +16,7 @@
 package st.orm.core.template.impl;
 
 import jakarta.annotation.Nonnull;
+import jakarta.annotation.Nullable;
 import st.orm.core.template.SqlTemplateException;
 
 /**
@@ -32,6 +33,17 @@ public interface ObjectMapper<T> {
      * @throws SqlTemplateException if the parameter types could not be determined.
      */
     Class<?>[] getParameterTypes() throws SqlTemplateException;
+
+    /**
+     * Returns the column skipper that allows the row reader to skip decoding columns of cached entities, or
+     * {@code null} if this mapper does not support column skipping.
+     *
+     * @return the column skipper, or {@code null} if not applicable.
+     */
+    @Nullable
+    default ColumnSkipper columnSkipper() {
+        return null;
+    }
 
     /**
      * Creates a new instance of the type.
