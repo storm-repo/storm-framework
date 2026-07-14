@@ -109,14 +109,7 @@ const CSS = `
   /* Inter's solidus descends below the baseline; raise it so it sits centered
      on the caps in "ST/ORM." */
   .storm-home h1 .slash{vertical-align:.06em}
-  /* Closing block swap: both blocks stack in one grid cell; the first slides
-     out to the left and the second slides in from the right once the section
-     has been in view for a beat. */
-  .storm-home .cta-swap{display:grid}
-  .storm-home .cta-swap>div{grid-area:1/1;opacity:0;transform:translateX(56px);transition:opacity .6s ease,transform .6s ease;pointer-events:none}
-  .storm-home .cta-swap>div.in{opacity:1;transform:none;pointer-events:auto}
-  .storm-home .cta-swap>div.out{opacity:0;transform:translateX(-56px)}
-  @media(prefers-reduced-motion:reduce){.storm-home .hero-rot>span,.storm-home .hero-swap>span,.storm-home .cta-swap>div{transition:none}}
+  @media(prefers-reduced-motion:reduce){.storm-home .hero-rot>span,.storm-home .hero-swap>span{transition:none}}
   /* On small screens the h1 min (42px) is too large for the longer principles to
      stay on one line, so scale the rotating line down a little below the hero. */
   @media(max-width:600px){
@@ -372,25 +365,12 @@ const BODY = `
 </div>
 
 <section class="endcta" style="padding-top:64px"><div class="wrap">
-  <div class="cta-swap" id="ctaSwap">
-    <div class="in">
-      <h2>Compiles to native.</h2>
-      <p class="sub" style="margin:0 auto 30px;text-align:center;max-width:940px">Storm applications build as GraalVM native images out of the box. The framework ships its reachability metadata and registers your entities and repositories from the compile-time type index: through Spring AOT hints on Spring Boot, and through a built-in GraalVM feature everywhere else. The example movie browser starts in a quarter of a second and passes its full interface test suite as a native binary.</p>
-      <div class="cta" style="justify-content:center;margin-top:40px">
-        <a href="/docs/graalvm" class="btn primary">How it works</a>
-        <a href="/examples/kotlin-spring-boot-graalvm/" class="btn">Spring Boot example</a>
-        <a href="/examples/kotlin-ktor-graalvm/" class="btn">Ktor example</a>
-      </div>
-    </div>
-    <div>
-      <h2>Write code worth reading.</h2>
-      <p class="sub" style="margin:0 auto 30px;text-align:center;max-width:940px">Concise entities and one-line queries keep you productive. Immutable records simplify your architecture by letting the same types flow through your application layers. Storm is built for engineers who care about beautiful code.</p>
-      <div class="cta" style="justify-content:center;margin-top:56px">
-        <a href="/quickstart" class="btn primary go">Try it in 5 minutes →</a>
-        <a href="/comparison" class="btn">Compare with your ORM</a>
-        <a href="https://github.com/storm-orm/storm-framework" target="_blank" rel="noopener" class="btn">Star on GitHub</a>
-      </div>
-    </div>
+  <h2>Write code worth reading.</h2>
+  <p class="sub" style="margin:0 auto 30px;text-align:center;max-width:940px">Concise entities and one-line queries keep you productive. Immutable records simplify your architecture by letting the same types flow through your application layers. Storm is built for engineers who care about beautiful code.</p>
+  <div class="cta" style="justify-content:center;margin-top:56px">
+    <a href="/quickstart" class="btn primary go">Try it in 5 minutes →</a>
+    <a href="/comparison" class="btn">Compare with your ORM</a>
+    <a href="https://github.com/storm-orm/storm-framework" target="_blank" rel="noopener" class="btn">Star on GitHub</a>
   </div>
 </div></section>
 
@@ -779,48 +759,11 @@ export default function Home() {
       valuesTimer = setTimeout(advance, dwellFor(valueIndex));
     }
 
-    // The closing block alternates between the native story and the brand
-    // line: the visible half slides out to the left, the other slides in from
-    // the right. Starts once the section has been in view for a beat.
-    const ctaSwap = document.getElementById('ctaSwap');
-    let ctaTimer = null;
-    let ctaInterval = null;
-    let ctaObserver = null;
-    if (ctaSwap && ctaSwap.children.length === 2) {
-      let ctaActive = 0;
-      const ctaAdvance = () => {
-        const leaving = ctaSwap.children[ctaActive];
-        ctaActive = 1 - ctaActive;
-        const entering = ctaSwap.children[ctaActive];
-        leaving.classList.remove('in');
-        leaving.classList.add('out');
-        // Re-enter from the right: jump back to the resting position without
-        // a transition, then animate in.
-        entering.style.transition = 'none';
-        entering.classList.remove('out');
-        void entering.offsetWidth;
-        entering.style.transition = '';
-        entering.classList.add('in');
-      };
-      ctaObserver = new IntersectionObserver((entries) => {
-        if (!entries.some((entry) => entry.isIntersecting)) return;
-        ctaObserver.disconnect();
-        ctaTimer = setTimeout(() => {
-          ctaAdvance();
-          ctaInterval = setInterval(ctaAdvance, 6000);
-        }, 4000);
-      }, {threshold: 0.5});
-      ctaObserver.observe(ctaSwap);
-    }
-
     // Stop the loop and undo DOM mutations when the page unmounts.
     return () => {
       gen++;
       clearTimeout(timer);
       clearTimeout(valuesTimer);
-      clearTimeout(ctaTimer);
-      clearInterval(ctaInterval);
-      if (ctaObserver) ctaObserver.disconnect();
       window.removeEventListener('resize', measureHero);
       if(scenesEl) scenesEl.innerHTML='';
       if(sqlBtn) sqlBtn.removeEventListener('click',onSqlClick);
