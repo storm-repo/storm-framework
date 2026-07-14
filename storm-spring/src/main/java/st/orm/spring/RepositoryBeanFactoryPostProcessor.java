@@ -18,12 +18,10 @@ package st.orm.spring;
 import jakarta.annotation.Nonnull;
 import jakarta.annotation.Nullable;
 import java.util.Set;
-import org.springframework.beans.factory.config.ConfigurableListableBeanFactory;
 import org.springframework.stereotype.Component;
 import st.orm.repository.EntityRepository;
 import st.orm.repository.ProjectionRepository;
 import st.orm.repository.Repository;
-import st.orm.template.ORMTemplate;
 
 /**
  * BeanFactoryPostProcessor that scans base packages for Repository interfaces and registers them as beans.
@@ -89,15 +87,7 @@ public class RepositoryBeanFactoryPostProcessor extends AbstractRepositoryBeanFa
 
     @Override
     @SuppressWarnings("unchecked")
-    protected Object createRepository(@Nonnull ConfigurableListableBeanFactory beanFactory,
-                                      @Nonnull Class<?> repositoryType) {
-        return getBeanORMTemplate(beanFactory).repository((Class<Repository>) repositoryType);
-    }
-
-    private ORMTemplate getBeanORMTemplate(ConfigurableListableBeanFactory beanFactory) {
-        String beanName = getOrmTemplateBeanName();
-        return beanName != null
-                ? beanFactory.getBean(beanName, ORMTemplate.class)
-                : beanFactory.getBean(ORMTemplate.class);
+    protected Class<? extends AbstractRepositoryFactoryBean<?>> getRepositoryFactoryBeanClass() {
+        return (Class<? extends AbstractRepositoryFactoryBean<?>>) (Class<?>) RepositoryFactoryBean.class;
     }
 }

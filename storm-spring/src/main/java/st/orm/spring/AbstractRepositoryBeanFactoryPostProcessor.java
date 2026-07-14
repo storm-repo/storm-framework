@@ -21,23 +21,27 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.Objects;
 import java.util.Set;
-import java.util.function.Supplier;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.aot.AotDetector;
+import org.springframework.beans.factory.FactoryBean;
 import org.springframework.beans.factory.annotation.AnnotatedBeanDefinition;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.beans.factory.config.BeanDefinitionHolder;
 import org.springframework.beans.factory.config.BeanFactoryPostProcessor;
 import org.springframework.beans.factory.config.ConfigurableListableBeanFactory;
 import org.springframework.beans.factory.config.DependencyDescriptor;
+import org.springframework.beans.factory.support.AutowireCandidateQualifier;
 import org.springframework.beans.factory.support.AutowireCandidateResolver;
 import org.springframework.beans.factory.support.BeanDefinitionBuilder;
 import org.springframework.beans.factory.support.BeanDefinitionRegistry;
 import org.springframework.beans.factory.support.DefaultListableBeanFactory;
+import org.springframework.beans.factory.support.RootBeanDefinition;
 import org.springframework.context.ResourceLoaderAware;
 import org.springframework.context.annotation.ClassPathScanningCandidateComponentProvider;
+import org.springframework.core.ResolvableType;
 import org.springframework.core.env.Environment;
 import org.springframework.core.env.StandardEnvironment;
 import org.springframework.core.io.ResourceLoader;
@@ -89,11 +93,12 @@ public abstract class AbstractRepositoryBeanFactoryPostProcessor
     protected abstract Set<Class<?>> getExcludedRepositoryTypes();
 
     /**
-     * Creates the repository proxy for the given interface through the stack's template API, honoring
-     * {@link #getOrmTemplateBeanName()}.
+     * The stack's repository FactoryBean; one bean definition of this type is registered per discovered
+     * repository interface, honoring {@link #getOrmTemplateBeanName()}.
+     *
+     * @since 1.13
      */
-    protected abstract Object createRepository(@Nonnull ConfigurableListableBeanFactory beanFactory,
-                                               @Nonnull Class<?> repositoryType);
+    protected abstract Class<? extends AbstractRepositoryFactoryBean<?>> getRepositoryFactoryBeanClass();
 
     @Override
     public void setResourceLoader(@Nonnull ResourceLoader resourceLoader) {
@@ -102,6 +107,11 @@ public abstract class AbstractRepositoryBeanFactoryPostProcessor
 
     @Override
     public void postProcessBeanFactory(@Nonnull ConfigurableListableBeanFactory beanFactory) {
+        if (AotDetector.useGeneratedArtifacts()) {
+            // The repository bean definitions registered by this post-processor were turned into generated
+            // code during AOT processing; scanning again would re-register them over the generated ones.
+            return;
+        }
         String[] bases = getRepositoryBasePackages();
         if (bases == null || bases.length == 0) {
             return;
@@ -138,25 +148,35 @@ public abstract class AbstractRepositoryBeanFactoryPostProcessor
                 .filter(type -> !hasNoRepositoryBeanAnnotation(type))
                 .distinct()
                 .collect(Collectors.toList());
-        registerRepositories(registry, beanFactory, repositoryTypes.stream());
+        registerRepositories(registry, repositoryTypes.stream());
         RepositoryAutowireCandidateResolver.register(beanFactory);
     }
 
     private void registerRepositories(
             BeanDefinitionRegistry registry,
-            ConfigurableListableBeanFactory beanFactory,
             Stream<Class<?>> repositories
     ) {
         repositories.forEach(type -> {
-            @SuppressWarnings("unchecked")
-            Class<Object> repositoryType = (Class<Object>) type;
-            Supplier<Object> supplier = () -> createRepository(beanFactory, repositoryType);
-            var definition = BeanDefinitionBuilder.genericBeanDefinition(repositoryType, supplier).getBeanDefinition();
+            // A FactoryBean definition carrying the repository interface as a constructor argument, rather
+            // than an instance supplier: suppliers cannot be processed by Spring AOT into generated code,
+            // which would make scanned repositories unavailable in GraalVM native images.
+            var definition = (RootBeanDefinition) BeanDefinitionBuilder
+                    .rootBeanDefinition(getRepositoryFactoryBeanClass())
+                    .addConstructorArgValue(type)
+                    .addConstructorArgValue(getOrmTemplateBeanName())
+                    .getBeanDefinition();
+            // Expose the produced type without instantiating the FactoryBean.
+            definition.setAttribute(FactoryBean.OBJECT_TYPE_ATTRIBUTE, type);
+            // The attribute is not carried into AOT-generated registrations; the target type is, and it
+            // binds the FactoryBean's generic to the repository interface so the repository can still be
+            // autowired by type in a native image.
+            definition.setTargetType(ResolvableType.forClassWithGenerics(getRepositoryFactoryBeanClass(), type));
             definition.setAttribute("qualifier", getRepositoryPrefix());
             String prefix = getRepositoryPrefix();
             if (prefix != null && !prefix.isEmpty()) {
-                // Set the qualifier attribute to support autowiring by qualifier.
-                definition.setAttribute("qualifier", prefix);
+                // The qualifier attribute supports autowiring by qualifier on the JVM; the definition-level
+                // qualifier survives AOT processing, where attributes are not carried into generated code.
+                definition.addQualifier(new AutowireCandidateQualifier(Qualifier.class, prefix));
                 LOGGER.debug("Registering repository {} with qualifier {}.", type.getName(), prefix);
             } else {
                 LOGGER.debug("Registering repository {}.", type.getName());
