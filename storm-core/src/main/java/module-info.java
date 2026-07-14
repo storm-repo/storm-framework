@@ -8,6 +8,7 @@ module storm.core {
     uses st.orm.core.spi.ConnectionProvider;
     uses st.orm.core.spi.TransactionTemplateProvider;
     uses st.orm.core.spi.CursorCodecProvider;
+    uses st.orm.mapping.Instantiator;
     exports st.orm.core.template;
     exports st.orm.core.template.impl;
     exports st.orm.core.spi;

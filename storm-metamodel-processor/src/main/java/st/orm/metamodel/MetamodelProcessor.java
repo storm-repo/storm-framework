@@ -29,6 +29,7 @@ import jakarta.annotation.Nonnull;
 import jakarta.annotation.Nullable;
 import java.io.Writer;
 import java.util.HashSet;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -54,7 +55,9 @@ import javax.lang.model.type.TypeKind;
 import javax.lang.model.type.TypeMirror;
 import javax.lang.model.util.Elements;
 import javax.lang.model.util.Types;
+import javax.tools.FileObject;
 import javax.tools.JavaFileObject;
+import javax.tools.StandardLocation;
 
 /**
  * @since 1.2
@@ -88,6 +91,11 @@ public final class MetamodelProcessor extends AbstractProcessor {
      */
     private final Set<String> expandedReferencedRecords;
 
+    /**
+     * Fully qualified names of the generated instantiators, registered as services when processing is over.
+     */
+    private final Set<String> generatedInstantiators;
+
     private Elements elementUtils;
     private Types typeUtils;
 
@@ -95,6 +103,7 @@ public final class MetamodelProcessor extends AbstractProcessor {
         this.generatedMetamodelClasses = new HashSet<>();
         this.generatedMetamodelInterfaces = new HashSet<>();
         this.expandedReferencedRecords = new HashSet<>();
+        this.generatedInstantiators = new LinkedHashSet<>();
     }
 
     @Override
@@ -271,7 +280,32 @@ public final class MetamodelProcessor extends AbstractProcessor {
         } catch (Exception e) {
             processingEnv.getMessager().printMessage(ERROR, "Failed to process metamodel. Error: " + e);
         }
+        if (roundEnv.processingOver()) {
+            writeInstantiatorServices();
+        }
         return false;
+    }
+
+    /**
+     * Registers the generated instantiators in {@code META-INF/services/st.orm.mapping.Instantiator}, allowing the
+     * runtime to discover them through the {@code ServiceLoader} and construct records without reflection.
+     */
+    private void writeInstantiatorServices() {
+        if (generatedInstantiators.isEmpty()) {
+            return;
+        }
+        try {
+            FileObject fileObject = processingEnv.getFiler()
+                    .createResource(StandardLocation.CLASS_OUTPUT, "", "META-INF/services/st.orm.mapping.Instantiator");
+            try (Writer writer = fileObject.openWriter()) {
+                for (String instantiator : generatedInstantiators) {
+                    writer.write(instantiator);
+                    writer.write("\n");
+                }
+            }
+        } catch (Exception e) {
+            processingEnv.getMessager().printMessage(ERROR, "Failed to write instantiator services file. Error: " + e + ".");
+        }
     }
 
     /**
@@ -318,6 +352,7 @@ public final class MetamodelProcessor extends AbstractProcessor {
         // Always generate the class once.
         if (generatedMetamodelClasses.add(qn)) {
             generateMetamodelClass(recordElement);
+            generateInstantiator(recordElement);
         }
 
         // Only generate the interface for Data records.
@@ -793,6 +828,82 @@ public final class MetamodelProcessor extends AbstractProcessor {
             builder.setLength(builder.length() - 1);
         }
         return builder.toString();
+    }
+
+    /**
+     * Generates an {@code Instantiator} implementation that invokes the record's canonical constructor directly,
+     * allowing the runtime to construct instances without reflection (no reflection configuration for native
+     * images, no {@code opens} clauses for modular applications).
+     *
+     * <p>Only top-level, non-generic Java records are supported; other types fall back to reflective
+     * construction at runtime.</p>
+     */
+    private void generateInstantiator(@Nonnull Element recordElement) {
+        if (recordElement.getKind() != RECORD) {
+            return; // Kotlin classes are handled by the KSP processor.
+        }
+        TypeElement typeElement = asTypeElement(recordElement.asType());
+        if (typeElement == null
+                || typeElement.getEnclosingElement().getKind() != ElementKind.PACKAGE
+                || !typeElement.getTypeParameters().isEmpty()) {
+            return;
+        }
+        ExecutableElement constructor = findCanonicalConstructor(recordElement);
+        if (constructor == null) {
+            return;
+        }
+        String packageName = elementUtils.getPackageOf(recordElement).getQualifiedName().toString();
+        String recordName = recordElement.getSimpleName().toString();
+        String instantiatorName = recordName + "Instantiator";
+        var parameters = constructor.getParameters();
+        StringBuilder arguments = new StringBuilder();
+        for (int i = 0; i < parameters.size(); i++) {
+            String castType = getBoxedTypeName(parameters.get(i).asType().toString().replaceAll("@\\S+\\s+", ""));
+            arguments.append(arguments.isEmpty() ? "" : ",\n")
+                    .append("                (").append(castType).append(") args[").append(i).append("]");
+        }
+        try {
+            JavaFileObject fileObject = processingEnv.getFiler()
+                    .createSourceFile((packageName.isEmpty() ? "" : packageName + ".") + instantiatorName, recordElement);
+            try (Writer writer = fileObject.openWriter()) {
+                writer.write(String.format("""
+                    %simport javax.annotation.processing.Generated;
+
+                    /**
+                     * Instantiator for %s; constructs instances without reflection.
+                     */
+                    @Generated("%s")
+                    public final class %s implements st.orm.mapping.Instantiator<%s> {
+
+                        @Override
+                        public Class<%s> type() {
+                            return %s.class;
+                        }
+
+                        @Override
+                        @SuppressWarnings("unchecked")
+                        public %s instantiate(Object[] args) {
+                            return new %s(
+                    %s
+                            );
+                        }
+                    }""",
+                        (packageName.isEmpty() ? "" : "package " + packageName + ";\n\n"),
+                        recordName,
+                        getClass().getName(),
+                        instantiatorName,
+                        recordName,
+                        recordName,
+                        recordName,
+                        recordName,
+                        recordName,
+                        arguments
+                ));
+            }
+            generatedInstantiators.add((packageName.isEmpty() ? "" : packageName + ".") + instantiatorName);
+        } catch (Exception e) {
+            processingEnv.getMessager().printMessage(ERROR, "Failed to process " + instantiatorName + ". Error: " + e + ".");
+        }
     }
 
     private void generateMetamodelInterface(@Nonnull Element recordElement) {
