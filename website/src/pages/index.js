@@ -72,7 +72,7 @@ const CSS = `
   .storm-home .bback{position:absolute;inset:0;padding:inherit;opacity:0;transform:translateY(10px);pointer-events:none}
   .storm-home .bcard.bench .bfront{position:absolute;inset:0;padding:inherit;opacity:0;transform:translateY(-10px);pointer-events:none}
   .storm-home .bcard.bench .bback{position:relative;inset:auto;padding:0;opacity:1;transform:none;pointer-events:auto}
-  .storm-home .bnum{font-size:42px;font-weight:800;line-height:1;margin-bottom:8px;letter-spacing:-.02em;background:linear-gradient(105deg,#c98d0a 0%,#e6a817 28%,#ffc93c 52%,#ffe08a 78%,#fff7cc 100%);-webkit-background-clip:text;background-clip:text;color:transparent}
+  .storm-home .bnum{font-size:42px;font-weight:800;line-height:1;margin-bottom:8px;letter-spacing:-.02em;background:linear-gradient(105deg,#7a4f00 0%,#b57804 22%,#ffc93c 50%,#ffe9a3 72%,#fffbe6 100%);-webkit-background-clip:text;background-clip:text;color:transparent}
   .storm-home .bback a{color:var(--accent);text-decoration:none;font-weight:600;white-space:nowrap}
   .storm-home .bback a:hover{text-decoration:underline}
   /* Rotating hero line: all taglines live in the DOM, stacked in one grid cell

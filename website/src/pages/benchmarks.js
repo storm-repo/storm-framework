@@ -374,7 +374,7 @@ const BM_CSS = `
   .storm-tut .art h2{margin:52px 0 14px}
   .storm-tut .art h3{margin:44px 0 10px}
   .storm-tut .art h3 + p{margin-top:0}
-  .bm-stat b{background:linear-gradient(105deg,#c98d0a 0%,#e6a817 28%,#ffc93c 52%,#ffe08a 78%,#fff7cc 100%);-webkit-background-clip:text;background-clip:text;color:transparent}
+  .bm-stat b{background:linear-gradient(105deg,#7a4f00 0%,#b57804 22%,#ffc93c 50%,#ffe9a3 72%,#fffbe6 100%);-webkit-background-clip:text;background-clip:text;color:transparent}
   .bm-matrix-wrap{overflow-x:auto;border:1px solid var(--border);border-radius:14px;background:var(--panel);margin:22px 0 10px;padding:10px 12px}
   .art .bm-matrix,.art .bm-matrix thead,.art .bm-matrix tbody{background:none}
   .art .bm-matrix{width:100%;border-collapse:separate;border-spacing:3px;font-family:var(--mono);font-size:12px;margin:0}
