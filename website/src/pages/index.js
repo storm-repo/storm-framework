@@ -358,7 +358,7 @@ const BODY = `
     <div class="strip-col">
       <div class="db-label">Integrates with</div>
       <div class="dbs">
-        <span>Ktor</span><span>Spring&nbsp;Boot&nbsp;3.x</span><span>Spring&nbsp;Boot&nbsp;4.x</span>
+        <span>Ktor</span><span>Spring&nbsp;Boot</span><span>GraalVM</span>
       </div>
     </div>
   </div>
