@@ -252,7 +252,7 @@ public class MetamodelTest {
     @Test
     public void testCompoundKeyWithNullableFieldsIsNullable() {
         // EntityWithNullableUK has @UK NullableCompoundUK(String userId, String email).
-        // Both String fields are nullable (not primitive, not @Nonnull), so isNullable() should be true.
+        // Both String fields are marked @Nullable, so isNullable() should be true.
         assertInstanceOf(Metamodel.Key.class, EntityWithNullableUK_.uniqueKey);
         Metamodel.Key<?, ?> key = EntityWithNullableUK_.uniqueKey;
         assertTrue(key.isNullable());
