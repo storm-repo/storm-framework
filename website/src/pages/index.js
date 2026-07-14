@@ -391,7 +391,7 @@ export default function Home() {
       },
       jooq: {
         speed: ['7%', 'faster than jOOQ', 'Averaged across 8 workloads.'],
-        entities: ['29 lines', 'instead of codegen', 'jOOQ maps results by hand into DTOs; Storm turns one 29-line model into typed rows everywhere.'],
+        entities: ['29 lines', 'instead of manual mapping', 'jOOQ maps results by hand into DTOs; Storm turns one 29-line model into typed rows everywhere.'],
         queries: ['24%', 'fewer query lines', 'All eight workloads: 100 lines in Storm, 131 in jOOQ, no hand-written row mapping.'],
       },
       exposed: {
