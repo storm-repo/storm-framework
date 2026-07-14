@@ -25,14 +25,23 @@ import org.junit.jupiter.api.condition.EnabledIfSystemProperty;
 import org.junit.jupiter.api.io.TempDir;
 
 /**
- * Compiles a real Kotlin project against the locally installed Storm snapshot artifacts and asserts the
- * KSP-generated metamodel exists. Requires a prior {@code mvn install -DskipTests} of the reactor; gated
- * behind {@code -Dstorm.smoke=true}.
+ * Compiles real Kotlin and Java projects against the locally installed Storm snapshot artifacts and asserts
+ * the generated metamodel exists. Both builds run with {@code --configuration-cache} and run twice, so the
+ * full task graph (KSP respectively the annotation processor and the preview-flag argument providers) is
+ * proven to serialize and be reusable. Requires a prior {@code mvn install -DskipTests} of the reactor;
+ * gated behind {@code -Dstorm.smoke=true}.
  */
 public class SmokeCompileTest {
 
     @TempDir
     Path projectDir;
+
+    private GradleRunner runner() {
+        return GradleRunner.create()
+                .withProjectDir(projectDir.toFile())
+                .withPluginClasspath()
+                .withArguments("build", "-x", "test", "--configuration-cache");
+    }
 
     @Test
     @EnabledIfSystemProperty(named = "storm.smoke", matches = "true")
@@ -65,15 +74,55 @@ public class SmokeCompileTest {
                     val name: String,
                 ) : Entity<Int>
                 """);
-        var result = GradleRunner.create()
-                .withProjectDir(projectDir.toFile())
-                .withPluginClasspath()
-                .withArguments("build", "-x", "test")
-                .build();
+        var result = runner().build();
         assertTrue(result.getOutput().contains("BUILD SUCCESSFUL"), result.getOutput());
+        assertTrue(result.getOutput().contains("Configuration cache entry stored."), result.getOutput());
         try (var generated = Files.walk(projectDir.resolve("build/generated/ksp"))) {
             assertTrue(generated.anyMatch(path -> path.getFileName().toString().startsWith("City_")),
                     "Expected a generated City_ metamodel under build/generated/ksp.");
         }
+        var second = runner().build();
+        assertTrue(second.getOutput().contains("Reusing configuration cache."), second.getOutput());
+    }
+
+    @Test
+    @EnabledIfSystemProperty(named = "storm.smoke", matches = "true")
+    public void compilesAJavaEntityAndGeneratesTheMetamodel() throws Exception {
+        Files.writeString(projectDir.resolve("settings.gradle.kts"), FunctionalTestSupport.SETTINGS);
+        Files.writeString(projectDir.resolve("build.gradle.kts"), """
+                plugins {
+                    java
+                    id("st.orm")
+                }
+                repositories {
+                    mavenLocal()
+                    mavenCentral()
+                }
+                java {
+                    toolchain {
+                        languageVersion = JavaLanguageVersion.of(21)
+                    }
+                }
+                """);
+        var sourceDir = projectDir.resolve("src/main/java/demo");
+        Files.createDirectories(sourceDir);
+        Files.writeString(sourceDir.resolve("City.java"), """
+                package demo;
+
+                import st.orm.Entity;
+                import st.orm.PK;
+
+                public record City(@PK Integer id, String name) implements Entity<Integer> {
+                }
+                """);
+        var result = runner().build();
+        assertTrue(result.getOutput().contains("BUILD SUCCESSFUL"), result.getOutput());
+        assertTrue(result.getOutput().contains("Configuration cache entry stored."), result.getOutput());
+        try (var generated = Files.walk(projectDir.resolve("build/generated/sources/annotationProcessor"))) {
+            assertTrue(generated.anyMatch(path -> path.getFileName().toString().startsWith("City_")),
+                    "Expected a generated City_ metamodel under build/generated/sources/annotationProcessor.");
+        }
+        var second = runner().build();
+        assertTrue(second.getOutput().contains("Reusing configuration cache."), second.getOutput());
     }
 }
