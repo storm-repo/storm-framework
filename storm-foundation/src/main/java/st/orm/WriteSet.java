@@ -42,7 +42,10 @@ import java.util.List;
  *   <li><strong>Key propagation.</strong> Generated primary keys propagate within the set by <em>instance
  *       identity</em>: a child links to its new parent by holding the same instance, either directly in the foreign
  *       key field or wrapped in a {@code Ref}. The same unsaved instance describes one prospective row; two
- *       structurally equal but distinct unsaved instances describe two rows.</li>
+ *       structurally equal but distinct unsaved instances describe two rows. When a foreign key field is
+ *       non-insertable because its column value is carried by a component of the primary key (the junction table
+ *       pattern, where the key columns live inside a composite primary key), the generated key is written into the
+ *       carrying key component instead.</li>
  *   <li><strong>Batching.</strong> Execution is grouped into one batch operation per entity type per dependency
  *       level (large batches are split by the configured batch size). The number of batches follows the dependency
  *       shape of the data: the Owner &larr; Pet &larr; Visit example below needs three, and a self-referencing type
@@ -71,9 +74,10 @@ import java.util.List;
  *
  * <p>Unsaved references that cannot join the insertion closure fail fast with a descriptive exception before
  * anything is written: an id-only {@code Ref} carrying a default id, an unsaved entity behind a non-insertable
- * foreign key component, an unsaved entity encountered by {@link #update(Iterable)} or {@link #remove(Iterable)},
- * and dependency cycles that cannot be executed by the dependency-ordering strategy (the write set does not break
- * cycles using nullable intermediate values, deferred constraints or follow-up updates).</p>
+ * foreign key component whose column value is not carried by an insertable primary key component, an unsaved
+ * entity encountered by {@link #update(Iterable)} or {@link #remove(Iterable)}, and dependency cycles that cannot
+ * be executed by the dependency-ordering strategy (the write set does not break cycles using nullable intermediate
+ * values, deferred constraints or follow-up updates).</p>
  *
  * <p><strong>Note on unsaved refs:</strong> {@code Ref} equality is based on type and id. Two refs wrapping distinct
  * unsaved instances therefore compare equal until the instances are persisted. Do not use unsaved refs as map keys or

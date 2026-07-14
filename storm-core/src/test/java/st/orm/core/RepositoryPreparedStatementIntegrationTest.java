@@ -334,12 +334,15 @@ public class RepositoryPreparedStatementIntegrationTest {
 
     @Test
     public void testInsertReturningIds() {
-        // data.sql inserts 6 vets (ids 1-6 via auto_increment). Next two get ids 7 and 8.
+        // The concrete id values depend on the tests that ran before, because auto_increment state survives the
+        // per-test rollback; the contract under test is that the generated ids are returned in input order.
         var repository = ORMTemplate.of(dataSource).entity(Vet.class);
         Vet vet1 = Vet.builder().firstName("Noel").lastName("Fitzpatrick").build();
         Vet vet2 = Vet.builder().firstName("Scarlett").lastName("Magda").build();
         var ids = repository.insertAndFetchIds(List.of(vet1, vet2));
-        assertEquals(List.of(7, 8), ids);
+        assertEquals(2, ids.size());
+        assertEquals("Noel", repository.findById(ids.get(0)).orElseThrow().firstName());
+        assertEquals("Scarlett", repository.findById(ids.get(1)).orElseThrow().firstName());
     }
 
     @Test

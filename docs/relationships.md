@@ -215,7 +215,7 @@ data class UserRole(
 ) : Entity<UserRolePk>
 ```
 
-The `@Persist(insertable = false, updatable = false)` annotation indicates that the FK columns overlap with the composite PK columns. The FK fields are used to load the related entities, but the column values come from the PK during insert/update operations.
+The `@Persist(insertable = false, updatable = false)` annotation indicates that the FK columns overlap with the composite PK columns. The FK fields are used to load the related entities, but the column values come from the PK during insert/update operations. [Write sets](write-sets.md#junction-tables) recognize this shape: a junction row referencing an unsaved entity is inserted after its parent, with the generated key propagated into the composite PK.
 
 Query through the join entity:
 

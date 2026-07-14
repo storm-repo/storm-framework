@@ -142,6 +142,70 @@ orm.writeSet().insert(List.of(pet));    // owner is inserted first, the ref bind
 
 Id-only refs such as `Ref.of(Owner::class, 42)` are pointers to known rows: they bind as foreign key values and are never written. An id-only ref carrying a default id cannot describe a new entity and fails fast. Note that ref equality is based on type and id, so refs wrapping distinct unsaved instances compare equal until the instances are persisted; do not use unsaved refs as map keys.
 
+## Junction Tables
+
+The [many-to-many pattern](relationships.md#many-to-many) models a junction table with a composite primary key holding the key columns, and non-insertable foreign key fields that load the related entities:
+
+<Tabs groupId="language">
+<TabItem value="kotlin" label="Kotlin" default>
+
+```kotlin
+data class UserRolePk(
+    val userId: Int,
+    val roleId: Int
+)
+
+data class UserRole(
+    @PK val userRolePk: UserRolePk,
+    @FK @Persist(insertable = false, updatable = false) val user: User,
+    @FK @Persist(insertable = false, updatable = false) val role: Role
+) : Entity<UserRolePk>
+```
+
+</TabItem>
+<TabItem value="java" label="Java">
+
+```java
+record UserRolePk(int userId, int roleId) {}
+
+record UserRole(@PK UserRolePk userRolePk,
+                @FK @Persist(insertable = false, updatable = false) User user,
+                @FK @Persist(insertable = false, updatable = false) Role role
+) implements Entity<UserRolePk> {}
+```
+
+</TabItem>
+</Tabs>
+
+Write sets recognize this shape. A non-insertable foreign key field whose column value is carried by an insertable component of the primary key participates in the insertion closure like any other edge: an unsaved entity held by the field is discovered and inserted first, and its generated key is written into the carrying key component before the junction row is inserted. The key components for already-persisted entities are set as usual, so mixed rows work naturally:
+
+<Tabs groupId="language">
+<TabItem value="kotlin" label="Kotlin" default>
+
+```kotlin
+val user = User(name = "Alice")                               // unsaved
+val role = orm.entity<Role>().findByName("admin")             // saved
+val userRole = UserRole(UserRolePk(user.id, role.id), user, role)
+
+orm.writeSet().insert(listOf(userRole))   // user is inserted first; its key lands in userRolePk.userId
+```
+
+</TabItem>
+<TabItem value="java" label="Java">
+
+```java
+var user = new User("Alice");                                 // unsaved
+var role = orm.entity(Role.class).findByName("admin");        // saved
+var userRole = new UserRole(new UserRolePk(user.id(), role.id()), user, role);
+
+orm.writeSet().insert(List.of(userRole)); // user is inserted first; its key lands in userRolePk.userId
+```
+
+</TabItem>
+</Tabs>
+
+The unsaved entity's default id in the key component is a placeholder; the write set overwrites it with the generated key. Only when no insertable primary key component carries the column value does the reference fail fast (see below).
+
 ## Update, Upsert and Remove
 
 The remaining verbs follow the same contract, each with the ordering that suits it:
@@ -174,7 +238,7 @@ Write sets keep Storm's fail-fast doctrine. Each of the following raises a descr
 - A dependency cycle that cannot be executed by the dependency-ordering strategy. The write set does not break cycles using nullable intermediate values, deferred constraints, or follow-up updates.
 - An id-only ref with a default id in an insert or upsert set (it cannot describe a new entity; wrap the instance instead).
 - An unsaved entity passed to update or remove.
-- An unsaved entity referenced through a non-insertable foreign key component (typically a junction table whose key columns live inside a composite primary key).
+- An unsaved entity referenced through a non-insertable foreign key component whose column value is not carried by an insertable primary key component (junction tables carry their key columns inside the composite primary key and do participate; see [Junction Tables](#junction-tables)).
 
 References to entities outside the effective write set follow the normal repository rules: keyed references only provide foreign key values and are never written; unsaved references fail wherever their key is required as a foreign key value.
 

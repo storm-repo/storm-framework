@@ -6,6 +6,7 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import jakarta.annotation.Nonnull;
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
@@ -16,7 +17,11 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.orm.jpa.DataJpaTest;
 import org.springframework.test.context.ContextConfiguration;
 import org.springframework.test.context.junit.jupiter.SpringExtension;
+import st.orm.DbTable;
 import st.orm.Entity;
+import st.orm.FK;
+import st.orm.PK;
+import st.orm.Persist;
 import st.orm.PersistenceException;
 import st.orm.Ref;
 import st.orm.core.model.Address;
@@ -201,13 +206,101 @@ public class WriteSetIntegrationTest {
     }
 
     @Test
-    public void testInsertUnsavedThroughNonInsertableComponentFails() {
+    public void testInsertJunctionPropagatesGeneratedKeyIntoCompositePk() {
         var orm = orm();
+        var vet = Vet.builder().firstName("New").lastName("JunctionVet").build();
         var vetSpecialty = new VetSpecialty(
                 new VetSpecialtyPK(0, 1),
-                Vet.builder().firstName("New").lastName("Vet").build(),
+                vet,
                 Specialty.builder().id(1).name("radiology").build());
-        var exception = assertThrows(PersistenceException.class, () -> orm.writeSet().insert(List.of(vetSpecialty)));
+        List<String> inserts = new ArrayList<>();
+        SqlInterceptor.observe(
+                sql -> { if (sql.statement().toUpperCase().startsWith("INSERT")) inserts.add(sql.statement()); },
+                () -> { orm.writeSet().insert(List.of(vetSpecialty)); return null; });
+        // The vet joins via the insertion closure and is written first; its generated key is carried by the
+        // junction row's composite primary key.
+        assertEquals(2, inserts.size());
+        assertTrue(inserts.get(1).contains("vet_specialty"));
+        var insertedVets = orm.entity(Vet.class).select().getResultList().stream()
+                .filter(candidate -> "JunctionVet".equals(candidate.lastName()))
+                .toList();
+        assertEquals(1, insertedVets.size());
+        var junction = orm.entity(VetSpecialty.class).findById(new VetSpecialtyPK(insertedVets.getFirst().id(), 1));
+        assertTrue(junction.isPresent());
+        assertEquals("radiology", junction.get().specialty().name());
+    }
+
+    @Test
+    public void testInsertJunctionRowsSharingUnsavedParent() {
+        var orm = orm();
+        var vet = Vet.builder().firstName("Shared").lastName("JunctionParent").build();
+        var radiology = new VetSpecialty(new VetSpecialtyPK(0, 1), vet,
+                Specialty.builder().id(1).name("radiology").build());
+        var surgery = new VetSpecialty(new VetSpecialtyPK(0, 2), vet,
+                Specialty.builder().id(2).name("surgery").build());
+        List<String> inserts = new ArrayList<>();
+        SqlInterceptor.observe(
+                sql -> { if (sql.statement().toUpperCase().startsWith("INSERT")) inserts.add(sql.statement()); },
+                () -> { orm.writeSet().insert(List.of(radiology, surgery)); return null; });
+        // The shared vet instance is inserted exactly once; the junction rows form a single batch.
+        assertEquals(2, inserts.size());
+        var insertedVets = orm.entity(Vet.class).select().getResultList().stream()
+                .filter(candidate -> "JunctionParent".equals(candidate.lastName()))
+                .toList();
+        assertEquals(1, insertedVets.size());
+        int vetId = insertedVets.getFirst().id();
+        assertTrue(orm.entity(VetSpecialty.class).findById(new VetSpecialtyPK(vetId, 1)).isPresent());
+        assertTrue(orm.entity(VetSpecialty.class).findById(new VetSpecialtyPK(vetId, 2)).isPresent());
+    }
+
+    @Test
+    public void testInsertJunctionRowsWithEqualTransientKeys() {
+        var orm = orm();
+        // Both junction rows carry the same transient key (0, 1) until their parents' keys are propagated; the
+        // write set correlates by instance identity, so each row binds its own parent.
+        var first = new VetSpecialty(new VetSpecialtyPK(0, 1),
+                Vet.builder().firstName("First").lastName("TransientKey").build(),
+                Specialty.builder().id(1).name("radiology").build());
+        var second = new VetSpecialty(new VetSpecialtyPK(0, 1),
+                Vet.builder().firstName("Second").lastName("TransientKey").build(),
+                Specialty.builder().id(1).name("radiology").build());
+        orm.writeSet().insert(List.of(first, second));
+        var vets = orm.entity(Vet.class).select().getResultList().stream()
+                .filter(candidate -> "TransientKey".equals(candidate.lastName()))
+                .toList();
+        assertEquals(2, vets.size());
+        for (var vet : vets) {
+            assertTrue(orm.entity(VetSpecialty.class).findById(new VetSpecialtyPK(vet.id(), 1)).isPresent());
+        }
+    }
+
+    @Test
+    public void testInsertAndFetchJunctionReturnsCompleteKey() {
+        var orm = orm();
+        var vet = Vet.builder().firstName("Fetched").lastName("JunctionVet").build();
+        var vetSpecialty = new VetSpecialty(new VetSpecialtyPK(0, 3), vet,
+                Specialty.builder().id(3).name("dentistry").build());
+        var fetched = orm.writeSet().insertAndFetch(vetSpecialty);
+        assertNotEquals(0, fetched.id().vetId());
+        assertEquals(fetched.id().vetId(), (int) fetched.vet().id());
+        assertEquals("Fetched", fetched.vet().firstName());
+        assertEquals(3, fetched.id().specialtyId());
+    }
+
+    @DbTable("vet_badge")
+    public record VetBadge(
+            @PK Integer id,
+            @Nonnull String label,
+            @Nonnull @FK @Persist(insertable = false, updatable = false) Vet vet
+    ) implements Entity<Integer> {}
+
+    @Test
+    public void testInsertUnsavedThroughNonInsertableComponentWithoutCarrierFails() {
+        var orm = orm();
+        // The badge's vet_id column is neither insertable nor carried by a primary key component, so an unsaved
+        // vet behind it cannot join the insertion closure.
+        var badge = new VetBadge(null, "Unsupported", Vet.builder().firstName("New").lastName("Vet").build());
+        var exception = assertThrows(PersistenceException.class, () -> orm.writeSet().insert(List.of(badge)));
         assertTrue(exception.getMessage().contains("not insertable"));
     }
 
