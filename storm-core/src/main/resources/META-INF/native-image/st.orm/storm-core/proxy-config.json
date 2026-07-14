@@ -1,0 +1,26 @@
+[
+  {
+    "condition": { "typeReachable": "st.orm.core.template.impl.PreparedStatementTemplateImpl" },
+    "interfaces": ["java.sql.PreparedStatement"]
+  },
+  {
+    "condition": { "typeReachable": "st.orm.core.template.impl.MonitoredResource" },
+    "interfaces": ["st.orm.core.template.PreparedQuery", "st.orm.core.template.Query"]
+  },
+  {
+    "condition": { "typeReachable": "st.orm.core.template.impl.MonitoredResource" },
+    "interfaces": ["java.util.stream.BaseStream", "java.util.stream.Stream"]
+  },
+  {
+    "condition": { "typeReachable": "st.orm.core.template.impl.MonitoredResource" },
+    "interfaces": ["java.util.stream.BaseStream", "java.util.stream.IntStream"]
+  },
+  {
+    "condition": { "typeReachable": "st.orm.core.template.impl.MonitoredResource" },
+    "interfaces": ["java.util.stream.BaseStream", "java.util.stream.LongStream"]
+  },
+  {
+    "condition": { "typeReachable": "st.orm.core.template.impl.MonitoredResource" },
+    "interfaces": ["java.util.stream.BaseStream", "java.util.stream.DoubleStream"]
+  }
+]
