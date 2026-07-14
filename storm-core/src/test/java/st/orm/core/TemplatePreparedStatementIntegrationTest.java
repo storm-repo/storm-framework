@@ -171,7 +171,7 @@ public class TemplatePreparedStatementIntegrationTest {
     public void testSelectPetWithRecord() {
         // Custom local records for Owner/Pet. Same '%y%' filter; 5 distinct owner first names.
         record Owner(String firstName, String lastName, String telephone) implements Data {}
-        record Pet(String name, LocalDate birthDate, Owner owner) implements Data {}
+        record Pet(String name, LocalDate birthDate, @Nullable Owner owner) implements Data {}
         String nameFilter = "%y%";
         var query = ORMTemplate.of(dataSource).query(raw("""
                 SELECT \0
@@ -608,7 +608,7 @@ public class TemplatePreparedStatementIntegrationTest {
     public void testWith() {
         // CTE filters pets by '%y%', then LEFT JOIN to owner. 5 distinct owner first names
         // (Sly matches but has null owner, filtered out).
-        record FilteredPet(int id, @FK Owner owner) implements Data {}
+        record FilteredPet(int id, @Nullable @FK Owner owner) implements Data {}
         String nameFilter = "%y%";
         try (var query = ORMTemplate.of(dataSource).query(raw("""
                 WITH filtered_pet AS (
@@ -632,7 +632,7 @@ public class TemplatePreparedStatementIntegrationTest {
                 String lastName,
                 Address address,
                 String telephone) implements Data {}
-        record FilteredPet(int id, @FK Owner owner) implements Data {}
+        record FilteredPet(int id, @Nullable @FK Owner owner) implements Data {}
         String nameFilter = "%y%";
         try (var query = ORMTemplate.of(dataSource).query(raw("""
                 WITH filtered_pet AS (

@@ -46,7 +46,7 @@ record User(@PK Integer id,
             String email,
             LocalDate birthDate,
             String street,
-            String postalCode,
+            @Nullable String postalCode,
             @FK City city
 ) implements Entity<Integer> {}
 ```
@@ -86,13 +86,13 @@ data class User(
 </TabItem>
 <TabItem value="java" label="Java">
 
-In Java, record components are nullable by default. Use `@Nonnull` to mark fields that must always have a value — Storm recognizes `jakarta.annotation.Nonnull`, `javax.annotation.Nonnull`, and JSpecify's `org.jspecify.annotations.NonNull` on the component; other null-marker annotations (Lombok, JetBrains, Spring) are not recognized, and JSpecify `@NullMarked` scope defaults are not applied. `@PK` fields and primitive types (`int`, `long`, etc.) are inherently non-nullable. As with Kotlin, nullability determines JOIN behavior: a non-nullable `@FK` field produces an `INNER JOIN`, while a nullable one — including a bare `@FK` field without `@Nonnull` — produces a `LEFT JOIN`. If the FK column is `NOT NULL` in the database, annotate the field with `@Nonnull`, or joins silently degrade to `LEFT JOIN`.
+In Java, record components are non-null by default, exactly like Kotlin: `String` means a value is always present, and nullable is the marked case. Mark nullable fields with `@Nullable` — Storm recognizes JSpecify's `org.jspecify.annotations.Nullable` (as a type-use annotation), `jakarta.annotation.Nullable`, and `javax.annotation.Nullable`. This matches JSpecify's `@NullMarked` semantics: annotating your model package `@NullMarked` is welcome documentation for static checkers, and `@NullUnmarked` on a class or package opts back into lenient, nullable-by-default components for that scope. As with Kotlin, nullability determines JOIN behavior: a non-nullable `@FK` field — including a bare, unannotated one — produces an `INNER JOIN`, while a `@Nullable @FK` field produces a `LEFT JOIN`. If the FK column allows `NULL` in the database, annotate the field `@Nullable`, or rows without the reference are silently filtered by the inner join.
 
 ```java
 record User(@PK Integer id,
-            @Nonnull String email,        // Non-nullable
-            @Nonnull LocalDate birthDate, // Non-nullable
-            String postalCode,            // Nullable (default)
+            String email,                 // Non-nullable (default)
+            LocalDate birthDate,          // Non-nullable (default)
+            @Nullable String postalCode,  // Nullable
             @Nullable @FK City city       // Nullable (results in LEFT JOIN)
 ) implements Entity<Integer> {}
 ```
@@ -163,7 +163,7 @@ Use `NONE` when:
 
 ```java
 record User(@PK Integer id,  // Database generates via auto-increment
-            @Nonnull String name
+            String name
 ) implements Entity<Integer> {}
 ```
 
@@ -178,7 +178,7 @@ var inserted = orm.entity(User.class).insert(user);  // Returns User with genera
 
 ```java
 record Order(@PK(generation = SEQUENCE, sequence = "order_seq") Long id,
-             @Nonnull BigDecimal total
+             BigDecimal total
 ) implements Entity<Long> {}
 ```
 
@@ -188,7 +188,7 @@ Storm fetches the next value from the sequence before inserting.
 
 ```java
 record Country(@PK(generation = NONE) String code,  // Caller provides the value
-               @Nonnull String name
+               String name
 ) implements Entity<String> {}
 ```
 
@@ -229,8 +229,8 @@ data class UserRole(
 record UserRolePk(int userId, int roleId) {}
 
 record UserRole(@PK UserRolePk userRolePk,
-                @Nonnull @FK User user,
-                @Nonnull @FK Role role
+                @FK User user,
+                @FK Role role
 ) implements Entity<UserRolePk> {}
 ```
 
@@ -330,8 +330,8 @@ data class SomeEntity(
 record UserEmailUk(int userId, String email) {}
 
 record SomeEntity(@PK Integer id,
-                  @Nonnull @FK User user,
-                  @Nonnull String email,
+                  @FK User user,
+                  String email,
                   @UK @Persist(insertable = false, updatable = false) UserEmailUk uniqueKey
 ) implements Entity<Integer> {}
 ```
@@ -377,13 +377,13 @@ data class Owner(
 Use records for embedded components:
 
 ```java
-record Address(String street,
-               @FK City city) {}
+record Address(@Nullable String street,
+               @Nullable @FK City city) {}
 
 record Owner(@PK Integer id,
-             @Nonnull String firstName,
-             @Nonnull String lastName,
-             @Nonnull Address address,
+             String firstName,
+             String lastName,
+             Address address,
              @Nullable String telephone
 ) implements Entity<Integer> {}
 ```
@@ -419,9 +419,9 @@ In this example, the `owner` and `city` foreign keys define the actual persisted
 record OwnerCityKey(int ownerId, int cityId) {}
 
 record Pet(@PK Integer id,
-           @Nonnull String name,
-           @Nonnull @FK Owner owner,
-           @Nonnull @FK City city,
+           String name,
+           @FK Owner owner,
+           @FK City city,
            @Persist(insertable = false, updatable = false) OwnerCityKey ownerCityKey
 ) implements Entity<Integer> {}
 ```
@@ -477,8 +477,8 @@ enum RoleType {
 }
 
 record Role(@PK Integer id,
-            @Nonnull String name,
-            @Nonnull RoleType type  // Stored as "USER" or "ADMIN"
+            String name,
+            RoleType type  // Stored as "USER" or "ADMIN"
 ) implements Entity<Integer> {}
 ```
 
@@ -486,8 +486,8 @@ To store by ordinal:
 
 ```java
 record Role(@PK Integer id,
-            @Nonnull String name,
-            @Nonnull @DbEnum(ORDINAL) RoleType type  // Stored as 0 or 1
+            String name,
+            @DbEnum(ORDINAL) RoleType type  // Stored as 0 or 1
 ) implements Entity<Integer> {}
 ```
 
@@ -522,7 +522,7 @@ record Money(BigDecimal amount) {}
 
 @DbTable("product")
 record Product(@PK Integer id,
-               @Nonnull String name,
+               String name,
                @Convert(converter = MoneyConverter.class) Money price
 ) implements Entity<Integer> {}
 ```
@@ -571,8 +571,8 @@ Use `@Version` for optimistic locking:
 
 ```java
 record Owner(@PK Integer id,
-             @Nonnull String firstName,
-             @Nonnull String lastName,
+             String firstName,
+             String lastName,
              @Version int version
 ) implements Entity<Integer> {}
 ```
@@ -581,10 +581,10 @@ Timestamps are also supported:
 
 ```java
 record Visit(@PK Integer id,
-             @Nonnull LocalDate visitDate,
+             LocalDate visitDate,
              @Nullable String description,
-             @Nonnull @FK Pet pet,
-             @Version Instant timestamp
+             @FK Pet pet,
+             @Nullable @Version Instant timestamp
 ) implements Entity<Integer> {}
 ```
 
@@ -619,9 +619,9 @@ Use `@Persist(updatable = false)` for fields that should only be set on insert:
 
 ```java
 record Pet(@PK Integer id,
-           @Nonnull String name,
-           @Nonnull @Persist(updatable = false) LocalDate birthDate,
-           @Nonnull @FK @Persist(updatable = false) PetType type,
+           String name,
+           @Persist(updatable = false) LocalDate birthDate,
+           @FK @Persist(updatable = false) PetType type,
            @Nullable @FK Owner owner
 ) implements Entity<Integer> {}
 ```
@@ -638,8 +638,8 @@ Since Storm entities are immutable, updating a field means creating a new instan
 ```java
 @Builder(toBuilder = true)
 record User(@PK Integer id,
-            @Nonnull String email,
-            @Nonnull String name,
+            String email,
+            String name,
             @FK City city
 ) implements Entity<Integer> {}
 ```
@@ -802,14 +802,14 @@ data class User(
 // Suppress all schema validation for a legacy entity.
 @DbIgnore
 record LegacyUser(@PK Integer id,
-                  @Nonnull String name
+                  String name
 ) implements Entity<Integer> {}
 
 // Suppress schema validation for a specific field.
 record User(@PK Integer id,
-            @Nonnull String name,
+            String name,
             @DbIgnore("DB uses FLOAT, but column only stores whole numbers")
-            @Nonnull Integer age
+            Integer age
 ) implements Entity<Integer> {}
 ```
 

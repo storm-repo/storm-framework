@@ -22,7 +22,7 @@ Generation/update rules:
 - **Every column with a FK constraint must be modeled with `@FK`.** Without `@FK`, Storm cannot resolve joins automatically. Prefer full entity types (`@FK val city: City` / `@FK City city`) over `Ref<T>`. Use `Ref<T>` when the entity hierarchy gets too deep or loading the full related entity is overkill.
 - **FK columns in primary keys:** When a PK column is also a FK (both PK and FK constraint on the same column), use raw IDs in the PK class and place `@FK @Persist(insertable = false, updatable = false)` fields on the entity for join metadata. Add a convenience constructor that accepts the FK entities/refs and constructs the PK internally.
 - Auto-increment PKs: IDENTITY. Others: NONE.
-- NOT NULL FKs: non-nullable. Nullable FKs: nullable.
+- NOT NULL FKs: non-nullable. Nullable FKs: nullable. In Kotlin the type expresses this (`City` / `City?`); in Java components are non-null by default, so mark nullable columns `@Nullable` (JSpecify or jakarta) and leave NOT NULL columns unannotated.
 - CIRCULAR NOT SUPPORTED. Two tables referencing each other: one must use Ref<T>. Self-ref: always Ref<T>.
 - **Single-column unique constraints** (apply by default): use `@UK` on the field. Generates a `Metamodel.Key` for type-safe lookups and scrolling. Always add `@UK` when `describe_table` shows a single-column unique constraint — it's one annotation for free value.
 - **Composite unique constraints** (only when needed): composite unique constraints do NOT need to be modeled unless the user explicitly needs a composite `Metamodel.Key` (for keyset pagination or type-safe lookups). When needed, use an inline record + `@UK @Persist(insertable = false, updatable = false)` — ask the user if they need this.

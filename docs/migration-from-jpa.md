@@ -77,8 +77,8 @@ Storm derives the table name (`user`) from the class name and column names (`ema
 ```java
 record User(
     @PK Long id,
-    @Nonnull String email,
-    @Nonnull String name,
+    String email,
+    String name,
     @Nullable @FK City city,
     @Nullable LocalDateTime createdAt
 ) implements Entity<Long> {}

@@ -248,7 +248,7 @@ data class LegacyUser(
 ```java
 @DbIgnore
 record LegacyUser(@PK Integer id,
-                  @Nonnull String name
+                  String name
 ) implements Entity<Integer> {}
 ```
 
@@ -274,9 +274,9 @@ data class User(
 
 ```java
 record User(@PK Integer id,
-            @Nonnull String name,
+            String name,
             @DbIgnore("DB uses FLOAT, but column only stores whole numbers")
-            @Nonnull Integer age
+            Integer age
 ) implements Entity<Integer> {}
 ```
 
@@ -306,7 +306,7 @@ data class Report(
 ```java
 @DbTable(schema = "reporting")
 record Report(@PK Integer id,
-              @Nonnull String name
+              String name
 ) implements Entity<Integer> {}
 ```
 

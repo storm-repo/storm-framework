@@ -22,7 +22,6 @@ import static java.util.Optional.empty;
 
 import jakarta.annotation.Nonnull;
 import jakarta.annotation.Nullable;
-import java.lang.annotation.Annotation;
 import java.lang.invoke.MethodHandle;
 import java.lang.invoke.MethodHandles;
 import java.lang.invoke.MethodType;
@@ -34,10 +33,10 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.function.Supplier;
 import st.orm.Data;
 import st.orm.PK;
 import st.orm.PersistenceException;
+import st.orm.core.spi.Nullability;
 import st.orm.core.spi.ORMReflection;
 import st.orm.mapping.RecordField;
 import st.orm.mapping.RecordType;
@@ -240,39 +239,10 @@ public final class DefaultORMReflectionImpl implements ORMReflection {
         return clazz instanceof Class<?>;
     }
 
-    @SuppressWarnings("unchecked")
-    static final Class<? extends Annotation> JAVAX_NONNULL = ((Supplier<Class<? extends Annotation>>) () -> {
-        try {
-            return (Class<? extends Annotation>) Class.forName("javax.annotation.Nonnull");
-        } catch (ClassNotFoundException e) {
-            return null;
-        }
-    }).get();
-    @SuppressWarnings("unchecked")
-    static final Class<? extends Annotation> JAKARTA_NONNULL = ((Supplier<Class<? extends Annotation>>) () -> {
-        try {
-            return (Class<? extends Annotation>) Class.forName("jakarta.annotation.Nonnull");
-        } catch (ClassNotFoundException e) {
-            return null;
-        }
-    }).get();
-    @SuppressWarnings("unchecked")
-    static final Class<? extends Annotation> JSPECIFY_NONNULL = ((Supplier<Class<? extends Annotation>>) () -> {
-        try {
-            return (Class<? extends Annotation>) Class.forName("org.jspecify.annotations.NonNull");
-        } catch (ClassNotFoundException e) {
-            return null;
-        }
-    }).get();
-
     private boolean isNonnull(@Nonnull RecordComponent component) {
         return component.isAnnotationPresent(PK.class)
                 || component.getType().isPrimitive()
-                || (JAVAX_NONNULL != null && component.isAnnotationPresent(JAVAX_NONNULL))
-                || (JAKARTA_NONNULL != null && component.isAnnotationPresent(JAKARTA_NONNULL))
-                // JSpecify's NonNull is a TYPE_USE annotation: it annotates the component's type
-                // rather than the component declaration.
-                || (JSPECIFY_NONNULL != null && component.getAnnotatedType().isAnnotationPresent(JSPECIFY_NONNULL));
+                || Nullability.isNonNull(component, component.getAnnotatedType(), null, component.getDeclaringRecord());
     }
 
     @Override

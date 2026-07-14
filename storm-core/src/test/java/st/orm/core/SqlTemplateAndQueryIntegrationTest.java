@@ -8,6 +8,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import static st.orm.core.template.ORMTemplate.of;
 import static st.orm.core.template.TemplateString.raw;
 
+import jakarta.annotation.Nullable;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -74,7 +75,7 @@ public class SqlTemplateAndQueryIntegrationTest {
 
     // readColumnValue with null values for temporal types
 
-    record NullableIntegerResult(Integer value) {}
+    record NullableIntegerResult(@Nullable Integer value) {}
 
     @Test
     public void readColumnValueWithNullShouldReturnNull() {
@@ -83,7 +84,7 @@ public class SqlTemplateAndQueryIntegrationTest {
         assertNull(result.value());
     }
 
-    record UtilDateResult(java.util.Date value) {}
+    record UtilDateResult(@Nullable java.util.Date value) {}
 
     @Test
     public void readColumnValueWithNullUtilDateShouldReturnNull() {
@@ -92,7 +93,7 @@ public class SqlTemplateAndQueryIntegrationTest {
         assertNull(result.value());
     }
 
-    record OffsetDateTimeResult(OffsetDateTime value) {}
+    record OffsetDateTimeResult(@Nullable OffsetDateTime value) {}
 
     @Test
     public void readColumnValueWithNullOffsetDateTimeShouldReturnNull() {
@@ -102,7 +103,7 @@ public class SqlTemplateAndQueryIntegrationTest {
         assertNull(result.value());
     }
 
-    record ZonedDateTimeResult(ZonedDateTime value) {}
+    record ZonedDateTimeResult(@Nullable ZonedDateTime value) {}
 
     @Test
     public void readColumnValueWithNullZonedDateTimeShouldReturnNull() {
@@ -112,7 +113,7 @@ public class SqlTemplateAndQueryIntegrationTest {
         assertNull(result.value());
     }
 
-    record InstantResult(Instant value) {}
+    record InstantResult(@Nullable Instant value) {}
 
     @Test
     public void readColumnValueWithNullInstantShouldReturnNull() {
@@ -122,7 +123,7 @@ public class SqlTemplateAndQueryIntegrationTest {
         assertNull(result.value());
     }
 
-    record LocalDateTimeResult(LocalDateTime value) {}
+    record LocalDateTimeResult(@Nullable LocalDateTime value) {}
 
     @Test
     public void readColumnValueWithNullLocalDateTimeShouldReturnNull() {
@@ -132,7 +133,7 @@ public class SqlTemplateAndQueryIntegrationTest {
         assertNull(result.value());
     }
 
-    record NullableLocalDateResult(LocalDate value) {}
+    record NullableLocalDateResult(@Nullable LocalDate value) {}
 
     @Test
     public void readColumnValueWithNullLocalDateShouldReturnNull() {
@@ -142,7 +143,7 @@ public class SqlTemplateAndQueryIntegrationTest {
         assertNull(result.value());
     }
 
-    record NullableLocalTimeResult(LocalTime value) {}
+    record NullableLocalTimeResult(@Nullable LocalTime value) {}
 
     @Test
     public void readColumnValueWithNullLocalTimeShouldReturnNull() {

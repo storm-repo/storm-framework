@@ -564,15 +564,17 @@ If a non-nullable field receives NULL from the database, Storm throws an excepti
 </TabItem>
 <TabItem value="java" label="Java">
 
-Use `@Nonnull` and `@Nullable` annotations:
+Record components are non-null by default, exactly like Kotlin. Mark nullable fields with `@Nullable`:
 
 ```java
 record User(
     int id,                    // Primitive = non-nullable
-    @Nonnull String email,     // Non-nullable
+    String email,              // Non-nullable (default)
     @Nullable String nickname  // Nullable
 ) {}
 ```
+
+If a non-nullable field receives NULL from the database, Storm throws an exception.
 
 </TabItem>
 </Tabs>

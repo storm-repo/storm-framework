@@ -36,6 +36,7 @@ import java.util.function.Supplier;
 import st.orm.Data;
 import st.orm.PK;
 import st.orm.core.spi.Instantiators;
+import st.orm.core.spi.Nullability;
 import st.orm.core.spi.ORMReflection;
 import st.orm.core.spi.Providers;
 import st.orm.core.spi.RefFactory;
@@ -291,25 +292,9 @@ public final class ObjectMapperFactory {
     static String nullableHint(@Nonnull Class<?> clazz) {
         return isKotlinClass(clazz)
                 ? "make the property nullable (e.g., String?)"
-                : "annotate the field with @Nullable";
+                : "annotate the field with @Nullable (org.jspecify.annotations or jakarta.annotation), or opt the class or package out of null-marked defaults with @NullUnmarked";
     }
 
-    @SuppressWarnings("unchecked")
-    static final Class<? extends Annotation> JAVAX_NONNULL = ((Supplier<Class<? extends Annotation>>) () -> {
-        try {
-            return (Class<? extends Annotation>) Class.forName("javax.annotation.Nonnull");
-        } catch (ClassNotFoundException e) {
-            return null;
-        }
-    }).get();
-    @SuppressWarnings("unchecked")
-    static final Class<? extends Annotation> JAKARTA_NONNULL = ((Supplier<Class<? extends Annotation>>) () -> {
-        try {
-            return (Class<? extends Annotation>) Class.forName("jakarta.annotation.Nonnull");
-        } catch (ClassNotFoundException e) {
-            return null;
-        }
-    }).get();
 
     /**
      * Returns true if the specified parameter is marked as non-null, false otherwise.
@@ -321,7 +306,7 @@ public final class ObjectMapperFactory {
      */
     static boolean isNonnull(@Nonnull Parameter parameter) {
         return parameter.isAnnotationPresent(PK.class)
-                || (JAVAX_NONNULL != null && parameter.isAnnotationPresent(JAVAX_NONNULL))
-                || (JAKARTA_NONNULL != null && parameter.isAnnotationPresent(JAKARTA_NONNULL));
+                || Nullability.isNonNull(parameter, parameter.getAnnotatedType(), parameter.getDeclaringExecutable(),
+                        parameter.getDeclaringExecutable().getDeclaringClass());
     }
 }

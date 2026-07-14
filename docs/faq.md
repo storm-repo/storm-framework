@@ -110,7 +110,7 @@ var updated = new User(user.id(), "new@example.com", user.name(), user.city());
 **Custom wither methods:** Define `with*` methods on the record that return a new instance with a single field changed. Clean API but requires a method per field.
 
 ```java
-record User(@PK Integer id, @Nonnull String email, @Nonnull String name, @FK City city
+record User(@PK Integer id, String email, String name, @FK City city
 ) implements Entity<Integer> {
     User withEmail(String email) { return new User(id, email, name, city); }
 }

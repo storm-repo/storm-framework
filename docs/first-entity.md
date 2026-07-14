@@ -47,7 +47,7 @@ record User(@PK Integer id,
 ) implements Entity<Integer> {}
 ```
 
-In Java, record components are nullable by default. Use `@Nonnull` on fields that must always have a value. Primitive types (`int`, `long`, etc.) are inherently non-nullable.
+In Java, record components are non-null by default, exactly like Kotlin. Mark nullable fields with `@Nullable` (JSpecify's `org.jspecify.annotations.Nullable` or `jakarta.annotation.Nullable`); see [Defining Entities](entities.md) for the full nullability rules.
 
 The `@Builder` annotation is from [Lombok](https://projectlombok.org/) and is optional. It generates a builder that lets you construct entities without specifying the primary key, and creates modified copies via `toBuilder()`. Without Lombok, you can pass `null` as the primary key (e.g., `new City(null, "Sunnyvale", 161_884)`) or define a convenience constructor that omits it. See [Modifying Entities](entities.md#modifying-entities) for details.
 

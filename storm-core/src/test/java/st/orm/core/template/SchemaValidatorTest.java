@@ -106,8 +106,8 @@ class SchemaValidatorTest {
     ) implements Entity<Integer> {}
 
     public record InlinedAddress(
-            String street,
-            String zipCode
+            @Nullable String street,
+            @Nullable String zipCode
     ) {}
 
     public record EntityWithInline(

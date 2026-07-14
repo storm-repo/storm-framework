@@ -9,6 +9,7 @@ import static st.orm.UpdateMode.FIELD;
 import static st.orm.core.template.SqlInterceptor.observe;
 import static st.orm.core.template.TemplateString.raw;
 
+import jakarta.annotation.Nullable;
 import java.util.concurrent.atomic.AtomicReference;
 import javax.sql.DataSource;
 import lombok.Builder;
@@ -58,7 +59,7 @@ public class EqualitySupportIntegrationTest {
             short shortVal,
             float floatVal,
             double doubleVal,
-            String stringVal
+            @Nullable String stringVal
     ) implements Entity<Integer> {}
 
     @DynamicUpdate(FIELD)
@@ -73,7 +74,7 @@ public class EqualitySupportIntegrationTest {
             short shortVal,
             float floatVal,
             double doubleVal,
-            String stringVal
+            @Nullable String stringVal
     ) implements Entity<Integer> {}
 
     @BeforeEach
