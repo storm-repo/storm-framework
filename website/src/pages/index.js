@@ -411,7 +411,7 @@ export default function Home() {
       },
       jdbc: {
         speed: ['+10 µs', 'over raw JDBC', 'on a primary key lookup. The network round trip dominates every workload; the abstraction barely registers.'],
-        entities: ['29 lines', 'buys a typed model', 'JDBC has no entities: every row stays untyped until you map it by hand.'],
+        entities: ['29 lines', 'instead of manual mapping', 'JDBC has no entities: every row stays untyped until you map it by hand.'],
         queries: ['61%', 'fewer query lines', 'All eight workloads: 100 lines in Storm, 257 of hand-written JDBC and mapping.'],
       },
     };
