@@ -72,7 +72,7 @@ const CSS = `
   .storm-home .bback{position:absolute;inset:0;padding:inherit;opacity:0;transform:translateY(10px);pointer-events:none}
   .storm-home .bcard.bench .bfront{position:absolute;inset:0;padding:inherit;opacity:0;transform:translateY(-10px);pointer-events:none}
   .storm-home .bcard.bench .bback{position:relative;inset:auto;padding:0;opacity:1;transform:none;pointer-events:auto}
-  .storm-home .bnum{font-size:42px;font-weight:800;line-height:1;margin-bottom:8px;letter-spacing:-.02em;background:linear-gradient(105deg,#fff7cc 0%,#ffe08a 22%,#ffc93c 48%,#e6a817 72%,#c98d0a 100%);-webkit-background-clip:text;background-clip:text;color:transparent}
+  .storm-home .bnum{font-size:42px;font-weight:800;line-height:1;margin-bottom:8px;letter-spacing:-.02em;background:linear-gradient(105deg,#c98d0a 0%,#e6a817 28%,#ffc93c 52%,#ffe08a 78%,#fff7cc 100%);-webkit-background-clip:text;background-clip:text;color:transparent}
   .storm-home .bback a{color:var(--accent);text-decoration:none;font-weight:600;white-space:nowrap}
   .storm-home .bback a:hover{text-decoration:underline}
   /* Rotating hero line: all taglines live in the DOM, stacked in one grid cell
@@ -779,19 +779,35 @@ export default function Home() {
       valuesTimer = setTimeout(advance, dwellFor(valueIndex));
     }
 
-    // The closing block swaps once it has been in view for a beat: the native
-    // story slides out to the left and the brand line takes its place.
+    // The closing block alternates between the native story and the brand
+    // line: the visible half slides out to the left, the other slides in from
+    // the right. Starts once the section has been in view for a beat.
     const ctaSwap = document.getElementById('ctaSwap');
     let ctaTimer = null;
+    let ctaInterval = null;
     let ctaObserver = null;
     if (ctaSwap && ctaSwap.children.length === 2) {
+      let ctaActive = 0;
+      const ctaAdvance = () => {
+        const leaving = ctaSwap.children[ctaActive];
+        ctaActive = 1 - ctaActive;
+        const entering = ctaSwap.children[ctaActive];
+        leaving.classList.remove('in');
+        leaving.classList.add('out');
+        // Re-enter from the right: jump back to the resting position without
+        // a transition, then animate in.
+        entering.style.transition = 'none';
+        entering.classList.remove('out');
+        void entering.offsetWidth;
+        entering.style.transition = '';
+        entering.classList.add('in');
+      };
       ctaObserver = new IntersectionObserver((entries) => {
         if (!entries.some((entry) => entry.isIntersecting)) return;
         ctaObserver.disconnect();
         ctaTimer = setTimeout(() => {
-          ctaSwap.children[0].classList.remove('in');
-          ctaSwap.children[0].classList.add('out');
-          ctaSwap.children[1].classList.add('in');
+          ctaAdvance();
+          ctaInterval = setInterval(ctaAdvance, 6000);
         }, 4000);
       }, {threshold: 0.5});
       ctaObserver.observe(ctaSwap);
@@ -803,6 +819,7 @@ export default function Home() {
       clearTimeout(timer);
       clearTimeout(valuesTimer);
       clearTimeout(ctaTimer);
+      clearInterval(ctaInterval);
       if (ctaObserver) ctaObserver.disconnect();
       window.removeEventListener('resize', measureHero);
       if(scenesEl) scenesEl.innerHTML='';
