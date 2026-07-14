@@ -15,13 +15,12 @@
  */
 package st.orm.spring.kotlin
 
-import org.springframework.beans.factory.config.ConfigurableListableBeanFactory
 import org.springframework.stereotype.Component
 import st.orm.repository.EntityRepository
 import st.orm.repository.ProjectionRepository
 import st.orm.repository.Repository
 import st.orm.spring.AbstractRepositoryBeanFactoryPostProcessor
-import st.orm.template.ORMTemplate
+import st.orm.spring.AbstractRepositoryFactoryBean
 
 /**
  * BeanFactoryPostProcessor that scans base packages for Repository interfaces and registers them as beans.
@@ -48,18 +47,5 @@ open class RepositoryBeanFactoryPostProcessor(
 
     override fun getExcludedRepositoryTypes(): Set<Class<*>> = setOf(Repository::class.java, EntityRepository::class.java, ProjectionRepository::class.java)
 
-    override fun createRepository(beanFactory: ConfigurableListableBeanFactory, repositoryType: Class<*>): Any {
-        val orm = getBeanORMTemplate(beanFactory)
-        @Suppress("UNCHECKED_CAST")
-        return orm.repository((repositoryType as Class<Repository>).kotlin)
-    }
-
-    private fun getBeanORMTemplate(beanFactory: ConfigurableListableBeanFactory): ORMTemplate {
-        val beanName = getOrmTemplateBeanName()
-        return if (beanName != null) {
-            beanFactory.getBean(beanName, ORMTemplate::class.java)
-        } else {
-            beanFactory.getBean(ORMTemplate::class.java)
-        }
-    }
+    override fun getRepositoryFactoryBeanClass(): Class<out AbstractRepositoryFactoryBean<*>> = RepositoryFactoryBean::class.java
 }
