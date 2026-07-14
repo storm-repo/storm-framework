@@ -90,12 +90,11 @@ function buildBody() {
 ${navHtml('comparison')}
 
 <div class="art">
-  <div class="crumbs"><a href="/">Home</a><span class="sep">/</span>Comparison</div>
   <h1>How Storm<br><span class="grad">compares.</span></h1>
   <p class="dek">There is no universally best data framework. Storm is built for teams who want explicit, predictable database access with concise, immutable models. Here is where it sits next to the alternatives, and where each of them is the better call.</p>
 
   <h2>At a glance</h2>
-  <p>Decision-relevant differences across the most common choices. The full, footnoted matrix and every pairing live in the <a class="tlink" href="/docs/comparison">docs comparison</a>.</p>
+  <p>Decision-relevant differences across the most common choices. This page compares the designs; the measured numbers, on identical workloads, live on the <a class="tlink" href="/benchmarks">benchmarks page</a>.</p>
   ${matrix}
 
   <h2>Framework by framework</h2>
@@ -111,6 +110,7 @@ ${navHtml('comparison')}
 
   <div class="cta">
     <a href="/quickstart" class="btn primary">Try Storm →</a>
+    <a href="/benchmarks" class="btn">See the benchmarks</a>
     <a href="/docs/comparison" class="btn">Full comparison</a>
   </div>
 </div>
