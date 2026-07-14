@@ -15,6 +15,7 @@
  */
 package st.orm.core.repository;
 
+import st.orm.WriteSet;
 import st.orm.core.template.ORMTemplate;
 
 /**
@@ -28,4 +29,19 @@ public interface Repository {
      * @return the ORM template.
      */
     ORMTemplate orm();
+
+    /**
+     * Returns dependency-aware write operations over mixed-type sets of entities.
+     *
+     * <p>The write set belongs to the underlying ORM template and is not scoped to this repository's entity type;
+     * it accepts entities of any type. This accessor is a convenience for repository methods, equivalent to
+     * {@code orm().writeSet()}.</p>
+     *
+     * @return the write set operations of the underlying ORM template.
+     * @see WriteSet
+     * @since 1.13
+     */
+    default WriteSet writeSet() {
+        return orm().writeSet();
+    }
 }

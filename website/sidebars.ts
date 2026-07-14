@@ -46,6 +46,7 @@ const sidebars: SidebarsConfig = {
           items: [
             'batch-streaming',
             'upserts',
+            'write-sets',
           ],
         },
         {

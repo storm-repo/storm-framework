@@ -44,6 +44,7 @@ DOCS=(
   # Advanced Topics - Operations
   batch-streaming.md
   upserts.md
+  write-sets.md
   # Advanced Topics - Internals
   sql-templates.md
   string-templates.md

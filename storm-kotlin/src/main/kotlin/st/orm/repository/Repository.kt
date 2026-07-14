@@ -15,6 +15,7 @@
  */
 package st.orm.repository
 
+import st.orm.WriteSet
 import st.orm.template.ORMTemplate
 
 /**
@@ -34,4 +35,17 @@ interface Repository {
      * @return the ORM template.
      */
     val orm: ORMTemplate
+
+    /**
+     * Returns dependency-aware write operations over mixed-type sets of entities.
+     *
+     * The write set belongs to the underlying ORM template and is not scoped to this repository's entity type;
+     * it accepts entities of any type. This accessor is a convenience for repository methods, equivalent to
+     * `orm.writeSet()`.
+     *
+     * @return the write set operations of the underlying ORM template.
+     * @see WriteSet
+     * @since 1.13
+     */
+    fun writeSet(): WriteSet = orm.writeSet()
 }

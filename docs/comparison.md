@@ -18,7 +18,7 @@ The following tables provide a side-by-side comparison of concrete features acro
 | Session state | None | Persistence context | Via JPA | None | None | None | None | DAO only | Entity tracking |
 | Polymorphism | Yes<sup>2</sup> | Yes | Via JPA | No | No | No | No<sup>8</sup> | No | No |
 | Automatic relationships | Yes | Yes<sup>3</sup> | Via JPA | No | No | No | Yes | DAO only | No |
-| Cascade persist | No | Yes | Yes | No | No | No | Yes | No | No |
+| Cascade persist | Write sets<sup>10</sup> | Yes | Yes | No | No | No | Yes | No | No |
 | Lifecycle callbacks | Yes | Yes | Via JPA | No | Yes | No | Yes | DAO only | No |
 
 <sup>1</sup> JPA/Spring Data lines without Lombok; ~10 lines with Lombok.
@@ -28,6 +28,8 @@ The following tables provide a side-by-side comparison of concrete features acro
 <sup>3</sup> JPA relationships are runtime-managed via proxies.
 
 <sup>8</sup> Jimmer supports `@MappedSuperclass` for sharing fields across entities, but not JPA-style single-table, joined, or table-per-class inheritance strategies.
+
+<sup>10</sup> Storm persists entity graphs through [write sets](write-sets.md): dependency-ordered, mixed-type batch writes with generated-key propagation, declared explicitly at the call site (`orm.writeSet()`) rather than configured on the mapping.
 
 ### Querying & Data Access
 
@@ -82,6 +84,7 @@ JPA (typically implemented by Hibernate) is the most widely used persistence fra
 | **Polymorphism** | Sealed types (Single-Table, Joined, Polymorphic FK); STRING, INTEGER, CHAR discriminators | Class hierarchy (Single-Table, Joined, Table-per-Class); STRING, INTEGER, CHAR discriminators |
 | **State** | Stateless; no persistence context | Managed entities                         |
 | **Loading** | Loading in single query | Lazy loading common              |
+| **Graph persistence** | Write sets: explicit, dependency-ordered, call-local | Cascade annotations on mappings |
 | **N+1 Problem** | Prevented by design; requires explicit opt-in | Common pitfall                           |
 | **Queries** | Type-safe DSL, SQL Templates | JPQL, Criteria API                       |
 | **Caching** | Transaction-scoped observation | First/second level cache                 |
