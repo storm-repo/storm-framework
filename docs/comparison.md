@@ -57,7 +57,7 @@ The following tables provide a side-by-side comparison of concrete features acro
 | Coroutines | Yes | No | No | No | No | No | No | Yes | Limited |
 | Spring integration | Yes | Yes | Native | Yes | Yes | Yes | Yes | Yes | Yes |
 | Runtime mechanism | Codegen<sup>7</sup> | Bytecode | Bytecode | Reflection | Codegen | Reflection | Codegen | Reflection | Reflection |
-| GraalVM native images | Out of the box<sup>10</sup> | Via Spring AOT / Quarkus | Via Spring AOT | Manual | Manual<sup>11</sup> | Manual | Manual | Via Spring (1.0) | Manual |
+| GraalVM native images | Direct support<sup>10</sup> | Via Spring AOT / Quarkus | Via Spring AOT | Manual | Manual<sup>11</sup> | Manual | Manual | Via Spring (1.0) | Manual |
 | Community | New | Huge | Huge | Large | Medium | Medium | Small | Medium | Small |
 
 <sup>5</sup> jOOQ generates code from the database schema, so schema validation is inherent in its code generation step.

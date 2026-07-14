@@ -80,7 +80,7 @@ function buildBody() {
     <tr><td>Deferred loading</td><td>Explicit Ref&lt;T&gt;</td><td>Proxies, session-bound</td><td>Not applicable</td><td>DAO lazy, transaction-bound</td><td>Manual joins</td></tr>
     <tr><td>Standalone transactions</td><td>Propagation, isolation, timeout, commit hooks</td><td>EntityTransaction · JTA/Spring for more</td><td>Lambda API, nested</td><td>Nested, isolation config</td><td>Lambda API</td></tr>
     <tr><td>Row mapping</td><td>Compile-time generated, reflection-free</td><td>Reflection / bytecode</td><td>Generated records</td><td>Manual (DSL)</td><td>Dynamic proxies</td></tr>
-    <tr><td>GraalVM native images</td><td>Out of the box: metadata ships with the framework, with or without Spring</td><td>Via Spring Boot AOT or Quarkus</td><td>Reflection config for generated records</td><td>Via the Spring integration (1.0)</td><td>Manual configuration</td></tr>
+    <tr><td>GraalVM native images</td><td>Direct support, on Spring and Ktor alike</td><td>Via Spring Boot AOT or Quarkus</td><td>Reflection config for generated records</td><td>Via the Spring integration (1.0)</td><td>Manual configuration</td></tr>
     <tr><td>Full SQL escape hatch</td><td>SQL / SQL templates</td><td>Native queries</td><td>It is SQL</td><td>Raw exec()</td><td>Raw JDBC</td></tr>
     <tr><td>Languages</td><td>Kotlin + Java</td><td>Kotlin + Java</td><td>Kotlin + Java</td><td>Kotlin only</td><td>Kotlin only</td></tr>
     <tr><td>License</td><td>Apache 2.0</td><td>LGPL 2.1</td><td>Commercial for some DBs</td><td>Apache 2.0</td><td>Apache 2.0</td></tr>
