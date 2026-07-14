@@ -43,8 +43,8 @@ const EXAMPLES = [
     chips: ['Java 21', 'Spring Boot 4', 'PostgreSQL'],
   },
   {
-    slug: 'kotlin-spring-boot-graal',
-    repo: 'storm-example-kotlin-spring-boot-4-graal',
+    slug: 'kotlin-spring-boot-graalvm',
+    repo: 'storm-example-kotlin-spring-boot-4-graalvm',
     title: 'Storm Movies · Spring Boot 4 · GraalVM',
     description:
       'The Spring Boot movie browser compiled to a GraalVM native image: ' +
@@ -54,8 +54,8 @@ const EXAMPLES = [
     chips: ['Kotlin', 'Spring Boot 4', 'GraalVM'],
   },
   {
-    slug: 'kotlin-ktor-graal',
-    repo: 'storm-example-kotlin-ktor-graal',
+    slug: 'kotlin-ktor-graalvm',
+    repo: 'storm-example-kotlin-ktor-graalvm',
     title: 'Storm Movies · Ktor · GraalVM',
     description:
       'The Ktor movie browser as a native image: storm-core ships a GraalVM ' +

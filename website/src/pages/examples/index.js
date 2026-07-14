@@ -43,12 +43,12 @@ ${navHtml('examples')}
 
 <div class="shead" id="graalvm"><span class="mark">//</span>GraalVM native images<span class="sdesc">The same applications compiled to native binaries: sub-second startup, the data layer registered by Storm itself, verified by the same Playwright suites.</span></div>
 <div class="cards">
-  <a class="tcard" href="/examples/kotlin-spring-boot-graal/">
+  <a class="tcard" href="/examples/kotlin-spring-boot-graalvm/">
     <div class="tt">Storm Movies · Spring Boot 4 · GraalVM<span class="arrow">→</span></div>
     <div class="td">The Spring Boot movie browser as a native image: entities and scanned repositories registered automatically through Storm's Spring AOT hints, startup around a quarter of a second, and the full Playwright suite running against the native binary.</div>
     <div class="tm"><span>Kotlin</span><span>Spring Boot 4</span><span>GraalVM</span></div>
   </a>
-  <a class="tcard" href="/examples/kotlin-ktor-graal/">
+  <a class="tcard" href="/examples/kotlin-ktor-graalvm/">
     <div class="tt">Storm Movies · Ktor · GraalVM<span class="arrow">→</span></div>
     <div class="td">The Ktor movie browser as a native image: storm-core ships a GraalVM feature that registers entities and repositories from the compile-time type index, so the data layer needs no native configuration at all.</div>
     <div class="tm"><span>Kotlin</span><span>Ktor 3</span><span>GraalVM</span></div>

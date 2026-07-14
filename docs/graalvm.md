@@ -4,7 +4,7 @@ Storm applications compile to GraalVM native images out of the box. The framewor
 reachability metadata and registers your entities and repositories automatically, so a Storm data
 layer needs no reflection configuration, no tracing agent runs, and no hand-written hints.
 
-A native image of the [example movie browser](https://github.com/storm-orm/storm-example-kotlin-spring-boot-4-graal)
+A native image of the [example movie browser](https://github.com/storm-orm/storm-example-kotlin-spring-boot-4-graalvm)
 starts in about a quarter of a second, including the Flyway migration check, the Hikari pool, and
 Storm validating every entity against the live database schema.
 
@@ -66,7 +66,7 @@ GRAALVM_HOME=/path/to/graalvm ./gradlew nativeCompile
 Spring Boot 4 writes its AOT metadata in the consolidated `reachability-metadata.json` format,
 which requires GraalVM for JDK 23 or newer.
 
-The [Kotlin + Spring Boot 4 example](https://github.com/storm-orm/storm-example-kotlin-spring-boot-4-graal)
+The [Kotlin + Spring Boot 4 example](https://github.com/storm-orm/storm-example-kotlin-spring-boot-4-graalvm)
 is the complete movie browser compiled this way: repository scanning, suspend transactions, the
 full Thymeleaf UI, and the streaming dataset import all run natively, verified by the project's
 Playwright test suite against the native binary.
@@ -81,7 +81,7 @@ runtime. Two Ktor-specific notes, both unrelated to Storm:
 - Native images cannot scan the classpath, so hand Flyway its migration files through a
   `ResourceProvider` instead of relying on location scanning.
 
-The [Kotlin + Ktor example](https://github.com/storm-orm/storm-example-kotlin-ktor-graal) shows
+The [Kotlin + Ktor example](https://github.com/storm-orm/storm-example-kotlin-ktor-graalvm) shows
 both, along with the small amount of application-level metadata a Ktor native image needs for the
 web stack itself (the `EngineMain` module reference, template-facing types, and the ktor-network
 socket classes).
@@ -94,8 +94,8 @@ serialization resolves serializers for your response types, and libraries withou
 metadata may need an entry or two. The example projects keep all of this in one commented
 metadata directory, small enough to read in a minute:
 
-- [Spring Boot example metadata](https://github.com/storm-orm/storm-example-kotlin-spring-boot-4-graal/blob/main/src/main/kotlin/st/orm/demo/imdb/ApplicationRuntimeHints.kt)
-- [Ktor example metadata](https://github.com/storm-orm/storm-example-kotlin-ktor-graal/tree/main/src/main/resources/META-INF/native-image)
+- [Spring Boot example metadata](https://github.com/storm-orm/storm-example-kotlin-spring-boot-4-graalvm/blob/main/src/main/kotlin/st/orm/demo/imdb/ApplicationRuntimeHints.kt)
+- [Ktor example metadata](https://github.com/storm-orm/storm-example-kotlin-ktor-graalvm/tree/main/src/main/resources/META-INF/native-image)
 
 ## Measured
 

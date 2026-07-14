@@ -369,8 +369,8 @@ const BODY = `
   <p class="sub" style="margin:0 auto 30px;text-align:center;max-width:940px">Storm applications build as GraalVM native images out of the box. The framework ships its reachability metadata and registers your entities and repositories from the compile-time type index: through Spring AOT hints on Spring Boot, and through a built-in GraalVM feature everywhere else. The example movie browser starts in a quarter of a second and passes its full interface test suite as a native binary.</p>
   <div class="cta" style="justify-content:center;margin-top:40px">
     <a href="/docs/graalvm" class="btn primary">How it works</a>
-    <a href="/examples/kotlin-spring-boot-graal/" class="btn">Spring Boot example</a>
-    <a href="/examples/kotlin-ktor-graal/" class="btn">Ktor example</a>
+    <a href="/examples/kotlin-spring-boot-graalvm/" class="btn">Spring Boot example</a>
+    <a href="/examples/kotlin-ktor-graalvm/" class="btn">Ktor example</a>
   </div>
 </div></section>
 
