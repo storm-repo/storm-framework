@@ -15,6 +15,8 @@
  */
 package st.orm.core.template.impl;
 
+import static java.util.Comparator.comparing;
+
 import jakarta.annotation.Nonnull;
 import java.lang.ref.Cleaner;
 import java.lang.ref.Cleaner.Cleanable;
@@ -93,7 +95,12 @@ final class MonitoredResource {
         return proxy;
     }
 
-    /** Interface arrays per class; the walk is only performed once per resource type. */
+    /**
+     * Interface arrays per class; the walk is only performed once per resource type. The interfaces are
+     * sorted by name because JDK proxy classes are keyed by the ordered interface list: a stable order
+     * ensures every run requests the same proxy shape, which allows the shape to be registered as
+     * GraalVM native-image reachability metadata.
+     */
     private static final ClassValue<Class<?>[]> INTERFACES = new ClassValue<>() {
         @Override
         protected Class<?>[] computeValue(@Nonnull Class<?> clazz) {
@@ -103,7 +110,9 @@ final class MonitoredResource {
                 allInterfaces.addAll(Arrays.asList(current.getInterfaces()));
                 current = current.getSuperclass();
             }
-            return allInterfaces.toArray(new Class<?>[0]);
+            Class<?>[] interfaces = allInterfaces.toArray(new Class<?>[0]);
+            Arrays.sort(interfaces, comparing(Class::getName));
+            return interfaces;
         }
     };
 }
