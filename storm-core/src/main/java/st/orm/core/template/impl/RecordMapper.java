@@ -364,8 +364,12 @@ final class RecordMapper {
      *
      * @param plan the compiled argument plan for adapting flat JDBC args to constructor args.
      * @param parameterTypes the expanded JDBC column types (flattened from nested records).
+     * @param skipRegions the column regions of nested entities eligible for skipping decode on cache hits.
      */
-    private record Compiled(@Nonnull ArgumentPlan plan, @Nonnull Class<?>[] parameterTypes, @Nonnull PkInfo pkInfo) {}
+    private record Compiled(@Nonnull ArgumentPlan plan,
+                            @Nonnull Class<?>[] parameterTypes,
+                            @Nonnull PkInfo pkInfo,
+                            @Nonnull List<ColumnSkipper.SkipRegion> skipRegions) {}
 
     /** Global cache of compiled plans, keyed by record class. Thread-safe for concurrent access. */
     private static final ConcurrentMap<Class<?>, Compiled> COMPILED = new ConcurrentHashMap<>();
@@ -386,7 +390,10 @@ final class RecordMapper {
                     PkInfo pkInfo = Entity.class.isAssignableFrom(type.type())
                             ? calculatePkInfo(type)
                             : PkInfo.NONE;
-                    return new Compiled(compilePlan(type), expandParameterTypes(type, refFactory), pkInfo);
+                    List<ColumnSkipper.SkipRegion> skipRegions = new ArrayList<>();
+                    collectSkipRegions(type, 0, skipRegions);
+                    return new Compiled(compilePlan(type), expandParameterTypes(type, refFactory), pkInfo,
+                            List.copyOf(skipRegions));
                 } catch (SqlTemplateException e) {
                     throw new RuntimeException(e);
                 }
@@ -460,10 +467,17 @@ final class RecordMapper {
             entityCache = null;
         }
         PkInfo pkInfo = compiled.pkInfo();
+        ColumnSkipper columnSkipper = createColumnSkipper(type, compiled, cacheReadEnabled, entityCache,
+                interner, transactionContext);
         return new ObjectMapper<>() {
             @Override
             public Class<?>[] getParameterTypes() {
                 return compiled.parameterTypes();
+            }
+
+            @Override
+            public ColumnSkipper columnSkipper() {
+                return columnSkipper;
             }
 
             @SuppressWarnings("unchecked")
@@ -529,6 +543,48 @@ final class RecordMapper {
                 return ObjectMapperFactory.construct(pkInfo.constructor, pkArgs, pkStart);
             }
         };
+    }
+
+    /**
+     * Creates the column skipper for the given compiled plan, or {@code null} when no column region can ever be
+     * skipped for the mapped type.
+     *
+     * <p>The top-level region mirrors the early cache lookup in the mapper's {@code newInstance}: it only applies
+     * when cache reads are enabled, as top-level records are never interned.</p>
+     *
+     * @param type the mapped record type.
+     * @param compiled the compiled plan for the mapped type.
+     * @param cacheReadEnabled whether transaction-scoped cache reads are enabled.
+     * @param entityCache the entity cache for the top-level record, or null if not applicable.
+     * @param interner the query-scoped interner, shared with the mapper.
+     * @param transactionContext the transaction context, or null if not in a transaction.
+     * @return the column skipper, or {@code null} if no region is eligible.
+     */
+    @Nullable
+    private static ColumnSkipper createColumnSkipper(@Nonnull RecordType type,
+                                                     @Nonnull Compiled compiled,
+                                                     boolean cacheReadEnabled,
+                                                     @Nullable EntityCache<Entity<?>, ?> entityCache,
+                                                     @Nonnull WeakInterner interner,
+                                                     @Nullable TransactionContext transactionContext) {
+        PkInfo pkInfo = compiled.pkInfo();
+        boolean topLevel = entityCache != null && cacheReadEnabled && pkInfo.offset() >= 0
+                && (pkInfo.columnCount() == 1 || pkInfo.constructor() != null);
+        List<ColumnSkipper.SkipRegion> skipRegions = compiled.skipRegions();
+        if (!topLevel && skipRegions.isEmpty()) {
+            return null;
+        }
+        List<ColumnSkipper.SkipRegion> regions;
+        if (topLevel) {
+            regions = new ArrayList<>(skipRegions.size() + 1);
+            //noinspection unchecked
+            regions.add(new ColumnSkipper.SkipRegion(0, compiled.parameterTypes().length, pkInfo.offset(),
+                    pkInfo.columnCount(), pkInfo.constructor(), (Class<? extends Entity<?>>) type.type(), true));
+            regions.addAll(skipRegions);
+        } else {
+            regions = skipRegions;
+        }
+        return new ColumnSkipper(regions, interner, transactionContext, entityCache, cacheReadEnabled);
     }
 
     /**
@@ -765,16 +821,17 @@ final class RecordMapper {
      * </ul>
      */
     private static final class EnumStep implements Step {
-        private final Class<?> enumType;
         private final EnumType mapping;
         private final String ownerSimpleName;
         private final String fieldName;
+        private final ObjectMapper<?> enumMapper;
 
         private EnumStep(Class<?> enumType, EnumType mapping, String ownerSimpleName, String fieldName) {
-            this.enumType = enumType;
             this.mapping = mapping;
             this.ownerSimpleName = ownerSimpleName;
             this.fieldName = fieldName;
+            // Resolved once at plan compilation; the factory lookup is too costly to repeat per row.
+            this.enumMapper = EnumMapper.getFactory(1, enumType).orElseThrow();
         }
 
         @Override
@@ -800,7 +857,7 @@ final class RecordMapper {
                     );
                 }
             };
-            return EnumMapper.getFactory(1, enumType).orElseThrow().newInstance(new Object[]{v});
+            return enumMapper.newInstance(new Object[]{v});
         }
     }
 
@@ -1165,6 +1222,51 @@ final class RecordMapper {
             }
         }
         return new PkInfo(offset, pkColumnCount, pkConstructor);
+    }
+
+    /**
+     * Collects the flat column regions of nested entities that are eligible for the early cache lookup, in
+     * ascending column order with outer regions preceding the regions they contain.
+     *
+     * <p>These regions allow the row reader to skip decoding the non-key columns of an entity that is already
+     * cached; see {@link ColumnSkipper}. A region is only eligible when the primary key can be extracted directly
+     * from the flat columns, mirroring the conditions of the early cache lookup in {@link RecordStep}.</p>
+     *
+     * @param type the record type to analyze.
+     * @param base the absolute column offset at which the record type starts.
+     * @param out the list to add the regions to.
+     */
+    private static void collectSkipRegions(@Nonnull RecordType type,
+                                           int base,
+                                           @Nonnull List<ColumnSkipper.SkipRegion> out) throws SqlTemplateException {
+        int cursor = base;
+        for (RecordField field : type.fields()) {
+            var converter = getORMConverter(field);
+            if (converter.isPresent()) {
+                cursor += converter.get().getParameterCount();
+                continue;
+            }
+            if (isRecord(field.type())) {
+                RecordType sub = getRecordType(field.type());
+                int totalColumnCount = getParameterCount(sub);
+                if (Entity.class.isAssignableFrom(sub.type())) {
+                    PkInfo pkInfo = calculatePkInfo(sub);
+                    if (pkInfo.offset() >= 0 && (pkInfo.columnCount() == 1 || pkInfo.constructor() != null)) {
+                        //noinspection unchecked
+                        out.add(new ColumnSkipper.SkipRegion(cursor, cursor + totalColumnCount,
+                                cursor + pkInfo.offset(), pkInfo.columnCount(), pkInfo.constructor(),
+                                (Class<? extends Entity<?>>) sub.type(), false));
+                    }
+                }
+                collectSkipRegions(sub, cursor, out);
+                cursor += totalColumnCount;
+            } else if (Ref.class.isAssignableFrom(field.type()) && isPolymorphicData(getRefDataType(field))) {
+                // Polymorphic FK: discriminator + PK columns.
+                cursor += 2;
+            } else {
+                cursor += 1;
+            }
+        }
     }
 
     /**
