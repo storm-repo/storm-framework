@@ -1,0 +1,114 @@
+/*
+ * Copyright 2024 - 2026 the original author or authors.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *      https://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+package st.orm.core.graal;
+
+import jakarta.annotation.Nonnull;
+import org.graalvm.nativeimage.hosted.Feature;
+import org.graalvm.nativeimage.hosted.RuntimeProxyCreation;
+import org.graalvm.nativeimage.hosted.RuntimeReflection;
+import st.orm.core.spi.TypeDiscovery;
+
+/**
+ * GraalVM native-image feature that registers the application's Storm types, driven by the compile-time
+ * type index the metamodel processor writes to {@code META-INF/storm/}.
+ *
+ * <p>Spring applications receive these registrations through the Spring AOT hints in storm-spring. This
+ * feature provides the equivalent for applications without an AOT phase, such as Ktor services and plain
+ * JVM applications. It activates automatically through this jar's {@code native-image.properties}
+ * whenever storm-core is on the image classpath, so no configuration is needed.</p>
+ *
+ * <p>Per Data type (including compound primary keys and inline components, resolved through
+ * {@link TypeDiscovery#getDataTypesWithComponents()}), the declared constructors and public methods are
+ * registered for reflection (model introspection), along with the generated metamodel companion classes.
+ * Per repository interface, the JDK proxy shape Storm creates behind {@code ORMTemplate.repository(..)}
+ * is registered, along with the Kotlin {@code $DefaultImpls} class that carries default method bodies.
+ * Converters are registered for reflective construction.</p>
+ *
+ * @since 1.13
+ */
+public final class StormFeature implements Feature {
+
+    @Override
+    public String getDescription() {
+        return "Registers Storm entities, converters, and repositories from the compile-time type index.";
+    }
+
+    @Override
+    public void beforeAnalysis(@Nonnull BeforeAnalysisAccess access) {
+        int dataTypes = 0;
+        for (Class<?> type : TypeDiscovery.getDataTypes()) {
+            registerDataType(access, type);
+            for (Class<?> componentType : TypeDiscovery.getComponentTypes(type)) {
+                registerDataType(access, componentType);
+            }
+            dataTypes++;
+        }
+        int converterTypes = 0;
+        for (Class<?> type : TypeDiscovery.getConverterTypes()) {
+            RuntimeReflection.register(type);
+            RuntimeReflection.register(type.getDeclaredConstructors());
+            converterTypes++;
+        }
+        int repositoryTypes = 0;
+        for (Class<?> type : TypeDiscovery.getRepositoryTypes()) {
+            RuntimeProxyCreation.register(type);
+            Class<?> defaultImplementations = access.findClassByName(type.getName() + "$DefaultImpls");
+            if (defaultImplementations != null) {
+                RuntimeReflection.register(defaultImplementations);
+                RuntimeReflection.register(defaultImplementations.getDeclaredMethods());
+            }
+            repositoryTypes++;
+        }
+        System.out.printf(
+                "Storm: registered %d data types, %d converters, and %d repositories from the type index.%n",
+                dataTypes, converterTypes, repositoryTypes);
+    }
+
+    private static void registerDataType(@Nonnull BeforeAnalysisAccess access, @Nonnull Class<?> type) {
+        RuntimeReflection.register(type);
+        RuntimeReflection.register(type.getDeclaredConstructors());
+        RuntimeReflection.register(type.getMethods());
+        // The declared fields include the static Companion instance, which kotlinx.serialization
+        // reads reflectively when it resolves a serializer at runtime.
+        RuntimeReflection.register(type.getDeclaredFields());
+        registerMetamodel(access, type.getName() + "Metamodel");
+        registerMetamodel(access, type.getName() + "NullableMetamodel");
+        // kotlinx.serialization resolves serializers reflectively through the generated companions.
+        registerCompanion(access, type.getName() + "$serializer");
+        registerCompanion(access, type.getName() + "$Companion");
+    }
+
+    private static void registerCompanion(@Nonnull BeforeAnalysisAccess access, @Nonnull String className) {
+        Class<?> companion = access.findClassByName(className);
+        if (companion == null) {
+            return;
+        }
+        RuntimeReflection.register(companion);
+        RuntimeReflection.register(companion.getDeclaredConstructors());
+        RuntimeReflection.register(companion.getMethods());
+        RuntimeReflection.register(companion.getFields());
+    }
+
+    private static void registerMetamodel(@Nonnull BeforeAnalysisAccess access, @Nonnull String className) {
+        Class<?> metamodel = access.findClassByName(className);
+        if (metamodel == null) {
+            return;
+        }
+        RuntimeReflection.register(metamodel);
+        RuntimeReflection.register(metamodel.getFields());
+        RuntimeReflection.register(metamodel.getMethods());
+    }
+}

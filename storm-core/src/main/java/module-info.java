@@ -17,6 +17,7 @@ module storm.core {
     requires java.management;
     requires java.sql;
     requires static jakarta.persistence;
+    requires static org.graalvm.nativeimage;
     requires jakarta.annotation;
     requires java.compiler;
     requires storm.foundation;

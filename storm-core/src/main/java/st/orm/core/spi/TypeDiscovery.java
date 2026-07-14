@@ -19,6 +19,11 @@ import jakarta.annotation.Nonnull;
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
+import java.lang.reflect.Constructor;
+import java.lang.reflect.GenericArrayType;
+import java.lang.reflect.ParameterizedType;
+import java.lang.reflect.Type;
+import java.lang.reflect.WildcardType;
 import java.net.URL;
 import java.util.*;
 import st.orm.Converter;
@@ -63,6 +68,79 @@ public final class TypeDiscovery {
      */
     public static List<Class<?>> getRepositoryTypes() {
         return loadClasses(REPOSITORY_TYPE);
+    }
+
+    /**
+     * Returns the component types of the given Data type: compound primary keys and inline components
+     * are plain records or data classes that do not appear in the type index themselves, yet they are
+     * introspected the same way as the Data types that carry them. The constructor parameters are
+     * walked recursively; JDK, Kotlin, Jakarta, and Storm types are left out, as their metadata is
+     * covered elsewhere.
+     *
+     * <p>Native-image support builds on this closure: the GraalVM feature and the Spring AOT hints
+     * register these types for reflection alongside the indexed Data types.</p>
+     *
+     * @param type the Data type whose components to resolve.
+     * @return the transitive application-domain component types, excluding the given type itself.
+     * @since 1.13
+     */
+    public static List<Class<?>> getComponentTypes(@Nonnull Class<?> type) {
+        Set<Class<?>> components = new LinkedHashSet<>();
+        collectComponents(type, components);
+        components.remove(type);
+        return List.copyOf(components);
+    }
+
+    private static void collectComponents(@Nonnull Class<?> type, @Nonnull Set<Class<?>> visited) {
+        if (!visited.add(type)) {
+            return;
+        }
+        for (Constructor<?> constructor : type.getDeclaredConstructors()) {
+            for (Type parameterType : constructor.getGenericParameterTypes()) {
+                collectFromType(parameterType, visited);
+            }
+        }
+    }
+
+    /**
+     * Follows a generic constructor parameter type into the application types it mentions: the raw
+     * class itself, and the type arguments of parameterized types such as {@code List<Photo>}, whose
+     * elements are introspected during serialization even though the raw type is a platform type.
+     */
+    private static void collectFromType(@Nonnull Type genericType, @Nonnull Set<Class<?>> visited) {
+        if (genericType instanceof Class<?> cls) {
+            if (isApplicationType(cls)) {
+                collectComponents(cls, visited);
+            }
+        } else if (genericType instanceof ParameterizedType parameterizedType) {
+            collectFromType(parameterizedType.getRawType(), visited);
+            for (Type typeArgument : parameterizedType.getActualTypeArguments()) {
+                collectFromType(typeArgument, visited);
+            }
+        } else if (genericType instanceof WildcardType wildcardType) {
+            for (Type bound : wildcardType.getUpperBounds()) {
+                collectFromType(bound, visited);
+            }
+        } else if (genericType instanceof GenericArrayType genericArrayType) {
+            collectFromType(genericArrayType.getGenericComponentType(), visited);
+        }
+    }
+
+    /**
+     * Whether the type belongs to the application domain rather than to the JDK or the Kotlin runtime,
+     * whose types are covered by their own metadata. Framework types that appear as constructor
+     * parameters, such as {@code Ref}, are interfaces without constructors, so including them is
+     * harmless and keeps the filter from accidentally excluding application packages.
+     */
+    private static boolean isApplicationType(@Nonnull Class<?> type) {
+        if (type.isPrimitive() || type.isArray()) {
+            return false;
+        }
+        String name = type.getName();
+        return !name.startsWith("java.")
+                && !name.startsWith("javax.")
+                && !name.startsWith("jakarta.")
+                && !name.startsWith("kotlin");
     }
 
     @SuppressWarnings("SameParameterValue")

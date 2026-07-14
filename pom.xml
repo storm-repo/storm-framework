@@ -14,6 +14,7 @@
         <kotlin.coroutines.version>1.9.0</kotlin.coroutines.version>
         <kotlinx.serialization.version>1.7.3</kotlinx.serialization.version>
         <ktor.version>3.2.3</ktor.version>
+        <graalvm.version>24.2.2</graalvm.version>
         <micrometer.version>1.15.4</micrometer.version>
         <micrometer-tracing.version>1.5.4</micrometer-tracing.version>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
@@ -80,6 +81,13 @@
                 <groupId>org.jetbrains</groupId>
                 <artifactId>annotations</artifactId>
                 <version>24.0.1</version>
+                <scope>provided</scope>
+            </dependency>
+            <dependency>
+                <!-- Build-time API for GraalVM native-image features; never loaded at runtime. -->
+                <groupId>org.graalvm.sdk</groupId>
+                <artifactId>nativeimage</artifactId>
+                <version>${graalvm.version}</version>
                 <scope>provided</scope>
             </dependency>
             <dependency>
