@@ -1,0 +1,17 @@
+[
+  {
+    "condition": { "typeReachable": "st.orm.Page" },
+    "name": "st.orm.Page",
+    "allPublicMethods": true
+  },
+  {
+    "condition": { "typeReachable": "st.orm.Pageable" },
+    "name": "st.orm.Pageable",
+    "allPublicMethods": true
+  },
+  {
+    "condition": { "typeReachable": "st.orm.Window" },
+    "name": "st.orm.Window",
+    "allPublicMethods": true
+  }
+]

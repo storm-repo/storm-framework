@@ -1,0 +1,54 @@
+[
+  {
+    "condition": { "typeReachable": "st.orm.MetamodelHelper" },
+    "name": "st.orm.core.template.impl.MetamodelFactory",
+    "allPublicMethods": true
+  },
+  {
+    "condition": { "typeReachable": "st.orm.EntityHelper" },
+    "name": "st.orm.core.spi.Providers",
+    "allPublicMethods": true
+  },
+  {
+    "condition": { "typeReachable": "st.orm.EntityHelper" },
+    "name": "st.orm.core.spi.ORMReflection",
+    "allPublicMethods": true
+  },
+  {
+    "condition": { "typeReachable": "st.orm.CursorHelper" },
+    "name": "st.orm.core.spi.CursorFactory",
+    "allPublicMethods": true
+  },
+  {
+    "condition": { "typeReachable": "st.orm.core.spi.Nullability" },
+    "name": "org.jspecify.annotations.NullMarked"
+  },
+  {
+    "condition": { "typeReachable": "st.orm.core.spi.Nullability" },
+    "name": "org.jspecify.annotations.NullUnmarked"
+  },
+  {
+    "condition": { "typeReachable": "st.orm.core.spi.Nullability" },
+    "name": "javax.annotation.Nonnull"
+  },
+  {
+    "condition": { "typeReachable": "st.orm.core.spi.Nullability" },
+    "name": "javax.annotation.Nullable"
+  },
+  {
+    "condition": { "typeReachable": "st.orm.core.spi.Nullability" },
+    "name": "jakarta.annotation.Nonnull"
+  },
+  {
+    "condition": { "typeReachable": "st.orm.core.spi.Nullability" },
+    "name": "jakarta.annotation.Nullable"
+  },
+  {
+    "condition": { "typeReachable": "st.orm.core.spi.Nullability" },
+    "name": "kotlin.Metadata"
+  },
+  {
+    "condition": { "typeReachable": "st.orm.core.template.impl.ObjectMapperFactory" },
+    "name": "kotlin.Metadata"
+  }
+]

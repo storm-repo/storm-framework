@@ -1,0 +1,10 @@
+{
+  "resources": {
+    "includes": [
+      {
+        "condition": { "typeReachable": "st.orm.core.spi.TypeDiscovery" },
+        "pattern": "\\QMETA-INF/storm/\\E.*"
+      }
+    ]
+  }
+}

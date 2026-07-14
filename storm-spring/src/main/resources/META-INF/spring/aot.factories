@@ -1,0 +1,2 @@
+org.springframework.aot.hint.RuntimeHintsRegistrar=\
+st.orm.spring.impl.StormRuntimeHints
