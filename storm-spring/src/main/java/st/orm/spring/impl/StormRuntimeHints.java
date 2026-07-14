@@ -35,6 +35,7 @@ import org.springframework.aot.hint.RuntimeHints;
 import org.springframework.aot.hint.RuntimeHintsRegistrar;
 import org.springframework.aot.hint.TypeReference;
 import org.springframework.core.DecoratingProxy;
+import st.orm.core.spi.TypeDiscovery;
 
 /**
  * Registers the reachability metadata a Storm application needs to run as a GraalVM native image.
@@ -81,15 +82,18 @@ public class StormRuntimeHints implements RuntimeHintsRegistrar {
     public void registerHints(@Nonnull RuntimeHints hints, @Nullable ClassLoader classLoader) {
         ClassLoader loader = classLoader == null ? StormRuntimeHints.class.getClassLoader() : classLoader;
         for (String typeName : readIndex(loader, DATA_INDEX)) {
-            hints.reflection().registerType(TypeReference.of(typeName),
-                    MemberCategory.INVOKE_DECLARED_CONSTRUCTORS,
-                    MemberCategory.INVOKE_PUBLIC_METHODS);
-            hints.reflection().registerType(TypeReference.of(typeName + "Metamodel"),
-                    MemberCategory.PUBLIC_FIELDS,
-                    MemberCategory.INVOKE_PUBLIC_METHODS);
-            hints.reflection().registerType(TypeReference.of(typeName + "NullableMetamodel"),
-                    MemberCategory.PUBLIC_FIELDS,
-                    MemberCategory.INVOKE_PUBLIC_METHODS);
+            registerDataType(hints, typeName);
+            // Compound primary keys and inline components are introspected like the Data types that
+            // carry them but do not appear in the index themselves; resolve them through the shared
+            // closure when the type is loadable.
+            try {
+                Class<?> type = Class.forName(typeName, false, loader);
+                for (Class<?> componentType : TypeDiscovery.getComponentTypes(type)) {
+                    registerDataType(hints, componentType.getName());
+                }
+            } catch (Throwable ignore) {
+                // Entries that do not load still get their hints registered by name above.
+            }
         }
         for (String typeName : readIndex(loader, CONVERTER_INDEX)) {
             hints.reflection().registerType(TypeReference.of(typeName),
@@ -107,6 +111,29 @@ public class StormRuntimeHints implements RuntimeHintsRegistrar {
                     MemberCategory.INVOKE_DECLARED_METHODS,
                     MemberCategory.INVOKE_PUBLIC_METHODS);
         }
+    }
+
+    private static void registerDataType(@Nonnull RuntimeHints hints, @Nonnull String typeName) {
+        // The declared fields include the static Companion instance, which kotlinx.serialization
+        // reads reflectively when it resolves a serializer at runtime.
+        hints.reflection().registerType(TypeReference.of(typeName),
+                MemberCategory.INVOKE_DECLARED_CONSTRUCTORS,
+                MemberCategory.INVOKE_PUBLIC_METHODS,
+                MemberCategory.DECLARED_FIELDS);
+        hints.reflection().registerType(TypeReference.of(typeName + "Metamodel"),
+                MemberCategory.PUBLIC_FIELDS,
+                MemberCategory.INVOKE_PUBLIC_METHODS);
+        hints.reflection().registerType(TypeReference.of(typeName + "NullableMetamodel"),
+                MemberCategory.PUBLIC_FIELDS,
+                MemberCategory.INVOKE_PUBLIC_METHODS);
+        // kotlinx.serialization resolves serializers reflectively through the generated companions.
+        hints.reflection().registerType(TypeReference.of(typeName + "$serializer"),
+                MemberCategory.PUBLIC_FIELDS,
+                MemberCategory.INVOKE_DECLARED_CONSTRUCTORS,
+                MemberCategory.INVOKE_PUBLIC_METHODS);
+        hints.reflection().registerType(TypeReference.of(typeName + "$Companion"),
+                MemberCategory.PUBLIC_FIELDS,
+                MemberCategory.INVOKE_PUBLIC_METHODS);
     }
 
     private static List<String> readIndex(@Nonnull ClassLoader loader, @Nonnull String resourceName) {
