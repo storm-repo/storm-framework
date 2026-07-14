@@ -59,6 +59,12 @@ class MetamodelProcessor(
      */
     private val expandedReferencedTypes = mutableSetOf<String>()
 
+    /**
+     * Fully qualified names of the generated instantiators with their originating files, registered as services
+     * when processing finishes.
+     */
+    private val generatedInstantiators = mutableListOf<Pair<String, KSFile?>>()
+
     companion object {
         private const val GENERATE_METAMODEL = "st.orm.GenerateMetamodel"
         private const val DATA = "st.orm.Data"
@@ -949,6 +955,7 @@ class MetamodelProcessor(
         if (processedClasses.add(qualifiedName)) {
             generateMetamodelClass(classDeclaration, forceNullableChain = false)
             generateMetamodelClass(classDeclaration, forceNullableChain = true)
+            generateInstantiator(classDeclaration)
         }
 
         // Only generate interface if this type implements Data.
@@ -959,6 +966,80 @@ class MetamodelProcessor(
         // Recurse into referenced data classes only once per type to avoid cycles.
         if (expandedReferencedTypes.add(qualifiedName)) {
             generateReferencedDataClassMetamodels(classDeclaration, resolver)
+        }
+    }
+
+    /**
+     * Generates an `Instantiator` implementation that invokes the data class's primary constructor directly,
+     * allowing the runtime to construct instances without reflection (no reflection configuration for native
+     * images, no `opens` clauses for modular applications).
+     *
+     * Only top-level, non-generic data classes are supported; other types fall back to reflective construction
+     * at runtime.
+     */
+    private fun generateInstantiator(classDeclaration: KSClassDeclaration) {
+        if (!classDeclaration.isDataClass() ||
+            classDeclaration.parentDeclaration != null ||
+            classDeclaration.typeParameters.isNotEmpty()
+        ) {
+            return
+        }
+        val primaryConstructor = classDeclaration.primaryConstructor ?: return
+        val packageName = classDeclaration.packageName.asString()
+        val className = classDeclaration.simpleName.asString()
+        val instantiatorName = "${className}Instantiator"
+        val arguments = primaryConstructor.parameters.mapIndexed { index, parameter ->
+            "        args[$index] as ${getKotlinValueTypeName(parameter.type, packageName)}"
+        }.joinToString(",\n")
+        val containingFile = classDeclaration.containingFile
+        val deps = if (containingFile != null) Dependencies(true, containingFile) else Dependencies(false)
+        val file = codeGenerator.createNewFile(
+            dependencies = deps,
+            packageName = packageName,
+            fileName = instantiatorName,
+        )
+        OutputStreamWriter(file).use { writer ->
+            writer.write(
+                """
+                |${if (packageName.isEmpty()) "" else "package $packageName\n"}
+                |import javax.annotation.processing.Generated
+                |
+                |/**
+                | * Instantiator for $className; constructs instances without reflection.
+                | */
+                |@Generated("st.orm.metamodel.MetamodelProcessor")
+                |class $instantiatorName : st.orm.mapping.Instantiator<$className> {
+                |
+                |    override fun type(): Class<$className> = $className::class.java
+                |
+                |    @Suppress("UNCHECKED_CAST")
+                |    override fun instantiate(args: Array<Any?>): $className = $className(
+                |$arguments
+                |    )
+                |}
+                """.trimMargin(),
+            )
+        }
+        val qualifiedInstantiatorName = if (packageName.isEmpty()) instantiatorName else "$packageName.$instantiatorName"
+        generatedInstantiators.add(qualifiedInstantiatorName to containingFile)
+    }
+
+    /**
+     * Registers the generated instantiators in `META-INF/services/st.orm.mapping.Instantiator`, allowing the
+     * runtime to discover them through the `ServiceLoader` and construct records without reflection.
+     */
+    override fun finish() {
+        if (generatedInstantiators.isEmpty()) {
+            return
+        }
+        val originatingFiles = generatedInstantiators.mapNotNull { it.second }.distinct()
+        val file = codeGenerator.createNewFileByPath(
+            dependencies = Dependencies(true, *originatingFiles.toTypedArray()),
+            path = "META-INF/services/st.orm.mapping.Instantiator",
+            extensionName = "",
+        )
+        OutputStreamWriter(file).use { writer ->
+            generatedInstantiators.forEach { (name, _) -> writer.write("$name\n") }
         }
     }
 

@@ -22,10 +22,12 @@ import static st.orm.core.template.impl.RecordReflection.isSealedEntity;
 import static st.orm.core.template.impl.RecordValidation.validateDataType;
 
 import jakarta.annotation.Nonnull;
+import jakarta.annotation.Nullable;
 import java.lang.annotation.Annotation;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Parameter;
+import java.lang.reflect.RecordComponent;
 import java.util.BitSet;
 import java.util.Map;
 import java.util.Optional;
@@ -33,10 +35,12 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Supplier;
 import st.orm.Data;
 import st.orm.PK;
+import st.orm.core.spi.Instantiators;
 import st.orm.core.spi.ORMReflection;
 import st.orm.core.spi.Providers;
 import st.orm.core.spi.RefFactory;
 import st.orm.core.template.SqlTemplateException;
+import st.orm.mapping.Instantiator;
 
 /**
  * Factory for creating instances of a specific type.
@@ -177,6 +181,12 @@ public final class ObjectMapperFactory {
                     }
                 }
             }
+            var instantiator = meta.instantiator();
+            if (instantiator != null) {
+                // Generated instantiator: constructs through the canonical constructor without reflection.
+                //noinspection unchecked
+                return (T) instantiator.instantiate(args);
+            }
             try {
                 // Use the map's constructor instance: its accessible flag was set before publication, so the
                 // happens-before edge of the concurrent map makes the flag visible to all threads.
@@ -199,11 +209,13 @@ public final class ObjectMapperFactory {
      * @param parameterNames the parameter names, for error messages.
      * @param nonNull whether each parameter is marked as non-null.
      * @param primitive whether each parameter is a primitive type.
+     * @param instantiator the generated instantiator for the constructor, or null to construct reflectively.
      */
     private record ConstructorMeta(@Nonnull Constructor<?> constructor,
                                    @Nonnull String[] parameterNames,
                                    @Nonnull boolean[] nonNull,
-                                   @Nonnull boolean[] primitive) {}
+                                   @Nonnull boolean[] primitive,
+                                   @Nullable Instantiator<?> instantiator) {}
 
     /** Cache of precomputed constructor metadata, keyed by constructor. Thread-safe for concurrent access. */
     private static final Map<Constructor<?>, ConstructorMeta> CONSTRUCTOR_META = new ConcurrentHashMap<>();
@@ -220,7 +232,38 @@ public final class ObjectMapperFactory {
             primitive[i] = parameterTypes[i].isPrimitive();
         }
         constructor.setAccessible(true);
-        return new ConstructorMeta(constructor, parameterNames, nonNull, primitive);
+        return new ConstructorMeta(constructor, parameterNames, nonNull, primitive, findInstantiator(constructor));
+    }
+
+    /**
+     * Returns the generated instantiator for the given constructor, or {@code null} if none is registered or the
+     * constructor is not the one the instantiator was generated for.
+     *
+     * <p>Instantiators are generated for the canonical constructor of records and the primary constructor of
+     * Kotlin data classes. For records the constructor is verified against the record components; for non-record
+     * classes the registered instantiator is trusted, as the reflection provider resolves the primary
+     * constructor.</p>
+     */
+    @Nullable
+    private static Instantiator<?> findInstantiator(@Nonnull Constructor<?> constructor) {
+        Class<?> declaringClass = constructor.getDeclaringClass();
+        Instantiator<?> instantiator = Instantiators.find(declaringClass);
+        if (instantiator == null) {
+            return null;
+        }
+        if (declaringClass.isRecord()) {
+            RecordComponent[] components = declaringClass.getRecordComponents();
+            Class<?>[] parameterTypes = constructor.getParameterTypes();
+            if (components.length != parameterTypes.length) {
+                return null;
+            }
+            for (int i = 0; i < components.length; i++) {
+                if (components[i].getType() != parameterTypes[i]) {
+                    return null;
+                }
+            }
+        }
+        return instantiator;
     }
 
     @SuppressWarnings("unchecked")
