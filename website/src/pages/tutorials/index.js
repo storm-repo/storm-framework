@@ -7,7 +7,7 @@ import {TUT_CSS, navHtml, FOOT_HTML} from '../../components/tutorial/tutorialThe
 // familiar approach with the Storm approach; "The Storm way" is task recipes
 // for people already using Storm. Each tutorial page lives next to this file.
 
-const TITLE = 'Storm Tutorials · Familiar persistence tasks, the Storm way';
+const TITLE = 'ST/ORM Tutorials · Familiar persistence tasks, the Storm way';
 const DESC =
   'Task-focused tutorials for engineers coming from JPA, Hibernate, or Exposed, ' +
   'plus how-to recipes for Storm itself. Each comparison takes a familiar ' +

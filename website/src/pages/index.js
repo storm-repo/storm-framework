@@ -774,7 +774,7 @@ export default function Home() {
     <>
       <Head>
         <html lang="en" />
-        <title>Storm · The type-safe Kotlin ORM</title>
+        <title>ST/ORM · The type-safe Kotlin ORM</title>
         <meta
           name="description"
           content="Storm is a type-safe, SQL-first Kotlin ORM. Immutable data-class entities, one-line queries checked at compile time, no proxies, no N+1. Try it in 5 minutes."
@@ -789,7 +789,7 @@ export default function Home() {
         <meta property="og:type" content="website" />
         <meta
           property="og:title"
-          content={'Storm · The type-safe Kotlin ORM'}
+          content={'ST/ORM · The type-safe Kotlin ORM'}
         />
         <meta
           property="og:description"
@@ -797,7 +797,7 @@ export default function Home() {
         />
         <meta
           name="twitter:title"
-          content={'Storm · The type-safe Kotlin ORM'}
+          content={'ST/ORM · The type-safe Kotlin ORM'}
         />
         <meta
           name="twitter:description"

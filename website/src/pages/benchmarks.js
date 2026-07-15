@@ -1,11 +1,11 @@
 import React, {useEffect} from 'react';
 import Head from '@docusaurus/Head';
 import {
-  TUT_CSS, navHtml, FOOT_HTML, wireSqlToggles, editor,
+  TUT_CSS, navHtml, FOOT_HTML, wireSqlToggles, editor, clonebar,
   K, T, S, C, F, N, A, P, QK, QQ,
 } from '../components/tutorial/tutorialTheme';
 
-const TITLE = 'Benchmarks · Storm ORM vs Hibernate, jOOQ, Exposed and Jimmer';
+const TITLE = 'Benchmarks · ST/ORM vs Hibernate, jOOQ, Exposed and Jimmer';
 const DESC = 'Reproducible JMH benchmarks of Storm against JDBC, Hibernate, jOOQ, Exposed and Jimmer on PostgreSQL 17, with the entity and query code behind every number.';
 
 // Results from the reproducible suite: one tuned PostgreSQL 17 container over TCP, JMH, 2 forks,
@@ -486,7 +486,7 @@ ${charts}
   <p>Versions: Storm 1.13.0, Hibernate 7.4.5, jOOQ 3.21.6, Exposed 1.3.1, Jimmer 0.11.0, PostgreSQL 17, JDK 21.</p>
   <p>The repository contains the full methodology, the statement-log auditing tools used to verify round-trip counts, and every implementation in full; <code>scripts/run.sh</code> reproduces the numbers.</p>
   <div class="getit">
-    <div class="clonebar"><span class="dollar">$</span>git clone https://github.com/storm-orm/storm-benchmarks.git</div>
+    ${clonebar('git clone https://github.com/storm-orm/storm-benchmarks.git')}
     <a class="btn" href="https://github.com/storm-orm/storm-benchmarks" target="_blank" rel="noopener">View on GitHub →</a>
   </div>
 </div>

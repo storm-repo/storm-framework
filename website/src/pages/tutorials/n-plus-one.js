@@ -193,7 +193,7 @@ export default function NPlusOneTutorial() {
     <>
       <Head>
         <html lang="en" />
-        <title>{`${TITLE} · Storm Tutorials`}</title>
+        <title>{`${TITLE} · ST/ORM Tutorials`}</title>
         <meta name="description" content={DESC} />
         <link rel="canonical" href="https://orm.st/tutorials/n-plus-one" />
         <meta property="og:type" content="article" />

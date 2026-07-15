@@ -12,7 +12,7 @@ import {TUT_CSS, navHtml, FOOT_HTML, wireSqlToggles} from '../components/tutoria
 // only differences that are real and that the rival does not already cover
 // are called out.
 
-const TITLE = 'Comparison · Storm vs JPA, jOOQ, Exposed, Jimmer';
+const TITLE = 'Comparison · ST/ORM vs JPA, jOOQ, Exposed, Jimmer';
 const DESC =
   'How Storm compares to Hibernate/JPA, Spring Data, jOOQ, Exposed, Ktorm, ' +
   'MyBatis, and Jimmer. A decision matrix plus a short, fair take on each, with ' +

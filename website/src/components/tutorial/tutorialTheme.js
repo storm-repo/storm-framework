@@ -130,6 +130,15 @@ export function editor({file, tag, code, sql, copy, variants}) {
 </div>`;
 }
 
+// A one-line "$ <command>" shell bar with a Copy button, matching the editor
+// copy control. `command` is copied verbatim (without the leading $). Wired by
+// wireSqlToggles(), so pages that render a clonebar() must call it in useEffect.
+export function clonebar(command) {
+  const data = esc(command).replace(/"/g, '&quot;');
+  return `<div class="clonebar"><span class="dollar">$</span><span class="clonecmd">${esc(command)}</span>` +
+    `<span class="copybtn iconly" data-copy="${data}" title="Copy" aria-label="Copy"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="12" height="12" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg></span></div>`;
+}
+
 // A compact two-pane "at a glance" comparison for one-liner contrasts. Only
 // use where both snippets are genuinely short; full examples stay sequential.
 export function glance({left, right}) {
@@ -140,8 +149,43 @@ export function glance({left, right}) {
 </div>`;
 }
 
-// Wires up every "Show SQL" and "Copy" button rendered by editor(). Returns a
-// cleanup function for the calling useEffect.
+// Wires one .copybtn: copies its data-copy to the clipboard and flips the label
+// to "Copied" for a moment. Returns a cleanup function.
+function attachCopy(copyBtn) {
+  const txt = copyBtn.querySelector('.copybtntext');
+  let timer = null;
+  const onCopy = () => {
+    const text = copyBtn.dataset.copy;
+    // The Clipboard API needs a secure context; fall back to a throwaway
+    // textarea so copy also works on plain-http previews (e.g. LAN).
+    if (navigator.clipboard && window.isSecureContext) {
+      navigator.clipboard.writeText(text);
+    } else {
+      const ta = document.createElement('textarea');
+      ta.value = text;
+      document.body.appendChild(ta);
+      ta.select();
+      document.execCommand('copy');
+      ta.remove();
+    }
+    copyBtn.classList.add('on');
+    if (txt) txt.textContent = 'Copied';
+    clearTimeout(timer);
+    timer = setTimeout(() => {
+      copyBtn.classList.remove('on');
+      if (txt) txt.textContent = 'Copy';
+    }, 1600);
+  };
+  copyBtn.addEventListener('click', onCopy);
+  return () => {
+    copyBtn.removeEventListener('click', onCopy);
+    clearTimeout(timer);
+  };
+}
+
+// Wires up every "Show SQL" and "Copy" button rendered by editor(), plus the
+// Copy button on any clonebar(). Returns a cleanup function for the calling
+// useEffect.
 export function wireSqlToggles() {
   const cleanups = [];
   document.querySelectorAll('.storm-tut .editor').forEach((ed) => {
@@ -157,37 +201,7 @@ export function wireSqlToggles() {
       cleanups.push(() => btn.removeEventListener('click', onClick));
     }
     const copyBtn = ed.querySelector('.copybtn');
-    if (copyBtn) {
-      const txt = copyBtn.querySelector('.copybtntext');
-      let timer = null;
-      const onCopy = () => {
-        const text = copyBtn.dataset.copy;
-        // The Clipboard API needs a secure context; fall back to a throwaway
-        // textarea so copy also works on plain-http previews (e.g. LAN).
-        if (navigator.clipboard && window.isSecureContext) {
-          navigator.clipboard.writeText(text);
-        } else {
-          const ta = document.createElement('textarea');
-          ta.value = text;
-          document.body.appendChild(ta);
-          ta.select();
-          document.execCommand('copy');
-          ta.remove();
-        }
-        copyBtn.classList.add('on');
-        if (txt) txt.textContent = 'Copied';
-        clearTimeout(timer);
-        timer = setTimeout(() => {
-          copyBtn.classList.remove('on');
-          if (txt) txt.textContent = 'Copy';
-        }, 1600);
-      };
-      copyBtn.addEventListener('click', onCopy);
-      cleanups.push(() => {
-        copyBtn.removeEventListener('click', onCopy);
-        clearTimeout(timer);
-      });
-    }
+    if (copyBtn) cleanups.push(attachCopy(copyBtn));
     const sel = ed.querySelector('.varsel');
     if (sel) {
       const panes = ed.querySelectorAll('.varpane');
@@ -202,6 +216,9 @@ export function wireSqlToggles() {
       cleanups.push(() => sel.removeEventListener('change', onChange));
     }
   });
+  document.querySelectorAll('.storm-tut .clonebar .copybtn').forEach((copyBtn) => {
+    cleanups.push(attachCopy(copyBtn));
+  });
   return () => cleanups.forEach((fn) => fn());
 }
 
@@ -215,7 +232,7 @@ export function TutorialPage({title, description, slug, body}) {
     <>
       <Head>
         <html lang="en" />
-        <title>{`${title} · Storm Tutorials`}</title>
+        <title>{`${title} · ST/ORM Tutorials`}</title>
         <meta name="description" content={description} />
         <link rel="canonical" href={url} />
         <meta property="og:type" content="article" />
@@ -342,6 +359,8 @@ export const TUT_CSS = `
   .storm-tut .sqlbtn:hover,.storm-tut .copybtn:hover{background:rgba(129,140,248,.12);border-color:rgba(129,140,248,.5)}
   .storm-tut .sqlbtn.on,.storm-tut .copybtn.on{background:rgba(129,140,248,.16);color:#aab2ff}
   .storm-tut .sqlbtn .ico,.storm-tut .copybtn .ico{width:13px;height:13px;opacity:.9}
+  .storm-tut .clonebar .clonecmd{overflow-x:auto}
+  .storm-tut .clonebar .copybtn{margin-left:auto;flex:none;gap:0;padding:5px 8px}
   /* variant selector (same chrome as the buttons; native select behind a
      custom chevron because appearance:none drops the platform arrow) */
   .storm-tut .varwrap{position:relative;margin-left:14px;display:inline-flex;align-items:center}

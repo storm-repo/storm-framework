@@ -15,7 +15,7 @@ export function BlogPage({title, description, slug, dateISO, body}) {
     <>
       <Head>
         <html lang="en" />
-        <title>{`${title} · Storm Blog`}</title>
+        <title>{`${title} · ST/ORM Blog`}</title>
         <meta name="description" content={description} />
         <link rel="canonical" href={url} />
         <meta property="og:type" content="article" />
