@@ -81,7 +81,7 @@ public interface RepositoryLookup {
     /**
      * Returns dependency-aware write operations over mixed-type sets of entities.
      *
-     * <p>A write set lifts the per-repository write verbs to collections spanning multiple entity types: entities
+     * <p>A write set lifts the per-repository write actions to collections spanning multiple entity types: entities
      * are partitioned by type, ordered by their foreign key dependencies, and written with one batch statement per
      * type per dependency level. Generated primary keys propagate to dependent entities within the set.</p>
      *

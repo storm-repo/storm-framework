@@ -89,7 +89,7 @@ interface RepositoryLookup {
     /**
      * Returns dependency-aware write operations over mixed-type sets of entities.
      *
-     * A write set lifts the per-repository write verbs to collections spanning multiple entity types: entities
+     * A write set lifts the per-repository write actions to collections spanning multiple entity types: entities
      * are partitioned by type, ordered by their foreign key dependencies, and written with one batch statement per
      * type per dependency level. Generated primary keys propagate to dependent entities within the set.
      *
@@ -112,7 +112,7 @@ interface RepositoryLookup {
 /**
  * Runs [block] against this lookup's [WriteSet], grouping related write-set calls in one scope.
  *
- * Each verb inside the block executes immediately; the block groups calls visually and does not defer or reorder
+ * Each action inside the block executes immediately; the block groups calls visually and does not defer or reorder
  * them. Combine with `transaction { }` when atomicity across the calls is required:
  *
  * ```kotlin
@@ -132,7 +132,7 @@ inline fun <R> RepositoryLookup.writeSet(block: WriteSet.() -> R): R = writeSet(
 /**
  * Runs [block] against the underlying ORM template's [WriteSet]; see [RepositoryLookup.writeSet].
  *
- * Convenience for repository methods; each verb inside the block executes immediately.
+ * Convenience for repository methods; each action inside the block executes immediately.
  *
  * @since 1.13
  */

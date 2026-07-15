@@ -7,7 +7,7 @@ Inserting an object graph that spans several tables normally requires careful ch
 
 A write set applies one write operation to a heterogeneous collection of entities. Storm partitions the entities by type, orders them by their foreign key dependencies, and writes them in dependency-ordered batches, propagating generated primary keys to dependent entities. `insert` and `upsert` extend the *explicit members* (the entities you supply) with *discovered members*: unsaved entities transitively reachable through insertable foreign key fields. This discovery is called the *insertion closure*. `update` and `remove` operate on the explicit members only.
 
-Write sets are not a cascade in the JPA sense. There are no mapping annotations, no persistence context and no session-wide cascade: all writes derive from the entities supplied to the call and, for insert and upsert, their insertion closure. The per-row semantics of every verb are identical to the corresponding repository operation, including entity callbacks and dirty checking. Coming from JPA? [JPA Cascades vs Write Sets](jpa-cascades-vs-write-sets.md) compares the two models side by side.
+Write sets are not a cascade in the JPA sense. There are no mapping annotations, no persistence context and no session-wide cascade: all writes derive from the entities supplied to the call and, for insert and upsert, their insertion closure. The per-row semantics of every action are identical to the corresponding repository operation, including entity callbacks and dirty checking. Coming from JPA? [JPA Cascades vs Write Sets](jpa-cascades-vs-write-sets.md) compares the two models side by side.
 
 A write set is obtained from the ORM template, or from any repository (`writeSet()` on a repository is a convenience that delegates to the underlying template; it is not scoped to the repository's entity type):
 
@@ -17,7 +17,7 @@ A write set is obtained from the ORM template, or from any repository (`writeSet
 ```kotlin
 orm.writeSet().insert(entities)
 
-// or scoped; each verb executes immediately, the block only groups the calls
+// or scoped; each action executes immediately, the block only groups the calls
 transaction {
     orm.writeSet {
         insert(newEntities)
@@ -208,9 +208,9 @@ The unsaved entity's default id in the key component is a placeholder; the write
 
 ## Update, Upsert and Remove
 
-The remaining verbs follow the same contract, each with the ordering that suits it:
+The remaining actions follow the same contract, each with the ordering that suits it:
 
-- `update` groups the explicit members by type and updates them with the usual semantics, including transaction-scoped dirty checking: unchanged entities are skipped. Referenced entities are never updated implicitly. Unsaved members are rejected; a row that does not exist cannot be updated.
+- `update` groups the explicit members by type and updates them with the usual semantics, including transaction-scoped dirty checking: unchanged entities are skipped. Referenced entities are never updated implicitly: an updated `Owner` held inside a `Pet` you update is not written, it contributes only its primary key. Pass both when both changed; dirty checking skips whichever members are unchanged. Unsaved members are rejected; a row that does not exist cannot be updated.
 - `upsert` applies the per-repository upsert semantics to the explicit members and inserts the discovered members of the insertion closure, with keys propagating as for insert. Explicit membership takes precedence: a keyed entity that is both supplied and referenced by another member is upserted, and is written before the members that reference it. Whether an upsert can create a row for a member carrying a preset key follows the dialect's per-repository upsert behavior.
 - `remove` deletes exactly the explicit members, children before parents. Members are correlated by entity type and primary key rather than by instance, so a member referencing another member is removed first regardless of which instance its foreign key field holds. Referenced entities are never removed implicitly.
 
@@ -249,5 +249,5 @@ Write sets complete Storm's persistence story without introducing a session. Eac
 - **Save-or-update decisions** belong to [upserts](upserts.md), which resolve conflicts atomically in the database.
 - **Skipping unchanged rows and partial updates** belong to [dirty checking](dirty-checking.md), driven by the transaction-scoped entity cache.
 - **Cascading deletes of dependent rows** belong to the schema: declare `ON DELETE CASCADE` on the foreign key constraint. Storm does not discover children reactively.
-- **Implicit updates of referenced entities** do not exist. A keyed entity referenced by a set member only provides its key; modifying it requires an explicit update.
+- **Implicit updates of referenced entities** do not exist. A keyed entity referenced by a set member only provides its key; modifying it requires an explicit update. One rule covers every action: a write set writes the entities you name, plus the entities your values make necessary. An unsaved referenced entity is necessary (its dependent cannot be written without its key, and a row that does not exist cannot be a stale copy); a keyed referenced entity never is: it is the state that was hydrated when the value was read, and treating that snapshot as write intent would silently overwrite newer database state.
 - **Re-planning after entity callbacks** does not happen. Callbacks run inside the per-type repository operations, after members are discovered and the execution order is planned; a callback that alters foreign key fields does not change what is discovered or in which order it is written.

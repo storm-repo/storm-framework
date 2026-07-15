@@ -25,7 +25,7 @@ import java.util.List;
  * and {@link #upsert(Iterable)} extend the <em>explicit members</em> (the entities supplied by the caller) with
  * <em>discovered members</em>: unsaved entities transitively reachable through insertable, entity-valued foreign key
  * fields (the <em>insertion closure</em>). {@link #update(Iterable)} and {@link #remove(Iterable)} operate on the
- * explicit members only. The per-row semantics of each verb are identical to the corresponding
+ * explicit members only. The per-row semantics of each action are identical to the corresponding
  * {@code EntityRepository} operation; the write set adds partitioning by type, dependency ordering and generated-key
  * propagation:</p>
  *
@@ -79,6 +79,14 @@ import java.util.List;
  * be executed by the dependency-ordering strategy (the write set does not break cycles using nullable intermediate
  * values, deferred constraints or follow-up updates).</p>
  *
+ * <p><strong>Note on modified referenced entities:</strong> a keyed entity held in a foreign key field contributes
+ * exactly its primary key; modifications to it are not persisted by writing its dependent, by any action. One rule
+ * covers every action: a write set writes the entities named by the caller, plus the entities the values make
+ * necessary. An unsaved referenced entity is necessary (its dependent cannot be written without its key, and a row
+ * that does not exist cannot be a stale copy); a keyed referenced entity never is: it is the state that was hydrated
+ * when the value was read, and treating that snapshot as write intent would silently overwrite newer database state.
+ * To persist changes to a referenced entity, pass it as an explicit member.</p>
+ *
  * <p><strong>Note on unsaved refs:</strong> {@code Ref} equality is based on type and id. Two refs wrapping distinct
  * unsaved instances therefore compare equal until the instances are persisted. Do not use unsaved refs as map keys or
  * set members; the write set itself correlates by instance identity and is not affected.</p>
@@ -131,6 +139,11 @@ public interface WriteSet {
      * unsaved explicit member is rejected (a row that does not exist cannot be updated), and an unsaved referenced
      * entity fails where its key is required as a foreign key value.</p>
      *
+     * <p>In particular, a modified referenced entity is not written: a keyed entity held in a foreign key field of a
+     * member contributes only its primary key, so its changes stay in memory. To persist changes to both a member and
+     * an entity it references, pass both as explicit members; dirty checking skips whichever members are
+     * unchanged.</p>
+     *
      * @param entities the entities to update; may span multiple entity types.
      * @throws PersistenceException if an explicit member or a referenced entity is unsaved, or if the update fails.
      */
@@ -154,7 +167,9 @@ public interface WriteSet {
      * {@code ON CONFLICT} / {@code MERGE} where available); explicit membership takes precedence, so a keyed entity
      * that is both supplied and referenced by another member is upserted, and is written before its dependents.
      * Unsaved entities reachable through insertable foreign key fields join the set as discovered members and are
-     * <em>inserted</em> before their dependents, with generated keys propagated by instance identity.</p>
+     * <em>inserted</em> before their dependents, with generated keys propagated by instance identity. Keyed
+     * referenced entities that are not explicit members only provide foreign key values; modifications to them are
+     * not persisted.</p>
      *
      * @param entities the entities to upsert; may span multiple entity types.
      * @throws PersistenceException if the dependencies contain a cycle that cannot be ordered, if an unsaved entity
