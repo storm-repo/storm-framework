@@ -7,7 +7,7 @@ Inserting an object graph that spans several tables normally requires careful ch
 
 A write set applies one write operation to a heterogeneous collection of entities. Storm partitions the entities by type, orders them by their foreign key dependencies, and writes them in dependency-ordered batches, propagating generated primary keys to dependent entities. `insert` and `upsert` extend the *explicit members* (the entities you supply) with *discovered members*: unsaved entities transitively reachable through insertable foreign key fields. This discovery is called the *insertion closure*. `update` and `remove` operate on the explicit members only.
 
-Write sets are not a cascade in the JPA sense. There are no mapping annotations, no persistence context and no session-wide cascade: all writes derive from the entities supplied to the call and, for insert and upsert, their insertion closure. The per-row semantics of every verb are identical to the corresponding repository operation, including entity callbacks and dirty checking.
+Write sets are not a cascade in the JPA sense. There are no mapping annotations, no persistence context and no session-wide cascade: all writes derive from the entities supplied to the call and, for insert and upsert, their insertion closure. The per-row semantics of every verb are identical to the corresponding repository operation, including entity callbacks and dirty checking. Coming from JPA? [JPA Cascades vs Write Sets](jpa-cascades-vs-write-sets.md) compares the two models side by side.
 
 A write set is obtained from the ORM template, or from any repository (`writeSet()` on a repository is a convenience that delegates to the underlying template; it is not scoped to the repository's entity type):
 

@@ -78,6 +78,7 @@ const sidebars: SidebarsConfig = {
         'comparison',
         'faq',
         'migration-from-jpa',
+        'jpa-cascades-vs-write-sets',
         'ai',
         'ai-reference',
         'database-and-mcp',

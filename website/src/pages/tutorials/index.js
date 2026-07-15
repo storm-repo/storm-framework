@@ -21,7 +21,7 @@ ${navHtml('tutorials')}
   <p class="sub">Task-focused tutorials for engineers coming from JPA, Hibernate, or Exposed, plus how-to recipes for Storm itself. Each comparison takes a persistence task you already know, shows both approaches side by side, and lets you inspect the SQL they produce.</p>
   <div class="catnav">
     <a href="#start-here">Start here<b>1</b></a>
-    <a href="#from-jpa">From JPA<b>9</b></a>
+    <a href="#from-jpa">From JPA<b>10</b></a>
     <a href="#from-exposed">From Exposed<b>7</b></a>
     <a href="#storm-way">The Storm way<b>6</b></a>
   </div>
@@ -76,6 +76,11 @@ ${navHtml('tutorials')}
   <a class="tcard" href="/tutorials/mapped-collections">
     <div class="tt">Mapped collections vs queried associations<span class="arrow">→</span></div>
     <div class="td">owner.pets is one property access, and that is genuinely convenient. Storm queries the association instead: one line that loads when you decide, composes with filters and paging, and survives the join table growing columns.</div>
+    <div class="tm"><span>JPA to Storm</span><span>6 min read</span><span>Kotlin</span></div>
+  </a>
+  <a class="tcard" href="/tutorials/object-graphs">
+    <div class="tt">Persisting object graphs: cascades vs write sets<span class="arrow">→</span></div>
+    <div class="td">CascadeType configures, once per mapping, how far every persist travels. A Storm write set decides per call: pass the entities, and unsaved parents are discovered, dependency-ordered, and keyed by instance identity.</div>
     <div class="tm"><span>JPA to Storm</span><span>6 min read</span><span>Kotlin</span></div>
   </a>
   <a class="tcard" href="/tutorials/sql-templates">
