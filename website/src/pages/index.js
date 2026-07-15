@@ -54,9 +54,9 @@ const CSS = `
   .storm-home .vs-label{font-size:12.5px;color:var(--faint);margin-right:2px}
   .storm-home .vs-chips button{font-family:var(--mono);font-size:11.5px;color:var(--faint);border:1px solid var(--border-soft);background:none;border-radius:999px;padding:6px 12px;cursor:pointer;transition:all .15s ease}
   .storm-home .vs-chips button:hover{color:var(--muted);border-color:var(--border)}
-  .storm-home .vs-chips button.on{color:#fde68a;border-color:rgba(251,191,36,.65);background:rgba(251,191,36,.14);box-shadow:0 0 14px rgba(251,191,36,.18);font-weight:700}
+  .storm-home .vs-chips button.on{color:#feeeb0;border-color:rgba(251,191,36,.65);background:rgba(251,191,36,.14);box-shadow:0 0 14px rgba(251,191,36,.18);font-weight:700}
   .storm-home .vs-bench{margin-left:auto;font-size:12.5px;font-weight:600;color:#fbbf24;text-decoration:none;white-space:nowrap}
-  .storm-home .vs-bench:hover{text-decoration:underline;color:#fde68a}
+  .storm-home .vs-bench:hover{text-decoration:underline;color:#feeeb0}
   .storm-home .card.bcard{padding:18px 22px}
   .storm-home .bcard.bench{min-height:186px}
   .storm-home .bcard{position:relative;overflow:hidden}
@@ -72,7 +72,7 @@ const CSS = `
   .storm-home .bback{position:absolute;inset:0;padding:inherit;opacity:0;transform:translateY(10px);pointer-events:none}
   .storm-home .bcard.bench .bfront{position:absolute;inset:0;padding:inherit;opacity:0;transform:translateY(-10px);pointer-events:none}
   .storm-home .bcard.bench .bback{position:relative;inset:auto;padding:0;opacity:1;transform:none;pointer-events:auto}
-  .storm-home .bnum{font-size:42px;font-weight:800;line-height:1;margin-bottom:8px;letter-spacing:-.02em;background:linear-gradient(100deg,#fde68a,#fbbf24 55%,#f59e0b);-webkit-background-clip:text;background-clip:text;color:transparent}
+  .storm-home .bnum{font-size:42px;font-weight:800;line-height:1;margin-bottom:8px;letter-spacing:-.02em;background:linear-gradient(100deg,#feeeb0,#fbbf24 55%,#f59e0b);-webkit-background-clip:text;background-clip:text;color:transparent}
   .storm-home .bback a{color:var(--accent);text-decoration:none;font-weight:600;white-space:nowrap}
   .storm-home .bback a:hover{text-decoration:underline}
   /* Rotating hero line: all taglines live in the DOM, stacked in one grid cell

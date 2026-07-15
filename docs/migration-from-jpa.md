@@ -16,6 +16,7 @@ This guide helps you transition from JPA/Hibernate to Storm. The two frameworks 
 | JPQL / Criteria API | Type-safe DSL / SQL Templates |
 | EntityManager | ORMTemplate |
 | `@OneToMany`, `@ManyToOne` | `@FK` annotation |
+| Cascade types on mappings | Write sets per call site |
 
 ## Entity Migration
 
@@ -357,6 +358,8 @@ Storm approach (query the "many" side):
 ```kotlin
 val orders = orm.findAll(Order_.user eq user)
 ```
+
+Without child collections there is also nothing to cascade over. Persisting a graph of related entities is a per-call decision made with [write sets](write-sets.md); [JPA Cascades vs Write Sets](jpa-cascades-vs-write-sets.md) walks through the translation and the reasoning behind it.
 
 ## Transaction Migration
 
