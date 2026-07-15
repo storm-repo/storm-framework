@@ -9,6 +9,8 @@ There is no universally "best" database framework. Each has strengths suited to 
 
 The following tables provide a side-by-side comparison of concrete features across all frameworks discussed on this page. "Yes" and "No" indicate built-in support; "Manual" means the feature is achievable but requires explicit effort from the developer.
 
+_All comparisons on this page last reviewed 2026-07-15 against: Hibernate ORM 7.4.5, Spring Data JPA 4.1.0, MyBatis 3.5.19, jOOQ 3.21.6, JDBI 3.54.0, Jimmer 0.11.0, Exposed 1.3.1, and Ktorm 4.2.1._
+
 ### Entity & Data Modeling
 
 | Feature | Storm | JPA | Spring Data | MyBatis | jOOQ | JDBI | Jimmer | Exposed | Ktorm |
@@ -78,6 +80,8 @@ The following tables provide a side-by-side comparison of concrete features acro
 
 JPA (typically implemented by Hibernate) is the most widely used persistence framework in the Java ecosystem. It provides a full object-relational mapping layer with managed entities and second-level caching. Storm takes a fundamentally different approach: entities are plain values with no managed state, and database interactions are explicit rather than implicit. This makes Storm simpler to reason about at the cost of JPA's more automated (but less predictable) features.
 
+_Comparison reviewed against Hibernate ORM 7.4.5. Last reviewed: 2026-07-15._
+
 | Aspect | Storm | JPA/Hibernate                            |
 |--------|-------|------------------------------------------|
 | **Entities** | Immutable records/data classes | Mutable classes with getters/setters     |
@@ -117,6 +121,8 @@ JPA (typically implemented by Hibernate) is the most widely used persistence fra
 
 Spring Data JPA wraps JPA with a repository abstraction that derives query implementations from method names. It reduces boilerplate but inherits all of JPA's runtime complexity (proxies, managed state, lazy loading). Storm's Spring integration provides similar repository convenience with explicit query bodies instead of naming conventions.
 
+_Comparison reviewed against Spring Data JPA 4.1.0. Last reviewed: 2026-07-15._
+
 | Aspect | Storm | Spring Data JPA |
 |--------|-------|-----------------|
 | **Foundation** | Custom ORM | JPA/Hibernate |
@@ -143,6 +149,8 @@ Spring Data JPA wraps JPA with a repository abstraction that derives query imple
 ## Storm vs MyBatis
 
 MyBatis is a SQL mapper that gives you full control over every query. You write SQL in XML files or annotations and map results to POJOs manually. Storm sits at a higher abstraction level, inferring SQL from entity definitions while still allowing raw SQL when needed. The trade-off is flexibility vs. automation: MyBatis never generates SQL for you, while Storm handles the common cases and lets you drop to raw SQL for complex queries.
+
+_Comparison reviewed against MyBatis 3.5.19. Last reviewed: 2026-07-15._
 
 | Aspect | Storm | MyBatis |
 |--------|-------|---------|
@@ -177,6 +185,8 @@ MyBatis is a SQL mapper that gives you full control over every query. You write 
 
 jOOQ generates Java code from your database schema, providing a type-safe SQL DSL that mirrors the structure of your tables. Storm also treats the database schema as the source of truth, but instead of generating code from the schema, you write entity definitions that reflect it, and the metamodel is generated from those entities. Both frameworks provide compile-time type safety, but queries look very different. jOOQ excels at complex SQL (window functions, CTEs, recursive queries) where its DSL closely follows SQL syntax, but this means every join, column reference, and condition must be spelled out explicitly. Storm queries are more concise: the metamodel and automatic join derivation from `@FK` annotations let you write queries that focus on what you want rather than how to join it. Storm excels at entity-oriented operations where automatic relationship handling and repository patterns reduce boilerplate.
 
+_Comparison reviewed against jOOQ 3.21.6. Last reviewed: 2026-07-15._
+
 | Aspect | Storm | jOOQ |
 |--------|-------|------|
 | **Approach** | Schema-reflective ORM | Schema-driven code generation |
@@ -208,6 +218,8 @@ jOOQ generates Java code from your database schema, providing a type-safe SQL DS
 
 JDBI is a lightweight SQL convenience library that sits just above JDBC. It handles parameter binding, result mapping, and connection management without imposing an object model. Storm provides more structure with entity definitions, automatic relationship loading, and a repository pattern. Choose JDBI when you want minimal abstraction and full SQL control; choose Storm when you want the framework to handle common patterns while still allowing raw SQL escape hatches.
 
+_Comparison reviewed against JDBI 3.54.0. Last reviewed: 2026-07-15._
+
 | Aspect | Storm | JDBI |
 |--------|-------|------|
 | **Level** | Stateless ORM | Low-level SQL mapping |
@@ -232,6 +244,8 @@ JDBI is a lightweight SQL convenience library that sits just above JDBC. It hand
 ## Storm vs Jimmer
 
 Jimmer is a modern Kotlin and Java ORM that, like Storm, is built on immutable entities and a stateless model with no persistence context, and it eliminates the N+1 problem by design. The two frameworks share a great deal of philosophy. Where they differ is conciseness and concept count. Jimmer trades some concision for GraphQL-style dynamic object fetching: entities are interfaces you interact with through generated drafts, reading a foreign-key id without loading the association requires an extra `@IdView` property, and every query ends in an explicit `select` with an object fetcher. That fetcher, together with Jimmer's dedicated DTO language, is a genuine strength for shape-controlled API responses. Storm keeps the model a plain data class and the query a single line, and treats any data class as a result type.
+
+_Comparison reviewed against Jimmer 0.11.0. Last reviewed: 2026-07-15._
 
 Defining an entity:
 
@@ -429,6 +443,8 @@ Storm intentionally provides schema validation but no schema-generation or migra
 ## Storm vs Ktorm
 
 Ktorm is a lightweight Kotlin ORM that uses entity interfaces and DSL-based table definitions. It requires no code generation and has minimal dependencies. Storm differs primarily in its use of immutable data classes (instead of mutable interfaces), automatic relationship loading, and optional metamodel generation for compile-time type safety.
+
+_Comparison reviewed against Ktorm 4.2.1. Last reviewed: 2026-07-15._
 
 | Aspect | Storm | Ktorm |
 | --- | --- | --- |
