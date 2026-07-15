@@ -429,7 +429,7 @@ ${navHtml('benchmarks')}
   <h2>At a glance</h2>
   <p>Seven implementations, one database, one discipline: same schema, same data, same transaction boundaries, every score a real network round trip away from PostgreSQL. Mean latency per operation, lower is better. Cells are tinted by distance from the fastest framework in the row, green through red. Percentages are overhead over raw JDBC. Raw JDBC is the reference floor.</p>
   ${matrixHtml()}
-  <p class="bm-matrix-read">Every library has strong rows, but Storm's is the only column that never runs hot. On every workload Storm is either the fastest framework or close behind it, while every alternative has at least one workload where it costs a third more than the best, and most cost far more than that. A real network round trip sits inside every score, so the pure mapping gap is larger still. Absolute times depend on the hardware they were measured on; the relative comparisons are the point.</p>
+  <p class="bm-matrix-read">Each library excels in certain areas. Storm has the lowest average measured overhead over raw JDBC across these eight workloads, while individual workloads favor different libraries: raw JDBC is fastest everywhere by construction, and Exposed's DSL edges Storm on the 1,000-row three-table join and the read-modify-update workload. Across the suite Storm is consistently the fastest full framework or within a third of it. A real network round trip sits inside every score, so the pure mapping gap is larger still. Absolute times depend on the hardware they were measured on; the relative comparisons are the point.</p>
 
   <details class="bm-details">
     <summary>Per-workload charts: the same numbers with their reported error</summary>

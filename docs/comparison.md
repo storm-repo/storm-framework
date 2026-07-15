@@ -9,6 +9,8 @@ There is no universally "best" database framework. Each has strengths suited to 
 
 The following tables provide a side-by-side comparison of concrete features across all frameworks discussed on this page. "Yes" and "No" indicate built-in support; "Manual" means the feature is achievable but requires explicit effort from the developer.
 
+_All comparisons on this page last reviewed 2026-07-15 against: Hibernate ORM 7.4.5, Spring Data JPA 4.1.0, MyBatis 3.5.19, jOOQ 3.21.6, JDBI 3.54.0, Jimmer 0.11.0, Exposed 1.3.1, and Ktorm 4.2.1._
+
 ### Entity & Data Modeling
 
 | Feature | Storm | JPA | Spring Data | MyBatis | jOOQ | JDBI | Jimmer | Exposed | Ktorm |
@@ -78,6 +80,8 @@ The following tables provide a side-by-side comparison of concrete features acro
 
 JPA (typically implemented by Hibernate) is the most widely used persistence framework in the Java ecosystem. It provides a full object-relational mapping layer with managed entities and second-level caching. Storm takes a fundamentally different approach: entities are plain values with no managed state, and database interactions are explicit rather than implicit. This makes Storm simpler to reason about at the cost of JPA's more automated (but less predictable) features.
 
+_Comparison reviewed against Hibernate ORM 7.4.5. Last reviewed: 2026-07-15._
+
 | Aspect | Storm | JPA/Hibernate                            |
 |--------|-------|------------------------------------------|
 | **Entities** | Immutable records/data classes | Mutable classes with getters/setters     |
@@ -117,6 +121,8 @@ JPA (typically implemented by Hibernate) is the most widely used persistence fra
 
 Spring Data JPA wraps JPA with a repository abstraction that derives query implementations from method names. It reduces boilerplate but inherits all of JPA's runtime complexity (proxies, managed state, lazy loading). Storm's Spring integration provides similar repository convenience with explicit query bodies instead of naming conventions.
 
+_Comparison reviewed against Spring Data JPA 4.1.0. Last reviewed: 2026-07-15._
+
 | Aspect | Storm | Spring Data JPA |
 |--------|-------|-----------------|
 | **Foundation** | Custom ORM | JPA/Hibernate |
@@ -143,6 +149,8 @@ Spring Data JPA wraps JPA with a repository abstraction that derives query imple
 ## Storm vs MyBatis
 
 MyBatis is a SQL mapper that gives you full control over every query. You write SQL in XML files or annotations and map results to POJOs manually. Storm sits at a higher abstraction level, inferring SQL from entity definitions while still allowing raw SQL when needed. The trade-off is flexibility vs. automation: MyBatis never generates SQL for you, while Storm handles the common cases and lets you drop to raw SQL for complex queries.
+
+_Comparison reviewed against MyBatis 3.5.19. Last reviewed: 2026-07-15._
 
 | Aspect | Storm | MyBatis |
 |--------|-------|---------|
@@ -177,6 +185,8 @@ MyBatis is a SQL mapper that gives you full control over every query. You write 
 
 jOOQ generates Java code from your database schema, providing a type-safe SQL DSL that mirrors the structure of your tables. Storm also treats the database schema as the source of truth, but instead of generating code from the schema, you write entity definitions that reflect it, and the metamodel is generated from those entities. Both frameworks provide compile-time type safety, but queries look very different. jOOQ excels at complex SQL (window functions, CTEs, recursive queries) where its DSL closely follows SQL syntax, but this means every join, column reference, and condition must be spelled out explicitly. Storm queries are more concise: the metamodel and automatic join derivation from `@FK` annotations let you write queries that focus on what you want rather than how to join it. Storm excels at entity-oriented operations where automatic relationship handling and repository patterns reduce boilerplate.
 
+_Comparison reviewed against jOOQ 3.21.6. Last reviewed: 2026-07-15._
+
 | Aspect | Storm | jOOQ |
 |--------|-------|------|
 | **Approach** | Schema-reflective ORM | Schema-driven code generation |
@@ -208,6 +218,8 @@ jOOQ generates Java code from your database schema, providing a type-safe SQL DS
 
 JDBI is a lightweight SQL convenience library that sits just above JDBC. It handles parameter binding, result mapping, and connection management without imposing an object model. Storm provides more structure with entity definitions, automatic relationship loading, and a repository pattern. Choose JDBI when you want minimal abstraction and full SQL control; choose Storm when you want the framework to handle common patterns while still allowing raw SQL escape hatches.
 
+_Comparison reviewed against JDBI 3.54.0. Last reviewed: 2026-07-15._
+
 | Aspect | Storm | JDBI |
 |--------|-------|------|
 | **Level** | Stateless ORM | Low-level SQL mapping |
@@ -232,6 +244,8 @@ JDBI is a lightweight SQL convenience library that sits just above JDBC. It hand
 ## Storm vs Jimmer
 
 Jimmer is a modern Kotlin and Java ORM that, like Storm, is built on immutable entities and a stateless model with no persistence context, and it eliminates the N+1 problem by design. The two frameworks share a great deal of philosophy. Where they differ is conciseness and concept count. Jimmer trades some concision for GraphQL-style dynamic object fetching: entities are interfaces you interact with through generated drafts, reading a foreign-key id without loading the association requires an extra `@IdView` property, and every query ends in an explicit `select` with an object fetcher. That fetcher, together with Jimmer's dedicated DTO language, is a genuine strength for shape-controlled API responses. Storm keeps the model a plain data class and the query a single line, and treats any data class as a result type.
+
+_Comparison reviewed against Jimmer 0.11.0. Last reviewed: 2026-07-15._
 
 Defining an entity:
 
@@ -311,7 +325,9 @@ The following frameworks are Kotlin-only. Storm supports both Kotlin and Java.
 
 ## Storm vs Exposed
 
-Exposed is JetBrains' official Kotlin database framework. It offers two APIs: a DSL that mirrors SQL syntax and a DAO layer for ORM-style access. Exposed defines tables as Kotlin objects rather than annotations on data classes. Storm and Exposed share the goal of idiomatic Kotlin database access but differ in entity design (mutable DAO entities vs. immutable data classes) and relationship loading strategy (lazy references vs. eager single-query loading).
+Exposed is JetBrains' official Kotlin database framework. It offers two APIs: a DSL that mirrors SQL syntax and a DAO layer for ORM-style access. Exposed defines tables as Kotlin objects rather than annotations on data classes. Storm and Exposed share the goal of idiomatic Kotlin database access but differ in entity design (mutable DAO entities vs. immutable data classes) and relationship loading strategy (Storm loads an entity graph in a single query; Exposed uses explicit joins with `ResultRow` mapping in the DSL, and lazy or eager relationship delegates in the DAO).
+
+_Comparison reviewed against Exposed 1.3.1. Last reviewed: 2026-07-15._
 
 | Aspect | Storm | Exposed |
 | --- | --- | --- |
@@ -320,9 +336,9 @@ Exposed is JetBrains' official Kotlin database framework. It offers two APIs: a 
 | **APIs** | Unified ORM + SQL Templates | DSL (SQL) + DAO (ORM) |
 | **Table Definition** | Annotations on data classes | DSL objects (`object Users : Table()`) |
 | **Entities (DAO)** | Immutable data classes (Kotlin) / records (Java) | Mutable, extend `Entity` class |
-| **Relationships** | Loading in single query | Lazy references, manual loading |
-| **N+1 Problem** | Prevented by design; requires explicit opt-in | Possible with DAO |
-| **Coroutines** | First-class from the start | Supported (added later) |
+| **Relationships** | Loading in single query | DSL: explicit joins; DAO: relationship delegates with lazy/eager loading options |
+| **N+1 Problem** | Prevented by design; requires explicit opt-in | Possible with DAO; mitigated through eager loading or explicit queries |
+| **Coroutines** | First-class from the start | Suspend transaction APIs (JDBC and R2DBC) |
 | **Type Safety** | Metamodel DSL | Column references |
 | **Transactions** | Optional, programmatic + declarative | `transaction {}` block, declarative via Spring module |
 
@@ -332,7 +348,7 @@ Both Storm and Exposed use a `transaction { }` block for programmatic transactio
 
 Exposed's native API supports two modes: shared nesting (the default, where inner blocks join the outer transaction) and savepoint-based nesting (via `useNestedTransactions = true`). For other propagation behaviors, Exposed relies on Spring's `@Transactional` through its `SpringTransactionManager` integration module.
 
-Storm supports all seven standard propagation modes natively in its `transaction { }` block, without requiring Spring:
+Storm supports seven Spring-style transaction propagation modes natively in its `transaction { }` block, without requiring Spring. These behaviors are familiar from Spring's `@Transactional`; they are conventions from that world rather than SQL or JDBC standards:
 
 | Propagation | Storm | Exposed |
 |-------------|-------|---------|
@@ -376,15 +392,15 @@ transaction {
 | Aspect | Storm | Exposed |
 |--------|-------|---------|
 | API style | Lambda (`onCommit { }`) | Interface (`StatementInterceptor`) |
-| Suspend support | Yes (JDBC) | R2DBC only (`SuspendStatementInterceptor`) |
-| Nested transaction behavior | Deferred to physical commit | Fires after savepoint release (data not yet durable) |
-| Callback isolation | Yes (remaining callbacks still run on failure) | No (exception propagates, skipping remaining interceptors) |
+| Suspend callbacks | Yes (JDBC) | Suspend interceptors are R2DBC only (`SuspendStatementInterceptor`) |
+| Nested transaction behavior | Deferred to outer physical commit | Independent nested transactions via savepoints; verify intended boundary |
+| Callback failure handling | Remaining callbacks still run; first error surfaced | See Exposed's interceptor behavior |
 | Global interceptors | No | Yes (via `ServiceLoader`) |
 | Additional hooks | No | `beforeCommit`, `beforeRollback`, `beforeExecution`, `afterExecution` |
 
-The most significant behavioral difference is with nested transactions. Exposed's `afterCommit` fires on the nested transaction's own "commit," which for savepoint-based nesting is just a savepoint release, not an actual database commit. If the outer transaction subsequently rolls back, the `afterCommit` callback will have already executed despite the data never becoming durable. Storm avoids this by deferring callbacks to the outermost physical transaction.
+The most significant difference is where callbacks bind with nested transactions. With `useNestedTransactions` enabled, Exposed implements independent nested transactions using savepoints. Applications relying on `afterCommit` callbacks should verify whether their desired boundary is the nested transaction or the outer physical commit. Storm explicitly defers joined and nested callbacks to the outer physical transaction, so a callback registered inside a nested scope only runs once that outer transaction is durably committed.
 
-Storm's callback isolation behavior (remaining callbacks still execute when one fails) follows the same approach as Spring's `TransactionSynchronization`, where post-commit and post-completion callbacks are invoked independently. Since callbacks fire after the transaction outcome is final, there is nothing to undo; silently skipping remaining side effects because of one failure would be worse than running them all and surfacing the first exception.
+Storm's callback failure handling (remaining callbacks still execute when one fails) follows the same approach as Spring's `TransactionSynchronization`, where post-commit and post-completion callbacks are invoked independently. Since callbacks fire after the transaction outcome is final, there is nothing to undo, so Storm runs every registered callback and surfaces the first exception rather than skipping the rest.
 
 Exposed's `StatementInterceptor` also provides hooks that Storm intentionally does not offer: `beforeCommit`, `beforeRollback`, and statement-level interceptors (`beforeExecution`, `afterExecution`). In Storm's stateless model, pre-commit logic belongs at the end of the `transaction { }` block itself, since there is no persistence context to flush or dirty state to reconcile before the commit. Statement-level observability is covered by Storm's [`@SqlLog`](sql-logging.md) annotation and `SqlCapture` test utility rather than a general interceptor mechanism.
 
@@ -400,9 +416,9 @@ transaction {
 }
 ```
 
-This is convenient for prototyping and simple applications. For production use, JetBrains recommends pairing Exposed with a dedicated migration tool like Flyway or Liquibase, since `SchemaUtils` does not handle column removal, type changes, or data migration.
+Beyond `SchemaUtils`, Exposed provides schema utilities, dedicated JDBC and R2DBC migration modules (`exposed-migration-jdbc` and `exposed-migration-r2dbc`, with `MigrationUtils`), and a Gradle plugin for generating migration scripts by comparing table definitions against the live database schema. Generated migrations must be reviewed and integrated into an execution workflow such as Flyway, Liquibase, or manual deployment; Exposed does not automatically apply generated migrations. See JetBrains' [migrations guide](https://www.jetbrains.com/help/exposed/migrations.html) for the full workflow.
 
-Storm does not include schema management or migration utilities. Schema management is expected to be handled externally using tools like Flyway, Liquibase, or plain SQL scripts. Storm's [schema validation](validation.md) feature can verify at startup that entity definitions match the database schema, catching mismatches early without modifying the schema itself.
+Storm intentionally provides schema validation but no schema-generation or migration facilities. Schema management is expected to be handled externally using tools like Flyway, Liquibase, or plain SQL scripts. Storm's [schema validation](validation.md) feature can verify at startup that entity definitions match the database schema, catching mismatches early without modifying the schema itself.
 
 ### When to Choose Storm
 
@@ -415,17 +431,20 @@ Storm does not include schema management or migration utilities. Schema manageme
 
 ### When to Choose Exposed
 
-- You prefer DSL-based table definitions
-- You want to switch between SQL DSL and DAO styles
 - You like the JetBrains ecosystem integration
-- You need fine-grained control over lazy loading
-- You need R2DBC support for reactive database access*
+- You prefer a SQL-oriented DSL for table definitions and queries
+- You want an optional DAO API alongside the DSL
+- You need JDBC or R2DBC support, including reactive, non-blocking database access*
+- You want built-in schema and migration tooling (`SchemaUtils`, `MigrationUtils`, the Gradle plugin)
+- You value a mature Kotlin community and ecosystem
 
-*Storm uses JDBC and relies on JVM virtual threads for non-blocking I/O instead of R2DBC.
+*Storm uses blocking JDBC, which can be executed efficiently on JVM virtual threads, rather than a non-blocking R2DBC driver.
 
 ## Storm vs Ktorm
 
 Ktorm is a lightweight Kotlin ORM that uses entity interfaces and DSL-based table definitions. It requires no code generation and has minimal dependencies. Storm differs primarily in its use of immutable data classes (instead of mutable interfaces), automatic relationship loading, and optional metamodel generation for compile-time type safety.
+
+_Comparison reviewed against Ktorm 4.2.1. Last reviewed: 2026-07-15._
 
 | Aspect | Storm | Ktorm |
 | --- | --- | --- |
