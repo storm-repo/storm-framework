@@ -375,6 +375,10 @@ const BM_CSS = `
   .storm-tut .art h3{margin:44px 0 10px}
   .storm-tut .art h3 + p{margin-top:0}
   .bm-stat b{background:linear-gradient(100deg,#feeeb0,#fbbf24 55%,#f59e0b);-webkit-background-clip:text;background-clip:text;color:transparent}
+  .storm-tut .getit{display:flex;gap:12px;margin-top:26px;flex-wrap:wrap;align-items:stretch}
+  .storm-tut .clonebar{display:flex;align-items:center;gap:10px;font-family:var(--mono);font-size:13px;color:var(--plain);
+    background:var(--panel);border:1px solid var(--border);border-radius:10px;padding:0 18px;min-height:44px;overflow-x:auto;white-space:nowrap}
+  .storm-tut .clonebar .dollar{color:var(--green);user-select:none}
   .bm-matrix-wrap{overflow-x:auto;border:1px solid var(--border);border-radius:14px;background:var(--panel);margin:22px 0 10px;padding:10px 12px}
   .art .bm-matrix,.art .bm-matrix thead,.art .bm-matrix tbody{background:none}
   .art .bm-matrix{width:100%;border-collapse:separate;border-spacing:3px;font-family:var(--mono);font-size:12px;margin:0}
@@ -480,7 +484,11 @@ ${charts}
     <li><b>Rows are the unit of comparison.</b> Libraries within one chart ran in the same session under the same conditions. Comparing across charts, or treating values as absolute costs, carries environment drift that comparing within a chart does not.</li>
   </ul>
   <p>Versions: Storm 1.13.0, Hibernate 7.4.5, jOOQ 3.21.6, Exposed 1.3.1, Jimmer 0.11.0, PostgreSQL 17, JDK 21.</p>
-  <p>Reproduce it: <code>git clone https://github.com/storm-orm/storm-benchmarks &amp;&amp; scripts/run.sh</code>. The repository contains the full methodology, the statement-log auditing tools used to verify round-trip counts, and every implementation in full.</p>
+  <p>The repository contains the full methodology, the statement-log auditing tools used to verify round-trip counts, and every implementation in full; <code>scripts/run.sh</code> reproduces the numbers.</p>
+  <div class="getit">
+    <div class="clonebar"><span class="dollar">$</span>git clone https://github.com/storm-orm/storm-benchmarks.git</div>
+    <a class="btn" href="https://github.com/storm-orm/storm-benchmarks" target="_blank" rel="noopener">View on GitHub →</a>
+  </div>
 </div>
 
 ${FOOT_HTML}
