@@ -111,4 +111,19 @@ open class WriteSetTest(
         orm.entity<Pet, _>().findAll().none { it.name == "Doomed" } shouldBe true
         orm.entity<Visit, _>().findAll().none { it.description == "Last visit" } shouldBe true
     }
+
+    @Test
+    fun `actions should accept entities as varargs`() {
+        val owner = newOwner("Vera")
+        val pet = Pet(name = "VarargPet", birthDate = LocalDate.of(2024, 4, 4), type = dog, owner = owner)
+        val visit = Visit(visitDate = LocalDate.of(2026, 7, 15), description = "Vararg visit", pet = pet, timestamp = Instant.now())
+        val inserted = orm.writeSet().insertAndFetch(pet, visit)
+        inserted shouldHaveSize 2
+        val insertedPet = inserted[0] as Pet
+        val insertedVisit = inserted[1] as Visit
+        orm.writeSet().remove(insertedPet.owner.shouldNotBeNull(), insertedPet, insertedVisit)
+        orm.entity<Owner, _>().findAll().none { it.firstName == "Vera" } shouldBe true
+        orm.entity<Pet, _>().findAll().none { it.name == "VarargPet" } shouldBe true
+        orm.entity<Visit, _>().findAll().none { it.description == "Vararg visit" } shouldBe true
+    }
 }
