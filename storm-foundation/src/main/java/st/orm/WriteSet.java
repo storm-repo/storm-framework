@@ -25,9 +25,9 @@ import java.util.List;
  * and {@link #upsert(Iterable)} extend the <em>explicit members</em> (the entities supplied by the caller) with
  * <em>discovered members</em>: unsaved entities transitively reachable through insertable, entity-valued foreign key
  * fields (the <em>insertion closure</em>). {@link #update(Iterable)} and {@link #remove(Iterable)} operate on the
- * explicit members only. The per-row semantics of each action are identical to the corresponding
- * {@code EntityRepository} operation; the write set adds partitioning by type, dependency ordering and generated-key
- * propagation:</p>
+ * explicit members only. Each action accepts the entities as any {@code Iterable} or as varargs. The per-row
+ * semantics of each action are identical to the corresponding {@code EntityRepository} operation; the write set adds
+ * partitioning by type, dependency ordering and generated-key propagation:</p>
  *
  * <ul>
  *   <li><strong>Insertion closure.</strong> A record whose foreign key field holds an unsaved entity is a value that
@@ -68,7 +68,7 @@ import java.util.List;
  * var wolfie = new Pet("Wolfie", DOG, owner);                 // both pets share the owner instance
  * var rex = new Pet("Rex", DOG, owner);
  * var visit = new Visit(TODAY, "Check-up", wolfie);
- * orm.writeSet().insert(List.of(wolfie, rex, visit));         // owner joins via the insertion closure:
+ * orm.writeSet().insert(wolfie, rex, visit);                  // owner joins via the insertion closure:
  *                                                             // one Owner, one Pet and one Visit batch
  * }</pre>
  *
@@ -116,6 +116,18 @@ public interface WriteSet {
     void insert(@Nonnull Iterable<? extends Entity<?>> entities);
 
     /**
+     * Inserts the given entities and their insertion closure; see {@link #insert(Iterable)}. An empty call is a
+     * no-op.
+     *
+     * @param entities the entities to insert; may span multiple entity types.
+     * @throws PersistenceException if the dependencies contain a cycle that cannot be ordered, if an unsaved entity
+     * is referenced through a non-insertable foreign key component, or if the insert fails.
+     */
+    default void insert(@Nonnull Entity<?>... entities) {
+        insert(List.of(entities));
+    }
+
+    /**
      * Inserts like {@link #insert(Iterable)} and returns the explicit members as they exist in the database after
      * the insert, in input order.
      *
@@ -129,6 +141,19 @@ public interface WriteSet {
      */
     @Nonnull
     List<Entity<?>> insertAndFetch(@Nonnull Iterable<? extends Entity<?>> entities);
+
+    /**
+     * Inserts like {@link #insertAndFetch(Iterable)} and returns the explicit members as they exist in the database
+     * after the insert, in input order; an empty call is a no-op and returns an empty list.
+     *
+     * @param entities the entities to insert; may span multiple entity types.
+     * @return the fetched entities in input order.
+     * @throws PersistenceException if the insert fails.
+     */
+    @Nonnull
+    default List<Entity<?>> insertAndFetch(@Nonnull Entity<?>... entities) {
+        return insertAndFetch(List.of(entities));
+    }
 
     /**
      * Updates the given entities, grouped by type.
@@ -150,6 +175,16 @@ public interface WriteSet {
     void update(@Nonnull Iterable<? extends Entity<?>> entities);
 
     /**
+     * Updates the given entities; see {@link #update(Iterable)}. An empty call is a no-op.
+     *
+     * @param entities the entities to update; may span multiple entity types.
+     * @throws PersistenceException if an explicit member or a referenced entity is unsaved, or if the update fails.
+     */
+    default void update(@Nonnull Entity<?>... entities) {
+        update(List.of(entities));
+    }
+
+    /**
      * Updates like {@link #update(Iterable)} and returns the passed entities as they exist in the database after the
      * update, in input order.
      *
@@ -159,6 +194,19 @@ public interface WriteSet {
      */
     @Nonnull
     List<Entity<?>> updateAndFetch(@Nonnull Iterable<? extends Entity<?>> entities);
+
+    /**
+     * Updates like {@link #updateAndFetch(Iterable)} and returns the passed entities as they exist in the database
+     * after the update, in input order; an empty call is a no-op and returns an empty list.
+     *
+     * @param entities the entities to update; may span multiple entity types.
+     * @return the fetched entities in input order.
+     * @throws PersistenceException if an explicit member or a referenced entity is unsaved, or if the update fails.
+     */
+    @Nonnull
+    default List<Entity<?>> updateAndFetch(@Nonnull Entity<?>... entities) {
+        return updateAndFetch(List.of(entities));
+    }
 
     /**
      * Upserts the explicit members and inserts their insertion closure, in dependency order.
@@ -178,6 +226,18 @@ public interface WriteSet {
     void upsert(@Nonnull Iterable<? extends Entity<?>> entities);
 
     /**
+     * Upserts the given entities and inserts their insertion closure; see {@link #upsert(Iterable)}. An empty call
+     * is a no-op.
+     *
+     * @param entities the entities to upsert; may span multiple entity types.
+     * @throws PersistenceException if the dependencies contain a cycle that cannot be ordered, if an unsaved entity
+     * is referenced through a non-insertable foreign key component, or if the upsert fails.
+     */
+    default void upsert(@Nonnull Entity<?>... entities) {
+        upsert(List.of(entities));
+    }
+
+    /**
      * Upserts like {@link #upsert(Iterable)} and returns the passed entities as they exist in the database after the
      * upsert, in input order.
      *
@@ -187,6 +247,19 @@ public interface WriteSet {
      */
     @Nonnull
     List<Entity<?>> upsertAndFetch(@Nonnull Iterable<? extends Entity<?>> entities);
+
+    /**
+     * Upserts like {@link #upsertAndFetch(Iterable)} and returns the passed entities as they exist in the database
+     * after the upsert, in input order; an empty call is a no-op and returns an empty list.
+     *
+     * @param entities the entities to upsert; may span multiple entity types.
+     * @return the fetched entities in input order.
+     * @throws PersistenceException if the upsert fails.
+     */
+    @Nonnull
+    default List<Entity<?>> upsertAndFetch(@Nonnull Entity<?>... entities) {
+        return upsertAndFetch(List.of(entities));
+    }
 
     /**
      * Removes the given entities, children before parents.
@@ -200,6 +273,16 @@ public interface WriteSet {
      * @throws PersistenceException if a passed entity is unsaved, or if the removal fails.
      */
     void remove(@Nonnull Iterable<? extends Entity<?>> entities);
+
+    /**
+     * Removes the given entities, children before parents; see {@link #remove(Iterable)}. An empty call is a no-op.
+     *
+     * @param entities the entities to remove; may span multiple entity types.
+     * @throws PersistenceException if a passed entity is unsaved, or if the removal fails.
+     */
+    default void remove(@Nonnull Entity<?>... entities) {
+        remove(List.of(entities));
+    }
 
     //
     // Single-root convenience variants.

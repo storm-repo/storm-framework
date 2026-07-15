@@ -5,7 +5,7 @@ import TabItem from '@theme/TabItem';
 
 Inserting an object graph that spans several tables normally requires careful choreography: insert the parents first, collect their generated keys, rebuild the children against those keys, and repeat for every level. Write sets lift that burden.
 
-A write set applies one write operation to a heterogeneous collection of entities. Storm partitions the entities by type, orders them by their foreign key dependencies, and writes them in dependency-ordered batches, propagating generated primary keys to dependent entities. `insert` and `upsert` extend the *explicit members* (the entities you supply) with *discovered members*: unsaved entities transitively reachable through insertable foreign key fields. This discovery is called the *insertion closure*. `update` and `remove` operate on the explicit members only.
+A write set applies one write operation to a heterogeneous collection of entities. Storm partitions the entities by type, orders them by their foreign key dependencies, and writes them in dependency-ordered batches, propagating generated primary keys to dependent entities. `insert` and `upsert` extend the *explicit members* (the entities you supply) with *discovered members*: unsaved entities transitively reachable through insertable foreign key fields. This discovery is called the *insertion closure*. `update` and `remove` operate on the explicit members only. Every action accepts the entities as varargs or as any `Iterable`.
 
 Write sets are not a cascade in the JPA sense. There are no mapping annotations, no persistence context and no session-wide cascade: all writes derive from the entities supplied to the call and, for insert and upsert, their insertion closure. The per-row semantics of every action are identical to the corresponding repository operation, including entity callbacks and dirty checking. Coming from JPA? [JPA Cascades vs Write Sets](jpa-cascades-vs-write-sets.md) compares the two models side by side.
 
@@ -52,7 +52,7 @@ val wolfie = Pet(name = "Wolfie", birthDate = birthDate, type = dog, owner = own
 val rex = Pet(name = "Rex", birthDate = birthDate, type = dog, owner = owner)  // same owner instance
 val visit = Visit(visitDate = today, description = "Check-up", pet = wolfie)
 
-orm.writeSet().insert(listOf(wolfie, rex, visit))
+orm.writeSet().insert(wolfie, rex, visit)
 ```
 
 </TabItem>
@@ -64,7 +64,7 @@ var wolfie = new Pet("Wolfie", birthDate, dog, owner);
 var rex = new Pet("Rex", birthDate, dog, owner);                       // same owner instance
 var visit = new Visit(today, "Check-up", wolfie);
 
-orm.writeSet().insert(List.of(wolfie, rex, visit));
+orm.writeSet().insert(wolfie, rex, visit);
 ```
 
 </TabItem>
@@ -98,7 +98,7 @@ Key propagation correlates by instance, not by `equals`. A `copy()` of an unsave
 <TabItem value="kotlin" label="Kotlin" default>
 
 ```kotlin
-val inserted = orm.writeSet().insertAndFetch(listOf(wolfie, visit))
+val inserted = orm.writeSet().insertAndFetch(wolfie, visit)
 val fetchedPet = inserted[0] as Pet     // fetchedPet.owner carries the generated key
 
 val fetchedVisit: Visit = orm.writeSet().insertAndFetch(visit)   // single root, typed
@@ -108,7 +108,7 @@ val fetchedVisit: Visit = orm.writeSet().insertAndFetch(visit)   // single root,
 <TabItem value="java" label="Java">
 
 ```java
-var inserted = orm.writeSet().insertAndFetch(List.of(wolfie, visit));
+var inserted = orm.writeSet().insertAndFetch(wolfie, visit);
 var fetchedPet = (Pet) inserted.get(0); // fetchedPet.owner() carries the generated key
 
 Visit fetchedVisit = orm.writeSet().insertAndFetch(visit);       // single root, typed
@@ -126,7 +126,7 @@ Foreign key fields typed as `Ref` participate through entity-wrapped refs, which
 
 ```kotlin
 val pet = Pet(name = "Shadow", birthDate = birthDate, type = dog, owner = Ref.of(owner))
-orm.writeSet().insert(listOf(pet))      // owner is inserted first, the ref binds the generated key
+orm.writeSet().insert(pet)              // owner is inserted first, the ref binds the generated key
 ```
 
 </TabItem>
@@ -134,7 +134,7 @@ orm.writeSet().insert(listOf(pet))      // owner is inserted first, the ref bind
 
 ```java
 var pet = new Pet("Shadow", birthDate, dog, Ref.of(owner));
-orm.writeSet().insert(List.of(pet));    // owner is inserted first, the ref binds the generated key
+orm.writeSet().insert(pet);             // owner is inserted first, the ref binds the generated key
 ```
 
 </TabItem>
@@ -187,7 +187,7 @@ val user = User(name = "Alice")                               // unsaved
 val role = orm.entity<Role>().findByName("admin")             // saved
 val userRole = UserRole(UserRolePk(user.id, role.id), user, role)
 
-orm.writeSet().insert(listOf(userRole))   // user is inserted first; its key lands in userRolePk.userId
+orm.writeSet().insert(userRole)           // user is inserted first; its key lands in userRolePk.userId
 ```
 
 </TabItem>
@@ -198,7 +198,7 @@ var user = new User("Alice");                                 // unsaved
 var role = orm.entity(Role.class).findByName("admin");        // saved
 var userRole = new UserRole(new UserRolePk(user.id(), role.id()), user, role);
 
-orm.writeSet().insert(List.of(userRole)); // user is inserted first; its key lands in userRolePk.userId
+orm.writeSet().insert(userRole);          // user is inserted first; its key lands in userRolePk.userId
 ```
 
 </TabItem>
@@ -218,14 +218,14 @@ The remaining actions follow the same contract, each with the ordering that suit
 <TabItem value="kotlin" label="Kotlin" default>
 
 ```kotlin
-orm.writeSet().remove(listOf(owner, pet, visit))   // executed as: visit, pet, owner
+orm.writeSet().remove(owner, pet, visit)   // executed as: visit, pet, owner
 ```
 
 </TabItem>
 <TabItem value="java" label="Java">
 
 ```java
-orm.writeSet().remove(List.of(owner, pet, visit)); // executed as: visit, pet, owner
+orm.writeSet().remove(owner, pet, visit); // executed as: visit, pet, owner
 ```
 
 </TabItem>

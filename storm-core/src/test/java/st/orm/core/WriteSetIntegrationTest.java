@@ -466,4 +466,38 @@ public class WriteSetIntegrationTest {
         assertTrue(exception.getMessage().contains("unsaved"));
     }
 
+    @Test
+    public void testVarargActionsAcceptEnumeratedEntities() {
+        var orm = orm();
+        var owner = newOwner("Vararg", "Actions");
+        var pet = Pet.builder().name("VarargPet").birthDate(LocalDate.of(2024, 4, 4)).type(dogType()).owner(owner).build();
+        var visit = new Visit(LocalDate.of(2026, 5, 5), "Vararg visit", pet);
+        // Multi-argument calls resolve to the vararg overloads; single-argument calls keep resolving to the
+        // typed single-root variants (see testSingleRootConvenienceVariants).
+        var inserted = orm.writeSet().insertAndFetch(pet, visit);
+        assertEquals(2, inserted.size());
+        var insertedPet = (Pet) inserted.get(0);
+        var insertedVisit = (Visit) inserted.get(1);
+        assertNotEquals(0, insertedPet.owner().id());
+        var renamedPet = insertedPet.toBuilder().name("VarargRenamed").build();
+        orm.writeSet().update(renamedPet, insertedVisit);
+        assertEquals("VarargRenamed", orm.entity(Pet.class).getById(insertedPet.id()).name());
+        orm.writeSet().remove(insertedPet.owner(), renamedPet, insertedVisit);
+        assertTrue(orm.entity(Owner.class).findById(insertedPet.owner().id()).isEmpty());
+        assertTrue(orm.entity(Pet.class).findById(insertedPet.id()).isEmpty());
+        assertTrue(orm.entity(Visit.class).findById(insertedVisit.id()).isEmpty());
+    }
+
+    @Test
+    public void testEmptyVarargCallsAreNoOps() {
+        var orm = orm();
+        orm.writeSet().insert();
+        orm.writeSet().update();
+        orm.writeSet().upsert();
+        orm.writeSet().remove();
+        assertTrue(orm.writeSet().insertAndFetch().isEmpty());
+        assertTrue(orm.writeSet().updateAndFetch().isEmpty());
+        assertTrue(orm.writeSet().upsertAndFetch().isEmpty());
+    }
+
 }
