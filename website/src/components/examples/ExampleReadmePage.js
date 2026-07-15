@@ -1,6 +1,6 @@
-import React from 'react';
+import React, {useEffect} from 'react';
 import Head from '@docusaurus/Head';
-import {TUT_CSS, navHtml, FOOT_HTML} from '../tutorial/tutorialTheme';
+import {TUT_CSS, navHtml, FOOT_HTML, clonebar, wireSqlToggles} from '../tutorial/tutorialTheme';
 
 // Route component for the /examples/<slug> pages added by the
 // example-readmes plugin. Receives the example (title, description, chips,
@@ -45,7 +45,9 @@ export default function ExampleReadmePage({example}) {
   const {slug, repo, title, description, chips, html} = example;
   const url = `https://orm.st/examples/${slug}/`;
   const githubUrl = `https://github.com/storm-orm/${repo}`;
-  const pageTitle = `${title} · Storm Example Projects`;
+  const pageTitle = `${title} · ST/ORM Example Projects`;
+
+  useEffect(() => wireSqlToggles(), []);
 
   const body = `
 ${navHtml('examples')}
@@ -56,7 +58,7 @@ ${navHtml('examples')}
   <p class="dek">${description}</p>
   <div class="meta">${chips.map((chip) => `<span>${chip}</span>`).join('')}</div>
   <div class="getit">
-    <div class="clonebar"><span class="dollar">$</span>git clone ${githubUrl}.git</div>
+    ${clonebar(`git clone ${githubUrl}.git`)}
     <a class="btn" href="${githubUrl}">View on GitHub →</a>
   </div>
 </div>

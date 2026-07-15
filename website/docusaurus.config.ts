@@ -13,6 +13,12 @@ const config: Config = {
   tagline: 'A modern, high-performance ORM for Kotlin 2.0+ and Java 21+',
   favicon: 'img/storm-dark.png',
 
+  // Load the marketing type pair (Inter + JetBrains Mono) on the docs pages too,
+  // so the Docusaurus-chrome theme matches the custom pages (see custom.css).
+  stylesheets: [
+    'https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;700&display=swap',
+  ],
+
   url: 'https://orm.st',
   baseUrl: '/',
 
@@ -151,7 +157,7 @@ const config: Config = {
     // TODO(campaign): replace with a purpose-built 1200x630 social card.
     image: 'img/storm.png',
     navbar: {
-      title: 'Storm',
+      title: 'ST/ORM',
       logo: {
         alt: 'Storm Logo',
         src: 'img/storm-dark.png',
@@ -231,9 +237,9 @@ const config: Config = {
       additionalLanguages: ['java', 'kotlin', 'groovy'],
     },
     colorMode: {
-      defaultMode: 'light',
-      disableSwitch: false,
-      respectPrefersColorScheme: true,
+      defaultMode: 'dark',
+      disableSwitch: true,
+      respectPrefersColorScheme: false,
     },
   } satisfies Preset.ThemeConfig,
 };

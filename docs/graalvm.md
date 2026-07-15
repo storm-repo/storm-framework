@@ -97,15 +97,9 @@ metadata directory, small enough to read in a minute:
 - [Spring Boot example metadata](https://github.com/storm-orm/storm-example-kotlin-spring-boot-4-graalvm/blob/main/src/main/kotlin/st/orm/demo/imdb/ApplicationRuntimeHints.kt)
 - [Ktor example metadata](https://github.com/storm-orm/storm-example-kotlin-ktor-graalvm/tree/main/src/main/resources/META-INF/native-image)
 
-## Measured
+## What you get
 
-Both examples, on an Apple M-series MacBook against PostgreSQL 17, verified by their Playwright
-interface suites running against the native binaries:
-
-| | Startup | Dataset import (1.5M rows) | Binary |
-|---|---|---|---|
-| Spring Boot 4 | ~0.25 s | 87 s | 122 MB |
-| Ktor 3 (CIO) | ~0.13 s | 83 s | 97 MB |
-
-The import runs faster natively than on the JVM (117 s): a one-shot batch job never gets the JIT
-warmup it would need to catch up.
+Both examples compile to a self-contained native binary that starts in a fraction of a second,
+with no JVM and no warmup, and both are verified by their Playwright interface suites running
+against the native binaries. A batch import can even finish faster natively than on the JVM: a
+one-shot job never runs long enough to earn back the JIT warmup it would need to catch up.

@@ -8,7 +8,7 @@ import {TUT_CSS, navHtml, FOOT_HTML} from '../../components/tutorial/tutorialThe
 // and Java. Each card links to its detail page (README rendered inline by
 // the example-readmes plugin, with the clone command and GitHub link).
 
-const TITLE = 'Storm Example Projects · Complete applications built with Storm';
+const TITLE = 'ST/ORM Example Projects · Complete applications built with Storm';
 const DESC =
   'Complete example applications built with Storm ORM: a movie browser on ' +
   'the public IMDB dataset, implemented on Spring Boot 4 and Ktor, in Kotlin ' +

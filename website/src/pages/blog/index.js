@@ -7,7 +7,7 @@ import {TUT_CSS, navHtml, FOOT_HTML} from '../../components/tutorial/tutorialThe
 // matches the tutorials and examples. Each article lives next to this file as
 // its own custom page; keep this list newest-first and in sync with them.
 
-const TITLE = 'Storm Blog · Design decisions and deep dives';
+const TITLE = 'ST/ORM Blog · Design decisions and deep dives';
 const DESC =
   'The design decisions behind ST/ORM, deep dives into how it works, and the ' +
   'thinking that shapes the API. Plain values, explicit SQL, and no hidden ' +

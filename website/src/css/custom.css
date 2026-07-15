@@ -1,22 +1,79 @@
+/* Docs (Infima) theme aligned with the marketing site's dark palette. The
+   custom landing/tutorial/blog pages carry their own dark shell; these variables
+   bring the Docusaurus-chrome pages (/docs) onto the same tokens: background
+   #070709, panels #0f0f14, text #eaeaf0, indigo accent #818cf8, borders #20202a,
+   and the Inter / JetBrains Mono type pair. Default mode is dark (see
+   docusaurus.config.ts colorMode); the light theme keeps a readable purple. */
+
 :root {
-  --ifm-color-primary: #3949ab;
-  --ifm-color-primary-dark: #303f9f;
-  --ifm-color-primary-darker: #283593;
-  --ifm-color-primary-darkest: #1a237e;
-  --ifm-color-primary-light: #5c6bc0;
-  --ifm-color-primary-lighter: #7986cb;
-  --ifm-color-primary-lightest: #9fa8da;
-  --ifm-code-font-size: 95%;
+  /* Type pair shared with the marketing pages. */
+  --ifm-font-family-base: 'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  --ifm-font-family-monospace: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
+  --ifm-code-font-size: 92%;
+
+  /* Light theme uses a darker indigo so buttons/links keep contrast on white. */
+  --ifm-color-primary: #4f46e5;
+  --ifm-color-primary-dark: #4740ce;
+  --ifm-color-primary-darker: #433cc2;
+  --ifm-color-primary-darkest: #3731a0;
+  --ifm-color-primary-light: #6a62e9;
+  --ifm-color-primary-lighter: #7972eb;
+  --ifm-color-primary-lightest: #9d98f0;
 }
 
 [data-theme='dark'] {
-  --ifm-color-primary: #7986cb;
-  --ifm-color-primary-dark: #5c6bc0;
-  --ifm-color-primary-darker: #3949ab;
-  --ifm-color-primary-darkest: #303f9f;
-  --ifm-color-primary-light: #9fa8da;
-  --ifm-color-primary-lighter: #c5cae9;
-  --ifm-color-primary-lightest: #e8eaf6;
+  /* Accent: the marketing --accent (#818cf8), the lighter shade on dark. */
+  --ifm-color-primary: #818cf8;
+  --ifm-color-primary-dark: #6470f6;
+  --ifm-color-primary-darker: #5563f5;
+  --ifm-color-primary-darkest: #2b3cf2;
+  --ifm-color-primary-light: #9ea8fa;
+  --ifm-color-primary-lighter: #adb5fb;
+  --ifm-color-primary-lightest: #d8dcfe;
+
+  /* Surfaces and text mapped from the site tokens. */
+  --ifm-background-color: #070709;
+  --ifm-background-surface-color: #0f0f14;
+  --ifm-navbar-background-color: #0b0b0f;
+  --ifm-footer-background-color: #0b0b0f;
+  --ifm-font-color-base: #eaeaf0;
+  --ifm-heading-color: #eaeaf0;
+  --ifm-color-content: #b7b8c2;
+  --ifm-color-content-secondary: #8a8a96;
+
+  /* Borders / rules → --border #20202a, softened via the emphasis ramp. */
+  --ifm-toc-border-color: #20202a;
+  --ifm-table-border-color: #20202a;
+  --ifm-hr-border-color: #20202a;
+  --ifm-color-emphasis-100: #0f0f14;
+  --ifm-color-emphasis-200: #17171f;
+  --ifm-color-emphasis-300: #20202a;
+
+  /* Links, sidebar menu, breadcrumbs → accent. */
+  --ifm-link-color: #a5b4fc;
+  --ifm-menu-color: #b7b8c2;
+  --ifm-menu-color-active: #a5b4fc;
+  --ifm-menu-color-background-active: rgba(129, 140, 248, 0.08);
+  --ifm-menu-color-background-hover: rgba(129, 140, 248, 0.06);
+  --ifm-breadcrumb-color-active: #a5b4fc;
+  --ifm-breadcrumb-item-background-active: rgba(129, 140, 248, 0.1);
+
+  /* Code blocks → panel background (dracula tokens still read fine on it). */
+  --ifm-code-background: #0f0f14;
+  --prism-background-color: #0b0b0f;
+  --docusaurus-highlighted-code-line-bg: rgba(129, 140, 248, 0.14);
+}
+
+/* Navbar: subtle bottom rule like the marketing nav. */
+[data-theme='dark'] .navbar {
+  border-bottom: 1px solid #17171f;
+  box-shadow: none;
+}
+
+/* Inline code chips: match the marketing --panel/--border-soft look. */
+[data-theme='dark'] code {
+  background: #0f0f14;
+  border: 1px solid #17171f;
 }
 
 /* Cleaner tables in docs and blog. Infima draws a full cell grid (vertical +
