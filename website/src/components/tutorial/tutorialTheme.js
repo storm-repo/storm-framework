@@ -322,7 +322,7 @@ export const TUT_CSS = `
   .storm-tut ul{color:var(--body);font-size:15.5px;line-height:1.75;margin:14px 0 0;padding-left:22px}
   .storm-tut li{margin-top:6px}
   .storm-tut li::marker{color:var(--faint)}
-  .storm-tut p code,.storm-tut li code,.storm-tut td code{font-family:var(--mono);font-size:.86em;background:var(--panel);border:1px solid var(--border-soft);border-radius:6px;padding:1.5px 6px;color:var(--plain);white-space:nowrap}
+  .storm-tut p code,.storm-tut li code,.storm-tut td code,.storm-tut .note code{font-family:var(--mono);font-size:.86em;background:var(--panel);border:1px solid var(--border-soft);border-radius:6px;padding:1.5px 6px;color:var(--plain);white-space:nowrap}
   .storm-tut .art a.tlink{color:var(--accent)}
   .storm-tut .art a.tlink:hover{text-decoration:underline}
   /* Star ask (combined with .grad): the gradient text is transparent, so the

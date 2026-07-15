@@ -374,12 +374,12 @@ const BM_CSS = `
   .storm-tut .art h2{margin:52px 0 14px}
   .storm-tut .art h3{margin:44px 0 10px}
   .storm-tut .art h3 + p{margin-top:0}
-  .bm-stat b{background:linear-gradient(100deg,#fde68a,#fbbf24 55%,#f59e0b);-webkit-background-clip:text;background-clip:text;color:transparent}
+  .bm-stat b{background:linear-gradient(100deg,#feeeb0,#fbbf24 55%,#f59e0b);-webkit-background-clip:text;background-clip:text;color:transparent}
   .bm-matrix-wrap{overflow-x:auto;border:1px solid var(--border);border-radius:14px;background:var(--panel);margin:22px 0 10px;padding:10px 12px}
   .art .bm-matrix,.art .bm-matrix thead,.art .bm-matrix tbody{background:none}
   .art .bm-matrix{width:100%;border-collapse:separate;border-spacing:3px;font-family:var(--mono);font-size:12px;margin:0}
   .art .bm-matrix th,.art .bm-matrix td{border:none;background:none;padding:9px 12px;text-align:right;white-space:nowrap}
-  .art .bm-matrix thead th{color:var(--muted);font-weight:600;padding:4px 12px;font-size:10.5px;letter-spacing:.04em}
+  .art .bm-matrix thead th{color:var(--muted);font-weight:600;padding:4px 12px;font-size:10.5px;letter-spacing:.04em;text-align:center}
   .art .bm-matrix thead th.storm{background:linear-gradient(100deg,#a78bfa,#818cf8 55%,#7dd3fc);-webkit-background-clip:text;background-clip:text;color:transparent}
   .art .bm-matrix thead th.jdbc{color:var(--faint);font-style:italic}
   .art .bm-matrix tbody th{text-align:left;color:var(--body);font-family:var(--sans);font-size:12.5px;font-weight:500}
