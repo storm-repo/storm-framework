@@ -53,7 +53,7 @@ const FRAMEWORKS = [
   {
     name: 'Exposed',
     slug: 'storm-vs-exposed',
-    desc: 'JetBrains’ Kotlin framework, defining tables as DSL objects. Storm declares the model once as annotated data classes and supports all seven transaction propagation modes without Spring.',
+    desc: 'JetBrains’ Kotlin framework, defining tables as DSL objects. Storm declares the model once as annotated data classes and supports seven Spring-style transaction propagation modes without requiring Spring.',
     chips: ['Kotlin only', 'DSL tables'],
   },
   {
@@ -74,7 +74,7 @@ function buildBody() {
     <tr><td>Entity model</td><td>Immutable data class (~5 lines)</td><td>Mutable class (~30, ~10 with Lombok)</td><td>Generated from schema</td><td>DSL table object (+ optional DAO)</td><td>Mutable interface (+ DSL table)</td></tr>
     <tr><td>Immutable entities</td><td>Yes</td><td>No</td><td>Yes</td><td>DSL only</td><td>No</td></tr>
     <tr><td>Type-safe queries</td><td>Yes</td><td>Criteria API</td><td>Yes</td><td>Yes</td><td>Yes</td></tr>
-    <tr><td>N+1 handling</td><td>Single-query entity graph</td><td>Common pitfall</td><td>Manual</td><td>Manual</td><td>Manual</td></tr>
+    <tr><td>N+1 handling</td><td>Single-query entity graph</td><td>Common pitfall</td><td>Manual</td><td>Manual joins (DSL) · eager-load (DAO)</td><td>Manual</td></tr>
     <tr><td>Query across relations</td><td>One line: joins and mapping derived from @FK</td><td>JPQL strings or Criteria builders</td><td>Implicit path joins + multiset</td><td>Manual joins and row mapping</td><td>Manual joins</td></tr>
     <tr><td>Session state</td><td>None: no session, no flush</td><td>Persistence context, flush, dirty checking</td><td>None</td><td>DSL none · DAO transaction-bound</td><td>Per-entity change tracking</td></tr>
     <tr><td>Deferred loading</td><td>Explicit Ref&lt;T&gt;</td><td>Proxies, session-bound</td><td>Not applicable</td><td>DAO lazy, transaction-bound</td><td>Manual joins</td></tr>

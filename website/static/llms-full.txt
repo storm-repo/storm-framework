@@ -18,7 +18,7 @@
 > GitHub: https://github.com/storm-orm/storm-framework
 > License: Apache 2.0
 
-# Generated: 2026-07-14T23:35:52Z
+# Generated: 2026-07-15T10:39:11Z
 
 ========================================
 ## Source: index.md
@@ -5903,7 +5903,7 @@ Storm works directly with JDBC transactions and supports both programmatic and d
 
 Storm for Kotlin provides a fully programmatic transaction solution (following the style popularized by [Exposed](https://github.com/JetBrains/Exposed)) that is **completely coroutine-friendly**. It supports **all isolation levels and propagation modes** found in traditional transaction management systems. You can freely switch coroutine dispatchers within a transaction (offload CPU-bound work to `Dispatchers.Default` or IO work to `Dispatchers.IO`) and still remain in the **same active transaction**.
 
-While Storm's `transaction { }` blocks look similar to Exposed's, Storm goes further by supporting all seven standard propagation modes (`REQUIRED`, `REQUIRES_NEW`, `NESTED`, `MANDATORY`, `SUPPORTS`, `NOT_SUPPORTED`, `NEVER`). Exposed's native transaction API only supports basic nesting (shared transaction) and savepoint-based nesting (`useNestedTransactions = true`), without the ability to suspend an outer transaction, enforce transactional context, or run non-transactionally. See [Storm vs Exposed](comparison.md#storm-vs-exposed) for a detailed comparison.
+While Storm's `transaction { }` blocks look similar to Exposed's, Storm goes further by supporting seven Spring-style propagation modes (`REQUIRED`, `REQUIRES_NEW`, `NESTED`, `MANDATORY`, `SUPPORTS`, `NOT_SUPPORTED`, `NEVER`). Exposed's native transaction API only supports basic nesting (shared transaction) and savepoint-based nesting (`useNestedTransactions = true`), without the ability to suspend an outer transaction, enforce transactional context, or run non-transactionally. See [Storm vs Exposed](comparison.md#storm-vs-exposed) for a detailed comparison.
 
 The API is designed around Kotlin's type system and coroutine model. Import the transaction functions from `st.orm.template` and the option enums from `st.orm` (shared with the Java API):
 
@@ -5958,7 +5958,7 @@ transactionBlocking {
 
 Propagation modes are one of the most powerful features of enterprise transaction management, yet they're often misunderstood. They control how transactions interact when code calls another transactional method. This is essential for building composable services where each method can define its transactional requirements independently.
 
-Storm supports all seven standard propagation modes. Understanding when to use each mode helps you build robust, maintainable applications where components work correctly both standalone and when composed together.
+Storm supports seven Spring-style propagation modes. Understanding when to use each mode helps you build robust, maintainable applications where components work correctly both standalone and when composed together.
 
 #### REQUIRED (Default)
 
@@ -12159,9 +12159,9 @@ orm.entity(User.class).upsert(new User("alice@example.com", "Alice", birthDate, 
 
 Inserting an object graph that spans several tables normally requires careful choreography: insert the parents first, collect their generated keys, rebuild the children against those keys, and repeat for every level. Write sets lift that burden.
 
-A write set applies one write operation to a heterogeneous collection of entities. Storm partitions the entities by type, orders them by their foreign key dependencies, and writes them in dependency-ordered batches, propagating generated primary keys to dependent entities. `insert` and `upsert` extend the *explicit members* (the entities you supply) with *discovered members*: unsaved entities transitively reachable through insertable foreign key fields. This discovery is called the *insertion closure*. `update` and `remove` operate on the explicit members only.
+A write set applies one write operation to a heterogeneous collection of entities. Storm partitions the entities by type, orders them by their foreign key dependencies, and writes them in dependency-ordered batches, propagating generated primary keys to dependent entities. `insert` and `upsert` extend the *explicit members* (the entities you supply) with *discovered members*: unsaved entities transitively reachable through insertable foreign key fields. This discovery is called the *insertion closure*. `update` and `remove` operate on the explicit members only. Every action accepts the entities as varargs or as any `Iterable`.
 
-Write sets are not a cascade in the JPA sense. There are no mapping annotations, no persistence context and no session-wide cascade: all writes derive from the entities supplied to the call and, for insert and upsert, their insertion closure. The per-row semantics of every verb are identical to the corresponding repository operation, including entity callbacks and dirty checking.
+Write sets are not a cascade in the JPA sense. There are no mapping annotations, no persistence context and no session-wide cascade: all writes derive from the entities supplied to the call and, for insert and upsert, their insertion closure. The per-row semantics of every action are identical to the corresponding repository operation, including entity callbacks and dirty checking. Coming from JPA? [JPA Cascades vs Write Sets](jpa-cascades-vs-write-sets.md) compares the two models side by side.
 
 A write set is obtained from the ORM template, or from any repository (`writeSet()` on a repository is a convenience that delegates to the underlying template; it is not scoped to the repository's entity type):
 
@@ -12170,7 +12170,7 @@ A write set is obtained from the ORM template, or from any repository (`writeSet
 ```kotlin
 orm.writeSet().insert(entities)
 
-// or scoped; each verb executes immediately, the block only groups the calls
+// or scoped; each action executes immediately, the block only groups the calls
 transaction {
     orm.writeSet {
         insert(newEntities)
@@ -12199,7 +12199,7 @@ val wolfie = Pet(name = "Wolfie", birthDate = birthDate, type = dog, owner = own
 val rex = Pet(name = "Rex", birthDate = birthDate, type = dog, owner = owner)  // same owner instance
 val visit = Visit(visitDate = today, description = "Check-up", pet = wolfie)
 
-orm.writeSet().insert(listOf(wolfie, rex, visit))
+orm.writeSet().insert(wolfie, rex, visit)
 ```
 
 [Java]
@@ -12210,7 +12210,7 @@ var wolfie = new Pet("Wolfie", birthDate, dog, owner);
 var rex = new Pet("Rex", birthDate, dog, owner);                       // same owner instance
 var visit = new Visit(today, "Check-up", wolfie);
 
-orm.writeSet().insert(List.of(wolfie, rex, visit));
+orm.writeSet().insert(wolfie, rex, visit);
 ```
 This particular graph needs three dependency-ordered batch operations, regardless of how many pets or visits the set contains: owners first, then pets, then visits. The owner was never passed explicitly; it becomes a discovered member because the pet values hold it in their foreign key field. That is the insertion closure at work: a record whose foreign key field holds an unsaved entity is a value that describes both rows, and inserting the value inserts both.
 
@@ -12236,7 +12236,7 @@ Key propagation correlates by instance, not by `equals`. A `copy()` of an unsave
 [Kotlin]
 
 ```kotlin
-val inserted = orm.writeSet().insertAndFetch(listOf(wolfie, visit))
+val inserted = orm.writeSet().insertAndFetch(wolfie, visit)
 val fetchedPet = inserted[0] as Pet     // fetchedPet.owner carries the generated key
 
 val fetchedVisit: Visit = orm.writeSet().insertAndFetch(visit)   // single root, typed
@@ -12245,7 +12245,7 @@ val fetchedVisit: Visit = orm.writeSet().insertAndFetch(visit)   // single root,
 [Java]
 
 ```java
-var inserted = orm.writeSet().insertAndFetch(List.of(wolfie, visit));
+var inserted = orm.writeSet().insertAndFetch(wolfie, visit);
 var fetchedPet = (Pet) inserted.get(0); // fetchedPet.owner() carries the generated key
 
 Visit fetchedVisit = orm.writeSet().insertAndFetch(visit);       // single root, typed
@@ -12258,14 +12258,14 @@ Foreign key fields typed as `Ref` participate through entity-wrapped refs, which
 
 ```kotlin
 val pet = Pet(name = "Shadow", birthDate = birthDate, type = dog, owner = Ref.of(owner))
-orm.writeSet().insert(listOf(pet))      // owner is inserted first, the ref binds the generated key
+orm.writeSet().insert(pet)              // owner is inserted first, the ref binds the generated key
 ```
 
 [Java]
 
 ```java
 var pet = new Pet("Shadow", birthDate, dog, Ref.of(owner));
-orm.writeSet().insert(List.of(pet));    // owner is inserted first, the ref binds the generated key
+orm.writeSet().insert(pet);             // owner is inserted first, the ref binds the generated key
 ```
 Id-only refs such as `Ref.of(Owner::class, 42)` are pointers to known rows: they bind as foreign key values and are never written. An id-only ref carrying a default id cannot describe a new entity and fails fast. Note that ref equality is based on type and id, so refs wrapping distinct unsaved instances compare equal until the instances are persisted; do not use unsaved refs as map keys.
 
@@ -12307,7 +12307,7 @@ val user = User(name = "Alice")                               // unsaved
 val role = orm.entity<Role>().findByName("admin")             // saved
 val userRole = UserRole(UserRolePk(user.id, role.id), user, role)
 
-orm.writeSet().insert(listOf(userRole))   // user is inserted first; its key lands in userRolePk.userId
+orm.writeSet().insert(userRole)           // user is inserted first; its key lands in userRolePk.userId
 ```
 
 [Java]
@@ -12317,28 +12317,28 @@ var user = new User("Alice");                                 // unsaved
 var role = orm.entity(Role.class).findByName("admin");        // saved
 var userRole = new UserRole(new UserRolePk(user.id(), role.id()), user, role);
 
-orm.writeSet().insert(List.of(userRole)); // user is inserted first; its key lands in userRolePk.userId
+orm.writeSet().insert(userRole);          // user is inserted first; its key lands in userRolePk.userId
 ```
 The unsaved entity's default id in the key component is a placeholder; the write set overwrites it with the generated key. Only when no insertable primary key component carries the column value does the reference fail fast (see below).
 
 ## Update, Upsert and Remove
 
-The remaining verbs follow the same contract, each with the ordering that suits it:
+The remaining actions follow the same contract, each with the ordering that suits it:
 
-- `update` groups the explicit members by type and updates them with the usual semantics, including transaction-scoped dirty checking: unchanged entities are skipped. Referenced entities are never updated implicitly. Unsaved members are rejected; a row that does not exist cannot be updated.
+- `update` groups the explicit members by type and updates them with the usual semantics, including transaction-scoped dirty checking: unchanged entities are skipped. Referenced entities are never updated implicitly: an updated `Owner` held inside a `Pet` you update is not written, it contributes only its primary key. Pass both when both changed; dirty checking skips whichever members are unchanged. Unsaved members are rejected; a row that does not exist cannot be updated.
 - `upsert` applies the per-repository upsert semantics to the explicit members and inserts the discovered members of the insertion closure, with keys propagating as for insert. Explicit membership takes precedence: a keyed entity that is both supplied and referenced by another member is upserted, and is written before the members that reference it. Whether an upsert can create a row for a member carrying a preset key follows the dialect's per-repository upsert behavior.
 - `remove` deletes exactly the explicit members, children before parents. Members are correlated by entity type and primary key rather than by instance, so a member referencing another member is removed first regardless of which instance its foreign key field holds. Referenced entities are never removed implicitly.
 
 [Kotlin]
 
 ```kotlin
-orm.writeSet().remove(listOf(owner, pet, visit))   // executed as: visit, pet, owner
+orm.writeSet().remove(owner, pet, visit)   // executed as: visit, pet, owner
 ```
 
 [Java]
 
 ```java
-orm.writeSet().remove(List.of(owner, pet, visit)); // executed as: visit, pet, owner
+orm.writeSet().remove(owner, pet, visit); // executed as: visit, pet, owner
 ```
 ## Fail-Fast Behavior
 
@@ -12358,7 +12358,7 @@ Write sets complete Storm's persistence story without introducing a session. Eac
 - **Save-or-update decisions** belong to [upserts](upserts.md), which resolve conflicts atomically in the database.
 - **Skipping unchanged rows and partial updates** belong to [dirty checking](dirty-checking.md), driven by the transaction-scoped entity cache.
 - **Cascading deletes of dependent rows** belong to the schema: declare `ON DELETE CASCADE` on the foreign key constraint. Storm does not discover children reactively.
-- **Implicit updates of referenced entities** do not exist. A keyed entity referenced by a set member only provides its key; modifying it requires an explicit update.
+- **Implicit updates of referenced entities** do not exist. A keyed entity referenced by a set member only provides its key; modifying it requires an explicit update. One rule covers every action: a write set writes the entities you name, plus the entities your values make necessary. An unsaved referenced entity is necessary (its dependent cannot be written without its key, and a row that does not exist cannot be a stale copy); a keyed referenced entity never is: it is the state that was hydrated when the value was read, and treating that snapshot as write intent would silently overwrite newer database state.
 - **Re-planning after entity callbacks** does not happen. Callbacks run inside the per-type repository operations, after members are discovered and the execution order is planned; a callback that alters foreign key fields does not change what is discovered or in which order it is written.
 
 
@@ -18067,7 +18067,9 @@ The following frameworks are Kotlin-only. Storm supports both Kotlin and Java.
 
 ## Storm vs Exposed
 
-Exposed is JetBrains' official Kotlin database framework. It offers two APIs: a DSL that mirrors SQL syntax and a DAO layer for ORM-style access. Exposed defines tables as Kotlin objects rather than annotations on data classes. Storm and Exposed share the goal of idiomatic Kotlin database access but differ in entity design (mutable DAO entities vs. immutable data classes) and relationship loading strategy (lazy references vs. eager single-query loading).
+Exposed is JetBrains' official Kotlin database framework. It offers two APIs: a DSL that mirrors SQL syntax and a DAO layer for ORM-style access. Exposed defines tables as Kotlin objects rather than annotations on data classes. Storm and Exposed share the goal of idiomatic Kotlin database access but differ in entity design (mutable DAO entities vs. immutable data classes) and relationship loading strategy (Storm loads an entity graph in a single query; Exposed uses explicit joins with `ResultRow` mapping in the DSL, and lazy or eager relationship delegates in the DAO).
+
+_Comparison reviewed against Exposed 1.3.1. Last reviewed: 2026-07-15._
 
 | Aspect | Storm | Exposed |
 | --- | --- | --- |
@@ -18076,9 +18078,9 @@ Exposed is JetBrains' official Kotlin database framework. It offers two APIs: a 
 | **APIs** | Unified ORM + SQL Templates | DSL (SQL) + DAO (ORM) |
 | **Table Definition** | Annotations on data classes | DSL objects (`object Users : Table()`) |
 | **Entities (DAO)** | Immutable data classes (Kotlin) / records (Java) | Mutable, extend `Entity` class |
-| **Relationships** | Loading in single query | Lazy references, manual loading |
-| **N+1 Problem** | Prevented by design; requires explicit opt-in | Possible with DAO |
-| **Coroutines** | First-class from the start | Supported (added later) |
+| **Relationships** | Loading in single query | DSL: explicit joins; DAO: relationship delegates with lazy/eager loading options |
+| **N+1 Problem** | Prevented by design; requires explicit opt-in | Possible with DAO; mitigated through eager loading or explicit queries |
+| **Coroutines** | First-class from the start | Suspend transaction APIs (JDBC and R2DBC) |
 | **Type Safety** | Metamodel DSL | Column references |
 | **Transactions** | Optional, programmatic + declarative | `transaction {}` block, declarative via Spring module |
 
@@ -18088,7 +18090,7 @@ Both Storm and Exposed use a `transaction { }` block for programmatic transactio
 
 Exposed's native API supports two modes: shared nesting (the default, where inner blocks join the outer transaction) and savepoint-based nesting (via `useNestedTransactions = true`). For other propagation behaviors, Exposed relies on Spring's `@Transactional` through its `SpringTransactionManager` integration module.
 
-Storm supports all seven standard propagation modes natively in its `transaction { }` block, without requiring Spring:
+Storm supports seven Spring-style transaction propagation modes natively in its `transaction { }` block, without requiring Spring. These behaviors are familiar from Spring's `@Transactional`; they are conventions from that world rather than SQL or JDBC standards:
 
 | Propagation | Storm | Exposed |
 |-------------|-------|---------|
@@ -18132,15 +18134,15 @@ transaction {
 | Aspect | Storm | Exposed |
 |--------|-------|---------|
 | API style | Lambda (`onCommit { }`) | Interface (`StatementInterceptor`) |
-| Suspend support | Yes (JDBC) | R2DBC only (`SuspendStatementInterceptor`) |
-| Nested transaction behavior | Deferred to physical commit | Fires after savepoint release (data not yet durable) |
-| Callback isolation | Yes (remaining callbacks still run on failure) | No (exception propagates, skipping remaining interceptors) |
+| Suspend callbacks | Yes (JDBC) | Suspend interceptors are R2DBC only (`SuspendStatementInterceptor`) |
+| Nested transaction behavior | Deferred to outer physical commit | Independent nested transactions via savepoints; verify intended boundary |
+| Callback failure handling | Remaining callbacks still run; first error surfaced | See Exposed's interceptor behavior |
 | Global interceptors | No | Yes (via `ServiceLoader`) |
 | Additional hooks | No | `beforeCommit`, `beforeRollback`, `beforeExecution`, `afterExecution` |
 
-The most significant behavioral difference is with nested transactions. Exposed's `afterCommit` fires on the nested transaction's own "commit," which for savepoint-based nesting is just a savepoint release, not an actual database commit. If the outer transaction subsequently rolls back, the `afterCommit` callback will have already executed despite the data never becoming durable. Storm avoids this by deferring callbacks to the outermost physical transaction.
+The most significant difference is where callbacks bind with nested transactions. With `useNestedTransactions` enabled, Exposed implements independent nested transactions using savepoints. Applications relying on `afterCommit` callbacks should verify whether their desired boundary is the nested transaction or the outer physical commit. Storm explicitly defers joined and nested callbacks to the outer physical transaction, so a callback registered inside a nested scope only runs once that outer transaction is durably committed.
 
-Storm's callback isolation behavior (remaining callbacks still execute when one fails) follows the same approach as Spring's `TransactionSynchronization`, where post-commit and post-completion callbacks are invoked independently. Since callbacks fire after the transaction outcome is final, there is nothing to undo; silently skipping remaining side effects because of one failure would be worse than running them all and surfacing the first exception.
+Storm's callback failure handling (remaining callbacks still execute when one fails) follows the same approach as Spring's `TransactionSynchronization`, where post-commit and post-completion callbacks are invoked independently. Since callbacks fire after the transaction outcome is final, there is nothing to undo, so Storm runs every registered callback and surfaces the first exception rather than skipping the rest.
 
 Exposed's `StatementInterceptor` also provides hooks that Storm intentionally does not offer: `beforeCommit`, `beforeRollback`, and statement-level interceptors (`beforeExecution`, `afterExecution`). In Storm's stateless model, pre-commit logic belongs at the end of the `transaction { }` block itself, since there is no persistence context to flush or dirty state to reconcile before the commit. Statement-level observability is covered by Storm's [`@SqlLog`](sql-logging.md) annotation and `SqlCapture` test utility rather than a general interceptor mechanism.
 
@@ -18156,9 +18158,9 @@ transaction {
 }
 ```
 
-This is convenient for prototyping and simple applications. For production use, JetBrains recommends pairing Exposed with a dedicated migration tool like Flyway or Liquibase, since `SchemaUtils` does not handle column removal, type changes, or data migration.
+Beyond `SchemaUtils`, Exposed provides schema utilities, dedicated JDBC and R2DBC migration modules (`exposed-migration-jdbc` and `exposed-migration-r2dbc`, with `MigrationUtils`), and a Gradle plugin for generating migration scripts by comparing table definitions against the live database schema. Generated migrations must be reviewed and integrated into an execution workflow such as Flyway, Liquibase, or manual deployment; Exposed does not automatically apply generated migrations. See JetBrains' [migrations guide](https://www.jetbrains.com/help/exposed/migrations.html) for the full workflow.
 
-Storm does not include schema management or migration utilities. Schema management is expected to be handled externally using tools like Flyway, Liquibase, or plain SQL scripts. Storm's [schema validation](validation.md) feature can verify at startup that entity definitions match the database schema, catching mismatches early without modifying the schema itself.
+Storm intentionally provides schema validation but no schema-generation or migration facilities. Schema management is expected to be handled externally using tools like Flyway, Liquibase, or plain SQL scripts. Storm's [schema validation](validation.md) feature can verify at startup that entity definitions match the database schema, catching mismatches early without modifying the schema itself.
 
 ### When to Choose Storm
 
@@ -18171,13 +18173,14 @@ Storm does not include schema management or migration utilities. Schema manageme
 
 ### When to Choose Exposed
 
-- You prefer DSL-based table definitions
-- You want to switch between SQL DSL and DAO styles
 - You like the JetBrains ecosystem integration
-- You need fine-grained control over lazy loading
-- You need R2DBC support for reactive database access*
+- You prefer a SQL-oriented DSL for table definitions and queries
+- You want an optional DAO API alongside the DSL
+- You need JDBC or R2DBC support, including reactive, non-blocking database access*
+- You want built-in schema and migration tooling (`SchemaUtils`, `MigrationUtils`, the Gradle plugin)
+- You value a mature Kotlin community and ecosystem
 
-*Storm uses JDBC and relies on JVM virtual threads for non-blocking I/O instead of R2DBC.
+*Storm uses blocking JDBC, which can be executed efficiently on JVM virtual threads, rather than a non-blocking R2DBC driver.
 
 ## Storm vs Ktorm
 
@@ -18838,6 +18841,7 @@ This guide helps you transition from JPA/Hibernate to Storm. The two frameworks 
 | JPQL / Criteria API | Type-safe DSL / SQL Templates |
 | EntityManager | ORMTemplate |
 | `@OneToMany`, `@ManyToOne` | `@FK` annotation |
+| Cascade types on mappings | Write sets per call site |
 
 ## Entity Migration
 
@@ -19149,6 +19153,8 @@ Storm approach (query the "many" side):
 ```kotlin
 val orders = orm.findAll(Order_.user eq user)
 ```
+
+Without child collections there is also nothing to cascade over. Persisting a graph of related entities is a per-call decision made with [write sets](write-sets.md); [JPA Cascades vs Write Sets](jpa-cascades-vs-write-sets.md) walks through the translation and the reasoning behind it.
 
 ## Transaction Migration
 

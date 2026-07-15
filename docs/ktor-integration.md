@@ -242,7 +242,7 @@ One semantic difference from calling `transaction { }` manually: the handler, in
 
 ### Nested Transactions and Propagation
 
-Storm supports all standard propagation modes. Nested transactions are useful when composing services that each define their own transactional requirements. For example, an audit log that should persist even if the main operation fails needs its own independent transaction.
+Storm supports the full set of Spring-style propagation modes. Nested transactions are useful when composing services that each define their own transactional requirements. For example, an audit log that should persist even if the main operation fails needs its own independent transaction.
 
 ```kotlin
 post("/orders") {
@@ -258,7 +258,7 @@ post("/orders") {
 }
 ```
 
-All seven standard propagation modes are supported: `REQUIRED` (default), `REQUIRES_NEW`, `NESTED`, `SUPPORTS`, `MANDATORY`, `NOT_SUPPORTED`, and `NEVER`. See [Transactions](transactions.md) for the full propagation matrix and detailed examples.
+All seven Spring-style propagation modes are supported: `REQUIRED` (default), `REQUIRES_NEW`, `NESTED`, `SUPPORTS`, `MANDATORY`, `NOT_SUPPORTED`, and `NEVER`. See [Transactions](transactions.md) for the full propagation matrix and detailed examples.
 
 ### Read-Only Transactions
 
