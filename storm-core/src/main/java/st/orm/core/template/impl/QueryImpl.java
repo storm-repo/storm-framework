@@ -625,6 +625,12 @@ class QueryImpl implements Query {
         }
         var columnSkipper = mapper.columnSkipper();
         var calendarSupplier = lazy(() -> Calendar.getInstance(TimeZone.getTimeZone(ZoneOffset.UTC)));
+        // Resolve the per-column reader once per query rather than re-evaluating the target-type dispatch for every
+        // column of every row. The column types are fixed for the lifetime of the result set.
+        ColumnReader[] readers = new ColumnReader[columnCount];
+        for (int i = 0; i < columnCount; i++) {
+            readers[i] = columnReaderFor(types[i]);
+        }
         return new Spliterators.AbstractSpliterator<>(Long.MAX_VALUE, Spliterator.ORDERED) {
             @Override
             public boolean tryAdvance(@Nonnull Consumer<? super T> action) {
@@ -636,10 +642,10 @@ class QueryImpl implements Query {
                     if (columnSkipper != null) {
                         // Skip decoding non-key columns of entities that are already cached.
                         columnSkipper.readRow(args, index ->
-                                readColumnValue(resultSet, index + 1, types[index], calendarSupplier));
+                                readers[index].read(resultSet, index + 1, calendarSupplier));
                     } else {
                         for (int i = 0; i < columnCount; i++) {
-                            args[i] = readColumnValue(resultSet, i + 1, types[i], calendarSupplier);
+                            args[i] = readers[i].read(resultSet, i + 1, calendarSupplier);
                         }
                     }
                     action.accept(mapper.newInstance(args));
@@ -653,75 +659,116 @@ class QueryImpl implements Query {
         };
     }
 
-    private static Object readColumnValue(
-            @Nonnull ResultSet rs,
-            int columnIndex,
-            @Nonnull Class<?> targetType,
-            @Nonnull Supplier<Calendar> calendarSupplier
-    ) throws SQLException {
-        Object value = switch (targetType) {
-            // Primitives & basics.
-            case Class<?> c when c == Short.TYPE || c == Short.class     -> rs.getShort(columnIndex);
-            case Class<?> c when c == Integer.TYPE || c == Integer.class -> rs.getInt(columnIndex);
-            case Class<?> c when c == Long.TYPE || c == Long.class       -> rs.getLong(columnIndex);
-            case Class<?> c when c == Float.TYPE || c == Float.class     -> rs.getFloat(columnIndex);
-            case Class<?> c when c == Double.TYPE || c == Double.class   -> rs.getDouble(columnIndex);
-            case Class<?> c when c == Byte.TYPE || c == Byte.class       -> rs.getByte(columnIndex);
-            case Class<?> c when c == Boolean.TYPE || c == Boolean.class -> rs.getBoolean(columnIndex);
-            case Class<?> c when c == String.class                       -> rs.getString(columnIndex);
-            case Class<?> c when c == BigDecimal.class                   -> rs.getBigDecimal(columnIndex);
-            case Class<?> c when c == ByteBuffer.class -> {
-                byte[] bytes = rs.getBytes(columnIndex);
-                yield bytes != null ? ByteBuffer.wrap(bytes).asReadOnlyBuffer() : null;
-            }
-            case Class<?> c when c == UUID.class -> {
-                Object obj = rs.getObject(columnIndex);
-                yield obj instanceof UUID u ? u : obj != null ? UUID.fromString(obj.toString()) : null;
-            }
-            case Class<?> c when c.isEnum()                              -> rs.getString(columnIndex); // Enum handled by mapper.
-            case Class<?> c when c == java.util.Date.class -> {
-                Timestamp ts = rs.getTimestamp(columnIndex, calendarSupplier.get());
-                yield ts != null ? new java.util.Date(ts.getTime()) : null;
-            }
-            case Class<?> c when c == Calendar.class -> {
-                Timestamp ts = rs.getTimestamp(columnIndex, calendarSupplier.get());
-                if (ts == null) yield null;
-                Calendar out = (Calendar) calendarSupplier.get().clone();
+    /**
+     * Reads a single column value from a result set, decoding it to the resolved target type. One reader is resolved
+     * per column (see {@link #columnReaderFor}) and reused for every row, so the target-type dispatch is not repeated
+     * for every column of every row.
+     */
+    @FunctionalInterface
+    private interface ColumnReader {
+        Object read(@Nonnull ResultSet rs, int columnIndex, @Nonnull Supplier<Calendar> calendarSupplier)
+                throws SQLException;
+    }
+
+    /**
+     * Cache of resolved column readers, keyed by target type. Readers are stateless (the calendar is supplied per
+     * call), so a single instance per type is shared across every query for the lifetime of the VM. The value is
+     * computed at most once per type and read on a fast, lock-free path.
+     */
+    private static final ClassValue<ColumnReader> COLUMN_READERS = new ClassValue<>() {
+        @Override
+        protected ColumnReader computeValue(@Nonnull Class<?> type) {
+            return buildColumnReader(type);
+        }
+    };
+
+    /**
+     * Resolves the column reader for the given target type, computing it at most once per type for the lifetime of
+     * the VM.
+     */
+    private static ColumnReader columnReaderFor(@Nonnull Class<?> targetType) {
+        return COLUMN_READERS.get(targetType);
+    }
+
+    /**
+     * Builds the column reader for the given target type. Primitive-returning JDBC getters honour
+     * {@link ResultSet#wasNull()} so that a SQL NULL maps to {@code null} rather than the getter's zero value;
+     * reference-returning getters already yield {@code null} for SQL NULL, so no {@code wasNull} probe is needed.
+     */
+    private static ColumnReader buildColumnReader(@Nonnull Class<?> targetType) {
+        return switch (targetType) {
+            // Ordered most-common-first. Resolution is paid once per column per query, so this mainly trims the
+            // setup path, but keeping the frequent types (identifiers, names, flags) at the front is free.
+            case Class<?> c when c == String.class -> (rs, i, cal) -> rs.getString(i);
+            case Class<?> c when c == Integer.TYPE || c == Integer.class ->
+                    (rs, i, cal) -> { int v = rs.getInt(i); return rs.wasNull() ? null : v; };
+            case Class<?> c when c == Long.TYPE || c == Long.class ->
+                    (rs, i, cal) -> { long v = rs.getLong(i); return rs.wasNull() ? null : v; };
+            case Class<?> c when c == Boolean.TYPE || c == Boolean.class ->
+                    (rs, i, cal) -> { boolean v = rs.getBoolean(i); return rs.wasNull() ? null : v; };
+            case Class<?> c when c == Double.TYPE || c == Double.class ->
+                    (rs, i, cal) -> { double v = rs.getDouble(i); return rs.wasNull() ? null : v; };
+            // Remaining numeric primitives. wasNull distinguishes a genuine zero from a SQL NULL.
+            case Class<?> c when c == Short.TYPE || c == Short.class ->
+                    (rs, i, cal) -> { short v = rs.getShort(i); return rs.wasNull() ? null : v; };
+            case Class<?> c when c == Float.TYPE || c == Float.class ->
+                    (rs, i, cal) -> { float v = rs.getFloat(i); return rs.wasNull() ? null : v; };
+            case Class<?> c when c == Byte.TYPE || c == Byte.class ->
+                    (rs, i, cal) -> { byte v = rs.getByte(i); return rs.wasNull() ? null : v; };
+            case Class<?> c when c == BigDecimal.class -> (rs, i, cal) -> rs.getBigDecimal(i);
+            case Class<?> c when c == ByteBuffer.class -> (rs, i, cal) -> {
+                byte[] bytes = rs.getBytes(i);
+                return bytes != null ? ByteBuffer.wrap(bytes).asReadOnlyBuffer() : null;
+            };
+            case Class<?> c when c == UUID.class -> (rs, i, cal) -> {
+                Object obj = rs.getObject(i);
+                return obj instanceof UUID u ? u : obj != null ? UUID.fromString(obj.toString()) : null;
+            };
+            case Class<?> c when c.isEnum() -> (rs, i, cal) -> rs.getString(i); // Enum handled by mapper.
+            case Class<?> c when c == java.util.Date.class -> (rs, i, cal) -> {
+                Timestamp ts = rs.getTimestamp(i, cal.get());
+                return ts != null ? new java.util.Date(ts.getTime()) : null;
+            };
+            case Class<?> c when c == Calendar.class -> (rs, i, cal) -> {
+                Timestamp ts = rs.getTimestamp(i, cal.get());
+                if (ts == null) return null;
+                Calendar out = (Calendar) cal.get().clone();
                 out.setTimeInMillis(ts.getTime());
-                yield out;
-            }
-            case Class<?> c when c == Timestamp.class     -> rs.getTimestamp(columnIndex, calendarSupplier.get());
-            case Class<?> c when c == java.sql.Date.class -> rs.getDate(columnIndex);
-            case Class<?> c when c == Time.class          -> rs.getTime(columnIndex);
+                return out;
+            };
+            case Class<?> c when c == Timestamp.class     -> (rs, i, cal) -> rs.getTimestamp(i, cal.get());
+            case Class<?> c when c == java.sql.Date.class -> (rs, i, cal) -> rs.getDate(i);
+            case Class<?> c when c == Time.class          -> (rs, i, cal) -> rs.getTime(i);
             // java.time using vendor-safe approach.
-            case Class<?> c when c == LocalDateTime.class -> {
-                Timestamp ts = rs.getTimestamp(columnIndex);
-                yield ts != null ? ts.toLocalDateTime() : null;
-            }
-            case Class<?> c when c == LocalDate.class -> {
-                java.sql.Date d = rs.getDate(columnIndex);
-                yield d != null ? d.toLocalDate() : null;
-            }
-            case Class<?> c when c == LocalTime.class -> {
-                Time t = rs.getTime(columnIndex);
-                yield t != null ? t.toLocalTime() : null;
-            }
-            case Class<?> c when c == Instant.class -> {
-                Timestamp ts = rs.getTimestamp(columnIndex, calendarSupplier.get());
-                yield ts != null ? ts.toInstant() : null;
-            }
-            case Class<?> c when c == OffsetDateTime.class -> {
-                Timestamp ts = rs.getTimestamp(columnIndex, calendarSupplier.get());
-                yield ts != null ? OffsetDateTime.ofInstant(ts.toInstant(), ZoneOffset.UTC) : null;
-            }
-            case Class<?> c when c == ZonedDateTime.class -> {
-                Timestamp ts = rs.getTimestamp(columnIndex, calendarSupplier.get());
-                yield ts != null ? ZonedDateTime.ofInstant(ts.toInstant(), ZoneOffset.UTC) : null;
-            }
-            default -> rs.getObject(columnIndex);
+            case Class<?> c when c == LocalDateTime.class -> (rs, i, cal) -> {
+                Timestamp ts = rs.getTimestamp(i);
+                return ts != null ? ts.toLocalDateTime() : null;
+            };
+            case Class<?> c when c == LocalDate.class -> (rs, i, cal) -> {
+                java.sql.Date d = rs.getDate(i);
+                return d != null ? d.toLocalDate() : null;
+            };
+            case Class<?> c when c == LocalTime.class -> (rs, i, cal) -> {
+                Time t = rs.getTime(i);
+                return t != null ? t.toLocalTime() : null;
+            };
+            case Class<?> c when c == Instant.class -> (rs, i, cal) -> {
+                Timestamp ts = rs.getTimestamp(i, cal.get());
+                return ts != null ? ts.toInstant() : null;
+            };
+            case Class<?> c when c == OffsetDateTime.class -> (rs, i, cal) -> {
+                Timestamp ts = rs.getTimestamp(i, cal.get());
+                return ts != null ? OffsetDateTime.ofInstant(ts.toInstant(), ZoneOffset.UTC) : null;
+            };
+            case Class<?> c when c == ZonedDateTime.class -> (rs, i, cal) -> {
+                Timestamp ts = rs.getTimestamp(i, cal.get());
+                return ts != null ? ZonedDateTime.ofInstant(ts.toInstant(), ZoneOffset.UTC) : null;
+            };
+            default -> (rs, i, cal) -> {
+                Object value = rs.getObject(i);
+                return rs.wasNull() ? null : value;
+            };
         };
-        if (rs.wasNull()) return null;
-        return value;
     }
 
     @Override

@@ -137,7 +137,9 @@ final class RecordMapper {
                                                     @Nonnull RecordType type,
                                                     @Nonnull RefFactory refFactory,
                                                     @Nullable TransactionContext transactionContext) throws SqlTemplateException {
-        if (getParameterCount(type) == columnCount) {
+        // The compiled plan already holds the flat column count (its parameterTypes length), cached per type.
+        // Reuse it instead of re-walking the record structure on every query, as getParameterCount would.
+        if (compiledFor(type, refFactory).parameterTypes().length == columnCount) {
             return Optional.of(wrapConstructor(type, refFactory, transactionContext));
         }
         return empty();
@@ -446,6 +448,17 @@ final class RecordMapper {
         return wrapConstructor(type, refFactory, transactionContext, new WeakInterner());
     }
 
+    /**
+     * Resolves the transaction-scoped entity cache for the top-level entity type. Only called when the type is an
+     * entity within a transaction and caching is required.
+     */
+    @SuppressWarnings("unchecked")
+    private static EntityCache<Entity<?>, ?> resolveEntityCache(@Nonnull TransactionContext transactionContext,
+                                                                @Nonnull RecordType type) {
+        return (EntityCache<Entity<?>, ?>) transactionContext.entityCache(
+                (Class<? extends Entity<?>>) type.type(), CacheRetention.fromConfig(StormConfig.defaults()));
+    }
+
     private static <T> ObjectMapper<T> wrapConstructor(@Nonnull RecordType type,
                                                        @Nonnull RefFactory refFactory,
                                                        @Nullable TransactionContext transactionContext,
@@ -454,18 +467,15 @@ final class RecordMapper {
         boolean isEntity = Entity.class.isAssignableFrom(type.type());
         // Determine cache read/write policy.
         // Cache read: return cached instances (identity preservation) - only at REPEATABLE_READ+
-        // Cache write: store for dirty tracking OR for identity preservation
+        // Cache write: store for dirty tracking OR for identity preservation.
+        // Only entities in a transaction can be cached; the leading conditions short-circuit the dirty-tracking
+        // lookup so it is never computed on a non-transactional read.
         boolean cacheReadEnabled = transactionContext != null && transactionContext.isRepeatableRead();
-        boolean dirtyTrackingEnabled = getUpdateMode(type, StormConfig.defaults()) != OFF;
-        boolean cacheWriteEnabled = cacheReadEnabled || dirtyTrackingEnabled;
-        EntityCache<Entity<?>, ?> entityCache;
-        if (transactionContext != null && isEntity && cacheWriteEnabled) {
-            //noinspection unchecked
-            entityCache = (EntityCache<Entity<?>, ?>) transactionContext.entityCache(
-                    (Class<? extends Entity<?>>) type.type(), CacheRetention.fromConfig(StormConfig.defaults()));
-        } else {
-            entityCache = null;
-        }
+        EntityCache<Entity<?>, ?> entityCache =
+                transactionContext != null && isEntity
+                        && (cacheReadEnabled || getUpdateMode(type, StormConfig.defaults()) != OFF)
+                        ? resolveEntityCache(transactionContext, type)
+                        : null;
         PkInfo pkInfo = compiled.pkInfo();
         ColumnSkipper columnSkipper = createColumnSkipper(type, compiled, cacheReadEnabled, entityCache,
                 interner, transactionContext);
