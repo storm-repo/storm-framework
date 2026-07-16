@@ -60,18 +60,12 @@ const CSS = `
   .storm-home .card.bcard{padding:18px 22px}
   .storm-home .bcard.bench{min-height:186px}
   .storm-home .bcard{position:relative;overflow:hidden}
-  .storm-home .bcard .bfront p{font-size:12.5px;line-height:1.5}
-  .storm-home .bcard .bfront .ic{width:26px;height:26px;margin-bottom:8px}
-  .storm-home .bcard .bfront h3{font-size:15px;margin-bottom:6px}
   .storm-home .bcard .bback p{font-size:12.5px;line-height:1.5}
   .storm-home .bcard .bback h3{font-size:15.5px;margin-bottom:7px}
   .storm-home .bface{transition:opacity .55s ease,transform .55s ease}
   .storm-home .bcard:nth-child(2) .bface{transition-delay:.12s}
   .storm-home .bcard:nth-child(3) .bface{transition-delay:.24s}
-  .storm-home .bfront{position:relative}
-  .storm-home .bback{position:absolute;inset:0;padding:inherit;opacity:0;transform:translateY(10px);pointer-events:none}
-  .storm-home .bcard.bench .bfront{position:absolute;inset:0;padding:inherit;opacity:0;transform:translateY(-10px);pointer-events:none}
-  .storm-home .bcard.bench .bback{position:relative;inset:auto;padding:0;opacity:1;transform:none;pointer-events:auto}
+  .storm-home .bback{position:relative;inset:auto;padding:0;opacity:1;transform:none;pointer-events:auto}
   .storm-home .bnum{font-size:42px;font-weight:800;line-height:1;margin-bottom:8px;letter-spacing:-.02em;background:linear-gradient(100deg,#feeeb0,#fbbf24 55%,#f59e0b);-webkit-background-clip:text;background-clip:text;color:transparent}
   .storm-home .bback a{color:var(--accent);text-decoration:none;font-weight:600;white-space:nowrap}
   .storm-home .bback a:hover{text-decoration:underline}
@@ -308,40 +302,25 @@ const BODY = `
 <section style="padding-top:48px;padding-bottom:30px"><div class="wrap">
   <div class="vs-chips"><span class="vs-label">Benchmark against</span><button data-vs="hibernate">Hibernate</button><button data-vs="jooq">jOOQ</button><button data-vs="exposed">Exposed</button><button data-vs="exposedDao">Exposed DAO</button><button data-vs="jimmer">Jimmer</button><button data-vs="jdbc">JDBC</button><a class="vs-bench" href="/benchmarks">See the benchmarks →</a></div>
   <div class="three">
-    <div class="card bcard">
-      <div class="bface bfront">
-      <div class="ic"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 12h18M3 6h18M3 18h18"/></svg></div>
-      <h3>Direct database control</h3>
-      <p>Every query is explicit and predictable. Nested predicates and entity graphs compile to a single efficient query, eliminating accidental hidden N+1 queries.</p>
-      </div>
+    <div class="card bcard bench">
       <div class="bface bback" data-slot="speed">
-        <div class="bnum"></div>
-        <h3></h3>
-        <p><span class="btext"></span></p>
+        <div class="bnum">17%</div>
+        <h3>faster than Hibernate</h3>
+        <p><span class="btext">Averaged across 8 workloads.</span></p>
       </div>
     </div>
-    <div class="card bcard">
-      <div class="bface bfront">
-      <div class="ic"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 6 9 17l-5-5"/></svg></div>
-      <h3>Stateless and Immutable</h3>
-      <p>Immutable data classes. No proxies, no flush, no hidden state. What you see is what you get. Safe to cache, share, and serialize across every layer.</p>
-      </div>
+    <div class="card bcard bench">
       <div class="bface bback" data-slot="entities">
-        <div class="bnum"></div>
-        <h3></h3>
-        <p><span class="btext"></span></p>
+        <div class="bnum">72%</div>
+        <h3>fewer entity lines</h3>
+        <p><span class="btext">The five-table model: 29 lines in Storm, 105 in Hibernate.</span></p>
       </div>
     </div>
-    <div class="card bcard">
-      <div class="bface bfront">
-      <div class="ic"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2 4 6v6c0 5 3.5 8 8 10 4.5-2 8-5 8-10V6z"/></svg></div>
-      <h3>Type-safe and Injection-safe</h3>
-      <p>Compile-time detection of column and type errors. Automatic conversion of interpolated values into bind parameters.</p>
-      </div>
+    <div class="card bcard bench">
       <div class="bface bback" data-slot="queries">
-        <div class="bnum"></div>
-        <h3></h3>
-        <p><span class="btext"></span></p>
+        <div class="bnum">19%</div>
+        <h3>fewer query lines</h3>
+        <p><span class="btext">All eight workloads: 100 lines in Storm, 123 in Hibernate, with no query strings.</span></p>
       </div>
     </div>
   </div>
@@ -382,30 +361,30 @@ const BODY = `
 
 export default function Home() {
   useEffect(() => {
-    // Pick your ORM: the feature cards flip to Storm-vs-X measured figures (run of 2026-07-14).
+    // Pick your ORM: the feature cards show Storm-vs-X measured figures (run of 2026-07-16).
     const VS = {
       hibernate: {
-        speed: ['11%', 'faster than Hibernate', 'Averaged across 8 workloads.'],
+        speed: ['17%', 'faster than Hibernate', 'On average across 8 workloads.'],
         entities: ['72%', 'fewer entity lines', 'The five-table model: 29 lines in Storm, 105 in Hibernate.'],
         queries: ['19%', 'fewer query lines', 'All eight workloads: 100 lines in Storm, 123 in Hibernate, with no query strings.'],
       },
       jooq: {
-        speed: ['7%', 'faster than jOOQ', 'Averaged across 8 workloads.'],
+        speed: ['15%', 'faster than jOOQ', 'On average across 8 workloads.'],
         entities: ['29 lines', 'instead of manual mapping', 'jOOQ maps results by hand into DTOs; Storm turns one 29-line model into typed rows everywhere.'],
         queries: ['24%', 'fewer query lines', 'All eight workloads: 100 lines in Storm, 131 in jOOQ, no hand-written row mapping.'],
       },
       exposed: {
-        speed: ['18%', 'faster than Exposed', 'Averaged across 8 workloads.'],
+        speed: ['18%', 'faster than Exposed', 'On average across 8 workloads.'],
         entities: ['43%', 'fewer entity lines', 'The five-table model: 29 lines in Storm, 51 lines of Exposed table objects and data classes.'],
         queries: ['22%', 'fewer query lines', 'All eight workloads: 100 lines in Storm, 128 in Exposed, no hand-written row mapping.'],
       },
       exposedDao: {
-        speed: ['39%', 'faster than Exposed DAO', 'Averaged across 8 workloads.'],
+        speed: ['38%', 'faster than Exposed DAO', 'On average across 8 workloads.'],
         entities: ['58%', 'fewer entity lines', 'One data class per table in Storm; Exposed DAO needs the table object, the DAO class and a DTO.'],
         queries: ['19%', 'fewer query lines', 'All eight workloads: 100 lines in Storm, 124 in Exposed DAO.'],
       },
       jimmer: {
-        speed: ['30%', 'faster than Jimmer', 'Averaged across 8 workloads.'],
+        speed: ['25%', 'faster than Jimmer', 'On average across 8 workloads.'],
         entities: ['47%', 'fewer entity lines', 'The five-table model: 29 lines of data classes in Storm, 55 lines of interfaces in Jimmer.'],
         queries: ['31%', 'fewer query lines', 'All eight workloads: 100 lines in Storm, 144 in Jimmer.'],
       },
@@ -417,14 +396,8 @@ export default function Home() {
     };
     const vsCards = [...document.querySelectorAll('.storm-home .bcard')];
     const vsChips = [...document.querySelectorAll('.storm-home .vs-chips button')];
-    let vsActive = null;
     function applyVs(key) {
-      vsActive = key;
       vsChips.forEach((chip) => chip.classList.toggle('on', chip.dataset.vs === key));
-      if (!key) {
-        vsCards.forEach((card) => card.classList.remove('bench'));
-        return;
-      }
       const data = VS[key];
       vsCards.forEach((card) => {
         const back = card.querySelector('.bback');
@@ -446,7 +419,7 @@ export default function Home() {
     }, 7000);
     vsChips.forEach((chip) => chip.addEventListener('click', () => {
       clearInterval(vsAuto);
-      applyVs(vsActive === chip.dataset.vs ? null : chip.dataset.vs);
+      applyVs(chip.dataset.vs);
     }));
     applyVs('hibernate');
 
