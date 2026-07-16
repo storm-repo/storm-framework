@@ -122,7 +122,7 @@ export function editor({file, tag, code, sql, copy, variants}) {
           const paneCopy = v.copy || (copy === true ? toPlain(v.code) : null);
           return `<div class="codearea varpane${i === selectedIdx ? ' on' : ''}"${
             paneCopy ? ` data-copy="${esc(paneCopy).replace(/"/g, '&quot;')}"` : ''
-          }${v.tag ? ` data-tag="${esc(v.tag)}"` : ''}${v.file ? ` data-file="${esc(v.file)}"` : ''}>${pane(v.code)}</div>`;
+          }${v.tag ? ` data-tag="${esc(v.tag).replace(/"/g, '&quot;')}"` : ''}${v.file ? ` data-file="${esc(v.file).replace(/"/g, '&quot;')}"` : ''}>${pane(v.code)}</div>`;
         })
         .join('')
     : `<div class="codearea">${pane(code)}</div>`;
