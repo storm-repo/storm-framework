@@ -96,7 +96,12 @@ export function editor({file, tag, code, sql, copy, variants}) {
         .map((v, i) => `<option value="${i}"${i === selectedIdx ? ' selected' : ''}>${esc(v.label)}</option>`)
         .join('')}</select></span>`
     : '';
-  const sqlBtn = sql
+  // Per-variant SQL: a variant may carry its own `sql` (e.g. jOOQ's MULTISET or
+  // multi-row insert), otherwise it falls back to the shared `sql`. The Show SQL
+  // panel then switches with the selected variant.
+  const hasVariantSql = variants && variants.some((v) => v.sql);
+  const hasSql = Boolean(sql) || hasVariantSql;
+  const sqlBtn = hasSql
     ? `<span class="sqlbtn"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><ellipse cx="12" cy="5" rx="8" ry="3"/><path d="M4 5v14c0 1.7 3.6 3 8 3s8-1.3 8-3V5"/><path d="M4 12c0 1.7 3.6 3 8 3s8-1.3 8-3"/></svg><span class="sqlbtntext">Show SQL</span></span>`
     : '';
   const copyText =
@@ -104,8 +109,12 @@ export function editor({file, tag, code, sql, copy, variants}) {
   const copyBtn = copyText
     ? `<span class="copybtn" data-copy="${esc(copyText).replace(/"/g, '&quot;')}"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="12" height="12" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg><span class="copybtntext">Copy</span></span>`
     : '';
-  const sqlConsole = sql
-    ? `<div class="sqlhead"><span class="ar">↳</span> generated sql</div><div class="sqlconsole"><pre class="sqlpanel">${sql}</pre></div>`
+  const sqlConsole = hasSql
+    ? `<div class="sqlhead"><span class="ar">↳</span> generated sql</div><div class="sqlconsole">${
+        hasVariantSql
+          ? variants.map((v, i) => `<pre class="sqlpanel sqlpane${i === selectedIdx ? ' on' : ''}">${v.sql || sql || ''}</pre>`).join('')
+          : `<pre class="sqlpanel">${sql}</pre>`
+      }</div>`
     : '';
   const codeareas = variants
     ? variants
@@ -113,7 +122,7 @@ export function editor({file, tag, code, sql, copy, variants}) {
           const paneCopy = v.copy || (copy === true ? toPlain(v.code) : null);
           return `<div class="codearea varpane${i === selectedIdx ? ' on' : ''}"${
             paneCopy ? ` data-copy="${esc(paneCopy).replace(/"/g, '&quot;')}"` : ''
-          }>${pane(v.code)}</div>`;
+          }${v.tag ? ` data-tag="${esc(v.tag)}"` : ''}${v.file ? ` data-file="${esc(v.file)}"` : ''}>${pane(v.code)}</div>`;
         })
         .join('')
     : `<div class="codearea">${pane(code)}</div>`;
@@ -121,8 +130,8 @@ export function editor({file, tag, code, sql, copy, variants}) {
 <div class="editor">
   <div class="ebar">
     <span class="dot r"></span><span class="dot y"></span><span class="dot g"></span>
-    <span class="fname">${esc(file)}</span>
-    ${tag ? `<span class="langtag">${esc(tag)}</span>` : '<span class="langtag"></span>'}
+    <span class="fname">${esc((variants && variants[selectedIdx] && variants[selectedIdx].file) || file || '')}</span>
+    <span class="langtag">${esc((variants && variants[selectedIdx] && variants[selectedIdx].tag) || tag || '')}</span>
     ${varSel}${sqlBtn}${copyBtn}
   </div>
   ${codeareas}
@@ -205,12 +214,20 @@ export function wireSqlToggles() {
     const sel = ed.querySelector('.varsel');
     if (sel) {
       const panes = ed.querySelectorAll('.varpane');
+      const sqlPanes = ed.querySelectorAll('.sqlpane');
       const onChange = () => {
         const idx = Number(sel.value);
         panes.forEach((p, i) => p.classList.toggle('on', i === idx));
+        sqlPanes.forEach((p, i) => p.classList.toggle('on', i === idx));
         // A variant can carry its own copy text (data-copy on the pane).
         const cp = ed.querySelector('.copybtn');
         if (cp && panes[idx] && panes[idx].dataset.copy) cp.dataset.copy = panes[idx].dataset.copy;
+        // A variant can carry its own language tag (data-tag on the pane).
+        const lt = ed.querySelector('.langtag');
+        if (lt && panes[idx] && panes[idx].dataset.tag) lt.textContent = panes[idx].dataset.tag;
+        // A variant can carry its own filename (data-file on the pane).
+        const fn = ed.querySelector('.fname');
+        if (fn && panes[idx] && panes[idx].dataset.file) fn.textContent = panes[idx].dataset.file;
       };
       sel.addEventListener('change', onChange);
       cleanups.push(() => sel.removeEventListener('change', onChange));
@@ -391,6 +408,8 @@ export const TUT_CSS = `
   .storm-tut .sqlconsole{display:none;border-top:1px solid var(--border-soft);background:var(--statusbg)}
   .storm-tut .editor.show-sql .sqlconsole,.storm-tut .editor.show-sql .sqlhead{display:flex}
   .storm-tut .sqlpanel{margin:0;padding:14px 18px 18px;font-family:var(--mono);font-size:12.5px;line-height:1.75;white-space:pre;overflow-x:auto;color:var(--plain);flex:1}
+  .storm-tut .sqlconsole .sqlpane{display:none}
+  .storm-tut .sqlconsole .sqlpane.on{display:block}
   .storm-tut .sqlk{color:var(--accent)}.storm-tut .sqlq{color:var(--num)}.storm-tut .sqlc{color:var(--com)}
 
   /* at-a-glance two-pane strip */

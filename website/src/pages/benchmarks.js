@@ -2,7 +2,7 @@ import React, {useEffect} from 'react';
 import Head from '@docusaurus/Head';
 import {
   TUT_CSS, navHtml, FOOT_HTML, wireSqlToggles, editor, clonebar,
-  K, T, S, C, F, N, A, P, QK, QQ,
+  K, T, S, C, F, N, A, P, QK, QQ, QC,
 } from '../components/tutorial/tutorialTheme';
 
 const TITLE = 'Benchmarks · ST/ORM vs Hibernate, jOOQ, Exposed and Jimmer';
@@ -169,6 +169,149 @@ const CODE_ENTITIES = [
   `    ${A('@FK')} ${K('val')} owner: ${T('Owner')},`,
   `) : ${T('Entity')}&lt;${T('Long')}&gt;`,
 ].join('\n');
+const CODE_MODEL_JDBC = [
+  `${C('// No ORM model. Rows are hand-mapped into plain records:')}`,
+  `${K('record')} ${T('City')}(${K('long')} id, ${T('String')} name) {}`,
+  ``,
+  `${K('record')} ${T('Owner')}(${K('long')} id, ${T('String')} firstName, ${T('String')} lastName,`,
+  `               ${T('String')} address, ${T('String')} telephone, ${T('City')} city) {}`,
+  ``,
+  `${K('record')} ${T('Pet')}(${K('long')} id, ${T('String')} name, ${T('LocalDate')} birthDate,`,
+  `             ${K('long')} typeId, ${T('Owner')} owner) {}`,
+].join('\n');
+const CODE_MODEL_HIBERNATE = [
+  `${C('// Private fields, field access. Getters/setters added only where the app calls them.')}`,
+  `${A('@Entity')} ${A('@Table')}(name = ${S('"city"')})`,
+  `${K('class')} ${T('City')} {`,
+  `    ${A('@Id')} ${A('@GeneratedValue')}(strategy = IDENTITY) ${T('Long')} id;`,
+  `    ${A('@Column')}(name = ${S('"name"')}) ${T('String')} name;`,
+  `}`,
+  ``,
+  `${A('@Entity')} ${A('@Table')}(name = ${S('"owner"')}) ${A('@DynamicUpdate')}`,
+  `${K('class')} ${T('Owner')} {`,
+  `    ${A('@Id')} ${A('@GeneratedValue')}(strategy = IDENTITY) ${T('Long')} id;`,
+  `    ${A('@Column')}(name = ${S('"first_name"')}) ${T('String')} firstName;`,
+  `    ${A('@Column')}(name = ${S('"last_name"')}) ${T('String')} lastName;`,
+  `    ${A('@Column')}(name = ${S('"address"')}) ${T('String')} address;`,
+  `    ${A('@Column')}(name = ${S('"telephone"')}) ${T('String')} telephone;`,
+  `    ${A('@ManyToOne')}(fetch = LAZY) ${A('@JoinColumn')}(name = ${S('"city_id"')}) ${T('City')} city;`,
+  `    ${A('@OneToMany')}(mappedBy = ${S('"owner"')}) ${T('List')}&lt;${T('Pet')}&gt; pets;`,
+  `}`,
+  ``,
+  `${A('@Entity')} ${A('@Table')}(name = ${S('"pet"')})`,
+  `${K('class')} ${T('Pet')} {`,
+  `    ${A('@Id')} ${A('@GeneratedValue')}(strategy = IDENTITY) ${T('Long')} id;`,
+  `    ${A('@Column')}(name = ${S('"name"')}) ${T('String')} name;`,
+  `    ${A('@Column')}(name = ${S('"birth_date"')}) ${T('LocalDate')} birthDate;`,
+  `    ${A('@ManyToOne')}(fetch = LAZY) ${A('@JoinColumn')}(name = ${S('"type_id"')}) ${T('PetType')} type;`,
+  `    ${A('@ManyToOne')}(fetch = LAZY) ${A('@JoinColumn')}(name = ${S('"owner_id"')}) ${T('Owner')} owner;`,
+  `}`,
+].join('\n');
+const CODE_MODEL_JOOQ = [
+  `${C('// jOOQ generates the table classes from the schema; there is no entity model.')}`,
+  `${C('// You still write the result records it maps into, shared here with JDBC:')}`,
+  `${K('record')} ${T('City')}(${K('long')} id, ${T('String')} name) {}`,
+  ``,
+  `${K('record')} ${T('Owner')}(${K('long')} id, ${T('String')} firstName, ${T('String')} lastName,`,
+  `               ${T('String')} address, ${T('String')} telephone, ${T('City')} city) {}`,
+  ``,
+  `${K('record')} ${T('Pet')}(${K('long')} id, ${T('String')} name, ${T('LocalDate')} birthDate,`,
+  `             ${K('long')} typeId, ${T('Owner')} owner) {}`,
+].join('\n');
+const CODE_MODEL_EXPOSED = [
+  `${K('object')} ${T('Cities')} : ${T('Table')}(${S('"city"')}) {`,
+  `    ${K('val')} id = ${F('long')}(${S('"id"')}).${F('autoIncrement')}()`,
+  `    ${K('val')} name = ${F('varchar')}(${S('"name"')}, ${N('100')})`,
+  `    ${K('override val')} primaryKey = ${T('PrimaryKey')}(id)`,
+  `}`,
+  ``,
+  `${K('object')} ${T('Owners')} : ${T('Table')}(${S('"owner"')}) {`,
+  `    ${K('val')} id = ${F('long')}(${S('"id"')}).${F('autoIncrement')}()`,
+  `    ${K('val')} firstName = ${F('varchar')}(${S('"first_name"')}, ${N('50')})`,
+  `    ${K('val')} lastName = ${F('varchar')}(${S('"last_name"')}, ${N('50')})`,
+  `    ${K('val')} address = ${F('varchar')}(${S('"address"')}, ${N('120')})`,
+  `    ${K('val')} telephone = ${F('varchar')}(${S('"telephone"')}, ${N('20')})`,
+  `    ${K('val')} cityId = ${F('long')}(${S('"city_id"')}).${F('references')}(${T('Cities')}.id)`,
+  `    ${K('override val')} primaryKey = ${T('PrimaryKey')}(id)`,
+  `}`,
+  ``,
+  `${K('object')} ${T('Pets')} : ${T('Table')}(${S('"pet"')}) {`,
+  `    ${K('val')} id = ${F('long')}(${S('"id"')}).${F('autoIncrement')}()`,
+  `    ${K('val')} name = ${F('varchar')}(${S('"name"')}, ${N('50')})`,
+  `    ${K('val')} birthDate = ${F('date')}(${S('"birth_date"')})`,
+  `    ${K('val')} typeId = ${F('long')}(${S('"type_id"')}).${F('references')}(${T('PetTypes')}.id)`,
+  `    ${K('val')} ownerId = ${F('long')}(${S('"owner_id"')}).${F('references')}(${T('Owners')}.id)`,
+  `    ${K('override val')} primaryKey = ${T('PrimaryKey')}(id)`,
+  `}`,
+].join('\n');
+const CODE_MODEL_EXPOSED_DAO = [
+  `${K('object')} ${T('Cities')} : ${T('LongIdTable')}(${S('"city"')}) { ${K('val')} name = ${F('varchar')}(${S('"name"')}, ${N('100')}) }`,
+  ``,
+  `${K('object')} ${T('Owners')} : ${T('LongIdTable')}(${S('"owner"')}) {`,
+  `    ${K('val')} firstName = ${F('varchar')}(${S('"first_name"')}, ${N('50')})`,
+  `    ${K('val')} lastName = ${F('varchar')}(${S('"last_name"')}, ${N('50')})`,
+  `    ${K('val')} address = ${F('varchar')}(${S('"address"')}, ${N('120')})`,
+  `    ${K('val')} telephone = ${F('varchar')}(${S('"telephone"')}, ${N('20')})`,
+  `    ${K('val')} cityId = ${F('reference')}(${S('"city_id"')}, ${T('Cities')})`,
+  `}`,
+  ``,
+  `${K('object')} ${T('Pets')} : ${T('LongIdTable')}(${S('"pet"')}) {`,
+  `    ${K('val')} name = ${F('varchar')}(${S('"name"')}, ${N('50')})`,
+  `    ${K('val')} birthDate = ${F('date')}(${S('"birth_date"')})`,
+  `    ${K('val')} typeId = ${F('reference')}(${S('"type_id"')}, ${T('PetTypes')})`,
+  `    ${K('val')} ownerId = ${F('reference')}(${S('"owner_id"')}, ${T('Owners')})`,
+  `}`,
+  ``,
+  `${K('class')} ${T('CityDao')}(id: ${T('EntityID')}&lt;${T('Long')}&gt;) : ${T('LongEntity')}(id) {`,
+  `    ${K('companion object')} : ${T('LongEntityClass')}&lt;${T('CityDao')}&gt;(${T('Cities')})`,
+  `    ${K('var')} name ${K('by')} ${T('Cities')}.name`,
+  `}`,
+  ``,
+  `${K('class')} ${T('OwnerDao')}(id: ${T('EntityID')}&lt;${T('Long')}&gt;) : ${T('LongEntity')}(id) {`,
+  `    ${K('companion object')} : ${T('LongEntityClass')}&lt;${T('OwnerDao')}&gt;(${T('Owners')})`,
+  `    ${K('var')} firstName ${K('by')} ${T('Owners')}.firstName`,
+  `    ${K('var')} lastName ${K('by')} ${T('Owners')}.lastName`,
+  `    ${K('var')} address ${K('by')} ${T('Owners')}.address`,
+  `    ${K('var')} telephone ${K('by')} ${T('Owners')}.telephone`,
+  `    ${K('var')} city ${K('by')} ${T('CityDao')} ${F('referencedOn')} ${T('Owners')}.cityId`,
+  `    ${K('val')} pets ${K('by')} ${T('PetDao')} ${F('referrersOn')} ${T('Pets')}.ownerId`,
+  `}`,
+  ``,
+  `${K('class')} ${T('PetDao')}(id: ${T('EntityID')}&lt;${T('Long')}&gt;) : ${T('LongEntity')}(id) {`,
+  `    ${K('companion object')} : ${T('LongEntityClass')}&lt;${T('PetDao')}&gt;(${T('Pets')})`,
+  `    ${K('var')} name ${K('by')} ${T('Pets')}.name`,
+  `    ${K('var')} birthDate ${K('by')} ${T('Pets')}.birthDate`,
+  `    ${K('var')} typeId ${K('by')} ${T('Pets')}.typeId`,
+  `    ${K('var')} owner ${K('by')} ${T('OwnerDao')} ${F('referencedOn')} ${T('Pets')}.ownerId`,
+  `}`,
+].join('\n');
+const CODE_MODEL_JIMMER = [
+  `${A('@Entity')} ${A('@Table')}(name = ${S('"city"')})`,
+  `${K('interface')} ${T('City')} {`,
+  `    ${A('@Id')} ${K('long')} ${F('id')}();`,
+  `    ${T('String')} ${F('name')}();`,
+  `}`,
+  ``,
+  `${A('@Entity')} ${A('@Table')}(name = ${S('"owner"')})`,
+  `${K('interface')} ${T('Owner')} {`,
+  `    ${A('@Id')} ${K('long')} ${F('id')}();`,
+  `    ${T('String')} ${F('firstName')}();`,
+  `    ${T('String')} ${F('lastName')}();`,
+  `    ${T('String')} ${F('address')}();`,
+  `    ${T('String')} ${F('telephone')}();`,
+  `    ${A('@ManyToOne')} ${A('@JoinColumn')}(name = ${S('"city_id"')}) ${T('City')} ${F('city')}();`,
+  `    ${A('@OneToMany')}(mappedBy = ${S('"owner"')}) ${T('List')}&lt;${T('Pet')}&gt; ${F('pets')}();`,
+  `}`,
+  ``,
+  `${A('@Entity')} ${A('@Table')}(name = ${S('"pet"')})`,
+  `${K('interface')} ${T('Pet')} {`,
+  `    ${A('@Id')} ${K('long')} ${F('id')}();`,
+  `    ${T('String')} ${F('name')}();`,
+  `    ${T('LocalDate')} ${F('birthDate')}();`,
+  `    ${A('@ManyToOne')} ${A('@JoinColumn')}(name = ${S('"type_id"')}) ${T('PetType')} ${F('type')}();`,
+  `    ${A('@ManyToOne')} ${A('@JoinColumn')}(name = ${S('"owner_id"')}) ${T('Owner')} ${F('owner')}();`,
+  `}`,
+].join('\n');
 
 const CODE_SINGLE = [
   `${K('val')} visit = visits.${F('getById')}(id)`,
@@ -177,6 +320,39 @@ const SQL_SINGLE = [
   `${QK('SELECT')} v.id, v.pet_id, v.visit_date, v.description`,
   `${QK('FROM')} visit v`,
   `${QK('WHERE')} v.id = ${QQ('?')}`,
+].join('\n');
+const CODE_SINGLE_JDBC = [
+  `${K('try')} (${K('var')} ps = connection.${F('prepareStatement')}(`,
+  `        ${S('"SELECT id, pet_id, visit_date, description FROM visit WHERE id = ?"')})) {`,
+  `    ps.${F('setLong')}(${N('1')}, id);`,
+  `    ${K('try')} (${K('var')} rs = ps.${F('executeQuery')}()) {`,
+  `        rs.${F('next')}();`,
+  `        ${K('return')} ${K('new')} ${T('Visit')}(rs.${F('getLong')}(${N('1')}), rs.${F('getLong')}(${N('2')}),`,
+  `                rs.${F('getObject')}(${N('3')}, ${T('LocalDate')}.${K('class')}), rs.${F('getString')}(${N('4')}));`,
+  `    }`,
+  `}`,
+].join('\n');
+const CODE_SINGLE_HIBERNATE = [
+  `${K('return')} sessionFactory.${F('fromSession')}(session -> session.${F('find')}(${T('Visit')}.${K('class')}, id));`,
+].join('\n');
+const CODE_SINGLE_JOOQ = [
+  `${K('return')} ctx.${F('select')}(${T('VISIT')}.ID, ${T('VISIT')}.PET_ID, ${T('VISIT')}.VISIT_DATE, ${T('VISIT')}.DESCRIPTION)`,
+  `        .${F('from')}(${T('VISIT')})`,
+  `        .${F('where')}(${T('VISIT')}.ID.${F('eq')}(id))`,
+  `        .${F('fetchOne')}(${T('Records')}.${F('mapping')}(${T('Visit')}::new));`,
+].join('\n');
+const CODE_SINGLE_EXPOSED = [
+  `${F('transaction')}(database) {`,
+  `    ${T('Visits')}.${F('selectAll')}().${F('where')} { ${T('Visits')}.id ${F('eq')} id }.${F('single')}().${F('toVisit')}()`,
+  `}`,
+].join('\n');
+const CODE_SINGLE_EXPOSED_DAO = [
+  `${F('transaction')}(database) {`,
+  `    ${T('VisitDao')}.${F('findById')}(id)!!.${F('toVisit')}()`,
+  `}`,
+].join('\n');
+const CODE_SINGLE_JIMMER = [
+  `${K('return')} sqlClient.${F('getEntities')}().${F('findById')}(${T('Visit')}.${K('class')}, id);`,
 ].join('\n');
 
 const CODE_JOIN = [
@@ -191,6 +367,90 @@ const SQL_JOIN = [
   `${QK('INNER JOIN')} owner o ${QK('ON')} p.owner_id = o.id`,
   `${QK('INNER JOIN')} city c ${QK('ON')} o.city_id = c.id`,
   `${QK('WHERE')} p.id > ${QQ('?')} ${QK('AND')} p.id &lt;= ${QQ('?')}`,
+].join('\n');
+const CODE_JOIN_JDBC = [
+  `${K('try')} (${K('var')} ps = connection.${F('prepareStatement')}(`,
+  `        ${S('"SELECT p.id, p.name, ..., c.id, c.name FROM pet p"')}`,
+  `        + ${S('" JOIN owner o ON p.owner_id = o.id JOIN city c ON o.city_id = c.id"')}`,
+  `        + ${S('" WHERE p.id > ? AND p.id <= ?"')})) {`,
+  `    ps.${F('setLong')}(${N('1')}, base); ps.${F('setLong')}(${N('2')}, base + rows);`,
+  `    ${K('try')} (${K('var')} rs = ps.${F('executeQuery')}()) {`,
+  `        ${T('List')}&lt;${T('Pet')}&gt; pets = ${K('new')} ${T('ArrayList')}&lt;&gt;();`,
+  `        ${K('while')} (rs.${F('next')}()) pets.${F('add')}(${F('mapPet')}(rs));  ${C('// hand-map each row -> Pet, Owner, City')}`,
+  `        ${K('return')} pets;`,
+  `    }`,
+  `}`,
+].join('\n');
+const CODE_JOIN_HIBERNATE = [
+  `${K('return')} sessionFactory.${F('fromSession')}(session -> session`,
+  `    .${F('createSelectionQuery')}(`,
+  `        ${S('"from Pet p join fetch p.owner o join fetch o.city where p.id > :base and p.id <= :top"')},`,
+  `        ${T('Pet')}.${K('class')})`,
+  `    .${F('setParameter')}(${S('"base"')}, base)`,
+  `    .${F('setParameter')}(${S('"top"')}, base + rows)`,
+  `    .${F('getResultList')}());`,
+].join('\n');
+const CODE_JOIN_JOOQ = [
+  `${K('return')} ctx.${F('select')}(`,
+  `        ${T('PET')}.ID, ${T('PET')}.NAME, ${T('PET')}.BIRTH_DATE, ${T('PET')}.TYPE_ID,`,
+  `        ${F('row')}(${T('OWNER')}.ID, ${T('OWNER')}.FIRST_NAME, ${T('OWNER')}.LAST_NAME, ${T('OWNER')}.ADDRESS, ${T('OWNER')}.TELEPHONE,`,
+  `                ${F('row')}(${T('CITY')}.ID, ${T('CITY')}.NAME).${F('mapping')}(${T('City')}::new)).${F('mapping')}(${T('Owner')}::new))`,
+  `    .${F('from')}(${T('PET')})`,
+  `    .${F('join')}(${T('OWNER')}).${F('on')}(${T('PET')}.OWNER_ID.${F('eq')}(${T('OWNER')}.ID))`,
+  `    .${F('join')}(${T('CITY')}).${F('on')}(${T('OWNER')}.CITY_ID.${F('eq')}(${T('CITY')}.ID))`,
+  `    .${F('where')}(${T('PET')}.ID.${F('gt')}(base).${F('and')}(${T('PET')}.ID.${F('le')}(base + rows)))`,
+  `    .${F('fetch')}(${T('Records')}.${F('mapping')}(${T('Pet')}::new));`,
+].join('\n');
+const CODE_JOIN_EXPOSED = [
+  `${F('transaction')}(database) {`,
+  `    (${T('Pets')} ${F('innerJoin')} ${T('Owners')} ${F('innerJoin')} ${T('Cities')})`,
+  `        .${F('selectAll')}()`,
+  `        .${F('where')} { (${T('Pets')}.id ${F('greater')} base) ${K('and')} (${T('Pets')}.id ${F('lessEq')} base + rows) }`,
+  `        .${F('map')} { it.${F('toPet')}() }`,
+  `}`,
+].join('\n');
+const CODE_JOIN_EXPOSED_DAO = [
+  `${F('transaction')}(database) {`,
+  `    ${T('PetDao')}.${F('wrapRows')}(`,
+  `        ${T('Pets')}.${F('selectAll')}()`,
+  `            .${F('where')} { (${T('Pets')}.id ${F('greater')} base) ${K('and')} (${T('Pets')}.id ${F('lessEq')} base + rows) })`,
+  `        .${F('with')}(${T('PetDao')}::owner, ${T('OwnerDao')}::city)  ${C('// 2 extra batched SELECT ... IN queries')}`,
+  `        .${F('map')} { it.${F('toPet')}() }`,
+  `}`,
+].join('\n');
+const CODE_JOIN_JIMMER = [
+  `${T('PetTable')} table = ${T('PetTable')}.$;`,
+  `${K('return')} sqlClient.${F('createQuery')}(table)`,
+  `    .${F('where')}(table.${F('id')}().${F('gt')}(base)).${F('where')}(table.${F('id')}().${F('le')}(base + rows))`,
+  `    .${F('select')}(table.${F('fetch')}(`,
+  `        ${T('PetFetcher')}.$.${F('allScalarFields')}()`,
+  `            .${F('owner')}(${T('OwnerFetcher')}.$.${F('allScalarFields')}()`,
+  `                .${F('city')}(${T('CityFetcher')}.$.${F('allScalarFields')}()))))  ${C('// fetchers -> 2 batched loads')}`,
+  `    .${F('execute')}();`,
+].join('\n');
+const SQL_JOIN_EXPOSED_DAO = [
+  `${QC('-- 1) main pet query')}`,
+  `${QK('SELECT')} p.id, p.name, p.birth_date, p.type_id, p.owner_id`,
+  `${QK('FROM')} pet ${QK('WHERE')} p.id > ${QQ('?')} ${QK('AND')} p.id &lt;= ${QQ('?')}`,
+  ``,
+  `${QC('-- 2) batched owners')}`,
+  `${QK('SELECT')} o.id, o.first_name, o.last_name, o.address, o.telephone, o.city_id`,
+  `${QK('FROM')} owner ${QK('WHERE')} o.id ${QK('IN')} (${QQ('?')}, ${QQ('?')}, ...)`,
+  ``,
+  `${QC('-- 3) batched cities')}`,
+  `${QK('SELECT')} c.id, c.name ${QK('FROM')} city ${QK('WHERE')} c.id ${QK('IN')} (${QQ('?')}, ${QQ('?')}, ...)`,
+].join('\n');
+const SQL_JOIN_JIMMER = [
+  `${QC('-- 1) main pet query (owner_id kept as FK for the batch load)')}`,
+  `${QK('SELECT')} p.id, p.name, p.birth_date, p.owner_id`,
+  `${QK('FROM')} pet ${QK('WHERE')} p.id > ${QQ('?')} ${QK('AND')} p.id &lt;= ${QQ('?')}`,
+  ``,
+  `${QC('-- 2) batched owners')}`,
+  `${QK('SELECT')} o.id, o.first_name, o.last_name, o.address, o.telephone, o.city_id`,
+  `${QK('FROM')} owner ${QK('WHERE')} o.id ${QK('IN')} (${QQ('?')}, ${QQ('?')}, ...)`,
+  ``,
+  `${QC('-- 3) batched cities')}`,
+  `${QK('SELECT')} c.id, c.name ${QK('FROM')} city ${QK('WHERE')} c.id ${QK('IN')} (${QQ('?')}, ${QQ('?')}, ...)`,
 ].join('\n');
 
 const CODE_PROJECTION = [
@@ -207,15 +467,130 @@ const SQL_PROJECTION = [
   `${QK('INNER JOIN')} city c ${QK('ON')} o.city_id = c.id`,
   `${QK('WHERE')} o.city_id = ${QQ('?')}`,
 ].join('\n');
+const CODE_PROJECTION_JDBC = [
+  `${K('try')} (${K('var')} ps = connection.${F('prepareStatement')}(`,
+  `        ${S('"SELECT p.name, o.last_name, c.name FROM pet p"')}`,
+  `        + ${S('" JOIN owner o ON p.owner_id = o.id JOIN city c ON o.city_id = c.id"')}`,
+  `        + ${S('" WHERE o.city_id = ?"')})) {`,
+  `    ps.${F('setLong')}(${N('1')}, cityId);`,
+  `    ${K('try')} (${K('var')} rs = ps.${F('executeQuery')}()) {`,
+  `        ${T('List')}&lt;${T('PetRow')}&gt; rows = ${K('new')} ${T('ArrayList')}&lt;&gt;();`,
+  `        ${K('while')} (rs.${F('next')}()) rows.${F('add')}(${K('new')} ${T('PetRow')}(rs.${F('getString')}(${N('1')}), rs.${F('getString')}(${N('2')}), rs.${F('getString')}(${N('3')})));`,
+  `        ${K('return')} rows;`,
+  `    }`,
+  `}`,
+].join('\n');
+const CODE_PROJECTION_HIBERNATE = [
+  `${K('return')} sessionFactory.${F('fromSession')}(session -> session`,
+  `    .${F('createSelectionQuery')}(`,
+  `        ${S('"select p.name, o.lastName, c.name from Pet p join p.owner o join o.city c where c.id = :cityId"')},`,
+  `        ${T('PetRow')}.${K('class')})`,
+  `    .${F('setParameter')}(${S('"cityId"')}, cityId)`,
+  `    .${F('getResultList')}());`,
+].join('\n');
+const CODE_PROJECTION_JOOQ = [
+  `${K('return')} ctx.${F('select')}(${T('PET')}.NAME, ${T('OWNER')}.LAST_NAME, ${T('CITY')}.NAME)`,
+  `    .${F('from')}(${T('PET')})`,
+  `    .${F('join')}(${T('OWNER')}).${F('on')}(${T('PET')}.OWNER_ID.${F('eq')}(${T('OWNER')}.ID))`,
+  `    .${F('join')}(${T('CITY')}).${F('on')}(${T('OWNER')}.CITY_ID.${F('eq')}(${T('CITY')}.ID))`,
+  `    .${F('where')}(${T('OWNER')}.CITY_ID.${F('eq')}(cityId))`,
+  `    .${F('fetch')}(${T('Records')}.${F('mapping')}(${T('PetRow')}::new));`,
+].join('\n');
+const CODE_PROJECTION_EXPOSED = [
+  `${F('transaction')}(database) {`,
+  `    (${T('Pets')} ${F('innerJoin')} ${T('Owners')} ${F('innerJoin')} ${T('Cities')})`,
+  `        .${F('select')}(${T('Pets')}.name, ${T('Owners')}.lastName, ${T('Cities')}.name)`,
+  `        .${F('where')} { ${T('Owners')}.cityId ${F('eq')} cityId }`,
+  `        .${F('map')} { ${T('PetRow')}(it[${T('Pets')}.name], it[${T('Owners')}.lastName], it[${T('Cities')}.name]) }`,
+  `}`,
+].join('\n');
+const CODE_PROJECTION_EXPOSED_DAO = [
+  `${C('// Exposed DAO drops to the same DSL query for projections')}`,
+  `${F('transaction')}(database) {`,
+  `    (${T('Pets')} ${F('innerJoin')} ${T('Owners')} ${F('innerJoin')} ${T('Cities')})`,
+  `        .${F('select')}(${T('Pets')}.name, ${T('Owners')}.lastName, ${T('Cities')}.name)`,
+  `        .${F('where')} { ${T('Owners')}.cityId ${F('eq')} ${T('EntityID')}(cityId, ${T('Cities')}) }`,
+  `        .${F('map')} { ${T('PetRow')}(it[${T('Pets')}.name], it[${T('Owners')}.lastName], it[${T('Cities')}.name]) }`,
+  `}`,
+].join('\n');
+const CODE_PROJECTION_JIMMER = [
+  `${T('PetTable')} table = ${T('PetTable')}.$;`,
+  `${K('return')} sqlClient.${F('createQuery')}(table)`,
+  `    .${F('where')}(table.${F('owner')}().${F('city')}().${F('id')}().${F('eq')}(cityId))`,
+  `    .${F('select')}(table.${F('name')}(), table.${F('owner')}().${F('lastName')}(), table.${F('owner')}().${F('city')}().${F('name')}())`,
+  `    .${F('execute')}();`,
+].join('\n');
 
 const CODE_BATCH = [
   `${K('val')} ids = ${F('transaction')} {`,
-  `    visits.${F('insertAndFetchIds')}(newVisits)  ${C('// 100 visits, one atomic batch')}`,
+  `    visits.${F('insertAndFetchIds')}(newVisits)  ${C('// 100 visits, one prepared INSERT, batched')}`,
   `}`,
+].join('\n');
+const CODE_BATCH_JDBC = [
+  `${K('try')} (${K('var')} ps = connection.${F('prepareStatement')}(`,
+  `        ${S('"INSERT INTO visit (pet_id, visit_date, description) VALUES (?, ?, ?)"')},`,
+  `        ${T('Statement')}.RETURN_GENERATED_KEYS)) {`,
+  `    ${K('for')} (${K('int')} i = ${N('0')}; i &lt; ${T('BATCH_SIZE')}; i++) {`,
+  `        ps.${F('setLong')}(${N('1')}, ...); ps.${F('setObject')}(${N('2')}, ...); ps.${F('setString')}(${N('3')}, ...);`,
+  `        ps.${F('addBatch')}();`,
+  `    }`,
+  `    ps.${F('executeBatch')}();`,
+  `    ${K('try')} (${K('var')} keys = ps.${F('getGeneratedKeys')}()) {`,
+  `        ${K('while')} (keys.${F('next')}()) ids.${F('add')}(keys.${F('getLong')}(${N('1')}));`,
+  `    }`,
+  `}`,
+].join('\n');
+const CODE_BATCH_HIBERNATE = [
+  `sessionFactory.${F('fromTransaction')}(session -> {`,
+  `    ${K('for')} (${K('int')} i = ${N('0')}; i &lt; ${T('BATCH_SIZE')}; i++) {`,
+  `        ${T('Pet')} pet = session.${F('getReference')}(${T('Pet')}.${K('class')}, ...);  ${C('// proxy, no SELECT')}`,
+  `        session.${F('persist')}(${K('new')} ${T('Visit')}(pet, ..., ...));`,
+  `    }`,
+  `    session.${F('flush')}();  ${C('// ids pre-fetched from visit_seq')}`,
+  `    ${K('return')} visits.${F('stream')}().${F('map')}(${T('Visit')}::getId).${F('toList')}();`,
+  `});`,
+].join('\n');
+const CODE_BATCH_JOOQ = [
+  `${K('var')} insert = ctx.${F('insertInto')}(${T('VISIT')}, ${T('VISIT')}.PET_ID, ${T('VISIT')}.VISIT_DATE, ${T('VISIT')}.DESCRIPTION);`,
+  `${K('for')} (${K('int')} i = ${N('0')}; i &lt; ${T('BATCH_SIZE')}; i++) {`,
+  `    insert = insert.${F('values')}(..., ..., ...);  ${C('// one VALUES tuple appended per row')}`,
+  `}`,
+  `${K('return')} insert.${F('returning')}(${T('VISIT')}.ID).${F('fetch')}().${F('map')}(r -> r.${F('get')}(${T('VISIT')}.ID));`,
+].join('\n');
+const CODE_BATCH_EXPOSED = [
+  `${T('Visits')}.${F('batchInsert')}(${N('0')} ${K('until')} ${T('BATCH_SIZE')}, shouldReturnGeneratedValues = ${K('true')}) { i ->`,
+  `    ${K('this')}[${T('Visits')}.petId] = ...`,
+  `    ${K('this')}[${T('Visits')}.visitDate] = ...`,
+  `    ${K('this')}[${T('Visits')}.description] = ...`,
+  `}.${F('map')} { it[${T('Visits')}.id] }  ${C('// Exposed batchInsert = JDBC addBatch, not multi-row VALUES')}`,
+].join('\n');
+const CODE_BATCH_EXPOSED_DAO = [
+  `${K('val')} daos = (${N('0')} ${K('until')} ${T('BATCH_SIZE')}).${F('map')} {`,
+  `    ${T('VisitDao')}.${F('new')} { petId = ...; visitDate = ...; description = ... }`,
+  `}`,
+  `daos.${F('map')} { it.id.value }  ${C('// reading ids flushes the pending inserts as a batch')}`,
+].join('\n');
+const CODE_BATCH_JIMMER = [
+  `${T('List')}&lt;${T('Visit')}&gt; drafts = ...;  ${C('// 100x VisitDraft.$.produce(d -> { d.setPet(makeIdOnly(..)); .. })')}`,
+  `sqlClient.${F('getEntities')}()`,
+  `    .${F('saveEntitiesCommand')}(drafts)`,
+  `    .${F('setMode')}(${T('SaveMode')}.INSERT_ONLY)`,
+  `    .${F('execute')}(connection);  ${C('// JDBC batch, ids from IDENTITY')}`,
 ].join('\n');
 const SQL_BATCH = [
   `${QK('INSERT INTO')} visit (pet_id, visit_date, description)`,
-  `${QK('VALUES')} (${QQ('?')}, ${QQ('?')}, ${QQ('?')})`,
+  `${QK('VALUES')} (${QQ('?')}, ${QQ('?')}, ${QQ('?')})  ${QC('-- one prepared statement, addBatch/executeBatch x100')}`,
+].join('\n');
+const SQL_BATCH_JOOQ = [
+  `${QK('INSERT INTO')} visit (pet_id, visit_date, description)`,
+  `${QK('VALUES')} (${QQ('?')}, ${QQ('?')}, ${QQ('?')}), (${QQ('?')}, ${QQ('?')}, ${QQ('?')}), ...  ${QC('-- 100 tuples, one statement')}`,
+  `${QK('RETURNING')} visit.id`,
+].join('\n');
+const SQL_BATCH_HIBERNATE = [
+  `${QK('SELECT')} nextval('visit_seq')  ${QC('-- pooled sequence, ~2 calls for 100 rows')}`,
+  ``,
+  `${QK('INSERT INTO')} visit (pet_id, visit_date, description, id)`,
+  `${QK('VALUES')} (${QQ('?')}, ${QQ('?')}, ${QQ('?')}, ${QQ('?')})  ${QC('-- batched x100, id assigned client-side')}`,
 ].join('\n');
 
 const CODE_UPDATE = [
@@ -232,17 +607,83 @@ const CODE_UPDATE = [
   ``,
   `${F('transaction')} {`,
   `    ${K('val')} owner = owners.${F('getById')}(id)`,
-  `    owners.${F('update')}(owner.${F('copy')}(telephone = newTelephone))`,
+  `    owners.${F('update')}(owner.${F('copy')}(telephone = newTelephone))  ${C('// only the changed column is written')}`,
   `}`,
 ].join('\n');
 const SQL_UPDATE = [
-  `${QK('SELECT')} ocr.id, ocr.first_name, ocr.last_name, ocr.address, ocr.telephone, ocr.city_id`,
-  `${QK('FROM')} owner ocr`,
-  `${QK('WHERE')} ocr.id = ${QQ('?')}`,
+  `${QK('SELECT')} o.id, o.first_name, o.last_name, o.address, o.telephone, o.city_id`,
+  `${QK('FROM')} owner o`,
+  `${QK('WHERE')} o.id = ${QQ('?')}`,
   ``,
   `${QK('UPDATE')} owner`,
   `${QK('SET')} telephone = ${QQ('?')}`,
   `${QK('WHERE')} id = ${QQ('?')}`,
+].join('\n');
+const CODE_UPDATE_JDBC = [
+  `connection.${F('setAutoCommit')}(${K('false')});`,
+  `${T('String')} phone;`,
+  `${K('try')} (${K('var')} ps = connection.${F('prepareStatement')}(`,
+  `        ${S('"SELECT id, first_name, last_name, address, telephone FROM owner WHERE id = ?"')})) {`,
+  `    ps.${F('setLong')}(${N('1')}, id);`,
+  `    ${K('var')} rs = ps.${F('executeQuery')}(); rs.${F('next')}();`,
+  `    phone = ${T('Params')}.${F('toggleTelephone')}(rs.${F('getString')}(${N('5')}));`,
+  `    owner = ${K('new')} ${T('Owner')}(rs.${F('getLong')}(${N('1')}), ..., phone, ${K('null')});`,
+  `}`,
+  `${K('try')} (${K('var')} ps = connection.${F('prepareStatement')}(${S('"UPDATE owner SET telephone = ? WHERE id = ?"')})) {`,
+  `    ps.${F('setString')}(${N('1')}, phone); ps.${F('setLong')}(${N('2')}, id); ps.${F('executeUpdate')}();`,
+  `}`,
+  `connection.${F('commit')}();`,
+].join('\n');
+const CODE_UPDATE_HIBERNATE = [
+  `${A('@Entity')} ${A('@Table')}(name = ${S('"owner"')}) ${A('@DynamicUpdate')}  ${C('// write only the changed columns')}`,
+  `${K('class')} ${T('Owner')} {`,
+  `    ${A('@Id')} ${A('@GeneratedValue')}(strategy = IDENTITY) ${K('private')} ${T('Long')} id;`,
+  `    ${A('@Column')}(name = ${S('"first_name"')}) ${K('private')} ${T('String')} firstName;`,
+  `    ${A('@Column')}(name = ${S('"last_name"')}) ${K('private')} ${T('String')} lastName;`,
+  `    ${A('@Column')}(name = ${S('"address"')}) ${K('private')} ${T('String')} address;`,
+  `    ${A('@Column')}(name = ${S('"telephone"')}) ${K('private')} ${T('String')} telephone;`,
+  `    ${A('@ManyToOne')}(fetch = LAZY) ${A('@JoinColumn')}(name = ${S('"city_id"')}) ${K('private')} ${T('City')} city;  ${C('// lazy: city not read')}`,
+  `    ${A('@OneToMany')}(mappedBy = ${S('"owner"')}) ${K('private')} ${T('List')}&lt;${T('Pet')}&gt; pets;`,
+  ``,
+  `    ${K('public')} ${T('String')} ${F('getTelephone')}() { ${K('return')} telephone; }`,
+  `    ${K('public')} ${K('void')} ${F('setTelephone')}(${T('String')} telephone) { ${K('this')}.telephone = telephone; }`,
+  `    ${C('// Hibernate maps via field access; getId()/getPets() added where the app needs them')}`,
+  `}`,
+  ``,
+  `sessionFactory.${F('fromTransaction')}(session -> {`,
+  `    ${T('Owner')} owner = session.${F('find')}(${T('Owner')}.${K('class')}, id);`,
+  `    owner.${F('setTelephone')}(${T('Params')}.${F('toggleTelephone')}(owner.${F('getTelephone')}()));`,
+  `    ${K('return')} owner;  ${C('// dirty-checking flushes only telephone')}`,
+  `});`,
+].join('\n');
+const CODE_UPDATE_JOOQ = [
+  `${K('return')} ctx.${F('transactionResult')}(tx -> {`,
+  `    ${K('var')} record = ${T('DSL')}.${F('using')}(tx).${F('fetchOne')}(${T('OWNER')}, ${T('OWNER')}.ID.${F('eq')}(id));`,
+  `    record.${F('setTelephone')}(${T('Params')}.${F('toggleTelephone')}(record.${F('getTelephone')}()));`,
+  `    record.${F('store')}();  ${C('// UpdatableRecord.store() updates only the changed field')}`,
+  `    ${K('return')} record.${F('getId')}();`,
+  `});`,
+].join('\n');
+const CODE_UPDATE_EXPOSED = [
+  `${F('transaction')}(database) {`,
+  `    ${K('val')} row = ${T('Owners')}.${F('selectAll')}().${F('where')} { ${T('Owners')}.id ${F('eq')} id }.${F('single')}()`,
+  `    ${K('val')} phone = ${T('Params')}.${F('toggleTelephone')}(row[${T('Owners')}.telephone])`,
+  `    ${T('Owners')}.${F('update')}({ ${T('Owners')}.id ${F('eq')} id }) { it[${T('Owners')}.telephone] = phone }`,
+  `}`,
+].join('\n');
+const CODE_UPDATE_EXPOSED_DAO = [
+  `${F('transaction')}(database) {`,
+  `    ${K('val')} dao = ${T('OwnerDao')}.${F('findById')}(id) ?: ${F('error')}(${S('"owner not found"')})`,
+  `    dao.telephone = ${T('Params')}.${F('toggleTelephone')}(dao.telephone)  ${C('// dirty tracking flushes only telephone')}`,
+  `}`,
+].join('\n');
+const CODE_UPDATE_JIMMER = [
+  `${T('Owner')} owner = sqlClient.${F('createQuery')}(${T('OwnerTable')}.$)`,
+  `    .${F('where')}(${T('OwnerTable')}.$.${F('id')}().${F('eq')}(id)).${F('select')}(${T('OwnerTable')}.$).${F('execute')}(connection).${F('getFirst')}();`,
+  `${T('Owner')} updated = ${T('OwnerDraft')}.$.${F('produce')}(owner, d -> d.${F('setTelephone')}(${T('Params')}.${F('toggleTelephone')}(owner.${F('telephone')}())));`,
+  `sqlClient.${F('getEntities')}().${F('saveCommand')}(updated)`,
+  `    .${F('setMode')}(${T('SaveMode')}.UPDATE_ONLY)  ${C('// only the draft-modified column')}`,
+  `    .${F('execute')}(connection);`,
 ].join('\n');
 
 const CODE_GRAPH_STORM = [
@@ -269,8 +710,6 @@ const CODE_GRAPH_HIBERNATE = [
   `        ${T('Owner')}.${K('class')})`,
   `    .${F('setParameter')}(${S('"cityId"')}, cityId)`,
   `    .${F('getResultList')}());`,
-  ``,
-  `${C('// plus the @OneToMany(mappedBy = "owner") collection on the 126-line entity model')}`,
 ].join('\n');
 
 const CODE_GRAPH_JOOQ = [
@@ -292,6 +731,91 @@ const CODE_GRAPH_JOOQ = [
   `                .${F('map')}(pet -> ${K('new')} ${T('Pet')}(pet.${F('value1')}(), pet.${F('value2')}(), pet.${F('value3')}(), pet.${F('value4')}(), owner));`,
   `        ${K('return')} ${K('new')} ${T('OwnerWithPets')}(owner, pets);`,
   `    });`,
+].join('\n');
+
+const CODE_GRAPH_JDBC = [
+  `${T('Map')}&lt;${T('Long')}, ${T('Owner')}&gt; owners = ${K('new')} ${T('LinkedHashMap')}&lt;&gt;();`,
+  `${T('Map')}&lt;${T('Long')}, ${T('List')}&lt;${T('Pet')}&gt;&gt; pets = ${K('new')} ${T('LinkedHashMap')}&lt;&gt;();`,
+  `${K('while')} (rs.${F('next')}()) {`,
+  `    ${K('long')} ownerId = rs.${F('getLong')}(${N('1')});`,
+  `    ${T('Owner')} owner = owners.${F('get')}(ownerId);`,
+  `    ${K('if')} (owner == ${K('null')}) {`,
+  `        owner = ${K('new')} ${T('Owner')}(ownerId, ..., ${K('new')} ${T('City')}(rs.${F('getLong')}(${N('6')}), rs.${F('getString')}(${N('7')})));`,
+  `        owners.${F('put')}(ownerId, owner); pets.${F('put')}(ownerId, ${K('new')} ${T('ArrayList')}&lt;&gt;());`,
+  `    }`,
+  `    pets.${F('get')}(ownerId).${F('add')}(${K('new')} ${T('Pet')}(rs.${F('getLong')}(${N('8')}), ..., owner));`,
+  `}`,
+  `${C('// then zip owners + pets into List<OwnerWithPets>')}`,
+].join('\n');
+const CODE_GRAPH_EXPOSED = [
+  `${F('transaction')}(database) {`,
+  `    (${T('Owners')} ${F('innerJoin')} ${T('Cities')} ${F('innerJoin')} ${T('Pets')})`,
+  `        .${F('selectAll')}()`,
+  `        .${F('where')} { ${T('Owners')}.cityId ${F('eq')} cityId }`,
+  `        .${F('orderBy')}(${T('Owners')}.id)`,
+  `        .${F('groupIntoOwners')}()  ${C('// in-memory LinkedHashMap grouping')}`,
+  `}`,
+].join('\n');
+const CODE_GRAPH_EXPOSED_DAO = [
+  `${F('transaction')}(database) {`,
+  `    ${T('OwnerDao')}.${F('find')} { ${T('Owners')}.cityId ${F('eq')} ${T('EntityID')}(cityId, ${T('Cities')}) }`,
+  `        .${F('orderBy')}(${T('Owners')}.id ${K('to')} ${T('SortOrder')}.ASC)`,
+  `        .${F('with')}(${T('OwnerDao')}::city, ${T('OwnerDao')}::pets)  ${C('// pets = batched SELECT ... WHERE owner_id IN (...)')}`,
+  `        .${F('map')} { ${T('OwnerWithPets')}(it.${F('toOwner')}(), it.pets.${F('map')} { p -> p.${F('toPet')}() }) }`,
+  `}`,
+].join('\n');
+const CODE_GRAPH_JIMMER = [
+  `${T('OwnerTable')} table = ${T('OwnerTable')}.$;`,
+  `${K('return')} sqlClient.${F('createQuery')}(table)`,
+  `    .${F('where')}(table.${F('city')}().${F('id')}().${F('eq')}(cityId))`,
+  `    .${F('orderBy')}(table.${F('id')}().${F('asc')}())`,
+  `    .${F('select')}(table.${F('fetch')}(`,
+  `        ${T('OwnerFetcher')}.$.${F('allScalarFields')}()`,
+  `            .${F('city')}(${T('CityFetcher')}.$.${F('allScalarFields')}())`,
+  `            .${F('pets')}(${T('PetFetcher')}.$.${F('allScalarFields')}())))  ${C('// pets = batched WHERE owner_id IN (...)')}`,
+  `    .${F('execute')}();`,
+].join('\n');
+const SQL_GRAPH_HIBERNATE = [
+  `${QK('SELECT DISTINCT')}`,
+  `       o.id, o.first_name, o.last_name, o.address, o.telephone,`,
+  `       p.owner_id, p.id, p.birth_date, p.name, p.type_id, c.id, c.name`,
+  `${QK('FROM')} owner o`,
+  `${QK('JOIN')} pet  p ${QK('ON')} o.id = p.owner_id`,
+  `${QK('JOIN')} city c ${QK('ON')} c.id = o.city_id`,
+  `${QK('WHERE')} o.city_id = ${QQ('?')}  ${QC('-- DISTINCT collapses the owner x pet cartesian, no ORDER BY')}`,
+].join('\n');
+const SQL_GRAPH_JOOQ = [
+  `${QK('SELECT')} owner.id, owner.first_name, owner.last_name, owner.address, owner.telephone,`,
+  `       city.id, city.name,`,
+  `       (${QK('SELECT')} jsonb_agg(jsonb_build_array(p.id, p.name, p.birth_date, p.type_id))`,
+  `        ${QK('FROM')} pet p ${QK('WHERE')} p.owner_id = owner.id) ${QK('AS')} pets  ${QC('-- correlated MULTISET, no pet join')}`,
+  `${QK('FROM')} owner`,
+  `${QK('JOIN')} city ${QK('ON')} owner.city_id = city.id`,
+  `${QK('WHERE')} owner.city_id = ${QQ('?')}`,
+  `${QK('ORDER BY')} owner.id`,
+].join('\n');
+const SQL_GRAPH_EXPOSED_DAO = [
+  `${QC('-- 1) main owners query')}`,
+  `${QK('SELECT')} owner.id, ..., owner.city_id ${QK('FROM')} owner ${QK('WHERE')} owner.city_id = ${QQ('?')} ${QK('ORDER BY')} owner.id`,
+  ``,
+  `${QC('-- 2) batched cities')}`,
+  `${QK('SELECT')} city.id, city.name ${QK('FROM')} city ${QK('WHERE')} city.id ${QK('IN')} (${QQ('?')}, ...)`,
+  ``,
+  `${QC('-- 3) batched pets (the collection)')}`,
+  `${QK('SELECT')} pet.id, pet.name, pet.birth_date, pet.type_id, pet.owner_id`,
+  `${QK('FROM')} pet ${QK('WHERE')} pet.owner_id ${QK('IN')} (${QQ('?')}, ${QQ('?')}, ...)`,
+].join('\n');
+const SQL_GRAPH_JIMMER = [
+  `${QC('-- 1) main owners query (city().id() folds to owner.city_id)')}`,
+  `${QK('SELECT')} o.id, o.first_name, o.last_name, o.address, o.telephone, o.city_id`,
+  `${QK('FROM')} owner o ${QK('WHERE')} o.city_id = ${QQ('?')} ${QK('ORDER BY')} o.id`,
+  ``,
+  `${QC('-- 2) batched cities')}`,
+  `${QK('SELECT')} c.id, c.name ${QK('FROM')} city c ${QK('WHERE')} c.id ${QK('IN')} (${QQ('?')}, ...)`,
+  ``,
+  `${QC('-- 3) batched pets collection (the OneToMany)')}`,
+  `${QK('SELECT')} p.owner_id, p.id, p.name, p.birth_date, p.type_id`,
+  `${QK('FROM')} pet p ${QK('WHERE')} p.owner_id ${QK('IN')} (${QQ('?')}, ${QQ('?')}, ...)`,
 ].join('\n');
 
 const MATRIX_LIBS = ['jdbc', 'storm', 'hibernate', 'jooq', 'exposed', 'exposedDao', 'jimmer'];
@@ -421,15 +945,15 @@ ${navHtml('benchmarks')}
   <p class="bm-meta">PostgreSQL 17 over TCP · JMH · Storm 1.13.0 · measured 2026-07-16</p>
 
   <div class="bm-stats">
-    <div class="bm-stat"><b>5 of 8</b><span>workloads are won by Storm, more than any other ORM.</span></div>
-    <div class="bm-stat"><b>5.6%</b><span>is the most Storm trails the fastest ORM on any workload. It remains close to the lead throughout.</span></div>
-    <div class="bm-stat"><b>62% lower</b><span>overhead than jOOQ (the next-fastest ORM) relative to raw JDBC across all workloads.</span></div>
+    <div class="bm-stat"><b>5 of 8</b><span>workloads where Storm is the fastest ORM.</span></div>
+    <div class="bm-stat"><b>5.6%</b><span>is the most Storm trails the fastest ORM on any workload.</span></div>
+    <div class="bm-stat"><b>62% lower</b><span>overhead than jOOQ (2nd fastest ORM) relative to raw JDBC.</span></div>
   </div>
 
   <h2>At a glance</h2>
-  <p>Seven implementations, one database, one discipline: same schema, same data, same transaction boundaries, every score a real network round trip away from PostgreSQL. Mean latency per operation, lower is better. Cells are tinted by distance from the fastest framework in the row, green through red. Percentages are overhead over raw JDBC. Raw JDBC is the reference floor.</p>
+  <p>Seven implementations, one database, one discipline: same schema, same data, same transaction boundaries, every score a real network round trip away from PostgreSQL. Mean latency per operation, lower is better. Cells are tinted by distance from the fastest framework in the row, green through red. Percentages are overhead over raw JDBC. Raw JDBC is the baseline.</p>
   ${matrixHtml()}
-  <p class="bm-matrix-read">Every library has strong rows, but Storm's is the only column that never runs hot. On every workload Storm is either the fastest framework or close behind it, while every alternative has at least one workload where it costs a third more than the best, and most cost far more than that. A real network round trip sits inside every score, so the pure mapping gap is larger still. Absolute times depend on the hardware they were measured on; the relative comparisons are the point.</p>
+  <p class="bm-matrix-read">Storm is the fastest framework on average across the eight workloads. On a few, another library edges it: Hibernate on the single-row lookup and the read-modify-update, jOOQ on the batch insert, where its single multi-row statement beats the batched single-row insert the others send. Even then, Storm stays within about six percent of the fastest framework. A real network round trip sits inside every score, so the pure mapping gap is larger still. Absolute times depend on the hardware they were measured on; the relative comparisons are the point.</p>
 
   <details class="bm-details">
     <summary>Per-workload charts: the same numbers with their reported error</summary>
@@ -440,38 +964,90 @@ ${charts}
   </details>
 
   <h2>The code being measured</h2>
-  <p>Numbers without code invite tuned-benchmark suspicion, so here is what each workload runs, trimmed of harness plumbing. Toggle <i>Show SQL</i> to see the exact statement Storm puts on the wire. The full sources for all seven implementations are in the benchmark repository.</p>
+  <p>Numbers without code invite tuned-benchmark suspicion, so here is what each workload runs in every library, trimmed of harness plumbing. Pick a library from the selector; toggle <i>Show SQL</i> to see the exact statement it puts on the wire. The full sources for all seven implementations are in the benchmark repository.</p>
   ${modelLocHtml()}
   ${locHtml()}
 
   <h3>The model</h3>
-  <p>Plain data classes. Nullability, keys and relations live in the type: <code>@FK val owner: Owner</code> hydrates through a join, <code>Ref&lt;PetType&gt;</code> stays a lazy reference until asked. There are no proxies, no session lifecycle, and nothing to configure.</p>
-  ${editor({file: 'Entities.kt', tag: 'Kotlin', code: CODE_ENTITIES})}
+  <p>Storm's model is plain data classes. Nullability, keys and relations live in the type: <code>@FK val owner: Owner</code> hydrates through a join, <code>Ref&lt;PetType&gt;</code> stays a lazy reference until asked. No proxies, no session lifecycle, nothing to configure. Switch the selector to compare it against the JPA entities, table objects and interfaces the other libraries declare for the same five tables.</p>
+  ${editor({variants: [
+    {label: 'Storm', file: 'Entities.kt', tag: 'Kotlin', code: CODE_ENTITIES, selected: true},
+    {label: 'JDBC', file: 'Models.java', tag: 'Java', code: CODE_MODEL_JDBC},
+    {label: 'Hibernate', file: 'Entities.java', tag: 'Java', code: CODE_MODEL_HIBERNATE},
+    {label: 'jOOQ', file: 'Models.java', tag: 'Java', code: CODE_MODEL_JOOQ},
+    {label: 'Exposed', file: 'Tables.kt', tag: 'Kotlin', code: CODE_MODEL_EXPOSED},
+    {label: 'Exposed DAO', file: 'Entities.kt', tag: 'Kotlin', code: CODE_MODEL_EXPOSED_DAO},
+    {label: 'Jimmer', file: 'Entities.java', tag: 'Java', code: CODE_MODEL_JIMMER},
+  ]})}
 
   <h3>Primary key lookup</h3>
-  ${editor({file: 'singleRowById', tag: 'Kotlin', code: CODE_SINGLE, sql: SQL_SINGLE})}
+  ${editor({file: 'singleRowById', sql: SQL_SINGLE, variants: [
+    {label: 'Storm', tag: 'Kotlin', code: CODE_SINGLE, selected: true},
+    {label: 'JDBC', tag: 'Java', code: CODE_SINGLE_JDBC},
+    {label: 'Hibernate', tag: 'Java', code: CODE_SINGLE_HIBERNATE},
+    {label: 'jOOQ', tag: 'Java', code: CODE_SINGLE_JOOQ},
+    {label: 'Exposed', tag: 'Kotlin', code: CODE_SINGLE_EXPOSED},
+    {label: 'Exposed DAO', tag: 'Kotlin', code: CODE_SINGLE_EXPOSED_DAO},
+    {label: 'Jimmer', tag: 'Java', code: CODE_SINGLE_JIMMER},
+  ]})}
 
   <h3>Three-table join</h3>
   <p>No fetch joins to spell out and no N+1 to dodge: the entity graph declares what a Pet is, so selecting pets hydrates owner and city from one query.</p>
-  ${editor({file: 'joinWithMapping', tag: 'Kotlin', code: CODE_JOIN, sql: SQL_JOIN})}
+  ${editor({file: 'joinWithMapping', sql: SQL_JOIN, variants: [
+    {label: 'Storm', tag: 'Kotlin', code: CODE_JOIN, selected: true},
+    {label: 'JDBC', tag: 'Java', code: CODE_JOIN_JDBC},
+    {label: 'Hibernate', tag: 'Java', code: CODE_JOIN_HIBERNATE},
+    {label: 'jOOQ', tag: 'Java', code: CODE_JOIN_JOOQ},
+    {label: 'Exposed', tag: 'Kotlin', code: CODE_JOIN_EXPOSED},
+    {label: 'Exposed DAO', tag: 'Kotlin', code: CODE_JOIN_EXPOSED_DAO, sql: SQL_JOIN_EXPOSED_DAO},
+    {label: 'Jimmer', tag: 'Java', code: CODE_JOIN_JIMMER, sql: SQL_JOIN_JIMMER},
+  ]})}
 
   <h3>Projection</h3>
   <p>A template picks three columns across the graph; the metamodel keeps every path compile-checked.</p>
-  ${editor({file: 'projection', tag: 'Kotlin', code: CODE_PROJECTION, sql: SQL_PROJECTION})}
+  ${editor({file: 'projection', sql: SQL_PROJECTION, variants: [
+    {label: 'Storm', tag: 'Kotlin', code: CODE_PROJECTION, selected: true},
+    {label: 'JDBC', tag: 'Java', code: CODE_PROJECTION_JDBC},
+    {label: 'Hibernate', tag: 'Java', code: CODE_PROJECTION_HIBERNATE},
+    {label: 'jOOQ', tag: 'Java', code: CODE_PROJECTION_JOOQ},
+    {label: 'Exposed', tag: 'Kotlin', code: CODE_PROJECTION_EXPOSED},
+    {label: 'Exposed DAO', tag: 'Kotlin', code: CODE_PROJECTION_EXPOSED_DAO},
+    {label: 'Jimmer', tag: 'Java', code: CODE_PROJECTION_JIMMER},
+  ]})}
 
   <h3>Batch insert</h3>
-  ${editor({file: 'batchInsert', tag: 'Kotlin', code: CODE_BATCH, sql: SQL_BATCH})}
+  ${editor({file: 'batchInsert', variants: [
+    {label: 'Storm', tag: 'Kotlin', code: CODE_BATCH, sql: SQL_BATCH, selected: true},
+    {label: 'JDBC', tag: 'Java', code: CODE_BATCH_JDBC, sql: SQL_BATCH},
+    {label: 'Hibernate', tag: 'Java', code: CODE_BATCH_HIBERNATE, sql: SQL_BATCH_HIBERNATE},
+    {label: 'jOOQ', tag: 'Java', code: CODE_BATCH_JOOQ, sql: SQL_BATCH_JOOQ},
+    {label: 'Exposed', tag: 'Kotlin', code: CODE_BATCH_EXPOSED, sql: SQL_BATCH},
+    {label: 'Exposed DAO', tag: 'Kotlin', code: CODE_BATCH_EXPOSED_DAO, sql: SQL_BATCH},
+    {label: 'Jimmer', tag: 'Java', code: CODE_BATCH_JIMMER, sql: SQL_BATCH},
+  ]})}
 
   <h3>Read, modify, update</h3>
   <p>Storm's regular <code>Owner</code> is an aggregate: reading one loads its city through a join. Every other library declares that association lazy and reads the owner row alone, so to keep the read side of this workload identical for everyone, the benchmark uses a dedicated shape of the same table where city stays a lazy <code>Ref</code>. That shape is one record; declaring it is Storm's equivalent of the <code>FetchType.LAZY</code> the others put on their entities, and its ten lines are counted against Storm in the Queries LOC table above. On the write side, <code>@DynamicUpdate(FIELD)</code> writes only the column that changed. Entities are immutable; an update is a <code>copy</code>.</p>
-  ${editor({file: 'updateById', tag: 'Kotlin', code: CODE_UPDATE, sql: SQL_UPDATE})}
+  ${editor({file: 'updateById', sql: SQL_UPDATE, variants: [
+    {label: 'Storm', tag: 'Kotlin', code: CODE_UPDATE, selected: true},
+    {label: 'JDBC', tag: 'Java', code: CODE_UPDATE_JDBC},
+    {label: 'Hibernate', tag: 'Java', code: CODE_UPDATE_HIBERNATE},
+    {label: 'jOOQ', tag: 'Java', code: CODE_UPDATE_JOOQ},
+    {label: 'Exposed', tag: 'Kotlin', code: CODE_UPDATE_EXPOSED},
+    {label: 'Exposed DAO', tag: 'Kotlin', code: CODE_UPDATE_EXPOSED_DAO},
+    {label: 'Jimmer', tag: 'Java', code: CODE_UPDATE_JIMMER},
+  ]})}
 
   <h3>Object graph</h3>
   <p>One query, grouped during hydration. Repeated owners deduplicate to the same instance, so grouping is an identity operation, not a hash of every field. Switch the variant to see the code the other libraries needed for the same result.</p>
-  ${editor({file: 'objectGraph', tag: 'Kotlin', sql: SQL_GRAPH, variants: [
-    {label: 'Storm', code: CODE_GRAPH_STORM, selected: true},
-    {label: 'Hibernate', code: CODE_GRAPH_HIBERNATE},
-    {label: 'jOOQ', code: CODE_GRAPH_JOOQ},
+  ${editor({file: 'objectGraph', sql: SQL_GRAPH, variants: [
+    {label: 'Storm', tag: 'Kotlin', code: CODE_GRAPH_STORM, selected: true},
+    {label: 'JDBC', tag: 'Java', code: CODE_GRAPH_JDBC},
+    {label: 'Hibernate', tag: 'Java', code: CODE_GRAPH_HIBERNATE, sql: SQL_GRAPH_HIBERNATE},
+    {label: 'jOOQ', tag: 'Java', code: CODE_GRAPH_JOOQ, sql: SQL_GRAPH_JOOQ},
+    {label: 'Exposed', tag: 'Kotlin', code: CODE_GRAPH_EXPOSED},
+    {label: 'Exposed DAO', tag: 'Kotlin', code: CODE_GRAPH_EXPOSED_DAO, sql: SQL_GRAPH_EXPOSED_DAO},
+    {label: 'Jimmer', tag: 'Java', code: CODE_GRAPH_JIMMER, sql: SQL_GRAPH_JIMMER},
   ]})}
 
   <h2>Method and fairness</h2>
