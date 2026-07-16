@@ -136,7 +136,7 @@ export function editor({file, tag, code, sql, copy, variants}) {
 export function clonebar(command) {
   const data = esc(command).replace(/"/g, '&quot;');
   return `<div class="clonebar"><span class="dollar">$</span><span class="clonecmd">${esc(command)}</span>` +
-    `<span class="copybtn iconly" data-copy="${data}" title="Copy" aria-label="Copy"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="12" height="12" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg></span></div>`;
+    `<span class="copybtn iconly" data-copy="${data}" title="Copy" aria-label="Copy"><svg class="ico ico-copy" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="12" height="12" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg><svg class="ico ico-check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 6 9 17l-5-5"/></svg></span></div>`;
 }
 
 // A compact two-pane "at a glance" comparison for one-liner contrasts. Only
@@ -361,6 +361,10 @@ export const TUT_CSS = `
   .storm-tut .sqlbtn .ico,.storm-tut .copybtn .ico{width:13px;height:13px;opacity:.9}
   .storm-tut .clonebar .clonecmd{overflow-x:auto}
   .storm-tut .clonebar .copybtn{margin-left:auto;flex:none;gap:0;padding:5px 8px}
+  .storm-tut .clonebar .copybtn .ico-check{display:none}
+  .storm-tut .clonebar .copybtn.on{color:#7ee787;border-color:rgba(126,231,135,.5);background:rgba(126,231,135,.12)}
+  .storm-tut .clonebar .copybtn.on .ico-copy{display:none}
+  .storm-tut .clonebar .copybtn.on .ico-check{display:inline-block}
   /* variant selector (same chrome as the buttons; native select behind a
      custom chevron because appearance:none drops the platform arrow) */
   .storm-tut .varwrap{position:relative;margin-left:14px;display:inline-flex;align-items:center}

@@ -10,7 +10,7 @@ const DESC = 'Reproducible JMH benchmarks of Storm against JDBC, Hibernate, jOOQ
 
 // Results from the reproducible suite: one tuned PostgreSQL 17 container over TCP, JMH, 2 forks,
 // 5x3s measured iterations, single thread. Values are mean us/op with the reported error.
-// Rows are same-session comparisons; the raw JDBC single round trip measured ~158 us.
+// Rows are same-session comparisons; the raw JDBC single round trip measured ~155 us.
 const LIBS = {
   jdbc: {name: 'JDBC', cls: 'jdbc'},
   storm: {name: 'Storm', cls: 'storm'},
@@ -26,49 +26,49 @@ const WORKLOADS = [
     id: 'singleRowById',
     title: 'Primary key lookup',
     desc: 'Load one visit by primary key. The purest round-trip test: one query, one row.',
-    results: {jdbc: [171.9, 5.7], hibernate: [180.7, 5.1], storm: [182.3, 7.1], jooq: [184.2, 3.8], jimmer: [184.4, 7.9], exposed: [369.5, 9.1], exposedDao: [377.3, 5.8]},
+    results: {jdbc: [172.4, 3.3], hibernate: [180.8, 3.2], storm: [182.7, 7.7], jimmer: [182.7, 6.9], jooq: [184.7, 8.2], exposed: [369.4, 9.5], exposedDao: [374.8, 17.4]},
   },
   {
     id: 'joinWithMapping10',
     title: 'Three-table join · 10 rows',
     desc: 'Load pets with owner and city hydrated through a single three-table join.',
-    results: {jdbc: [388.4, 6.8], storm: [443.7, 9.4], hibernate: [447.6, 8.4], jooq: [476.4, 11.4], exposed: [579.1, 5.5], jimmer: [605.7, 20.5], exposedDao: [797.5, 21.9]},
+    results: {jdbc: [395.6, 15.2], storm: [464.1, 80.9], hibernate: [472.3, 28.2], jooq: [490.4, 20.5], exposed: [581.2, 14.6], jimmer: [600.0, 19.7], exposedDao: [798.1, 26.8]},
   },
   {
     id: 'joinWithMapping100',
     title: 'Three-table join · 100 rows',
     desc: 'The same join at 100 rows. Hydration cost starts to separate the field.',
-    results: {jdbc: [545.4, 9.9], storm: [803.7, 31.7], exposed: [814.4, 7.8], jimmer: [981.3, 15.0], jooq: [1043.2, 110.8], hibernate: [1172.4, 241.6], exposedDao: [1311.8, 343.9]},
+    results: {jdbc: [569.2, 12.9], storm: [792.9, 16.6], exposed: [813.5, 15.4], jimmer: [1005.0, 152.3], jooq: [1315.3, 161.5], hibernate: [1489.9, 246.6], exposedDao: [1995.6, 290.6]},
   },
   {
     id: 'joinWithMapping1000',
     title: 'Three-table join · 1,000 rows',
     desc: 'The same join at 1,000 rows. Row mapping now dominates the round trip.',
-    results: {jdbc: [1440.9, 102.0], exposed: [2792.4, 215.9], storm: [3163.7, 156.8], hibernate: [3665.2, 132.7], jooq: [3791.3, 76.3], exposedDao: [8220.8, 783.0], jimmer: [8446.6, 3990.8]},
+    results: {jdbc: [1737.3, 317.0], storm: [2242.0, 288.8], exposed: [2730.4, 299.8], hibernate: [3463.7, 378.8], jooq: [3536.6, 261.3], exposedDao: [7575.4, 2485.6], jimmer: [10227.4, 4670.0]},
   },
   {
     id: 'projection',
     title: 'Projection',
     desc: 'Three columns across three tables into a flat DTO, 100 rows.',
-    results: {jdbc: [729.0, 16.9], hibernate: [757.1, 25.6], jimmer: [758.3, 14.7], storm: [786.4, 18.1], jooq: [788.4, 17.5], exposed: [1011.3, 16.8], exposedDao: [1032.2, 18.4]},
+    results: {jdbc: [778.3, 24.4], storm: [787.5, 29.4], hibernate: [795.1, 23.4], jimmer: [823.7, 31.1], jooq: [825.8, 27.4], exposed: [1039.5, 31.4], exposedDao: [1042.7, 29.4]},
   },
   {
     id: 'batchInsert',
     title: 'Batch insert',
     desc: 'Insert 100 visits atomically and fetch the generated keys.',
-    results: {jdbc: [2404.2, 32.4], jooq: [2436.0, 287.3], storm: [2720.7, 131.3], exposed: [3165.3, 260.8], hibernate: [3535.7, 194.5], jimmer: [3739.3, 170.3], exposedDao: [3986.1, 451.4]},
+    results: {jdbc: [2546.7, 96.9], jooq: [2842.1, 449.2], storm: [3000.1, 238.6], exposed: [3499.0, 294.2], hibernate: [3911.8, 396.1], jimmer: [4049.7, 226.7], exposedDao: [4301.3, 429.5]},
   },
   {
     id: 'updateById',
     title: 'Read, modify, update',
     desc: 'Read one owner, change one field, persist atomically. Every implementation reads a lazy association shape and writes only the changed column.',
-    results: {jdbc: [538.4, 4.8], exposed: [553.0, 18.8], hibernate: [557.2, 8.6], exposedDao: [564.0, 16.9], storm: [571.9, 12.6], jooq: [726.2, 21.2], jimmer: [901.0, 21.9]},
+    results: {jdbc: [531.6, 19.2], hibernate: [557.2, 13.3], exposed: [557.6, 19.4], storm: [564.4, 13.5], exposedDao: [568.6, 16.3], jooq: [727.9, 24.9], jimmer: [888.6, 12.7]},
   },
   {
     id: 'objectGraph',
     title: 'Object graph',
     desc: 'Load the owners of a city, each with their list of pets. The one-to-many shape every application has.',
-    results: {jdbc: [854.6, 42.5], jooq: [971.9, 106.6], storm: [1191.2, 59.1], exposed: [1328.0, 25.9], hibernate: [1329.4, 162.3], exposedDao: [1380.3, 120.2], jimmer: [1406.9, 25.5]},
+    results: {jdbc: [973.5, 29.9], storm: [1191.3, 182.7], exposed: [1378.0, 43.6], jooq: [1386.7, 197.3], jimmer: [1401.2, 68.9], exposedDao: [1609.3, 151.0], hibernate: [1677.7, 356.4]},
   },
 ];
 
@@ -418,18 +418,18 @@ ${navHtml('benchmarks')}
 <div class="art">
   <h1>Concise by design.<br><span class="grad">Fast by measurement.</span></h1>
   <p class="dek">Storm set out to be the most enjoyable ORM to work with, entities as plain records, queries that read like the SQL they produce. This page shows that the same design keeps the hot path lean, measured against six alternatives on identical workloads, with the code behind every number.</p>
-  <p class="bm-meta">PostgreSQL 17 over TCP · JMH · Storm 1.13.0 · measured 2026-07-14</p>
+  <p class="bm-meta">PostgreSQL 17 over TCP · JMH · Storm 1.13.0 · measured 2026-07-16</p>
 
   <div class="bm-stats">
-    <div class="bm-stat"><b>+10 µs</b><span>is all Storm adds to a 172 µs primary key lookup over raw JDBC. The abstraction is nearly free.</span></div>
-    <div class="bm-stat"><b>26% less</b><span>overhead over raw JDBC than the closest alternative, averaged across all eight workloads.</span></div>
-    <div class="bm-stat"><b>72% less</b><span>entity code than JPA: the five-table model is 29 lines in Storm, 105 as JPA entities.</span></div>
+    <div class="bm-stat"><b>5 of 8</b><span>workloads are won by Storm, more than any other ORM.</span></div>
+    <div class="bm-stat"><b>5.6%</b><span>is the most Storm trails the fastest ORM on any workload. It remains close to the lead throughout.</span></div>
+    <div class="bm-stat"><b>62% lower</b><span>overhead than jOOQ (the next-fastest ORM) relative to raw JDBC across all workloads.</span></div>
   </div>
 
   <h2>At a glance</h2>
   <p>Seven implementations, one database, one discipline: same schema, same data, same transaction boundaries, every score a real network round trip away from PostgreSQL. Mean latency per operation, lower is better. Cells are tinted by distance from the fastest framework in the row, green through red. Percentages are overhead over raw JDBC. Raw JDBC is the reference floor.</p>
   ${matrixHtml()}
-  <p class="bm-matrix-read">Each library excels in certain areas. Storm has the lowest average measured overhead over raw JDBC across these eight workloads, while individual workloads favor different libraries: raw JDBC is fastest everywhere by construction, and Exposed's DSL edges Storm on the 1,000-row three-table join and the read-modify-update workload. Across the suite Storm is consistently the fastest full framework or within a third of it. A real network round trip sits inside every score, so the pure mapping gap is larger still. Absolute times depend on the hardware they were measured on; the relative comparisons are the point.</p>
+  <p class="bm-matrix-read">Every library has strong rows, but Storm's is the only column that never runs hot. On every workload Storm is either the fastest framework or close behind it, while every alternative has at least one workload where it costs a third more than the best, and most cost far more than that. A real network round trip sits inside every score, so the pure mapping gap is larger still. Absolute times depend on the hardware they were measured on; the relative comparisons are the point.</p>
 
   <details class="bm-details">
     <summary>Per-workload charts: the same numbers with their reported error</summary>
@@ -477,7 +477,7 @@ ${charts}
   <h2>Method and fairness</h2>
   <p>The suite is built to be argued with. Everything below is enforced in code, not prose.</p>
   <ul>
-    <li><b>Real round trips.</b> One tuned PostgreSQL 17 container, reached over TCP. The raw JDBC single round trip measured about 158 µs, and every score includes it. That compresses relative differences; the mapping-heavy workloads are where library differences show.</li>
+    <li><b>Real round trips.</b> One tuned PostgreSQL 17 container, reached over TCP. The raw JDBC single round trip measured about 155 µs, and every score includes it. That compresses relative differences; the mapping-heavy workloads are where library differences show.</li>
     <li><b>JMH, properly.</b> Two forks, five 3-second measurement iterations after warmup, single thread: latency, not throughput. Sanity checks run every workload once per trial and verify row counts before anything is timed.</li>
     <li><b>Same work for everyone.</b> Identical schema and data, identical transaction boundaries on writes, and update values derived from the value just read, so change-detecting libraries can never silently skip a write. On the update workload every implementation writes only the changed column and reads a lazy association shape.</li>
     <li><b>Idiomatic code for everyone.</b> Each library is written the way its documentation recommends: Hibernate with <code>join fetch</code> and <code>@DynamicUpdate</code>, jOOQ with generated records and <code>MULTISET</code>, Jimmer with fetchers, Exposed in both DSL and DAO flavors.</li>
