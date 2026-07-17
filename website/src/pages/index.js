@@ -364,27 +364,27 @@ export default function Home() {
     // Pick your ORM: the feature cards show Storm-vs-X measured figures (run of 2026-07-16).
     const VS = {
       hibernate: {
-        speed: ['17%', 'faster than Hibernate', 'On average across 8 workloads.'],
+        speed: ['6 of 8', 'workloads faster than Hibernate', 'Behind only on the primary-key lookup (+1%) and read-modify-update (+1%).'],
         entities: ['72%', 'fewer entity lines', 'The five-table model: 29 lines in Storm, 105 in Hibernate.'],
         queries: ['19%', 'fewer query lines', 'All eight workloads: 100 lines in Storm, 123 in Hibernate, with no query strings.'],
       },
       jooq: {
-        speed: ['15%', 'faster than jOOQ', 'On average across 8 workloads.'],
+        speed: ['7 of 8', 'workloads faster than jOOQ', 'Behind only on the batch insert (+6%), where jOOQ sends one multi-row statement.'],
         entities: ['29 lines', 'instead of manual mapping', 'jOOQ maps results by hand into DTOs; Storm turns one 29-line model into typed rows everywhere.'],
         queries: ['24%', 'fewer query lines', 'All eight workloads: 100 lines in Storm, 131 in jOOQ, no hand-written row mapping.'],
       },
       exposed: {
-        speed: ['18%', 'faster than Exposed', 'On average across 8 workloads.'],
+        speed: ['7 of 8', 'workloads faster than Exposed', 'Behind only on read-modify-update (+1%).'],
         entities: ['43%', 'fewer entity lines', 'The five-table model: 29 lines in Storm, 51 lines of Exposed table objects and data classes.'],
         queries: ['22%', 'fewer query lines', 'All eight workloads: 100 lines in Storm, 128 in Exposed, no hand-written row mapping.'],
       },
       exposedDao: {
-        speed: ['38%', 'faster than Exposed DAO', 'On average across 8 workloads.'],
+        speed: ['8 of 8', 'workloads faster than Exposed DAO', 'Faster on every workload measured.'],
         entities: ['58%', 'fewer entity lines', 'One data class per table in Storm; Exposed DAO needs the table object, the DAO class and a DTO.'],
         queries: ['19%', 'fewer query lines', 'All eight workloads: 100 lines in Storm, 124 in Exposed DAO.'],
       },
       jimmer: {
-        speed: ['25%', 'faster than Jimmer', 'On average across 8 workloads.'],
+        speed: ['7 of 8', 'workloads faster than Jimmer', 'Faster on seven; dead even on the primary-key lookup.'],
         entities: ['47%', 'fewer entity lines', 'The five-table model: 29 lines of data classes in Storm, 55 lines of interfaces in Jimmer.'],
         queries: ['31%', 'fewer query lines', 'All eight workloads: 100 lines in Storm, 144 in Jimmer.'],
       },

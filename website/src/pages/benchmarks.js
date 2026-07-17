@@ -856,18 +856,9 @@ function matrixHtml() {
     }).join('');
     return `<tr><th>${w.title}</th>${cells}</tr>`;
   }).join('\n');
-  // Average overhead over raw JDBC per library, across all workloads.
-  const avgRatio = (lib) => WORKLOADS.reduce((sum, w) => sum + w.results[lib][0] / w.results.jdbc[0], 0) / WORKLOADS.length;
-  const bestAvg = Math.min(...MATRIX_LIBS.filter((l) => l !== 'jdbc').map(avgRatio));
-  const avgCells = MATRIX_LIBS.map((lib) => {
-    if (lib === 'jdbc') return `<td class="bm-floor">baseline</td>`;
-    const avg = avgRatio(lib);
-    return `<td style="${heatStyle(avg / bestAvg)}"><b>+${Math.round((avg - 1) * 100)}%</b></td>`;
-  }).join('');
   return `<div class="bm-matrix-wrap"><table class="bm-matrix">
     <thead><tr><th></th>${head}</tr></thead>
-    <tbody>${rows}<tr class="bm-gap" aria-hidden="true"><td colspan="8"></td></tr></tbody>
-    <tfoot><tr><th>Average over JDBC</th>${avgCells}</tr></tfoot>
+    <tbody>${rows}</tbody>
   </table></div>`;
 }
 
@@ -947,13 +938,13 @@ ${navHtml('benchmarks')}
   <div class="bm-stats">
     <div class="bm-stat"><b>5 of 8</b><span>workloads where Storm is the fastest ORM.</span></div>
     <div class="bm-stat"><b>5.6%</b><span>is the most Storm trails the fastest ORM on any workload.</span></div>
-    <div class="bm-stat"><b>62% lower</b><span>overhead than jOOQ (2nd fastest ORM) relative to raw JDBC.</span></div>
+    <div class="bm-stat"><b>72% less</b><span>entity code than JPA: the five-table model is 29 lines in Storm, 105 as JPA entities.</span></div>
   </div>
 
   <h2>At a glance</h2>
   <p>Seven implementations, one database, one discipline: same schema, same data, same transaction boundaries, every score a real network round trip away from PostgreSQL. Mean latency per operation, lower is better. Cells are tinted by distance from the fastest framework in the row, green through red. Percentages are overhead over raw JDBC. Raw JDBC is the baseline.</p>
   ${matrixHtml()}
-  <p class="bm-matrix-read">Storm is the fastest framework on average across the eight workloads. On a few, another library edges it: Hibernate on the single-row lookup and the read-modify-update, jOOQ on the batch insert, where its single multi-row statement beats the batched single-row insert the others send. Even then, Storm stays within about six percent of the fastest framework. A real network round trip sits inside every score, so the pure mapping gap is larger still. Absolute times depend on the hardware they were measured on; the relative comparisons are the point.</p>
+  <p class="bm-matrix-read">On most workloads Storm is the fastest framework; where it isn't, another library edges it narrowly: Hibernate on the single-row lookup and the read-modify-update, jOOQ on the batch insert, where its single multi-row statement beats the batched single-row insert the others send. Even then, Storm stays within about six percent of the fastest framework. A real network round trip sits inside every score, so the pure mapping gap is larger still. Absolute times depend on the hardware they were measured on; the relative comparisons are the point.</p>
 
   <details class="bm-details">
     <summary>Per-workload charts: the same numbers with their reported error</summary>
