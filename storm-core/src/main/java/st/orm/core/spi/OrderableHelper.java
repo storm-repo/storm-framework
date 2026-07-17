@@ -89,6 +89,9 @@ final class OrderableHelper {
      * @return Sorted list of orderables.
      */
     static <T extends Orderable<?>> List<T> sort(@Nonnull List<T> orderables, boolean cache) {
+        if (orderables.size() <= 1) {
+            return orderables;  // A list of zero or one elements is already sorted; skip the graph and topological sort.
+        }
         List<Class<?>> classOrder = getClassOrder(orderables.stream()
                 .map(Object::getClass)
                 .collect(toList()), cache);

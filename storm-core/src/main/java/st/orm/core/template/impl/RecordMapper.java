@@ -734,10 +734,20 @@ final class RecordMapper {
     private static final class CompiledArgumentPlan implements ArgumentPlan {
         private final RecordType type;
         private final Step[] steps;
+        /** True when every step is a one-column pass-through, so the flat args line up with the constructor params. */
+        private final boolean trivial;
 
         private CompiledArgumentPlan(@Nonnull RecordType type, @Nonnull Step[] steps) {
             this.type = type;
             this.steps = steps;
+            boolean allPlain = true;
+            for (Step step : steps) {
+                if (!(step instanceof PlainStep)) {
+                    allPlain = false;
+                    break;
+                }
+            }
+            this.trivial = allPlain;
         }
 
         @Override
@@ -747,6 +757,21 @@ final class RecordMapper {
                             @Nonnull RefFactory refFactory,
                             @Nonnull WeakInterner interner,
                             @Nullable TransactionContext tx) throws SqlTemplateException {
+            if (trivial && offset == 0 && flatArgs.length == steps.length) {
+                // Every step is a one-column pass-through and the flat args already line up one-to-one with the
+                // constructor parameters, so validate non-null components in place and reuse the array directly
+                // instead of allocating and copying into a second one.
+                for (int p = 0; p < steps.length; p++) {
+                    RecordField field = type.fields().get(p);
+                    if (!(parentNullable || field.nullable()) && isArgNull(flatArgs[p])) {
+                        throw new SqlTemplateException(
+                                "Database returned NULL for non-nullable component '%s.%s'. Either %s, or ensure the corresponding column is NOT NULL in the database."
+                                        .formatted(type.type().getSimpleName(), field.name(), nullableHint(type.type()))
+                        );
+                    }
+                }
+                return new Result(flatArgs, offset + steps.length);
+            }
             Object[] constructorArgs = new Object[steps.length];
             Step.Offset stepOffset = new Step.Offset(offset);
             for (int p = 0; p < steps.length; p++) {

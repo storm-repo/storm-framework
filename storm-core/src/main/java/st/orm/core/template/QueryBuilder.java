@@ -1155,6 +1155,14 @@ public abstract class QueryBuilder<T extends Data, R, ID> {
      * @throws PersistenceException if the single row's value is null, or the query fails.
      */
     public final R getSingleResult() {
+        return singleResultInternal();
+    }
+
+    /**
+     * Backs {@link #getSingleResult()}. The default consumes {@link #getMaterializedResultStream()}; subclasses may
+     * override with a cheaper single-row path.
+     */
+    protected R singleResultInternal() {
         try (var stream = getMaterializedResultStream()) {
             var iterator = stream.iterator();
             if (!iterator.hasNext()) {
@@ -1179,6 +1187,14 @@ public abstract class QueryBuilder<T extends Data, R, ID> {
      * @throws PersistenceException if the single row's value is null, or the query fails.
      */
     public final Optional<R> getOptionalResult() {
+        return optionalResultInternal();
+    }
+
+    /**
+     * Backs {@link #getOptionalResult()}. The default consumes {@link #getMaterializedResultStream()}; subclasses may
+     * override with a cheaper single-row path.
+     */
+    protected Optional<R> optionalResultInternal() {
         try (var stream = getMaterializedResultStream()) {
             var iterator = stream.iterator();
             if (!iterator.hasNext()) {

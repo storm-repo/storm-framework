@@ -24,6 +24,7 @@ import static st.orm.core.template.Templates.select;
 import jakarta.annotation.Nonnull;
 import jakarta.annotation.Nullable;
 import java.util.List;
+import java.util.Optional;
 import java.util.function.Supplier;
 import java.util.stream.Stream;
 import st.orm.Data;
@@ -357,5 +358,23 @@ public class SelectBuilderImpl<T extends Data, R, ID> extends QueryBuilderImpl<T
             return (Stream<R>) query.getRefStream(refType, pkType);
         }
         return query.getResultStream(selectType);
+    }
+
+    @Override
+    protected R singleResultInternal() {
+        if (refType != null) {
+            // Ref results are produced through getRefStream, which the single-row query path does not cover.
+            return super.singleResultInternal();
+        }
+        return build().withoutFetchSize().getSingleResult(selectType);
+    }
+
+    @Override
+    protected Optional<R> optionalResultInternal() {
+        if (refType != null) {
+            // Ref results are produced through getRefStream, which the single-row query path does not cover.
+            return super.optionalResultInternal();
+        }
+        return build().withoutFetchSize().getOptionalResult(selectType);
     }
 }

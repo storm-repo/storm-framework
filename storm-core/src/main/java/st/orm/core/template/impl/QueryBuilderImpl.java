@@ -26,6 +26,7 @@ import static st.orm.core.template.TemplateString.combine;
 import static st.orm.core.template.TemplateString.wrap;
 
 import jakarta.annotation.Nonnull;
+import jakarta.annotation.Nullable;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.function.Function;
@@ -501,14 +502,27 @@ abstract class QueryBuilderImpl<T extends Data, R, ID> extends QueryBuilder<T, R
             return new PredicateBuilderImpl<>(TemplateString.raw("NOT EXISTS (\0)", subquery));
         }
 
+        /**
+         * Returns the root primary-key metamodel to pin on id/ref predicates, or {@code null} when the model has no
+         * single primary-key path. Pinning lets binding resolve the target column directly instead of re-deriving it
+         * from the value's runtime type on every execution; passing {@code null} falls back to that derivation, so the
+         * behavior is identical to the unpinned path for models without a primary key.
+         */
+        @Nullable
+        private Metamodel<?, ?> primaryKeyMetamodel() {
+            return queryBuilder.modelSupplier.get().getPrimaryKeyMetamodel().orElse(null);
+        }
+
         @Override
         public PredicateBuilder<TX, RX, IDX> whereId(@Nonnull IDX id) {
-            return new PredicateBuilderImpl<>(wrap(new ObjectExpression(EQUALS, id)));
+            // whereId targets the root primary key by contract, so pin its metamodel.
+            return new PredicateBuilderImpl<>(wrap(new ObjectExpression(primaryKeyMetamodel(), EQUALS, id)));
         }
 
         @Override
         public PredicateBuilder<TX, RX, IDX> whereRef(@Nonnull Ref<TX> ref) {
-            return new PredicateBuilderImpl<>(wrap(new ObjectExpression(EQUALS, ref)));
+            // A ref to the root entity resolves to its primary key, so pin the primary-key metamodel.
+            return new PredicateBuilderImpl<>(wrap(new ObjectExpression(primaryKeyMetamodel(), EQUALS, ref)));
         }
 
         @Override
@@ -528,12 +542,14 @@ abstract class QueryBuilderImpl<T extends Data, R, ID> extends QueryBuilder<T, R
 
         @Override
         public PredicateBuilder<TX, RX, IDX> whereId(@Nonnull Iterable<? extends IDX> it) {
-            return new PredicateBuilderImpl<>(wrap(new ObjectExpression(IN, it)));
+            // whereId targets the root primary key by contract, so pin its metamodel.
+            return new PredicateBuilderImpl<>(wrap(new ObjectExpression(primaryKeyMetamodel(), IN, it)));
         }
 
         @Override
         public PredicateBuilder<TX, RX, IDX> whereRef(@Nonnull Iterable<? extends Ref<TX>> it) {
-            return new PredicateBuilderImpl<>(wrap(new ObjectExpression(IN, it)));
+            // Refs to the root entity resolve to its primary key, so pin the primary-key metamodel.
+            return new PredicateBuilderImpl<>(wrap(new ObjectExpression(primaryKeyMetamodel(), IN, it)));
         }
 
         @Override

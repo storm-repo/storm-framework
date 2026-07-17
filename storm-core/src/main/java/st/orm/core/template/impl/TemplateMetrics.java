@@ -17,7 +17,8 @@ package st.orm.core.template.impl;
 
 import java.lang.management.ManagementFactory;
 import java.util.concurrent.atomic.AtomicInteger;
-import java.util.concurrent.atomic.AtomicLong;
+import java.util.concurrent.atomic.LongAccumulator;
+import java.util.concurrent.atomic.LongAdder;
 import javax.management.MBeanServer;
 import javax.management.ObjectName;
 import org.slf4j.Logger;
@@ -51,20 +52,21 @@ public final class TemplateMetrics implements TemplateMetricsMXBean {
         return Holder.INSTANCE;
     }
 
-    // Request totals.
-    private final AtomicLong requests = new AtomicLong();
-    private final AtomicLong requestNanosTotal = new AtomicLong();
-    private final AtomicLong requestNanosMax = new AtomicLong();
+    // Request totals. LongAdder/LongAccumulator stripe updates across cells so concurrent callers do not contend on a
+    // single CAS the way AtomicLong does on the hot path.
+    private final LongAdder requests = new LongAdder();
+    private final LongAdder requestNanosTotal = new LongAdder();
+    private final LongAccumulator requestNanosMax = new LongAccumulator(Long::max, 0);
 
     // Hit totals.
-    private final AtomicLong hits = new AtomicLong();
-    private final AtomicLong hitNanosTotal = new AtomicLong();
-    private final AtomicLong hitNanosMax = new AtomicLong();
+    private final LongAdder hits = new LongAdder();
+    private final LongAdder hitNanosTotal = new LongAdder();
+    private final LongAccumulator hitNanosMax = new LongAccumulator(Long::max, 0);
 
     // Miss totals.
-    private final AtomicLong misses = new AtomicLong();
-    private final AtomicLong missNanosTotal = new AtomicLong();
-    private final AtomicLong missNanosMax = new AtomicLong();
+    private final LongAdder misses = new LongAdder();
+    private final LongAdder missNanosTotal = new LongAdder();
+    private final LongAccumulator missNanosMax = new LongAccumulator(Long::max, 0);
 
     // Configuration.
     private final AtomicInteger templateCacheSize = new AtomicInteger();
@@ -99,47 +101,47 @@ public final class TemplateMetrics implements TemplateMetricsMXBean {
     }
 
     private void record(long nanos, Outcome outcome) {
-        requests.incrementAndGet();
-        requestNanosTotal.addAndGet(nanos);
-        requestNanosMax.accumulateAndGet(nanos, Math::max);
+        requests.increment();
+        requestNanosTotal.add(nanos);
+        requestNanosMax.accumulate(nanos);
         if (outcome == Outcome.HIT) {
-            hits.incrementAndGet();
-            hitNanosTotal.addAndGet(nanos);
-            hitNanosMax.accumulateAndGet(nanos, Math::max);
+            hits.increment();
+            hitNanosTotal.add(nanos);
+            hitNanosMax.accumulate(nanos);
         } else if (outcome == Outcome.MISS) {
-            misses.incrementAndGet();
-            missNanosTotal.addAndGet(nanos);
-            missNanosMax.accumulateAndGet(nanos, Math::max);
+            misses.increment();
+            missNanosTotal.add(nanos);
+            missNanosMax.accumulate(nanos);
         }
     }
 
     @Override
     public long getRequests() {
-        return requests.get();
+        return requests.sum();
     }
 
     @Override
     public long getHits() {
-        return hits.get();
+        return hits.sum();
     }
 
     @Override
     public long getMisses() {
-        return misses.get();
+        return misses.sum();
     }
 
     @Override
     public long getHitRatioPercent() {
-        long h = hits.get();
-        long m = misses.get();
+        long h = hits.sum();
+        long m = misses.sum();
         long total = h + m;
         return total == 0 ? 0 : (h * 100 / total);
     }
 
     @Override
     public long getAvgRequestMicros() {
-        long r = requests.get();
-        return r == 0 ? 0 : (requestNanosTotal.get() / r) / 1_000;
+        long r = requests.sum();
+        return r == 0 ? 0 : (requestNanosTotal.sum() / r) / 1_000;
     }
 
     @Override
@@ -149,8 +151,8 @@ public final class TemplateMetrics implements TemplateMetricsMXBean {
 
     @Override
     public long getAvgHitMicros() {
-        long h = hits.get();
-        return h == 0 ? 0 : (hitNanosTotal.get() / h) / 1_000;
+        long h = hits.sum();
+        return h == 0 ? 0 : (hitNanosTotal.sum() / h) / 1_000;
     }
 
     @Override
@@ -160,8 +162,8 @@ public final class TemplateMetrics implements TemplateMetricsMXBean {
 
     @Override
     public long getAvgMissMicros() {
-        long m = misses.get();
-        return m == 0 ? 0 : (missNanosTotal.get() / m) / 1_000;
+        long m = misses.sum();
+        return m == 0 ? 0 : (missNanosTotal.sum() / m) / 1_000;
     }
 
     @Override
@@ -176,15 +178,15 @@ public final class TemplateMetrics implements TemplateMetricsMXBean {
 
     @Override
     public void reset() {
-        requests.set(0);
-        requestNanosTotal.set(0);
-        requestNanosMax.set(0);
-        hits.set(0);
-        hitNanosTotal.set(0);
-        hitNanosMax.set(0);
-        misses.set(0);
-        missNanosTotal.set(0);
-        missNanosMax.set(0);
+        requests.reset();
+        requestNanosTotal.reset();
+        requestNanosMax.reset();
+        hits.reset();
+        hitNanosTotal.reset();
+        hitNanosMax.reset();
+        misses.reset();
+        missNanosTotal.reset();
+        missNanosMax.reset();
     }
 
     private enum Outcome { HIT, MISS }

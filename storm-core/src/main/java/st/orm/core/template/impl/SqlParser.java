@@ -24,8 +24,6 @@ import static st.orm.core.template.SqlOperation.UPDATE;
 
 import jakarta.annotation.Nonnull;
 import java.util.List;
-import java.util.Map;
-import java.util.Map.Entry;
 import java.util.regex.Pattern;
 import st.orm.core.template.SqlDialect;
 import st.orm.core.template.SqlOperation;
@@ -38,12 +36,6 @@ import st.orm.core.template.impl.Elements.Unsafe;
 final class SqlParser {
 
     private static final Pattern WITH_PATTERN = Pattern.compile("^(?i:WITH)\\b.*", DOTALL);
-    private static final Map<Pattern, SqlOperation> SQL_MODES = Map.of(
-            Pattern.compile("^(?i:SELECT)\\b.*", DOTALL), SELECT,
-            Pattern.compile("^(?i:INSERT)\\b.*", DOTALL), INSERT,
-            Pattern.compile("^(?i:UPDATE)\\b.*", DOTALL), UPDATE,
-            Pattern.compile("^(?i:DELETE)\\b.*", DOTALL), DELETE
-    );
     private static final Pattern WHERE_PATTERN = Pattern.compile(
             "(?i:\\bWHERE\\b)", DOTALL
     );
@@ -78,11 +70,29 @@ final class SqlParser {
      * @return the SQL mode.
      */
     private static SqlOperation getSqlOperation(@Nonnull String sql) {
-        return SQL_MODES.entrySet().stream()
-                .filter(e -> e.getKey().matcher(sql).matches())
-                .map(Entry::getValue)
-                .findFirst()
-                .orElse(UNDEFINED);
+        // Match a leading SQL keyword followed by a word boundary, mirroring the "^(?i:KEYWORD)\b" patterns without
+        // evaluating a stream of regexes on every call.
+        if (startsWithKeyword(sql, "SELECT")) return SELECT;
+        if (startsWithKeyword(sql, "INSERT")) return INSERT;
+        if (startsWithKeyword(sql, "UPDATE")) return UPDATE;
+        if (startsWithKeyword(sql, "DELETE")) return DELETE;
+        return UNDEFINED;
+    }
+
+    /**
+     * Returns whether {@code sql} begins with {@code keyword} (case-insensitive) followed by a word boundary, matching
+     * the semantics of the {@code ^(?i:keyword)\b} anchored pattern.
+     */
+    private static boolean startsWithKeyword(@Nonnull String sql, @Nonnull String keyword) {
+        int length = keyword.length();
+        if (sql.length() < length || !sql.regionMatches(true, 0, keyword, 0, length)) {
+            return false;
+        }
+        if (sql.length() == length) {
+            return true;
+        }
+        char next = sql.charAt(length);
+        return !(Character.isLetterOrDigit(next) || next == '_');
     }
 
     /**

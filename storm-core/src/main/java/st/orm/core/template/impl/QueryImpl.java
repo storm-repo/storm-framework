@@ -52,6 +52,8 @@ import java.util.stream.Stream;
 import java.util.stream.StreamSupport;
 import st.orm.Data;
 import st.orm.Entity;
+import st.orm.NoResultException;
+import st.orm.NonUniqueResultException;
 import st.orm.PersistenceException;
 import st.orm.Ref;
 import st.orm.core.spi.QueryContext;
@@ -399,6 +401,60 @@ class QueryImpl implements Query {
                 });
     }
 
+    /**
+     * The at-most-one row read by {@link #readSingleRow(Class)}: {@code present} distinguishes an absent row from a
+     * present row whose mapped value is {@code null} (a value-type pass-through for a SQL NULL column), which a bare
+     * nullable reference could not.
+     */
+    private record SingleRow<T>(boolean present, @Nullable T value) {}
+
+    /**
+     * Executes the query and reads at most one row without materializing a stream. This mirrors the resource handling
+     * of {@link #getResultStream(Class)} but consumes and closes synchronously in the same call, so it skips the
+     * stream pipeline, the leak-detection proxy, and the deferred close registered by {@code getResultStream}, none of
+     * which earn anything when the caller wants a single row. Reads a second row only to enforce uniqueness.
+     *
+     * @throws NonUniqueResultException if the query returns more than one row.
+     */
+    private <T> SingleRow<T> readSingleRow(@Nonnull Class<T> type) {
+        var observation = observe(ExecutionKind.QUERY);
+        try {
+            PreparedStatement statement = getStatement();
+            boolean closeStatementHere = true;
+            try {
+                applyFetchSize(statement);
+                Runnable streamingCleanup = configureStreamingTransaction(statement);
+                ResultSet resultSet = statement.executeQuery();
+                closeStatementHere = false;  // close(resultSet, statement, ...) below owns the statement from here.
+                try {
+                    int columnCount = resultSet.getMetaData().getColumnCount();
+                    var mapper = getObjectMapper(columnCount, type, refFactory)
+                            .orElseThrow(() -> new SqlTemplateException("No suitable constructor found for %s.".formatted(type.getName())));
+                    var spliterator = rowSpliterator(resultSet, columnCount, mapper);
+                    var holder = new Object[1];
+                    // tryAdvance's boolean return, not the value, signals presence: the mapped value may itself be null.
+                    boolean present = spliterator.tryAdvance(value -> holder[0] = value);
+                    if (present && spliterator.tryAdvance(ignore -> { })) {
+                        throw new NonUniqueResultException("Expected single result, but found more than one.");
+                    }
+                    //noinspection unchecked
+                    return new SingleRow<>(present, (T) holder[0]);
+                } finally {
+                    close(resultSet, statement, streamingCleanup);
+                }
+            } finally {
+                if (closeStatementHere && closeStatement()) {
+                    statement.close();
+                }
+            }
+        } catch (Exception e) {
+            observationError(observation, e);
+            throw exceptionTransformer.apply(e);
+        } finally {
+            closeObservation(observation);
+        }
+    }
+
     @Override
     public Object[] getSingleResult() {
         return streamOnlyFetchSize && defaultFetchSize != 0
@@ -408,9 +464,18 @@ class QueryImpl implements Query {
 
     @Override
     public <T> T getSingleResult(@Nonnull Class<T> type) {
-        return streamOnlyFetchSize && defaultFetchSize != 0
-                ? withoutFetchSize().getSingleResult(type)
-                : Query.super.getSingleResult(type);
+        if (streamOnlyFetchSize && defaultFetchSize != 0) {
+            return withoutFetchSize().getSingleResult(type);
+        }
+        // Read the single row directly instead of building the full stream pipeline (see readSingleRow).
+        SingleRow<T> row = readSingleRow(type);
+        if (!row.present()) {
+            throw new NoResultException("Expected single result, but found none.");
+        }
+        if (row.value() == null) {
+            throw new PersistenceException("Expected single result, but found null. Wrap the field in COALESCE() to provide a non-null default.");
+        }
+        return row.value();
     }
 
     @Override
@@ -422,9 +487,18 @@ class QueryImpl implements Query {
 
     @Override
     public <T> Optional<T> getOptionalResult(@Nonnull Class<T> type) {
-        return streamOnlyFetchSize && defaultFetchSize != 0
-                ? withoutFetchSize().getOptionalResult(type)
-                : Query.super.getOptionalResult(type);
+        if (streamOnlyFetchSize && defaultFetchSize != 0) {
+            return withoutFetchSize().getOptionalResult(type);
+        }
+        // Read the single row directly instead of building the full stream pipeline (see readSingleRow).
+        SingleRow<T> row = readSingleRow(type);
+        if (!row.present()) {
+            return Optional.empty();
+        }
+        if (row.value() == null) {
+            throw new PersistenceException("Result is null. Wrap the field in COALESCE() to provide a non-null default.");
+        }
+        return Optional.of(row.value());
     }
 
     @Override
