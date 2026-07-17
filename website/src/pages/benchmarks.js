@@ -926,10 +926,6 @@ const BM_CSS = `
   .bm-limits{border:1px solid var(--border);border-left:3px solid var(--accent);border-radius:12px;background:var(--panel-2);padding:16px 20px;margin:8px 0 24px}
   .storm-tut .art .bm-limits h3{margin:0 0 6px;font-size:15px}
   .bm-limits p{margin:0;color:var(--muted);font-size:13.5px;line-height:1.6}
-  .bm-cta{border:1px solid var(--border);border-radius:16px;background:var(--panel);padding:30px 32px;margin:46px 0 10px}
-  .storm-tut .art .bm-cta h2{margin:0 0 8px}
-  .bm-cta p{margin:0;color:var(--muted);max-width:640px}
-  .bm-cta .getit{margin-top:20px}
 `;
 
 // One workload: Storm's implementation shows by default; the other six are a
@@ -1122,14 +1118,6 @@ ${charts}
     <a class="btn" href="https://github.com/storm-orm/storm-benchmarks" target="_blank" rel="noopener">View on GitHub →</a>
   </div>
 
-  <div class="bm-cta">
-    <h2>See how the API feels</h2>
-    <p>Performance matters most when the programming model also fits your application. Explore the Storm documentation or build the example application yourself.</p>
-    <div class="getit">
-      <a class="btn primary" href="/quickstart">Get started</a>
-      <a class="btn" href="https://github.com/storm-orm/storm-benchmarks" target="_blank" rel="noopener">View benchmark source</a>
-    </div>
-  </div>
 </div>
 
 ${FOOT_HTML}
