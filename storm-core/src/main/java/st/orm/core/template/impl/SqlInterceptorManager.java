@@ -112,6 +112,12 @@ public final class SqlInterceptorManager {
     private static final ReadWriteLock LOCK = new ReentrantReadWriteLock();
     private static final Set<Object> GLOBAL_OPERATORS = newSetFromMap(new IdentityHashMap<>());
 
+    /**
+     * Number of registered global operators. Written under {@link #LOCK}'s write lock, read without locking so the
+     * hot {@link #intercept(Sql)} path can skip acquiring the read lock when no global operators are registered.
+     */
+    private static volatile int globalOperatorCount = 0;
+
     private static final ThreadLocal<Deque<Operator>> LOCAL_OPERATORS = ThreadLocal.withInitial(() -> new ArrayDeque<>(4));
 
     private SqlInterceptorManager() {
@@ -126,6 +132,7 @@ public final class SqlInterceptorManager {
         LOCK.writeLock().lock();
         try {
             GLOBAL_OPERATORS.add(interceptor);
+            globalOperatorCount = GLOBAL_OPERATORS.size();
         } finally {
             LOCK.writeLock().unlock();
         }
@@ -140,6 +147,7 @@ public final class SqlInterceptorManager {
         LOCK.writeLock().lock();
         try {
             GLOBAL_OPERATORS.add(observer);
+            globalOperatorCount = GLOBAL_OPERATORS.size();
         } finally {
             LOCK.writeLock().unlock();
         }
@@ -154,6 +162,7 @@ public final class SqlInterceptorManager {
         LOCK.writeLock().lock();
         try {
             GLOBAL_OPERATORS.remove(observer);
+            globalOperatorCount = GLOBAL_OPERATORS.size();
         } finally {
             LOCK.writeLock().unlock();
         }
@@ -168,6 +177,7 @@ public final class SqlInterceptorManager {
         LOCK.writeLock().lock();
         try {
             GLOBAL_OPERATORS.remove(observer);
+            globalOperatorCount = GLOBAL_OPERATORS.size();
         } finally {
             LOCK.writeLock().unlock();
         }
@@ -287,6 +297,10 @@ public final class SqlInterceptorManager {
             }
         } catch (ConcurrentModificationException e) {
             throw new PersistenceException("Registering interceptors from within their execution scope is not allowed.");
+        }
+        if (globalOperatorCount == 0) {
+            // No global operators are registered, so skip acquiring the read lock entirely.
+            return adjusted;
         }
         LOCK.readLock().lock();
         try {
