@@ -189,6 +189,12 @@ final class QueryModelImpl implements QueryModel {
                         return modelBuilder.build(type, true).getPrimaryKeyMetamodel().orElseThrow();
                     }
                 }
+                if (type == model.primaryKeyType()) {
+                    // Entity-typed primary key: the object is the root's primary key value (e.g., a junction
+                    // table keyed by an entity whose table also appears elsewhere in the join graph). Mirrors
+                    // the primary-key fallback for scalar values below.
+                    return model.getPrimaryKeyMetamodel().orElseThrow();
+                }
                 throw new SqlTemplateException("Cannot uniquely identify object in expression: multiple matches found for type %s. Ensure the expression resolves to a single, unambiguous metamodel path.".formatted(type.getSimpleName()));
             }
             if (isPrimaryKeyValue(object, model.primaryKeyType())) {
