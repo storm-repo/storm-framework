@@ -27,6 +27,7 @@ import st.orm.Ref;
 import st.orm.core.model.Address;
 import st.orm.core.model.City;
 import st.orm.core.model.Owner;
+import st.orm.core.model.OwnerPrimaryPet;
 import st.orm.core.model.Pet;
 import st.orm.core.model.PetOwnerRef;
 import st.orm.core.model.PetType;
@@ -285,6 +286,19 @@ public class WriteSetIntegrationTest {
         assertEquals(fetched.id().vetId(), (int) fetched.vet().id());
         assertEquals("Fetched", fetched.vet().firstName());
         assertEquals(3, fetched.id().specialtyId());
+    }
+
+    @Test
+    public void testInsertAndFetchJunctionWithEntityTypedPrimaryKey() {
+        var orm = orm();
+        var owner = newOwner("EntityPk", "Junction");
+        var pet = Pet.builder().name("EntityPkJunctionPet").birthDate(LocalDate.of(2024, 4, 4)).type(dogType()).owner(owner).build();
+        // The junction's primary key is the owner entity itself, and its join graph reaches the owner table
+        // twice (owner and pet.owner); the fetch-back must resolve the propagated ids against the primary-key
+        // path rather than by type.
+        var fetched = orm.writeSet().insertAndFetch(new OwnerPrimaryPet(owner, pet));
+        assertNotEquals(0, (int) fetched.owner().id());
+        assertEquals(fetched.owner().id(), fetched.pet().owner().id());
     }
 
     @DbTable("vet_badge")

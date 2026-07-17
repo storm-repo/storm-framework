@@ -11,6 +11,7 @@ import static st.orm.core.template.Templates.param;
 
 import jakarta.annotation.Nonnull;
 import jakarta.annotation.Nullable;
+import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
@@ -30,8 +31,12 @@ import st.orm.NoResultException;
 import st.orm.PK;
 import st.orm.PersistenceException;
 import st.orm.Ref;
+import st.orm.core.model.Address;
 import st.orm.core.model.City;
 import st.orm.core.model.Owner;
+import st.orm.core.model.OwnerPrimaryPet;
+import st.orm.core.model.Pet;
+import st.orm.core.model.PetType;
 import st.orm.core.template.ORMTemplate;
 
 /**
@@ -979,5 +984,31 @@ public class EntityRepositoryIntegrationTest {
             assertTrue(ids.contains(DEFAULT_KEY_ID));
             assertTrue(ids.contains(SECONDARY_KEY_ID));
         }
+    }
+
+    // Entity-typed primary keys.
+
+    @Test
+    public void testFindAllByIdWithEntityTypedPkWhoseTableIsReachedTwice() {
+        var orm = ORMTemplate.of(dataSource);
+        var owner = orm.entity(Owner.class).insertAndFetch(Owner.builder()
+                .firstName("EntityPk")
+                .lastName("FindAllById")
+                .address(Address.builder().address("110 W. Liberty St.").city(City.builder().id(1).name("Sun Paririe").build()).build())
+                .telephone("6085551023")
+                .build());
+        var pet = orm.entity(Pet.class).insertAndFetch(Pet.builder()
+                .name("EntityPkFindPet")
+                .birthDate(LocalDate.of(2024, 1, 1))
+                .type(Ref.of(PetType.class, 1))
+                .owner(owner)
+                .build());
+        var repository = orm.entity(OwnerPrimaryPet.class);
+        repository.insert(new OwnerPrimaryPet(owner, pet));
+        // The junction's join graph reaches the owner table twice (owner and pet.owner); the id lookup must
+        // resolve against the primary-key path rather than by type.
+        var result = repository.findAllById(List.of(owner));
+        assertEquals(1, result.size());
+        assertEquals(owner.id(), result.getFirst().owner().id());
     }
 }

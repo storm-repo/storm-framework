@@ -1,6 +1,7 @@
 drop table if exists tenant CASCADE;
 drop table if exists city CASCADE;
 drop table if exists owner CASCADE;
+drop table if exists owner_primary_pet CASCADE;
 drop table if exists pet CASCADE;
 drop table if exists pet_extension CASCADE;
 drop table if exists pet_type CASCADE;
@@ -20,8 +21,11 @@ create table vet_badge (id integer auto_increment, label varchar(255), vet_id in
 create table vet_specialty (vet_id integer, specialty_id integer not null, primary key (vet_id, specialty_id));
 create table visit (id integer auto_increment, visit_date date, description varchar(255), vet_id integer null, specialty_id integer null, pet_id integer not null, "timestamp" timestamp default CURRENT_TIMESTAMP, primary key (id));
 create table pet_extension (pet_id integer not null, notes varchar(255), primary key (pet_id));
+create table owner_primary_pet (owner_id integer not null, pet_id integer not null, primary key (owner_id));
 alter table owner add constraint owner_city_fk foreign key (city_id) references city (id);
 alter table pet_extension add constraint pet_extension_pet_fk foreign key (pet_id) references pet (id);
+alter table owner_primary_pet add constraint owner_primary_pet_owner_fk foreign key (owner_id) references owner (id);
+alter table owner_primary_pet add constraint owner_primary_pet_pet_fk foreign key (pet_id) references pet (id);
 alter table pet add constraint pet_owner_fk foreign key (owner_id) references owner (id);
 alter table pet add constraint pet_pet_type_fk foreign key (type_id) references pet_type (id);
 alter table vet_badge add constraint vet_badge_vet_fk foreign key (vet_id) references vet (id);
