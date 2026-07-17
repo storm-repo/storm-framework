@@ -472,11 +472,13 @@ export const TUT_CSS = `
   .storm-tut .tuthero{max-width:1080px;margin:0 auto;padding:64px 24px 6px}
   .storm-tut .tuthero .sub{color:var(--muted);font-size:17.5px;line-height:1.66;margin:20px 0 0;max-width:700px}
   .storm-tut .catnav{display:flex;gap:10px;margin-top:28px;flex-wrap:wrap}
-  .storm-tut .catnav a{font-family:var(--mono);font-size:12.5px;color:#b1b5da;border:1px solid rgba(129,140,248,.20);border-radius:999px;padding:8px 16px;transition:.16s;background:rgba(129,140,248,.07);cursor:pointer}
-  .storm-tut .catnav a:hover{color:#e9eaf7;border-color:rgba(129,140,248,.45);background:rgba(129,140,248,.13)}
-  .storm-tut .catnav a.on{color:#0a0a0f;background:var(--accent);border-color:var(--accent);font-weight:600}
+  .storm-tut .catnav a{font-family:var(--mono);font-size:12.5px;color:#b1b5da;border:1px solid transparent;border-radius:999px;padding:8px 16px;transition:color .16s ease,box-shadow .16s ease;cursor:pointer;
+    background:linear-gradient(#10101a,#10101a) padding-box,linear-gradient(150deg,#4a4e74 0%,#3c3e62 22%,#2d2e47 46%,#27273d 54%,#383a62 74%,#454877 92%,#313352 100%) border-box}
+  .storm-tut .catnav a:hover{color:#e9eaf7;box-shadow:0 0 9px rgba(129,140,248,.12)}
+  .storm-tut .catnav a.on{color:#d8cdff;font-weight:600;box-shadow:0 0 9px rgba(129,140,248,.12);
+    background:linear-gradient(#211d44,#211d44) padding-box,linear-gradient(150deg,#7a80be 0%,#6167a2 22%,#4a4f80 46%,#434877 54%,#6167a2 74%,#7c82c0 92%,#545a90 100%) border-box}
   .storm-tut .catnav a b{color:rgba(178,182,220,.55);font-weight:500;margin-left:7px}
-  .storm-tut .catnav a.on b{color:rgba(10,10,15,.55)}
+  .storm-tut .catnav a.on b{color:rgba(215,220,255,.5)}
   .storm-tut .shead{max-width:1080px;margin:0 auto;padding:52px 24px 0;font-family:var(--mono);font-size:12px;letter-spacing:.16em;text-transform:uppercase;color:var(--text);scroll-margin-top:86px}
   .storm-tut .shead .mark{color:var(--accent);margin-right:10px}
   .storm-tut .shead .sdesc{display:block;margin-top:9px;font-family:var(--sans);font-size:14.5px;letter-spacing:0;text-transform:none;color:var(--muted);line-height:1.6}
