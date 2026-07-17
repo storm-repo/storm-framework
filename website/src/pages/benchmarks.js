@@ -10,7 +10,7 @@ const DESC = 'Reproducible JMH benchmarks of Storm against JDBC, Hibernate, jOOQ
 
 // Results from the reproducible suite: one tuned PostgreSQL 17 container over TCP, JMH, 2 forks,
 // 5x3s measured iterations, single thread. Values are mean us/op with the reported error.
-// Rows are same-session comparisons; the raw JDBC single round trip measured ~155 us.
+// Rows are same-session comparisons; the raw JDBC single round trip measured ~155-172 us across sessions.
 const LIBS = {
   jdbc: {name: 'JDBC', cls: 'jdbc'},
   storm: {name: 'Storm', cls: 'storm'},
@@ -123,7 +123,7 @@ function modelLocHtml() {
     </div>`).join('');
   return `<div class="bm-card bm-loc">
     <h3>Entities LOC</h3>
-    <p class="bm-desc">The entity or table definitions by the same counting rule, result DTOs and Storm's optimized write shape excluded. This is the code you write first and read forever.</p>
+    <p class="bm-desc">The entity or table definitions by the same counting rule, result DTOs and Storm's optimized write shape excluded. This is the model code developers write and maintain.</p>
     ${rows}
     <p class="bm-note">JDBC and jOOQ have no hand-written model: JDBC maps rows by hand and jOOQ generates its table classes, so their cost appears in the suite total above instead.</p>
   </div>`;
@@ -923,7 +923,30 @@ const BM_CSS = `
   .bm-loc .bm-note{margin-top:16px}
   .bm-loc .bm-name{white-space:normal}
   .bm-tag{display:inline-block;font-style:normal;font-size:9.5px;line-height:1;padding:3px 7px;margin-left:6px;border:1px solid var(--border);border-radius:999px;color:var(--muted);white-space:nowrap;vertical-align:1px}
+  .bm-limits{border:1px solid var(--border);border-left:3px solid var(--accent);border-radius:12px;background:var(--panel-2);padding:16px 20px;margin:8px 0 24px}
+  .storm-tut .art .bm-limits h3{margin:0 0 6px;font-size:15px}
+  .bm-limits p{margin:0;color:var(--muted);font-size:13.5px;line-height:1.6}
+  .bm-cta{border:1px solid var(--border);border-radius:16px;background:var(--panel);padding:30px 32px;margin:46px 0 10px}
+  .storm-tut .art .bm-cta h2{margin:0 0 8px}
+  .bm-cta p{margin:0;color:var(--muted);max-width:640px}
+  .bm-cta .getit{margin-top:20px}
 `;
+
+// One workload: Storm's implementation shows by default; the other six are a
+// selector away and the SQL a toggle away, both living in the editor's own
+// title bar, so a workload adds a single editor rather than extra panels or
+// toggle links. Per-library SQL divergences ride on their variant.
+function codeBlock({title, desc, file, storm, others, sql, sqlExtras}) {
+  const divergent = new Map(sqlExtras || []);
+  const variants = [
+    {label: 'Storm', tag: 'Kotlin', code: storm, selected: true},
+    ...others.map(({selected, ...v}) => (divergent.has(v.label) ? {...v, sql: divergent.get(v.label)} : v)),
+  ];
+  return `
+  <h3>${title}</h3>
+  ${desc ? `<p>${desc}</p>` : ''}
+  ${editor({file, tag: 'Kotlin', sql, variants})}`;
+}
 
 function buildBody() {
   const charts = WORKLOADS.map(chartHtml).join('\n');
@@ -932,19 +955,21 @@ ${navHtml('benchmarks')}
 
 <div class="art">
   <h1>Concise by design.<br><span class="grad">Fast by measurement.</span></h1>
-  <p class="dek">Storm set out to be the most enjoyable ORM to work with, entities as plain records, queries that read like the SQL they produce. This page shows that the same design keeps the hot path lean, measured against six alternatives on identical workloads, with the code behind every number.</p>
+  <p class="dek">Storm was designed around plain entities and queries that closely resemble the SQL they produce. These benchmarks show that the same design also keeps runtime overhead low.</p>
+  <p class="dek">Seven implementations run against the same PostgreSQL database, using the same schema, data and transaction boundaries. Every result includes a real TCP round trip, and the code behind every number is available to inspect and reproduce.</p>
   <p class="bm-meta">PostgreSQL 17 over TCP · JMH · Storm 1.13.0 · measured 2026-07-16</p>
 
   <div class="bm-stats">
-    <div class="bm-stat"><b>5 of 8</b><span>workloads where Storm is the fastest ORM.</span></div>
-    <div class="bm-stat"><b>5.6%</b><span>is the most Storm trails the fastest ORM on any workload.</span></div>
-    <div class="bm-stat"><b>72% less</b><span>entity code than JPA: the five-table model is 29 lines in Storm, 105 as JPA entities.</span></div>
+    <div class="bm-stat"><b>5 of 8</b><span>workloads where Storm is the fastest framework above JDBC.</span></div>
+    <div class="bm-stat"><b>5.6%</b><span>is the most Storm trails the fastest framework on any workload.</span></div>
+    <div class="bm-stat"><b>72% less</b><span>entity code than JPA: 29 lines in Storm, 105 as JPA entities.</span></div>
   </div>
 
-  <h2>At a glance</h2>
+  <h2>Performance results</h2>
+  <p>The workloads cover common data-access paths: point reads, joined entity hydration, projections, batch writes, change-aware updates and one-to-many object graphs.</p>
   <p>Seven implementations, one database, one discipline: same schema, same data, same transaction boundaries, every score a real network round trip away from PostgreSQL. Mean latency per operation, lower is better. Cells are tinted by distance from the fastest framework in the row, green through red. Percentages are overhead over raw JDBC. Raw JDBC is the baseline.</p>
   ${matrixHtml()}
-  <p class="bm-matrix-read">On most workloads Storm is the fastest framework; where it isn't, another library edges it narrowly: Hibernate on the single-row lookup and the read-modify-update, jOOQ on the batch insert, where its single multi-row statement beats the batched single-row insert the others send. Even then, Storm stays within about six percent of the fastest framework. A real network round trip sits inside every score, so the pure mapping gap is larger still. Absolute times depend on the hardware they were measured on; the relative comparisons are the point.</p>
+  <p class="bm-matrix-read">On most workloads Storm is the fastest framework; where it isn't, another library edges it narrowly: Hibernate on the single-row lookup and the read-modify-update, jOOQ on the batch insert, where its single multi-row statement beats the batched single-row insert the others send. Even then, Storm stays within about six percent of the fastest framework. Because every result includes a real network round trip, framework overhead represents only part of the reported latency. Absolute times depend on the hardware they were measured on; the relative comparisons are the point.</p>
 
   <details class="bm-details">
     <summary>Per-workload charts: the same numbers with their reported error</summary>
@@ -954,97 +979,137 @@ ${charts}
     </div>
   </details>
 
-  <h2>The code being measured</h2>
-  <p>Numbers without code invite tuned-benchmark suspicion, so here is what each workload runs in every library, trimmed of harness plumbing. Pick a library from the selector; toggle <i>Show SQL</i> to see the exact statement it puts on the wire. The full sources for all seven implementations are in the benchmark repository.</p>
+  <h2>Code comparison</h2>
+  <p>Numbers without code invite tuned-benchmark suspicion, so the counts below, and the workloads that follow, show exactly what each library runs, trimmed of harness plumbing. The full sources for all seven implementations are in the benchmark repository.</p>
   ${modelLocHtml()}
   ${locHtml()}
+  <p class="bm-note">LOC is presented as an illustration of these benchmark implementations, rather than as a universal measure of framework complexity.</p>
 
-  <h3>The model</h3>
-  <p>Storm's model is plain data classes. Nullability, keys and relations live in the type: <code>@FK val owner: Owner</code> hydrates through a join, <code>Ref&lt;PetType&gt;</code> stays a lazy reference until asked. No proxies, no session lifecycle, nothing to configure. Switch the selector to compare it against the JPA entities, table objects and interfaces the other libraries declare for the same five tables.</p>
-  ${editor({variants: [
-    {label: 'Storm', file: 'Entities.kt', tag: 'Kotlin', code: CODE_ENTITIES, selected: true},
-    {label: 'JDBC', file: 'Models.java', tag: 'Java', code: CODE_MODEL_JDBC},
-    {label: 'Hibernate', file: 'Entities.java', tag: 'Java', code: CODE_MODEL_HIBERNATE},
-    {label: 'jOOQ', file: 'Models.java', tag: 'Java', code: CODE_MODEL_JOOQ},
-    {label: 'Exposed', file: 'Tables.kt', tag: 'Kotlin', code: CODE_MODEL_EXPOSED},
-    {label: 'Exposed DAO', file: 'Entities.kt', tag: 'Kotlin', code: CODE_MODEL_EXPOSED_DAO},
-    {label: 'Jimmer', file: 'Entities.java', tag: 'Java', code: CODE_MODEL_JIMMER},
-  ]})}
+  <h2>Inspect each workload</h2>
+  <p>Each workload shows Storm's implementation. Pick another library from the selector to compare it, or toggle <i>Show SQL</i> for the exact statement on the wire.</p>
 
-  <h3>Primary key lookup</h3>
-  ${editor({file: 'singleRowById', sql: SQL_SINGLE, variants: [
-    {label: 'Storm', tag: 'Kotlin', code: CODE_SINGLE, selected: true},
-    {label: 'JDBC', tag: 'Java', code: CODE_SINGLE_JDBC},
-    {label: 'Hibernate', tag: 'Java', code: CODE_SINGLE_HIBERNATE},
-    {label: 'jOOQ', tag: 'Java', code: CODE_SINGLE_JOOQ},
-    {label: 'Exposed', tag: 'Kotlin', code: CODE_SINGLE_EXPOSED},
-    {label: 'Exposed DAO', tag: 'Kotlin', code: CODE_SINGLE_EXPOSED_DAO},
-    {label: 'Jimmer', tag: 'Java', code: CODE_SINGLE_JIMMER},
-  ]})}
+  ${codeBlock({
+    title: 'The model',
+    file: 'Entities.kt',
+    desc: `Storm's model is plain data classes. Nullability, keys and relations live in the type: <code>@FK val owner: Owner</code> hydrates through a join, <code>Ref&lt;PetType&gt;</code> stays a lazy reference until asked. No proxies, no session lifecycle, nothing to configure. Compare it against the JPA entities, table objects and interfaces the other libraries declare for the same five tables.`,
+    storm: CODE_ENTITIES,
+    others: [
+      {label: 'JDBC', file: 'Models.java', tag: 'Java', code: CODE_MODEL_JDBC, selected: true},
+      {label: 'Hibernate', file: 'Entities.java', tag: 'Java', code: CODE_MODEL_HIBERNATE},
+      {label: 'jOOQ', file: 'Models.java', tag: 'Java', code: CODE_MODEL_JOOQ},
+      {label: 'Exposed', file: 'Tables.kt', tag: 'Kotlin', code: CODE_MODEL_EXPOSED},
+      {label: 'Exposed DAO', file: 'Entities.kt', tag: 'Kotlin', code: CODE_MODEL_EXPOSED_DAO},
+      {label: 'Jimmer', file: 'Entities.java', tag: 'Java', code: CODE_MODEL_JIMMER},
+    ],
+  })}
 
-  <h3>Three-table join</h3>
-  <p>No fetch joins to spell out and no N+1 to dodge: the entity graph declares what a Pet is, so selecting pets hydrates owner and city from one query.</p>
-  ${editor({file: 'joinWithMapping', sql: SQL_JOIN, variants: [
-    {label: 'Storm', tag: 'Kotlin', code: CODE_JOIN, selected: true},
-    {label: 'JDBC', tag: 'Java', code: CODE_JOIN_JDBC},
-    {label: 'Hibernate', tag: 'Java', code: CODE_JOIN_HIBERNATE},
-    {label: 'jOOQ', tag: 'Java', code: CODE_JOIN_JOOQ},
-    {label: 'Exposed', tag: 'Kotlin', code: CODE_JOIN_EXPOSED},
-    {label: 'Exposed DAO', tag: 'Kotlin', code: CODE_JOIN_EXPOSED_DAO, sql: SQL_JOIN_EXPOSED_DAO},
-    {label: 'Jimmer', tag: 'Java', code: CODE_JOIN_JIMMER, sql: SQL_JOIN_JIMMER},
-  ]})}
+  ${codeBlock({
+    title: 'Primary key lookup',
+    file: 'singleRowById',
+    storm: CODE_SINGLE,
+    sql: SQL_SINGLE,
+    others: [
+      {label: 'JDBC', tag: 'Java', code: CODE_SINGLE_JDBC, selected: true},
+      {label: 'Hibernate', tag: 'Java', code: CODE_SINGLE_HIBERNATE},
+      {label: 'jOOQ', tag: 'Java', code: CODE_SINGLE_JOOQ},
+      {label: 'Exposed', tag: 'Kotlin', code: CODE_SINGLE_EXPOSED},
+      {label: 'Exposed DAO', tag: 'Kotlin', code: CODE_SINGLE_EXPOSED_DAO},
+      {label: 'Jimmer', tag: 'Java', code: CODE_SINGLE_JIMMER},
+    ],
+  })}
 
-  <h3>Projection</h3>
-  <p>A template picks three columns across the graph; the metamodel keeps every path compile-checked.</p>
-  ${editor({file: 'projection', sql: SQL_PROJECTION, variants: [
-    {label: 'Storm', tag: 'Kotlin', code: CODE_PROJECTION, selected: true},
-    {label: 'JDBC', tag: 'Java', code: CODE_PROJECTION_JDBC},
-    {label: 'Hibernate', tag: 'Java', code: CODE_PROJECTION_HIBERNATE},
-    {label: 'jOOQ', tag: 'Java', code: CODE_PROJECTION_JOOQ},
-    {label: 'Exposed', tag: 'Kotlin', code: CODE_PROJECTION_EXPOSED},
-    {label: 'Exposed DAO', tag: 'Kotlin', code: CODE_PROJECTION_EXPOSED_DAO},
-    {label: 'Jimmer', tag: 'Java', code: CODE_PROJECTION_JIMMER},
-  ]})}
+  ${codeBlock({
+    title: 'Three-table join',
+    file: 'joinWithMapping',
+    desc: 'No fetch joins to spell out and no N+1 to dodge: the entity graph declares what a Pet is, so selecting pets hydrates owner and city from one query.',
+    storm: CODE_JOIN,
+    sql: SQL_JOIN,
+    sqlExtras: [['Exposed DAO', SQL_JOIN_EXPOSED_DAO], ['Jimmer', SQL_JOIN_JIMMER]],
+    others: [
+      {label: 'JDBC', tag: 'Java', code: CODE_JOIN_JDBC, selected: true},
+      {label: 'Hibernate', tag: 'Java', code: CODE_JOIN_HIBERNATE},
+      {label: 'jOOQ', tag: 'Java', code: CODE_JOIN_JOOQ},
+      {label: 'Exposed', tag: 'Kotlin', code: CODE_JOIN_EXPOSED},
+      {label: 'Exposed DAO', tag: 'Kotlin', code: CODE_JOIN_EXPOSED_DAO},
+      {label: 'Jimmer', tag: 'Java', code: CODE_JOIN_JIMMER},
+    ],
+  })}
 
-  <h3>Batch insert</h3>
-  ${editor({file: 'batchInsert', variants: [
-    {label: 'Storm', tag: 'Kotlin', code: CODE_BATCH, sql: SQL_BATCH, selected: true},
-    {label: 'JDBC', tag: 'Java', code: CODE_BATCH_JDBC, sql: SQL_BATCH},
-    {label: 'Hibernate', tag: 'Java', code: CODE_BATCH_HIBERNATE, sql: SQL_BATCH_HIBERNATE},
-    {label: 'jOOQ', tag: 'Java', code: CODE_BATCH_JOOQ, sql: SQL_BATCH_JOOQ},
-    {label: 'Exposed', tag: 'Kotlin', code: CODE_BATCH_EXPOSED, sql: SQL_BATCH},
-    {label: 'Exposed DAO', tag: 'Kotlin', code: CODE_BATCH_EXPOSED_DAO, sql: SQL_BATCH},
-    {label: 'Jimmer', tag: 'Java', code: CODE_BATCH_JIMMER, sql: SQL_BATCH},
-  ]})}
+  ${codeBlock({
+    title: 'Projection',
+    file: 'projection',
+    desc: 'A template picks three columns across the graph; the metamodel keeps every path compile-checked.',
+    storm: CODE_PROJECTION,
+    sql: SQL_PROJECTION,
+    others: [
+      {label: 'JDBC', tag: 'Java', code: CODE_PROJECTION_JDBC, selected: true},
+      {label: 'Hibernate', tag: 'Java', code: CODE_PROJECTION_HIBERNATE},
+      {label: 'jOOQ', tag: 'Java', code: CODE_PROJECTION_JOOQ},
+      {label: 'Exposed', tag: 'Kotlin', code: CODE_PROJECTION_EXPOSED},
+      {label: 'Exposed DAO', tag: 'Kotlin', code: CODE_PROJECTION_EXPOSED_DAO},
+      {label: 'Jimmer', tag: 'Java', code: CODE_PROJECTION_JIMMER},
+    ],
+  })}
 
-  <h3>Read, modify, update</h3>
-  <p>Storm's regular <code>Owner</code> is an aggregate: reading one loads its city through a join. Every other library declares that association lazy and reads the owner row alone, so to keep the read side of this workload identical for everyone, the benchmark uses a dedicated shape of the same table where city stays a lazy <code>Ref</code>. That shape is one record; declaring it is Storm's equivalent of the <code>FetchType.LAZY</code> the others put on their entities, and its ten lines are counted against Storm in the Queries LOC table above. On the write side, <code>@DynamicUpdate(FIELD)</code> writes only the column that changed. Entities are immutable; an update is a <code>copy</code>.</p>
-  ${editor({file: 'updateById', sql: SQL_UPDATE, variants: [
-    {label: 'Storm', tag: 'Kotlin', code: CODE_UPDATE, selected: true},
-    {label: 'JDBC', tag: 'Java', code: CODE_UPDATE_JDBC},
-    {label: 'Hibernate', tag: 'Java', code: CODE_UPDATE_HIBERNATE},
-    {label: 'jOOQ', tag: 'Java', code: CODE_UPDATE_JOOQ},
-    {label: 'Exposed', tag: 'Kotlin', code: CODE_UPDATE_EXPOSED},
-    {label: 'Exposed DAO', tag: 'Kotlin', code: CODE_UPDATE_EXPOSED_DAO},
-    {label: 'Jimmer', tag: 'Java', code: CODE_UPDATE_JIMMER},
-  ]})}
+  ${codeBlock({
+    title: 'Batch insert',
+    file: 'batchInsert',
+    storm: CODE_BATCH,
+    sql: SQL_BATCH,
+    sqlExtras: [['Hibernate', SQL_BATCH_HIBERNATE], ['jOOQ', SQL_BATCH_JOOQ]],
+    others: [
+      {label: 'JDBC', tag: 'Java', code: CODE_BATCH_JDBC, selected: true},
+      {label: 'Hibernate', tag: 'Java', code: CODE_BATCH_HIBERNATE},
+      {label: 'jOOQ', tag: 'Java', code: CODE_BATCH_JOOQ},
+      {label: 'Exposed', tag: 'Kotlin', code: CODE_BATCH_EXPOSED},
+      {label: 'Exposed DAO', tag: 'Kotlin', code: CODE_BATCH_EXPOSED_DAO},
+      {label: 'Jimmer', tag: 'Java', code: CODE_BATCH_JIMMER},
+    ],
+  })}
 
-  <h3>Object graph</h3>
-  <p>One query, grouped during hydration. Repeated owners deduplicate to the same instance, so grouping is an identity operation, not a hash of every field. Switch the variant to see the code the other libraries needed for the same result.</p>
-  ${editor({file: 'objectGraph', sql: SQL_GRAPH, variants: [
-    {label: 'Storm', tag: 'Kotlin', code: CODE_GRAPH_STORM, selected: true},
-    {label: 'JDBC', tag: 'Java', code: CODE_GRAPH_JDBC},
-    {label: 'Hibernate', tag: 'Java', code: CODE_GRAPH_HIBERNATE, sql: SQL_GRAPH_HIBERNATE},
-    {label: 'jOOQ', tag: 'Java', code: CODE_GRAPH_JOOQ, sql: SQL_GRAPH_JOOQ},
-    {label: 'Exposed', tag: 'Kotlin', code: CODE_GRAPH_EXPOSED},
-    {label: 'Exposed DAO', tag: 'Kotlin', code: CODE_GRAPH_EXPOSED_DAO, sql: SQL_GRAPH_EXPOSED_DAO},
-    {label: 'Jimmer', tag: 'Java', code: CODE_GRAPH_JIMMER, sql: SQL_GRAPH_JIMMER},
-  ]})}
+  ${codeBlock({
+    title: 'Read, modify, update',
+    file: 'updateById',
+    desc: `Storm's regular <code>Owner</code> is an aggregate: reading one loads its city through a join. Every other library declares that association lazy and reads the owner row alone, so to keep the read side of this workload identical for everyone, the benchmark uses a dedicated shape of the same table where city stays a lazy <code>Ref</code>. That shape is one record; declaring it is Storm's equivalent of the <code>FetchType.LAZY</code> the others put on their entities, and its ten lines are counted against Storm in the Queries LOC table above. On the write side, <code>@DynamicUpdate(FIELD)</code> writes only the column that changed. Entities are immutable; an update is a <code>copy</code>.`,
+    storm: CODE_UPDATE,
+    sql: SQL_UPDATE,
+    others: [
+      {label: 'JDBC', tag: 'Java', code: CODE_UPDATE_JDBC, selected: true},
+      {label: 'Hibernate', tag: 'Java', code: CODE_UPDATE_HIBERNATE},
+      {label: 'jOOQ', tag: 'Java', code: CODE_UPDATE_JOOQ},
+      {label: 'Exposed', tag: 'Kotlin', code: CODE_UPDATE_EXPOSED},
+      {label: 'Exposed DAO', tag: 'Kotlin', code: CODE_UPDATE_EXPOSED_DAO},
+      {label: 'Jimmer', tag: 'Java', code: CODE_UPDATE_JIMMER},
+    ],
+  })}
 
-  <h2>Method and fairness</h2>
+  ${codeBlock({
+    title: 'Object graph',
+    file: 'objectGraph',
+    desc: 'One query, grouped during hydration. Repeated owners deduplicate to the same instance, so grouping is an identity operation, not a hash of every field.',
+    storm: CODE_GRAPH_STORM,
+    sql: SQL_GRAPH,
+    sqlExtras: [['Hibernate', SQL_GRAPH_HIBERNATE], ['jOOQ', SQL_GRAPH_JOOQ], ['Exposed DAO', SQL_GRAPH_EXPOSED_DAO], ['Jimmer', SQL_GRAPH_JIMMER]],
+    others: [
+      {label: 'JDBC', tag: 'Java', code: CODE_GRAPH_JDBC, selected: true},
+      {label: 'Hibernate', tag: 'Java', code: CODE_GRAPH_HIBERNATE},
+      {label: 'jOOQ', tag: 'Java', code: CODE_GRAPH_JOOQ},
+      {label: 'Exposed', tag: 'Kotlin', code: CODE_GRAPH_EXPOSED},
+      {label: 'Exposed DAO', tag: 'Kotlin', code: CODE_GRAPH_EXPOSED_DAO},
+      {label: 'Jimmer', tag: 'Java', code: CODE_GRAPH_JIMMER},
+    ],
+  })}
+
+  <h2>Methodology and reproduction</h2>
+
+  <div class="bm-limits">
+    <h3>Scope and limitations</h3>
+    <p>These benchmarks measure single-threaded operation latency on PostgreSQL. They do not measure application throughput, connection-pool contention, startup time, memory use, native-image performance or behaviour on other databases.</p>
+  </div>
+
   <p>The suite is built to be argued with. Everything below is enforced in code, not prose.</p>
   <ul>
-    <li><b>Real round trips.</b> One tuned PostgreSQL 17 container, reached over TCP. The raw JDBC single round trip measured about 155 µs, and every score includes it. That compresses relative differences; the mapping-heavy workloads are where library differences show.</li>
+    <li><b>Real round trips.</b> One tuned PostgreSQL 17 container, reached over TCP. Depending on the benchmark session, the JDBC single-row round trip measured roughly 155&ndash;172 µs, and every score includes it. That compresses relative differences; the mapping-heavy workloads are where library differences show.</li>
     <li><b>JMH, properly.</b> Two forks, five 3-second measurement iterations after warmup, single thread: latency, not throughput. Sanity checks run every workload once per trial and verify row counts before anything is timed.</li>
     <li><b>Same work for everyone.</b> Identical schema and data, identical transaction boundaries on writes, and update values derived from the value just read, so change-detecting libraries can never silently skip a write. On the update workload every implementation writes only the changed column and reads a lazy association shape.</li>
     <li><b>Idiomatic code for everyone.</b> Each library is written the way its documentation recommends: Hibernate with <code>join fetch</code> and <code>@DynamicUpdate</code>, jOOQ with generated records and <code>MULTISET</code>, Jimmer with fetchers, Exposed in both DSL and DAO flavors.</li>
@@ -1055,6 +1120,15 @@ ${charts}
   <div class="getit">
     ${clonebar('git clone https://github.com/storm-orm/storm-benchmarks.git')}
     <a class="btn" href="https://github.com/storm-orm/storm-benchmarks" target="_blank" rel="noopener">View on GitHub →</a>
+  </div>
+
+  <div class="bm-cta">
+    <h2>See how the API feels</h2>
+    <p>Performance matters most when the programming model also fits your application. Explore the Storm documentation or build the example application yourself.</p>
+    <div class="getit">
+      <a class="btn primary" href="/quickstart">Get started</a>
+      <a class="btn" href="https://github.com/storm-orm/storm-benchmarks" target="_blank" rel="noopener">View benchmark source</a>
+    </div>
   </div>
 </div>
 

@@ -102,7 +102,7 @@ export function editor({file, tag, code, sql, copy, variants}) {
   const hasVariantSql = variants && variants.some((v) => v.sql);
   const hasSql = Boolean(sql) || hasVariantSql;
   const sqlBtn = hasSql
-    ? `<span class="sqlbtn"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><ellipse cx="12" cy="5" rx="8" ry="3"/><path d="M4 5v14c0 1.7 3.6 3 8 3s8-1.3 8-3V5"/><path d="M4 12c0 1.7 3.6 3 8 3s8-1.3 8-3"/></svg><span class="sqlbtntext">Show SQL</span></span>`
+    ? `<span class="sqlbtn" role="button" tabindex="0" aria-expanded="false"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><ellipse cx="12" cy="5" rx="8" ry="3"/><path d="M4 5v14c0 1.7 3.6 3 8 3s8-1.3 8-3V5"/><path d="M4 12c0 1.7 3.6 3 8 3s8-1.3 8-3"/></svg><span class="sqlbtntext">Show SQL</span></span>`
     : '';
   const copyText =
     copy === true ? toPlain(variants ? variants[selectedIdx].code : code) : copy;
@@ -204,10 +204,15 @@ export function wireSqlToggles() {
       const onClick = () => {
         const on = ed.classList.toggle('show-sql');
         btn.classList.toggle('on', on);
+        btn.setAttribute('aria-expanded', on ? 'true' : 'false');
         if (txt) txt.textContent = on ? 'Hide SQL' : 'Show SQL';
       };
+      const onKey = (e) => {
+        if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onClick(); }
+      };
       btn.addEventListener('click', onClick);
-      cleanups.push(() => btn.removeEventListener('click', onClick));
+      btn.addEventListener('keydown', onKey);
+      cleanups.push(() => { btn.removeEventListener('click', onClick); btn.removeEventListener('keydown', onKey); });
     }
     const copyBtn = ed.querySelector('.copybtn');
     if (copyBtn) cleanups.push(attachCopy(copyBtn));
