@@ -192,8 +192,8 @@ const CSS = `
     border-radius:999px;padding:5px 13px;transition:color .2s ease,box-shadow .2s ease;cursor:pointer;
     background:linear-gradient(var(--bg),var(--bg)) padding-box,linear-gradient(150deg,#4a4e74 0%,#3c3e62 22%,#2d2e47 46%,#27273d 54%,#383a62 74%,#454877 92%,#313352 100%) border-box}
   .storm-home .scenes .s:hover{color:var(--muted);box-shadow:0 0 8px rgba(129,140,248,.10)}
-  .storm-home .scenes .s.on{color:#d8cdff;box-shadow:0 0 10px rgba(129,140,248,.14);
-    background:linear-gradient(#211d44,#211d44) padding-box,linear-gradient(150deg,#7a80be 0%,#6167a2 22%,#4a4f80 46%,#434877 54%,#6167a2 74%,#7c82c0 92%,#545a90 100%) border-box}
+  .storm-home .scenes .s.on{color:#f2ecff;box-shadow:0 0 10px rgba(129,140,248,.14);
+    background:linear-gradient(#131028,#131028) padding-box,linear-gradient(150deg,#7a80be 0%,#6167a2 22%,#4a4f80 46%,#434877 54%,#6167a2 74%,#7c82c0 92%,#545a90 100%) border-box}
 
   .storm-home .code-k{color:var(--kw)}.storm-home .code-t{color:var(--type)}.storm-home .code-s{color:var(--str)}.storm-home .code-c{color:var(--com)}
   .storm-home .code-f{color:var(--fn)}.storm-home .code-n{color:var(--num)}.storm-home .code-a{color:var(--anno)}.storm-home .code-pl{color:var(--plain)}.storm-home .code-m{color:var(--muted)}
