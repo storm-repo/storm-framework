@@ -331,4 +331,29 @@ public class PostgreSQLSqlDialect extends DefaultSqlDialect implements SqlDialec
     public String sequenceNextVal(String sequenceName) {
         return "nextval('" + getSafeIdentifier(sequenceName) + "')";
     }
+
+    /**
+     * PostgreSQL returns generated keys from a multi-row {@code INSERT} through the inherited {@code RETURNING}
+     * clause, so batch {@code insertAndFetchIds} can emit a single multi-row {@code VALUES} statement rather than a
+     * JDBC {@code executeBatch}.
+     *
+     * @return {@code true}.
+     * @since 1.13
+     */
+    @Override
+    public boolean supportsMultiRowGeneratedKeys() {
+        return true;
+    }
+
+    /**
+     * The PostgreSQL wire protocol encodes bind parameters in a 16-bit field, capping a single statement at
+     * {@code 65535} parameters.
+     *
+     * @return {@code 65535}.
+     * @since 1.13
+     */
+    @Override
+    public int maxBindParameters() {
+        return 65_535;
+    }
 }
