@@ -564,4 +564,39 @@ public interface SqlDialect {
         return "CURRENT_TIMESTAMP";
     }
 
+    /**
+     * Returns whether the JDBC driver for this dialect returns every generated key of a multi-row {@code INSERT} in a
+     * single round trip.
+     *
+     * <p>When {@code true}, batch {@code insertAndFetchIds} emits a single multi-row
+     * {@code INSERT INTO t (...) VALUES (...),(...)} statement and reads the keys back with {@code getGeneratedKeys},
+     * rather than issuing a JDBC {@code executeBatch}. This avoids the per-row round trips that batched generated-key
+     * retrieval incurs on drivers that disable batch rewriting when generated keys are requested (for example the
+     * PostgreSQL driver, which returns all keys for a single multi-row statement because it appends a
+     * {@code RETURNING} clause internally).</p>
+     *
+     * <p>Defaults to {@code false} because not every driver returns all keys for a multi-row insert (some return only
+     * the first), so dialects opt in explicitly.</p>
+     *
+     * @return {@code true} if the driver returns all generated keys for a multi-row insert.
+     * @since 1.13
+     */
+    default boolean supportsMultiRowGeneratedKeys() {
+        return false;
+    }
+
+    /**
+     * Returns the maximum number of bind parameters a single statement may carry.
+     *
+     * <p>Multi-row inserts are chunked so that the total number of bound values ({@code rows × bound columns}) never
+     * exceeds this limit. The default is a conservative {@code 32767}, matching the smallest common driver limit;
+     * PostgreSQL's protocol allows {@code 65535}, which that dialect overrides.</p>
+     *
+     * @return the maximum number of bind parameters per statement.
+     * @since 1.13
+     */
+    default int maxBindParameters() {
+        return 32_767;
+    }
+
 }
