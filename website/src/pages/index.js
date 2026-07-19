@@ -276,7 +276,8 @@ const BODY = `
     <span class="grad"><a href="https://github.com/storm-orm/storm-framework" target="_blank" rel="noopener">Follow us.</a></span>
     <span class="grad"><a href="https://github.com/storm-orm/storm-framework/discussions" target="_blank" rel="noopener">Join us.</a></span>
   </span></h1>
-  <p class="sub" style="max-width:940px">How would you design an ORM you would enjoy using? Immutable data-class entities? One-line queries, checked at compile time? No proxies, no N+1, no persistence context? That is ST/ORM.</p>
+  <p class="sub" style="max-width:940px">What would an ORM look like if you designed it for Kotlin today?</p>
+  <p class="sub" style="max-width:940px;margin-top:14px">Immutable data-class entities. Concise queries checked at compile time. No proxies, persistence context, or accidental N+1 queries. ST/ORM is a modern alternative to Hibernate and Exposed.</p>
   <div class="cta hero-cta">
     <a href="/quickstart" class="btn primary go">Try it in 5 minutes →</a>
     <a href="/comparison" class="btn">Compare with your ORM</a>
