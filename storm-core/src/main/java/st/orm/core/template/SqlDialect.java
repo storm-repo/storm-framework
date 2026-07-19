@@ -300,29 +300,41 @@ public interface SqlDialect {
     boolean applyLimitAfterSelect();
 
     /**
-     * Returns a string template for the given limit.
+     * Returns the LIMIT clause for the given limit, with the value inlined as a literal rather than bound.
+     *
+     * <p>Inlining is deliberate. A literal lets the planner see the value at plan time and choose an
+     * early-terminating plan (an index scan plus a nested loop that stops after {@code limit} rows), which is exactly
+     * what pagination wants. A bound limit forces a generic plan for an unknown row count, which is materially slower
+     * for small pages over large tables; on PostgreSQL a prepared {@code LIMIT ?} also degrades to that generic plan
+     * once it stops using a value-aware custom plan. Limits come from a small, fixed set of page sizes, so inlining
+     * them costs negligible plan-cache churn in return.</p>
      *
      * @param limit the maximum number of records to return.
-     * @return a string template for the given limit.
+     * @return the LIMIT clause with the value inlined as a literal.
      * @since 1.2
      */
     String limit(int limit);
 
     /**
-     * Returns a string template for the given offset.
+     * Returns the OFFSET clause for the given offset, with the value inlined as a literal rather than bound.
+     *
+     * <p>Inlined for the same reason as {@link #limit(int)}: a literal lets the planner account for the value at plan
+     * time, and offsets come from a small, fixed set of page positions, so inlining costs negligible plan-cache
+     * churn.</p>
      *
      * @param offset the offset.
-     * @return a string template for the given offset.
+     * @return the OFFSET clause with the value inlined as a literal.
      * @since 1.2
      */
     String offset(int offset);
 
     /**
-     * Returns a string template for the given limit and offset.
+     * Returns the combined LIMIT/OFFSET clause, with both values inlined as literals rather than bound; see
+     * {@link #limit(int)} for why.
      *
      * @param offset the offset.
      * @param limit the maximum number of records to return.
-     * @return a string template for the given limit and offset.
+     * @return the LIMIT/OFFSET clause with both values inlined as literals.
      * @since 1.2
      */
     String limit(int offset, int limit);

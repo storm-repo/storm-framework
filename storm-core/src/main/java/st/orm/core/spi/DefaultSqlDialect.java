@@ -312,8 +312,9 @@ public class DefaultSqlDialect implements SqlDialect {
      */
     @Override
     public String limit(int limit) {
-        // Taking the most basic approach that is supported by most database in test (containers).
-        // For production use, ensure the right dialect is used.
+        // The limit is inlined as a literal, not bound (see SqlDialect#limit): a literal lets the planner pick an
+        // early-terminating plan for small pages, where a bound value would force a slower generic plan. Basic LIMIT
+        // syntax works on most databases in the test containers; for production, ensure the right dialect is used.
         return "LIMIT " + limit;
     }
 
@@ -326,6 +327,7 @@ public class DefaultSqlDialect implements SqlDialect {
      */
     @Override
     public String offset(int offset) {
+        // Inlined as a literal, not bound; see SqlDialect#limit for the rationale.
         return "OFFSET " + offset;
     }
 
@@ -339,8 +341,8 @@ public class DefaultSqlDialect implements SqlDialect {
      */
     @Override
     public String limit(int offset, int limit) {
-        // Taking the most basic approach that is supported by most database in test (containers).
-        // For production use, ensure the right dialect is used.
+        // Both values inlined as literals, not bound (see SqlDialect#limit). Basic LIMIT/OFFSET syntax works on most
+        // databases in the test containers; for production, ensure the right dialect is used.
         return "LIMIT %s OFFSET %s".formatted(limit, offset);
     }
 
