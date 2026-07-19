@@ -32,20 +32,16 @@ function buildBody(version) {
 
   // One install snippet per supported Kotlin line (KOTLIN_VARIANTS in the
   // shared theme), switchable in the editor title bar.
-  const installFor = ({kotlin, ksp, plugin}) =>
+  const installFor = ({kotlin, ksp}) =>
     C('// build.gradle.kts\n') +
     F('plugins') + P(' {\n') +
     P('    ') + F('kotlin') + P('(') + S('"jvm"') + P(') version ') + S(`"${kotlin}"`) + P('\n') +
     P('    ') + F('id') + P('(') + S('"com.google.devtools.ksp"') + P(') version ') + S(`"${ksp}"`) + P('\n') +
+    P('    ') + F('id') + P('(') + S('"st.orm"') + P(') version ') + S(`"${version}"`) + P('\n') +
     P('}\n\n') +
     F('dependencies') + P(' {\n') +
-    P('    ') + F('implementation') + P('(') + F('platform') + P('(') + S(`"st.orm:storm-bom:${version}"`) + P('))\n') +
-    P('    ') + F('implementation') + P('(') + S('"st.orm:storm-kotlin"') + P(')\n') +
-    P('    ') + F('runtimeOnly') + P('(') + S('"st.orm:storm-core"') + P(')\n') +
     P('    ') + F('runtimeOnly') + P('(') + S('"st.orm:storm-h2"') + P(')          ') + C('// zero-setup in-memory database\n') +
     P('    ') + F('runtimeOnly') + P('(') + S('"com.h2database:h2:2.2.224"') + P(')\n') +
-    P('    ') + F('ksp') + P('(') + S('"st.orm:storm-metamodel-ksp"') + P(')\n') +
-    P('    ') + F('kotlinCompilerPluginClasspath') + P('(') + S(`"st.orm:storm-compiler-plugin-${plugin}"`) + P(')\n') +
     P('}');
 
   const entity =
@@ -126,14 +122,14 @@ ${navHtml('')}
   <div class="meta"><span>Kotlin</span><span>~5 min</span><span>JDK 21+</span></div>
 
   <h2><span class="hno">1</span>Set up</h2>
-  <p>Add the Storm modules to your build. This is the full Kotlin set for a runnable project on an in-memory H2 database; the BOM keeps the versions aligned.</p>
+  <p>Apply the Storm Gradle plugin. It imports the BOM and wires the core dependencies, the metamodel processor, and the Kotlin compiler plugin, so all that is left for a runnable project is an in-memory H2 database.</p>
   ${editor({
     file: 'build.gradle.kts',
     tag: 'Gradle · Kotlin DSL',
     copy: true,
     variants: KOTLIN_VARIANTS.map((v) => ({label: v.label, code: installFor(v), selected: v.selected})),
   })}
-  <p>The <code>ksp</code> dependency generates the type-safe metamodel (<code>Movie_</code>), and the compiler plugin makes SQL templates injection-safe by default. On a real database, swap <code>storm-h2</code> for your dialect and add its JDBC driver. See the <a class="tlink" href="/docs/installation">installation guide</a> for all options.</p>
+  <p>The plugin generates the type-safe metamodel (<code>Movie_</code>) through KSP and makes SQL templates injection-safe by default through the compiler plugin, with no extra dependencies to declare. On a real database, swap <code>storm-h2</code> for your dialect and add its JDBC driver. See the <a class="tlink" href="/docs/installation">installation guide</a> for all options.</p>
   <p>Working with an AI coding assistant? One command, run from the root of your project's workspace, installs Storm-aware rules and skills for it (Claude, Cursor, Copilot, Windsurf, Codex) and sets up a schema-aware MCP server, so the entities and queries it generates match your real schema.</p>
   ${editor({file: 'terminal', tag: 'shell', code: cli, copy: cliCommand})}
 

@@ -240,13 +240,12 @@ val cityName = user.city.fetch().name  // Fetches when needed
 
 ### Dependencies (BOM)
 
-Kotlin (Gradle):
+Kotlin (Gradle) — apply the Storm plugin (id "st.orm", Gradle 8.5+). It imports the BOM and adds storm-kotlin, storm-core, the KSP metamodel processor, and the compiler plugin, so no Storm dependencies are declared by hand:
 ```kotlin
-dependencies {
-    implementation(platform("st.orm:storm-bom:@@STORM_VERSION@@"))
-    implementation("st.orm:storm-kotlin")
-    runtimeOnly("st.orm:storm-core")
-    kotlinCompilerPluginClasspath("st.orm:storm-compiler-plugin-2.0")
+plugins {
+    kotlin("jvm") version "2.4.0"
+    id("com.google.devtools.ksp") version "2.3.10"
+    id("st.orm") version "@@STORM_VERSION@@"
 }
 ```
 
@@ -278,13 +277,16 @@ Java (Maven):
 
 ### Spring Boot Starter
 
-Kotlin (Gradle):
+Kotlin (Gradle) — apply the Storm plugin, then add the starter:
 ```kotlin
+plugins {
+    kotlin("jvm") version "2.4.0"
+    id("com.google.devtools.ksp") version "2.3.10"
+    id("st.orm") version "@@STORM_VERSION@@"
+}
+
 dependencies {
-    implementation(platform("st.orm:storm-bom:@@STORM_VERSION@@"))
     implementation("st.orm:storm-kotlin-spring-boot-starter")
-    runtimeOnly("st.orm:storm-core")
-    kotlinCompilerPluginClasspath("st.orm:storm-compiler-plugin-2.0")
 }
 ```
 
@@ -298,14 +300,16 @@ Java (Maven):
 
 ### Ktor Integration
 
-Kotlin (Gradle):
+Kotlin (Gradle) — apply the Storm plugin, then add the Ktor module:
 ```kotlin
+plugins {
+    kotlin("jvm") version "2.4.0"
+    id("com.google.devtools.ksp") version "2.3.10"
+    id("st.orm") version "@@STORM_VERSION@@"
+}
+
 dependencies {
-    implementation(platform("st.orm:storm-bom:@@STORM_VERSION@@"))
-    implementation("st.orm:storm-kotlin")
     implementation("st.orm:storm-ktor")
-    runtimeOnly("st.orm:storm-core")
-    kotlinCompilerPluginClasspath("st.orm:storm-compiler-plugin-2.0")
 }
 ```
 
@@ -317,6 +321,7 @@ Ktor: storm-ktor, storm-ktor-test
 JSON: storm-jackson2, storm-jackson3, storm-kotlinx-serialization
 Dialects: storm-postgresql, storm-mysql, storm-mariadb, storm-oracle, storm-mssqlserver
 Build: storm-bom, storm-compiler-plugin-2.0, storm-compiler-plugin-2.1
+Gradle plugin: id "st.orm" (Gradle Plugin Portal) — one-line setup for Kotlin/Java, imports the BOM and wires metamodel + compiler plugin
 Metamodel: storm-metamodel-processor (Java), storm-metamodel-ksp (Kotlin)
 Testing: storm-test, storm-h2 (test runtime), com.h2database:h2 (test runtime — required, storm-h2 declares it as provided)
 Validation: storm-kotlin-validator

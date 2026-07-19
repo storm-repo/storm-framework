@@ -14,15 +14,29 @@ Before suggesting dependencies, read the project's build file (pom.xml, build.gr
 
 ### Kotlin (Gradle) - Recommended
 
-**Important:** The KSP plugin version must match the project's Kotlin version — it is always `<kotlin-version>-<ksp-release>`. Declare it in `plugins { }`:
+Prefer the Storm Gradle plugin (`id("st.orm")`, Gradle 8.5+). It imports the BOM, adds `storm-kotlin` and `storm-core`, wires the KSP metamodel processor, and selects the Storm compiler-plugin variant matching the project's Kotlin version. Apply it alongside the Kotlin and KSP plugins:
+
 ```kotlin
 plugins {
     kotlin("jvm") version "<kotlin-version>"
     id("com.google.devtools.ksp") version "<kotlin-version>-<ksp-release>"  // e.g., 2.0.21-1.0.28 for Kotlin 2.0.21
+    id("st.orm") version "@@STORM_VERSION@@"
 }
 ```
 
-In Gradle, a `platform()` BOM only applies to the configuration where it's declared. The `ksp` and `kotlinCompilerPluginClasspath` configurations are separate — they do NOT inherit the BOM from `implementation`. You must apply the BOM to each configuration that needs it:
+**Important:** The KSP plugin version must match the project's Kotlin version — it is always `<kotlin-version>-<ksp-release>`. KSP stays in `plugins { }` because its version is paired to Kotlin; if it is missing, the build fails with the exact line to add. The `st.orm` plugin version drives all Storm coordinates, so no BOM or per-module versions are needed — add only the extra modules the project needs, without versions:
+
+```kotlin
+dependencies {
+    runtimeOnly("st.orm:storm-postgresql")   // your dialect
+}
+```
+
+The `storm { }` extension covers overrides (`metamodel`, `compilerPlugin`, `compilerPluginVariant`, `javaPreview`).
+
+#### Manual Gradle setup (explicit configuration)
+
+If the project cannot apply the plugin, configure the modules by hand. In Gradle, a `platform()` BOM only applies to the configuration where it's declared. The `ksp` and `kotlinCompilerPluginClasspath` configurations are separate — they do NOT inherit the BOM from `implementation`. Apply the BOM to each configuration that needs it:
 
 ```kotlin
 dependencies {

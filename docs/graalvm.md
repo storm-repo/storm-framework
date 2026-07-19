@@ -54,7 +54,7 @@ Add the GraalVM build plugin next to the Storm plugin and compile:
 plugins {
     id("org.springframework.boot") version "4.1.0"
     id("org.graalvm.buildtools.native") version "0.11.1"
-    id("st.orm") version "1.13.0"
+    id("st.orm") version "@@STORM_VERSION@@"
 }
 ```
 

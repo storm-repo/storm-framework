@@ -144,18 +144,16 @@ This configures your AI tool (Claude Code, Cursor, Copilot, Windsurf, or Codex) 
 
 ## Quick Start
 
-Storm provides a Bill of Materials (BOM) for centralized version management. Import the BOM once and omit version numbers from individual Storm dependencies.
+The Storm Gradle plugin sets up a Kotlin project in one line: it imports the BOM, adds the core dependencies, and wires the metamodel processor and Kotlin compiler plugin. Maven users import the BOM once and omit version numbers from individual Storm dependencies.
 
 <Tabs groupId="language">
 <TabItem value="kotlin" label="Kotlin (Gradle)" default>
 
 ```kotlin
-dependencies {
-    implementation(platform("st.orm:storm-bom:@@STORM_VERSION@@"))
-    implementation("st.orm:storm-kotlin")
-    runtimeOnly("st.orm:storm-core")
-    // Use storm-compiler-plugin-2.0 for Kotlin 2.0.x, -2.1 for 2.1.x, etc.
-    kotlinCompilerPluginClasspath("st.orm:storm-compiler-plugin-2.0")
+plugins {
+    kotlin("jvm") version "2.4.0"
+    id("com.google.devtools.ksp") version "2.3.10"
+    id("st.orm") version "@@STORM_VERSION@@"
 }
 ```
 

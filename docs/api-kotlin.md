@@ -86,7 +86,7 @@ There are two ways to configure metamodel generation for Kotlin projects, depend
 - **Gradle with KSP:** Use `storm-metamodel-ksp`, which is a Kotlin Symbol Processing plugin.
 - **Maven with kapt:** Use `storm-metamodel-processor`, which is a standard Java annotation processor invoked through kapt.
 
-Both generate the same metamodel classes; they are different build tool integrations.
+Both generate the same metamodel classes; they are different build tool integrations. The [Storm Gradle plugin](installation.md#gradle-plugin-recommended) wires the KSP path for you; the setup below is for Maven and for Gradle users who configure it explicitly.
 
 **Gradle (Kotlin DSL) with KSP:**
 
