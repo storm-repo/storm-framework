@@ -349,7 +349,7 @@ try (var stream = userRepository.select().getResultStream()) {
 
 **Fix:**
 
-For **Kotlin with Gradle**, add the KSP plugin and processor dependency:
+For **Kotlin with Gradle**, the simplest fix is to apply the [Storm Gradle plugin](installation.md#gradle-plugin-recommended), which wires the KSP processor automatically. If you configure it manually, add the KSP plugin and processor dependency:
 
 ```kotlin
 plugins {

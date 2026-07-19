@@ -41,6 +41,8 @@ The metamodel is **optional**. Storm works without it using SQL Templates or str
 
 The generator scans your entity classes and creates corresponding metamodel classes (e.g., `User_` for `User`) in the same package.
 
+The [Storm Gradle plugin](installation.md#gradle-plugin-recommended) configures this generator for you, so if you apply it you can skip the manual setup below. The configuration here is for Maven and for Gradle users who prefer explicit setup.
+
 ### Gradle (Kotlin with KSP)
 
 ```kotlin

@@ -58,6 +58,8 @@ Add the Storm compiler plugin to your Kotlin compiler configuration. The plugin 
 
 The artifact version matches the Storm version (e.g., `@@STORM_VERSION@@`).
 
+The [Storm Gradle plugin](installation.md#gradle-plugin-recommended) selects and applies the matching variant automatically, so if you apply it you can skip this step. The setup below is for Maven and for Gradle users who configure it explicitly.
+
 <Tabs groupId="build">
 <TabItem value="gradle" label="Gradle (Kotlin DSL)" default>
 

@@ -23,22 +23,18 @@ const DESC =
   'routes, and assert the SQL with a test.';
 
 function buildBody(version) {
-  const gradleFor = ({kotlin, ksp, plugin}) =>
+  const gradleFor = ({kotlin, ksp}) =>
     C('// build.gradle.kts\n') +
     F('plugins') + P(' {\n') +
     P('    ') + F('kotlin') + P('(') + S('"jvm"') + P(') version ') + S(`"${kotlin}"`) + P('\n') +
     P('    ') + F('id') + P('(') + S('"io.ktor.plugin"') + P(') version ') + S('"3.0.3"') + P('\n') +
     P('    ') + F('id') + P('(') + S('"com.google.devtools.ksp"') + P(') version ') + S(`"${ksp}"`) + P('\n') +
+    P('    ') + F('id') + P('(') + S('"st.orm"') + P(') version ') + S(`"${version}"`) + P('\n') +
     P('}\n\n') +
     F('dependencies') + P(' {\n') +
-    P('    ') + F('implementation') + P('(') + F('platform') + P('(') + S(`"st.orm:storm-bom:${version}"`) + P('))\n') +
-    P('    ') + F('implementation') + P('(') + S('"st.orm:storm-kotlin"') + P(')\n') +
     P('    ') + F('implementation') + P('(') + S('"st.orm:storm-ktor"') + P(')\n') +
-    P('    ') + F('runtimeOnly') + P('(') + S('"st.orm:storm-core"') + P(')\n') +
     P('    ') + F('runtimeOnly') + P('(') + S('"st.orm:storm-h2"') + P(')\n') +
-    P('    ') + F('runtimeOnly') + P('(') + S('"com.h2database:h2:2.2.224"') + P(')\n') +
-    P('    ') + F('ksp') + P('(') + S('"st.orm:storm-metamodel-ksp"') + P(')\n') +
-    P('    ') + F('kotlinCompilerPluginClasspath') + P('(') + S(`"st.orm:storm-compiler-plugin-${plugin}"`) + P(')\n\n') +
+    P('    ') + F('runtimeOnly') + P('(') + S('"com.h2database:h2:2.2.224"') + P(')\n\n') +
     P('    ') + F('implementation') + P('(') + S('"io.ktor:ktor-server-netty"') + P(')\n') +
     P('    ') + F('implementation') + P('(') + S('"io.ktor:ktor-server-content-negotiation"') + P(')\n') +
     P('    ') + F('implementation') + P('(') + S('"io.ktor:ktor-serialization-jackson"') + P(')\n') +
@@ -201,7 +197,7 @@ ${navHtml('tutorials')}
   <div class="note">New to Storm? The <a href="/quickstart">five-minute quickstart</a> covers just install, entity, and query. This tutorial builds the whole app around them.</div>
 
   <h2><span class="hno">1</span>Create the project</h2>
-  <p>Start a plain Kotlin/Gradle project and add Ktor and Storm. The Ktor plugin manages the Ktor artifact versions, and the Storm BOM manages Storm's, so most dependencies need no version. We use H2 so there is nothing to install.</p>
+  <p>Start a plain Kotlin/Gradle project and add Ktor and Storm. The Ktor plugin manages the Ktor artifact versions, and the Storm Gradle plugin imports Storm's BOM and wires the metamodel processor and compiler plugin, so most dependencies need no version. We use H2 so there is nothing to install.</p>
   ${editor({
     file: 'build.gradle.kts',
     tag: 'Gradle · Kotlin DSL',

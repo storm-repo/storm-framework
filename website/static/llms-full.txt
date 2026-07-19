@@ -18,7 +18,7 @@
 > GitHub: https://github.com/storm-orm/storm-framework
 > License: Apache 2.0
 
-# Generated: 2026-07-15T11:26:56Z
+# Generated: 2026-07-19T07:40:11Z
 
 ========================================
 ## Source: index.md
@@ -156,17 +156,15 @@ This configures your AI tool (Claude Code, Cursor, Copilot, Windsurf, or Codex) 
 
 ## Quick Start
 
-Storm provides a Bill of Materials (BOM) for centralized version management. Import the BOM once and omit version numbers from individual Storm dependencies.
+The Storm Gradle plugin sets up a Kotlin project in one line: it imports the BOM, adds the core dependencies, and wires the metamodel processor and Kotlin compiler plugin. Maven users import the BOM once and omit version numbers from individual Storm dependencies.
 
 [Kotlin (Gradle)]
 
 ```kotlin
-dependencies {
-    implementation(platform("st.orm:storm-bom:@@STORM_VERSION@@"))
-    implementation("st.orm:storm-kotlin")
-    runtimeOnly("st.orm:storm-core")
-    // Use storm-compiler-plugin-2.0 for Kotlin 2.0.x, -2.1 for 2.1.x, etc.
-    kotlinCompilerPluginClasspath("st.orm:storm-compiler-plugin-2.0")
+plugins {
+    kotlin("jvm") version "2.4.0"
+    id("com.google.devtools.ksp") version "2.3.10"
+    id("st.orm") version "@@STORM_VERSION@@"
 }
 ```
 
@@ -4904,6 +4902,8 @@ The metamodel is **optional**. Storm works without it using SQL Templates or str
 - **Java projects** use an annotation processor
 
 The generator scans your entity classes and creates corresponding metamodel classes (e.g., `User_` for `User`) in the same package.
+
+The [Storm Gradle plugin](installation.md#gradle-plugin-recommended) configures this generator for you, so if you apply it you can skip the manual setup below. The configuration here is for Maven and for Gradle users who prefer explicit setup.
 
 ### Gradle (Kotlin with KSP)
 
@@ -12880,6 +12880,8 @@ Add the Storm compiler plugin to your Kotlin compiler configuration. The plugin 
 
 The artifact version matches the Storm version (e.g., `@@STORM_VERSION@@`).
 
+The [Storm Gradle plugin](installation.md#gradle-plugin-recommended) selects and applies the matching variant automatically, so if you apply it you can skip this step. The setup below is for Maven and for Gradle users who configure it explicitly.
+
 [Gradle (Kotlin DSL)]
 
 ```kotlin
@@ -16774,7 +16776,7 @@ try (var stream = userRepository.select().getResultStream()) {
 
 **Fix:**
 
-For **Kotlin with Gradle**, add the KSP plugin and processor dependency:
+For **Kotlin with Gradle**, the simplest fix is to apply the [Storm Gradle plugin](installation.md#gradle-plugin-recommended), which wires the KSP processor automatically. If you configure it manually, add the KSP plugin and processor dependency:
 
 ```kotlin
 plugins {
@@ -19929,7 +19931,7 @@ There are two ways to configure metamodel generation for Kotlin projects, depend
 - **Gradle with KSP:** Use `storm-metamodel-ksp`, which is a Kotlin Symbol Processing plugin.
 - **Maven with kapt:** Use `storm-metamodel-processor`, which is a standard Java annotation processor invoked through kapt.
 
-Both generate the same metamodel classes; they are different build tool integrations.
+Both generate the same metamodel classes; they are different build tool integrations. The [Storm Gradle plugin](installation.md#gradle-plugin-recommended) wires the KSP path for you; the setup below is for Maven and for Gradle users who configure it explicitly.
 
 **Gradle (Kotlin DSL) with KSP:**
 

@@ -9,17 +9,17 @@ The integration follows Ktor's plugin-based architecture. You `install(Storm)` l
 
 ## Installation
 
-Add the Storm Ktor module alongside your core Storm dependencies:
+Apply the Storm Gradle plugin, then add the Ktor module alongside it. The plugin imports the BOM and wires the core dependencies, metamodel processor, and Kotlin compiler plugin, so the Ktor setup only adds the module itself, a connection pool, and a dialect:
 
 ```kotlin
-dependencies {
-    implementation(platform("st.orm:storm-bom:@@STORM_VERSION@@"))
+plugins {
+    kotlin("jvm") version "2.4.0"
+    id("com.google.devtools.ksp") version "2.3.10"
+    id("st.orm") version "@@STORM_VERSION@@"
+}
 
-    implementation("st.orm:storm-kotlin")
+dependencies {
     implementation("st.orm:storm-ktor")
-    runtimeOnly("st.orm:storm-core")
-    ksp("st.orm:storm-metamodel-ksp")
-    kotlinCompilerPluginClasspath("st.orm:storm-compiler-plugin-2.0")
 
     // Connection pooling (recommended)
     implementation("com.zaxxer:HikariCP:6.2.1")
@@ -32,6 +32,8 @@ dependencies {
     testImplementation("com.h2database:h2")
 }
 ```
+
+See [Installation](installation.md#gradle-plugin-recommended) for the plugin's `storm { }` options and the manual setup if you prefer explicit configuration.
 
 Storm integrates with Ktor's built-in dependency injection out of the box (see [Dependency Injection](#dependency-injection)); if your project uses [Koin](https://insert-koin.io/) instead, see [Using with Koin](#using-with-koin).
 
