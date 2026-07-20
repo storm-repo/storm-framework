@@ -41,10 +41,12 @@ import st.orm.Ref;
 import st.orm.WriteSet;
 import st.orm.core.repository.EntityRepository;
 import st.orm.core.repository.RepositoryLookup;
+import st.orm.core.spi.Instantiators;
 import st.orm.core.spi.ORMReflection;
 import st.orm.core.spi.Providers;
 import st.orm.core.template.Column;
 import st.orm.core.template.Model;
+import st.orm.mapping.Instantiator;
 import st.orm.mapping.RecordField;
 import st.orm.mapping.RecordType;
 
@@ -554,6 +556,26 @@ public final class WriteSetImpl implements WriteSet {
     }
 
     /**
+     * Rebuild metadata per record class: the record type with its canonical constructor made accessible once, and
+     * the generated metamodel instantiator when one is registered, so rebuilds construct through generated code
+     * rather than reflection.
+     */
+    private record RebuildType(@Nonnull RecordType recordType, @Nullable Instantiator<?> instantiator) {
+        Object newInstance(@Nonnull Object[] args) {
+            return instantiator != null ? instantiator.instantiate(args) : recordType.newInstance(args);
+        }
+    }
+
+    private static final ClassValue<RebuildType> REBUILD_TYPES = new ClassValue<>() {
+        @Override
+        protected RebuildType computeValue(Class<?> type) {
+            RecordType recordType = REFLECTION.getRecordType(type);
+            recordType.constructor().trySetAccessible();
+            return new RebuildType(recordType, Instantiators.find(type));
+        }
+    };
+
+    /**
      * Rebuilds the record with the component at the given path replaced, reconstructing nested records as needed.
      *
      * <p>Intermediate components along the path are never {@code null} here: a dependency is only recorded when
@@ -561,18 +583,17 @@ public final class WriteSetImpl implements WriteSet {
      * immutable.</p>
      */
     private Object withComponent(@Nonnull Object record, @Nonnull int[] path, int depth, @Nullable Object newValue) {
-        RecordType recordType = REFLECTION.getRecordType(record.getClass());
-        List<RecordField> fields = recordType.fields();
+        RebuildType rebuildType = REBUILD_TYPES.get(record.getClass());
+        List<RecordField> fields = rebuildType.recordType().fields();
         Object[] args = new Object[fields.size()];
         for (int i = 0; i < fields.size(); i++) {
-            args[i] = REFLECTION.getRecordValue(record, i);
+            args[i] = REFLECTION.invoke(fields.get(i), record);
         }
         int index = path[depth];
         args[index] = depth == path.length - 1
                 ? newValue
                 : withComponent(args[index], path, depth + 1, newValue);
-        recordType.constructor().setAccessible(true);
-        return recordType.newInstance(args);
+        return rebuildType.newInstance(args);
     }
 
     /** Rebuilds the entity with the given primary key. */
