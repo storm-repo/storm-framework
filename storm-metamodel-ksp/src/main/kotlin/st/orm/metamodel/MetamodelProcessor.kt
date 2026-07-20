@@ -991,6 +991,8 @@ class MetamodelProcessor(
         val arguments = primaryConstructor.parameters.mapIndexed { index, parameter ->
             "        args[$index] as ${getKotlinValueTypeName(parameter.type, packageName)}"
         }.joinToString(",\n")
+        val componentNames = primaryConstructor.parameters.map { it.name?.asString() ?: return }
+        val components = componentNames.joinToString(",\n") { "        instance.`$it`" }
         val containingFile = classDeclaration.containingFile
         val deps = if (containingFile != null) Dependencies(true, containingFile) else Dependencies(false)
         val file = codeGenerator.createNewFile(
@@ -1015,6 +1017,10 @@ class MetamodelProcessor(
                 |    @Suppress("UNCHECKED_CAST")
                 |    override fun instantiate(args: Array<Any?>): $className = $className(
                 |$arguments
+                |    )
+                |
+                |    override fun deconstruct(instance: $className): Array<Any?> = arrayOf(
+                |$components
                 |    )
                 |}
                 """.trimMargin(),
