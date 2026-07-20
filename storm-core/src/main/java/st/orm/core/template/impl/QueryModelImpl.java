@@ -30,7 +30,9 @@ import jakarta.annotation.Nullable;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.NoSuchElementException;
 import java.util.SequencedMap;
+import java.util.function.BiConsumer;
 import java.util.stream.Stream;
 import st.orm.BindVars;
 import st.orm.Data;
@@ -415,44 +417,95 @@ final class QueryModelImpl implements QueryModel {
      * @param binder    the binder collecting parameter values.
      * @throws SqlTemplateException if binding fails or versioning rules are violated.
      */
+    /**
+     * Collects the column values of an object expression. Single-column expressions, the vast majority, bind their
+     * one value straight from the first-column slots; the name-keyed map is materialized only when a second column
+     * appears, since only multi-column expressions need it.
+     */
+    private static final class ObjectExpressionValues implements BiConsumer<Column, Object> {
+        private Column firstColumn;
+        private Object firstValue;
+        private SequencedMap<String, Object> map;
+        private int size;
+
+        void reset() {
+            firstColumn = null;
+            firstValue = null;
+            map = null;
+            size = 0;
+        }
+
+        @Override
+        public void accept(Column column, Object value) {
+            if (size++ == 0) {
+                firstColumn = column;
+                firstValue = value;
+                return;
+            }
+            if (map == null) {
+                map = new LinkedHashMap<>();
+                map.put(firstColumn.name(), firstValue);
+            }
+            map.put(column.name(), value);
+        }
+
+        /** Hands off the collected values as a map; ownership transfers to the caller. */
+        SequencedMap<String, Object> toMap() {
+            if (map == null) {
+                map = new LinkedHashMap<>();
+                if (size == 1) {
+                    map.put(firstColumn.name(), firstValue);
+                }
+            }
+            return map;
+        }
+    }
+
     private void bindObjectExpression(@Nonnull Metamodel<?, ?> metamodel,
                                       @Nonnull Operator operator,
                                       @Nonnull Object object,
                                       @Nonnull TemplateBinder binder) throws SqlTemplateException {
         var model = getModel(metamodel);
-        List<SequencedMap<String, Object>> multiValues = new ArrayList<>();
+        List<SequencedMap<String, Object>> multiValues = null;
+        var values = new ObjectExpressionValues();
         for (var o : getObjectIterable(object)) {
-            //noinspection DuplicatedCode
-            SequencedMap<String, Object> valueMap = new LinkedHashMap<>();
             var derivedObject = switch (o) {
                 case Ref<?> ref -> ref.id();
                 case Data data -> data;
                 case Object it -> it;
             };
+            values.reset();
             //noinspection unchecked
-            model.forEachValue((Metamodel<Data, ?>) metamodel, derivedObject,
-                    (k, v) -> valueMap.put(k.name(), v));
+            model.forEachValue((Metamodel<Data, ?>) metamodel, derivedObject, values);
             if (binder.isVersionAware()) {
                 if (o instanceof Data data) {
-                    var versionColumn = model.declaredColumns().stream()
-                            .filter(Column::version)
-                            .findFirst()
-                            .orElseThrow();
-                    model.forEachValue(List.of(versionColumn), data,
-                            (k, v) -> valueMap.put(k.name(), v));
+                    model.forEachValue(List.of(versionColumn(model)), data, values);
                 } else {
                     throw new SqlTemplateException("Data object expected for version-aware statement. When using optimistic locking, the WHERE clause value must be a Data instance that contains the version field.");
                 }
             }
-            if (multiValues.isEmpty() && valueMap.size() == 1) {
-                binder.bindParameter(valueMap.values().iterator().next());
+            if ((multiValues == null || multiValues.isEmpty()) && values.size == 1) {
+                binder.bindParameter(values.firstValue);
             } else {
-                multiValues.add(valueMap);
+                if (multiValues == null) {
+                    multiValues = new ArrayList<>();
+                }
+                multiValues.add(values.toMap());
             }
         }
-        if (!multiValues.isEmpty()) {
+        if (multiValues != null && !multiValues.isEmpty()) {
             bindMultiValues(operator, multiValues, binder);
         }
+    }
+
+    /** Returns the version column of the given model. */
+    private static Column versionColumn(@Nonnull Model<?, ?> model) {
+        for (var column : model.declaredColumns()) {
+            if (column.version()) {
+                return column;
+            }
+        }
+        throw new NoSuchElementException("No value present");
     }
 
     /**
