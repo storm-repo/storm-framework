@@ -103,7 +103,9 @@ final class SqlParser {
      */
     static SqlOperation getSqlOperation(@Nonnull TemplateString template, @Nonnull SqlDialect dialect) {
         String rawSql = getRawSql(template);
-        SqlOperation operation = getSqlOperation(rawSql);  // First try directly.
+        // Templates regularly start with a newline or indentation; stripping it lets them hit the keyword fast
+        // path directly.
+        SqlOperation operation = getSqlOperation(rawSql.stripLeading());  // First try directly.
         if (operation != UNDEFINED) {
             return operation;
         }
@@ -158,6 +160,20 @@ final class SqlParser {
     }
 
     /**
+     * Returns whether {@code sql} contains any of the given marker characters. Used to skip regex passes on
+     * fragments that cannot contain the construct being removed.
+     */
+    private static boolean containsAny(@Nonnull String sql, char first, char second, char third) {
+        for (int i = 0, length = sql.length(); i < length; i++) {
+            char c = sql.charAt(i);
+            if (c == first || c == second || c == third) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /**
      * Removes both single-line and multi-line comments from a SQL string.
      *
      * @param sql the original SQL string.
@@ -165,6 +181,11 @@ final class SqlParser {
      * @return the SQL string with comments removed.
      */
     static String removeComments(@Nonnull String sql, @Nonnull SqlDialect dialect) {
+        // Every supported comment syntax starts with '-' (--), '/' (/*) or '#' (MySQL); skip the regex passes when
+        // none of these characters appear at all.
+        if (!containsAny(sql, '-', '/', '#')) {
+            return sql;
+        }
         // Remove multi-line comments, then single-line comments.
         return replaceAll(
                 replaceAll(sql, dialect.getMultiLineCommentPattern(), ""),
@@ -182,6 +203,11 @@ final class SqlParser {
      * @return the modified SQL string.
      */
     static String clearQuotedIdentifiers(@Nonnull String sql, @Nonnull SqlDialect dialect) {
+        // Every supported quoted-identifier syntax starts with '"', '`' (MySQL) or '[' (SQL Server); skip the regex
+        // pass when none of these characters appear at all.
+        if (!containsAny(sql, '"', '`', '[')) {
+            return sql;
+        }
         return replaceAll(sql, dialect.getIdentifierPattern(), dialect.escape(""));
     }
 
@@ -193,6 +219,9 @@ final class SqlParser {
      * @return the modified SQL string.
      */
     static String clearStringLiterals(@Nonnull String sql, @Nonnull SqlDialect dialect) {
+        if (sql.indexOf('\'') < 0) {
+            return sql;
+        }
         return replaceAll(sql, dialect.getQuoteLiteralPattern(), "''");
     }
 }

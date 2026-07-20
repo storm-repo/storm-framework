@@ -666,11 +666,12 @@ public final class PreparedStatementTemplateImpl implements PreparedStatementTem
     @Override
     public Query create(@Nonnull TemplateString template) {
         try {
-            var sql = sqlTemplate().process(template);
+            var customizedTemplate = sqlTemplate();
+            var sql = customizedTemplate.process(template);
             var bindVariables = sql.bindVariables().orElse(null);
-            SqlDialect dialect = providerFilter != null
-                    ? getSqlDialect(providerFilter, config)
-                    : getSqlDialect(config);
+            // The dialect of the template that generated the SQL; a provider lookup could select a different
+            // dialect than the one the statement was generated with.
+            SqlDialect dialect = customizedTemplate.dialect();
             var environment = new QueryImpl.Environment(
                     refFactory,
                     strategies.transactionTemplateProvider(),
