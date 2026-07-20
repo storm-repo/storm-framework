@@ -192,10 +192,10 @@ public class SQLiteEntityRepositoryTest {
 
     @Test
     public void testInsertAndFetchInlineBatch() {
-        String expectedSql = """
-                INSERT INTO owner (first_name, last_name, address, city, telephone, version)
-                VALUES (?, ?, ?, ?, ?, ?), (?, ?, ?, ?, ?, ?)
-                RETURNING id""";
+        String expectedSql =
+                "INSERT INTO owner (first_name, last_name, address, city, telephone, version)\n" +
+                "VALUES (?, ?, ?, ?, ?, ?), (?, ?, ?, ?, ?, ?)\n" +
+                "RETURNING \"id\"";
         var repo = PreparedStatementTemplate.ORM(dataSource).entity(Owner.class);
         var first = new AtomicBoolean(false);
         observe(sql -> {
@@ -226,10 +226,10 @@ public class SQLiteEntityRepositoryTest {
 
     @Test
     public void testInsertAndFetchBatch() {
-        String expectedSql = """
-                INSERT INTO vet (first_name, last_name)
-                VALUES (?, ?), (?, ?)
-                RETURNING id""";
+        String expectedSql =
+                "INSERT INTO vet (first_name, last_name)\n" +
+                "VALUES (?, ?), (?, ?)\n" +
+                "RETURNING \"id\"";
         var repo = PreparedStatementTemplate.ORM(dataSource).entity(Vet.class);
         var first = new AtomicBoolean(false);
         observe(sql -> {

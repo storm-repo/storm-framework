@@ -284,4 +284,28 @@ public class SQLiteSqlDialect extends DefaultSqlDialect implements SqlDialect {
     public String sequenceNextVal(String sequenceName) {
         throw new PersistenceException("SQLite does not support sequences.");
     }
+
+    /**
+     * SQLite supports {@code INSERT ... RETURNING} (since 3.35), so batch {@code insertAndFetchIds} reads the keys
+     * from a multi-row {@code VALUES ... RETURNING} result set.
+     *
+     * @return {@code true}.
+     * @since 1.13
+     */
+    @Override
+    public boolean supportsInsertReturning() {
+        return true;
+    }
+
+    /**
+     * SQLite historically caps a statement at {@code SQLITE_MAX_VARIABLE_NUMBER} bind parameters, which defaults to
+     * {@code 999} on builds older than 3.32. Multi-row inserts are chunked to stay within that conservative limit.
+     *
+     * @return {@code 999}.
+     * @since 1.13
+     */
+    @Override
+    public int maxBindParameters() {
+        return 999;
+    }
 }

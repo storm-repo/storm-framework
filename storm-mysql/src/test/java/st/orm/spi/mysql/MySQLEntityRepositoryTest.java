@@ -222,7 +222,7 @@ public class MySQLEntityRepositoryTest {
     public void testInsertAndFetchInlineBatch() {
         String expectedSql = """
                 INSERT INTO owner (first_name, last_name, address, city, telephone, version)
-                VALUES (?, ?, ?, ?, ?, ?)""";
+                VALUES (?, ?, ?, ?, ?, ?), (?, ?, ?, ?, ?, ?)""";
         var repo = PreparedStatementTemplate.ORM(dataSource).entity(Owner.class);
         var first = new AtomicBoolean(false);
         observe(sql -> {
@@ -230,7 +230,7 @@ public class MySQLEntityRepositoryTest {
                 assertEquals(expectedSql, sql.statement());
                 assertEquals(sql.generatedKeys(), List.of("id"));
                 assertFalse(sql.versionAware());
-                assertTrue(sql.bindVariables().isPresent());
+                assertTrue(sql.bindVariables().isEmpty());
             }
         }, () -> {
             var entities = repo.insertAndFetch(List.of(
@@ -257,7 +257,7 @@ public class MySQLEntityRepositoryTest {
     public void testInsertAndFetchBatch() {
         String expectedSql = """
                 INSERT INTO vet (first_name, last_name)
-                VALUES (?, ?)""";
+                VALUES (?, ?), (?, ?)""";
         var repo = PreparedStatementTemplate.ORM(dataSource).entity(Vet.class);
         var first = new AtomicBoolean(false);
         observe(sql -> {
@@ -265,7 +265,7 @@ public class MySQLEntityRepositoryTest {
                 assertEquals(expectedSql, sql.statement());
                 assertEquals(sql.generatedKeys(), List.of("id"));
                 assertFalse(sql.versionAware());
-                assertTrue(sql.bindVariables().isPresent());
+                assertTrue(sql.bindVariables().isEmpty());
             }
         }, () -> {
             var entities = repo.insertAndFetch(List.of(

@@ -69,7 +69,13 @@ final class InsertProcessor implements ElementProcessor<Insert> {
                         return switch (column.generation()) {
                             case NONE -> column.qualifiedName(dialect);
                             case IDENTITY -> {
-                                generatedKeys.add(column.qualifiedName(dialect));
+                                // When the keys are fetched via a RETURNING clause, the identity column is still
+                                // excluded from the column list (the database generates it) but must not be registered
+                                // as a JDBC generated key, otherwise the driver prepares the statement for
+                                // getGeneratedKeys and the RETURNING result set cannot be read.
+                                if (!insert.returningKeys()) {
+                                    generatedKeys.add(column.qualifiedName(dialect));
+                                }
                                 yield null;
                             }
                             case SEQUENCE -> {

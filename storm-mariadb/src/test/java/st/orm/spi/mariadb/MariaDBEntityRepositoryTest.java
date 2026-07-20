@@ -223,17 +223,18 @@ public class MariaDBEntityRepositoryTest {
 
     @Test
     public void testInsertAndFetchInlineBatch() {
-        String expectedSql = """
-                INSERT INTO owner (first_name, last_name, address, city, telephone, version)
-                VALUES (?, ?, ?, ?, ?, ?)""";
+        String expectedSql =
+                "INSERT INTO owner (first_name, last_name, address, city, telephone, version)\n" +
+                "VALUES (?, ?, ?, ?, ?, ?), (?, ?, ?, ?, ?, ?)\n" +
+                "RETURNING `id`";
         var repo = PreparedStatementTemplate.ORM(dataSource).entity(Owner.class);
         var first = new AtomicBoolean(false);
         observe(sql -> {
             if (!first.getAndSet(true)) {
                 assertEquals(expectedSql, sql.statement());
-                assertEquals(sql.generatedKeys(), List.of("id"));
+                assertEquals(sql.generatedKeys(), List.of());
                 assertFalse(sql.versionAware());
-                assertTrue(sql.bindVariables().isPresent());
+                assertTrue(sql.bindVariables().isEmpty());
             }
         }, () -> {
             var entities = repo.insertAndFetch(List.of(
@@ -258,17 +259,18 @@ public class MariaDBEntityRepositoryTest {
 
     @Test
     public void testInsertAndFetchBatch() {
-        String expectedSql = """
-                INSERT INTO vet (first_name, last_name)
-                VALUES (?, ?)""";
+        String expectedSql =
+                "INSERT INTO vet (first_name, last_name)\n" +
+                "VALUES (?, ?), (?, ?)\n" +
+                "RETURNING `id`";
         var repo = PreparedStatementTemplate.ORM(dataSource).entity(Vet.class);
         var first = new AtomicBoolean(false);
         observe(sql -> {
             if (!first.getAndSet(true)) {
                 assertEquals(expectedSql, sql.statement());
-                assertEquals(sql.generatedKeys(), List.of("id"));
+                assertEquals(sql.generatedKeys(), List.of());
                 assertFalse(sql.versionAware());
-                assertTrue(sql.bindVariables().isPresent());
+                assertTrue(sql.bindVariables().isEmpty());
             }
         }, () -> {
             var entities = repo.insertAndFetch(List.of(

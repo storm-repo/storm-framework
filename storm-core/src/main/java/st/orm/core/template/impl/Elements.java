@@ -48,9 +48,13 @@ public final class Elements {
         }
     }
 
-    public record Insert(@Nonnull Class<? extends Data> table, boolean ignoreAutoGenerate) implements Element {
+    public record Insert(@Nonnull Class<? extends Data> table, boolean ignoreAutoGenerate,
+                         boolean returningKeys) implements Element {
         public Insert(@Nonnull Class<? extends Data> table) {
-            this(table, false);
+            this(table, false, false);
+        }
+        public Insert(@Nonnull Class<? extends Data> table, boolean ignoreAutoGenerate) {
+            this(table, ignoreAutoGenerate, false);
         }
         public Insert {
             requireNonNull(table, "table");

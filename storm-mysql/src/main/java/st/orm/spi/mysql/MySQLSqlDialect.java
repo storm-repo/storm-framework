@@ -329,4 +329,30 @@ public class MySQLSqlDialect extends DefaultSqlDialect implements SqlDialect {
     public String sequenceNextVal(String sequenceName) {
         throw new PersistenceException("MySQL does not support sequence-based generation.");
     }
+
+    /**
+     * MySQL's driver returns every generated key for a single multi-row {@code INSERT}: it reports the first
+     * auto-increment value and, because a bounded multi-row {@code VALUES} statement reserves a contiguous block of
+     * auto-increment values, derives the remaining keys from it. Batch {@code insertAndFetchIds} can therefore emit one
+     * multi-row {@code VALUES} statement rather than a JDBC {@code executeBatch}.
+     *
+     * @return {@code true}.
+     * @since 1.13
+     */
+    @Override
+    public boolean supportsMultiRowGeneratedKeys() {
+        return true;
+    }
+
+    /**
+     * The MySQL client/server protocol encodes the placeholder count in a 16-bit field, capping a single statement at
+     * {@code 65535} bind parameters.
+     *
+     * @return {@code 65535}.
+     * @since 1.13
+     */
+    @Override
+    public int maxBindParameters() {
+        return 65_535;
+    }
 }

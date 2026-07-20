@@ -65,6 +65,11 @@ public class MariaDBEntityRepositoryImpl<E extends Entity<ID>, ID>
         }
     }
 
+    /**
+     * MariaDB supports sequences, but its {@link MySQLEntityRepositoryImpl} parent rejects sequence-based generation.
+     * This override keeps the {@code RETURNING} path for SEQUENCE keys and delegates IDENTITY keys to
+     * {@code super} (which routes through the core multi-row {@code RETURNING} path).
+     */
     @Override
     public List<ID> insertAndFetchIds(@Nonnull Iterable<E> entities) {
         if (generationStrategy != SEQUENCE) {
