@@ -5,8 +5,8 @@ import {
   K, T, S, C, F, N, A, P, QK, QQ, QC,
 } from '../components/tutorial/tutorialTheme';
 
-const TITLE = 'Benchmarks · ST/ORM vs Hibernate, jOOQ, Exposed and Jimmer';
-const DESC = 'Reproducible JMH benchmarks of Storm against JDBC, Hibernate, jOOQ, Exposed and Jimmer on PostgreSQL 17, with the entity and query code behind every number.';
+const TITLE = 'Benchmarks · ST/ORM vs Hibernate, jOOQ, Exposed, Ktorm and Jimmer';
+const DESC = 'Reproducible JMH benchmarks of Storm against JDBC, Hibernate, jOOQ, Exposed, Ktorm and Jimmer on PostgreSQL 17, with the entity and query code behind every number.';
 
 // Results from the reproducible suite: one tuned PostgreSQL 17 container over TCP, JMH, 2 forks,
 // 5x3s measured iterations, single thread. Values are mean us/op with the reported error.
@@ -18,6 +18,7 @@ const LIBS = {
   jooq: {name: 'jOOQ', cls: ''},
   exposed: {name: 'Exposed', cls: ''},
   exposedDao: {name: 'Exposed DAO', cls: ''},
+  ktorm: {name: 'Ktorm', cls: ''},
   jimmer: {name: 'Jimmer', cls: ''},
 };
 
@@ -26,49 +27,73 @@ const WORKLOADS = [
     id: 'singleRowById',
     title: 'Primary key lookup',
     desc: 'Load one visit by primary key. The purest round-trip test: one query, one row.',
-    results: {jdbc: [172.4, 3.3], hibernate: [180.8, 3.2], storm: [182.7, 7.7], jimmer: [182.7, 6.9], jooq: [184.7, 8.2], exposed: [369.4, 9.5], exposedDao: [374.8, 17.4]},
+    results: {jdbc: [96.1, 2.2], hibernate: [101.0, 1.3], storm: [104.8, 0.5], jooq: [104.8, 1.9], jimmer: [106.3, 1.4], ktorm: [109.0, 1.6], exposed: [186.9, 3.8], exposedDao: [195.6, 4.3]},
   },
   {
     id: 'joinWithMapping10',
     title: 'Three-table join · 10 rows',
     desc: 'Load pets with owner and city hydrated through a single three-table join.',
-    results: {jdbc: [395.6, 15.2], storm: [464.1, 80.9], hibernate: [472.3, 28.2], jooq: [490.4, 20.5], exposed: [581.2, 14.6], jimmer: [600.0, 19.7], exposedDao: [798.1, 26.8]},
+    results: {jimmer: [451.8, 8.7], storm: [472.4, 10.8], hibernate: [492.8, 85.9], exposedDao: [529.5, 8.3], ktorm: [551.5, 10.6], jdbc: [665.9, 417.8], jooq: [703.6, 104.4], exposed: [757.4, 138.8]},
   },
   {
     id: 'joinWithMapping100',
     title: 'Three-table join · 100 rows',
     desc: 'The same join at 100 rows. Hydration cost starts to separate the field.',
-    results: {jdbc: [569.2, 12.9], storm: [792.9, 16.6], exposed: [813.5, 15.4], jimmer: [1005.0, 152.3], jooq: [1315.3, 161.5], hibernate: [1489.9, 246.6], exposedDao: [1995.6, 290.6]},
+    results: {jdbc: [444.0, 1.3], storm: [557.6, 6.7], jooq: [653.9, 13.3], hibernate: [692.6, 5.2], exposed: [700.6, 3.7], ktorm: [814.0, 6.5], jimmer: [825.2, 7.0], exposedDao: [1341.5, 15.0]},
   },
   {
     id: 'joinWithMapping1000',
     title: 'Three-table join · 1,000 rows',
     desc: 'The same join at 1,000 rows. Row mapping now dominates the round trip.',
-    results: {jdbc: [1737.3, 317.0], storm: [2242.0, 288.8], exposed: [2730.4, 299.8], hibernate: [3463.7, 378.8], jooq: [3536.6, 261.3], exposedDao: [7575.4, 2485.6], jimmer: [10227.4, 4670.0]},
+    results: {jdbc: [1570.4, 14.6], storm: [2193.9, 119.1], exposed: [2640.5, 72.8], jooq: [3265.3, 86.5], hibernate: [3476.1, 85.7], ktorm: [4694.1, 39.1], jimmer: [5090.2, 85.8], exposedDao: [5257.9, 79.2]},
   },
   {
     id: 'projection',
     title: 'Projection',
     desc: 'Three columns across three tables into a flat DTO, 100 rows.',
-    results: {jdbc: [778.3, 24.4], storm: [787.5, 29.4], hibernate: [795.1, 23.4], jimmer: [823.7, 31.1], jooq: [825.8, 27.4], exposed: [1039.5, 31.4], exposedDao: [1042.7, 29.4]},
+    results: {jdbc: [633.5, 2.9], hibernate: [649.5, 4.1], storm: [662.3, 8.6], ktorm: [668.4, 3.5], jooq: [676.7, 3.4], jimmer: [725.2, 73.4], exposed: [768.8, 2.9], exposedDao: [779.6, 4.1]},
   },
   {
-    id: 'batchInsert',
-    title: 'Batch insert',
-    desc: 'Insert 100 visits atomically and fetch the generated keys.',
-    results: {jdbc: [2546.7, 96.9], jooq: [2842.1, 449.2], storm: [3000.1, 238.6], exposed: [3499.0, 294.2], hibernate: [3911.8, 396.1], jimmer: [4049.7, 226.7], exposedDao: [4301.3, 429.5]},
+    id: 'keyset',
+    title: 'Keyset pagination',
+    desc: 'One page of 20 rows through keyset (seek) pagination, object graph materialized. The scroll pattern that stays fast at any depth.',
+    results: {jdbc: [219.5, 1.7], storm: [261.7, 1.1], exposed: [376.9, 5.2], jimmer: [512.7, 6.6], exposedDao: [554.7, 4.3], hibernate: [642.5, 13.6], jooq: [658.3, 8.4], ktorm: [708.2, 6.9]},
   },
   {
-    id: 'updateById',
-    title: 'Read, modify, update',
-    desc: 'Read one owner, change one field, persist atomically. Every implementation reads a lazy association shape and writes only the changed column.',
-    results: {jdbc: [531.6, 19.2], hibernate: [557.2, 13.3], exposed: [557.6, 19.4], storm: [564.4, 13.5], exposedDao: [568.6, 16.3], jooq: [727.9, 24.9], jimmer: [888.6, 12.7]},
+    id: 'dynamic',
+    title: 'Dynamic query',
+    desc: 'A filtered search assembled at runtime from a cycling set of optional predicates.',
+    results: {jdbc: [488.6, 6.6], hibernate: [624.3, 4.6], ktorm: [639.9, 2.2], storm: [641.2, 11.1], jooq: [649.6, 4.4], jimmer: [654.0, 7.4], exposed: [747.9, 5.5], exposedDao: [758.1, 5.0]},
   },
   {
     id: 'objectGraph',
     title: 'Object graph',
     desc: 'Load the owners of a city, each with their list of pets. The one-to-many shape every application has.',
-    results: {jdbc: [973.5, 29.9], storm: [1191.3, 182.7], exposed: [1378.0, 43.6], jooq: [1386.7, 197.3], jimmer: [1401.2, 68.9], exposedDao: [1609.3, 151.0], hibernate: [1677.7, 356.4]},
+    results: {jooq: [601.7, 5.4], jdbc: [738.4, 4.5], storm: [836.6, 7.7], hibernate: [943.6, 5.1], exposed: [970.1, 6.3], jimmer: [1106.6, 24.3], ktorm: [1319.5, 27.4], exposedDao: [1382.7, 22.3]},
+  },
+  {
+    id: 'batchInsert',
+    title: 'Batch insert',
+    desc: 'Insert 100 visits atomically and fetch the generated keys.',
+    results: {jdbc: [2011.8, 41.6], storm: [2247.1, 115.4], jooq: [2414.7, 62.5], ktorm: [3023.9, 62.4], hibernate: [3054.6, 69.6], exposed: [3196.8, 70.1], jimmer: [3352.0, 63.5], exposedDao: [3468.5, 55.5]},
+  },
+  {
+    id: 'updateById',
+    title: 'Read, modify, update',
+    desc: 'Read one owner, change one field, persist atomically. Every implementation reads a lazy association shape and writes only the changed column.',
+    results: {jdbc: [295.9, 6.8], exposed: [310.8, 4.7], hibernate: [311.3, 4.2], exposedDao: [320.5, 4.5], storm: [322.0, 4.1], ktorm: [322.1, 3.5], jooq: [402.1, 4.5], jimmer: [502.2, 4.0]},
+  },
+  {
+    id: 'multiStatement',
+    title: 'Create then amend',
+    desc: 'One transaction: insert a row, read it back, update one field. The shape of a create-then-amend endpoint.',
+    results: {jdbc: [339.8, 3.8], hibernate: [355.7, 7.3], exposed: [360.4, 4.3], ktorm: [366.3, 3.0], storm: [373.0, 4.0], exposedDao: [388.5, 4.0], jooq: [461.0, 5.8], jimmer: [697.6, 10.3]},
+  },
+  {
+    id: 'graphInsert',
+    title: 'Graph insert',
+    desc: 'Write 20 owner to pet to visit graphs in one transaction, generated keys propagated from parent to child.',
+    results: {jdbc: [1446.6, 22.8], jooq: [1757.0, 65.4], storm: [1970.9, 93.3], exposed: [2170.0, 50.3], exposedDao: [2204.1, 35.8], jimmer: [2713.6, 51.2], ktorm: [7470.7, 65.0], hibernate: [7765.1, 90.6]},
   },
 ];
 
@@ -96,22 +121,25 @@ function chartHtml(w) {
   </div>`;
 }
 
-// Hand-written lines for the complete suite: benchmark class, entity or table model, row mappers and
-// result DTOs. Non-blank, non-comment, non-import lines; generated code excluded on both sides that
-// use it (Storm's metamodel, jOOQ's table classes).
+// Queries LOC: the benchmark workload file per library, all twelve workloads, including its row mapping.
+// Entities LOC (below): the entity or table definition file. Both are non-blank, non-comment, non-import
+// source lines counted the same way. Generated code (Storm's metamodel, jOOQ's table classes) and the
+// result types shared by every implementation in the common module are excluded on all sides.
 const LOC = [
-  ['storm', 100, []],
-  ['hibernate', 123, ['string queries']],
-  ['exposedDao', 124, []],
-  ['exposed', 128, ['hand-mapped rows']],
-  ['jooq', 131, ['hand-mapped rows']],
-  ['jimmer', 144, []],
-  ['jdbc', 257, ['hand-mapped rows', 'string queries']],
+  ['storm', 150, []],
+  ['ktorm', 172, []],
+  ['hibernate', 187, ['string queries']],
+  ['exposedDao', 192, []],
+  ['exposed', 193, ['hand-mapped rows']],
+  ['jooq', 200, ['hand-mapped rows']],
+  ['jimmer', 272, []],
+  ['jdbc', 400, ['hand-mapped rows', 'string queries']],
 ];
 
-// The five-table model alone, same counting rule; result DTOs and Storm's optimized write shape excluded.
+// The entity or table definition file per library, same counting rule. Result types shared by every
+// implementation live in the common module and are excluded on all sides.
 const MODEL_LOC = [
-  ['storm', 29], ['exposed', 51], ['jimmer', 55], ['exposedDao', 69], ['hibernate', 105],
+  ['storm', 41], ['jimmer', 57], ['exposed', 58], ['ktorm', 60], ['exposedDao', 74], ['hibernate', 139],
 ];
 
 function modelLocHtml() {
@@ -123,7 +151,7 @@ function modelLocHtml() {
     </div>`).join('');
   return `<div class="bm-card bm-loc">
     <h3>Entities LOC</h3>
-    <p class="bm-desc">The entity or table definitions by the same counting rule, result DTOs and Storm's optimized write shape excluded. This is the model code developers write and maintain.</p>
+    <p class="bm-desc">The entity or table definition file by the same counting rule. This is the model code developers write and maintain.</p>
     ${rows}
     <p class="bm-note">JDBC and jOOQ have no hand-written model: JDBC maps rows by hand and jOOQ generates its table classes, so their cost appears in the suite total above instead.</p>
   </div>`;
@@ -138,9 +166,9 @@ function locHtml() {
     </div>`).join('');
   return `<div class="bm-card bm-loc">
     <h3>Queries LOC</h3>
-    <p class="bm-desc">Everything above the model that the eight workloads need: query code, row mappers, result DTOs and Storm's optimized write shape. Generated code is excluded for both libraries that use it: Storm's metamodel and jOOQ's table classes.</p>
+    <p class="bm-desc">The workload file for all twelve workloads, including its row mapping, counted as non-blank, non-comment, non-import lines. Generated code is excluded for the two libraries that use it, Storm's metamodel and jOOQ's table classes, and result types shared across every implementation are excluded on all sides.</p>
     ${rows}
-    <p class="bm-note">Storm implements all eight workloads in the fewest lines; every other implementation needs 23% to 157% more. Beyond the line count, the labels show what a low number can leave unsaid: hand-mapped rows are written and maintained by hand, and string queries are not compile-checked.</p>
+    <p class="bm-note">Storm implements all twelve workloads in the fewest lines; every other implementation needs 15% to 167% more. Beyond the line count, the labels show what a low number can leave unsaid: hand-mapped rows are written and maintained by hand, and string queries are not compile-checked.</p>
   </div>`;
 }
 
@@ -818,7 +846,7 @@ const SQL_GRAPH_JIMMER = [
   `${QK('FROM')} pet p ${QK('WHERE')} p.owner_id ${QK('IN')} (${QQ('?')}, ${QQ('?')}, ...)`,
 ].join('\n');
 
-const MATRIX_LIBS = ['jdbc', 'storm', 'hibernate', 'jooq', 'exposed', 'exposedDao', 'jimmer'];
+const MATRIX_LIBS = ['jdbc', 'storm', 'hibernate', 'jooq', 'exposed', 'exposedDao', 'ktorm', 'jimmer'];
 
 // Green while close to the fastest framework in the row, then yellow, orange, red as the gap grows.
 const HEAT_STOPS = [
@@ -894,11 +922,11 @@ const BM_CSS = `
   .storm-tut .clonebar{display:flex;align-items:center;gap:10px;font-family:var(--mono);font-size:13px;color:var(--plain);
     background:var(--panel);border:1px solid var(--border);border-radius:10px;padding:0 18px;min-height:44px;overflow-x:auto;white-space:nowrap}
   .storm-tut .clonebar .dollar{color:var(--green);user-select:none}
-  .bm-matrix-wrap{overflow-x:auto;border:1px solid var(--border);border-radius:14px;background:var(--panel);margin:22px 0 10px;padding:10px 12px}
+  .bm-matrix-wrap{overflow-x:auto;border:1px solid var(--border);border-radius:14px;background:var(--panel);margin:22px 0 10px;padding:10px 8px}
   .art .bm-matrix,.art .bm-matrix thead,.art .bm-matrix tbody{background:none}
-  .art .bm-matrix{width:100%;border-collapse:separate;border-spacing:3px;font-family:var(--mono);font-size:12px;margin:0}
-  .art .bm-matrix th,.art .bm-matrix td{border:none;background:none;padding:9px 12px;text-align:right;white-space:nowrap}
-  .art .bm-matrix thead th{color:var(--muted);font-weight:600;padding:4px 12px;font-size:10.5px;letter-spacing:.04em;text-align:center}
+  .art .bm-matrix{width:100%;border-collapse:separate;border-spacing:2px;font-family:var(--mono);font-size:11.5px;margin:0}
+  .art .bm-matrix th,.art .bm-matrix td{border:none;background:none;padding:9px 7px;text-align:right;white-space:nowrap}
+  .art .bm-matrix thead th{color:var(--muted);font-weight:600;padding:4px 7px;font-size:10px;letter-spacing:.03em;text-align:center}
   .art .bm-matrix thead th.storm{background:linear-gradient(100deg,#a78bfa,#818cf8 55%,#7dd3fc);-webkit-background-clip:text;background-clip:text;color:transparent}
   .art .bm-matrix thead th.jdbc{color:var(--faint);font-style:italic}
   .art .bm-matrix tbody th{text-align:left;color:var(--body);font-family:var(--sans);font-size:12.5px;font-weight:500}
@@ -952,20 +980,20 @@ ${navHtml('benchmarks')}
 <div class="art">
   <h1>Concise by design.<br><span class="grad">Fast by measurement.</span></h1>
   <p class="dek">Storm was designed around plain entities and queries that closely resemble the SQL they produce. These benchmarks show that the same design also keeps runtime overhead low.</p>
-  <p class="dek">Seven implementations run against the same PostgreSQL database, using the same schema, data and transaction boundaries. Every result includes a real TCP round trip, and the code behind every number is available to inspect and reproduce.</p>
-  <p class="bm-meta">PostgreSQL 17 over TCP · JMH · Storm 1.13.0 · measured 2026-07-16</p>
+  <p class="dek">Eight implementations run against the same PostgreSQL database, using the same schema, data and transaction boundaries. Every result includes a real TCP round trip, and the code behind every number is available to inspect and reproduce.</p>
+  <p class="bm-meta">PostgreSQL 17 over TCP · JMH · Storm 1.13.0 · measured 2026-07-20</p>
 
   <div class="bm-stats">
-    <div class="bm-stat"><b>5 of 8</b><span>workloads where Storm is the fastest framework above JDBC.</span></div>
-    <div class="bm-stat"><b>5.6%</b><span>is the most Storm trails the fastest framework on any workload.</span></div>
-    <div class="bm-stat"><b>72% less</b><span>entity code than JPA: 29 lines in Storm, 105 as JPA entities.</span></div>
+    <div class="bm-stat"><b>4 of 12</b><span>workloads where Storm is the fastest framework above JDBC.</span></div>
+    <div class="bm-stat"><b>10 of 12</b><span>workloads where Storm is within 5% of the fastest framework.</span></div>
+    <div class="bm-stat"><b>70% less</b><span>entity code than JPA: 41 lines in Storm, 139 as JPA entities.</span></div>
   </div>
 
   <h2>Performance results</h2>
-  <p>The workloads cover common data-access paths: point reads, joined entity hydration, projections, batch writes, change-aware updates and one-to-many object graphs.</p>
-  <p>Seven implementations, one database, one discipline: same schema, same data, same transaction boundaries, every score a real network round trip away from PostgreSQL. Mean latency per operation, lower is better. Cells are tinted by distance from the fastest framework in the row, green through red. Percentages are overhead over raw JDBC. Raw JDBC is the baseline.</p>
+  <p>The workloads cover common data-access paths: point reads, joined entity hydration, projections, keyset pagination, dynamic queries, batch and dependency-ordered writes, change-aware updates and one-to-many object graphs.</p>
+  <p>Eight implementations, one database, one discipline: same schema, same data, same transaction boundaries, every score a real network round trip away from PostgreSQL. Mean latency per operation, lower is better. Cells are tinted by distance from the fastest framework in the row, green through red. Percentages are overhead over raw JDBC. Raw JDBC is the baseline.</p>
   ${matrixHtml()}
-  <p class="bm-matrix-read">On most workloads Storm is the fastest framework; where it isn't, another library edges it narrowly: Hibernate on the single-row lookup and the read-modify-update, jOOQ on the batch insert, where its single multi-row statement beats the batched single-row insert the others send. Even then, Storm stays within about six percent of the fastest framework. Because every result includes a real network round trip, framework overhead represents only part of the reported latency. Absolute times depend on the hardware they were measured on; the relative comparisons are the point.</p>
+  <p class="bm-matrix-read">Storm is the fastest framework above JDBC on the large joins, keyset pagination and the batch insert, where its single multi-row RETURNING statement leads the field. On the point reads and the smaller operations the field is close: Hibernate edges the single-row lookup, projection and the create-then-amend, and Jimmer the ten-row join, each within a few percent. Two workloads favor jOOQ more clearly, the object graph and the dependency-ordered graph write, where its MULTISET load and single-statement writes do less work and Storm trails by roughly twelve to forty percent. Because every result includes a real network round trip, framework overhead is only part of the reported latency, and absolute times depend on the hardware. The relative comparison within each row is the point.</p>
 
   <details class="bm-details">
     <summary>Per-workload charts: the same numbers with their reported error</summary>
@@ -976,7 +1004,7 @@ ${charts}
   </details>
 
   <h2>Code comparison</h2>
-  <p>Numbers without code invite tuned-benchmark suspicion, so the counts below, and the workloads that follow, show exactly what each library runs, trimmed of harness plumbing. The full sources for all seven implementations are in the benchmark repository.</p>
+  <p>Numbers without code invite tuned-benchmark suspicion, so the counts below, and the workloads that follow, show exactly what each library runs, trimmed of harness plumbing. The full sources for all eight implementations are in the benchmark repository.</p>
   ${modelLocHtml()}
   ${locHtml()}
   <p class="bm-note">LOC is presented as an illustration of these benchmark implementations, rather than as a universal measure of framework complexity.</p>
