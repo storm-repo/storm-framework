@@ -906,10 +906,13 @@ public final class MetamodelProcessor extends AbstractProcessor {
         String instantiatorName = recordName + "Instantiator";
         var parameters = constructor.getParameters();
         StringBuilder arguments = new StringBuilder();
+        StringBuilder components = new StringBuilder();
         for (int i = 0; i < parameters.size(); i++) {
             String castType = getBoxedTypeName(parameters.get(i).asType().toString().replaceAll("@\\S+\\s+", ""));
             arguments.append(arguments.isEmpty() ? "" : ",\n")
                     .append("                (").append(castType).append(") args[").append(i).append("]");
+            components.append(components.isEmpty() ? "" : ",\n")
+                    .append("                instance.").append(parameters.get(i).getSimpleName()).append("()");
         }
         try {
             JavaFileObject fileObject = processingEnv.getFiler()
@@ -919,7 +922,7 @@ public final class MetamodelProcessor extends AbstractProcessor {
                     %simport javax.annotation.processing.Generated;
 
                     /**
-                     * Instantiator for %s; constructs instances without reflection.
+                     * Instantiator for %s; constructs and deconstructs instances without reflection.
                      */
                     @Generated("%s")
                     public final class %s implements st.orm.mapping.Instantiator<%s> {
@@ -936,6 +939,13 @@ public final class MetamodelProcessor extends AbstractProcessor {
                     %s
                             );
                         }
+
+                        @Override
+                        public Object[] deconstruct(%s instance) {
+                            return new Object[] {
+                    %s
+                            };
+                        }
                     }""",
                         (packageName.isEmpty() ? "" : "package " + packageName + ";\n\n"),
                         recordName,
@@ -946,7 +956,9 @@ public final class MetamodelProcessor extends AbstractProcessor {
                         recordName,
                         recordName,
                         recordName,
-                        arguments
+                        arguments,
+                        recordName,
+                        components
                 ));
             }
             generatedInstantiators.add((packageName.isEmpty() ? "" : packageName + ".") + instantiatorName);

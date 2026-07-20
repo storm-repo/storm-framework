@@ -564,6 +564,26 @@ public final class WriteSetImpl implements WriteSet {
         Object newInstance(@Nonnull Object[] args) {
             return instantiator != null ? instantiator.instantiate(args) : recordType.newInstance(args);
         }
+
+        /**
+         * Reads the record's component values in declaration order, through the generated deconstructor when the
+         * metamodel registered one, so rebuilds run as generated code on both sides of the round trip.
+         */
+        @SuppressWarnings("unchecked")
+        Object[] deconstruct(@Nonnull Object record) {
+            if (instantiator != null) {
+                Object[] args = ((Instantiator<Object>) instantiator).deconstruct(record);
+                if (args != null) {
+                    return args;
+                }
+            }
+            List<RecordField> fields = recordType.fields();
+            Object[] args = new Object[fields.size()];
+            for (int i = 0; i < fields.size(); i++) {
+                args[i] = REFLECTION.invoke(fields.get(i), record);
+            }
+            return args;
+        }
     }
 
     private static final ClassValue<RebuildType> REBUILD_TYPES = new ClassValue<>() {
@@ -584,11 +604,7 @@ public final class WriteSetImpl implements WriteSet {
      */
     private Object withComponent(@Nonnull Object record, @Nonnull int[] path, int depth, @Nullable Object newValue) {
         RebuildType rebuildType = REBUILD_TYPES.get(record.getClass());
-        List<RecordField> fields = rebuildType.recordType().fields();
-        Object[] args = new Object[fields.size()];
-        for (int i = 0; i < fields.size(); i++) {
-            args[i] = REFLECTION.invoke(fields.get(i), record);
-        }
+        Object[] args = rebuildType.deconstruct(record);
         int index = path[depth];
         args[index] = depth == path.length - 1
                 ? newValue
