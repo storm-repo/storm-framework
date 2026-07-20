@@ -81,4 +81,29 @@ public class MariaDBSqlDialect extends MySQLSqlDialect {
     public String sequenceNextVal(String sequenceName) {
         return "NEXT VALUE FOR " + getSafeIdentifier(sequenceName);
     }
+
+    /**
+     * MariaDB supports {@code INSERT ... RETURNING} (since 10.5), so batch {@code insertAndFetchIds} reads the keys
+     * from a multi-row {@code VALUES ... RETURNING} result set.
+     *
+     * @return {@code true}.
+     * @since 1.13
+     */
+    @Override
+    public boolean supportsInsertReturning() {
+        return true;
+    }
+
+    /**
+     * Disables the multi-row generated-keys path inherited from {@link MySQLSqlDialect}. Unlike MySQL Connector/J,
+     * the MariaDB Connector/J driver returns only a single key from {@code getGeneratedKeys} for a multi-row
+     * {@code INSERT}; the {@link #supportsInsertReturning() RETURNING} path is used instead.
+     *
+     * @return {@code false}.
+     * @since 1.13
+     */
+    @Override
+    public boolean supportsMultiRowGeneratedKeys() {
+        return false;
+    }
 }

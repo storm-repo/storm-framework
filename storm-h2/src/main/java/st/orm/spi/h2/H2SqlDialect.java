@@ -268,4 +268,16 @@ public class H2SqlDialect extends DefaultSqlDialect implements SqlDialect {
     public String sequenceNextVal(String sequenceName) {
         return "NEXT VALUE FOR %s".formatted(getSafeIdentifier(sequenceName));
     }
+
+    /**
+     * H2 returns every generated key for a single multi-row {@code INSERT} through {@code getGeneratedKeys}, so batch
+     * {@code insertAndFetchIds} can emit one multi-row {@code VALUES} statement rather than a JDBC {@code executeBatch}.
+     *
+     * @return {@code true}.
+     * @since 1.13
+     */
+    @Override
+    public boolean supportsMultiRowGeneratedKeys() {
+        return true;
+    }
 }

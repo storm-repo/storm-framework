@@ -577,15 +577,29 @@ public interface SqlDialect {
     }
 
     /**
-     * Returns whether the JDBC driver for this dialect returns every generated key of a multi-row {@code INSERT} in a
-     * single round trip.
+     * Returns whether this dialect supports an {@code INSERT ... RETURNING <columns>} clause that returns the inserted
+     * rows' generated keys as a result set.
      *
      * <p>When {@code true}, batch {@code insertAndFetchIds} emits a single multi-row
+     * {@code INSERT INTO t (...) VALUES (...),(...) RETURNING <pk>} statement and reads the keys from the result set.
+     * This is the preferred multi-row key-fetch mechanism: the keys come back explicitly and in row order, with no
+     * reliance on driver-specific {@code getGeneratedKeys} behavior. Supported by PostgreSQL, SQLite and MariaDB.</p>
+     *
+     * @return {@code true} if the dialect supports {@code INSERT ... RETURNING}.
+     * @since 1.13
+     */
+    default boolean supportsInsertReturning() {
+        return false;
+    }
+
+    /**
+     * Returns whether the JDBC driver for this dialect returns every generated key of a multi-row {@code INSERT} in a
+     * single round trip via {@code getGeneratedKeys}.
+     *
+     * <p>This is the fallback multi-row key-fetch mechanism for dialects that have no {@code RETURNING} clause (see
+     * {@link #supportsInsertReturning()}). When {@code true}, batch {@code insertAndFetchIds} emits a single multi-row
      * {@code INSERT INTO t (...) VALUES (...),(...)} statement and reads the keys back with {@code getGeneratedKeys},
-     * rather than issuing a JDBC {@code executeBatch}. This avoids the per-row round trips that batched generated-key
-     * retrieval incurs on drivers that disable batch rewriting when generated keys are requested (for example the
-     * PostgreSQL driver, which returns all keys for a single multi-row statement because it appends a
-     * {@code RETURNING} clause internally).</p>
+     * rather than issuing a JDBC {@code executeBatch}. Enabled for MySQL and H2.</p>
      *
      * <p>Defaults to {@code false} because not every driver returns all keys for a multi-row insert (some return only
      * the first), so dialects opt in explicitly.</p>

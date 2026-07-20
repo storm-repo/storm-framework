@@ -337,20 +337,4 @@ public class PostgreSQLEntityRepositoryImpl<E extends Entity<ID>, ID>
         }
     }
 
-    @Override
-    public List<ID> insertAndFetchIds(@Nonnull Iterable<E> entities) {
-        if (generationStrategy != SEQUENCE) {
-            return super.insertAndFetchIds(entities);
-        }
-        entities.forEach(this::validateInsert);
-        assert primaryKeyColumns.size() == 1;
-        var primaryKeyColumn = primaryKeyColumns.getFirst();
-        String pkName = primaryKeyColumn.qualifiedName(ormTemplate.dialect());
-        var query = ormTemplate.query(TemplateString.raw("""
-            INSERT INTO \0
-            VALUES \0
-            RETURNING %s""".formatted(pkName), model.type(), entities))
-                .managed();
-        return query.getResultList(model.primaryKeyType());
-    }
 }

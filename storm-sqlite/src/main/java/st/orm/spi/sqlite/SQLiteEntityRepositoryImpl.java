@@ -244,23 +244,4 @@ public class SQLiteEntityRepositoryImpl<E extends Entity<ID>, ID>
         // SQLite does not support sequences.
         return super.insertAndFetchId(entity);
     }
-
-    @Override
-    public List<ID> insertAndFetchIds(@Nonnull Iterable<E> entities) {
-        if (generationStrategy == NONE) {
-            return super.insertAndFetchIds(entities);
-        }
-        // SQLite does not support getGeneratedKeys() after executeBatch().
-        // Use RETURNING clause for the batch insert instead.
-        entities.forEach(this::validateInsert);
-        assert primaryKeyColumns.size() == 1;
-        var primaryKeyColumn = primaryKeyColumns.getFirst();
-        String primaryKeyName = primaryKeyColumn.qualifiedName(ormTemplate.dialect());
-        var query = ormTemplate.query(raw("""
-            INSERT INTO \0
-            VALUES \0
-            RETURNING %s""".formatted(primaryKeyName), model.type(), entities))
-                .managed();
-        return query.getResultList(model.primaryKeyType());
-    }
 }

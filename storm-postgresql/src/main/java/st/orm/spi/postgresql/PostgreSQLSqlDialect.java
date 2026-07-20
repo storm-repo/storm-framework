@@ -333,15 +333,15 @@ public class PostgreSQLSqlDialect extends DefaultSqlDialect implements SqlDialec
     }
 
     /**
-     * PostgreSQL returns generated keys from a multi-row {@code INSERT} through the inherited {@code RETURNING}
-     * clause, so batch {@code insertAndFetchIds} can emit a single multi-row {@code VALUES} statement rather than a
-     * JDBC {@code executeBatch}.
+     * PostgreSQL supports {@code INSERT ... RETURNING}, so batch {@code insertAndFetchIds} emits a single multi-row
+     * {@code VALUES ... RETURNING} statement and reads the keys from the result set rather than issuing a JDBC
+     * {@code executeBatch}.
      *
      * @return {@code true}.
      * @since 1.13
      */
     @Override
-    public boolean supportsMultiRowGeneratedKeys() {
+    public boolean supportsInsertReturning() {
         return true;
     }
 

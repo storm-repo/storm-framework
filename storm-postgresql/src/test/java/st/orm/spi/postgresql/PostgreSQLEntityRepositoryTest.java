@@ -222,15 +222,16 @@ public class PostgreSQLEntityRepositoryTest {
 
     @Test
     public void testInsertAndFetchInlineBatch() {
-        String expectedSql = """
-                INSERT INTO owner (first_name, last_name, address, city, telephone, version)
-                VALUES (?, ?, ?, ?, ?, ?), (?, ?, ?, ?, ?, ?)""";
+        String expectedSql =
+                "INSERT INTO owner (first_name, last_name, address, city, telephone, version)\n" +
+                "VALUES (?, ?, ?, ?, ?, ?), (?, ?, ?, ?, ?, ?)\n" +
+                "RETURNING \"id\"";
         var repo = PreparedStatementTemplate.ORM(dataSource).entity(Owner.class);
         var first = new AtomicBoolean(false);
         observe(sql -> {
             if (!first.getAndSet(true)) {
                 assertEquals(expectedSql, sql.statement());
-                assertEquals(sql.generatedKeys(), List.of("id"));
+                assertEquals(sql.generatedKeys(), List.of());
                 assertFalse(sql.versionAware());
                 assertTrue(sql.bindVariables().isEmpty());
             }
@@ -257,15 +258,16 @@ public class PostgreSQLEntityRepositoryTest {
 
     @Test
     public void testInsertAndFetchBatch() {
-        String expectedSql = """
-                INSERT INTO vet (first_name, last_name)
-                VALUES (?, ?), (?, ?)""";
+        String expectedSql =
+                "INSERT INTO vet (first_name, last_name)\n" +
+                "VALUES (?, ?), (?, ?)\n" +
+                "RETURNING \"id\"";
         var repo = PreparedStatementTemplate.ORM(dataSource).entity(Vet.class);
         var first = new AtomicBoolean(false);
         observe(sql -> {
             if (!first.getAndSet(true)) {
                 assertEquals(expectedSql, sql.statement());
-                assertEquals(sql.generatedKeys(), List.of("id"));
+                assertEquals(sql.generatedKeys(), List.of());
                 assertFalse(sql.versionAware());
                 assertTrue(sql.bindVariables().isEmpty());
             }
@@ -925,10 +927,10 @@ public class PostgreSQLEntityRepositoryTest {
 
     @Test
     public void testInsertAndFetchWithSequenceBatch() {
-        String expectedSql = """
-                INSERT INTO pet (id, name, birth_date, type_id, owner_id)
-                VALUES (nextval('pet_id_seq'), ?, ?, ?, ?), (nextval('pet_id_seq'), ?, ?, ?, ?)
-                RETURNING id""";
+        String expectedSql =
+                "INSERT INTO pet (id, name, birth_date, type_id, owner_id)\n" +
+                "VALUES (nextval('pet_id_seq'), ?, ?, ?, ?), (nextval('pet_id_seq'), ?, ?, ?, ?)\n" +
+                "RETURNING \"id\"";
         var repo = PreparedStatementTemplate.ORM(dataSource).entity(Pet.class);
         var first = new AtomicBoolean(false);
         observe(sql -> {
@@ -1480,10 +1482,10 @@ public class PostgreSQLEntityRepositoryTest {
 
     @Test
     public void testInsertAndFetchWithSequenceEmptyBatch() {
-        String expectedSql = """
-                INSERT INTO pet (name, birth_date, type_id, owner_id)
-                VALUES (?, ?, ?, ?), (?, ?, ?, ?)
-                RETURNING id""";
+        String expectedSql =
+                "INSERT INTO pet (name, birth_date, type_id, owner_id)\n" +
+                "VALUES (?, ?, ?, ?), (?, ?, ?, ?)\n" +
+                "RETURNING \"id\"";
         var repo = PreparedStatementTemplate.ORM(dataSource).entity(PetSequenceEmpty.class);
         var first = new AtomicBoolean(false);
         observe(sql -> {
