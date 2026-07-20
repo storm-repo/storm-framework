@@ -179,6 +179,19 @@ public final class Providers {
                 .orElseThrow();
     }
 
+    private static final AtomicReference<QueryBuilderProvider> QUERY_BUILDER_PROVIDER = new AtomicReference<>();
+
+    /**
+     * Resolves the query builder provider once and reuses it, mirroring {@link #getORMReflection()}: query builders
+     * are created on every select and the provider order is fixed after startup.
+     */
+    private static QueryBuilderProvider queryBuilderProvider() {
+        return QUERY_BUILDER_PROVIDER.updateAndGet(value -> requireNonNullElseGet(value, () ->
+                Orderable.sort(enabled(QUERY_BUILDER_REPOSITORY_PROVIDERS))
+                        .findFirst()
+                        .orElseThrow()));
+    }
+
     public static <T extends Data, R, ID> QueryBuilder<T, R, ID> selectFrom(
             @Nonnull QueryTemplate queryTemplate,
             @Nonnull Class<T> fromType,
@@ -186,10 +199,7 @@ public final class Providers {
             @Nonnull TemplateString template,
             boolean subquery,
             @Nonnull Supplier<Model<T, ID>> modelSupplier) {
-        return Orderable.sort(enabled(QUERY_BUILDER_REPOSITORY_PROVIDERS))
-                .map(provider -> provider.selectFrom(queryTemplate, fromType, selectType, template, subquery, modelSupplier))
-                .findFirst()
-                .orElseThrow();
+        return queryBuilderProvider().selectFrom(queryTemplate, fromType, selectType, template, subquery, modelSupplier);
     }
 
     public static <T extends Data, R extends Data, ID> QueryBuilder<T, Ref<R>, ID> selectRefFrom(
@@ -198,20 +208,14 @@ public final class Providers {
             @Nonnull Class<R> refType,
             @Nonnull Class<?> pkType,
             @Nonnull Supplier<Model<T, ID>> modelSupplier) {
-        return Orderable.sort(enabled(QUERY_BUILDER_REPOSITORY_PROVIDERS))
-                .map(provider -> provider.selectRefFrom(queryTemplate, fromType, refType, pkType, modelSupplier))
-                .findFirst()
-                .orElseThrow();
+        return queryBuilderProvider().selectRefFrom(queryTemplate, fromType, refType, pkType, modelSupplier);
     }
 
     public static <T extends Data, ID> QueryBuilder<T, ?, ID> deleteFrom(
             @Nonnull QueryTemplate queryTemplate,
             @Nonnull Class<T> fromType,
             @Nonnull Supplier<Model<T, ID>> modelSupplier) {
-        return Orderable.sort(enabled(QUERY_BUILDER_REPOSITORY_PROVIDERS))
-                .map(provider -> provider.deleteFrom(queryTemplate, fromType, modelSupplier))
-                .findFirst()
-                .orElseThrow();
+        return queryBuilderProvider().deleteFrom(queryTemplate, fromType, modelSupplier);
     }
 
     public static SqlDialect getSqlDialect() {

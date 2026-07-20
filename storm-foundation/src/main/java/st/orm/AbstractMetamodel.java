@@ -84,11 +84,21 @@ public abstract class AbstractMetamodel<T extends Data, E, V> implements TypedMe
 
     /**
      * Hash code is based on {@link #fieldType()} of {@link #table()} and {@link #field()}.
+     *
+     * <p>The hash is cached: metamodel instances are immutable and are hashed on every compilation-key lookup. The
+     * benign race follows the {@link String#hashCode()} pattern, recomputing only when the hash happens to be zero.</p>
      */
     @Override
     public final int hashCode() {
-        return Objects.hash(table().fieldType(), path, field);
+        int cached = hash;
+        if (cached == 0) {
+            cached = Objects.hash(table().fieldType(), path, field);
+            hash = cached;
+        }
+        return cached;
     }
+
+    private int hash;
 
     /**
      * Returns {@code true} if the metamodel corresponds to a database column, returns {@code false} otherwise, for
