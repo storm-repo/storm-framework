@@ -266,6 +266,9 @@ orm.writeSet().insert(List.of(wolfie, rex, visit));        // owner discovered a
 // Typed single-root variant: whole graph in, keyed root out
 Visit fetched = orm.writeSet().insertAndFetch(visit);
 
+// Keys only, in input order, no re-read: the middle tier between insert and insertAndFetch
+List<Long> ids = orm.writeSet().insertAndFetchIds(List.of(visit));
+
 // update/remove write only the entities passed, no discovery; children are removed before parents
 orm.writeSet().update(List.of(changedOwner, changedPet));
 orm.writeSet().remove(List.of(visit, pet, owner));

@@ -59,6 +59,8 @@ dependencies {
 
 Storm auto-detects the serialization library at runtime. Just add the dependency and it works.
 
+Storm compiles against kotlinx-serialization 1.7.3 and uses only its stable core API, so any 1.7.3 or newer release works: your project's dependency resolution picks the version, and Storm floats along with it.
+
 ---
 
 ## JSON Columns

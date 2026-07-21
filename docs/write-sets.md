@@ -117,6 +117,27 @@ Visit fetchedVisit = orm.writeSet().insertAndFetch(visit);       // single root,
 </TabItem>
 </Tabs>
 
+`insertAndFetchIds` returns just the primary keys of the explicit members, in input order, without re-reading the rows: the keys come from the insert itself. It is the middle tier between `insert` (nothing back) and `insertAndFetch` (rows re-read with database-applied state), and the natural fit for a create endpoint that responds with ids. The batch is homogeneous in its id type; entity types may differ as long as they share it, and a batch that mixes id types keeps using `insertAndFetch`, where each returned entity carries its own id.
+
+<Tabs groupId="language">
+<TabItem value="kotlin" label="Kotlin" default>
+
+```kotlin
+val ids: List<Long> = orm.writeSet().insertAndFetchIds(visits)   // keys in input order, no re-read
+val id: Long = orm.writeSet().insertAndFetchId(visit)            // single root
+```
+
+</TabItem>
+<TabItem value="java" label="Java">
+
+```java
+List<Long> ids = orm.writeSet().insertAndFetchIds(visits);       // keys in input order, no re-read
+Long id = orm.writeSet().insertAndFetchId(visit);                // single root
+```
+
+</TabItem>
+</Tabs>
+
 ## Refs
 
 Foreign key fields typed as `Ref` participate through entity-wrapped refs, which carry the instance:
@@ -211,7 +232,7 @@ The unsaved entity's default id in the key component is a placeholder; the write
 The remaining actions follow the same contract, each with the ordering that suits it:
 
 - `update` groups the explicit members by type and updates them with the usual semantics, including transaction-scoped dirty checking: unchanged entities are skipped. Referenced entities are never updated implicitly: an updated `Owner` held inside a `Pet` you update is not written, it contributes only its primary key. Pass both when both changed; dirty checking skips whichever members are unchanged. Unsaved members are rejected; a row that does not exist cannot be updated.
-- `upsert` applies the per-repository upsert semantics to the explicit members and inserts the discovered members of the insertion closure, with keys propagating as for insert. Explicit membership takes precedence: a keyed entity that is both supplied and referenced by another member is upserted, and is written before the members that reference it. Whether an upsert can create a row for a member carrying a preset key follows the dialect's per-repository upsert behavior.
+- `upsert` applies the per-repository upsert semantics to the explicit members and inserts the discovered members of the insertion closure, with keys propagating as for insert. Explicit membership takes precedence: a keyed entity that is both supplied and referenced by another member is upserted, and is written before the members that reference it. Whether an upsert can create a row for a member carrying a preset key follows the dialect's per-repository upsert behavior. `upsertAndFetch` and `upsertAndFetchIds` mirror the insert-side variants: rows re-read, or just the keys.
 - `remove` deletes exactly the explicit members, children before parents. Members are correlated by entity type and primary key rather than by instance, so a member referencing another member is removed first regardless of which instance its foreign key field holds. Referenced entities are never removed implicitly.
 
 <Tabs groupId="language">

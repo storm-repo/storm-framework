@@ -18,7 +18,7 @@
 > GitHub: https://github.com/storm-orm/storm-framework
 > License: Apache 2.0
 
-# Generated: 2026-07-19T07:40:11Z
+# Generated: 2026-07-21T18:55:08Z
 
 ========================================
 ## Source: index.md
@@ -9240,6 +9240,8 @@ dependencies {
 
 Storm auto-detects the serialization library at runtime. Just add the dependency and it works.
 
+Storm compiles against kotlinx-serialization 1.7.3 and uses only its stable core API, so any 1.7.3 or newer release works: your project's dependency resolution picks the version, and Storm floats along with it.
+
 ---
 
 ## JSON Columns
@@ -12250,6 +12252,21 @@ var fetchedPet = (Pet) inserted.get(0); // fetchedPet.owner() carries the genera
 
 Visit fetchedVisit = orm.writeSet().insertAndFetch(visit);       // single root, typed
 ```
+`insertAndFetchIds` returns just the primary keys of the explicit members, in input order, without re-reading the rows: the keys come from the insert itself. It is the middle tier between `insert` (nothing back) and `insertAndFetch` (rows re-read with database-applied state), and the natural fit for a create endpoint that responds with ids. The batch is homogeneous in its id type; entity types may differ as long as they share it, and a batch that mixes id types keeps using `insertAndFetch`, where each returned entity carries its own id.
+
+[Kotlin]
+
+```kotlin
+val ids: List<Long> = orm.writeSet().insertAndFetchIds(visits)   // keys in input order, no re-read
+val id: Long = orm.writeSet().insertAndFetchId(visit)            // single root
+```
+
+[Java]
+
+```java
+List<Long> ids = orm.writeSet().insertAndFetchIds(visits);       // keys in input order, no re-read
+Long id = orm.writeSet().insertAndFetchId(visit);                // single root
+```
 ## Refs
 
 Foreign key fields typed as `Ref` participate through entity-wrapped refs, which carry the instance:
@@ -12326,7 +12343,7 @@ The unsaved entity's default id in the key component is a placeholder; the write
 The remaining actions follow the same contract, each with the ordering that suits it:
 
 - `update` groups the explicit members by type and updates them with the usual semantics, including transaction-scoped dirty checking: unchanged entities are skipped. Referenced entities are never updated implicitly: an updated `Owner` held inside a `Pet` you update is not written, it contributes only its primary key. Pass both when both changed; dirty checking skips whichever members are unchanged. Unsaved members are rejected; a row that does not exist cannot be updated.
-- `upsert` applies the per-repository upsert semantics to the explicit members and inserts the discovered members of the insertion closure, with keys propagating as for insert. Explicit membership takes precedence: a keyed entity that is both supplied and referenced by another member is upserted, and is written before the members that reference it. Whether an upsert can create a row for a member carrying a preset key follows the dialect's per-repository upsert behavior.
+- `upsert` applies the per-repository upsert semantics to the explicit members and inserts the discovered members of the insertion closure, with keys propagating as for insert. Explicit membership takes precedence: a keyed entity that is both supplied and referenced by another member is upserted, and is written before the members that reference it. Whether an upsert can create a row for a member carrying a preset key follows the dialect's per-repository upsert behavior. `upsertAndFetch` and `upsertAndFetchIds` mirror the insert-side variants: rows re-read, or just the keys.
 - `remove` deletes exactly the explicit members, children before parents. Members are correlated by entity type and primary key rather than by instance, so a member referencing another member is removed first regardless of which instance its foreign key field holds. Referenced entities are never removed implicitly.
 
 [Kotlin]
