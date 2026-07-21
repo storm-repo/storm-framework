@@ -4,10 +4,13 @@ import com.zaxxer.hikari.HikariConfig
 import com.zaxxer.hikari.HikariDataSource
 import io.kotest.matchers.ints.shouldBeGreaterThan
 import io.kotest.matchers.shouldBe
+import io.kotest.matchers.types.shouldBeSameInstanceAs
 import io.ktor.client.request.get
 import io.ktor.http.HttpStatusCode
 import io.ktor.server.application.install
+import io.ktor.server.plugins.di.DependencyKey
 import io.ktor.server.plugins.di.dependencies
+import io.ktor.server.plugins.di.getBlocking
 import io.ktor.server.response.respondText
 import io.ktor.server.routing.get
 import io.ktor.server.routing.routing
@@ -170,6 +173,7 @@ class StormObservabilityTest {
         }
         val dataSource = createTestDataSource("storm-explicit-observer", "/schema.sql")
         try {
+            var registryFromContainer: ObservationRegistry? = null
             testApplication {
                 application {
                     dependencies {
@@ -179,6 +183,7 @@ class StormObservabilityTest {
                         this.dataSource = dataSource
                         queryObserver = explicitObserver
                     }
+                    registryFromContainer = dependencies.getBlocking(DependencyKey<ObservationRegistry>())
                     routing {
                         get("/pets") {
                             call.respondText(repository<PetRepository>().findAll().size.toString())
@@ -188,6 +193,8 @@ class StormObservabilityTest {
                 client.get("/pets").status shouldBe HttpStatusCode.OK
                 observedExecutions.get() shouldBeGreaterThan 0
                 TestObservationRegistryAssert.assertThat(observationRegistry).doesNotHaveAnyObservation()
+                // The registry remains resolvable from the container; the plugin just leaves it unbound.
+                registryFromContainer shouldBeSameInstanceAs observationRegistry
             }
         } finally {
             dataSource.close()

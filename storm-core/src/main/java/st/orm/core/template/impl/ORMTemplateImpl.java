@@ -41,9 +41,11 @@ import st.orm.EntityCallback;
 import st.orm.PersistenceException;
 import st.orm.Projection;
 import st.orm.StormConfig;
+import st.orm.WriteSet;
 import st.orm.core.repository.EntityRepository;
 import st.orm.core.repository.ProjectionRepository;
 import st.orm.core.repository.Repository;
+import st.orm.core.repository.impl.WriteSetImpl;
 import st.orm.core.spi.ORMReflection;
 import st.orm.core.spi.Provider;
 import st.orm.core.spi.Providers;
@@ -61,6 +63,7 @@ public final class ORMTemplateImpl extends QueryTemplateImpl implements ORMTempl
     private final Predicate<? super Provider> providerFilter;
     private final StormConfig config;
     private final List<EntityCallback<?>> entityCallbacks;
+    private volatile WriteSet writeSet;
 
     public ORMTemplateImpl(@Nonnull QueryFactory factory,
                            @Nonnull ModelBuilder modelBuilder,
@@ -89,6 +92,24 @@ public final class ORMTemplateImpl extends QueryTemplateImpl implements ORMTempl
     @Override
     public StormConfig config() {
         return config;
+    }
+
+    /**
+     * Returns the write set bound to this template.
+     *
+     * <p>The instance is cached so its per-type metadata (FK edges, key carriers) is discovered once per template
+     * rather than on every {@code writeSet()} call. The write set itself is stateless per operation, so sharing one
+     * instance is safe.</p>
+     */
+    @Override
+    public WriteSet writeSet() {
+        WriteSet result = writeSet;
+        if (result == null) {
+            // Benign race: two threads may briefly build separate instances; both are correct and the field settles.
+            result = new WriteSetImpl(this);
+            writeSet = result;
+        }
+        return result;
     }
 
     @Override

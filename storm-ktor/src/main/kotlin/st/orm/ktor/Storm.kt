@@ -195,15 +195,27 @@ val Storm = createApplicationPlugin(name = "Storm", createConfiguration = ::Stor
     // exactly one database, so `val visits: VisitRepository by dependencies` works regardless of the database.
     // Repositories created lazily after installation are not added to the container.
     if (pluginConfig.registerDependencies) {
+        val providedKeys = mutableListOf<DependencyKey>()
         application.dependencies {
             provide<ORMTemplate> { ormTemplate }
         }
-        application.registerRepositories(repositoryRegistry)
+        providedKeys += DependencyKey<ORMTemplate>()
+        providedKeys += application.registerRepositories(repositoryRegistry)
         for ((name, template) in namedTemplates) {
             application.dependencies {
                 provide<ORMTemplate>(name) { template }
             }
-            application.registerRepositories(namedRegistries.getValue(name))
+            providedKeys += DependencyKey<ORMTemplate>(name)
+            providedKeys += application.registerRepositories(namedRegistries.getValue(name))
+        }
+        // The container resolves dependencies lazily; a declaration nobody resolves keeps an unfinished
+        // deferred that the container cancels at shutdown, logging a spurious "Exception during cleanup"
+        // warning for the key and each of its covariant supertype keys. Resolving every provided key once
+        // at startup completes those deferreds. The instances already exist, so this creates nothing.
+        application.monitor.subscribe(ApplicationStarted) {
+            for (providedKey in providedKeys) {
+                application.dependencies.getBlocking<Any?>(providedKey)
+            }
         }
     }
 
@@ -299,13 +311,19 @@ private fun Application.resolveObservationConvention(): ObservationConvention<st
 
 /**
  * Registers every repository of the given registry in the dependency container, each under its own interface type.
+ *
+ * @return the keys the repositories are registered under.
  */
-private fun Application.registerRepositories(registry: RepositoryRegistry) {
+private fun Application.registerRepositories(registry: RepositoryRegistry): List<DependencyKey> {
+    val registeredKeys = mutableListOf<DependencyKey>()
     registry.forEach { type, instance ->
+        val key = DependencyKey(TypeInfo(type, type.starProjectedType))
         dependencies {
-            set(DependencyKey(TypeInfo(type, type.starProjectedType))) { instance }
+            set(key) { instance }
         }
+        registeredKeys += key
     }
+    return registeredKeys
 }
 
 /**

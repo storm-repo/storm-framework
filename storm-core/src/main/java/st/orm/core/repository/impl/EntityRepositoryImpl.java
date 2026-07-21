@@ -1320,15 +1320,44 @@ public class EntityRepositoryImpl<E extends Entity<ID>, ID>
      * parameter limit so that {@code rows × bound columns} never exceeds what a single statement can carry.
      */
     private int multiRowInsertChunkSize() {
+        return multiRowInsertChunkSize(false);
+    }
+
+    private int multiRowInsertChunkSize(boolean ignoreAutoGenerate) {
         int boundColumns = (int) model.declaredColumns().stream()
                 .filter(Column::insertable)
-                .filter(column -> column.generation() == NONE)
+                .filter(column -> ignoreAutoGenerate || column.generation() == NONE)
                 .count();
         if (boundColumns == 0) {
             return defaultBatchSize;
         }
         int maxRows = Math.max(1, ormTemplate.dialect().maxBindParameters() / boundColumns);
         return Math.min(defaultBatchSize, maxRows);
+    }
+
+    /**
+     * Inserts a batch using a single multi-row {@code INSERT INTO t (...) VALUES (...),(...)} statement without
+     * fetching generated keys, avoiding the per-row statements of {@code executeBatch} on dialects that support the
+     * multi-row form.
+     */
+    private void insertMultiRow(@Nonnull List<E> batch, boolean ignoreAutoGenerate) {
+        if (batch.isEmpty()) {
+            return;
+        }
+        List<E> transformed = batch.stream()
+                .map(this::fireBeforeInsert)
+                .map(e -> validateInsert(e, ignoreAutoGenerate))
+                .toList();
+        var query = ormTemplate.query(raw("""
+                INSERT INTO \0
+                VALUES \0""",
+                Templates.insert(model.type(), ignoreAutoGenerate),
+                Templates.values(transformed, ignoreAutoGenerate))).managed();
+        if (query.executeUpdate() != transformed.size()) {
+            throw new PersistenceException("Multi-row insert of %s failed. The number of affected rows does not match the batch size."
+                    .formatted(model.type().getSimpleName()));
+        }
+        transformed.forEach(this::fireAfterInsert);
     }
 
     /**
@@ -1707,6 +1736,13 @@ public class EntityRepositoryImpl<E extends Entity<ID>, ID>
                 insertJoinedBatch(transformed);
                 transformed.forEach(this::fireAfterInsert);
             });
+            return;
+        }
+        if (supportsMultiRowInsert()) {
+            // A dialect that can return keys from a multi-row insert necessarily supports the statement form; the
+            // keyless path reuses that capability rather than introducing a separate one.
+            int chunkSize = Math.min(batchSize, multiRowInsertChunkSize(ignoreAutoGenerate));
+            chunked(entities, chunkSize).forEach(batch -> insertMultiRow(batch, ignoreAutoGenerate));
             return;
         }
         try (var query = prepareInsertQuery(ignoreAutoGenerate)) {

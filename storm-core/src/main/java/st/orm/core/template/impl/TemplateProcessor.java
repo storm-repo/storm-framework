@@ -176,6 +176,13 @@ class TemplateProcessor {
     private String sql;
 
     /**
+     * The safety warning for the compiled SQL, computed once on first bind. A pure function of {@link #sql} and the
+     * operation; the benign race on initialization publishes an immutable {@link Optional}.
+     */
+    @Nullable
+    private Optional<String> unsafeWarning;
+
+    /**
      * Compile-time only: whether the compiled template requires binding.
      */
     private boolean requiresBinding;
@@ -537,6 +544,13 @@ class TemplateProcessor {
             session.assertAllHintsConsumed();
         }
         validateParameters(session.parameters, positionalParameterCount.getPlain());
+        // The safety check is a pure function of the compiled SQL and operation and is computed once per
+        // processor. The benign race publishes an immutable Optional.
+        var warning = unsafeWarning;
+        if (warning == null) {
+            warning = checkSafety(sql, operation);
+            unsafeWarning = warning;
+        }
         return new SqlImpl(
                 operation,
                 sql,
@@ -546,7 +560,7 @@ class TemplateProcessor {
                 ofNullable(affectedType),
                 ofNullable(dataType != null ? dataType : affectedType),
                 versionAware != null && versionAware,
-                checkSafety(sql, operation)
+                warning
         );
     }
 

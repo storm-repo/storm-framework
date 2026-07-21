@@ -8,6 +8,7 @@ import io.kotest.matchers.types.shouldBeSameInstanceAs
 import io.ktor.server.application.install
 import io.ktor.server.plugins.di.DependencyKey
 import io.ktor.server.plugins.di.dependencies
+import io.ktor.server.plugins.di.getBlocking
 import io.ktor.server.testing.testApplication
 import io.ktor.util.reflect.TypeInfo
 import org.junit.jupiter.api.Test
@@ -124,6 +125,7 @@ class StormDependencyInjectionTest {
                     }
                     val injectedOrm: ORMTemplate by dependencies
                     injectedOrm.shouldNotBeNull()
+                    dependencies.getBlocking<String>(DependencyKey<String>("greeting")) shouldBe "hello"
                 }
             }
         } finally {

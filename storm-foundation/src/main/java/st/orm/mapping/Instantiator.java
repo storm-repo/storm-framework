@@ -16,6 +16,7 @@
 package st.orm.mapping;
 
 import jakarta.annotation.Nonnull;
+import jakarta.annotation.Nullable;
 
 /**
  * Constructs record instances without reflection.
@@ -51,4 +52,24 @@ public interface Instantiator<T> {
      * @return the constructed instance.
      */
     T instantiate(@Nonnull Object[] args);
+
+    /**
+     * Deconstructs the given instance into its canonical constructor arguments, in declaration order.
+     *
+     * <p>Generated instantiators override this to read the components directly, completing the reflection-free
+     * round trip for record rebuilds: component reads run as generated code, matching {@link #instantiate} on the
+     * construction side. The returned array is freshly allocated; callers may modify it and pass it to
+     * {@link #instantiate} to build an adjusted copy of the instance.</p>
+     *
+     * <p>The default returns {@code null}, signalling that no generated deconstructor is available; callers fall
+     * back to reflective component access.</p>
+     *
+     * @param instance the instance to deconstruct.
+     * @return the component values in declaration order, or {@code null} when not supported.
+     * @since 1.13
+     */
+    @Nullable
+    default Object[] deconstruct(@Nonnull T instance) {
+        return null;
+    }
 }

@@ -56,24 +56,7 @@ public interface TemplateBuilder {
      * @return a List of fragments between each NUL delimiter.
      */
     private static List<String> parseFragments(String raw) {
-        List<String> fragments = new ArrayList<>();
-        StringBuilder cur = new StringBuilder();
-        for (int i = 0; i < raw.length(); i++) {
-            char c = raw.charAt(i);
-            if (c == '\\' && i + 1 < raw.length() && raw.charAt(i + 1) == '0') {
-                // Escaped null sequence.
-                cur.append('\0');
-                i++;
-            } else if (c == '\0') {
-                // Delimiter: end fragment.
-                fragments.add(cur.toString());
-                cur.setLength(0);
-            } else {
-                cur.append(c);
-            }
-        }
-        fragments.add(cur.toString());
-        return fragments;
+        return TemplateFragments.parse(raw);
     }
 
     /**

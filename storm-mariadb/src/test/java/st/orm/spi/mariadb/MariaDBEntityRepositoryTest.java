@@ -999,7 +999,7 @@ public class MariaDBEntityRepositoryTest {
     public void testInsertWithSequenceIgnoreAutoGenerateBatch() {
         String expectedSql = """
                 INSERT INTO pet (id, name, birth_date, type_id, owner_id)
-                VALUES (?, ?, ?, ?, ?)""";
+                VALUES (?, ?, ?, ?, ?), (?, ?, ?, ?, ?)""";
         var repo = PreparedStatementTemplate.ORM(dataSource).entity(Pet.class);
         var first = new AtomicBoolean(false);
         observe(sql -> {
@@ -1007,7 +1007,7 @@ public class MariaDBEntityRepositoryTest {
                 assertEquals(expectedSql, sql.statement());
                 assertEquals(sql.generatedKeys(), List.of());
                 assertFalse(sql.versionAware());
-                assertTrue(sql.bindVariables().isPresent());
+                assertTrue(sql.bindVariables().isEmpty());
             }
         }, () -> {
             var ids = List.of(100, 101);
@@ -1033,7 +1033,7 @@ public class MariaDBEntityRepositoryTest {
     public void testInsertWithSequenceIgnoreAutoGenerateStream() {
         String expectedSql = """
                 INSERT INTO pet (id, name, birth_date, type_id, owner_id)
-                VALUES (?, ?, ?, ?, ?)""";
+                VALUES (?, ?, ?, ?, ?), (?, ?, ?, ?, ?)""";
         var repo = PreparedStatementTemplate.ORM(dataSource).entity(Pet.class);
         var first = new AtomicBoolean(false);
         observe(sql -> {
@@ -1041,7 +1041,7 @@ public class MariaDBEntityRepositoryTest {
                 assertEquals(expectedSql, sql.statement());
                 assertEquals(sql.generatedKeys(), List.of());
                 assertFalse(sql.versionAware());
-                assertTrue(sql.bindVariables().isPresent());
+                assertTrue(sql.bindVariables().isEmpty());
             }
         }, () -> {
             var ids = List.of(100, 101);
@@ -1554,7 +1554,7 @@ public class MariaDBEntityRepositoryTest {
     public void testInsertWithSequenceEmptyIgnoreAutoGenerateBatch() {
         String expectedSql = """
                 INSERT INTO pet (id, name, birth_date, type_id, owner_id)
-                VALUES (?, ?, ?, ?, ?)""";
+                VALUES (?, ?, ?, ?, ?), (?, ?, ?, ?, ?)""";
         var repo = PreparedStatementTemplate.ORM(dataSource).entity(PetSequenceEmpty.class);
         var first = new AtomicBoolean(false);
         observe(sql -> {
@@ -1562,7 +1562,7 @@ public class MariaDBEntityRepositoryTest {
                 assertEquals(expectedSql, sql.statement());
                 assertEquals(sql.generatedKeys(), List.of());
                 assertFalse(sql.versionAware());
-                assertTrue(sql.bindVariables().isPresent());
+                assertTrue(sql.bindVariables().isEmpty());
             }
         }, () -> {
             var ids = List.of(100, 101);
@@ -1588,7 +1588,7 @@ public class MariaDBEntityRepositoryTest {
     public void testInsertWithSequenceEmptyIgnoreAutoGenerateStream() {
         String expectedSql = """
                 INSERT INTO pet (id, name, birth_date, type_id, owner_id)
-                VALUES (?, ?, ?, ?, ?)""";
+                VALUES (?, ?, ?, ?, ?), (?, ?, ?, ?, ?)""";
         var repo = PreparedStatementTemplate.ORM(dataSource).entity(PetSequenceEmpty.class);
         var first = new AtomicBoolean(false);
         observe(sql -> {
@@ -1596,7 +1596,7 @@ public class MariaDBEntityRepositoryTest {
                 assertEquals(expectedSql, sql.statement());
                 assertEquals(sql.generatedKeys(), List.of());
                 assertFalse(sql.versionAware());
-                assertTrue(sql.bindVariables().isPresent());
+                assertTrue(sql.bindVariables().isEmpty());
             }
         }, () -> {
             var ids = List.of(100, 101);
