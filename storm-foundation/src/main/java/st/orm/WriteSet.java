@@ -156,6 +156,39 @@ public interface WriteSet {
     }
 
     /**
+     * Inserts like {@link #insert(Iterable)} and returns the primary keys of the explicit members, in input order.
+     *
+     * <p>The keys are taken from the insert itself: generated keys as reported by the database, or the keys the
+     * entities carry when the primary key is not generated. The rows are not re-read, so database-applied defaults
+     * and version columns are not reflected; use {@link #insertAndFetch(Iterable)} when that state is needed.
+     * Discovered members are inserted but not reported.</p>
+     *
+     * <p>The batch is homogeneous in its id type; entity types may differ as long as they share it. For batches
+     * that mix id types, use {@link #insertAndFetch(Iterable)}, where each returned entity carries its own id.</p>
+     *
+     * @param entities the entities to insert; may span multiple entity types sharing the id type.
+     * @return the primary keys of the explicit members in input order.
+     * @throws PersistenceException if the dependencies contain a cycle that cannot be ordered, if an unsaved entity
+     * is referenced through a non-insertable foreign key component, or if the insert fails.
+     */
+    @Nonnull
+    <ID> List<ID> insertAndFetchIds(@Nonnull Iterable<? extends Entity<ID>> entities);
+
+    /**
+     * Inserts the given entity and its insertion closure and returns its primary key; see
+     * {@link #insertAndFetchIds(Iterable)}.
+     *
+     * @param entity the entity to insert.
+     * @return the primary key of the inserted entity.
+     * @throws PersistenceException if the dependencies contain a cycle that cannot be ordered, if an unsaved entity
+     * is referenced through a non-insertable foreign key component, or if the insert fails.
+     */
+    @Nonnull
+    default <ID> ID insertAndFetchId(@Nonnull Entity<ID> entity) {
+        return insertAndFetchIds(List.of(entity)).getFirst();
+    }
+
+    /**
      * Updates the given entities, grouped by type.
      *
      * <p>Per-row semantics are identical to the per-repository update, including transaction-scoped dirty checking:
@@ -259,6 +292,39 @@ public interface WriteSet {
     @Nonnull
     default List<Entity<?>> upsertAndFetch(@Nonnull Entity<?>... entities) {
         return upsertAndFetch(List.of(entities));
+    }
+
+    /**
+     * Upserts like {@link #upsert(Iterable)} and returns the primary keys of the explicit members, in input order.
+     *
+     * <p>For inserted rows the generated key is reported; for updated rows the key the entity carries. The rows are
+     * not re-read, so database-applied defaults and version columns are not reflected; use
+     * {@link #upsertAndFetch(Iterable)} when that state is needed. Discovered members are written but not
+     * reported.</p>
+     *
+     * <p>The batch is homogeneous in its id type; entity types may differ as long as they share it. For batches
+     * that mix id types, use {@link #upsertAndFetch(Iterable)}, where each returned entity carries its own id.</p>
+     *
+     * @param entities the entities to upsert; may span multiple entity types sharing the id type.
+     * @return the primary keys of the explicit members in input order.
+     * @throws PersistenceException if the dependencies contain a cycle that cannot be ordered, if an unsaved entity
+     * is referenced through a non-insertable foreign key component, or if the upsert fails.
+     */
+    @Nonnull
+    <ID> List<ID> upsertAndFetchIds(@Nonnull Iterable<? extends Entity<ID>> entities);
+
+    /**
+     * Upserts the given entity and its insertion closure and returns its primary key; see
+     * {@link #upsertAndFetchIds(Iterable)}.
+     *
+     * @param entity the entity to upsert.
+     * @return the primary key of the upserted entity.
+     * @throws PersistenceException if the dependencies contain a cycle that cannot be ordered, if an unsaved entity
+     * is referenced through a non-insertable foreign key component, or if the upsert fails.
+     */
+    @Nonnull
+    default <ID> ID upsertAndFetchId(@Nonnull Entity<ID> entity) {
+        return upsertAndFetchIds(List.of(entity)).getFirst();
     }
 
     /**

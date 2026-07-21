@@ -113,6 +113,75 @@ public class WriteSetIntegrationTest {
     }
 
     @Test
+    public void testInsertAndFetchIdsReturnsKeysInInputOrder() {
+        var orm = orm();
+        var owner = newOwner("Ids", "Order");
+        var pet = Pet.builder().name("Keys").birthDate(LocalDate.of(2022, 4, 4)).type(dogType()).owner(owner).build();
+        var first = new Visit(LocalDate.of(2026, 3, 3), "Ids first", pet);
+        var second = new Visit(LocalDate.of(2026, 3, 4), "Ids second", pet);
+        List<String> statements = new ArrayList<>();
+        List<Integer> ids = SqlInterceptor.observe(
+                sql -> statements.add(sql.statement().toUpperCase()),
+                () -> orm.writeSet().insertAndFetchIds(List.of(first, second)));
+        assertEquals(2, ids.size());
+        // The keys come from the insert itself; no row is re-read.
+        assertTrue(statements.stream().noneMatch(statement -> statement.startsWith("SELECT")));
+        var visits = orm.entity(Visit.class);
+        assertEquals("Ids first", visits.getById(ids.get(0)).description());
+        assertEquals("Ids second", visits.getById(ids.get(1)).description());
+    }
+
+    @Test
+    public void testInsertAndFetchIdsReportsExplicitMembersOnly() {
+        var orm = orm();
+        var owner = newOwner("Ids", "Closure");
+        var pet = Pet.builder().name("Hidden").birthDate(LocalDate.of(2021, 5, 5)).type(dogType()).owner(owner).build();
+        var visit = new Visit(LocalDate.of(2026, 4, 4), "Ids closure", pet);
+        // Only the visit is passed; pet and owner join via the insertion closure but are not reported.
+        List<Integer> ids = orm.writeSet().insertAndFetchIds(List.of(visit));
+        assertEquals(1, ids.size());
+        var fetched = orm.entity(Visit.class).getById(ids.getFirst());
+        assertEquals("Ids closure", fetched.description());
+        assertEquals("Hidden", fetched.pet().name());
+        assertNotEquals(0, fetched.pet().id());
+    }
+
+    @Test
+    public void testInsertAndFetchIdSingleEntity() {
+        var orm = orm();
+        var owner = newOwner("Ids", "Single");
+        var pet = Pet.builder().name("Solo").birthDate(LocalDate.of(2020, 6, 6)).type(dogType()).owner(owner).build();
+        var visit = new Visit(LocalDate.of(2026, 5, 5), "Ids single", pet);
+        Integer id = orm.writeSet().insertAndFetchId(visit);
+        assertEquals("Ids single", orm.entity(Visit.class).getById(id).description());
+    }
+
+    @Test
+    public void testUpsertAndFetchIdsUnsavedRequiresDialectSupport() {
+        var orm = orm();
+        var owner = newOwner("UpsertIds", "Dialect");
+        var pet = Pet.builder().name("NoDialect").birthDate(LocalDate.of(2022, 7, 7)).type(dogType()).owner(owner).build();
+        var visit = new Visit(LocalDate.of(2026, 6, 6), "UpsertIds dialect", pet);
+        // An unsaved explicit member needs a real upsert, which the default dialect lacks; the ids
+        // variant reports it the same way upsertAndFetch does. The PostgreSQL module covers the
+        // insert path and the mixed batch against a dialect with upsert support.
+        assertThrows(PersistenceException.class, () -> orm.writeSet().upsertAndFetchIds(List.of(visit)));
+    }
+
+    @Test
+    public void testUpsertAndFetchIdsUpdatesExistingEntity() {
+        var orm = orm();
+        var owner = newOwner("UpsertIds", "Update");
+        var pet = Pet.builder().name("Known").birthDate(LocalDate.of(2021, 8, 8)).type(dogType()).owner(owner).build();
+        var visit = orm.writeSet().insertAndFetch(new Visit(LocalDate.of(2026, 7, 7), "Before amend", pet));
+        // The visit carries its key: the upsert takes the update path and reports that same key.
+        var amended = visit.toBuilder().description("After amend").build();
+        Integer id = orm.writeSet().upsertAndFetchId(amended);
+        assertEquals(visit.id(), id);
+        assertEquals("After amend", orm.entity(Visit.class).getById(id).description());
+    }
+
+    @Test
     public void testInsertAndFetchReturnsInputOrder() {
         var orm = orm();
         var owner = newOwner("Fetch", "Order");
