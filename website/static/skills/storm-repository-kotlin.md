@@ -370,6 +370,9 @@ orm.writeSet().insert(listOf(wolfie, rex, visit))   // owner discovered and inse
 // Typed single-root variant: whole graph in, keyed root out
 val fetched: Visit = orm.writeSet().insertAndFetch(visit)
 
+// Keys only, in input order, no re-read: the middle tier between insert and insertAndFetch
+val ids: List<Long> = orm.writeSet().insertAndFetchIds(visits)
+
 // Scoped block; each verb executes immediately, wrap in a transaction for atomicity
 transaction {
     orm.writeSet {

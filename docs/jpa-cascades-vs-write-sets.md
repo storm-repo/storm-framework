@@ -217,6 +217,8 @@ Visit saved = orm.writeSet().insertAndFetch(visit);
 </TabItem>
 </Tabs>
 
+When only the keys are needed, `insertAndFetchIds` returns them in input order without re-reading the rows.
+
 ### `merge` with MERGE becomes `update` or `upsert`
 
 JPA's `merge` copies detached state onto a managed instance and, with `CascadeType.MERGE`, walks the associations; whether a row is inserted or updated follows from entity state. Storm splits that decision into two explicit actions: `update` for rows you know exist, and [`upsert`](upserts.md) when the database should resolve it atomically. Both write exactly the explicit members. Referenced entities provide foreign key values but are never written implicitly, and `update` rejects unsaved members instead of quietly inserting them.

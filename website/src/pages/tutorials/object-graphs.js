@@ -85,9 +85,11 @@ const SQL_STORM_INSERT = [
 ].join('');
 
 const CODE_STORM_FETCH = [
-  C('// Values never mutate: fetch the persisted graph back when you need the keys\n'),
+  C('// Values never mutate: fetch the persisted graph back, or just its keys\n'),
   K('val '), P('saved: '), T('Visit'), P(' = orm.'), F('writeSet'), P('().'), F('insertAndFetch'), P('(visit)\n'),
-  C('// saved.pet.owner.id carries the generated key; visit itself is untouched'),
+  C('// saved.pet.owner.id carries the generated key; visit itself is untouched\n'), P('\n'),
+  K('val '), P('ids = orm.'), F('writeSet'), P('().'), F('insertAndFetchIds'), P('(listOf(visit))\n'),
+  C('// keys in input order, straight from the insert: no re-read'),
 ].join('');
 
 const CODE_STORM_REMOVE = [
