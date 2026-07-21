@@ -91,6 +91,13 @@ public final class WriteSetImpl implements WriteSet {
     }
 
     @Override
+    @Nonnull
+    public <ID> List<ID> insertAndFetchIds(@Nonnull Iterable<? extends Entity<ID>> entities) {
+        Execution execution = executeOrdered(entities, Action.INSERT, true);
+        return fetchIds(execution);
+    }
+
+    @Override
     public void upsert(@Nonnull Iterable<? extends Entity<?>> entities) {
         executeOrdered(entities, Action.UPSERT, false);
     }
@@ -620,6 +627,18 @@ public final class WriteSetImpl implements WriteSet {
     //
     // Fetch support.
     //
+
+    /** Reports the primary keys of the passed entities from the persisted view, in input order. */
+    @SuppressWarnings("unchecked")
+    @Nonnull
+    private <ID> List<ID> fetchIds(@Nonnull Execution execution) {
+        List<ID> result = new ArrayList<>(execution.inputs().size());
+        for (Object input : execution.inputs()) {
+            Object persisted = requireNonNull(execution.persistedView().get(input), "persisted view");
+            result.add((ID) ((Entity<?>) persisted).id());
+        }
+        return result;
+    }
 
     @SuppressWarnings({"unchecked", "rawtypes"})
     @Nonnull
