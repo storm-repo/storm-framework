@@ -110,6 +110,13 @@ public final class WriteSetImpl implements WriteSet {
     }
 
     @Override
+    @Nonnull
+    public <ID> List<ID> upsertAndFetchIds(@Nonnull Iterable<? extends Entity<ID>> entities) {
+        Execution execution = executeOrdered(entities, Action.UPSERT, true);
+        return fetchIds(execution);
+    }
+
+    @Override
     public void update(@Nonnull Iterable<? extends Entity<?>> entities) {
         executeUpdate(entities);
     }

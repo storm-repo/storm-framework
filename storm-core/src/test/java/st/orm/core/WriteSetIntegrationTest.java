@@ -157,6 +157,31 @@ public class WriteSetIntegrationTest {
     }
 
     @Test
+    public void testUpsertAndFetchIdsUnsavedRequiresDialectSupport() {
+        var orm = orm();
+        var owner = newOwner("UpsertIds", "Dialect");
+        var pet = Pet.builder().name("NoDialect").birthDate(LocalDate.of(2022, 7, 7)).type(dogType()).owner(owner).build();
+        var visit = new Visit(LocalDate.of(2026, 6, 6), "UpsertIds dialect", pet);
+        // An unsaved explicit member needs a real upsert, which the default dialect lacks; the ids
+        // variant reports it the same way upsertAndFetch does. The PostgreSQL module covers the
+        // insert path and the mixed batch against a dialect with upsert support.
+        assertThrows(PersistenceException.class, () -> orm.writeSet().upsertAndFetchIds(List.of(visit)));
+    }
+
+    @Test
+    public void testUpsertAndFetchIdsUpdatesExistingEntity() {
+        var orm = orm();
+        var owner = newOwner("UpsertIds", "Update");
+        var pet = Pet.builder().name("Known").birthDate(LocalDate.of(2021, 8, 8)).type(dogType()).owner(owner).build();
+        var visit = orm.writeSet().insertAndFetch(new Visit(LocalDate.of(2026, 7, 7), "Before amend", pet));
+        // The visit carries its key: the upsert takes the update path and reports that same key.
+        var amended = visit.toBuilder().description("After amend").build();
+        Integer id = orm.writeSet().upsertAndFetchId(amended);
+        assertEquals(visit.id(), id);
+        assertEquals("After amend", orm.entity(Visit.class).getById(id).description());
+    }
+
+    @Test
     public void testInsertAndFetchReturnsInputOrder() {
         var orm = orm();
         var owner = newOwner("Fetch", "Order");

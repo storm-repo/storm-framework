@@ -462,6 +462,27 @@ public class PostgreSQLEntityRepositoryTest {
     }
 
     @Test
+    public void testWriteSetUpsertAndFetchIdsCoversBothPaths() {
+        var orm = PreparedStatementTemplate.ORM(dataSource);
+        var repo = orm.entity(Owner.class);
+        var template = repo.getById(1);
+        // Insert path: id 0 is the default value, so the upsert inserts and reports the generated key.
+        var fresh = template.toBuilder().id(0).firstName("WriteSetIds").build();
+        Integer freshId = orm.writeSet().upsertAndFetchId(fresh);
+        assertFalse(freshId == 0 || freshId.equals(template.id()));
+        assertEquals("WriteSetIds", repo.getById(freshId).firstName());
+        // Mixed batch: the persisted row takes the update path, the new row the insert path, ids in input order.
+        var amended = repo.getById(freshId).toBuilder().lastName("Amended").build();
+        var second = template.toBuilder().id(0).firstName("WriteSetIds2").build();
+        List<Integer> ids = orm.writeSet().upsertAndFetchIds(List.of(amended, second));
+        assertEquals(2, ids.size());
+        assertEquals(freshId, ids.get(0));
+        assertFalse(ids.get(1) == 0 || ids.get(1).equals(freshId));
+        assertEquals("Amended", repo.getById(ids.get(0)).lastName());
+        assertEquals("WriteSetIds2", repo.getById(ids.get(1)).firstName());
+    }
+
+    @Test
     public void testUpsertAndFetchInlineVersion() {
         String expectedSql = """
                 UPDATE owner

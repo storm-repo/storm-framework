@@ -295,6 +295,39 @@ public interface WriteSet {
     }
 
     /**
+     * Upserts like {@link #upsert(Iterable)} and returns the primary keys of the explicit members, in input order.
+     *
+     * <p>For inserted rows the generated key is reported; for updated rows the key the entity carries. The rows are
+     * not re-read, so database-applied defaults and version columns are not reflected; use
+     * {@link #upsertAndFetch(Iterable)} when that state is needed. Discovered members are written but not
+     * reported.</p>
+     *
+     * <p>The batch is homogeneous in its id type; entity types may differ as long as they share it. For batches
+     * that mix id types, use {@link #upsertAndFetch(Iterable)}, where each returned entity carries its own id.</p>
+     *
+     * @param entities the entities to upsert; may span multiple entity types sharing the id type.
+     * @return the primary keys of the explicit members in input order.
+     * @throws PersistenceException if the dependencies contain a cycle that cannot be ordered, if an unsaved entity
+     * is referenced through a non-insertable foreign key component, or if the upsert fails.
+     */
+    @Nonnull
+    <ID> List<ID> upsertAndFetchIds(@Nonnull Iterable<? extends Entity<ID>> entities);
+
+    /**
+     * Upserts the given entity and its insertion closure and returns its primary key; see
+     * {@link #upsertAndFetchIds(Iterable)}.
+     *
+     * @param entity the entity to upsert.
+     * @return the primary key of the upserted entity.
+     * @throws PersistenceException if the dependencies contain a cycle that cannot be ordered, if an unsaved entity
+     * is referenced through a non-insertable foreign key component, or if the upsert fails.
+     */
+    @Nonnull
+    default <ID> ID upsertAndFetchId(@Nonnull Entity<ID> entity) {
+        return upsertAndFetchIds(List.of(entity)).getFirst();
+    }
+
+    /**
      * Removes the given entities, children before parents.
      *
      * <p>Only the explicit members are removed; referenced entities are never removed implicitly. Dependencies
