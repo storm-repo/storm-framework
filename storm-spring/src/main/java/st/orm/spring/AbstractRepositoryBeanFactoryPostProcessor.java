@@ -45,6 +45,7 @@ import org.springframework.core.ResolvableType;
 import org.springframework.core.env.Environment;
 import org.springframework.core.env.StandardEnvironment;
 import org.springframework.core.io.ResourceLoader;
+import org.springframework.core.type.classreading.CachingMetadataReaderFactory;
 import org.springframework.core.type.filter.AssignableTypeFilter;
 import org.springframework.util.ClassUtils;
 
@@ -128,6 +129,13 @@ public abstract class AbstractRepositoryBeanFactoryPostProcessor
         scanner.addIncludeFilter(new AssignableTypeFilter(getRepositoryType()));
         if (resourceLoader != null) {
             scanner.setResourceLoader(resourceLoader);
+            // Read candidate metadata straight from the classloader instead of through the
+            // ApplicationContext's ResourceLoader. Type-filter matching resolves each candidate's
+            // supertypes by name via getResource("classpath:...class"), which is dispatched to every
+            // ProtocolResolver registered on the context. A resolver bound to its own scheme (such as
+            // Spring Cloud AWS's s3:// resolver) is thus consulted for these classpath lookups and logs
+            // a warning per resource while its backing client bean is not yet available during scanning.
+            scanner.setMetadataReaderFactory(new CachingMetadataReaderFactory(defaultClassLoader()));
         }
         var excluded = getExcludedRepositoryTypes();
         List<Class<?>> repositoryTypes = Arrays.stream(bases)
