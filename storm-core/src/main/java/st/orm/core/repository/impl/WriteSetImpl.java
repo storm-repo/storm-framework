@@ -44,6 +44,7 @@ import st.orm.core.repository.RepositoryLookup;
 import st.orm.core.spi.Instantiators;
 import st.orm.core.spi.ORMReflection;
 import st.orm.core.spi.Providers;
+import st.orm.core.spi.RowIdentity;
 import st.orm.core.template.Column;
 import st.orm.core.template.Model;
 import st.orm.mapping.Instantiator;
@@ -444,11 +445,21 @@ public final class WriteSetImpl implements WriteSet {
 
     @SuppressWarnings({"unchecked", "rawtypes"})
     private void remove(@Nonnull EntityRepository repository, @Nonnull List<Object> batch) {
-        repository.remove((Iterable) batch);
+        repository.remove(batch);
     }
 
-    /** Key correlating remove members by row rather than by instance. */
-    private record TypeIdKey(Class<?> type, Object id) {}
+    /**
+     * Key correlating members by database row rather than by instance. The id is normalized through
+     * {@link RowIdentity}: comparing raw ids would make row identity depend on every non-key column of an
+     * entity-typed key, so two representations of the same row would fail to correlate whenever such a column does
+     * not round-trip bit-exact (a second-precision timestamp column, a database-managed column, a numeric scale
+     * difference).
+     */
+    private record TypeIdKey(Class<?> type, Object id) {
+        TypeIdKey {
+            id = RowIdentity.normalize(id);
+        }
+    }
 
     //
     // Shared machinery.

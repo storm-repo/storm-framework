@@ -8,6 +8,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import jakarta.annotation.Nonnull;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 import javax.sql.DataSource;
@@ -25,6 +26,9 @@ import st.orm.Persist;
 import st.orm.PersistenceException;
 import st.orm.Ref;
 import st.orm.core.model.Address;
+import st.orm.core.model.Appointment;
+import st.orm.core.model.AppointmentReport;
+import st.orm.core.model.AppointmentReportReview;
 import st.orm.core.model.City;
 import st.orm.core.model.Owner;
 import st.orm.core.model.OwnerPrimaryPet;
@@ -368,6 +372,56 @@ public class WriteSetIntegrationTest {
         var fetched = orm.writeSet().insertAndFetch(new OwnerPrimaryPet(owner, pet));
         assertNotEquals(0, (int) fetched.owner().id());
         assertEquals(fetched.owner().id(), fetched.pet().owner().id());
+    }
+
+    @Test
+    public void testInsertAndFetchEntityTypedKeyWithSubSecondTimestamp() {
+        var orm = orm();
+        // The appointment carries sub-second precision that the second-precision column does not store, so the
+        // key entity read back from the database differs structurally from the in-memory instance; the fetch
+        // correlates by the database key.
+        var appointment = new Appointment(0, "Vaccination", LocalDateTime.of(2026, 5, 4, 10, 30, 15, 123_456_789));
+        var fetched = orm.writeSet().insertAndFetch(new AppointmentReport(appointment, "All clear"));
+        assertNotEquals(0, (int) fetched.appointment().id());
+        assertEquals("All clear", fetched.report());
+        // The database column stores no sub-second precision, so the fetched key entity is structurally different
+        // from the in-memory one even though both describe the same row.
+        assertEquals(0, fetched.appointment().scheduledAt().getNano());
+        assertNotEquals(appointment.scheduledAt(), fetched.appointment().scheduledAt());
+    }
+
+    @Test
+    public void testInsertOrdersReferenceToKeyedMemberByDatabaseKey() {
+        var orm = orm();
+        var appointment = orm.writeSet().insertAndFetch(new Appointment(0, "Surgery", LocalDateTime.of(2026, 6, 2, 14, 0)));
+        var report = new AppointmentReport(appointment, "Planned");
+        // The review references the report row through a different key entity instance that diverges in a non-key
+        // column; write ordering still places the report before the review.
+        var divergentAppointment = new Appointment(appointment.id(), "Surgery", appointment.scheduledAt().withNano(123_456_789));
+        var review = new AppointmentReportReview(0, new AppointmentReport(divergentAppointment, "Planned"), "Follow-up");
+        orm.writeSet().insert(List.of(review, report));
+        var reviews = orm.entity(AppointmentReportReview.class).select().getResultList().stream()
+                .filter(candidate -> candidate.appointmentReport().appointment().id().equals(appointment.id()))
+                .toList();
+        assertEquals(1, reviews.size());
+        assertEquals("Follow-up", reviews.getFirst().review());
+    }
+
+    @Test
+    public void testRemoveCorrelatesDivergentInstancesOfEntityTypedKeyRow() {
+        var orm = orm();
+        var appointment = orm.writeSet().insertAndFetch(new Appointment(0, "Dental", LocalDateTime.of(2026, 6, 1, 9, 0)));
+        var report = orm.writeSet().insertAndFetch(new AppointmentReport(appointment, "Initial"));
+        var review = orm.writeSet().insertAndFetch(new AppointmentReportReview(0, report, "Thorough"));
+        // The review embeds a report instance whose key entity diverges from the passed report member in a non-key
+        // column; delete ordering still recognizes them as the same row and removes the review before the report.
+        var divergentAppointment = new Appointment(appointment.id(), "Dental", appointment.scheduledAt().withNano(987_654_321));
+        var divergentReview = new AppointmentReportReview(review.id(), new AppointmentReport(divergentAppointment, "Initial"), "Thorough");
+        orm.writeSet().remove(List.of(report, divergentReview));
+        assertTrue(orm.entity(AppointmentReportReview.class).select().getResultList().stream()
+                .noneMatch(candidate -> candidate.id().equals(review.id())));
+        assertTrue(orm.entity(AppointmentReport.class).select().getResultList().stream()
+                .noneMatch(candidate -> candidate.appointment().id().equals(appointment.id())));
     }
 
     @DbTable("vet_badge")

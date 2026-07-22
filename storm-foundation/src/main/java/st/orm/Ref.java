@@ -67,7 +67,8 @@ public interface Ref<T extends Data> {
      * <p>The entity does not need to be persisted yet: a ref wrapping an unsaved entity can act as a graph edge for
      * dependency-aware write sets (see {@link WriteSet}), which insert the wrapped instance first and bind the
      * generated key. Outside a write set, using an unsaved wrapped ref as a foreign key value fails fast at persist
-     * time. Note that ref equality is based on type and id, so refs wrapping distinct unsaved entities compare equal
+     * time. Note that ref equality is based on type and the row identity of the id (an entity-typed id counts by its
+     * primary key rather than by structural equality), so refs wrapping distinct unsaved entities compare equal
      * until the entities are persisted.</p>
      *
      * @param entity the fully loaded entity to wrap in a ref.

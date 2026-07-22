@@ -21,14 +21,47 @@ import java.util.Objects;
  * Abstract implementation of {@link Ref} to have consistent implementations of {@link #hashCode()}
  * and {@link #equals(Object)}.
  *
+ * <p>Equality is based on the type and the row identity of the id: an entity-typed id counts by its primary key
+ * rather than by structural equality, so two refs describing the same database row compare equal even when a
+ * non-key column of the key entity does not round-trip bit-exact. Scalar ids, and composite ids carrying only
+ * scalars, are compared as-is.</p>
+ *
  * @param <T> record type.
  * @since 1.3
  */
 abstract class AbstractRef<T extends Data> implements Ref<T> {
 
+    /**
+     * Lazily computed row identity of the id. Computed outside construction because materialization creates refs
+     * per row while only map-keyed usage needs the identity; the computation is idempotent over the immutable id,
+     * so the unsynchronized publication is a benign race, as with {@code String} hash caching.
+     */
+    private Object rowId;
+
+    private Object rowId() {
+        Object rowId = this.rowId;
+        if (rowId == null) {
+            rowId = RowIdentityHelper.normalize(id());
+            this.rowId = rowId;
+        }
+        return rowId;
+    }
+
+    /**
+     * Lazily computed hash code over the type and row identity, both immutable; zero means not yet computed and a
+     * value that genuinely hashes to zero is recomputed on each call, as with {@code String} hash caching. The
+     * formula is allocation-free, unlike a varargs-based hash.
+     */
+    private int hash;
+
     @Override
     public int hashCode() {
-        return Objects.hash(type(), id());
+        int hash = this.hash;
+        if (hash == 0) {
+            hash = (31 + type().hashCode()) * 31 + Objects.hashCode(rowId());
+            this.hash = hash;
+        }
+        return hash;
     }
 
     @Override
@@ -36,9 +69,13 @@ abstract class AbstractRef<T extends Data> implements Ref<T> {
         if (this == obj) {
             return true;
         }
+        if (obj instanceof AbstractRef<?> other) {
+            return Objects.equals(type(), other.type())
+                    && Objects.equals(rowId(), other.rowId());
+        }
         if (obj instanceof Ref<?> l) {
             return Objects.equals(type(), l.type())
-                    && Objects.equals(id(), l.id());
+                    && Objects.equals(rowId(), RowIdentityHelper.normalize(l.id()));
         }
         return false;
     }

@@ -84,8 +84,17 @@ public final class EntityCacheImpl<E extends Entity<ID>, ID> implements EntityCa
     /** Queue for tracking garbage-collected entities to enable lazy cleanup of {@link #map}. */
     private final ReferenceQueue<E> queue = new ReferenceQueue<>();
 
-    /** Map from primary key to referenced entity. Keys are held strongly; values are weak or soft references. */
-    private final Map<ID, PkReference<ID, E>> map = new HashMap<>();
+    /**
+     * Map from row identity to referenced entity. Keys are held strongly; values are weak or soft references.
+     *
+     * <p>Keys are primary key values normalized through {@link RowIdentity}, so an entity-typed key matches by its
+     * database key rather than by structural equality: two representations of the same row that diverge in a
+     * non-key column (for example after a lossy database round-trip) still resolve to the same entry. A wrong hit
+     * remains impossible, because equal row identities denote the same row by construction. Scalar keys, and
+     * composite keys carrying only scalars, are used as-is; the per-class decision is cached, so such keys pay a
+     * single cached class probe and no allocation.</p>
+     */
+    private final Map<Object, PkReference<E>> map = new HashMap<>();
 
     /**
      * Retrieves an entity from the cache by primary key, if available.
@@ -99,7 +108,8 @@ public final class EntityCacheImpl<E extends Entity<ID>, ID> implements EntityCa
      */
     @Override
     public Optional<E> get(@Nonnull ID pk) {
-        PkReference<ID, E> ref = map.get(requireNonNull(pk));
+        Object key = RowIdentity.normalize(requireNonNull(pk));
+        PkReference<E> ref = map.get(key);
         if (ref == null) {
             metrics.recordGetMiss();
             return Optional.empty();
@@ -110,7 +120,7 @@ public final class EntityCacheImpl<E extends Entity<ID>, ID> implements EntityCa
             return Optional.of(value);
         }
         // Collected but not yet drained.
-        map.remove(pk, ref);
+        map.remove(key, ref);
         metrics.recordGetMiss();
         return Optional.empty();
     }
@@ -135,8 +145,8 @@ public final class EntityCacheImpl<E extends Entity<ID>, ID> implements EntityCa
     @Override
     public E intern(@Nonnull E entity) {
         drainQueue();
-        ID pk = entity.id();
-        PkReference<ID, E> existingRef = map.get(pk);
+        Object key = RowIdentity.normalize(entity.id());
+        PkReference<E> existingRef = map.get(key);
         if (existingRef != null) {
             E existing = existingRef.get();
             if (existing != null && existing.equals(entity)) {
@@ -144,7 +154,7 @@ public final class EntityCacheImpl<E extends Entity<ID>, ID> implements EntityCa
                 return existing;
             }
         }
-        map.put(pk, createReference(pk, entity));
+        map.put(key, createReference(key, entity));
         metrics.recordInternMiss();
         return entity;
     }
@@ -152,14 +162,14 @@ public final class EntityCacheImpl<E extends Entity<ID>, ID> implements EntityCa
     /**
      * Creates a reference to the given entity with the configured retention behavior.
      *
-     * @param pk the primary key.
+     * @param key the normalized primary key.
      * @param entity the entity to reference.
      * @return a reference based on {@link #retention}.
      */
-    private PkReference<ID, E> createReference(ID pk, E entity) {
+    private PkReference<E> createReference(Object key, E entity) {
         return retention == CacheRetention.LIGHT
-                ? new PkWeakReference<>(pk, entity, queue)
-                : new PkSoftReference<>(pk, entity, queue);
+                ? new PkWeakReference<>(key, entity, queue)
+                : new PkSoftReference<>(key, entity, queue);
     }
 
     /**
@@ -172,7 +182,7 @@ public final class EntityCacheImpl<E extends Entity<ID>, ID> implements EntityCa
      */
     @Override
     public void remove(@Nonnull ID pk) {
-        map.remove(requireNonNull(pk));
+        map.remove(RowIdentity.normalize(requireNonNull(pk)));
         metrics.recordRemoval();
     }
 
@@ -198,9 +208,8 @@ public final class EntityCacheImpl<E extends Entity<ID>, ID> implements EntityCa
     private void drainQueue() {
         Reference<? extends E> ref;
         while ((ref = queue.poll()) != null) {
-            if (ref instanceof PkReference<?, ?> pkRef) {
-                //noinspection unchecked
-                if (map.remove(((PkReference<ID, E>) pkRef).pk(), pkRef)) {
+            if (ref instanceof PkReference<?> pkRef) {
+                if (map.remove(pkRef.pk(), pkRef)) {
                     metrics.recordEviction();
                 }
             }
@@ -208,32 +217,31 @@ public final class EntityCacheImpl<E extends Entity<ID>, ID> implements EntityCa
     }
 
     /**
-     * A reference to an entity that retains the associated primary key for map cleanup.
+     * A reference to an entity that retains the associated normalized primary key for map cleanup.
      *
      * <p>When the entity is garbage collected, this reference is enqueued in the {@link ReferenceQueue}, allowing
-     * {@link #drainQueue()} to remove the corresponding entry from {@link #map} using the stored primary key.</p>
+     * {@link #drainQueue()} to remove the corresponding entry from {@link #map} using the stored key.</p>
      *
-     * @param <ID> the primary key type.
      * @param <E> the entity type.
      */
-    private sealed interface PkReference<ID, E> permits PkWeakReference, PkSoftReference {
-        ID pk();
+    private sealed interface PkReference<E> permits PkWeakReference, PkSoftReference {
+        Object pk();
         E get();
     }
 
     /**
      * A weak reference implementation of {@link PkReference}.
      */
-    private static final class PkWeakReference<ID, E> extends WeakReference<E> implements PkReference<ID, E> {
-        private final ID pk;
+    private static final class PkWeakReference<E> extends WeakReference<E> implements PkReference<E> {
+        private final Object pk;
 
-        PkWeakReference(ID pk, E referent, ReferenceQueue<? super E> q) {
+        PkWeakReference(Object pk, E referent, ReferenceQueue<? super E> q) {
             super(referent, q);
             this.pk = pk;
         }
 
         @Override
-        public ID pk() {
+        public Object pk() {
             return pk;
         }
     }
@@ -241,16 +249,16 @@ public final class EntityCacheImpl<E extends Entity<ID>, ID> implements EntityCa
     /**
      * A soft reference implementation of {@link PkReference}.
      */
-    private static final class PkSoftReference<ID, E> extends SoftReference<E> implements PkReference<ID, E> {
-        private final ID pk;
+    private static final class PkSoftReference<E> extends SoftReference<E> implements PkReference<E> {
+        private final Object pk;
 
-        PkSoftReference(ID pk, E referent, ReferenceQueue<? super E> q) {
+        PkSoftReference(Object pk, E referent, ReferenceQueue<? super E> q) {
             super(referent, q);
             this.pk = pk;
         }
 
         @Override
-        public ID pk() {
+        public Object pk() {
             return pk;
         }
     }

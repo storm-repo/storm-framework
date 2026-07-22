@@ -37,6 +37,15 @@ import st.orm.core.template.impl.ORMTemplateImpl;
 public final class RefFactoryImpl implements RefFactory {
     private final QueryTemplate template;
 
+    /**
+     * The pk class most recently resolved as being its own row identity. Refs are created per row during
+     * materialization with the same pk class throughout, so this resolves the row identity decision at type level
+     * once and hands every ref its identity at construction, leaving one pointer comparison per ref. A single field
+     * keeps the unsynchronized access safe: a stale read can only miss (falling back to the resolution or to the
+     * ref's lazy path), never claim self-identity for a class that requires normalization.
+     */
+    private Class<?> selfIdentityPkClass;
+
     public RefFactoryImpl(@Nonnull QueryFactory factory,
                           @Nonnull ModelBuilder modelBuilder,
                           @Nullable Predicate<? super Provider> providerFilter) {
@@ -126,6 +135,23 @@ public final class RefFactoryImpl implements RefFactory {
      * @param <ID> primary key type.
      */
     private <T extends Data, ID> Ref<T> create(@Nonnull LazySupplier<T> supplier, @Nonnull Class<T> type, @Nonnull ID pk) {
-        return new RefImpl<>(supplier, type, pk);
+        return new RefImpl<>(supplier, type, pk, rowIdentity(pk));
+    }
+
+    /**
+     * Returns the row identity of the given pk when its class is known to be its own identity, or {@code null} to
+     * defer to the ref's lazy computation.
+     */
+    @Nullable
+    private Object rowIdentity(@Nonnull Object pk) {
+        Class<?> pkClass = pk.getClass();
+        if (pkClass == selfIdentityPkClass) {
+            return pk;
+        }
+        if (!RowIdentity.requiresNormalization(pkClass)) {
+            selfIdentityPkClass = pkClass;
+            return pk;
+        }
+        return null;
     }
 }

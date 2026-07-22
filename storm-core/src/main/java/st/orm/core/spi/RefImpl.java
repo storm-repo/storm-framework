@@ -36,7 +36,8 @@ final class RefImpl<T extends Data, ID> extends AbstractRef<T> {
     private final Class<T> type;
     private final ID pk;
 
-    RefImpl(@Nonnull LazySupplier<T> supplier, @Nonnull Class<T> type, @Nonnull ID pk) {
+    RefImpl(@Nonnull LazySupplier<T> supplier, @Nonnull Class<T> type, @Nonnull ID pk, @Nullable Object rowId) {
+        super(rowId);
         this.supplier = requireNonNull(supplier, "supplier");
         this.type = requireNonNull(type, "type");
         this.pk = requireNonNull(pk, "pk");

@@ -17,6 +17,8 @@ public class EntityCacheImplTest {
 
     record TestEntity(@PK Integer id, String name) implements Entity<Integer> {}
 
+    record TestEntityTag(@PK TestEntity entity, String tag) implements Entity<TestEntity> {}
+
     @BeforeEach
     public void resetMetrics() {
         EntityCacheMetrics.getInstance().reset();
@@ -79,6 +81,27 @@ public class EntityCacheImplTest {
 
         Optional<TestEntity> result = cache.get(1);
         assertTrue(result.isEmpty(), "Should be empty after removal");
+    }
+
+    @Test
+    public void testGetHitsForDivergentEntityTypedKey() {
+        EntityCacheImpl<TestEntityTag, TestEntity> cache = new EntityCacheImpl<>(CacheRetention.DEFAULT);
+        TestEntityTag tag = new TestEntityTag(new TestEntity(1, "Alice"), "gold");
+        cache.intern(tag);
+
+        // The key entity diverges in a non-key column; the cache resolves by row identity.
+        Optional<TestEntityTag> result = cache.get(new TestEntity(1, "Alice B."));
+        assertTrue(result.isPresent());
+        assertSame(tag, result.get());
+    }
+
+    @Test
+    public void testRemoveWithDivergentEntityTypedKey() {
+        EntityCacheImpl<TestEntityTag, TestEntity> cache = new EntityCacheImpl<>(CacheRetention.DEFAULT);
+        cache.intern(new TestEntityTag(new TestEntity(1, "Alice"), "gold"));
+
+        cache.remove(new TestEntity(1, "Alice B."));
+        assertTrue(cache.get(new TestEntity(1, "Alice")).isEmpty());
     }
 
     @Test
