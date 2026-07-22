@@ -136,7 +136,7 @@ public final class RefFactoryImpl implements RefFactory {
      */
     private <T extends Data, ID> Ref<T> create(@Nonnull LazySupplier<T> supplier, @Nonnull Class<T> type, @Nonnull ID pk) {
         return isOwnRowIdentity(pk)
-                ? new DirectKeyRefImpl<>(supplier, type, pk)
+                ? new ScalarRefImpl<>(supplier, type, pk)
                 : new RefImpl<>(supplier, type, pk);
     }
 

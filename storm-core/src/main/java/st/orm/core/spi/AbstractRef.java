@@ -38,7 +38,7 @@ abstract class AbstractRef<T extends Data> implements Ref<T> {
      * Lazily computed row identity of the id. Computed outside construction because only map-keyed usage needs the
      * identity; the computation is idempotent over the immutable id, so the unsynchronized publication is a benign
      * race, as with {@code String} hash caching. Keys that are their own row identity are served by a specialized
-     * implementation that carries no cache at all (see {@code DirectKeyRefImpl}).
+     * implementation that carries no cache at all (see {@code ScalarRefImpl}).
      */
     private Object rowId;
 

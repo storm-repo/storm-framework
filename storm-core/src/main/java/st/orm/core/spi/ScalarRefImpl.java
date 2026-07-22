@@ -39,12 +39,12 @@ import st.orm.core.template.impl.LazySupplier;
  * @param <T> record type.
  * @param <ID> primary key type.
  */
-final class DirectKeyRefImpl<T extends Data, ID> implements Ref<T> {
+final class ScalarRefImpl<T extends Data, ID> implements Ref<T> {
     private final LazySupplier<T> supplier;
     private final Class<T> type;
     private final ID pk;
 
-    DirectKeyRefImpl(@Nonnull LazySupplier<T> supplier, @Nonnull Class<T> type, @Nonnull ID pk) {
+    ScalarRefImpl(@Nonnull LazySupplier<T> supplier, @Nonnull Class<T> type, @Nonnull ID pk) {
         this.supplier = requireNonNull(supplier, "supplier");
         this.type = requireNonNull(type, "type");
         this.pk = requireNonNull(pk, "pk");
@@ -124,7 +124,7 @@ final class DirectKeyRefImpl<T extends Data, ID> implements Ref<T> {
         if (this == obj) {
             return true;
         }
-        if (obj instanceof DirectKeyRefImpl<?, ?> other) {
+        if (obj instanceof ScalarRefImpl<?, ?> other) {
             // Both sides hold their identity as the raw pk of a class that is its own row identity; the type gate guarantees the
             // pk classes match.
             return Objects.equals(type, other.type) && pk.equals(other.pk);
