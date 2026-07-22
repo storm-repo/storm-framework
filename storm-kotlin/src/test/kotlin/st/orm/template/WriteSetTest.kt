@@ -17,6 +17,8 @@ import st.orm.repository.entity
 import st.orm.repository.insertAndFetchIds
 import st.orm.repository.writeSet
 import st.orm.template.model.Address
+import st.orm.template.model.Appointment
+import st.orm.template.model.AppointmentReport
 import st.orm.template.model.City
 import st.orm.template.model.Owner
 import st.orm.template.model.Pet
@@ -24,6 +26,7 @@ import st.orm.template.model.PetType
 import st.orm.template.model.Visit
 import java.time.Instant
 import java.time.LocalDate
+import java.time.LocalDateTime
 
 @ExtendWith(SpringExtension::class)
 @ContextConfiguration(classes = [IntegrationConfig::class])
@@ -137,5 +140,18 @@ open class WriteSetTest(
         ids shouldHaveSize 2
         orm.entity<Pet, _>().findAll().single { it.name == "VarargIdsPet" }.id shouldBe ids[0]
         orm.entity<Visit, _>().findAll().single { it.description == "Vararg ids visit" }.id shouldBe ids[1]
+    }
+
+    @Test
+    fun `insertAndFetch should correlate an entity-typed key by database key`() {
+        // The appointment carries sub-second precision that the second-precision column does not store, so the
+        // key entity read back from the database differs structurally from the in-memory data class instance; the
+        // fetch correlates by the database key.
+        val appointment = Appointment(description = "Vaccination", scheduledAt = LocalDateTime.of(2026, 5, 4, 10, 30, 15, 123_456_789))
+        val fetched = orm.writeSet().insertAndFetch(AppointmentReport(appointment = appointment, report = "All clear"))
+        fetched.appointment.id shouldNotBe 0
+        fetched.report shouldBe "All clear"
+        fetched.appointment.scheduledAt.nano shouldBe 0
+        fetched.appointment.scheduledAt shouldNotBe appointment.scheduledAt
     }
 }

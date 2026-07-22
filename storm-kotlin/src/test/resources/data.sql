@@ -1,3 +1,5 @@
+drop table if exists appointment_report CASCADE;
+drop table if exists appointment CASCADE;
 drop table if exists city CASCADE;
 drop table if exists owner CASCADE;
 drop table if exists pet CASCADE;
@@ -22,6 +24,10 @@ alter table vet_specialty add constraint vet_specialty_specialty_fk foreign key 
 alter table vet_specialty add constraint vet_specialty_vet_fk foreign key (vet_id) references vet (id);
 alter table visit add constraint visit_pet_fk foreign key (pet_id) references pet (id);
 alter table visit add constraint visit_vet_specialty_fk foreign key (vet_id, specialty_id) references vet_specialty (vet_id, specialty_id);
+-- scheduled_at has second precision: a database round-trip drops the sub-second part of the in-memory value.
+create table appointment (id integer auto_increment, description varchar(255), scheduled_at timestamp(0), primary key (id));
+create table appointment_report (appointment_id integer not null, report varchar(255), primary key (appointment_id));
+alter table appointment_report add constraint appointment_report_appointment_fk foreign key (appointment_id) references appointment (id);
 create view owner_view as select * from owner;
 create view visit_view as select visit_date, description, pet_id, "timestamp" from visit;
 

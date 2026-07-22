@@ -255,6 +255,9 @@ public final class DirtySupport<E extends Entity<ID>, ID> {
             dirtyCheckMetrics.recordDirtyCacheMiss();
             return DIRTY;
         }
+        // The cache keys by row identity (see RowIdentity), so the lookup hits even when an entity-typed key
+        // diverges from the cached state in a non-key column. A miss falls through to the conservative answer:
+        // treat every field as dirty and issue a full update.
         var cached = cache.get(entity.id()).orElse(null);
         if (cached == null) {
             // Not cached, assume all fields are dirty.
