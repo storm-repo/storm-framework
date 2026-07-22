@@ -15,7 +15,6 @@
  */
 package st.orm.core.spi;
 
-import jakarta.annotation.Nullable;
 import java.util.Objects;
 import st.orm.Data;
 import st.orm.Ref;
@@ -36,19 +35,12 @@ import st.orm.Ref;
 abstract class AbstractRef<T extends Data> implements Ref<T> {
 
     /**
-     * Row identity of the id. Assigned at construction when the creator has already resolved the identity at type
-     * level (a factory creating refs per row); otherwise computed lazily on first use, because only map-keyed usage
-     * needs the identity. The lazy computation is idempotent over the immutable id, so the unsynchronized
-     * publication is a benign race, as with {@code String} hash caching.
+     * Lazily computed row identity of the id. Computed outside construction because only map-keyed usage needs the
+     * identity; the computation is idempotent over the immutable id, so the unsynchronized publication is a benign
+     * race, as with {@code String} hash caching. Keys that are their own row identity are served by a specialized
+     * implementation that carries no cache at all (see {@code DirectKeyRefImpl}).
      */
     private Object rowId;
-
-    AbstractRef() {
-    }
-
-    AbstractRef(@Nullable Object rowId) {
-        this.rowId = rowId;
-    }
 
     private Object rowId() {
         Object rowId = this.rowId;
@@ -61,8 +53,7 @@ abstract class AbstractRef<T extends Data> implements Ref<T> {
 
     /**
      * Lazily computed hash code over the type and row identity, both immutable; zero means not yet computed and a
-     * value that genuinely hashes to zero is recomputed on each call, as with {@code String} hash caching. The
-     * formula is allocation-free, unlike a varargs-based hash.
+     * value that genuinely hashes to zero is recomputed on each call, as with {@code String} hash caching.
      */
     private int hash;
 
@@ -70,7 +61,7 @@ abstract class AbstractRef<T extends Data> implements Ref<T> {
     public int hashCode() {
         int hash = this.hash;
         if (hash == 0) {
-            hash = (31 + type().hashCode()) * 31 + Objects.hashCode(rowId());
+            hash = RowIdentity.hash(type(), rowId());
             this.hash = hash;
         }
         return hash;
@@ -86,8 +77,7 @@ abstract class AbstractRef<T extends Data> implements Ref<T> {
                     && Objects.equals(rowId(), other.rowId());
         }
         if (obj instanceof Ref<?> l) {
-            return Objects.equals(type(), l.type())
-                    && Objects.equals(rowId(), RowIdentity.normalize(l.id()));
+            return RowIdentity.refEquals(type(), rowId(), l);
         }
         return false;
     }
