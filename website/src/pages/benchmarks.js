@@ -1320,8 +1320,21 @@ export function wireBenchChart() {
       root.querySelectorAll('.bm-lc-series.active').forEach((n) => n.classList.remove('active'));
     });
     chip.addEventListener('click', () => {
-      chip.classList.toggle('off');
-      seriesFor(lib).forEach((n) => n.classList.toggle('off'));
+      const chips = [...root.querySelectorAll('.bm-lc-lg')];
+      const setOn = (c, on) => {
+        c.classList.toggle('off', !on);
+        seriesFor(c.getAttribute('data-lib')).forEach((n) => n.classList.toggle('off', !on));
+      };
+      // From the everything-on state, a tap isolates the tapped library against Storm.
+      // In any other state, a tap toggles that library.
+      if (chips.every((c) => !c.classList.contains('off'))) {
+        chips.forEach((c) => {
+          const l = c.getAttribute('data-lib');
+          setOn(c, l === lib || l === 'storm');
+        });
+      } else {
+        setOn(chip, chip.classList.contains('off'));
+      }
     });
   });
 }
