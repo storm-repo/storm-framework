@@ -125,9 +125,9 @@ Kotlin additionally offers the id-returning methods as vararg extension function
 <TabItem value="kotlin" label="Kotlin" default>
 
 ```kotlin
-val ids: List<Long> = orm.writeSet().insertAndFetchIds(visits)     // keys in input order, no re-read
-val two: List<Long> = orm.writeSet().insertAndFetchIds(pet, visit) // vararg extension; one shared id type
-val id: Long = orm.writeSet().insertAndFetchId(visit)              // single root
+val ids: List<Long> = orm.writeSet().insertAndFetchIds(visits)        // keys in input order, no re-read
+val two: List<Long> = orm.writeSet().insertAndFetchIds(wolfie, visit) // vararg extension; one shared id type
+val id: Long = orm.writeSet().insertAndFetchId(visit)                 // single root
 ```
 
 </TabItem>
