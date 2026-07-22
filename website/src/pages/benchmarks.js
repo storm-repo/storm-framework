@@ -1312,11 +1312,12 @@ export function wireBenchChart() {
     const lib = chip.getAttribute('data-lib');
     chip.addEventListener('mouseenter', () => {
       if (chip.classList.contains('off')) return;
-      root.classList.add('focus');
-      seriesFor(lib).forEach((n) => n.classList.add('active'));
+      seriesFor(lib).forEach((n) => {
+        n.classList.add('active');
+        n.parentNode.appendChild(n); // SVG paint order: bring the highlighted series to the front
+      });
     });
     chip.addEventListener('mouseleave', () => {
-      root.classList.remove('focus');
       root.querySelectorAll('.bm-lc-series.active').forEach((n) => n.classList.remove('active'));
     });
     chip.addEventListener('click', () => {
@@ -1332,6 +1333,8 @@ export function wireBenchChart() {
           const l = c.getAttribute('data-lib');
           setOn(c, l === lib || l === 'storm');
         });
+      } else if (!chip.classList.contains('off') && chips.filter((c) => !c.classList.contains('off')).length === 1) {
+        chips.forEach((c) => setOn(c, true));
       } else {
         setOn(chip, chip.classList.contains('off'));
       }
@@ -1382,8 +1385,10 @@ const BM_CSS = `
   .bm-lc-xlab{fill:#8b8d9b;font-family:var(--mono);font-size:10.5px}
   .bm-lc-line{fill:none;stroke-width:1.6;stroke-linejoin:round;stroke-linecap:round}
   .bm-lc-series{transition:opacity .18s ease}
+  .bm-lc-series .bm-lc-line{transition:stroke-width .15s ease}
   .bm-lc-series.storm .bm-lc-line{stroke-width:3}
-  .bm-lc.focus .bm-lc-series:not(.active){opacity:.12}
+  .bm-lc-series.active .bm-lc-line{stroke-width:3.5;filter:brightness(1.5)}
+  .bm-lc-series.active .bm-lc-dot{filter:brightness(1.5)}
   .bm-lc-series.off{display:none}
   .bm-lc-legend{display:flex;flex-wrap:wrap;align-items:center;gap:6px 8px;margin-top:14px;padding-top:12px;border-top:1px solid #1c1c24}
   .bm-lc-lg{display:inline-flex;align-items:center;gap:8px;font-family:var(--sans);font-size:12.5px;color:var(--body);
