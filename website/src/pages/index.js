@@ -308,27 +308,27 @@ const BODY = `
 </div></header>
 
 <section style="padding-top:48px;padding-bottom:30px"><div class="wrap">
-  <div class="vs-chips"><span class="vs-label">Benchmark against</span><button data-vs="hibernate">Hibernate</button><button data-vs="jooq">jOOQ</button><button data-vs="exposed">Exposed</button><button data-vs="exposedDao">Exposed DAO</button><button data-vs="jimmer">Jimmer</button><button data-vs="jdbc">JDBC</button><a class="vs-bench" href="/benchmarks">See the benchmarks →</a></div>
+  <div class="vs-chips"><span class="vs-label">Benchmark against</span><button data-vs="hibernate">Hibernate</button><button data-vs="jooq">jOOQ</button><button data-vs="exposed">Exposed</button><button data-vs="exposedDao">Exposed DAO</button><button data-vs="ktorm">Ktorm</button><button data-vs="jimmer">Jimmer</button><button data-vs="jdbc">JDBC</button><a class="vs-bench" href="/benchmarks">See the benchmarks →</a></div>
   <div class="three">
     <div class="card bcard bench">
       <div class="bface bback" data-slot="speed">
-        <div class="bnum">17%</div>
-        <h3>faster than Hibernate</h3>
-        <p><span class="btext">Averaged across 8 workloads.</span></p>
+        <div class="bnum">7 of 12</div>
+        <h3>workloads faster than Hibernate</h3>
+        <p><span class="btext">Level on the other five, every gap inside the 2% band; the point lookup scores are identical.</span></p>
       </div>
     </div>
     <div class="card bcard bench">
       <div class="bface bback" data-slot="entities">
-        <div class="bnum">72%</div>
+        <div class="bnum">70%</div>
         <h3>fewer entity lines</h3>
-        <p><span class="btext">The five-table model: 29 lines in Storm, 105 in Hibernate.</span></p>
+        <p><span class="btext">The five-table model: 41 lines in Storm, 139 in Hibernate.</span></p>
       </div>
     </div>
     <div class="card bcard bench">
       <div class="bface bback" data-slot="queries">
-        <div class="bnum">19%</div>
+        <div class="bnum">20%</div>
         <h3>fewer query lines</h3>
-        <p><span class="btext">All eight workloads: 100 lines in Storm, 123 in Hibernate, with no query strings.</span></p>
+        <p><span class="btext">All twelve workloads: 150 lines in Storm, 187 in Hibernate, with no query strings.</span></p>
       </div>
     </div>
   </div>
@@ -369,37 +369,43 @@ const BODY = `
 
 export default function Home() {
   useEffect(() => {
-    // Pick your ORM: the feature cards show Storm-vs-X measured figures (run of 2026-07-16).
+    // Pick your ORM: the feature cards show Storm-vs-X figures from the published 5-fork run of
+    // 2026-07-22 (fastest fork; differences within 2% count as level).
     const VS = {
       hibernate: {
-        speed: ['6 of 8', 'workloads faster than Hibernate', 'Behind only on the primary-key lookup (+1%) and read-modify-update (+1%).'],
-        entities: ['72%', 'fewer entity lines', 'The five-table model: 29 lines in Storm, 105 in Hibernate.'],
-        queries: ['19%', 'fewer query lines', 'All eight workloads: 100 lines in Storm, 123 in Hibernate, with no query strings.'],
+        speed: ['7 of 12', 'workloads faster than Hibernate', 'Level on the other five, every gap inside the 2% band; the point lookup scores are identical.'],
+        entities: ['70%', 'fewer entity lines', 'The five-table model: 41 lines in Storm, 139 in Hibernate.'],
+        queries: ['20%', 'fewer query lines', 'All twelve workloads: 150 lines in Storm, 187 in Hibernate, with no query strings.'],
       },
       jooq: {
-        speed: ['7 of 8', 'workloads faster than jOOQ', 'Behind only on the batch insert (+6%), where jOOQ sends one multi-row statement.'],
-        entities: ['29 lines', 'instead of manual mapping', 'jOOQ maps results by hand into DTOs; Storm turns one 29-line model into typed rows everywhere.'],
-        queries: ['24%', 'fewer query lines', 'All eight workloads: 100 lines in Storm, 131 in jOOQ, no hand-written row mapping.'],
+        speed: ['10 of 12', 'workloads faster than jOOQ', 'jOOQ keeps the object graph, where MULTISET nests the rows server-side; the dynamic query is level; Storm leads the rest, including the graph insert.'],
+        entities: ['41 lines', 'instead of manual mapping', 'jOOQ maps results by hand into DTOs; Storm turns one 41-line model into typed rows everywhere.'],
+        queries: ['25%', 'fewer query lines', 'All twelve workloads: 150 lines in Storm, 200 in jOOQ, no hand-written row mapping.'],
       },
       exposed: {
-        speed: ['7 of 8', 'workloads faster than Exposed', 'Behind only on read-modify-update (+1%).'],
-        entities: ['43%', 'fewer entity lines', 'The five-table model: 29 lines in Storm, 51 lines of Exposed table objects and data classes.'],
-        queries: ['22%', 'fewer query lines', 'All eight workloads: 100 lines in Storm, 128 in Exposed, no hand-written row mapping.'],
+        speed: ['10 of 12', 'workloads faster than Exposed', 'Exposed takes the update by 2.4%; create-then-amend is level; Storm leads the other ten.'],
+        entities: ['29%', 'fewer entity lines', 'The five-table model: 41 lines in Storm, 58 lines of Exposed table objects and data classes.'],
+        queries: ['22%', 'fewer query lines', 'All twelve workloads: 150 lines in Storm, 193 in Exposed, no hand-written row mapping.'],
       },
       exposedDao: {
-        speed: ['8 of 8', 'workloads faster than Exposed DAO', 'Faster on every workload measured.'],
-        entities: ['58%', 'fewer entity lines', 'One data class per table in Storm; Exposed DAO needs the table object, the DAO class and a DTO.'],
-        queries: ['19%', 'fewer query lines', 'All eight workloads: 100 lines in Storm, 124 in Exposed DAO.'],
+        speed: ['12 of 12', 'workloads faster than Exposed DAO', 'Faster on every workload measured, up to 2.1x on the hundred-row join.'],
+        entities: ['45%', 'fewer entity lines', 'One data class per table in Storm; Exposed DAO needs the table object, the DAO class and a DTO.'],
+        queries: ['22%', 'fewer query lines', 'All twelve workloads: 150 lines in Storm, 192 in Exposed DAO.'],
+      },
+      ktorm: {
+        speed: ['8 of 12', 'workloads faster than Ktorm', 'Level on four, including the graph insert, 1.9 µs apart; ahead on the rest, 2.2x on keyset pagination.'],
+        entities: ['32%', 'fewer entity lines', 'The five-table model: 41 lines in Storm, 60 lines of Ktorm tables and entity interfaces.'],
+        queries: ['13%', 'fewer query lines', 'All twelve workloads: 150 lines in Storm, 172 in Ktorm.'],
       },
       jimmer: {
-        speed: ['7 of 8', 'workloads faster than Jimmer', 'Faster on seven; dead even on the primary-key lookup.'],
-        entities: ['47%', 'fewer entity lines', 'The five-table model: 29 lines of data classes in Storm, 55 lines of interfaces in Jimmer.'],
-        queries: ['31%', 'fewer query lines', 'All eight workloads: 100 lines in Storm, 144 in Jimmer.'],
+        speed: ['11 of 12', 'workloads faster than Jimmer', 'Level on the projection; faster on the other eleven, 1.9x on keyset pagination and 1.5x on the graph insert.'],
+        entities: ['28%', 'fewer entity lines', 'The five-table model: 41 lines of data classes in Storm, 57 lines of interfaces in Jimmer.'],
+        queries: ['45%', 'fewer query lines', 'All twelve workloads: 150 lines in Storm, 272 in Jimmer.'],
       },
       jdbc: {
-        speed: ['+10 µs', 'over raw JDBC', 'on a primary key lookup. The network round trip dominates every workload; the abstraction barely registers.'],
-        entities: ['29 lines', 'instead of manual mapping', 'JDBC has no entities: every row stays untyped until you map it by hand.'],
-        queries: ['61%', 'fewer query lines', 'All eight workloads: 100 lines in Storm, 257 of hand-written JDBC and mapping.'],
+        speed: ['+18 µs', 'over raw JDBC', 'on a primary-key lookup of 180 µs. The network round trip dominates every workload; the abstraction stays a rounding term.'],
+        entities: ['41 lines', 'instead of manual mapping', 'JDBC has no entities: every row stays untyped until you map it by hand.'],
+        queries: ['63%', 'fewer query lines', 'All twelve workloads: 150 lines in Storm, 400 of hand-written JDBC and mapping.'],
       },
     };
     const vsCards = [...document.querySelectorAll('.storm-home .bcard')];
@@ -417,7 +423,7 @@ export default function Home() {
       });
     }
     // Cycle through the comparisons until the visitor picks one; hovering pauses the cycle.
-    const vsOrder = ['hibernate', 'jooq', 'exposed', 'exposedDao', 'jimmer', 'jdbc'];
+    const vsOrder = ['hibernate', 'jooq', 'exposed', 'exposedDao', 'ktorm', 'jimmer', 'jdbc'];
     let vsIdx = 0;
     const vsSection = document.querySelector('.storm-home .vs-chips');
     const vsAuto = setInterval(() => {
@@ -425,10 +431,14 @@ export default function Home() {
       vsIdx = (vsIdx + 1) % vsOrder.length;
       applyVs(vsOrder[vsIdx]);
     }, 7000);
-    vsChips.forEach((chip) => chip.addEventListener('click', () => {
-      clearInterval(vsAuto);
-      applyVs(chip.dataset.vs);
-    }));
+    const vsChipHandlers = vsChips.map((chip) => {
+      const onChipClick = () => {
+        clearInterval(vsAuto);
+        applyVs(chip.dataset.vs);
+      };
+      chip.addEventListener('click', onChipClick);
+      return [chip, onChipClick];
+    });
     applyVs('hibernate');
 
     const K=(x)=>({x,c:'code-k'}),T=(x)=>({x,c:'code-t'}),S=(x)=>({x,c:'code-s'}),C=(x)=>({x,c:'code-c'}),
@@ -746,6 +756,8 @@ export default function Home() {
       clearTimeout(timer);
       clearTimeout(valuesTimer);
       window.removeEventListener('resize', measureHero);
+      clearInterval(vsAuto);
+      vsChipHandlers.forEach(([chip, handler]) => chip.removeEventListener('click', handler));
       if(scenesEl) scenesEl.innerHTML='';
       if(sqlBtn) sqlBtn.removeEventListener('click',onSqlClick);
     };
