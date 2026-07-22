@@ -40,11 +40,11 @@ public final class RefFactoryImpl implements RefFactory {
     /**
      * The pk class most recently resolved as being its own row identity. Refs are created per row during
      * materialization with the same pk class throughout, so this resolves the row identity decision at type level
-     * once and hands every ref its identity at construction, leaving one pointer comparison per ref. A single field
-     * keeps the unsynchronized access safe: a stale read can only miss (falling back to the resolution or to the
-     * ref's lazy path), never claim self-identity for a class that requires normalization.
+     * once and selects the ref implementation at construction, leaving one pointer comparison per ref. A single
+     * field keeps the unsynchronized access safe: a stale read can only miss (falling back to the resolution or to
+     * the general implementation), never claim own-row-identity for a class that requires normalization.
      */
-    private Class<?> selfIdentityPkClass;
+    private Class<?> ownRowIdentityPkClass;
 
     public RefFactoryImpl(@Nonnull QueryFactory factory,
                           @Nonnull ModelBuilder modelBuilder,
@@ -135,23 +135,24 @@ public final class RefFactoryImpl implements RefFactory {
      * @param <ID> primary key type.
      */
     private <T extends Data, ID> Ref<T> create(@Nonnull LazySupplier<T> supplier, @Nonnull Class<T> type, @Nonnull ID pk) {
-        return new RefImpl<>(supplier, type, pk, rowIdentity(pk));
+        return isOwnRowIdentity(pk)
+                ? new DirectKeyRefImpl<>(supplier, type, pk)
+                : new RefImpl<>(supplier, type, pk);
     }
 
     /**
-     * Returns the row identity of the given pk when its class is known to be its own identity, or {@code null} to
-     * defer to the ref's lazy computation.
+     * Returns whether the pk class is its own row identity, selecting the ref implementation that carries no
+     * identity or hash cache.
      */
-    @Nullable
-    private Object rowIdentity(@Nonnull Object pk) {
+    private boolean isOwnRowIdentity(@Nonnull Object pk) {
         Class<?> pkClass = pk.getClass();
-        if (pkClass == selfIdentityPkClass) {
-            return pk;
+        if (pkClass == ownRowIdentityPkClass) {
+            return true;
         }
         if (!RowIdentity.requiresNormalization(pkClass)) {
-            selfIdentityPkClass = pkClass;
-            return pk;
+            ownRowIdentityPkClass = pkClass;
+            return true;
         }
-        return null;
+        return false;
     }
 }

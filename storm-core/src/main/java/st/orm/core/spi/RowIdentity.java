@@ -15,10 +15,12 @@
  */
 package st.orm.core.spi;
 
+import jakarta.annotation.Nonnull;
 import jakarta.annotation.Nullable;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import st.orm.Entity;
@@ -58,7 +60,7 @@ public final class RowIdentity {
     /** Decided once per class: whether values of this class can carry non-key state that normalization must strip. */
     private static final ClassValue<Boolean> NORMALIZATION_REQUIRED = new ClassValue<>() {
         @Override
-        protected Boolean computeValue(Class<?> type) {
+        protected Boolean computeValue(@Nonnull Class<?> type) {
             return requiresNormalization(type, new HashSet<>());
         }
     };
@@ -95,6 +97,36 @@ public final class RowIdentity {
      */
     public static boolean requiresNormalization(Class<?> type) {
         return NORMALIZATION_REQUIRED.get(type);
+    }
+
+    /**
+     * Returns the hash code of a ref identity: its type and the row identity of its id.
+     *
+     * <p>Shared by the ref implementations so that the hash contract cannot drift between them: every
+     * implementation of an equal ref identity must produce this value.</p>
+     *
+     * @param type the ref's record type.
+     * @param rowId the row identity of the ref's id.
+     * @return the identity hash code.
+     */
+    public static int hash(@Nullable Class<?> type, @Nullable Object rowId) {
+        return (31 + Objects.hashCode(type)) * 31 + Objects.hashCode(rowId);
+    }
+
+    /**
+     * Returns whether a ref identity, given as its type and the row identity of its id, equals the identity of the
+     * given ref.
+     *
+     * <p>Shared by the ref implementations so that the equality contract cannot drift between them; implementations
+     * may only shortcut this comparison when both sides are known to hold their identity in the same form.</p>
+     *
+     * @param type the ref's record type.
+     * @param rowId the row identity of the ref's id.
+     * @param other the ref to compare against.
+     * @return {@code true} if both describe the same database row.
+     */
+    public static boolean refEquals(@Nullable Class<?> type, @Nullable Object rowId, @Nonnull Ref<?> other) {
+        return Objects.equals(type, other.type()) && Objects.equals(rowId, normalize(other.id()));
     }
 
     /**

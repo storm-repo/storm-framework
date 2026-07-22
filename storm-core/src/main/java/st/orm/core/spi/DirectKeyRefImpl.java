@@ -19,6 +19,7 @@ import static java.util.Objects.requireNonNull;
 
 import jakarta.annotation.Nonnull;
 import jakarta.annotation.Nullable;
+import java.util.Objects;
 import st.orm.Data;
 import st.orm.Entity;
 import st.orm.Ref;
@@ -26,17 +27,24 @@ import st.orm.core.repository.EntityRepository;
 import st.orm.core.template.impl.LazySupplier;
 
 /**
- * Default {@link Ref} implementation.
+ * {@link Ref} implementation for keys that are their own row identity.
+ *
+ * <p>The factory selects this implementation at type level, when the pk class carries no non-key state (see
+ * {@link RowIdentity#requiresNormalization(Class)}). The identity of such a ref is the pk itself and its hash is a
+ * few instructions, so this implementation carries neither the row identity nor the hash cache of the general
+ * implementation, keeping refs created per row during materialization at their minimal footprint. Equality and
+ * hash follow the shared contract in {@link RowIdentity}, so instances compare correctly against every other ref
+ * implementation.</p>
  *
  * @param <T> record type.
  * @param <ID> primary key type.
  */
-final class RefImpl<T extends Data, ID> extends AbstractRef<T> {
+final class DirectKeyRefImpl<T extends Data, ID> implements Ref<T> {
     private final LazySupplier<T> supplier;
     private final Class<T> type;
     private final ID pk;
 
-    RefImpl(@Nonnull LazySupplier<T> supplier, @Nonnull Class<T> type, @Nonnull ID pk) {
+    DirectKeyRefImpl(@Nonnull LazySupplier<T> supplier, @Nonnull Class<T> type, @Nonnull ID pk) {
         this.supplier = requireNonNull(supplier, "supplier");
         this.type = requireNonNull(type, "type");
         this.pk = requireNonNull(pk, "pk");
@@ -56,7 +64,6 @@ final class RefImpl<T extends Data, ID> extends AbstractRef<T> {
      * Returns the record if it has already been fetched, without triggering a database call.
      *
      * @return the record if already loaded, or {@code null} if not yet fetched.
-     * @since 1.7
      */
     @Nullable
     @Override
@@ -67,9 +74,6 @@ final class RefImpl<T extends Data, ID> extends AbstractRef<T> {
     /**
      * Returns the primary key of the record.
      *
-     * <p>This method is provided for convenience. If the type of the id is known, you can cast it to the appropriate
-     * type.</p>
-     *
      * @return the primary key as an Object.
      */
     @Override
@@ -78,11 +82,10 @@ final class RefImpl<T extends Data, ID> extends AbstractRef<T> {
     }
 
     /**
-     * Fetches the record from the database if the record has not been fetched yet. The record will be fetched at most
-     * once.
+     * Fetches the record from the database if the record has not been fetched yet. The record will be fetched at
+     * most once.
      *
      * @return the fetched record.
-     * @since 1.7
      */
     @Override
     public T fetchOrNull() {
@@ -92,16 +95,7 @@ final class RefImpl<T extends Data, ID> extends AbstractRef<T> {
     /**
      * Returns whether this ref is attached to a database context and capable of fetching the record on demand.
      *
-     * <p>A fetchable ref has access to a database connection and can attempt to retrieve the record when
-     * {@link #fetch()} or {@link #fetchOrNull()} is called. A non-fetchable (detached) ref can only return
-     * data that was already loaded at the time of its creation.</p>
-     *
-     * <p>Note that this method indicates the <em>capability</em> to fetch, not a guarantee of success. A fetchable
-     * ref may still fail to retrieve a record if it has been deleted from the database or if the connection
-     * encounters an error.</p>
-     *
-     * @return {@code true} if this ref can attempt to fetch from the database, {@code false} if it is detached.
-     * @since 1.7
+     * @return {@code true}, this implementation is created attached to a database context.
      */
     @Override
     public boolean isFetchable() {
@@ -109,8 +103,8 @@ final class RefImpl<T extends Data, ID> extends AbstractRef<T> {
     }
 
     /**
-     * Returns a detached ref with the same identity but without data. The returned ref is not attached to a database
-     * context. To obtain an attached ref that can re-fetch the record, use
+     * Returns a detached ref with the same identity but without data. The returned ref is not attached to a
+     * database context. To obtain an attached ref that can re-fetch the record, use
      * {@link EntityRepository#unload(Entity) EntityRepository.unload()} instead.
      *
      * @return a detached ref with the same type and primary key but without cached data.
@@ -118,5 +112,34 @@ final class RefImpl<T extends Data, ID> extends AbstractRef<T> {
     @Override
     public Ref<T> unload() {
         return Ref.of(type, pk);
+    }
+
+    @Override
+    public int hashCode() {
+        return RowIdentity.hash(type, pk);
+    }
+
+    @Override
+    public boolean equals(Object obj) {
+        if (this == obj) {
+            return true;
+        }
+        if (obj instanceof DirectKeyRefImpl<?, ?> other) {
+            // Both sides hold their identity as the raw pk of a class that is its own row identity; the type gate guarantees the
+            // pk classes match.
+            return Objects.equals(type, other.type) && pk.equals(other.pk);
+        }
+        if (obj instanceof Ref<?> l) {
+            return RowIdentity.refEquals(type, pk, l);
+        }
+        return false;
+    }
+
+    @Override
+    public String toString() {
+        Class<?> type = this.type;
+        return type == Record.class
+                ? "%s".formatted(pk)
+                : "%s@%s".formatted(type.getSimpleName(), pk);
     }
 }
