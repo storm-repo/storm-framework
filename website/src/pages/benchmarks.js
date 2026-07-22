@@ -639,7 +639,7 @@ const CODE_BATCH = [
   `}`,
 ].join('\n');
 const CODE_BATCH_JDBC = [
-  `${T('List')}<${T('Long')}> ids = ${F('multiRowInsertReturningKeys')}(connection, ${S('"visit"')},`,
+  `${T('List')}&lt;${T('Long')}&gt; ids = ${F('multiRowInsertReturningKeys')}(connection, ${S('"visit"')},`,
   `        ${S('"pet_id, visit_date, description"')}, ${N('3')}, BATCH_SIZE, (ps, base, i) -> {`,
   `    ps.${F('setLong')}(base + ${N('1')}, ...); ps.${F('setObject')}(base + ${N('2')}, ...); ps.${F('setString')}(base + ${N('3')}, ...);`,
   `});`,
@@ -1076,10 +1076,10 @@ const SQL_KEYSET_JIMMER = [
 // ---- Dynamic query ----
 
 const CODE_DYNAMIC = [
-  `${K('var')} predicate: ${T('PredicateBuilder')}<${T('Pet')}, *, *> = ${T('Pet_')}.owner.city.id ${F('eq')} filter.cityId`,
+  `${K('var')} predicate: ${T('PredicateBuilder')}&lt;${T('Pet')}, *, *&gt; = ${T('Pet_')}.owner.city.id ${F('eq')} filter.cityId`,
   `${K('if')} (filter.byDate) predicate = predicate ${K('and')} (${T('Pet_')}.birthDate ${F('greaterEq')} filter.minBirthDate)`,
-  `${K('if')} (filter.byType) predicate = predicate ${K('and')} (${T('Pet_')}.type ${F('eq')} ${F('refById')}<${T('PetType')}>(filter.typeId))`,
-  `${K('return')} pets.${F('select')}<${T('PetRow')}, _, _> { ${S('"${Pet_.name}, ${Pet_.owner.lastName}, ${Pet_.owner.city.name}"')} }`,
+  `${K('if')} (filter.byType) predicate = predicate ${K('and')} (${T('Pet_')}.type ${F('eq')} ${F('refById')}&lt;${T('PetType')}&gt;(filter.typeId))`,
+  `${K('return')} pets.${F('select')}&lt;${T('PetRow')}, _, _&gt; { ${S('"${Pet_.name}, ${Pet_.owner.lastName}, ${Pet_.owner.city.name}"')} }`,
   `    .${F('where')}(predicate)`,
   `    .resultList`,
 ].join('\n');
@@ -1116,7 +1116,7 @@ const CODE_DYNAMIC_EXPOSED = [
   `(${T('Pets')} ${F('innerJoin')} ${T('Owners')} ${F('innerJoin')} ${T('Cities')})`,
   `    .${F('select')}(${T('Pets')}.name, ${T('Owners')}.lastName, ${T('Cities')}.name)`,
   `    .${F('where')} {`,
-  `        ${K('var')} condition: ${T('Op')}<${T('Boolean')}> = ${T('Owners')}.cityId ${F('eq')} filter.cityId`,
+  `        ${K('var')} condition: ${T('Op')}&lt;${T('Boolean')}&gt; = ${T('Owners')}.cityId ${F('eq')} filter.cityId`,
   `        ${K('if')} (filter.byDate) condition = condition ${K('and')} (${T('Pets')}.birthDate ${F('greaterEq')} filter.minBirthDate)`,
   `        ${K('if')} (filter.byType) condition = condition ${K('and')} (${T('Pets')}.typeId ${F('eq')} filter.typeId)`,
   `        condition`,
@@ -1128,7 +1128,7 @@ const CODE_DYNAMIC_EXPOSED_DAO = [
   `${C('// the implementation matches Exposed with EntityID-wrapped key comparisons.')}`,
 ].join('\n');
 const CODE_DYNAMIC_KTORM = [
-  `${K('val')} conditions = ${T('ArrayList')}<${T('ColumnDeclaring')}<${T('Boolean')}>>()`,
+  `${K('val')} conditions = ${T('ArrayList')}&lt;${T('ColumnDeclaring')}&lt;${T('Boolean')}&gt;&gt;()`,
   `conditions += ${T('Owners')}.cityId ${F('eq')} filter.cityId`,
   `${K('if')} (filter.byDate) conditions += ${T('Pets')}.birthDate ${F('greaterEq')} filter.minBirthDate`,
   `${K('if')} (filter.byType) conditions += ${T('Pets')}.typeId ${F('eq')} filter.typeId`,
@@ -1151,7 +1151,7 @@ const CODE_DYNAMIC_JIMMER = [
 
 const CODE_MULTI = [
   `${K('return')} ${F('transactionBlocking')} {`,
-  `    ${K('val')} visit = ${T('Visit')}(pet = ${F('refById')}<${T('Pet')}>(petId), visitDate = date, description = text)`,
+  `    ${K('val')} visit = ${T('Visit')}(pet = ${F('refById')}&lt;${T('Pet')}&gt;(petId), visitDate = date, description = text)`,
   `    ${K('val')} id = visits.${F('insertAndFetchId')}(visit)`,
   `    visits.${F('update')}(visit.${F('copy')}(id = id, description = ${S('"${visit.description} (rechecked)"')}))`,
   `    id`,
@@ -1245,7 +1245,7 @@ const CODE_GINSERT = [
   `${K('val')} visits = graphs.${F('map')} { g ->`,
   `    ${K('val')} owner = ${T('Owner')}(firstName = …, lastName = …, address = …, telephone = …,`,
   `                      city = ${T('City')}(id = g.cityId, name = ${S('""')}))`,
-  `    ${K('val')} pet = ${T('Pet')}(name = …, birthDate = …, type = ${F('refById')}<${T('PetType')}>(g.typeId), owner = owner)`,
+  `    ${K('val')} pet = ${T('Pet')}(name = …, birthDate = …, type = ${F('refById')}&lt;${T('PetType')}&gt;(g.typeId), owner = owner)`,
   `    ${T('Visit')}(pet = ${T('Ref')}.${F('of')}(pet), visitDate = …, description = …)`,
   `}`,
   `${C('// Only the visits are passed: the write set discovers the unsaved pets and owners through the')}`,
@@ -1262,9 +1262,9 @@ const SQL_GINSERT = [
   `${QC('-- no re-read: the workload returns the generated visit ids')}`,
 ].join('\n');
 const CODE_GINSERT_JDBC = [
-  `${T('List')}<${T('Long')}> ownerIds = ${F('multiRowInsertReturningKeys')}(connection, ${S('"owner"')}, …);`,
-  `${T('List')}<${T('Long')}> petIds   = ${F('multiRowInsertReturningKeys')}(connection, ${S('"pet"')}, …);   ${C('// threads ownerIds')}`,
-  `${T('List')}<${T('Long')}> visitIds = ${F('multiRowInsertReturningKeys')}(connection, ${S('"visit"')}, …); ${C('// threads petIds')}`,
+  `${T('List')}&lt;${T('Long')}&gt; ownerIds = ${F('multiRowInsertReturningKeys')}(connection, ${S('"owner"')}, …);`,
+  `${T('List')}&lt;${T('Long')}&gt; petIds   = ${F('multiRowInsertReturningKeys')}(connection, ${S('"pet"')}, …);   ${C('// threads ownerIds')}`,
+  `${T('List')}&lt;${T('Long')}&gt; visitIds = ${F('multiRowInsertReturningKeys')}(connection, ${S('"visit"')}, …); ${C('// threads petIds')}`,
   `${C('// each level is one INSERT … VALUES (…),(…) RETURNING id; the caller orders the levels')}`,
 ].join('\n');
 const CODE_GINSERT_HIBERNATE = [
@@ -1286,7 +1286,7 @@ const SQL_GINSERT_HIBERNATE = [
 const CODE_GINSERT_JOOQ = [
   `${K('var')} ownerInsert = c.${F('insertInto')}(${T('OWNER')}, ${T('OWNER')}.FIRST_NAME, …);`,
   `${K('for')} (${K('var')} g : graphs) ownerInsert = ownerInsert.${F('values')}(…);`,
-  `${T('List')}<${T('Long')}> ownerIds = ownerInsert.${F('returning')}(${T('OWNER')}.ID).${F('fetch')}().${F('map')}(r -> r.${F('get')}(${T('OWNER')}.ID));`,
+  `${T('List')}&lt;${T('Long')}&gt; ownerIds = ownerInsert.${F('returning')}(${T('OWNER')}.ID).${F('fetch')}().${F('map')}(r -> r.${F('get')}(${T('OWNER')}.ID));`,
   `${C('// same shape for pets (threading ownerIds) and visits (threading petIds):')}`,
   `${C('// three multi-row INSERT … RETURNING statements, ordered by the caller')}`,
 ].join('\n');
@@ -1318,9 +1318,9 @@ const SQL_GINSERT_JIMMER = [
   `${QK('INSERT INTO')} visit (…) ${QK('VALUES')} (${QQ('?')}, …) ${QK('RETURNING')} id`,
 ].join('\n');
 const CODE_GINSERT_JIMMER = [
-  `${T('List')}<${T('Long')}> ownerIds = ${F('saveEntitiesReturningIds')}(connection, ownerDrafts, ${T('Owner')}::id);`,
-  `${T('List')}<${T('Long')}> petIds   = ${F('saveEntitiesReturningIds')}(connection, petDrafts, ${T('Pet')}::id);  ${C('// threads ownerIds')}`,
-  `${T('List')}<${T('Long')}> visitIds = ${F('saveEntitiesReturningIds')}(connection, visitDrafts, ${T('Visit')}::id);`,
+  `${T('List')}&lt;${T('Long')}&gt; ownerIds = ${F('saveEntitiesReturningIds')}(connection, ownerDrafts, ${T('Owner')}::id);`,
+  `${T('List')}&lt;${T('Long')}&gt; petIds   = ${F('saveEntitiesReturningIds')}(connection, petDrafts, ${T('Pet')}::id);  ${C('// threads ownerIds')}`,
+  `${T('List')}&lt;${T('Long')}&gt; visitIds = ${F('saveEntitiesReturningIds')}(connection, visitDrafts, ${T('Visit')}::id);`,
   `${C('// three saveEntities commands, each level threading the previous ids')}`,
 ].join('\n');
 
