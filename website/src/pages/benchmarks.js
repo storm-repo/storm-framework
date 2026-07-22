@@ -1502,7 +1502,7 @@ ${charts}
   <p>Numbers without code invite tuned-benchmark suspicion, so the counts below, and the workloads that follow, show exactly what each library runs, trimmed of harness plumbing. The full sources for all eight implementations are in the benchmark repository.</p>
   ${modelLocHtml()}
   ${locHtml()}
-  <p class="bm-note">LOC is presented as an illustration of these benchmark implementations, rather than as a universal measure of framework complexity.</p>
+  <p class="bm-note">LOC is indicative, not conclusive: twelve workloads over a five-table schema is a small corpus, and a different application profile shifts the counts. It is presented as an illustration of these benchmark implementations, not as a universal measure of framework complexity.</p>
 
   <h2>Inspect each workload</h2>
   <p>Each workload shows Storm's implementation. Pick another library from the selector to compare it, or toggle <i>Show SQL</i> for the exact statement on the wire.</p>
