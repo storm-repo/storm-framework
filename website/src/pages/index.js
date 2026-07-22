@@ -423,7 +423,7 @@ export default function Home() {
       });
     }
     // Cycle through the comparisons until the visitor picks one; hovering pauses the cycle.
-    const vsOrder = ['hibernate', 'jooq', 'exposed', 'exposedDao', 'jimmer', 'jdbc'];
+    const vsOrder = ['hibernate', 'jooq', 'exposed', 'exposedDao', 'ktorm', 'jimmer', 'jdbc'];
     let vsIdx = 0;
     const vsSection = document.querySelector('.storm-home .vs-chips');
     const vsAuto = setInterval(() => {
@@ -431,10 +431,14 @@ export default function Home() {
       vsIdx = (vsIdx + 1) % vsOrder.length;
       applyVs(vsOrder[vsIdx]);
     }, 7000);
-    vsChips.forEach((chip) => chip.addEventListener('click', () => {
-      clearInterval(vsAuto);
-      applyVs(chip.dataset.vs);
-    }));
+    const vsChipHandlers = vsChips.map((chip) => {
+      const onChipClick = () => {
+        clearInterval(vsAuto);
+        applyVs(chip.dataset.vs);
+      };
+      chip.addEventListener('click', onChipClick);
+      return [chip, onChipClick];
+    });
     applyVs('hibernate');
 
     const K=(x)=>({x,c:'code-k'}),T=(x)=>({x,c:'code-t'}),S=(x)=>({x,c:'code-s'}),C=(x)=>({x,c:'code-c'}),
@@ -752,6 +756,8 @@ export default function Home() {
       clearTimeout(timer);
       clearTimeout(valuesTimer);
       window.removeEventListener('resize', measureHero);
+      clearInterval(vsAuto);
+      vsChipHandlers.forEach(([chip, handler]) => chip.removeEventListener('click', handler));
       if(scenesEl) scenesEl.innerHTML='';
       if(sqlBtn) sqlBtn.removeEventListener('click',onSqlClick);
     };

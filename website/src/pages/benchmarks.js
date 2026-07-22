@@ -108,14 +108,14 @@ function chartHtml(w) {
   const frameworkBest = Math.min(...entries.filter(([l]) => l !== 'jdbc').map(([, v]) => v[0]));
   // JDBC is the reference, not a competitor: it renders first, with the frameworks ranked below it.
   const ordered = [...entries.filter(([l]) => l === 'jdbc'), ...entries.filter(([l]) => l !== 'jdbc')];
-  const rows = ordered.map(([lib, [mean, err]]) => {
+  const rows = ordered.map(([lib, [mean, spread]]) => {
     const meta = LIBS[lib];
     const width = Math.max(1.5, (mean / max) * 100);
     const leading = lib !== 'jdbc' && mean <= frameworkBest * 1.02;
     return `<div class="bm-row ${meta.cls}${leading ? ' win' : ''}">
       <span class="bm-name"${leading ? ' title="within 2% of the fastest framework"' : ''}>${meta.name}</span>
       <span class="bm-track"><span class="bm-bar" style="width:${width.toFixed(1)}%"></span></span>
-      <span class="bm-val">${fmt(mean)} <em>+${err >= 1000 ? (err / 1000).toFixed(1) + ' ms' : Math.round(err) + ' µs'}</em></span>
+      <span class="bm-val">${fmt(mean)} <em>+${spread >= 1000 ? (spread / 1000).toFixed(1) + ' ms' : Math.round(spread) + ' µs'}</em></span>
     </div>`;
   }).join('');
   return `<div class="bm-card">
@@ -346,6 +346,85 @@ const CODE_MODEL_JIMMER = [
   `}`,
 ].join('\n');
 
+const CODE_MODEL_KTORM = [
+  `${K('interface')} ${T('Owner')} : ${T('Entity')}&lt;${T('Owner')}&gt; {`,
+  `    ${K('companion object')} : ${T('Entity')}.${T('Factory')}&lt;${T('Owner')}&gt;()`,
+  `    ${K('val')} id: ${T('Long')}`,
+  `    ${K('var')} firstName: ${T('String')}`,
+  `    ${K('var')} lastName: ${T('String')}`,
+  `    ${K('var')} address: ${T('String')}`,
+  `    ${K('var')} telephone: ${T('String')}`,
+  `    ${K('var')} city: ${T('City')}`,
+  `}`,
+  ``,
+  `${K('object')} ${T('Owners')} : ${T('Table')}&lt;${T('Owner')}&gt;(${S('"owner"')}) {`,
+  `    ${K('val')} id = ${F('long')}(${S('"id"')}).${F('primaryKey')}().${F('bindTo')} { it.id }`,
+  `    ${K('val')} firstName = ${F('varchar')}(${S('"first_name"')}).${F('bindTo')} { it.firstName }`,
+  `    ${C('// … lastName, address and telephone bindings …')}`,
+  `    ${K('val')} cityId = ${F('long')}(${S('"city_id"')}).${F('references')}(${T('Cities')}) { it.city }`,
+  `}`,
+].join('\n');
+
+const CODE_SINGLE_KTORM = [
+  `database.${F('sequenceOf')}(${T('Visits')}).${F('find')} { it.id ${F('eq')} id }!!`,
+].join('\n');
+const SQL_SINGLE_KTORM = [
+  `${QK('SELECT')} v.id, v.pet_id, v.visit_date, v.description`,
+  `${QK('FROM')} visit v`,
+  `${QK('WHERE')} v.id = ${QQ('?')}`,
+  `${QK('LIMIT')} ${QQ('?')}  ${QC('-- find appends a bound limit')}`,
+].join('\n');
+
+const CODE_JOIN_KTORM = [
+  `database.${F('sequenceOf')}(${T('Pets')})`,
+  `    .${F('filter')} { (${T('Pets')}.id ${F('greater')} base) ${K('and')} (${T('Pets')}.id ${F('lessEq')} base + rows) }`,
+  `    .${F('toList')}()  ${C('// reference bindings join owner and city')}`,
+].join('\n');
+const SQL_JOIN_KTORM = [
+  `${QK('SELECT')} …  ${QC('-- all pet, owner and city columns')}`,
+  `${QK('FROM')} pet`,
+  `${QK('LEFT JOIN')} owner _ref0 ${QK('ON')} pet.owner_id = _ref0.id  ${QC('-- reference bindings join with LEFT JOIN')}`,
+  `${QK('LEFT JOIN')} city _ref1 ${QK('ON')} _ref0.city_id = _ref1.id`,
+  `${QK('WHERE')} (pet.id > ${QQ('?')}) ${QK('AND')} (pet.id &lt;= ${QQ('?')})`,
+].join('\n');
+
+const CODE_PROJECTION_KTORM = [
+  `database.${F('from')}(${T('Pets')})`,
+  `    .${F('innerJoin')}(${T('Owners')}, on = ${T('Pets')}.ownerId ${F('eq')} ${T('Owners')}.id)`,
+  `    .${F('innerJoin')}(${T('Cities')}, on = ${T('Owners')}.cityId ${F('eq')} ${T('Cities')}.id)`,
+  `    .${F('select')}(${T('Pets')}.name, ${T('Owners')}.lastName, ${T('Cities')}.name)`,
+  `    .${F('where')} { ${T('Owners')}.cityId ${F('eq')} cityId }`,
+  `    .${F('map')} { ${T('PetRow')}(it[${T('Pets')}.name]!!, it[${T('Owners')}.lastName]!!, it[${T('Cities')}.name]!!) }`,
+].join('\n');
+
+const CODE_GRAPH_KTORM = [
+  `database.${F('from')}(${T('Owners')})`,
+  `    .${F('innerJoin')}(${T('Cities')}, on = ${T('Owners')}.cityId ${F('eq')} ${T('Cities')}.id)`,
+  `    .${F('innerJoin')}(${T('Pets')}, on = ${T('Pets')}.ownerId ${F('eq')} ${T('Owners')}.id)`,
+  `    .${F('select')}()`,
+  `    .${F('where')} { ${T('Owners')}.cityId ${F('eq')} cityId }`,
+  `    .${F('orderBy')}(${T('Owners')}.id.${F('asc')}())`,
+  `    .${F('map')} { ${T('Pets')}.${F('createEntity')}(it) }`,
+  `    .${F('groupIntoOwners')}()  ${C('// in-memory LinkedHashMap grouping')}`,
+].join('\n');
+const SQL_GRAPH_KTORM = [
+  `${QK('SELECT')} *  ${QC('-- the DSL join selects every column of the three tables')}`,
+  `${QK('FROM')} owner`,
+  `${QK('INNER JOIN')} city ${QK('ON')} owner.city_id = city.id`,
+  `${QK('INNER JOIN')} pet ${QK('ON')} pet.owner_id = owner.id`,
+  `${QK('WHERE')} owner.city_id = ${QQ('?')}`,
+  `${QK('ORDER BY')} owner.id`,
+].join('\n');
+
+const CODE_UPDATE_KTORM = [
+  `database.${F('useTransaction')} {`,
+  `    ${C('// withReferences = false keeps the read lazy: owner columns only, no city join')}`,
+  `    ${K('val')} owner = database.${F('sequenceOf')}(${T('Owners')}, withReferences = ${K('false')}).${F('find')} { it.id ${F('eq')} id }!!`,
+  `    owner.telephone = ${T('Params')}.${F('toggleTelephone')}(owner.telephone)`,
+  `    owner.${F('flushChanges')}()  ${C('// dirty tracking writes only the changed column')}`,
+  `}`,
+].join('\n');
+
 const CODE_SINGLE = [
   `${K('val')} visit = visits.${F('getById')}(id)`,
 ].join('\n');
@@ -464,26 +543,26 @@ const CODE_JOIN_JIMMER = [
 const SQL_JOIN_EXPOSED_DAO = [
   `${QC('-- 1) main pet query')}`,
   `${QK('SELECT')} p.id, p.name, p.birth_date, p.type_id, p.owner_id`,
-  `${QK('FROM')} pet ${QK('WHERE')} p.id > ${QQ('?')} ${QK('AND')} p.id &lt;= ${QQ('?')}`,
+  `${QK('FROM')} pet p ${QK('WHERE')} p.id > ${QQ('?')} ${QK('AND')} p.id &lt;= ${QQ('?')}`,
   ``,
   `${QC('-- 2) batched owners')}`,
   `${QK('SELECT')} o.id, o.first_name, o.last_name, o.address, o.telephone, o.city_id`,
-  `${QK('FROM')} owner ${QK('WHERE')} o.id ${QK('IN')} (${QQ('?')}, ${QQ('?')}, ...)`,
+  `${QK('FROM')} owner o ${QK('WHERE')} o.id ${QK('IN')} (${QQ('?')}, ${QQ('?')}, ...)`,
   ``,
   `${QC('-- 3) batched cities')}`,
-  `${QK('SELECT')} c.id, c.name ${QK('FROM')} city ${QK('WHERE')} c.id ${QK('IN')} (${QQ('?')}, ${QQ('?')}, ...)`,
+  `${QK('SELECT')} c.id, c.name ${QK('FROM')} city c ${QK('WHERE')} c.id ${QK('IN')} (${QQ('?')}, ${QQ('?')}, ...)`,
 ].join('\n');
 const SQL_JOIN_JIMMER = [
   `${QC('-- 1) main pet query (owner_id kept as FK for the batch load)')}`,
   `${QK('SELECT')} p.id, p.name, p.birth_date, p.owner_id`,
-  `${QK('FROM')} pet ${QK('WHERE')} p.id > ${QQ('?')} ${QK('AND')} p.id &lt;= ${QQ('?')}`,
+  `${QK('FROM')} pet p ${QK('WHERE')} p.id > ${QQ('?')} ${QK('AND')} p.id &lt;= ${QQ('?')}`,
   ``,
   `${QC('-- 2) batched owners')}`,
   `${QK('SELECT')} o.id, o.first_name, o.last_name, o.address, o.telephone, o.city_id`,
-  `${QK('FROM')} owner ${QK('WHERE')} o.id = ${QK('ANY')}(${QQ('?')})  ${QC('-- array bind, chunked for large id sets')}`,
+  `${QK('FROM')} owner o ${QK('WHERE')} o.id = ${QK('ANY')}(${QQ('?')})  ${QC('-- array bind, chunked for large id sets')}`,
   ``,
   `${QC('-- 3) batched cities')}`,
-  `${QK('SELECT')} c.id, c.name ${QK('FROM')} city ${QK('WHERE')} c.id = ${QK('ANY')}(${QQ('?')})`,
+  `${QK('SELECT')} c.id, c.name ${QK('FROM')} city c ${QK('WHERE')} c.id = ${QK('ANY')}(${QQ('?')})`,
 ].join('\n');
 
 const CODE_PROJECTION = [
@@ -1288,7 +1367,7 @@ function lineChartHtml() {
       <polyline class="bm-lc-line" points="${pts}" stroke="${stroke}"/>${dots}</g>`;
   }).join('\n');
 
-  const legend = CHART_LIBS.map((lib) => `<button type="button" class="bm-lc-lg${lib === 'storm' ? ' storm' : ''}" data-lib="${lib}"><span class="sw"${lib === 'storm' ? '' : ` style="background:${CHART_GRAYS[lib]}"`}></span>${LIBS[lib].name}</button>`).join('');
+  const legend = CHART_LIBS.map((lib) => `<button type="button" class="bm-lc-lg${lib === 'storm' ? ' storm' : ''}" data-lib="${lib}" aria-pressed="true"><span class="sw"${lib === 'storm' ? '' : ` style="background:${CHART_GRAYS[lib]}"`}></span>${LIBS[lib].name}</button>`).join('');
 
   return `<div class="bm-lc" id="bm-lc">
     <div class="bm-lc-head"><h3>Time relative to hand-written JDBC</h3><span class="bm-lc-hint">library ÷ JDBC · lower is faster · dashed line is the JDBC baseline</span></div>
@@ -1312,27 +1391,36 @@ function lineChartHtml() {
 // Wires legend hover (highlight one framework) and click (toggle a framework) after mount.
 export function wireBenchChart() {
   const root = document.getElementById('bm-lc');
-  if (!root) return;
+  if (!root || root.dataset.bmWired) return undefined;
+  root.dataset.bmWired = '1';
   const seriesFor = (lib) => root.querySelectorAll(`.bm-lc-series[data-lib="${lib}"]`);
+  const listeners = [];
+  const listen = (el, type, fn) => { el.addEventListener(type, fn); listeners.push([el, type, fn]); };
   root.querySelectorAll('.bm-lc-lg').forEach((chip) => {
     const lib = chip.getAttribute('data-lib');
-    chip.addEventListener('mouseenter', () => {
+    const spotlight = () => {
       if (chip.classList.contains('off')) return;
       seriesFor(lib).forEach((n) => {
         n.classList.add('active');
         n.parentNode.appendChild(n); // SVG paint order: bring the highlighted series to the front
       });
-    });
-    chip.addEventListener('mouseleave', () => {
+    };
+    const unspotlight = () => {
       root.querySelectorAll('.bm-lc-series.active').forEach((n) => n.classList.remove('active'));
-    });
-    chip.addEventListener('click', () => {
+    };
+    listen(chip, 'mouseenter', spotlight);
+    listen(chip, 'mouseleave', unspotlight);
+    listen(chip, 'focus', spotlight);
+    listen(chip, 'blur', unspotlight);
+    listen(chip, 'click', () => {
       const chips = [...root.querySelectorAll('.bm-lc-lg')];
       const setOn = (c, on) => {
         c.classList.toggle('off', !on);
+        c.setAttribute('aria-pressed', String(on));
         seriesFor(c.getAttribute('data-lib')).forEach((n) => n.classList.toggle('off', !on));
       };
       // From the everything-on state, a tap isolates the tapped library against Storm.
+      // Switching off the last library other than Storm restores the full chart.
       // In any other state, a tap toggles that library.
       if (chips.every((c) => !c.classList.contains('off'))) {
         chips.forEach((c) => {
@@ -1341,13 +1429,16 @@ export function wireBenchChart() {
         });
       } else if (!chip.classList.contains('off')
           && chips.filter((c) => c !== chip && !c.classList.contains('off') && c.getAttribute('data-lib') !== 'storm').length === 0) {
-        // Switching off the last library other than Storm restores the full chart.
         chips.forEach((c) => setOn(c, true));
       } else {
         setOn(chip, chip.classList.contains('off'));
       }
     });
   });
+  return () => {
+    listeners.forEach(([el, type, fn]) => el.removeEventListener(type, fn));
+    delete root.dataset.bmWired;
+  };
 }
 
 const BM_CSS = `
@@ -1545,6 +1636,7 @@ ${charts}
       {label: 'jOOQ', file: 'Models.java', tag: 'Java', code: CODE_MODEL_JOOQ},
       {label: 'Exposed', file: 'Tables.kt', tag: 'Kotlin', code: CODE_MODEL_EXPOSED},
       {label: 'Exposed DAO', file: 'Entities.kt', tag: 'Kotlin', code: CODE_MODEL_EXPOSED_DAO},
+      {label: 'Ktorm', file: 'Tables.kt', tag: 'Kotlin', code: CODE_MODEL_KTORM},
       {label: 'Jimmer', file: 'Entities.java', tag: 'Java', code: CODE_MODEL_JIMMER},
     ],
   })}
@@ -1555,12 +1647,14 @@ ${charts}
     desc: `Load one visit by its primary key: one query, one row, the purest round-trip test. The pet reference stays lazy for every implementation (a <code>Ref</code> in Storm, a proxy or plain id elsewhere), so no join runs and the wire round trip dominates the score. What separates libraries here is per-call machinery: building the statement, binding one value and mapping one row.`,
     storm: CODE_SINGLE,
     sql: SQL_SINGLE,
+    sqlExtras: [['Ktorm', SQL_SINGLE_KTORM]],
     others: [
       {label: 'JDBC', tag: 'Java', code: CODE_SINGLE_JDBC, selected: true},
       {label: 'Hibernate', tag: 'Java', code: CODE_SINGLE_HIBERNATE},
       {label: 'jOOQ', tag: 'Java', code: CODE_SINGLE_JOOQ},
       {label: 'Exposed', tag: 'Kotlin', code: CODE_SINGLE_EXPOSED},
       {label: 'Exposed DAO', tag: 'Kotlin', code: CODE_SINGLE_EXPOSED_DAO},
+      {label: 'Ktorm', tag: 'Kotlin', code: CODE_SINGLE_KTORM},
       {label: 'Jimmer', tag: 'Java', code: CODE_SINGLE_JIMMER},
     ],
   })}
@@ -1571,13 +1665,14 @@ ${charts}
     desc: `No fetch joins to spell out and no N+1 to dodge: the entity graph declares what a Pet is, so selecting pets hydrates owner and city from one query. When reading the three sizes, note that the bound range predicate races PostgreSQL's plan-cache decision, which follows the bind values: 10-row spans keep every implementation on per-call custom planning, while 100-row spans sit at the custom-versus-generic cost crossover and can settle either way per statement, which is why the 100-row column carries a plan-regime component on top of framework overhead (a baseline faster at 100 rows than at 10 is the cached-plan signature). The 1,000-row join, where the regimes converge, is the cleanest read of per-row mapping cost.`,
     storm: CODE_JOIN,
     sql: SQL_JOIN,
-    sqlExtras: [['Exposed DAO', SQL_JOIN_EXPOSED_DAO], ['Jimmer', SQL_JOIN_JIMMER]],
+    sqlExtras: [['Exposed DAO', SQL_JOIN_EXPOSED_DAO], ['Ktorm', SQL_JOIN_KTORM], ['Jimmer', SQL_JOIN_JIMMER]],
     others: [
       {label: 'JDBC', tag: 'Java', code: CODE_JOIN_JDBC, selected: true},
       {label: 'Hibernate', tag: 'Java', code: CODE_JOIN_HIBERNATE},
       {label: 'jOOQ', tag: 'Java', code: CODE_JOIN_JOOQ},
       {label: 'Exposed', tag: 'Kotlin', code: CODE_JOIN_EXPOSED},
       {label: 'Exposed DAO', tag: 'Kotlin', code: CODE_JOIN_EXPOSED_DAO},
+      {label: 'Ktorm', tag: 'Kotlin', code: CODE_JOIN_KTORM},
       {label: 'Jimmer', tag: 'Java', code: CODE_JOIN_JIMMER},
     ],
   })}
@@ -1594,6 +1689,7 @@ ${charts}
       {label: 'jOOQ', tag: 'Java', code: CODE_PROJECTION_JOOQ},
       {label: 'Exposed', tag: 'Kotlin', code: CODE_PROJECTION_EXPOSED},
       {label: 'Exposed DAO', tag: 'Kotlin', code: CODE_PROJECTION_EXPOSED_DAO},
+      {label: 'Ktorm', tag: 'Kotlin', code: CODE_PROJECTION_KTORM},
       {label: 'Jimmer', tag: 'Java', code: CODE_PROJECTION_JIMMER},
     ],
   })}
@@ -1639,13 +1735,14 @@ ${charts}
     desc: `Load the owners of a city, each with their list of pets. Storm, JDBC, Exposed and Ktorm run one three-table join and group the rows during hydration; in Storm, repeated owners deduplicate to the same instance, so grouping is an identity operation rather than a hash of every field. jOOQ nests the pets server-side with <code>MULTISET</code>, Hibernate collapses its <code>join fetch</code> cartesian with <code>distinct</code>, and Exposed DAO and Jimmer load the pets in a follow-up batched query.`,
     storm: CODE_GRAPH_STORM,
     sql: SQL_GRAPH,
-    sqlExtras: [['Hibernate', SQL_GRAPH_HIBERNATE], ['jOOQ', SQL_GRAPH_JOOQ], ['Exposed DAO', SQL_GRAPH_EXPOSED_DAO], ['Jimmer', SQL_GRAPH_JIMMER]],
+    sqlExtras: [['Hibernate', SQL_GRAPH_HIBERNATE], ['jOOQ', SQL_GRAPH_JOOQ], ['Exposed DAO', SQL_GRAPH_EXPOSED_DAO], ['Ktorm', SQL_GRAPH_KTORM], ['Jimmer', SQL_GRAPH_JIMMER]],
     others: [
       {label: 'JDBC', tag: 'Java', code: CODE_GRAPH_JDBC, selected: true},
       {label: 'Hibernate', tag: 'Java', code: CODE_GRAPH_HIBERNATE},
       {label: 'jOOQ', tag: 'Java', code: CODE_GRAPH_JOOQ},
       {label: 'Exposed', tag: 'Kotlin', code: CODE_GRAPH_EXPOSED},
       {label: 'Exposed DAO', tag: 'Kotlin', code: CODE_GRAPH_EXPOSED_DAO},
+      {label: 'Ktorm', tag: 'Kotlin', code: CODE_GRAPH_KTORM},
       {label: 'Jimmer', tag: 'Java', code: CODE_GRAPH_JIMMER},
     ],
   })}
@@ -1681,6 +1778,7 @@ ${charts}
       {label: 'jOOQ', tag: 'Java', code: CODE_UPDATE_JOOQ},
       {label: 'Exposed', tag: 'Kotlin', code: CODE_UPDATE_EXPOSED},
       {label: 'Exposed DAO', tag: 'Kotlin', code: CODE_UPDATE_EXPOSED_DAO},
+      {label: 'Ktorm', tag: 'Kotlin', code: CODE_UPDATE_KTORM},
       {label: 'Jimmer', tag: 'Java', code: CODE_UPDATE_JIMMER},
     ],
   })}
@@ -1755,7 +1853,14 @@ ${FOOT_HTML}
 }
 
 export default function Benchmarks() {
-  useEffect(() => { wireSqlToggles(); wireBenchChart(); }, []);
+  useEffect(() => {
+    const cleanupToggles = wireSqlToggles();
+    const cleanupChart = wireBenchChart();
+    return () => {
+      if (typeof cleanupToggles === 'function') cleanupToggles();
+      if (typeof cleanupChart === 'function') cleanupChart();
+    };
+  }, []);
   const url = 'https://orm.st/benchmarks';
   return (
     <>
