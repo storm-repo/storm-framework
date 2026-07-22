@@ -183,7 +183,9 @@ data class UserRole(
     @PK val userRolePk: UserRolePk,
     @FK @Persist(insertable = false, updatable = false) val user: User,
     @FK @Persist(insertable = false, updatable = false) val role: Role
-) : Entity<UserRolePk>
+) : Entity<UserRolePk> {
+    constructor(user: User, role: Role) : this(UserRolePk(user.id, role.id), user, role)
+}
 ```
 
 </TabItem>
@@ -195,11 +197,18 @@ record UserRolePk(int userId, int roleId) {}
 record UserRole(@PK UserRolePk userRolePk,
                 @FK @Persist(insertable = false, updatable = false) User user,
                 @FK @Persist(insertable = false, updatable = false) Role role
-) implements Entity<UserRolePk> {}
+) implements Entity<UserRolePk> {
+
+    public UserRole(User user, Role role) {
+        this(new UserRolePk(user.id(), role.id()), user, role);
+    }
+}
 ```
 
 </TabItem>
 </Tabs>
+
+The secondary constructor derives the key components from the referenced entities, so call sites pass the entities and never spell out the composite key.
 
 Write sets recognize this shape. A non-insertable foreign key field whose column value is carried by an insertable component of the primary key participates in the insertion closure like any other edge: an unsaved entity held by the field is discovered and inserted first, and its generated key is written into the carrying key component before the junction row is inserted. The key components for already-persisted entities are set as usual, so mixed rows work naturally:
 
@@ -208,8 +217,8 @@ Write sets recognize this shape. A non-insertable foreign key field whose column
 
 ```kotlin
 val user = User(name = "Alice")                               // unsaved
-val role = orm.entity<Role>().findByName("admin")             // saved
-val userRole = UserRole(UserRolePk(user.id, role.id), user, role)
+val role = orm.get(Role_.name eq "admin")                     // saved
+val userRole = UserRole(user, role)
 
 orm.writeSet().insert(userRole)           // user is inserted first; its key lands in userRolePk.userId
 ```
@@ -219,8 +228,8 @@ orm.writeSet().insert(userRole)           // user is inserted first; its key lan
 
 ```java
 var user = new User("Alice");                                 // unsaved
-var role = orm.entity(Role.class).findByName("admin");        // saved
-var userRole = new UserRole(new UserRolePk(user.id(), role.id()), user, role);
+var role = orm.entity(Role.class).getBy(Role_.name, "admin"); // saved
+var userRole = new UserRole(user, role);
 
 orm.writeSet().insert(userRole);          // user is inserted first; its key lands in userRolePk.userId
 ```
