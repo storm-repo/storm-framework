@@ -1333,7 +1333,9 @@ export function wireBenchChart() {
           const l = c.getAttribute('data-lib');
           setOn(c, l === lib || l === 'storm');
         });
-      } else if (!chip.classList.contains('off') && chips.filter((c) => !c.classList.contains('off')).length === 1) {
+      } else if (!chip.classList.contains('off')
+          && chips.filter((c) => c !== chip && !c.classList.contains('off') && c.getAttribute('data-lib') !== 'storm').length === 0) {
+        // Switching off the last library other than Storm restores the full chart.
         chips.forEach((c) => setOn(c, true));
       } else {
         setOn(chip, chip.classList.contains('off'));
