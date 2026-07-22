@@ -372,6 +372,7 @@ val fetched: Visit = orm.writeSet().insertAndFetch(visit)
 
 // Keys only, in input order, no re-read: the middle tier between insert and insertAndFetch
 val ids: List<Long> = orm.writeSet().insertAndFetchIds(visits)
+val two: List<Long> = orm.writeSet().insertAndFetchIds(pet, visit)   // vararg extension; one shared id type
 
 // Scoped block; each verb executes immediately, wrap in a transaction for atomicity
 transaction {

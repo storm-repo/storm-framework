@@ -139,6 +139,30 @@ inline fun <R> RepositoryLookup.writeSet(block: WriteSet.() -> R): R = writeSet(
 inline fun <R> Repository.writeSet(block: WriteSet.() -> R): R = writeSet().block()
 
 /**
+ * Inserts the given entities and their insertion closure and returns the primary keys of the explicit members, in
+ * argument order; see [WriteSet.insertAndFetchIds].
+ *
+ * The batch is homogeneous in its id type; entity types may differ as long as they share it. The vararg form is a
+ * Kotlin extension because the interface cannot offer it: `@SafeVarargs` is not applicable to interface default
+ * methods, so a Java-side generic vararg would emit heap-pollution warnings at every call site.
+ *
+ * @since 1.13
+ */
+fun <ID : Any> WriteSet.insertAndFetchIds(vararg entities: Entity<ID>): List<ID> = insertAndFetchIds(entities.asList())
+
+/**
+ * Upserts the given entities and their insertion closure and returns the primary keys of the explicit members, in
+ * argument order; see [WriteSet.upsertAndFetchIds].
+ *
+ * The batch is homogeneous in its id type; entity types may differ as long as they share it. The vararg form is a
+ * Kotlin extension because the interface cannot offer it: `@SafeVarargs` is not applicable to interface default
+ * methods, so a Java-side generic vararg would emit heap-pollution warnings at every call site.
+ *
+ * @since 1.13
+ */
+fun <ID : Any> WriteSet.upsertAndFetchIds(vararg entities: Entity<ID>): List<ID> = upsertAndFetchIds(entities.asList())
+
+/**
  * Returns the repository for entity type [T] with primary key type [ID].
  *
  * The primary key type can be inferred from the entity declaration with the underscore operator:

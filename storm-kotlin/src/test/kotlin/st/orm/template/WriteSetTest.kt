@@ -14,6 +14,7 @@ import org.springframework.test.context.jdbc.Sql
 import org.springframework.test.context.junit.jupiter.SpringExtension
 import st.orm.PersistenceException
 import st.orm.repository.entity
+import st.orm.repository.insertAndFetchIds
 import st.orm.repository.writeSet
 import st.orm.template.model.Address
 import st.orm.template.model.City
@@ -125,5 +126,16 @@ open class WriteSetTest(
         orm.entity<Owner, _>().findAll().none { it.firstName == "Vera" } shouldBe true
         orm.entity<Pet, _>().findAll().none { it.name == "VarargPet" } shouldBe true
         orm.entity<Visit, _>().findAll().none { it.description == "Vararg visit" } shouldBe true
+    }
+
+    @Test
+    fun `insertAndFetchIds should accept entities as varargs`() {
+        val owner = newOwner("Ida")
+        val pet = Pet(name = "VarargIdsPet", birthDate = LocalDate.of(2024, 5, 5), type = dog, owner = owner)
+        val visit = Visit(visitDate = LocalDate.of(2026, 7, 22), description = "Vararg ids visit", pet = pet, timestamp = Instant.now())
+        val ids = orm.writeSet().insertAndFetchIds(pet, visit)
+        ids shouldHaveSize 2
+        orm.entity<Pet, _>().findAll().single { it.name == "VarargIdsPet" }.id shouldBe ids[0]
+        orm.entity<Visit, _>().findAll().single { it.description == "Vararg ids visit" }.id shouldBe ids[1]
     }
 }

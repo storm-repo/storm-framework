@@ -119,12 +119,15 @@ Visit fetchedVisit = orm.writeSet().insertAndFetch(visit);       // single root,
 
 `insertAndFetchIds` returns just the primary keys of the explicit members, in input order, without re-reading the rows: the keys come from the insert itself. It is the middle tier between `insert` (nothing back) and `insertAndFetch` (rows re-read with database-applied state), and the natural fit for a create endpoint that responds with ids. The batch is homogeneous in its id type; entity types may differ as long as they share it, and a batch that mixes id types keeps using `insertAndFetch`, where each returned entity carries its own id.
 
+Kotlin additionally offers the id-returning methods as vararg extension functions (in `st.orm.repository`). The interface itself cannot declare them: `@SafeVarargs` is not applicable to interface default methods, so a Java-side generic vararg would emit heap-pollution warnings at every call site. Java call sites pass `List.of(...)`, which supplies the varargs ergonomics there.
+
 <Tabs groupId="language">
 <TabItem value="kotlin" label="Kotlin" default>
 
 ```kotlin
-val ids: List<Long> = orm.writeSet().insertAndFetchIds(visits)   // keys in input order, no re-read
-val id: Long = orm.writeSet().insertAndFetchId(visit)            // single root
+val ids: List<Long> = orm.writeSet().insertAndFetchIds(visits)     // keys in input order, no re-read
+val two: List<Long> = orm.writeSet().insertAndFetchIds(pet, visit) // vararg extension; one shared id type
+val id: Long = orm.writeSet().insertAndFetchId(visit)              // single root
 ```
 
 </TabItem>
