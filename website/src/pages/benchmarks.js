@@ -1293,7 +1293,13 @@ function lineChartHtml() {
   return `<div class="bm-lc" id="bm-lc">
     <div class="bm-lc-head"><h3>Time relative to hand-written JDBC</h3><span class="bm-lc-hint">library ÷ JDBC · lower is faster · dashed line is the JDBC baseline</span></div>
     <svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Each framework's time as a multiple of the JDBC baseline across the twelve workloads">
-      <defs><linearGradient id="bmlcg" x1="0" y1="0" x2="1" y2="0">
+      <defs><linearGradient id="bmlcs" x1="0" y1="0" x2="1" y2="0">
+        <stop offset="0%" stop-color="#e6e9ef"/><stop offset="24%" stop-color="#b6bcc8"/>
+        <stop offset="48%" stop-color="#8b919d"/><stop offset="54%" stop-color="#7e848f"/>
+        <stop offset="74%" stop-color="#adb3bf"/><stop offset="92%" stop-color="#e2e5ec"/>
+        <stop offset="100%" stop-color="#9aa0ac"/>
+      </linearGradient>
+      <linearGradient id="bmlcg" x1="0" y1="0" x2="1" y2="0">
         <stop offset="0%" stop-color="#a78bfa"/><stop offset="55%" stop-color="#818cf8"/><stop offset="100%" stop-color="#7dd3fc"/>
       </linearGradient></defs>
       ${grid}${yLabels}${xLabels}
@@ -1389,8 +1395,9 @@ const BM_CSS = `
   .bm-lc-series{transition:opacity .18s ease}
   .bm-lc-series .bm-lc-line{transition:stroke-width .15s ease}
   .bm-lc-series.storm .bm-lc-line{stroke-width:3}
-  .bm-lc-series.active .bm-lc-line{stroke-width:3.5;filter:brightness(1.5)}
-  .bm-lc-series.active .bm-lc-dot{filter:brightness(1.5)}
+  .bm-lc-series.active:not(.storm) .bm-lc-line{stroke:url(#bmlcs);stroke-width:3.5}
+  .bm-lc-series.active:not(.storm) .bm-lc-dot{fill:#dfe3ea}
+  .bm-lc-series.active.storm .bm-lc-line{stroke-width:3.5;filter:brightness(1.15)}
   .bm-lc-series.off{display:none}
   .bm-lc-legend{display:flex;flex-wrap:wrap;align-items:center;gap:6px 8px;margin-top:14px;padding-top:12px;border-top:1px solid #1c1c24}
   .bm-lc-lg{display:inline-flex;align-items:center;gap:8px;font-family:var(--sans);font-size:12.5px;color:var(--body);
