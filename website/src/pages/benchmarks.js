@@ -1150,7 +1150,7 @@ const CODE_DYNAMIC_JIMMER = [
 // ---- Create then amend ----
 
 const CODE_MULTI = [
-  `${K('return')} ${F('transactionBlocking')} {`,
+  `${K('return')} ${F('transaction')} {`,
   `    ${K('val')} visit = ${T('Visit')}(pet = ${F('refById')}&lt;${T('Pet')}&gt;(petId), visitDate = date, description = text)`,
   `    ${K('val')} id = visits.${F('insertAndFetchId')}(visit)`,
   `    visits.${F('update')}(visit.${F('copy')}(id = id, description = ${S('"${visit.description} (rechecked)"')}))`,
@@ -1250,7 +1250,7 @@ const CODE_GINSERT = [
   `}`,
   `${C('// Only the visits are passed: the write set discovers the unsaved pets and owners through the')}`,
   `${C('// refs, writes one multi-row statement per type per dependency level and propagates the keys.')}`,
-  `${K('return')} ${F('transactionBlocking')} { orm.${F('writeSet')}().${F('insertAndFetchIds')}(visits) }`,
+  `${K('return')} ${F('transaction')} { orm.${F('writeSet')}().${F('insertAndFetchIds')}(visits) }`,
 ].join('\n');
 const SQL_GINSERT = [
   `${QK('INSERT INTO')} owner (first_name, last_name, address, telephone, city_id)`,
