@@ -91,7 +91,7 @@ function buildBody() {
 ${navHtml('comparison')}
 
 <div class="art">
-  <h1>How Storm<br><span class="grad">compares.</span></h1>
+  <h1>Your options.<br><span class="grad">Side by side.</span></h1>
   <p class="dek">There is no universally best data framework. Storm is built for teams who want explicit, predictable database access with concise, immutable models. Here is where it sits next to the alternatives, and where each of them is the better call.</p>
 
   <h2>At a glance</h2>

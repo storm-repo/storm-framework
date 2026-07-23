@@ -17,7 +17,7 @@ const BODY = `
 ${navHtml('tutorials')}
 
 <div class="tuthero">
-  <h1>A fresh wind<br><span class="grad">for your data layer.</span></h1>
+  <h1>Familiar Tasks.<br><span class="grad">Simpler Solutions.</span></h1>
   <p class="sub">Task-focused tutorials for engineers coming from JPA, Hibernate, or Exposed, plus how-to recipes for Storm itself. Each comparison takes a persistence task you already know, shows both approaches side by side, and lets you inspect the SQL they produce.</p>
   <div class="catnav">
     <a href="#start-here">Start here<b>1</b></a>
