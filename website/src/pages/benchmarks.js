@@ -28,73 +28,75 @@ const WORKLOADS = [
     id: 'singleRowById',
     title: 'Primary key lookup',
     desc: 'Load one visit by primary key. The purest round-trip test: one query, one row.',
-    results: {jdbc: [179.8, 3.5], storm: [197.7, 1.9], hibernate: [197.7, 4.8], jooq: [206.8, 3.5], jimmer: [209.2, 1.0], ktorm: [210.4, 2.5], exposed: [362.5, 1.2], exposedDao: [376.9, 2.4]},
-  },
-  {
-    id: 'joinWithMapping10',
-    title: 'Three-table join · 10 rows',
-    desc: 'Load pets with owner and city hydrated through a single three-table join.',
-    results: {jdbc: [639.0, 4.1], storm: [671.3, 5.4], hibernate: [701.4, 93.6], jooq: [719.9, 159.9], jimmer: [752.4, 14.6], ktorm: [782.7, 286.7], exposed: [878.7, 68.5], exposedDao: [890.3, 1.9]},
-  },
-  {
-    id: 'joinWithMapping100',
-    title: 'Three-table join · 100 rows',
-    desc: 'The same join at 100 rows. Hydration cost starts to separate the field.',
-    results: {jdbc: [554.9, 5.6], storm: [903.9, 4.7], jooq: [1036.2, 18.9], hibernate: [1040.4, 31.3], exposed: [1108.6, 18.8], ktorm: [1232.3, 26.0], jimmer: [1242.9, 40.7], exposedDao: [1909.6, 33.2]},
-  },
-  {
-    id: 'joinWithMapping1000',
-    title: 'Three-table join · 1,000 rows',
-    desc: 'The same join at 1,000 rows. Row mapping now dominates the round trip.',
-    results: {jdbc: [3207.4, 52.0], storm: [3243.2, 32.0], exposed: [3891.4, 83.8], jooq: [4536.0, 58.6], hibernate: [4935.1, 91.3], exposedDao: [6538.6, 134.7], ktorm: [6740.5, 272.3], jimmer: [6964.1, 184.0]},
+    results: {jdbc: [178.7, 1.0], hibernate: [195.5, 1.9], storm: [196.3, 1.4], jimmer: [203.6, 2.3], jooq: [205.2, 1.4], ktorm: [209.3, 2.4], exposed: [353.0, 2.2], exposedDao: [370.3, 1.9]},
+    mark: ['exposed', 'exposedDao'],
+    note: '† Mandatory transaction overhead.',
   },
   {
     id: 'projection',
     title: 'Projection',
     desc: 'Three columns across three tables into a flat DTO, one hundred rows.',
-    results: {jdbc: [924.3, 6.8], hibernate: [953.2, 18.8], storm: [954.8, 12.1], jimmer: [970.5, 16.4], ktorm: [973.5, 9.4], jooq: [975.9, 4.6], exposed: [1160.4, 8.1], exposedDao: [1163.8, 25.5]},
-  },
-  {
-    id: 'keyset',
-    title: 'Keyset pagination',
-    desc: 'One page of 20 rows by keyset (seek) pagination, object graph materialized.',
-    results: {jdbc: [393.9, 3.5], storm: [447.4, 11.9], hibernate: [488.5, 6.3], jooq: [496.4, 5.5], exposed: [637.0, 5.6], jimmer: [830.2, 5.2], exposedDao: [918.7, 8.1], ktorm: [990.9, 45.4]},
-  },
-  {
-    id: 'dynamic',
-    title: 'Dynamic query',
-    desc: 'A filtered search assembled at runtime from a cycling set of optional predicates.',
-    results: {jdbc: [721.0, 28.3], hibernate: [898.1, 12.6], storm: [904.3, 10.0], ktorm: [912.1, 8.8], jooq: [919.8, 6.3], jimmer: [931.6, 5.2], exposed: [1111.8, 3.3], exposedDao: [1128.6, 32.2]},
-  },
-  {
-    id: 'objectGraph',
-    title: 'Object graph',
-    desc: 'Load the owners of a city, each with their list of pets, grouped one-to-many.',
-    results: {jooq: [901.3, 20.1], jdbc: [1083.8, 15.1], storm: [1207.5, 12.3], hibernate: [1369.4, 32.6], exposed: [1438.1, 9.4], jimmer: [1779.8, 38.2], exposedDao: [1914.1, 26.2], ktorm: [1937.8, 55.7]},
-  },
-  {
-    id: 'batchInsert',
-    title: 'Batch insert',
-    desc: 'Insert 100 visits atomically and fetch their database-generated keys.',
-    results: {jdbc: [3313.2, 124.5], storm: [3557.7, 90.4], ktorm: [3650.9, 43.4], jooq: [3817.0, 92.6], hibernate: [6184.8, 67.5], exposed: [6264.3, 316.5], jimmer: [6370.2, 46.7], exposedDao: [6839.2, 56.0]},
-  },
-  {
-    id: 'updateById',
-    title: 'Read, modify, update',
-    desc: 'Read one owner, change one field, persist atomically with one UPDATE.',
-    results: {jdbc: [535.7, 3.2], exposed: [560.8, 3.3], storm: [574.4, 6.0], hibernate: [575.2, 7.9], exposedDao: [593.4, 6.2], ktorm: [594.3, 4.0], jimmer: [613.4, 3.8], jooq: [732.8, 3.1]},
+    results: {jdbc: [949.2, 18.7], hibernate: [961.4, 12.6], storm: [973.8, 6.5], ktorm: [985.0, 9.3], jimmer: [990.9, 4.9], jooq: [999.8, 49.2], exposed: [1181.0, 9.0], exposedDao: [1195.7, 13.4]},
   },
   {
     id: 'multiStatement',
     title: 'Create then amend',
     desc: 'Insert a visit, then amend it by its generated key, in one transaction.',
-    results: {jdbc: [616.7, 9.3], hibernate: [657.7, 7.4], storm: [658.4, 4.5], exposed: [662.3, 4.6], ktorm: [667.6, 8.2], jimmer: [705.0, 4.6], exposedDao: [707.6, 3.6], jooq: [815.3, 2.6]},
+    results: {jdbc: [611.1, 1.4], hibernate: [646.0, 4.0], exposed: [649.7, 2.9], storm: [652.6, 2.0], ktorm: [662.4, 3.9], exposedDao: [688.9, 6.3], jimmer: [689.8, 3.5], jooq: [809.8, 7.1]},
+  },
+  {
+    id: 'updateById',
+    title: 'Read, modify, update',
+    desc: 'Read one owner, change one field, persist atomically with one UPDATE.',
+    results: {jdbc: [535.1, 17.4], exposed: [555.4, 3.1], hibernate: [570.9, 3.7], storm: [572.9, 22.8], ktorm: [588.3, 2.9], exposedDao: [588.4, 2.7], jimmer: [610.3, 5.3], jooq: [731.0, 6.3]},
+  },
+  {
+    id: 'dynamic',
+    title: 'Dynamic query',
+    desc: 'A filtered search assembled at runtime from a cycling set of optional predicates.',
+    results: {jdbc: [738.1, 8.3], hibernate: [907.6, 7.6], storm: [917.4, 3.6], ktorm: [926.0, 9.0], jooq: [933.6, 2.3], jimmer: [937.8, 5.7], exposed: [1118.0, 9.7], exposedDao: [1128.5, 7.4]},
   },
   {
     id: 'graphInsert',
     title: 'Graph insert',
     desc: 'Write 20 owner to pet to visit graphs, generated keys threaded level to level.',
-    results: {jdbc: [2398.1, 31.1], ktorm: [2636.9, 27.3], storm: [2638.8, 44.9], jooq: [2816.3, 58.8], hibernate: [3839.9, 47.1], exposed: [3974.5, 20.1], jimmer: [4019.6, 29.2], exposedDao: [4028.2, 171.1]},
+    results: {jdbc: [2382.8, 41.1], ktorm: [2637.9, 50.3], storm: [2645.5, 27.9], jooq: [2830.4, 19.1], hibernate: [3783.9, 33.4], jimmer: [4042.7, 25.8], exposed: [4081.9, 94.9], exposedDao: [4138.2, 102.4]},
+  },
+  {
+    id: 'objectGraph',
+    title: 'Object graph',
+    desc: 'Load the owners of a city, each with their list of pets, grouped one-to-many.',
+    results: {jooq: [900.8, 10.0], jdbc: [1057.4, 3.5], storm: [1189.7, 10.8], exposed: [1389.0, 11.7], hibernate: [1398.8, 16.3], jimmer: [1759.7, 17.5], exposedDao: [1930.2, 30.7], ktorm: [1933.9, 57.4]},
+  },
+  {
+    id: 'batchInsert',
+    title: 'Batch insert',
+    desc: 'Insert 100 visits atomically and fetch their database-generated keys.',
+    results: {jdbc: [3318.6, 44.9], storm: [3543.3, 12.7], ktorm: [3600.5, 36.5], jooq: [3807.5, 39.4], hibernate: [5865.2, 49.7], jimmer: [6167.6, 44.5], exposed: [6443.3, 26.1], exposedDao: [6666.2, 62.1]},
+  },
+  {
+    id: 'keyset',
+    title: 'Keyset pagination',
+    desc: 'One page of 20 rows by keyset (seek) pagination, object graph materialized.',
+    results: {jdbc: [385.3, 7.7], storm: [448.3, 1.8], hibernate: [471.0, 15.4], jooq: [495.0, 2.7], exposed: [629.5, 7.5], jimmer: [812.0, 18.8], exposedDao: [914.2, 9.0], ktorm: [1001.9, 14.7]},
+  },
+  {
+    id: 'joinWithMapping10',
+    title: 'Three-table join · 10 rows',
+    desc: 'Load pets with owner and city hydrated through a single three-table join.',
+    results: {jdbc: [622.4, 11.4], storm: [654.8, 15.1], hibernate: [676.0, 29.6], jooq: [698.3, 3.1], jimmer: [747.8, 3.0], ktorm: [788.2, 13.5], exposed: [875.8, 5.0], exposedDao: [881.4, 2.4]},
+  },
+  {
+    id: 'joinWithMapping100',
+    title: 'Three-table join · 100 rows',
+    desc: 'The same join at 100 rows. Hydration cost starts to separate the field.',
+    results: {jdbc: [724.3, 5.6], storm: [874.9, 14.9], jooq: [1041.8, 9.9], exposed: [1072.9, 18.9], hibernate: [1083.5, 36.5], ktorm: [1232.6, 22.0], jimmer: [1255.6, 26.2], exposedDao: [1903.8, 28.3]},
+  },
+  {
+    id: 'joinWithMapping1000',
+    title: 'Three-table join · 1,000 rows',
+    desc: 'The same join at 1,000 rows. Row mapping now dominates the round trip.',
+    results: {jdbc: [2339.3, 23.5], storm: [3126.3, 37.3], exposed: [3660.9, 184.4], jooq: [4448.9, 32.3], hibernate: [4696.8, 149.5], exposedDao: [6216.4, 80.3], ktorm: [6608.8, 197.7], jimmer: [6929.4, 73.0]},
   },
 ];
 
@@ -112,8 +114,9 @@ function chartHtml(w) {
     const meta = LIBS[lib];
     const width = Math.max(1.5, (mean / max) * 100);
     const leading = lib !== 'jdbc' && mean <= frameworkBest * 1.02;
+    const marked = (w.mark || []).includes(lib);
     return `<div class="bm-row ${meta.cls}${leading ? ' win' : ''}">
-      <span class="bm-name"${leading ? ' title="within 2% of the fastest framework"' : ''}>${meta.name}</span>
+      <span class="bm-name"${leading ? ' title="within 2% of the fastest framework"' : ''}>${meta.name}${marked ? '<sup class="bm-mark">†</sup>' : ''}</span>
       <span class="bm-track"><span class="bm-bar" style="width:${width.toFixed(1)}%"></span></span>
       <span class="bm-val">${fmt(mean)} <em>+${spread >= 1000 ? (spread / 1000).toFixed(1) + ' ms' : Math.round(spread) + ' µs'}</em></span>
     </div>`;
@@ -127,24 +130,26 @@ function chartHtml(w) {
 }
 
 // Queries LOC: the benchmark workload file per library, all twelve workloads, including its row mapping.
-// Entities LOC (below): the entity or table definition file. Both are non-blank, non-comment, non-import
-// source lines counted the same way. Generated code (Storm's metamodel, jOOQ's table classes) and the
-// result types shared by every implementation in the common module are excluded on all sides.
+// Entities LOC (below): the entity or table definition file. Both are non-blank, non-comment, non-import,
+// non-package source lines counted the same way; purpose-built workload shapes (fairness rule 3) count
+// toward queries rather than the model. Generated code (Storm's metamodel, jOOQ's table classes) and the
+// result types shared by every implementation in the common module are excluded on all sides. The numbers
+// are the output of scripts/count_loc.py in the benchmark repository.
 const LOC = [
-  ['storm', 150, []],
-  ['ktorm', 172, []],
-  ['hibernate', 187, ['string queries']],
-  ['exposedDao', 192, []],
-  ['exposed', 193, ['hand-mapped rows']],
-  ['jooq', 200, ['hand-mapped rows']],
-  ['jimmer', 272, []],
-  ['jdbc', 400, ['hand-mapped rows', 'string queries']],
+  ['storm', 161, []],
+  ['ktorm', 177, []],
+  ['hibernate', 188, ['string queries']],
+  ['exposedDao', 190, []],
+  ['exposed', 191, ['hand-mapped rows']],
+  ['jooq', 194, ['hand-mapped rows']],
+  ['jimmer', 270, []],
+  ['jdbc', 395, ['hand-mapped rows', 'string queries']],
 ];
 
 // The entity or table definition file per library, same counting rule. Result types shared by every
 // implementation live in the common module and are excluded on all sides.
 const MODEL_LOC = [
-  ['storm', 41], ['jimmer', 57], ['exposed', 58], ['ktorm', 60], ['exposedDao', 74], ['hibernate', 139],
+  ['storm', 31], ['jimmer', 57], ['exposed', 58], ['ktorm', 60], ['exposedDao', 74], ['hibernate', 141],
 ];
 
 function modelLocHtml() {
@@ -171,9 +176,9 @@ function locHtml() {
     </div>`).join('');
   return `<div class="bm-card bm-loc">
     <h3>Queries LOC</h3>
-    <p class="bm-desc">The workload file for all twelve workloads, including its row mapping, counted as non-blank, non-comment, non-import lines. Generated code is excluded for the two libraries that use it, Storm's metamodel and jOOQ's table classes, and result types shared across every implementation are excluded on all sides. Purpose-built shapes defined on top of a library's regular entity to speed a workload count toward its query lines.</p>
+    <p class="bm-desc">The workload file for all twelve workloads, including its row mapping, counted as non-blank, non-comment, non-import, non-package lines. Generated code is excluded for the two libraries that use it, Storm's metamodel and jOOQ's table classes, and result types shared across every implementation are excluded on all sides. Purpose-built shapes defined on top of a library's regular entity to speed a workload count toward its query lines.</p>
     ${rows}
-    <p class="bm-note">Storm implements all twelve workloads in the fewest lines; every other implementation needs 15% to 167% more. Beyond the line count, the labels show what a low number can leave unsaid: hand-mapped rows are written and maintained by hand, and string queries are not compile-checked.</p>
+    <p class="bm-note">Storm implements all twelve workloads in the fewest lines; every other implementation needs 10% to 145% more. The counts come from <code>scripts/count_loc.py</code> in the benchmark repository, so they can be reverified against any checkout. Beyond the line count, the labels show what a low number can leave unsaid: hand-mapped rows are written and maintained by hand, and string queries are not compile-checked.</p>
   </div>`;
 }
 
@@ -1329,8 +1334,8 @@ const CODE_GINSERT_JIMMER = [
 // within 2% of the fastest share the lead: differences that small are within run-to-run variation.
 const CHART_LIBS = ['storm', 'hibernate', 'jooq', 'exposed', 'exposedDao', 'ktorm', 'jimmer'];
 const CHART_GRAYS = {
-  hibernate: '#a6a6b0', jooq: '#90909b', exposed: '#7b7b86', exposedDao: '#5d5d67',
-  ktorm: '#6c6c76', jimmer: '#86868f',
+  hibernate: '#b6b6c0', jooq: '#a2a2ad', exposed: '#8d8d99', exposedDao: '#6f6f7a',
+  ktorm: '#7e7e89', jimmer: '#9898a2',
 };
 const CHART_LABELS = {
   singleRowById: 'PK lookup', joinWithMapping10: 'join·10', joinWithMapping100: 'join·100',
@@ -1340,37 +1345,69 @@ const CHART_LABELS = {
 };
 
 function lineChartHtml() {
-  const W = 1000, H = 470, m = {t: 18, r: 46, b: 54, l: 44};
+  const W = 1000, H = 470, m = {t: 18, r: 118, b: 54, l: 44};
   const pw = W - m.l - m.r, ph = H - m.t - m.b;
-  const yMin = 0.8, yMax = 4;
-  const x = (i) => m.l + i * (pw / (WORKLOADS.length - 1));
+  const yMin = 0.8, yMax = 3;
   const y = (v) => m.t + ph - ((Math.min(v, yMax) - yMin) / (yMax - yMin)) * ph;
   const ratio = (w, lib) => w.results[lib][0] / w.results.jdbc[0];
+  // The x-axis opens with the primary key lookup, every application's entry point, then sorts
+  // the rest by the field's worst multiple so the envelope opens toward the right: the harder
+  // the workload, the further the field drifts from JDBC. The three join sizes travel as one
+  // family (keyed by the family's worst multiple, ascending row count inside) so the hydration
+  // ramp reads as one story and closes the chart. The per-workload cards above follow the same
+  // order, frozen from this dataset.
+  const maxRatio = (w) => Math.max(...CHART_LIBS.map((lib) => ratio(w, lib)));
+  const joinIds = ['joinWithMapping10', 'joinWithMapping100', 'joinWithMapping1000'];
+  const familyMax = Math.max(...WORKLOADS.filter((w) => joinIds.includes(w.id)).map(maxRatio));
+  const sortKey = (w) => (joinIds.includes(w.id) ? familyMax : maxRatio(w));
+  const chartWorkloads = [
+    ...WORKLOADS.filter((w) => w.id === 'singleRowById'),
+    ...WORKLOADS.filter((w) => w.id !== 'singleRowById')
+      .sort((a, b) => sortKey(a) - sortKey(b) || joinIds.indexOf(a.id) - joinIds.indexOf(b.id)),
+  ];
+  const x = (i) => m.l + i * (pw / (chartWorkloads.length - 1));
 
-  const grid = [1, 2, 3, 4].map((v) =>
+  const grid = [1, 2, 3].map((v) =>
     v === 1
       ? `<line class="bm-lc-baseline" x1="${m.l}" y1="${y(1)}" x2="${W - m.r}" y2="${y(1)}"/>`
       : `<line class="bm-lc-grid" x1="${m.l}" y1="${y(v)}" x2="${W - m.r}" y2="${y(v)}"/>`).join('');
-  const yLabels = [1, 2, 3, 4].map((v) =>
+  const yLabels = [1, 2, 3].map((v) =>
     `<text class="bm-lc-ylab" x="${m.l - 9}" y="${y(v) + 3.5}" text-anchor="end">${v}×</text>`).join('');
-  const xLabels = WORKLOADS.map((w, i) =>
-    `<text class="bm-lc-xlab" x="${x(i)}" y="${m.t + ph + 18}" text-anchor="middle">${CHART_LABELS[w.id] || w.id}</text>`).join('');
+  // Two staggered label rows: the pitch is narrower than the longest names, so neighbors
+  // alternate baselines instead of colliding.
+  const xLabels = chartWorkloads.map((w, i) =>
+    `<text class="bm-lc-xlab" x="${x(i)}" y="${m.t + ph + (i % 2 === 0 ? 18 : 34)}" text-anchor="middle">${CHART_LABELS[w.id] || w.id}</text>`).join('');
 
   const series = CHART_LIBS.map((lib) => {
-    const pts = WORKLOADS.map((w, i) => `${x(i).toFixed(1)},${y(ratio(w, lib)).toFixed(1)}`).join(' ');
+    const pts = chartWorkloads.map((w, i) => `${x(i).toFixed(1)},${y(ratio(w, lib)).toFixed(1)}`).join(' ');
     const stroke = lib === 'storm' ? 'url(#bmlcg)' : CHART_GRAYS[lib];
-    const dots = WORKLOADS.map((w, i) => {
+    const dots = chartWorkloads.map((w, i) => {
       const r = ratio(w, lib);
       return `<circle class="bm-lc-dot" data-lib="${lib}" cx="${x(i).toFixed(1)}" cy="${y(r).toFixed(1)}" r="${lib === 'storm' ? 3.4 : 2.6}" fill="${lib === 'storm' ? '#818cf8' : CHART_GRAYS[lib]}"><title>${LIBS[lib].name} · ${CHART_LABELS[w.id]} · ${r.toFixed(2)}× JDBC (${fmt(w.results[lib][0])})</title></circle>`;
     }).join('');
+    // The sorted axis ends where the field is widest apart, so the line ends never collide and
+    // each line can carry its own name; the label rides in the series group and dims with it.
+    const endRatio = ratio(chartWorkloads[chartWorkloads.length - 1], lib);
+    const endLabel = `<text class="bm-lc-endlab${lib === 'storm' ? ' storm' : ''}" x="${W - m.r + 10}" y="${(y(endRatio) + 3.5).toFixed(1)}" fill="${lib === 'storm' ? 'url(#bmlcg)' : CHART_GRAYS[lib]}">${LIBS[lib].name}</text>`;
     return `<g class="bm-lc-series${lib === 'storm' ? ' storm' : ''}" data-lib="${lib}">
-      <polyline class="bm-lc-line" points="${pts}" stroke="${stroke}"/>${dots}</g>`;
+      <polyline class="bm-lc-line" points="${pts}" stroke="${stroke}"/>${dots}${endLabel}</g>`;
   }).join('\n');
 
   const legend = CHART_LIBS.map((lib) => `<button type="button" class="bm-lc-lg${lib === 'storm' ? ' storm' : ''}" data-lib="${lib}" aria-pressed="true"><span class="sw"${lib === 'storm' ? '' : ` style="background:${CHART_GRAYS[lib]}"`}></span>${LIBS[lib].name}</button>`).join('');
 
+  // The two Exposed dots at the point lookup sit far above their mapping cost: Exposed's API
+  // mandates a transaction per operation, so most of that multiple is the commit round trip.
+  // The label sits directly above the dot pair; thin halo rings around the two dots do the
+  // anchoring without extra strokes crossing the plot.
+  const pkIndex = chartWorkloads.findIndex((w) => w.id === 'singleRowById');
+  const pkX = x(pkIndex);
+  const pkYs = ['exposed', 'exposedDao'].map((lib) => y(ratio(chartWorkloads[pkIndex], lib)));
+  const pkTopY = Math.min(...pkYs);
+  const rings = ['exposed', 'exposedDao'].map((lib) => `<circle class="bm-lc-ring" data-lib="${lib}" cx="${pkX}" cy="${y(ratio(chartWorkloads[pkIndex], lib)).toFixed(1)}" r="5.2"/>`).join('');
+  const daggerMark = `<g class="bm-lc-anno">${rings}<text class="bm-lc-mark" x="${pkX - 2}" y="${(pkTopY - 10).toFixed(1)}">transaction overhead, not ORM mapping</text></g>`;
+
   return `<div class="bm-lc" id="bm-lc">
-    <div class="bm-lc-head"><h3>Time relative to hand-written JDBC</h3><span class="bm-lc-hint">library ÷ JDBC · lower is faster · dashed line is the JDBC baseline</span></div>
+    <div class="bm-lc-head"><h3>Time relative to hand-written JDBC</h3><span class="bm-lc-hint">library ÷ JDBC · lower is faster</span></div>
     <svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Each framework's time as a multiple of the JDBC baseline across the twelve workloads">
       <defs><linearGradient id="bmlcs" x1="0" y1="0" x2="1" y2="0">
         <stop offset="0%" stop-color="#e6e9ef"/><stop offset="24%" stop-color="#b6bcc8"/>
@@ -1383,6 +1420,7 @@ function lineChartHtml() {
       </linearGradient></defs>
       ${grid}${yLabels}${xLabels}
       ${series}
+      ${daggerMark}
     </svg>
     <div class="bm-lc-legend">${legend}<span class="bm-lc-note">hover to highlight · click to toggle</span></div>
   </div>`;
@@ -1459,6 +1497,8 @@ const BM_CSS = `
   .bm-val{font-family:var(--mono);font-size:11.5px;color:var(--body);text-align:right;white-space:nowrap}
   .bm-val em{font-style:normal;color:var(--faint);opacity:.75}
   .bm-note{margin:10px 0 0;color:var(--faint);font-size:12px}
+  .bm-card:not(.bm-loc) .bm-note{font-size:10.5px}
+  .bm-mark{color:var(--faint);font-size:9px;margin-left:2px}
   .bm-stats{display:grid;grid-template-columns:repeat(3,1fr);gap:18px;margin:28px 0 6px}
   @media(max-width:900px){.bm-stats{grid-template-columns:1fr}}
   .bm-stat{border:1px solid var(--border);background:var(--panel);border-radius:14px;padding:16px 18px}
@@ -1481,6 +1521,13 @@ const BM_CSS = `
   .bm-lc-grid{stroke:#1c1c24;stroke-width:1}
   .bm-lc-baseline{stroke:#8a8c9a;stroke-width:1.3;stroke-dasharray:2 5;opacity:.8}
   .bm-lc-ylab{fill:#5f616e;font-family:var(--mono);font-size:11px}
+  .bm-lc-endlab{font-family:var(--mono);font-size:11px}
+  .bm-lc-endlab.storm{font-weight:700}
+  .bm-lc-mark{fill:#8a8a96;font-family:var(--mono);font-size:10.5px}
+  .bm-lc-ring{fill:none;stroke:#8a8a96;stroke-width:1;opacity:.8}
+  .bm-lc:has(.bm-lc-series[data-lib="exposed"].off) .bm-lc-ring[data-lib="exposed"]{display:none}
+  .bm-lc:has(.bm-lc-series[data-lib="exposedDao"].off) .bm-lc-ring[data-lib="exposedDao"]{display:none}
+  .bm-lc:has(.bm-lc-series[data-lib="exposed"].off):has(.bm-lc-series[data-lib="exposedDao"].off) .bm-lc-anno text{display:none}
   .bm-lc-xlab{fill:#8b8d9b;font-family:var(--mono);font-size:10.5px}
   .bm-lc-line{fill:none;stroke-width:1.6;stroke-linejoin:round;stroke-linecap:round}
   .bm-lc-series{transition:opacity .18s ease}
@@ -1515,6 +1562,7 @@ const BM_CSS = `
   .bm-facts td:first-child{color:var(--text);white-space:nowrap}
   .bm-matrix-read{color:var(--muted);font-size:13.5px}
   .bm-details{margin:20px 0 8px;border:1px solid var(--border);border-radius:14px;background:var(--panel-2)}
+  .bm-matrix-read + .bm-details{margin-top:44px}
   .bm-details summary{cursor:pointer;padding:14px 18px;font-size:14px;font-weight:600;color:var(--body);list-style:none;display:flex;align-items:center;gap:10px;user-select:none}
   .bm-details summary::-webkit-details-marker{display:none}
   .bm-details summary::before{content:'▸';color:var(--accent);font-size:12px;transition:transform .15s ease}
@@ -1566,15 +1614,15 @@ ${navHtml('benchmarks')}
 
   <div class="bm-stats">
     <div class="bm-stat"><b>10 of 12</b><span>workloads where Storm is in the leading group, within 2% of the fastest framework.</span></div>
-    <div class="bm-stat"><b>5 of 12</b><span>workloads where Storm leads alone, with no other framework within 2%.</span></div>
-    <div class="bm-stat"><b>70% less</b><span>entity code than JPA: 41 lines in Storm, 139 as JPA entities.</span></div>
+    <div class="bm-stat"><b>2 of 12</b><span>workloads where another framework leads. Storm finishes second and third there.</span></div>
+    <div class="bm-stat"><b>40% less</b><span>per-row hydration overhead than the closest framework on the thousand-row join; the rest of the field pays at least 2.6x Storm's cost.</span></div>
   </div>
 
   <h2>Performance results</h2>
   <p>The workloads cover common data-access paths: point reads, joined entity hydration, projections, keyset pagination, dynamic queries, batch and dependency-ordered writes, change-aware updates and one-to-many object graphs.</p>
-  <p>Eight implementations, one database, one discipline: same schema, same data, same transaction boundaries, every score a real network round trip away from PostgreSQL. The chart plots every workload as a multiple of the hand-written JDBC baseline, so each line traces a framework's overhead across the twelve workloads. Lower is faster; the dashed line is JDBC itself.</p>
+  <p>Eight implementations, one database, one discipline: same schema, same data, same transaction boundaries, every score a real network round trip away from PostgreSQL. The chart plots every workload as a multiple of the hand-written JDBC baseline, so each line traces a framework's overhead across the twelve workloads. The chart opens with the primary key lookup and then orders the workloads by how far the field spreads from JDBC, keeping the three join sizes together, so overhead grows to the right and a flat line means the framework does not follow. Lower is faster; the dashed line is JDBC itself.</p>
   ${lineChartHtml()}
-  <p class="bm-matrix-read">Frameworks within 2% of the fastest share the lead; smaller differences are within the run-to-run variation of the harness. By that rule Storm is in the leading group on ten of twelve workloads: alone on the three joins, keyset pagination and the batch insert, level with Ktorm on the graph insert ahead of jOOQ, and in the shared groups on the rest. jOOQ keeps the object graph, where its MULTISET load nests the rows server-side, and Exposed takes the update, 2.4% ahead of Storm. Every score includes a real network round trip, so framework overhead is only part of the reported latency and absolute times depend on the hardware. The shape of a line is the point: flat and low means predictable overhead everywhere.</p>
+  <p class="bm-matrix-read">Storm leads or shares the lead on ten of twelve workloads. It is alone in front on the three joins and keyset pagination, and level with Ktorm on the batch and graph inserts. The other two go to jOOQ and Exposed. jOOQ wins the object graph with MULTISET, one JSON aggregate instead of repeated join rows, even beating the plain join the hand-written baseline naturally uses. Exposed performs best on the update; its high point-lookup marks are the transaction its API demands even for a single read, not mapping cost.</p>
 
   <details class="bm-details">
     <summary>Per-workload charts: the same numbers with their fork range</summary>
@@ -1660,24 +1708,6 @@ ${charts}
   })}
 
   ${codeBlock({
-    title: 'Three-table join',
-    file: 'joinWithMapping',
-    desc: `No fetch joins to spell out and no N+1 to dodge: the entity graph declares what a Pet is, so selecting pets hydrates owner and city from one query. When reading the three sizes, note that the bound range predicate races PostgreSQL's plan-cache decision, which follows the bind values: 10-row spans keep every implementation on per-call custom planning, while 100-row spans sit at the custom-versus-generic cost crossover and can settle either way per statement, which is why the 100-row column carries a plan-regime component on top of framework overhead (a baseline faster at 100 rows than at 10 is the cached-plan signature). The 1,000-row join, where the regimes converge, is the cleanest read of per-row mapping cost.`,
-    storm: CODE_JOIN,
-    sql: SQL_JOIN,
-    sqlExtras: [['Exposed DAO', SQL_JOIN_EXPOSED_DAO], ['Ktorm', SQL_JOIN_KTORM], ['Jimmer', SQL_JOIN_JIMMER]],
-    others: [
-      {label: 'JDBC', tag: 'Java', code: CODE_JOIN_JDBC, selected: true},
-      {label: 'Hibernate', tag: 'Java', code: CODE_JOIN_HIBERNATE},
-      {label: 'jOOQ', tag: 'Java', code: CODE_JOIN_JOOQ},
-      {label: 'Exposed', tag: 'Kotlin', code: CODE_JOIN_EXPOSED},
-      {label: 'Exposed DAO', tag: 'Kotlin', code: CODE_JOIN_EXPOSED_DAO},
-      {label: 'Ktorm', tag: 'Kotlin', code: CODE_JOIN_KTORM},
-      {label: 'Jimmer', tag: 'Java', code: CODE_JOIN_JIMMER},
-    ],
-  })}
-
-  ${codeBlock({
     title: 'Projection',
     file: 'projection',
     desc: 'A template picks three columns across the graph; the metamodel keeps every path compile-checked.',
@@ -1695,21 +1725,39 @@ ${charts}
   })}
 
   ${codeBlock({
-    title: 'Keyset pagination',
-    file: 'keyset',
-    desc: `One page of twenty rows through seek pagination: filter past the cursor, order by the key, stop after a page. Storm's <code>scroll</code> terminal fetches one extra row to detect whether a next page exists, and inlines the page size as a literal. That literal matters more than it looks: the execution plan is the same either way, but when the page size arrives as a bind parameter PostgreSQL never adopts a cached generic plan and replans the three-table join on every call, which costs about as much as executing it. Every implementation that can express a literal page size does: Storm and JDBC by construction, Exposed's <code>limit</code>, Hibernate's HQL <code>limit</code> clause, jOOQ's <code>DSL.inline</code>. Ktorm's <code>take</code> has no literal form and pays that planning pass, and the fetcher libraries load owner and city in follow-up batched queries, paying round trips instead.`,
-    storm: CODE_KEYSET,
-    sql: SQL_KEYSET,
+    title: 'Create then amend',
+    file: 'multiStatement',
+    desc: `One transaction, two dependent statements: insert a visit, then amend it using the generated key. Storm returns the key from the insert and updates a <code>copy</code> of the immutable record; the entity libraries amend a managed instance and let change tracking write it.`,
+    storm: CODE_MULTI,
+    sql: SQL_MULTI,
+    sqlExtras: [['JDBC', SQL_MULTI_AMEND], ['Hibernate', SQL_MULTI_HIBERNATE], ['jOOQ', SQL_MULTI_AMEND], ['Exposed', SQL_MULTI_AMEND], ['Exposed DAO', SQL_MULTI_AMEND], ['Ktorm', SQL_MULTI_AMEND]],
     others: [
-      {label: 'JDBC', tag: 'Java', code: CODE_KEYSET_JDBC, selected: true},
-      {label: 'Hibernate', tag: 'Java', code: CODE_KEYSET_HIBERNATE},
-      {label: 'jOOQ', tag: 'Java', code: CODE_KEYSET_JOOQ},
-      {label: 'Exposed', tag: 'Kotlin', code: CODE_KEYSET_EXPOSED},
-      {label: 'Exposed DAO', tag: 'Kotlin', code: CODE_KEYSET_EXPOSED_DAO},
-      {label: 'Ktorm', tag: 'Kotlin', code: CODE_KEYSET_KTORM},
-      {label: 'Jimmer', tag: 'Java', code: CODE_KEYSET_JIMMER},
+      {label: 'JDBC', tag: 'Java', code: CODE_MULTI_JDBC, selected: true},
+      {label: 'Hibernate', tag: 'Java', code: CODE_MULTI_HIBERNATE},
+      {label: 'jOOQ', tag: 'Java', code: CODE_MULTI_JOOQ},
+      {label: 'Exposed', tag: 'Kotlin', code: CODE_MULTI_EXPOSED},
+      {label: 'Exposed DAO', tag: 'Kotlin', code: CODE_MULTI_EXPOSED_DAO},
+      {label: 'Ktorm', tag: 'Kotlin', code: CODE_MULTI_KTORM},
+      {label: 'Jimmer', tag: 'Java', code: CODE_MULTI_JIMMER},
     ],
-    sqlExtras: [['JDBC', SQL_KEYSET_PLAIN], ['Hibernate', SQL_KEYSET_HIBERNATE], ['jOOQ', SQL_KEYSET_JOOQ], ['Exposed', SQL_KEYSET_PLAIN], ['Exposed DAO', SQL_KEYSET_EXPOSED_DAO], ['Ktorm', SQL_KEYSET_KTORM], ['Jimmer', SQL_KEYSET_JIMMER]],
+  })}
+
+  ${codeBlock({
+    title: 'Read, modify, update',
+    file: 'updateById',
+    desc: `Storm's regular <code>Owner</code> is an aggregate: reading one loads its city through a join. Every other library declares that association lazy and reads the owner row alone, so to keep the read side of this workload identical for everyone, the benchmark uses a dedicated shape of the same table where city stays a lazy <code>Ref</code>. That shape is one record; declaring it is Storm's equivalent of the <code>FetchType.LAZY</code> the others put on their entities, and its ten lines are counted against Storm in the Queries LOC table above. On the write side, <code>@DynamicUpdate(FIELD)</code> writes only the column that changed. Entities are immutable; an update is a <code>copy</code>.`,
+    storm: CODE_UPDATE,
+    sql: SQL_UPDATE,
+    sqlExtras: [['Jimmer', SQL_UPDATE_JIMMER]],
+    others: [
+      {label: 'JDBC', tag: 'Java', code: CODE_UPDATE_JDBC, selected: true},
+      {label: 'Hibernate', tag: 'Java', code: CODE_UPDATE_HIBERNATE},
+      {label: 'jOOQ', tag: 'Java', code: CODE_UPDATE_JOOQ},
+      {label: 'Exposed', tag: 'Kotlin', code: CODE_UPDATE_EXPOSED},
+      {label: 'Exposed DAO', tag: 'Kotlin', code: CODE_UPDATE_EXPOSED_DAO},
+      {label: 'Ktorm', tag: 'Kotlin', code: CODE_UPDATE_KTORM},
+      {label: 'Jimmer', tag: 'Java', code: CODE_UPDATE_JIMMER},
+    ],
   })}
 
   ${codeBlock({
@@ -1727,6 +1775,24 @@ ${charts}
       {label: 'Ktorm', tag: 'Kotlin', code: CODE_DYNAMIC_KTORM},
       {label: 'Jimmer', tag: 'Java', code: CODE_DYNAMIC_JIMMER},
     ],
+  })}
+
+  ${codeBlock({
+    title: 'Graph insert',
+    file: 'graphInsert',
+    desc: `Twenty owner to pet to visit graphs written in one transaction, generated keys propagated from parent to child. Storm receives only the visits: the write set's insertion closure discovers the unsaved pets and owners through the refs, orders the dependency levels and writes one multi-row statement per type. The workload returns the generated visit ids, the contract of a create endpoint; Storm's <code>insertAndFetch</code> variant, which re-reads the rows to reflect database-applied state, remains the API for callers who need that stronger contract. Every other implementation except Hibernate orders the levels itself.`,
+    storm: CODE_GINSERT,
+    sql: SQL_GINSERT,
+    others: [
+      {label: 'JDBC', tag: 'Java', code: CODE_GINSERT_JDBC, selected: true},
+      {label: 'Hibernate', tag: 'Java', code: CODE_GINSERT_HIBERNATE},
+      {label: 'jOOQ', tag: 'Java', code: CODE_GINSERT_JOOQ},
+      {label: 'Exposed', tag: 'Kotlin', code: CODE_GINSERT_EXPOSED},
+      {label: 'Exposed DAO', tag: 'Kotlin', code: CODE_GINSERT_EXPOSED_DAO},
+      {label: 'Ktorm', tag: 'Kotlin', code: CODE_GINSERT_KTORM},
+      {label: 'Jimmer', tag: 'Java', code: CODE_GINSERT_JIMMER},
+    ],
+    sqlExtras: [['Hibernate', SQL_GINSERT_HIBERNATE], ['Exposed', SQL_GINSERT_EXPOSED], ['Exposed DAO', SQL_GINSERT_EXPOSED], ['Jimmer', SQL_GINSERT_JIMMER]],
   })}
 
   ${codeBlock({
@@ -1766,57 +1832,39 @@ ${charts}
   })}
 
   ${codeBlock({
-    title: 'Read, modify, update',
-    file: 'updateById',
-    desc: `Storm's regular <code>Owner</code> is an aggregate: reading one loads its city through a join. Every other library declares that association lazy and reads the owner row alone, so to keep the read side of this workload identical for everyone, the benchmark uses a dedicated shape of the same table where city stays a lazy <code>Ref</code>. That shape is one record; declaring it is Storm's equivalent of the <code>FetchType.LAZY</code> the others put on their entities, and its ten lines are counted against Storm in the Queries LOC table above. On the write side, <code>@DynamicUpdate(FIELD)</code> writes only the column that changed. Entities are immutable; an update is a <code>copy</code>.`,
-    storm: CODE_UPDATE,
-    sql: SQL_UPDATE,
-    sqlExtras: [['Jimmer', SQL_UPDATE_JIMMER]],
+    title: 'Keyset pagination',
+    file: 'keyset',
+    desc: `One page of twenty rows through seek pagination: filter past the cursor, order by the key, stop after a page. Storm's <code>scroll</code> terminal fetches one extra row to detect whether a next page exists, and inlines the page size as a literal. That literal matters more than it looks: the execution plan is the same either way, but when the page size arrives as a bind parameter PostgreSQL never adopts a cached generic plan and replans the three-table join on every call, which costs about as much as executing it. Every implementation that can express a literal page size does: Storm and JDBC by construction, Exposed's <code>limit</code>, Hibernate's HQL <code>limit</code> clause, jOOQ's <code>DSL.inline</code>. Ktorm's <code>take</code> has no literal form and pays that planning pass, and the fetcher libraries load owner and city in follow-up batched queries, paying round trips instead.`,
+    storm: CODE_KEYSET,
+    sql: SQL_KEYSET,
     others: [
-      {label: 'JDBC', tag: 'Java', code: CODE_UPDATE_JDBC, selected: true},
-      {label: 'Hibernate', tag: 'Java', code: CODE_UPDATE_HIBERNATE},
-      {label: 'jOOQ', tag: 'Java', code: CODE_UPDATE_JOOQ},
-      {label: 'Exposed', tag: 'Kotlin', code: CODE_UPDATE_EXPOSED},
-      {label: 'Exposed DAO', tag: 'Kotlin', code: CODE_UPDATE_EXPOSED_DAO},
-      {label: 'Ktorm', tag: 'Kotlin', code: CODE_UPDATE_KTORM},
-      {label: 'Jimmer', tag: 'Java', code: CODE_UPDATE_JIMMER},
+      {label: 'JDBC', tag: 'Java', code: CODE_KEYSET_JDBC, selected: true},
+      {label: 'Hibernate', tag: 'Java', code: CODE_KEYSET_HIBERNATE},
+      {label: 'jOOQ', tag: 'Java', code: CODE_KEYSET_JOOQ},
+      {label: 'Exposed', tag: 'Kotlin', code: CODE_KEYSET_EXPOSED},
+      {label: 'Exposed DAO', tag: 'Kotlin', code: CODE_KEYSET_EXPOSED_DAO},
+      {label: 'Ktorm', tag: 'Kotlin', code: CODE_KEYSET_KTORM},
+      {label: 'Jimmer', tag: 'Java', code: CODE_KEYSET_JIMMER},
     ],
+    sqlExtras: [['JDBC', SQL_KEYSET_PLAIN], ['Hibernate', SQL_KEYSET_HIBERNATE], ['jOOQ', SQL_KEYSET_JOOQ], ['Exposed', SQL_KEYSET_PLAIN], ['Exposed DAO', SQL_KEYSET_EXPOSED_DAO], ['Ktorm', SQL_KEYSET_KTORM], ['Jimmer', SQL_KEYSET_JIMMER]],
   })}
 
   ${codeBlock({
-    title: 'Create then amend',
-    file: 'multiStatement',
-    desc: `One transaction, two dependent statements: insert a visit, then amend it using the generated key. Storm returns the key from the insert and updates a <code>copy</code> of the immutable record; the entity libraries amend a managed instance and let change tracking write it.`,
-    storm: CODE_MULTI,
-    sql: SQL_MULTI,
-    sqlExtras: [['JDBC', SQL_MULTI_AMEND], ['Hibernate', SQL_MULTI_HIBERNATE], ['jOOQ', SQL_MULTI_AMEND], ['Exposed', SQL_MULTI_AMEND], ['Exposed DAO', SQL_MULTI_AMEND], ['Ktorm', SQL_MULTI_AMEND]],
+    title: 'Three-table join',
+    file: 'joinWithMapping',
+    desc: `No fetch joins to spell out and no N+1 to dodge: the entity graph declares what a Pet is, so selecting pets hydrates owner and city from one query. When reading the three sizes, note that the bound range predicate races PostgreSQL's plan-cache decision, which follows the bind values: 10-row spans keep every implementation on per-call custom planning, while 100-row spans sit at the custom-versus-generic cost crossover and can settle either way per statement, which is why the 100-row column carries a plan-regime component on top of framework overhead (a baseline faster at 100 rows than at 10 is the cached-plan signature). The 1,000-row join, where the regimes converge, is the cleanest read of per-row mapping cost.`,
+    storm: CODE_JOIN,
+    sql: SQL_JOIN,
+    sqlExtras: [['Exposed DAO', SQL_JOIN_EXPOSED_DAO], ['Ktorm', SQL_JOIN_KTORM], ['Jimmer', SQL_JOIN_JIMMER]],
     others: [
-      {label: 'JDBC', tag: 'Java', code: CODE_MULTI_JDBC, selected: true},
-      {label: 'Hibernate', tag: 'Java', code: CODE_MULTI_HIBERNATE},
-      {label: 'jOOQ', tag: 'Java', code: CODE_MULTI_JOOQ},
-      {label: 'Exposed', tag: 'Kotlin', code: CODE_MULTI_EXPOSED},
-      {label: 'Exposed DAO', tag: 'Kotlin', code: CODE_MULTI_EXPOSED_DAO},
-      {label: 'Ktorm', tag: 'Kotlin', code: CODE_MULTI_KTORM},
-      {label: 'Jimmer', tag: 'Java', code: CODE_MULTI_JIMMER},
+      {label: 'JDBC', tag: 'Java', code: CODE_JOIN_JDBC, selected: true},
+      {label: 'Hibernate', tag: 'Java', code: CODE_JOIN_HIBERNATE},
+      {label: 'jOOQ', tag: 'Java', code: CODE_JOIN_JOOQ},
+      {label: 'Exposed', tag: 'Kotlin', code: CODE_JOIN_EXPOSED},
+      {label: 'Exposed DAO', tag: 'Kotlin', code: CODE_JOIN_EXPOSED_DAO},
+      {label: 'Ktorm', tag: 'Kotlin', code: CODE_JOIN_KTORM},
+      {label: 'Jimmer', tag: 'Java', code: CODE_JOIN_JIMMER},
     ],
-  })}
-
-  ${codeBlock({
-    title: 'Graph insert',
-    file: 'graphInsert',
-    desc: `Twenty owner to pet to visit graphs written in one transaction, generated keys propagated from parent to child. Storm receives only the visits: the write set's insertion closure discovers the unsaved pets and owners through the refs, orders the dependency levels and writes one multi-row statement per type. The workload returns the generated visit ids, the contract of a create endpoint; Storm's <code>insertAndFetch</code> variant, which re-reads the rows to reflect database-applied state, remains the API for callers who need that stronger contract. Every other implementation except Hibernate orders the levels itself.`,
-    storm: CODE_GINSERT,
-    sql: SQL_GINSERT,
-    others: [
-      {label: 'JDBC', tag: 'Java', code: CODE_GINSERT_JDBC, selected: true},
-      {label: 'Hibernate', tag: 'Java', code: CODE_GINSERT_HIBERNATE},
-      {label: 'jOOQ', tag: 'Java', code: CODE_GINSERT_JOOQ},
-      {label: 'Exposed', tag: 'Kotlin', code: CODE_GINSERT_EXPOSED},
-      {label: 'Exposed DAO', tag: 'Kotlin', code: CODE_GINSERT_EXPOSED_DAO},
-      {label: 'Ktorm', tag: 'Kotlin', code: CODE_GINSERT_KTORM},
-      {label: 'Jimmer', tag: 'Java', code: CODE_GINSERT_JIMMER},
-    ],
-    sqlExtras: [['Hibernate', SQL_GINSERT_HIBERNATE], ['Exposed', SQL_GINSERT_EXPOSED], ['Exposed DAO', SQL_GINSERT_EXPOSED], ['Jimmer', SQL_GINSERT_JIMMER]],
   })}
 
   <h2>Methodology and reproduction</h2>
