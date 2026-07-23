@@ -314,7 +314,7 @@ const BODY = `
       <div class="bface bback" data-slot="speed">
         <div class="bnum">7 of 12</div>
         <h3>workloads faster than Hibernate</h3>
-        <p><span class="btext">Level on the other five, never more than 1.3% apart there.</span></p>
+        <p><span class="btext">Level on the other five, always less than 1% apart there.</span></p>
       </div>
     </div>
     <div class="card bcard bench">
@@ -373,7 +373,7 @@ export default function Home() {
     // 2026-07-23 (fastest fork; differences within 2% count as level).
     const VS = {
       hibernate: {
-        speed: ['7 of 12', 'workloads faster than Hibernate', 'Level on the other five, never more than 1.3% apart there.'],
+        speed: ['7 of 12', 'workloads faster than Hibernate', 'Level on the other five, always less than 1% apart there.'],
         entities: ['78%', 'fewer entity lines', 'The five-table model: 31 lines in Storm, 141 in Hibernate.'],
         queries: ['14%', 'fewer query lines', 'All twelve workloads: 161 lines in Storm, 188 in Hibernate, with no query strings.'],
       },
@@ -383,17 +383,17 @@ export default function Home() {
         queries: ['17%', 'fewer query lines', 'All twelve workloads: 161 lines in Storm, 194 in jOOQ, no hand-written row mapping.'],
       },
       exposed: {
-        speed: ['10 of 12', 'workloads faster than Exposed', 'Exposed takes one workload by 3.2% and one is level; Storm leads the other ten, up to 1.8x ahead.'],
+        speed: ['10 of 12', 'workloads faster than Exposed', 'Exposed takes one workload by 3.1% and one is level; Storm leads the other ten, up to 1.8x ahead.'],
         entities: ['47%', 'fewer entity lines', 'The five-table model: 31 lines in Storm, 58 lines of Exposed table objects and data classes.'],
         queries: ['16%', 'fewer query lines', 'All twelve workloads: 161 lines in Storm, 191 in Exposed, no hand-written row mapping.'],
       },
       exposedDao: {
-        speed: ['12 of 12', 'workloads faster than Exposed DAO', 'Faster on all twelve workloads, from 3% to more than double.'],
+        speed: ['12 of 12', 'workloads faster than Exposed DAO', 'Faster on all twelve workloads, from 2% to more than double.'],
         entities: ['58%', 'fewer entity lines', 'One data class per table in Storm; Exposed DAO needs the table object, the DAO class and a DTO.'],
         queries: ['15%', 'fewer query lines', 'All twelve workloads: 161 lines in Storm, 190 in Exposed DAO.'],
       },
       ktorm: {
-        speed: ['7 of 12', 'workloads faster than Ktorm', 'Level on five workloads; ahead on the other seven, peaking at 2.2x.'],
+        speed: ['7 of 12', 'workloads faster than Ktorm', 'Level on four workloads; ahead on the other eight, peaking at 2.2x.'],
         entities: ['48%', 'fewer entity lines', 'The five-table model: 31 lines in Storm, 60 lines of Ktorm tables and entity interfaces.'],
         queries: ['9%', 'fewer query lines', 'All twelve workloads: 161 lines in Storm, 177 in Ktorm.'],
       },
