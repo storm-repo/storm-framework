@@ -264,18 +264,8 @@ const BODY = `
 <header><div class="wrap">
   <h1><span class="hero-swap" id="heroTop">
     <span class="in">Radically Simple.</span>
-    <span class="ko">ST<span class="slash">/</span>ORM for Kotlin.</span>
-  </span><br><span class="hero-rot" id="valuesRotator">
-    <span class="grad travel in">ST<span class="slash">/</span>ORM for Kotlin.</span>
-    <span class="grad"><a href="/quickstart">Try it.</a></span>
-    <span class="grad"><a href="/quickstart">Break it.</a></span>
-    <span class="grad"><a href="/comparison">Challenge it.</a></span>
-    <span class="grad"><a href="https://github.com/storm-orm/storm-framework" target="_blank" rel="noopener">Love it.</a></span>
-    <span class="grad"><a href="https://github.com/storm-orm/storm-framework/discussions" target="_blank" rel="noopener">Hate it.</a></span>
-    <span class="grad"><a href="https://github.com/storm-orm/storm-framework/discussions" target="_blank" rel="noopener">Tell us.</a></span>
-    <span class="grad"><a href="https://github.com/storm-orm/storm-framework" target="_blank" rel="noopener">Follow us.</a></span>
-    <span class="grad"><a href="https://github.com/storm-orm/storm-framework/discussions" target="_blank" rel="noopener">Join us.</a></span>
-  </span></h1>
+    <span>Measurably Fast.</span>
+  </span><br><span class="hero-rot"><span class="grad in">ST<span class="slash">/</span>ORM for Kotlin.</span></span></h1>
   <p class="sub" style="max-width:940px">What would an ORM look like if you designed it for Kotlin today?</p>
   <p class="sub" style="max-width:940px;margin-top:14px">Immutable data-class entities. Concise queries checked at compile time. No proxies, persistence context, or accidental N+1 queries. ST/ORM is a modern alternative to Hibernate and Exposed.</p>
   <div class="cta hero-cta">
@@ -393,7 +383,7 @@ export default function Home() {
         queries: ['15%', 'fewer query lines', 'All twelve workloads: 161 lines in Storm, 190 in Exposed DAO.'],
       },
       ktorm: {
-        speed: ['7 of 12', 'workloads faster than Ktorm', 'Level on four workloads; ahead on the other eight, peaking at 2.2x.'],
+        speed: ['8 of 12', 'workloads faster than Ktorm', 'Level on four workloads; ahead on the other eight, peaking at 2.2x.'],
         entities: ['48%', 'fewer entity lines', 'The five-table model: 31 lines in Storm, 60 lines of Ktorm tables and entity interfaces.'],
         queries: ['9%', 'fewer query lines', 'All twelve workloads: 161 lines in Storm, 177 in Ktorm.'],
       },
@@ -710,44 +700,20 @@ export default function Home() {
     // at each other's position (.travel/.ko in the CSS), which makes the swap
     // look like the line physically moving between the hero rows; the distance
     // and font-size ratio depend on the viewport, so measure them here.
-    const valuesRotator = document.getElementById('valuesRotator');
     const heroTop = document.getElementById('heroTop');
-    const measureHero = () => {
-      if (!heroTop || !valuesRotator) return;
-      const heroHeading = heroTop.parentElement;
-      const lineGap = valuesRotator.getBoundingClientRect().top - heroTop.getBoundingClientRect().top;
-      const topFontSize = parseFloat(getComputedStyle(heroTop.querySelector('span')).fontSize);
-      const bottomFontSize = parseFloat(getComputedStyle(valuesRotator.querySelector('span')).fontSize);
-      heroHeading.style.setProperty('--hero-gap', lineGap + 'px');
-      heroHeading.style.setProperty('--hero-up', String(topFontSize / bottomFontSize));
-      heroHeading.style.setProperty('--hero-down', String(bottomFontSize / topFontSize));
-    };
+    // Two taglines share the top line: Radically Simple. and Seriously Fast. alternate
+    // over the static brand line below.
     let valuesTimer = null;
-    if (valuesRotator) {
-      measureHero();
-      window.addEventListener('resize', measureHero);
-      if (document.fonts) document.fonts.ready.then(measureHero);
-      // Direct children only: the ST/ORM copies contain a nested .slash span
-      // that must not join the rotation.
-      const valueItems = valuesRotator.querySelectorAll(':scope > span');
-      const topItems = heroTop ? heroTop.querySelectorAll(':scope > span') : [];
-      // The two-word taglines read in a beat, so they cycle quickly; the
-      // ST/ORM line (index 0) is the resting state and holds much longer.
-      const taglineDwell = 2800;
-      const brandDwell = 8000;
-      const dwellFor = (i) => (i === 0 ? brandDwell : taglineDwell);
-      let valueIndex = 0;
+    if (heroTop) {
+      const topItems = heroTop.querySelectorAll(':scope > span');
+      let topIndex = 0;
       const advance = () => {
-        valueItems[valueIndex].classList.remove('in');
-        valueIndex = (valueIndex + 1) % valueItems.length;
-        valueItems[valueIndex].classList.add('in');
-        if (topItems.length === 2) {
-          topItems[0].classList.toggle('in', valueIndex === 0);
-          topItems[1].classList.toggle('in', valueIndex !== 0);
-        }
-        valuesTimer = setTimeout(advance, dwellFor(valueIndex));
+        topItems[topIndex].classList.remove('in');
+        topIndex = 1 - topIndex;
+        topItems[topIndex].classList.add('in');
+        valuesTimer = setTimeout(advance, 6000);
       };
-      valuesTimer = setTimeout(advance, dwellFor(valueIndex));
+      valuesTimer = setTimeout(advance, 6000);
     }
 
     // Stop the loop and undo DOM mutations when the page unmounts.
@@ -755,7 +721,6 @@ export default function Home() {
       gen++;
       clearTimeout(timer);
       clearTimeout(valuesTimer);
-      window.removeEventListener('resize', measureHero);
       clearInterval(vsAuto);
       vsChipHandlers.forEach(([chip, handler]) => chip.removeEventListener('click', handler));
       if(scenesEl) scenesEl.innerHTML='';
