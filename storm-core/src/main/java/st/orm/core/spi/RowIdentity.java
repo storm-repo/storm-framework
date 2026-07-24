@@ -32,7 +32,7 @@ import st.orm.mapping.RecordType;
  * Normalizes primary key values to row identity: the value the SQL layer binds in a WHERE clause.
  *
  * <p>A scalar key is its own row identity. An entity-typed key carries the key column plus every non-key column of
- * the entity and its foreign key closure, so structural equality on it is wider than the identity it denotes: two
+ * the entity and of every entity reachable through its foreign keys, so structural equality on it is wider than the identity it denotes: two
  * representations of the same row diverge whenever a non-key column does not round-trip bit-exact (a
  * second-precision timestamp column, a database-managed column, a numeric scale difference). Normalization reduces
  * such a key to its scalar form: an entity contributes only its own primary key, applied recursively, a ref

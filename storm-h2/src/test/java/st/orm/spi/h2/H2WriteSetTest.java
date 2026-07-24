@@ -128,7 +128,7 @@ public class H2WriteSetTest {
         var newOwner = Owner.builder().firstName("Upsert").lastName("Fresh").build();
         var pet = Pet.builder().name("Upserted").birthDate(LocalDate.of(2019, 9, 9)).type(dogType).owner(newOwner).build();
         // One call: the keyed pet type takes the update branch, the pet takes the insert branch, and the unsaved
-        // owner joins via the insertion closure and is inserted first.
+        // owner joins via insert discovery and is inserted first.
         orm.writeSet().upsert(List.of(dogType.toBuilder().name("writeSetDoggo").build(), pet));
         assertEquals("writeSetDoggo", orm.entity(PetType.class).getById(dogType.id()).name());
         var fetched = orm.entity(Pet.class).select().getResultList().stream()

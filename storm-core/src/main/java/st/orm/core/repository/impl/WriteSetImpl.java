@@ -169,7 +169,7 @@ public final class WriteSetImpl implements WriteSet {
                                      boolean fetchKeys) {
         List<Object> inputs = new ArrayList<>();
         entities.forEach(inputs::add);
-        // Discover the insertion closure: explicit members plus unsaved entities transitively reachable through
+        // Discover the members to write: explicit members plus unsaved entities transitively reachable through
         // insertable foreign key fields.
         IdentityHashMap<Object, Node> nodes = new IdentityHashMap<>();
         List<Node> discoveryOrder = new ArrayList<>();
@@ -519,7 +519,7 @@ public final class WriteSetImpl implements WriteSet {
 
     /**
      * Resolves the entity instance referenced by the given FK component, or {@code null} when nothing is referenced
-     * or the reference is keyed by id only. Id-only refs carrying a default id cannot join the closure and fail fast
+     * or the reference is keyed by id only. Id-only refs carrying a default id cannot be discovered and fail fast
      * for insert and upsert.
      */
     @Nullable
@@ -742,8 +742,8 @@ public final class WriteSetImpl implements WriteSet {
         /**
          * Resolves, for each non-insertable FK component, the insertable component that carries its column value:
          * the primary key field whose column shares the FK component's column name, as in a junction table whose
-         * key columns live inside a composite primary key. Components with a carrier can join the insertion
-         * closure; the generated key is propagated into the carrier instead of through the component itself.
+         * key columns live inside a composite primary key. Components with a carrier can join insert
+         * discovery; the generated key is propagated into the carrier instead of through the component itself.
          */
         private void resolveKeyCarriers(@Nonnull RecordType recordType, @Nonnull List<FkEdge> edges) {
             if (primaryKeyIndex < 0) {

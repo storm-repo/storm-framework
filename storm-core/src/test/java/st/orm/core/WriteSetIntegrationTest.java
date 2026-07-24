@@ -100,20 +100,20 @@ public class WriteSetIntegrationTest {
     }
 
     @Test
-    public void testInsertClosurePullsInUnsavedParents() {
+    public void testInsertDiscoveryPullsInUnsavedParents() {
         var orm = orm();
-        var owner = newOwner("Closure", "Only");
+        var owner = newOwner("Discovery", "Only");
         var pet = Pet.builder().name("Shadow").birthDate(LocalDate.of(2023, 3, 3)).type(dogType()).owner(owner).build();
-        var visit = new Visit(LocalDate.of(2026, 1, 1), "Closure visit", pet);
-        // Only the visit is passed; pet and owner join via the insertion closure.
+        var visit = new Visit(LocalDate.of(2026, 1, 1), "Discovery visit", pet);
+        // Only the visit is passed; pet and owner join via insert discovery.
         orm.writeSet().insert(List.of(visit));
         var fetched = orm.entity(Visit.class).select().getResultList().stream()
-                .filter(candidate -> "Closure visit".equals(candidate.description()))
+                .filter(candidate -> "Discovery visit".equals(candidate.description()))
                 .toList();
         assertEquals(1, fetched.size());
         assertEquals("Shadow", fetched.getFirst().pet().name());
         assertNotNull(fetched.getFirst().pet().owner());
-        assertEquals("Closure", fetched.getFirst().pet().owner().firstName());
+        assertEquals("Discovery", fetched.getFirst().pet().owner().firstName());
     }
 
     @Test
@@ -138,14 +138,14 @@ public class WriteSetIntegrationTest {
     @Test
     public void testInsertAndFetchIdsReportsExplicitMembersOnly() {
         var orm = orm();
-        var owner = newOwner("Ids", "Closure");
+        var owner = newOwner("Ids", "Discovery");
         var pet = Pet.builder().name("Hidden").birthDate(LocalDate.of(2021, 5, 5)).type(dogType()).owner(owner).build();
-        var visit = new Visit(LocalDate.of(2026, 4, 4), "Ids closure", pet);
-        // Only the visit is passed; pet and owner join via the insertion closure but are not reported.
+        var visit = new Visit(LocalDate.of(2026, 4, 4), "Ids discovery", pet);
+        // Only the visit is passed; pet and owner join via insert discovery but are not reported.
         List<Integer> ids = orm.writeSet().insertAndFetchIds(List.of(visit));
         assertEquals(1, ids.size());
         var fetched = orm.entity(Visit.class).getById(ids.getFirst());
-        assertEquals("Ids closure", fetched.description());
+        assertEquals("Ids discovery", fetched.description());
         assertEquals("Hidden", fetched.pet().name());
         assertNotEquals(0, fetched.pet().id());
     }
@@ -291,7 +291,7 @@ public class WriteSetIntegrationTest {
         SqlInterceptor.observe(
                 sql -> { if (sql.statement().toUpperCase().startsWith("INSERT")) inserts.add(sql.statement()); },
                 () -> { orm.writeSet().insert(List.of(vetSpecialty)); return null; });
-        // The vet joins via the insertion closure and is written first; its generated key is carried by the
+        // The vet joins via insert discovery and is written first; its generated key is carried by the
         // junction row's composite primary key.
         assertEquals(2, inserts.size());
         assertTrue(inserts.get(1).contains("vet_specialty"));
@@ -435,7 +435,7 @@ public class WriteSetIntegrationTest {
     public void testInsertUnsavedThroughNonInsertableComponentWithoutCarrierFails() {
         var orm = orm();
         // The badge's vet_id column is neither insertable nor carried by a primary key component, so an unsaved
-        // vet behind it cannot join the insertion closure.
+        // vet behind it cannot be discovered.
         var badge = new VetBadge(null, "Unsupported", Vet.builder().firstName("New").lastName("Vet").build());
         var exception = assertThrows(PersistenceException.class, () -> orm.writeSet().insert(List.of(badge)));
         assertTrue(exception.getMessage().contains("not insertable"));
@@ -562,16 +562,16 @@ public class WriteSetIntegrationTest {
     }
 
     @Test
-    public void testUpsertInsertsClosureMembersBeforeDelegating() {
+    public void testUpsertInsertsDiscoveredMembersBeforeDelegating() {
         // The default H2 implementation does not support upsert; per-repository upsert throws. The write set must
-        // surface that same exception for the passed members, but only after the unsaved closure members have been
+        // surface that same exception for the passed members, but only after the unsaved discovered members have been
         // resolved, showing the delegation reaches the per-type upsert unchanged.
         var orm = orm();
         var newOwner = newOwner("Upsert", "Fresh");
         var pet = Pet.builder().name("Upserted").birthDate(LocalDate.of(2019, 9, 9)).type(dogType()).owner(newOwner).build();
         var exception = assertThrows(PersistenceException.class, () -> orm.writeSet().upsert(List.of(pet)));
         assertTrue(exception.getMessage().contains("Upsert is not available"), exception.getMessage());
-        // The closure member was inserted before the upsert of the passed member failed.
+        // The discovered member was inserted before the upsert of the passed member failed.
         var owners = orm.entity(Owner.class).select().getResultList().stream()
                 .filter(candidate -> "Upsert".equals(candidate.firstName()))
                 .toList();

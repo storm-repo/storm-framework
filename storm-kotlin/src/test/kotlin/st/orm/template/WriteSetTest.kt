@@ -63,7 +63,7 @@ open class WriteSetTest(
 
     @Test
     fun `insertAndFetch should pull unsaved city through the inline address component`() {
-        val owner = newOwner("Inline").copy(address = Address("2 Closure Lane", City(name = "Graphville")))
+        val owner = newOwner("Inline").copy(address = Address("2 Discovery Lane", City(name = "Graphville")))
         val fetched = orm.writeSet().insertAndFetch(listOf(owner))
         fetched shouldHaveSize 1
         val fetchedOwner = fetched.single() as Owner

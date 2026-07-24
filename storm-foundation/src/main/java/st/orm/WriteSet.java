@@ -24,13 +24,13 @@ import java.util.List;
  * <p>A write set applies one write operation to a heterogeneous collection of entities. {@link #insert(Iterable)}
  * and {@link #upsert(Iterable)} extend the <em>explicit members</em> (the entities supplied by the caller) with
  * <em>discovered members</em>: unsaved entities transitively reachable through insertable, entity-valued foreign key
- * fields (the <em>insertion closure</em>). {@link #update(Iterable)} and {@link #remove(Iterable)} operate on the
+ * fields. {@link #update(Iterable)} and {@link #remove(Iterable)} operate on the
  * explicit members only. Each action accepts the entities as any {@code Iterable} or as varargs. The per-row
  * semantics of each action are identical to the corresponding {@code EntityRepository} operation; the write set adds
  * partitioning by type, dependency ordering and generated-key propagation:</p>
  *
  * <ul>
- *   <li><strong>Insertion closure.</strong> A record whose foreign key field holds an unsaved entity is a value that
+ *   <li><strong>Insert discovery.</strong> A record whose foreign key field holds an unsaved entity is a value that
  *       describes both rows; inserting the value inserts both. Discovery traverses entity-valued foreign key fields
  *       (including fields inside inline components) and entity-wrapped refs (see {@link Ref#of(Entity)}). Referenced
  *       entities that already carry a primary key are never discovered; unless they are explicit members themselves,
@@ -55,7 +55,7 @@ import java.util.List;
  * <p>An entity is considered <em>unsaved</em> when its primary key is the default value and the primary key is
  * auto-generated (identity or sequence). This test is local and deterministic; no session state, entity cache or
  * database round trip is involved. There is no session-wide cascade or persistence context: all writes derive from
- * the entities supplied to the call and, for insert and upsert, their insertion closure.</p>
+ * the entities supplied to the call and, for insert and upsert, their discovered members.</p>
  *
  * <p>A write set executes multiple statements and is not atomic by itself: when a later dependency level fails, the
  * earlier levels have already been written. Run write sets inside a transaction when atomicity across the set is
@@ -68,11 +68,11 @@ import java.util.List;
  * var wolfie = new Pet("Wolfie", DOG, owner);                 // both pets share the owner instance
  * var rex = new Pet("Rex", DOG, owner);
  * var visit = new Visit(TODAY, "Check-up", wolfie);
- * orm.writeSet().insert(wolfie, rex, visit);                  // owner joins via the insertion closure:
+ * orm.writeSet().insert(wolfie, rex, visit);                  // owner joins via insert discovery:
  *                                                             // one Owner, one Pet and one Visit batch
  * }</pre>
  *
- * <p>Unsaved references that cannot join the insertion closure fail fast with a descriptive exception before
+ * <p>Unsaved references that cannot be discovered fail fast with a descriptive exception before
  * anything is written: an id-only {@code Ref} carrying a default id, an unsaved entity behind a non-insertable
  * foreign key component whose column value is not carried by an insertable primary key component, an unsaved
  * entity encountered by {@link #update(Iterable)} or {@link #remove(Iterable)}, and dependency cycles that cannot
@@ -101,7 +101,7 @@ import java.util.List;
 public interface WriteSet {
 
     /**
-     * Inserts the explicit members and their insertion closure, in dependency order.
+     * Inserts the explicit members and their discovered members, in dependency order.
      *
      * <p>All explicit members are inserted with the exact semantics of the per-repository insert: auto-generated
      * primary keys are assigned by the database (a preset value on an auto-generated key is ignored), and entities
@@ -116,7 +116,7 @@ public interface WriteSet {
     void insert(@Nonnull Iterable<? extends Entity<?>> entities);
 
     /**
-     * Inserts the given entities and their insertion closure; see {@link #insert(Iterable)}. An empty call is a
+     * Inserts the given entities and their discovered members; see {@link #insert(Iterable)}. An empty call is a
      * no-op.
      *
      * @param entities the entities to insert; may span multiple entity types.
@@ -175,7 +175,7 @@ public interface WriteSet {
     <ID> List<ID> insertAndFetchIds(@Nonnull Iterable<? extends Entity<ID>> entities);
 
     /**
-     * Inserts the given entity and its insertion closure and returns its primary key; see
+     * Inserts the given entity and its discovered members and returns its primary key; see
      * {@link #insertAndFetchIds(Iterable)}.
      *
      * @param entity the entity to insert.
@@ -193,7 +193,7 @@ public interface WriteSet {
      *
      * <p>Per-row semantics are identical to the per-repository update, including transaction-scoped dirty checking:
      * entities that are unchanged compared to their observed state are skipped. Only the explicit members are
-     * updated; referenced entities are never updated implicitly, and there is no insertion closure &mdash; an
+     * updated; referenced entities are never updated implicitly, and there is no insert discovery &mdash; an
      * unsaved explicit member is rejected (a row that does not exist cannot be updated), and an unsaved referenced
      * entity fails where its key is required as a foreign key value.</p>
      *
@@ -242,7 +242,7 @@ public interface WriteSet {
     }
 
     /**
-     * Upserts the explicit members and inserts their insertion closure, in dependency order.
+     * Upserts the explicit members and inserts their discovered members, in dependency order.
      *
      * <p>Explicit members are upserted with the exact semantics of the per-repository upsert (native
      * {@code ON CONFLICT} / {@code MERGE} where available); explicit membership takes precedence, so a keyed entity
@@ -259,7 +259,7 @@ public interface WriteSet {
     void upsert(@Nonnull Iterable<? extends Entity<?>> entities);
 
     /**
-     * Upserts the given entities and inserts their insertion closure; see {@link #upsert(Iterable)}. An empty call
+     * Upserts the given entities and inserts their discovered members; see {@link #upsert(Iterable)}. An empty call
      * is a no-op.
      *
      * @param entities the entities to upsert; may span multiple entity types.
@@ -314,7 +314,7 @@ public interface WriteSet {
     <ID> List<ID> upsertAndFetchIds(@Nonnull Iterable<? extends Entity<ID>> entities);
 
     /**
-     * Upserts the given entity and its insertion closure and returns its primary key; see
+     * Upserts the given entity and its discovered members and returns its primary key; see
      * {@link #upsertAndFetchIds(Iterable)}.
      *
      * @param entity the entity to upsert.
@@ -355,7 +355,7 @@ public interface WriteSet {
     //
 
     /**
-     * Inserts the given entity and its insertion closure; see {@link #insert(Iterable)}.
+     * Inserts the given entity and its discovered members; see {@link #insert(Iterable)}.
      *
      * @param entity the root entity to insert.
      * @throws PersistenceException if the insert fails.
@@ -365,7 +365,7 @@ public interface WriteSet {
     }
 
     /**
-     * Inserts the given entity and its insertion closure, and returns the entity as it exists in the database after
+     * Inserts the given entity and its discovered members, and returns the entity as it exists in the database after
      * the insert; see {@link #insertAndFetch(Iterable)}.
      *
      * @param entity the root entity to insert.
@@ -406,7 +406,7 @@ public interface WriteSet {
     }
 
     /**
-     * Upserts the given entity and inserts its insertion closure; see {@link #upsert(Iterable)}.
+     * Upserts the given entity and inserts its discovered members; see {@link #upsert(Iterable)}.
      *
      * @param entity the root entity to upsert.
      * @throws PersistenceException if the upsert fails.
@@ -416,7 +416,7 @@ public interface WriteSet {
     }
 
     /**
-     * Upserts the given entity, inserts its insertion closure, and returns the entity as it exists in the database
+     * Upserts the given entity, inserts its discovered members, and returns the entity as it exists in the database
      * after the upsert; see {@link #upsertAndFetch(Iterable)}.
      *
      * @param entity the root entity to upsert.
