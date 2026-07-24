@@ -158,7 +158,7 @@ orm.writeSet().insert(wolfie, rex, visit);
 </TabItem>
 </Tabs>
 
-The owner was never passed. It is discovered: `insert` extends the explicit members with every unsaved entity reachable through their foreign key fields, the *insertion closure*. Storm orders the result by foreign key dependencies, executes one batch per entity type per dependency level (owners, then pets, then visits), and propagates generated keys by instance identity: both pets hold the same `owner` instance, so both rows receive the same generated key.
+The owner was never passed. It is discovered: `insert` extends the explicit members with every unsaved entity reachable through their foreign key fields, the *discovered members*. Storm orders the result by foreign key dependencies, executes one batch per entity type per dependency level (owners, then pets, then visits), and propagates generated keys by instance identity: both pets hold the same `owner` instance, so both rows receive the same generated key.
 
 There is no cascade configuration anywhere. Nothing on `Owner` says that pets depend on it; the pet values say so themselves.
 
@@ -170,14 +170,14 @@ A JPA object model references in both directions. Parents hold collections of ch
 
 This one inversion explains most of what follows:
 
-- **Insert discovery needs no configuration in Storm** because every value declares its own dependencies. There is nothing to over-cascade into: the closure contains exactly the unsaved entities your values reference, transitively.
+- **Insert discovery needs no configuration in Storm** because every value declares its own dependencies. There is nothing to over-cascade into: discovery finds exactly the unsaved entities your values reference, transitively.
 - **Delete discovery does not exist in Storm** because a value never names its children. `remove` deletes exactly the entities you pass, children before parents. Reactive cleanup of dependents belongs to the schema: declare `ON DELETE CASCADE` on the foreign key constraint and the database maintains it under every writer, not just your application.
 
 ### A managed graph vs an explicit operation
 
 In JPA, persistence is a property of the object model. You configure once, on the mappings, how operations travel the graph. A persistence context keeps the loaded graph and the database converged, and the writes are derived from state: new managed entities, dirty fields, orphaned children, all collected and ordered at flush time. Cascades extend that convergence across associations. The call site stays small, `persist(owner)`, because the mapping and the session carry the knowledge.
 
-In Storm, persistence is an operation on values. There is no session and no managed state; entities are plain values that describe rows. A write set is a single call whose inputs fully determine what happens: the action, the members you pass, and the closure those values imply. The call site carries the knowledge, and the model stays free of behavior.
+In Storm, persistence is an operation on values. There is no session and no managed state; entities are plain values that describe rows. A write set is a single call whose inputs fully determine what happens: the action, the members you pass, and the members those values imply. The call site carries the knowledge, and the model stays free of behavior.
 
 Neither choice is free. The price of Storm's model is that every call site states its intent; there is no per-association default to configure once and rely on everywhere. The price of JPA's model is action at a distance: reading a call site is not enough to know what it writes, because the mapping and the current session state complete the sentence.
 

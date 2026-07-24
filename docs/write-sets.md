@@ -5,9 +5,9 @@ import TabItem from '@theme/TabItem';
 
 Inserting an object graph that spans several tables normally requires careful choreography: insert the parents first, collect their generated keys, rebuild the children against those keys, and repeat for every level. Write sets lift that burden.
 
-A write set applies one write operation to a heterogeneous collection of entities. Storm partitions the entities by type, orders them by their foreign key dependencies, and writes them in dependency-ordered batches, propagating generated primary keys to dependent entities. `insert` and `upsert` extend the *explicit members* (the entities you supply) with *discovered members*: unsaved entities transitively reachable through insertable foreign key fields. This discovery is called the *insertion closure*. `update` and `remove` operate on the explicit members only. Every action accepts the entities as varargs or as any `Iterable`.
+A write set applies one write operation to a heterogeneous collection of entities. Storm partitions the entities by type, orders them by their foreign key dependencies, and writes them in dependency-ordered batches, propagating generated primary keys to dependent entities. `insert` and `upsert` extend the *explicit members* (the entities you supply) with *discovered members*: unsaved entities transitively reachable through insertable foreign key fields. `update` and `remove` operate on the explicit members only. Every action accepts the entities as varargs or as any `Iterable`.
 
-Write sets are not a cascade in the JPA sense. There are no mapping annotations, no persistence context and no session-wide cascade: all writes derive from the entities supplied to the call and, for insert and upsert, their insertion closure. The per-row semantics of every action are identical to the corresponding repository operation, including entity callbacks and dirty checking. Coming from JPA? [JPA Cascades vs Write Sets](jpa-cascades-vs-write-sets.md) compares the two models side by side.
+Write sets are not a cascade in the JPA sense. There are no mapping annotations, no persistence context and no session-wide cascade: all writes derive from the entities supplied to the call and, for insert and upsert, their discovered members. The per-row semantics of every action are identical to the corresponding repository operation, including entity callbacks and dirty checking. Coming from JPA? [JPA Cascades vs Write Sets](jpa-cascades-vs-write-sets.md) compares the two models side by side.
 
 A write set is obtained from the ORM template, or from any repository (`writeSet()` on a repository is a convenience that delegates to the underlying template; it is not scoped to the repository's entity type):
 
@@ -70,11 +70,11 @@ orm.writeSet().insert(wolfie, rex, visit);
 </TabItem>
 </Tabs>
 
-This particular graph needs three dependency-ordered batch operations, regardless of how many pets or visits the set contains: owners first, then pets, then visits. The owner was never passed explicitly; it becomes a discovered member because the pet values hold it in their foreign key field. That is the insertion closure at work: a record whose foreign key field holds an unsaved entity is a value that describes both rows, and inserting the value inserts both.
+This particular graph needs three dependency-ordered batch operations, regardless of how many pets or visits the set contains: owners first, then pets, then visits. The owner was never passed explicitly; it becomes a discovered member because the pet values hold it in their foreign key field. That is insert discovery at work: a record whose foreign key field holds an unsaved entity is a value that describes both rows, and inserting the value inserts both.
 
 The rules, in full:
 
-1. **Insert and upsert write the explicit members plus their insertion closure.** Discovery follows insertable, entity-valued foreign key fields (including fields inside inline components) and entity-wrapped refs, and picks up unsaved entities transitively. Referenced entities that already carry a primary key are never discovered; unless they are explicit members themselves, they only provide foreign key values.
+1. **Insert and upsert write the explicit members plus their discovered members.** Discovery follows insertable, entity-valued foreign key fields (including fields inside inline components) and entity-wrapped refs, and picks up unsaved entities transitively. Referenced entities that already carry a primary key are never discovered; unless they are explicit members themselves, they only provide foreign key values.
 2. **Update and remove write exactly the explicit members.** Referenced entities are never updated or removed implicitly.
 3. **Storm determines a valid execution order** from the foreign key dependencies: parents before children for insert and upsert, children before parents for remove.
 4. **Generated keys propagate by instance identity.** Children link to a new parent by holding the same instance: one unsaved instance describes one prospective row, and two structurally equal but distinct unsaved instances describe two separate rows.
@@ -210,7 +210,7 @@ record UserRole(@PK UserRolePk userRolePk,
 
 The secondary constructor derives the key components from the referenced entities, so call sites pass the entities and never spell out the composite key.
 
-Write sets recognize this shape. A non-insertable foreign key field whose column value is carried by an insertable component of the primary key participates in the insertion closure like any other edge: an unsaved entity held by the field is discovered and inserted first, and its generated key is written into the carrying key component before the junction row is inserted. The key components for already-persisted entities are set as usual, so mixed rows work naturally:
+Write sets recognize this shape. A non-insertable foreign key field whose column value is carried by an insertable component of the primary key participates in insert discovery like any other edge: an unsaved entity held by the field is discovered and inserted first, and its generated key is written into the carrying key component before the junction row is inserted. The key components for already-persisted entities are set as usual, so mixed rows work naturally:
 
 <Tabs groupId="language">
 <TabItem value="kotlin" label="Kotlin" default>
@@ -244,7 +244,7 @@ The unsaved entity's default id in the key component is a placeholder; the write
 The remaining actions follow the same contract, each with the ordering that suits it:
 
 - `update` groups the explicit members by type and updates them with the usual semantics, including transaction-scoped dirty checking: unchanged entities are skipped. Referenced entities are never updated implicitly: an updated `Owner` held inside a `Pet` you update is not written, it contributes only its primary key. Pass both when both changed; dirty checking skips whichever members are unchanged. Unsaved members are rejected; a row that does not exist cannot be updated.
-- `upsert` applies the per-repository upsert semantics to the explicit members and inserts the discovered members of the insertion closure, with keys propagating as for insert. Explicit membership takes precedence: a keyed entity that is both supplied and referenced by another member is upserted, and is written before the members that reference it. Whether an upsert can create a row for a member carrying a preset key follows the dialect's per-repository upsert behavior. `upsertAndFetch` and `upsertAndFetchIds` mirror the insert-side variants: rows re-read, or just the keys.
+- `upsert` applies the per-repository upsert semantics to the explicit members and inserts the discovered members, with keys propagating as for insert. Explicit membership takes precedence: a keyed entity that is both supplied and referenced by another member is upserted, and is written before the members that reference it. Whether an upsert can create a row for a member carrying a preset key follows the dialect's per-repository upsert behavior. `upsertAndFetch` and `upsertAndFetchIds` mirror the insert-side variants: rows re-read, or just the keys.
 - `remove` deletes exactly the explicit members, children before parents. Members are correlated by entity type and primary key rather than by instance, so a member referencing another member is removed first regardless of which instance its foreign key field holds. Referenced entities are never removed implicitly.
 
 <Tabs groupId="language">
