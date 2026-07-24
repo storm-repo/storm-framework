@@ -85,7 +85,7 @@ public class StormRuntimeHints implements RuntimeHintsRegistrar {
             registerDataType(hints, typeName);
             // Compound primary keys and inline components are introspected like the Data types that
             // carry them but do not appear in the index themselves; resolve them through the shared
-            // closure when the type is loadable.
+            // component walk when the type is loadable.
             try {
                 Class<?> type = Class.forName(typeName, false, loader);
                 for (Class<?> componentType : TypeDiscovery.getComponentTypes(type)) {

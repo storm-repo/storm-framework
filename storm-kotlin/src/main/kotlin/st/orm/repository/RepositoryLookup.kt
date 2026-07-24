@@ -97,7 +97,7 @@ interface RepositoryLookup {
      * val owner = Owner(name = "Alice", address = address)   // unsaved
      * val wolfie = Pet(name = "Wolfie", type = dog, owner = owner)
      * val visit = Visit(visitDate = today, description = "Check-up", pet = wolfie)
-     * orm.writeSet().insert(listOf(wolfie, visit))            // owner joins via the insertion closure
+     * orm.writeSet().insert(listOf(wolfie, visit))            // owner joins via insert discovery
      * ```
      *
      * @return the write set operations bound to this lookup.
@@ -139,7 +139,7 @@ inline fun <R> RepositoryLookup.writeSet(block: WriteSet.() -> R): R = writeSet(
 inline fun <R> Repository.writeSet(block: WriteSet.() -> R): R = writeSet().block()
 
 /**
- * Inserts the given entities and their insertion closure and returns the primary keys of the explicit members, in
+ * Inserts the given entities and their discovered members and returns the primary keys of the explicit members, in
  * argument order; see [WriteSet.insertAndFetchIds].
  *
  * The batch is homogeneous in its id type; entity types may differ as long as they share it. The vararg form is a
@@ -151,7 +151,7 @@ inline fun <R> Repository.writeSet(block: WriteSet.() -> R): R = writeSet().bloc
 fun <ID : Any> WriteSet.insertAndFetchIds(vararg entities: Entity<ID>): List<ID> = insertAndFetchIds(entities.asList())
 
 /**
- * Upserts the given entities and their insertion closure and returns the primary keys of the explicit members, in
+ * Upserts the given entities and their discovered members and returns the primary keys of the explicit members, in
  * argument order; see [WriteSet.upsertAndFetchIds].
  *
  * The batch is homogeneous in its id type; entity types may differ as long as they share it. The vararg form is a

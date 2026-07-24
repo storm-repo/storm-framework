@@ -41,7 +41,7 @@ converters, and repositories of your application without configuration:
 Storm: registered 11 data types, 0 converters, and 11 repositories from the type index.
 ```
 
-Both paths register the same closure: every Data type with its constructors, accessors, and
+Both paths register the same set of types: every Data type with its constructors, accessors, and
 generated metamodel companions, compound primary keys and inline components reached through
 constructor signatures, kotlinx.serialization companions for JSON columns, and every repository
 interface as a JDK proxy shape.

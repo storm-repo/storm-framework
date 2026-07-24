@@ -25,7 +25,7 @@ import java.util.Map;
 import org.junit.jupiter.api.Test;
 
 /**
- * The component closure backs the native-image registrations: compound primary keys, inline
+ * The component set backs the native-image registrations: compound primary keys, inline
  * components, and types reached through generic constructor signatures are introspected like the
  * Data types that carry them, while JDK and Kotlin platform types are covered by their own metadata.
  */
@@ -45,7 +45,7 @@ class TypeDiscoveryComponentTest {
     }
 
     @Test
-    void componentClosureContainsCompoundKeyAndGenericArguments() {
+    void componentDiscoveryContainsCompoundKeyAndGenericArguments() {
         List<Class<?>> components = TypeDiscovery.getComponentTypes(City.class);
         assertTrue(components.contains(CityPk.class), "compound primary key");
         assertTrue(components.contains(Photo.class), "generic type argument");
@@ -53,13 +53,13 @@ class TypeDiscoveryComponentTest {
     }
 
     @Test
-    void componentClosureWalksComponentsRecursively() {
+    void componentDiscoveryWalksComponentsRecursively() {
         List<Class<?>> components = TypeDiscovery.getComponentTypes(Landmark.class);
         assertEquals(List.of(Photo.class), components);
     }
 
     @Test
-    void componentClosureExcludesTheTypeItselfAndPlatformTypes() {
+    void componentDiscoveryExcludesTheTypeItselfAndPlatformTypes() {
         List<Class<?>> components = TypeDiscovery.getComponentTypes(City.class);
         assertFalse(components.contains(City.class), "the type itself");
         assertFalse(components.contains(String.class), "JDK value type");
@@ -69,7 +69,7 @@ class TypeDiscoveryComponentTest {
     }
 
     @Test
-    void componentClosureOfALeafTypeIsEmpty() {
+    void componentDiscoveryOfALeafTypeIsEmpty() {
         assertEquals(List.of(), TypeDiscovery.getComponentTypes(Photo.class));
     }
 }

@@ -77,7 +77,7 @@ public final class TypeDiscovery {
      * walked recursively; JDK, Kotlin, Jakarta, and Storm types are left out, as their metadata is
      * covered elsewhere.
      *
-     * <p>Native-image support builds on this closure: the GraalVM feature and the Spring AOT hints
+     * <p>Native-image support builds on this component set: the GraalVM feature and the Spring AOT hints
      * register these types for reflection alongside the indexed Data types.</p>
      *
      * @param type the Data type whose components to resolve.
