@@ -40,7 +40,7 @@ const BODY = `
   <p>The names come from convention, and Kotlin nullability says which values may be absent in application code. That is the entire application-facing shape. The first principle is to keep it exactly this small: nothing more than the data, with no hidden lifecycle, behavior, or framework state attached. Everything that follows, follows from refusing to add to it.</p>
 
   <h2>It happens to be the perfect carrier</h2>
-  <p>Here is the first thing you get for free. That most concise form, a plain data class, happens to be the ideal way to carry the data around. Nothing is attached to it, so it moves through every layer untouched: out of the repository, into your services, through the controller, out to a serializer, across a thread boundary, and back. You did not design a carrier. You wrote the smallest useful application shape, and it turns out that a carrier is exactly what that is. What you loaded is what you pass.</p>
+  <p>Here is the first thing you get for free. That most concise form, a plain data class, happens to be the ideal way to carry the data around. Nothing is attached to it, so it moves through every layer untouched: out of the repository, into your services, through the controller, out to a serializer, across a thread boundary, and back. You did not have to design a carrier. The smallest useful shape already is one. What you loaded is what you pass.</p>
 
   <h2>And it queries the whole graph</h2>
   <p>Then the second thing falls out. A relationship can be part of that shape too. If a user always needs its city, the field is typed as <code>City</code>; if the load should be deferred, it is typed as <code>Ref&lt;City&gt;</code>.</p>
@@ -48,7 +48,7 @@ const BODY = `
   <p>So relationships live in the shape, and the same definition that carries the data also describes how to query it. ST/ORM generates a metamodel from it, and because the relationships are in the shape, you can follow them across the relation graph: <code>users.findAll(User_.city.name eq "Sunnyvale")</code> reaches from a user to its city in one line, type-checked, with the join derived from the relationship path rather than written by hand at every call site.</p>
 
   <h2>What falls out of keeping it small</h2>
-  <p>Step back and the picture is simple. The same small shape gives application code a value to pass around, a typed contract for queries, and a path into the relation graph. Those are usually separate pieces you write, map, and keep in sync. In ST/ORM they fall out of one decision: keep the application-facing view of database data small, typed, and free of hidden state.</p>
+  <p>The same small shape ends up doing jobs that are usually separate pieces you write, map, and keep in sync: the value your application passes around, the typed contract your queries compile against, the path into the relation graph. In ST/ORM they fall out of one decision: keep the application-facing view of database data small, typed, and free of hidden state.</p>
 
   <div class="cta">
     <a href="/docs/getting-started" class="btn primary">Get started →</a>

@@ -17,6 +17,14 @@ const DESC =
 // hub reads top to bottom in series order, starting from the origin post.
 const POSTS = [
   {
+    slug: 'mapping-not-management',
+    date: 'July 24, 2026',
+    tag: 'Opinion',
+    title: 'The M in ORM stands for …',
+    blurb:
+      'Ask what the M stands for and everyone answers mapping. Watch what the tools wearing the name actually do, and the answer looks more like management. You should get to want one without the other.',
+  },
+  {
     slug: 'should-you-use-an-orm',
     date: 'June 9, 2026',
     tag: 'Opinion',
