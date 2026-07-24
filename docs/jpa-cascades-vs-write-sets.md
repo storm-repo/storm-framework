@@ -177,7 +177,7 @@ This one inversion explains most of what follows:
 
 In JPA, persistence is a property of the object model. You configure once, on the mappings, how operations travel the graph. A persistence context keeps the loaded graph and the database converged, and the writes are derived from state: new managed entities, dirty fields, orphaned children, all collected and ordered at flush time. Cascades extend that convergence across associations. The call site stays small, `persist(owner)`, because the mapping and the session carry the knowledge.
 
-In Storm, persistence is an operation on values. There is no session and no managed state; entities are plain values that describe rows. A write set is a single call whose inputs fully determine what happens: the action, the members you pass, and the members those values imply. The call site carries the knowledge, and the model stays free of behavior.
+In Storm, persistence is an operation on values. There is no session and no managed state; entities are plain values that describe rows. A write set is a single call whose inputs fully determine what happens: the action, the members you pass, and the discovered members those values imply. The call site carries the knowledge, and the model stays free of behavior.
 
 Neither choice is free. The price of Storm's model is that every call site states its intent; there is no per-association default to configure once and rely on everywhere. The price of JPA's model is action at a distance: reading a call site is not enough to know what it writes, because the mapping and the current session state complete the sentence.
 

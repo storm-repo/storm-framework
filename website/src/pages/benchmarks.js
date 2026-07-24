@@ -59,7 +59,7 @@ const WORKLOADS = [
   {
     id: 'graphInsert',
     title: 'Graph insert',
-    desc: 'Write 20 owner to pet to visit graphs, generated keys threaded level to level.',
+    desc: 'Write 20 owner-to-pet-to-visit graphs, generated keys threaded level to level.',
     results: {jdbc: [2410.7, 2382.8, 2423.9], storm: [2662.9, 2645.5, 2673.4], ktorm: [2670.7, 2637.9, 2688.3], jooq: [2839.5, 2830.4, 2849.6], hibernate: [3799.4, 3783.9, 3817.3], jimmer: [4065.1, 4042.7, 4068.6], exposed: [4102.1, 4081.9, 4176.8], exposedDao: [4211.3, 4138.2, 4240.6]},
   },
   {
@@ -1782,7 +1782,7 @@ ${charts}
   ${codeBlock({
     title: 'Graph insert',
     file: 'graphInsert',
-    desc: `Twenty owner to pet to visit graphs written in one transaction, generated keys propagated from parent to child. Storm receives only the visits: the write set discovers the unsaved pets and owners through the refs, orders the dependency levels and writes one multi-row statement per type. The workload returns the generated visit ids, the contract of a create endpoint. Every other implementation except Hibernate orders the levels itself.`,
+    desc: `Twenty owner-to-pet-to-visit graphs written in one transaction, generated keys propagated from parent to child. Storm receives only the visits: the write set discovers the unsaved pets and owners through the refs, orders the dependency levels and writes one multi-row statement per type. The workload returns the generated visit ids, the contract of a create endpoint. Every other implementation except Hibernate orders the levels itself.`,
     storm: CODE_GINSERT,
     sql: SQL_GINSERT,
     others: [

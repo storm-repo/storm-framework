@@ -124,7 +124,7 @@ ${navHtml('tutorials')}
   ${editor({file: 'Model.kt', tag: 'Kotlin · Storm', code: CODE_STORM_MODEL})}
   <p>A write set applies one operation to a heterogeneous collection of entities. Pass the leaves; unsaved parents are discovered through the foreign key fields:</p>
   ${editor({file: 'RegistrationService.kt', tag: 'Kotlin · Storm', code: CODE_STORM_INSERT, sql: SQL_STORM_INSERT})}
-  <p>The owner was never passed. <code>insert</code> extends the entities you supply with every unsaved entity reachable through their foreign key fields, the <em>discovered members</em>. Storm orders the result by foreign key dependencies, executes one batch per entity type per level, and propagates generated keys by instance identity: both pets hold the same <code>owner</code> instance, so both rows receive the same key. Nothing on <code>Owner</code> says that pets depend on it; the pet values say so themselves.</p>
+  <p>The owner was never passed. <code>insert</code> extends the entities you supply with every unsaved entity reachable through their foreign key fields, the <em>discovered members</em>; Storm calls this <em>insert discovery</em>. Storm orders the result by foreign key dependencies, executes one batch per entity type per level, and propagates generated keys by instance identity: both pets hold the same <code>owner</code> instance, so both rows receive the same key. Nothing on <code>Owner</code> says that pets depend on it; the pet values say so themselves.</p>
   <p>One difference follows from immutability. JPA assigns generated keys to your instances; Storm values never change, so the <code>AndFetch</code> variants return the persisted state:</p>
   ${editor({file: 'RegistrationService.kt', tag: 'Kotlin · Storm', code: CODE_STORM_FETCH})}
 
