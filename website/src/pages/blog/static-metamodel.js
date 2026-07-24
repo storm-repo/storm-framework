@@ -28,8 +28,8 @@ const BODY = `
   <h2>Where it pays off: hydration</h2>
   <p>The clearest place you feel this is hydration, turning a result row into an entity. That happens for every row of every query, so it is the part that has to be fast. With a generated metamodel, hydration is code-generated too: each column is read through a known path and lands in the right constructor argument, without asking the class at runtime what to do with it. There is no per-row reflection to pay for, so the mapping runs close to the cost of the work itself.</p>
 
-  <h2>Why it matters</h2>
-  <p>The point is that type safety and performance came from one decision, not from two separate features you have to balance. Generate the model's shape once, at compile time, and the compiler can check your queries while the runtime skips reflection entirely. Everything downstream, from a query predicate to change detection, gets to stand on generated paths instead of runtime discovery. It is a small piece of generated code, but almost every part of the data layer gets to lean on it.</p>
+  <h2>One decision, two payoffs</h2>
+  <p>Type safety and performance came from one decision, not from two separate features you have to balance. Generate the model's shape once, at compile time, and the compiler can check your queries while the runtime skips reflection entirely. Everything downstream, from a query predicate to change detection, gets to stand on generated paths instead of runtime discovery. It is a small piece of generated code, but almost every part of the data layer gets to lean on it.</p>
 
   <div class="cta">
     <a href="/docs/metamodel" class="btn primary">The metamodel →</a>
