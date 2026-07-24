@@ -356,7 +356,7 @@ val upserted: List<User> = users.upsertAndFetch(listOf(user1, user2))
 Apply one write operation to entities of multiple types. Storm orders the writes by foreign-key
 dependencies, batches per type per dependency level, and propagates generated keys. For insert and
 upsert, unsaved entities held in the passed entities' foreign-key fields are discovered and
-inserted automatically (the insertion closure). Children link to a new parent by holding the same
+inserted automatically (insert discovery). Children link to a new parent by holding the same
 instance; two equal but distinct unsaved instances describe two rows.
 
 ```kotlin
