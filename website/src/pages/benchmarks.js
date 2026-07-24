@@ -1782,7 +1782,7 @@ ${charts}
   ${codeBlock({
     title: 'Graph insert',
     file: 'graphInsert',
-    desc: `Twenty owner to pet to visit graphs written in one transaction, generated keys propagated from parent to child. Storm receives only the visits: the write set's insertion closure discovers the unsaved pets and owners through the refs, orders the dependency levels and writes one multi-row statement per type. The workload returns the generated visit ids, the contract of a create endpoint; Storm's <code>insertAndFetch</code> variant, which re-reads the rows to reflect database-applied state, remains the API for callers who need that stronger contract. Every other implementation except Hibernate orders the levels itself.`,
+    desc: `Twenty owner to pet to visit graphs written in one transaction, generated keys propagated from parent to child. Storm receives only the visits: the write set's insertion closure discovers the unsaved pets and owners through the refs, orders the dependency levels and writes one multi-row statement per type. The workload returns the generated visit ids, the contract of a create endpoint. Every other implementation except Hibernate orders the levels itself.`,
     storm: CODE_GINSERT,
     sql: SQL_GINSERT,
     others: [
