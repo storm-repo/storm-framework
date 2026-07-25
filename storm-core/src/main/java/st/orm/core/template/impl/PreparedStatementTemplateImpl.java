@@ -701,14 +701,14 @@ public final class PreparedStatementTemplateImpl implements PreparedStatementTem
                     ? sqlTemplateImpl.process(template, false)
                     : customizedTemplate.process(template);
             SqlDialect dialect = customizedTemplate.dialect();
+            // Fixed parameter values are rejected rather than frozen, for constant and bind-vars plans alike:
+            // silently pinning a value that reads like a variable hides a likely mistake, and bind variables
+            // express the variable parts explicitly.
+            if (!sql.parameters().isEmpty()) {
+                throw new PersistenceException("Cannot compile a plan for a template with fixed parameter values. Pass createBindVars() for the variable parts, or execute the template directly via query().");
+            }
             var bindVariables = sql.bindVariables().orElse(null);
             if (bindVariables == null) {
-                // Constant plan: the statement carries no per-call values. Templates with fixed parameter values
-                // are rejected rather than frozen: silently pinning a value that reads like a variable hides a
-                // likely mistake, and bind variables express the variable parts explicitly.
-                if (!sql.parameters().isEmpty()) {
-                    throw new PersistenceException("Cannot compile a plan for a template with fixed parameter values. Pass createBindVars() for the variable parts, or execute the template directly via query().");
-                }
                 return new QueryPlanImpl(sql, List.of(), List.of(), bound -> createQuery(bound, dialect));
             }
             if (!(bindVariables instanceof BindVarsImpl bindVars)) {

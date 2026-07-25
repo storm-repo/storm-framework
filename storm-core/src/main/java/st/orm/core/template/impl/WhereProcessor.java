@@ -105,11 +105,10 @@ final class WhereProcessor implements ElementProcessor<Where> {
                 var model = (Model<Data, ?>) binder.getModel(table.type());
                 var parameterFactory = binder.setBindVars(where.bindVars());
                 vars.addParameterExtractor(record -> {
+                    var round = parameterFactory.newRound();
                     try {
-                        model
-                                .forEachValue(columns, record,
-                                        (column, value) -> parameterFactory.bind(value));
-                        return parameterFactory.getParameters();
+                        model.forEachValue(columns, record, (column, value) -> round.bind(value));
+                        return round.getParameters();
                     } catch (SqlTemplateException ex) {
                         throw new UncheckedSqlTemplateException(ex);
                     }
@@ -120,9 +119,10 @@ final class WhereProcessor implements ElementProcessor<Where> {
                     //noinspection unchecked
                     var key = (Metamodel<Data, ?>) where.bindVarsKey();
                     vars.addValueParameterExtractor(value -> {
+                        var round = parameterFactory.newRound();
                         try {
-                            model.forEachValue(key, value, (column, columnValue) -> parameterFactory.bind(columnValue));
-                            return parameterFactory.getParameters();
+                            model.forEachValue(key, value, (column, columnValue) -> round.bind(columnValue));
+                            return round.getParameters();
                         } catch (SqlTemplateException ex) {
                             throw new UncheckedSqlTemplateException(ex);
                         }
@@ -132,10 +132,11 @@ final class WhereProcessor implements ElementProcessor<Where> {
                     // query plans use this to bind by-id statements without a full record.
                     model.getPrimaryKeyMetamodel().ifPresent(primaryKeyMetamodel ->
                             vars.addValueParameterExtractor(id -> {
+                                var round = parameterFactory.newRound();
                                 try {
                                     model.forEachValue(primaryKeyMetamodel, id,
-                                            (column, value) -> parameterFactory.bind(value));
-                                    return parameterFactory.getParameters();
+                                            (column, value) -> round.bind(value));
+                                    return round.getParameters();
                                 } catch (SqlTemplateException ex) {
                                     throw new UncheckedSqlTemplateException(ex);
                                 }

@@ -1207,40 +1207,23 @@ class TemplateProcessor {
             if (bindVarsCursor >= bindVarsCounts.size()) {
                 throw new IllegalStateException("Not enough bind variables.");
             }
-            return new ParameterFactory() {
-                // Extraction rounds are confined to the calling thread: the factory outlives its binding session
-                // through the parameter extractors, which query plans invoke concurrently.
-                final ThreadLocal<List<PositionalParameter>> tmp = ThreadLocal.withInitial(ArrayList::new);
-                final int expectedBindVarCount = bindVarsCounts.get(bindVarsCursor++);
+            // Each round owns its storage: the factory outlives its binding session through the parameter
+            // extractors, which query plans invoke concurrently, and an abandoned round leaves no residue behind.
+            final int expectedBindVarCount = bindVarsCounts.get(bindVarsCursor++);
+            return () -> new ParameterFactory.Round() {
+                final List<PositionalParameter> parameters = new ArrayList<>(expectedBindVarCount);
 
-                /**
-                 * Binds one value for the current bind vars segment.
-                 *
-                 * @param value the value to bind.
-                 */
                 @Override
                 public void bind(@Nullable Object value) {
-                    var round = tmp.get();
-                    round.add(new PositionalParameter(startPosition + round.size(), value));
+                    parameters.add(new PositionalParameter(startPosition + parameters.size(), value));
                 }
 
-                /**
-                 * Returns the parameters of the current bind vars segment and resets internal storage.
-                 *
-                 * @return the positional parameters for the bind vars segment.
-                 * @throws IllegalStateException if the number of bound values differs from the expected arity.
-                 */
                 @Override
                 public List<PositionalParameter> getParameters() {
-                    var round = tmp.get();
-                    try {
-                        if (round.size() != expectedBindVarCount) {
-                            throw new IllegalStateException("Bind var count mismatch.");
-                        }
-                        return List.copyOf(round);
-                    } finally {
-                        round.clear();
+                    if (parameters.size() != expectedBindVarCount) {
+                        throw new IllegalStateException("Bind var count mismatch.");
                     }
+                    return List.copyOf(parameters);
                 }
             };
         }

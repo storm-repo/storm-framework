@@ -117,19 +117,20 @@ final class ValuesProcessor implements ElementProcessor<Values> {
             if (values.bindVars() instanceof BindVarsImpl vars) {
                 var parameterFactory = binder.setBindVars(vars);
                 vars.addParameterExtractor(record -> {
+                    var round = parameterFactory.newRound();
                     try {
                         model.validateForeignKeys(columns, record);
                         model.forEachValue(columns, record, (column, value) -> {
                             switch (column.generation()) {
-                                case NONE -> parameterFactory.bind(value);
+                                case NONE -> round.bind(value);
                                 case IDENTITY, SEQUENCE -> {
                                     if (values.ignoreAutoGenerate()) {
-                                        parameterFactory.bind(value);
+                                        round.bind(value);
                                     }
                                 }
                             }
                         });
-                        return parameterFactory.getParameters();
+                        return round.getParameters();
                     } catch (SqlTemplateException ex) {
                         throw new UncheckedSqlTemplateException(ex);
                     }

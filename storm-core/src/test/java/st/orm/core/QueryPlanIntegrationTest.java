@@ -167,6 +167,20 @@ public class QueryPlanIntegrationTest {
     }
 
     @Test
+    void plan_rejectsMixedFixedAndBindVariables() {
+        var orm = orm();
+        var bindVars = orm.createBindVars();
+        // Mixing bind variables with a fixed value must be rejected: the fixed value would silently freeze into
+        // the plan while reading like a variable.
+        var exception = assertThrows(PersistenceException.class, () -> orm.plan(TemplateString.raw("""
+                SELECT \0
+                FROM \0
+                WHERE \0 AND description = \0""", PlanVisit.class, Templates.from(PlanVisit.class, true),
+                Templates.where(bindVars), "fixed")));
+        assertTrue(exception.getMessage().contains("fixed parameter values"));
+    }
+
+    @Test
     void bindValue_rejectsPlansWithMultipleBindVariablesSegments() {
         var orm = orm();
         var bindVars = orm.createBindVars();
