@@ -179,9 +179,11 @@ Three complete, runnable **Storm Movies** applications, each importing the publi
 
 | Example | Stack | Repository |
 |---------|-------|------------|
-| [Kotlin + Ktor](https://orm.st/examples/kotlin-ktor) | Kotlin, Ktor 3, Koin, PostgreSQL | [storm-example-kotlin-ktor](https://github.com/storm-orm/storm-example-kotlin-ktor) |
+| [Kotlin + Ktor](https://orm.st/examples/kotlin-ktor) | Kotlin, Ktor 3, Ktor DI, PostgreSQL | [storm-example-kotlin-ktor](https://github.com/storm-orm/storm-example-kotlin-ktor) |
 | [Kotlin + Spring Boot](https://orm.st/examples/kotlin-spring-boot) | Kotlin, Spring Boot 4, PostgreSQL | [storm-example-kotlin-spring-boot-4](https://github.com/storm-orm/storm-example-kotlin-spring-boot-4) |
 | [Java + Spring Boot](https://orm.st/examples/java-spring-boot) | Java 21, Spring Boot 4, PostgreSQL | [storm-example-java-spring-boot-4](https://github.com/storm-orm/storm-example-java-spring-boot-4) |
+
+Each repository is a GitHub template. Click **Use this template** to start your own project: [Kotlin + Ktor](https://github.com/storm-orm/storm-example-kotlin-ktor/generate) · [Kotlin + Spring Boot](https://github.com/storm-orm/storm-example-kotlin-spring-boot-4/generate) · [Java + Spring Boot](https://github.com/storm-orm/storm-example-java-spring-boot-4/generate).
 
 ## Documentation
 

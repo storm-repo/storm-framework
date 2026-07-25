@@ -4,6 +4,8 @@ Storm is a modern SQL Template and ORM framework for Kotlin 2.0+ and Java 21+. I
 
 ## Choose Your Path
 
+> **Fastest start:** each example app is a GitHub template. Click **Use this template** to generate a runnable project, then replace the sample entities with your own: [Kotlin + Ktor](https://github.com/storm-orm/storm-example-kotlin-ktor/generate) · [Kotlin + Spring Boot](https://github.com/storm-orm/storm-example-kotlin-spring-boot-4/generate) · [Java + Spring Boot](https://github.com/storm-orm/storm-example-java-spring-boot-4/generate).
+
 Two ways to get started, and both reach the same working setup: follow the guides by hand, or let your AI coding tool do it. Pick whichever fits your workflow.
 
 import Tabs from '@theme/Tabs';
