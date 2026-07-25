@@ -40,6 +40,12 @@ import st.orm.Entity;
  * <p>The primary key-based lookup for entities avoids potentially expensive deep equality checks on complex entity
  * objects, while maintaining correct identity semantics (same type and primary key = same canonical instance).</p>
  *
+ * <p>Weak references are cleared only when their referent is no longer strongly reachable, which makes interning a
+ * guarantee rather than a best-effort optimization: as long as a caller retains a strong reference to an interned
+ * instance, later equivalent objects resolve to that same instance. A caller in a position to compare two duplicates
+ * necessarily still holds the first one, which is exactly what keeps its entry alive, so duplicates can never be
+ * observed as distinct instances.</p>
+ *
  * <p>This class is not thread-safe. A new instance is expected to be created for each result set processing call,
  * ensuring that interning is scoped to a single query execution.</p>
  */

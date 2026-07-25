@@ -1076,8 +1076,9 @@ abstract class QueryBuilder<T : Data, R, ID> {
      * The SQL is not affected by the grouping; the same select is executed and the results are grouped during
      * hydration. The returned map and its lists are unmodifiable and insertion-ordered: groups appear in the order
      * their first result is encountered, and results appear in encounter order within each group. Use `orderBy()` to
-     * control both. Since duplicate entities within a result set share the same instance, each result's reference to
-     * its group key is the map key itself.
+     * control both. Duplicate entities within a result set are guaranteed to share the same instance as long as
+     * earlier occurrences remain strongly reachable, and the grouping retains every result and group key while the
+     * result set is consumed; each result's reference to its group key is therefore the map key itself.
      *
      * This method requires an entity query: the result type must be the table type `T` so that the path can be
      * resolved against the results. The path must also resolve to a non-null record for every result; paths over

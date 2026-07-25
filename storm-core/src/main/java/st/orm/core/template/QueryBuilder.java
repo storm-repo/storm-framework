@@ -970,14 +970,22 @@ public abstract class QueryBuilder<T extends Data, R, ID> {
     }
 
     /**
+     * Expected distinct-group count for the grouped terminals. Grouping typically collects children per parent, so
+     * group counts regularly reach the dozens; the grouping maps are sized so that such results build up without a
+     * resize, at a cost of roughly 2 KB per call for small results.
+     */
+    private static final int EXPECTED_GROUPS = 64;
+
+    /**
      * Executes the query and returns the results grouped by the record reached via {@code path}, typically the
      * parent entity of a foreign key. The SQL is not affected by the grouping; the same select is executed and the
      * results are grouped during hydration.
      *
      * <p>The returned map and its lists are unmodifiable and insertion-ordered: groups appear in the order their
      * first result is encountered, and results appear in encounter order within each group. Use {@code orderBy()} to
-     * control both. Since duplicate entities within a result set share the same instance, each result's reference to
-     * its group key is the map key itself.</p>
+     * control both. Duplicate entities within a result set are guaranteed to share the same instance as long as
+     * earlier occurrences remain strongly reachable, and the grouping retains every result and group key while the
+     * result set is consumed; each result's reference to its group key is therefore the map key itself.</p>
      *
      * <p>This method requires an entity query: the result type must be the table type {@code T} so that the path can
      * be resolved against the results. The path must also resolve to a non-null record for every result; paths over
@@ -998,16 +1006,20 @@ public abstract class QueryBuilder<T extends Data, R, ID> {
     public final <V extends Data> SequencedMap<V, List<R>> getResultGroupedBy(@Nonnull TypedMetamodel<T, V, V> path) {
         requireNonNull(path, "path");
         try (var stream = getMaterializedResultStream()) {
-            // Duplicate records within a result set share the same instance (query-scoped interning), so the per-row
-            // lookup can use reference identity instead of hashing every field of the group record. The identity map
-            // carries no order and no value semantics; both are restored during assembly below.
-            var groups = new IdentityHashMap<V, Group<R>>();
-            var order = new ArrayList<V>();
+            // Duplicate records within a result set share the same instance (query-scoped interning), so the identity
+            // map serves as a per-instance memo of each key's canonical group: the value-based hash of the group
+            // record is paid once per distinct instance rather than once per row. The maps' strong references pin the
+            // interner entries for every group key, so this holds regardless of the interner's reference strength.
+            // Equal-by-value keys that were not interned resolve to the same group through the result map, so the
+            // result is correct even without interning.
+            var root = path.root();
+            var groups = new IdentityHashMap<V, Group<R>>(EXPECTED_GROUPS);
+            var result = LinkedHashMap.<V, List<R>>newLinkedHashMap(EXPECTED_GROUPS);
             stream.forEach(element -> {
-                if (!path.root().isInstance(element)) {
+                if (!root.isInstance(element)) {
                     throw new PersistenceException(
                             "Grouped results require an entity query rooted at %s, but got a result of type %s."
-                                    .formatted(path.root().getName(),
+                                    .formatted(root.getName(),
                                             element == null ? "null" : element.getClass().getName()));
                 }
                 // Object intermediate on purpose: assigning the typed return directly would insert a checkcast to
@@ -1029,24 +1041,12 @@ public abstract class QueryBuilder<T extends Data, R, ID> {
                 V group = (V) value;
                 var elements = groups.get(group);
                 if (elements == null) {
-                    elements = new Group<>();
+                    elements = (Group<R>) result.computeIfAbsent(group, ignore -> new Group<>());
                     groups.put(group, elements);
-                    order.add(group);
                 }
                 elements.elements.add(element);
             });
-            // Assembly hashes each distinct group once; equal-by-value groups merge, so the result is correct even
-            // for records that were not interned. The group count is known here, so the map is allocated at its
-            // final size. The values are unmodifiable views over the lists built above, so no copy or re-wrapping
-            // is needed.
-            var result = LinkedHashMap.<V, List<R>>newLinkedHashMap(order.size());
-            for (V group : order) {
-                var elements = groups.get(group);
-                var existing = result.putIfAbsent(group, elements);
-                if (existing != null) {
-                    ((Group<R>) existing).elements.addAll(elements);
-                }
-            }
+            // The values are unmodifiable views over the lists built above, so no copy or re-wrapping is needed.
             return Collections.unmodifiableSequencedMap(result);
         }
     }
@@ -1094,12 +1094,13 @@ public abstract class QueryBuilder<T extends Data, R, ID> {
             // Refs hash and compare by primary key, so the grouping map is cheap without an identity-based fast path.
             // The values are unmodifiable views appended through their backing lists, so no copy or re-wrapping is
             // needed when the result is returned.
-            var groups = new LinkedHashMap<Ref<V>, List<R>>();
+            var root = path.root();
+            var groups = LinkedHashMap.<Ref<V>, List<R>>newLinkedHashMap(EXPECTED_GROUPS);
             stream.forEach(element -> {
-                if (!path.root().isInstance(element)) {
+                if (!root.isInstance(element)) {
                     throw new PersistenceException(
                             "Grouped results require an entity query rooted at %s, but got a result of type %s."
-                                    .formatted(path.root().getName(),
+                                    .formatted(root.getName(),
                                             element == null ? "null" : element.getClass().getName()));
                 }
                 //noinspection unchecked
