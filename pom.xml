@@ -13,7 +13,10 @@
         <kotlin.ksp.version>2.0.21-1.0.25</kotlin.ksp.version>
         <kotlin.coroutines.version>1.9.0</kotlin.coroutines.version>
         <kotlinx.serialization.version>1.7.3</kotlinx.serialization.version>
-        <ktor.version>3.2.3</ktor.version>
+        <!-- storm-ktor and storm-ktor-test track the Ktor ecosystem's toolchain independently of the core
+             framework: Ktor 3.4 requires Kotlin 2.3, which those two leaf modules override locally (see their
+             poms). The rest of the framework stays on Kotlin 2.0. -->
+        <ktor.version>3.4.3</ktor.version>
         <graalvm.version>24.2.2</graalvm.version>
         <micrometer.version>1.15.4</micrometer.version>
         <micrometer-tracing.version>1.5.4</micrometer-tracing.version>
