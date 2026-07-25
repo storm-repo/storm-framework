@@ -293,24 +293,25 @@ public final class DirtySupport<E extends Entity<ID>, ID> {
         }
         dirtyCheckMetrics.recordDirty();
         // A map lookup does not retain its key, so the mutable bit set probes the cache directly; the defensive
-        // copy and the new-shape bookkeeping are only needed when the shape is actually inserted.
+        // copy and the new-shape bookkeeping are only needed when the shape is actually inserted. Put-if-absent
+        // keeps the new-shape metric exact when two threads race on the same shape: only the winning insert
+        // records it.
         var fields = dirtyFieldsCache.get(dirtyFields);
         if (fields == null) {
-            BitSet key = (BitSet) dirtyFields.clone();
-            boolean[] inserted = new boolean[1];
-            fields = dirtyFieldsCache.computeIfAbsent(key, bits -> {
-                inserted[0] = true;
-                Set<Metamodel<?, ?>> set = new HashSet<>();
-                for (int i = bits.nextSetBit(0); i >= 0; i = bits.nextSetBit(i + 1)) {
-                    set.add(model.columns().get(i).metamodel());
-                }
-                if (versionColumn != null) {
-                    set.add(versionColumn.metamodel());
-                }
-                return Set.copyOf(set);
-            });
-            if (inserted[0]) {
+            Set<Metamodel<?, ?>> set = new HashSet<>();
+            for (int i = dirtyFields.nextSetBit(0); i >= 0; i = dirtyFields.nextSetBit(i + 1)) {
+                set.add(model.columns().get(i).metamodel());
+            }
+            if (versionColumn != null) {
+                set.add(versionColumn.metamodel());
+            }
+            var candidate = Set.copyOf(set);
+            var existing = dirtyFieldsCache.putIfAbsent((BitSet) dirtyFields.clone(), candidate);
+            if (existing == null) {
                 dirtyCheckMetrics.recordNewShape(model.type().getSimpleName());
+                fields = candidate;
+            } else {
+                fields = existing;
             }
         }
         return Optional.of(fields);
