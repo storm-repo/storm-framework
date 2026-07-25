@@ -419,7 +419,8 @@ public final class SqlTemplateImpl implements SqlTemplate {
         try {
             var fragments = bindingContext.fragments();
             var elements = bindingContext.elements();
-            var compilationKey = new ArrayList<>();
+            // Runs for every processed template; sized for the common case of one key per fragment and element.
+            var compilationKey = new ArrayList<>(fragments.size() + elements.size());
             for (int i = 0, size = fragments.size(); i < size; i++) {
                 compilationKey.add(fragments.get(i));
                 if (i < elements.size()) {

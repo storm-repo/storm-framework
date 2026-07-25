@@ -363,7 +363,7 @@ val city: City = user.city.fetch()  // Loads City from database
 
 ## Query-Level Identity (Interning)
 
-When the same entity appears multiple times in a query result (e.g., through joins), Storm guarantees they share the same object instance within that query. This is called **interning**.
+When the same entity appears multiple times in a query result (e.g., through joins), Storm guarantees they share the same object instance within that query, as long as your code still holds the earlier occurrence when the later one is hydrated. This is called **interning**. Code in a position to compare two occurrences necessarily holds the first one, so the guarantee holds wherever it can be observed; see [Memory Safety](#memory-safety) for why cleanup never weakens it.
 
 ```
 ┌─────────────────────────────────────────────────────────────────────────┐

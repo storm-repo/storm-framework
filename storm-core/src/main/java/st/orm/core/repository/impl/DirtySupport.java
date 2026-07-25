@@ -292,22 +292,29 @@ public final class DirtySupport<E extends Entity<ID>, ID> {
             return CLEAN;
         }
         dirtyCheckMetrics.recordDirty();
-        BitSet key = (BitSet) dirtyFields.clone(); // Defensive copy.
-        int sizeBefore = dirtyFieldsCache.size();
-        var result = Optional.of(dirtyFieldsCache.computeIfAbsent(key, bits -> {
+        // A map lookup does not retain its key, so the mutable bit set probes the cache directly; the defensive
+        // copy and the new-shape bookkeeping are only needed when the shape is actually inserted. Put-if-absent
+        // keeps the new-shape metric exact when two threads race on the same shape: only the winning insert
+        // records it.
+        var fields = dirtyFieldsCache.get(dirtyFields);
+        if (fields == null) {
             Set<Metamodel<?, ?>> set = new HashSet<>();
-            for (int i = bits.nextSetBit(0); i >= 0; i = bits.nextSetBit(i + 1)) {
+            for (int i = dirtyFields.nextSetBit(0); i >= 0; i = dirtyFields.nextSetBit(i + 1)) {
                 set.add(model.columns().get(i).metamodel());
             }
             if (versionColumn != null) {
                 set.add(versionColumn.metamodel());
             }
-            return Set.copyOf(set);
-        }));
-        if (dirtyFieldsCache.size() > sizeBefore) {
-            dirtyCheckMetrics.recordNewShape(model.type().getSimpleName());
+            var candidate = Set.copyOf(set);
+            var existing = dirtyFieldsCache.putIfAbsent((BitSet) dirtyFields.clone(), candidate);
+            if (existing == null) {
+                dirtyCheckMetrics.recordNewShape(model.type().getSimpleName());
+                fields = candidate;
+            } else {
+                fields = existing;
+            }
         }
-        return result;
+        return Optional.of(fields);
     }
 
     /**
