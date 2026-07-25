@@ -295,7 +295,7 @@ public class H2EntityRepositoryTest {
         String expectedSql = """
                 UPDATE owner
                 SET first_name = ?, last_name = ?, address = ?, city = ?, telephone = ?, version = version + 1
-                WHERE id = ? AND version = ?""";
+                WHERE (id, version) = (?, ?)""";
         var repo = PreparedStatementTemplate.ORM(dataSource).entity(Owner.class);
         var entities = repo.findAllById(List.of(1, 2));
         var first = new AtomicBoolean(false);
