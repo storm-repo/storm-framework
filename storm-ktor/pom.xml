@@ -30,6 +30,13 @@
         <developerConnection>scm:git:ssh://github.com/storm-repo/storm-framework.git</developerConnection>
         <url>https://github.com/storm-repo/storm-framework/</url>
     </scm>
+    <!-- Ktor 3.4 requires Kotlin 2.3 and kotlinx-coroutines 1.10; this module tracks Ktor's toolchain while
+         the rest of the framework stays on Kotlin 2.0. As a leaf module (only storm-ktor-test consumes it, and
+         it overrides the same versions) this does not force the newer toolchain onto any other module. -->
+    <properties>
+        <kotlin.version>2.3.10</kotlin.version>
+        <kotlin.coroutines.version>1.10.2</kotlin.coroutines.version>
+    </properties>
     <build>
         <plugins>
             <plugin>
@@ -173,7 +180,42 @@
             </plugin>
         </plugins>
     </build>
+    <!-- This module runs on Kotlin 2.3 (required by Ktor 3.4) while depending on storm-core/storm-kotlin, which
+         are built on Kotlin 2.0. The Kotlin BOM pins every transitive Kotlin artifact (stdlib, reflect, ...) to
+         this module's version so the 2.3 stdlib wins on the runtime classpath: kotlinx-coroutines 1.10 (pulled by
+         Ktor 3.4) needs the 2.3 stdlib, and a 2.0 stdlib leaking in from storm-kotlin fails at runtime with
+         NoClassDefFoundError. The 2.3 stdlib is backward compatible, so the 2.0-compiled dependencies run on it. -->
+    <dependencyManagement>
+        <dependencies>
+            <dependency>
+                <groupId>org.jetbrains.kotlin</groupId>
+                <artifactId>kotlin-bom</artifactId>
+                <version>${kotlin.version}</version>
+                <type>pom</type>
+                <scope>import</scope>
+            </dependency>
+            <!-- Align every transitive Ktor artifact (ktor-io, ktor-utils, ...) to this module's Ktor version.
+                 Without it, a transitive dependency can drag in an older Ktor module, producing a runtime skew
+                 (e.g. NoClassDefFoundError for classes added in the newer Ktor). -->
+            <dependency>
+                <groupId>io.ktor</groupId>
+                <artifactId>ktor-bom</artifactId>
+                <version>${ktor.version}</version>
+                <type>pom</type>
+                <scope>import</scope>
+            </dependency>
+        </dependencies>
+    </dependencyManagement>
     <dependencies>
+        <!-- Declare the Kotlin 2.3 stdlib explicitly so it propagates to consumers (the BOM above is build-only
+             and is not inherited). A Ktor application on Ktor 3.4 is already on Kotlin 2.3, but this guarantees the
+             2.3 stdlib required by kotlinx-coroutines 1.10 wins over the 2.0 stdlib pulled in transitively through
+             storm-kotlin, even for consumers that do not pin it themselves. -->
+        <dependency>
+            <groupId>org.jetbrains.kotlin</groupId>
+            <artifactId>kotlin-stdlib</artifactId>
+            <version>${kotlin.version}</version>
+        </dependency>
         <dependency>
             <groupId>st.orm</groupId>
             <artifactId>storm-kotlin</artifactId>

@@ -30,6 +30,11 @@
         <developerConnection>scm:git:ssh://github.com/storm-repo/storm-framework.git</developerConnection>
         <url>https://github.com/storm-repo/storm-framework/</url>
     </scm>
+    <!-- Matches storm-ktor's toolchain (Ktor 3.4 / Kotlin 2.3 / coroutines 1.10); see storm-ktor/pom.xml. -->
+    <properties>
+        <kotlin.version>2.3.10</kotlin.version>
+        <kotlin.coroutines.version>1.10.2</kotlin.coroutines.version>
+    </properties>
     <build>
         <plugins>
             <plugin>
@@ -152,6 +157,28 @@
             </plugin>
         </plugins>
     </build>
+    <!-- Pin every transitive Kotlin artifact to this module's 2.3 version so the 2.3 stdlib required by
+         kotlinx-coroutines 1.10 (via Ktor 3.4) wins over the 2.0 stdlib pulled in by storm-kotlin. See
+         storm-ktor/pom.xml for the full rationale. -->
+    <dependencyManagement>
+        <dependencies>
+            <dependency>
+                <groupId>org.jetbrains.kotlin</groupId>
+                <artifactId>kotlin-bom</artifactId>
+                <version>${kotlin.version}</version>
+                <type>pom</type>
+                <scope>import</scope>
+            </dependency>
+            <!-- Align every transitive Ktor artifact to this module's Ktor version; see storm-ktor/pom.xml. -->
+            <dependency>
+                <groupId>io.ktor</groupId>
+                <artifactId>ktor-bom</artifactId>
+                <version>${ktor.version}</version>
+                <type>pom</type>
+                <scope>import</scope>
+            </dependency>
+        </dependencies>
+    </dependencyManagement>
     <dependencies>
         <dependency>
             <groupId>st.orm</groupId>
