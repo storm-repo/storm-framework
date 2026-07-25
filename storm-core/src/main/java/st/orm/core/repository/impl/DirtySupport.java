@@ -192,6 +192,18 @@ public final class DirtySupport<E extends Entity<ID>, ID> {
     }
 
     /**
+     * Returns whether the entity declares a version column.
+     *
+     * <p>Version columns are bumped by the database update itself, so the in-memory entity no longer matches the
+     * row after an update; callers use this to decide whether a written entity can serve as observed state.</p>
+     *
+     * @return {@code true} if the entity declares a version column.
+     */
+    boolean hasVersionColumn() {
+        return versionColumn != null;
+    }
+
+    /**
      * Returns the maximum number of distinct update shapes that may be generated when dynamic updates are enabled.
      *
      * <p>This value is configured via the {@code storm.update.max_shapes} property (see {@link StormConfig}). It limits the number of
@@ -292,22 +304,28 @@ public final class DirtySupport<E extends Entity<ID>, ID> {
             return CLEAN;
         }
         dirtyCheckMetrics.recordDirty();
-        BitSet key = (BitSet) dirtyFields.clone(); // Defensive copy.
-        int sizeBefore = dirtyFieldsCache.size();
-        var result = Optional.of(dirtyFieldsCache.computeIfAbsent(key, bits -> {
-            Set<Metamodel<?, ?>> set = new HashSet<>();
-            for (int i = bits.nextSetBit(0); i >= 0; i = bits.nextSetBit(i + 1)) {
-                set.add(model.columns().get(i).metamodel());
+        // A map lookup does not retain its key, so the mutable bit set probes the cache directly; the defensive
+        // copy and the new-shape bookkeeping are only needed when the shape is actually inserted.
+        var fields = dirtyFieldsCache.get(dirtyFields);
+        if (fields == null) {
+            BitSet key = (BitSet) dirtyFields.clone();
+            boolean[] inserted = new boolean[1];
+            fields = dirtyFieldsCache.computeIfAbsent(key, bits -> {
+                inserted[0] = true;
+                Set<Metamodel<?, ?>> set = new HashSet<>();
+                for (int i = bits.nextSetBit(0); i >= 0; i = bits.nextSetBit(i + 1)) {
+                    set.add(model.columns().get(i).metamodel());
+                }
+                if (versionColumn != null) {
+                    set.add(versionColumn.metamodel());
+                }
+                return Set.copyOf(set);
+            });
+            if (inserted[0]) {
+                dirtyCheckMetrics.recordNewShape(model.type().getSimpleName());
             }
-            if (versionColumn != null) {
-                set.add(versionColumn.metamodel());
-            }
-            return Set.copyOf(set);
-        }));
-        if (dirtyFieldsCache.size() > sizeBefore) {
-            dirtyCheckMetrics.recordNewShape(model.type().getSimpleName());
         }
-        return result;
+        return Optional.of(fields);
     }
 
     /**
