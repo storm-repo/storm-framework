@@ -187,7 +187,7 @@ Map<City, List<User>> usersByCity = orm.entity(User.class)
 
 The grouped terminal returns an unmodifiable, insertion-ordered map: parents appear in the order
 their first row is encountered, children in row order within each parent. Because duplicate entities within a
-result set share the same instance, each child's reference to its parent is the map key itself, and repeated
+result set are guaranteed to share the same instance, each child's reference to its parent is the map key itself, and repeated
 parents are materialized once rather than once per row. The path must resolve to a non-null record for every
 result; narrow queries over nullable foreign keys with a `where()` clause first. This replaces the manual
 pattern of querying the many side and grouping in memory, and it loads the whole graph in a single query,

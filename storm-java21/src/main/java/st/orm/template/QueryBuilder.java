@@ -16,24 +16,16 @@
 package st.orm.template;
 
 import static java.lang.StringTemplate.RAW;
-import static java.util.Objects.requireNonNull;
 import static st.orm.Operator.EQUALS;
 import static st.orm.Operator.IN;
 
 import jakarta.annotation.Nonnull;
-import java.util.AbstractList;
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.IdentityHashMap;
-import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Optional;
-import java.util.RandomAccess;
 import java.util.SequencedMap;
 import java.util.function.Function;
 import java.util.stream.Stream;
 import st.orm.Data;
-import st.orm.Entity;
 import st.orm.JoinType;
 import st.orm.Metamodel;
 import st.orm.NoResultException;
@@ -833,26 +825,6 @@ public abstract class QueryBuilder<T extends Data, R, ID> {
     public abstract Stream<R> getResultStream();
 
     /**
-     * Executes the query and returns a stream of results for eager, full consumption.
-     *
-     * <p>Unlike {@link #getResultStream()}, implementations may execute without a fetch-size hint, since eagerly
-     * consumed results gain nothing from cursor-based fetching. On dialects where cursors require a
-     * transaction, this avoids wrapping auto-commit queries in a transaction. The eager terminal
-     * operations, such as {@link #getResultList()} and {@link #getSingleResult()}, consume this stream.</p>
-     *
-     * <p>The same resource-handling rules as {@link #getResultStream()} apply: close the stream after usage,
-     * preferably with a {@code try-with-resources} block.</p>
-     *
-     * @return a stream of results for eager consumption.
-     * @throws PersistenceException if the query operation fails due to underlying database issues, such as
-     *                              connectivity.
-     * @since 1.13
-     */
-    protected Stream<R> getMaterializedResultStream() {
-        return getResultStream();
-    }
-
-    /**
      * Returns the number of results of this query.
      *
      * @return the total number of results of this query as a long value.
@@ -871,12 +843,7 @@ public abstract class QueryBuilder<T extends Data, R, ID> {
      * @return the list of results.
      * @throws PersistenceException if the query fails.
      */
-    public List<R> getResultList() {
-        try (var stream = getMaterializedResultStream()) {
-            return stream.toList();
-        }
-    }
-
+    public abstract List<R> getResultList();
 
     /**
      * Executes the query and returns the results grouped by the record reached via {@code path}, typically the
@@ -885,8 +852,9 @@ public abstract class QueryBuilder<T extends Data, R, ID> {
      *
      * <p>The returned map and its lists are unmodifiable and insertion-ordered: groups appear in the order their
      * first result is encountered, and results appear in encounter order within each group. Use {@code orderBy()} to
-     * control both. Since duplicate entities within a result set share the same instance, each result's reference to
-     * its group key is the map key itself.</p>
+     * control both. Duplicate entities within a result set are guaranteed to share the same instance as long as
+     * earlier occurrences remain strongly reachable, and the grouping retains every result and group key while the
+     * result set is consumed; each result's reference to its group key is therefore the map key itself.</p>
      *
      * <p>This method requires an entity query: the result type must be the table type {@code T} so that the path can
      * be resolved against the results. The path must also resolve to a non-null record for every result; paths over
@@ -904,61 +872,7 @@ public abstract class QueryBuilder<T extends Data, R, ID> {
      *                              resolves to null for a result.
      * @since 1.13
      */
-    public <V extends Data> SequencedMap<V, List<R>> getResultGroupedBy(@Nonnull TypedMetamodel<T, V, V> path) {
-        requireNonNull(path, "path");
-        try (var stream = getMaterializedResultStream()) {
-            // Duplicate records within a result set share the same instance (query-scoped interning), so the per-row
-            // lookup can use reference identity instead of hashing every field of the group record. The identity map
-            // carries no order and no value semantics; both are restored during assembly below.
-            var groups = new IdentityHashMap<V, Group<R>>();
-            var order = new ArrayList<V>();
-            stream.forEach(element -> {
-                if (!path.root().isInstance(element)) {
-                    throw new PersistenceException(
-                            "Grouped results require an entity query rooted at %s, but got a result of type %s."
-                                    .formatted(path.root().getName(),
-                                            element == null ? "null" : element.getClass().getName()));
-                }
-                // Object intermediate on purpose: assigning the typed return directly would insert a checkcast to
-                // V's bound and fail with a bare ClassCastException for dynamically built ref paths, bypassing the
-                // descriptive backstop below.
-                //noinspection unchecked
-                Object value = path.getValue((T) element);
-                if (value == null) {
-                    throw new PersistenceException(
-                            "Cannot group by %s: the path resolved to null. Narrow the query with a where() clause to exclude results without a %s."
-                                    .formatted(path, path.fieldType().getSimpleName()));
-                }
-                if (value instanceof Ref<?>) {
-                    throw new PersistenceException(
-                            "Cannot group by %s: the path resolves to a ref because %s is mapped as a Ref field. Use getResultGroupedByRef() instead."
-                                    .formatted(path, path.fieldType().getSimpleName()));
-                }
-                //noinspection unchecked
-                V group = (V) value;
-                var elements = groups.get(group);
-                if (elements == null) {
-                    elements = new Group<>();
-                    groups.put(group, elements);
-                    order.add(group);
-                }
-                elements.elements.add(element);
-            });
-            // Assembly hashes each distinct group once; equal-by-value groups merge, so the result is correct even
-            // for records that were not interned. The group count is known here, so the map is allocated at its
-            // final size. The values are unmodifiable views over the lists built above, so no copy or re-wrapping
-            // is needed.
-            var result = LinkedHashMap.<V, List<R>>newLinkedHashMap(order.size());
-            for (V group : order) {
-                var elements = groups.get(group);
-                var existing = result.putIfAbsent(group, elements);
-                if (existing != null) {
-                    ((Group<R>) existing).elements.addAll(elements);
-                }
-            }
-            return Collections.unmodifiableSequencedMap(result);
-        }
-    }
+    public abstract <V extends Data> SequencedMap<V, List<R>> getResultGroupedBy(@Nonnull TypedMetamodel<T, V, V> path);
 
     /**
      * Executes the query and returns the results grouped by a lightweight ref to the record reached via
@@ -997,63 +911,7 @@ public abstract class QueryBuilder<T extends Data, R, ID> {
      *                              not reference an entity or ref, or if the path resolves to null for a result.
      * @since 1.13
      */
-    public <V extends Data> SequencedMap<Ref<V>, List<R>> getResultGroupedByRef(@Nonnull Metamodel<T, V> path) {
-        requireNonNull(path, "path");
-        try (var stream = getMaterializedResultStream()) {
-            // Refs hash and compare by primary key, so the grouping map is cheap without an identity-based fast path.
-            // The values are unmodifiable views appended through their backing lists, so no copy or re-wrapping is
-            // needed when the result is returned.
-            var groups = new LinkedHashMap<Ref<V>, List<R>>();
-            stream.forEach(element -> {
-                if (!path.root().isInstance(element)) {
-                    throw new PersistenceException(
-                            "Grouped results require an entity query rooted at %s, but got a result of type %s."
-                                    .formatted(path.root().getName(),
-                                            element == null ? "null" : element.getClass().getName()));
-                }
-                //noinspection unchecked
-                Object value = path.getValue((T) element);
-                if (value == null) {
-                    throw new PersistenceException(
-                            "Cannot group by %s: the path resolved to null. Narrow the query with a where() clause to exclude results without a %s."
-                                    .formatted(path, path.fieldType().getSimpleName()));
-                }
-                Ref<V> group;
-                if (value instanceof Ref<?> ref) {
-                    //noinspection unchecked
-                    group = (Ref<V>) ref;
-                } else if (value instanceof Entity<?> entity) {
-                    //noinspection unchecked
-                    group = (Ref<V>) Ref.of(entity);
-                } else {
-                    throw new PersistenceException(
-                            "Cannot group by ref at %s: the path must reference an entity or a ref, but resolved to %s."
-                                    .formatted(path, value.getClass().getName()));
-                }
-                ((Group<R>) groups.computeIfAbsent(group, ignore -> new Group<>())).elements.add(element);
-            });
-            return Collections.unmodifiableSequencedMap(groups);
-        }
-    }
-
-    /**
-     * Unmodifiable list view over a group's elements. The grouping terminals append through {@link #elements} while
-     * building, so the map values are unmodifiable from the start and require no copy or re-wrapping when the result
-     * is returned.
-     */
-    private static final class Group<R> extends AbstractList<R> implements RandomAccess {
-        final ArrayList<R> elements = new ArrayList<>();
-
-        @Override
-        public R get(int index) {
-            return elements.get(index);
-        }
-
-        @Override
-        public int size() {
-            return elements.size();
-        }
-    }
+    public abstract <V extends Data> SequencedMap<Ref<V>, List<R>> getResultGroupedByRef(@Nonnull Metamodel<T, V> path);
 
     /**
      * Executes the query and returns a single result.
@@ -1063,14 +921,7 @@ public abstract class QueryBuilder<T extends Data, R, ID> {
      * @throws NonUniqueResultException if more than one result.
      * @throws PersistenceException if the query fails.
      */
-    public R getSingleResult() {
-        try (var stream = getMaterializedResultStream()) {
-            return stream
-                    .reduce((_, _) -> {
-                        throw new NonUniqueResultException("Expected single result, but found more than one.");
-                    }).orElseThrow(() -> new NoResultException("Expected single result, but found none."));
-        }
-    }
+    public abstract R getSingleResult();
 
     /**
      * Executes the query and returns an optional result.
@@ -1079,13 +930,7 @@ public abstract class QueryBuilder<T extends Data, R, ID> {
      * @throws NonUniqueResultException if more than one result.
      * @throws PersistenceException if the query fails.
      */
-    public Optional<R> getOptionalResult() {
-        try (var stream = getMaterializedResultStream()) {
-            return stream.reduce((_, _) -> {
-                throw new NonUniqueResultException("Expected single result, but found more than one.");
-            });
-        }
-    }
+    public abstract Optional<R> getOptionalResult();
 
     /**
      * Execute a DELETE statement.
