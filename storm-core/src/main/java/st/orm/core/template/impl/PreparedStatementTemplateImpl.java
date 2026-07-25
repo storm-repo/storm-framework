@@ -70,6 +70,7 @@ import st.orm.core.spi.TransactionTemplateProvider;
 import st.orm.core.template.ORMTemplate;
 import st.orm.core.template.PreparedStatementTemplate;
 import st.orm.core.template.Query;
+import st.orm.core.template.QueryPlan;
 import st.orm.core.template.Sql;
 import st.orm.core.template.SqlDialect;
 import st.orm.core.template.SqlTemplate;
@@ -668,28 +669,74 @@ public final class PreparedStatementTemplateImpl implements PreparedStatementTem
         try {
             var customizedTemplate = sqlTemplate();
             var sql = customizedTemplate.process(template);
-            var bindVariables = sql.bindVariables().orElse(null);
             // The dialect of the template that generated the SQL; a provider lookup could select a different
             // dialect than the one the statement was generated with.
-            SqlDialect dialect = customizedTemplate.dialect();
-            var environment = new QueryImpl.Environment(
-                    refFactory,
-                    strategies.transactionTemplateProvider(),
-                    strategies.queryObserver(),
-                    getExceptionTransformer(sql, strategies.exceptionMapper(), strategies.transactionTemplateProvider()),
-                    sql.operation(),
-                    sql.dataType().orElse(null),
-                    sql.statement());
-            return new QueryImpl(environment, unsafe -> {
-                try {
-                    return templateProcessor.process(sql, unsafe);
-                } catch (SQLException e) {
-                    throw new PersistenceException(e);
-                }
-            }, bindVariables == null ? null : bindVariables.getHandle(), sql.affectedType().orElse(null), sql.versionAware(), false, false, dialect.defaultFetchSize(), dialect.streamOnlyFetchSize(), dialect.streamingRequiresTransaction());
+            return createQuery(sql, customizedTemplate.dialect());
         } catch (SqlTemplateException e) {
             throw new PersistenceException(e);
         }
+    }
+
+    /**
+     * Compiles the specified query {@code template} into a reusable plan.
+     *
+     * <p>The template is processed once; the resulting statement, the value-independent parameter extractors
+     * registered for its bind variables, and the statement metadata are snapshotted into an immutable plan. The
+     * single-use bind variables instance embedded in the processed SQL is never wired to a statement, so the plan
+     * can bind any number of records on any connection. Templates without any parameters compile to constant plans;
+     * templates with fixed parameter values are rejected.</p>
+     *
+     * @param template the template to compile.
+     * @return a reusable plan for the template.
+     * @throws PersistenceException if the template is invalid or carries fixed parameter values.
+     */
+    @Override
+    public QueryPlan plan(@Nonnull TemplateString template) {
+        try {
+            var customizedTemplate = sqlTemplate();
+            // The stored statement must not bake in Sql interceptor rewrites: binding applies the interceptor
+            // chain, so every execution is intercepted exactly once, and interceptors scoped around plan
+            // compilation do not leak into the cached plan.
+            var sql = customizedTemplate instanceof SqlTemplateImpl sqlTemplateImpl
+                    ? sqlTemplateImpl.process(template, false)
+                    : customizedTemplate.process(template);
+            SqlDialect dialect = customizedTemplate.dialect();
+            // Fixed parameter values are rejected rather than frozen, for constant and bind-vars plans alike:
+            // silently pinning a value that reads like a variable hides a likely mistake, and bind variables
+            // express the variable parts explicitly.
+            if (!sql.parameters().isEmpty()) {
+                throw new PersistenceException("Cannot compile a plan for a template with fixed parameter values. Pass createBindVars() for the variable parts, or execute the template directly via query().");
+            }
+            var bindVariables = sql.bindVariables().orElse(null);
+            if (bindVariables == null) {
+                return new QueryPlanImpl(sql, List.of(), List.of(), bound -> createQuery(bound, dialect));
+            }
+            if (!(bindVariables instanceof BindVarsImpl bindVars)) {
+                throw new PersistenceException("Cannot compile a plan: unsupported bind variables implementation %s.".formatted(bindVariables.getClass().getName()));
+            }
+            return new QueryPlanImpl(sql, bindVars.extractors(), bindVars.valueExtractors(), bound -> createQuery(bound, dialect));
+        } catch (SqlTemplateException e) {
+            throw new PersistenceException(e);
+        }
+    }
+
+    private Query createQuery(@Nonnull Sql sql, @Nonnull SqlDialect dialect) {
+        var bindVariables = sql.bindVariables().orElse(null);
+        var environment = new QueryImpl.Environment(
+                refFactory,
+                strategies.transactionTemplateProvider(),
+                strategies.queryObserver(),
+                getExceptionTransformer(sql, strategies.exceptionMapper(), strategies.transactionTemplateProvider()),
+                sql.operation(),
+                sql.dataType().orElse(null),
+                sql.statement());
+        return new QueryImpl(environment, unsafe -> {
+            try {
+                return templateProcessor.process(sql, unsafe);
+            } catch (SQLException e) {
+                throw new PersistenceException(e);
+            }
+        }, bindVariables == null ? null : bindVariables.getHandle(), sql.affectedType().orElse(null), sql.versionAware(), false, false, dialect.defaultFetchSize(), dialect.streamOnlyFetchSize(), dialect.streamingRequiresTransaction());
     }
 
     /**

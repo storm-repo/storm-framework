@@ -119,10 +119,11 @@ final class SetProcessor implements ElementProcessor<Set> {
                 var model = (Model<Data, ?>) binder.getModel(table.type());
                 var parameterFactory = binder.setBindVars(vars);
                 vars.addParameterExtractor(record -> {
+                    var round = parameterFactory.newRound();
                     try {
                         model.validateForeignKeys(columns, record);
-                        model.forEachValue(columns, record, (column, value) -> parameterFactory.bind(value));
-                        return parameterFactory.getParameters();
+                        model.forEachValue(columns, record, (column, value) -> round.bind(value));
+                        return round.getParameters();
                     } catch (SqlTemplateException ex) {
                         throw new UncheckedSqlTemplateException(ex);
                     }

@@ -21,8 +21,8 @@ import static st.orm.core.template.impl.ElementRouter.getElementProcessor;
 import jakarta.annotation.Nonnull;
 import java.util.List;
 import java.util.function.Function;
-import st.orm.BindVars;
 import st.orm.Data;
+import st.orm.Metamodel;
 import st.orm.core.template.Column;
 import st.orm.core.template.Model;
 import st.orm.core.template.SqlTemplateException;
@@ -54,7 +54,7 @@ final class WhereProcessor implements ElementProcessor<Where> {
             return getElementProcessor(cacheable).getCompilationKey(cacheable, keyGenerator);
         }
         if (where.bindVars() != null) {
-            return new Where(null, null);
+            return new Where(null, null, where.bindVarsKey());
         }
         throw new SqlTemplateException("Invalid element in WHERE clause: %s. Expected a valid expression, entity, or bind variable.".formatted(where));
     }
@@ -77,7 +77,7 @@ final class WhereProcessor implements ElementProcessor<Where> {
                     new WhereBindHint(List.of()));
         }
         if (where.bindVars() != null) {
-            return compileWhereBindVars(where.bindVars(), compiler);
+            return compileWhereBindVars(where, compiler);
         }
         throw new SqlTemplateException("No expression or bind variables found for WHERE clause. Provide at least one filter condition.");
     }
@@ -105,15 +105,43 @@ final class WhereProcessor implements ElementProcessor<Where> {
                 var model = (Model<Data, ?>) binder.getModel(table.type());
                 var parameterFactory = binder.setBindVars(where.bindVars());
                 vars.addParameterExtractor(record -> {
+                    var round = parameterFactory.newRound();
                     try {
-                        model
-                                .forEachValue(columns, record,
-                                        (column, value) -> parameterFactory.bind(value));
-                        return parameterFactory.getParameters();
+                        model.forEachValue(columns, record, (column, value) -> round.bind(value));
+                        return round.getParameters();
                     } catch (SqlTemplateException ex) {
                         throw new UncheckedSqlTemplateException(ex);
                     }
                 });
+                if (where.bindVarsKey() != null) {
+                    // The WHERE clause is compiled for a specific key, so a raw value can supply every column;
+                    // query plans use this to bind key lookups without a full record.
+                    //noinspection unchecked
+                    var key = (Metamodel<Data, ?>) where.bindVarsKey();
+                    vars.addValueParameterExtractor(value -> {
+                        var round = parameterFactory.newRound();
+                        try {
+                            model.forEachValue(key, value, (column, columnValue) -> round.bind(columnValue));
+                            return round.getParameters();
+                        } catch (SqlTemplateException ex) {
+                            throw new UncheckedSqlTemplateException(ex);
+                        }
+                    });
+                } else if (columns.stream().allMatch(Column::primaryKey)) {
+                    // The identifying columns are exactly the primary key, so a raw id can supply every value;
+                    // query plans use this to bind by-id statements without a full record.
+                    model.getPrimaryKeyMetamodel().ifPresent(primaryKeyMetamodel ->
+                            vars.addValueParameterExtractor(id -> {
+                                var round = parameterFactory.newRound();
+                                try {
+                                    model.forEachValue(primaryKeyMetamodel, id,
+                                            (column, value) -> round.bind(value));
+                                    return round.getParameters();
+                                } catch (SqlTemplateException ex) {
+                                    throw new UncheckedSqlTemplateException(ex);
+                                }
+                            }));
+                }
             }
         } else {
             throw new IllegalStateException("Unexpected bind hint: %s.".formatted(bindHint.getClass().getSimpleName()));
@@ -133,11 +161,13 @@ final class WhereProcessor implements ElementProcessor<Where> {
                 .toList();
     }
 
-    private CompiledElement compileWhereBindVars(@Nonnull BindVars bindVars,
+    private CompiledElement compileWhereBindVars(@Nonnull Where where,
                                                  @Nonnull TemplateCompiler compiler) throws SqlTemplateException {
-        if (bindVars instanceof BindVarsImpl) {
+        if (where.bindVars() instanceof BindVarsImpl) {
             var queryModel = compiler.getQueryModel();
-            var columns = getIdentifyingColumns(compiler);
+            var columns = where.bindVarsKey() != null
+                    ? getKeyColumns(where.bindVarsKey(), compiler)
+                    : getIdentifyingColumns(compiler);
             compiler.mapBindVars(columns.size());
             return new CompiledElement(columns.stream()
                     .map(queryModel::toColumnExpression)
@@ -145,5 +175,15 @@ final class WhereProcessor implements ElementProcessor<Where> {
                     .collect(joining(" AND ")), new WhereBindHint(columns));
         }
         throw new SqlTemplateException("Unsupported BindVars type in WHERE clause. Expected a standard BindVars implementation.");
+    }
+
+    private List<Column> getKeyColumns(@Nonnull Metamodel<?, ?> key, @Nonnull TemplateCompiler compiler)
+            throws SqlTemplateException {
+        var table = compiler.getQueryModel().getTable();
+        var columns = compiler.getModel(table.type()).getColumns(key);
+        if (columns.isEmpty()) {
+            throw new SqlTemplateException("No columns found for key %s on table %s.".formatted(key, table.type().getSimpleName()));
+        }
+        return columns;
     }
 }

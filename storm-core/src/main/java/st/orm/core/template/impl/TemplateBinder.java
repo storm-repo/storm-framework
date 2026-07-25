@@ -130,34 +130,46 @@ interface TemplateBinder {
     /**
      * Produces positional parameters for a single {@link BindVars} segment during binding.
      *
-     * <p>A {@code ParameterFactory} is obtained from {@link TemplateBinder#setBindVars(BindVars)}. The caller binds values
-     * for the segment via {@link #bind(Object)} and then retrieves the resulting positional parameters via
-     * {@link #getParameters()}.</p>
-     *
-     * <p>Implementations typically enforce the expected arity recorded during compilation. Calling {@link #getParameters()}
-     * may validate that the number of bound values matches that expected arity.</p>
+     * <p>A {@code ParameterFactory} is obtained from {@link TemplateBinder#setBindVars(BindVars)}. Each extraction
+     * starts a fresh {@link Round}, binds the segment's values, and retrieves the resulting positional parameters.
+     * Rounds own their storage, so concurrent extractions do not interfere and an abandoned round, for example after
+     * a conversion failure, leaves no residue behind.</p>
      */
     interface ParameterFactory {
 
         /**
-         * Binds one value for the current bind vars segment.
+         * Starts a new extraction round for this bind vars segment.
          *
-         * <p>The value becomes a positional parameter in the order it is provided. Implementations may accept {@code null}
-         * values.</p>
-         *
-         * @param value the value to bind.
+         * @return a collector for one extraction.
          */
-        void bind(@Nullable Object value);
+        Round newRound();
 
         /**
-         * Returns the positional parameters produced for the current bind vars segment.
+         * Collects the positional parameters of a single extraction round.
          *
-         * <p>Implementations may validate arity and may reset internal temporary storage after this call.</p>
-         *
-         * @return the positional parameters for this segment.
-         * @throws IllegalStateException if the number of bound values does not match the expected arity.
+         * <p>Implementations typically enforce the expected arity recorded during compilation. Calling
+         * {@link #getParameters()} may validate that the number of bound values matches that expected arity.</p>
          */
-        List<PositionalParameter> getParameters();
+        interface Round {
+
+            /**
+             * Binds one value for the bind vars segment.
+             *
+             * <p>The value becomes a positional parameter in the order it is provided. Implementations may accept
+             * {@code null} values.</p>
+             *
+             * @param value the value to bind.
+             */
+            void bind(@Nullable Object value);
+
+            /**
+             * Returns the positional parameters produced for the bind vars segment.
+             *
+             * @return the positional parameters for this segment.
+             * @throws IllegalStateException if the number of bound values does not match the expected arity.
+             */
+            List<PositionalParameter> getParameters();
+        }
     }
 
     /**

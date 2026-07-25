@@ -82,8 +82,9 @@ final class VarProcessor implements ElementProcessor<BindVar> {
         if (bindVar.bindVars() instanceof BindVarsImpl vars) {
             var parameterFactory = binder.setBindVars(vars);
             vars.addParameterExtractor(record -> {
-                parameterFactory.bind(bindVar.extractor().apply(record));
-                return parameterFactory.getParameters();
+                var round = parameterFactory.newRound();
+                round.bind(bindVar.extractor().apply(record));
+                return round.getParameters();
             });
         }
     }

@@ -29,6 +29,7 @@ import st.orm.core.template.Column;
 import st.orm.core.template.Model;
 import st.orm.core.template.Query;
 import st.orm.core.template.QueryBuilder;
+import st.orm.core.template.QueryPlan;
 import st.orm.core.template.QueryTemplate;
 import st.orm.core.template.TemplateString;
 import st.orm.core.template.impl.Elements.Where;
@@ -243,6 +244,37 @@ public class DeleteBuilderImpl<T extends Data, ID> extends QueryBuilderImpl<T, O
             query = query.unsafe();
         }
         return query;
+    }
+
+    /**
+     * Compiles this query into a reusable plan.
+     *
+     * @return a reusable plan for this query.
+     */
+    @Override
+    public QueryPlan plan() {
+        var plan = queryTemplate.plan(toTemplateString());
+        if (!unsafe && where.isEmpty()) {
+            return plan;
+        }
+        // Queries built by this builder suppress the unsafe warning under the same condition; the returned plan
+        // applies it to every query it produces.
+        return new QueryPlan() {
+            @Override
+            public Query bind(@Nonnull Data record) {
+                return plan.bind(record).unsafe();
+            }
+
+            @Override
+            public Query bindValue(@Nonnull Object id) {
+                return plan.bindValue(id).unsafe();
+            }
+
+            @Override
+            public Query query() {
+                return plan.query().unsafe();
+            }
+        };
     }
 
     /**

@@ -25,10 +25,14 @@ import static st.orm.core.spi.Providers.selectRefFrom;
 import static st.orm.core.template.TemplateString.wrap;
 
 import jakarta.annotation.Nonnull;
+import jakarta.annotation.Nullable;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Optional;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentMap;
 import java.util.function.Function;
+import java.util.function.Supplier;
 import java.util.stream.Stream;
 import java.util.stream.StreamSupport;
 import st.orm.Data;
@@ -39,8 +43,12 @@ import st.orm.Ref;
 import st.orm.core.repository.Repository;
 import st.orm.core.template.Model;
 import st.orm.core.template.ORMTemplate;
+import st.orm.core.template.Query;
 import st.orm.core.template.QueryBuilder;
+import st.orm.core.template.QueryPlan;
 import st.orm.core.template.TemplateString;
+import st.orm.core.template.Templates;
+import st.orm.core.template.impl.SqlInterceptorManager;
 
 /**
  * Base implementation for all repositories.
@@ -51,12 +59,48 @@ abstract class BaseRepositoryImpl<E extends Data, ID> implements Repository {
     protected final Model<E, ID> model;
     private final boolean compoundPrimaryKey;
 
+    /** Lazily created constant plans for the parameter-less statement shapes; racy initialization is benign. */
+    private volatile QueryPlan findAllPlan;
+    private volatile QueryPlan findAllRefPlan;
+    private volatile QueryPlan countPlan;
+
+    /** Lazily created by-id select plan, bound per call via the primary key; racy initialization is benign. */
+    private volatile QueryPlan findByIdPlan;
+
+    /** Lazily created by-key select plans for unique-key lookups; the population is the finite set of unique keys. */
+    private final ConcurrentMap<Metamodel<E, ?>, QueryPlan> findByKeyPlans = new ConcurrentHashMap<>();
+
+    /**
+     * Cleared on the first failed plan creation. Plans require template processing support ahead of execution;
+     * templates without it, such as JPA, keep the per-call path, and genuine template errors surface through that
+     * same path.
+     */
+    private volatile boolean plansSupported = true;
+
     public BaseRepositoryImpl(@Nonnull ORMTemplate ormTemplate, @Nonnull Model<E, ID> model) {
         this.ormTemplate = requireNonNull(ormTemplate);
         this.model = requireNonNull(model);
         this.compoundPrimaryKey = model.getPrimaryKeyMetamodel()
                 .filter(Metamodel::isInline)
                 .isPresent();
+    }
+
+    /**
+     * Returns whether repository statements are served from cached plans. Plans are processed against the
+     * repository's own template; while a scoped template customizer is active, the customized template must
+     * generate the statement, so the cached plans are bypassed.
+     */
+    protected final boolean usePlans() {
+        return plansSupported && !SqlInterceptorManager.hasLocalCustomizers();
+    }
+
+    protected final @Nullable QueryPlan createPlanQuietly(@Nonnull Supplier<QueryPlan> factory) {
+        try {
+            return factory.get();
+        } catch (PersistenceException e) {
+            plansSupported = false;
+            return null;
+        }
     }
 
     /**
@@ -205,6 +249,16 @@ abstract class BaseRepositoryImpl<E extends Data, ID> implements Repository {
      * connectivity.
      */
     public long count() {
+        if (usePlans()) {
+            var plan = countPlan;
+            if (plan == null) {
+                plan = createPlanQuietly(() -> selectCount().plan());
+                countPlan = plan;
+            }
+            if (plan != null) {
+                return plan.query().withoutFetchSize().getSingleResult(Long.class);
+            }
+        }
         return selectCount().getSingleResult();
     }
 
@@ -262,6 +316,10 @@ abstract class BaseRepositoryImpl<E extends Data, ID> implements Repository {
      *                              connectivity problems or query execution errors.
      */
     public Optional<E> findById(@Nonnull ID id) {
+        var query = findByIdQuery(id);
+        if (query != null) {
+            return query.getOptionalResult(model.type());
+        }
         return select().where(id).getOptionalResult();
     }
 
@@ -277,6 +335,11 @@ abstract class BaseRepositoryImpl<E extends Data, ID> implements Repository {
      *                              connectivity problems or query execution errors.
      */
     public Optional<E> findByRef(@Nonnull Ref<E> ref) {
+        //noinspection unchecked
+        var query = findByIdQuery((ID) ref.id());
+        if (query != null) {
+            return query.getOptionalResult(model.type());
+        }
         return select().where(ref).getOptionalResult();
     }
 
@@ -294,7 +357,36 @@ abstract class BaseRepositoryImpl<E extends Data, ID> implements Repository {
      *                              connectivity problems or query execution errors.
      */
     public E getById(@Nonnull ID id) {
+        var query = findByIdQuery(id);
+        if (query != null) {
+            return query.getSingleResult(model.type());
+        }
         return select().where(id).getSingleResult();
+    }
+
+    /**
+     * Returns a query that selects the entity graph by primary key, served from a cached plan, or {@code null} when
+     * plans are unavailable; see {@link #usePlans()} for the guards.
+     */
+    private @Nullable Query findByIdQuery(@Nonnull ID id) {
+        if (usePlans()) {
+            var plan = findByIdPlan;
+            if (plan == null) {
+                plan = createPlanQuietly(() -> {
+                    var bindVars = ormTemplate.createBindVars();
+                    return ormTemplate.plan(TemplateString.raw("""
+                            SELECT \0
+                            FROM \0
+                            WHERE \0""", model.type(), Templates.from(model.type(), true), bindVars));
+                });
+                findByIdPlan = plan;
+            }
+            if (plan != null) {
+                // Eager consumption; the fetch-size hint is skipped like the builder's eager terminal does.
+                return plan.bindValue(id).withoutFetchSize();
+            }
+        }
+        return null;
     }
 
     /**
@@ -311,6 +403,11 @@ abstract class BaseRepositoryImpl<E extends Data, ID> implements Repository {
      *                              connectivity problems or query execution errors.
      */
     public E getByRef(@Nonnull Ref<E> ref) {
+        //noinspection unchecked
+        var query = findByIdQuery((ID) ref.id());
+        if (query != null) {
+            return query.getSingleResult(model.type());
+        }
         return select().where(ref).getSingleResult();
     }
 
@@ -326,6 +423,10 @@ abstract class BaseRepositoryImpl<E extends Data, ID> implements Repository {
      * @throws PersistenceException if the retrieval operation fails due to underlying database issues.
      */
     public <V> Optional<E> findBy(@Nonnull Metamodel.Key<E, V> key, @Nonnull V value) {
+        var query = findByKeyQuery(key, value);
+        if (query != null) {
+            return query.getOptionalResult(model.type());
+        }
         return select().where(key, EQUALS, value).getOptionalResult();
     }
 
@@ -340,7 +441,40 @@ abstract class BaseRepositoryImpl<E extends Data, ID> implements Repository {
      * @throws PersistenceException if the retrieval operation fails due to underlying database issues.
      */
     public <V> E getBy(@Nonnull Metamodel.Key<E, V> key, @Nonnull V value) {
+        var query = findByKeyQuery(key, value);
+        if (query != null) {
+            return query.getSingleResult(model.type());
+        }
         return select().where(key, EQUALS, value).getSingleResult();
+    }
+
+    /**
+     * Returns a query that selects the entity graph by the given unique key, served from a cached plan, or
+     * {@code null} when plans are unavailable; see {@link #usePlans()} for the guards.
+     */
+    private @Nullable Query findByKeyQuery(@Nonnull Metamodel<E, ?> key, @Nonnull Object value) {
+        if (usePlans()) {
+            var plan = findByKeyPlans.get(key);
+            if (plan == null) {
+                var created = createPlanQuietly(() -> {
+                    var bindVars = ormTemplate.createBindVars();
+                    return ormTemplate.plan(TemplateString.raw("""
+                            SELECT \0
+                            FROM \0
+                            WHERE \0""", model.type(), Templates.from(model.type(), true),
+                            Templates.where(key, bindVars)));
+                });
+                if (created != null) {
+                    var existing = findByKeyPlans.putIfAbsent(key, created);
+                    plan = existing != null ? existing : created;
+                }
+            }
+            if (plan != null) {
+                // Eager consumption; the fetch-size hint is skipped like the builder's eager terminal does.
+                return plan.bindValue(value).withoutFetchSize();
+            }
+        }
+        return null;
     }
 
     /**
@@ -384,10 +518,34 @@ abstract class BaseRepositoryImpl<E extends Data, ID> implements Repository {
      *                              connectivity.
      */
     public List<E> findAll() {
+        if (usePlans()) {
+            var plan = findAllPlan;
+            if (plan == null) {
+                plan = createPlanQuietly(() -> select().plan());
+                findAllPlan = plan;
+            }
+            if (plan != null) {
+                // Eager consumption; the fetch-size hint is skipped like the builder's eager terminal does.
+                return plan.query().withoutFetchSize().getResultList(model.type());
+            }
+        }
         return select().getResultList();
     }
 
     public List<Ref<E>> findAllRef() {
+        if (usePlans()) {
+            var plan = findAllRefPlan;
+            if (plan == null) {
+                plan = createPlanQuietly(() -> selectRef().plan());
+                findAllRefPlan = plan;
+            }
+            if (plan != null) {
+                // Eager consumption; the fetch-size hint is skipped like the builder's eager terminal does.
+                try (var stream = plan.query().withoutFetchSize().getRefStream(model.type(), model.primaryKeyType())) {
+                    return stream.toList();
+                }
+            }
+        }
         return selectRef().getResultList();
     }
 

@@ -1207,34 +1207,23 @@ class TemplateProcessor {
             if (bindVarsCursor >= bindVarsCounts.size()) {
                 throw new IllegalStateException("Not enough bind variables.");
             }
-            return new ParameterFactory() {
-                final List<PositionalParameter> tmp = new ArrayList<>();
-                final int expectedBindVarCount = bindVarsCounts.get(bindVarsCursor++);
+            // Each round owns its storage: the factory outlives its binding session through the parameter
+            // extractors, which query plans invoke concurrently, and an abandoned round leaves no residue behind.
+            final int expectedBindVarCount = bindVarsCounts.get(bindVarsCursor++);
+            return () -> new ParameterFactory.Round() {
+                final List<PositionalParameter> parameters = new ArrayList<>(expectedBindVarCount);
 
-                /**
-                 * Binds one value for the current bind vars segment.
-                 *
-                 * @param value the value to bind.
-                 */
                 @Override
                 public void bind(@Nullable Object value) {
-                    tmp.add(new PositionalParameter(startPosition + tmp.size(), value));
+                    parameters.add(new PositionalParameter(startPosition + parameters.size(), value));
                 }
 
-                /**
-                 * Returns the parameters of the current bind vars segment and resets internal storage.
-                 *
-                 * @return the positional parameters for the bind vars segment.
-                 * @throws IllegalStateException if the number of bound values differs from the expected arity.
-                 */
                 @Override
                 public List<PositionalParameter> getParameters() {
-                    if (tmp.size() != expectedBindVarCount) {
+                    if (parameters.size() != expectedBindVarCount) {
                         throw new IllegalStateException("Bind var count mismatch.");
                     }
-                    var result = List.copyOf(tmp);
-                    tmp.clear();
-                    return result;
+                    return List.copyOf(parameters);
                 }
             };
         }

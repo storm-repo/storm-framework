@@ -41,9 +41,12 @@ import st.orm.core.template.SqlTemplate;
 @SuppressWarnings("ALL")
 public final class SqlInterceptorManager {
 
+    /** Shared identity customizer; lets callers recognize operators that do not customize the template. */
+    private static final UnaryOperator<SqlTemplate> IDENTITY_CUSTOMIZER = it -> it;
+
     record Operator(UnaryOperator<Sql> interceptor, UnaryOperator<SqlTemplate> customizer) {
         Operator(UnaryOperator<Sql> interceptor) {
-            this(interceptor, it -> it);
+            this(interceptor, IDENTITY_CUSTOMIZER);
         }
     }
 
@@ -250,6 +253,25 @@ public final class SqlInterceptorManager {
             observer.accept(sql);
             return sql;
         }, customizer));
+    }
+
+    /**
+     * Returns whether a template customizer is active on the current thread's scope.
+     *
+     * <p>Artifacts cached from a processed template, such as query plans, are only valid for the template they were
+     * processed with; callers holding such caches bypass them while a customizer is in scope so the customized
+     * template generates the statement.</p>
+     *
+     * @return {@code true} if a scoped template customizer is active.
+     * @since 1.13
+     */
+    public static boolean hasLocalCustomizers() {
+        for (var operator : LOCAL_OPERATORS.get()) {
+            if (operator.customizer() != IDENTITY_CUSTOMIZER) {
+                return true;
+            }
+        }
+        return false;
     }
 
     /**

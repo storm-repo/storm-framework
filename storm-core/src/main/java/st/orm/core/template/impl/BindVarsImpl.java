@@ -37,11 +37,13 @@ import st.orm.core.template.SqlTemplate.PositionalParameter;
  */
 final class BindVarsImpl implements BindVars, BindVariables {
     private final List<Function<Data, List<PositionalParameter>>> parameterExtractors;
+    private final List<Function<Object, List<PositionalParameter>>> valueParameterExtractors;
     private BatchListener batchListener;
     private RecordListener recordListener;
 
     public BindVarsImpl() {
         this.parameterExtractors = new ArrayList<>();
+        this.valueParameterExtractors = new ArrayList<>();
     }
 
     /**
@@ -113,6 +115,38 @@ final class BindVarsImpl implements BindVars, BindVariables {
      */
     void addParameterExtractor(@Nonnull Function<Data, List<PositionalParameter>> parameterExtractor) {
         parameterExtractors.add(parameterExtractor);
+    }
+
+    /**
+     * Registers a function that extracts positional parameters from a primary key value.
+     *
+     * <p>Id extractors are registered alongside the record extractor for bind variables whose identifying columns
+     * are exactly the primary key, letting query plans bind a raw id where a full record is not available.</p>
+     *
+     * @param idParameterExtractor the function that extracts positional parameters from a primary key value.
+     */
+    void addValueParameterExtractor(@Nonnull Function<Object, List<PositionalParameter>> idParameterExtractor) {
+        valueParameterExtractors.add(idParameterExtractor);
+    }
+
+    /**
+     * Returns an immutable snapshot of the registered parameter extractors.
+     *
+     * <p>The snapshot lets a query plan reuse the extractors without retaining this single-use instance.</p>
+     *
+     * @return the registered parameter extractors.
+     */
+    List<Function<Data, List<PositionalParameter>>> extractors() {
+        return List.copyOf(parameterExtractors);
+    }
+
+    /**
+     * Returns an immutable snapshot of the registered id parameter extractors.
+     *
+     * @return the registered id parameter extractors.
+     */
+    List<Function<Object, List<PositionalParameter>>> valueExtractors() {
+        return List.copyOf(valueParameterExtractors);
     }
 
     @Override

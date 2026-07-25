@@ -20,6 +20,7 @@ import static st.orm.core.template.TemplateString.wrap;
 import jakarta.annotation.Nonnull;
 import st.orm.BindVars;
 import st.orm.Data;
+import st.orm.PersistenceException;
 import st.orm.Ref;
 
 /**
@@ -175,4 +176,21 @@ public interface QueryTemplate extends SubqueryTemplate {
      * @return the query.
      */
     Query query(@Nonnull TemplateString template);
+
+    /**
+     * Compiles the specified query {@code template} into a reusable plan.
+     *
+     * <p>The template's variable parts must be expressed as bind variables (see {@link #createBindVars()}), bound
+     * per execution via {@link QueryPlan#bind(Data)}. Templates without any parameters, such as unfiltered selects
+     * and counts, compile to constant plans executed via {@link QueryPlan#query()}. Templates with fixed parameter
+     * values are rejected. The returned plan is immutable, thread-safe, and independent of any connection, so it can
+     * be cached and shared; executions skip template processing entirely.</p>
+     *
+     * @param template the query template.
+     * @return a reusable plan for the template.
+     * @throws PersistenceException if the template is invalid, carries fixed parameter values, or the underlying
+     *                              implementation does not support plans.
+     * @since 1.13
+     */
+    QueryPlan plan(@Nonnull TemplateString template);
 }

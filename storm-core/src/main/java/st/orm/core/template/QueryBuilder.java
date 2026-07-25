@@ -669,6 +669,20 @@ public abstract class QueryBuilder<T extends Data, R, ID> {
     public abstract Query build();
 
     /**
+     * Compiles this query into a reusable plan.
+     *
+     * <p>The builder's template is processed once; see {@link QueryTemplate#plan(TemplateString)} for the plan
+     * contract. Queries without parameters, such as unfiltered selects and counts, execute via
+     * {@link QueryPlan#query()}; queries whose variable parts are expressed as bind variables bind records via
+     * {@link QueryPlan#bind(Data)}. Queries carrying fixed parameter values are rejected.</p>
+     *
+     * @return a reusable plan for this query.
+     * @throws PersistenceException if the query carries fixed parameter values, or plans are not supported.
+     * @since 1.13
+     */
+    public abstract QueryPlan plan();
+
+    /**
      * Prepares the query for execution.
      *
      * <p>Unlike regular queries, which are constructed lazily, prepared queries are constructed eagerly.
