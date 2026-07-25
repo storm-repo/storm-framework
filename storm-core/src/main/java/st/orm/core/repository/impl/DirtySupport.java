@@ -192,18 +192,6 @@ public final class DirtySupport<E extends Entity<ID>, ID> {
     }
 
     /**
-     * Returns whether the entity declares a version column.
-     *
-     * <p>Version columns are bumped by the database update itself, so the in-memory entity no longer matches the
-     * row after an update; callers use this to decide whether a written entity can serve as observed state.</p>
-     *
-     * @return {@code true} if the entity declares a version column.
-     */
-    boolean hasVersionColumn() {
-        return versionColumn != null;
-    }
-
-    /**
      * Returns the maximum number of distinct update shapes that may be generated when dynamic updates are enabled.
      *
      * <p>This value is configured via the {@code storm.update.max_shapes} property (see {@link StormConfig}). It limits the number of

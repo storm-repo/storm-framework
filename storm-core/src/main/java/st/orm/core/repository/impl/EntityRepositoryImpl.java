@@ -935,14 +935,12 @@ public class EntityRepositoryImpl<E extends Entity<ID>, ID>
         E e = fireBeforeUpdate(entity);
         if (model.isJoinedInheritance()) {
             validateUpdate(e);
-            var joinedEntityCache = entityCache();
-            joinedEntityCache.ifPresent(cache -> {
+            entityCache().ifPresent(cache -> {
                 if (!model.isDefaultPrimaryKey(e.id())) {
                     cache.remove(e.id());
                 }
             });
             JoinedEntityHelper.update(ormTemplate, model, e);
-            reinternAfterUpdate(List.of(e), joinedEntityCache.orElse(null));
             fireAfterUpdate(e);
             return;
         }
@@ -968,7 +966,6 @@ public class EntityRepositoryImpl<E extends Entity<ID>, ID>
         } else if (result != 1) {
             throw new PersistenceException("Update of %s failed. 0 rows were affected, possibly because the row does not exist or a constraint prevented the update.".formatted(model.type().getSimpleName()));
         }
-        reinternAfterUpdate(List.of(e), entityCache.orElse(null));
         fireAfterUpdate(e);
     }
 
@@ -1871,7 +1868,6 @@ public class EntityRepositoryImpl<E extends Entity<ID>, ID>
                         .filter(e -> !model.isDefaultPrimaryKey(e.id()))
                         .forEach(e -> cache.remove(e.id())));
                 JoinedEntityHelper.updateBatch(ormTemplate, model, batch);
-                reinternAfterUpdate(batch, entityCache.orElse(null));
                 batch.forEach(this::fireAfterUpdate);
             });
             return;
@@ -1948,25 +1944,7 @@ public class EntityRepositoryImpl<E extends Entity<ID>, ID>
         } else if (IntStream.of(result).anyMatch(r -> r != 1)) {
             throw new PersistenceException("Batch update of %s failed. One or more rows were not affected.".formatted(model.type().getSimpleName()));
         }
-        reinternAfterUpdate(batch, cache);
         batch.forEach(this::fireAfterUpdate);
-    }
-
-    /**
-     * Re-interns the given entities after a successful update. The written state equals the database row for
-     * unversioned types, so it can serve as observed state, keeping dirty checking and same-transaction reads warm
-     * for the updated entities. Versioned types are skipped: the database bumps the version during the update, so
-     * the written entity no longer matches the row.
-     */
-    private void reinternAfterUpdate(@Nonnull List<E> batch, @Nullable EntityCache<E, ID> cache) {
-        if (cache == null || dirtySupport.hasVersionColumn()) {
-            return;
-        }
-        for (var entity : batch) {
-            if (!model.isDefaultPrimaryKey(entity.id())) {
-                cache.intern(entity);
-            }
-        }
     }
 
     protected List<ID> updateAndFetchIds(@Nonnull List<E> batch, @Nonnull PreparedQuery query, @Nullable EntityCache<E, ID> cache) {
@@ -1985,7 +1963,6 @@ public class EntityRepositoryImpl<E extends Entity<ID>, ID>
         } else if (IntStream.of(result).anyMatch(r -> r != 1)) {
             throw new PersistenceException("Batch update of %s failed. One or more rows were not affected.".formatted(model.type().getSimpleName()));
         }
-        reinternAfterUpdate(batch, cache);
         batch.forEach(this::fireAfterUpdate);
         return batch.stream().map(Entity::id).toList();
     }
