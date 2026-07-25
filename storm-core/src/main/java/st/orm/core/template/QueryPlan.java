@@ -52,6 +52,21 @@ public interface QueryPlan {
     Query bind(@Nonnull Data record);
 
     /**
+     * Binds the given primary key against the plan's statement and returns an executable query.
+     *
+     * <p>Id binding is available when the plan's bind variables consist solely of a WHERE clause matching the
+     * primary key, such as a find, exists, or delete by id. Composite primary keys bind their id record's
+     * constituent values.</p>
+     *
+     * @param id the primary key supplying the values for the plan's bind variables.
+     * @return a query bound to the primary key.
+     * @throws st.orm.PersistenceException if this plan is constant, or its bind variables are not purely
+     *                                     primary-key based.
+     * @since 1.13
+     */
+    Query bindId(@Nonnull Object id);
+
+    /**
      * Returns an executable query for a constant plan.
      *
      * <p>Constant plans are compiled from templates without bind variables and carry no per-call values; each call

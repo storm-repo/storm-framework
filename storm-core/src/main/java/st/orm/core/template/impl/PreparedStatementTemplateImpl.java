@@ -708,12 +708,12 @@ public final class PreparedStatementTemplateImpl implements PreparedStatementTem
                 if (!sql.parameters().isEmpty()) {
                     throw new PersistenceException("Cannot compile a plan for a template with fixed parameter values. Pass createBindVars() for the variable parts, or execute the template directly via query().");
                 }
-                return new QueryPlanImpl(sql, List.of(), bound -> createQuery(bound, dialect));
+                return new QueryPlanImpl(sql, List.of(), List.of(), bound -> createQuery(bound, dialect));
             }
             if (!(bindVariables instanceof BindVarsImpl bindVars)) {
                 throw new PersistenceException("Cannot compile a plan: unsupported bind variables implementation %s.".formatted(bindVariables.getClass().getName()));
             }
-            return new QueryPlanImpl(sql, bindVars.extractors(), bound -> createQuery(bound, dialect));
+            return new QueryPlanImpl(sql, bindVars.extractors(), bindVars.idExtractors(), bound -> createQuery(bound, dialect));
         } catch (SqlTemplateException e) {
             throw new PersistenceException(e);
         }

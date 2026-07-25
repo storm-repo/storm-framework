@@ -114,6 +114,20 @@ final class WhereProcessor implements ElementProcessor<Where> {
                         throw new UncheckedSqlTemplateException(ex);
                     }
                 });
+                if (columns.stream().allMatch(Column::primaryKey)) {
+                    // The identifying columns are exactly the primary key, so a raw id can supply every value;
+                    // query plans use this to bind by-id statements without a full record.
+                    model.getPrimaryKeyMetamodel().ifPresent(primaryKeyMetamodel ->
+                            vars.addIdParameterExtractor(id -> {
+                                try {
+                                    model.forEachValue(primaryKeyMetamodel, id,
+                                            (column, value) -> parameterFactory.bind(value));
+                                    return parameterFactory.getParameters();
+                                } catch (SqlTemplateException ex) {
+                                    throw new UncheckedSqlTemplateException(ex);
+                                }
+                            }));
+                }
             }
         } else {
             throw new IllegalStateException("Unexpected bind hint: %s.".formatted(bindHint.getClass().getSimpleName()));

@@ -37,11 +37,13 @@ import st.orm.core.template.SqlTemplate.PositionalParameter;
  */
 final class BindVarsImpl implements BindVars, BindVariables {
     private final List<Function<Data, List<PositionalParameter>>> parameterExtractors;
+    private final List<Function<Object, List<PositionalParameter>>> idParameterExtractors;
     private BatchListener batchListener;
     private RecordListener recordListener;
 
     public BindVarsImpl() {
         this.parameterExtractors = new ArrayList<>();
+        this.idParameterExtractors = new ArrayList<>();
     }
 
     /**
@@ -116,6 +118,18 @@ final class BindVarsImpl implements BindVars, BindVariables {
     }
 
     /**
+     * Registers a function that extracts positional parameters from a primary key value.
+     *
+     * <p>Id extractors are registered alongside the record extractor for bind variables whose identifying columns
+     * are exactly the primary key, letting query plans bind a raw id where a full record is not available.</p>
+     *
+     * @param idParameterExtractor the function that extracts positional parameters from a primary key value.
+     */
+    void addIdParameterExtractor(@Nonnull Function<Object, List<PositionalParameter>> idParameterExtractor) {
+        idParameterExtractors.add(idParameterExtractor);
+    }
+
+    /**
      * Returns an immutable snapshot of the registered parameter extractors.
      *
      * <p>The snapshot lets a query plan reuse the extractors without retaining this single-use instance.</p>
@@ -124,6 +138,15 @@ final class BindVarsImpl implements BindVars, BindVariables {
      */
     List<Function<Data, List<PositionalParameter>>> extractors() {
         return List.copyOf(parameterExtractors);
+    }
+
+    /**
+     * Returns an immutable snapshot of the registered id parameter extractors.
+     *
+     * @return the registered id parameter extractors.
+     */
+    List<Function<Object, List<PositionalParameter>>> idExtractors() {
+        return List.copyOf(idParameterExtractors);
     }
 
     @Override

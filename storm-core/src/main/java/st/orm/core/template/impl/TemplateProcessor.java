@@ -1208,7 +1208,9 @@ class TemplateProcessor {
                 throw new IllegalStateException("Not enough bind variables.");
             }
             return new ParameterFactory() {
-                final List<PositionalParameter> tmp = new ArrayList<>();
+                // Extraction rounds are confined to the calling thread: the factory outlives its binding session
+                // through the parameter extractors, which query plans invoke concurrently.
+                final ThreadLocal<List<PositionalParameter>> tmp = ThreadLocal.withInitial(ArrayList::new);
                 final int expectedBindVarCount = bindVarsCounts.get(bindVarsCursor++);
 
                 /**
@@ -1218,7 +1220,8 @@ class TemplateProcessor {
                  */
                 @Override
                 public void bind(@Nullable Object value) {
-                    tmp.add(new PositionalParameter(startPosition + tmp.size(), value));
+                    var round = tmp.get();
+                    round.add(new PositionalParameter(startPosition + round.size(), value));
                 }
 
                 /**
@@ -1229,12 +1232,15 @@ class TemplateProcessor {
                  */
                 @Override
                 public List<PositionalParameter> getParameters() {
-                    if (tmp.size() != expectedBindVarCount) {
-                        throw new IllegalStateException("Bind var count mismatch.");
+                    var round = tmp.get();
+                    try {
+                        if (round.size() != expectedBindVarCount) {
+                            throw new IllegalStateException("Bind var count mismatch.");
+                        }
+                        return List.copyOf(round);
+                    } finally {
+                        round.clear();
                     }
-                    var result = List.copyOf(tmp);
-                    tmp.clear();
-                    return result;
                 }
             };
         }

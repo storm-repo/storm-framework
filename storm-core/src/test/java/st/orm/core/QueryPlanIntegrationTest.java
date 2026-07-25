@@ -142,6 +142,60 @@ public class QueryPlanIntegrationTest {
     }
 
     @Test
+    void plan_bindsById_acrossExecutions() {
+        var orm = orm();
+        var bindVars = orm.createBindVars();
+        var plan = orm.plan(TemplateString.raw("""
+                SELECT \0
+                FROM \0
+                WHERE \0""", PlanVisit.class, Templates.from(PlanVisit.class, true), bindVars));
+        var first = plan.bindId(1).getSingleResult(PlanVisit.class);
+        assertEquals(1, first.id());
+        var second = plan.bindId(2).getSingleResult(PlanVisit.class);
+        assertEquals(2, second.id());
+    }
+
+    @Test
+    void bindId_rejectsPlansThatAreNotPurelyPrimaryKeyBased() {
+        var orm = orm();
+        var boundByRecord = fullUpdatePlan(orm);
+        var onUpdatePlan = assertThrows(PersistenceException.class, () -> boundByRecord.bindId(1));
+        assertTrue(onUpdatePlan.getMessage().contains("bind()"));
+        var constant = orm.selectFrom(PlanVisit.class).plan();
+        var onConstantPlan = assertThrows(PersistenceException.class, () -> constant.bindId(1));
+        assertTrue(onConstantPlan.getMessage().contains("query()"));
+    }
+
+    @Test
+    void plan_bindIsThreadSafe() {
+        var orm = orm();
+        var repository = orm.entity(PlanVisit.class);
+        var plan = fullUpdatePlan(orm);
+        var visit = repository.getById(1);
+        var updated = new PlanVisit(visit.id(), visit.visitDate(), "parallel", visit.pet());
+        // Extraction runs concurrently against the shared plan; execution is intentionally left out since the
+        // transactional test connection is single-threaded.
+        java.util.stream.IntStream.range(0, 200).parallel().forEach(ignore -> {
+            var query = plan.bind(updated);
+            assertTrue(query != null);
+        });
+        assertEquals(1, plan.bind(updated).executeUpdate());
+        assertEquals("parallel", repository.getById(1).description());
+    }
+
+    @Test
+    void repositoryRemoveById_usesCachedPlan() {
+        var repository = orm().entity(PlanVisit.class);
+        var total = repository.count();
+        repository.removeById(1);
+        assertEquals(total - 1, repository.count());
+        // The second call binds against the plan cached by the first.
+        repository.removeById(2);
+        assertEquals(total - 2, repository.count());
+        assertTrue(repository.findById(1).isEmpty());
+    }
+
+    @Test
     void repositoryFindAllRefAndRemoveAll_useCachedConstantPlans() {
         var repository = orm().entity(PlanVisit.class);
         var refs = repository.findAllRef();

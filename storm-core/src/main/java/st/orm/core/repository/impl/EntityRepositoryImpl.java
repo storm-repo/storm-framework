@@ -107,9 +107,17 @@ public class EntityRepositoryImpl<E extends Entity<ID>, ID>
     private volatile QueryPlan insertIgnoringAutoGeneratePlan;
     private volatile QueryPlan removePlan;
     private volatile QueryPlan removeAllPlan;
+    private volatile QueryPlan removeByIdPlan;
+
+    /**
+     * Version columns participate in the identifying WHERE columns of delete statements, and an id cannot supply a
+     * version value, so versioned types keep the per-call path for removal by id.
+     */
+    private final boolean versionedEntity;
 
     public EntityRepositoryImpl(@Nonnull ORMTemplate ormTemplate, @Nonnull Model<E, ID> model) {
         super(ormTemplate, model);
+        this.versionedEntity = model.declaredColumns().stream().anyMatch(Column::version);
         this.defaultBatchSize = 1000;
         this.primaryKeyColumns = model.declaredColumns().stream()
                 .filter(Column::primaryKey)
@@ -1172,6 +1180,22 @@ public class EntityRepositoryImpl<E extends Entity<ID>, ID>
         if (model.isJoinedInheritance()) {
             JoinedEntityHelper.removeById(ormTemplate, model, id);
             return;
+        }
+        if (!versionedEntity && usePlans()) {
+            var plan = removeByIdPlan;
+            if (plan == null) {
+                plan = createPlanQuietly(() -> {
+                    var bindVars = ormTemplate.createBindVars();
+                    return ormTemplate.plan(TemplateString.raw("""
+                            DELETE FROM \0
+                            WHERE \0""", model.type(), bindVars));
+                });
+                removeByIdPlan = plan;
+            }
+            if (plan != null) {
+                plan.bindId(id).managed().executeUpdate();
+                return;
+            }
         }
         // Don't use query builder to prevent WHERE IN clause.
         ormTemplate.query(TemplateString.raw("""

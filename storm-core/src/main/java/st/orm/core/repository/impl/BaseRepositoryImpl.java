@@ -41,9 +41,11 @@ import st.orm.Ref;
 import st.orm.core.repository.Repository;
 import st.orm.core.template.Model;
 import st.orm.core.template.ORMTemplate;
+import st.orm.core.template.Query;
 import st.orm.core.template.QueryBuilder;
 import st.orm.core.template.QueryPlan;
 import st.orm.core.template.TemplateString;
+import st.orm.core.template.Templates;
 import st.orm.core.template.impl.SqlInterceptorManager;
 
 /**
@@ -59,6 +61,9 @@ abstract class BaseRepositoryImpl<E extends Data, ID> implements Repository {
     private volatile QueryPlan findAllPlan;
     private volatile QueryPlan findAllRefPlan;
     private volatile QueryPlan countPlan;
+
+    /** Lazily created by-id select plan, bound per call via the primary key; racy initialization is benign. */
+    private volatile QueryPlan findByIdPlan;
 
     /**
      * Cleared on the first failed plan creation. Plans require template processing support ahead of execution;
@@ -306,6 +311,10 @@ abstract class BaseRepositoryImpl<E extends Data, ID> implements Repository {
      *                              connectivity problems or query execution errors.
      */
     public Optional<E> findById(@Nonnull ID id) {
+        var query = findByIdQuery(id);
+        if (query != null) {
+            return query.getOptionalResult(model.type());
+        }
         return select().where(id).getOptionalResult();
     }
 
@@ -338,7 +347,36 @@ abstract class BaseRepositoryImpl<E extends Data, ID> implements Repository {
      *                              connectivity problems or query execution errors.
      */
     public E getById(@Nonnull ID id) {
+        var query = findByIdQuery(id);
+        if (query != null) {
+            return query.getSingleResult(model.type());
+        }
         return select().where(id).getSingleResult();
+    }
+
+    /**
+     * Returns a query that selects the entity graph by primary key, served from a cached plan, or {@code null} when
+     * plans are unavailable; see {@link #usePlans()} for the guards.
+     */
+    private @Nullable Query findByIdQuery(@Nonnull ID id) {
+        if (usePlans()) {
+            var plan = findByIdPlan;
+            if (plan == null) {
+                plan = createPlanQuietly(() -> {
+                    var bindVars = ormTemplate.createBindVars();
+                    return ormTemplate.plan(TemplateString.raw("""
+                            SELECT \0
+                            FROM \0
+                            WHERE \0""", model.type(), Templates.from(model.type(), true), bindVars));
+                });
+                findByIdPlan = plan;
+            }
+            if (plan != null) {
+                // Eager consumption; the fetch-size hint is skipped like the builder's eager terminal does.
+                return plan.bindId(id).withoutFetchSize();
+            }
+        }
+        return null;
     }
 
     /**
