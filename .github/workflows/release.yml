@@ -190,6 +190,9 @@ jobs:
   sync-example-templates:
     runs-on: ubuntu-latest
     needs: publish-gradle-plugin
+    # Pushes go through RELEASE_TOKEN, not the default GITHUB_TOKEN, so this job
+    # needs no permissions on its own repository.
+    permissions: {}
     steps:
       - name: Extract version from tag
         id: version
@@ -212,7 +215,9 @@ jobs:
             storm-example-kotlin-ktor \
             storm-example-kotlin-ktor-graalvm; do
             git clone --depth 1 "https://x-access-token:${GH_TOKEN}@github.com/storm-orm/${repo}.git" "$repo"
-            sed -i -E "s/(id\(\"st\.orm\"\) version \")[0-9]+\.[0-9]+\.[0-9]+/\1${V}/g" "$repo/build.gradle.kts"
+            # Replace the whole quoted version so any -SNAPSHOT/-rc suffix is dropped
+            # and the template pins the exact release.
+            sed -i -E "s/(id\(\"st\.orm\"\) version \")[^\"]*(\")/\1${V}\2/g" "$repo/build.gradle.kts"
             git -C "$repo" config user.name "github-actions[bot]"
             git -C "$repo" config user.email "github-actions[bot]@users.noreply.github.com"
             if git -C "$repo" diff --quiet; then
