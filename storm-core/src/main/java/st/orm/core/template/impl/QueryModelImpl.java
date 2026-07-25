@@ -394,14 +394,11 @@ final class QueryModelImpl implements QueryModel {
                 multiValues.add(valueMap);
             }
         }
-        if (!multiValues.isEmpty()) {
-            return compileMultiValues(operator, multiValues, compiler);
-        }
-        if (column == null) {
+        if (multiValues.isEmpty() && column == null) {
             column = toFullyQualifiedColumn(model.getSingleColumn(metamodel));
         }
         try {
-            return operator.format(column, placeholders.toArray(new String[0]));
+            return ColumnComparison.render(operator, column, placeholders, multiValues, compiler::mapParameter, compiler.dialect());
         } catch (IllegalArgumentException e) {
             throw new SqlTemplateException(e);
         }
@@ -506,21 +503,6 @@ final class QueryModelImpl implements QueryModel {
             }
         }
         throw new NoSuchElementException("No value present");
-    }
-
-    /**
-     * Compiles a multi-column, multi-row value set into a dialect-specific SQL fragment.
-     *
-     * @param operator    the operator to apply.
-     * @param multiValues the list of column-to-value mappings.
-     * @param compiler    the compiler used to map parameters.
-     * @return the compiled SQL fragment.
-     * @throws SqlTemplateException if the dialect cannot handle the value set.
-     */
-    private String compileMultiValues(@Nonnull Operator operator,
-                                      @Nonnull List<SequencedMap<String, Object>> multiValues,
-                                      @Nonnull TemplateCompiler compiler) throws SqlTemplateException {
-        return compiler.dialect().multiColumnExpression(operator, multiValues, compiler::mapParameter);
     }
 
     /**
