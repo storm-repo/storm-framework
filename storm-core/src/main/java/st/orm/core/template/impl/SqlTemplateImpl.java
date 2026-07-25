@@ -377,6 +377,22 @@ public final class SqlTemplateImpl implements SqlTemplate {
      */
     @Override
     public Sql process(@Nonnull TemplateString template) throws SqlTemplateException {
+        return process(template, true);
+    }
+
+    /**
+     * Processes the specified {@code template}, optionally without applying SQL interceptors.
+     *
+     * <p>Query plans process their template without interceptors: the stored statement must not bake in interceptor
+     * rewrites, and binding applies the interceptor chain instead, so every execution is intercepted exactly once
+     * and interceptors scoped around plan compilation do not leak into the cached plan.</p>
+     *
+     * @param template the string template to process.
+     * @param applyInterceptors whether to run the registered SQL interceptors on the result.
+     * @return the resulting SQL and parameters.
+     * @throws SqlTemplateException if an error occurs while processing the input.
+     */
+    Sql process(@Nonnull TemplateString template, boolean applyInterceptors) throws SqlTemplateException {
         BindingContext bindingContext;
         Object compilationKey;
         TemplateProcessor processor;
@@ -400,7 +416,10 @@ public final class SqlTemplateImpl implements SqlTemplate {
                     request.hit();
                 }
             }
-            Sql sql = intercept(processor.bind(bindingContext));
+            Sql sql = processor.bind(bindingContext);
+            if (applyInterceptors) {
+                sql = intercept(sql);
+            }
             if (LOGGER.isDebugEnabled()) {
                 String log = "SQL:\n%s".formatted(sql.statement());
                 if (LOGGER.isTraceEnabled()) {

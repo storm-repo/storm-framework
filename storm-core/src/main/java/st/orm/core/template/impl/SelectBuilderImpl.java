@@ -33,6 +33,7 @@ import st.orm.Ref;
 import st.orm.core.template.Model;
 import st.orm.core.template.Query;
 import st.orm.core.template.QueryBuilder;
+import st.orm.core.template.QueryPlan;
 import st.orm.core.template.QueryTemplate;
 import st.orm.core.template.TemplateString;
 import st.orm.core.template.impl.Elements.Where;
@@ -319,6 +320,19 @@ public class SelectBuilderImpl<T extends Data, R, ID> extends QueryBuilderImpl<T
             throw new PersistenceException("Cannot build a query from a subquery.");
         }
         return queryTemplate.query(toTemplateString());
+    }
+
+    /**
+     * Compiles this query into a reusable plan.
+     *
+     * @return a reusable plan for this query.
+     */
+    @Override
+    public QueryPlan plan() {
+        if (subquery) {
+            throw new PersistenceException("Cannot compile a plan from a subquery.");
+        }
+        return queryTemplate.plan(toTemplateString());
     }
 
     /**

@@ -115,6 +115,17 @@ final class BindVarsImpl implements BindVars, BindVariables {
         parameterExtractors.add(parameterExtractor);
     }
 
+    /**
+     * Returns an immutable snapshot of the registered parameter extractors.
+     *
+     * <p>The snapshot lets a query plan reuse the extractors without retaining this single-use instance.</p>
+     *
+     * @return the registered parameter extractors.
+     */
+    List<Function<Data, List<PositionalParameter>>> extractors() {
+        return List.copyOf(parameterExtractors);
+    }
+
     @Override
     public String toString() {
         return "%s@%s".formatted(getClass().getSimpleName(), toHexString(identityHashCode(this)));

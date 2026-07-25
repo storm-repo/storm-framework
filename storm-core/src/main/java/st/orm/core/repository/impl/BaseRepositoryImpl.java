@@ -25,10 +25,12 @@ import static st.orm.core.spi.Providers.selectRefFrom;
 import static st.orm.core.template.TemplateString.wrap;
 
 import jakarta.annotation.Nonnull;
+import jakarta.annotation.Nullable;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Optional;
 import java.util.function.Function;
+import java.util.function.Supplier;
 import java.util.stream.Stream;
 import java.util.stream.StreamSupport;
 import st.orm.Data;
@@ -40,7 +42,9 @@ import st.orm.core.repository.Repository;
 import st.orm.core.template.Model;
 import st.orm.core.template.ORMTemplate;
 import st.orm.core.template.QueryBuilder;
+import st.orm.core.template.QueryPlan;
 import st.orm.core.template.TemplateString;
+import st.orm.core.template.impl.SqlInterceptorManager;
 
 /**
  * Base implementation for all repositories.
@@ -51,12 +55,42 @@ abstract class BaseRepositoryImpl<E extends Data, ID> implements Repository {
     protected final Model<E, ID> model;
     private final boolean compoundPrimaryKey;
 
+    /** Lazily created constant plans for the parameter-less statement shapes; racy initialization is benign. */
+    private volatile QueryPlan findAllPlan;
+    private volatile QueryPlan findAllRefPlan;
+    private volatile QueryPlan countPlan;
+
+    /**
+     * Cleared on the first failed plan creation. Plans require template processing support ahead of execution;
+     * templates without it, such as JPA, keep the per-call path, and genuine template errors surface through that
+     * same path.
+     */
+    private volatile boolean plansSupported = true;
+
     public BaseRepositoryImpl(@Nonnull ORMTemplate ormTemplate, @Nonnull Model<E, ID> model) {
         this.ormTemplate = requireNonNull(ormTemplate);
         this.model = requireNonNull(model);
         this.compoundPrimaryKey = model.getPrimaryKeyMetamodel()
                 .filter(Metamodel::isInline)
                 .isPresent();
+    }
+
+    /**
+     * Returns whether repository statements are served from cached plans. Plans are processed against the
+     * repository's own template; while a scoped template customizer is active, the customized template must
+     * generate the statement, so the cached plans are bypassed.
+     */
+    protected final boolean usePlans() {
+        return plansSupported && !SqlInterceptorManager.hasLocalCustomizers();
+    }
+
+    protected final @Nullable QueryPlan createPlanQuietly(@Nonnull Supplier<QueryPlan> factory) {
+        try {
+            return factory.get();
+        } catch (PersistenceException e) {
+            plansSupported = false;
+            return null;
+        }
     }
 
     /**
@@ -205,6 +239,16 @@ abstract class BaseRepositoryImpl<E extends Data, ID> implements Repository {
      * connectivity.
      */
     public long count() {
+        if (usePlans()) {
+            var plan = countPlan;
+            if (plan == null) {
+                plan = createPlanQuietly(() -> selectCount().plan());
+                countPlan = plan;
+            }
+            if (plan != null) {
+                return plan.query().withoutFetchSize().getSingleResult(Long.class);
+            }
+        }
         return selectCount().getSingleResult();
     }
 
@@ -384,10 +428,34 @@ abstract class BaseRepositoryImpl<E extends Data, ID> implements Repository {
      *                              connectivity.
      */
     public List<E> findAll() {
+        if (usePlans()) {
+            var plan = findAllPlan;
+            if (plan == null) {
+                plan = createPlanQuietly(() -> select().plan());
+                findAllPlan = plan;
+            }
+            if (plan != null) {
+                // Eager consumption; the fetch-size hint is skipped like the builder's eager terminal does.
+                return plan.query().withoutFetchSize().getResultList(model.type());
+            }
+        }
         return select().getResultList();
     }
 
     public List<Ref<E>> findAllRef() {
+        if (usePlans()) {
+            var plan = findAllRefPlan;
+            if (plan == null) {
+                plan = createPlanQuietly(() -> selectRef().plan());
+                findAllRefPlan = plan;
+            }
+            if (plan != null) {
+                // Eager consumption; the fetch-size hint is skipped like the builder's eager terminal does.
+                try (var stream = plan.query().withoutFetchSize().getRefStream(model.type(), model.primaryKeyType())) {
+                    return stream.toList();
+                }
+            }
+        }
         return selectRef().getResultList();
     }
 

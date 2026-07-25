@@ -21,6 +21,7 @@ import javax.sql.DataSource;
 import st.orm.BindVars;
 import st.orm.PersistenceException;
 import st.orm.core.template.Query;
+import st.orm.core.template.QueryPlan;
 import st.orm.core.template.SqlTemplate;
 import st.orm.core.template.TemplateString;
 
@@ -57,6 +58,21 @@ public interface QueryFactory {
      * @throws PersistenceException if the template is invalid.
      */
     Query create(@Nonnull TemplateString template);
+
+    /**
+     * Compiles the specified query {@code template} into a reusable plan.
+     *
+     * <p>The default implementation does not support plans and throws; factories that process templates ahead of
+     * execution override this method.</p>
+     *
+     * @param template the template to compile; must contain bind variables.
+     * @return a reusable plan for the template.
+     * @throws PersistenceException if this factory does not support plans or the template is invalid.
+     * @since 1.13
+     */
+    default QueryPlan plan(@Nonnull TemplateString template) {
+        throw new PersistenceException("Query plans are not supported by %s.".formatted(getClass().getSimpleName()));
+    }
 
     /**
      * Returns the {@link DataSource} backing this factory, or {@code null} if the factory was created from a raw

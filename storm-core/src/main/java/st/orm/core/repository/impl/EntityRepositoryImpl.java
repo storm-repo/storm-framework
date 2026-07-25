@@ -33,6 +33,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentMap;
 import java.util.function.Function;
 import java.util.stream.IntStream;
 import java.util.stream.Stream;
@@ -57,7 +59,9 @@ import st.orm.core.template.Column;
 import st.orm.core.template.Model;
 import st.orm.core.template.ORMTemplate;
 import st.orm.core.template.PreparedQuery;
+import st.orm.core.template.Query;
 import st.orm.core.template.QueryBuilder;
+import st.orm.core.template.QueryPlan;
 import st.orm.core.template.TemplateString;
 import st.orm.core.template.Templates;
 import st.orm.core.template.impl.Elements;
@@ -90,6 +94,19 @@ public class EntityRepositoryImpl<E extends Entity<ID>, ID>
     private final DirtySupport<E, ID> dirtySupport;
     private final CacheRetention cacheRetention;
     private final List<EntityCallback<E>> entityCallbacks;
+
+    /**
+     * Bounded cache of single-update plans keyed by dirty shape. It admits the configured maximum number of dynamic
+     * shapes plus the full-update shape; shapes beyond the bound fall back to per-call template processing, keeping
+     * the cached statement fan-out aligned with what maxShapes allows for batches.
+     */
+    private final ConcurrentMap<Set<Metamodel<?, ?>>, QueryPlan> updatePlans = new ConcurrentHashMap<>();
+
+    /** Lazily created plans for the fixed single-entity statement shapes; racy initialization is benign. */
+    private volatile QueryPlan insertPlan;
+    private volatile QueryPlan insertIgnoringAutoGeneratePlan;
+    private volatile QueryPlan removePlan;
+    private volatile QueryPlan removeAllPlan;
 
     public EntityRepositoryImpl(@Nonnull ORMTemplate ormTemplate, @Nonnull Model<E, ID> model) {
         super(ormTemplate, model);
@@ -571,10 +588,7 @@ public class EntityRepositoryImpl<E extends Entity<ID>, ID>
             fireAfterInsert(entity);
             return;
         }
-        var query = ormTemplate.query(TemplateString.raw("""
-                INSERT INTO \0
-                VALUES \0""", model.type(), entity))
-                .managed();
+        var query = insertQuery(entity, false);
         if (query.executeUpdate() != 1) {
             throw new PersistenceException("Insert of %s failed. 0 rows were affected, which may indicate a trigger, constraint, or BEFORE INSERT hook prevented the row from being written.".formatted(model.type().getSimpleName()));
         }
@@ -599,10 +613,7 @@ public class EntityRepositoryImpl<E extends Entity<ID>, ID>
     public void insert(@Nonnull E entity, boolean ignoreAutoGenerate) {
         entity = fireBeforeInsert(entity);
         validateInsert(entity, ignoreAutoGenerate);
-        var query = ormTemplate.query(TemplateString.raw("""
-                INSERT INTO \0
-                VALUES \0""", Templates.insert(model.type(), ignoreAutoGenerate), Templates.values(entity, ignoreAutoGenerate)))
-                .managed();
+        var query = insertQuery(entity, ignoreAutoGenerate);
         if (query.executeUpdate() != 1) {
             throw new PersistenceException("Insert of %s failed. 0 rows were affected, which may indicate a trigger, constraint, or BEFORE INSERT hook prevented the row from being written.".formatted(model.type().getSimpleName()));
         }
@@ -955,11 +966,7 @@ public class EntityRepositoryImpl<E extends Entity<ID>, ID>
                 cache.remove(e.id());
             }
         });
-        var query = ormTemplate.query(TemplateString.raw("""
-                UPDATE \0
-                SET \0
-                WHERE \0""", model.type(), Templates.set(e, dirty.get()), e))
-                .managed();
+        var query = updateQuery(e, dirty.get());
         int result = query.executeUpdate();
         if (query.isVersionAware() && result == 0) {
             throw new OptimisticLockException("Update of %s failed due to optimistic lock. The entity may have been modified or deleted by another transaction.".formatted(model.type().getSimpleName()));
@@ -1142,11 +1149,7 @@ public class EntityRepositoryImpl<E extends Entity<ID>, ID>
             return;
         }
         // Don't use query builder to prevent WHERE IN clause.
-        int result = ormTemplate.query(TemplateString.raw("""
-                DELETE FROM \0
-                WHERE \0""", model.type(), entity))
-                .managed()
-                .executeUpdate();
+        int result = removeQuery(entity).executeUpdate();
         if (result != 1) {
             throw new PersistenceException("Remove of %s failed. 0 rows were affected, possibly because the entity does not exist or a foreign key constraint prevents deletion.".formatted(model.type().getSimpleName()));
         }
@@ -1213,6 +1216,20 @@ public class EntityRepositoryImpl<E extends Entity<ID>, ID>
     @Override
     public void removeAll() {
         entityCache().ifPresent(EntityCache::clear);
+        if (usePlans()) {
+            var plan = removeAllPlan;
+            if (plan == null) {
+                plan = createPlanQuietly(() -> ormTemplate.plan(TemplateString.raw("DELETE FROM \0", model.type())));
+                removeAllPlan = plan;
+            }
+            if (plan != null) {
+                plan.query()
+                        .unsafe() // Omission of WHERE clause is intentional.
+                        .managed()
+                        .executeUpdate();
+                return;
+            }
+        }
         // Don't use query builder to prevent WHERE IN clause.
         ormTemplate.query(TemplateString.raw("DELETE FROM \0", model.type()))
                 .unsafe() // Omission of WHERE clause is intentional.
@@ -1917,6 +1934,107 @@ public class EntityRepositoryImpl<E extends Entity<ID>, ID>
      */
     protected int getMaxShapes() {
         return dirtySupport.getMaxShapes();
+    }
+
+    /**
+     * Returns a managed query that updates the given entity's dirty {@code fields}.
+     *
+     * <p>The query is served from a plan cached per dirty shape whenever plans are supported and the shape bound
+     * admits it; template processing then runs once per shape rather than once per update. Shapes beyond the bound,
+     * and templates without bind variables support, use per-call template processing.</p>
+     */
+    private Query updateQuery(@Nonnull E entity, @Nonnull Set<Metamodel<?, ?>> fields) {
+        if (usePlans()) {
+            var plan = updatePlans.get(fields);
+            if (plan == null && updatePlans.size() <= dirtySupport.getMaxShapes()) {
+                plan = createUpdatePlan(fields);
+            }
+            if (plan != null) {
+                return plan.bind(entity).managed();
+            }
+        }
+        return ormTemplate.query(TemplateString.raw("""
+                UPDATE \0
+                SET \0
+                WHERE \0""", model.type(), Templates.set(entity, fields), entity))
+                .managed();
+    }
+
+    private QueryPlan createUpdatePlan(@Nonnull Set<Metamodel<?, ?>> fields) {
+        var plan = createPlanQuietly(() -> {
+            var bindVars = ormTemplate.createBindVars();
+            return ormTemplate.plan(TemplateString.raw("""
+                    UPDATE \0
+                    SET \0
+                    WHERE \0""", model.type(), Templates.set(bindVars, fields), bindVars));
+        });
+        if (plan == null) {
+            return null;
+        }
+        var existing = updatePlans.putIfAbsent(fields, plan);
+        return existing != null ? existing : plan;
+    }
+
+    /**
+     * Returns a managed query that inserts the given entity. The query is served from a cached plan whenever plans
+     * are supported, so template processing runs once per repository rather than once per insert; see
+     * {@link #usePlans()} for the guards.
+     */
+    private Query insertQuery(@Nonnull E entity, boolean ignoreAutoGenerate) {
+        if (usePlans()) {
+            var plan = ignoreAutoGenerate ? insertIgnoringAutoGeneratePlan : insertPlan;
+            if (plan == null) {
+                plan = createPlanQuietly(() -> {
+                    var bindVars = ormTemplate.createBindVars();
+                    return ormTemplate.plan(TemplateString.raw("""
+                            INSERT INTO \0
+                            VALUES \0""",
+                            Templates.insert(model.type(), ignoreAutoGenerate),
+                            Templates.values(bindVars, ignoreAutoGenerate)));
+                });
+                if (ignoreAutoGenerate) {
+                    insertIgnoringAutoGeneratePlan = plan;
+                } else {
+                    insertPlan = plan;
+                }
+            }
+            if (plan != null) {
+                return plan.bind(entity).managed();
+            }
+        }
+        return ormTemplate.query(TemplateString.raw("""
+                INSERT INTO \0
+                VALUES \0""",
+                Templates.insert(model.type(), ignoreAutoGenerate),
+                Templates.values(entity, ignoreAutoGenerate)))
+                .managed();
+    }
+
+    /**
+     * Returns a managed query that deletes the given entity by its identifying columns. The query is served from a
+     * cached plan whenever plans are supported, so template processing runs once per repository rather than once per
+     * remove; see {@link #usePlans()} for the guards.
+     */
+    private Query removeQuery(@Nonnull E entity) {
+        if (usePlans()) {
+            var plan = removePlan;
+            if (plan == null) {
+                plan = createPlanQuietly(() -> {
+                    var bindVars = ormTemplate.createBindVars();
+                    return ormTemplate.plan(TemplateString.raw("""
+                            DELETE FROM \0
+                            WHERE \0""", model.type(), bindVars));
+                });
+                removePlan = plan;
+            }
+            if (plan != null) {
+                return plan.bind(entity).managed();
+            }
+        }
+        return ormTemplate.query(TemplateString.raw("""
+                DELETE FROM \0
+                WHERE \0""", model.type(), entity))
+                .managed();
     }
 
     protected PreparedQuery prepareUpdateQuery(@Nonnull Set<Metamodel<?, ?>> fields) {

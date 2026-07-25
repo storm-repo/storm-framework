@@ -30,6 +30,7 @@ import st.orm.core.template.Model;
 import st.orm.core.template.PreparedQuery;
 import st.orm.core.template.Query;
 import st.orm.core.template.QueryBuilder;
+import st.orm.core.template.QueryPlan;
 import st.orm.core.template.QueryTemplate;
 import st.orm.core.template.SqlDialect;
 import st.orm.core.template.SqlTemplateException;
@@ -196,5 +197,16 @@ class QueryTemplateImpl implements QueryTemplate {
     @Override
     public Query query(@Nonnull TemplateString template) {
         return queryFactory.create(template);
+    }
+
+    /**
+     * Compiles the specified query {@code template} into a reusable plan.
+     *
+     * @param template the query template; must contain bind variables.
+     * @return a reusable plan for the template.
+     */
+    @Override
+    public QueryPlan plan(@Nonnull TemplateString template) {
+        return queryFactory.plan(template);
     }
 }
