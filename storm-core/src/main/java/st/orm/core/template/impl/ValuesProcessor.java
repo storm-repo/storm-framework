@@ -19,6 +19,7 @@ import jakarta.annotation.Nonnull;
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
+import java.util.function.Function;
 import st.orm.Data;
 import st.orm.core.template.Column;
 import st.orm.core.template.Model;
@@ -156,10 +157,8 @@ final class ValuesProcessor implements ElementProcessor<Values> {
         var table = queryModel.getTable();
         //noinspection unchecked
         var model = (Model<Data, ?>) compiler.getModel(table.type());
-        var columns = model.declaredColumns().stream()
-                .filter(Column::insertable)
-                .toList();
-        List<String> args = new ArrayList<>();
+        var columns = insertableColumns(model);
+        List<String> rows = new ArrayList<>();
         for (var record : values.records()) {
             if (record == null) {
                 throw new SqlTemplateException("Cannot generate VALUES clause: the record is null. Ensure a non-null entity is provided for insert operations.");
@@ -167,35 +166,10 @@ final class ValuesProcessor implements ElementProcessor<Values> {
             if (!table.type().isInstance(record)) {
                 throw new SqlTemplateException("Record type %s does not match the target entity type %s. Ensure the record passed to values() matches the entity type specified in the INSERT INTO clause.".formatted(record.getClass().getSimpleName(), table.type().getSimpleName()));
             }
-            List<String> placeholders = new ArrayList<>();
-            model.forEachValue(columns, record, (column, value) -> {
-                switch (column.generation()) {
-                    case NONE -> placeholders.add(compiler.mapParameter(value));
-                    case IDENTITY -> {
-                        if (values.ignoreAutoGenerate()) {
-                            placeholders.add(compiler.mapParameter(value));
-                        }
-                    }
-                    case SEQUENCE -> {
-                        if (values.ignoreAutoGenerate()) {
-                            placeholders.add(compiler.mapParameter(value));
-                        } else {
-                            String sequenceName = column.sequence();
-                            if (!sequenceName.isEmpty()) {
-                                // Do NOT bind a value; emit sequence retrieval instead.
-                                placeholders.add(compiler.dialect().sequenceNextVal(sequenceName));
-                            }
-                        }
-                    }
-                }
-            });
-            args.add("(%s)".formatted(String.join(", ", placeholders)));
-            args.add(", ");
+            var mapped = model.values(columns, record);
+            rows.add(renderRow(columns, values.ignoreAutoGenerate(), compiler, column -> compiler.mapParameter(mapped.get(column))));
         }
-        if (!args.isEmpty()) {
-            args.removeLast();
-        }
-        return new CompiledElement(String.join("", args), new ValuesBindHint(columns));
+        return new CompiledElement(String.join(", ", rows), new ValuesBindHint(columns));
     }
 
     private CompiledElement compileValuesBindVars(@Nonnull Values values, @Nonnull TemplateCompiler compiler)
@@ -206,43 +180,59 @@ final class ValuesProcessor implements ElementProcessor<Values> {
             var table = queryModel.getTable();
             //noinspection unchecked
             var model = (Model<Data, ?>) compiler.getModel(table.type());
-            var columns = model.declaredColumns().stream()
-                    .filter(Column::insertable)
-                    .toList();
-            var bindsVarCount = (int) model.declaredColumns().stream()
-                    .filter(Column::insertable)
+            var columns = insertableColumns(model);
+            compiler.mapBindVars((int) columns.stream()
                     .filter(column -> switch (column.generation()) {
                         case NONE -> true;
                         case IDENTITY, SEQUENCE -> values.ignoreAutoGenerate();
                     })
-                    .count();
-            StringBuilder bindVarsString = new StringBuilder();
-            for (var column : columns) {
-                switch (column.generation()) {
-                    case NONE -> bindVarsString.append("?, ");
-                    case IDENTITY -> {
-                        if (values.ignoreAutoGenerate()) {
-                            bindVarsString.append("?, ");
-                        }
+                    .count());
+            return new CompiledElement(renderRow(columns, values.ignoreAutoGenerate(), compiler, column -> "?"),
+                    new ValuesBindHint(columns));
+        }
+        throw new SqlTemplateException("Unsupported BindVars type in VALUES clause. Expected a standard BindVars implementation.");
+    }
+
+    private static List<Column> insertableColumns(@Nonnull Model<Data, ?> model) {
+        return model.declaredColumns().stream().filter(Column::insertable).toList();
+    }
+
+    /**
+     * Renders one VALUES row once, regardless of parameter source. The generation switch and sequence-retrieval
+     * are produced here; {@code parameterSql} supplies each bound column's parameter fragment, either an immediately
+     * bound value or a deferred bind placeholder. Sharing this keeps the value and bindVars paths from drifting on
+     * dialect-specific rendering such as sequence next-value.
+     *
+     * @param columns the insertable columns, in model order.
+     * @param ignoreAutoGenerate whether database-generated columns are supplied explicitly.
+     * @param compiler the active compiler context.
+     * @param parameterSql renders the parameter fragment for a bound column.
+     * @return the rendered row, parenthesized.
+     */
+    private String renderRow(@Nonnull List<Column> columns, boolean ignoreAutoGenerate,
+                             @Nonnull TemplateCompiler compiler, @Nonnull Function<Column, String> parameterSql) {
+        List<String> placeholders = new ArrayList<>();
+        for (var column : columns) {
+            switch (column.generation()) {
+                case NONE -> placeholders.add(parameterSql.apply(column));
+                case IDENTITY -> {
+                    if (ignoreAutoGenerate) {
+                        placeholders.add(parameterSql.apply(column));
                     }
-                    case SEQUENCE -> {
-                        if (values.ignoreAutoGenerate()) {
-                            bindVarsString.append("?, ");
-                        } else {
-                            String sequenceName = column.sequence();
-                            if (!sequenceName.isEmpty()) {
-                                bindVarsString.append(compiler.dialect().sequenceNextVal(sequenceName)).append(", ");
-                            }
+                }
+                case SEQUENCE -> {
+                    if (ignoreAutoGenerate) {
+                        placeholders.add(parameterSql.apply(column));
+                    } else {
+                        String sequenceName = column.sequence();
+                        if (!sequenceName.isEmpty()) {
+                            // Do NOT bind a value; emit sequence retrieval instead.
+                            placeholders.add(compiler.dialect().sequenceNextVal(sequenceName));
                         }
                     }
                 }
             }
-            compiler.mapBindVars(bindsVarCount);
-            if (!bindVarsString.isEmpty()) {
-                bindVarsString.delete(bindVarsString.length() - ", ".length(), bindVarsString.length());
-            }
-            return new CompiledElement("(%s)".formatted(bindVarsString), new ValuesBindHint(columns));
         }
-        throw new SqlTemplateException("Unsupported BindVars type in VALUES clause. Expected a standard BindVars implementation.");
+        return "(%s)".formatted(String.join(", ", placeholders));
     }
 }

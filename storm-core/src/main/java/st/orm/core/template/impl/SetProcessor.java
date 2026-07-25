@@ -15,8 +15,6 @@
  */
 package st.orm.core.template.impl;
 
-import static java.util.stream.Collectors.joining;
-
 import jakarta.annotation.Nonnull;
 import java.math.BigInteger;
 import java.sql.Timestamp;
@@ -26,7 +24,7 @@ import java.util.Calendar;
 import java.util.Collection;
 import java.util.Date;
 import java.util.List;
-import java.util.concurrent.atomic.AtomicInteger;
+import java.util.function.Function;
 import st.orm.BindVars;
 import st.orm.Data;
 import st.orm.Metamodel;
@@ -142,10 +140,11 @@ final class SetProcessor implements ElementProcessor<Set> {
     }
 
     /**
-     * Returns the SQL string for the specified record.
+     * Compiles the SET clause for the specified record. Clause structure is shared with the bindVars variant via
+     * {@link #renderSet}; each non-version column renders an immediately bound value.
      *
      * @param record the record to process.
-     * @return the SQL string for the specified record.
+     * @return the compiled SET clause.
      * @throws SqlTemplateException if the template does not comply to the specification.
      */
     private CompiledElement compileSet(@Nonnull Data record, @Nonnull Collection<Metamodel<?, ?>> fields, @Nonnull TemplateCompiler compiler) throws SqlTemplateException {
@@ -155,35 +154,15 @@ final class SetProcessor implements ElementProcessor<Set> {
         var model = (Model<Data, ?>) compiler.getModel(table.type());
         var columns = getColumns(model, fields);
         var mapped = model.values(columns, record);
-        var dialect = compiler.dialect();
-        List<String> args = new ArrayList<>();
-        for (var entry : mapped.entrySet()) {
-            var column = entry.getKey();
-            if (!column.version()) {
-                args.add("%s%s = %s".formatted(table.alias().isEmpty()
-                        ? ""
-                        : table.alias() + ".",
-                        column.qualifiedName(compiler.dialect()), compiler.mapParameter(entry.getValue())));
-                args.add(", ");
-            } else {
-                compiler.setVersionAware();
-                var versionString = compileVersion(column.qualifiedName(dialect), column.type(), table.alias(), dialect);
-                args.add(versionString);
-                args.add(", ");
-            }
-        }
-        if (!args.isEmpty()) {
-            args.removeLast();
-        }
-        return new CompiledElement(String.join("", args),
-                new SetBindHint(columns.stream().filter(column -> !column.version()).toList()));
+        return renderSet(columns, table.alias(), compiler, column -> compiler.mapParameter(mapped.get(column)));
     }
 
     /**
-     * Returns the SQL string for the specified bindVars.
+     * Compiles the SET clause for the specified bindVars. Clause structure is shared with {@link #compileSet} via
+     * {@link #renderSet}; each non-version column renders a bind placeholder bound per record.
      *
      * @param bindVars the bindVars to process.
-     * @return the SQL string for the specified bindVars.
+     * @return the compiled SET clause.
      * @throws SqlTemplateException if the template does not comply to the specification.
      */
     private CompiledElement compileSetBindVars(@Nonnull BindVars bindVars, @Nonnull Collection<Metamodel<?, ?>> fields, @Nonnull TemplateCompiler compiler) throws SqlTemplateException {
@@ -193,25 +172,40 @@ final class SetProcessor implements ElementProcessor<Set> {
             //noinspection unchecked
             var model = (Model<Data, ?>) compiler.getModel(table.type());
             var columns = getColumns(model, fields);
-            AtomicInteger bindVarsCount = new AtomicInteger();
-            String bindVarsString = columns.stream()
-                    .map(column -> {
-                        if (!column.version()) {
-                            bindVarsCount.incrementAndGet();
-                            return "%s%s = ?".formatted(
-                                    table.alias().isEmpty() ? "" : table.alias() + ".",
-                                    column.qualifiedName(compiler.dialect())
-                            );
-                        }
-                        compiler.setVersionAware();
-                        return compileVersion(column.qualifiedName(compiler.dialect()), column.type(), table.alias(), compiler.dialect());
-                    })
-                    .collect(joining(", "));
-            compiler.mapBindVars(bindVarsCount.getPlain());
-            return new CompiledElement(bindVarsString,
-                    new SetBindHint(columns.stream().filter(column -> !column.version()).toList()));
+            compiler.mapBindVars((int) columns.stream().filter(column -> !column.version()).count());
+            return renderSet(columns, table.alias(), compiler, column -> "?");
         }
         throw new SqlTemplateException("Unsupported BindVars type in SET clause. Expected a standard BindVars implementation.");
+    }
+
+    /**
+     * Renders the SET clause body once, regardless of parameter source. The version increment and column quoting
+     * are produced here; {@code parameterSql} supplies each non-version column's parameter fragment, either an
+     * immediately bound value or a deferred bind placeholder. Sharing this keeps the value and bindVars paths from
+     * drifting on dialect-specific rendering.
+     *
+     * @param columns the columns to assign, in model order.
+     * @param alias the table alias, or an empty string when unaliased.
+     * @param compiler the active compiler context.
+     * @param parameterSql renders the parameter fragment for a non-version column.
+     * @return the compiled SET clause.
+     */
+    private CompiledElement renderSet(@Nonnull List<Column> columns, @Nonnull String alias,
+                                      @Nonnull TemplateCompiler compiler,
+                                      @Nonnull Function<Column, String> parameterSql) {
+        var dialect = compiler.dialect();
+        String prefix = alias.isEmpty() ? "" : alias + ".";
+        List<String> assignments = new ArrayList<>();
+        for (var column : columns) {
+            if (column.version()) {
+                compiler.setVersionAware();
+                assignments.add(compileVersion(column.qualifiedName(dialect), column.type(), alias, dialect));
+            } else {
+                assignments.add("%s%s = %s".formatted(prefix, column.qualifiedName(dialect), parameterSql.apply(column)));
+            }
+        }
+        return new CompiledElement(String.join(", ", assignments),
+                new SetBindHint(columns.stream().filter(column -> !column.version()).toList()));
     }
 
     /**

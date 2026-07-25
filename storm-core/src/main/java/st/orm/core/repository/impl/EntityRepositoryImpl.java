@@ -40,6 +40,8 @@ import java.util.stream.IntStream;
 import java.util.stream.Stream;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import st.orm.BindVars;
+import st.orm.Data;
 import st.orm.Entity;
 import st.orm.EntityCallback;
 import st.orm.GenerationStrategy;
@@ -1182,27 +1184,14 @@ public class EntityRepositoryImpl<E extends Entity<ID>, ID>
             return;
         }
         if (!versionedEntity && usePlans()) {
-            var plan = removeByIdPlan;
-            if (plan == null) {
-                plan = createPlanQuietly(() -> {
-                    var bindVars = ormTemplate.createBindVars();
-                    return ormTemplate.plan(TemplateString.raw("""
-                            DELETE FROM \0
-                            WHERE \0""", model.type(), bindVars));
-                });
-                removeByIdPlan = plan;
-            }
+            var plan = deleteByKeyPlan();
             if (plan != null) {
                 plan.bindValue(id).managed().executeUpdate();
                 return;
             }
         }
         // Don't use query builder to prevent WHERE IN clause.
-        ormTemplate.query(TemplateString.raw("""
-                DELETE FROM \0
-                WHERE \0""", model.type(), id))
-                .managed()
-                .executeUpdate();
+        ormTemplate.query(deleteByKeyStatement(id)).managed().executeUpdate();
     }
 
     /**
@@ -1220,27 +1209,14 @@ public class EntityRepositoryImpl<E extends Entity<ID>, ID>
         //noinspection unchecked
         entityCache().ifPresent(cache -> cache.remove((ID) ref.id()));
         if (!versionedEntity && !model.isJoinedInheritance() && usePlans()) {
-            var plan = removeByIdPlan;
-            if (plan == null) {
-                plan = createPlanQuietly(() -> {
-                    var bindVars = ormTemplate.createBindVars();
-                    return ormTemplate.plan(TemplateString.raw("""
-                            DELETE FROM \0
-                            WHERE \0""", model.type(), bindVars));
-                });
-                removeByIdPlan = plan;
-            }
+            var plan = deleteByKeyPlan();
             if (plan != null) {
                 plan.bindValue(ref.id()).managed().executeUpdate();
                 return;
             }
         }
         // Don't use query builder to prevent WHERE IN clause.
-        ormTemplate.query(TemplateString.raw("""
-                DELETE FROM \0
-                WHERE \0""", model.type(), ref))
-                .managed()
-                .executeUpdate();
+        ormTemplate.query(deleteByKeyStatement(ref)).managed().executeUpdate();
     }
 
     /**
@@ -1813,12 +1789,7 @@ public class EntityRepositoryImpl<E extends Entity<ID>, ID>
     }
 
     protected PreparedQuery prepareInsertQuery(boolean ignoreAutoGenerate) {
-        var bindVars = ormTemplate.createBindVars();
-        return ormTemplate.query(raw("""
-                INSERT INTO \0
-                VALUES \0""",
-                Templates.insert(model.type(), ignoreAutoGenerate),
-                Templates.values(bindVars, ignoreAutoGenerate))).managed().prepare();
+        return ormTemplate.query(insertStatement(ormTemplate.createBindVars(), ignoreAutoGenerate)).managed().prepare();
     }
 
     protected void insert(@Nonnull List<E> batch, @Nonnull PreparedQuery query) {
@@ -1976,6 +1947,35 @@ public class EntityRepositoryImpl<E extends Entity<ID>, ID>
         return dirtySupport.getMaxShapes();
     }
 
+    // Single definition of each statement's template, parameterized only by the value source: a Data instance or
+    // id/ref for the per-call path, or BindVars for a plan or a prepared batch. Every plan, per-call fallback, and
+    // batch path builds its template here, so a plan cannot structurally diverge from the statement it replaces.
+
+    private TemplateString updateStatement(@Nonnull Object valueSource, @Nonnull Set<Metamodel<?, ?>> fields) {
+        var set = valueSource instanceof BindVars bindVars
+                ? Templates.set(bindVars, fields)
+                : Templates.set((Data) valueSource, fields);
+        return TemplateString.raw("""
+                UPDATE \0
+                SET \0
+                WHERE \0""", model.type(), set, valueSource);
+    }
+
+    private TemplateString insertStatement(@Nonnull Object valueSource, boolean ignoreAutoGenerate) {
+        var values = valueSource instanceof BindVars bindVars
+                ? Templates.values(bindVars, ignoreAutoGenerate)
+                : Templates.values((Data) valueSource, ignoreAutoGenerate);
+        return TemplateString.raw("""
+                INSERT INTO \0
+                VALUES \0""", Templates.insert(model.type(), ignoreAutoGenerate), values);
+    }
+
+    private TemplateString deleteByKeyStatement(@Nonnull Object valueSource) {
+        return TemplateString.raw("""
+                DELETE FROM \0
+                WHERE \0""", model.type(), valueSource);
+    }
+
     /**
      * Returns a managed query that updates the given entity's dirty {@code fields}.
      *
@@ -1993,21 +1993,11 @@ public class EntityRepositoryImpl<E extends Entity<ID>, ID>
                 return plan.bind(entity).managed();
             }
         }
-        return ormTemplate.query(TemplateString.raw("""
-                UPDATE \0
-                SET \0
-                WHERE \0""", model.type(), Templates.set(entity, fields), entity))
-                .managed();
+        return ormTemplate.query(updateStatement(entity, fields)).managed();
     }
 
     private QueryPlan createUpdatePlan(@Nonnull Set<Metamodel<?, ?>> fields) {
-        var plan = createPlanQuietly(() -> {
-            var bindVars = ormTemplate.createBindVars();
-            return ormTemplate.plan(TemplateString.raw("""
-                    UPDATE \0
-                    SET \0
-                    WHERE \0""", model.type(), Templates.set(bindVars, fields), bindVars));
-        });
+        var plan = createPlanQuietly(() -> ormTemplate.plan(updateStatement(ormTemplate.createBindVars(), fields)));
         if (plan == null) {
             return null;
         }
@@ -2024,14 +2014,7 @@ public class EntityRepositoryImpl<E extends Entity<ID>, ID>
         if (usePlans()) {
             var plan = ignoreAutoGenerate ? insertIgnoringAutoGeneratePlan : insertPlan;
             if (plan == null) {
-                plan = createPlanQuietly(() -> {
-                    var bindVars = ormTemplate.createBindVars();
-                    return ormTemplate.plan(TemplateString.raw("""
-                            INSERT INTO \0
-                            VALUES \0""",
-                            Templates.insert(model.type(), ignoreAutoGenerate),
-                            Templates.values(bindVars, ignoreAutoGenerate)));
-                });
+                plan = createPlanQuietly(() -> ormTemplate.plan(insertStatement(ormTemplate.createBindVars(), ignoreAutoGenerate)));
                 if (ignoreAutoGenerate) {
                     insertIgnoringAutoGeneratePlan = plan;
                 } else {
@@ -2042,12 +2025,7 @@ public class EntityRepositoryImpl<E extends Entity<ID>, ID>
                 return plan.bind(entity).managed();
             }
         }
-        return ormTemplate.query(TemplateString.raw("""
-                INSERT INTO \0
-                VALUES \0""",
-                Templates.insert(model.type(), ignoreAutoGenerate),
-                Templates.values(entity, ignoreAutoGenerate)))
-                .managed();
+        return ormTemplate.query(insertStatement(entity, ignoreAutoGenerate)).managed();
     }
 
     /**
@@ -2059,31 +2037,31 @@ public class EntityRepositoryImpl<E extends Entity<ID>, ID>
         if (usePlans()) {
             var plan = removePlan;
             if (plan == null) {
-                plan = createPlanQuietly(() -> {
-                    var bindVars = ormTemplate.createBindVars();
-                    return ormTemplate.plan(TemplateString.raw("""
-                            DELETE FROM \0
-                            WHERE \0""", model.type(), bindVars));
-                });
+                plan = createPlanQuietly(() -> ormTemplate.plan(deleteByKeyStatement(ormTemplate.createBindVars())));
                 removePlan = plan;
             }
             if (plan != null) {
                 return plan.bind(entity).managed();
             }
         }
-        return ormTemplate.query(TemplateString.raw("""
-                DELETE FROM \0
-                WHERE \0""", model.type(), entity))
-                .managed();
+        return ormTemplate.query(deleteByKeyStatement(entity)).managed();
+    }
+
+    /**
+     * Returns the cached plan that deletes a row by its identifying columns, or {@code null} when plans are
+     * unavailable. Shared by {@link #removeById(Object)} and {@link #removeByRef(Ref)}, which bind an id or ref.
+     */
+    private @Nullable QueryPlan deleteByKeyPlan() {
+        var plan = removeByIdPlan;
+        if (plan == null) {
+            plan = createPlanQuietly(() -> ormTemplate.plan(deleteByKeyStatement(ormTemplate.createBindVars())));
+            removeByIdPlan = plan;
+        }
+        return plan;
     }
 
     protected PreparedQuery prepareUpdateQuery(@Nonnull Set<Metamodel<?, ?>> fields) {
-        var bindVars = ormTemplate.createBindVars();
-        return ormTemplate.query(TemplateString.raw("""
-                UPDATE \0
-                SET \0
-                WHERE \0""", model.type(), Templates.set(bindVars, fields), bindVars))
-                .managed().prepare();
+        return ormTemplate.query(updateStatement(ormTemplate.createBindVars(), fields)).managed().prepare();
     }
 
     protected void update(@Nonnull List<E> batch, @Nonnull PreparedQuery query, @Nullable EntityCache<E, ID> cache) {

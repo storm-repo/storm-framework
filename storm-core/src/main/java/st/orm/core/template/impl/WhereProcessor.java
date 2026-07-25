@@ -15,11 +15,13 @@
  */
 package st.orm.core.template.impl;
 
-import static java.util.stream.Collectors.joining;
+import static st.orm.Operator.EQUALS;
 import static st.orm.core.template.impl.ElementRouter.getElementProcessor;
 
 import jakarta.annotation.Nonnull;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.SequencedMap;
 import java.util.function.Function;
 import st.orm.Data;
 import st.orm.Metamodel;
@@ -31,6 +33,9 @@ import st.orm.core.template.impl.Elements.Where;
 
 final class WhereProcessor implements ElementProcessor<Where> {
     record WhereBindHint(@Nonnull List<Column> columns) implements BindHint {}
+
+    /** Marker passed as the placeholder value; the dialect reads only column names and the parameter function. */
+    private static final Object PLACEHOLDER = new Object();
 
     /**
      * Returns a key that represents the compiled shape of the given element.
@@ -169,10 +174,16 @@ final class WhereProcessor implements ElementProcessor<Where> {
                     ? getKeyColumns(where.bindVarsKey(), compiler)
                     : getIdentifyingColumns(compiler);
             compiler.mapBindVars(columns.size());
-            return new CompiledElement(columns.stream()
-                    .map(queryModel::toColumnExpression)
-                    .map(column -> column.toSql() + " = ?")
-                    .collect(joining(" AND ")), new WhereBindHint(columns));
+            // Hand the key columns to the shared comparison renderer without deciding single-versus-multi here: the
+            // renderer owns that decision, so the bindVars WHERE cannot diverge from the value-based WHERE. The
+            // placeholder values are markers; the renderer reads only the column names and the parameter function,
+            // which emits "?". EQUALS lists the columns in map order, matching the extractors' column-order binding.
+            SequencedMap<String, Object> row = new LinkedHashMap<>();
+            for (var column : columns) {
+                row.put(queryModel.toColumnExpression(column).toSql(), PLACEHOLDER);
+            }
+            String sql = ColumnComparison.render(EQUALS, null, List.of(), List.of(row), value -> "?", compiler.dialect());
+            return new CompiledElement(sql, new WhereBindHint(columns));
         }
         throw new SqlTemplateException("Unsupported BindVars type in WHERE clause. Expected a standard BindVars implementation.");
     }
