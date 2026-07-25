@@ -37,13 +37,13 @@ import st.orm.core.template.SqlTemplate.PositionalParameter;
  */
 final class BindVarsImpl implements BindVars, BindVariables {
     private final List<Function<Data, List<PositionalParameter>>> parameterExtractors;
-    private final List<Function<Object, List<PositionalParameter>>> idParameterExtractors;
+    private final List<Function<Object, List<PositionalParameter>>> valueParameterExtractors;
     private BatchListener batchListener;
     private RecordListener recordListener;
 
     public BindVarsImpl() {
         this.parameterExtractors = new ArrayList<>();
-        this.idParameterExtractors = new ArrayList<>();
+        this.valueParameterExtractors = new ArrayList<>();
     }
 
     /**
@@ -125,8 +125,8 @@ final class BindVarsImpl implements BindVars, BindVariables {
      *
      * @param idParameterExtractor the function that extracts positional parameters from a primary key value.
      */
-    void addIdParameterExtractor(@Nonnull Function<Object, List<PositionalParameter>> idParameterExtractor) {
-        idParameterExtractors.add(idParameterExtractor);
+    void addValueParameterExtractor(@Nonnull Function<Object, List<PositionalParameter>> idParameterExtractor) {
+        valueParameterExtractors.add(idParameterExtractor);
     }
 
     /**
@@ -145,8 +145,8 @@ final class BindVarsImpl implements BindVars, BindVariables {
      *
      * @return the registered id parameter extractors.
      */
-    List<Function<Object, List<PositionalParameter>>> idExtractors() {
-        return List.copyOf(idParameterExtractors);
+    List<Function<Object, List<PositionalParameter>>> valueExtractors() {
+        return List.copyOf(valueParameterExtractors);
     }
 
     @Override

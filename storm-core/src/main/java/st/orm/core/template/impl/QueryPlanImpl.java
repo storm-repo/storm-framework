@@ -42,16 +42,16 @@ final class QueryPlanImpl implements QueryPlan {
 
     private final Sql sql;
     private final List<Function<Data, List<PositionalParameter>>> parameterExtractors;
-    private final List<Function<Object, List<PositionalParameter>>> idParameterExtractors;
+    private final List<Function<Object, List<PositionalParameter>>> valueParameterExtractors;
     private final Function<Sql, Query> queryFactory;
 
     QueryPlanImpl(@Nonnull Sql sql,
                   @Nonnull List<Function<Data, List<PositionalParameter>>> parameterExtractors,
-                  @Nonnull List<Function<Object, List<PositionalParameter>>> idParameterExtractors,
+                  @Nonnull List<Function<Object, List<PositionalParameter>>> valueParameterExtractors,
                   @Nonnull Function<Sql, Query> queryFactory) {
         this.sql = requireNonNull(sql, "sql");
         this.parameterExtractors = List.copyOf(parameterExtractors);
-        this.idParameterExtractors = List.copyOf(idParameterExtractors);
+        this.valueParameterExtractors = List.copyOf(valueParameterExtractors);
         this.queryFactory = requireNonNull(queryFactory, "queryFactory");
     }
 
@@ -75,18 +75,18 @@ final class QueryPlanImpl implements QueryPlan {
     }
 
     @Override
-    public Query bindId(@Nonnull Object id) {
+    public Query bindValue(@Nonnull Object id) {
         requireNonNull(id, "id");
         if (parameterExtractors.isEmpty()) {
             throw new PersistenceException("Cannot bind an id against a constant plan: the plan's template has no bind variables. Use query() instead.");
         }
-        if (idParameterExtractors.size() != parameterExtractors.size()) {
+        if (valueParameterExtractors.size() != parameterExtractors.size()) {
             throw new PersistenceException("Cannot bind an id: the plan's bind variables are not purely primary-key based. Use bind() with a record instead.");
         }
         try {
-            var parameters = new ArrayList<Parameter>(sql.parameters().size() + idParameterExtractors.size());
+            var parameters = new ArrayList<Parameter>(sql.parameters().size() + valueParameterExtractors.size());
             parameters.addAll(sql.parameters());
-            for (var extractor : idParameterExtractors) {
+            for (var extractor : valueParameterExtractors) {
                 parameters.addAll(extractor.apply(id));
             }
             // Interceptors observe every bound statement, matching the observability of per-call processing.

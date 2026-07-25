@@ -62,12 +62,14 @@ public interface QueryFactory {
     /**
      * Compiles the specified query {@code template} into a reusable plan.
      *
-     * <p>The default implementation does not support plans and throws; factories that process templates ahead of
-     * execution override this method.</p>
+     * <p>The template's variable parts must be expressed as bind variables; templates without any parameters compile
+     * to constant plans, and templates with fixed parameter values are rejected. The default implementation does not
+     * support plans and throws; factories that process templates ahead of execution override this method.</p>
      *
-     * @param template the template to compile; must contain bind variables.
+     * @param template the template to compile.
      * @return a reusable plan for the template.
-     * @throws PersistenceException if this factory does not support plans or the template is invalid.
+     * @throws PersistenceException if this factory does not support plans, the template is invalid, or it carries
+     *                              fixed parameter values.
      * @since 1.13
      */
     default QueryPlan plan(@Nonnull TemplateString template) {

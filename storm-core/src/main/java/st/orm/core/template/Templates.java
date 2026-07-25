@@ -973,6 +973,22 @@ public interface Templates {
     }
 
     /**
+     * Generates a WHERE element matching the specified {@code key} using the given {@link BindVars}.
+     *
+     * <p>This method creates a {@code WHERE} clause over the columns of the given key, with the value supplied per
+     * execution through the bind variables. Query plans use this form to compile unique-key lookups that bind their
+     * value per execution.</p>
+     *
+     * @param key the metamodel key identifying the column(s) to match.
+     * @param bindVars the {@link BindVars} instance used for binding variables in the WHERE clause.
+     * @return an {@link Element} representing the WHERE clause.
+     * @since 1.13
+     */
+    static Element where(@Nonnull Metamodel<?, ?> key, @Nonnull BindVars bindVars) {
+        return new Where(null, requireNonNull(bindVars, "bindVars"), requireNonNull(key, "key"));
+    }
+
+    /**
      * Generates a DELETE element for the specified table class.
      *
      * <p>This method creates a {@code DELETE} clause for the provided table record. It is designed to be used

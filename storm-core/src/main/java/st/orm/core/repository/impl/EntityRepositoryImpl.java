@@ -1193,7 +1193,7 @@ public class EntityRepositoryImpl<E extends Entity<ID>, ID>
                 removeByIdPlan = plan;
             }
             if (plan != null) {
-                plan.bindId(id).managed().executeUpdate();
+                plan.bindValue(id).managed().executeUpdate();
                 return;
             }
         }
@@ -1219,6 +1219,22 @@ public class EntityRepositoryImpl<E extends Entity<ID>, ID>
     public void removeByRef(@Nonnull Ref<E> ref) {
         //noinspection unchecked
         entityCache().ifPresent(cache -> cache.remove((ID) ref.id()));
+        if (!versionedEntity && !model.isJoinedInheritance() && usePlans()) {
+            var plan = removeByIdPlan;
+            if (plan == null) {
+                plan = createPlanQuietly(() -> {
+                    var bindVars = ormTemplate.createBindVars();
+                    return ormTemplate.plan(TemplateString.raw("""
+                            DELETE FROM \0
+                            WHERE \0""", model.type(), bindVars));
+                });
+                removeByIdPlan = plan;
+            }
+            if (plan != null) {
+                plan.bindValue(ref.id()).managed().executeUpdate();
+                return;
+            }
+        }
         // Don't use query builder to prevent WHERE IN clause.
         ormTemplate.query(TemplateString.raw("""
                 DELETE FROM \0

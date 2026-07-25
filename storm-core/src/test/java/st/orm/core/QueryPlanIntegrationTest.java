@@ -149,20 +149,20 @@ public class QueryPlanIntegrationTest {
                 SELECT \0
                 FROM \0
                 WHERE \0""", PlanVisit.class, Templates.from(PlanVisit.class, true), bindVars));
-        var first = plan.bindId(1).getSingleResult(PlanVisit.class);
+        var first = plan.bindValue(1).getSingleResult(PlanVisit.class);
         assertEquals(1, first.id());
-        var second = plan.bindId(2).getSingleResult(PlanVisit.class);
+        var second = plan.bindValue(2).getSingleResult(PlanVisit.class);
         assertEquals(2, second.id());
     }
 
     @Test
-    void bindId_rejectsPlansThatAreNotPurelyPrimaryKeyBased() {
+    void bindValue_rejectsPlansThatAreNotPurelyPrimaryKeyBased() {
         var orm = orm();
         var boundByRecord = fullUpdatePlan(orm);
-        var onUpdatePlan = assertThrows(PersistenceException.class, () -> boundByRecord.bindId(1));
+        var onUpdatePlan = assertThrows(PersistenceException.class, () -> boundByRecord.bindValue(1));
         assertTrue(onUpdatePlan.getMessage().contains("bind()"));
         var constant = orm.selectFrom(PlanVisit.class).plan();
-        var onConstantPlan = assertThrows(PersistenceException.class, () -> constant.bindId(1));
+        var onConstantPlan = assertThrows(PersistenceException.class, () -> constant.bindValue(1));
         assertTrue(onConstantPlan.getMessage().contains("query()"));
     }
 
@@ -181,6 +181,14 @@ public class QueryPlanIntegrationTest {
         });
         assertEquals(1, plan.bind(updated).executeUpdate());
         assertEquals("parallel", repository.getById(1).description());
+    }
+
+    @Test
+    void repositoryByRefLookups_useCachedByIdPlan() {
+        var repository = orm().entity(PlanVisit.class);
+        assertEquals(1, repository.getByRef(repository.ref(1)).id());
+        // The second lookup binds against the plan cached by the first.
+        assertTrue(repository.findByRef(repository.ref(2)).isPresent());
     }
 
     @Test

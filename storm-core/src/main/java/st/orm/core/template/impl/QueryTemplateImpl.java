@@ -202,7 +202,10 @@ class QueryTemplateImpl implements QueryTemplate {
     /**
      * Compiles the specified query {@code template} into a reusable plan.
      *
-     * @param template the query template; must contain bind variables.
+     * <p>Variable parts are expressed as bind variables; templates without any parameters compile to constant
+     * plans, and templates with fixed parameter values are rejected.</p>
+     *
+     * @param template the query template.
      * @return a reusable plan for the template.
      */
     @Override

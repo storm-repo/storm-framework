@@ -98,7 +98,12 @@ public final class Elements {
     }
     public record TemplateExpression(@Nonnull TemplateString template) implements Expression {}
 
-    public record Where(@Nullable Expression expression, @Nullable BindVars bindVars) implements Element {}
+    public record Where(@Nullable Expression expression, @Nullable BindVars bindVars,
+                        @Nullable Metamodel<?, ?> bindVarsKey) implements Element {
+        public Where(@Nullable Expression expression, @Nullable BindVars bindVars) {
+            this(expression, bindVars, null);
+        }
+    }
 
     public record Delete(@Nonnull Class<? extends Data> table, @Nonnull String alias) implements Element {
         public Delete {

@@ -266,8 +266,8 @@ public class DeleteBuilderImpl<T extends Data, ID> extends QueryBuilderImpl<T, O
             }
 
             @Override
-            public Query bindId(@Nonnull Object id) {
-                return plan.bindId(id).unsafe();
+            public Query bindValue(@Nonnull Object id) {
+                return plan.bindValue(id).unsafe();
             }
 
             @Override

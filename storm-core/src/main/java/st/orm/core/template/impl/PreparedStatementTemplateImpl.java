@@ -683,11 +683,12 @@ public final class PreparedStatementTemplateImpl implements PreparedStatementTem
      * <p>The template is processed once; the resulting statement, the value-independent parameter extractors
      * registered for its bind variables, and the statement metadata are snapshotted into an immutable plan. The
      * single-use bind variables instance embedded in the processed SQL is never wired to a statement, so the plan
-     * can bind any number of records on any connection.</p>
+     * can bind any number of records on any connection. Templates without any parameters compile to constant plans;
+     * templates with fixed parameter values are rejected.</p>
      *
-     * @param template the template to compile; must contain bind variables.
+     * @param template the template to compile.
      * @return a reusable plan for the template.
-     * @throws PersistenceException if the template is invalid or contains no bind variables.
+     * @throws PersistenceException if the template is invalid or carries fixed parameter values.
      */
     @Override
     public QueryPlan plan(@Nonnull TemplateString template) {
@@ -713,7 +714,7 @@ public final class PreparedStatementTemplateImpl implements PreparedStatementTem
             if (!(bindVariables instanceof BindVarsImpl bindVars)) {
                 throw new PersistenceException("Cannot compile a plan: unsupported bind variables implementation %s.".formatted(bindVariables.getClass().getName()));
             }
-            return new QueryPlanImpl(sql, bindVars.extractors(), bindVars.idExtractors(), bound -> createQuery(bound, dialect));
+            return new QueryPlanImpl(sql, bindVars.extractors(), bindVars.valueExtractors(), bound -> createQuery(bound, dialect));
         } catch (SqlTemplateException e) {
             throw new PersistenceException(e);
         }

@@ -256,19 +256,6 @@ public final class SqlInterceptorManager {
     }
 
     /**
-     * Customizes the given SQL template using the current thread's scoped customizer, if available.
-     *
-     * <p>This method applies a customizer to the SQL template that is scoped to the current thread context.
-     * If no customizer is set, it returns the original template.</p>
-     *
-     * <p>This method is intended to be used internally within the ORM framework, or it's extensions, to ensure that
-     * SQL templates are adjusted according to the current thread's context, such as applying custom SQL dialects or
-     * other template modifications.</p>
-     *
-     * @param template the SQL template to customize.
-     * @return the customized SQL template, or the original template if no customizer is set.
-     */
-    /**
      * Returns whether a template customizer is active on the current thread's scope.
      *
      * <p>Artifacts cached from a processed template, such as query plans, are only valid for the template they were
@@ -287,6 +274,19 @@ public final class SqlInterceptorManager {
         return false;
     }
 
+    /**
+     * Customizes the given SQL template using the current thread's scoped customizer, if available.
+     *
+     * <p>This method applies a customizer to the SQL template that is scoped to the current thread context.
+     * If no customizer is set, it returns the original template.</p>
+     *
+     * <p>This method is intended to be used internally within the ORM framework, or it's extensions, to ensure that
+     * SQL templates are adjusted according to the current thread's context, such as applying custom SQL dialects or
+     * other template modifications.</p>
+     *
+     * @param template the SQL template to customize.
+     * @return the customized SQL template, or the original template if no customizer is set.
+     */
     public static SqlTemplate customize(@Nonnull SqlTemplate template) {
         // Apply the customizer to the template if it is set.
         SqlTemplate adjusted = template;
