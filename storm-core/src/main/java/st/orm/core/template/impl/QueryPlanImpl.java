@@ -75,20 +75,21 @@ final class QueryPlanImpl implements QueryPlan {
     }
 
     @Override
-    public Query bindValue(@Nonnull Object id) {
-        requireNonNull(id, "id");
+    public Query bindValue(@Nonnull Object value) {
+        requireNonNull(value, "value");
         if (parameterExtractors.isEmpty()) {
-            throw new PersistenceException("Cannot bind an id against a constant plan: the plan's template has no bind variables. Use query() instead.");
+            throw new PersistenceException("Cannot bind a value against a constant plan: the plan's template has no bind variables. Use query() instead.");
         }
-        if (valueParameterExtractors.size() != parameterExtractors.size()) {
-            throw new PersistenceException("Cannot bind an id: the plan's bind variables are not purely primary-key based. Use bind() with a record instead.");
+        // A single value can feed exactly one key; a plan with multiple bind variables segments would bind the same
+        // value through every segment, which is only correct for a record that supplies each segment's own values.
+        if (parameterExtractors.size() != 1 || valueParameterExtractors.size() != 1) {
+            throw new PersistenceException("Cannot bind a value: the plan's bind variables must consist of a single key-based WHERE clause. Use bind() with a record instead.");
         }
         try {
-            var parameters = new ArrayList<Parameter>(sql.parameters().size() + valueParameterExtractors.size());
+            var extracted = valueParameterExtractors.getFirst().apply(value);
+            var parameters = new ArrayList<Parameter>(sql.parameters().size() + extracted.size());
             parameters.addAll(sql.parameters());
-            for (var extractor : valueParameterExtractors) {
-                parameters.addAll(extractor.apply(id));
-            }
+            parameters.addAll(extracted);
             // Interceptors observe every bound statement, matching the observability of per-call processing.
             return queryFactory.apply(intercept(sql.parameters(parameters).bindVariables(null)));
         } catch (UncheckedSqlTemplateException e) {

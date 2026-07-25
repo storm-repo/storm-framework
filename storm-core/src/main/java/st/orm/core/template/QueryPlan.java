@@ -54,10 +54,11 @@ public interface QueryPlan {
     /**
      * Binds the given value against the plan's statement and returns an executable query.
      *
-     * <p>Value binding is available when the plan's bind variables consist solely of a WHERE clause over the
+     * <p>Value binding is available when the plan's bind variables consist of a single WHERE clause over the
      * primary key, such as a find or delete by id, or over a specific key compiled via
      * {@code Templates.where(key, bindVars)}, such as a unique-key lookup. Composite keys bind their record's
-     * constituent values.</p>
+     * constituent values through that one clause; plans with multiple bind variables segments bind records via
+     * {@link #bind(Data)}, which supplies each segment's own values.</p>
      *
      * @param value the primary key or key value supplying the values for the plan's bind variables.
      * @return a query bound to the value.

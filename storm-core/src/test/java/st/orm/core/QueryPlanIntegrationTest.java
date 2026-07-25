@@ -156,7 +156,7 @@ public class QueryPlanIntegrationTest {
     }
 
     @Test
-    void bindValue_rejectsPlansThatAreNotPurelyPrimaryKeyBased() {
+    void bindValue_rejectsPlansThatAreNotSingleKeyBased() {
         var orm = orm();
         var boundByRecord = fullUpdatePlan(orm);
         var onUpdatePlan = assertThrows(PersistenceException.class, () -> boundByRecord.bindValue(1));
@@ -164,6 +164,21 @@ public class QueryPlanIntegrationTest {
         var constant = orm.selectFrom(PlanVisit.class).plan();
         var onConstantPlan = assertThrows(PersistenceException.class, () -> constant.bindValue(1));
         assertTrue(onConstantPlan.getMessage().contains("query()"));
+    }
+
+    @Test
+    void bindValue_rejectsPlansWithMultipleBindVariablesSegments() {
+        var orm = orm();
+        var bindVars = orm.createBindVars();
+        var plan = orm.plan(TemplateString.raw("""
+                SELECT \0
+                FROM \0
+                WHERE \0 AND \0""", PlanVisit.class, Templates.from(PlanVisit.class, true),
+                Templates.where(bindVars), Templates.where(bindVars)));
+        // A single value can feed exactly one segment; the same value bound through every segment would be silently
+        // wrong for distinct keys, so the plan insists on a record.
+        var exception = assertThrows(PersistenceException.class, () -> plan.bindValue(1));
+        assertTrue(exception.getMessage().contains("single key-based WHERE"));
     }
 
     @Test
