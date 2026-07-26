@@ -41,6 +41,12 @@ import org.gradle.api.tasks.testing.Test;
  */
 public class StormPlugin implements Plugin<Project> {
 
+    /**
+     * Creates the plugin. Gradle instantiates this type when the plugin is applied.
+     */
+    public StormPlugin() {
+    }
+
     private static final String KOTLIN_JVM_PLUGIN_ID = "org.jetbrains.kotlin.jvm";
     private static final String KSP_PLUGIN_ID = "com.google.devtools.ksp";
 
