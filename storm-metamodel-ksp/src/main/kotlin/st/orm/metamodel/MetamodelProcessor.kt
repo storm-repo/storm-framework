@@ -65,11 +65,6 @@ class MetamodelProcessor(
     private val generatedReferenceMetamodels = mutableSetOf<String>()
 
     /**
-     * Track types we’ve already generated a self-referential reference metamodel (`<Type>CyclicRefMetamodel`) for.
-     */
-    private val generatedCyclicReferenceMetamodels = mutableSetOf<String>()
-
-    /**
      * Track types we’ve already generated a navigation-only metamodel (`Navigable<Type>Metamodel`) for.
      * Prevents infinite recursion on cyclic reference graphs.
      */
@@ -278,33 +273,6 @@ class MetamodelProcessor(
 
     /** Returns whether the property type is a `Ref<X>` foreign key reference. */
     private fun isRefType(typeReference: KSTypeReference): Boolean = typeReference.resolve().declaration.qualifiedName?.asString() == REF
-
-    /**
-     * Returns whether a reference property points back at the class that declares it. Navigating past such a reference
-     * would join the table to itself, and a table repeated on one path does not get a distinct alias per occurrence,
-     * so no navigation children are generated for it. The reference itself stays selectable as the foreign key column.
-     */
-    private fun isSelfReferentialRef(typeReference: KSTypeReference, classDeclaration: KSClassDeclaration): Boolean {
-        if (!isRefType(typeReference)) return false
-
-        val target = unwrapRef(typeReference).resolve().declaration.qualifiedName?.asString() ?: return false
-        val declaring = classDeclaration.qualifiedName?.asString() ?: return false
-        return target == declaring
-    }
-
-    /**
-     * Returns the metamodel class name to use for a reference property: the childless variant when the reference points
-     * back at the class that declares it, the regular reference metamodel otherwise.
-     */
-    private fun refClassNameFor(
-        typeReference: KSTypeReference,
-        classDeclaration: KSClassDeclaration,
-        simpleTypeName: String,
-    ): String = if (isSelfReferentialRef(typeReference, classDeclaration)) {
-        "${simpleTypeName}CyclicRefMetamodel"
-    } else {
-        "${simpleTypeName}RefMetamodel"
-    }
 
     private fun getSimpleTypeName(typeReference: KSTypeReference, packageName: String): String {
         return try {
@@ -757,7 +725,7 @@ class MetamodelProcessor(
                 )
             } else if (isRefType(typeRef)) {
                 val simpleTypeName = getSimpleTypeName(typeRef, packageName)
-                val refMetaClassName = refClassNameFor(typeRef, classDeclaration, simpleTypeName)
+                val refMetaClassName = "${simpleTypeName}RefMetamodel"
                 builder.append("        /** Represents the $className.$fieldName reference. */\n")
                 builder.append(
                     "        val $fieldName: $refMetaClassName<$className> = " +
@@ -797,9 +765,8 @@ class MetamodelProcessor(
                 val childType = if (childForceNullable) "${simpleTypeName}NullableMetamodel" else "${simpleTypeName}Metamodel"
                 builder.append("    val $fieldName: $childType<T>\n")
             } else if (isRefType(typeRef)) {
-                // A reference back at the declaring class uses the childless variant, which offers no navigation.
                 val simpleTypeName = getSimpleTypeName(typeRef, packageName)
-                builder.append("    val $fieldName: ${refClassNameFor(typeRef, classDeclaration, simpleTypeName)}<T>\n")
+                builder.append("    val $fieldName: ${simpleTypeName}RefMetamodel<T>\n")
             } else {
                 val kotlinTypeName = getKotlinTypeName(typeRef, packageName) // E
                 val valueKotlinTypeName = getKotlinValueTypeName(typeRef, packageName) // V
@@ -899,9 +866,8 @@ class MetamodelProcessor(
             } else if (isRefType(typeRef)) {
                 // A reference: the reference metamodel selects the foreign key column (its getValue returns the Ref)
                 // and exposes navigation-only children beyond the reference. The getter yields the Ref value directly.
-                // A reference back at the declaring class uses the childless variant, which takes the same arguments.
                 val simpleTypeName = getSimpleTypeName(typeRef, packageName)
-                val refMetaClassName = refClassNameFor(typeRef, classDeclaration, simpleTypeName)
+                val refMetaClassName = "${simpleTypeName}RefMetamodel"
                 val refGetterExpr = if (forceNullableChain) {
                     "{ t: T -> this@$metaClassName.getValue(t)?.$fieldName }"
                 } else {
@@ -1021,11 +987,7 @@ class MetamodelProcessor(
             val typeRef = prop.type
 
             if (isRefType(typeRef)) {
-                // A Ref<X> field needs a reference metamodel for X and navigation-only metamodels beyond it. A
-                // reference back at the declaring class additionally needs the childless reference metamodel.
-                if (isSelfReferentialRef(typeRef, classDeclaration)) {
-                    generateCyclicReferenceArtifacts(classDeclaration)
-                }
+                // A Ref<X> field needs a reference metamodel for X and navigation-only metamodels beyond it.
                 val refTarget = unwrapRef(typeRef).resolve().declaration as? KSClassDeclaration ?: return@forEach
                 generateReferenceArtifacts(refTarget, resolver)
                 return@forEach
@@ -1046,16 +1008,6 @@ class MetamodelProcessor(
             generateReferenceMetamodelClass(refTarget)
         }
         generateNavigableArtifacts(refTarget, resolver)
-    }
-
-    /**
-     * Generates the childless reference metamodel for a class that declares a reference back at itself.
-     */
-    private fun generateCyclicReferenceArtifacts(refTarget: KSClassDeclaration) {
-        val qualifiedName = refTarget.qualifiedName?.asString() ?: return
-        if (generatedCyclicReferenceMetamodels.add(qualifiedName)) {
-            generateCyclicReferenceMetamodelClass(refTarget)
-        }
     }
 
     private fun generateNavigableArtifacts(classDeclaration: KSClassDeclaration, resolver: Resolver) {
@@ -1177,48 +1129,6 @@ class MetamodelProcessor(
                 |    }
                 |
                 |    constructor(field: String, parent: Navigable<T, *>) : this("", field, false, parent)
-                |}
-                """.trimMargin(),
-            )
-        }
-    }
-
-    private fun generateCyclicReferenceMetamodelClass(classDeclaration: KSClassDeclaration) {
-        val packageName = classDeclaration.packageName.asString()
-        val className = classDeclaration.simpleName.asString()
-        val metaClassName = "${className}CyclicRefMetamodel"
-        val refType = "st.orm.Ref<$className>"
-        val containingFile = classDeclaration.containingFile
-        val deps = if (containingFile != null) Dependencies(true, containingFile) else Dependencies(false)
-        val file = codeGenerator.createNewFile(dependencies = deps, packageName = packageName, fileName = metaClassName)
-        OutputStreamWriter(file).use { writer ->
-            writer.write(
-                """
-                |package $packageName
-                |
-                |import st.orm.Metamodel
-                |import st.orm.AbstractMetamodel
-                |import javax.annotation.processing.Generated
-                |
-                |/**
-                | * Reference metamodel for $className declared on $className itself: selects the foreign key column. A
-                | * self-referential reference exposes no navigation, because navigating past it would join the table to
-                | * itself and resolve against the earlier occurrence. Resolve the reference with fetch() to walk the chain.
-                | */
-                |@Generated("${this::class.java.name}")
-                |class $metaClassName<T : st.orm.Data>(
-                |    path: String,
-                |    field: String,
-                |    inline: Boolean,
-                |    parent: Metamodel<T, *>,
-                |    private val getter: (T) -> $refType?,
-                |) : AbstractMetamodel<T, $className, $refType?>($className::class.java, path, field, inline, parent) {
-                |
-                |    override fun getValue(record: T): $refType? = getter(record)
-                |
-                |    override fun isIdentical(a: T, b: T): Boolean = getter(a) === getter(b)
-                |
-                |    override fun isSame(a: T, b: T): Boolean = getter(a) == getter(b)
                 |}
                 """.trimMargin(),
             )

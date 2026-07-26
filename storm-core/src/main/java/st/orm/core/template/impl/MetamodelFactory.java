@@ -29,11 +29,9 @@ import java.lang.invoke.MethodHandle;
 import java.lang.invoke.MethodHandles;
 import java.lang.reflect.Method;
 import java.util.ArrayList;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
-import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import st.orm.AbstractKeyMetamodel;
 import st.orm.AbstractMetamodel;
@@ -153,80 +151,10 @@ public final class MetamodelFactory {
     }
 
     /**
-     * Rejects a path that navigates past a reference whose target table already occurs earlier on the path. Such a
-     * reference joins a table to itself, and a table repeated on one path does not receive a distinct alias per
-     * occurrence, so the navigation resolves against the earlier occurrence and yields the wrong row. Reporting the
-     * path as an error keeps a query from silently returning wrong results.
-     *
-     * <p>The reference itself remains addressable, because it is the foreign key column: only navigation <em>past</em>
-     * such a reference is rejected. Model a self-referential relationship as a reference for cheap foreign key storage
-     * and walk the chain in code with {@code fetch()}. References that reach distinct tables are unaffected, including
-     * a chain that crosses more than one reference.</p>
-     */
-    private static void checkNoNavigationBeyondCyclicReference(@Nonnull Class<? extends Data> rootTable,
-                                                               @Nonnull String path) {
-        if (path.isEmpty()) {
-            return;
-        }
-        String violation = findNavigationBeyondCyclicReference(rootTable, path);
-        if (violation != null) {
-            throw new PersistenceException(violation);
-        }
-    }
-
-    /**
-     * Returns a message describing navigation past a reference that revisits a table already on the path, or
-     * {@code null} when the path is acceptable or cannot be resolved here. Resolution failures yield {@code null} so
-     * this check never masks or replaces the error the regular resolution path reports for a malformed path.
-     */
-    @Nullable
-    private static String findNavigationBeyondCyclicReference(@Nonnull Class<? extends Data> rootTable,
-                                                              @Nonnull String path) {
-        // Sealed entity interfaces are not records, so field resolution delegates to the first permitted subclass,
-        // matching getModel.
-        Class<? extends Data> fieldResolutionClass = rootTable;
-        if (rootTable.isSealed() && isSealedEntity(rootTable)) {
-            Class<?>[] permitted = rootTable.getPermittedSubclasses();
-            if (permitted != null && permitted.length > 0) {
-                //noinspection unchecked
-                fieldResolutionClass = (Class<? extends Data>) permitted[0];
-            }
-        }
-        String[] segments = path.split("\\.");
-        Set<Class<?>> seen = new HashSet<>();
-        seen.add(rootTable);
-        seen.add(fieldResolutionClass);
-        String prefix = "";
-        try {
-            for (int i = 0; i < segments.length; i++) {
-                prefix = prefix.isEmpty() ? segments[i] : prefix + "." + segments[i];
-                RecordField field = getRecordField(fieldResolutionClass, prefix);
-                if (Ref.class.isAssignableFrom(field.type())) {
-                    Class<? extends Data> target = getRefDataType(field);
-                    boolean navigatesPast = i < segments.length - 1;
-                    if (navigatesPast && !seen.add(target)) {
-                        return ("Cannot navigate past the reference at '%s' on %s: it reaches %s, which already occurs "
-                                + "earlier on the path, so the table would join itself and resolve against the earlier "
-                                + "occurrence. Select the reference itself and resolve it with fetch().")
-                                .formatted(prefix, rootTable.getSimpleName(), target.getSimpleName());
-                    }
-                } else if (Data.class.isAssignableFrom(field.type())) {
-                    seen.add(field.type());
-                }
-            }
-        } catch (SqlTemplateException | RuntimeException e) {
-            // Not resolvable here: the regular resolution path reports the underlying failure.
-            return null;
-        }
-        return null;
-    }
-
-    /**
      * Creates a new metamodel for the given root table and path.
      */
     @SuppressWarnings({"unchecked", "rawtypes"})
     private static <T extends Data, E> Metamodel<T, E> getModel(@Nonnull Class<T> rootTable, @Nonnull String path) {
-        checkNoNavigationBeyondCyclicReference(rootTable, path);
         Metamodel<T, ?> generated = lookupGeneratedMetamodel(rootTable, path);
         if (generated != null) {
             return (Metamodel<T, E>) generated;

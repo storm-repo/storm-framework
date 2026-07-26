@@ -246,7 +246,7 @@ val users = orm.entity<User>()
     .resultList
 ```
 
-Nodes beyond a Ref are navigation-only: usable in where/orderBy/groupBy/having/selected columns, but not in value operations. Group by the reference itself with resultGroupedByRef, not resultGroupedBy on a beyond-reference path. Prefer a Ref for FKs not hydrated on most reads to avoid eager join fan-out while staying queryable. Navigation may cross more than one reference across distinct tables. A Ref carries the target's primary key (ref.id() reads it without fetching), so User_.city.id resolves to the FK column and needs no join, matching entity-FK behavior; any other target column joins. A self-referential FK must be a Ref, and it generates no navigation children, so navigating past it does not compile (the table would join itself and resolve against the earlier occurrence); the reference itself stays selectable, so walk the chain in code with fetch(). A cycle closing through more than one type, or a string-built path, throws when the metamodel is constructed.
+Nodes beyond a Ref are navigation-only: usable in where/orderBy/groupBy/having/selected columns, but not in value operations. Group by the reference itself with resultGroupedByRef, not resultGroupedBy on a beyond-reference path. Prefer a Ref for FKs not hydrated on most reads to avoid eager join fan-out while staying queryable. Navigation may cross more than one reference across distinct tables. A Ref carries the target's primary key (ref.id() reads it without fetching), so User_.city.id resolves to the FK column and needs no join, matching entity-FK behavior; any other target column joins. A self-referential FK must be a Ref, and it is navigable: the table joins itself, one alias per occurrence. The typed metamodel navigates a cycle two hops deep (generated metamodels build children eagerly and cannot recurse); deeper cyclic paths are named as strings, which the engine resolves to any depth.
 
 ### Dependencies (BOM)
 
@@ -431,9 +431,9 @@ SQL Templates are an escape hatch. Three rules:
    query that navigates beyond the FK. Nodes beyond a Ref are navigation-only:
    usable in where/orderBy/groupBy/having/selected columns, but not in value
    operations (group by the reference with resultGroupedByRef). A self-referential
-   FK must be a Ref, and it generates no navigation children, so navigating past it
-   does not compile; the reference itself stays selectable, so walk the chain with
-   fetch(). Prefer Ref for FKs not hydrated on most reads to avoid eager join fan-out.
+   FK must be a Ref and is navigable: the table joins itself, one alias per
+   occurrence. The typed metamodel goes two hops deep; deeper cyclic paths are named
+   as strings. Prefer Ref for FKs not hydrated on most reads to avoid eager join fan-out.
 
 8. **Use Ref<T> for map keys and set membership.** Prefer `Ref<Entity>` (via
    `.ref()`) for map keys, set membership, and identity-based lookups. `Ref`

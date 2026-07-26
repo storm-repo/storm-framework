@@ -18,11 +18,11 @@ import st.orm.template.model.Animal
 /**
  * Validates the exact code shape the KSP metamodel processor emits for a `Ref<X>` foreign key: a `<X>RefMetamodel`
  * (a value metamodel whose `getValue` returns the reference) whose children are navigation-only `Navigable*` nodes.
- * A reference that points back at the class declaring it is emitted as a `<X>CyclicRefMetamodel` instead, which has no
- * navigation children at all, because navigating past it would join the table to itself and resolve against the earlier
- * occurrence. These are hand-written copies of the generated classes, compiled against the real foundation types, so any
- * syntax error in the emitted template is caught here. The type contract is asserted at the end: the reference node is a
- * `TypedMetamodel` (so `getResultGroupedByRef` works), while a node beyond the reference is `Navigable`-only.
+ * A reference that points back at the class declaring it gets that same shape; the generator breaks the cycle at a
+ * navigation leaf so eager construction terminates. These are hand-written copies of the generated classes, compiled
+ * against the real foundation types, so any syntax error in the emitted template is caught here. The type contract is
+ * asserted at the end: the reference node is a `TypedMetamodel` (so `getResultGroupedByRef` works), while a node beyond
+ * the reference is `Navigable`-only.
  */
 @Suppress("ClassName")
 private class NavigableAnimalMetamodel_generated<T : st.orm.Data>(
@@ -95,11 +95,42 @@ data class SelfNode(
     @FK val parent: Ref<SelfNode>? = null,
 ) : Entity<Int>
 
-// Reference metamodel for a reference declared on the type it points at. It selects the foreign key column and has no
-// navigation children, because navigating past it would join the table to itself and resolve against the earlier
-// occurrence. The chain is walked by resolving the reference with fetch().
+// Navigation-only metamodel for the type behind a self-referential reference. Its own `parent` child is the point where
+// the generator breaks the cycle: it is emitted as a leaf, so eager construction terminates.
 @Suppress("ClassName")
-private class SelfNodeCyclicRefMetamodel_generated<T : st.orm.Data>(
+private class NavigableSelfNodeMetamodel_generated<T : st.orm.Data>(
+    path: String,
+    field: String,
+    inline: Boolean,
+    parent: Navigable<T, *>,
+) : AbstractNavigableMetamodel<T, SelfNode>(SelfNode::class.java, path, field, inline, parent) {
+
+    val id: AbstractNavigableMetamodel<T, Int>
+    val parent: AbstractNavigableMetamodel<T, SelfNode>
+
+    init {
+        val subPath = if (inline) {
+            path
+        } else if (field.isEmpty()) {
+            path
+        } else if (path.isEmpty()) {
+            field
+        } else {
+            "$path.$field"
+        }
+        val fieldBase = if (inline) if (field.isEmpty()) "" else "$field." else ""
+
+        this.id = object : AbstractNavigableMetamodel<T, Int>(Int::class.javaObjectType, subPath, fieldBase + "id", false, this) {}
+        this.parent = object : AbstractNavigableMetamodel<T, SelfNode>(SelfNode::class.java, subPath, fieldBase + "parent", false, this) {}
+    }
+
+    constructor(field: String, parent: Navigable<T, *>) : this("", field, false, parent)
+}
+
+// Reference metamodel for a reference declared on the type it points at. It selects the foreign key column and carries
+// the same navigation children as any other reference; each hop joins the table to itself under a distinct alias.
+@Suppress("ClassName")
+private class SelfNodeRefMetamodel_generated<T : st.orm.Data>(
     path: String,
     field: String,
     inline: Boolean,
@@ -112,6 +143,25 @@ private class SelfNodeCyclicRefMetamodel_generated<T : st.orm.Data>(
     override fun isIdentical(a: T, b: T): Boolean = getter(a) === getter(b)
 
     override fun isSame(a: T, b: T): Boolean = getter(a) == getter(b)
+
+    val id: AbstractNavigableMetamodel<T, Int>
+    val parent: NavigableSelfNodeMetamodel_generated<T>
+
+    init {
+        val subPath = if (inline) {
+            path
+        } else if (field.isEmpty()) {
+            path
+        } else if (path.isEmpty()) {
+            field
+        } else {
+            "$path.$field"
+        }
+        val fieldBase = if (inline) if (field.isEmpty()) "" else "$field." else ""
+
+        this.id = object : AbstractNavigableMetamodel<T, Int>(Int::class.javaObjectType, subPath, fieldBase + "id", false, this) {}
+        this.parent = NavigableSelfNodeMetamodel_generated(subPath, fieldBase + "parent", false, this)
+    }
 }
 
 class RefGraphTraversalTest {
@@ -119,8 +169,18 @@ class RefGraphTraversalTest {
     @Test
     fun `self-referential reference metamodel constructs without recursing`() {
         // A self-referential reference metamodel constructs eagerly and addresses the foreign key column itself.
-        val ref = SelfNodeCyclicRefMetamodel_generated<SelfNode>("", "parent", false, Metamodel.root(SelfNode::class.java)) { it.parent }
+        val ref = SelfNodeRefMetamodel_generated<SelfNode>("", "parent", false, Metamodel.root(SelfNode::class.java)) { it.parent }
         ref.fieldPath() shouldBe "parent"
+    }
+
+    @Test
+    fun `self-referential reference metamodel navigates beyond the reference`() {
+        val ref = SelfNodeRefMetamodel_generated<SelfNode>("", "parent", false, Metamodel.root(SelfNode::class.java)) { it.parent }
+        (ref as Any).shouldBeInstanceOf<TypedMetamodel<*, *, *>>()
+        ref.id.fieldPath() shouldBe "parent.id"
+        // The cycle is broken at a leaf, one hop further on.
+        ref.parent.fieldPath() shouldBe "parent.parent"
+        ref.parent.id.fieldPath() shouldBe "parent.parent.id"
     }
 
     @Test

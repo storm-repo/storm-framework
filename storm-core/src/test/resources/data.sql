@@ -46,7 +46,7 @@ create table appointment_report (appointment_id integer not null, report varchar
 create table appointment_report_review (id integer auto_increment, appointment_report_id integer not null, review varchar(255), primary key (id));
 alter table appointment_report add constraint appointment_report_appointment_fk foreign key (appointment_id) references appointment (id);
 alter table appointment_report_review add constraint appointment_report_review_report_fk foreign key (appointment_report_id) references appointment_report (appointment_id);
-create table self_ref_node (id integer auto_increment, parent_id integer, primary key (id));
+create table self_ref_node (id integer auto_increment, name varchar(255), parent_id integer, primary key (id));
 alter table self_ref_node add constraint self_ref_node_parent_fk foreign key (parent_id) references self_ref_node (id);
 create view owner_view as select * from owner;
 create view visit_view as select visit_date, description, pet_id, "timestamp" from visit;
@@ -235,7 +235,7 @@ INSERT INTO tenant (name, owner_id, city_id) VALUES ('Alpha', 1, 1);
 INSERT INTO tenant (name, owner_id, city_id) VALUES ('Beta', 2, 2);
 
 -- Self-referential chain for cyclic-reference navigation: node 3 -> parent 2 -> grandparent 1; node 4 is a root.
-INSERT INTO self_ref_node (parent_id) VALUES (NULL);
-INSERT INTO self_ref_node (parent_id) VALUES (1);
-INSERT INTO self_ref_node (parent_id) VALUES (2);
-INSERT INTO self_ref_node (parent_id) VALUES (NULL);
+INSERT INTO self_ref_node (name, parent_id) VALUES ('root', NULL);
+INSERT INTO self_ref_node (name, parent_id) VALUES ('mid', 1);
+INSERT INTO self_ref_node (name, parent_id) VALUES ('leaf', 2);
+INSERT INTO self_ref_node (name, parent_id) VALUES ('other', NULL);

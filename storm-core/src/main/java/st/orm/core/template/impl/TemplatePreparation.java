@@ -729,8 +729,11 @@ class TemplatePreparation {
                 .filter(Select.class::isInstance)
                 .map(Select.class::cast)
                 .findAny().ifPresent(select -> joins.replaceAll(join ->
+                    // The selected rows come from this join, so the row must exist and an outer join would produce
+                    // empty results. A join onto the table the query is rooted at is a different occurrence of that
+                    // table, and the selected rows come from the root occurrence instead, so it keeps its own type.
                     join.source() instanceof TableSource(var joinTable)
-                        && joinTable == select.table() && join.type().isOuter()
+                        && joinTable == select.table() && joinTable != fromTable && join.type().isOuter()
                         ? new Join(join.source(), join.sourceAlias(), join.target(), join.targetAlias(),
                         DefaultJoinType.INNER, join.autoJoin())
                         : join));

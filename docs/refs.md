@@ -82,7 +82,7 @@ Without Refs, an entity that references its own type would cause infinite recurs
 
 This pattern applies to any recursive or hierarchical data model, such as organizational trees, threaded comments, or referral chains.
 
-A self-reference is not navigable, because the table would join itself: a table repeated on one path does not get a distinct alias per occurrence, so the navigation would resolve against the earlier occurrence. The metamodel therefore generates **no navigation children** for a self-referential reference, which makes `User_.invitedBy.email` a compile error rather than a wrong result. The reference itself stays usable, because it is the foreign key column: select it, filter on it, and resolve it with `fetch()` to walk the chain. See [Cyclic References](metamodel.md#cyclic-references).
+A self-reference is navigable like any other reference: the table is joined to itself, each occurrence under its own alias, so `User_.invitedBy.email` filters on the inviter's email rather than the row's own. The typed metamodel navigates a cycle two hops deep, because generated metamodels construct their children eagerly and so cannot recurse; beyond that, name the path as a string, which the engine resolves to any depth. See [Cyclic References](metamodel.md#cyclic-references).
 
 <Tabs groupId="language">
 <TabItem value="kotlin" label="Kotlin" default>
