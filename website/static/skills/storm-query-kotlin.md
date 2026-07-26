@@ -319,9 +319,18 @@ val names = orm.entity<User>()
     .select<CountryName, _, _> { "${User_.city.country.name}" }
     .where(User_.city.country.name eq "United States")
     .resultList
+
+// Select the referenced entity itself: the city table is joined on demand and hydrated
+// with its own country foreign key.
+val cities = orm.entity<User>().select(City::class).resultList
+
+// Join another table onto the referenced one; the join brings the city table in.
+val sharingACity = orm.entity<User>().select()
+    .innerJoin<User>().on<City>()
+    .resultList
 ```
 
-Nodes beyond a reference are navigation-only: usable in `where`, `orderBy`, `groupBy`, `having`, and selected columns, but not in value operations. Group by the reference itself with `resultGroupedByRef`, not `resultGroupedBy` on a beyond-reference path (which does not compile). Prefer a `Ref` for foreign keys you do not hydrate on most reads: it keeps SELECTs narrow while staying queryable. Navigation may cross more than one reference across distinct tables. A reference carries the target's primary key, so `User_.city.id` resolves to the foreign key column and needs no join, the same column an entity foreign key resolves its primary key to; any other column of the target joins. A self-referential foreign key must be a `Ref`, and it is navigable: the table is joined to itself, each occurrence under its own alias. The typed metamodel navigates a cycle two hops deep (generated metamodels build their children eagerly, so they cannot recurse); deeper cyclic paths are named as strings, which the engine resolves to any depth.
+Nodes beyond a reference are navigation-only: usable in `where`, `orderBy`, `groupBy`, `having`, and selected columns, but not in value operations. Group by the reference itself with `resultGroupedByRef`, not `resultGroupedBy` on a beyond-reference path (which does not compile). Besides a path, the referenced table can be named by type: selecting it or joining onto it materializes the same join, and a query that does both joins it once; a table joined explicitly keeps that occurrence. Prefer a `Ref` for foreign keys you do not hydrate on most reads: it keeps SELECTs narrow while staying queryable. Navigation may cross more than one reference across distinct tables. A reference carries the target's primary key, so `User_.city.id` resolves to the foreign key column and needs no join, the same column an entity foreign key resolves its primary key to; any other column of the target joins. A self-referential foreign key must be a `Ref`, and it is navigable: the table is joined to itself, each occurrence under its own alias. The typed metamodel navigates a cycle two hops deep (generated metamodels build their children eagerly, so they cannot recurse); deeper cyclic paths are named as strings, which the engine resolves to any depth.
 
 ## Subqueries (EXISTS / NOT EXISTS)
 

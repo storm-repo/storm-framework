@@ -18,7 +18,7 @@
 > GitHub: https://github.com/storm-orm/storm-framework
 > License: Apache 2.0
 
-# Generated: 2026-07-26T19:59:32Z
+# Generated: 2026-07-26T23:21:10Z
 
 ========================================
 ## Source: index.md
@@ -5204,6 +5204,8 @@ val visitsByPet: Map<Ref<Pet>, List<Visit>> = orm.entity<Visit>()
 // orm.entity<Visit>().select().resultGroupedBy(Visit_.pet.owner)
 ```
 
+A path is not the only way to reach the referenced table. Naming the table by type does it too: selecting it (`select(City::class)`) joins it and hydrates it with its own foreign keys, and joining onto it (`innerJoin<X>().on<City>()`) brings it in. Both share the occurrence a navigating path resolves against, so a query that names the table both ways joins it once. A table the query joins explicitly keeps that occurrence.
+
 ### Cyclic References
 
 A reference may point back at a table already on the path, either at the record that declares it or through a longer cycle. Such a path joins the table to itself, and each occurrence is joined under its own alias, so a predicate or ordering resolves against the occurrence the path reached:
@@ -5908,6 +5910,35 @@ orm.entity<User>().select().where(User_.city.name eq "Sunnyvale").resultList
 This is the same column the reference itself resolves to, so `User_.city.id eq 42` and `User_.city eq Ref.of(City::class.java, 42)` produce identical SQL. It is also the same column an entity foreign key resolves its primary key to, so a path means the same thing whether the relationship is declared as an entity or as a `Ref`.
 
 Because the key is read from the row, a match does not require the referenced row to exist. Express that requirement explicitly with a join or an exists clause when you need it.
+
+### Naming the Referenced Table by Type
+
+A path names the referenced table one column at a time. A query can also name the table itself, and the join is materialized the same way. Selecting the target hydrates it with its own foreign keys, exactly as selecting it through an entity foreign key does:
+
+[Kotlin]
+
+```kotlin
+// Selects the referenced entity: the city table is joined on demand, and so is its own country foreign key.
+val cities = orm.entity<User>().select(City::class).resultList
+
+// Joins another table onto the referenced one. The join needs the city table, so the reference brings it in.
+val sharingACity = orm.entity<User>().select()
+    .innerJoin<User>().on<City>()
+    .resultList
+```
+
+[Java]
+
+```java
+// Selects the referenced entity: the city table is joined on demand, and so is its own country foreign key.
+List<City> cities = orm.entity(User.class).select(City.class).getResultList();
+
+// Joins another table onto the referenced one. The join needs the city table, so the reference brings it in.
+List<User> sharingACity = orm.entity(User.class).select()
+    .innerJoin(User.class).on(City.class)
+    .getResultList();
+```
+A query that names the table both ways gets one occurrence: a path navigating to it resolves against the same join. A table the query joins explicitly keeps that occurrence, so an explicit join stays in charge of the table it brings in.
 
 ### What You Can and Cannot Do Beyond a Ref
 

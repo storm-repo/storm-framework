@@ -287,6 +287,41 @@ This is the same column the reference itself resolves to, so `User_.city.id eq 4
 
 Because the key is read from the row, a match does not require the referenced row to exist. Express that requirement explicitly with a join or an exists clause when you need it.
 
+### Naming the Referenced Table by Type
+
+A path names the referenced table one column at a time. A query can also name the table itself, and the join is materialized the same way. Selecting the target hydrates it with its own foreign keys, exactly as selecting it through an entity foreign key does:
+
+<Tabs groupId="language">
+<TabItem value="kotlin" label="Kotlin" default>
+
+```kotlin
+// Selects the referenced entity: the city table is joined on demand, and so is its own country foreign key.
+val cities = orm.entity<User>().select(City::class).resultList
+
+// Joins another table onto the referenced one. The join needs the city table, so the reference brings it in.
+val sharingACity = orm.entity<User>().select()
+    .innerJoin<User>().on<City>()
+    .resultList
+```
+
+</TabItem>
+<TabItem value="java" label="Java">
+
+```java
+// Selects the referenced entity: the city table is joined on demand, and so is its own country foreign key.
+List<City> cities = orm.entity(User.class).select(City.class).getResultList();
+
+// Joins another table onto the referenced one. The join needs the city table, so the reference brings it in.
+List<User> sharingACity = orm.entity(User.class).select()
+    .innerJoin(User.class).on(City.class)
+    .getResultList();
+```
+
+</TabItem>
+</Tabs>
+
+A query that names the table both ways gets one occurrence: a path navigating to it resolves against the same join. A table the query joins explicitly keeps that occurrence, so an explicit join stays in charge of the table it brings in.
+
 ### What You Can and Cannot Do Beyond a Ref
 
 Nodes reached *beyond* a reference are **navigation-only**. They can be used anywhere a query needs a column reference: `where`, `orderBy`, `groupBy`, `having`, and custom selected columns. They cannot extract a value from an in-memory record, because a `Ref` is never hydrated into the parent, so value operations (such as `getValue` or `resultGroupedBy`) are not available on them and fail to compile. The reference node itself (`User_.city`) is value-extractable and yields the `Ref`, so grouping by the reference with `resultGroupedByRef` works. See [Navigating Through Refs](metamodel.md#navigating-through-refs) for the type-level details.

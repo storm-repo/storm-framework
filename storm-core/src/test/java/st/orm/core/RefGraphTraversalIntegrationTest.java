@@ -22,6 +22,7 @@ import st.orm.Metamodel;
 import st.orm.Navigable;
 import st.orm.Ref;
 import st.orm.TypedMetamodel;
+import st.orm.core.model.City;
 import st.orm.core.model.Owner;
 import st.orm.core.model.Pet;
 import st.orm.core.model.PetOwnerCityRef;
@@ -387,6 +388,101 @@ public class RefGraphTraversalIntegrationTest {
         assertEquals(List.of(2), ids);
     }
 
+    @Test
+    public void testSelectReferencedEntityThroughRef() {
+        var orm = ORMTemplate.of(dataSource);
+        // Baseline: selecting the referenced entity through an entity foreign key.
+        List<Integer> viaEntity = orm.entity(Pet.class).select(Owner.class)
+                .getResultList().stream().map(Owner::id).sorted().toList();
+        // A reference names its target the same way: selecting the referenced entity must join it on demand and
+        // hydrate it, including the target's own transitive foreign keys.
+        List<Integer> viaRef = orm.entity(PetOwnerRef.class).select(Owner.class)
+                .getResultList().stream().map(Owner::id).sorted().toList();
+        assertFalse(viaEntity.isEmpty());
+        assertEquals(viaEntity, viaRef);
+    }
 
+    @Test
+    public void testSelectReferencedEntityInTemplateThroughRef() {
+        var orm = ORMTemplate.of(dataSource);
+        // The same selection written as a template value rather than a select target.
+        List<Integer> viaEntity = orm.entity(Pet.class).select(Owner.class, raw("\0", Owner.class))
+                .getResultList().stream().map(Owner::id).sorted().toList();
+        List<Integer> viaRef = orm.entity(PetOwnerRef.class).select(Owner.class, raw("\0", Owner.class))
+                .getResultList().stream().map(Owner::id).sorted().toList();
+        assertFalse(viaEntity.isEmpty());
+        assertEquals(viaEntity, viaRef);
+    }
 
+    @Test
+    public void testSelectReferencedEntityThroughRefJoinsTargetOnce() {
+        var orm = ORMTemplate.of(dataSource);
+        List<String> observed = new ArrayList<>();
+        // Selecting the target materializes its join, and its transitive city foreign key is joined with it because
+        // the hydrated entity holds it. The target table is joined exactly once.
+        SqlInterceptor.observe(
+                sql -> observed.add(sql.statement().toLowerCase()),
+                () -> orm.entity(PetOwnerRef.class).select(Owner.class).getResultList());
+        String sql = observed.getLast();
+        assertEquals(1, sql.split("join owner", -1).length - 1, sql);
+        assertTrue(sql.contains("join city"), sql);
+    }
+
+    @Test
+    public void testSelectEntityBeyondChainedRefs() {
+        var orm = ORMTemplate.of(dataSource);
+        // Two reference boundaries: PetOwnerCityRef.owner is a Ref and OwnerCityRef.city is a Ref. Selecting the
+        // city therefore has to derive a join for each hop.
+        List<Integer> cityIds = orm.entity(PetOwnerCityRef.class).select(City.class)
+                .getResultList().stream().map(City::id).sorted().distinct().toList();
+        List<Integer> viaEntity = orm.entity(Pet.class).select(City.class)
+                .getResultList().stream().map(City::id).sorted().distinct().toList();
+        assertFalse(viaEntity.isEmpty());
+        assertEquals(viaEntity, cityIds);
+    }
+
+    @Test
+    public void testJoinOnTableBeyondRef() {
+        var orm = ORMTemplate.of(dataSource);
+        // Joining a third table onto the referenced table: pets that share an owner with the root pet. The referenced
+        // table is not in the query until the join asks for it, so the join has to bring it in.
+        long viaEntity = orm.entity(Pet.class).select()
+                .innerJoin(Pet.class).on(Owner.class)
+                .getResultCount();
+        long viaRef = orm.entity(PetOwnerRef.class).select()
+                .innerJoin(Pet.class).on(Owner.class)
+                .getResultCount();
+        assertTrue(viaEntity > 0);
+        assertEquals(viaEntity, viaRef);
+    }
+
+    @Test
+    public void testJoinOnTableBeyondRefSharesTheNavigationJoin() {
+        var orm = ORMTemplate.of(dataSource);
+        List<String> observed = new ArrayList<>();
+        // A join onto the referenced table and a predicate navigating to it name the same occurrence, so the
+        // referenced table is joined once and both resolve against it.
+        SqlInterceptor.observe(
+                sql -> observed.add(sql.statement().toLowerCase()),
+                () -> orm.entity(PetOwnerRef.class).select()
+                        .innerJoin(Pet.class).on(Owner.class)
+                        .where(PetOwnerRef_.owner.lastName, EQUALS, "Davis")
+                        .getResultList());
+        String sql = observed.getLast();
+        assertEquals(1, sql.split("join owner", -1).length - 1, sql);
+    }
+
+    @Test
+    public void testUnreferencedTargetStillNotJoinedWhenSelectingTheRoot() {
+        var orm = ORMTemplate.of(dataSource);
+        List<String> observed = new ArrayList<>();
+        // Deriving joins for referenced table types must not widen the root select: a query that names neither the
+        // referenced table nor a path beyond it still joins nothing.
+        SqlInterceptor.observe(
+                sql -> observed.add(sql.statement().toLowerCase()),
+                () -> orm.entity(PetOwnerRef.class).select().getResultList());
+        String sql = observed.getLast();
+        assertFalse(sql.contains(" join owner"), sql);
+        assertFalse(sql.contains(" join city"), sql);
+    }
 }

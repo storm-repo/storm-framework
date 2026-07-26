@@ -246,7 +246,7 @@ val users = orm.entity<User>()
     .resultList
 ```
 
-Nodes beyond a Ref are navigation-only: usable in where/orderBy/groupBy/having/selected columns, but not in value operations. Group by the reference itself with resultGroupedByRef, not resultGroupedBy on a beyond-reference path. Prefer a Ref for FKs not hydrated on most reads to avoid eager join fan-out while staying queryable. Navigation may cross more than one reference across distinct tables. A Ref carries the target's primary key (ref.id() reads it without fetching), so User_.city.id resolves to the FK column and needs no join, matching entity-FK behavior; any other target column joins. A self-referential FK must be a Ref, and it is navigable: the table joins itself, one alias per occurrence. The typed metamodel navigates a cycle two hops deep (generated metamodels build children eagerly and cannot recurse); deeper cyclic paths are named as strings, which the engine resolves to any depth.
+Nodes beyond a Ref are navigation-only: usable in where/orderBy/groupBy/having/selected columns, but not in value operations. Group by the reference itself with resultGroupedByRef, not resultGroupedBy on a beyond-reference path. Besides a path, the referenced table can be named by type: selecting it (select(City::class)) joins it and hydrates it with its own FKs, and joining onto it (innerJoin<X>().on<City>()) brings it in; both share the occurrence a navigating path resolves against, so a query that does both joins it once, and a table joined explicitly keeps that occurrence. Prefer a Ref for FKs not hydrated on most reads to avoid eager join fan-out while staying queryable. Navigation may cross more than one reference across distinct tables. A Ref carries the target's primary key (ref.id() reads it without fetching), so User_.city.id resolves to the FK column and needs no join, matching entity-FK behavior; any other target column joins. A self-referential FK must be a Ref, and it is navigable: the table joins itself, one alias per occurrence. The typed metamodel navigates a cycle two hops deep (generated metamodels build children eagerly and cannot recurse); deeper cyclic paths are named as strings, which the engine resolves to any depth.
 
 ### Dependencies (BOM)
 
@@ -430,7 +430,9 @@ SQL Templates are an escape hatch. Three rules:
    the metamodel (User_.city.country.name), and Storm adds the join only for the
    query that navigates beyond the FK. Nodes beyond a Ref are navigation-only:
    usable in where/orderBy/groupBy/having/selected columns, but not in value
-   operations (group by the reference with resultGroupedByRef). A self-referential
+   operations (group by the reference with resultGroupedByRef). The referenced
+   table can also be named by type rather than by path: selecting it hydrates it
+   with its own FKs, and joining onto it brings it in. A self-referential
    FK must be a Ref and is navigable: the table joins itself, one alias per
    occurrence. The typed metamodel goes two hops deep; deeper cyclic paths are named
    as strings. Prefer Ref for FKs not hydrated on most reads to avoid eager join fan-out.

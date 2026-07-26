@@ -52,6 +52,7 @@ import jakarta.annotation.Nonnull;
 import jakarta.annotation.Nullable;
 import java.util.ArrayList;
 import java.util.HashSet;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.ListIterator;
 import java.util.Set;
@@ -68,6 +69,7 @@ import st.orm.Navigable;
 import st.orm.PK;
 import st.orm.ProjectionQuery;
 import st.orm.Ref;
+import st.orm.SelectMode;
 import st.orm.core.spi.ORMReflection;
 import st.orm.core.spi.Providers;
 import st.orm.core.template.Query;
@@ -718,12 +720,12 @@ class TemplatePreparation {
             }
         }
         List<Join> joins = new ArrayList<>();
-        Set<String> referencedTablePaths = collectReferencedTablePaths(fromTable, mutableElements);
+        ReferencedPaths referenced = collectReferencedTablePaths(fromTable, mutableElements, customJoins);
         // Always ensure joins exist for referenced metamodel paths (in SELECT, WHERE, ORDER BY, ...). With auto-join the
         // whole hydrated entity graph is joined eagerly; without it only the referenced foreign keys are joined on
         // demand, so a selected or filtered column beyond the root's own columns (in particular beyond a reference)
         // still resolves. Unreferenced auto-joins are pruned by JoinProcessor.
-        addAutoJoins(fromTable, fromTable, customJoins, aliasMapper, tableMapper, joins, referencedTablePaths, !from.autoJoin());
+        addAutoJoins(fromTable, fromTable, customJoins, aliasMapper, tableMapper, joins, referenced, !from.autoJoin());
         if (!joins.isEmpty()) {
             mutableElements.stream()
                 .filter(Select.class::isInstance)
@@ -798,7 +800,7 @@ class TemplatePreparation {
             @Nonnull AliasMapper aliasMapper,
             @Nonnull TableMapper tableMapper,
             @Nonnull List<Join> joins,
-            @Nonnull Set<String> referencedTablePaths,
+            @Nonnull ReferencedPaths referenced,
             boolean demandOnly
     ) throws SqlTemplateException {
         // Sealed entity interfaces are not records and don't have FK fields that need auto-joining.
@@ -806,7 +808,7 @@ class TemplatePreparation {
         // When demandOnly is set, only referenced foreign keys are joined (the hydrated graph is not expanded), so
         // the recursion starts already beyond the eager region.
         if (!isSealedEntity(table)) {
-            addAutoJoins(getRecordType(table), table, rootTable, List.of(), aliasMapper, tableMapper, joins, null, false, referencedTablePaths, demandOnly);
+            addAutoJoins(getRecordType(table), table, rootTable, List.of(), aliasMapper, tableMapper, joins, null, false, referenced, demandOnly);
         } else if (!demandOnly && isJoinedEntity(table)) {
             // For JOINED inheritance, add LEFT JOIN for each extension table (permitted subclass with
             // @DbTable) using PK=PK ON conditions.
@@ -903,7 +905,7 @@ class TemplatePreparation {
             @Nonnull List<Join> joins,
             @Nullable String fkName,
             boolean outerJoin,
-            @Nonnull Set<String> referencedTablePaths,
+            @Nonnull ReferencedPaths referenced,
             boolean beyondRef
     ) throws SqlTemplateException {
         for (var field : type.fields()) {
@@ -914,7 +916,7 @@ class TemplatePreparation {
             String pkPath = toPathString(copy);
             if (field.isAnnotationPresent(FK.class)) {
                 if (Ref.class.isAssignableFrom(field.type())) {
-                    boolean referenced = isReferencedBeyond(referencedTablePaths, pkPath);
+                    boolean navigated = isReferencedBeyond(referenced.joined(), pkPath);
                     // A reference is never hydrated, so it contributes no eager join: it is selected as its foreign
                     // key column, which keeps the entity graph optimized. In the eager (hydrated) region the reference
                     // still registers its mapping so its foreign key component can be resolved, matching prior
@@ -923,7 +925,7 @@ class TemplatePreparation {
                     // joined, ordered, or selected. Gating on referenced paths bounds the recursion, which matters
                     // because references can be cyclic (self-referencing foreign keys must be a Ref). Any ref join that
                     // still ends up unreferenced is pruned by JoinProcessor.
-                    if (!beyondRef || referenced) {
+                    if (!beyondRef || navigated) {
                         String fromAlias = fkName != null ? fkName : aliasMapper.getAlias(
                                 table,
                                 fkPath,
@@ -932,13 +934,14 @@ class TemplatePreparation {
                                 () -> new SqlTemplateException("Table %s for From not found at %s."
                                         .formatted(type.type().getSimpleName(), fkPath)));
                         tableMapper.mapForeignKey(table, getRefDataType(field), fromAlias, field, rootTable, fkPath);
-                        if (referenced) {
+                        if (navigated) {
                             RecordType fieldType = getRecordType(getRefDataType(field));
                             boolean effectiveOuterJoin = outerJoin || field.nullable();
                             String alias = addForeignKeyJoin(table, rootTable, field, fieldType, fromAlias, fkPath,
                                     pkPath, effectiveOuterJoin, aliasMapper, tableMapper, joins);
                             addAutoJoins(fieldType, fieldType.requireDataType(), rootTable, copy, aliasMapper,
-                                    tableMapper, joins, alias, effectiveOuterJoin, referencedTablePaths, true);
+                                    tableMapper, joins, alias, effectiveOuterJoin, referenced,
+                                    !referenced.hydrated().contains(pkPath));
                         }
                     }
                     continue;
@@ -955,7 +958,7 @@ class TemplatePreparation {
                 // Below a reference boundary nothing is hydrated, so entity foreign keys are demand-driven too:
                 // only the ones a query element navigates to are joined. Above any reference (the hydrated graph)
                 // every entity foreign key is joined eagerly, preserving the existing behavior.
-                if (beyondRef && !isReferencedBeyond(referencedTablePaths, pkPath)) {
+                if (beyondRef && !isReferencedBeyond(referenced.joined(), pkPath)) {
                     continue;
                 }
                 String fromAlias;
@@ -975,14 +978,14 @@ class TemplatePreparation {
                 boolean effectiveOuterJoin = outerJoin || field.nullable();
                 String alias = addForeignKeyJoin(table, rootTable, field, fieldType, fromAlias, fkPath,
                         pkPath, effectiveOuterJoin, aliasMapper, tableMapper, joins);
-                addAutoJoins(fieldType, fieldType.requireDataType(), rootTable, copy, aliasMapper, tableMapper, joins, alias, effectiveOuterJoin, referencedTablePaths, beyondRef);
+                addAutoJoins(fieldType, fieldType.requireDataType(), rootTable, copy, aliasMapper, tableMapper, joins, alias, effectiveOuterJoin, referenced, beyondRef && !referenced.hydrated().contains(pkPath));
             } else if (isRecord(field.type())) {
                 if (field.isAnnotationPresent(PK.class) || getORMConverter(field).isPresent()) {
                     continue;
                 }
                 // Below a reference boundary, only recurse into an inline record when a query element navigates
                 // through it; above any reference the whole hydrated graph is traversed, preserving prior behavior.
-                if (beyondRef && !isReferencedBeyond(referencedTablePaths, pkPath)) {
+                if (beyondRef && !isReferencedBeyond(referenced.joined(), pkPath)) {
                     continue;
                 }
                 String fromAlias;
@@ -998,7 +1001,7 @@ class TemplatePreparation {
                 } else {
                     fromAlias = fkName;
                 }
-                addAutoJoins(getRecordType(field.type()), table, rootTable, copy, aliasMapper, tableMapper, joins, fromAlias, outerJoin, referencedTablePaths, beyondRef);
+                addAutoJoins(getRecordType(field.type()), table, rootTable, copy, aliasMapper, tableMapper, joins, fromAlias, outerJoin, referenced, beyondRef);
             }
         }
     }
@@ -1075,34 +1078,86 @@ class TemplatePreparation {
     }
 
     /**
+     * The table paths a query's elements name, split by what naming one requires. Every joined path needs its table
+     * joined so its columns resolve. A hydrated path needs that and more: the query materializes the table's record,
+     * so the foreign keys the record holds are joined with it, exactly as they are for the root.
+     *
+     * @param joined   every path whose table the query needs, hydrated paths included.
+     * @param hydrated the paths whose table is materialized as a record.
+     */
+    private record ReferencedPaths(@Nonnull Set<String> joined, @Nonnull Set<String> hydrated) { }
+
+    /**
      * Collects the table paths, relative to the FROM {@code rootTable}, that the query's elements reference beyond the
      * root, so join derivation can materialize any joins those paths need (in particular, joins that traverse a Ref
-     * boundary). Only metamodels rooted at {@code rootTable} contribute; a reference to the root table itself carries
-     * the empty path and is ignored.
+     * boundary).
+     *
+     * <p>A query names a table in two ways. A metamodel names it by path, and only metamodels rooted at
+     * {@code rootTable} contribute; a reference to the root table itself carries the empty path and is ignored. A
+     * selected table, an aliased table, or a join target names it by type, which is resolved here to the path or paths
+     * at which that type is reachable from the root. Both forms mean the query needs that table, so both have to reach
+     * join derivation: without the type form, a table beyond a reference has no join and no alias to resolve
+     * against.</p>
      */
-    private Set<String> collectReferencedTablePaths(@Nonnull Class<? extends Data> rootTable,
-                                                    @Nonnull List<Element> elements) {
+    private ReferencedPaths collectReferencedTablePaths(@Nonnull Class<? extends Data> rootTable,
+                                                        @Nonnull List<Element> elements,
+                                                        @Nonnull List<Join> customJoins) throws SqlTemplateException {
         Set<String> paths = new HashSet<>();
+        Set<Class<? extends Data>> tables = new LinkedHashSet<>();
+        Set<Class<? extends Data>> hydratedTables = new LinkedHashSet<>();
+        Set<Class<? extends Data>> explicitTables = new HashSet<>();
         for (Element element : elements) {
-            collectReferencedTablePaths(rootTable, element, paths);
+            collectReferencedTablePaths(rootTable, element, paths, tables, hydratedTables);
+            if (element instanceof Table(var table, var ignore)) {
+                explicitTables.add(table);
+            }
         }
-        return paths;
+        // Custom joins are lifted out of the element list before this runs, so they are inspected here. A join's
+        // target names a table of the root's graph, while its source is the table the join itself brings in: that
+        // occurrence carries its own alias, so a type reference to it is already satisfied and deriving a second
+        // occurrence would make the type ambiguous.
+        for (Join join : customJoins) {
+            if (join.target() instanceof Elements.TableTarget(var table, var ignore)) {
+                tables.add(table);
+            }
+            if (join.source() instanceof TableSource(var table)) {
+                explicitTables.add(table);
+            }
+        }
+        tables.removeAll(explicitTables);
+        hydratedTables.removeAll(explicitTables);
+        Set<String> hydrated = new HashSet<>();
+        for (Class<? extends Data> table : hydratedTables) {
+            addReferencedTypePaths(rootTable, table, hydrated);
+        }
+        paths.addAll(hydrated);
+        for (Class<? extends Data> table : tables) {
+            addReferencedTypePaths(rootTable, table, paths);
+        }
+        return new ReferencedPaths(paths, hydrated);
     }
 
     private void collectReferencedTablePaths(@Nonnull Class<? extends Data> rootTable,
                                              @Nonnull Element element,
-                                             @Nonnull Set<String> paths) {
+                                             @Nonnull Set<String> paths,
+                                             @Nonnull Set<Class<? extends Data>> tables,
+                                             @Nonnull Set<Class<? extends Data>> hydratedTables) {
         switch (element) {
             case Column column -> addReferencedTablePath(rootTable, column.field(), paths);
+            // A nested select materializes the table's record, so its own foreign keys are part of what is selected;
+            // the other modes select columns of that table alone.
+            case Select(var table, var mode) -> (mode == SelectMode.NESTED ? hydratedTables : tables).add(table);
+            case Elements.Alias alias -> tables.add(alias.table());
             case Elements.Where where -> {
                 if (where.expression() != null) {
-                    collectReferencedTablePaths(rootTable, where.expression(), paths);
+                    collectReferencedTablePaths(rootTable, where.expression(), paths, tables, hydratedTables);
                 }
                 if (where.bindVarsKey() != null) {
                     addReferencedTablePath(rootTable, where.bindVarsKey(), paths);
                 }
             }
-            case Cacheable cacheable -> collectReferencedTablePaths(rootTable, cacheable.expression(), paths);
+            case Cacheable cacheable ->
+                    collectReferencedTablePaths(rootTable, cacheable.expression(), paths, tables, hydratedTables);
             case Elements.Set set -> {
                 for (var metamodel : set.fields()) {
                     addReferencedTablePath(rootTable, metamodel, paths);
@@ -1110,7 +1165,7 @@ class TemplatePreparation {
             }
             case Wrapped wrapped -> {
                 for (var node : wrapped.elements()) {
-                    collectReferencedTablePaths(rootTable, node.element(), paths);
+                    collectReferencedTablePaths(rootTable, node.element(), paths, tables, hydratedTables);
                 }
             }
             default -> {
@@ -1120,7 +1175,9 @@ class TemplatePreparation {
 
     private void collectReferencedTablePaths(@Nonnull Class<? extends Data> rootTable,
                                              @Nonnull Expression expression,
-                                             @Nonnull Set<String> paths) {
+                                             @Nonnull Set<String> paths,
+                                             @Nonnull Set<Class<? extends Data>> tables,
+                                             @Nonnull Set<Class<? extends Data>> hydratedTables) {
         switch (expression) {
             case Elements.ObjectExpression objectExpression -> {
                 if (objectExpression.metamodel() != null) {
@@ -1128,21 +1185,82 @@ class TemplatePreparation {
                 }
             }
             case Elements.TemplateExpression templateExpression ->
-                    collectReferencedTablePaths(rootTable, templateExpression.template(), paths);
+                    collectReferencedTablePaths(rootTable, templateExpression.template(), paths, tables, hydratedTables);
         }
     }
 
     private void collectReferencedTablePaths(@Nonnull Class<? extends Data> rootTable,
                                              @Nonnull TemplateString template,
-                                             @Nonnull Set<String> paths) {
+                                             @Nonnull Set<String> paths,
+                                             @Nonnull Set<Class<? extends Data>> tables,
+                                             @Nonnull Set<Class<? extends Data>> hydratedTables) {
         for (var value : template.values()) {
             switch (value) {
                 case Metamodel<?, ?> metamodel -> addReferencedTablePath(rootTable, metamodel, paths);
-                case Expression expression -> collectReferencedTablePaths(rootTable, expression, paths);
-                case Element element -> collectReferencedTablePaths(rootTable, element, paths);
-                case TemplateString nested -> collectReferencedTablePaths(rootTable, nested, paths);
+                case Expression expression ->
+                        collectReferencedTablePaths(rootTable, expression, paths, tables, hydratedTables);
+                case Element element -> collectReferencedTablePaths(rootTable, element, paths, tables, hydratedTables);
+                case TemplateString nested ->
+                        collectReferencedTablePaths(rootTable, nested, paths, tables, hydratedTables);
                 default -> {
                 }
+            }
+        }
+    }
+
+    /**
+     * Records the paths at which {@code table} is reachable from {@code rootTable}, for a query element that names the
+     * table by type rather than by path. The root itself is not a path, and a type the root's graph does not reach
+     * contributes nothing: such a table is resolved by other means, or reported as unresolvable when its alias is
+     * looked up.
+     *
+     * <p>Every path is recorded when a type is reachable at more than one, because the query has not said which one it
+     * means. Alias resolution reports the ambiguity, and a derived join that ends up unreferenced is pruned by
+     * {@link JoinProcessor}.</p>
+     */
+    private void addReferencedTypePaths(@Nonnull Class<? extends Data> rootTable,
+                                        @Nonnull Class<? extends Data> table,
+                                        @Nonnull Set<String> paths) throws SqlTemplateException {
+        if (table == rootTable || isSealedEntity(rootTable)) {
+            return;
+        }
+        // A type already on the path terminates the walk: references may be cyclic, and a table repeated on one path
+        // is not aliased per occurrence, so a deeper occurrence would not be addressable anyway.
+        Set<Class<? extends Data>> visited = new HashSet<>();
+        visited.add(rootTable);
+        addReferencedTypePaths(getRecordType(rootTable), table, List.of(), visited, paths);
+    }
+
+    private void addReferencedTypePaths(@Nonnull RecordType type,
+                                        @Nonnull Class<? extends Data> table,
+                                        @Nonnull List<RecordField> path,
+                                        @Nonnull Set<Class<? extends Data>> visited,
+                                        @Nonnull Set<String> paths) throws SqlTemplateException {
+        for (var field : type.fields()) {
+            var list = new ArrayList<>(path);
+            list.add(field);
+            var copy = copyOf(list);
+            if (field.isAnnotationPresent(FK.class)) {
+                Class<? extends Data> target;
+                if (Ref.class.isAssignableFrom(field.type())) {
+                    target = getRefDataType(field);
+                } else if (isRecord(field.type())) {
+                    target = getRecordType(field.type()).requireDataType();
+                } else {
+                    continue;
+                }
+                if (target == table) {
+                    paths.add(toPathString(copy));
+                }
+                if (visited.add(target)) {
+                    addReferencedTypePaths(getRecordType(target), table, copy, visited, paths);
+                    visited.remove(target);
+                }
+            } else if (isRecord(field.type())
+                    && !field.isAnnotationPresent(PK.class)
+                    && getORMConverter(field).isEmpty()) {
+                // An inline record stays on the same table, so it extends the path without contributing a join.
+                addReferencedTypePaths(getRecordType(field.type()), table, copy, visited, paths);
             }
         }
     }

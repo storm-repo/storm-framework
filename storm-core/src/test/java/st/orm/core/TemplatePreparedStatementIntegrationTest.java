@@ -5,6 +5,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static st.orm.GenerationStrategy.NONE;
 import static st.orm.Operator.BETWEEN;
 import static st.orm.Operator.EQUALS;
@@ -728,6 +729,39 @@ public class TemplatePreparedStatementIntegrationTest {
                 WHERE \0""", VetSpecialtyRefPk.class, VetSpecialtyRefPk.class, where(Ref.of(Vet.builder().id(2).build()))))
             .getResultList(VetSpecialtyRefPk.class);
         assertEquals(1, list.size());
+    }
+
+    @Test
+    public void testGetByRefPkCarryingAnEntity() {
+        // A primary key that is a reference identifies the row by the key the reference carries, so a repository
+        // lookup binds that key rather than the reference object.
+        var row = ORMTemplate.of(dataSource).entity(VetSpecialtyRefPk.class)
+                .getById(Ref.of(Vet.builder().id(2).build()));
+        assertEquals(2, row.id().id());
+    }
+
+    @Test
+    public void testGetByRefPkCarryingOnlyTheKey() {
+        // The same lookup with a reference that was never loaded: only the key is present, which is all it needs.
+        var row = ORMTemplate.of(dataSource).entity(VetSpecialtyRefPk.class)
+                .getById(Ref.of(Vet.class, 2));
+        assertEquals(2, row.id().id());
+    }
+
+    @Test
+    public void testFindByRefPkMatchesTheBuilderPath() {
+        var repository = ORMTemplate.of(dataSource).entity(VetSpecialtyRefPk.class);
+        // The by-id lookup and the equivalent builder query select the same row.
+        var viaId = repository.findById(Ref.of(Vet.class, 2)).orElseThrow();
+        var viaBuilder = repository.select().where(Ref.of(Vet.class, 2)).getSingleResult();
+        assertEquals(viaBuilder, viaId);
+    }
+
+    @Test
+    public void testFindByRefPkWithoutMatchIsEmpty() {
+        // Vet 1 has no vet_specialty row, so the lookup finds nothing rather than failing to bind.
+        assertTrue(ORMTemplate.of(dataSource).entity(VetSpecialtyRefPk.class)
+                .findById(Ref.of(Vet.class, 1)).isEmpty());
     }
 
     @Test
