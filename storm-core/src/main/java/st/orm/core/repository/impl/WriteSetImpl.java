@@ -167,7 +167,7 @@ public final class WriteSetImpl implements WriteSet {
 
     private Execution executeOrdered(@Nonnull Iterable<? extends Entity<?>> entities, @Nonnull Action action,
                                      boolean fetchKeys) {
-        var inputs = new ArrayList<Object>();
+        var inputs = new ArrayList<>();
         entities.forEach(inputs::add);
         // Discover the members to write: explicit members plus unsaved entities transitively reachable through
         // insertable foreign key fields.
@@ -224,7 +224,7 @@ public final class WriteSetImpl implements WriteSet {
         }
         // Execute level by level, batched per type. Discovered members are always inserted; explicit members are
         // inserted or upserted according to the action.
-        var persistedView = new IdentityHashMap<Object, Object>();
+        var persistedView = new IdentityHashMap<>();
         for (var byType : groupByLevelAndType(discoveryOrder)) {
             for (var entry : byType.entrySet()) {
                 TypeInfo info = typeInfo(entry.getKey());
@@ -305,7 +305,7 @@ public final class WriteSetImpl implements WriteSet {
         if (nodes.isEmpty()) {
             return;
         }
-        var prepared = new ArrayList<Object>(nodes.size());
+        var prepared = new ArrayList<>(nodes.size());
         for (Node node : nodes) {
             prepared.add(propagateKeys(node, persistedView));
         }
@@ -378,7 +378,7 @@ public final class WriteSetImpl implements WriteSet {
     //
 
     private Execution executeUpdate(@Nonnull Iterable<? extends Entity<?>> entities) {
-        var inputs = new ArrayList<Object>();
+        var inputs = new ArrayList<>();
         var byType = new LinkedHashMap<Class<?>, List<Object>>();
         for (var entity : entities) {
             if (isUnsaved(entity)) {
@@ -391,7 +391,7 @@ public final class WriteSetImpl implements WriteSet {
         for (var entry : byType.entrySet()) {
             update(typeInfo(entry.getKey()).repository, entry.getValue());
         }
-        var persistedView = new IdentityHashMap<Object, Object>();
+        var persistedView = new IdentityHashMap<>();
         for (Object input : inputs) {
             persistedView.put(input, input);
         }
@@ -400,7 +400,7 @@ public final class WriteSetImpl implements WriteSet {
 
     @SuppressWarnings({"unchecked", "rawtypes"})
     private void update(@Nonnull EntityRepository repository, @Nonnull List<Object> batch) {
-        repository.update((Iterable) batch);
+        repository.update(batch);
     }
 
     //
@@ -477,7 +477,7 @@ public final class WriteSetImpl implements WriteSet {
      * than everything it depends on. Fails fast when a dependency cycle prevents an ordering.
      */
     static void assignLevels(@Nonnull IdentityHashMap<Object, Node> nodes, @Nonnull List<Node> order) {
-        var remaining = new ArrayList<Node>(order);
+        var remaining = new ArrayList<>(order);
         while (!remaining.isEmpty()) {
             boolean progressed = false;
             var next = new ArrayList<Node>();
@@ -620,7 +620,7 @@ public final class WriteSetImpl implements WriteSet {
 
     private static final ClassValue<RebuildType> REBUILD_TYPES = new ClassValue<>() {
         @Override
-        protected RebuildType computeValue(Class<?> type) {
+        protected RebuildType computeValue(@Nonnull Class<?> type) {
             RecordType recordType = REFLECTION.getRecordType(type);
             recordType.constructor().trySetAccessible();
             return new RebuildType(recordType, Instantiators.find(type));
@@ -678,7 +678,7 @@ public final class WriteSetImpl implements WriteSet {
         var fetched = new HashMap<TypeIdKey, Entity<?>>();
         for (var entry : idsByType.entrySet()) {
             EntityRepository repository = typeInfo(entry.getKey()).repository;
-            for (Object entity : (List<Object>) repository.findAllById((Iterable) entry.getValue())) {
+            for (Object entity : (List<Object>) repository.findAllById(entry.getValue())) {
                 Entity<?> fetchedEntity = (Entity<?>) entity;
                 fetched.put(new TypeIdKey(entry.getKey(), fetchedEntity.id()), fetchedEntity);
             }
@@ -837,7 +837,7 @@ public final class WriteSetImpl implements WriteSet {
         for (int i = 0; i < fields.size(); i++) {
             path.add(i);
             boolean scalar = collectScalarLeaves(fields.get(i), path, leaves);
-            path.remove(path.size() - 1);
+            path.removeLast();
             if (!scalar) {
                 return false;
             }
@@ -847,13 +847,15 @@ public final class WriteSetImpl implements WriteSet {
 
     /** Returns the record field at the given component path, descending through nested records. */
     private static RecordField fieldAt(@Nonnull RecordType rootType, @Nonnull int[] path) {
-        RecordType current = rootType;
-        RecordField field = null;
-        for (int index : path) {
-            field = current.fields().get(index);
-            current = REFLECTION.findRecordType(field.type()).orElse(null);
+        RecordField field = rootType.fields().get(path[0]);
+        for (int depth = 1; depth < path.length; depth++) {
+            RecordField parent = field;
+            // Every path element but the last addresses a nested record; a non-record here means the path is malformed.
+            RecordType nested = REFLECTION.findRecordType(parent.type()).orElseThrow(() ->
+                    new PersistenceException("Cannot resolve component path: '%s' is not a record.".formatted(parent.name())));
+            field = nested.fields().get(path[depth]);
         }
-        return requireNonNull(field, "field");
+        return field;
     }
 
     /** Returns the wrapper type for primitives, the type itself otherwise. */
@@ -895,11 +897,12 @@ public final class WriteSetImpl implements WriteSet {
                                 fieldInsertable, null));
                     }
                 } else if (field.isDataType() && Entity.class.isAssignableFrom(field.type())) {
+                    //noinspection unchecked
                     edges.add(new FkEdge(toArray(path), field.name(), fieldPath, false,
                             (Class<? extends Data>) field.type(), fieldInsertable, null));
                 }
-                nameParts.remove(nameParts.size() - 1);
-                path.remove(path.size() - 1);
+                nameParts.removeLast();
+                path.removeLast();
                 continue;
             }
             if (Entity.class.isAssignableFrom(field.type()) || Ref.class.isAssignableFrom(field.type())) {
@@ -912,8 +915,8 @@ public final class WriteSetImpl implements WriteSet {
                 path.add(i);
                 nameParts.add(field.name());
                 collectFkEdges(nested.get(), path, nameParts, fieldInsertable, edges);
-                nameParts.remove(nameParts.size() - 1);
-                path.remove(path.size() - 1);
+                nameParts.removeLast();
+                path.removeLast();
             }
         }
     }
