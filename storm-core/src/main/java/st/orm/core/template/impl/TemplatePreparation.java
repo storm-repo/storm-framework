@@ -561,7 +561,8 @@ class TemplatePreparation {
                 case BindVars b -> resolveBindVarsElement(sqlOperation, p, b);
                 case Subqueryable t -> new Elements.Subquery(t.getSubquery(), true);
                 case Navigable<?, ?> m when m.isColumn() -> new Column(toColumnMetamodel(m), CASCADE);
-                case Navigable<?, ?> ignore -> throw new SqlTemplateException("Metamodel does not reference a column.");
+                case Navigable<?, ?> ignore -> throw new SqlTemplateException(
+                        "Path does not reference a column. Use a column-level path (e.g., User_.name) rather than a table-level path.");
                 case Object[] a -> resolveArrayElement(sqlOperation, p, a);
                 case Iterable<?> l -> resolveIterableElement(sqlOperation, p, l);
                 case Element e -> e;

@@ -70,8 +70,9 @@ public abstract class AbstractNavigableMetamodel<T extends Data, E> implements N
     }
 
     /**
-     * Equality is based on {@link #tableType()} and {@link #field()}, matching {@link AbstractMetamodel}, so a
-     * navigation-only node and a full metamodel for the same field compare equal.
+     * Equality is based on {@link #tableType()}, {@link #path()} and {@link #field()}, matching
+     * {@link AbstractMetamodel}, so a navigation-only node and a full metamodel that reach the same field through the
+     * same path compare equal.
      */
     @Override
     public final boolean equals(Object o) {
