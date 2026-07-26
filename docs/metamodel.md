@@ -337,6 +337,8 @@ val visitsByPet: Map<Ref<Pet>, List<Visit>> = orm.entity<Visit>()
 // orm.entity<Visit>().select().resultGroupedBy(Visit_.pet.owner)
 ```
 
+A path is not the only way to reach the referenced table. Naming the table by type does it too: selecting it (`select(City::class)`) joins it and hydrates it with its own foreign keys, and joining onto it (`innerJoin<X>().on<City>()`) brings it in. Both share the occurrence a navigating path resolves against, so a query that names the table both ways joins it once. A table the query joins explicitly keeps that occurrence.
+
 ### Cyclic References
 
 A reference may point back at a table already on the path, either at the record that declares it or through a longer cycle. Such a path joins the table to itself, and each occurrence is joined under its own alias, so a predicate or ordering resolves against the occurrence the path reached:
