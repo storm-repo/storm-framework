@@ -2,7 +2,6 @@ package st.orm.core;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
-import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import org.junit.jupiter.api.Test;
 import st.orm.Metamodel;
@@ -24,10 +23,9 @@ public class CrossPackageMetamodelTest {
 
     @Test
     public void navigatesPastAReferenceIntoAnInlineRecordFromAnotherPackage() {
+        // Holding the node as a Navigable is the contract; what remains to check is that it is not a value metamodel.
         Navigable<?, String> label = CrossPackageHolder_.owner.details.label;
         assertEquals("owner.details.label", label.fieldPath());
-        // Beyond a reference the node is navigation-only, matching every other reference.
-        assertTrue(label instanceof Navigable);
         assertFalse(label instanceof Metamodel);
     }
 }
