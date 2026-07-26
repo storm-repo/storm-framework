@@ -300,6 +300,29 @@ val refs = orm.entity<User>()
     .resultList
 ```
 
+### Navigating Through a Ref
+
+A `Ref<T>` foreign key is still navigable in queries. Filter, order, and select through it with the metamodel; Storm adds the join for the referenced table on demand, only for a query that references a column beyond the foreign key. Selecting the root leaves the field as an unloaded `Ref`.
+
+```kotlin
+// User.city is Ref<City>; City has a country FK. The city and country tables are joined
+// only because the query navigates beyond the city foreign key.
+val users = orm.entity<User>()
+    .select()
+    .where(User_.city.country.name eq "United States")
+    .orderBy(User_.city.name)
+    .resultList
+
+// Select a column from beyond the reference.
+data class CountryName(val name: String)
+val names = orm.entity<User>()
+    .select<CountryName, _, _> { "${User_.city.country.name}" }
+    .where(User_.city.country.name eq "United States")
+    .resultList
+```
+
+Nodes beyond a reference are navigation-only: usable in `where`, `orderBy`, `groupBy`, `having`, and selected columns, but not in value operations. Group by the reference itself with `resultGroupedByRef`, not `resultGroupedBy` on a beyond-reference path (which does not compile). Prefer a `Ref` for foreign keys you do not hydrate on most reads: it keeps SELECTs narrow while staying queryable. Navigation may cross more than one reference across distinct tables. A reference carries the target's primary key, so `User_.city.id` resolves to the foreign key column and needs no join, the same column an entity foreign key resolves its primary key to; any other column of the target joins. A self-referential foreign key must be a `Ref`, and it generates no navigation children, so navigating past it does not compile (the table would join itself and resolve against the earlier occurrence); the reference itself stays selectable, so walk the chain in code with `fetch()`. A cycle closing through more than one type, or a path built from a string, throws when the metamodel is constructed.
+
 ## Subqueries (EXISTS / NOT EXISTS)
 
 ```kotlin

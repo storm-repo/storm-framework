@@ -238,6 +238,16 @@ data class User(
 val cityName = user.city.fetch().name  // Fetches when needed
 ```
 
+A Ref stays queryable. Filter, order, and select through it with the metamodel; Storm adds the join for the referenced table on demand, only when the query navigates beyond the FK. Selecting the root leaves the field an unloaded Ref:
+```kotlin
+val users = orm.entity<User>()
+    .select()
+    .where(User_.city.country.name eq "United States")  // joins city + country on demand
+    .resultList
+```
+
+Nodes beyond a Ref are navigation-only: usable in where/orderBy/groupBy/having/selected columns, but not in value operations. Group by the reference itself with resultGroupedByRef, not resultGroupedBy on a beyond-reference path. Prefer a Ref for FKs not hydrated on most reads to avoid eager join fan-out while staying queryable. Navigation may cross more than one reference across distinct tables. A Ref carries the target's primary key (ref.id() reads it without fetching), so User_.city.id resolves to the FK column and needs no join, matching entity-FK behavior; any other target column joins. A self-referential FK must be a Ref, and it generates no navigation children, so navigating past it does not compile (the table would join itself and resolve against the earlier occurrence); the reference itself stays selectable, so walk the chain in code with fetch(). A cycle closing through more than one type, or a string-built path, throws when the metamodel is constructed.
+
 ### Dependencies (BOM)
 
 Kotlin (Gradle) — apply the Storm plugin (id "st.orm", Gradle 8.5+). It imports the BOM and adds storm-kotlin, storm-core, the KSP metamodel processor, and the compiler plugin, so no Storm dependencies are declared by hand:
@@ -413,9 +423,17 @@ SQL Templates are an escape hatch. Three rules:
 6. **FK nullability determines JOIN type.** A non-nullable @FK produces INNER JOIN;
    a nullable @FK produces LEFT JOIN. This is by design, not a bug.
 
-7. **Use Ref<T> for deferred loading.** If you do not want Storm to eagerly load
-   a related entity, wrap the FK type in Ref<T>. This loads only the foreign key
-   value and defers the full entity fetch until you call fetch().
+7. **Use Ref<T> for deferred loading, without losing queryability.** If you do not
+   want Storm to eagerly load a related entity, wrap the FK type in Ref<T>. This
+   loads only the foreign key value and defers the full entity fetch until you call
+   fetch(). The reference stays queryable: filter, order, and select through it with
+   the metamodel (User_.city.country.name), and Storm adds the join only for the
+   query that navigates beyond the FK. Nodes beyond a Ref are navigation-only:
+   usable in where/orderBy/groupBy/having/selected columns, but not in value
+   operations (group by the reference with resultGroupedByRef). A self-referential
+   FK must be a Ref, and it generates no navigation children, so navigating past it
+   does not compile; the reference itself stays selectable, so walk the chain with
+   fetch(). Prefer Ref for FKs not hydrated on most reads to avoid eager join fan-out.
 
 8. **Use Ref<T> for map keys and set membership.** Prefer `Ref<Entity>` (via
    `.ref()`) for map keys, set membership, and identity-based lookups. `Ref`

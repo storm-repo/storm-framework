@@ -130,8 +130,14 @@ final class RecordReflection {
             // If there's still a next part to search, update type if possible.
             boolean hasNextPart = (i < parts.length - 1);
             if (hasNextPart) {
+                // Unwrap Ref<X> foreign keys so a path can traverse beyond a reference boundary. The referenced
+                // type resolves deeper components for querying (filter, join, order, select); the reference itself
+                // is still selected as its foreign key column, so the entity graph stays optimized.
+                Class<?> nextType = Ref.class.isAssignableFrom(foundField.type())
+                        ? getFkTargetType(foundField)
+                        : foundField.type();
                 // The type of the found field must be another record type to continue drilling down.
-                var fieldType = REFLECTION.findRecordType(foundField.type()).orElse(null);
+                var fieldType = REFLECTION.findRecordType(nextType).orElse(null);
                 if (fieldType != null) {
                     type = fieldType;
                 } else {

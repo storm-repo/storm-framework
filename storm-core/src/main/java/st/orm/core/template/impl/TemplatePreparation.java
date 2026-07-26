@@ -64,6 +64,7 @@ import st.orm.Element;
 import st.orm.FK;
 import st.orm.JoinType;
 import st.orm.Metamodel;
+import st.orm.Navigable;
 import st.orm.PK;
 import st.orm.ProjectionQuery;
 import st.orm.Ref;
@@ -559,8 +560,9 @@ class TemplatePreparation {
                 case Expression e -> new Cacheable(e);
                 case BindVars b -> resolveBindVarsElement(sqlOperation, p, b);
                 case Subqueryable t -> new Elements.Subquery(t.getSubquery(), true);
-                case Metamodel<?, ?> m when m.isColumn() -> new Column(m, CASCADE);
-                case Metamodel<?, ?> ignore -> throw new SqlTemplateException("Metamodel does not reference a column.");
+                case Navigable<?, ?> m when m.isColumn() -> new Column(toColumnMetamodel(m), CASCADE);
+                case Navigable<?, ?> ignore -> throw new SqlTemplateException(
+                        "Path does not reference a column. Use a column-level path (e.g., User_.name) rather than a table-level path.");
                 case Object[] a -> resolveArrayElement(sqlOperation, p, a);
                 case Iterable<?> l -> resolveIterableElement(sqlOperation, p, l);
                 case Element e -> e;
@@ -715,13 +717,13 @@ class TemplatePreparation {
                 it.set(new Wrapped(List.of()));
             }
         }
-        List<Join> joins;
-        if (from.autoJoin()) {
-            joins = new ArrayList<>();
-            addAutoJoins(fromTable, fromTable, customJoins, aliasMapper, tableMapper, joins);
-        } else {
-            joins = customJoins;
-        }
+        List<Join> joins = new ArrayList<>();
+        Set<String> referencedTablePaths = collectReferencedTablePaths(fromTable, mutableElements);
+        // Always ensure joins exist for referenced metamodel paths (in SELECT, WHERE, ORDER BY, ...). With auto-join the
+        // whole hydrated entity graph is joined eagerly; without it only the referenced foreign keys are joined on
+        // demand, so a selected or filtered column beyond the root's own columns (in particular beyond a reference)
+        // still resolves. Unreferenced auto-joins are pruned by JoinProcessor.
+        addAutoJoins(fromTable, fromTable, customJoins, aliasMapper, tableMapper, joins, referencedTablePaths, !from.autoJoin());
         if (!joins.isEmpty()) {
             mutableElements.stream()
                 .filter(Select.class::isInstance)
@@ -792,13 +794,17 @@ class TemplatePreparation {
             @Nonnull List<Join> customJoins,
             @Nonnull AliasMapper aliasMapper,
             @Nonnull TableMapper tableMapper,
-            @Nonnull List<Join> joins
+            @Nonnull List<Join> joins,
+            @Nonnull Set<String> referencedTablePaths,
+            boolean demandOnly
     ) throws SqlTemplateException {
         // Sealed entity interfaces are not records and don't have FK fields that need auto-joining.
         // Their columns are synthetic (union of subtype fields). Skip auto-join for sealed entities.
+        // When demandOnly is set, only referenced foreign keys are joined (the hydrated graph is not expanded), so
+        // the recursion starts already beyond the eager region.
         if (!isSealedEntity(table)) {
-            addAutoJoins(getRecordType(table), table, rootTable, List.of(), aliasMapper, tableMapper, joins, null, false);
-        } else if (isJoinedEntity(table)) {
+            addAutoJoins(getRecordType(table), table, rootTable, List.of(), aliasMapper, tableMapper, joins, null, false, referencedTablePaths, demandOnly);
+        } else if (!demandOnly && isJoinedEntity(table)) {
             // For JOINED inheritance, add LEFT JOIN for each extension table (permitted subclass with
             // @DbTable) using PK=PK ON conditions.
             addJoinedExtensionJoins(table, aliasMapper, joins);
@@ -893,7 +899,9 @@ class TemplatePreparation {
             @Nonnull TableMapper tableMapper,
             @Nonnull List<Join> joins,
             @Nullable String fkName,
-            boolean outerJoin
+            boolean outerJoin,
+            @Nonnull Set<String> referencedTablePaths,
+            boolean beyondRef
     ) throws SqlTemplateException {
         for (var field : type.fields()) {
             var list = new ArrayList<>(path);
@@ -903,20 +911,33 @@ class TemplatePreparation {
             String pkPath = toPathString(copy);
             if (field.isAnnotationPresent(FK.class)) {
                 if (Ref.class.isAssignableFrom(field.type())) {
-                    String fromAlias;
-                    if (fkName == null) {
-                        fromAlias = aliasMapper.getAlias(
+                    boolean referenced = isReferencedBeyond(referencedTablePaths, pkPath);
+                    // A reference is never hydrated, so it contributes no eager join: it is selected as its foreign
+                    // key column, which keeps the entity graph optimized. In the eager (hydrated) region the reference
+                    // still registers its mapping so its foreign key component can be resolved, matching prior
+                    // behavior. Below a reference boundary the reference is only touched when a query element navigates
+                    // beyond it; then a filter-only join is materialized so the referenced table can be filtered,
+                    // joined, ordered, or selected. Gating on referenced paths bounds the recursion, which matters
+                    // because references can be cyclic (self-referencing foreign keys must be a Ref). Any ref join that
+                    // still ends up unreferenced is pruned by JoinProcessor.
+                    if (!beyondRef || referenced) {
+                        String fromAlias = fkName != null ? fkName : aliasMapper.getAlias(
                                 table,
                                 fkPath,
                                 INNER,
                                 template.dialect(),
                                 () -> new SqlTemplateException("Table %s for From not found at %s."
-                                        .formatted(type.type().getSimpleName(), fkPath))
-                        );
-                    } else {
-                        fromAlias = fkName;
+                                        .formatted(type.type().getSimpleName(), fkPath)));
+                        tableMapper.mapForeignKey(table, getRefDataType(field), fromAlias, field, rootTable, fkPath);
+                        if (referenced) {
+                            RecordType fieldType = getRecordType(getRefDataType(field));
+                            boolean effectiveOuterJoin = outerJoin || field.nullable();
+                            String alias = addForeignKeyJoin(table, rootTable, field, fieldType, fromAlias, fkPath,
+                                    pkPath, effectiveOuterJoin, aliasMapper, tableMapper, joins);
+                            addAutoJoins(fieldType, fieldType.requireDataType(), rootTable, copy, aliasMapper,
+                                    tableMapper, joins, alias, effectiveOuterJoin, referencedTablePaths, true);
+                        }
                     }
-                    tableMapper.mapForeignKey(table, getRefDataType(field), fromAlias, field, rootTable, fkPath);
                     continue;
                 }
                 if (!isRecord(field.type())) {
@@ -927,6 +948,12 @@ class TemplatePreparation {
                             "Self-referencing FK annotation is not allowed: %s. FK must be marked as Ref."
                                     .formatted(type.type().getSimpleName())
                     );
+                }
+                // Below a reference boundary nothing is hydrated, so entity foreign keys are demand-driven too:
+                // only the ones a query element navigates to are joined. Above any reference (the hydrated graph)
+                // every entity foreign key is joined eagerly, preserving the existing behavior.
+                if (beyondRef && !isReferencedBeyond(referencedTablePaths, pkPath)) {
+                    continue;
                 }
                 String fromAlias;
                 if (fkName == null) {
@@ -942,31 +969,17 @@ class TemplatePreparation {
                     fromAlias = fkName;
                 }
                 RecordType fieldType = getRecordType(field.type());
-                String alias = aliasMapper.generateAlias(fieldType.requireDataType(), pkPath, table, fromAlias, template.dialect());
-                tableMapper.mapForeignKey(table, fieldType.requireDataType(), fromAlias, field, rootTable, fkPath);
-
                 boolean effectiveOuterJoin = outerJoin || field.nullable();
-                JoinType joinType = effectiveOuterJoin ? DefaultJoinType.LEFT : DefaultJoinType.INNER;
-
-                ProjectionQuery query = fieldType.getAnnotation(ProjectionQuery.class);
-                Source source = query == null
-                        ? new TableSource(fieldType.requireDataType())
-                        : new Elements.TemplateSource(TemplateString.of(query.value()));
-                Elements.Target target = query == null
-                        ? new Elements.TableTarget(table, field)
-                        : getTemplateTarget(
-                        fromAlias,
-                        alias,
-                        field,
-                        findPkField(fieldType.type()).orElseThrow(
-                                () -> new SqlTemplateException("Failed to find primary key for table %s."
-                                        .formatted(fieldType.type().getSimpleName()))
-                        )
-                );
-                joins.add(new Join(source, alias, target, fromAlias, joinType, true));
-                addAutoJoins(fieldType, fieldType.requireDataType(), rootTable, copy, aliasMapper, tableMapper, joins, alias, effectiveOuterJoin);
+                String alias = addForeignKeyJoin(table, rootTable, field, fieldType, fromAlias, fkPath,
+                        pkPath, effectiveOuterJoin, aliasMapper, tableMapper, joins);
+                addAutoJoins(fieldType, fieldType.requireDataType(), rootTable, copy, aliasMapper, tableMapper, joins, alias, effectiveOuterJoin, referencedTablePaths, beyondRef);
             } else if (isRecord(field.type())) {
                 if (field.isAnnotationPresent(PK.class) || getORMConverter(field).isPresent()) {
+                    continue;
+                }
+                // Below a reference boundary, only recurse into an inline record when a query element navigates
+                // through it; above any reference the whole hydrated graph is traversed, preserving prior behavior.
+                if (beyondRef && !isReferencedBeyond(referencedTablePaths, pkPath)) {
                     continue;
                 }
                 String fromAlias;
@@ -982,9 +995,180 @@ class TemplatePreparation {
                 } else {
                     fromAlias = fkName;
                 }
-                addAutoJoins(getRecordType(field.type()), table, rootTable, copy, aliasMapper, tableMapper, joins, fromAlias, outerJoin);
+                addAutoJoins(getRecordType(field.type()), table, rootTable, copy, aliasMapper, tableMapper, joins, fromAlias, outerJoin, referencedTablePaths, beyondRef);
             }
         }
+    }
+
+    /**
+     * Generates a foreign key join from {@code fromAlias} on {@code table} to the table backing {@code fieldType},
+     * registers the new alias and foreign key mapping, and appends the join to {@code joins}. The join is marked as an
+     * auto-join so {@link JoinProcessor} prunes it when the target table is not referenced by the query.
+     *
+     * @return the alias generated for the joined table.
+     */
+    private String addForeignKeyJoin(
+            @Nonnull Class<? extends Data> table,
+            @Nonnull Class<? extends Data> rootTable,
+            @Nonnull RecordField field,
+            @Nonnull RecordType fieldType,
+            @Nonnull String fromAlias,
+            @Nonnull String fkPath,
+            @Nonnull String pkPath,
+            boolean effectiveOuterJoin,
+            @Nonnull AliasMapper aliasMapper,
+            @Nonnull TableMapper tableMapper,
+            @Nonnull List<Join> joins
+    ) throws SqlTemplateException {
+        String alias = aliasMapper.generateAlias(fieldType.requireDataType(), pkPath, table, fromAlias, template.dialect());
+        tableMapper.mapForeignKey(table, fieldType.requireDataType(), fromAlias, field, rootTable, fkPath);
+        // The join type encodes the declared cardinality of the foreign key. A non-null foreign key asserts that the
+        // relationship always resolves, so it is joined with INNER; a nullable foreign key, or any foreign key beneath
+        // a nullable ancestor, is joined with LEFT because the child may be absent. INNER is the faithful encoding: a
+        // LEFT join on a non-null field would admit a null that the record cannot hold, since a non-null component
+        // cannot be constructed from a missing row. The consequence is that a parent whose non-null foreign key does
+        // not resolve, either because the column is null or because it holds a value that points at a row that does
+        // not exist, is excluded from the result. This filtering coincides with hydration: when the child table is not
+        // referenced its auto-join is pruned and no parent row is dropped, which is correct because nothing is being
+        // constructed from it. A field declared non-null over a column that permits null is a mapping error reported
+        // separately by schema validation. A foreign key that must neither filter nor join is modeled as a Ref, which
+        // selects the foreign key column without a join.
+        JoinType joinType = effectiveOuterJoin ? DefaultJoinType.LEFT : DefaultJoinType.INNER;
+        ProjectionQuery query = fieldType.getAnnotation(ProjectionQuery.class);
+        Source source = query == null
+                ? new TableSource(fieldType.requireDataType())
+                : new Elements.TemplateSource(TemplateString.of(query.value()));
+        Elements.Target target = query == null
+                ? new Elements.TableTarget(table, field)
+                : getTemplateTarget(
+                fromAlias,
+                alias,
+                field,
+                findPkField(fieldType.type()).orElseThrow(
+                        () -> new SqlTemplateException("Failed to find primary key for table %s."
+                                .formatted(fieldType.type().getSimpleName()))
+                )
+        );
+        joins.add(new Join(source, alias, target, fromAlias, joinType, true));
+        return alias;
+    }
+
+    /**
+     * Returns whether a referenced table path reaches at or beyond the foreign key at {@code pkPath}, meaning a query
+     * element (a filter, join, order-by, group-by, or selected column) navigates through it and therefore needs its
+     * join to be present. Paths use record field names, matching those registered during join derivation.
+     */
+    private static boolean isReferencedBeyond(@Nonnull Set<String> referencedTablePaths, @Nonnull String pkPath) {
+        if (pkPath.isEmpty()) {
+            return false;
+        }
+        String prefix = pkPath + ".";
+        for (String referenced : referencedTablePaths) {
+            if (referenced.equals(pkPath) || referenced.startsWith(prefix)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /**
+     * Collects the table paths, relative to the FROM {@code rootTable}, that the query's elements reference beyond the
+     * root, so join derivation can materialize any joins those paths need (in particular, joins that traverse a Ref
+     * boundary). Only metamodels rooted at {@code rootTable} contribute; a reference to the root table itself carries
+     * the empty path and is ignored.
+     */
+    private Set<String> collectReferencedTablePaths(@Nonnull Class<? extends Data> rootTable,
+                                                    @Nonnull List<Element> elements) {
+        Set<String> paths = new HashSet<>();
+        for (Element element : elements) {
+            collectReferencedTablePaths(rootTable, element, paths);
+        }
+        return paths;
+    }
+
+    private void collectReferencedTablePaths(@Nonnull Class<? extends Data> rootTable,
+                                             @Nonnull Element element,
+                                             @Nonnull Set<String> paths) {
+        switch (element) {
+            case Column column -> addReferencedTablePath(rootTable, column.field(), paths);
+            case Elements.Where where -> {
+                if (where.expression() != null) {
+                    collectReferencedTablePaths(rootTable, where.expression(), paths);
+                }
+                if (where.bindVarsKey() != null) {
+                    addReferencedTablePath(rootTable, where.bindVarsKey(), paths);
+                }
+            }
+            case Cacheable cacheable -> collectReferencedTablePaths(rootTable, cacheable.expression(), paths);
+            case Elements.Set set -> {
+                for (var metamodel : set.fields()) {
+                    addReferencedTablePath(rootTable, metamodel, paths);
+                }
+            }
+            case Wrapped wrapped -> {
+                for (var node : wrapped.elements()) {
+                    collectReferencedTablePaths(rootTable, node.element(), paths);
+                }
+            }
+            default -> {
+            }
+        }
+    }
+
+    private void collectReferencedTablePaths(@Nonnull Class<? extends Data> rootTable,
+                                             @Nonnull Expression expression,
+                                             @Nonnull Set<String> paths) {
+        switch (expression) {
+            case Elements.ObjectExpression objectExpression -> {
+                if (objectExpression.metamodel() != null) {
+                    addReferencedTablePath(rootTable, objectExpression.metamodel(), paths);
+                }
+            }
+            case Elements.TemplateExpression templateExpression ->
+                    collectReferencedTablePaths(rootTable, templateExpression.template(), paths);
+        }
+    }
+
+    private void collectReferencedTablePaths(@Nonnull Class<? extends Data> rootTable,
+                                             @Nonnull TemplateString template,
+                                             @Nonnull Set<String> paths) {
+        for (var value : template.values()) {
+            switch (value) {
+                case Metamodel<?, ?> metamodel -> addReferencedTablePath(rootTable, metamodel, paths);
+                case Expression expression -> collectReferencedTablePaths(rootTable, expression, paths);
+                case Element element -> collectReferencedTablePaths(rootTable, element, paths);
+                case TemplateString nested -> collectReferencedTablePaths(rootTable, nested, paths);
+                default -> {
+                }
+            }
+        }
+    }
+
+    /**
+     * Records the table path of a metamodel that is rooted at {@code rootTable}. The table path is the path up to the
+     * table holding the referenced column; the demand-driven join gate expands it to every foreign key it crosses.
+     */
+    private void addReferencedTablePath(@Nonnull Class<? extends Data> rootTable,
+                                        @Nonnull Metamodel<?, ?> metamodel,
+                                        @Nonnull Set<String> paths) {
+        if (metamodel.root() != rootTable) {
+            return;
+        }
+        String path = metamodel.path();
+        if (!path.isEmpty()) {
+            paths.add(path);
+        }
+    }
+
+    /**
+     * Resolves a navigable used as a template value into a column metamodel. Full metamodels are used as-is; a
+     * navigation-only node (one that navigates beyond a {@link Ref}) is rebuilt into a resolvable metamodel for its
+     * path so it can be selected or filtered. The rebuilt metamodel is query-only and cannot extract a value.
+     */
+    private static <T extends Data> Metamodel<T, ?> toColumnMetamodel(@Nonnull Navigable<T, ?> navigable) {
+        return navigable instanceof Metamodel<T, ?> metamodel
+                ? metamodel
+                : Metamodel.of(navigable.root(), navigable.fieldPath());
     }
 
     /**

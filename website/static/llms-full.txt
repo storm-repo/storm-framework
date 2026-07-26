@@ -18,7 +18,7 @@
 > GitHub: https://github.com/storm-orm/storm-framework
 > License: Apache 2.0
 
-# Generated: 2026-07-24T04:28:10Z
+# Generated: 2026-07-26T18:13:43Z
 
 ========================================
 ## Source: index.md
@@ -275,6 +275,8 @@ Storm is released under the [Apache 2.0 License](https://github.com/storm-repo/s
 Storm is a modern SQL Template and ORM framework for Kotlin 2.0+ and Java 21+. It uses immutable data classes and records instead of proxied entities, giving you predictable behavior, type-safe queries, and high performance.
 
 ## Choose Your Path
+
+> **Fastest start:** each example app is a GitHub template. Click **Use this template** to generate a runnable project, then replace the sample entities with your own: [Kotlin + Ktor](https://github.com/storm-orm/storm-example-kotlin-ktor/generate) · [Kotlin + Spring Boot](https://github.com/storm-orm/storm-example-kotlin-spring-boot-4/generate) · [Java + Spring Boot](https://github.com/storm-orm/storm-example-java-spring-boot-4/generate).
 
 Two ways to get started, and both reach the same working setup: follow the guides by hand, or let your AI coding tool do it. Pick whichever fits your workflow.
 [Manual]
@@ -2632,7 +2634,7 @@ Map<City, List<User>> usersByCity = orm.entity(User.class)
 ```
 The grouped terminal returns an unmodifiable, insertion-ordered map: parents appear in the order
 their first row is encountered, children in row order within each parent. Because duplicate entities within a
-result set share the same instance, each child's reference to its parent is the map key itself, and repeated
+result set are guaranteed to share the same instance, each child's reference to its parent is the map key itself, and repeated
 parents are materialized once rather than once per row. The path must resolve to a non-null record for every
 result; narrow queries over nullable foreign keys with a `where()` clause first. This replaces the manual
 pattern of querying the many side and grouping in memory, and it loads the whole graph in a single query,
@@ -3067,7 +3069,7 @@ data class Category(
 ) : Entity<Int>
 ```
 
-See [Refs](refs.md) for details on lightweight references.
+A `Ref` removes the join from every read but keeps the relationship queryable: you can still filter, order, and select through it with the metamodel (`Category_.parent.name`), and Storm adds the join only for the query that navigates beyond the foreign key. This makes `Ref` the primary tool for keeping wide or deep graphs' reads narrow without giving up type-safe traversal. See [Refs](refs.md) and [Querying Through Refs](refs.md#querying-through-refs) for details.
 
 ## Tips
 
@@ -3745,6 +3747,8 @@ boolean exists = users.existsById(userId);
 
 ## Filtering with Predicates
 
+Predicate paths traverse the entity graph (`User_.city.country.name`), and they may also navigate *through* a `Ref` foreign key. Storm adds the join for the referenced table on demand, only for a query that references a column beyond the foreign key. This holds for every clause that names a column: `where`, `orderBy`, `groupBy`, `having`, and custom selected columns. See [Querying Through Refs](refs.md#querying-through-refs).
+
 [Kotlin]
 
 Combine conditions with `and` and `or`:
@@ -4147,6 +4151,11 @@ The where clause keeps its normal meaning: it filters the results, and a group a
 its results matches. The path must resolve to a non-null record for every result; narrow queries over nullable
 foreign keys with a `where()` clause first. See [Relationships](relationships.md#one-to-many) for the
 one-to-many loading pattern.
+
+`resultGroupedBy` reads the group key from each hydrated record, so its path must be a value node from the
+eagerly-loaded graph. A path *beyond* a `Ref` is navigation-only and cannot be a group key: it does not compile.
+Group by the reference itself with `resultGroupedByRef`, which takes the foreign key without hydrating the target.
+See [Navigating Through Refs](metamodel.md#navigating-through-refs).
 
 The ref-based variant `resultGroupedByRef` (Java: `getResultGroupedByRef`) returns `Map<Ref<V>, List<T>>`
 instead. Refs are compared by primary key, keeping map lookups constant-cost regardless of the size of the group
@@ -5160,6 +5169,72 @@ When resolving a metamodel reference, Storm follows this order:
 2. **Use short form** for custom joins (required) or when you're certain the table is unique
 3. **Check error messages.** Storm tells you which paths are available when ambiguity is detected.
 
+## Navigating Through Refs
+
+A foreign key declared as `Ref<T>` also gets a metamodel, so you can navigate through it the same way you navigate a directly-referenced entity. The difference is where the join goes: a `Ref` is selected as its foreign key column and is never hydrated, so navigating beyond it adds the join *on demand*, only for the query that references a column past the foreign key. A query that stops at the reference emits no join for the referenced table.
+
+Given `User` with `@FK val city: Ref<City>` and `City` with a `country` foreign key:
+
+```kotlin
+// Navigates beyond the city reference: Storm adds the city and country joins for this query.
+User_.city.country.name eq "United States"
+
+// Selecting the root leaves User.city as an unloaded Ref; no join is added.
+orm.entity<User>().select().resultList
+```
+
+### Value Nodes and Navigation-Only Nodes
+
+The metamodel distinguishes two kinds of node, and the distinction is enforced by the type system:
+
+- A **value node** (`Metamodel` / `TypedMetamodel`) can both name a column in a query and extract that field's value from an in-memory record. Every node in the eagerly-hydrated entity graph is a value node, and so is the reference node itself (`User_.city`), whose value is the `Ref`.
+- A **navigation-only node** (`Navigable`, but not `Metamodel`) can name a column in a query but cannot extract a value from a record. Every node reached *beyond* a reference is navigation-only, because a `Ref` is never hydrated into the parent, so there is no in-memory value to read past it.
+
+Navigation-only nodes can be used anywhere a query needs a column reference: `where`, `orderBy`, `groupBy`, `having`, and custom selected columns. They cannot be passed to value operations. Because `resultGroupedBy` reads the group key from each hydrated record, it accepts only value nodes, so grouping by a beyond-reference path does not compile. Group by the reference itself with `resultGroupedByRef` instead, which reads the foreign key without hydrating the target:
+
+```kotlin
+// Compiles: the reference node is value-extractable and yields the Ref.
+val visitsByPet: Map<Ref<Pet>, List<Visit>> = orm.entity<Visit>()
+    .select()
+    .resultGroupedByRef(Visit_.pet)
+
+// Does not compile: a node beyond the reference is navigation-only.
+// orm.entity<Visit>().select().resultGroupedBy(Visit_.pet.owner)
+```
+
+### Cyclic References
+
+A reference that comes back to a table already on the path cannot be navigated: the table would join itself, and a table repeated on one path does not get a distinct alias per occurrence, so the navigation resolves against the earlier occurrence. Storm blocks that in two places.
+
+**A self-referential reference generates no navigation children.** When a `Ref` points back at the record that declares it, the field is generated as a childless value metamodel, so navigating past it is a compile error:
+
+```kotlin
+// Compiles: the reference is the foreign key column, and its value is the Ref.
+User_.invitedBy
+orm.entity<User>().select().resultGroupedByRef(User_.invitedBy)
+
+// Does not compile: a self-referential reference has no navigation children.
+// User_.invitedBy.email
+```
+
+This is decided per field, not per type. A reference to a self-referential type from a *different* record navigates normally, because those are two distinct tables:
+
+```kotlin
+// Fine: report -> user is an ordinary join, so the whole user graph is navigable.
+Report_.author.email eq "alice@example.com"
+```
+
+**Any remaining cycle is rejected when the path is built.** A cycle that closes through more than one type (`A` references `B`, which references `A`) cannot be detected while generating `B`'s metamodel, because it is generic in the root. The same applies to a path built from a string. Both are checked when the metamodel is constructed, and throw a `PersistenceException` rather than returning wrong rows:
+
+```kotlin
+// Throws: the path navigates past a reference back to a table already on the path.
+Metamodel.of(User::class.java, "invitedBy.email")
+```
+
+Navigation across *distinct* tables is unaffected, including a chain that crosses more than one reference (a `Ref` whose target has a `Ref` to a different table).
+
+A direct (non-`Ref`) self-referential foreign key is rejected at generation time: a self-reference must be a `Ref`, which is also what stops the runtime join graph from recursing into itself. See [Preventing Circular Dependencies](refs.md#preventing-circular-dependencies).
+
 ## Generated Code
 
 Understanding the generated code helps when debugging or reading compiler errors. The metamodel mirrors your entity structure, creating a static field for each entity field. Each field carries generic type parameters that encode both the root entity type and the field's value type, which is how the compiler enforces type safety in queries.
@@ -5205,6 +5280,23 @@ public interface User_ extends Metamodel<User, User> {
 ```
 
 Foreign key fields like `city` generate their own metamodel classes, enabling navigation through relationships with full type safety.
+
+A foreign key declared as `Ref<T>` generates a **reference metamodel**. The reference node is a value node whose value is the `Ref`, and its children are navigation-only nodes for the referenced type:
+
+```
+Entity                              Metamodel
+──────                              ─────────
+User                                User_
+ ├── id: Int (PK)                    ├── id       → Metamodel.Key<User, Int>
+ └── city: Ref<City> (FK)            └── city     → CityRefMetamodel<User>   (value node: getValue → Ref<City>)
+                                                      ├── id                 (navigation-only)
+                                                      └── country            (navigation-only)
+                                                            └── name         (navigation-only)
+```
+
+Selecting `User_.city` selects the foreign key column and yields a `Ref<City>`; navigating past it (`User_.city.country.name`) adds the join on demand. The target's primary key is the exception: a reference carries it (`ref.id()` reads it without fetching), so `User_.city.id` resolves to the foreign key column itself and needs no join, matching what an entity foreign key resolves its primary key to. See [Navigating Through Refs](#navigating-through-refs).
+
+A reference that points back at the record declaring it generates a childless variant instead, so the reference stays selectable while navigating past it does not compile. See [Cyclic References](#cyclic-references).
 
 ## Unique Keys (`@UK`) and `Metamodel.Key`
 
@@ -5591,6 +5683,8 @@ data class User(
 
 The `city` field contains only the foreign key ID, not the full `City` entity. Compare this with declaring `@FK val city: City`, which would load the full `City` (and its transitive `@FK` relationships) via auto-generated JOINs on every query.
 
+A `Ref` does not give up type-safe querying. Selecting the entity still stores only the foreign key value, but you can filter, order, and select *through* the reference by naming the target's columns on the metamodel (for example `User_.city.country.name`). Storm adds the join for the referenced table on demand, only for a query that actually navigates beyond the foreign key. See [Querying Through Refs](#querying-through-refs).
+
 [Java]
 
 The Java API uses `Ref<T>` in the same way as Kotlin. Declare the record component with `Ref<City>` instead of `City` to store only the foreign key.
@@ -5635,6 +5729,8 @@ City city = user.map(u -> u.city().fetch()).orElse(null);  // Loads from databas
 Without Refs, an entity that references its own type would cause infinite recursion during auto-join generation: `User` joins `User`, which joins `User`, and so on. Declaring the self-referential field as `Ref<User>` breaks the cycle. Storm stores only the foreign key and does not attempt to join the table to itself.
 
 This pattern applies to any recursive or hierarchical data model, such as organizational trees, threaded comments, or referral chains.
+
+A self-reference is not navigable, because the table would join itself: a table repeated on one path does not get a distinct alias per occurrence, so the navigation would resolve against the earlier occurrence. The metamodel therefore generates **no navigation children** for a self-referential reference, which makes `User_.invitedBy.email` a compile error rather than a wrong result. The reference itself stays usable, because it is the foreign key column: select it, filter on it, and resolve it with `fetch()` to walk the chain. See [Cyclic References](metamodel.md#cyclic-references).
 
 [Kotlin]
 
@@ -5733,6 +5829,92 @@ List<Role> roles = orm.query(RAW."""
         WHERE \{users}""")
     .getResultList(Role.class);
 ```
+---
+
+## Querying Through Refs
+
+A `Ref` breaks the eager join, not the entity graph. You can still filter, order, and select through the foreign key by naming the target's columns on the metamodel, exactly as you would for a directly-referenced entity. Storm materializes the join for the referenced table on demand: only a query that navigates *beyond* the foreign key adds the join, while a query that stops at the reference selects it as its foreign key column with no join at all.
+
+Consider `User` with `@FK val city: Ref<City>`, where `City` has a `country` foreign key.
+
+[Kotlin]
+
+```kotlin
+// Filter and order through the reference. The city and country tables are joined only because
+// the query navigates beyond the city foreign key.
+val users = orm.entity<User>()
+    .select()
+    .where(User_.city.country.name eq "United States")
+    .orderBy(User_.city.name)
+    .resultList
+```
+
+[Java]
+
+```java
+// Filter and order through the reference. The city and country tables are joined only because
+// the query navigates beyond the city foreign key.
+List<User> users = orm.entity(User.class)
+    .select()
+    .where(User_.city.country.name, EQUALS, "United States")
+    .orderBy(User_.city.name)
+    .getResultList();
+```
+Selecting the root entity still yields an unloaded `Ref`: the navigated columns pull in the join for filtering and ordering, but the selected `User.city` remains a foreign-key-only reference you resolve later with `fetch()`. A query that never navigates beyond the reference emits no join for the referenced table, so the reference stays as cheap as a plain foreign key column.
+
+### Selecting a Column Through a Ref
+
+A custom projection that references a beyond-reference column adds the join and selects that column:
+
+[Kotlin]
+
+```kotlin
+data class CountryName(val name: String)
+
+val names = orm.entity<User>()
+    .select<CountryName, _, _> { "${User_.city.country.name}" }
+    .where(User_.city.country.name eq "United States")
+    .resultList
+```
+
+[Java]
+
+```java
+record CountryName(String name) {}
+
+List<CountryName> names = orm.entity(User.class)
+    .select(CountryName.class, RAW."\{User_.city.country.name}")
+    .where(User_.city.country.name, EQUALS, "United States")
+    .getResultList();
+```
+### The Target's Primary Key Is Part of the Reference
+
+A reference carries the target's primary key: `ref.id()` returns it without fetching the target, because the key is the foreign key column stored on the row itself. Queries mirror that. Reaching the primary key through a reference resolves to that column, so it needs no join, while any other column of the target does:
+
+```kotlin
+// No join: the key is already on the user row, exactly as user.city.id() reads it without fetching.
+orm.entity<User>().select().where(User_.city.id eq 42).resultList
+// SELECT ... FROM user u WHERE u.city_id = ?
+
+// Joins: the name is not part of the reference, exactly as user.city.fetch().name needs the target.
+orm.entity<User>().select().where(User_.city.name eq "Sunnyvale").resultList
+// SELECT ... FROM user u INNER JOIN city c ON u.city_id = c.id WHERE c.name = ?
+```
+
+This is the same column the reference itself resolves to, so `User_.city.id eq 42` and `User_.city eq Ref.of(City::class.java, 42)` produce identical SQL. It is also the same column an entity foreign key resolves its primary key to, so a path means the same thing whether the relationship is declared as an entity or as a `Ref`.
+
+Because the key is read from the row, a match does not require the referenced row to exist. Express that requirement explicitly with a join or an exists clause when you need it.
+
+### What You Can and Cannot Do Beyond a Ref
+
+Nodes reached *beyond* a reference are **navigation-only**. They can be used anywhere a query needs a column reference: `where`, `orderBy`, `groupBy`, `having`, and custom selected columns. They cannot extract a value from an in-memory record, because a `Ref` is never hydrated into the parent, so value operations (such as `getValue` or `resultGroupedBy`) are not available on them and fail to compile. The reference node itself (`User_.city`) is value-extractable and yields the `Ref`, so grouping by the reference with `resultGroupedByRef` works. See [Navigating Through Refs](metamodel.md#navigating-through-refs) for the type-level details.
+
+### Designing Entities to Avoid Excessive Joins
+
+A directly-referenced entity foreign key (`@FK val city: City`) is joined on **every** query, together with its own transitive foreign keys, because Storm hydrates the whole reachable graph in one select (see [Relationship Loading Behavior](relationships.md#relationship-loading-behavior)). For a wide or deep graph this fans out into many joins that most reads do not need.
+
+Declaring the field as `Ref<City>` removes that join from every read while keeping the relationship fully queryable: the join appears only for the specific query that navigates beyond it. Prefer a `Ref` for foreign keys you do not hydrate on most reads, especially in wide or deep graphs, to keep SELECTs narrow without giving up type-safe filtering, ordering, and projection through the relationship.
+
 ---
 
 ## Creating Refs
@@ -5884,6 +6066,7 @@ Understanding how `fetch()` resolves its target helps you predict performance an
 2. **Use Refs for self-references.** Prevent circular loading in hierarchical data.
 3. **Use Refs in aggregations.** Get counts by FK without loading full entities.
 4. **Refs are reliable map keys.** They provide lightweight, identity-based comparison.
+5. **Refs stay queryable.** Filter, order, and select through a Ref with the metamodel; the join is added only when a query navigates beyond the foreign key.
 
 
 ========================================
@@ -13464,7 +13647,7 @@ val city: City = user.city.fetch()  // Loads City from database
 
 ## Query-Level Identity (Interning)
 
-When the same entity appears multiple times in a query result (e.g., through joins), Storm ensures they share the same object instance within that query. This is called **interning**.
+When the same entity appears multiple times in a query result (e.g., through joins), Storm guarantees they share the same object instance within that query, as long as your code still holds the earlier occurrence when the later one is hydrated. This is called **interning**. Code in a position to compare two occurrences necessarily holds the first one, so the guarantee holds wherever it can be observed; see [Memory Safety](#memory-safety) for why cleanup never weakens it.
 
 ```
 ┌─────────────────────────────────────────────────────────────────────────┐
@@ -13560,6 +13743,8 @@ orderRepository.select().resultFlow.collect { order ->
     // order can be cleaned up after this iteration
 }
 ```
+
+This cleanup never weakens identity. An entry is only cleared once your code no longer holds the instance, so any instance you still hold is guaranteed to be reused for later duplicates in the same query. Code that could compare two occurrences necessarily still holds the first one, which is exactly what keeps its entry alive: interning is a guarantee, not a best-effort optimization.
 
 ### Relationship with Entity Cache
 

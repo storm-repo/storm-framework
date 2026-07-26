@@ -71,7 +71,7 @@ public abstract class AbstractMetamodel<T extends Data, E, V> implements TypedMe
     }
 
     /**
-     * Equality is based on {@link #fieldType()} of {@link #table()} and {@link #field()}.
+     * Equality is based on {@link #fieldType()} of {@link #table()}, {@link #path()} and {@link #field()}.
      */
     @Override
     public final boolean equals(Object o) {
@@ -83,7 +83,7 @@ public abstract class AbstractMetamodel<T extends Data, E, V> implements TypedMe
     }
 
     /**
-     * Hash code is based on {@link #fieldType()} of {@link #table()} and {@link #field()}.
+     * Hash code is based on {@link #fieldType()} of {@link #table()}, {@link #path()} and {@link #field()}.
      *
      * <p>The hash is cached: metamodel instances are immutable and are hashed on every compilation-key lookup. The
      * benign race follows the {@link String#hashCode()} pattern, recomputing only when the hash happens to be zero.</p>

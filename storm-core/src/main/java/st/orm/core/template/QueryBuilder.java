@@ -39,6 +39,7 @@ import st.orm.Data;
 import st.orm.Entity;
 import st.orm.JoinType;
 import st.orm.Metamodel;
+import st.orm.Navigable;
 import st.orm.NoResultException;
 import st.orm.NonUniqueResultException;
 import st.orm.Operator;
@@ -260,8 +261,29 @@ public abstract class QueryBuilder<T extends Data, R, ID> {
      * @param record the records to match.
      * @return the predicate builder.
      */
-    public final <V extends Data> QueryBuilder<T, R, ID> where(@Nonnull Metamodel<T, V> path, @Nonnull V record) {
-        return where(path, EQUALS, record);
+    public final <V extends Data> QueryBuilder<T, R, ID> where(@Nonnull Navigable<T, V> path, @Nonnull V record) {
+        return where(asMetamodel(path), EQUALS, record);
+    }
+
+    /**
+     * Resolves a navigable to a value metamodel. Full metamodels are returned as-is; a navigation-only node (one that
+     * navigates beyond a {@link Ref}) is rebuilt into a resolvable metamodel for its path so it can be used to locate a
+     * column in WHERE, ORDER BY, GROUP BY, and HAVING. Such a rebuilt metamodel is query-only: it cannot extract a
+     * value from a record.
+     */
+    private static <T extends Data, V> Metamodel<T, V> asMetamodel(@Nonnull Navigable<T, V> path) {
+        return path instanceof Metamodel<T, V> metamodel
+                ? metamodel
+                : Metamodel.of(path.root(), path.fieldPath());
+    }
+
+    @SuppressWarnings("unchecked")
+    private static <T extends Data> Metamodel<T, ?>[] asMetamodels(@Nonnull Navigable<T, ?>[] paths) {
+        Metamodel<T, ?>[] result = new Metamodel[paths.length];
+        for (int i = 0; i < paths.length; i++) {
+            result[i] = asMetamodel(paths[i]);
+        }
+        return result;
     }
 
     /**
@@ -273,8 +295,9 @@ public abstract class QueryBuilder<T extends Data, R, ID> {
      * @return the predicate builder.
      * @since 1.3
      */
-    public final <V extends Data> QueryBuilder<T, R, ID> where(@Nonnull Metamodel<T, V> path, @Nonnull Ref<V> ref) {
-        return where(predicate -> predicate.where(path, ref));
+    public final <V extends Data> QueryBuilder<T, R, ID> where(@Nonnull Navigable<T, V> path, @Nonnull Ref<V> ref) {
+        Metamodel<T, V> metamodel = asMetamodel(path);
+        return where(predicate -> predicate.where(metamodel, ref));
     }
 
     /**
@@ -285,8 +308,8 @@ public abstract class QueryBuilder<T extends Data, R, ID> {
      * @param it the records to match.
      * @return the predicate builder.
      */
-    public final <V extends Data> QueryBuilder<T, R, ID> where(@Nonnull Metamodel<T, V> path, @Nonnull Iterable<V> it) {
-        return where(path, IN, it);
+    public final <V extends Data> QueryBuilder<T, R, ID> where(@Nonnull Navigable<T, V> path, @Nonnull Iterable<V> it) {
+        return where(asMetamodel(path), IN, it);
     }
 
     /**
@@ -298,8 +321,9 @@ public abstract class QueryBuilder<T extends Data, R, ID> {
      * @return the predicate builder.
      * @since 1.3
      */
-    public final <V extends Data> QueryBuilder<T, R, ID> whereRef(@Nonnull Metamodel<T, V> path, @Nonnull Iterable<? extends Ref<V>> it) {
-        return where(predicate -> predicate.whereRef(path, it));
+    public final <V extends Data> QueryBuilder<T, R, ID> whereRef(@Nonnull Navigable<T, V> path, @Nonnull Iterable<? extends Ref<V>> it) {
+        Metamodel<T, V> metamodel = asMetamodel(path);
+        return where(predicate -> predicate.whereRef(metamodel, it));
     }
 
     /**
@@ -323,10 +347,11 @@ public abstract class QueryBuilder<T extends Data, R, ID> {
      * @param <V> the type of the object that the metamodel represents.
      * @since 1.2
      */
-    public final <V> QueryBuilder<T, R, ID> where(@Nonnull Metamodel<T, V> path,
+    public final <V> QueryBuilder<T, R, ID> where(@Nonnull Navigable<T, V> path,
                                                   @Nonnull Operator operator,
                                                   @Nonnull Iterable<? extends V> it) {
-        return where(predicate -> predicate.where(path, operator, it));
+        Metamodel<T, V> metamodel = asMetamodel(path);
+        return where(predicate -> predicate.where(metamodel, operator, it));
     }
 
     /**
@@ -341,10 +366,11 @@ public abstract class QueryBuilder<T extends Data, R, ID> {
      * @since 1.2
      */
     @SafeVarargs
-    public final <V> QueryBuilder<T, R, ID> where(@Nonnull Metamodel<T, V> path,
+    public final <V> QueryBuilder<T, R, ID> where(@Nonnull Navigable<T, V> path,
                                                   @Nonnull Operator operator,
                                                   @Nonnull V... o) {
-        return where(predicate -> predicate.where(path, operator, o));
+        Metamodel<T, V> metamodel = asMetamodel(path);
+        return where(predicate -> predicate.where(metamodel, operator, o));
     }
 
     /**
@@ -382,11 +408,12 @@ public abstract class QueryBuilder<T extends Data, R, ID> {
      * @since 1.2
      */
     @SafeVarargs
-    public final QueryBuilder<T, R, ID> groupBy(@Nonnull Metamodel<T, ?>... path) {
+    public final QueryBuilder<T, R, ID> groupBy(@Nonnull Navigable<T, ?>... path) {
         // We can safely invoke groupByAny as the underlying logic is identical. The main purpose of having these
         // separate methods is to provide (more) type safety when using metamodels that are guaranteed to be present in
-        // the table graph.
-        return groupByAny(path);
+        // the table graph. Navigation-only nodes reached beyond a reference are accepted here: they name a column, and
+        // Storm materializes the join for the referenced table on demand.
+        return groupByAny(asMetamodels(path));
     }
 
     /**
@@ -429,10 +456,10 @@ public abstract class QueryBuilder<T extends Data, R, ID> {
      * @since 1.2
      */
     @SafeVarargs
-    public final <V> QueryBuilder<T, R, ID> having(@Nonnull Metamodel<T, V> path,
+    public final <V> QueryBuilder<T, R, ID> having(@Nonnull Navigable<T, V> path,
                                                    @Nonnull Operator operator,
                                                    @Nonnull V... o) {
-        return havingAny(path, operator, o);
+        return havingAny(asMetamodel(path), operator, o);
     }
 
     /**
@@ -470,11 +497,11 @@ public abstract class QueryBuilder<T extends Data, R, ID> {
      * @since 1.2
      */
     @SafeVarargs
-    public final QueryBuilder<T, R, ID> orderBy(@Nonnull Metamodel<T, ?>... path) {
+    public final QueryBuilder<T, R, ID> orderBy(@Nonnull Navigable<T, ?>... path) {
         // We can safely invoke orderByAny as the underlying logic is identical. The main purpose of having these
         // separate methods is to provide (more) type safety when using metamodels that are guaranteed to be present in
         // the table graph.
-        return orderByAny(path);
+        return orderByAny(asMetamodels(path));
     }
 
     /**
@@ -485,8 +512,8 @@ public abstract class QueryBuilder<T extends Data, R, ID> {
      * @return the query builder.
      * @since 1.2
      */
-    public final QueryBuilder<T, R, ID> orderByDescending(@Nonnull Metamodel<T, ?> path) {
-        return orderByDescendingAny(path);
+    public final QueryBuilder<T, R, ID> orderByDescending(@Nonnull Navigable<T, ?> path) {
+        return orderByDescendingAny(asMetamodel(path));
     }
 
     /**
@@ -498,8 +525,8 @@ public abstract class QueryBuilder<T extends Data, R, ID> {
      * @since 1.9
      */
     @SafeVarargs
-    public final QueryBuilder<T, R, ID> orderByDescending(@Nonnull Metamodel<T, ?>... path) {
-        return orderByDescendingAny(path);
+    public final QueryBuilder<T, R, ID> orderByDescending(@Nonnull Navigable<T, ?>... path) {
+        return orderByDescendingAny(asMetamodels(path));
     }
 
     /**

@@ -395,7 +395,7 @@ abstract class QueryBuilder<T : Data, R, ID> {
      * @param it the records to match.
      * @return the predicate builder.
      */
-    fun <V : Data> where(path: Metamodel<T, V>, it: Iterable<V>): QueryBuilder<T, R, ID> = where(path, IN, it)
+    fun <V : Data> where(path: Navigable<T, V>, it: Iterable<V>): QueryBuilder<T, R, ID> = where(path, IN, it)
 
     /**
      * Adds a WHERE clause that matches the specified records. The records can represent any of the related tables in
@@ -431,7 +431,7 @@ abstract class QueryBuilder<T : Data, R, ID> {
      * @since 1.2
      */
     fun <V> where(
-        path: Metamodel<T, V>,
+        path: Navigable<T, V>,
         operator: Operator,
         it: Iterable<V>,
     ): QueryBuilder<T, R, ID> = whereBuilder { where(path, operator, it) }
@@ -448,7 +448,7 @@ abstract class QueryBuilder<T : Data, R, ID> {
      * @since 1.2
      */
     fun <V> where(
-        path: Metamodel<T, V>,
+        path: Navigable<T, V>,
         operator: Operator,
         vararg o: V,
     ): QueryBuilder<T, R, ID> = whereBuilder { where(path, operator, *o) }
@@ -562,7 +562,7 @@ abstract class QueryBuilder<T : Data, R, ID> {
      * @return the query builder.
      * @since 1.2
      */
-    fun groupBy(vararg path: Metamodel<T, *>): QueryBuilder<T, R, ID> {
+    fun groupBy(vararg path: Navigable<T, *>): QueryBuilder<T, R, ID> {
         // We can safely invoke groupByAny as the underlying logic is identical. The main purpose of having these
         // separate methods is to provide (more) type safety when using metamodels that are guaranteed to be present in
         // the table graph.
@@ -577,13 +577,13 @@ abstract class QueryBuilder<T : Data, R, ID> {
      * @return the query builder.
      * @since 1.2
      */
-    fun groupByAny(vararg path: Metamodel<*, *>): QueryBuilder<T, R, ID> {
+    fun groupByAny(vararg path: Navigable<*, *>): QueryBuilder<T, R, ID> {
         if (path.isEmpty()) {
             throw PersistenceException("At least one path must be provided for GROUP BY clause.")
         }
         val templates = buildList {
-            path.forEachIndexed { index, metamodel ->
-                add(TemplateString.wrap(metamodel))
+            path.forEachIndexed { index, navigable ->
+                add(TemplateString.wrap(navigable.asMetamodel()))
                 // only add a comma between elements, not after the last one.
                 if (index < path.lastIndex) {
                     add(raw(", "))
@@ -623,7 +623,7 @@ abstract class QueryBuilder<T : Data, R, ID> {
      * @since 1.2
      */
     fun <V> having(
-        path: Metamodel<T, V>,
+        path: Navigable<T, V>,
         operator: Operator,
         vararg o: V,
     ): QueryBuilder<T, R, ID> = havingAny(path, operator, *o)
@@ -639,10 +639,10 @@ abstract class QueryBuilder<T : Data, R, ID> {
      * @since 1.2
      */
     fun <V> havingAny(
-        path: Metamodel<*, V>,
+        path: Navigable<*, V>,
         operator: Operator,
         vararg o: V,
-    ): QueryBuilder<T, R, ID> = having(wrap(ObjectExpression(path, operator, o)))
+    ): QueryBuilder<T, R, ID> = having(wrap(ObjectExpression(path.asMetamodel(), operator, o)))
 
     /**
      * Adds a HAVING clause to the query using the specified expression.
@@ -670,7 +670,7 @@ abstract class QueryBuilder<T : Data, R, ID> {
      * @return the query builder.
      * @since 1.2
      */
-    fun orderBy(vararg path: Metamodel<T, *>): QueryBuilder<T, R, ID> {
+    fun orderBy(vararg path: Navigable<T, *>): QueryBuilder<T, R, ID> {
         // We can safely invoke orderByAny as the underlying logic is identical. The main purpose of having these
         // separate methods is to provide (more) type safety when using metamodels that are guaranteed to be present in
         // the table graph.
@@ -685,7 +685,7 @@ abstract class QueryBuilder<T : Data, R, ID> {
      * @return the query builder.
      * @since 1.2
      */
-    fun orderByDescending(path: Metamodel<T, *>): QueryBuilder<T, R, ID> = orderBy(combine(wrap(path), raw(" DESC")))
+    fun orderByDescending(path: Navigable<T, *>): QueryBuilder<T, R, ID> = orderBy(combine(wrap(path.asMetamodel()), raw(" DESC")))
 
     /**
      * Adds an ORDER BY clause to the query for the fields at the specified paths in the table graph. The results
@@ -695,7 +695,7 @@ abstract class QueryBuilder<T : Data, R, ID> {
      * @return the query builder.
      * @since 1.9
      */
-    fun orderByDescending(vararg path: Metamodel<T, *>): QueryBuilder<T, R, ID> = orderByDescendingAny(*path)
+    fun orderByDescending(vararg path: Navigable<T, *>): QueryBuilder<T, R, ID> = orderByDescendingAny(*path)
 
     /**
      * Adds an ORDER BY clause to the query for the field at the specified path in the table graph or manually added
@@ -705,7 +705,7 @@ abstract class QueryBuilder<T : Data, R, ID> {
      * @return the query builder.
      * @since 1.9
      */
-    fun orderByDescendingAny(path: Metamodel<*, *>): QueryBuilder<T, R, ID> = orderBy(combine(wrap(path), raw(" DESC")))
+    fun orderByDescendingAny(path: Navigable<*, *>): QueryBuilder<T, R, ID> = orderBy(combine(wrap(path.asMetamodel()), raw(" DESC")))
 
     /**
      * Adds an ORDER BY clause to the query for the fields at the specified paths in the table graph or manually
@@ -715,13 +715,13 @@ abstract class QueryBuilder<T : Data, R, ID> {
      * @return the query builder.
      * @since 1.9
      */
-    fun orderByDescendingAny(vararg path: Metamodel<*, *>): QueryBuilder<T, R, ID> {
+    fun orderByDescendingAny(vararg path: Navigable<*, *>): QueryBuilder<T, R, ID> {
         if (path.isEmpty()) {
             throw PersistenceException("At least one path must be provided for ORDER BY clause.")
         }
         val templates = buildList {
-            path.forEachIndexed { index, metamodel ->
-                add(wrap(metamodel))
+            path.forEachIndexed { index, navigable ->
+                add(wrap(navigable.asMetamodel()))
                 add(raw(" DESC"))
                 if (index < path.size - 1) {
                     add(raw(", "))
@@ -759,13 +759,13 @@ abstract class QueryBuilder<T : Data, R, ID> {
      * @return the query builder.
      * @since 1.2
      */
-    fun orderByAny(vararg path: Metamodel<*, *>): QueryBuilder<T, R, ID> {
+    fun orderByAny(vararg path: Navigable<*, *>): QueryBuilder<T, R, ID> {
         if (path.isEmpty()) {
             throw PersistenceException("At least one path must be provided for ORDER BY clause.")
         }
         val templates = buildList {
-            path.forEachIndexed { index, metamodel ->
-                add(wrap(metamodel))
+            path.forEachIndexed { index, navigable ->
+                add(wrap(navigable.asMetamodel()))
                 // only add a comma between elements, not after the last one.
                 if (index < path.lastIndex) {
                     add(raw(", "))
@@ -1201,9 +1201,15 @@ abstract class QueryBuilder<T : Data, R, ID> {
 // Kotlin specific DSL
 
 /**
+ * Resolves a navigable to a value metamodel. Full metamodels are returned as-is; a navigation-only node (one that
+ * navigates beyond a Ref) is rebuilt into a resolvable, query-only metamodel for its path so it can locate a column.
+ */
+fun <T : Data, V> Navigable<T, V>.asMetamodel(): Metamodel<T, V> = if (this is Metamodel<T, V>) this else Metamodel.of(root(), fieldPath())
+
+/**
  * Infix function to create a predicate to check if a field is in a list of values.
  */
-infix fun <T : Data, V> Metamodel<T, V>.inList(value: Iterable<V>): PredicateBuilder<T, T, *> = create(this, IN, value)
+infix fun <T : Data, V> Navigable<T, V>.inList(value: Iterable<V>): PredicateBuilder<T, T, *> = create(this.asMetamodel(), IN, value)
 
 /**
  * Infix function to create a predicate to check if a field is in a list of references.
@@ -1213,7 +1219,7 @@ infix fun <T : Data, V : Data> Metamodel<T, V>.inRefs(value: Iterable<Ref<V>>): 
 /**
  * Infix function to create a predicate to check if a field is not in a list of values.
  */
-infix fun <T : Data, V> Metamodel<T, V>.notInList(value: Iterable<V>): PredicateBuilder<T, T, *> = create(this, NOT_IN, value)
+infix fun <T : Data, V> Navigable<T, V>.notInList(value: Iterable<V>): PredicateBuilder<T, T, *> = create(this.asMetamodel(), NOT_IN, value)
 
 /**
  * Infix function to create a predicate to check if a field is not in a list of references.
@@ -1223,7 +1229,7 @@ infix fun <T : Data, V : Data> Metamodel<T, V>.notInRefs(value: Iterable<Ref<V>>
 /**
  * Infix functions to create a predicate to check if a field is equal to a value.
  */
-infix fun <T : Data, V> Metamodel<T, V>.eq(value: V): PredicateBuilder<T, T, *> = create(this, EQUALS, listOf(value))
+infix fun <T : Data, V> Navigable<T, V>.eq(value: V): PredicateBuilder<T, T, *> = create(this.asMetamodel(), EQUALS, listOf(value))
 
 /**
  * Infix functions to create a predicate to check if a field is equal to a reference.
@@ -1233,7 +1239,7 @@ infix fun <T : Data, V : Data> Metamodel<T, V>.eq(value: Ref<V>): PredicateBuild
 /**
  * Infix functions to create a predicate to check if a field is not equal to a value.
  */
-infix fun <T : Data, V> Metamodel<T, V>.neq(value: V): PredicateBuilder<T, T, *> = create(this, NOT_EQUALS, listOf(value))
+infix fun <T : Data, V> Navigable<T, V>.neq(value: V): PredicateBuilder<T, T, *> = create(this.asMetamodel(), NOT_EQUALS, listOf(value))
 
 /**
  * Infix functions to create a predicate to check if a field is not equal to a reference.
@@ -1243,57 +1249,57 @@ infix fun <T : Data, V : Data> Metamodel<T, V>.neq(value: Ref<V>): PredicateBuil
 /**
  * Infix functions to create a predicate to check if a field is like a value.
  */
-infix fun <T : Data, V> Metamodel<T, V>.like(value: V): PredicateBuilder<T, T, *> = create(this, LIKE, listOf(value))
+infix fun <T : Data, V> Navigable<T, V>.like(value: V): PredicateBuilder<T, T, *> = create(this.asMetamodel(), LIKE, listOf(value))
 
 /**
  * Infix functions to create a predicate to check if a field is not like a value.
  */
-infix fun <T : Data, V> Metamodel<T, V>.notLike(value: V): PredicateBuilder<T, T, *> = create(this, NOT_LIKE, listOf(value))
+infix fun <T : Data, V> Navigable<T, V>.notLike(value: V): PredicateBuilder<T, T, *> = create(this.asMetamodel(), NOT_LIKE, listOf(value))
 
 /**
  * Infix functions to create a predicate to check if a field is greater than a value.
  */
-infix fun <T : Data, V> Metamodel<T, V>.greater(value: V): PredicateBuilder<T, T, *> = create(this, GREATER_THAN, listOf(value))
+infix fun <T : Data, V> Navigable<T, V>.greater(value: V): PredicateBuilder<T, T, *> = create(this.asMetamodel(), GREATER_THAN, listOf(value))
 
 /**
  * Infix functions to create a predicate to check if a field is less than a value.
  */
-infix fun <T : Data, V> Metamodel<T, V>.less(value: V): PredicateBuilder<T, T, *> = create(this, LESS_THAN, listOf(value))
+infix fun <T : Data, V> Navigable<T, V>.less(value: V): PredicateBuilder<T, T, *> = create(this.asMetamodel(), LESS_THAN, listOf(value))
 
 /**
  * Infix functions to create a predicate to check if a field is greater than or equal to a value.
  */
-infix fun <T : Data, V> Metamodel<T, V>.greaterEq(value: V): PredicateBuilder<T, T, *> = create(this, GREATER_THAN_OR_EQUAL, listOf(value))
+infix fun <T : Data, V> Navigable<T, V>.greaterEq(value: V): PredicateBuilder<T, T, *> = create(this.asMetamodel(), GREATER_THAN_OR_EQUAL, listOf(value))
 
 /**
  * Infix functions to create a predicate to check if a field is less than or equal to a value.
  */
-infix fun <T : Data, V> Metamodel<T, V>.lessEq(value: V): PredicateBuilder<T, T, *> = create(this, LESS_THAN_OR_EQUAL, listOf(value))
+infix fun <T : Data, V> Navigable<T, V>.lessEq(value: V): PredicateBuilder<T, T, *> = create(this.asMetamodel(), LESS_THAN_OR_EQUAL, listOf(value))
 
 /**
  * Infix functions to create a predicate to check if a field is between two values.
  */
-fun <T : Data, V> Metamodel<T, V>.between(left: V, right: V): PredicateBuilder<T, T, *> = create(this, BETWEEN, listOf(left, right))
+fun <T : Data, V> Navigable<T, V>.between(left: V, right: V): PredicateBuilder<T, T, *> = create(this.asMetamodel(), BETWEEN, listOf(left, right))
 
 /**
  * Infix functions to create a predicate to check if a field is true.
  */
-fun <T : Data, V> Metamodel<T, V>.isTrue(): PredicateBuilder<T, T, *> = create(this, IS_TRUE, emptyList())
+fun <T : Data, V> Navigable<T, V>.isTrue(): PredicateBuilder<T, T, *> = create(this.asMetamodel(), IS_TRUE, emptyList())
 
 /**
  * Infix functions to create a predicate to check if a field is false.
  */
-fun <T : Data, V> Metamodel<T, V>.isFalse(): PredicateBuilder<T, T, *> = create(this, IS_FALSE, emptyList())
+fun <T : Data, V> Navigable<T, V>.isFalse(): PredicateBuilder<T, T, *> = create(this.asMetamodel(), IS_FALSE, emptyList())
 
 /**
  * Infix functions to create a predicate to check if a field is null.
  */
-fun <T : Data, V> Metamodel<T, V>.isNull(): PredicateBuilder<T, T, *> = create(this, IS_NULL, emptyList())
+fun <T : Data, V> Navigable<T, V>.isNull(): PredicateBuilder<T, T, *> = create(this.asMetamodel(), IS_NULL, emptyList())
 
 /**
  * Infix functions to create a predicate to check if a field is not null.
  */
-fun <T : Data, V> Metamodel<T, V>.isNotNull(): PredicateBuilder<T, T, *> = create(this, IS_NOT_NULL, emptyList())
+fun <T : Data, V> Navigable<T, V>.isNotNull(): PredicateBuilder<T, T, *> = create(this.asMetamodel(), IS_NOT_NULL, emptyList())
 
 // Block-based query DSL
 
@@ -1324,7 +1330,7 @@ class SqlScope<T : Data, R, ID : Any> @PublishedApi internal constructor(
     }
 
     /** Adds a WHERE clause matching a metamodel path to value(s) using an [Operator]. */
-    fun <V> where(path: Metamodel<T, V>, operator: Operator, vararg value: V) {
+    fun <V> where(path: Navigable<T, V>, operator: Operator, vararg value: V) {
         builder = builder.where(path, operator, *value)
     }
 
@@ -1419,7 +1425,7 @@ class SqlScope<T : Data, R, ID : Any> @PublishedApi internal constructor(
     }
 
     /** Adds a GROUP BY clause for the specified metamodel path(s). */
-    fun groupBy(vararg path: Metamodel<T, *>) {
+    fun groupBy(vararg path: Navigable<T, *>) {
         builder = builder.groupBy(*path)
     }
 
@@ -1429,7 +1435,7 @@ class SqlScope<T : Data, R, ID : Any> @PublishedApi internal constructor(
     }
 
     /** Adds a HAVING clause matching a metamodel path to value(s) using an [Operator]. */
-    fun <V> having(path: Metamodel<T, V>, operator: Operator, vararg value: V) {
+    fun <V> having(path: Navigable<T, V>, operator: Operator, vararg value: V) {
         builder = builder.having(path, operator, *value)
     }
 
@@ -1439,22 +1445,22 @@ class SqlScope<T : Data, R, ID : Any> @PublishedApi internal constructor(
     }
 
     /** Adds an ORDER BY clause (ascending) for the specified metamodel path(s). */
-    fun orderBy(vararg path: Metamodel<T, *>) {
+    fun orderBy(vararg path: Navigable<T, *>) {
         builder = builder.orderBy(*path)
     }
 
     /** Adds an ORDER BY clause (descending) for the specified metamodel path(s). */
-    fun orderByDescending(vararg path: Metamodel<T, *>) {
+    fun orderByDescending(vararg path: Navigable<T, *>) {
         builder = builder.orderByDescending(*path)
     }
 
     /** Adds an ORDER BY clause (ascending) for any entity type (e.g., a joined entity). */
-    fun orderByAny(vararg path: Metamodel<*, *>) {
+    fun orderByAny(vararg path: Navigable<*, *>) {
         builder = builder.orderByAny(*path)
     }
 
     /** Adds an ORDER BY clause (descending) for any entity type (e.g., a joined entity). */
-    fun orderByDescendingAny(vararg path: Metamodel<*, *>) {
+    fun orderByDescendingAny(vararg path: Navigable<*, *>) {
         builder = builder.orderByDescendingAny(*path)
     }
 

@@ -224,6 +224,28 @@ List<Ref<User>> refs = orm.entity(User.class).selectRef()
     .getResultList();
 ```
 
+### Navigating Through a Ref
+
+A `Ref<T>` foreign key is still navigable in queries. Filter, order, and select through it with the metamodel; Storm adds the join for the referenced table on demand, only for a query that references a column beyond the foreign key. Selecting the root leaves the field as an unloaded `Ref`.
+
+```java
+// User.city is Ref<City>; City has a country FK. The city and country tables are joined
+// only because the query navigates beyond the city foreign key.
+List<User> users = orm.entity(User.class).select()
+    .where(User_.city.country.name, EQUALS, "United States")
+    .orderBy(User_.city.name)
+    .getResultList();
+
+// Select a column from beyond the reference.
+record CountryName(String name) {}
+List<CountryName> names = orm.entity(User.class)
+    .select(CountryName.class, RAW."\{User_.city.country.name}")
+    .where(User_.city.country.name, EQUALS, "United States")
+    .getResultList();
+```
+
+Nodes beyond a reference are navigation-only: usable in `where`, `orderBy`, `groupBy`, `having`, and selected columns, but not in value operations. Group by the reference itself with `getResultGroupedByRef`, not `getResultGroupedBy` on a beyond-reference path (which does not compile against the strict signature). Prefer a `Ref` for foreign keys you do not hydrate on most reads: it keeps SELECTs narrow while staying queryable. Navigation may cross more than one reference across distinct tables. A reference carries the target's primary key, so `User_.city.id` resolves to the foreign key column and needs no join, the same column an entity foreign key resolves its primary key to; any other column of the target joins. A self-referential foreign key must be a `Ref`, and it generates no navigation children, so navigating past it does not compile (the table would join itself and resolve against the earlier occurrence); the reference itself stays selectable, so walk the chain in code with `fetch()`. A cycle closing through more than one type, or a path built from a string, throws when the metamodel is constructed.
+
 ## Subqueries (EXISTS / NOT EXISTS)
 
 In Java, EXISTS conditions are expressed inside the where-lambda via `WhereBuilder.exists(subquery)` / `notExists(subquery)` — there is no `whereExists` method on the Java QueryBuilder (that form is Kotlin-only). Build the subquery with `orm.selectFrom(...)`; it is automatically correlated with the outer query:

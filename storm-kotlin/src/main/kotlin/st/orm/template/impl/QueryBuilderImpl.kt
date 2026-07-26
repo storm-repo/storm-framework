@@ -383,24 +383,24 @@ class QueryBuilderImpl<T : Data, R, ID>(
         ): PredicateBuilder<TX, RX, IDX> = PredicateBuilderImpl<TX, RX, IDX>(core.whereAnyRef<V>(path, it))
 
         override fun <V> where(
-            path: Metamodel<TX, V>,
+            path: Navigable<TX, V>,
             operator: Operator,
             it: Iterable<V>,
-        ): PredicateBuilder<TX, RX, IDX> = PredicateBuilderImpl<TX, RX, IDX>(core.where<V>(path, operator, it))
+        ): PredicateBuilder<TX, RX, IDX> = PredicateBuilderImpl<TX, RX, IDX>(core.where<V>(path.asMetamodel(), operator, it))
 
         override fun <V> whereAny(
-            path: Metamodel<*, V>,
+            path: Navigable<*, V>,
             operator: Operator,
             it: Iterable<V>,
-        ): PredicateBuilder<TX, RX, IDX> = PredicateBuilderImpl<TX, RX, IDX>(core.whereAny<V>(path, operator, it))
+        ): PredicateBuilder<TX, RX, IDX> = PredicateBuilderImpl<TX, RX, IDX>(core.whereAny<V>(path.asMetamodel(), operator, it))
 
         override fun where(template: TemplateString): PredicateBuilder<TX, RX, IDX> = PredicateBuilderImpl<TX, RX, IDX>(core.where((template as TemplateStringHolder).templateString))
 
         override fun <V> whereAny(
-            path: Metamodel<*, V>,
+            path: Navigable<*, V>,
             operator: Operator,
             vararg o: V,
-        ): PredicateBuilder<TX, RX, IDX> = PredicateBuilderImpl<TX, RX, IDX>(core.whereAny(path, operator, *o))
+        ): PredicateBuilder<TX, RX, IDX> = PredicateBuilderImpl<TX, RX, IDX>(core.whereAny(path.asMetamodel(), operator, *o))
     }
 
     /**

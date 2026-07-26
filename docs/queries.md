@@ -137,6 +137,8 @@ boolean exists = users.existsById(userId);
 
 ## Filtering with Predicates
 
+Predicate paths traverse the entity graph (`User_.city.country.name`), and they may also navigate *through* a `Ref` foreign key. Storm adds the join for the referenced table on demand, only for a query that references a column beyond the foreign key. This holds for every clause that names a column: `where`, `orderBy`, `groupBy`, `having`, and custom selected columns. See [Querying Through Refs](refs.md#querying-through-refs).
+
 <Tabs groupId="language">
 <TabItem value="kotlin" label="Kotlin" default>
 
@@ -583,6 +585,11 @@ The where clause keeps its normal meaning: it filters the results, and a group a
 its results matches. The path must resolve to a non-null record for every result; narrow queries over nullable
 foreign keys with a `where()` clause first. See [Relationships](relationships.md#one-to-many) for the
 one-to-many loading pattern.
+
+`resultGroupedBy` reads the group key from each hydrated record, so its path must be a value node from the
+eagerly-loaded graph. A path *beyond* a `Ref` is navigation-only and cannot be a group key: it does not compile.
+Group by the reference itself with `resultGroupedByRef`, which takes the foreign key without hydrating the target.
+See [Navigating Through Refs](metamodel.md#navigating-through-refs).
 
 The ref-based variant `resultGroupedByRef` (Java: `getResultGroupedByRef`) returns `Map<Ref<V>, List<T>>`
 instead. Refs are compared by primary key, keeping map lookups constant-cost regardless of the size of the group

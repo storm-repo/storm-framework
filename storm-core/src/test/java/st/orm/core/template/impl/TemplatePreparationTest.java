@@ -445,12 +445,12 @@ public class TemplatePreparationTest {
 
     @Test
     public void testNonColumnMetamodelThrows() {
-        // A Metamodel that does not reference a column should throw.
-        // Covers line 562: "Metamodel does not reference a column."
+        // A path that does not reference a column should throw. The branch accepts any Navigable, so the message is
+        // phrased in terms of the path rather than a specific metamodel type.
         Metamodel<TestEntity, TestEntity> rootMetamodel = Metamodel.root(TestEntity.class);
         var exception = assertThrows(SqlTemplateException.class,
                 () -> TEMPLATE.process(raw("SELECT \0 FROM test_entity", rootMetamodel)));
-        assertTrue(exception.getMessage().contains("Metamodel does not reference a column"));
+        assertTrue(exception.getMessage().contains("Path does not reference a column"));
     }
 
     // ==================== Array resolution ====================

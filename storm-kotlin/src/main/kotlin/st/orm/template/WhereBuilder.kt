@@ -17,6 +17,7 @@ package st.orm.template
 
 import st.orm.Data
 import st.orm.Metamodel
+import st.orm.Navigable
 import st.orm.Operator
 import st.orm.Ref
 import st.orm.template.TemplateString.Companion.raw
@@ -322,7 +323,7 @@ interface WhereBuilder<T : Data, R, ID> : SubqueryTemplate {
      * @since 1.2
      */
     fun <V> where(
-        path: Metamodel<T, V>,
+        path: Navigable<T, V>,
         operator: Operator,
         it: Iterable<V>,
     ): PredicateBuilder<T, R, ID>
@@ -340,7 +341,7 @@ interface WhereBuilder<T : Data, R, ID> : SubqueryTemplate {
      * @since 1.2
      */
     fun <V> whereAny(
-        path: Metamodel<*, V>,
+        path: Navigable<*, V>,
         operator: Operator,
         it: Iterable<V>,
     ): PredicateBuilder<T, R, ID>
@@ -358,7 +359,7 @@ interface WhereBuilder<T : Data, R, ID> : SubqueryTemplate {
      * @since 1.2
      */
     fun <V> where(
-        path: Metamodel<T, V>,
+        path: Navigable<T, V>,
         operator: Operator,
         vararg o: V,
     ): PredicateBuilder<T, R, ID> = whereAny(path, operator, *o)
@@ -376,7 +377,7 @@ interface WhereBuilder<T : Data, R, ID> : SubqueryTemplate {
      * @since 1.2
      */
     fun <V> whereAny(
-        path: Metamodel<*, V>,
+        path: Navigable<*, V>,
         operator: Operator,
         vararg o: V,
     ): PredicateBuilder<T, R, ID>
