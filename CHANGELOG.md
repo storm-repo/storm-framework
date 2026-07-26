@@ -10,7 +10,7 @@ for the CLI, to [npm](https://www.npmjs.com/package/@storm-orm/cli)
 (`@storm-orm/cli`). Full release notes for every version are on the
 [GitHub Releases](https://github.com/storm-orm/storm-framework/releases) page.
 
-## [1.13.0] - 2026-07-19
+## [1.13.0] - 2026-07-31
 
 Feature release: write sets, GraalVM native images, the Storm Gradle plugin, Java transaction parity, and Micrometer observability.
 
