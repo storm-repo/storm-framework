@@ -30,7 +30,6 @@ import java.lang.reflect.Type;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
@@ -145,8 +144,8 @@ public class EntityRepositoryImpl<E extends Entity<ID>, ID>
     @SuppressWarnings("unchecked")
     private static <E extends Entity<ID>, ID> List<EntityCallback<E>> resolveCallbacks(
             @Nonnull List<EntityCallback<?>> callbacks, @Nonnull Class<E> entityType) {
-        List<EntityCallback<E>> result = new ArrayList<>();
-        for (EntityCallback<?> callback : callbacks) {
+        var result = new ArrayList<EntityCallback<E>>();
+        for (var callback : callbacks) {
             Class<?> callbackType = resolveCallbackEntityType(callback.getClass());
             if (callbackType.isAssignableFrom(entityType)) {
                 result.add((EntityCallback<E>) callback);
@@ -245,7 +244,7 @@ public class EntityRepositoryImpl<E extends Entity<ID>, ID>
         }
         CALLBACK_ACTIVE.set(Boolean.TRUE);
         try {
-            for (EntityCallback<E> callback : entityCallbacks) {
+            for (var callback : entityCallbacks) {
                 entity = callback.beforeInsert(entity);
             }
             return entity;
@@ -271,7 +270,7 @@ public class EntityRepositoryImpl<E extends Entity<ID>, ID>
         }
         CALLBACK_ACTIVE.set(Boolean.TRUE);
         try {
-            for (EntityCallback<E> callback : entityCallbacks) {
+            for (var callback : entityCallbacks) {
                 entity = callback.beforeUpdate(entity);
             }
             return entity;
@@ -297,7 +296,7 @@ public class EntityRepositoryImpl<E extends Entity<ID>, ID>
         }
         CALLBACK_ACTIVE.set(Boolean.TRUE);
         try {
-            for (EntityCallback<E> callback : entityCallbacks) {
+            for (var callback : entityCallbacks) {
                 callback.afterInsert(entity);
             }
         } finally {
@@ -322,7 +321,7 @@ public class EntityRepositoryImpl<E extends Entity<ID>, ID>
         }
         CALLBACK_ACTIVE.set(Boolean.TRUE);
         try {
-            for (EntityCallback<E> callback : entityCallbacks) {
+            for (var callback : entityCallbacks) {
                 callback.afterUpdate(entity);
             }
         } finally {
@@ -361,7 +360,7 @@ public class EntityRepositoryImpl<E extends Entity<ID>, ID>
         }
         CALLBACK_ACTIVE.set(Boolean.TRUE);
         try {
-            for (EntityCallback<E> callback : entityCallbacks) {
+            for (var callback : entityCallbacks) {
                 entity = callback.beforeUpsert(entity);
             }
             return entity;
@@ -390,7 +389,7 @@ public class EntityRepositoryImpl<E extends Entity<ID>, ID>
         }
         CALLBACK_ACTIVE.set(Boolean.TRUE);
         try {
-            for (EntityCallback<E> callback : entityCallbacks) {
+            for (var callback : entityCallbacks) {
                 callback.afterUpsert(entity);
             }
         } finally {
@@ -410,7 +409,7 @@ public class EntityRepositoryImpl<E extends Entity<ID>, ID>
         }
         CALLBACK_ACTIVE.set(Boolean.TRUE);
         try {
-            for (EntityCallback<E> callback : entityCallbacks) {
+            for (var callback : entityCallbacks) {
                 callback.beforeDelete(entity);
             }
         } finally {
@@ -430,7 +429,7 @@ public class EntityRepositoryImpl<E extends Entity<ID>, ID>
         }
         CALLBACK_ACTIVE.set(Boolean.TRUE);
         try {
-            for (EntityCallback<E> callback : entityCallbacks) {
+            for (var callback : entityCallbacks) {
                 callback.afterDelete(entity);
             }
         } finally {
@@ -812,8 +811,8 @@ public class EntityRepositoryImpl<E extends Entity<ID>, ID>
                                            @Nonnull List<X> batch,
                                            @Nonnull Function<X, ID> idOf,
                                            @Nonnull Function<List<X>, Stream<E>> fetchUncached) {
-        List<E> cached = new ArrayList<>();
-        List<X> uncached = new ArrayList<>();
+        var cached = new ArrayList<E>();
+        var uncached = new ArrayList<X>();
         for (X item : batch) {
             Optional<E> cachedEntity = entityCache.get(idOf.apply(item));
             if (cachedEntity.isPresent()) {
@@ -886,8 +885,8 @@ public class EntityRepositoryImpl<E extends Entity<ID>, ID>
         }
         EntityCache<E, ID> entityCache = cache.get();
         return chunked(ids, chunkSize, batch -> {
-            List<E> cached = new ArrayList<>();
-            List<ID> uncached = new ArrayList<>();
+            var cached = new ArrayList<E>();
+            var uncached = new ArrayList<ID>();
             for (ID id : batch) {
                 Optional<E> cachedEntity = entityCache.get(id);
                 if (cachedEntity.isPresent()) {
@@ -922,9 +921,9 @@ public class EntityRepositoryImpl<E extends Entity<ID>, ID>
         }
         EntityCache<E, ID> entityCache = cache.get();
         return chunked(refs, chunkSize, batch -> {
-            List<E> cached = new ArrayList<>();
-            List<Ref<E>> uncached = new ArrayList<>();
-            for (Ref<E> ref : batch) {
+            var cached = new ArrayList<E>();
+            var uncached = new ArrayList<Ref<E>>();
+            for (var ref : batch) {
                 Optional<E> cachedEntity = entityCache.get((ID) ref.id());
                 if (cachedEntity.isPresent()) {
                     cached.add(cachedEntity.get());
@@ -1567,10 +1566,10 @@ public class EntityRepositoryImpl<E extends Entity<ID>, ID>
     @Override
     public List<ID> upsertAndFetchIds(@Nonnull Iterable<E> entities) {
         requireNonJoinedSealedEntity();
-        Map<Set<Metamodel<?, ?>>, PreparedQuery> updateQueries = new HashMap<>();
+        var updateQueries = new HashMap<Set<Metamodel<?, ?>>, PreparedQuery>();
         LazySupplier<PreparedQuery> insertQuery = isAutoGeneratedPrimaryKey()
                 ? new LazySupplier<>(this::prepareInsertQuery) : null;
-        LazySupplier<PreparedQuery> upsertQuery = new LazySupplier<>(this::prepareUpsertQuery);
+        var upsertQuery = new LazySupplier<PreparedQuery>(this::prepareUpsertQuery);
         try {
             var result = new ArrayList<ID>();
             var entityCache = entityCache();
@@ -1900,7 +1899,7 @@ public class EntityRepositoryImpl<E extends Entity<ID>, ID>
             });
             return;
         }
-        Map<Set<Metamodel<?, ?>>, PreparedQuery> updateQueries = new HashMap<>();
+        var updateQueries = new HashMap<Set<Metamodel<?, ?>>, PreparedQuery>();
         try {
             var entityCache = entityCache();
             Stream<E> mapped = entityCallbacks.isEmpty()
@@ -2161,10 +2160,10 @@ public class EntityRepositoryImpl<E extends Entity<ID>, ID>
     @Override
     public void upsert(@Nonnull Stream<E> entities, int batchSize) {
         requireNonJoinedSealedEntity();
-        Map<Set<Metamodel<?, ?>>, PreparedQuery> updateQueries = new HashMap<>();
+        var updateQueries = new HashMap<Set<Metamodel<?, ?>>, PreparedQuery>();
         LazySupplier<PreparedQuery> insertQuery = isAutoGeneratedPrimaryKey()
                 ? new LazySupplier<>(this::prepareInsertQuery) : null;
-        LazySupplier<PreparedQuery> upsertQuery = new LazySupplier<>(this::prepareUpsertQuery);
+        var upsertQuery = new LazySupplier<PreparedQuery>(this::prepareUpsertQuery);
         try {
             var entityCache = entityCache();
             partitioned(entities, batchSize, entity -> {
