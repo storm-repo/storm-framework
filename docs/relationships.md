@@ -654,7 +654,7 @@ data class Category(
 
 A `Ref` removes the join from every read but keeps the relationship queryable: you can still filter, order, and select through it with the metamodel (`Product_.category.name`, where `category` is a `Ref<Category>`), and Storm adds the join only for the query that navigates beyond the foreign key. This makes `Ref` the primary tool for keeping wide or deep graphs' reads narrow without giving up type-safe traversal.
 
-The self-reference above is the one exception. `Category.parent` points back at `Category`, and a table repeated on one path is not given a distinct alias per occurrence, so no navigation is generated past it: `Category_.parent` selects the foreign key column, while `Category_.parent.name` does not compile. Resolve the reference with `fetch()` to walk the chain. See [Refs](refs.md), [Querying Through Refs](refs.md#querying-through-refs) and [Cyclic References](metamodel.md#cyclic-references) for details.
+The self-reference above is navigable too: `Category_.parent.name` joins the category table to itself, so it filters on the parent's name. The typed metamodel navigates a cycle two hops deep; deeper cyclic paths are named as strings. See [Refs](refs.md), [Querying Through Refs](refs.md#querying-through-refs) and [Cyclic References](metamodel.md#cyclic-references) for details.
 
 ## Tips
 

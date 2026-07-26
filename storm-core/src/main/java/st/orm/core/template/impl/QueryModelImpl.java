@@ -355,6 +355,9 @@ final class QueryModelImpl implements QueryModel {
                                            @Nonnull TemplateCompiler compiler) throws SqlTemplateException {
         //noinspection DuplicatedCode
         Model<Data, ?> model = getModel(metamodel);
+        // A predicate column is looked up in the referenced table's model, which drops the path the reference was
+        // navigated from. Keep it so the column resolves against the joined occurrence rather than the root one.
+        String crossingPath = crossesReference(metamodel) ? metamodel.path() : null;
         List<SequencedMap<String, Object>> multiValues = new ArrayList<>();
         List<String> placeholders = new ArrayList<>();
         String column = null;
@@ -368,7 +371,7 @@ final class QueryModelImpl implements QueryModel {
             };
             //noinspection unchecked
             model.forEachValue((Metamodel<Data, ?>) metamodel, derivedObject,
-                    (k, v) -> valueMap.put(toFullyQualifiedColumn(k), v));
+                    (k, v) -> valueMap.put(toFullyQualifiedColumn(k, crossingPath), v));
             if (compiler.isVersionAware()) {
                 if (o instanceof Data data) {
                     var versionColumn = model.declaredColumns().stream()
@@ -376,7 +379,7 @@ final class QueryModelImpl implements QueryModel {
                             .findFirst()
                             .orElseThrow();
                     model.forEachValue(List.of(versionColumn), data,
-                            (k, v) -> valueMap.put(toFullyQualifiedColumn(k), v));
+                            (k, v) -> valueMap.put(toFullyQualifiedColumn(k, crossingPath), v));
                 } else {
                     throw new SqlTemplateException("Data object expected for version-aware statement. When using optimistic locking, the WHERE clause value must be a Data instance that contains the version field.");
                 }
@@ -397,7 +400,7 @@ final class QueryModelImpl implements QueryModel {
             }
         }
         if (multiValues.isEmpty() && column == null) {
-            column = toFullyQualifiedColumn(model.getSingleColumn(metamodel));
+            column = toFullyQualifiedColumn(model.getSingleColumn(metamodel), crossingPath);
         }
         try {
             return ColumnComparison.render(operator, column, placeholders, multiValues, compiler::mapParameter, compiler.dialect());
@@ -654,9 +657,24 @@ final class QueryModelImpl implements QueryModel {
      */
     @Override
     public ColumnExpression toColumnExpression(@Nonnull Column column) {
+        return toColumnExpression(column, null);
+    }
+
+    /**
+     * Converts the specified column into a {@link ColumnExpression}, resolving its alias at {@code crossingPath} when
+     * the column was reached by navigating a reference.
+     *
+     * <p>A column that is reached through a reference is looked up in the referenced table's model, where its own path
+     * is empty. When that table is also the type the query is rooted at, the column would otherwise resolve to the root
+     * occurrence, which is the wrong one for a table joined to itself. Resolving at the path the reference was
+     * navigated from selects the occurrence that the join was generated for.</p>
+     */
+    private ColumnExpression toColumnExpression(@Nonnull Column column, @Nullable String crossingPath) {
         try {
             var metamodel = column.metamodel();
-            String alias;
+            String alias = crossingPath == null || crossingPath.isEmpty()
+                    ? null
+                    : aliasMapper.findAlias(metamodel.tableType(), crossingPath, INNER).orElse(null);
             boolean isRootTable = metamodel.root() == model.type();
             if (!isRootTable && model.type().isSealed() && isSealedEntity(model.type())
                     && metamodel.fieldPath().isEmpty()) {
@@ -674,7 +692,9 @@ final class QueryModelImpl implements QueryModel {
                     }
                 }
             }
-            if (isRootTable && metamodel.path().isEmpty()) {
+            if (alias != null) {
+                // Resolved at the reference-crossing path above.
+            } else if (isRootTable && metamodel.path().isEmpty()) {
                 alias = table.alias();
             } else {
                 String lookupPath = metamodel.path();
@@ -757,6 +777,10 @@ final class QueryModelImpl implements QueryModel {
      * @return the fully qualified column name.
      */
     private String toFullyQualifiedColumn(@Nonnull Column column) {
-        return toColumnExpression(column).toSql();
+        return toFullyQualifiedColumn(column, null);
+    }
+
+    private String toFullyQualifiedColumn(@Nonnull Column column, @Nullable String crossingPath) {
+        return toColumnExpression(column, crossingPath).toSql();
     }
 }

@@ -97,12 +97,6 @@ public final class MetamodelProcessor extends AbstractProcessor {
     private final Set<String> generatedReferenceMetamodels;
 
     /**
-     * Tracks which record types we already generated a self-referential reference metamodel class
-     * ({@code <Type>CyclicRefMetamodel}) for.
-     */
-    private final Set<String> generatedCyclicReferenceMetamodels;
-
-    /**
      * Tracks which record types we already generated a navigation-only metamodel class
      * ({@code Navigable<Type>Metamodel}) for. Prevents infinite recursion on cyclic reference graphs.
      */
@@ -128,7 +122,6 @@ public final class MetamodelProcessor extends AbstractProcessor {
         this.generatedMetamodelInterfaces = new HashSet<>();
         this.expandedReferencedRecords = new HashSet<>();
         this.generatedReferenceMetamodels = new HashSet<>();
-        this.generatedCyclicReferenceMetamodels = new HashSet<>();
         this.generatedNavigableMetamodels = new HashSet<>();
         this.navPath = new HashSet<>();
         this.generatedInstantiators = new LinkedHashSet<>();
@@ -363,11 +356,7 @@ public final class MetamodelProcessor extends AbstractProcessor {
                     generateMetamodelArtifacts(nestedTypeEl);
                 }
             } else if (isRefType(fieldType)) {
-                // A Ref<X> field needs a reference metamodel for X and navigation-only metamodels beyond it. A
-                // reference back at the declaring record additionally needs the childless reference metamodel.
-                if (isSelfReferentialRef(fieldType, recordElement)) {
-                    generateCyclicReferenceArtifacts(recordElement);
-                }
+                // A Ref<X> field needs a reference metamodel for X and navigation-only metamodels beyond it.
                 TypeElement refTargetEl = asTypeElement(unwrapRefType(fieldType));
                 if (refTargetEl != null) {
                     generateReferenceArtifacts(refTargetEl);
@@ -901,7 +890,7 @@ public final class MetamodelProcessor extends AbstractProcessor {
             } else if (isRefType(fieldType)) {
                 builder.append("    /** Represents the {@link ").append(recordName).append("#").append(fieldName)
                         .append("} reference. */\n");
-                builder.append("    ").append(refClassNameFor(fieldType, recordElement, fieldTypeName))
+                builder.append("    ").append(refClassName(fieldTypeName))
                         .append("<").append(recordName).append("> ")
                         .append(fieldName).append(" = ").append(modelRef).append(".")
                         .append(fieldName).append(";\n");
@@ -1076,10 +1065,9 @@ public final class MetamodelProcessor extends AbstractProcessor {
             } else if (isRefType(fieldType)) {
                 // A Ref<X> foreign key: a reference metamodel that selects the foreign key column but also navigates
                 // beyond the reference (its children are navigation-only, so value extraction there does not compile).
-                // A reference back at the declaring record uses the childless variant, which offers no navigation.
                 builder.append("    /** Represents the {@link ").append(recordName).append("#").append(fieldName)
                         .append("} reference. */\n");
-                builder.append("    public final ").append(refClassNameFor(fieldType, recordElement, fieldTypeName))
+                builder.append("    public final ").append(refClassName(fieldTypeName))
                         .append("<T> ").append(fieldName)
                         .append(";\n");
             } else {
@@ -1173,14 +1161,13 @@ public final class MetamodelProcessor extends AbstractProcessor {
             } else if (isRefType(fieldType)) {
                 // A reference: the reference metamodel selects the foreign key column (its getValue returns the Ref)
                 // and exposes navigation-only children beyond the reference. The getter yields the Ref value directly.
-                // A reference back at the declaring record uses the childless variant, which takes the same arguments.
                 String refGetter =
                         "t -> {\n" +
                                 "            " + recordName + " p = " + metaClassName + ".this.getValue(t);\n" +
                                 "            return (p == null) ? null : " + accessorExpr(recordElement, "p", fieldName, fieldType) + ";\n" +
                                 "        }";
                 builder.append("        this.").append(fieldName).append(" = new ")
-                        .append(refClassNameFor(fieldType, recordElement, fieldTypeName))
+                        .append(refClassName(fieldTypeName))
                         .append("<>(")
                         .append("subPath, fieldBase + \"").append(fieldName).append("\", false, this, ")
                         .append(refGetter)
@@ -1332,36 +1319,6 @@ public final class MetamodelProcessor extends AbstractProcessor {
         return recordName + "RefMetamodel";
     }
 
-    private static String cyclicRefClassName(@Nonnull String recordName) {
-        return recordName + "CyclicRefMetamodel";
-    }
-
-    /**
-     * Returns whether a reference field points back at the record that declares it. Navigating past such a reference
-     * would join the table to itself, and a table repeated on one path does not get a distinct alias per occurrence,
-     * so no navigation children are generated for it. The reference itself stays selectable as the foreign key column.
-     */
-    private boolean isSelfReferentialRef(@Nonnull TypeMirror fieldType, @Nonnull Element recordElement) {
-        if (!isRefType(fieldType)) return false;
-
-        TypeElement target = asTypeElement(unwrapRefType(fieldType));
-        TypeElement declaring = asTypeElement(recordElement.asType());
-        return target != null && declaring != null
-                && target.getQualifiedName().contentEquals(declaring.getQualifiedName());
-    }
-
-    /**
-     * Returns the metamodel class name to use for a reference field: the childless variant when the reference points
-     * back at the record that declares it, the regular reference metamodel otherwise.
-     */
-    private String refClassNameFor(@Nonnull TypeMirror fieldType,
-                                   @Nonnull Element recordElement,
-                                   @Nonnull String fieldTypeName) {
-        return isSelfReferentialRef(fieldType, recordElement)
-                ? cyclicRefClassName(fieldTypeName)
-                : refClassName(fieldTypeName);
-    }
-
     private static String navClassName(@Nonnull String recordName) {
         return "Navigable" + recordName + "Metamodel";
     }
@@ -1384,17 +1341,6 @@ public final class MetamodelProcessor extends AbstractProcessor {
             generateReferenceMetamodelClass(refTarget);
         }
         generateNavigableArtifacts(refTarget);
-    }
-
-    /**
-     * Generates the childless reference metamodel for a record that declares a reference back at itself.
-     */
-    private void generateCyclicReferenceArtifacts(@Nonnull Element refTarget) {
-        TypeElement typeElement = asTypeElement(refTarget.asType());
-        if (typeElement == null) return;
-        if (generatedCyclicReferenceMetamodels.add(typeElement.getQualifiedName().toString())) {
-            generateCyclicReferenceMetamodelClass(refTarget);
-        }
     }
 
     /**
@@ -1511,35 +1457,6 @@ public final class MetamodelProcessor extends AbstractProcessor {
                         "        String subPath = inline ? path : field.isEmpty() ? path : path.isEmpty() ? field : path + \".\" + field;\n" +
                         "        String fieldBase = inline ? (field.isEmpty() ? \"\" : field + \".\") : \"\";\n\n" +
                         initFields + "\n" +
-                        "    }\n" +
-                        "}\n";
-        writeSourceFile(packageName, metaClassName, recordElement, content);
-    }
-
-    private void generateCyclicReferenceMetamodelClass(@Nonnull Element recordElement) {
-        String packageName = elementUtils.getPackageOf(recordElement).getQualifiedName().toString();
-        String recordName = recordElement.getSimpleName().toString();
-        String metaClassName = cyclicRefClassName(recordName);
-        String refType = "st.orm.Ref<" + recordName + ">";
-        String content =
-                (packageName.isEmpty() ? "" : "package " + packageName + ";\n\n") +
-                        "import st.orm.Metamodel;\n" +
-                        "import st.orm.AbstractMetamodel;\n" +
-                        "import jakarta.annotation.Nonnull;\n" +
-                        "import javax.annotation.processing.Generated;\n\n" +
-                        "/**\n * Reference metamodel for " + recordName + " declared on " + recordName + " itself: selects the foreign key column. A self-referential reference\n" +
-                        " * exposes no navigation, because navigating past it would join the table to itself and resolve against the earlier\n" +
-                        " * occurrence. Resolve the reference with fetch() to walk the chain.\n *\n" +
-                        " * @param <T> the record type of the root table of the entity graph.\n */\n" +
-                        "@Generated(\"" + getClass().getName() + "\")\n" +
-                        "public final class " + metaClassName + "<T extends st.orm.Data> extends AbstractMetamodel<T, " + recordName + ", " + refType + "> {\n\n" +
-                        "    private final java.util.function.Function<T, " + refType + "> getter;\n\n" +
-                        "    @Override\n    public " + refType + " getValue(@Nonnull T record) {\n        return getter.apply(record);\n    }\n\n" +
-                        "    @Override\n    public boolean isIdentical(@Nonnull T a, @Nonnull T b) {\n        return getter.apply(a) == getter.apply(b);\n    }\n\n" +
-                        "    @Override\n    public boolean isSame(@Nonnull T a, @Nonnull T b) {\n        return java.util.Objects.equals(getter.apply(a), getter.apply(b));\n    }\n\n" +
-                        "    public " + metaClassName + "(@Nonnull String path, @Nonnull String field, boolean inline, @Nonnull Metamodel<T, ?> parent, @Nonnull java.util.function.Function<T, " + refType + "> getter) {\n" +
-                        "        super(" + recordName + ".class, path, field, inline, parent);\n" +
-                        "        this.getter = getter;\n" +
                         "    }\n" +
                         "}\n";
         writeSourceFile(packageName, metaClassName, recordElement, content);

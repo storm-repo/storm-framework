@@ -18,7 +18,7 @@
 > GitHub: https://github.com/storm-orm/storm-framework
 > License: Apache 2.0
 
-# Generated: 2026-07-26T19:08:29Z
+# Generated: 2026-07-26T19:59:32Z
 
 ========================================
 ## Source: index.md
@@ -3071,7 +3071,7 @@ data class Category(
 
 A `Ref` removes the join from every read but keeps the relationship queryable: you can still filter, order, and select through it with the metamodel (`Product_.category.name`, where `category` is a `Ref<Category>`), and Storm adds the join only for the query that navigates beyond the foreign key. This makes `Ref` the primary tool for keeping wide or deep graphs' reads narrow without giving up type-safe traversal.
 
-The self-reference above is the one exception. `Category.parent` points back at `Category`, and a table repeated on one path is not given a distinct alias per occurrence, so no navigation is generated past it: `Category_.parent` selects the foreign key column, while `Category_.parent.name` does not compile. Resolve the reference with `fetch()` to walk the chain. See [Refs](refs.md), [Querying Through Refs](refs.md#querying-through-refs) and [Cyclic References](metamodel.md#cyclic-references) for details.
+The self-reference above is navigable too: `Category_.parent.name` joins the category table to itself, so it filters on the parent's name. The typed metamodel navigates a cycle two hops deep; deeper cyclic paths are named as strings. See [Refs](refs.md), [Querying Through Refs](refs.md#querying-through-refs) and [Cyclic References](metamodel.md#cyclic-references) for details.
 
 ## Tips
 
@@ -5206,36 +5206,38 @@ val visitsByPet: Map<Ref<Pet>, List<Visit>> = orm.entity<Visit>()
 
 ### Cyclic References
 
-A reference that comes back to a table already on the path cannot be navigated: the table would join itself, and a table repeated on one path does not get a distinct alias per occurrence, so the navigation resolves against the earlier occurrence. Storm blocks that in two places.
-
-**A self-referential reference generates no navigation children.** When a `Ref` points back at the record that declares it, the field is generated as a childless value metamodel, so navigating past it is a compile error:
+A reference may point back at a table already on the path, either at the record that declares it or through a longer cycle. Such a path joins the table to itself, and each occurrence is joined under its own alias, so a predicate or ordering resolves against the occurrence the path reached:
 
 ```kotlin
-// Compiles: the reference is the foreign key column, and its value is the Ref.
-User_.invitedBy
-orm.entity<User>().select().resultGroupedByRef(User_.invitedBy)
-
-// Does not compile: a self-referential reference has no navigation children.
-// User_.invitedBy.email
+// Users invited by Alice. The user table is joined to itself once.
+User_.invitedBy.name eq "Alice"
+// SELECT ... FROM user u LEFT JOIN user u1 ON u.invited_by_id = u1.id WHERE u1.name = ?
 ```
 
-This is decided per field, not per type. A reference to a self-referential type from a *different* record navigates normally, because those are two distinct tables:
+A nullable reference is joined with an outer join, so ordering by a column beyond it keeps rows whose reference is null.
+
+**The typed metamodel navigates a cycle two hops deep.** Generated metamodels construct their children eagerly, so a class cannot reference itself without recursing forever. The generator therefore emits two classes for a cyclic type, a reference metamodel and a navigation metamodel, and breaks the cycle at a navigation leaf below them:
+
+```
+User_.invitedBy                             reference metamodel, with navigation children (id, name, invitedBy)
+User_.invitedBy.name                        compiles
+User_.invitedBy.invitedBy.name              compiles, joining the user table to itself twice
+User_.invitedBy.invitedBy.invitedBy         exists, but is a navigation leaf and has no children
+User_.invitedBy.invitedBy.invitedBy.name    does not compile
+```
+
+**The query engine itself has no depth limit.** To navigate a cycle beyond the generated depth, name the path as a string; the engine adds one join per hop:
 
 ```kotlin
-// Fine: report -> user is an ordinary join, so the whole user graph is navigable.
-Report_.author.email eq "alice@example.com"
+orm.entity<User>()
+    .select()
+    .where(Metamodel.of(User::class.java, "invitedBy.invitedBy.invitedBy.name") eq "Alice")
+    .resultList
 ```
 
-**Any remaining cycle is rejected when the path is built.** A cycle that closes through more than one type (`A` references `B`, which references `A`) cannot be detected while generating `B`'s metamodel, because it is generic in the root. The same applies to a path built from a string. Both are checked when the metamodel is constructed, and throw a `PersistenceException` rather than returning wrong rows:
+This bound applies only to cycles. A path that keeps reaching new tables is generated to its full depth, including a chain that crosses more than one reference.
 
-```kotlin
-// Throws: the path navigates past a reference back to a table already on the path.
-Metamodel.of(User::class.java, "invitedBy.email")
-```
-
-Navigation across *distinct* tables is unaffected, including a chain that crosses more than one reference (a `Ref` whose target has a `Ref` to a different table).
-
-A direct (non-`Ref`) self-referential foreign key is rejected at generation time: a self-reference must be a `Ref`, which is also what stops the runtime join graph from recursing into itself. See [Preventing Circular Dependencies](refs.md#preventing-circular-dependencies).
+A direct (non-`Ref`) self-referential foreign key is rejected at generation time: a self-reference must be a `Ref`, which is also what keeps the eagerly hydrated entity graph finite. See [Preventing Circular Dependencies](refs.md#preventing-circular-dependencies).
 
 ## Generated Code
 
@@ -5732,7 +5734,7 @@ Without Refs, an entity that references its own type would cause infinite recurs
 
 This pattern applies to any recursive or hierarchical data model, such as organizational trees, threaded comments, or referral chains.
 
-A self-reference is not navigable, because the table would join itself: a table repeated on one path does not get a distinct alias per occurrence, so the navigation would resolve against the earlier occurrence. The metamodel therefore generates **no navigation children** for a self-referential reference, which makes `User_.invitedBy.email` a compile error rather than a wrong result. The reference itself stays usable, because it is the foreign key column: select it, filter on it, and resolve it with `fetch()` to walk the chain. See [Cyclic References](metamodel.md#cyclic-references).
+A self-reference is navigable like any other reference: the table is joined to itself, each occurrence under its own alias, so `User_.invitedBy.email` filters on the inviter's email rather than the row's own. The typed metamodel navigates a cycle two hops deep, because generated metamodels construct their children eagerly and so cannot recurse; beyond that, name the path as a string, which the engine resolves to any depth. See [Cyclic References](metamodel.md#cyclic-references).
 
 [Kotlin]
 

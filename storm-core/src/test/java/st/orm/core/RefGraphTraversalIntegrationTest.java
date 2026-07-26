@@ -20,7 +20,6 @@ import org.springframework.test.context.ContextConfiguration;
 import org.springframework.test.context.junit.jupiter.SpringExtension;
 import st.orm.Metamodel;
 import st.orm.Navigable;
-import st.orm.PersistenceException;
 import st.orm.Ref;
 import st.orm.TypedMetamodel;
 import st.orm.core.model.Owner;
@@ -31,6 +30,7 @@ import st.orm.core.model.PetOwnerRef;
 import st.orm.core.model.PetOwnerRef_;
 import st.orm.core.model.Pet_;
 import st.orm.core.model.SelfRefNode;
+import st.orm.core.model.SelfRefNode_;
 import st.orm.core.template.ORMTemplate;
 import st.orm.core.template.SqlInterceptor;
 
@@ -298,18 +298,82 @@ public class RefGraphTraversalIntegrationTest {
     }
 
     @Test
-    public void testNavigationPastSelfReferentialRefIsRejected() {
-        // Navigating past a self-referential reference would join the table to itself, which resolves against the
-        // earlier occurrence and yields the wrong row. The path is rejected instead of returning wrong results.
-        var exception = assertThrows(PersistenceException.class,
-                () -> Metamodel.of(SelfRefNode.class, "parent.parent.id"));
-        assertTrue(exception.getMessage().contains("Cannot navigate past the reference"), exception.getMessage());
+    public void testNavigationPastSelfReferentialRefJoinsTheTableToItself() {
+        var orm = ORMTemplate.of(dataSource);
+        List<String> observed = new ArrayList<>();
+        // Node 3 'leaf' -> parent 2 'mid' -> grandparent 1 'root'. Each hop joins the table to itself under its own
+        // alias, so a predicate resolves against the occurrence the hop reached rather than the root row.
+        List<Integer> ids = new ArrayList<>();
+        SqlInterceptor.observe(
+                sql -> observed.add(sql.statement().toLowerCase()),
+                () -> ids.addAll(orm.entity(SelfRefNode.class).select()
+                        .where(Metamodel.of(SelfRefNode.class, "parent.name"), EQUALS, "mid")
+                        .getResultList().stream().map(SelfRefNode::id).sorted().toList()));
+        assertEquals(List.of(3), ids);
+        assertEquals(1, observed.getLast().split("join self_ref_node", -1).length - 1, observed.getLast());
     }
 
     @Test
-    public void testShallowNavigationPastSelfReferentialRefIsRejected() {
-        // A single hop past the reference is rejected for the same reason: parent.id would resolve against the root.
-        assertThrows(PersistenceException.class, () -> Metamodel.of(SelfRefNode.class, "parent.id"));
+    public void testNavigationTwoLevelsPastSelfReferentialRef() {
+        var orm = ORMTemplate.of(dataSource);
+        List<String> observed = new ArrayList<>();
+        // Two hops produce two joins, each with its own alias.
+        List<Integer> ids = new ArrayList<>();
+        SqlInterceptor.observe(
+                sql -> observed.add(sql.statement().toLowerCase()),
+                () -> ids.addAll(orm.entity(SelfRefNode.class).select()
+                        .where(Metamodel.of(SelfRefNode.class, "parent.parent.name"), EQUALS, "root")
+                        .getResultList().stream().map(SelfRefNode::id).sorted().toList()));
+        assertEquals(List.of(3), ids);
+        assertEquals(2, observed.getLast().split("join self_ref_node", -1).length - 1, observed.getLast());
+    }
+
+    @Test
+    public void testTypedSelfReferentialNavigationInQuery() {
+        var orm = ORMTemplate.of(dataSource);
+        List<String> observed = new ArrayList<>();
+        // The generated metamodel navigates a self-reference: node 3 'leaf' has parent 2 'mid'. The typed path is
+        // what a caller writes, so it must resolve against the joined occurrence just like the string form.
+        List<Integer> ids = new ArrayList<>();
+        SqlInterceptor.observe(
+                sql -> observed.add(sql.statement().toLowerCase()),
+                () -> ids.addAll(orm.entity(SelfRefNode.class).select()
+                        .where(SelfRefNode_.parent.name, EQUALS, "mid")
+                        .getResultList().stream().map(SelfRefNode::id).sorted().toList()));
+        assertEquals(List.of(3), ids);
+        assertEquals(1, observed.getLast().split("join self_ref_node", -1).length - 1, observed.getLast());
+    }
+
+    @Test
+    public void testOrderingBySelfReferentialPathKeepsEveryRow() {
+        var orm = ORMTemplate.of(dataSource);
+        List<String> observed = new ArrayList<>();
+        // A nullable reference is joined with an outer join, including when it points at the table the query is
+        // rooted at, so ordering by a column beyond it keeps rows whose reference is null.
+        int all = orm.entity(SelfRefNode.class).select().getResultList().size();
+        List<SelfRefNode> ordered = new ArrayList<>();
+        SqlInterceptor.observe(
+                sql -> observed.add(sql.statement().toLowerCase()),
+                () -> ordered.addAll(orm.entity(SelfRefNode.class).select()
+                        .orderBy(SelfRefNode_.parent.name).getResultList()));
+        assertEquals(all, ordered.size());
+        assertTrue(observed.getLast().contains("left join self_ref_node"), observed.getLast());
+    }
+
+    @Test
+    public void testTypedSelfReferentialNavigationTwoHops() {
+        var orm = ORMTemplate.of(dataSource);
+        List<String> observed = new ArrayList<>();
+        // Node 3 'leaf' -> parent 2 'mid' -> grandparent 1 'root'. The typed path navigates two hops, so the table
+        // joins itself twice, each occurrence under its own alias.
+        List<Integer> ids = new ArrayList<>();
+        SqlInterceptor.observe(
+                sql -> observed.add(sql.statement().toLowerCase()),
+                () -> ids.addAll(orm.entity(SelfRefNode.class).select()
+                        .where(SelfRefNode_.parent.parent.name, EQUALS, "root")
+                        .getResultList().stream().map(SelfRefNode::id).sorted().toList()));
+        assertEquals(List.of(3), ids);
+        assertEquals(2, observed.getLast().split("join self_ref_node", -1).length - 1, observed.getLast());
     }
 
     @Test
@@ -322,4 +386,7 @@ public class RefGraphTraversalIntegrationTest {
                 .getResultList().stream().map(SelfRefNode::id).sorted().toList();
         assertEquals(List.of(2), ids);
     }
+
+
+
 }
