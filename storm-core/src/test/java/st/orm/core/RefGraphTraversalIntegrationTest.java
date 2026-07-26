@@ -104,6 +104,22 @@ public class RefGraphTraversalIntegrationTest {
     }
 
     @Test
+    public void testTypedNodeInSelectTemplateMaterializesJoins() {
+        record CityName(@Nullable String name) {}
+        var orm = ORMTemplate.of(dataSource);
+        List<String> observed = new ArrayList<>();
+        // A typed navigation-only node interpolated into a select template is the only element referencing the path,
+        // so the joins beyond the reference must still be derived for it.
+        SqlInterceptor.observe(
+                sql -> observed.add(sql.statement().toLowerCase()),
+                () -> orm.selectFrom(PetOwnerRef.class, CityName.class,
+                        raw("\0", PetOwnerRef_.owner.address.city.name)).getResultList());
+        String sql = observed.getLast();
+        assertTrue(sql.contains("join owner"), sql);
+        assertTrue(sql.contains("join city"), sql);
+    }
+
+    @Test
     public void testUnreferencedRefIsNotJoined() {
         var orm = ORMTemplate.of(dataSource);
         List<String> observed = new ArrayList<>();
@@ -141,8 +157,9 @@ public class RefGraphTraversalIntegrationTest {
         // getResultGroupedBy do not compile against them. This asserts that contract at the type level.
         assertTrue(PetOwnerRef_.owner instanceof TypedMetamodel);
         assertTrue(PetOwnerRef_.owner instanceof Navigable);
+        // Assigning to Navigable is itself the proof that the node is navigable; what matters is that it is not a
+        // value metamodel.
         Navigable<PetOwnerRef, String> beyond = PetOwnerRef_.owner.address.city.name;
-        assertTrue(beyond instanceof Navigable);
         assertFalse(beyond instanceof Metamodel);
         assertFalse(beyond instanceof TypedMetamodel);
     }
@@ -289,6 +306,7 @@ public class RefGraphTraversalIntegrationTest {
                 .getResultList().stream().map(SelfRefNode::id).sorted().toList();
         assertEquals(List.of(2), ids);
     }
+
 
 
 
