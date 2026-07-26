@@ -552,16 +552,22 @@ public final class ModelImpl<E extends Data, ID> implements Model<E, ID> {
             forEachInlineValue(metamodel, columns, object, consumer);
             return;
         }
-        Object value;
-        if (object instanceof Data data) {
-            value = REFLECTION.getId(data);
-            // Follow the key chain: the identifier of an entity-keyed entity is itself an entity.
-            while (value instanceof Data nested) {
-                value = REFLECTION.getId(nested);
+        // Follow the key chain down to the value the column holds. The identifier of an entity-keyed entity is itself
+        // an entity, and a reference-keyed entity holds its identifier in the reference, which carries the key without
+        // fetching the target. A compound key record is not a key holder and terminates the chain, so it reaches the
+        // component-wise branch below.
+        Object value = object;
+        while (true) {
+            if (value instanceof Data data) {
+                value = REFLECTION.getId(data);
+            } else if (value instanceof Ref<?> ref) {
+                value = ref.id();
+            } else {
+                break;
             }
-        } else {
-            value = object;
         }
+        // The chain terminates on null when the key it walks is absent, for instance an entity whose identifier is
+        // not set. The columns then carry no value.
         if (value == null) {
             for (var column : columns) {
                 consumer.accept(column, null);
@@ -594,12 +600,6 @@ public final class ModelImpl<E extends Data, ID> implements Model<E, ID> {
                                     @Nonnull List<Column> columns,
                                     @Nonnull Object object,
                                     @Nonnull BiConsumer<Column, Object> consumer) throws SqlTemplateException {
-        if (object == null) {
-            for (var column : columns) {
-                consumer.accept(column, null);
-            }
-            return;
-        }
         RecordType inlineRecordType = REFLECTION.getRecordType(object.getClass());
         List<? extends RecordField> inlineFields = inlineRecordType.fields();
         // Build a field-name to component-index map for the inline record.
