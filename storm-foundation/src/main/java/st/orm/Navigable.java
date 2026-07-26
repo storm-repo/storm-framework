@@ -117,9 +117,10 @@ public interface Navigable<T extends Data, E> {
     }
 
     /**
-     * Returns a flat list of leaf metamodels for this navigable. If this navigable is not an inline record, it returns a
-     * singleton list containing the canonical column metamodel; if it is an inline record, it recursively expands all
-     * nested inline records into their individual column metamodels.
+     * Returns a flat list of leaf metamodels for this navigable. If this navigable is not an inline record, it returns
+     * a singleton list containing the column metamodel for this path; if it is an inline record, it recursively expands
+     * all nested inline records into their individual column metamodels. The returned metamodels keep their position in
+     * the graph, so they are not canonical.
      *
      * <p>Useful for ORDER BY and GROUP BY, where inline records must be expanded into their individual columns.</p>
      *
