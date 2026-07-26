@@ -155,10 +155,11 @@ public class RefGraphTraversalIntegrationTest {
         // The reference node itself is a value metamodel (getValue returns the Ref, so getResultGroupedByRef works),
         // but nodes beyond the reference are navigation-only: not TypedMetamodel, so value operations like
         // getResultGroupedBy do not compile against them. This asserts that contract at the type level.
-        assertTrue(PetOwnerRef_.owner instanceof TypedMetamodel);
-        assertTrue(PetOwnerRef_.owner instanceof Navigable);
-        // Assigning to Navigable is itself the proof that the node is navigable; what matters is that it is not a
-        // value metamodel.
+        // The assignments are the contract: the reference node is value-extractable, so it can be held as a
+        // TypedMetamodel, while a node beyond the reference can only be held as a Navigable. The runtime checks then
+        // confirm the beyond-reference node is not a value metamodel.
+        TypedMetamodel<PetOwnerRef, Owner, Ref<Owner>> referenceNode = PetOwnerRef_.owner;
+        assertNotNull(referenceNode);
         Navigable<PetOwnerRef, String> beyond = PetOwnerRef_.owner.address.city.name;
         assertFalse(beyond instanceof Metamodel);
         assertFalse(beyond instanceof TypedMetamodel);
@@ -282,6 +283,21 @@ public class RefGraphTraversalIntegrationTest {
     }
 
     @Test
+    public void testValueExtractionAcrossRefIsRejectedForEveryPath() {
+        var orm = ORMTemplate.of(dataSource);
+        PetOwnerRef pet = orm.entity(PetOwnerRef.class).select()
+                .where(PetOwnerRef_.owner.id, EQUALS, 1).getResultList().getFirst();
+        // The primary key resolves to the foreign key column for querying, but reading a value still follows the
+        // requested path, which crosses the reference. Every path beyond a reference is rejected alike, so the
+        // declared field type is never contradicted by handing back the reference itself.
+        Metamodel<PetOwnerRef, Integer> primaryKey = Metamodel.of(PetOwnerRef.class, "owner.id");
+        assertEquals(Integer.class, primaryKey.fieldType());
+        assertThrows(UnsupportedOperationException.class, () -> primaryKey.getValue(pet));
+        Metamodel<PetOwnerRef, String> otherColumn = Metamodel.of(PetOwnerRef.class, "owner.firstName");
+        assertThrows(UnsupportedOperationException.class, () -> otherColumn.getValue(pet));
+    }
+
+    @Test
     public void testNavigationPastSelfReferentialRefIsRejected() {
         // Navigating past a self-referential reference would join the table to itself, which resolves against the
         // earlier occurrence and yields the wrong row. The path is rejected instead of returning wrong results.
@@ -306,8 +322,4 @@ public class RefGraphTraversalIntegrationTest {
                 .getResultList().stream().map(SelfRefNode::id).sorted().toList();
         assertEquals(List.of(2), ids);
     }
-
-
-
-
 }

@@ -250,6 +250,7 @@ public final class MetamodelFactory {
         StringBuilder effectiveField;
         boolean inline = false;
         boolean isColumn = false;
+        boolean primaryKeyThroughReference = false;
         Class<?> declaringType;
         boolean fieldNullable;
         boolean fieldIsUnique;
@@ -297,12 +298,17 @@ public final class MetamodelFactory {
             // path means the same thing whether the relationship is declared as an entity or as a reference. Matching
             // on the key therefore does not require the referenced row to exist; join the referenced table explicitly
             // to require that.
+            //
+            // Only the column the query resolves to is rewritten. Value extraction keeps following the requested path,
+            // which still crosses the reference, so reading a value beyond a reference stays rejected for every path
+            // alike instead of handing back the reference itself.
             if (!effectivePath.isEmpty()) {
                 RecordField referenceField = getRecordField(fieldResolutionClass, effectivePath);
                 if (Ref.class.isAssignableFrom(referenceField.type())
                         && isPrimaryKeyName(getRefDataType(referenceField), effectiveField.toString())) {
                     effectiveField = new StringBuilder(referenceField.name());
                     effectivePath = stripLast(effectivePath);
+                    primaryKeyThroughReference = true;
                 }
             }
         } catch (SqlTemplateException e) {
@@ -338,7 +344,9 @@ public final class MetamodelFactory {
         String fullPath = effectivePath.isEmpty()
                 ? effectiveField.toString()
                 : effectivePath + "." + effectiveField;
-        MethodHandle handle = buildGetterHandle(rootTable, fullPath);
+        // The requested path is used for value extraction so that a path crossing a reference keeps its query-only
+        // behavior, even when the column it resolves to was rewritten to the foreign key.
+        MethodHandle handle = buildGetterHandle(rootTable, primaryKeyThroughReference ? path : fullPath);
         // Determine if this field should be a Key metamodel with isNullable() support.
         boolean useKey = false;
         boolean keyNullable = false;

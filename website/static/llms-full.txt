@@ -18,7 +18,7 @@
 > GitHub: https://github.com/storm-orm/storm-framework
 > License: Apache 2.0
 
-# Generated: 2026-07-26T18:13:43Z
+# Generated: 2026-07-26T19:08:29Z
 
 ========================================
 ## Source: index.md
@@ -3069,7 +3069,9 @@ data class Category(
 ) : Entity<Int>
 ```
 
-A `Ref` removes the join from every read but keeps the relationship queryable: you can still filter, order, and select through it with the metamodel (`Category_.parent.name`), and Storm adds the join only for the query that navigates beyond the foreign key. This makes `Ref` the primary tool for keeping wide or deep graphs' reads narrow without giving up type-safe traversal. See [Refs](refs.md) and [Querying Through Refs](refs.md#querying-through-refs) for details.
+A `Ref` removes the join from every read but keeps the relationship queryable: you can still filter, order, and select through it with the metamodel (`Product_.category.name`, where `category` is a `Ref<Category>`), and Storm adds the join only for the query that navigates beyond the foreign key. This makes `Ref` the primary tool for keeping wide or deep graphs' reads narrow without giving up type-safe traversal.
+
+The self-reference above is the one exception. `Category.parent` points back at `Category`, and a table repeated on one path is not given a distinct alias per occurrence, so no navigation is generated past it: `Category_.parent` selects the foreign key column, while `Category_.parent.name` does not compile. Resolve the reference with `fetch()` to walk the chain. See [Refs](refs.md), [Querying Through Refs](refs.md#querying-through-refs) and [Cyclic References](metamodel.md#cyclic-references) for details.
 
 ## Tips
 
