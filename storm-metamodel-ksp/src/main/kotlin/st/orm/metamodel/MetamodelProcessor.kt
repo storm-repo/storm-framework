@@ -1053,7 +1053,7 @@ class MetamodelProcessor(
             builder.append("    /** Represents navigation to $className.$fieldName. */\n")
             if ((record || ref) && !isCyclicNavChild(typeRef)) {
                 val simpleTypeName = getSimpleTypeName(typeRef, packageName)
-                builder.append("    val $fieldName: Navigable${simpleTypeName}Metamodel<T>\n")
+                builder.append("    val $fieldName: ${navClassName(simpleTypeName)}<T>\n")
             } else {
                 // Scalar column, or a cyclic navigation edge broken to a leaf.
                 val kotlinTypeName = getKotlinTypeName(typeRef, packageName)
@@ -1075,7 +1075,7 @@ class MetamodelProcessor(
                 val simpleTypeName = getSimpleTypeName(typeRef, packageName)
                 val inlineFlag = if (record && !isDataType(prop)) "true" else "false"
                 builder.append(
-                    "        this.$fieldName = Navigable${simpleTypeName}Metamodel(subPath, fieldBase + \"$fieldName\", $inlineFlag, this)\n",
+                    "        this.$fieldName = ${navClassName(simpleTypeName)}(subPath, fieldBase + \"$fieldName\", $inlineFlag, this)\n",
                 )
             } else {
                 // Scalar column, or a cyclic navigation edge broken to a leaf so eager construction terminates.
@@ -1091,6 +1091,19 @@ class MetamodelProcessor(
         return builder.toString()
     }
 
+    /**
+     * Returns the navigation metamodel class name for a type name. The type name is qualified when the type is
+     * declared in another package, and the navigation metamodel is generated into that same package, so the prefix
+     * applies to the simple name and the qualifier is preserved.
+     */
+    private fun navClassName(typeName: String): String {
+        val lastDot = typeName.lastIndexOf('.')
+        return if (lastDot < 0) {
+            "Navigable${typeName}Metamodel"
+        } else {
+            typeName.substring(0, lastDot + 1) + "Navigable" + typeName.substring(lastDot + 1) + "Metamodel"
+        }
+    }
     private fun generateNavigableMetamodelClass(classDeclaration: KSClassDeclaration) {
         val packageName = classDeclaration.packageName.asString()
         val className = classDeclaration.simpleName.asString()

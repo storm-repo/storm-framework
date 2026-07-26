@@ -1319,8 +1319,16 @@ public final class MetamodelProcessor extends AbstractProcessor {
         return recordName + "RefMetamodel";
     }
 
+    /**
+     * Returns the navigation metamodel class name for a record name. The record name is qualified when the record is
+     * declared in another package, and the navigation metamodel is generated into that same package, so the prefix
+     * applies to the simple name and the qualifier is preserved.
+     */
     private static String navClassName(@Nonnull String recordName) {
-        return "Navigable" + recordName + "Metamodel";
+        int lastDot = recordName.lastIndexOf('.');
+        return lastDot < 0
+                ? "Navigable" + recordName + "Metamodel"
+                : recordName.substring(0, lastDot + 1) + "Navigable" + recordName.substring(lastDot + 1) + "Metamodel";
     }
 
     private static TypeMirror unwrapRefType(@Nonnull TypeMirror fieldType) {
