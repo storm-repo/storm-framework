@@ -32,6 +32,11 @@ public final class PreviewArgs implements CommandLineArgumentProvider {
         this.enabled = enabled;
     }
 
+    /**
+     * Whether the preview arguments are contributed to the task they are attached to.
+     *
+     * @return whether preview arguments are enabled.
+     */
     @Input
     public Provider<Boolean> getEnabled() {
         return enabled;
