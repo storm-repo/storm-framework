@@ -110,17 +110,32 @@ function chartHtml(w) {
   const frameworkBest = Math.min(...entries.filter(([l]) => l !== 'jdbc').map(([, v]) => v[0]));
   // JDBC is the reference, not a competitor: it renders first, with the frameworks ranked below it.
   const ordered = [...entries.filter(([l]) => l === 'jdbc'), ...entries.filter(([l]) => l !== 'jdbc')];
+  // One unit for the whole card, so a row never reads in ms beside a neighbour in µs. Milliseconds
+  // only once even the fastest row clears 1 ms; below that, microseconds keep the smaller cards aligned.
+  const useMs = Math.min(...ordered.map(([, v]) => v[0])) >= 1000;
+  const val = (v) => (useMs ? (v / 1000).toFixed(2) + ' ms' : Math.round(v) + ' µs');
+  const bound = (v) => (useMs ? (v / 1000).toFixed(2) : Math.round(v));
+  const unit = useMs ? 'ms' : 'µs';
   const rows = ordered.map(([lib, [mean, lo, hi]]) => {
     const meta = LIBS[lib];
     const width = Math.max(1.5, (mean / max) * 100);
     const leading = lib !== 'jdbc' && mean <= frameworkBest * 1.02;
     const marked = (w.mark || []).includes(lib);
-    // Bounds render in the median's unit, so the bracket stays unitless: 197 µs [196–198].
-    const bound = (v) => (mean >= 1000 ? (v / 1000).toFixed(2) : Math.round(v));
+    const gap = (mean / frameworkBest - 1) * 100;
+    // Percentages are the distance to the fastest framework, so that row is labelled outright to
+    // anchor the column. JDBC is signed against the same reference: a negative reads as the raw
+    // driver running that much ahead of the fastest framework, positive where a framework passes it.
+    const signed = (g) => (g >= 0 ? '+' : '') + (Math.abs(g) < 10 ? g.toFixed(1) : Math.round(g)) + '%';
+    const delta = lib === 'jdbc'
+      ? signed(gap)
+      : mean === frameworkBest
+      ? 'fastest'
+      : '+' + (gap < 0.05 ? '0' : gap < 10 ? gap.toFixed(1) : Math.round(gap)) + '%';
     return `<div class="bm-row ${lib === 'storm' ? '' : meta.cls}${leading ? ' win' : ''}">
       <span class="bm-name"${leading ? ' title="within 2% of the fastest framework"' : ''}>${meta.name}${marked ? '<sup class="bm-mark">†</sup>' : ''}</span>
       <span class="bm-track"><span class="bm-bar" style="width:${width.toFixed(1)}%"></span></span>
-      <span class="bm-val">${fmt(mean)} <em>[${bound(lo)}–${bound(hi)}]</em></span>
+      <span class="bm-val" data-range="Fork range ${bound(lo)}–${bound(hi)} ${unit}">${val(mean)}</span>
+      <span class="bm-delta">${delta}</span>
     </div>`;
   }).join('');
   return `<div class="bm-card">
@@ -1498,7 +1513,7 @@ const BM_CSS = `
   .storm-tut .art .bm-card h3{margin:0 0 6px;font-size:15.5px;letter-spacing:.01em}
   .bm-desc{margin:0 0 24px;color:var(--muted);font-size:13px;line-height:1.55}
   .bm-card .bm-desc{min-height:2lh}
-  .bm-row{display:grid;grid-template-columns:96px 1fr 118px;align-items:center;gap:12px;margin:11px 0}
+  .bm-row{display:grid;grid-template-columns:92px 1fr 70px 52px;align-items:center;gap:11px;margin:11px 0}
   .bm-name{font-family:var(--mono);font-size:12px;color:var(--muted);white-space:nowrap}
   .bm-track{height:9px;background:var(--panel-2);border-radius:5px;overflow:hidden;border:1px solid var(--border-soft)}
   .bm-bar{display:block;height:100%;background:#414150;border-radius:4px}
@@ -1507,7 +1522,14 @@ const BM_CSS = `
   .bm-row.storm .bm-bar{background:linear-gradient(90deg,#a78bfa,#818cf8 55%,#7dd3fc)}
   .bm-row.storm .bm-name{width:fit-content;background:linear-gradient(100deg,#a78bfa,#818cf8 55%,#7dd3fc);-webkit-background-clip:text;background-clip:text;color:transparent;font-weight:600}
   .bm-val{font-family:var(--mono);font-size:11.5px;color:var(--body);text-align:right;white-space:nowrap}
-  .bm-val em{font-style:normal;color:var(--faint);opacity:.75}
+  .bm-val[data-range]{position:relative;cursor:help}
+  .bm-val[data-range]::after{content:attr(data-range);position:absolute;bottom:calc(100% + 7px);right:0;white-space:nowrap;
+    background:var(--panel);border:1px solid var(--border);border-radius:7px;padding:5px 9px;font-size:10.5px;color:var(--muted);
+    opacity:0;transform:translateY(3px);pointer-events:none;transition:opacity .12s ease,transform .12s ease;
+    box-shadow:0 6px 18px rgba(0,0,0,.45);z-index:6}
+  .bm-val[data-range]:hover::after{opacity:1;transform:translateY(0)}
+  .bm-delta{font-family:var(--mono);font-size:11px;color:var(--faint);justify-self:end;white-space:nowrap}
+  .bm-row.win .bm-delta{background:linear-gradient(100deg,#fcd34d,#eda921 55%,#d98a26);-webkit-background-clip:text;background-clip:text;color:transparent;font-weight:600}
   .bm-note{margin:10px 0 0;color:var(--faint);font-size:12px}
   .bm-card:not(.bm-loc) .bm-note{font-size:10.5px}
   .bm-mark{color:var(--faint);font-size:9px;margin-left:2px}
@@ -1639,8 +1661,8 @@ ${navHtml('benchmarks')}
   <p class="bm-matrix-read">Storm's write advantage is a volume story: the batch and graph inserts run 1.4 to 1.5x faster than Hibernate, while the single-row update and create-then-amend are a near-tie at the front, Storm within a percent of the leader on both.</p>
 
   <details class="bm-details">
-    <summary>Per-workload charts: the same numbers with their fork range</summary>
-    <p class="bm-desc">Compare within a chart; each chart is a same-session comparison. Gold marks the leading group: every framework within 2% of the fastest.</p>
+    <summary>Per-workload charts: each framework's distance to the fastest, fork range on hover</summary>
+    <p class="bm-desc">Compare within a chart; each chart is a same-session comparison. The percentage is each framework's distance to the fastest; gold marks the leading group, every framework within 2%. Hover a row for its fork range.</p>
     <div class="bm-grid">
 ${charts}
     </div>
