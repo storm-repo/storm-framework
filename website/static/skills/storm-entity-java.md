@@ -41,8 +41,8 @@ Generation rules:
 
 4. Foreign keys (\`@FK\`):
    - **Every column with a FK constraint in the database must be modeled with `@FK` in the entity.** Without `@FK`, Storm has no FK metadata and cannot resolve joins automatically — forcing template-based joins that defeat the QueryBuilder.
-   - Prefer full entity types (`@FK City city`) over `Ref<T>` (`@FK Ref<City> city`). Full entities load the related data in one query with automatic JOINs.
-   - Use `Ref<T>` when the entity hierarchy gets too deep or loading the full related entity is overkill for the use case.
+   - Prefer full entity types (`@FK City city`) over `Ref<T>` (`@FK Ref<City> city`) for small graphs the reads generally need loaded. Full entities load the related data in one query with automatic JOINs.
+   - Use `Ref<T>` when the entity hierarchy gets too deep or wide, or when loading the full related entity is overkill for most reads. A `Ref` removes the eager join from every query but stays queryable: filter, order, and select through it with the metamodel (`City_.country.name`), and Storm adds the join only for the query that navigates beyond the foreign key. Choosing `Ref` therefore prevents join fan-out without giving up type-safe traversal.
    - Non-nullable: \`@FK City city\` produces INNER JOIN (non-null is the default).
    - Nullable: \`@Nullable @FK City city\` produces LEFT JOIN.
    - **A bare \`@FK City city\` is non-null and produces an INNER JOIN.**

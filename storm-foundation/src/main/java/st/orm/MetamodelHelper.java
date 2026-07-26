@@ -16,7 +16,7 @@ class MetamodelHelper {
             Class<?> factoryClass = Class.forName("st.orm.core.template.impl.MetamodelFactory");
             ROOT_METHOD = factoryClass.getMethod("root", Class.class);
             OF_METHOD = factoryClass.getMethod("of", Class.class, String.class);
-            FLATTEN_METHOD = factoryClass.getMethod("flatten", Metamodel.class);
+            FLATTEN_METHOD = factoryClass.getMethod("flatten", Navigable.class);
         } catch (ReflectiveOperationException e) {
             var ex = new ExceptionInInitializerError("Failed to initialize Metamodel. Please ensure that storm-core is present in the classpath.");
             ex.initCause(e);
@@ -63,7 +63,7 @@ class MetamodelHelper {
     }
 
     @SuppressWarnings("unchecked")
-    static <T extends Data> List<Metamodel<T, ?>> flatten(Metamodel<T, ?> metamodel) {
+    static <T extends Data> List<Metamodel<T, ?>> flatten(Navigable<T, ?> metamodel) {
         try {
             try {
                 return (List<Metamodel<T, ?>>) FLATTEN_METHOD.invoke(null, metamodel);

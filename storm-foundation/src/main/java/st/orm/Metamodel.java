@@ -65,7 +65,7 @@ import java.util.List;
  * @param <E> the field type of the designated element.
  * @since 1.2
  */
-public interface Metamodel<T extends Data, E> {
+public interface Metamodel<T extends Data, E> extends Navigable<T, E> {
 
     /**
      * Creates a new metamodel for the given record type.
@@ -96,94 +96,14 @@ public interface Metamodel<T extends Data, E> {
     }
 
     /**
-     * Returns the canonical metamodel for the field represented by {@code this} metamodel. The resulting metamodel
-     * captures only the table type and field.
-     *
-     * <p>The result is independent of the position of this field within a table graph. This makes the normalized form
-     * suitable for equality checks, for example, to determine whether two metamodels refer to the same underlying
-     * field.</p>
-     *
-     * @return the canonical metamodel for this metamodel.
-     * @since 1.8
-     */
-    default Metamodel<? extends Data, E> canonical() {
-        return of(tableType(), field());
-    }
-
-    /**
-     * Returns {@code true} if the metamodel corresponds to a database column, returns {@code false} otherwise, for
-     * example, if the metamodel refers to the root metamodel or an inline record.
-     *
-     * <p>Note that a column can also be a table, for example, in the case of a foreign key.</p>
-     *
-     * @return {@code true} if this metamodel maps to a column, {@code false} otherwise.
-     */
-    boolean isColumn();
-
-    /**
-     * Returns {@code true} if the metamodel corresponds to an inline record, returns {@code false} otherwise.
-     *
-     * @return {@code true} if this metamodel maps to an inline record, {@code false} otherwise.
-     */
-    boolean isInline();
-
-    /**
-     * Returns the root metamodel. This is typically the table specified in the FROM clause of a query.
-     *
-     * @return the root metamodel.
-     */
-    Class<T> root();
-
-    /**
      * Returns the table that holds the column to which this metamodel is pointing. If the metamodel points to an
      * inline record, the table is the parent table of the inline record. If the metamodel is a root metamodel, the
      * root table is returned.
      *
      * @return the table that holds the column to which this metamodel is pointing.
      */
+    @Override
     Metamodel<T, ? extends Data> table();
-
-    /**
-     * Returns the type of the table that holds the column to which this metamodel is pointing.
-     *
-     * @return the type of the table that holds the column to which this metamodel is pointing.
-     * @since 1.7
-     */
-    default Class<? extends Data> tableType() {
-        return table().fieldType();
-    }
-
-    /**
-     * Returns the path to the database table.
-     *
-     * @return path to the database table.
-     */
-    String path();
-
-    /**
-     * Returns the field type of the designated element.
-     *
-     * @return the field type of the designated element.
-     */
-    Class<E> fieldType();
-
-    /**
-     * Returns the field name.
-     *
-     * @return field name.
-     */
-    String field();
-
-    /**
-     * Returns the field path.
-     *
-     * @return field path.
-     */
-    default String fieldPath() {
-        String path = path();
-        String field = field();
-        return path.isEmpty() ? field : field.isEmpty() ? path : "%s.%s".formatted(path, field());
-    }
 
     /**
      * Extracts the value from the given record as specified by this metamodel.
@@ -200,21 +120,6 @@ public interface Metamodel<T extends Data, E> {
      * @since 1.7
      */
     Object getValue(@Nonnull T record);
-
-    /**
-     * Returns a flat list of leaf metamodels for this metamodel. If this metamodel is not an inline record, it returns
-     * a singleton list containing {@code this}. If it is an inline record, it recursively expands all nested inline
-     * records and returns the individual column metamodels.
-     *
-     * <p>This method is useful for operations like ORDER BY and GROUP BY, where inline records need to be expanded
-     * into their individual columns.</p>
-     *
-     * @return a list of leaf metamodels.
-     * @since 1.9
-     */
-    default List<Metamodel<T, ?>> flatten() {
-        return MetamodelHelper.flatten(this);
-    }
 
     /**
      * Checks whether the value extracted from {@code a} is identical to the value extracted from {@code b}.

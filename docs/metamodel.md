@@ -304,6 +304,72 @@ When resolving a metamodel reference, Storm follows this order:
 2. **Use short form** for custom joins (required) or when you're certain the table is unique
 3. **Check error messages.** Storm tells you which paths are available when ambiguity is detected.
 
+## Navigating Through Refs
+
+A foreign key declared as `Ref<T>` also gets a metamodel, so you can navigate through it the same way you navigate a directly-referenced entity. The difference is where the join goes: a `Ref` is selected as its foreign key column and is never hydrated, so navigating beyond it adds the join *on demand*, only for the query that references a column past the foreign key. A query that stops at the reference emits no join for the referenced table.
+
+Given `User` with `@FK val city: Ref<City>` and `City` with a `country` foreign key:
+
+```kotlin
+// Navigates beyond the city reference: Storm adds the city and country joins for this query.
+User_.city.country.name eq "United States"
+
+// Selecting the root leaves User.city as an unloaded Ref; no join is added.
+orm.entity<User>().select().resultList
+```
+
+### Value Nodes and Navigation-Only Nodes
+
+The metamodel distinguishes two kinds of node, and the distinction is enforced by the type system:
+
+- A **value node** (`Metamodel` / `TypedMetamodel`) can both name a column in a query and extract that field's value from an in-memory record. Every node in the eagerly-hydrated entity graph is a value node, and so is the reference node itself (`User_.city`), whose value is the `Ref`.
+- A **navigation-only node** (`Navigable`, but not `Metamodel`) can name a column in a query but cannot extract a value from a record. Every node reached *beyond* a reference is navigation-only, because a `Ref` is never hydrated into the parent, so there is no in-memory value to read past it.
+
+Navigation-only nodes can be used anywhere a query needs a column reference: `where`, `orderBy`, `groupBy`, `having`, and custom selected columns. They cannot be passed to value operations. Because `resultGroupedBy` reads the group key from each hydrated record, it accepts only value nodes, so grouping by a beyond-reference path does not compile. Group by the reference itself with `resultGroupedByRef` instead, which reads the foreign key without hydrating the target:
+
+```kotlin
+// Compiles: the reference node is value-extractable and yields the Ref.
+val visitsByPet: Map<Ref<Pet>, List<Visit>> = orm.entity<Visit>()
+    .select()
+    .resultGroupedByRef(Visit_.pet)
+
+// Does not compile: a node beyond the reference is navigation-only.
+// orm.entity<Visit>().select().resultGroupedBy(Visit_.pet.owner)
+```
+
+### Cyclic References
+
+A reference that comes back to a table already on the path cannot be navigated: the table would join itself, and a table repeated on one path does not get a distinct alias per occurrence, so the navigation resolves against the earlier occurrence. Storm blocks that in two places.
+
+**A self-referential reference generates no navigation children.** When a `Ref` points back at the record that declares it, the field is generated as a childless value metamodel, so navigating past it is a compile error:
+
+```kotlin
+// Compiles: the reference is the foreign key column, and its value is the Ref.
+User_.invitedBy
+orm.entity<User>().select().resultGroupedByRef(User_.invitedBy)
+
+// Does not compile: a self-referential reference has no navigation children.
+// User_.invitedBy.email
+```
+
+This is decided per field, not per type. A reference to a self-referential type from a *different* record navigates normally, because those are two distinct tables:
+
+```kotlin
+// Fine: report -> user is an ordinary join, so the whole user graph is navigable.
+Report_.author.email eq "alice@example.com"
+```
+
+**Any remaining cycle is rejected when the path is built.** A cycle that closes through more than one type (`A` references `B`, which references `A`) cannot be detected while generating `B`'s metamodel, because it is generic in the root. The same applies to a path built from a string. Both are checked when the metamodel is constructed, and throw a `PersistenceException` rather than returning wrong rows:
+
+```kotlin
+// Throws: the path navigates past a reference back to a table already on the path.
+Metamodel.of(User::class.java, "invitedBy.email")
+```
+
+Navigation across *distinct* tables is unaffected, including a chain that crosses more than one reference (a `Ref` whose target has a `Ref` to a different table).
+
+A direct (non-`Ref`) self-referential foreign key is rejected at generation time: a self-reference must be a `Ref`, which is also what stops the runtime join graph from recursing into itself. See [Preventing Circular Dependencies](refs.md#preventing-circular-dependencies).
+
 ## Generated Code
 
 Understanding the generated code helps when debugging or reading compiler errors. The metamodel mirrors your entity structure, creating a static field for each entity field. Each field carries generic type parameters that encode both the root entity type and the field's value type, which is how the compiler enforces type safety in queries.
@@ -349,6 +415,23 @@ public interface User_ extends Metamodel<User, User> {
 ```
 
 Foreign key fields like `city` generate their own metamodel classes, enabling navigation through relationships with full type safety.
+
+A foreign key declared as `Ref<T>` generates a **reference metamodel**. The reference node is a value node whose value is the `Ref`, and its children are navigation-only nodes for the referenced type:
+
+```
+Entity                              Metamodel
+──────                              ─────────
+User                                User_
+ ├── id: Int (PK)                    ├── id       → Metamodel.Key<User, Int>
+ └── city: Ref<City> (FK)            └── city     → CityRefMetamodel<User>   (value node: getValue → Ref<City>)
+                                                      ├── id                 (navigation-only)
+                                                      └── country            (navigation-only)
+                                                            └── name         (navigation-only)
+```
+
+Selecting `User_.city` selects the foreign key column and yields a `Ref<City>`; navigating past it (`User_.city.country.name`) adds the join on demand. The target's primary key is the exception: a reference carries it (`ref.id()` reads it without fetching), so `User_.city.id` resolves to the foreign key column itself and needs no join, matching what an entity foreign key resolves its primary key to. See [Navigating Through Refs](#navigating-through-refs).
+
+A reference that points back at the record declaring it generates a childless variant instead, so the reference stays selectable while navigating past it does not compile. See [Cyclic References](#cyclic-references).
 
 ## Unique Keys (`@UK`) and `Metamodel.Key`
 

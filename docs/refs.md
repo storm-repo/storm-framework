@@ -24,6 +24,8 @@ data class User(
 
 The `city` field contains only the foreign key ID, not the full `City` entity. Compare this with declaring `@FK val city: City`, which would load the full `City` (and its transitive `@FK` relationships) via auto-generated JOINs on every query.
 
+A `Ref` does not give up type-safe querying. Selecting the entity still stores only the foreign key value, but you can filter, order, and select *through* the reference by naming the target's columns on the metamodel (for example `User_.city.country.name`). Storm adds the join for the referenced table on demand, only for a query that actually navigates beyond the foreign key. See [Querying Through Refs](#querying-through-refs).
+
 </TabItem>
 <TabItem value="java" label="Java">
 
@@ -79,6 +81,8 @@ City city = user.map(u -> u.city().fetch()).orElse(null);  // Loads from databas
 Without Refs, an entity that references its own type would cause infinite recursion during auto-join generation: `User` joins `User`, which joins `User`, and so on. Declaring the self-referential field as `Ref<User>` breaks the cycle. Storm stores only the foreign key and does not attempt to join the table to itself.
 
 This pattern applies to any recursive or hierarchical data model, such as organizational trees, threaded comments, or referral chains.
+
+A self-reference is not navigable, because the table would join itself: a table repeated on one path does not get a distinct alias per occurrence, so the navigation would resolve against the earlier occurrence. The metamodel therefore generates **no navigation children** for a self-referential reference, which makes `User_.invitedBy.email` a compile error rather than a wrong result. The reference itself stays usable, because it is the foreign key column: select it, filter on it, and resolve it with `fetch()` to walk the chain. See [Cyclic References](metamodel.md#cyclic-references).
 
 <Tabs groupId="language">
 <TabItem value="kotlin" label="Kotlin" default>
@@ -194,6 +198,104 @@ List<Role> roles = orm.query(RAW."""
 
 </TabItem>
 </Tabs>
+
+---
+
+## Querying Through Refs
+
+A `Ref` breaks the eager join, not the entity graph. You can still filter, order, and select through the foreign key by naming the target's columns on the metamodel, exactly as you would for a directly-referenced entity. Storm materializes the join for the referenced table on demand: only a query that navigates *beyond* the foreign key adds the join, while a query that stops at the reference selects it as its foreign key column with no join at all.
+
+Consider `User` with `@FK val city: Ref<City>`, where `City` has a `country` foreign key.
+
+<Tabs groupId="language">
+<TabItem value="kotlin" label="Kotlin" default>
+
+```kotlin
+// Filter and order through the reference. The city and country tables are joined only because
+// the query navigates beyond the city foreign key.
+val users = orm.entity<User>()
+    .select()
+    .where(User_.city.country.name eq "United States")
+    .orderBy(User_.city.name)
+    .resultList
+```
+
+</TabItem>
+<TabItem value="java" label="Java">
+
+```java
+// Filter and order through the reference. The city and country tables are joined only because
+// the query navigates beyond the city foreign key.
+List<User> users = orm.entity(User.class)
+    .select()
+    .where(User_.city.country.name, EQUALS, "United States")
+    .orderBy(User_.city.name)
+    .getResultList();
+```
+
+</TabItem>
+</Tabs>
+
+Selecting the root entity still yields an unloaded `Ref`: the navigated columns pull in the join for filtering and ordering, but the selected `User.city` remains a foreign-key-only reference you resolve later with `fetch()`. A query that never navigates beyond the reference emits no join for the referenced table, so the reference stays as cheap as a plain foreign key column.
+
+### Selecting a Column Through a Ref
+
+A custom projection that references a beyond-reference column adds the join and selects that column:
+
+<Tabs groupId="language">
+<TabItem value="kotlin" label="Kotlin" default>
+
+```kotlin
+data class CountryName(val name: String)
+
+val names = orm.entity<User>()
+    .select<CountryName, _, _> { "${User_.city.country.name}" }
+    .where(User_.city.country.name eq "United States")
+    .resultList
+```
+
+</TabItem>
+<TabItem value="java" label="Java">
+
+```java
+record CountryName(String name) {}
+
+List<CountryName> names = orm.entity(User.class)
+    .select(CountryName.class, RAW."\{User_.city.country.name}")
+    .where(User_.city.country.name, EQUALS, "United States")
+    .getResultList();
+```
+
+</TabItem>
+</Tabs>
+
+### The Target's Primary Key Is Part of the Reference
+
+A reference carries the target's primary key: `ref.id()` returns it without fetching the target, because the key is the foreign key column stored on the row itself. Queries mirror that. Reaching the primary key through a reference resolves to that column, so it needs no join, while any other column of the target does:
+
+```kotlin
+// No join: the key is already on the user row, exactly as user.city.id() reads it without fetching.
+orm.entity<User>().select().where(User_.city.id eq 42).resultList
+// SELECT ... FROM user u WHERE u.city_id = ?
+
+// Joins: the name is not part of the reference, exactly as user.city.fetch().name needs the target.
+orm.entity<User>().select().where(User_.city.name eq "Sunnyvale").resultList
+// SELECT ... FROM user u INNER JOIN city c ON u.city_id = c.id WHERE c.name = ?
+```
+
+This is the same column the reference itself resolves to, so `User_.city.id eq 42` and `User_.city eq Ref.of(City::class.java, 42)` produce identical SQL. It is also the same column an entity foreign key resolves its primary key to, so a path means the same thing whether the relationship is declared as an entity or as a `Ref`.
+
+Because the key is read from the row, a match does not require the referenced row to exist. Express that requirement explicitly with a join or an exists clause when you need it.
+
+### What You Can and Cannot Do Beyond a Ref
+
+Nodes reached *beyond* a reference are **navigation-only**. They can be used anywhere a query needs a column reference: `where`, `orderBy`, `groupBy`, `having`, and custom selected columns. They cannot extract a value from an in-memory record, because a `Ref` is never hydrated into the parent, so value operations (such as `getValue` or `resultGroupedBy`) are not available on them and fail to compile. The reference node itself (`User_.city`) is value-extractable and yields the `Ref`, so grouping by the reference with `resultGroupedByRef` works. See [Navigating Through Refs](metamodel.md#navigating-through-refs) for the type-level details.
+
+### Designing Entities to Avoid Excessive Joins
+
+A directly-referenced entity foreign key (`@FK val city: City`) is joined on **every** query, together with its own transitive foreign keys, because Storm hydrates the whole reachable graph in one select (see [Relationship Loading Behavior](relationships.md#relationship-loading-behavior)). For a wide or deep graph this fans out into many joins that most reads do not need.
+
+Declaring the field as `Ref<City>` removes that join from every read while keeping the relationship fully queryable: the join appears only for the specific query that navigates beyond it. Prefer a `Ref` for foreign keys you do not hydrate on most reads, especially in wide or deep graphs, to keep SELECTs narrow without giving up type-safe filtering, ordering, and projection through the relationship.
 
 ---
 
@@ -358,3 +460,4 @@ Understanding how `fetch()` resolves its target helps you predict performance an
 2. **Use Refs for self-references.** Prevent circular loading in hierarchical data.
 3. **Use Refs in aggregations.** Get counts by FK without loading full entities.
 4. **Refs are reliable map keys.** They provide lightweight, identity-based comparison.
+5. **Refs stay queryable.** Filter, order, and select through a Ref with the metamodel; the join is added only when a query navigates beyond the foreign key.

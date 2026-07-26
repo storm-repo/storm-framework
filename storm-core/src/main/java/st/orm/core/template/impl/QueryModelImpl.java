@@ -21,6 +21,7 @@ import static st.orm.ResolveScope.INNER;
 import static st.orm.core.template.Templates.alias;
 import static st.orm.core.template.Templates.param;
 import static st.orm.core.template.impl.RecordReflection.getDiscriminatorType;
+import static st.orm.core.template.impl.RecordReflection.getRecordField;
 import static st.orm.core.template.impl.RecordReflection.hasDiscriminator;
 import static st.orm.core.template.impl.RecordReflection.isJoinedEntity;
 import static st.orm.core.template.impl.RecordReflection.isSealedEntity;
@@ -54,6 +55,7 @@ import st.orm.core.template.impl.Elements.Expression;
 import st.orm.core.template.impl.Elements.ObjectExpression;
 import st.orm.core.template.impl.Elements.Subquery;
 import st.orm.core.template.impl.Elements.TemplateExpression;
+import st.orm.mapping.RecordField;
 
 /**
  * Query model implementation responsible for translating high-level query expressions into SQL fragments and bind
@@ -598,7 +600,7 @@ final class QueryModelImpl implements QueryModel {
      * @return the resolved model.
      */
     private <T extends Data> Model<T, ?> getModel(@Nonnull Metamodel<?, ?> metamodel) {
-        if (model.type() == metamodel.root()) {
+        if (model.type() == metamodel.root() && !crossesReference(metamodel)) {
             //noinspection unchecked
             return (Model<T, ?>) model;
         }
@@ -614,6 +616,31 @@ final class QueryModelImpl implements QueryModel {
         } catch (SqlTemplateException e) {
             throw new UncheckedSqlTemplateException(e);
         }
+    }
+
+    /**
+     * Returns whether the given metamodel navigates through a Ref foreign key. Such a metamodel resolves in the
+     * referenced table's model rather than the root model, because selecting the root keeps the reference as its
+     * foreign key column instead of expanding the referenced entity into the root's columns.
+     */
+    private static boolean crossesReference(@Nonnull Metamodel<?, ?> metamodel) {
+        String path = metamodel.path();
+        if (path.isEmpty()) {
+            return false;
+        }
+        Class<?> current = metamodel.root();
+        try {
+            for (String segment : path.split("\\.")) {
+                RecordField field = getRecordField(current, segment);
+                if (Ref.class.isAssignableFrom(field.type())) {
+                    return true;
+                }
+                current = field.type();
+            }
+        } catch (SqlTemplateException e) {
+            return false;
+        }
+        return false;
     }
 
     /**

@@ -92,6 +92,30 @@ public final class MetamodelProcessor extends AbstractProcessor {
     private final Set<String> expandedReferencedRecords;
 
     /**
+     * Tracks which record types we already generated a reference metamodel class ({@code <Type>RefMetamodel}) for.
+     */
+    private final Set<String> generatedReferenceMetamodels;
+
+    /**
+     * Tracks which record types we already generated a self-referential reference metamodel class
+     * ({@code <Type>CyclicRefMetamodel}) for.
+     */
+    private final Set<String> generatedCyclicReferenceMetamodels;
+
+    /**
+     * Tracks which record types we already generated a navigation-only metamodel class
+     * ({@code Navigable<Type>Metamodel}) for. Prevents infinite recursion on cyclic reference graphs.
+     */
+    private final Set<String> generatedNavigableMetamodels;
+
+    /**
+     * Qualified names of the types currently being expanded into navigation-only metamodels. A navigation child whose
+     * target type is already on this path forms a cycle (for example a self-referencing {@code Ref}); it is emitted as
+     * a navigation leaf so eager construction of the generated metamodels terminates.
+     */
+    private final Set<String> navPath;
+
+    /**
      * Fully qualified names of the generated instantiators, registered as services when processing is over.
      */
     private final Set<String> generatedInstantiators;
@@ -103,6 +127,10 @@ public final class MetamodelProcessor extends AbstractProcessor {
         this.generatedMetamodelClasses = new HashSet<>();
         this.generatedMetamodelInterfaces = new HashSet<>();
         this.expandedReferencedRecords = new HashSet<>();
+        this.generatedReferenceMetamodels = new HashSet<>();
+        this.generatedCyclicReferenceMetamodels = new HashSet<>();
+        this.generatedNavigableMetamodels = new HashSet<>();
+        this.navPath = new HashSet<>();
         this.generatedInstantiators = new LinkedHashSet<>();
     }
 
@@ -326,13 +354,23 @@ public final class MetamodelProcessor extends AbstractProcessor {
             TypeMirror fieldType = getTypeElement(recordElement, fieldName);
             if (fieldType == null) continue;
 
-            // Only follow direct record references (not Ref<...>, not nested records).
+            // Follow direct record references (not nested record definitions).
             if (isRecord(fieldType) && !isRefType(fieldType)) {
                 if (isNestedRecord(fieldType)) continue;
 
                 TypeElement nestedTypeEl = asTypeElement(fieldType);
                 if (nestedTypeEl != null) {
                     generateMetamodelArtifacts(nestedTypeEl);
+                }
+            } else if (isRefType(fieldType)) {
+                // A Ref<X> field needs a reference metamodel for X and navigation-only metamodels beyond it. A
+                // reference back at the declaring record additionally needs the childless reference metamodel.
+                if (isSelfReferentialRef(fieldType, recordElement)) {
+                    generateCyclicReferenceArtifacts(recordElement);
+                }
+                TypeElement refTargetEl = asTypeElement(unwrapRefType(fieldType));
+                if (refTargetEl != null) {
+                    generateReferenceArtifacts(refTargetEl);
                 }
             }
         }
@@ -860,6 +898,13 @@ public final class MetamodelProcessor extends AbstractProcessor {
                 builder.append("    ").append(fieldTypeName).append("Metamodel<").append(recordName).append("> ")
                         .append(fieldName).append(" = ").append(modelRef).append(".")
                         .append(fieldName).append(";\n");
+            } else if (isRefType(fieldType)) {
+                builder.append("    /** Represents the {@link ").append(recordName).append("#").append(fieldName)
+                        .append("} reference. */\n");
+                builder.append("    ").append(refClassNameFor(fieldType, recordElement, fieldTypeName))
+                        .append("<").append(recordName).append("> ")
+                        .append(fieldName).append(" = ").append(modelRef).append(".")
+                        .append(fieldName).append(";\n");
             } else {
                 String valueTypeName = getValueTypeName(fieldType, packageName);
                 boolean unique = isEffectivelyUniqueField(recordElement, fieldName);
@@ -1028,6 +1073,15 @@ public final class MetamodelProcessor extends AbstractProcessor {
                         .append(inline ? "record." : "foreign key.").append(" */\n");
                 builder.append("    public final ").append(fieldTypeName).append("Metamodel<T> ").append(fieldName)
                         .append(";\n");
+            } else if (isRefType(fieldType)) {
+                // A Ref<X> foreign key: a reference metamodel that selects the foreign key column but also navigates
+                // beyond the reference (its children are navigation-only, so value extraction there does not compile).
+                // A reference back at the declaring record uses the childless variant, which offers no navigation.
+                builder.append("    /** Represents the {@link ").append(recordName).append("#").append(fieldName)
+                        .append("} reference. */\n");
+                builder.append("    public final ").append(refClassNameFor(fieldType, recordElement, fieldTypeName))
+                        .append("<T> ").append(fieldName)
+                        .append(";\n");
             } else {
                 String valueTypeName = getValueTypeName(fieldType, packageName);
                 boolean unique = isEffectivelyUniqueField(recordElement, fieldName);
@@ -1116,6 +1170,21 @@ public final class MetamodelProcessor extends AbstractProcessor {
                             .append(nestedGetter)
                             .append(");\n");
                 }
+            } else if (isRefType(fieldType)) {
+                // A reference: the reference metamodel selects the foreign key column (its getValue returns the Ref)
+                // and exposes navigation-only children beyond the reference. The getter yields the Ref value directly.
+                // A reference back at the declaring record uses the childless variant, which takes the same arguments.
+                String refGetter =
+                        "t -> {\n" +
+                                "            " + recordName + " p = " + metaClassName + ".this.getValue(t);\n" +
+                                "            return (p == null) ? null : " + accessorExpr(recordElement, "p", fieldName, fieldType) + ";\n" +
+                                "        }";
+                builder.append("        this.").append(fieldName).append(" = new ")
+                        .append(refClassNameFor(fieldType, recordElement, fieldTypeName))
+                        .append("<>(")
+                        .append("subPath, fieldBase + \"").append(fieldName).append("\", false, this, ")
+                        .append(refGetter)
+                        .append(");\n");
             } else {
                 String valueTypeName = getValueTypeName(fieldType, packageName);
                 boolean unique = isEffectivelyUniqueField(recordElement, fieldName);
@@ -1255,6 +1324,270 @@ public final class MetamodelProcessor extends AbstractProcessor {
 
         builder.append("    }\n\n");
         return builder.toString();
+    }
+
+    // ---- Reference and navigation-only metamodel generation ----
+
+    private static String refClassName(@Nonnull String recordName) {
+        return recordName + "RefMetamodel";
+    }
+
+    private static String cyclicRefClassName(@Nonnull String recordName) {
+        return recordName + "CyclicRefMetamodel";
+    }
+
+    /**
+     * Returns whether a reference field points back at the record that declares it. Navigating past such a reference
+     * would join the table to itself, and a table repeated on one path does not get a distinct alias per occurrence,
+     * so no navigation children are generated for it. The reference itself stays selectable as the foreign key column.
+     */
+    private boolean isSelfReferentialRef(@Nonnull TypeMirror fieldType, @Nonnull Element recordElement) {
+        if (!isRefType(fieldType)) return false;
+
+        TypeElement target = asTypeElement(unwrapRefType(fieldType));
+        TypeElement declaring = asTypeElement(recordElement.asType());
+        return target != null && declaring != null
+                && target.getQualifiedName().contentEquals(declaring.getQualifiedName());
+    }
+
+    /**
+     * Returns the metamodel class name to use for a reference field: the childless variant when the reference points
+     * back at the record that declares it, the regular reference metamodel otherwise.
+     */
+    private String refClassNameFor(@Nonnull TypeMirror fieldType,
+                                   @Nonnull Element recordElement,
+                                   @Nonnull String fieldTypeName) {
+        return isSelfReferentialRef(fieldType, recordElement)
+                ? cyclicRefClassName(fieldTypeName)
+                : refClassName(fieldTypeName);
+    }
+
+    private static String navClassName(@Nonnull String recordName) {
+        return "Navigable" + recordName + "Metamodel";
+    }
+
+    private static TypeMirror unwrapRefType(@Nonnull TypeMirror fieldType) {
+        if (fieldType instanceof DeclaredType declaredType && !declaredType.getTypeArguments().isEmpty()) {
+            return declaredType.getTypeArguments().get(0);
+        }
+        return fieldType;
+    }
+
+    /**
+     * Generates the reference metamodel for a {@code Ref<X>} foreign key target and the navigation-only metamodels for
+     * the whole graph reachable beyond it.
+     */
+    private void generateReferenceArtifacts(@Nonnull Element refTarget) {
+        TypeElement typeElement = asTypeElement(refTarget.asType());
+        if (typeElement == null) return;
+        if (generatedReferenceMetamodels.add(typeElement.getQualifiedName().toString())) {
+            generateReferenceMetamodelClass(refTarget);
+        }
+        generateNavigableArtifacts(refTarget);
+    }
+
+    /**
+     * Generates the childless reference metamodel for a record that declares a reference back at itself.
+     */
+    private void generateCyclicReferenceArtifacts(@Nonnull Element refTarget) {
+        TypeElement typeElement = asTypeElement(refTarget.asType());
+        if (typeElement == null) return;
+        if (generatedCyclicReferenceMetamodels.add(typeElement.getQualifiedName().toString())) {
+            generateCyclicReferenceMetamodelClass(refTarget);
+        }
+    }
+
+    /**
+     * Generates the navigation-only metamodel for a type and, transitively, for every record and reference it reaches,
+     * so a path can navigate arbitrarily far beyond a reference.
+     */
+    private void generateNavigableArtifacts(@Nonnull Element element) {
+        TypeElement typeElement = asTypeElement(element.asType());
+        if (typeElement == null) return;
+        String qualifiedName = typeElement.getQualifiedName().toString();
+        if (!generatedNavigableMetamodels.add(qualifiedName)) return;
+        navPath.add(qualifiedName);
+        try {
+            generateNavigableMetamodelClass(element);
+            for (Element enclosed : element.getEnclosedElements()) {
+                if (getRecordComponentType(enclosed).isEmpty()) continue;
+                String fieldName = enclosed.getSimpleName().toString();
+                TypeMirror fieldType = getTypeElement(element, fieldName);
+                if (fieldType == null) continue;
+                if (isRecord(fieldType) && !isRefType(fieldType)) {
+                    if (isNestedRecord(fieldType)) continue;
+                    TypeElement childElement = asTypeElement(fieldType);
+                    if (childElement != null) generateNavigableArtifacts(childElement);
+                } else if (isRefType(fieldType)) {
+                    TypeElement childElement = asTypeElement(unwrapRefType(fieldType));
+                    if (childElement != null) generateNavigableArtifacts(childElement);
+                }
+            }
+        } finally {
+            navPath.remove(qualifiedName);
+        }
+    }
+
+    /**
+     * Returns whether navigating into {@code fieldType} would re-enter a type already being expanded, which would make
+     * eager construction of the generated metamodels recurse forever. Such a child is emitted as a navigation leaf.
+     */
+    private boolean isCyclicNavChild(@Nonnull TypeMirror fieldType) {
+        TypeMirror target = isRefType(fieldType) ? unwrapRefType(fieldType) : fieldType;
+        TypeElement targetElement = asTypeElement(target);
+        return targetElement != null && navPath.contains(targetElement.getQualifiedName().toString());
+    }
+
+    private String buildNavClassFields(@Nonnull Element recordElement, @Nonnull String packageName, @Nonnull String recordName) {
+        StringBuilder builder = new StringBuilder();
+        for (Element enclosed : recordElement.getEnclosedElements()) {
+            if (getRecordComponentType(enclosed).isEmpty()) continue;
+            String fieldName = enclosed.getSimpleName().toString();
+            TypeMirror fieldType = getTypeElement(recordElement, fieldName);
+            if (fieldType == null) continue;
+            String fieldTypeName = getTypeName(fieldType, packageName);
+            builder.append("    /** Represents navigation to {@link ").append(recordName).append("#").append(fieldName).append("}. */\n");
+            boolean record = isRecord(fieldType) && !isRefType(fieldType);
+            boolean ref = isRefType(fieldType);
+            if (record && isNestedRecord(fieldType)) continue;
+            if ((record || ref) && !isCyclicNavChild(fieldType)) {
+                builder.append("    public final ").append(navClassName(fieldTypeName)).append("<T> ").append(fieldName).append(";\n");
+            } else {
+                // Scalar column, or a cyclic navigation edge broken to a leaf.
+                builder.append("    public final st.orm.AbstractNavigableMetamodel<T, ").append(fieldTypeName).append("> ").append(fieldName).append(";\n");
+            }
+        }
+        return builder.toString();
+    }
+
+    private String initNavClassFields(@Nonnull Element recordElement, @Nonnull String packageName) {
+        StringBuilder builder = new StringBuilder();
+        for (Element enclosed : recordElement.getEnclosedElements()) {
+            if (getRecordComponentType(enclosed).isEmpty()) continue;
+            String fieldName = enclosed.getSimpleName().toString();
+            TypeMirror fieldType = getTypeElement(recordElement, fieldName);
+            if (fieldType == null) continue;
+            String fieldTypeName = getTypeName(fieldType, packageName);
+            boolean record = isRecord(fieldType) && !isRefType(fieldType);
+            boolean ref = isRefType(fieldType);
+            if (record && isNestedRecord(fieldType)) continue;
+            if ((record || ref) && !isCyclicNavChild(fieldType)) {
+                boolean inline = record && !isDataType(recordElement, fieldName);
+                builder.append("        this.").append(fieldName).append(" = new ").append(navClassName(fieldTypeName))
+                        .append("<>(subPath, fieldBase + \"").append(fieldName).append("\", ").append(inline ? "true" : "false").append(", this);\n");
+            } else {
+                // Scalar column, or a cyclic navigation edge broken to a leaf so eager construction terminates.
+                builder.append("        this.").append(fieldName).append(" = new st.orm.AbstractNavigableMetamodel<T, ")
+                        .append(fieldTypeName).append(">(").append(fieldTypeName).append(".class, subPath, fieldBase + \"")
+                        .append(fieldName).append("\", false, this) {};\n");
+            }
+        }
+        if (!builder.isEmpty()) builder.setLength(builder.length() - 1);
+        return builder.toString();
+    }
+
+    private void generateNavigableMetamodelClass(@Nonnull Element recordElement) {
+        String packageName = elementUtils.getPackageOf(recordElement).getQualifiedName().toString();
+        String recordName = recordElement.getSimpleName().toString();
+        String metaClassName = navClassName(recordName);
+        String navFields = buildNavClassFields(recordElement, packageName, recordName);
+        String initFields = initNavClassFields(recordElement, packageName);
+        String content =
+                (packageName.isEmpty() ? "" : "package " + packageName + ";\n\n") +
+                        "import st.orm.Navigable;\n" +
+                        "import st.orm.AbstractNavigableMetamodel;\n" +
+                        "import jakarta.annotation.Nonnull;\n" +
+                        "import javax.annotation.processing.Generated;\n\n" +
+                        "/**\n * Navigation-only metamodel for " + recordName + ", used to navigate beyond a reference boundary.\n *\n" +
+                        " * @param <T> the record type of the root table of the entity graph.\n */\n" +
+                        "@Generated(\"" + getClass().getName() + "\")\n" +
+                        "public final class " + metaClassName + "<T extends st.orm.Data> extends AbstractNavigableMetamodel<T, " + recordName + "> {\n\n" +
+                        navFields + "\n" +
+                        "    public " + metaClassName + "(@Nonnull String field, @Nonnull Navigable<T, ?> parent) {\n" +
+                        "        this(\"\", field, false, parent);\n" +
+                        "    }\n\n" +
+                        "    public " + metaClassName + "(@Nonnull String path, @Nonnull String field, boolean inline, @Nonnull Navigable<T, ?> parent) {\n" +
+                        "        super(" + recordName + ".class, path, field, inline, parent);\n" +
+                        "        String subPath = inline ? path : field.isEmpty() ? path : path.isEmpty() ? field : path + \".\" + field;\n" +
+                        "        String fieldBase = inline ? (field.isEmpty() ? \"\" : field + \".\") : \"\";\n\n" +
+                        initFields + "\n" +
+                        "    }\n" +
+                        "}\n";
+        writeSourceFile(packageName, metaClassName, recordElement, content);
+    }
+
+    private void generateCyclicReferenceMetamodelClass(@Nonnull Element recordElement) {
+        String packageName = elementUtils.getPackageOf(recordElement).getQualifiedName().toString();
+        String recordName = recordElement.getSimpleName().toString();
+        String metaClassName = cyclicRefClassName(recordName);
+        String refType = "st.orm.Ref<" + recordName + ">";
+        String content =
+                (packageName.isEmpty() ? "" : "package " + packageName + ";\n\n") +
+                        "import st.orm.Metamodel;\n" +
+                        "import st.orm.AbstractMetamodel;\n" +
+                        "import jakarta.annotation.Nonnull;\n" +
+                        "import javax.annotation.processing.Generated;\n\n" +
+                        "/**\n * Reference metamodel for " + recordName + " declared on " + recordName + " itself: selects the foreign key column. A self-referential reference\n" +
+                        " * exposes no navigation, because navigating past it would join the table to itself and resolve against the earlier\n" +
+                        " * occurrence. Resolve the reference with fetch() to walk the chain.\n *\n" +
+                        " * @param <T> the record type of the root table of the entity graph.\n */\n" +
+                        "@Generated(\"" + getClass().getName() + "\")\n" +
+                        "public final class " + metaClassName + "<T extends st.orm.Data> extends AbstractMetamodel<T, " + recordName + ", " + refType + "> {\n\n" +
+                        "    private final java.util.function.Function<T, " + refType + "> getter;\n\n" +
+                        "    @Override\n    public " + refType + " getValue(@Nonnull T record) {\n        return getter.apply(record);\n    }\n\n" +
+                        "    @Override\n    public boolean isIdentical(@Nonnull T a, @Nonnull T b) {\n        return getter.apply(a) == getter.apply(b);\n    }\n\n" +
+                        "    @Override\n    public boolean isSame(@Nonnull T a, @Nonnull T b) {\n        return java.util.Objects.equals(getter.apply(a), getter.apply(b));\n    }\n\n" +
+                        "    public " + metaClassName + "(@Nonnull String path, @Nonnull String field, boolean inline, @Nonnull Metamodel<T, ?> parent, @Nonnull java.util.function.Function<T, " + refType + "> getter) {\n" +
+                        "        super(" + recordName + ".class, path, field, inline, parent);\n" +
+                        "        this.getter = getter;\n" +
+                        "    }\n" +
+                        "}\n";
+        writeSourceFile(packageName, metaClassName, recordElement, content);
+    }
+
+    private void generateReferenceMetamodelClass(@Nonnull Element recordElement) {
+        String packageName = elementUtils.getPackageOf(recordElement).getQualifiedName().toString();
+        String recordName = recordElement.getSimpleName().toString();
+        String metaClassName = refClassName(recordName);
+        String navFields = buildNavClassFields(recordElement, packageName, recordName);
+        String initFields = initNavClassFields(recordElement, packageName);
+        String refType = "st.orm.Ref<" + recordName + ">";
+        String content =
+                (packageName.isEmpty() ? "" : "package " + packageName + ";\n\n") +
+                        "import st.orm.Metamodel;\n" +
+                        "import st.orm.AbstractMetamodel;\n" +
+                        "import jakarta.annotation.Nonnull;\n" +
+                        "import javax.annotation.processing.Generated;\n\n" +
+                        "/**\n * Reference metamodel for " + recordName + ": selects the foreign key column and navigates beyond the reference.\n *\n" +
+                        " * @param <T> the record type of the root table of the entity graph.\n */\n" +
+                        "@Generated(\"" + getClass().getName() + "\")\n" +
+                        "public final class " + metaClassName + "<T extends st.orm.Data> extends AbstractMetamodel<T, " + recordName + ", " + refType + "> {\n\n" +
+                        navFields + "\n" +
+                        "    private final java.util.function.Function<T, " + refType + "> getter;\n\n" +
+                        "    @Override\n    public " + refType + " getValue(@Nonnull T record) {\n        return getter.apply(record);\n    }\n\n" +
+                        "    @Override\n    public boolean isIdentical(@Nonnull T a, @Nonnull T b) {\n        return getter.apply(a) == getter.apply(b);\n    }\n\n" +
+                        "    @Override\n    public boolean isSame(@Nonnull T a, @Nonnull T b) {\n        return java.util.Objects.equals(getter.apply(a), getter.apply(b));\n    }\n\n" +
+                        "    public " + metaClassName + "(@Nonnull String path, @Nonnull String field, boolean inline, @Nonnull Metamodel<T, ?> parent, @Nonnull java.util.function.Function<T, " + refType + "> getter) {\n" +
+                        "        super(" + recordName + ".class, path, field, inline, parent);\n" +
+                        "        this.getter = getter;\n" +
+                        "        String subPath = inline ? path : field.isEmpty() ? path : path.isEmpty() ? field : path + \".\" + field;\n" +
+                        "        String fieldBase = inline ? (field.isEmpty() ? \"\" : field + \".\") : \"\";\n\n" +
+                        initFields + "\n" +
+                        "    }\n" +
+                        "}\n";
+        writeSourceFile(packageName, metaClassName, recordElement, content);
+    }
+
+    private void writeSourceFile(@Nonnull String packageName, @Nonnull String className, @Nonnull Element originating, @Nonnull String content) {
+        try {
+            JavaFileObject fileObject = processingEnv.getFiler()
+                    .createSourceFile((packageName.isEmpty() ? "" : packageName + ".") + className, originating);
+            try (Writer writer = fileObject.openWriter()) {
+                writer.write(content);
+            }
+        } catch (Exception e) {
+            processingEnv.getMessager().printMessage(ERROR, "Failed to generate " + className + ". Error: " + e);
+        }
     }
 
     private void generateMetamodelClass(@Nonnull Element recordElement) {

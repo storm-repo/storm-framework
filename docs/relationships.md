@@ -652,7 +652,7 @@ data class Category(
 ) : Entity<Int>
 ```
 
-See [Refs](refs.md) for details on lightweight references.
+A `Ref` removes the join from every read but keeps the relationship queryable: you can still filter, order, and select through it with the metamodel (`Category_.parent.name`), and Storm adds the join only for the query that navigates beyond the foreign key. This makes `Ref` the primary tool for keeping wide or deep graphs' reads narrow without giving up type-safe traversal. See [Refs](refs.md) and [Querying Through Refs](refs.md#querying-through-refs) for details.
 
 ## Tips
 

@@ -29,14 +29,17 @@ import java.lang.invoke.MethodHandle;
 import java.lang.invoke.MethodHandles;
 import java.lang.reflect.Method;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import st.orm.AbstractKeyMetamodel;
 import st.orm.AbstractMetamodel;
 import st.orm.Data;
 import st.orm.Metamodel;
+import st.orm.Navigable;
 import st.orm.PK;
 import st.orm.PersistenceException;
 import st.orm.Ref;
@@ -119,9 +122,14 @@ public final class MetamodelFactory {
      * returns a singleton list containing the metamodel. If it is an inline record, it recursively expands all nested
      * inline records and returns the individual column metamodels.
      */
-    public static <T extends Data> List<Metamodel<T, ?>> flatten(@Nonnull Metamodel<T, ?> metamodel) {
+    public static <T extends Data> List<Metamodel<T, ?>> flatten(@Nonnull Navigable<T, ?> metamodel) {
         if (!metamodel.isInline()) {
-            return List.of(metamodel);
+            if (metamodel instanceof Metamodel<T, ?> full) {
+                return List.of(full);
+            }
+            // A navigation-only node (beyond a reference) is not a value metamodel; rebuild a resolvable metamodel
+            // for its path so it can still be expanded for ORDER BY / GROUP BY.
+            return List.of(of(metamodel.root(), metamodel.fieldPath()));
         }
         List<RecordField> fields = getRecordFields(metamodel.fieldType());
         List<Metamodel<T, ?>> result = new ArrayList<>();
@@ -134,10 +142,91 @@ public final class MetamodelFactory {
     }
 
     /**
+     * Returns whether {@code fieldName} names the primary key of {@code table}.
+     */
+    private static boolean isPrimaryKeyName(@Nonnull Class<?> table, @Nonnull String fieldName) {
+        try {
+            return findPkField(table).map(pk -> pk.name().equals(fieldName)).orElse(false);
+        } catch (RuntimeException e) {
+            return false;
+        }
+    }
+
+    /**
+     * Rejects a path that navigates past a reference whose target table already occurs earlier on the path. Such a
+     * reference joins a table to itself, and a table repeated on one path does not receive a distinct alias per
+     * occurrence, so the navigation resolves against the earlier occurrence and yields the wrong row. Reporting the
+     * path as an error keeps a query from silently returning wrong results.
+     *
+     * <p>The reference itself remains addressable, because it is the foreign key column: only navigation <em>past</em>
+     * such a reference is rejected. Model a self-referential relationship as a reference for cheap foreign key storage
+     * and walk the chain in code with {@code fetch()}. References that reach distinct tables are unaffected, including
+     * a chain that crosses more than one reference.</p>
+     */
+    private static void checkNoNavigationBeyondCyclicReference(@Nonnull Class<? extends Data> rootTable,
+                                                               @Nonnull String path) {
+        if (path.isEmpty()) {
+            return;
+        }
+        String violation = findNavigationBeyondCyclicReference(rootTable, path);
+        if (violation != null) {
+            throw new PersistenceException(violation);
+        }
+    }
+
+    /**
+     * Returns a message describing navigation past a reference that revisits a table already on the path, or
+     * {@code null} when the path is acceptable or cannot be resolved here. Resolution failures yield {@code null} so
+     * this check never masks or replaces the error the regular resolution path reports for a malformed path.
+     */
+    @Nullable
+    private static String findNavigationBeyondCyclicReference(@Nonnull Class<? extends Data> rootTable,
+                                                              @Nonnull String path) {
+        // Sealed entity interfaces are not records, so field resolution delegates to the first permitted subclass,
+        // matching getModel.
+        Class<? extends Data> fieldResolutionClass = rootTable;
+        if (rootTable.isSealed() && isSealedEntity(rootTable)) {
+            Class<?>[] permitted = rootTable.getPermittedSubclasses();
+            if (permitted != null && permitted.length > 0) {
+                //noinspection unchecked
+                fieldResolutionClass = (Class<? extends Data>) permitted[0];
+            }
+        }
+        String[] segments = path.split("\\.");
+        Set<Class<?>> seen = new HashSet<>();
+        seen.add(rootTable);
+        seen.add(fieldResolutionClass);
+        String prefix = "";
+        try {
+            for (int i = 0; i < segments.length; i++) {
+                prefix = prefix.isEmpty() ? segments[i] : prefix + "." + segments[i];
+                RecordField field = getRecordField(fieldResolutionClass, prefix);
+                if (Ref.class.isAssignableFrom(field.type())) {
+                    Class<? extends Data> target = getRefDataType(field);
+                    boolean navigatesPast = i < segments.length - 1;
+                    if (navigatesPast && !seen.add(target)) {
+                        return ("Cannot navigate past the reference at '%s' on %s: it reaches %s, which already occurs "
+                                + "earlier on the path, so the table would join itself and resolve against the earlier "
+                                + "occurrence. Select the reference itself and resolve it with fetch().")
+                                .formatted(prefix, rootTable.getSimpleName(), target.getSimpleName());
+                    }
+                } else if (Data.class.isAssignableFrom(field.type())) {
+                    seen.add(field.type());
+                }
+            }
+        } catch (SqlTemplateException | RuntimeException e) {
+            // Not resolvable here: the regular resolution path reports the underlying failure.
+            return null;
+        }
+        return null;
+    }
+
+    /**
      * Creates a new metamodel for the given root table and path.
      */
     @SuppressWarnings({"unchecked", "rawtypes"})
     private static <T extends Data, E> Metamodel<T, E> getModel(@Nonnull Class<T> rootTable, @Nonnull String path) {
+        checkNoNavigationBeyondCyclicReference(rootTable, path);
         Metamodel<T, ?> generated = lookupGeneratedMetamodel(rootTable, path);
         if (generated != null) {
             return (Metamodel<T, E>) generated;
@@ -189,15 +278,32 @@ public final class MetamodelFactory {
                     isColumn = true;
                 }
             }
-            // Walk up until we hit the Data class boundary; everything below becomes part of field(), everything above
-            // (including the FK field) becomes path().
+            // Walk up until we hit the table boundary; everything below becomes part of field(), everything above
+            // (including the FK field) becomes path(). A Ref foreign key is a table boundary too: the referenced table
+            // is joined and queried beyond the reference, so the reference is where field() begins, even when the
+            // referenced table is itself reached beyond another reference (chained or self-referential references).
             while (!effectivePath.isEmpty()) {
                 RecordField parent = getRecordField(fieldResolutionClass, effectivePath);
-                if (Data.class.isAssignableFrom(parent.type())) {
+                if (Data.class.isAssignableFrom(parent.type()) || Ref.class.isAssignableFrom(parent.type())) {
                     break;
                 }
                 effectiveField.insert(0, parent.name() + ".");
                 effectivePath = stripLast(effectivePath);
+            }
+            // A reference carries the target's primary key: Ref.id() reads it without fetching the target, because the
+            // key is the foreign key column on the row itself. The metamodel mirrors that, so the target's primary key
+            // reached through a reference resolves to that column, while any other column of the target resolves in
+            // the referenced table. This is also the column an entity foreign key resolves its primary key to, so a
+            // path means the same thing whether the relationship is declared as an entity or as a reference. Matching
+            // on the key therefore does not require the referenced row to exist; join the referenced table explicitly
+            // to require that.
+            if (!effectivePath.isEmpty()) {
+                RecordField referenceField = getRecordField(fieldResolutionClass, effectivePath);
+                if (Ref.class.isAssignableFrom(referenceField.type())
+                        && isPrimaryKeyName(getRefDataType(referenceField), effectiveField.toString())) {
+                    effectiveField = new StringBuilder(referenceField.name());
+                    effectivePath = stripLast(effectivePath);
+                }
             }
         } catch (SqlTemplateException e) {
             throw new PersistenceException("Failed to resolve metamodel field at path '%s' on type %s.".formatted(path, rootTable.getName()), e);
@@ -331,7 +437,9 @@ public final class MetamodelFactory {
                         ? segments[i]
                         : candidate + "." + segments[i];
                 RecordField field = getRecordField(rootTable, candidate);
-                if (Data.class.isAssignableFrom(field.type())) {
+                // A Ref<X> foreign key is a table boundary too: the referenced table can be joined and queried
+                // beyond the reference, even though the reference itself is selected as its foreign key column.
+                if (Data.class.isAssignableFrom(field.type()) || Ref.class.isAssignableFrom(field.type())) {
                     tablePath = candidate;
                 }
             }
@@ -402,6 +510,12 @@ public final class MetamodelFactory {
             Class<?> currentType = rootType;
             MethodHandle handle = null;
             for (String part : fullPath.split("\\.")) {
+                if (Ref.class.isAssignableFrom(currentType)) {
+                    // The path navigates beyond a Ref boundary. The referenced entity is not loaded in memory, so its
+                    // columns cannot be read from an in-memory record; such metamodels are query-only (filter, join,
+                    // order, select). Defer the failure to invocation so constructing the metamodel stays valid.
+                    return refBoundaryHandle(rootType, fullPath);
+                }
                 Method m = findAccessor(currentType, part);
                 MethodHandle getter = unreflect(base, currentType, m);
                 if (handle == null) {
@@ -418,6 +532,20 @@ public final class MetamodelFactory {
                     new SqlTemplateException("Failed to create accessor handle for path: " + fullPath, e)
             );
         }
+    }
+
+    /**
+     * Builds a getter handle that throws {@link UnsupportedOperationException} when invoked, for paths that navigate
+     * beyond a Ref boundary. The referenced entity is not loaded in memory, so its columns cannot be read from a
+     * record; the metamodel remains usable for query construction (filter, join, order, select).
+     */
+    private static MethodHandle refBoundaryHandle(@Nonnull Class<?> rootType, @Nonnull String fullPath) {
+        MethodHandle thrower = MethodHandles.throwException(Object.class, UnsupportedOperationException.class);
+        MethodHandle withException = MethodHandles.insertArguments(thrower, 0,
+                new UnsupportedOperationException(
+                        "Cannot extract a value across a Ref boundary for path '%s'. Reference-crossing metamodels are query-only (filter, join, order, select)."
+                                .formatted(fullPath)));
+        return MethodHandles.dropArguments(withException, 0, rootType);
     }
 
     /**
