@@ -14,6 +14,8 @@ drop table if exists vet_badge CASCADE;
 drop table if exists vet_specialty CASCADE;
 drop table if exists visit CASCADE;
 drop table if exists self_ref_node CASCADE;
+drop table if exists cross_package_holder CASCADE;
+drop table if exists cross_package_owner CASCADE;
 
 create table city (id integer auto_increment, name varchar(255), primary key (id));
 create table owner (id integer auto_increment, first_name varchar(255), last_name varchar(255), address varchar(255), city_id integer, telephone varchar(255), primary key (id), version integer default 0);
@@ -48,6 +50,9 @@ alter table appointment_report add constraint appointment_report_appointment_fk 
 alter table appointment_report_review add constraint appointment_report_review_report_fk foreign key (appointment_report_id) references appointment_report (appointment_id);
 create table self_ref_node (id integer auto_increment, name varchar(255), parent_id integer, primary key (id));
 alter table self_ref_node add constraint self_ref_node_parent_fk foreign key (parent_id) references self_ref_node (id);
+create table cross_package_owner (id integer auto_increment, label varchar(255), score integer, primary key (id));
+create table cross_package_holder (id integer auto_increment, label varchar(255), score integer, owner_id integer, primary key (id));
+alter table cross_package_holder add constraint cross_package_holder_owner_fk foreign key (owner_id) references cross_package_owner (id);
 create view owner_view as select * from owner;
 create view visit_view as select visit_date, description, pet_id, "timestamp" from visit;
 
