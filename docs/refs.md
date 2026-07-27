@@ -457,7 +457,7 @@ That gives a clear line to draw:
 - Declare an **entity foreign key** for relationships that are part of the entity, the ones you would expect to see whenever you look at it. In practice that is one or two levels.
 - Declare a **`Ref`** for relationships that belong to particular queries. The read stays focused on the entity, and the reference is resolved where it is needed.
 
-A `Ref` is complete on its own: call `fetch()` on it and the record is loaded. Naming it with [`fetch(...)`](#resolving-a-ref-as-part-of-the-query) on the query is an optimisation for when you already know the read will need it, folding the load into the same statement rather than a query of its own. Reach for it when it helps; nothing about a `Ref` depends on it.
+A `Ref` is complete on its own: call `fetch()` on it and the record is loaded. Naming it with [`fetch(...)`](#resolving-a-ref-as-part-of-the-query) on the query is an optimization for when you already know the read will need it, folding the load into the same statement rather than a query of its own. Reach for it when it helps; nothing about a `Ref` depends on it.
 
 ```java
 record Order(
