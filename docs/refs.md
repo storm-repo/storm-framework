@@ -76,6 +76,79 @@ City city = user.map(u -> u.city().fetch()).orElse(null);  // Loads from databas
 
 ---
 
+## Resolving a Ref as Part of the Query
+
+Calling `fetch()` costs one query per reference. When you know up front that you will need the referenced record, name it with `fetch(...)` on the query builder. Storm then selects the referenced table's columns in place of the foreign key column, joined into the same statement, and the reference comes back already loaded.
+
+<Tabs groupId="language">
+<TabItem value="kotlin" label="Kotlin" default>
+
+```kotlin
+val users = orm.entity<User>().select()
+    .fetch(User_.city, User_.city.country)
+    .resultList
+
+val city = users.first().city.fetch()   // already loaded, no query
+```
+
+</TabItem>
+<TabItem value="java" label="Java">
+
+```java
+List<User> users = orm.entity(User.class)
+    .select()
+    .fetch(User_.city, User_.city.country)
+    .getResultList();
+
+City city = users.getFirst().city().fetch();   // already loaded, no query
+```
+
+</TabItem>
+</Tabs>
+
+The entity is unchanged: the field stays `Ref<City>`, so the same record type serves queries that resolve the reference and queries that do not. What changes is the state of the reference in the result. `isLoaded()` returns `true`, `fetch()` returns without querying, and `getOrNull()` returns the record. Identity and equality are untouched, since a reference is compared by its type and key, and `unload()` returns to a reference that carries the key alone.
+
+The plan is prefix-closed. Naming `User_.city.country` resolves `User_.city` as well, because the city record is what holds the country reference, so the deeper path is the only one you need to write:
+
+```java
+.fetch(User_.city.country)     // resolves city and its country
+```
+
+A reference the plan does not name stays a foreign key column, so resolving one level leaves the levels below it deferred:
+
+```java
+List<User> users = orm.entity(User.class).select()
+    .fetch(User_.city)
+    .getResultList();
+
+City city = users.getFirst().city().fetch();    // loaded
+city.country().isLoaded();                      // false, still a foreign key column
+```
+
+Because a reference is always a to-one foreign key, resolving one widens the row without multiplying it: there is no row fan-out to guard against, unlike a join across a collection. A cycle stays bounded by the depth the path names, so a self-reference is resolved exactly as far as you ask:
+
+```java
+.fetch(Node_.parent.parent)    // exactly two levels
+```
+
+A nullable reference is joined with an outer join, so a row whose foreign key is null yields a null reference, matching how a nullable entity foreign key behaves.
+
+Storm rejects a path that crosses no reference, since everything it names is already part of the record the query selects. It also rejects a reference to a [sealed type](polymorphism.md), whose concrete record is chosen per row from a discriminator rather than by a fixed column layout, so there is no layout to expand the reference into. Fetch those on demand.
+
+### Resolving Up Front or On Demand
+
+Both produce the same record; they differ in when the work happens.
+
+| | Query-time `fetch(...)` | On-demand `Ref.fetch()` |
+|---|---|---|
+| Statements | One | One per distinct reference |
+| Row width | Referenced columns repeat per row | Foreign key column only |
+| Known up front | Yes, named at the call site | No, decided where the record is used |
+
+Resolve the reference when the code that runs the query already knows the referenced record is needed, especially when reading many rows. Leave it deferred when only some code paths need it, or when the referenced record is large relative to how often it is read.
+
+---
+
 ## Preventing Circular Dependencies
 
 Without Refs, an entity that references its own type would cause infinite recursion during auto-join generation: `User` joins `User`, which joins `User`, and so on. Declaring the self-referential field as `Ref<User>` breaks the cycle. Storm stores only the foreign key and does not attempt to join the table to itself.
@@ -485,6 +558,7 @@ if (needsAuthorInfo) {
 
 Understanding how `fetch()` resolves its target helps you predict performance and avoid runtime errors.
 
+- `fetch()` returns immediately when the query already resolved the reference (see [Resolving a Ref as Part of the Query](#resolving-a-ref-as-part-of-the-query)). Check with `isLoaded()`.
 - `fetch()` checks the [entity cache](entity-cache.md) before querying the database. If the entity was already loaded in the current transaction, no additional query is issued.
 - Multiple Refs pointing to the same entity share the cached instance within a transaction, preserving object identity.
 - Calling `fetch()` on a detached Ref created with `Ref.of(type, id)` will fail unless an active transaction context is available.
@@ -496,3 +570,4 @@ Understanding how `fetch()` resolves its target helps you predict performance an
 3. **Use Refs in aggregations.** Get counts by FK without loading full entities.
 4. **Refs are reliable map keys.** They provide lightweight, identity-based comparison.
 5. **Refs stay queryable.** Filter, order, and select through a Ref with the metamodel; the join is added only when a query navigates beyond the foreign key.
+6. **Resolve the Ref when the query already knows you need it.** `fetch(User_.city)` on the query builder brings the referenced record back in the same statement, so `Ref.fetch()` costs nothing.

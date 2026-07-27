@@ -55,6 +55,8 @@ class QueryBuilderImpl<T : Data, R, ID>(
      */
     override fun distinct(): QueryBuilder<T, R, ID> = QueryBuilderImpl<T, R, ID>(core.distinct())
 
+    override fun fetch(paths: List<Navigable<T, out Data>>): QueryBuilder<T, R, ID> = QueryBuilderImpl<T, R, ID>(core.fetch(paths))
+
     /**
      * Returns a processor that can be used to append the query with a string template.
      *

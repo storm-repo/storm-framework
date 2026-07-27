@@ -168,6 +168,13 @@ class TemplateProcessor {
     private Class<? extends Data> dataType;
 
     /**
+     * Compile-time only: the references the statement resolves as part of its select list, which the row mapper reads
+     * back to match the shape of that list.
+     */
+    @Nullable
+    private List<String> fetchPaths;
+
+    /**
      * The compiled SQL string.
      *
      * <p>This is set exactly once by {@link #compile(CompilationContext, boolean)}.</p>
@@ -559,6 +566,7 @@ class TemplateProcessor {
                 generatedKeys != null ? generatedKeys : List.of(),
                 ofNullable(affectedType),
                 ofNullable(dataType != null ? dataType : affectedType),
+                fetchPaths != null ? fetchPaths : List.of(),
                 versionAware != null && versionAware,
                 warning
         );
@@ -873,6 +881,20 @@ class TemplateProcessor {
         public void setDataType(@Nonnull Class<? extends Data> type) {
             if (dataType == null) {
                 dataType = type;
+            }
+        }
+
+        /**
+         * Records the references the statement resolves as part of its select list.
+         *
+         * <p>The first recorded value wins, so the outermost select takes precedence over the sources it queries.</p>
+         *
+         * @param paths the field paths of the resolved references, relative to the selected type.
+         */
+        @Override
+        public void setFetchPaths(@Nonnull List<String> paths) {
+            if (fetchPaths == null) {
+                fetchPaths = List.copyOf(paths);
             }
         }
 

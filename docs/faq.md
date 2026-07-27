@@ -221,7 +221,7 @@ See [SQL Templates](sql-templates.md) for details on using `Data` and plain reco
 
 ### How do I prevent N+1 queries?
 
-You do not need to take any special action. Storm prevents N+1 queries by design. When you define a relationship with `@FK`, Storm generates a single SQL query that joins the related tables and hydrates the entire entity graph from one result set. There is no lazy loading that triggers additional queries behind the scenes. If you need a reference to a related entity without loading its full graph, use `Ref<T>` to defer fetching until you explicitly call `fetch()`.
+You do not need to take any special action. Storm prevents N+1 queries by design. When you define a relationship with `@FK`, Storm generates a single SQL query that joins the related tables and hydrates the entire entity graph from one result set. There is no lazy loading that triggers additional queries behind the scenes. If you need a reference to a related entity without loading its full graph, use `Ref<T>` to defer fetching until you explicitly call `fetch()`. A `Ref` you do want in a particular query is named on the query builder with [`fetch(User_.city)`](refs.md#resolving-a-ref-as-part-of-the-query), which brings the referenced record back in the same statement.
 
 ### Can I write raw SQL?
 

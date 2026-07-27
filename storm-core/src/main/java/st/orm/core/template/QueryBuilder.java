@@ -104,6 +104,61 @@ public abstract class QueryBuilder<T extends Data, R, ID> {
     public abstract QueryBuilder<T, R, ID> distinct();
 
     /**
+     * Resolves the references at the specified paths as part of this query.
+     *
+     * <p>A {@link Ref} foreign key is selected as its foreign key column and resolved on demand, which costs a query
+     * per reference. A path named here is selected as the referenced table's columns instead, joined into the same
+     * statement, so the reference comes back already loaded: {@link Ref#fetch()} returns the record without querying
+     * and {@link Ref#isLoaded()} reports {@code true}.</p>
+     *
+     * <pre>{@code
+     * List<User> users = orm.entity(User.class)
+     *     .select()
+     *     .fetch(User_.city, User_.city.country)
+     *     .getResultList();
+     *
+     * City city = users.getFirst().city().fetch();   // already loaded, no query
+     * }</pre>
+     *
+     * <p>The record type is unchanged: the field stays a {@code Ref}, so the same record can come from a query that
+     * resolves the reference and from one that does not. Reference identity and equality are unaffected, and
+     * {@link Ref#unload()} returns to a reference that carries the key alone.</p>
+     *
+     * <p>The plan is prefix-closed: naming {@code User_.city.country} resolves {@code User_.city} as well, since the
+     * city record is what holds the country reference. A reference is always a to-one foreign key, so resolving one
+     * widens the row without multiplying it, and a cycle stays bounded by the depth the path names.</p>
+     *
+     * <p>A nullable reference is joined with an outer join, so a row whose foreign key is null yields a null
+     * reference, matching a nullable entity foreign key. A path that crosses no reference is rejected: the target is
+     * already part of the entity graph and there is nothing to resolve.</p>
+     *
+     * @param path the paths of the references to resolve.
+     * @return the query builder.
+     * @throws PersistenceException if no path is provided, if a path crosses no reference, or if this query does not
+     * select a record that can hold one.
+     * @since 1.13
+     */
+    @SafeVarargs
+    public final QueryBuilder<T, R, ID> fetch(@Nonnull Navigable<T, ? extends Data>... path) {
+        return fetch(List.of(path));
+    }
+
+    /**
+     * Resolves the references at the specified paths as part of this query.
+     *
+     * <p>A path a generated metamodel cannot express, a cycle deeper than the two hops it constructs in particular, is
+     * named with {@link Metamodel#of(Class, String)}.</p>
+     *
+     * @param paths the paths of the references to resolve.
+     * @return the query builder.
+     * @throws PersistenceException if no path is provided, if a path crosses no reference, or if this query does not
+     * select a record that can hold one.
+     * @see #fetch(Navigable[])
+     * @since 1.13
+     */
+    public abstract QueryBuilder<T, R, ID> fetch(@Nonnull List<? extends Navigable<T, ? extends Data>> paths);
+
+    /**
      * Adds a cross join to the query.
      *
      * @param relation the relation to join.

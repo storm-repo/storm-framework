@@ -195,6 +195,22 @@ class RefGraphTraversalTest {
     }
 
     @Test
+    fun `reference node satisfies the bound that fetch requires`() {
+        val animalRef: AnimalRefMetamodel_generated<Adoption> =
+            AnimalRefMetamodel_generated("", "animal", false, Metamodel.root(Adoption::class.java)) { it.animal }
+        // QueryBuilder.fetch takes Navigable<T, out Data>. KSP types the reference node's value as a nullable
+        // Ref<Animal>? while the annotation processor types it as Ref<Animal>; only the entity type parameter is
+        // constrained here, so both emitted shapes are accepted. This assignment is the compile-time proof.
+        val fetchable: Navigable<Adoption, out st.orm.Data> = animalRef
+        fetchable.fieldPath() shouldBe "animal"
+        // A node beyond the reference that names a table satisfies the same bound, which is what makes a deeper path
+        // such as User_.city.country nameable.
+        val beyondTable: Navigable<Adoption, out st.orm.Data> =
+            NavigableAnimalMetamodel_generated<Adoption>("animal", animalRef)
+        beyondTable.fieldPath() shouldBe "animal"
+    }
+
+    @Test
     fun `reference node is value-extractable and beyond-reference is navigation-only`() {
         val animalRef: AnimalRefMetamodel_generated<Adoption> =
             AnimalRefMetamodel_generated("", "animal", false, Metamodel.root(Adoption::class.java)) { it.animal }

@@ -596,7 +596,9 @@ instead. Refs are compared by primary key, keeping map lookups constant-cost reg
 record. For eagerly fetched entity paths the keys are loaded refs: `getOrNull()` returns the record the query
 already materialized, combining primary-key lookups with direct access to the data. The path may also reference
 a `Ref` field, in which case the group is taken directly from the foreign key without fetching the referenced
-record; such refs remain unloaded, and `findAllByRef(map.keys)` fetches them in a single query when needed:
+record; such refs remain unloaded unless the query resolved the reference with
+[`fetch(...)`](refs.md#resolving-a-ref-as-part-of-the-query), and `findAllByRef(map.keys)` fetches them in a single
+query when needed:
 
 <Tabs groupId="language">
 <TabItem value="kotlin" label="Kotlin" default>

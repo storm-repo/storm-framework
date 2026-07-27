@@ -16,6 +16,7 @@
 package st.orm.core.template.impl;
 
 import static java.util.Objects.requireNonNull;
+import static st.orm.SelectMode.NESTED;
 import static st.orm.SelectMode.PK;
 import static st.orm.core.template.TemplateString.wrap;
 import static st.orm.core.template.Templates.from;
@@ -23,11 +24,13 @@ import static st.orm.core.template.Templates.select;
 
 import jakarta.annotation.Nonnull;
 import jakarta.annotation.Nullable;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 import java.util.function.Supplier;
 import java.util.stream.Stream;
 import st.orm.Data;
+import st.orm.Navigable;
 import st.orm.PersistenceException;
 import st.orm.Ref;
 import st.orm.core.template.Model;
@@ -55,6 +58,7 @@ public class SelectBuilderImpl<T extends Data, R, ID> extends QueryBuilderImpl<T
     private final boolean subquery;
     private final Class<? extends Data> refType;
     private final Class<?> pkType;
+    private final List<String> fetchPaths;
 
     public SelectBuilderImpl(@Nonnull QueryTemplate queryTemplate,
                              @Nonnull Class<T> fromType,
@@ -62,7 +66,7 @@ public class SelectBuilderImpl<T extends Data, R, ID> extends QueryBuilderImpl<T
                              @Nonnull TemplateString selectTemplate,
                              boolean subquery,
                              @Nonnull Supplier<Model<T, ID>> modelSupplier) {
-        this(queryTemplate, fromType, selectType, false, List.of(), List.of(), null, null, TemplateString.EMPTY, selectTemplate, List.of(), List.of(), List.of(), List.of(), subquery, null, null, modelSupplier);
+        this(queryTemplate, fromType, selectType, false, List.of(), List.of(), null, null, TemplateString.EMPTY, selectTemplate, List.of(), List.of(), List.of(), List.of(), subquery, null, null, List.of(), modelSupplier);
     }
 
     public SelectBuilderImpl(@Nonnull QueryTemplate queryTemplate,
@@ -71,7 +75,7 @@ public class SelectBuilderImpl<T extends Data, R, ID> extends QueryBuilderImpl<T
                              @Nonnull Class<?> pkType,
                              @Nonnull Supplier<Model<T, ID>> modelSupplier) {
         //noinspection unchecked
-        this(queryTemplate, fromType, (Class<R>) Ref.class, false, List.of(), List.of(), null, null, TemplateString.EMPTY, wrap(select(refType, PK)), List.of(), List.of(), List.of(), List.of(), false, requireNonNull(refType), requireNonNull(pkType), modelSupplier);
+        this(queryTemplate, fromType, (Class<R>) Ref.class, false, List.of(), List.of(), null, null, TemplateString.EMPTY, wrap(select(refType, PK)), List.of(), List.of(), List.of(), List.of(), false, requireNonNull(refType), requireNonNull(pkType), List.of(), modelSupplier);
     }
 
     private SelectBuilderImpl(@Nonnull QueryTemplate ormTemplate,
@@ -91,6 +95,7 @@ public class SelectBuilderImpl<T extends Data, R, ID> extends QueryBuilderImpl<T
                               boolean subquery,
                               @Nullable Class<? extends Data> refType,
                               @Nullable Class<?> pkType,
+                              @Nonnull List<String> fetchPaths,
                               @Nonnull Supplier<Model<T, ID>> modelSupplier) {
         super(ormTemplate, fromType, join, where, templates, groupBy, having, orderBy, modelSupplier);
         this.forLock = forLock;
@@ -102,6 +107,7 @@ public class SelectBuilderImpl<T extends Data, R, ID> extends QueryBuilderImpl<T
         this.subquery = subquery;
         this.refType = refType;
         this.pkType = pkType;
+        this.fetchPaths = List.copyOf(fetchPaths);
     }
 
     /**
@@ -137,7 +143,7 @@ public class SelectBuilderImpl<T extends Data, R, ID> extends QueryBuilderImpl<T
                                     @Nonnull List<TemplateString> having,
                                     @Nonnull List<TemplateString> orderBy) {
         return new SelectBuilderImpl<>(queryTemplate, fromType, selectType, distinct, join, where, limit, offset, forLock,
-                selectTemplate, templates, groupBy, having, orderBy, subquery, refType, pkType, modelSupplier);
+                selectTemplate, templates, groupBy, having, orderBy, subquery, refType, pkType, fetchPaths, modelSupplier);
     }
 
     /**
@@ -158,7 +164,70 @@ public class SelectBuilderImpl<T extends Data, R, ID> extends QueryBuilderImpl<T
     @Override
     public QueryBuilder<T, R, ID> distinct() {
         return new SelectBuilderImpl<>(queryTemplate, fromType, selectType, true, join, where, limit, offset, forLock,
-                selectTemplate, templates, groupBy, having, orderBy, subquery, refType, pkType, modelSupplier);
+                selectTemplate, templates, groupBy, having, orderBy, subquery, refType, pkType, fetchPaths, modelSupplier);
+    }
+
+    /**
+     * Resolves the references at the specified field paths as part of this query.
+     *
+     * <p>The paths are validated here rather than at execution, so a path that names something the query cannot
+     * resolve is reported where it was written. Paths accumulate across calls and the plan is closed over its prefixes
+     * when the statement is built.</p>
+     *
+     * @param paths the field paths of the references to resolve, relative to the selected type.
+     * @return the query builder.
+     * @since 1.13
+     */
+    @Override
+    public QueryBuilder<T, R, ID> fetch(@Nonnull List<? extends Navigable<T, ? extends Data>> paths) {
+        if (subquery) {
+            throw new PersistenceException("Cannot resolve references in a subquery: a subquery selects columns, not records.");
+        }
+        if (refType != null) {
+            throw new PersistenceException("Cannot resolve references for a ref result: the query selects primary keys, and the records they identify are what a ref defers. Select the record itself to resolve references within it.");
+        }
+        if (selectType != fromType) {
+            throw new PersistenceException("Cannot resolve references for %s: the paths name references of %s, which this query selects from but does not select. Select %s itself to resolve references within it."
+                    .formatted(selectType.getSimpleName(), fromType.getSimpleName(), fromType.getSimpleName()));
+        }
+        if (!isNestedSelectOf(selectType)) {
+            throw new PersistenceException("Cannot resolve references for %s: the query selects a custom column list, which has no reference to expand. Select the record itself to resolve references within it."
+                    .formatted(selectType.getSimpleName()));
+        }
+        if (paths.isEmpty()) {
+            throw new PersistenceException("At least one path must be provided to fetch.");
+        }
+        //noinspection unchecked
+        var selectDataType = (Class<? extends Data>) selectType;
+        var combined = new ArrayList<>(fetchPaths);
+        for (var path : paths) {
+            String fieldPath = path.fieldPath();
+            RecordValidation.validateFetchPath(selectDataType, fieldPath);
+            if (!combined.contains(fieldPath)) {
+                combined.add(fieldPath);
+            }
+        }
+        return new SelectBuilderImpl<>(queryTemplate, fromType, selectType, distinct, join, where, limit, offset, forLock,
+                selectTemplate, templates, groupBy, having, orderBy, subquery, refType, pkType, combined, modelSupplier);
+    }
+
+    /**
+     * Returns whether the select clause is the plain nested select of the given type, the only shape in which a
+     * reference occupies a position that can be expanded into the referenced table's columns.
+     */
+    private boolean isNestedSelectOf(@Nonnull Class<?> type) {
+        if (!Data.class.isAssignableFrom(type)) {
+            return false;
+        }
+        if (selectTemplate.values().size() != 1
+                || !selectTemplate.fragments().stream().allMatch(String::isEmpty)) {
+            return false;
+        }
+        return switch (selectTemplate.values().getFirst()) {
+            case Class<?> selected -> selected == type;
+            case Elements.Select(var table, var mode, var ignore) -> table == type && mode == NESTED;
+            case null, default -> false;
+        };
     }
 
     private TemplateString toTemplateString() {
@@ -171,7 +240,13 @@ public class SelectBuilderImpl<T extends Data, R, ID> extends QueryBuilderImpl<T
                         TemplateString.of(" "));
             }
         }
-        template = TemplateString.combine(template, selectTemplate, TemplateString.raw("\nFROM \0", from(fromType, true)));
+        // A resolved reference is expressed on the select element itself, so the referenced table's columns take the
+        // place its foreign key column would have occupied.
+        TemplateString selectClause = fetchPaths.isEmpty()
+                ? selectTemplate
+                //noinspection unchecked
+                : wrap(select((Class<? extends Data>) selectType, NESTED, fetchPaths));
+        template = TemplateString.combine(template, selectClause, TemplateString.raw("\nFROM \0", from(fromType, true)));
         boolean hasLock = forLock.fragments().size() == 1 && !forLock.fragments().getFirst().isEmpty();
         if (hasLock && queryTemplate.dialect().applyLockHintAfterFrom()) {
             template = TemplateString.combine(template, TemplateString.of("\n"), forLock);
@@ -251,7 +326,7 @@ public class SelectBuilderImpl<T extends Data, R, ID> extends QueryBuilderImpl<T
     @Override
     public QueryBuilder<T, R, ID> offset(int offset) {
         return new SelectBuilderImpl<>(queryTemplate, fromType, selectType, distinct, join, where, limit, offset, forLock,
-                selectTemplate, templates, groupBy, having, orderBy, subquery, refType, pkType, modelSupplier);
+                selectTemplate, templates, groupBy, having, orderBy, subquery, refType, pkType, fetchPaths, modelSupplier);
     }
 
     /**
@@ -264,7 +339,7 @@ public class SelectBuilderImpl<T extends Data, R, ID> extends QueryBuilderImpl<T
     @Override
     public QueryBuilder<T, R, ID> limit(int limit) {
         return new SelectBuilderImpl<>(queryTemplate, fromType, selectType, distinct, join, where, limit, offset, forLock,
-                selectTemplate, templates, groupBy, having, orderBy, subquery, refType, pkType, modelSupplier);
+                selectTemplate, templates, groupBy, having, orderBy, subquery, refType, pkType, fetchPaths, modelSupplier);
     }
 
     /**
@@ -306,7 +381,7 @@ public class SelectBuilderImpl<T extends Data, R, ID> extends QueryBuilderImpl<T
     @Override
     public QueryBuilder<T, R, ID> forLock(@Nonnull TemplateString template) {
         return new SelectBuilderImpl<>(queryTemplate, fromType, selectType, distinct, join, where, limit, offset,
-                template, selectTemplate, templates, groupBy, having, orderBy, subquery, refType, pkType, modelSupplier);
+                template, selectTemplate, templates, groupBy, having, orderBy, subquery, refType, pkType, fetchPaths, modelSupplier);
     }
 
     /**

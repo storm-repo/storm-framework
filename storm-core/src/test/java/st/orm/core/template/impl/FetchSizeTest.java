@@ -81,6 +81,7 @@ public class FetchSizeTest {
                         : new PersistenceException(e),
                 st.orm.core.template.SqlOperation.SELECT,
                 null,
+                FetchPlan.NONE,
                 sql);
         return new QueryImpl(
                 environment,

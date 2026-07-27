@@ -226,4 +226,16 @@ interface TemplateCompiler {
      * @since 1.13
      */
     void setDataType(@Nonnull Class<? extends Data> type);
+
+    /**
+     * Records the references the statement resolves as part of its select list.
+     *
+     * <p>The paths determine the shape of the select list, so the row mapper has to read them back to consume the
+     * referenced table's columns where a reference would otherwise consume its foreign key column alone. As with
+     * {@link #setDataType(Class)}, the first recorded value wins, so the outermost select takes precedence.</p>
+     *
+     * @param fetchPaths the field paths of the resolved references, relative to the selected type.
+     * @since 1.13
+     */
+    void setFetchPaths(@Nonnull List<String> fetchPaths);
 }

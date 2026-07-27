@@ -222,6 +222,27 @@ public interface Templates {
     }
 
     /**
+     * Generates a SELECT element for the specified table class that also resolves the named references.
+     *
+     * <p>A reference is selected as its foreign key column by default and is resolved on demand through
+     * {@link st.orm.Ref#fetch()}. A path named here is selected as the referenced table's columns instead, so the
+     * reference comes back already loaded and {@code fetch()} returns without querying. Paths are field paths relative
+     * to {@code table} and are prefix-closed: naming {@code city.country} resolves {@code city} as well.</p>
+     *
+     * @param table the {@link Class} object representing the table record.
+     * @param mode NESTED to include the full object hierarchy, FLAT to include only the main table's fields, PK to
+     * include only the primary key fields. References are only resolved for NESTED, the mode that materializes a
+     * record.
+     * @param fetchPaths the field paths of the references to resolve as part of the statement.
+     * @return an {@link Element} representing the SELECT clause for the specified table.
+     * @since 1.13
+     */
+    static Element select(@Nonnull Class<? extends Data> table, @Nonnull SelectMode mode,
+                          @Nonnull List<String> fetchPaths) {
+        return new Select(table, mode, fetchPaths);
+    }
+
+    /**
      * Generates a FROM element for the specified table class without an alias and optional auto-joining of foreign
      * keys.
      *

@@ -89,4 +89,21 @@ record ModelBuilderImpl(
             throws SqlTemplateException {
         return ModelFactory.getModel(this, type, requirePrimaryKey);
     }
+
+    /**
+     * Builds the model, expanding the references the plan resolves.
+     *
+     * @param type the record type.
+     * @param requirePrimaryKey {@code true} if the primary key is required, {@code false} otherwise.
+     * @param fetchPlan the references the query resolves as part of the statement.
+     * @return the model.
+     * @param <ID> the primary key type.
+     * @throws SqlTemplateException if an error occurs while building the model.
+     * @since 1.13
+     */
+    @Override
+    public <T extends Data, ID> Model<T, ID> build(@Nonnull Class<T> type, boolean requirePrimaryKey,
+                                                   @Nonnull FetchPlan fetchPlan) throws SqlTemplateException {
+        return ModelFactory.getModel(this, type, requirePrimaryKey, fetchPlan);
+    }
 }

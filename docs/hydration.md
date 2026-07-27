@@ -350,6 +350,8 @@ val user = userRepository.findById(42)
 val city: City = user.city.fetch()  // Loads City from database
 ```
 
+A query can also resolve the reference up front, so the city columns are hydrated into the same row and `fetch()` returns without querying. See [Resolving a Ref as Part of the Query](refs.md#resolving-a-ref-as-part-of-the-query).
+
 ### FK vs Ref Comparison
 
 | Aspect                 | `@FK val city: City`      | `@FK val city: Ref<City>`     |

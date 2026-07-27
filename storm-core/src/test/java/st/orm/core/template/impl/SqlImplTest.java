@@ -26,6 +26,7 @@ public class SqlImplTest {
                 List.of(),
                 Optional.empty(),
                 Optional.empty(),
+                List.of(),
                 false,
                 Optional.empty()
         );
@@ -116,6 +117,7 @@ public class SqlImplTest {
                 List.of(),
                 Optional.empty(),
                 Optional.empty(),
+                List.of(),
                 false,
                 Optional.of("existing warning")
         );
@@ -133,6 +135,7 @@ public class SqlImplTest {
                 List.of(),
                 Optional.empty(),
                 Optional.empty(),
+                List.of(),
                 false,
                 Optional.empty()
         ));
@@ -148,6 +151,7 @@ public class SqlImplTest {
                 List.of(),
                 Optional.empty(),
                 Optional.empty(),
+                List.of(),
                 false,
                 Optional.empty()
         ));
@@ -164,6 +168,7 @@ public class SqlImplTest {
                     List.of(),
                     Optional.empty(),
                     Optional.empty(),
+                    List.of(),
                     false,
                     Optional.empty()
             );
@@ -183,6 +188,7 @@ public class SqlImplTest {
                 List.of(),
                 Optional.empty(),
                 Optional.empty(),
+                List.of(),
                 false,
                 Optional.empty()
         );
@@ -199,6 +205,7 @@ public class SqlImplTest {
                 List.of("id"),
                 Optional.empty(),
                 Optional.empty(),
+                List.of(),
                 false,
                 Optional.empty()
         );

@@ -81,10 +81,22 @@ class QueryImpl implements Query {
                        @Nonnull Function<Throwable, RuntimeException> exceptionTransformer,
                        @Nonnull SqlOperation operation,
                        @Nullable Class<? extends Data> dataType,
+                       @Nonnull FetchPlan fetchPlan,
                        @Nullable String statementText) {
+
+        /**
+         * Returns the references to resolve while mapping rows into the given type.
+         *
+         * <p>The plan widened the select list of the statement's own data type, so it only applies when the caller
+         * reads the rows back as that type. Reading the same statement as anything else, a primary key for a ref
+         * stream in particular, consumes the columns by that type's own shape.</p>
+         */
+        FetchPlan fetchPlanFor(@Nonnull Class<?> type) {
+            return dataType == type ? fetchPlan : FetchPlan.NONE;
+        }
     }
 
-    private final Environment environment;
+    final Environment environment;
     private final RefFactory refFactory;
     private final Function<Boolean, PreparedStatement> statement;
     private final BindVarsHandle bindVarsHandle;
@@ -341,7 +353,7 @@ class QueryImpl implements Query {
                 Runnable streamingCleanup = configureStreamingTransaction(statement);
                 ResultSet resultSet = statement.executeQuery();
                 int columnCount = resultSet.getMetaData().getColumnCount();
-                var mapper = getObjectMapper(columnCount, type, refFactory)
+                var mapper = getObjectMapper(columnCount, type, refFactory, environment.fetchPlanFor(type))
                         .orElseThrow(() -> new SqlTemplateException("No suitable constructor found for %s.".formatted(type.getName())));
                 close = false;
                 handedOff = true;
@@ -428,7 +440,7 @@ class QueryImpl implements Query {
                 closeStatementHere = false;  // close(resultSet, statement, ...) below owns the statement from here.
                 try {
                     int columnCount = resultSet.getMetaData().getColumnCount();
-                    var mapper = getObjectMapper(columnCount, type, refFactory)
+                    var mapper = getObjectMapper(columnCount, type, refFactory, environment.fetchPlanFor(type))
                             .orElseThrow(() -> new SqlTemplateException("No suitable constructor found for %s.".formatted(type.getName())));
                     var spliterator = rowSpliterator(resultSet, columnCount, mapper);
                     var holder = new Object[1];

@@ -96,7 +96,7 @@ final class PreparedQueryImpl extends QueryImpl implements PreparedQuery {
             boolean close = true;
             try {
                 int columnCount = resultSet.getMetaData().getColumnCount();
-                var mapper = getObjectMapper(columnCount, type, refFactory)
+                var mapper = getObjectMapper(columnCount, type, refFactory, environment.fetchPlanFor(type))
                         .orElseThrow(() -> new PersistenceException("No suitable constructor found for %s.".formatted(type.getName())));
                 close = false;
                 return MonitoredResource.wrap(

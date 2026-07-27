@@ -66,6 +66,26 @@ public final class ObjectMapperFactory {
     public static <T> Optional<ObjectMapper<T>> getObjectMapper(int columnCount,
                                                                 @Nonnull Class<T> type,
                                                                 @Nonnull RefFactory refFactory) throws SqlTemplateException {
+        return getObjectMapper(columnCount, type, refFactory, FetchPlan.NONE);
+    }
+
+    /**
+     * Returns a factory for creating instances of the specified type, consuming the columns of the references the
+     * statement resolved.
+     *
+     * @param columnCount the number of columns to use as constructor arguments.
+     * @param type the type of the instance to create.
+     * @param refFactory the factory for creating ref instances for entities and projections.
+     * @param fetchPlan the references the statement resolved as part of its select list.
+     * @return a factory for creating instances of the specified type.
+     * @param <T> the type of the instance to create.
+     * @throws SqlTemplateException if the factory could not be created.
+     * @since 1.13
+     */
+    public static <T> Optional<ObjectMapper<T>> getObjectMapper(int columnCount,
+                                                                @Nonnull Class<T> type,
+                                                                @Nonnull RefFactory refFactory,
+                                                                @Nonnull FetchPlan fetchPlan) throws SqlTemplateException {
         if (type.isPrimitive()) {
             return PrimitiveMapper.getFactory(columnCount, type);
         }
@@ -79,7 +99,7 @@ public final class ObjectMapperFactory {
         }
         if (isRecord(type)) {
             return RecordMapper.getFactory(columnCount, getRecordType(type), refFactory,
-                    refFactory.transactionContext());
+                    refFactory.transactionContext(), fetchPlan);
         }
         if (type.isEnum()) {
             return EnumMapper.getFactory(columnCount, type);

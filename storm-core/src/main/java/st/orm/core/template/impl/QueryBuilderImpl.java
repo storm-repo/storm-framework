@@ -34,6 +34,7 @@ import java.util.function.Supplier;
 import st.orm.Data;
 import st.orm.JoinType;
 import st.orm.Metamodel;
+import st.orm.Navigable;
 import st.orm.Operator;
 import st.orm.PersistenceException;
 import st.orm.Ref;
@@ -149,6 +150,15 @@ abstract class QueryBuilderImpl<T extends Data, R, ID> extends QueryBuilder<T, R
      * @return true if the query supports joins, false otherwise.
      */
     protected abstract boolean supportsJoin();
+
+    /**
+     * Resolving a reference selects the referenced table's columns into the row that holds the reference, which only a
+     * statement that selects rows can do.
+     */
+    @Override
+    public QueryBuilder<T, R, ID> fetch(@Nonnull List<? extends Navigable<T, ? extends Data>> paths) {
+        throw new PersistenceException("Cannot resolve references for this query: only a select carries the referenced record back into the row that holds the reference.");
+    }
 
     /**
      * Returns a new query builder instance with the specified {@code join} added to the list of joins.

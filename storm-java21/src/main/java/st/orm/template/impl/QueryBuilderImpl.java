@@ -30,6 +30,7 @@ import java.util.stream.Stream;
 import st.orm.Data;
 import st.orm.JoinType;
 import st.orm.Metamodel;
+import st.orm.Navigable;
 import st.orm.Operator;
 import st.orm.PersistenceException;
 import st.orm.Ref;
@@ -92,6 +93,18 @@ public final class QueryBuilderImpl<T extends Data, R, ID> extends QueryBuilder<
     @Override
     public QueryBuilder<T, R, ID> distinct() {
         return new QueryBuilderImpl<>(core.distinct());
+    }
+
+    /**
+     * Resolves the references at the specified paths as part of this query.
+     *
+     * @param paths the paths of the references to resolve.
+     * @return the query builder.
+     * @since 1.13
+     */
+    @Override
+    public QueryBuilder<T, R, ID> fetch(@Nonnull List<? extends Navigable<T, ? extends Data>> paths) {
+        return new QueryBuilderImpl<>(core.fetch(paths));
     }
 
     /**
