@@ -224,10 +224,10 @@ users.removeByRef(List.of(ref1, ref2, ref3));
 List<User> entities = users.findAllByRef(List.of(ref1, ref2));
 ```
 
-**Document what a query resolves.** When a repository query names references with `fetch(...)`, say so in its doc: which references, and that reading them costs no query. Callers cannot see the plan from the signature, so without it they cannot tell whether `getOrThrow()` is safe.
+**Document what a query resolves.** When a repository query names references with `fetch(...)`, say so in its doc: name the references it resolves, then that `getOrThrow()` returns them without querying. Callers cannot see the plan from the signature, so without it they fall back to `fetch()`, which quietly reverts the query to one statement per row.
 
 ```java
-/** A person's credits. The movie is resolved, so {@code credit.movie().getOrThrow()} needs no query. */
+/** A person's credits. The movie is resolved, so {@code getOrThrow()} returns it without querying. */
 default List<Principal> findCredits(Person person) {
     return select().fetch(Principal_.movie).where(Principal_.person, EQUALS, person).getResultList();
 }
