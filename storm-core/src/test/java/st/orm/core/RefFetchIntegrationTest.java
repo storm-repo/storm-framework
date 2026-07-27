@@ -154,6 +154,34 @@ public class RefFetchIntegrationTest {
     }
 
     @Test
+    public void testGetOrThrowReturnsTheResolvedRecordWithoutQuerying() {
+        var orm = ORMTemplate.of(dataSource);
+        PetOwnerRef pet = orm.entity(PetOwnerRef.class).select()
+                .fetch(PetOwnerRef_.owner)
+                .where(PetOwnerRef_.name, EQUALS, "Leo")
+                .getSingleResult();
+        List<String> observed = new ArrayList<>();
+        Owner owner = SqlInterceptor.observe(
+                sql -> observed.add(sql.statement()),
+                () -> pet.owner().getOrThrow());
+        assertNotNull(owner);
+        assertTrue(observed.isEmpty(), () -> "getOrThrow() queried the database: " + observed);
+    }
+
+    @Test
+    public void testGetOrThrowFailsWhenTheQueryDidNotResolveTheReference() {
+        var orm = ORMTemplate.of(dataSource);
+        // The reference is fetchable, so fetch() would silently query here. Asking for what the query was meant to
+        // have resolved reports the missing plan instead of paying for it a row at a time.
+        PetOwnerRef pet = orm.entity(PetOwnerRef.class).select()
+                .where(PetOwnerRef_.name, EQUALS, "Leo")
+                .getSingleResult();
+        var exception = assertThrows(PersistenceException.class, () -> pet.owner().getOrThrow());
+        assertTrue(exception.getMessage().contains("fetch()"), exception.getMessage());
+        assertNotNull(pet.owner().fetch());
+    }
+
+    @Test
     public void testValueOfANullableReferenceIsNull() {
         var orm = ORMTemplate.of(dataSource);
         // A reference metamodel is generated per target type, so one class serves every property that references it.

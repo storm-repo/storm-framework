@@ -217,6 +217,42 @@ public interface Ref<T extends Data> {
     T getOrNull();
 
     /**
+     * Returns the record that is already loaded, without querying the database.
+     *
+     * <p>This is the counterpart of {@link #fetch()} for a reference the query was asked to resolve. Where
+     * {@code fetch()} silently queries when the reference turns out not to be loaded, this method fails, so a query
+     * that does not resolve the reference is reported where the assumption was made rather than paid for one row at a
+     * time:</p>
+     *
+     * <pre>{@code
+     * List<User> users = orm.entity(User.class)
+     *     .select()
+     *     .fetch(User_.city)
+     *     .getResultList();
+     *
+     * City city = users.getFirst().city().getOrThrow();   // no query; throws if the plan did not cover it
+     * }</pre>
+     *
+     * <p>Use {@code fetch()} when the reference is meant to be resolved on demand, and this method when the query is
+     * meant to have resolved it already. The record can be loaded without ever having been fetched, by
+     * {@link #of(Entity)} for instance, and this method reads it either way; {@link #isLoaded()} reports the same
+     * state.</p>
+     *
+     * @return the record that is loaded.
+     * @throws PersistenceException if the record is not loaded.
+     * @since 1.13
+     */
+    default T getOrThrow() {
+        T record = getOrNull();
+        if (record == null) {
+            throw new PersistenceException(("Record for %s is not loaded. The query did not resolve this reference: "
+                    + "name it with fetch() so the query resolves it, or call fetch() to resolve it on demand.")
+                    .formatted(type().getSimpleName()));
+        }
+        return record;
+    }
+
+    /**
      * Fetches the record if it has not been fetched yet. The record will be fetched at most once.
      *
      * <p>Within a transaction, this method may return the same instance as other retrieval operations for the same
