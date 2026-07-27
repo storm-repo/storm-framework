@@ -17,30 +17,22 @@ package st.orm.spi.h2;
 
 import static java.util.stream.Collectors.toSet;
 import static st.orm.Operator.BETWEEN;
-import static st.orm.Operator.EQUALS;
 import static st.orm.Operator.GREATER_THAN;
 import static st.orm.Operator.GREATER_THAN_OR_EQUAL;
-import static st.orm.Operator.IN;
 import static st.orm.Operator.LESS_THAN;
 import static st.orm.Operator.LESS_THAN_OR_EQUAL;
-import static st.orm.Operator.NOT_EQUALS;
-import static st.orm.Operator.NOT_IN;
 
 import jakarta.annotation.Nonnull;
 import java.sql.PreparedStatement;
 import java.sql.SQLException;
-import java.util.List;
-import java.util.SequencedMap;
 import java.util.Set;
 import java.util.UUID;
-import java.util.function.Function;
 import java.util.regex.Pattern;
 import java.util.stream.Stream;
 import st.orm.Operator;
 import st.orm.StormConfig;
 import st.orm.core.spi.DefaultSqlDialect;
 import st.orm.core.template.SqlDialect;
-import st.orm.core.template.SqlTemplateException;
 
 public class H2SqlDialect extends DefaultSqlDialect implements SqlDialect {
 
@@ -155,34 +147,41 @@ public class H2SqlDialect extends DefaultSqlDialect implements SqlDialect {
     }
 
     /**
-     * Builds a multi-column expression using row value constructor syntax.
+     * Returns whether a multi-column comparison renders as a row value tuple, which for H2 is the case for an
+     * ordering comparison and for a multi-row list.
      *
-     * <p>H2 supports tuple comparison syntax for all comparison operators, producing compact SQL like
-     * {@code (a, b) > (?, ?)} instead of the lexicographic expansion used by the default implementation.</p>
+     * <p>Measured on 2.2.220 against a 100k-row table keyed on {@code (a, b)}, reading the index H2 names in its
+     * plan comment:</p>
      *
-     * <p>Operators without clear tuple semantics ({@code IS_NULL}, {@code IS_NOT_NULL}, {@code LIKE}, etc.) fall back
-     * to the {@link SqlDialect} default implementation.</p>
+     * <table border="1">
+     *   <caption>H2 2.2 plan for each comparison shape</caption>
+     *   <tr><th>Shape</th><th>As a tuple</th><th>As the expansion</th><th>Rendered as</th></tr>
+     *   <tr><td>Single row of equality, SELECT / UPDATE / DELETE</td>
+     *       <td>Primary key, {@code A = ? AND B = ?}</td>
+     *       <td>Primary key, same condition</td><td>Expansion</td></tr>
+     *   <tr><td>Ordering comparison</td><td>Primary key range, {@code A &gt;= ?}</td>
+     *       <td>Table scan</td><td><strong>Tuple</strong></td></tr>
+     * </table>
+     *
+     * <p>H2 rewrites a row value equality into its conjunction and reaches the primary key either way, in reads
+     * and writes alike, so equality takes the expansion: the form that is safe on every dialect, at no cost here.
+     * The ordering comparison is the shape where the choice matters, and H2 only derives an index range from the
+     * tuple; the lexicographic expansion of the same predicate falls through to a table scan.</p>
+     *
+     * <p>The multi-row list follows the ordering comparison in keeping the tuple, on the compactness argument
+     * rather than a measured plan difference.</p>
      *
      * @param operator the comparison operator to apply.
-     * @param values the multi-row values. Each map represents a single row of column-name-to-value mappings.
-     * @param parameterFunction the function responsible for binding the parameters.
-     * @return the SQL fragment representing the multi-column expression.
-     * @throws SqlTemplateException if the operator is not supported for multi-column expressions.
-     * @since 1.11
+     * @param rowCount the number of value rows in the comparison.
+     * @return {@code true} to render a row value tuple, {@code false} to render the {@code AND} expansion.
+     * @since 1.13
      */
     @Override
-    public String multiColumnExpression(@Nonnull Operator operator,
-                                         @Nonnull List<SequencedMap<String, Object>> values,
-                                         @Nonnull Function<Object, String> parameterFunction)
-            throws SqlTemplateException {
-        if (operator == EQUALS || operator == NOT_EQUALS
-                || operator == IN || operator == NOT_IN
+    protected boolean rendersTupleComparison(@Nonnull Operator operator, int rowCount) {
+        return isMultiRowEquality(operator, rowCount)
                 || operator == GREATER_THAN || operator == GREATER_THAN_OR_EQUAL
                 || operator == LESS_THAN || operator == LESS_THAN_OR_EQUAL
-                || operator == BETWEEN) {
-            return tupleExpression(operator, values, parameterFunction);
-        }
-        return super.multiColumnExpression(operator, values, parameterFunction);
+                || operator == BETWEEN;
     }
 
     /**

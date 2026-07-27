@@ -36,21 +36,21 @@ public class H2MultiColumnExpressionTest {
     void equals_twoColumns() throws SqlTemplateException {
         var values = List.of(row("a", 1, "b", 2));
         String sql = DIALECT.multiColumnExpression(Operator.EQUALS, values, v -> "?");
-        assertEquals("(a, b) = (?, ?)", sql);
+        assertEquals("a = ? AND b = ?", sql);
     }
 
     @Test
     void equals_threeColumns() throws SqlTemplateException {
         var values = List.of(row("a", 1, "b", 2, "c", 3));
         String sql = DIALECT.multiColumnExpression(Operator.EQUALS, values, v -> "?");
-        assertEquals("(a, b, c) = (?, ?, ?)", sql);
+        assertEquals("a = ? AND b = ? AND c = ?", sql);
     }
 
     @Test
     void notEquals_twoColumns() throws SqlTemplateException {
         var values = List.of(row("a", 1, "b", 2));
         String sql = DIALECT.multiColumnExpression(Operator.NOT_EQUALS, values, v -> "?");
-        assertEquals("(a, b) <> (?, ?)", sql);
+        assertEquals("NOT (a = ? AND b = ?)", sql);
     }
 
     @Test

@@ -305,10 +305,10 @@ class OracleSqlDialectTest {
     }
 
     @Test
-    void multiColumnExpressionShouldUseTupleSyntaxForEquals() throws Exception {
+    void multiColumnExpressionShouldExpandEquals() throws Exception {
         var values = List.of(row("a", 1, "b", 2));
         var result = dialect.multiColumnExpression(Operator.EQUALS, values, v -> "?");
-        assertEquals("(a, b) = (?, ?)", result);
+        assertEquals("a = ? AND b = ?", result);
     }
 
     @Test
@@ -319,10 +319,10 @@ class OracleSqlDialectTest {
     }
 
     @Test
-    void multiColumnExpressionShouldUseTupleSyntaxForNotEquals() throws Exception {
+    void multiColumnExpressionShouldExpandNotEquals() throws Exception {
         var values = List.of(row("a", 1, "b", 2));
         var result = dialect.multiColumnExpression(Operator.NOT_EQUALS, values, v -> "?");
-        assertEquals("(a, b) <> (?, ?)", result);
+        assertEquals("NOT (a = ? AND b = ?)", result);
     }
 
     @Test

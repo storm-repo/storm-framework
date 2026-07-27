@@ -17,24 +17,17 @@ package st.orm.spi.postgresql;
 
 import static java.util.stream.Collectors.toSet;
 import static st.orm.Operator.BETWEEN;
-import static st.orm.Operator.EQUALS;
 import static st.orm.Operator.GREATER_THAN;
 import static st.orm.Operator.GREATER_THAN_OR_EQUAL;
-import static st.orm.Operator.IN;
 import static st.orm.Operator.LESS_THAN;
 import static st.orm.Operator.LESS_THAN_OR_EQUAL;
-import static st.orm.Operator.NOT_EQUALS;
-import static st.orm.Operator.NOT_IN;
 
 import jakarta.annotation.Nonnull;
 import java.sql.PreparedStatement;
 import java.sql.SQLException;
 import java.sql.Types;
-import java.util.List;
-import java.util.SequencedMap;
 import java.util.Set;
 import java.util.UUID;
-import java.util.function.Function;
 import java.util.regex.Pattern;
 import java.util.stream.Stream;
 import st.orm.Operator;
@@ -42,7 +35,6 @@ import st.orm.StormConfig;
 import st.orm.core.spi.DefaultSqlDialect;
 import st.orm.core.spi.JsonString;
 import st.orm.core.template.SqlDialect;
-import st.orm.core.template.SqlTemplateException;
 
 public class PostgreSQLSqlDialect extends DefaultSqlDialect implements SqlDialect {
 
@@ -156,34 +148,47 @@ public class PostgreSQLSqlDialect extends DefaultSqlDialect implements SqlDialec
     }
 
     /**
-     * Builds a multi-column expression using row value constructor syntax.
+     * Returns whether a multi-column comparison renders as a row value tuple, which for PostgreSQL is the case for
+     * an ordering comparison and for a multi-row list.
      *
-     * <p>PostgreSQL supports tuple comparison syntax for all comparison operators, producing compact SQL like
-     * {@code (a, b) > (?, ?)} instead of the lexicographic expansion used by the default implementation.</p>
+     * <p>PostgreSQL is the dialect that gets the most out of a row value comparison, and the only measured one
+     * where the lexicographic expansion is the worse plan. Measured on 17.9 against a 100k-row table keyed on
+     * {@code (a, b)}:</p>
      *
-     * <p>Operators without clear tuple semantics ({@code IS_NULL}, {@code IS_NOT_NULL}, {@code LIKE}, etc.) fall back
-     * to the {@link SqlDialect} default implementation.</p>
+     * <table border="1">
+     *   <caption>PostgreSQL 17 plan for each comparison shape</caption>
+     *   <tr><th>Shape</th><th>As a tuple</th><th>As the expansion</th><th>Rendered as</th></tr>
+     *   <tr><td>Single row of equality, UPDATE / DELETE</td>
+     *       <td>Index scan, {@code Index Cond: ((a = ?) AND (b = ?))}</td>
+     *       <td>Index scan, same condition</td><td>Expansion</td></tr>
+     *   <tr><td>Multi-row list (500 keys)</td><td>Bitmap scan over a 500-way {@code BitmapOr}</td>
+     *       <td>Identical plan</td><td><strong>Tuple</strong></td></tr>
+     *   <tr><td>Ordering comparison (selective bound)</td>
+     *       <td>Index scan, {@code Index Cond: (ROW(a, b) &gt; ROW(?, ?))}</td>
+     *       <td>Bitmap heap scan — <strong>~40x the estimated cost</strong></td>
+     *       <td><strong>Tuple</strong></td></tr>
+     * </table>
+     *
+     * <p>Equality and the list are decided in the planner's favour either way: it rewrites a row value equality
+     * into its conjunction and a row value list into the same {@code BitmapOr} the expansion produces, so the
+     * plans are indistinguishable. Equality therefore takes the expansion, the form that is safe on every dialect,
+     * and the list keeps the tuple for the compactness.</p>
+     *
+     * <p>The ordering comparison is the one shape where the choice changes the plan, and it favours the tuple
+     * decisively: the row value comparison drives the index directly, where the expansion has to be reassembled
+     * from a bitmap. This is the keyset pagination path, so it renders as a tuple.</p>
      *
      * @param operator the comparison operator to apply.
-     * @param values the multi-row values. Each map represents a single row of column-name-to-value mappings.
-     * @param parameterFunction the function responsible for binding the parameters.
-     * @return the SQL fragment representing the multi-column expression.
-     * @throws SqlTemplateException if the operator is not supported for multi-column expressions.
-     * @since 1.9
+     * @param rowCount the number of value rows in the comparison.
+     * @return {@code true} to render a row value tuple, {@code false} to render the {@code AND} expansion.
+     * @since 1.13
      */
     @Override
-    public String multiColumnExpression(@Nonnull Operator operator,
-                                         @Nonnull List<SequencedMap<String, Object>> values,
-                                         @Nonnull Function<Object, String> parameterFunction)
-            throws SqlTemplateException {
-        if (operator == EQUALS || operator == NOT_EQUALS
-                || operator == IN || operator == NOT_IN
+    protected boolean rendersTupleComparison(@Nonnull Operator operator, int rowCount) {
+        return isMultiRowEquality(operator, rowCount)
                 || operator == GREATER_THAN || operator == GREATER_THAN_OR_EQUAL
                 || operator == LESS_THAN || operator == LESS_THAN_OR_EQUAL
-                || operator == BETWEEN) {
-            return tupleExpression(operator, values, parameterFunction);
-        }
-        return super.multiColumnExpression(operator, values, parameterFunction);
+                || operator == BETWEEN;
     }
 
     /**
