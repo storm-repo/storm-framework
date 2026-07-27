@@ -233,6 +233,14 @@ default List<Principal> findCredits(Person person) {
 }
 ```
 
+At a call site, note it only where the code would otherwise read as an N+1, trailing the query:
+
+```java
+List<Principal> credits = principalRepository.findCredits(person);   // movie resolved
+credits.forEach(credit -> render(credit.movie().getOrThrow()));
+```
+
+
 
 ## Batch Operations
 

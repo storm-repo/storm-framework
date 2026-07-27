@@ -278,6 +278,14 @@ fun findCredits(person: Person) =
     select().fetch(Principal_.movie).where(Principal_.person eq person).resultList
 ```
 
+At a call site, note it only where the code would otherwise read as an N+1, trailing the query:
+
+```kotlin
+val credits = principalRepository.findCredits(person)   // movie resolved
+credits.forEach { render(it.movie.getOrThrow()) }
+```
+
+
 
 ## Predicate-Based Queries
 
