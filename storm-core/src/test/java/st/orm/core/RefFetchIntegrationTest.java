@@ -154,6 +154,23 @@ public class RefFetchIntegrationTest {
     }
 
     @Test
+    public void testValueOfANullableReferenceIsNull() {
+        var orm = ORMTemplate.of(dataSource);
+        // A reference metamodel is generated per target type, so one class serves every property that references it.
+        // A nullable foreign key holds no reference, so the value it reports is null whether or not the query
+        // resolved it, which is what the generated accessor declares.
+        PetOwnerRef unresolved = orm.entity(PetOwnerRef.class).select()
+                .where(PetOwnerRef_.name, EQUALS, "Sly")
+                .getSingleResult();
+        assertNull(PetOwnerRef_.owner.getValue(unresolved));
+        PetOwnerRef resolved = orm.entity(PetOwnerRef.class).select()
+                .fetch(PetOwnerRef_.owner)
+                .where(PetOwnerRef_.name, EQUALS, "Sly")
+                .getSingleResult();
+        assertNull(PetOwnerRef_.owner.getValue(resolved));
+    }
+
+    @Test
     public void testResolvedReferenceKeepsIdentityAndUnloads() {
         var orm = ORMTemplate.of(dataSource);
         PetOwnerRef resolved = orm.entity(PetOwnerRef.class).select()

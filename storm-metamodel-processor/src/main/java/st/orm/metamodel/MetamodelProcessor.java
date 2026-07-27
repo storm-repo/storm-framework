@@ -1508,6 +1508,7 @@ public final class MetamodelProcessor extends AbstractProcessor {
                         "import st.orm.Metamodel;\n" +
                         "import st.orm.AbstractMetamodel;\n" +
                         "import jakarta.annotation.Nonnull;\n" +
+                        "import jakarta.annotation.Nullable;\n" +
                         "import javax.annotation.processing.Generated;\n\n" +
                         "/**\n * Reference metamodel for " + recordName + ": selects the foreign key column and navigates beyond the reference.\n *\n" +
                         " * @param <T> the record type of the root table of the entity graph.\n */\n" +
@@ -1515,7 +1516,8 @@ public final class MetamodelProcessor extends AbstractProcessor {
                         "public final class " + metaClassName + "<T extends st.orm.Data> extends AbstractMetamodel<T, " + recordName + ", " + refType + "> {\n\n" +
                         navFields + "\n" +
                         "    private final java.util.function.Function<T, " + refType + "> getter;\n\n" +
-                        "    @Override\n    public " + refType + " getValue(@Nonnull T record) {\n        return getter.apply(record);\n    }\n\n" +
+                        "    /**\n     * Returns the reference the record holds, or {@code null} when the foreign key is null.\n     */\n" +
+                        "    @Override\n    @Nullable\n    public " + refType + " getValue(@Nonnull T record) {\n        return getter.apply(record);\n    }\n\n" +
                         "    @Override\n    public boolean isIdentical(@Nonnull T a, @Nonnull T b) {\n        return getter.apply(a) == getter.apply(b);\n    }\n\n" +
                         "    @Override\n    public boolean isSame(@Nonnull T a, @Nonnull T b) {\n        return java.util.Objects.equals(getter.apply(a), getter.apply(b));\n    }\n\n" +
                         "    public " + metaClassName + "(@Nonnull String path, @Nonnull String field, boolean inline, @Nonnull Metamodel<T, ?> parent, @Nonnull java.util.function.Function<T, " + refType + "> getter) {\n" +
