@@ -16,6 +16,10 @@ drop table if exists visit CASCADE;
 drop table if exists self_ref_node CASCADE;
 drop table if exists cross_package_holder CASCADE;
 drop table if exists cross_package_owner CASCADE;
+drop table if exists user_score CASCADE;
+drop table if exists app_user CASCADE;
+drop table if exists country CASCADE;
+drop table if exists country_city CASCADE;
 
 create table city (id integer auto_increment, name varchar(255), primary key (id));
 create table owner (id integer auto_increment, first_name varchar(255), last_name varchar(255), address varchar(255), city_id integer, telephone varchar(255), primary key (id), version integer default 0);
@@ -53,6 +57,18 @@ alter table self_ref_node add constraint self_ref_node_parent_fk foreign key (pa
 create table cross_package_owner (id integer auto_increment, label varchar(255), score integer, primary key (id));
 create table cross_package_holder (id integer auto_increment, label varchar(255), score integer, owner_id integer, primary key (id));
 alter table cross_package_holder add constraint cross_package_holder_owner_fk foreign key (owner_id) references cross_package_owner (id);
+-- The country table is reachable from itself: it refers to its capital and its largest city, and a city refers back to
+-- the country it lies in. The foreign keys point both ways, so the constraints are added once both tables exist.
+create table country_city (id integer auto_increment, name varchar(255), country_id integer not null, primary key (id));
+create table country (id integer auto_increment, name varchar(255), capital_id integer, largest_city_id integer, primary key (id));
+alter table country add constraint country_capital_fk foreign key (capital_id) references country_city (id);
+alter table country add constraint country_largest_city_fk foreign key (largest_city_id) references country_city (id);
+alter table country_city add constraint country_city_country_fk foreign key (country_id) references country (id);
+create table app_user (id integer auto_increment, name varchar(255), country_id integer not null, primary key (id));
+alter table app_user add constraint app_user_country_fk foreign key (country_id) references country (id);
+create table user_score (id integer auto_increment, user_id integer not null, score_date date, score double, primary key (id));
+alter table user_score add constraint user_score_user_fk foreign key (user_id) references app_user (id);
+
 create view owner_view as select * from owner;
 create view visit_view as select visit_date, description, pet_id, "timestamp" from visit;
 
@@ -244,3 +260,23 @@ INSERT INTO self_ref_node (name, parent_id) VALUES ('root', NULL);
 INSERT INTO self_ref_node (name, parent_id) VALUES ('mid', 1);
 INSERT INTO self_ref_node (name, parent_id) VALUES ('leaf', 2);
 INSERT INTO self_ref_node (name, parent_id) VALUES ('other', NULL);
+
+-- Countries that lead back to themselves through their capital and largest city. Inserted country-first so the cities
+-- have a country to point at, then linked up once those cities exist.
+INSERT INTO country (name, capital_id, largest_city_id) VALUES ('Netherlands', NULL, NULL);
+INSERT INTO country (name, capital_id, largest_city_id) VALUES ('Belgium', NULL, NULL);
+INSERT INTO country_city (name, country_id) VALUES ('Amsterdam', 1);
+INSERT INTO country_city (name, country_id) VALUES ('Rotterdam', 1);
+INSERT INTO country_city (name, country_id) VALUES ('Brussels', 2);
+INSERT INTO country_city (name, country_id) VALUES ('Antwerp', 2);
+UPDATE country SET capital_id = 1, largest_city_id = 2 WHERE id = 1;
+UPDATE country SET capital_id = 3, largest_city_id = 4 WHERE id = 2;
+
+INSERT INTO app_user (name, country_id) VALUES ('Anna', 1);
+INSERT INTO app_user (name, country_id) VALUES ('Bram', 2);
+
+-- Two dates for the first user so an aggregate grouped by country and date returns one row per combination.
+INSERT INTO user_score (user_id, score_date, score) VALUES (1, DATE '2026-07-25', 0.20);
+INSERT INTO user_score (user_id, score_date, score) VALUES (1, DATE '2026-07-25', 0.40);
+INSERT INTO user_score (user_id, score_date, score) VALUES (1, DATE '2026-07-26', 0.60);
+INSERT INTO user_score (user_id, score_date, score) VALUES (2, DATE '2026-07-25', 0.80);

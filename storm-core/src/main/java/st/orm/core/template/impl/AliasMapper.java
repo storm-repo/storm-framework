@@ -53,9 +53,9 @@ final class AliasMapper {
     record TableAlias(Class<? extends Data> table, String path, String alias) {}
 
     /**
-     * Alias entry with its nesting level: 0=current, 1=parent, etc.
+     * Alias entry with the path it was registered under and its nesting level: 0=current, 1=parent, etc.
      */
-    private record AliasEntry(String alias, int level) {}
+    private record AliasEntry(String alias, @Nullable String path, int level) {}
 
     AliasMapper(@Nonnull TableUse tableUse,
                 @Nonnull TableAliasResolver tableAliasResolver,
@@ -103,7 +103,7 @@ final class AliasMapper {
         // Current level matches.
         var local = aliasMap.getOrDefault(table, List.of()).stream()
                 .filter(ta -> path == null || Objects.equals(path, ta.path()))
-                .map(ta -> new AliasEntry(ta.alias(), level));
+                .map(ta -> new AliasEntry(ta.alias(), ta.path(), level));
         // Recurse to parent if present.
         var parentStream = parent == null
                 ? Stream.<AliasEntry>empty()
@@ -260,6 +260,101 @@ final class AliasMapper {
         return Optional.ofNullable(selected);
     }
 
+    /**
+     * Returns the only occurrence at {@code level} that was reached without passing the same table twice, or
+     * {@code null} when that does not single one out.
+     *
+     * <p>Going around a cycle registers an occurrence whose path revisits a table it already passed through, and such
+     * a repetition is never what a caller naming the table by type meant: it is only reachable by continuing past the
+     * occurrence that was navigated to. Occurrences reached along genuinely separate branches revisit nothing, so they
+     * all survive here and remain ambiguous, as do two occurrences registered under the same path.</p>
+     *
+     * @param entries the alias entries to consider.
+     * @param level the nesting level to resolve within.
+     * @return the single occurrence reached without repeating a table, or {@code null} when there is not exactly one.
+     */
+    @Nullable
+    private AliasEntry findOccurrenceWithoutRepeatedTable(@Nonnull List<AliasEntry> entries, int level) {
+        var pathToTable = mapperAtLevel(level).registeredTablesByPath();
+        AliasEntry found = null;
+        for (var candidate : entries) {
+            if (candidate.level() != level || revisitsTable(candidate.path(), pathToTable)) {
+                continue;
+            }
+            if (found != null) {
+                // More than one occurrence was reached without going around a cycle.
+                return null;
+            }
+            found = candidate;
+        }
+        return found;
+    }
+
+    /**
+     * Returns whether the given path passes the same table more than once, which is what a trip around a cycle in the
+     * table graph produces. A path that is absent or empty passes nothing and never repeats.
+     */
+    private static boolean revisitsTable(@Nullable String path,
+                                         @Nonnull Map<String, Class<? extends Data>> pathToTable) {
+        if (path == null || path.isEmpty()) {
+            return false;
+        }
+        var visited = new HashSet<Class<? extends Data>>();
+        // Every path starts at the root, which is registered under the empty path, so a path that arrives back at the
+        // root table has gone around a cycle just as one that returns to a table it joined along the way.
+        var rootTable = pathToTable.get("");
+        if (rootTable != null) {
+            visited.add(rootTable);
+        }
+        var prefix = new StringBuilder();
+        for (var component : path.split("\\.")) {
+            if (!prefix.isEmpty()) {
+                prefix.append('.');
+            }
+            prefix.append(component);
+            // Components that do not name a table of their own, such as inline records, register no alias and simply
+            // extend the path towards the table that follows them.
+            var table = pathToTable.get(prefix.toString());
+            if (table != null && !visited.add(table)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /**
+     * Returns the table registered at each path at this level. A path carrying more than one table cannot place that
+     * path in the graph and is left out, which only makes {@link #revisitsTable} less willing to report a repeat.
+     */
+    private Map<String, Class<? extends Data>> registeredTablesByPath() {
+        var tablesByPath = new HashMap<String, Class<? extends Data>>();
+        var ambiguousPaths = new HashSet<String>();
+        for (var entry : aliasMap.entrySet()) {
+            for (var tableAlias : entry.getValue()) {
+                var registeredPath = tableAlias.path();
+                if (registeredPath == null) {
+                    continue;
+                }
+                var existing = tablesByPath.putIfAbsent(registeredPath, entry.getKey());
+                if (existing != null && !existing.equals(entry.getKey())) {
+                    ambiguousPaths.add(registeredPath);
+                }
+            }
+        }
+        tablesByPath.keySet().removeAll(ambiguousPaths);
+        return tablesByPath;
+    }
+
+    /** Returns the mapper {@code level} steps up the parent chain, or the outermost one when the chain is shorter. */
+    @Nonnull
+    private AliasMapper mapperAtLevel(int level) {
+        var mapper = this;
+        for (int step = 0; step < level && mapper.parent != null; step++) {
+            mapper = mapper.parent;
+        }
+        return mapper;
+    }
+
     public Optional<String> findAlias(@Nonnull Class<? extends Data> table,
                                       @Nullable String path,
                                       @Nonnull ResolveScope scope) throws SqlTemplateException {
@@ -277,8 +372,16 @@ final class AliasMapper {
         var entry = filtered.getFirst();
         if (filtered.size() > 1) {
             if (filtered.get(1).level() == entry.level()) {
-                // Multiple aliases found at the same level.
-                throw multipleFoundException(table, path, scope == INNER ? CASCADE : scope);
+                // A table reachable from itself registers one occurrence per hop around the cycle, for instance an
+                // entity holding a foreign key on a record that refers back to that entity. Resolving by type then
+                // yields the occurrence that was navigated to, since every other one is only reachable by passing
+                // that same table again. Occurrences that are genuinely distinct, such as two foreign keys onto the
+                // same table from different branches, pass nothing twice and stay ambiguous.
+                var withoutRepeat = findOccurrenceWithoutRepeatedTable(filtered, entry.level());
+                if (withoutRepeat == null) {
+                    throw multipleFoundException(table, path, scope == INNER ? CASCADE : scope);
+                }
+                entry = withoutRepeat;
             }
         }
         if (entry.level() == 0) {
