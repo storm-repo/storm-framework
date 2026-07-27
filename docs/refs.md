@@ -483,6 +483,8 @@ Two things shape the graph:
 - **Width and depth behave differently.** Foreign keys side by side add a join each; levels stacked on top of each other multiply by the fan-out of the level above. Depth is what determines the shape of a read, so it is the dimension worth being deliberate about.
 - **A cycle must be a `Ref`**, so a self-reference or a mutual reference bounds the graph for you. See [Preventing Circular Dependencies](#preventing-circular-dependencies).
 
+Repeated `fetch()` calls on the same reference are the signal that the declaration is in the wrong place. If particular reads need it, resolve it there with [`fetch(...)`](#resolving-a-ref-as-part-of-the-query); if nearly all of them do, it belongs on the entity as a plain foreign key.
+
 ---
 
 ## Creating Refs
