@@ -181,7 +181,7 @@ Short form uses the target table's metamodel directly:
 Country_.name eq "United States"
 ```
 
-Short form works **only when the table appears exactly once** in the entity graph. If `Country` is referenced in multiple places, Storm cannot determine which one you mean.
+Short form works when the entity graph holds **one occurrence of the table that you could mean**. If `Country` is referenced from two different places, Storm cannot determine which one you mean.
 
 **Example where short form works:**
 
@@ -295,8 +295,8 @@ val users = orm.entity<User>()
 When resolving a metamodel reference, Storm follows this order:
 
 1. **Nested path.** If a path is specified (e.g., `User_.city.country`), use the alias for that specific traversal.
-2. **Unique table lookup.** If short form (e.g., `Country_`), check if the table appears exactly once in the entity graph or registered joins.
-3. **Error.** If multiple paths exist, throw an exception indicating the ambiguity.
+2. **Unique table lookup.** If short form (e.g., `Country_`), check whether the entity graph or registered joins hold a single occurrence of the table that you could mean.
+3. **Error.** If more than one distinct occurrence exists, throw an exception indicating the ambiguity.
 
 ### Best Practices
 
