@@ -39,7 +39,7 @@ Generation rules:
    - A `Ref` gives up nothing: filter, order, and select through it with the metamodel from the owning entity (`User_.city.country.name`, where `city` is a `Ref<City>`), and Storm joins the referenced table only where a query asks for it.
    - Non-nullable \`@FK val city: City\` produces INNER JOIN.
    - Nullable \`@FK val city: City?\` produces LEFT JOIN.
-   - For entities with `Ref<T>` FK fields, add a secondary constructor that accepts the entities and converts them — client code then never constructs refs by hand:
+   - Go from an entity to a reference with the `ref()` extension (`import st.orm.template.ref`), and from a key with `refById<T>(id)` (`import st.orm.template.refById`); prefer these over `Ref.of(..)` in Kotlin. For entities with `Ref<T>` FK fields, add a secondary constructor that accepts the entities and converts them — client code then never constructs refs by hand:
    ```kotlin
    data class Address(
        @PK val id: Int = 0,

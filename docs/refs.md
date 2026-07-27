@@ -399,7 +399,7 @@ orm.entity<User>().select().where(User_.city.name eq "Sunnyvale").resultList
 // SELECT ... FROM user u INNER JOIN city c ON u.city_id = c.id WHERE c.name = ?
 ```
 
-This is the same column the reference itself resolves to, so `User_.city.id eq 42` and `User_.city eq Ref.of(City::class.java, 42)` produce identical SQL. It is also the same column an entity foreign key resolves its primary key to, so a path means the same thing whether the relationship is declared as an entity or as a `Ref`.
+This is the same column the reference itself resolves to, so `User_.city.id eq 42` and `User_.city eq refById<City>(42)` produce identical SQL. It is also the same column an entity foreign key resolves its primary key to, so a path means the same thing whether the relationship is declared as an entity or as a `Ref`.
 
 Because the key is read from the row, a match does not require the referenced row to exist. Express that requirement explicitly with a join or an exists clause when you need it.
 
@@ -494,14 +494,21 @@ You can create Refs programmatically from a type and ID, or extract one from an 
 <Tabs groupId="language">
 <TabItem value="kotlin" label="Kotlin" default>
 
-```kotlin
-// From type and ID
-val userRef: Ref<User> = Ref.of(User::class.java, 42)
+Use the `ref()` extension to go from an entity to a Ref, and `refById()` when you have only the key. Both need an import from `st.orm.template`.
 
-// From existing entity
+```kotlin
+import st.orm.template.ref
+import st.orm.template.refById
+
+// From an existing entity
 val user: User = ...
-val ref: Ref<User> = Ref.of(user)
+val ref: Ref<User> = user.ref()
+
+// From type and ID, without an entity instance
+val userRef: Ref<User> = refById<User>(42)
 ```
+
+The underlying `Ref.of(user)` and `Ref.of(User::class.java, 42)` do the same thing; the extensions read better and infer the type, so prefer them in Kotlin.
 
 </TabItem>
 <TabItem value="java" label="Java">
