@@ -135,6 +135,49 @@ A nullable reference is joined with an outer join, so a row whose foreign key is
 
 Storm rejects a path that crosses no reference, since everything it names is already part of the record the query selects. It also rejects a reference to a [sealed type](polymorphism.md), whose concrete record is chosen per row from a discriminator rather than by a fixed column layout, so there is no layout to expand the reference into. Fetch those on demand.
 
+### Asking for What the Query Resolved
+
+`fetch()` resolves the reference on demand: if the query did not resolve it, it queries. That is what you want when the reference is meant to be deferred, but it makes a mistake in the plan invisible. A misspelled path, a `fetch(...)` lost in a refactor, or a branch that runs a different query all keep working, one query per row.
+
+Pair `fetch(...)` on the query with `getOrThrow()` at the use site to close that gap. `getOrThrow()` returns the record that is loaded and never queries, so a plan that does not cover the path fails immediately instead of quietly degrading:
+
+<Tabs groupId="language">
+<TabItem value="kotlin" label="Kotlin" default>
+
+```kotlin
+val users = orm.entity<User>().select()
+    .fetch(User_.city)
+    .resultList
+
+val city = users.first().city.getOrThrow()   // no query; throws if the plan did not cover it
+```
+
+</TabItem>
+<TabItem value="java" label="Java">
+
+```java
+List<User> users = orm.entity(User.class)
+    .select()
+    .fetch(User_.city)
+    .getResultList();
+
+City city = users.getFirst().city().getOrThrow();   // no query; throws if the plan did not cover it
+```
+
+</TabItem>
+</Tabs>
+
+The error names the fix: *"Record for City is not loaded. The query did not resolve this reference: name it with fetch() so the query resolves it, or call fetch() to resolve it on demand."*
+
+So the two accessors express two different intents, and picking the one you mean is what makes the intent checkable:
+
+| | resolve on demand | require the query to have resolved it |
+|---|---|---|
+| throws | `fetch()` | `getOrThrow()` |
+| returns null | `fetchOrNull()` | `getOrNull()` |
+
+Use `getOrThrow()` wherever the code runs against a query you control and expects the reference to be there. Use `fetch()` where deferring is the point. Neither says anything about how the record was loaded: a reference wrapped with `Ref.of(entity)` is loaded without ever having been fetched, and `getOrThrow()` reads it just the same.
+
 ### Resolving Up Front or On Demand
 
 Both produce the same record; they differ in when the work happens.
@@ -405,6 +448,41 @@ A directly-referenced entity foreign key (`@FK val city: City`) is joined on **e
 
 Declaring the field as `Ref<City>` removes that join from every read while keeping the relationship fully queryable: the join appears only for the specific query that navigates beyond it. Prefer a `Ref` for foreign keys you do not hydrate on most reads, especially in wide or deep graphs, to keep SELECTs narrow without giving up type-safe filtering, ordering, and projection through the relationship.
 
+### How Deep Should the Eager Graph Be?
+
+Storm hydrates the eager graph in a single query, so reading an entity brings its relationships with it and there is no N+1 to manage. That graph is declared on the type, which means every read of the entity gets the same one. It should therefore describe what the entity *is*, rather than what any one screen happens to need.
+
+That gives a clear line to draw:
+
+- Declare an **entity foreign key** for relationships that are part of the entity, the ones you would expect to see whenever you look at it. In practice that is one or two levels.
+- Declare a **`Ref`** for relationships that belong to particular queries. The read stays focused on the entity, and the reference is resolved where it is needed.
+
+A `Ref` is complete on its own: call `fetch()` on it and the record is loaded. Naming it with [`fetch(...)`](#resolving-a-ref-as-part-of-the-query) on the query is an optimisation for when you already know the read will need it, folding the load into the same statement rather than a query of its own. Reach for it when it helps; nothing about a `Ref` depends on it.
+
+```java
+record Order(
+        @PK Integer id,
+        @FK Customer customer,      // part of an order: every view of one shows it
+        @FK Ref<Warehouse> origin,  // belongs to the fulfilment views
+        @FK Ref<Campaign> campaign  // belongs to reporting
+) implements Entity<Integer> {}
+```
+
+The fulfilment view already knows it works with the warehouse, so it says so and reads it without a second query:
+
+```java
+List<Order> orders = orm.entity(Order.class).select()
+    .fetch(Order_.origin)
+    .getResultList();
+
+Warehouse origin = orders.getFirst().origin().getOrThrow();
+```
+
+Two things shape the graph:
+
+- **Width and depth behave differently.** Foreign keys side by side add a join each; levels stacked on top of each other multiply by the fan-out of the level above. Depth is what determines the shape of a read, so it is the dimension worth being deliberate about.
+- **A cycle must be a `Ref`**, so a self-reference or a mutual reference bounds the graph for you. See [Preventing Circular Dependencies](#preventing-circular-dependencies).
+
 ---
 
 ## Creating Refs
@@ -558,7 +636,8 @@ if (needsAuthorInfo) {
 
 Understanding how `fetch()` resolves its target helps you predict performance and avoid runtime errors.
 
-- `fetch()` returns immediately when the query already resolved the reference (see [Resolving a Ref as Part of the Query](#resolving-a-ref-as-part-of-the-query)). Check with `isLoaded()`.
+- `fetch()` returns immediately when the query already resolved the reference (see [Resolving a Ref as Part of the Query](#resolving-a-ref-as-part-of-the-query)). Check with `isLoaded()`, or call `getOrThrow()` to demand it (see [Asking for What the Query Resolved](#asking-for-what-the-query-resolved)).
+- `getOrThrow()` and `getOrNull()` never query. They return what is already loaded, so they are the accessors to reach for when the query was meant to resolve the reference.
 - `fetch()` checks the [entity cache](entity-cache.md) before querying the database. If the entity was already loaded in the current transaction, no additional query is issued.
 - Multiple Refs pointing to the same entity share the cached instance within a transaction, preserving object identity.
 - Calling `fetch()` on a detached Ref created with `Ref.of(type, id)` will fail unless an active transaction context is available.
@@ -570,4 +649,5 @@ Understanding how `fetch()` resolves its target helps you predict performance an
 3. **Use Refs in aggregations.** Get counts by FK without loading full entities.
 4. **Refs are reliable map keys.** They provide lightweight, identity-based comparison.
 5. **Refs stay queryable.** Filter, order, and select through a Ref with the metamodel; the join is added only when a query navigates beyond the foreign key.
-6. **Resolve the Ref when the query already knows you need it.** `fetch(User_.city)` on the query builder brings the referenced record back in the same statement, so `Ref.fetch()` costs nothing.
+6. **Resolve the Ref when the query already knows you need it.** `fetch(User_.city)` on the query builder brings the referenced record back in the same statement, so reading it costs nothing.
+7. **Read a resolved Ref with `getOrThrow()`.** It never queries, so a query that stopped resolving the reference fails where the assumption was made instead of turning into one query per row.

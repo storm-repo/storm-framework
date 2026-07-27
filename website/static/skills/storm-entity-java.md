@@ -41,8 +41,11 @@ Generation rules:
 
 4. Foreign keys (\`@FK\`):
    - **Every column with a FK constraint in the database must be modeled with `@FK` in the entity.** Without `@FK`, Storm has no FK metadata and cannot resolve joins automatically — forcing template-based joins that defeat the QueryBuilder.
-   - Prefer full entity types (`@FK City city`) over `Ref<T>` (`@FK Ref<City> city`) for small graphs the reads generally need loaded. Full entities load the related data in one query with automatic JOINs.
-   - Use `Ref<T>` when the entity hierarchy gets too deep or wide, or when loading the full related entity is overkill for most reads. A `Ref` removes the eager join from every query but stays queryable: filter, order, and select through it with the metamodel from the owning entity (`User_.city.country.name`, where `city` is a `Ref<City>`), and Storm adds the join only for the query that navigates beyond the foreign key. Choosing `Ref` therefore prevents join fan-out without giving up type-safe traversal.
+   - **Declare an entity foreign key for relationships that are part of the entity** (`@FK City city`), the ones a read of it would normally include. In practice that is one or two levels. Storm hydrates the whole eager graph in a single query, so these come back with the entity and there is no N+1 to manage.
+   - **Declare `Ref<T>` for relationships that belong to particular queries** (`@FK Ref<City> city`). The read stays focused on the entity, and the reference is resolved where it is needed: call `fetch()` on it and the record is loaded. A `Ref` is complete on its own; nothing about it depends on the query doing anything special.
+   - **`select().fetch(User_.city)` is an optimisation, not a requirement.** When a read already knows it needs the referenced record, naming it folds the load into the same statement instead of a query of its own, and the reference comes back loaded. Use it where it helps; leaving it out is correct too.
+   - The eager graph is declared on the type, so every read of the entity gets the same one. It should describe what the entity is rather than what any one screen needs. Foreign keys side by side add a join each, while levels stacked on top of each other multiply by the fan-out above, so depth is the dimension to be deliberate about.
+   - A `Ref` gives up nothing: filter, order, and select through it with the metamodel from the owning entity (`User_.city.country.name`, where `city` is a `Ref<City>`), and Storm joins the referenced table only where a query asks for it.
    - Non-nullable: \`@FK City city\` produces INNER JOIN (non-null is the default).
    - Nullable: \`@Nullable @FK City city\` produces LEFT JOIN.
    - **A bare \`@FK City city\` is non-null and produces an INNER JOIN.**

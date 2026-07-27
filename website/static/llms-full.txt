@@ -18,7 +18,7 @@
 > GitHub: https://github.com/storm-orm/storm-framework
 > License: Apache 2.0
 
-# Generated: 2026-07-26T23:21:10Z
+# Generated: 2026-07-27T07:51:32Z
 
 ========================================
 ## Source: index.md
@@ -4164,7 +4164,9 @@ instead. Refs are compared by primary key, keeping map lookups constant-cost reg
 record. For eagerly fetched entity paths the keys are loaded refs: `getOrNull()` returns the record the query
 already materialized, combining primary-key lookups with direct access to the data. The path may also reference
 a `Ref` field, in which case the group is taken directly from the foreign key without fetching the referenced
-record; such refs remain unloaded, and `findAllByRef(map.keys)` fetches them in a single query when needed:
+record; such refs remain unloaded unless the query resolved the reference with
+[`fetch(...)`](refs.md#resolving-a-ref-as-part-of-the-query), and `findAllByRef(map.keys)` fetches them in a single
+query when needed:
 
 [Kotlin]
 
@@ -5730,6 +5732,110 @@ City city = user.map(u -> u.city().fetch()).orElse(null);  // Loads from databas
 ```
 ---
 
+## Resolving a Ref as Part of the Query
+
+Calling `fetch()` costs one query per reference. When you know up front that you will need the referenced record, name it with `fetch(...)` on the query builder. Storm then selects the referenced table's columns in place of the foreign key column, joined into the same statement, and the reference comes back already loaded.
+
+[Kotlin]
+
+```kotlin
+val users = orm.entity<User>().select()
+    .fetch(User_.city, User_.city.country)
+    .resultList
+
+val city = users.first().city.fetch()   // already loaded, no query
+```
+
+[Java]
+
+```java
+List<User> users = orm.entity(User.class)
+    .select()
+    .fetch(User_.city, User_.city.country)
+    .getResultList();
+
+City city = users.getFirst().city().fetch();   // already loaded, no query
+```
+The entity is unchanged: the field stays `Ref<City>`, so the same record type serves queries that resolve the reference and queries that do not. What changes is the state of the reference in the result. `isLoaded()` returns `true`, `fetch()` returns without querying, and `getOrNull()` returns the record. Identity and equality are untouched, since a reference is compared by its type and key, and `unload()` returns to a reference that carries the key alone.
+
+The plan is prefix-closed. Naming `User_.city.country` resolves `User_.city` as well, because the city record is what holds the country reference, so the deeper path is the only one you need to write:
+
+```java
+.fetch(User_.city.country)     // resolves city and its country
+```
+
+A reference the plan does not name stays a foreign key column, so resolving one level leaves the levels below it deferred:
+
+```java
+List<User> users = orm.entity(User.class).select()
+    .fetch(User_.city)
+    .getResultList();
+
+City city = users.getFirst().city().fetch();    // loaded
+city.country().isLoaded();                      // false, still a foreign key column
+```
+
+Because a reference is always a to-one foreign key, resolving one widens the row without multiplying it: there is no row fan-out to guard against, unlike a join across a collection. A cycle stays bounded by the depth the path names, so a self-reference is resolved exactly as far as you ask:
+
+```java
+.fetch(Node_.parent.parent)    // exactly two levels
+```
+
+A nullable reference is joined with an outer join, so a row whose foreign key is null yields a null reference, matching how a nullable entity foreign key behaves.
+
+Storm rejects a path that crosses no reference, since everything it names is already part of the record the query selects. It also rejects a reference to a [sealed type](polymorphism.md), whose concrete record is chosen per row from a discriminator rather than by a fixed column layout, so there is no layout to expand the reference into. Fetch those on demand.
+
+### Asking for What the Query Resolved
+
+`fetch()` resolves the reference on demand: if the query did not resolve it, it queries. That is what you want when the reference is meant to be deferred, but it makes a mistake in the plan invisible. A misspelled path, a `fetch(...)` lost in a refactor, or a branch that runs a different query all keep working, one query per row.
+
+Pair `fetch(...)` on the query with `getOrThrow()` at the use site to close that gap. `getOrThrow()` returns the record that is loaded and never queries, so a plan that does not cover the path fails immediately instead of quietly degrading:
+
+[Kotlin]
+
+```kotlin
+val users = orm.entity<User>().select()
+    .fetch(User_.city)
+    .resultList
+
+val city = users.first().city.getOrThrow()   // no query; throws if the plan did not cover it
+```
+
+[Java]
+
+```java
+List<User> users = orm.entity(User.class)
+    .select()
+    .fetch(User_.city)
+    .getResultList();
+
+City city = users.getFirst().city().getOrThrow();   // no query; throws if the plan did not cover it
+```
+The error names the fix: *"Record for City is not loaded. The query did not resolve this reference: name it with fetch() so the query resolves it, or call fetch() to resolve it on demand."*
+
+So the two accessors express two different intents, and picking the one you mean is what makes the intent checkable:
+
+| | resolve on demand | require the query to have resolved it |
+|---|---|---|
+| throws | `fetch()` | `getOrThrow()` |
+| returns null | `fetchOrNull()` | `getOrNull()` |
+
+Use `getOrThrow()` wherever the code runs against a query you control and expects the reference to be there. Use `fetch()` where deferring is the point. Neither says anything about how the record was loaded: a reference wrapped with `Ref.of(entity)` is loaded without ever having been fetched, and `getOrThrow()` reads it just the same.
+
+### Resolving Up Front or On Demand
+
+Both produce the same record; they differ in when the work happens.
+
+| | Query-time `fetch(...)` | On-demand `Ref.fetch()` |
+|---|---|---|
+| Statements | One | One per distinct reference |
+| Row width | Referenced columns repeat per row | Foreign key column only |
+| Known up front | Yes, named at the call site | No, decided where the record is used |
+
+Resolve the reference when the code that runs the query already knows the referenced record is needed, especially when reading many rows. Leave it deferred when only some code paths need it, or when the referenced record is large relative to how often it is read.
+
+---
+
 ## Preventing Circular Dependencies
 
 Without Refs, an entity that references its own type would cause infinite recursion during auto-join generation: `User` joins `User`, which joins `User`, and so on. Declaring the self-referential field as `Ref<User>` breaks the cycle. Storm stores only the foreign key and does not attempt to join the table to itself.
@@ -5950,6 +6056,41 @@ A directly-referenced entity foreign key (`@FK val city: City`) is joined on **e
 
 Declaring the field as `Ref<City>` removes that join from every read while keeping the relationship fully queryable: the join appears only for the specific query that navigates beyond it. Prefer a `Ref` for foreign keys you do not hydrate on most reads, especially in wide or deep graphs, to keep SELECTs narrow without giving up type-safe filtering, ordering, and projection through the relationship.
 
+### How Deep Should the Eager Graph Be?
+
+Storm hydrates the eager graph in a single query, so reading an entity brings its relationships with it and there is no N+1 to manage. That graph is declared on the type, which means every read of the entity gets the same one. It should therefore describe what the entity *is*, rather than what any one screen happens to need.
+
+That gives a clear line to draw:
+
+- Declare an **entity foreign key** for relationships that are part of the entity, the ones you would expect to see whenever you look at it. In practice that is one or two levels.
+- Declare a **`Ref`** for relationships that belong to particular queries. The read stays focused on the entity, and the reference is resolved where it is needed.
+
+A `Ref` is complete on its own: call `fetch()` on it and the record is loaded. Naming it with [`fetch(...)`](#resolving-a-ref-as-part-of-the-query) on the query is an optimisation for when you already know the read will need it, folding the load into the same statement rather than a query of its own. Reach for it when it helps; nothing about a `Ref` depends on it.
+
+```java
+record Order(
+        @PK Integer id,
+        @FK Customer customer,      // part of an order: every view of one shows it
+        @FK Ref<Warehouse> origin,  // belongs to the fulfilment views
+        @FK Ref<Campaign> campaign  // belongs to reporting
+) implements Entity<Integer> {}
+```
+
+The fulfilment view already knows it works with the warehouse, so it says so and reads it without a second query:
+
+```java
+List<Order> orders = orm.entity(Order.class).select()
+    .fetch(Order_.origin)
+    .getResultList();
+
+Warehouse origin = orders.getFirst().origin().getOrThrow();
+```
+
+Two things shape the graph:
+
+- **Width and depth behave differently.** Foreign keys side by side add a join each; levels stacked on top of each other multiply by the fan-out of the level above. Depth is what determines the shape of a read, so it is the dimension worth being deliberate about.
+- **A cycle must be a `Ref`**, so a self-reference or a mutual reference bounds the graph for you. See [Preventing Circular Dependencies](#preventing-circular-dependencies).
+
 ---
 
 ## Creating Refs
@@ -6091,6 +6232,8 @@ if (needsAuthorInfo) {
 
 Understanding how `fetch()` resolves its target helps you predict performance and avoid runtime errors.
 
+- `fetch()` returns immediately when the query already resolved the reference (see [Resolving a Ref as Part of the Query](#resolving-a-ref-as-part-of-the-query)). Check with `isLoaded()`, or call `getOrThrow()` to demand it (see [Asking for What the Query Resolved](#asking-for-what-the-query-resolved)).
+- `getOrThrow()` and `getOrNull()` never query. They return what is already loaded, so they are the accessors to reach for when the query was meant to resolve the reference.
 - `fetch()` checks the [entity cache](entity-cache.md) before querying the database. If the entity was already loaded in the current transaction, no additional query is issued.
 - Multiple Refs pointing to the same entity share the cached instance within a transaction, preserving object identity.
 - Calling `fetch()` on a detached Ref created with `Ref.of(type, id)` will fail unless an active transaction context is available.
@@ -6102,6 +6245,8 @@ Understanding how `fetch()` resolves its target helps you predict performance an
 3. **Use Refs in aggregations.** Get counts by FK without loading full entities.
 4. **Refs are reliable map keys.** They provide lightweight, identity-based comparison.
 5. **Refs stay queryable.** Filter, order, and select through a Ref with the metamodel; the join is added only when a query navigates beyond the foreign key.
+6. **Resolve the Ref when the query already knows you need it.** `fetch(User_.city)` on the query builder brings the referenced record back in the same statement, so reading it costs nothing.
+7. **Read a resolved Ref with `getOrThrow()`.** It never queries, so a query that stopped resolving the reference fails where the assumption was made instead of turning into one query per row.
 
 
 ========================================
@@ -9488,6 +9633,23 @@ record User(@PK Integer id,
 ```
 
 The `preferences` field is automatically serialized to JSON when writing and deserialized when reading.
+### JSON Columns in the Metamodel
+
+A JSON column is stored as text while the record holds a map, a list, or a structured object. The metamodel keeps both: it addresses the column by its stored type, so a predicate compares against the stored JSON, while value extraction returns what the record holds.
+
+```java
+// Generated for @Json Map<String, String> preferences:
+AbstractMetamodel<User, String, Map<String, String>> preferences
+
+orm.entity(User.class).select()
+    .where(User_.preferences, EQUALS, "{\"theme\":\"dark\"}")   // compares the stored text
+    .getResultList();
+
+Map<String, String> value = User_.preferences.getValue(user);   // returns the record's value
+```
+
+The column is a single column, not the fields of the object it holds, so a path does not navigate into it: use `User_.preferences`, not `User_.preferences.theme`.
+
 ## Complex Types
 
 JSON columns are not limited to maps and primitive collections. You can store structured domain objects directly, preserving their full type hierarchy during serialization and deserialization. This is useful when the nested object has a well-defined shape but does not need its own database table.
@@ -13668,6 +13830,8 @@ Only three columns are hydrated. Column 3 contains just the foreign key value, w
 val user = userRepository.findById(42)
 val city: City = user.city.fetch()  // Loads City from database
 ```
+
+A query can also resolve the reference up front, so the city columns are hydrated into the same row and `fetch()` returns without querying. See [Resolving a Ref as Part of the Query](refs.md#resolving-a-ref-as-part-of-the-query).
 
 ### FK vs Ref Comparison
 
@@ -18718,7 +18882,7 @@ See [SQL Templates](sql-templates.md) for details on using `Data` and plain reco
 
 ### How do I prevent N+1 queries?
 
-You do not need to take any special action. Storm prevents N+1 queries by design. When you define a relationship with `@FK`, Storm generates a single SQL query that joins the related tables and hydrates the entire entity graph from one result set. There is no lazy loading that triggers additional queries behind the scenes. If you need a reference to a related entity without loading its full graph, use `Ref<T>` to defer fetching until you explicitly call `fetch()`.
+You do not need to take any special action. Storm prevents N+1 queries by design. When you define a relationship with `@FK`, Storm generates a single SQL query that joins the related tables and hydrates the entire entity graph from one result set. There is no lazy loading that triggers additional queries behind the scenes. If you need a reference to a related entity without loading its full graph, use `Ref<T>` to defer fetching until you explicitly call `fetch()`. A `Ref` you do want in a particular query is named on the query builder with [`fetch(User_.city)`](refs.md#resolving-a-ref-as-part-of-the-query), which brings the referenced record back in the same statement.
 
 ### Can I write raw SQL?
 

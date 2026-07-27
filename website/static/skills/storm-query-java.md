@@ -255,6 +255,32 @@ List<User> sharingACity = orm.entity(User.class).select()
 
 Nodes beyond a reference are navigation-only: usable in `where`, `orderBy`, `groupBy`, `having`, and selected columns, but not in value operations. Group by the reference itself with `getResultGroupedByRef`, not `getResultGroupedBy` on a beyond-reference path (which does not compile against the strict signature). Besides a path, the referenced table can be named by type: selecting it or joining onto it materializes the same join, and a query that does both joins it once; a table joined explicitly keeps that occurrence. Prefer a `Ref` for foreign keys you do not hydrate on most reads: it keeps SELECTs narrow while staying queryable. Navigation may cross more than one reference across distinct tables. A reference carries the target's primary key, so `User_.city.id` resolves to the foreign key column and needs no join, the same column an entity foreign key resolves its primary key to; any other column of the target joins. A self-referential foreign key must be a `Ref`, and it is navigable: the table is joined to itself, each occurrence under its own alias. The typed metamodel navigates a cycle two hops deep (generated metamodels build their children eagerly, so they cannot recurse); deeper cyclic paths are named as strings, which the engine resolves to any depth.
 
+### Resolving a Ref as Part of the Query
+
+A `Ref` is resolved on demand by `fetch()` on the reference itself, and that is always correct. When a read already knows it needs the referenced record, `select().fetch(path...)` folds that load into the same statement instead of a query of its own. It names the references the statement resolves: the referenced table's columns take the place of the foreign key column, so the reference comes back loaded and reading it costs no query. The record type is unchanged — the field stays a `Ref` — so the same type serves queries that resolve it and queries that do not.
+
+```java
+List<User> users = orm.entity(User.class).select()
+    .fetch(User_.city, User_.city.country)
+    .getResultList();
+
+City city = users.getFirst().city().getOrThrow();   // no query; throws if the plan did not cover it
+```
+
+Read a resolved reference with `getOrThrow()`, not `fetch()`. Both return the record, but `fetch()` silently queries when the plan did not cover the path, so a `fetch(...)` lost in a refactor degrades into one query per row without failing; `getOrThrow()` never queries and reports it where the assumption was made. Use `fetch()` on the ref only where resolving on demand is the intent.
+
+```
+isLoaded()      // is the record here?
+getOrThrow()       // give it to me, never queries, throws if absent
+getOrNull()     // give it to me or null, never queries
+fetch()         // resolve now, query if needed
+fetchOrNull()   // same, null instead of throwing
+```
+
+The plan is prefix-closed: naming `User_.city.country` resolves `User_.city` too, so write only the deepest path. A reference the plan does not name stays a foreign key column. A reference is always a to-one foreign key, so resolving one widens the row without multiplying it, and a cycle is bounded by the depth named (`fetch(Node_.parent.parent)` is exactly two levels). A nullable reference keeps its outer join, so a null foreign key yields a null reference. Paths that cross no reference, references to sealed types, and queries that do not select a record are rejected with a descriptive error.
+
+A `Ref` therefore describes a relationship that belongs to particular queries rather than to the entity itself, and this is where such a query asks for it. See the entity skill for which relationships to declare each way.
+
 ## Subqueries (EXISTS / NOT EXISTS)
 
 In Java, EXISTS conditions are expressed inside the where-lambda via `WhereBuilder.exists(subquery)` / `notExists(subquery)` — there is no `whereExists` method on the Java QueryBuilder (that form is Kotlin-only). Build the subquery with `orm.selectFrom(...)`; it is automatically correlated with the outer query:
