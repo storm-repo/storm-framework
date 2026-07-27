@@ -270,6 +270,15 @@ users.removeByRef(listOf(ref1, ref2, ref3))
 val entities: List<User> = users.findAllByRef(listOf(ref1, ref2))
 ```
 
+**Document what a query resolves.** When a repository query names references with `fetch(...)`, say so in its doc: which references, and that reading them costs no query. Callers cannot see the plan from the signature, so without it they cannot tell whether `getOrThrow()` is safe.
+
+```kotlin
+/** A person's credits. The movie is resolved, so `credit.movie.getOrThrow()` needs no query. */
+fun findCredits(person: Person) =
+    select().fetch(Principal_.movie).where(Principal_.person eq person).resultList
+```
+
+
 ## Predicate-Based Queries
 
 Use predicate lambdas for quick lookups without building a full QueryBuilder chain:
