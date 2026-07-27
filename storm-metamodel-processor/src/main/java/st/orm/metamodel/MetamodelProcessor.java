@@ -432,8 +432,34 @@ public final class MetamodelProcessor extends AbstractProcessor {
         return null;
     }
 
+    /**
+     * Returns the type the field is addressed as in the metamodel: the type {@link st.orm.MetamodelType} names when
+     * the field carries it, the declared type otherwise.
+     *
+     * <p>A converted field, a {@code @Json} column in particular, is stored as one type and held as another. The
+     * addressed type is what a predicate compares against, so it is the type the metamodel's {@code E} parameter
+     * carries. The value the record holds keeps its declared type; see
+     * {@link #getDeclaredTypeElement(Element, String)}.</p>
+     */
     @Nullable
     private TypeMirror getTypeElement(@Nonnull Element recordElement, @Nonnull String fieldName) {
+        return getTypeElement(recordElement, fieldName, true);
+    }
+
+    /**
+     * Returns the field's declared type, ignoring any {@link st.orm.MetamodelType} override.
+     *
+     * <p>This is the type the record accessor returns, so it is the type the metamodel's {@code V} parameter carries
+     * and the type {@code getValue} is generated against.</p>
+     */
+    @Nullable
+    private TypeMirror getDeclaredTypeElement(@Nonnull Element recordElement, @Nonnull String fieldName) {
+        return getTypeElement(recordElement, fieldName, false);
+    }
+
+    @Nullable
+    private TypeMirror getTypeElement(@Nonnull Element recordElement, @Nonnull String fieldName,
+                                      boolean applyMetamodelType) {
         var constructors = recordElement.getEnclosedElements()
                 .stream()
                 .filter(enclosed -> enclosed.getKind() == CONSTRUCTOR)
@@ -443,7 +469,7 @@ public final class MetamodelProcessor extends AbstractProcessor {
             for (var parameter : parameters) {
                 if (parameter.getSimpleName().toString().equals(fieldName)) {
                     TypeMirror type = parameter.asType();
-                    return getMetamodelType(parameter).orElse(type);
+                    return applyMetamodelType ? getMetamodelType(parameter).orElse(type) : type;
                 }
             }
         }
@@ -895,7 +921,7 @@ public final class MetamodelProcessor extends AbstractProcessor {
                         .append(fieldName).append(" = ").append(modelRef).append(".")
                         .append(fieldName).append(";\n");
             } else {
-                String valueTypeName = getValueTypeName(fieldType, packageName);
+                String valueTypeName = getValueTypeName(getDeclaredTypeElement(recordElement, fieldName), packageName);
                 boolean unique = isEffectivelyUniqueField(recordElement, fieldName);
                 String baseClass = unique ? "AbstractKeyMetamodel" : "AbstractMetamodel";
 
@@ -1071,7 +1097,7 @@ public final class MetamodelProcessor extends AbstractProcessor {
                         .append("<T> ").append(fieldName)
                         .append(";\n");
             } else {
-                String valueTypeName = getValueTypeName(fieldType, packageName);
+                String valueTypeName = getValueTypeName(getDeclaredTypeElement(recordElement, fieldName), packageName);
                 boolean unique = isEffectivelyUniqueField(recordElement, fieldName);
                 boolean isData = implementsData(recordElement);
                 String baseClass = (!isData || unique) ? "AbstractKeyMetamodel" : "AbstractMetamodel";
@@ -1173,7 +1199,7 @@ public final class MetamodelProcessor extends AbstractProcessor {
                         .append(refGetter)
                         .append(");\n");
             } else {
-                String valueTypeName = getValueTypeName(fieldType, packageName);
+                String valueTypeName = getValueTypeName(getDeclaredTypeElement(recordElement, fieldName), packageName);
                 boolean unique = isEffectivelyUniqueField(recordElement, fieldName);
                 boolean isData = implementsData(recordElement);
                 // Validate: @PK, @FK, and @UK are not supported on inline record fields.
@@ -1482,6 +1508,7 @@ public final class MetamodelProcessor extends AbstractProcessor {
                         "import st.orm.Metamodel;\n" +
                         "import st.orm.AbstractMetamodel;\n" +
                         "import jakarta.annotation.Nonnull;\n" +
+                        "import jakarta.annotation.Nullable;\n" +
                         "import javax.annotation.processing.Generated;\n\n" +
                         "/**\n * Reference metamodel for " + recordName + ": selects the foreign key column and navigates beyond the reference.\n *\n" +
                         " * @param <T> the record type of the root table of the entity graph.\n */\n" +
@@ -1489,7 +1516,8 @@ public final class MetamodelProcessor extends AbstractProcessor {
                         "public final class " + metaClassName + "<T extends st.orm.Data> extends AbstractMetamodel<T, " + recordName + ", " + refType + "> {\n\n" +
                         navFields + "\n" +
                         "    private final java.util.function.Function<T, " + refType + "> getter;\n\n" +
-                        "    @Override\n    public " + refType + " getValue(@Nonnull T record) {\n        return getter.apply(record);\n    }\n\n" +
+                        "    /**\n     * Returns the reference the record holds, or {@code null} when the foreign key is null.\n     */\n" +
+                        "    @Override\n    @Nullable\n    public " + refType + " getValue(@Nonnull T record) {\n        return getter.apply(record);\n    }\n\n" +
                         "    @Override\n    public boolean isIdentical(@Nonnull T a, @Nonnull T b) {\n        return getter.apply(a) == getter.apply(b);\n    }\n\n" +
                         "    @Override\n    public boolean isSame(@Nonnull T a, @Nonnull T b) {\n        return java.util.Objects.equals(getter.apply(a), getter.apply(b));\n    }\n\n" +
                         "    public " + metaClassName + "(@Nonnull String path, @Nonnull String field, boolean inline, @Nonnull Metamodel<T, ?> parent, @Nonnull java.util.function.Function<T, " + refType + "> getter) {\n" +

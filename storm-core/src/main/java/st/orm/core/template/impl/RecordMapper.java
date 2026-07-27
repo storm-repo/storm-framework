@@ -129,6 +129,8 @@ final class RecordMapper {
      * @param columnCount the number of columns to use as constructor arguments.
      * @param type the record type of the instance to create.
      * @param refFactory the factory for creating ref instances for entities and projections.
+     * @param fetchPlan the references the statement resolved as part of its select list, whose targets the mapper
+     *                  consumes in place of their foreign key column.
      * @return a factory for creating instances of the specified type.
      * @param <T> the type of the instance to create.
      * @throws SqlTemplateException if an error occurred while creating the factory.
@@ -136,11 +138,12 @@ final class RecordMapper {
     static <T> Optional<ObjectMapper<T>> getFactory(int columnCount,
                                                     @Nonnull RecordType type,
                                                     @Nonnull RefFactory refFactory,
-                                                    @Nullable TransactionContext transactionContext) throws SqlTemplateException {
-        // The compiled plan already holds the flat column count (its parameterTypes length), cached per type.
-        // Reuse it instead of re-walking the record structure on every query, as getParameterCount would.
-        if (compiledFor(type, refFactory).parameterTypes().length == columnCount) {
-            return Optional.of(wrapConstructor(type, refFactory, transactionContext));
+                                                    @Nullable TransactionContext transactionContext,
+                                                    @Nonnull FetchPlan fetchPlan) throws SqlTemplateException {
+        // The compiled plan already holds the flat column count (its parameterTypes length), cached per type and
+        // fetch plan. Reuse it instead of re-walking the record structure on every query, as getParameterCount would.
+        if (compiledFor(type, refFactory, fetchPlan).parameterTypes().length == columnCount) {
+            return Optional.of(wrapConstructor(type, refFactory, transactionContext, fetchPlan));
         }
         return empty();
     }
@@ -296,11 +299,11 @@ final class RecordMapper {
         Map<String, Integer> fieldToUnionIndex = new HashMap<>();
         for (Class<?> subtype : subtypes) {
             RecordType subRecordType = getRecordType(subtype);
-            Class<?>[] subtypeParamTypes = expandParameterTypes(subRecordType, refFactory);
+            Class<?>[] subtypeParamTypes = expandParameterTypes(subRecordType, refFactory, FetchPlan.NONE);
             List<RecordField> fields = subRecordType.fields();
             int flatIndex = 0;
             for (RecordField field : fields) {
-                int fieldColumnCount = getFieldColumnCount(field);
+                int fieldColumnCount = getFieldColumnCount(field, FetchPlan.NONE);
                 for (int col = 0; col < fieldColumnCount; col++) {
                     String key = field.name() + (fieldColumnCount > 1 ? "." + col : "");
                     if (!fieldToUnionIndex.containsKey(key)) {
@@ -332,13 +335,13 @@ final class RecordMapper {
         for (Class<?> subtype : subtypes) {
             RecordType subRecordType = getRecordType(subtype);
             Object discriminatorValue = RecordReflection.getDiscriminatorValue(subtype, sealedType);
-            Class<?>[] subtypeParamTypes = expandParameterTypes(subRecordType, refFactory);
+            Class<?>[] subtypeParamTypes = expandParameterTypes(subRecordType, refFactory, FetchPlan.NONE);
             List<RecordField> fields = subRecordType.fields();
             int[] offsets = new int[subtypeParamTypes.length];
             List<Integer> extensionIndices = new ArrayList<>();
             int flatIndex = 0;
             for (RecordField field : fields) {
-                int fieldColumnCount = getFieldColumnCount(field);
+                int fieldColumnCount = getFieldColumnCount(field, FetchPlan.NONE);
                 boolean isExtension = !commonFieldNames.contains(field.name());
                 for (int col = 0; col < fieldColumnCount; col++) {
                     String key = field.name() + (fieldColumnCount > 1 ? "." + col : "");
@@ -373,28 +376,38 @@ final class RecordMapper {
                             @Nonnull PkInfo pkInfo,
                             @Nonnull List<ColumnSkipper.SkipRegion> skipRegions) {}
 
-    /** Global cache of compiled plans, keyed by record class. Thread-safe for concurrent access. */
-    private static final ConcurrentMap<Class<?>, Compiled> COMPILED = new ConcurrentHashMap<>();
+    /**
+     * The key of a compiled plan: the record type together with the references the statement resolves. A resolved
+     * reference consumes the referenced table's columns rather than its foreign key column alone, so a plan compiled
+     * for one set of resolved references cannot read a row shaped by another.
+     */
+    private record CompiledKey(@Nonnull Class<?> type, @Nonnull FetchPlan fetchPlan) {}
+
+    /** Global cache of compiled plans, keyed by record class and fetch plan. Thread-safe for concurrent access. */
+    private static final ConcurrentMap<CompiledKey, Compiled> COMPILED = new ConcurrentHashMap<>();
 
     /**
      * Returns the compiled plan for the given record type, creating and caching it if necessary.
      *
      * @param type the record type to compile.
      * @param refFactory the factory for resolving Ref parameter types.
+     * @param fetchPlan the references the statement resolves as part of its select list.
      * @return the compiled plan.
      * @throws SqlTemplateException if compilation fails.
      */
     private static Compiled compiledFor(@Nonnull RecordType type,
-                                        @Nonnull RefFactory refFactory) throws SqlTemplateException {
+                                        @Nonnull RefFactory refFactory,
+                                        @Nonnull FetchPlan fetchPlan) throws SqlTemplateException {
         try {
-            return COMPILED.computeIfAbsent(type.type(), t -> {
+            return COMPILED.computeIfAbsent(new CompiledKey(type.type(), fetchPlan), t -> {
                 try {
                     PkInfo pkInfo = Entity.class.isAssignableFrom(type.type())
-                            ? calculatePkInfo(type)
+                            ? calculatePkInfo(type, fetchPlan)
                             : PkInfo.NONE;
                     List<ColumnSkipper.SkipRegion> skipRegions = new ArrayList<>();
-                    collectSkipRegions(type, 0, skipRegions);
-                    return new Compiled(compilePlan(type), expandParameterTypes(type, refFactory), pkInfo,
+                    collectSkipRegions(type, 0, skipRegions, fetchPlan);
+                    return new Compiled(compilePlan(type, fetchPlan),
+                            expandParameterTypes(type, refFactory, fetchPlan), pkInfo,
                             List.copyOf(skipRegions));
                 } catch (SqlTemplateException e) {
                     throw new RuntimeException(e);
@@ -413,7 +426,7 @@ final class RecordMapper {
      * @param type the record type to calculate the number of parameters for.
      * @return the number of parameters for the specified record type.
      */
-    private static int getParameterCount(@Nonnull RecordType type) throws SqlTemplateException {
+    private static int getParameterCount(@Nonnull RecordType type, @Nonnull FetchPlan fetchPlan) throws SqlTemplateException {
         int count = 0;
         for (RecordField field : type.fields()) {
             var converter = getORMConverter(field);
@@ -422,7 +435,10 @@ final class RecordMapper {
             } else {
                 if (isRecord(field.type())) {
                     // Recursion for nested records.
-                    count += getParameterCount(getRecordType(field.type()));
+                    count += getParameterCount(getRecordType(field.type()), fetchPlan.descend(field.name()));
+                } else if (Ref.class.isAssignableFrom(field.type()) && fetchPlan.fetches(field.name())) {
+                    // A resolved reference consumes the referenced record's columns, exactly as an entity foreign key.
+                    count += getParameterCount(getRecordType(getRefDataType(field)), fetchPlan.descend(field.name()));
                 } else if (Ref.class.isAssignableFrom(field.type()) && isPolymorphicData(getRefDataType(field))) {
                     // Polymorphic FK: discriminator + PK columns.
                     count += 2;
@@ -444,8 +460,9 @@ final class RecordMapper {
      */
     private static <T> ObjectMapper<T> wrapConstructor(@Nonnull RecordType type,
                                                        @Nonnull RefFactory refFactory,
-                                                       @Nullable TransactionContext transactionContext) throws SqlTemplateException {
-        return wrapConstructor(type, refFactory, transactionContext, new WeakInterner());
+                                                       @Nullable TransactionContext transactionContext,
+                                                       @Nonnull FetchPlan fetchPlan) throws SqlTemplateException {
+        return wrapConstructor(type, refFactory, transactionContext, new WeakInterner(), fetchPlan);
     }
 
     /**
@@ -463,7 +480,15 @@ final class RecordMapper {
                                                        @Nonnull RefFactory refFactory,
                                                        @Nullable TransactionContext transactionContext,
                                                        @Nonnull WeakInterner interner) throws SqlTemplateException {
-        Compiled compiled = compiledFor(type, refFactory);
+        return wrapConstructor(type, refFactory, transactionContext, interner, FetchPlan.NONE);
+    }
+
+    private static <T> ObjectMapper<T> wrapConstructor(@Nonnull RecordType type,
+                                                       @Nonnull RefFactory refFactory,
+                                                       @Nullable TransactionContext transactionContext,
+                                                       @Nonnull WeakInterner interner,
+                                                       @Nonnull FetchPlan fetchPlan) throws SqlTemplateException {
+        Compiled compiled = compiledFor(type, refFactory, fetchPlan);
         boolean isEntity = Entity.class.isAssignableFrom(type.type());
         // Determine cache read/write policy.
         // Cache read: return cached instances (identity preservation) - only at REPEATABLE_READ+
@@ -605,7 +630,8 @@ final class RecordMapper {
      * @throws SqlTemplateException if an error occurred while expanding the parameter types.
      */
     private static Class<?>[] expandParameterTypes(@Nonnull RecordType type,
-                                                   @Nonnull RefFactory refFactory) throws SqlTemplateException {
+                                                   @Nonnull RefFactory refFactory,
+                                                   @Nonnull FetchPlan fetchPlan) throws SqlTemplateException {
         List<Class<?>> expandedTypes = new ArrayList<>();
         var fields = type.fields();
         var parameterTypes = type.constructor().getParameterTypes();
@@ -618,7 +644,12 @@ final class RecordMapper {
             }
             if (isRecord(parameterTypes[i])) {
                 // Recursively expand record components.
-                addAll(expandedTypes, expandParameterTypes(getRecordType(parameterTypes[i]), refFactory));
+                addAll(expandedTypes, expandParameterTypes(getRecordType(parameterTypes[i]), refFactory,
+                        fetchPlan.descend(field.name())));
+            } else if (Ref.class.isAssignableFrom(parameterTypes[i]) && fetchPlan.fetches(field.name())) {
+                // A resolved reference occupies the referenced record's columns rather than a single key column.
+                addAll(expandedTypes, expandParameterTypes(getRecordType(getRefDataType(field)), refFactory,
+                        fetchPlan.descend(field.name())));
             } else if (Ref.class.isAssignableFrom(parameterTypes[i])) {
                 Class<? extends Data> refDataType = getRefDataType(fields.get(i));
                 if (isPolymorphicData(refDataType)) {
@@ -1160,7 +1191,7 @@ final class RecordMapper {
      * @return the compiled argument plan.
      * @throws SqlTemplateException if compilation fails.
      */
-    private static ArgumentPlan compilePlan(@Nonnull RecordType type) throws SqlTemplateException {
+    private static ArgumentPlan compilePlan(@Nonnull RecordType type, @Nonnull FetchPlan fetchPlan) throws SqlTemplateException {
         Class<?>[] paramTypes = type.constructor().getParameterTypes();
         Step[] steps = new Step[paramTypes.length];
         for (int i = 0; i < paramTypes.length; i++) {
@@ -1176,19 +1207,21 @@ final class RecordMapper {
             }
             Class<?> p = paramTypes[i];
             if (isRecord(p)) {
-                RecordType sub = getRecordType(p);
-                ArgumentPlan subPlan = compilePlan(sub);
-                // Calculate PK information for early cache lookup optimization.
-                PkInfo pkInfo = calculatePkInfo(sub);
-                int totalColumnCount = getParameterCount(sub);
-                steps[i] = new RecordStep(field, sub, subPlan, pkInfo.offset, pkInfo.columnCount,
-                        totalColumnCount, pkInfo.constructor);
+                steps[i] = recordStep(field, getRecordType(p), fetchPlan.descend(field.name()));
             } else if (p.isEnum()) {
                 EnumType enumType = ofNullable(field.getAnnotation(DbEnum.class)).map(DbEnum::value).orElse(NAME);
                 steps[i] = new EnumStep(p, enumType, type.type().getSimpleName(), field.name());
             } else if (Ref.class.isAssignableFrom(p)) {
                 Class<? extends Data> refDataType = getRefDataType(field);
-                if (isPolymorphicData(refDataType)) {
+                if (fetchPlan.fetches(field.name())) {
+                    // The statement carries the referenced record, laid out as an entity foreign key. Build it through
+                    // the nested-record step, which already handles the outer join's all-null row, the entity cache and
+                    // interning, then wrap it in a loaded reference.
+                    FetchPlan subPlan = fetchPlan.descend(field.name());
+                    RecordType refRecordType = getRecordType(refDataType);
+                    steps[i] = new FetchedRefStep(recordStep(field, refRecordType, subPlan), refDataType,
+                            keyReader(refRecordType, subPlan));
+                } else if (isPolymorphicData(refDataType)) {
                     // Polymorphic FK: two columns (discriminator + PK).
                     steps[i] = new PolymorphicRefStep(refDataType);
                 } else {
@@ -1199,6 +1232,127 @@ final class RecordMapper {
             }
         }
         return new CompiledArgumentPlan(type, steps);
+    }
+
+    /**
+     * Builds the step that constructs the nested record held by the given field.
+     */
+    private static RecordStep recordStep(@Nonnull RecordField field,
+                                         @Nonnull RecordType sub,
+                                         @Nonnull FetchPlan fetchPlan) throws SqlTemplateException {
+        ArgumentPlan subPlan = compilePlan(sub, fetchPlan);
+        // Calculate PK information for early cache lookup optimization.
+        PkInfo pkInfo = calculatePkInfo(sub, fetchPlan);
+        int totalColumnCount = getParameterCount(sub, fetchPlan);
+        return new RecordStep(field, sub, subPlan, pkInfo.offset, pkInfo.columnCount, totalColumnCount,
+                pkInfo.constructor);
+    }
+
+    /**
+     * Locates the primary key of a resolved reference's target within the row, so the reference can be created with
+     * the identity it is compared by.
+     *
+     * <p>The key is read from the flat columns rather than from the constructed record, because a projection carries
+     * no accessor for it. Entities do, but reading both alike keeps one path.</p>
+     *
+     * @param type the record type the reference points at.
+     * @param fetchPlan the plan in effect for that type.
+     * @return the reader for the target's primary key.
+     * @throws SqlTemplateException if the type declares no primary key.
+     */
+    private static KeyReader keyReader(@Nonnull RecordType type, @Nonnull FetchPlan fetchPlan) throws SqlTemplateException {
+        RecordField pkField = findPkField(type.type()).orElseThrow(() -> new SqlTemplateException(
+                "Cannot resolve a reference to %s: the type declares no primary key.".formatted(type.type().getSimpleName())));
+        int offset = 0;
+        for (RecordField field : type.fields()) {
+            if (field.name().equals(pkField.name())) {
+                break;
+            }
+            offset += getFieldColumnCount(field, fetchPlan);
+        }
+        int columnCount = getFieldColumnCount(pkField, fetchPlan);
+        Constructor<?> keyConstructor = null;
+        if (columnCount > 1) {
+            if (!isRecord(pkField.type())) {
+                throw new SqlTemplateException("Cannot resolve a reference to %s: its primary key spans %d columns but is not a record."
+                        .formatted(type.type().getSimpleName(), columnCount));
+            }
+            var keyRecordType = getRecordType(pkField.type());
+            if (keyRecordType.constructor().getParameterCount() != columnCount) {
+                throw new SqlTemplateException("Cannot resolve a reference to %s: its primary key spans nested records, which cannot be read back from the row."
+                        .formatted(type.type().getSimpleName()));
+            }
+            keyConstructor = keyRecordType.constructor();
+        }
+        return new KeyReader(offset, columnCount, keyConstructor);
+    }
+
+    /**
+     * Reads a record's primary key out of the flat columns of the row it occupies.
+     *
+     * @param offset the offset of the key columns, relative to the start of the record.
+     * @param columnCount the number of columns the key spans.
+     * @param constructor the constructor for a compound key, or {@code null} for a single-column key.
+     */
+    private record KeyReader(int offset, int columnCount, @Nullable Constructor<?> constructor) {
+
+        @Nullable
+        Object read(@Nonnull Object[] flatArgs, int start) throws SqlTemplateException {
+            if (columnCount == 1) {
+                return flatArgs[start + offset];
+            }
+            Object[] keyArgs = new Object[columnCount];
+            for (int i = 0; i < columnCount; i++) {
+                Object arg = flatArgs[start + offset + i];
+                if (arg == null) {
+                    return null;
+                }
+                keyArgs[i] = arg;
+            }
+            assert constructor != null : "Compound key without a constructor.";
+            return ObjectMapperFactory.construct(constructor, keyArgs, start + offset);
+        }
+    }
+
+    /**
+     * Step that creates a loaded {@link Ref} from the referenced record's own columns.
+     *
+     * <p>A reference normally consumes a single key column and defers the record to {@link Ref#fetch()}. When the
+     * statement resolves the reference, its target is selected alongside the row that holds it, so the record is built
+     * here and the reference is handed back already loaded: {@code fetch()} returns it without querying.</p>
+     */
+    private static final class FetchedRefStep implements Step {
+        private final RecordStep recordStep;
+        private final Class<? extends Data> dataType;
+        private final KeyReader keyReader;
+
+        private FetchedRefStep(@Nonnull RecordStep recordStep,
+                               @Nonnull Class<? extends Data> dataType,
+                               @Nonnull KeyReader keyReader) {
+            this.recordStep = recordStep;
+            this.dataType = dataType;
+            this.keyReader = keyReader;
+        }
+
+        @Override
+        public Object apply(@Nonnull Object[] flatArgs,
+                            @Nonnull Offset offset,
+                            boolean parentNullable,
+                            @Nonnull RefFactory refFactory,
+                            @Nonnull WeakInterner interner,
+                            @Nullable TransactionContext context) throws SqlTemplateException {
+            int start = offset.i;
+            Object record = recordStep.apply(flatArgs, offset, parentNullable, refFactory, interner, context);
+            if (record == null) {
+                return null;
+            }
+            Object pk = keyReader.read(flatArgs, start);
+            if (pk == null) {
+                throw new SqlTemplateException("Database returned NULL for the primary key of %s, which the query resolves as a reference. A reference is identified by that key, so it cannot be null while the referenced row is present."
+                        .formatted(dataType.getSimpleName()));
+            }
+            return interner.intern(refFactory.create((Data) record, pk));
+        }
     }
 
     /**
@@ -1224,7 +1378,7 @@ final class RecordMapper {
      * @param type the record type to analyze.
      * @return PkInfo containing offset, column count, and constructor (for composite PKs).
      */
-    private static PkInfo calculatePkInfo(@Nonnull RecordType type) throws SqlTemplateException {
+    private static PkInfo calculatePkInfo(@Nonnull RecordType type, @Nonnull FetchPlan fetchPlan) throws SqlTemplateException {
         // Only entities have PKs.
         if (!Entity.class.isAssignableFrom(type.type())) {
             return PkInfo.NONE;
@@ -1241,10 +1395,10 @@ final class RecordMapper {
             if (field.name().equals(pkField.name())) {
                 break;
             }
-            offset += getFieldColumnCount(field);
+            offset += getFieldColumnCount(field, fetchPlan);
         }
         // Calculate how many columns the PK spans.
-        int pkColumnCount = getFieldColumnCount(pkField);
+        int pkColumnCount = getFieldColumnCount(pkField, fetchPlan);
         // For composite PKs (record types), we need the constructor.
         Constructor<?> pkConstructor = null;
         if (isRecord(pkField.type()) && pkColumnCount > 1) {
@@ -1273,7 +1427,8 @@ final class RecordMapper {
      */
     private static void collectSkipRegions(@Nonnull RecordType type,
                                            int base,
-                                           @Nonnull List<ColumnSkipper.SkipRegion> out) throws SqlTemplateException {
+                                           @Nonnull List<ColumnSkipper.SkipRegion> out,
+                                           @Nonnull FetchPlan fetchPlan) throws SqlTemplateException {
         int cursor = base;
         for (RecordField field : type.fields()) {
             var converter = getORMConverter(field);
@@ -1281,11 +1436,13 @@ final class RecordMapper {
                 cursor += converter.get().getParameterCount();
                 continue;
             }
-            if (isRecord(field.type())) {
-                RecordType sub = getRecordType(field.type());
-                int totalColumnCount = getParameterCount(sub);
+            boolean fetchedRef = Ref.class.isAssignableFrom(field.type()) && fetchPlan.fetches(field.name());
+            if (isRecord(field.type()) || fetchedRef) {
+                RecordType sub = getRecordType(fetchedRef ? getRefDataType(field) : field.type());
+                FetchPlan subPlan = fetchPlan.descend(field.name());
+                int totalColumnCount = getParameterCount(sub, subPlan);
                 if (Entity.class.isAssignableFrom(sub.type())) {
-                    PkInfo pkInfo = calculatePkInfo(sub);
+                    PkInfo pkInfo = calculatePkInfo(sub, subPlan);
                     if (pkInfo.offset() >= 0 && (pkInfo.columnCount() == 1 || pkInfo.constructor() != null)) {
                         //noinspection unchecked
                         out.add(new ColumnSkipper.SkipRegion(cursor, cursor + totalColumnCount,
@@ -1293,7 +1450,7 @@ final class RecordMapper {
                                 (Class<? extends Entity<?>>) sub.type(), false));
                     }
                 }
-                collectSkipRegions(sub, cursor, out);
+                collectSkipRegions(sub, cursor, out, subPlan);
                 cursor += totalColumnCount;
             } else if (Ref.class.isAssignableFrom(field.type()) && isPolymorphicData(getRefDataType(field))) {
                 // Polymorphic FK: discriminator + PK columns.
@@ -1318,13 +1475,16 @@ final class RecordMapper {
      * @return the number of columns the field consumes.
      * @throws SqlTemplateException if the field type cannot be analyzed.
      */
-    private static int getFieldColumnCount(@Nonnull RecordField field) throws SqlTemplateException {
+    private static int getFieldColumnCount(@Nonnull RecordField field, @Nonnull FetchPlan fetchPlan) throws SqlTemplateException {
         var converter = getORMConverter(field);
         if (converter.isPresent()) {
             return converter.get().getParameterCount();
         }
         if (isRecord(field.type())) {
-            return getParameterCount(getRecordType(field.type()));
+            return getParameterCount(getRecordType(field.type()), fetchPlan.descend(field.name()));
+        }
+        if (Ref.class.isAssignableFrom(field.type()) && fetchPlan.fetches(field.name())) {
+            return getParameterCount(getRecordType(getRefDataType(field)), fetchPlan.descend(field.name()));
         }
         if (Ref.class.isAssignableFrom(field.type()) && isPolymorphicData(getRefDataType(field))) {
             // Polymorphic FK: discriminator + PK columns.

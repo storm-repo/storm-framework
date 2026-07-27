@@ -144,8 +144,31 @@ final class QueryModelImpl implements QueryModel {
      */
     @Override
     public List<ColumnExpression> getColumns(@Nonnull Class<? extends Data> table, @Nonnull SelectMode mode) {
+        return getColumns(table, mode, FetchPlan.NONE);
+    }
+
+    /**
+     * Returns the columns to be selected for the specified table type, with the references the plan resolves selected
+     * as the referenced table's columns.
+     *
+     * <p>A resolved reference contributes its target's columns, which resolve against the join derivation materialized
+     * for that path. Only NESTED expands: it is the mode that materializes a record, and a reference that is not
+     * materialized cannot hold one.</p>
+     *
+     * @param table the table type for which columns should be returned.
+     * @param mode  the selection mode that controls which columns are included.
+     * @param fetchPlan the references the query resolves as part of the statement.
+     * @return the list of column expressions for the specified table type.
+     * @since 1.13
+     */
+    @Override
+    public List<ColumnExpression> getColumns(@Nonnull Class<? extends Data> table, @Nonnull SelectMode mode,
+                                             @Nonnull FetchPlan fetchPlan) {
         try {
-            var m = model.type() == table ? model : modelBuilder.build(table, false);
+            FetchPlan effectivePlan = mode == SelectMode.NESTED ? fetchPlan : FetchPlan.NONE;
+            var m = effectivePlan.isEmpty() && model.type() == table
+                    ? model
+                    : modelBuilder.build(table, false, effectivePlan);
             return switch (mode) {
                 case PK -> m.declaredColumns().stream().filter(Column::primaryKey).map(this::toColumnExpression).toList();
                 case DECLARED -> m.declaredColumns().stream().map(this::toColumnExpression).toList();

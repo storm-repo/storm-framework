@@ -562,4 +562,64 @@ final class RecordValidation {
         }
     }
 
+    /**
+     * Validates that the given field path names a reference the query can resolve as part of the statement.
+     *
+     * <p>The path is walked segment by segment so a mistake is reported against the segment that caused it. A path
+     * that crosses no reference is rejected: everything it names is already part of the entity graph, so resolving it
+     * would be a no-op that reads as a fetch.</p>
+     *
+     * @param rootType the type the path is relative to.
+     * @param path the field path to validate.
+     * @throws PersistenceException if the path cannot be resolved as a reference.
+     */
+    static void validateFetchPath(@Nonnull Class<? extends Data> rootType, @Nonnull String path) {
+        if (path.isEmpty()) {
+            throw new PersistenceException("Cannot resolve an empty path for %s.".formatted(rootType.getSimpleName()));
+        }
+        Class<?> current = rootType;
+        boolean crossedReference = false;
+        StringBuilder walked = new StringBuilder();
+        for (String segment : path.split("\\.", -1)) {
+            if (!walked.isEmpty()) {
+                walked.append('.');
+            }
+            walked.append(segment);
+            if (!isRecord(current)) {
+                throw new PersistenceException("Cannot resolve '%s' on %s: '%s' does not hold a record."
+                        .formatted(path, rootType.getSimpleName(), walked));
+            }
+            RecordField field;
+            try {
+                field = RecordReflection.getRecordField(current, segment);
+            } catch (SqlTemplateException e) {
+                throw new PersistenceException("Cannot resolve '%s' on %s: no field at '%s'."
+                        .formatted(path, rootType.getSimpleName(), walked), e);
+            }
+            if (Ref.class.isAssignableFrom(field.type())) {
+                Class<? extends Data> target;
+                try {
+                    target = getRefDataType(field);
+                } catch (SqlTemplateException e) {
+                    throw new PersistenceException("Cannot resolve '%s' on %s.".formatted(path, rootType.getSimpleName()), e);
+                }
+                if (target.isSealed()) {
+                    // A sealed target picks its concrete record per row from a discriminator, so the referenced
+                    // columns have no fixed layout to expand the reference into. A polymorphic target has no single
+                    // table to join in the first place.
+                    throw new PersistenceException("Cannot resolve '%s' on %s: it references the sealed type %s, whose concrete record is chosen per row rather than by a fixed column layout. Fetch it on demand instead."
+                            .formatted(path, rootType.getSimpleName(), target.getSimpleName()));
+                }
+                crossedReference = true;
+                current = target;
+            } else {
+                current = field.type();
+            }
+        }
+        if (!crossedReference) {
+            throw new PersistenceException("Cannot resolve '%s' on %s: it crosses no reference, so it is already part of the record the query selects."
+                    .formatted(path, rootType.getSimpleName()));
+        }
+    }
+
 }

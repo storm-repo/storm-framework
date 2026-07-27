@@ -152,6 +152,22 @@ public interface Sql {
     }
 
     /**
+     * Returns the references this statement resolves as part of its select list, as field paths relative to the
+     * selected type.
+     *
+     * <p>A reference is selected as its foreign key column by default and is resolved on demand through
+     * {@link st.orm.Ref#fetch()}. A path listed here is selected as the referenced table's columns instead, so the
+     * statement's select list is wider than the selected type's declared shape and the row mapper has to consume that
+     * wider shape. The paths are prefix-closed and sorted.</p>
+     *
+     * @return the resolved reference paths, empty when every reference is selected as its foreign key column.
+     * @since 1.13
+     */
+    default List<String> fetchPaths() {
+        return List.of();
+    }
+
+    /**
      * Returns a warning message if the statement is deemed potentially unsafe, an empty optional otherwise.
      *
      * @since 1.2

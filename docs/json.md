@@ -95,6 +95,23 @@ The `preferences` field is automatically serialized to JSON when writing and des
 </TabItem>
 </Tabs>
 
+### JSON Columns in the Metamodel
+
+A JSON column is stored as text while the record holds a map, a list, or a structured object. The metamodel keeps both: it addresses the column by its stored type, so a predicate compares against the stored JSON, while value extraction returns what the record holds.
+
+```java
+// Generated for @Json Map<String, String> preferences:
+AbstractMetamodel<User, String, Map<String, String>> preferences
+
+orm.entity(User.class).select()
+    .where(User_.preferences, EQUALS, "{\"theme\":\"dark\"}")   // compares the stored text
+    .getResultList();
+
+Map<String, String> value = User_.preferences.getValue(user);   // returns the record's value
+```
+
+The column is a single column, not the fields of the object it holds, so a path does not navigate into it: use `User_.preferences`, not `User_.preferences.theme`.
+
 ## Complex Types
 
 JSON columns are not limited to maps and primitive collections. You can store structured domain objects directly, preserving their full type hierarchy during serialization and deserialization. This is useful when the nested object has a well-defined shape but does not need its own database table.

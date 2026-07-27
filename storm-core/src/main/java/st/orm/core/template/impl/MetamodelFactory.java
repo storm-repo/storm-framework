@@ -16,6 +16,7 @@
 package st.orm.core.template.impl;
 
 import static java.lang.invoke.MethodType.methodType;
+import static st.orm.core.spi.Providers.getORMConverter;
 import static st.orm.core.template.impl.RecordReflection.findPkField;
 import static st.orm.core.template.impl.RecordReflection.getRecordField;
 import static st.orm.core.template.impl.RecordReflection.getRecordFields;
@@ -197,7 +198,12 @@ public final class MetamodelFactory {
             } else {
                 fieldType = (Class<E>) field.type();
                 effectivePath = stripLast(path);
-                if (isRecord(fieldType)) {
+                if (getORMConverter(field).isPresent()) {
+                    // A converted field is stored as its own column (or columns) rather than as the parts of the
+                    // record it holds, exactly as the model builds it. Without this the record would be mistaken for
+                    // an inline record and the path would resolve to columns that the table does not have.
+                    isColumn = true;
+                } else if (isRecord(fieldType)) {
                     if (Data.class.isAssignableFrom(fieldType)) {
                         isColumn = true;
                     } else {

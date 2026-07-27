@@ -130,6 +130,56 @@ abstract class QueryBuilder<T : Data, R, ID> {
     abstract fun distinct(): QueryBuilder<T, R, ID>
 
     /**
+     * Resolves the references at the specified paths as part of this query.
+     *
+     * A [Ref] foreign key is selected as its foreign key column and resolved on demand, which costs a query per
+     * reference. A path named here is selected as the referenced table's columns instead, joined into the same
+     * statement, so the reference comes back already loaded: [Ref.fetch] returns the record without querying and
+     * [Ref.isLoaded] reports `true`.
+     *
+     * ```kotlin
+     * val users = orm.entity<User>().select()
+     *     .fetch(User_.city, User_.city.country)
+     *     .resultList
+     *
+     * val city = users.first().city.fetch()   // already loaded, no query
+     * ```
+     *
+     * The record type is unchanged: the property stays a `Ref`, so the same record can come from a query that resolves
+     * the reference and from one that does not. Reference identity and equality are unaffected, and [Ref.unload]
+     * returns to a reference that carries the key alone.
+     *
+     * The plan is prefix-closed: naming `User_.city.country` resolves `User_.city` as well, since the city record is
+     * what holds the country reference. A reference is always a to-one foreign key, so resolving one widens the row
+     * without multiplying it, and a cycle stays bounded by the depth the path names.
+     *
+     * A nullable reference is joined with an outer join, so a row whose foreign key is null yields a null reference,
+     * matching a nullable entity foreign key. A path that crosses no reference is rejected: the target is already part
+     * of the entity graph and there is nothing to resolve.
+     *
+     * @param path the paths of the references to resolve.
+     * @return the query builder.
+     * @throws PersistenceException if no path is provided, if a path crosses no reference, or if this query does not
+     * select a record that can hold one.
+     * @since 1.13
+     */
+    fun fetch(vararg path: Navigable<T, out Data>): QueryBuilder<T, R, ID> = fetch(path.toList())
+
+    /**
+     * Resolves the references at the specified paths as part of this query.
+     *
+     * A path a generated metamodel cannot express, a cycle deeper than the two hops it constructs in particular, is
+     * named with [Metamodel.of].
+     *
+     * @param paths the paths of the references to resolve.
+     * @return the query builder.
+     * @throws PersistenceException if no path is provided, if a path crosses no reference, or if this query does not
+     * select a record that can hold one.
+     * @since 1.13
+     */
+    abstract fun fetch(paths: List<Navigable<T, out Data>>): QueryBuilder<T, R, ID>
+
+    /**
      * Adds a cross join to the query.
      *
      * @param relation the relation to join.
@@ -1482,6 +1532,14 @@ class SqlScope<T : Data, R, ID : Any> @PublishedApi internal constructor(
     /** Marks the query as SELECT DISTINCT. */
     fun distinct() {
         builder = builder.distinct()
+    }
+
+    /**
+     * Resolves the references at the specified metamodel path(s) as part of this query, so [Ref.fetch] returns the
+     * referenced record without querying.
+     */
+    fun fetch(vararg path: Navigable<T, out Data>) {
+        builder = builder.fetch(*path)
     }
 
     /** Allows DELETE/UPDATE without a WHERE clause (Storm rejects this by default). */

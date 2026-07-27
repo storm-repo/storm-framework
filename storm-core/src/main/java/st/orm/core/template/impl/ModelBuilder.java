@@ -107,6 +107,25 @@ public interface ModelBuilder {
     <T extends Data, ID> Model<T, ID> build(@Nonnull Class<T> type, boolean requirePrimaryKey) throws SqlTemplateException;
 
     /**
+     * Builds the model for the specified data type, expanding the references the plan resolves.
+     *
+     * <p>A reference contributes its foreign key column alone, since the referenced record is not materialized. A
+     * reference the plan resolves contributes the referenced table's columns as well, laid out exactly as an entity
+     * foreign key: the foreign key column carries the target's primary key, followed by the target's remaining
+     * columns.</p>
+     *
+     * @param type the record type.
+     * @param requirePrimaryKey {@code true} if the primary key is required, {@code false} otherwise.
+     * @param fetchPlan the references the query resolves as part of the statement.
+     * @return the model.
+     * @param <ID> the primary key type.
+     * @throws SqlTemplateException if an error occurs while building the model.
+     * @since 1.13
+     */
+    <T extends Data, ID> Model<T, ID> build(@Nonnull Class<T> type, boolean requirePrimaryKey,
+                                            @Nonnull FetchPlan fetchPlan) throws SqlTemplateException;
+
+    /**
      * Returns a supplier for the model.
      *
      * @param type the record type.

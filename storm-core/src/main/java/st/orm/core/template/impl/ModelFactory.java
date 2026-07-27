@@ -65,18 +65,29 @@ import st.orm.mapping.RecordType;
  * @since 1.2
  */
 final class ModelFactory {
-    private static final ConcurrentHashMap<Class<?>, Model<?, ?>> MODEL_CACHE = new ConcurrentHashMap<>();
+
+    /**
+     * The cached models, keyed by the record type together with the references the statement resolves. The plan
+     * changes the column list, so a model built for one plan cannot serve another.
+     */
+    private record ModelKey(@Nonnull Class<?> type, @Nonnull FetchPlan fetchPlan) {}
+
+    private static final ConcurrentHashMap<ModelKey, Model<?, ?>> MODEL_CACHE = new ConcurrentHashMap<>();
 
     private ModelFactory() {
     }
 
     static <T extends Data, ID> Model<T, ID> getModel(@Nonnull ModelBuilderImpl builder, @Nonnull Class<T> type, boolean requirePrimaryKey) throws SqlTemplateException {
+        return getModel(builder, type, requirePrimaryKey, FetchPlan.NONE);
+    }
+
+    static <T extends Data, ID> Model<T, ID> getModel(@Nonnull ModelBuilderImpl builder, @Nonnull Class<T> type, boolean requirePrimaryKey, @Nonnull FetchPlan fetchPlan) throws SqlTemplateException {
         try {
             validateDataType(type, requirePrimaryKey);
             //noinspection unchecked
-            return (Model<T, ID>) MODEL_CACHE.computeIfAbsent(type, ignore -> {
+            return (Model<T, ID>) MODEL_CACHE.computeIfAbsent(new ModelKey(type, fetchPlan), ignore -> {
                 try {
-                    return createModel(builder, type, requirePrimaryKey);
+                    return createModel(builder, type, requirePrimaryKey, fetchPlan);
                 } catch (SqlTemplateException e) {
                     throw new UncheckedSqlTemplateException(e);
                 }
@@ -86,17 +97,21 @@ final class ModelFactory {
         }
     }
 
-    private static <T extends Data, ID> Model<T, ID> createModel(@Nonnull ModelBuilder builder, @Nonnull Class<T> type, boolean requirePrimaryKey) throws SqlTemplateException {
+    private static <T extends Data, ID> Model<T, ID> createModel(@Nonnull ModelBuilder builder, @Nonnull Class<T> type, boolean requirePrimaryKey, @Nonnull FetchPlan fetchPlan) throws SqlTemplateException {
         validateDataType(type, requirePrimaryKey);
         // Handle sealed entity types (single-table and joined).
         if (type.isSealed() && isSealedEntity(type)) {
+            if (!fetchPlan.isEmpty()) {
+                throw new SqlTemplateException("Cannot resolve references for %s: a sealed entity selects the union of its subtypes' columns, which has no single position to expand a reference into. Select a concrete subtype to resolve %s."
+                        .formatted(type.getSimpleName(), String.join(", ", fetchPlan.toList())));
+            }
             return createSealedModel(builder, type);
         }
         RecordType recordType = getRecordType(type);
         List<Column> columns = new ArrayList<>();
         List<RecordField> fields = new ArrayList<>();
         try {
-            BuildContext ctx = new BuildContext(builder, columns, fields, Metamodel.root(type), new AtomicInteger(1));
+            BuildContext ctx = new BuildContext(builder, columns, fields, Metamodel.root(type), new AtomicInteger(1), fetchPlan);
             for (var field : recordType.fields()) {
                 createColumns(ctx, ctx.rootMetamodel(), field, false, null, KeyScope.none(), PkContext.none(), null, false);
             }
@@ -320,7 +335,7 @@ final class ModelFactory {
         return new ModelImpl<>(firstRecordType, sealedType, tableName, fields, columns);
     }
 
-    record BuildContext(ModelBuilder builder, List<Column> columns, List<RecordField> fields, Metamodel<?, ?> rootMetamodel, AtomicInteger index) {
+    record BuildContext(ModelBuilder builder, List<Column> columns, List<RecordField> fields, Metamodel<?, ?> rootMetamodel, AtomicInteger index, FetchPlan fetchPlan) {
     }
 
     record ColumnSpec(boolean primaryKey,
@@ -368,7 +383,7 @@ final class ModelFactory {
                             parentMetamodel.fieldPath().isEmpty() ? field.name() : parentMetamodel.fieldPath() + "." + field.name()
                     );
                     boolean nullable = parentNullable || field.nullable();
-                    expandForeignRelation(ctx, ownMetamodel, field, nullable);
+                    expandForeignRelation(ctx, ownMetamodel, field, nullable, field.type());
                 }
                 return;
             }
@@ -443,7 +458,12 @@ final class ModelFactory {
                         : nCopies(fkNames.size(), spec.dataType());
                 emitColumns(ctx, field, ownMetamodel, secondaryMetamodel, spec, keyScope, fkNames, nCopies(fkNames.size(), spec.dataType()), persistedTypes);
                 if (!spec.ref()) {
-                    expandForeignRelation(ctx, ownMetamodel, field, spec.nullable());
+                    expandForeignRelation(ctx, ownMetamodel, field, spec.nullable(), field.type());
+                } else if (ctx.fetchPlan().fetches(ownMetamodel.fieldPath())) {
+                    // A resolved reference is laid out exactly as an entity foreign key: the foreign key column
+                    // carries the target's primary key, and the target's remaining columns follow from its joined
+                    // table. That symmetry is what lets the row mapper reuse its nested-record path here.
+                    expandForeignRelation(ctx, ownMetamodel, field, spec.nullable(), getRefDataType(field));
                 }
                 return;
             }
@@ -462,13 +482,13 @@ final class ModelFactory {
     private static void expandForeignRelation(@Nonnull BuildContext ctx,
                                               @Nonnull Metamodel<Data, ?> foreignMetamodel,
                                               @Nonnull RecordField foreignField,
-                                              boolean nullableDueToJoin) {
-        Class<?> t = foreignField.type();
-        if (!Data.class.isAssignableFrom(t)) {
+                                              boolean nullableDueToJoin,
+                                              @Nonnull Class<?> relationType) {
+        if (!Data.class.isAssignableFrom(relationType)) {
             return;
         }
         @SuppressWarnings("unchecked")
-        Class<? extends Data> targetType = (Class<? extends Data>) t;
+        Class<? extends Data> targetType = (Class<? extends Data>) relationType;
         RecordType targetRecordType = getRecordType(targetType);
         for (var child : targetRecordType.fields()) {
             createColumns(ctx, foreignMetamodel, child, nullableDueToJoin, null, KeyScope.none(), PkContext.none(), null, true);

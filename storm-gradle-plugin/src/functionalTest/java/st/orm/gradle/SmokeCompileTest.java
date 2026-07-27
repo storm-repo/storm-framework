@@ -125,4 +125,122 @@ public class SmokeCompileTest {
         var second = runner().build();
         assertTrue(second.getOutput().contains("Reusing configuration cache."), second.getOutput());
     }
+
+    /**
+     * A converted column is stored as one type and held as another: the tags live in a single JSON column, so the
+     * column is text while the record holds a list. Both generators have to address the column by its stored type and
+     * keep the declared type for the value; getting that wrong produces a metamodel that does not compile, which the
+     * build itself catches, or one that cannot express a predicate against the stored value, which the assertion
+     * catches. A reference is declared alongside it so the reference metamodel is compiled here too.
+     */
+    @Test
+    @EnabledIfSystemProperty(named = "storm.smoke", matches = "true")
+    public void kotlinAddressesAConvertedColumnByItsStoredType() throws Exception {
+        Files.writeString(projectDir.resolve("settings.gradle.kts"), FunctionalTestSupport.SETTINGS);
+        Files.writeString(projectDir.resolve("build.gradle.kts"), """
+                plugins {
+                    id("org.jetbrains.kotlin.jvm") version "2.4.0"
+                    id("com.google.devtools.ksp") version "2.3.10"
+                    id("st.orm")
+                }
+                repositories {
+                    mavenLocal()
+                    mavenCentral()
+                }
+                kotlin {
+                    jvmToolchain(21)
+                }
+                """);
+        var sourceDir = projectDir.resolve("src/main/kotlin/demo");
+        Files.createDirectories(sourceDir);
+        Files.writeString(sourceDir.resolve("Gallery.kt"), """
+                package demo
+
+                import st.orm.Entity
+                import st.orm.FK
+                import st.orm.Json
+                import st.orm.PK
+                import st.orm.Ref
+
+                data class City(
+                    @PK val id: Int = 0,
+                    val name: String,
+                ) : Entity<Int>
+
+                data class Gallery(
+                    @PK val id: Int = 0,
+                    @Json val tags: List<String>,
+                    @FK val city: Ref<City>,
+                ) : Entity<Int>
+                """);
+        var result = runner().build();
+        assertTrue(result.getOutput().contains("BUILD SUCCESSFUL"), result.getOutput());
+        var metamodel = Files.readString(projectDir.resolve("build/generated/ksp/main/kotlin/demo/Gallery_.kt"));
+        assertTrue(metamodel.contains("AbstractMetamodel<Gallery, String, kotlin.collections.List<String>>"),
+                "The converted column must be addressed as String and keep its declared value type:\n" + metamodel);
+        assertTrue(metamodel.contains("CityRefMetamodel<Gallery>"),
+                "The reference must be addressed through its reference metamodel:\n" + metamodel);
+    }
+
+    @Test
+    @EnabledIfSystemProperty(named = "storm.smoke", matches = "true")
+    public void javaAddressesAConvertedColumnByItsStoredType() throws Exception {
+        Files.writeString(projectDir.resolve("settings.gradle.kts"), FunctionalTestSupport.SETTINGS);
+        Files.writeString(projectDir.resolve("build.gradle.kts"), """
+                plugins {
+                    java
+                    id("st.orm")
+                }
+                repositories {
+                    mavenLocal()
+                    mavenCentral()
+                }
+                java {
+                    toolchain {
+                        languageVersion = JavaLanguageVersion.of(21)
+                    }
+                }
+                """);
+        var sourceDir = projectDir.resolve("src/main/java/demo");
+        Files.createDirectories(sourceDir);
+        Files.writeString(sourceDir.resolve("City.java"), """
+                package demo;
+
+                import st.orm.Entity;
+                import st.orm.PK;
+
+                public record City(@PK Integer id, String name) implements Entity<Integer> {
+                }
+                """);
+        Files.writeString(sourceDir.resolve("Gallery.java"), """
+                package demo;
+
+                import java.util.List;
+                import st.orm.Entity;
+                import st.orm.FK;
+                import st.orm.Json;
+                import st.orm.PK;
+                import st.orm.Ref;
+
+                public record Gallery(
+                        @PK Integer id,
+                        @Json List<String> tags,
+                        @FK Ref<City> city
+                ) implements Entity<Integer> {
+                }
+                """);
+        var result = runner().build();
+        assertTrue(result.getOutput().contains("BUILD SUCCESSFUL"), result.getOutput());
+        try (var generated = Files.walk(projectDir.resolve("build/generated/sources/annotationProcessor"))) {
+            var galleryMetamodel = generated
+                    .filter(path -> path.getFileName().toString().equals("Gallery_.java"))
+                    .findFirst()
+                    .orElseThrow(() -> new AssertionError("Expected a generated Gallery_ metamodel."));
+            var metamodel = Files.readString(galleryMetamodel);
+            assertTrue(metamodel.contains("AbstractMetamodel<Gallery, java.lang.String, java.util.List<java.lang.String>>"),
+                    "The converted column must be addressed as String and keep its declared value type:\n" + metamodel);
+            assertTrue(metamodel.contains("CityRefMetamodel<Gallery>"),
+                    "The reference must be addressed through its reference metamodel:\n" + metamodel);
+        }
+    }
 }

@@ -69,6 +69,19 @@ interface QueryModel {
     List<ColumnExpression> getColumns(@Nonnull Class<? extends Data> table, @Nonnull SelectMode mode);
 
     /**
+     * Returns the columns to be selected for the specified table type, with the references the plan resolves selected
+     * as the referenced table's columns rather than as their foreign key column.
+     *
+     * @param table the table type for which columns should be returned.
+     * @param mode  the selection mode that controls which columns are included.
+     * @param fetchPlan the references the query resolves as part of the statement.
+     * @return the list of column expressions for the specified table type.
+     * @since 1.13
+     */
+    List<ColumnExpression> getColumns(@Nonnull Class<? extends Data> table, @Nonnull SelectMode mode,
+                                      @Nonnull FetchPlan fetchPlan);
+
+    /**
      * Compiles the given expression into its SQL representation.
      *
      * <p>This method resolves the expression type and delegates to the appropriate compilation strategy. Any template

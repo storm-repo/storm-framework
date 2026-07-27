@@ -22,6 +22,7 @@ import static st.orm.SelectMode.NESTED;
 import jakarta.annotation.Nonnull;
 import jakarta.annotation.Nullable;
 import java.util.Collection;
+import java.util.List;
 import java.util.function.Function;
 import st.orm.BindVars;
 import st.orm.Data;
@@ -38,10 +39,20 @@ public final class Elements {
     private Elements() {
     }
 
-    public record Select(@Nonnull Class<? extends Data> table, @Nonnull SelectMode mode) implements Element {
+    /**
+     * @param fetchPaths the field paths of the references the select resolves as part of the statement, each selected
+     *                   as the referenced table's columns rather than as its foreign key column. Only meaningful for
+     *                   {@link SelectMode#NESTED}, which is the mode that materializes a record.
+     */
+    public record Select(@Nonnull Class<? extends Data> table, @Nonnull SelectMode mode,
+                         @Nonnull List<String> fetchPaths) implements Element {
         public Select {
             requireNonNull(table, "table");
             requireNonNull(mode, "mode");
+            fetchPaths = List.copyOf(fetchPaths);
+        }
+        public Select(@Nonnull Class<? extends Data> table, @Nonnull SelectMode mode) {
+            this(table, mode, List.of());
         }
         public Select(@Nonnull Class<? extends Data> table) {
             this(table, NESTED);

@@ -454,7 +454,7 @@ class TemplatePreparation {
         return switch (operation) {
             case SELECT -> {
                 if (previous.endsWith("FROM")) {
-                    boolean autoJoin = first instanceof Select(var table, var ignore) && isTypePresent(recordType, table);
+                    boolean autoJoin = first instanceof Select select && isTypePresent(recordType, select.table());
                     yield from(recordType, autoJoin);
                 }
                 if (previous.endsWith("JOIN")) {
@@ -1106,8 +1106,9 @@ class TemplatePreparation {
         Set<Class<? extends Data>> tables = new LinkedHashSet<>();
         Set<Class<? extends Data>> hydratedTables = new LinkedHashSet<>();
         Set<Class<? extends Data>> explicitTables = new HashSet<>();
+        Set<String> hydratedPaths = new HashSet<>();
         for (Element element : elements) {
-            collectReferencedTablePaths(rootTable, element, paths, tables, hydratedTables);
+            collectReferencedTablePaths(rootTable, element, paths, tables, hydratedTables, hydratedPaths);
             if (element instanceof Table(var table, var ignore)) {
                 explicitTables.add(table);
             }
@@ -1126,7 +1127,7 @@ class TemplatePreparation {
         }
         tables.removeAll(explicitTables);
         hydratedTables.removeAll(explicitTables);
-        Set<String> hydrated = new HashSet<>();
+        Set<String> hydrated = new HashSet<>(hydratedPaths);
         for (Class<? extends Data> table : hydratedTables) {
             addReferencedTypePaths(rootTable, table, hydrated);
         }
@@ -1141,23 +1142,31 @@ class TemplatePreparation {
                                              @Nonnull Element element,
                                              @Nonnull Set<String> paths,
                                              @Nonnull Set<Class<? extends Data>> tables,
-                                             @Nonnull Set<Class<? extends Data>> hydratedTables) {
+                                             @Nonnull Set<Class<? extends Data>> hydratedTables,
+                                             @Nonnull Set<String> hydratedPaths) {
         switch (element) {
             case Column column -> addReferencedTablePath(rootTable, column.field(), paths);
             // A nested select materializes the table's record, so its own foreign keys are part of what is selected;
-            // the other modes select columns of that table alone.
-            case Select(var table, var mode) -> (mode == SelectMode.NESTED ? hydratedTables : tables).add(table);
+            // the other modes select columns of that table alone. A resolved reference is materialized as well, so its
+            // path is hydrated in its own right: the referenced table is joined, and the foreign keys of the record it
+            // holds are joined with it.
+            case Select(var table, var mode, var fetchPaths) -> {
+                (mode == SelectMode.NESTED ? hydratedTables : tables).add(table);
+                if (mode == SelectMode.NESTED && table == rootTable) {
+                    hydratedPaths.addAll(FetchPlan.of(fetchPaths).paths());
+                }
+            }
             case Elements.Alias alias -> tables.add(alias.table());
             case Elements.Where where -> {
                 if (where.expression() != null) {
-                    collectReferencedTablePaths(rootTable, where.expression(), paths, tables, hydratedTables);
+                    collectReferencedTablePaths(rootTable, where.expression(), paths, tables, hydratedTables, hydratedPaths);
                 }
                 if (where.bindVarsKey() != null) {
                     addReferencedTablePath(rootTable, where.bindVarsKey(), paths);
                 }
             }
             case Cacheable cacheable ->
-                    collectReferencedTablePaths(rootTable, cacheable.expression(), paths, tables, hydratedTables);
+                    collectReferencedTablePaths(rootTable, cacheable.expression(), paths, tables, hydratedTables, hydratedPaths);
             case Elements.Set set -> {
                 for (var metamodel : set.fields()) {
                     addReferencedTablePath(rootTable, metamodel, paths);
@@ -1165,7 +1174,7 @@ class TemplatePreparation {
             }
             case Wrapped wrapped -> {
                 for (var node : wrapped.elements()) {
-                    collectReferencedTablePaths(rootTable, node.element(), paths, tables, hydratedTables);
+                    collectReferencedTablePaths(rootTable, node.element(), paths, tables, hydratedTables, hydratedPaths);
                 }
             }
             default -> {
@@ -1177,7 +1186,8 @@ class TemplatePreparation {
                                              @Nonnull Expression expression,
                                              @Nonnull Set<String> paths,
                                              @Nonnull Set<Class<? extends Data>> tables,
-                                             @Nonnull Set<Class<? extends Data>> hydratedTables) {
+                                             @Nonnull Set<Class<? extends Data>> hydratedTables,
+                                             @Nonnull Set<String> hydratedPaths) {
         switch (expression) {
             case Elements.ObjectExpression objectExpression -> {
                 if (objectExpression.metamodel() != null) {
@@ -1185,7 +1195,7 @@ class TemplatePreparation {
                 }
             }
             case Elements.TemplateExpression templateExpression ->
-                    collectReferencedTablePaths(rootTable, templateExpression.template(), paths, tables, hydratedTables);
+                    collectReferencedTablePaths(rootTable, templateExpression.template(), paths, tables, hydratedTables, hydratedPaths);
         }
     }
 
@@ -1193,15 +1203,16 @@ class TemplatePreparation {
                                              @Nonnull TemplateString template,
                                              @Nonnull Set<String> paths,
                                              @Nonnull Set<Class<? extends Data>> tables,
-                                             @Nonnull Set<Class<? extends Data>> hydratedTables) {
+                                             @Nonnull Set<Class<? extends Data>> hydratedTables,
+                                             @Nonnull Set<String> hydratedPaths) {
         for (var value : template.values()) {
             switch (value) {
                 case Metamodel<?, ?> metamodel -> addReferencedTablePath(rootTable, metamodel, paths);
                 case Expression expression ->
-                        collectReferencedTablePaths(rootTable, expression, paths, tables, hydratedTables);
-                case Element element -> collectReferencedTablePaths(rootTable, element, paths, tables, hydratedTables);
+                        collectReferencedTablePaths(rootTable, expression, paths, tables, hydratedTables, hydratedPaths);
+                case Element element -> collectReferencedTablePaths(rootTable, element, paths, tables, hydratedTables, hydratedPaths);
                 case TemplateString nested ->
-                        collectReferencedTablePaths(rootTable, nested, paths, tables, hydratedTables);
+                        collectReferencedTablePaths(rootTable, nested, paths, tables, hydratedTables, hydratedPaths);
                 default -> {
                 }
             }
