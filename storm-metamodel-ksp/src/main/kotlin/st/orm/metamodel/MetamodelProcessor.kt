@@ -84,6 +84,7 @@ class MetamodelProcessor(
     private val generatedInstantiators = mutableListOf<Pair<String, KSFile?>>()
 
     companion object {
+        private const val METAMODEL_TYPE = "st.orm.MetamodelType"
         private const val GENERATE_METAMODEL = "st.orm.GenerateMetamodel"
         private const val DATA = "st.orm.Data"
         private const val REF = "st.orm.Ref"
@@ -291,6 +292,74 @@ class MetamodelProcessor(
         }
     }
 
+    /**
+     * Returns the type the property is addressed as in the metamodel, or null when it is addressed as it is declared.
+     *
+     * A field can be stored as one type and held as another: a `@Json` column is text in the database while the record
+     * holds a list or a record. `@MetamodelType`, carried directly or through an annotation such as `@Json`, names the
+     * stored type. A predicate compares against that type, so it is the type the metamodel's `E` parameter carries;
+     * the value the record holds keeps its declared type in `V`.
+     */
+    private fun metamodelTypeOverride(prop: KSPropertyDeclaration): KSType? {
+        fun read(annotated: KSAnnotated): KSType? {
+            for (ann in annotated.annotations) {
+                val decl = ann.annotationType.resolve().declaration as? KSClassDeclaration ?: continue
+                if (decl.qualifiedName?.asString() == METAMODEL_TYPE) {
+                    return ann.arguments.firstOrNull { it.name?.asString() == "value" }?.value as? KSType
+                }
+                for (meta in decl.annotations) {
+                    if (meta.annotationType.resolve().declaration.qualifiedName?.asString() == METAMODEL_TYPE) {
+                        return meta.arguments.firstOrNull { it.name?.asString() == "value" }?.value as? KSType
+                    }
+                }
+            }
+            return null
+        }
+        read(prop)?.let { return it }
+        // Data class properties carry their annotations on the constructor parameter.
+        val parent = prop.parentDeclaration as? KSClassDeclaration ?: return null
+        val param = parent.primaryConstructor?.parameters
+            ?.firstOrNull { it.name?.asString() == prop.simpleName.asString() }
+        return param?.let { read(it) }
+    }
+
+    /**
+     * Renders the Kotlin name of an addressed type, which carries no type arguments of its own.
+     */
+    private fun kotlinTypeNameOf(type: KSType, currentPackage: String): String {
+        val qualifiedName = type.declaration.qualifiedName?.asString() ?: return "Any"
+        return renderKotlinBaseName(qualifiedName, currentPackage)
+    }
+
+    private fun renderKotlinBaseName(qualifiedName: String, currentPackage: String): String = when (qualifiedName) {
+        "kotlin.String", "java.lang.String" -> "String"
+        "kotlin.Int", "java.lang.Integer" -> "Int"
+        "kotlin.Long", "java.lang.Long" -> "Long"
+        "kotlin.Short", "java.lang.Short" -> "Short"
+        "kotlin.Byte", "java.lang.Byte" -> "Byte"
+        "kotlin.Boolean", "java.lang.Boolean" -> "Boolean"
+        "kotlin.Double", "java.lang.Double" -> "Double"
+        "kotlin.Float", "java.lang.Float" -> "Float"
+        "kotlin.Char", "java.lang.Character" -> "Char"
+        "java.lang.Object", "kotlin.Any" -> "Any"
+        else -> {
+            if (qualifiedName.startsWith(currentPackage) && currentPackage.isNotEmpty()) {
+                val simpleName = qualifiedName.substring(currentPackage.length + 1)
+                if (!simpleName.contains(".")) simpleName else qualifiedName
+            } else {
+                qualifiedName
+            }
+        }
+    }
+
+    /**
+     * Renders the runtime class of an addressed type, for the metamodel constructor argument.
+     */
+    private fun javaTypeNameOf(type: KSType, currentPackage: String): String {
+        val qualifiedName = type.declaration.qualifiedName?.asString() ?: return "java.lang.Object::class.java"
+        return renderJavaClassLiteral(qualifiedName, currentPackage)
+    }
+
     private fun getKotlinTypeName(typeReference: KSTypeReference, currentPackage: String): String {
         return try {
             val effective = unwrapRef(typeReference)
@@ -388,33 +457,35 @@ class MetamodelProcessor(
             val resolvedType = effective.resolve()
             val decl = resolvedType.declaration
             val qualifiedName = decl.qualifiedName?.asString() ?: return "java.lang.Object::class.java"
-            when (qualifiedName) {
-                "kotlin.String", "java.lang.String" -> "String::class.java"
-                "kotlin.Int", "java.lang.Integer" -> "Int::class.javaObjectType"
-                "kotlin.Long", "java.lang.Long" -> "Long::class.javaObjectType"
-                "kotlin.Short", "java.lang.Short" -> "Short::class.javaObjectType"
-                "kotlin.Byte", "java.lang.Byte" -> "Byte::class.javaObjectType"
-                "kotlin.Boolean", "java.lang.Boolean" -> "Boolean::class.javaObjectType"
-                "kotlin.Double", "java.lang.Double" -> "Double::class.javaObjectType"
-                "kotlin.Float", "java.lang.Float" -> "Float::class.javaObjectType"
-                "kotlin.Char", "java.lang.Character" -> "Char::class.javaObjectType"
-                "kotlin.collections.List" -> "List::class.java"
-                "kotlin.collections.Set" -> "Set::class.java"
-                "kotlin.collections.Map" -> "Map::class.java"
-                else -> {
-                    if (qualifiedName.startsWith(currentPackage) && currentPackage.isNotEmpty()) {
-                        val simpleName = qualifiedName.substring(currentPackage.length + 1)
-                        if (!simpleName.contains(".")) "$simpleName::class.java" else "$qualifiedName::class.java"
-                    } else {
-                        "$qualifiedName::class.java"
-                    }
-                }
-            }
+            renderJavaClassLiteral(qualifiedName, currentPackage)
         } catch (e: Exception) {
             logger.error(
                 "Error getting Java type name for $typeReference: ${e.message}\n${e.stackTraceToString()}",
             )
             "java.lang.Object::class.java"
+        }
+    }
+
+    private fun renderJavaClassLiteral(qualifiedName: String, currentPackage: String): String = when (qualifiedName) {
+        "kotlin.String", "java.lang.String" -> "String::class.java"
+        "kotlin.Int", "java.lang.Integer" -> "Int::class.javaObjectType"
+        "kotlin.Long", "java.lang.Long" -> "Long::class.javaObjectType"
+        "kotlin.Short", "java.lang.Short" -> "Short::class.javaObjectType"
+        "kotlin.Byte", "java.lang.Byte" -> "Byte::class.javaObjectType"
+        "kotlin.Boolean", "java.lang.Boolean" -> "Boolean::class.javaObjectType"
+        "kotlin.Double", "java.lang.Double" -> "Double::class.javaObjectType"
+        "kotlin.Float", "java.lang.Float" -> "Float::class.javaObjectType"
+        "kotlin.Char", "java.lang.Character" -> "Char::class.javaObjectType"
+        "kotlin.collections.List" -> "List::class.java"
+        "kotlin.collections.Set" -> "Set::class.java"
+        "kotlin.collections.Map" -> "Map::class.java"
+        else -> {
+            if (qualifiedName.startsWith(currentPackage) && currentPackage.isNotEmpty()) {
+                val simpleName = qualifiedName.substring(currentPackage.length + 1)
+                if (!simpleName.contains(".")) "$simpleName::class.java" else "$qualifiedName::class.java"
+            } else {
+                "$qualifiedName::class.java"
+            }
         }
     }
 
@@ -732,7 +803,9 @@ class MetamodelProcessor(
                         "$modelRef.$fieldName\n",
                 )
             } else {
-                val kotlinTypeName = getKotlinTypeName(typeRef, packageName) // E (unwrap Ref)
+                val override = metamodelTypeOverride(prop)
+                val kotlinTypeName = override?.let { kotlinTypeNameOf(it, packageName) }
+                    ?: getKotlinTypeName(typeRef, packageName) // E (unwrap Ref)
                 val valueKotlinTypeName = getKotlinValueTypeName(typeRef, packageName) // V (keep Ref)
                 val unique = isEffectivelyUniqueField(prop)
                 val baseClass = if (unique) "AbstractKeyMetamodel" else "AbstractMetamodel"
@@ -768,7 +841,9 @@ class MetamodelProcessor(
                 val simpleTypeName = getSimpleTypeName(typeRef, packageName)
                 builder.append("    val $fieldName: ${simpleTypeName}RefMetamodel<T>\n")
             } else {
-                val kotlinTypeName = getKotlinTypeName(typeRef, packageName) // E
+                val override = metamodelTypeOverride(prop)
+                val kotlinTypeName = override?.let { kotlinTypeNameOf(it, packageName) }
+                    ?: getKotlinTypeName(typeRef, packageName) // E
                 val valueKotlinTypeName = getKotlinValueTypeName(typeRef, packageName) // V
                 val v = if (forceNullableChain) ensureNullable(valueKotlinTypeName) else valueKotlinTypeName
                 val unique = isEffectivelyUniqueField(prop)
@@ -878,8 +953,11 @@ class MetamodelProcessor(
                         "subPath, fieldBase + \"$fieldName\", false, this, $refGetterExpr)\n",
                 )
             } else {
-                val javaTypeName = getJavaTypeName(typeRef, packageName) // E (unwrap Ref)
-                val kotlinTypeName = getKotlinTypeName(typeRef, packageName) // E (unwrap Ref)
+                val override = metamodelTypeOverride(prop)
+                val javaTypeName = override?.let { javaTypeNameOf(it, packageName) }
+                    ?: getJavaTypeName(typeRef, packageName) // E (unwrap Ref)
+                val kotlinTypeName = override?.let { kotlinTypeNameOf(it, packageName) }
+                    ?: getKotlinTypeName(typeRef, packageName) // E (unwrap Ref)
                 val valueKotlinTypeName = getKotlinValueTypeName(typeRef, packageName) // V (keep Ref)
                 val v = if (forceNullableChain) ensureNullable(valueKotlinTypeName) else valueKotlinTypeName
 

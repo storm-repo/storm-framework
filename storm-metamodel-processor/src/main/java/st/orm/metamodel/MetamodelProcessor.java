@@ -432,8 +432,34 @@ public final class MetamodelProcessor extends AbstractProcessor {
         return null;
     }
 
+    /**
+     * Returns the type the field is addressed as in the metamodel: the type {@link st.orm.MetamodelType} names when
+     * the field carries it, the declared type otherwise.
+     *
+     * <p>A converted field, a {@code @Json} column in particular, is stored as one type and held as another. The
+     * addressed type is what a predicate compares against, so it is the type the metamodel's {@code E} parameter
+     * carries. The value the record holds keeps its declared type; see
+     * {@link #getDeclaredTypeElement(Element, String)}.</p>
+     */
     @Nullable
     private TypeMirror getTypeElement(@Nonnull Element recordElement, @Nonnull String fieldName) {
+        return getTypeElement(recordElement, fieldName, true);
+    }
+
+    /**
+     * Returns the field's declared type, ignoring any {@link st.orm.MetamodelType} override.
+     *
+     * <p>This is the type the record accessor returns, so it is the type the metamodel's {@code V} parameter carries
+     * and the type {@code getValue} is generated against.</p>
+     */
+    @Nullable
+    private TypeMirror getDeclaredTypeElement(@Nonnull Element recordElement, @Nonnull String fieldName) {
+        return getTypeElement(recordElement, fieldName, false);
+    }
+
+    @Nullable
+    private TypeMirror getTypeElement(@Nonnull Element recordElement, @Nonnull String fieldName,
+                                      boolean applyMetamodelType) {
         var constructors = recordElement.getEnclosedElements()
                 .stream()
                 .filter(enclosed -> enclosed.getKind() == CONSTRUCTOR)
@@ -443,7 +469,7 @@ public final class MetamodelProcessor extends AbstractProcessor {
             for (var parameter : parameters) {
                 if (parameter.getSimpleName().toString().equals(fieldName)) {
                     TypeMirror type = parameter.asType();
-                    return getMetamodelType(parameter).orElse(type);
+                    return applyMetamodelType ? getMetamodelType(parameter).orElse(type) : type;
                 }
             }
         }
@@ -895,7 +921,7 @@ public final class MetamodelProcessor extends AbstractProcessor {
                         .append(fieldName).append(" = ").append(modelRef).append(".")
                         .append(fieldName).append(";\n");
             } else {
-                String valueTypeName = getValueTypeName(fieldType, packageName);
+                String valueTypeName = getValueTypeName(getDeclaredTypeElement(recordElement, fieldName), packageName);
                 boolean unique = isEffectivelyUniqueField(recordElement, fieldName);
                 String baseClass = unique ? "AbstractKeyMetamodel" : "AbstractMetamodel";
 
@@ -1071,7 +1097,7 @@ public final class MetamodelProcessor extends AbstractProcessor {
                         .append("<T> ").append(fieldName)
                         .append(";\n");
             } else {
-                String valueTypeName = getValueTypeName(fieldType, packageName);
+                String valueTypeName = getValueTypeName(getDeclaredTypeElement(recordElement, fieldName), packageName);
                 boolean unique = isEffectivelyUniqueField(recordElement, fieldName);
                 boolean isData = implementsData(recordElement);
                 String baseClass = (!isData || unique) ? "AbstractKeyMetamodel" : "AbstractMetamodel";
@@ -1173,7 +1199,7 @@ public final class MetamodelProcessor extends AbstractProcessor {
                         .append(refGetter)
                         .append(");\n");
             } else {
-                String valueTypeName = getValueTypeName(fieldType, packageName);
+                String valueTypeName = getValueTypeName(getDeclaredTypeElement(recordElement, fieldName), packageName);
                 boolean unique = isEffectivelyUniqueField(recordElement, fieldName);
                 boolean isData = implementsData(recordElement);
                 // Validate: @PK, @FK, and @UK are not supported on inline record fields.
