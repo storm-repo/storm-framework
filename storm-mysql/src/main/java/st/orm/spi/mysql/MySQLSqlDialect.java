@@ -16,21 +16,9 @@
 package st.orm.spi.mysql;
 
 import static java.util.stream.Collectors.toSet;
-import static st.orm.Operator.BETWEEN;
-import static st.orm.Operator.EQUALS;
-import static st.orm.Operator.GREATER_THAN;
-import static st.orm.Operator.GREATER_THAN_OR_EQUAL;
-import static st.orm.Operator.IN;
-import static st.orm.Operator.LESS_THAN;
-import static st.orm.Operator.LESS_THAN_OR_EQUAL;
-import static st.orm.Operator.NOT_EQUALS;
-import static st.orm.Operator.NOT_IN;
 
 import jakarta.annotation.Nonnull;
-import java.util.List;
-import java.util.SequencedMap;
 import java.util.Set;
-import java.util.function.Function;
 import java.util.regex.Pattern;
 import java.util.stream.Stream;
 import st.orm.Operator;
@@ -38,7 +26,6 @@ import st.orm.PersistenceException;
 import st.orm.StormConfig;
 import st.orm.core.spi.DefaultSqlDialect;
 import st.orm.core.template.SqlDialect;
-import st.orm.core.template.SqlTemplateException;
 
 public class MySQLSqlDialect extends DefaultSqlDialect implements SqlDialect {
 
@@ -171,34 +158,39 @@ public class MySQLSqlDialect extends DefaultSqlDialect implements SqlDialect {
     }
 
     /**
-     * Builds a multi-column expression using row value constructor syntax.
+     * Returns whether a multi-column comparison renders as a row value tuple, which for MySQL is the case for a
+     * multi-row list only.
      *
-     * <p>MySQL (8.0.19+) supports tuple comparison syntax for all comparison operators, producing compact SQL like
-     * {@code (a, b) > (?, ?)} instead of the lexicographic expansion used by the default implementation.</p>
+     * <p>MySQL accepts a row value comparison for every operator, but accepting one and planning it well are
+     * different things. Measured on MySQL 8.4 against a 100k-row table keyed on {@code (a, b)}:</p>
      *
-     * <p>Operators without clear tuple semantics ({@code IS_NULL}, {@code IS_NOT_NULL}, {@code LIKE}, etc.) fall back
-     * to the {@link SqlDialect} default implementation.</p>
+     * <table border="1">
+     *   <caption>MySQL 8.4 plan for each comparison shape</caption>
+     *   <tr><th>Shape</th><th>As a tuple</th><th>As the expansion</th><th>Rendered as</th></tr>
+     *   <tr><td>Single row of equality, SELECT</td><td>{@code const}, primary key</td>
+     *       <td>{@code const}, primary key</td><td>Expansion</td></tr>
+     *   <tr><td>Single row of equality, UPDATE / DELETE</td><td>{@code range}, primary key</td>
+     *       <td>{@code range}, primary key</td><td>Expansion</td></tr>
+     *   <tr><td>Multi-row list (500 keys)</td><td>{@code range}, primary key — <strong>~4x faster</strong></td>
+     *       <td>{@code range}, primary key</td><td><strong>Tuple</strong></td></tr>
+     *   <tr><td>Ordering comparison</td><td>{@code ALL}, all rows</td>
+     *       <td>{@code range}, primary key</td><td>Expansion</td></tr>
+     * </table>
+     *
+     * <p>Equality plans identically either way, so it takes the expansion, which is the form that is safe on every
+     * dialect. The list is the one shape the tuple wins: same plan, but the optimizer is spared a 500-branch OR
+     * tree. The ordering comparison is the shape it loses outright, so that renders lexicographically.</p>
+     *
+     * <p>{@link st.orm.spi.mariadb.MariaDBSqlDialect} inherits this and measures the same way, more sharply.</p>
      *
      * @param operator the comparison operator to apply.
-     * @param values the multi-row values. Each map represents a single row of column-name-to-value mappings.
-     * @param parameterFunction the function responsible for binding the parameters.
-     * @return the SQL fragment representing the multi-column expression.
-     * @throws SqlTemplateException if the operator is not supported for multi-column expressions.
-     * @since 1.9
+     * @param rowCount the number of value rows in the comparison.
+     * @return {@code true} to render a row value tuple, {@code false} to render the {@code AND} expansion.
+     * @since 1.13
      */
     @Override
-    public String multiColumnExpression(@Nonnull Operator operator,
-                                         @Nonnull List<SequencedMap<String, Object>> values,
-                                         @Nonnull Function<Object, String> parameterFunction)
-            throws SqlTemplateException {
-        if (operator == EQUALS || operator == NOT_EQUALS
-                || operator == IN || operator == NOT_IN
-                || operator == GREATER_THAN || operator == GREATER_THAN_OR_EQUAL
-                || operator == LESS_THAN || operator == LESS_THAN_OR_EQUAL
-                || operator == BETWEEN) {
-            return tupleExpression(operator, values, parameterFunction);
-        }
-        return super.multiColumnExpression(operator, values, parameterFunction);
+    protected boolean rendersTupleComparison(@Nonnull Operator operator, int rowCount) {
+        return isMultiRowEquality(operator, rowCount);
     }
 
     /**

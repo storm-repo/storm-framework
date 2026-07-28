@@ -17,27 +17,19 @@ package st.orm.spi.oracle;
 
 import static java.util.stream.Collectors.toSet;
 import static st.orm.Operator.BETWEEN;
-import static st.orm.Operator.EQUALS;
 import static st.orm.Operator.GREATER_THAN;
 import static st.orm.Operator.GREATER_THAN_OR_EQUAL;
-import static st.orm.Operator.IN;
 import static st.orm.Operator.LESS_THAN;
 import static st.orm.Operator.LESS_THAN_OR_EQUAL;
-import static st.orm.Operator.NOT_EQUALS;
-import static st.orm.Operator.NOT_IN;
 
 import jakarta.annotation.Nonnull;
-import java.util.List;
-import java.util.SequencedMap;
 import java.util.Set;
-import java.util.function.Function;
 import java.util.regex.Pattern;
 import java.util.stream.Stream;
 import st.orm.Operator;
 import st.orm.StormConfig;
 import st.orm.core.spi.DefaultSqlDialect;
 import st.orm.core.template.SqlDialect;
-import st.orm.core.template.SqlTemplateException;
 
 public class OracleSqlDialect extends DefaultSqlDialect implements SqlDialect {
 
@@ -145,34 +137,32 @@ public class OracleSqlDialect extends DefaultSqlDialect implements SqlDialect {
     }
 
     /**
-     * Builds a multi-column expression using row value constructor syntax.
+     * Returns whether a multi-column comparison renders as a row value tuple, which for Oracle is the case for an
+     * ordering comparison and for a multi-row list.
      *
-     * <p>Oracle supports tuple comparison syntax for all comparison operators, producing compact SQL like
-     * {@code (a, b) > (?, ?)} instead of the lexicographic expansion used by the default implementation.</p>
+     * <p>Unlike the other tuple-rendering dialects, Oracle's plans have not been measured here, so this answer is
+     * reasoned rather than observed and the table other dialects carry is deliberately absent.</p>
      *
-     * <p>Operators without clear tuple semantics ({@code IS_NULL}, {@code IS_NOT_NULL}, {@code LIKE}, etc.) fall back
-     * to the {@link SqlDialect} default implementation.</p>
+     * <p>A single row of equality renders as the {@code AND} expansion. Across every dialect that has been
+     * measured the expansion ties the tuple or beats it for that shape, and the shape is the identifying
+     * comparison behind every keyed update, delete and lookup, so it takes the form known to be safe rather than
+     * one resting on an assumption about how this planner rewrites a row value comparison.</p>
+     *
+     * <p>The ordering comparison and the multi-row list keep the tuple, which is the behaviour that predates this
+     * distinction; Oracle documents row value comparison for both. Should the plans be measured and disagree,
+     * this is the one method to revisit.</p>
      *
      * @param operator the comparison operator to apply.
-     * @param values the multi-row values. Each map represents a single row of column-name-to-value mappings.
-     * @param parameterFunction the function responsible for binding the parameters.
-     * @return the SQL fragment representing the multi-column expression.
-     * @throws SqlTemplateException if the operator is not supported for multi-column expressions.
-     * @since 1.9
+     * @param rowCount the number of value rows in the comparison.
+     * @return {@code true} to render a row value tuple, {@code false} to render the {@code AND} expansion.
+     * @since 1.13
      */
     @Override
-    public String multiColumnExpression(@Nonnull Operator operator,
-                                         @Nonnull List<SequencedMap<String, Object>> values,
-                                         @Nonnull Function<Object, String> parameterFunction)
-            throws SqlTemplateException {
-        if (operator == EQUALS || operator == NOT_EQUALS
-                || operator == IN || operator == NOT_IN
+    protected boolean rendersTupleComparison(@Nonnull Operator operator, int rowCount) {
+        return isMultiRowEquality(operator, rowCount)
                 || operator == GREATER_THAN || operator == GREATER_THAN_OR_EQUAL
                 || operator == LESS_THAN || operator == LESS_THAN_OR_EQUAL
-                || operator == BETWEEN) {
-            return tupleExpression(operator, values, parameterFunction);
-        }
-        return super.multiColumnExpression(operator, values, parameterFunction);
+                || operator == BETWEEN;
     }
 
     /**

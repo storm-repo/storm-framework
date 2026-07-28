@@ -43,14 +43,14 @@ public class MariaDBMultiColumnExpressionTest {
     void equals_twoColumns() throws SqlTemplateException {
         var values = List.of(row("a", 1, "b", 2));
         String sql = DIALECT.multiColumnExpression(Operator.EQUALS, values, v -> "?");
-        assertEquals("(a, b) = (?, ?)", sql);
+        assertEquals("a = ? AND b = ?", sql);
     }
 
     @Test
     void notEquals_twoColumns() throws SqlTemplateException {
         var values = List.of(row("a", 1, "b", 2));
         String sql = DIALECT.multiColumnExpression(Operator.NOT_EQUALS, values, v -> "?");
-        assertEquals("(a, b) <> (?, ?)", sql);
+        assertEquals("NOT (a = ? AND b = ?)", sql);
     }
 
     @Test
@@ -66,28 +66,28 @@ public class MariaDBMultiColumnExpressionTest {
     void greaterThan_twoColumns() throws SqlTemplateException {
         var values = List.of(row("a", 1, "b", 2));
         String sql = DIALECT.multiColumnExpression(Operator.GREATER_THAN, values, v -> "?");
-        assertEquals("(a, b) > (?, ?)", sql);
+        assertEquals("(a > ? OR (a = ? AND b > ?))", sql);
     }
 
     @Test
     void greaterThanOrEqual_twoColumns() throws SqlTemplateException {
         var values = List.of(row("a", 1, "b", 2));
         String sql = DIALECT.multiColumnExpression(Operator.GREATER_THAN_OR_EQUAL, values, v -> "?");
-        assertEquals("(a, b) >= (?, ?)", sql);
+        assertEquals("(a > ? OR (a = ? AND b >= ?))", sql);
     }
 
     @Test
     void lessThan_twoColumns() throws SqlTemplateException {
         var values = List.of(row("a", 1, "b", 2));
         String sql = DIALECT.multiColumnExpression(Operator.LESS_THAN, values, v -> "?");
-        assertEquals("(a, b) < (?, ?)", sql);
+        assertEquals("(a < ? OR (a = ? AND b < ?))", sql);
     }
 
     @Test
     void lessThanOrEqual_twoColumns() throws SqlTemplateException {
         var values = List.of(row("a", 1, "b", 2));
         String sql = DIALECT.multiColumnExpression(Operator.LESS_THAN_OR_EQUAL, values, v -> "?");
-        assertEquals("(a, b) <= (?, ?)", sql);
+        assertEquals("(a < ? OR (a = ? AND b <= ?))", sql);
     }
 
     @Test
@@ -96,7 +96,7 @@ public class MariaDBMultiColumnExpressionTest {
                 row("a", 1, "b", 2),
                 row("a", 5, "b", 6));
         String sql = DIALECT.multiColumnExpression(Operator.BETWEEN, values, v -> "?");
-        assertEquals("(a, b) BETWEEN (?, ?) AND (?, ?)", sql);
+        assertEquals("((a > ? OR (a = ? AND b >= ?)) AND (a < ? OR (a = ? AND b <= ?)))", sql);
     }
 
     @Test

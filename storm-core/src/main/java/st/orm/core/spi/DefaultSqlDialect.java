@@ -18,6 +18,9 @@ package st.orm.core.spi;
 
 import static java.util.stream.Collectors.joining;
 import static st.orm.Operator.EQUALS;
+import static st.orm.Operator.IN;
+import static st.orm.Operator.NOT_EQUALS;
+import static st.orm.Operator.NOT_IN;
 import static st.orm.StormConfig.ANSI_ESCAPING;
 import static st.orm.core.spi.StormConfigHelper.getBoolean;
 
@@ -260,14 +263,88 @@ public class DefaultSqlDialect implements SqlDialect {
     }
 
     /**
+     * Builds a multi-column expression, rendering it as a row value tuple where {@link #rendersTupleComparison}
+     * allows and as the {@code AND} expansion otherwise.
+     *
+     * @param operator the comparison operator to apply.
+     * @param values the multi-row values. Each map represents a single row of column-name-to-value mappings.
+     * @param parameterFunction the function responsible for binding the parameters.
+     * @return the SQL fragment representing the multi-column expression.
+     * @throws SqlTemplateException if the operator is not supported for multi-column expressions.
+     * @since 1.13
+     */
+    @Override
+    public String multiColumnExpression(@Nonnull Operator operator,
+                                        @Nonnull List<SequencedMap<String, Object>> values,
+                                        @Nonnull Function<Object, String> parameterFunction)
+            throws SqlTemplateException {
+        if (rendersTupleComparison(operator, values.size())) {
+            return tupleExpression(operator, values, parameterFunction);
+        }
+        return SqlDialect.super.multiColumnExpression(operator, values, parameterFunction);
+    }
+
+    /**
+     * Returns whether a multi-column comparison renders as a row value tuple rather than as the {@code AND}
+     * expansion.
+     *
+     * <p>Rendering a tuple is a question of what the optimizer does with one, not of what the grammar accepts. A
+     * dialect answers {@code true} only where the tuple earns its place, because the two forms are not
+     * interchangeable to a planner:</p>
+     *
+     * <ul>
+     *   <li><strong>A single row of equality</strong> never renders as a tuple. The expansion
+     *   {@code a = ? AND b = ?} is the shape an optimizer resolves to an index lookup, while a row value
+     *   comparison is not reduced to that shape everywhere, and a planner that leaves it alone in an UPDATE or a
+     *   DELETE scans the table instead. The tuple gains nothing here on any dialect, so the identifying
+     *   comparison that every keyed update, delete and lookup is built from takes the form that is safe
+     *   throughout.</li>
+     *   <li><strong>A multi-row list</strong> is where the tuple pays: {@code (a, b) IN ((?, ?), ...)} states the
+     *   set once, and a planner that resolves it against the index handles it far better than the equivalent
+     *   chain of ORs.</li>
+     *   <li><strong>An ordering comparison</strong> divides the dialects. Some use the index for
+     *   {@code (a, b) > (?, ?)} and cannot use it for the lexicographic expansion; others do the reverse. This is
+     *   the keyset pagination path, so each dialect answers for itself.</li>
+     * </ul>
+     *
+     * <p>The default never renders a tuple, which suits dialects without row value comparison and is a safe answer
+     * for any dialect whose planner has not been measured.</p>
+     *
+     * @param operator the comparison operator to apply.
+     * @param rowCount the number of value rows in the comparison.
+     * @return {@code true} to render a row value tuple, {@code false} to render the {@code AND} expansion.
+     * @since 1.13
+     */
+    protected boolean rendersTupleComparison(@Nonnull Operator operator, int rowCount) {
+        return false;
+    }
+
+    /**
+     * Returns whether a multi-column comparison of the equality family renders as a row value tuple, which is the
+     * case only for a list of more than one row.
+     *
+     * <p>Provided for dialects that render tuples, so the single-row rule that holds for all of them is stated
+     * once.</p>
+     *
+     * @param operator the comparison operator to apply.
+     * @param rowCount the number of value rows in the comparison.
+     * @return {@code true} if the operator is of the equality family and the comparison spans multiple rows.
+     * @since 1.13
+     */
+    protected final boolean isMultiRowEquality(@Nonnull Operator operator, int rowCount) {
+        return (operator == EQUALS || operator == NOT_EQUALS || operator == IN || operator == NOT_IN)
+                && rowCount > 1;
+    }
+
+    /**
      * Builds a tuple expression by composing column names and values into row value constructor syntax.
      *
      * <p>The {@link Operator#format} method is used to produce the final SQL, which allows all operators to work
      * naturally with tuple syntax. For example, {@code GREATER_THAN.format("(a, b)", "(?, ?)")} produces
      * {@code (a, b) > (?, ?)}.</p>
      *
-     * <p>Subclasses that support multi-value tuples (e.g., PostgreSQL, MySQL, Oracle) can call this method from their
-     * {@link #multiColumnExpression} override to produce compact row value comparison SQL.</p>
+     * <p>Called for a subclass that answers {@link #rendersTupleComparison} affirmatively, which is how a dialect
+     * supporting row value comparison opts into the compact form for the shapes its planner handles well.</p>
      *
      * @param operator the comparison operator.
      * @param values the column-to-value mappings for each row.

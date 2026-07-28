@@ -335,10 +335,10 @@ class MySQLSqlDialectTest {
     }
 
     @Test
-    void multiColumnExpressionShouldUseTupleSyntaxForEquals() throws Exception {
+    void multiColumnExpressionShouldExpandEquals() throws Exception {
         var values = List.of(row("a", 1, "b", 2));
         var result = dialect.multiColumnExpression(Operator.EQUALS, values, v -> "?");
-        assertEquals("(a, b) = (?, ?)", result);
+        assertEquals("a = ? AND b = ?", result);
     }
 
     @Test
@@ -350,23 +350,23 @@ class MySQLSqlDialectTest {
 
     @Test
     void multiColumnExpressionShouldUseTupleSyntaxForNotIn() throws Exception {
-        var values = List.of(row("a", 1, "b", 2));
+        var values = List.of(row("a", 1, "b", 2), row("a", 3, "b", 4));
         var result = dialect.multiColumnExpression(Operator.NOT_IN, values, v -> "?");
-        assertEquals("(a, b) NOT IN ((?, ?))", result);
+        assertEquals("(a, b) NOT IN ((?, ?), (?, ?))", result);
     }
 
     @Test
-    void multiColumnExpressionShouldUseTupleSyntaxForGreaterThanOrEqual() throws Exception {
+    void multiColumnExpressionShouldExpandGreaterThanOrEqual() throws Exception {
         var values = List.of(row("a", 1, "b", 2));
         var result = dialect.multiColumnExpression(Operator.GREATER_THAN_OR_EQUAL, values, v -> "?");
-        assertEquals("(a, b) >= (?, ?)", result);
+        assertEquals("(a > ? OR (a = ? AND b >= ?))", result);
     }
 
     @Test
-    void multiColumnExpressionShouldUseTupleSyntaxForLessThan() throws Exception {
+    void multiColumnExpressionShouldExpandLessThan() throws Exception {
         var values = List.of(row("a", 1, "b", 2));
         var result = dialect.multiColumnExpression(Operator.LESS_THAN, values, v -> "?");
-        assertEquals("(a, b) < (?, ?)", result);
+        assertEquals("(a < ? OR (a = ? AND b < ?))", result);
     }
 
     @Test

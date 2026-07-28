@@ -290,7 +290,7 @@ public class MariaDBEntityRepositoryTest {
         String expectedSql = """
                 UPDATE owner
                 SET first_name = ?, last_name = ?, address = ?, city = ?, telephone = ?, version = version + 1
-                WHERE (id, version) = (?, ?)""";
+                WHERE id = ? AND version = ?""";
         var repo = PreparedStatementTemplate.ORM(dataSource).entity(Owner.class);
         var entity = repo.getById(1);
         var first = new AtomicBoolean(false);
@@ -323,7 +323,7 @@ public class MariaDBEntityRepositoryTest {
         String expectedSql = """
                 UPDATE owner
                 SET first_name = ?, last_name = ?, address = ?, city = ?, telephone = ?, version = version + 1
-                WHERE (id, version) = (?, ?)""";
+                WHERE id = ? AND version = ?""";
         var repo = PreparedStatementTemplate.ORM(dataSource).entity(Owner.class);
         var entities = repo.findAllById(List.of(1, 2));
         var first = new AtomicBoolean(false);
@@ -435,7 +435,7 @@ public class MariaDBEntityRepositoryTest {
         String expectedSql = """
                 UPDATE owner
                 SET first_name = ?, last_name = ?, address = ?, city = ?, telephone = ?, version = version + 1
-                WHERE (id, version) = (?, ?)""";
+                WHERE id = ? AND version = ?""";
         var repo = PreparedStatementTemplate.ORM(dataSource).entity(Owner.class);
         var entity = repo.getById(1);
         var first = new AtomicBoolean(false);
@@ -469,7 +469,7 @@ public class MariaDBEntityRepositoryTest {
         String expectedSql = """
                 UPDATE owner
                 SET first_name = ?, last_name = ?, address = ?, city = ?, telephone = ?, version = version + 1
-                WHERE (id, version) = (?, ?)""";
+                WHERE id = ? AND version = ?""";
         var repo = PreparedStatementTemplate.ORM(dataSource).entity(Owner.class);
         var entity = repo.getById(1);
         var first = new AtomicBoolean(false);
@@ -537,7 +537,7 @@ public class MariaDBEntityRepositoryTest {
         String expectedSql = """
                 UPDATE owner
                 SET first_name = ?, last_name = ?, address = ?, city = ?, telephone = ?, version = version + 1
-                WHERE (id, version) = (?, ?)""";
+                WHERE id = ? AND version = ?""";
         var repo = PreparedStatementTemplate.ORM(dataSource).entity(Owner.class);
         var entities = repo.findAllById(List.of(1, 2));
         var first = new AtomicBoolean(false);
@@ -733,6 +733,29 @@ public class MariaDBEntityRepositoryTest {
             assertEquals(1, entity.id().vetId());
             assertEquals(2, entity.id().specialtyId());
         });
+    }
+
+    @Test
+    public void testRemoveByCompoundPkExpandsWhere() {
+        // The compound key expands rather than rendering as the row value tuple the dialect is otherwise willing
+        // to emit. MariaDB does not resolve (vet_id, specialty_id) = (?, ?) against the primary key in a DELETE or
+        // an UPDATE and scans the table for every row it identifies.
+        String expectedSql = """
+                DELETE FROM vet_specialty
+                WHERE vet_id = ? AND specialty_id = ?""";
+        var repo = PreparedStatementTemplate.ORM(dataSource).entity(VetSpecialty.class);
+        var pk = VetSpecialtyPK.builder().vetId(1).specialtyId(2).build();
+        repo.insert(VetSpecialty.builder().id(pk).build());
+        var observed = new AtomicBoolean(false);
+        observe(sql -> {
+            if (sql.statement().startsWith("DELETE") && !observed.getAndSet(true)) {
+                assertEquals(expectedSql, sql.statement());
+                assertEquals(1, sql.parameters().get(0).dbValue());
+                assertEquals(2, sql.parameters().get(1).dbValue());
+            }
+        }, () -> repo.removeById(pk));
+        assertTrue(observed.get());
+        assertTrue(repo.findById(pk).isEmpty());
     }
 
     @Test
