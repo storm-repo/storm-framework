@@ -20,6 +20,7 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import io.micrometer.tracing.Tracer;
 import io.micrometer.tracing.test.simple.SimpleTracer;
 import java.lang.reflect.InvocationHandler;
 import java.lang.reflect.Proxy;
@@ -140,10 +141,60 @@ public class SqlCommenterTest {
         var span = tracer.nextSpan().start();
         try (var ignored = tracer.withSpan(span)) {
             var comment = commenter.comment().orElseThrow();
-            assertTrue(comment.matches("traceparent='00-[0-9a-f]+-[0-9a-f]+-0[01]'"), comment);
+            assertTrue(comment.matches("traceparent='00-[0-9a-f]{32}-[0-9a-f]{16}-0[01]'"), comment);
         } finally {
             span.end();
         }
         assertEquals(Optional.empty(), commenter.comment());
+    }
+
+    @Test
+    public void noopTracerProducesNoComment() {
+        // A no-op tracer reports a non-null span whose context carries empty identifiers; rendering it
+        // yields traceparent='00---00', which correlates to nothing and costs statement cache hits.
+        assertEquals(Optional.empty(), new TraceContextSqlCommenter(Tracer.NOOP).comment());
+        assertEquals(Optional.empty(), new TraceContextSqlCommenter(Tracer.NOOP, true).comment());
+    }
+
+    @Test
+    public void blankIdentifiersProduceNoComment() {
+        assertEquals(Optional.empty(), commentFor("", ""));
+        assertEquals(Optional.empty(), commentFor("", "00000000000000ff"));
+        assertEquals(Optional.empty(), commentFor("000000000000000000000000000000ff", ""));
+    }
+
+    @Test
+    public void allZeroIdentifiersProduceNoComment() {
+        // W3C reserves the all-zero identifier as invalid.
+        assertEquals(Optional.empty(), commentFor("0".repeat(32), "00000000000000ff"));
+        assertEquals(Optional.empty(), commentFor("000000000000000000000000000000ff", "0".repeat(16)));
+    }
+
+    @Test
+    public void malformedIdentifiersProduceNoComment() {
+        assertEquals(Optional.empty(), commentFor("not-hex", "00000000000000ff"));
+        assertEquals(Optional.empty(), commentFor("000000000000000000000000000000FF", "00000000000000ff"));
+        assertEquals(Optional.empty(), commentFor("000000000000000000000000000000ff", "abc"));
+    }
+
+    @Test
+    public void sixtyFourBitTraceIdIsPaddedToW3cForm() {
+        // A tracer configured for 64-bit trace identifiers reports half a W3C trace id.
+        assertEquals(Optional.of("traceparent='00-0000000000000000123456789abcdef0-00000000000000ff-00'"),
+                commentFor("123456789abcdef0", "00000000000000ff"));
+    }
+
+    /** Renders the comment for a span carrying the given identifiers. */
+    private static Optional<String> commentFor(String traceId, String spanId) {
+        var tracer = new SimpleTracer();
+        var span = tracer.nextSpan();
+        span.context().setTraceId(traceId);
+        span.context().setSpanId(spanId);
+        span.start();
+        try (var ignored = tracer.withSpan(span)) {
+            return new TraceContextSqlCommenter(tracer).comment();
+        } finally {
+            span.end();
+        }
     }
 }

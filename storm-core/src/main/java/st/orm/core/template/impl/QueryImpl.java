@@ -67,7 +67,9 @@ import st.orm.core.spi.WeakInterner;
 import st.orm.core.template.PreparedQuery;
 import st.orm.core.template.Query;
 import st.orm.core.template.SqlOperation;
+import st.orm.core.template.SqlTemplate.Parameter;
 import st.orm.core.template.SqlTemplateException;
+import st.orm.core.template.StatementOrigin;
 
 @SuppressWarnings("ALL")
 class QueryImpl implements Query {
@@ -82,7 +84,10 @@ class QueryImpl implements Query {
                        @Nonnull SqlOperation operation,
                        @Nullable Class<? extends Data> dataType,
                        @Nonnull FetchPlan fetchPlan,
-                       @Nullable String statementText) {
+                       @Nullable String statementText,
+                       @Nonnull StatementOrigin origin,
+                       long shapeId,
+                       @Nonnull List<Parameter> parameters) {
 
         /**
          * Returns the references to resolve while mapping rows into the given type.
@@ -232,15 +237,135 @@ class QueryImpl implements Query {
     private Observation observe(@Nonnull ExecutionKind kind) {
         try {
             var queryObserver = environment.queryObserver();
-            if (queryObserver == QueryObserver.NOOP) {
+            var operators = SqlInterceptorManager.localOperators();
+            if (queryObserver == QueryObserver.NOOP && operators == null) {
                 // Fast path: skip context creation when nothing is observing.
                 return Observation.NOOP;
             }
-            return queryObserver.onExecute(
-                    new QueryContextImpl(environment.operation(), environment.dataType(), kind, environment.statementText()));
+            var context = new QueryContextImpl(environment.operation(), environment.dataType(), kind,
+                    environment.statementText(), environment.origin(), environment.shapeId());
+            var observation = queryObserver == QueryObserver.NOOP
+                    ? Observation.NOOP
+                    : queryObserver.onExecute(context);
+            // A scope times the execution rather than the statement, so it is notified here and closed with it.
+            var handles = listen(operators, context, environment.parameters());
+            if (handles == null) {
+                return observation;
+            }
+            return new ListenedObservation(observation, handles);
         } catch (Throwable ignore) {
             return Observation.NOOP;
         }
+    }
+
+    /**
+     * Notifies the listeners scoped to the calling thread that an execution is starting, returning the handles to
+     * close when it completes, or {@code null} when no scope listens.
+     */
+    static StatementListener.Handle[] listen(SqlInterceptorManager.Operator[] operators,
+                                                     @Nonnull QueryContext context,
+                                                     @Nonnull List<Parameter> parameters) {
+        if (operators == null) {
+            return null;
+        }
+        StatementListener.Handle[] handles = null;
+        int count = 0;
+        for (var operator : operators) {
+            var listener = operator.listener();
+            if (listener == null) {
+                continue;
+            }
+            if (handles == null) {
+                handles = new StatementListener.Handle[operators.length];
+            }
+            try {
+                handles[count++] = listener.onExecute(context, parameters);
+            } catch (Throwable ignore) {
+                handles[count++] = StatementListener.Handle.NOOP;
+            }
+        }
+        if (handles == null) {
+            return null;
+        }
+        return count == handles.length ? handles : java.util.Arrays.copyOf(handles, count);
+    }
+
+    /**
+     * Observation of an execution a scope listens to, carrying the rows the execution produced or affected.
+     *
+     * <p>Counting exists on this path alone: with no listener this class is never constructed and no counting
+     * wrapper is installed, so an unobserved execution does exactly the work it does without observation.</p>
+     */
+    static final class ListenedObservation implements Observation {
+        private final Observation delegate;
+        private final StatementListener.Handle[] handles;
+        private long rows;
+        private boolean exact = true;
+
+        ListenedObservation(@Nonnull Observation delegate, @Nonnull StatementListener.Handle[] handles) {
+            this.delegate = delegate;
+            this.handles = handles;
+        }
+
+        /**
+         * Counts one produced row; result sets are consumed sequentially, so a plain field suffices. The count
+         * stays a lower bound until the stream reports its end.
+         */
+        void row() {
+            rows++;
+            exact = false;
+        }
+
+        /** Marks that the stream reached its end, making the counted rows exact. */
+        void exhausted() {
+            exact = true;
+        }
+
+        /** Records the rows the execution produced or affected. */
+        void rows(long rows) {
+            this.rows = rows;
+            this.exact = true;
+        }
+
+        /** Records a count a driver reported incompletely, keeping it a lower bound. */
+        void rowsAtLeast(long rows) {
+            this.rows = rows;
+            this.exact = false;
+        }
+
+        @Override
+        public void error(@Nonnull Throwable throwable) {
+            delegate.error(throwable);
+        }
+
+        @Override
+        public void close() {
+            for (var handle : handles) {
+                try {
+                    handle.close(rows, exact);
+                } catch (Throwable ignore) {
+                    // Scope failures never affect query execution.
+                }
+            }
+            delegate.close();
+        }
+    }
+
+    /** Wraps the spliterator to count the rows the stream produces; installed only when a scope listens. */
+    static <T> Spliterator<T> counting(@Nonnull Spliterator<T> spliterator,
+                                               @Nonnull ListenedObservation observation) {
+        return new Spliterators.AbstractSpliterator<>(spliterator.estimateSize(), spliterator.characteristics()) {
+            @Override
+            public boolean tryAdvance(Consumer<? super T> action) {
+                boolean advanced = spliterator.tryAdvance(action);
+                if (advanced) {
+                    observation.row();
+                } else {
+                    observation.exhausted();
+                }
+                return advanced;
+            }
+        };
     }
 
     private static void observationError(@Nonnull Observation observation, @Nonnull Throwable throwable) {
@@ -293,8 +418,12 @@ class QueryImpl implements Query {
                     int columnCount = resultSet.getMetaData().getColumnCount();
                     close = false;
                     handedOff = true;
+                    var spliterator = rawRowSpliterator(resultSet, columnCount);
+                    if (observation instanceof ListenedObservation listened) {
+                        spliterator = counting(spliterator, listened);
+                    }
                     return MonitoredResource.wrap(
-                            StreamSupport.stream(rawRowSpliterator(resultSet, columnCount), false)
+                            StreamSupport.stream(spliterator, false)
                                     .onClose(() -> {
                                         try {
                                             close(resultSet, statement, streamingCleanup);
@@ -358,8 +487,12 @@ class QueryImpl implements Query {
                 close = false;
                 handedOff = true;
                 var closeableStatement = statement;
+                var spliterator = rowSpliterator(resultSet, columnCount, mapper);
+                if (observation instanceof ListenedObservation listened) {
+                    spliterator = counting(spliterator, listened);
+                }
                 return MonitoredResource.wrap(
-                        StreamSupport.stream(rowSpliterator(resultSet, columnCount, mapper), false)
+                        StreamSupport.stream(spliterator, false)
                                 .onClose(() -> {
                                     try {
                                         close(resultSet, closeableStatement, streamingCleanup);
@@ -448,6 +581,9 @@ class QueryImpl implements Query {
                     boolean present = spliterator.tryAdvance(value -> holder[0] = value);
                     if (present && spliterator.tryAdvance(ignore -> { })) {
                         throw new NonUniqueResultException("Expected single result, but found more than one.");
+                    }
+                    if (observation instanceof ListenedObservation listened) {
+                        listened.rows(present ? 1 : 0);
                     }
                     //noinspection unchecked
                     return new SingleRow<>(present, (T) holder[0]);
@@ -590,6 +726,9 @@ class QueryImpl implements Query {
             try {
                 try {
                     int result = statement.executeUpdate();
+                    if (observation instanceof ListenedObservation listened) {
+                        listened.rows(result);
+                    }
                     invalidateAffectedEntityCaches();
                     return result;
                 } finally {
@@ -651,6 +790,23 @@ class QueryImpl implements Query {
             try {
                 try {
                     int[] result = statement.executeBatch();
+                    if (observation instanceof ListenedObservation listened) {
+                        long affected = 0;
+                        boolean exact = true;
+                        for (int count : result) {
+                            if (count > 0) {
+                                affected += count;
+                            } else if (count < 0) {
+                                // The driver declined to report this entry's count; the sum is a lower bound.
+                                exact = false;
+                            }
+                        }
+                        if (exact) {
+                            listened.rows(affected);
+                        } else {
+                            listened.rowsAtLeast(affected);
+                        }
+                    }
                     invalidateAffectedEntityCaches();
                     return result;
                 } finally {
@@ -876,10 +1032,12 @@ class QueryImpl implements Query {
     /**
      * Describes a statement execution for the query observer.
      */
-    private record QueryContextImpl(@Nonnull SqlOperation operation,
+    record QueryContextImpl(@Nonnull SqlOperation operation,
                                     @Nullable Class<? extends Data> type,
                                     @Nonnull ExecutionKind kind,
-                                    @Nullable String statementText) implements QueryContext {
+                                    @Nullable String statementText,
+                                    @Nonnull StatementOrigin origin,
+                                    long shapeId) implements QueryContext {
         @Override
         public Optional<Class<? extends Data>> dataType() {
             return ofNullable(type);

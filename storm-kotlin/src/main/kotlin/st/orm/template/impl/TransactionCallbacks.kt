@@ -15,13 +15,18 @@
  */
 package st.orm.template.impl
 
+import st.orm.TransactionCallbackException
+import java.util.function.Consumer
+
 /**
  * Collects and executes transaction lifecycle callbacks for the suspend transaction flow.
  *
- * Callbacks registered via [addOnCommit] and [addOnRollback] are stored in registration order. When
- * [fireCommit] or [fireRollback] is called, the corresponding list is executed sequentially in the enclosing
- * coroutine context. If any callback throws, remaining callbacks still execute; the first exception is surfaced
- * with subsequent ones added as suppressed.
+ * Callbacks registered via [addOnCommit], [addOnRollback] and [addOnCompletion] are stored in a single list, so
+ * they run in registration order regardless of which kind they are; the ones that do not apply to the outcome are
+ * skipped. When [fireCommit] or [fireRollback] is called, the applicable callbacks are executed sequentially in
+ * the enclosing coroutine context. If any callback throws, remaining callbacks still execute and the failures are
+ * reported as a [TransactionCallbackException] whose cause is the first one, with subsequent ones added to it as
+ * suppressed.
  *
  * Implements the language-neutral [st.orm.core.spi.TransactionCallbacks] registration contract, so blocking
  * blocks nested inside a suspend transaction defer their callbacks to this holder.
@@ -29,42 +34,75 @@ package st.orm.template.impl
  * @since 1.11
  */
 internal class TransactionCallbacks : st.orm.core.spi.TransactionCallbacks {
-    private val onCommit = mutableListOf<suspend () -> Unit>()
-    private val onRollback = mutableListOf<suspend () -> Unit>()
+    private val callbacks = mutableListOf<Entry>()
+
+    /**
+     * A registered callback and the outcomes it applies to, so that callbacks of every kind share a single
+     * registration order.
+     */
+    private class Entry(
+        private val onCommit: Boolean,
+        private val onRollback: Boolean,
+        val action: suspend (Boolean) -> Unit,
+    ) {
+        fun applies(committed: Boolean): Boolean = if (committed) onCommit else onRollback
+    }
 
     fun addOnCommit(callback: suspend () -> Unit) {
-        onCommit += callback
+        callbacks += Entry(onCommit = true, onRollback = false) { callback() }
     }
 
     fun addOnRollback(callback: suspend () -> Unit) {
-        onRollback += callback
+        callbacks += Entry(onCommit = false, onRollback = true) { callback() }
+    }
+
+    fun addOnCompletion(callback: suspend (Boolean) -> Unit) {
+        callbacks += Entry(onCommit = true, onRollback = true, action = callback)
     }
 
     override fun addOnCommit(callback: Runnable) {
-        onCommit += { callback.run() }
+        callbacks += Entry(onCommit = true, onRollback = false) { callback.run() }
     }
 
     override fun addOnRollback(callback: Runnable) {
-        onRollback += { callback.run() }
+        callbacks += Entry(onCommit = false, onRollback = true) { callback.run() }
+    }
+
+    override fun addOnCompletion(callback: Consumer<Boolean>) {
+        callbacks += Entry(onCommit = true, onRollback = true) { committed -> callback.accept(committed) }
     }
 
     suspend fun fireCommit() {
-        execute(onCommit)
+        fire(true)
     }
 
     suspend fun fireRollback() {
-        execute(onRollback)
+        fire(false)
     }
 
-    private suspend fun execute(callbacks: List<suspend () -> Unit>) {
+    private suspend fun fire(committed: Boolean) {
         var first: Throwable? = null
-        for (callback in callbacks) {
+        // Iterate a snapshot so that a callback registering another callback is a no-op for this run rather than
+        // a concurrent modification.
+        for (entry in callbacks.toList()) {
+            if (!entry.applies(committed)) continue
+
             try {
-                callback()
+                entry.action(committed)
             } catch (e: Throwable) {
                 if (first == null) first = e else first.addSuppressed(e)
             }
         }
-        first?.let { throw it }
+        first?.let {
+            throw TransactionCallbackException(
+                if (committed) {
+                    "Transaction committed, but a completion callback failed."
+                } else {
+                    "Transaction rolled back, and a completion callback failed."
+                },
+                it,
+                committed,
+            )
+        }
     }
 }

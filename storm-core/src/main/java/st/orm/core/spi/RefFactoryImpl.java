@@ -28,6 +28,8 @@ import st.orm.core.template.QueryTemplate;
 import st.orm.core.template.impl.LazySupplier;
 import st.orm.core.template.impl.ModelBuilder;
 import st.orm.core.template.impl.ORMTemplateImpl;
+import st.orm.core.template.impl.SqlInterceptorManager;
+import st.orm.core.template.impl.StatementOriginScope;
 
 /**
  * Implementation of {@link RefFactory}.
@@ -93,15 +95,16 @@ public final class RefFactoryImpl implements RefFactory {
                     if (cache != null) {
                         var cached = cache.get(pk);
                         if (cached.isPresent()) {
+                            SqlInterceptorManager.notifyCacheHits(type, 1);
                             return (T) cached.get();
                         }
                     }
                 }
             }
-            return ((QueryBuilder<T, T, ID>) template
+            return StatementOriginScope.resolvingReference(() -> ((QueryBuilder<T, T, ID>) template
                     .selectFrom(type))
                     .where(pk)
-                    .getSingleResult();
+                    .getSingleResult());
         });
         return create(supplier, type, pk);
     }

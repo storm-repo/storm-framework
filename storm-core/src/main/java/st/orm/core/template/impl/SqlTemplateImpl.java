@@ -155,6 +155,16 @@ public final class SqlTemplateImpl implements SqlTemplate {
         };
     }
 
+    private Function<TemplateString, Object> shapeGenerator() {
+        return template -> {
+            try {
+                return getShapeKey(templatePreparation.preprocess(template));
+            } catch (SqlTemplateException e) {
+                throw new UncheckedSqlTemplateException(e);
+            }
+        };
+    }
+
     /**
      * Returns {@code true} if the template only support positional parameters, {@code false} otherwise.
      *
@@ -416,21 +426,71 @@ public final class SqlTemplateImpl implements SqlTemplate {
                     request.hit();
                 }
             }
-            Sql sql = processor.bind(bindingContext);
-            if (applyInterceptors) {
-                sql = intercept(sql);
+            // The shape identifies the statement's structure with collection arity erased, so statements whose
+            // collection parameters expand to different placeholder counts share it. It exists solely for scopes,
+            // so it is derived only while one is open, and cached on the processor: every binding of one compiled
+            // template shares its shape.
+            long shapeId = 0L;
+            if (SqlInterceptorManager.hasActiveScopes()) {
+                shapeId = processor.shapeId(() -> {
+                    try {
+                        Object shapeKey = getShapeKey(bindingContext);
+                        return shapeKey == null ? 0L : shapeKey.hashCode();
+                    } catch (UncheckedSqlTemplateException e) {
+                        // A template whose shape cannot be derived groups by text instead.
+                        return 0L;
+                    }
+                });
             }
-            if (LOGGER.isDebugEnabled()) {
-                String log = "SQL:\n%s".formatted(sql.statement());
-                if (LOGGER.isTraceEnabled()) {
-                    LOGGER.trace(log);
-                } else {
-                    LOGGER.debug(log);
-                }
+            Sql sql = processor.bind(bindingContext, shapeId);
+            if (applyInterceptors) {
+                // Interception logs the statement, so a plan compiled here logs on execution rather than now.
+                sql = intercept(sql);
             }
             return sql;
         } catch (UncheckedSqlTemplateException e) {
             throw e.getCause();
+        }
+    }
+
+    /**
+     * Returns the shape key of the template: its compilation key with collection arity erased, so statements
+     * that differ only in how far a collection expanded share it.
+     */
+    private Object getShapeKey(@Nonnull BindingContext bindingContext) {
+        try {
+            var fragments = bindingContext.fragments();
+            var elements = bindingContext.elements();
+            var shapeGenerator = shapeGenerator();
+            var shapeKey = new ArrayList<>(fragments.size() + elements.size());
+            for (int i = 0, size = fragments.size(); i < size; i++) {
+                shapeKey.add(fragments.get(i));
+                if (i < elements.size()) {
+                    var element = elements.get(i);
+                    if (element instanceof Wrapped(var wrapped)) {
+                        for (var e : wrapped) {
+                            if (!e.synthetic()) {
+                                var key = getElementProcessor(e.element()).getShapeKey(e.element(), shapeGenerator);
+                                if (key != null) {
+                                    shapeKey.add(key);
+                                } else {
+                                    return null;
+                                }
+                            }
+                        }
+                    } else {
+                        var key = getElementProcessor(element).getShapeKey(element, shapeGenerator);
+                        if (key != null) {
+                            shapeKey.add(key);
+                        } else {
+                            return null;
+                        }
+                    }
+                }
+            }
+            return shapeKey;
+        } catch (SqlTemplateException e) {
+            throw new UncheckedSqlTemplateException(e);
         }
     }
 

@@ -16,6 +16,7 @@
 package st.orm.ktor
 
 import io.ktor.server.application.Application
+import io.ktor.server.application.ApplicationCallPipeline
 import io.ktor.server.application.ApplicationStarted
 import io.ktor.server.application.ApplicationStopped
 import io.ktor.server.application.createApplicationPlugin
@@ -23,14 +24,21 @@ import io.ktor.server.application.log
 import io.ktor.server.plugins.di.DependencyKey
 import io.ktor.server.plugins.di.dependencies
 import io.ktor.server.plugins.di.getBlocking
+import io.ktor.server.request.httpMethod
+import io.ktor.server.request.path
 import io.ktor.util.reflect.TypeInfo
 import io.micrometer.common.KeyValues
 import io.micrometer.observation.ObservationConvention
 import io.micrometer.observation.ObservationRegistry
+import org.slf4j.LoggerFactory
 import st.orm.core.spi.JdbcConnectionProviderImpl
 import st.orm.core.spi.JdbcTransactionTemplateProviderImpl
 import st.orm.micrometer.MicrometerQueryObserver
 import st.orm.template.ORMTemplate
+import st.orm.template.ignoreSqlScopeCallSites
+import st.orm.template.sqlScope
+import st.orm.template.sqlScopeHydrationShapes
+import st.orm.template.sqlScopeLineWidth
 import javax.sql.DataSource
 import kotlin.reflect.KClass
 import kotlin.reflect.full.starProjectedType
@@ -251,6 +259,46 @@ val Storm = createApplicationPlugin(name = "Storm", createConfiguration = ::Stor
     if (delegatingObservers.isNotEmpty()) {
         application.monitor.subscribe(ApplicationStarted) {
             application.bindQueryObservations(delegatingObservers)
+        }
+    }
+
+    // ---- Per-call SQL scope ----
+
+    if (pluginConfig.sqlScope) {
+        val limit = pluginConfig.sqlScopeLimit
+        val callSites = pluginConfig.sqlScopeCallSites
+        if (pluginConfig.sqlScopeCallSiteSkip.isNotEmpty()) {
+            ignoreSqlScopeCallSites(*pluginConfig.sqlScopeCallSiteSkip.toTypedArray())
+        }
+        pluginConfig.sqlScopeLineWidth?.let { sqlScopeLineWidth(it) }
+        sqlScopeHydrationShapes(pluginConfig.sqlScopeHydration)
+        val statementThreshold = pluginConfig.sqlScopeStatementThreshold
+        val durationThreshold = pluginConfig.sqlScopeDurationThreshold
+        val thresholded = statementThreshold != null || durationThreshold != null
+        val logger = LoggerFactory.getLogger("st.orm.sql.scope")
+        // Intercepting surrounds the rest of the pipeline, so the scope covers everything the call does rather
+        // than a point within it. The scope follows the coroutine, so it keeps recording across a suspension
+        // that resumes on another thread, which is exactly what a handler does around the database.
+        application.intercept(ApplicationCallPipeline.Monitoring) {
+            if (if (thresholded) !logger.isWarnEnabled else !logger.isInfoEnabled) {
+                // Nothing consumes the summary, so do not open a scope to build one.
+                proceed()
+                return@intercept
+            }
+            val name = context.request.httpMethod.value + " " + context.request.path()
+            val (_, summary) = sqlScope(name, limit, callSites) { proceed() }
+            // A call that touched no database says nothing worth a line. Without thresholds every call that did
+            // is reported; with one, only calls that exceed it are, at WARN.
+            // At DEBUG the full statement texts follow the summary, so an elided row can be matched to its
+            // statement.
+            val rendered = if (logger.isDebugEnabled) summary.toDetailedString() else summary
+            when {
+                summary.statementCount == 0 -> {}
+                !thresholded -> logger.info("{}", rendered)
+                (statementThreshold != null && summary.statementCount >= statementThreshold) ||
+                    (durationThreshold != null && summary.duration >= durationThreshold) ->
+                    logger.warn("{}", rendered)
+            }
         }
     }
 

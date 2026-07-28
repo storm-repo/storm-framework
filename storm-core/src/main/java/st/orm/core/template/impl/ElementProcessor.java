@@ -65,6 +65,27 @@ interface ElementProcessor<E extends Element> {
     }
 
     /**
+     * Returns a key that identifies the element's shape: its structure with collection arity erased.
+     *
+     * <p>The compilation key distinguishes collection parameters by size, because the number of placeholders is
+     * part of the compiled statement. The shape key does not, so statements that differ only in how far a
+     * collection expanded share it. The default matches the compilation key; processors whose key encodes arity
+     * override this.</p>
+     *
+     * @param element the element to compute a key for.
+     * @param keyGenerator a function that generates shape keys for sub-templates.
+     * @return an immutable shape key, or {@code null} if the element has none.
+     * @throws SqlTemplateException if the key generation fails.
+     * @since 1.13
+     */
+    default Object getShapeKey(
+            @Nonnull E element,
+            @Nonnull Function<TemplateString, Object> keyGenerator
+    ) throws SqlTemplateException {
+        return getCompilationKey(element, keyGenerator);
+    }
+
+    /**
      * Compiles the given element into an {@link CompiledElement}.
      *
      * <p>This method is responsible for producing the compile-time representation of the element. It must not perform

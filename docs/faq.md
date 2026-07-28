@@ -588,19 +588,15 @@ List<User> getUsers() {
 
 ### How do I see the SQL Storm generates?
 
-Annotate your repository with `@SqlLog` to log all generated SQL:
+Raise the `st.orm.sql` logger:
 
-```java
-@SqlLog
-public interface UserRepository extends EntityRepository<User, Integer> { ... }
+```yaml
+logging:
+  level:
+    st.orm.sql: DEBUG
 ```
 
-To see executable SQL with actual parameter values instead of `?` placeholders, use `inlineParameters`:
-
-```java
-@SqlLog(inlineParameters = true)
-public interface UserRepository extends EntityRepository<User, Integer> { ... }
-```
+Every executed statement is logged, whichever repository, query builder or template issued it. To see executable SQL with actual parameter values instead of `?` placeholders, raise it to `TRACE`. Values are database values, so `TRACE` is the level to keep out of production.
 
 See [SQL Logging](sql-logging.md) for the full guide.
 

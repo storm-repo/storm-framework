@@ -34,7 +34,6 @@ import st.orm.Projection;
 import st.orm.WriteSet;
 import st.orm.core.spi.ORMReflection;
 import st.orm.core.spi.Providers;
-import st.orm.core.template.impl.SqlLogInterceptor;
 import st.orm.repository.EntityRepository;
 import st.orm.repository.ProjectionRepository;
 import st.orm.repository.Repository;
@@ -150,12 +149,7 @@ public final class ORMTemplateImpl extends QueryTemplateImpl implements ORMTempl
                 if (method.getName().equals("toString") && method.getParameterCount() == 0) {
                     return STR."RepositoryProxy(\{type.getSimpleName()})";
                 }
-                return SqlLogInterceptor.wrapIfNeeded(
-                        SqlLogInterceptor.resolve(type, method),
-                        type,
-                        toShortSignature(method),
-                        () -> dispatch(proxy, method, args, repository, entityRepository, projectionRepository, type)
-                );
+                return dispatch(proxy, method, args, repository, entityRepository, projectionRepository, type);
             } catch (InvocationTargetException e) {
                 throw e.getTargetException();
             }
@@ -196,16 +190,6 @@ public final class ORMTemplateImpl extends QueryTemplateImpl implements ORMTempl
         } catch (Throwable t) {
             throw new st.orm.PersistenceException(t);
         }
-    }
-
-    private static String toShortSignature(@Nonnull Method method) {
-        var sb = new StringBuilder(method.getName()).append('(');
-        var params = method.getParameterTypes();
-        for (int i = 0; i < params.length; i++) {
-            if (i > 0) sb.append(", ");
-            sb.append(params[i].getSimpleName());
-        }
-        return sb.append(')').toString();
     }
 
     @SuppressWarnings("unchecked")

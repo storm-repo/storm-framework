@@ -19,6 +19,7 @@ import java.util.Optional;
 import java.util.OptionalInt;
 import st.orm.Data;
 import st.orm.core.template.SqlOperation;
+import st.orm.core.template.StatementOrigin;
 
 /**
  * Describes a single statement execution observed by a {@link QueryObserver}.
@@ -54,6 +55,31 @@ public interface QueryContext {
     ExecutionKind kind();
 
     /**
+     * Returns what caused the statement to execute.
+     *
+     * <p>A statement resolving a reference is shaped exactly like a primary key lookup the application could have
+     * written itself, so this is what makes the cost of resolving references measurable on its own.</p>
+     *
+     * @return the statement origin; {@link StatementOrigin#DIRECT} unless the statement resolves a reference.
+     */
+    default StatementOrigin origin() {
+        return StatementOrigin.DIRECT;
+    }
+
+    /**
+     * Returns the identity of the statement's shape: the template it was generated from, before values were bound.
+     *
+     * <p>Statements generated from one template share a shape whatever their parameters look like, including a
+     * collection parameter that expands to a different number of placeholders per execution. Grouping by shape
+     * therefore treats those as one statement, where the text would split them.</p>
+     *
+     * @return the shape identity; {@code 0} when unknown.
+     */
+    default long shapeId() {
+        return 0L;
+    }
+
+    /**
      * Returns the number of statements in the batch.
      *
      * @return the batch size; present only for {@link ExecutionKind#BATCH} executions when the size is known at
@@ -73,8 +99,6 @@ public interface QueryContext {
 
     /**
      * Classifies how a statement is executed.
-     *
-     * @since 1.13
      */
     enum ExecutionKind {
 

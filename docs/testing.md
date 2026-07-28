@@ -359,13 +359,31 @@ All three methods are scoped: only SQL statements generated within the block are
 
 ### Inspecting Captured Statements
 
-Each captured statement is represented as a `CapturedSql` record with three fields:
+Each captured statement is represented as a `CapturedSql` record with seven fields:
 
 | Field        | Type              | Description                                                                     |
 |--------------|-------------------|---------------------------------------------------------------------------------|
 | `operation`  | `Operation`       | The SQL operation type: `SELECT`, `INSERT`, `UPDATE`, `DELETE`, or `UNDEFINED`. |
 | `statement`  | `String`          | The SQL text with `?` placeholders for bind variables.                          |
 | `parameters` | `List<Object>`    | The bound parameter values in order.                                            |
+| `origin`     | `Origin`          | What caused the statement: `DIRECT`, or `FETCH` for a statement resolving a reference. |
+| `duration`   | `Duration`        | How long the execution took.                                                    |
+| `rows`       | `long`            | The rows the execution produced or affected; a lower bound when not exact.      |
+| `exactRows`  | `boolean`         | Whether that count is exact; `false` when a driver declined to report a batch entry's count or a stream closed before its end. |
+
+Statements are captured around execution, so each carries its duration and a statement that is built but never run is not captured.
+
+`origin` is what makes the cost of resolving references assertable. A reference the query did not resolve is selected as its foreign key column and resolved on demand, one statement per reference, and such a statement is shaped exactly like a primary key lookup the test could have written itself. Asserting `count(FETCH) == 0` pins the query down to the shape its fetch plan produces:
+
+```java
+List<Owner> owners = capture.execute(() -> orm.entity(Owner.class).select()
+        .fetch(Owner_.city)
+        .getResultList());
+owners.forEach(owner -> owner.city().fetch());
+assertEquals(0, capture.count(CapturedSql.Origin.FETCH));
+```
+
+Without the `fetch(Owner_.city)` the same assertion fails with one resolution per distinct city, which is the regression such a test exists to catch.
 
 Query the capture results using `count()`, `statements()`, or their filtered variants:
 
@@ -542,4 +560,5 @@ See [Ktor Integration](ktor-integration.md#testing) for more details.
 2. **Use `SqlCapture` to verify query counts.** Asserting the number of statements an operation produces is an effective way to catch unintended query changes during refactoring.
 3. **Clear between captures** when a single test method needs to measure multiple operations independently.
 4. **Prefer `@StormTest` over manual setup.** It eliminates boilerplate and ensures consistent database lifecycle management across test classes.
-5. **`SqlCapture` is thread-local.** Captures are bound to the calling thread, so multi-threaded tests will only record statements from the thread that called `run`/`execute`.
+5. **`SqlCapture` binds to the calling thread and the contexts Storm carries it into.** Statements executed inside a `transaction { }` block or a coroutine given `sqlScopeContext()` are captured wherever they run; work handed to a thread or coroutine without that context falls outside the capture. Recording itself is safe from any thread the work reaches.
+6. **A resolution served from cache issues no statement.** Inside a transaction the entity cache answers repeat resolutions of the same record, so `count(FETCH)` counts distinct cache misses rather than `fetch()` call sites.

@@ -33,6 +33,7 @@ import st.orm.core.spi.TransactionRunner
 import st.orm.core.spi.TransactionScope
 import st.orm.template.impl.TransactionCallbacks
 import java.util.concurrent.atomic.AtomicReference
+import java.util.function.Consumer
 import kotlin.coroutines.AbstractCoroutineContextElement
 import kotlin.coroutines.CoroutineContext
 
@@ -144,7 +145,8 @@ suspend fun <T> transaction(
         val elements = CallbacksKey(parentCallbacks) +
             TransactionScope.holder().asContextElement(scope) +
             TransactionRunner.callbacksHolder().asContextElement(parentCallbacks) +
-            localTransactionOptions.asContextElement(options)
+            localTransactionOptions.asContextElement(options) +
+            sqlScopeContext()
         val result = try {
             withContext(currentContext + elements) {
                 block(scopeTransaction(scope, parentCallbacks))
@@ -161,7 +163,9 @@ suspend fun <T> transaction(
     val elements = CallbacksKey(callbacks) +
         TransactionScope.holder().asContextElement(scope) + // Make the scope available via the ThreadLocal.
         TransactionRunner.callbacksHolder().asContextElement(callbacks) +
-        localTransactionOptions.asContextElement(options) // Make the options available via the ThreadLocal in case the blocking variant is invoked from suspend context.
+        // Make the options available via the ThreadLocal in case the blocking variant is invoked from suspend context.
+        localTransactionOptions.asContextElement(options) +
+        sqlScopeContext()
     // The dispatcher only applies to outermost transactions; nested blocks stay on the caller's dispatcher.
     val context = if (parentScope == null) currentContext + dispatcher + elements else currentContext + elements
     // Fire callbacks AFTER withContext returns, so CallbacksKey and ThreadLocals are restored.
@@ -233,6 +237,10 @@ private fun st.orm.Transaction.asKotlinTransaction(): Transaction {
         override fun onRollback(callback: suspend () -> Unit) {
             base.onRollback { runBlocking { callback() } }
         }
+
+        override fun onCompletion(callback: suspend (Boolean) -> Unit) {
+            base.onCompletion { committed -> runBlocking { callback(committed) } }
+        }
     }
 }
 
@@ -254,12 +262,20 @@ private fun scopeTransaction(scope: TransactionScope, callbacks: TransactionCall
         callbacks.addOnRollback(callback)
     }
 
+    override fun onCompletion(callback: suspend (Boolean) -> Unit) {
+        callbacks.addOnCompletion(callback)
+    }
+
     override fun onCommit(callback: Runnable) {
         callbacks.addOnCommit(callback)
     }
 
     override fun onRollback(callback: Runnable) {
         callbacks.addOnRollback(callback)
+    }
+
+    override fun onCompletion(callback: Consumer<Boolean>) {
+        callbacks.addOnCompletion(callback)
     }
 }
 
@@ -341,6 +357,7 @@ suspend fun <T> withTransactionOptions(
     )
     return withContext(
         Scoped(scoped) +
+            sqlScopeContext() +
             localTransactionOptions.asContextElement(scoped), // Make the defaults available via the ThreadLocal in case the blocking variant is invoked from suspend context.
     ) { block() }
 }

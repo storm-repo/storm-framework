@@ -28,6 +28,7 @@ import jakarta.persistence.PersistenceException;
 import java.util.List;
 import java.util.function.Predicate;
 import java.util.stream.Stream;
+import java.util.stream.StreamSupport;
 import st.orm.BindVars;
 import st.orm.Data;
 import st.orm.Ref;
@@ -35,7 +36,9 @@ import st.orm.StormConfig;
 import st.orm.core.spi.JsonString;
 import st.orm.core.spi.Provider;
 import st.orm.core.spi.Providers;
+import st.orm.core.spi.QueryContext.ExecutionKind;
 import st.orm.core.spi.QueryFactory;
+import st.orm.core.spi.QueryObserver.Observation;
 import st.orm.core.spi.RefFactory;
 import st.orm.core.spi.RefFactoryImpl;
 import st.orm.core.spi.WeakInterner;
@@ -276,6 +279,58 @@ public final class JpaTemplateImpl implements JpaTemplate, QueryFactory {
             this.template = template;
         }
 
+        /** One processed template: the statement a scope's bracket describes, and the query that runs it. */
+        private record Processed(Sql sql, jakarta.persistence.Query query) {
+        }
+
+        private Processed process(@Nullable Class<?> resultClass) {
+            try {
+                var sql = sqlTemplate().process(template);
+                // Unsafe queries are allowed in direct JPA mode.
+                return new Processed(sql, templateProcessor.process(sql, resultClass, true));
+            } catch (SqlTemplateException e) {
+                throw new PersistenceException(e.getMessage(), e);
+            }
+        }
+
+        /**
+         * Notifies the scopes on the calling thread that an execution is starting, or returns {@code null} when
+         * none listens. A scope reports what a call cost whichever template ran it, so the JPA path brackets its
+         * executions exactly like the JDBC path.
+         */
+        @SuppressWarnings("unchecked")
+        private QueryImpl.ListenedObservation listen(@Nonnull Sql sql,
+                                                     @Nullable Class<?> resultClass,
+                                                     @Nonnull ExecutionKind kind) {
+            try {
+                var operators = SqlInterceptorManager.localOperators();
+                if (operators == null) {
+                    return null;
+                }
+                Class<? extends Data> dataType = resultClass != null && Data.class.isAssignableFrom(resultClass)
+                        ? (Class<? extends Data>) resultClass
+                        : null;
+                var context = new QueryImpl.QueryContextImpl(sql.operation(), dataType, kind, sql.statement(),
+                        sql.origin(), sql.shapeId());
+                var handles = QueryImpl.listen(operators, context, sql.parameters());
+                if (handles == null) {
+                    return null;
+                }
+                return new QueryImpl.ListenedObservation(Observation.NOOP, handles);
+            } catch (Throwable ignore) {
+                // Scope failures never affect query execution.
+                return null;
+            }
+        }
+
+        /** Counts the rows the stream produces into the observation, closing it with the stream. */
+        private static <T> Stream<T> counted(@Nonnull Stream<T> stream,
+                                             @Nonnull QueryImpl.ListenedObservation listened) {
+            return StreamSupport.stream(QueryImpl.counting(stream.spliterator(), listened), false)
+                    .onClose(stream::close)
+                    .onClose(listened::close);
+        }
+
         @Override
         public PreparedQuery prepare() {
             return this;
@@ -302,13 +357,19 @@ public final class JpaTemplateImpl implements JpaTemplate, QueryFactory {
         @SuppressWarnings("unchecked")
         @Override
         public Stream<Object[]> getResultStream() {
-            return JpaTemplateImpl.this.query(template).getResultStream().map(this::convert);
+            var processed = process(null);
+            var listened = listen(processed.sql(), null, ExecutionKind.QUERY);
+            Stream<Object[]> stream = processed.query().getResultStream().map(this::convert);
+            return listened == null ? stream : counted(stream, listened);
         }
 
         @SuppressWarnings("unchecked")
         @Override
         public <T> Stream<T> getResultStream(@Nonnull Class<T> type) {
-            return query(template, type).getResultStream();
+            var processed = process(type);
+            var listened = listen(processed.sql(), type, ExecutionKind.QUERY);
+            Stream<T> stream = processed.query().getResultStream();
+            return listened == null ? stream : counted(stream, listened);
         }
 
         @Override
@@ -325,7 +386,18 @@ public final class JpaTemplateImpl implements JpaTemplate, QueryFactory {
 
         @Override
         public int executeUpdate() {
-            return JpaTemplateImpl.this.query(template).executeUpdate();
+            var processed = process(null);
+            var listened = listen(processed.sql(), null, ExecutionKind.UPDATE);
+            if (listened == null) {
+                return processed.query().executeUpdate();
+            }
+            try {
+                int result = processed.query().executeUpdate();
+                listened.rows(result);
+                return result;
+            } finally {
+                listened.close();
+            }
         }
 
         /**

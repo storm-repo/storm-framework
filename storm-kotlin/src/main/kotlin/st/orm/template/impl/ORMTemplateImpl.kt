@@ -22,7 +22,6 @@ import st.orm.Projection
 import st.orm.WriteSet
 import st.orm.core.spi.ORMReflection
 import st.orm.core.spi.Providers
-import st.orm.core.template.impl.SqlLogInterceptor
 import st.orm.repository.EntityRepository
 import st.orm.repository.ProjectionRepository
 import st.orm.repository.Repository
@@ -70,16 +69,6 @@ class ORMTemplateImpl(private val core: st.orm.core.template.ORMTemplate) :
             } catch (e: InvocationTargetException) {
                 throw e.targetException
             }
-        }
-
-        private fun toShortSignature(method: Method): String = buildString {
-            append(method.name)
-            append('(')
-            method.parameterTypes.forEachIndexed { i, p ->
-                if (i > 0) append(", ")
-                append(p.simpleName)
-            }
-            append(')')
         }
     }
 
@@ -140,13 +129,7 @@ class ORMTemplateImpl(private val core: st.orm.core.template.ORMTemplate) :
                     method.name == "toString" && method.parameterCount == 0 ->
                         "RepositoryProxy(${type.simpleName})"
                     else ->
-                        SqlLogInterceptor.wrapIfNeeded(
-                            SqlLogInterceptor.resolve(type.java, method),
-                            type.java,
-                            toShortSignature(method),
-                        ) {
-                            dispatch(proxy, method, arguments, repository, entityRepository, projectionRepository, type)
-                        }
+                        dispatch(proxy, method, arguments, repository, entityRepository, projectionRepository, type)
                 }
             } catch (e: InvocationTargetException) {
                 throw e.targetException

@@ -10,6 +10,7 @@ import static st.orm.Operator.EQUALS;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Objects;
 import javax.sql.DataSource;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -30,6 +31,7 @@ import st.orm.core.model.PetOwnerRef_;
 import st.orm.core.model.Pet_;
 import st.orm.core.template.ORMTemplate;
 import st.orm.core.template.SqlInterceptor;
+import st.orm.core.template.StatementOrigin;
 
 /**
  * Verifies that a query resolves the references named by {@code fetch}, selecting the referenced table's columns in
@@ -62,6 +64,43 @@ public class RefFetchIntegrationTest {
         PetOwnerRef withOwner = pets.stream().filter(pet -> pet.owner() != null).findFirst().orElseThrow();
         assertTrue(withOwner.owner().isLoaded());
         assertNotNull(withOwner.owner().getOrNull());
+    }
+
+    @Test
+    public void testAnUnresolvedReferenceIsAttributedToFetch() {
+        var orm = ORMTemplate.of(dataSource);
+        List<StatementOrigin> origins = new ArrayList<>();
+        SqlInterceptor.observe(sql -> origins.add(sql.origin()), () -> {
+            var pets = orm.entity(PetOwnerRef.class).select().getResultList();
+            // A reference the query did not resolve is a foreign key column; reading it queries.
+            pets.stream()
+                    .map(PetOwnerRef::owner)
+                    .filter(Objects::nonNull)
+                    .forEach(Ref::fetch);
+            return null;
+        });
+        // The select was asked for directly; every statement after it resolves a reference.
+        assertEquals(StatementOrigin.DIRECT, origins.getFirst());
+        assertEquals(1, origins.stream().filter(origin -> origin == StatementOrigin.DIRECT).count());
+        assertTrue(origins.stream().anyMatch(origin -> origin == StatementOrigin.FETCH), origins.toString());
+    }
+
+    @Test
+    public void testAResolvingQueryLeavesNothingAttributedToFetch() {
+        var orm = ORMTemplate.of(dataSource);
+        List<StatementOrigin> origins = new ArrayList<>();
+        SqlInterceptor.observe(sql -> origins.add(sql.origin()), () -> {
+            var pets = orm.entity(PetOwnerRef.class).select()
+                    .fetch(PetOwnerRef_.owner)
+                    .getResultList();
+            pets.stream()
+                    .map(PetOwnerRef::owner)
+                    .filter(Objects::nonNull)
+                    .forEach(Ref::fetch);
+            return null;
+        });
+        // Naming the reference replaces the per-record tail with a join.
+        assertEquals(List.of(StatementOrigin.DIRECT), origins);
     }
 
     @Test

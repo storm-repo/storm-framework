@@ -402,7 +402,7 @@ The most significant difference is where callbacks bind with nested transactions
 
 Storm's callback failure handling (remaining callbacks still execute when one fails) follows the same approach as Spring's `TransactionSynchronization`, where post-commit and post-completion callbacks are invoked independently. Since callbacks fire after the transaction outcome is final, there is nothing to undo, so Storm runs every registered callback and surfaces the first exception rather than skipping the rest.
 
-Exposed's `StatementInterceptor` also provides hooks that Storm intentionally does not offer: `beforeCommit`, `beforeRollback`, and statement-level interceptors (`beforeExecution`, `afterExecution`). In Storm's stateless model, pre-commit logic belongs at the end of the `transaction { }` block itself, since there is no persistence context to flush or dirty state to reconcile before the commit. Statement-level observability is covered by Storm's [`@SqlLog`](sql-logging.md) annotation and `SqlCapture` test utility rather than a general interceptor mechanism.
+Exposed's `StatementInterceptor` also provides hooks that Storm intentionally does not offer: `beforeCommit`, `beforeRollback`, and statement-level interceptors (`beforeExecution`, `afterExecution`). In Storm's stateless model, pre-commit logic belongs at the end of the `transaction { }` block itself, since there is no persistence context to flush or dirty state to reconcile before the commit. Statement-level observability is covered by Storm's [`st.orm.sql` logger and SQL scopes](sql-logging.md) and the `SqlCapture` test utility rather than a general interceptor mechanism.
 
 #### Schema Migration
 

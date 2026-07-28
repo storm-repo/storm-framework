@@ -15,24 +15,30 @@
  */
 package st.orm.test;
 
-import java.util.ArrayList;
+import jakarta.annotation.Nonnull;
+import java.time.Duration;
 import java.util.List;
+import java.util.Queue;
 import java.util.concurrent.Callable;
-import java.util.function.Consumer;
+import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.function.Supplier;
-import st.orm.core.template.Sql;
-import st.orm.core.template.SqlInterceptor;
+import st.orm.core.spi.QueryContext;
 import st.orm.core.template.SqlTemplate.Parameter;
+import st.orm.core.template.impl.SqlInterceptorManager;
+import st.orm.core.template.impl.StatementListener;
 import st.orm.test.CapturedSql.Operation;
+import st.orm.test.CapturedSql.Origin;
 
 /**
- * Captures SQL statements generated during the execution of an action.
+ * Captures the SQL statements an action executes.
  *
- * <p>Uses a scoped SQL observer (thread-local) to record statements without interfering with the actual database
- * operations. Statements accumulate across multiple {@link #run}, {@link #execute}, or {@link #executeThrowing} calls;
- * use {@link #clear()} to reset between captures.</p>
+ * <p>Statements are recorded around execution, so each carries what caused it, its bound parameter values, and how
+ * long it took, and a statement that is built but never run is not captured. Statements accumulate across multiple
+ * {@link #run}, {@link #execute}, or {@link #executeThrowing} calls; use {@link #clear()} to reset between
+ * captures.</p>
  *
- * <p>This class is not thread-safe by design: the scoped observer is bound to the calling thread.</p>
+ * <p>The capture is bound to the calling thread and to the contexts Storm carries it into, such as a
+ * {@code transaction} block; recording is safe from any thread the work reaches.</p>
  *
  * <p><strong>Testing only.</strong> Captured statements retain their bound parameter values, which may be
  * sensitive (credentials, personal data). This class lives in the test-scoped {@code storm-test} module; do
@@ -42,23 +48,32 @@ import st.orm.test.CapturedSql.Operation;
  */
 public final class SqlCapture {
 
-    private final List<CapturedSql> statements = new ArrayList<>();
+    private final Queue<CapturedSql> statements = new ConcurrentLinkedQueue<>();
 
-    private Consumer<Sql> createObserver() {
-        return sql -> {
-            Operation op = switch (sql.operation()) {
+    /** Records each execution as it completes, so the capture carries the execution's duration. */
+    private final StatementListener listener = new StatementListener() {
+        @Override
+        public Handle onExecute(@Nonnull QueryContext context, @Nonnull List<Parameter> parameters) {
+            Operation op = switch (context.operation()) {
                 case SELECT -> Operation.SELECT;
                 case INSERT -> Operation.INSERT;
                 case UPDATE -> Operation.UPDATE;
                 case DELETE -> Operation.DELETE;
                 case UNDEFINED -> Operation.UNDEFINED;
             };
-            List<Object> parameters = sql.parameters().stream()
+            Origin origin = switch (context.origin()) {
+                case DIRECT -> Origin.DIRECT;
+                case FETCH -> Origin.FETCH;
+            };
+            String statement = context.statement().orElse("");
+            List<Object> values = parameters.stream()
                     .map(Parameter::dbValue)
                     .toList();
-            statements.add(new CapturedSql(op, sql.statement(), parameters));
-        };
-    }
+            long start = System.nanoTime();
+            return (rows, exact) -> statements.add(new CapturedSql(op, statement, values, origin,
+                    Duration.ofNanos(System.nanoTime() - start), rows, exact));
+        }
+    };
 
     /**
      * Executes the given action while capturing all SQL statements it generates.
@@ -66,7 +81,7 @@ public final class SqlCapture {
      * @param action the action to execute.
      */
     public void run(Runnable action) {
-        SqlInterceptor.observe(createObserver(), action);
+        SqlInterceptorManager.listen(listener).run(action);
     }
 
     /**
@@ -77,7 +92,7 @@ public final class SqlCapture {
      * @return the result of the action.
      */
     public <T> T execute(Supplier<T> action) {
-        return SqlInterceptor.observe(createObserver(), action);
+        return SqlInterceptorManager.listen(listener).get(action);
     }
 
     /**
@@ -90,7 +105,7 @@ public final class SqlCapture {
      * @throws Exception if the action throws an exception.
      */
     public <T> T executeThrowing(Callable<T> action) throws Exception {
-        return SqlInterceptor.observeThrowing(createObserver(), action);
+        return SqlInterceptorManager.listen(listener).call(action);
     }
 
     /**
@@ -115,6 +130,19 @@ public final class SqlCapture {
     }
 
     /**
+     * Returns captured statements filtered by what caused them to execute.
+     *
+     * @param origin the origin to filter by.
+     * @return the matching statements.
+     * @since 1.13
+     */
+    public List<CapturedSql> statements(Origin origin) {
+        return statements.stream()
+                .filter(s -> s.origin() == origin)
+                .toList();
+    }
+
+    /**
      * Returns the total number of captured statements.
      *
      * @return the statement count.
@@ -132,6 +160,22 @@ public final class SqlCapture {
     public int count(Operation operation) {
         return (int) statements.stream()
                 .filter(s -> s.operation() == operation)
+                .count();
+    }
+
+    /**
+     * Returns the number of captured statements matching the given origin.
+     *
+     * <p>Asserting that {@link Origin#FETCH} stays at zero, or below a bound, holds a query to the shape its
+     * fetch plan produces: the statements it counts are the ones a plan brings back in the same statement.</p>
+     *
+     * @param origin the origin to count.
+     * @return the matching statement count.
+     * @since 1.13
+     */
+    public int count(Origin origin) {
+        return (int) statements.stream()
+                .filter(s -> s.origin() == origin)
                 .count();
     }
 

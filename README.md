@@ -227,7 +227,7 @@ Deep dives into Storm's internals. You don't need these to be productive, but th
 | [Dirty Checking](docs/dirty-checking.md) | Update modes and change detection (19 min) |
 | [Entity Cache](docs/entity-cache.md) | Transaction-scoped caching and identity (10 min) |
 | [Configuration](docs/configuration.md) | System properties reference (7 min) |
-| [SQL Logging](docs/sql-logging.md) | Declarative query logging with `@SqlLog` (6 min) |
+| [SQL Logging](docs/sql-logging.md) | Statement logging and per-call SQL summaries (6 min) |
 | [Metrics](docs/metrics.md) | JMX runtime metrics for monitoring (5 min) |
 
 ### Resources

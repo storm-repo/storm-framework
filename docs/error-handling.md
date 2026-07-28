@@ -227,28 +227,16 @@ try {
 
 ### Enable SQL Logging
 
-The fastest way to diagnose a query problem is to see the generated SQL. Use the `@SqlLog` annotation on your repository to log every statement:
+The fastest way to diagnose a query problem is to see the generated SQL. Raise the `st.orm.sql` logger; no code change is needed:
 
-<Tabs groupId="language">
-<TabItem value="kotlin" label="Kotlin" default>
-
-```kotlin
-@SqlLog
-interface UserRepository : EntityRepository<User, Int>
+```yaml
+logging:
+  level:
+    st.orm.sql: DEBUG      # statements as sent, with placeholders
+    # st.orm.sql: TRACE    # with parameter values rendered in, ready to paste into a console
 ```
 
-</TabItem>
-<TabItem value="java" label="Java">
-
-```java
-@SqlLog
-public interface UserRepository extends EntityRepository<User, Integer> {}
-```
-
-</TabItem>
-</Tabs>
-
-For more targeted logging, annotate individual methods instead of the entire repository. See the [SQL Logging](sql-logging.md) page for details.
+To narrow the focus to one entity, raise its own logger instead: `st.orm.sql.User`. To see what a whole call cost rather than the statements one by one, wrap it in a scope. See the [SQL Logging](sql-logging.md) page for details.
 
 ### Use SqlCapture in Tests
 

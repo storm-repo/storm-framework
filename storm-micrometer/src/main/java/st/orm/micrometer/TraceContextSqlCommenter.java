@@ -21,6 +21,7 @@ import io.micrometer.tracing.Span;
 import io.micrometer.tracing.TraceContext;
 import io.micrometer.tracing.Tracer;
 import jakarta.annotation.Nonnull;
+import jakarta.annotation.Nullable;
 import java.util.Optional;
 import st.orm.core.spi.SqlCommenter;
 
@@ -32,13 +33,25 @@ import st.orm.core.spi.SqlCommenter;
  * trace identity, so a captured statement correlates directly to the trace that issued it, and the trace to
  * the exact database-side execution.</p>
  *
- * <p>Statements execute uncommented when no span is current. Note that a per-execution comment changes the
- * statement text on every call, which defeats driver-side and server-side prepared statement caching; enable
- * selectively where the correlation is worth that trade-off.</p>
+ * <p>Statements execute uncommented when the current span carries no usable trace identity: no span is
+ * current, the tracer is a no-op, or the context's identifiers are absent or malformed. A comment is only
+ * worth its cost when it correlates to something, and an identifier that no W3C parser accepts correlates to
+ * nothing. Note that a per-execution comment changes the statement text on every call, which defeats
+ * driver-side and server-side prepared statement caching; enable selectively where the correlation is worth
+ * that trade-off.</p>
  *
  * @since 1.13
  */
 public class TraceContextSqlCommenter implements SqlCommenter {
+
+    /** Length of a W3C trace id in hex characters; a 64-bit trace id occupies the low-order half. */
+    private static final int TRACE_ID_LENGTH = 32;
+
+    /** Length of a W3C parent id in hex characters. */
+    private static final int SPAN_ID_LENGTH = 16;
+
+    /** Length of the trace id a tracer configured for 64-bit trace identifiers reports. */
+    private static final int SHORT_TRACE_ID_LENGTH = 16;
 
     private final Tracer tracer;
     private final boolean onlySampled;
@@ -70,14 +83,69 @@ public class TraceContextSqlCommenter implements SqlCommenter {
     @Override
     public Optional<String> comment() {
         Span span = tracer.currentSpan();
-        if (span == null) {
+        // A no-op tracer reports a non-null span whose context carries empty identifiers.
+        if (span == null || span.isNoop()) {
             return Optional.empty();
         }
         TraceContext context = span.context();
         if (onlySampled && !Boolean.TRUE.equals(context.sampled())) {
             return Optional.empty();
         }
+        String traceId = traceId(context.traceId());
+        String spanId = spanId(context.spanId());
+        if (traceId == null || spanId == null) {
+            return Optional.empty();
+        }
         String flags = Boolean.TRUE.equals(context.sampled()) ? "01" : "00";
-        return Optional.of("traceparent='00-%s-%s-%s'".formatted(context.traceId(), context.spanId(), flags));
+        return Optional.of("traceparent='00-%s-%s-%s'".formatted(traceId, spanId, flags));
+    }
+
+    /**
+     * Returns the trace id in W3C form, or {@code null} when it carries no trace identity.
+     *
+     * <p>A tracer configured for 64-bit trace identifiers reports half a W3C trace id; the W3C form of such an
+     * identifier is left-padded with zeros, so padding renders it rather than discarding it.</p>
+     */
+    @Nullable
+    private static String traceId(@Nullable String traceId) {
+        if (traceId == null) {
+            return null;
+        }
+        String rendered = switch (traceId.length()) {
+            case SHORT_TRACE_ID_LENGTH -> "0".repeat(TRACE_ID_LENGTH - SHORT_TRACE_ID_LENGTH) + traceId;
+            case TRACE_ID_LENGTH -> traceId;
+            default -> null;
+        };
+        return isIdentity(rendered) ? rendered : null;
+    }
+
+    /**
+     * Returns the span id when it is a usable W3C parent id, {@code null} otherwise.
+     */
+    @Nullable
+    private static String spanId(@Nullable String spanId) {
+        if (spanId == null || spanId.length() != SPAN_ID_LENGTH) {
+            return null;
+        }
+        return isIdentity(spanId) ? spanId : null;
+    }
+
+    /**
+     * Returns whether the value is lowercase hex and not all zeros, which W3C reserves as the invalid
+     * identifier.
+     */
+    private static boolean isIdentity(@Nullable String value) {
+        if (value == null) {
+            return false;
+        }
+        boolean nonZero = false;
+        for (int i = 0; i < value.length(); i++) {
+            char c = value.charAt(i);
+            if ((c < '0' || c > '9') && (c < 'a' || c > 'f')) {
+                return false;
+            }
+            nonZero |= c != '0';
+        }
+        return nonZero;
     }
 }

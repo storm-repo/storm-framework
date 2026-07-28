@@ -621,8 +621,10 @@ The starters ship with Storm's Micrometer binding. When an `ObservationRegistry`
 
 A generic DataSource proxy can only time statements. Storm knows the entity and operation behind every statement it generates, so the observations carry meaningful tags:
 
-- **Low-cardinality key values** (become metric tags): the SQL operation (`SELECT`, `INSERT`, ...), the execution kind (query, update, batch), and the entity or projection type.
+- **Low-cardinality key values** (become metric tags): the SQL operation (`SELECT`, `INSERT`, ...), the execution kind (query, update, batch), the entity or projection type, and the statement origin.
 - **High-cardinality key values** (visible to trace handlers only): the SQL statement with parameter placeholders. Parameter values are never reported.
+
+`storm.origin` separates statements your code asked for (`DIRECT`) from statements that resolved a reference (`FETCH`). A reference the query did not resolve is selected as its foreign key column and resolved on demand, one statement per reference, and such a statement is shaped exactly like a primary key lookup you could have written yourself. Tagging it `FETCH` makes what resolving references costs a quantity you can chart and alert on rather than a share of all lookups; naming the reference in the query's fetch plan is what drives the rate back to zero. Resolutions served by the transaction's entity cache issue no statement at all, so the rate counts distinct cache misses, not `fetch()` call sites.
 
 Transactions are observed alongside the queries: every physical transaction — an outermost `transaction` block or a `REQUIRES_NEW` block, in any language stack and through the Spring bridge alike — reports as a `storm.transaction` observation with its duration, `storm.tx.outcome` (`committed` or `rolled_back`), `storm.tx.propagation`, and `storm.tx.read_only`. Joined blocks run inside an existing transaction and are deliberately not double-counted. Long-running transactions and rollback rates become queryable per application, and per domain with the multi-template tagging.
 
@@ -635,6 +637,8 @@ storm:
 ```
 
 Customization follows the usual back-off rules: contribute an `ObservationConvention<StormQueryObservationContext>` bean to override the naming and key values (it wins over the property), define your own `QueryObserver` bean to replace the binding entirely, or disable the observation at the registry level with `management.observations.enable.storm.query=false`.
+
+For development and per-request diagnosis, `storm.sql-scope.enabled=true` reports what each request cost the database as one summary per request — statements, database time against total time, concurrency, and the statement that carried the weight — with thresholds that turn it into a production guardrail. See [SQL Logging](sql-logging.md#per-call-summaries).
 
 With tracing in place, `storm.tracing.sql-comments` additionally appends the current trace context to statements as a sqlcommenter-style comment (`/*traceparent='00-…'*/`), so database-side diagnostics — MariaDB's slow query log, `pg_stat_activity` — correlate directly back to the trace that issued the statement. `true` comments every statement inside a span; `sampled` comments only statements of sampled traces, which is the recommended mode when the sampling probability is below 1.0. This is deliberately opt-in: a per-execution comment changes the statement text on every call, which defeats driver-side and server-side prepared statement caching.
 
