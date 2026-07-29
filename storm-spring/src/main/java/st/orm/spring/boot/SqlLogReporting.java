@@ -24,7 +24,7 @@ import st.orm.core.template.SqlLog;
 /**
  * How a scope summary reports, shared by every Spring entry point so the request filter and the entry-point
  * interceptor cannot drift apart. Without thresholds every unit of work that touched the database is reported, at
- * INFO; with a threshold set, only the ones that exceed it are, at WARN. At DEBUG the full statement texts follow
+ * INFO; with a threshold set, only the ones that exceed it are, at WARN. At TRACE the full statement texts follow
  * the summary.
  */
 final class SqlLogReporting {
