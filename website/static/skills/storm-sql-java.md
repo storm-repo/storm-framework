@@ -96,7 +96,7 @@ Close any ResultStream from custom queries. Use try-with-resources for getResult
 
 After writing SQL templates, write a test using `@StormTest` and `SqlCapture` to verify that schema, generated SQL, and intent are aligned.
 
-Tell the user what you are doing and why: explain that `SqlCapture` records every SQL statement Storm generates. The goal is not to test Storm itself, but to verify that the SQL template produces the result the user intended — correct tables joined, correct grouping, correct aggregation. This is Storm's verify-then-trust pattern.
+Tell the user what you are doing and why: explain that `SqlCapture` records every SQL statement Storm executes, with its bound values, duration, and origin. The goal is not to test Storm itself, but to verify that the SQL template produces the result the user intended — correct tables joined, correct grouping, correct aggregation. This is Storm's verify-then-trust pattern.
 
 ```java
 // Leading "/" resolves scripts from the classpath root (src/test/resources/).
