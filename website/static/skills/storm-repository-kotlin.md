@@ -716,6 +716,16 @@ Run the test. Show the user the captured SQL and explain how it aligns with the 
 
 **SQL visibility outside tests:** raise the `st.orm.sql` logger to `DEBUG` to log every executed statement at runtime, or to `TRACE` to render parameter values into it — useful for debugging without a test harness.
 
+**Finding what a call costs:** statement logging answers what ran; the SQL log summary answers what a unit of work cost. Raise `st.orm.sql.perf` to `INFO` and each request, scheduled task or listener invocation reports one line: how many statements it took, the summed database time against how long the call took, and a row per distinct statement ranked by total time. Read it for the usual wins:
+
+- A row with a high execution multiplier (`7x`) is an N+1. Batch it with `findAllById`, an `inList` predicate, or `resultGroupedBy` instead of a query per parent.
+- A row marked `fetch` is a reference resolved on demand. Naming it in the query's fetch plan (`select().fetch(path)`) folds the load into the parent statement, and `getOrThrow()` then reads it without querying.
+- A wide hydration shape (`j5 c60 d4` — joins, columns, graph depth; shown when `storm.sql-log.hydration` is set) says the read materializes more graph than it uses. Declare a `Ref` on the branches that read does not need, or use a projection.
+- Database time far below total time says the bottleneck is not the database, so stop optimizing queries.
+- `n from cache` counts reads the transaction's entity cache served without a statement, which is work already avoided rather than work to do.
+
+Set `storm.sql-log.call-sites: true` to name the application frame behind each row. In production, configure a statement or duration threshold so only calls that exceed one report, at `WARN`; summaries carry no parameter values at any level, so they are safe to leave enabled there.
+
 **Test isolation:** `SqlCapture` accumulates SQL across the entire test method. When writing multiple verification tests in one class, use `capture.clear()` between logical operations, or put each verification in its own `@Test` method. To avoid order-dependent failures, make assertions idempotent (don't assume specific row counts from prior inserts in other test methods) or use `@TestMethodOrder(MethodOrderer.OrderAnnotation::class)` with `@Order` if test ordering matters.
 
 The test can be temporary — verify and remove, or keep as a regression test. Ask the user which they prefer.
