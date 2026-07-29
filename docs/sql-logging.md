@@ -99,7 +99,7 @@ Two aids answer which query a row is:
   ```
 
   The shape is the type's declaration, derived at rendering and cached per type, so the setting costs nothing while calls run: an entity component is a join and recurses, an inline record is columns on the same table and no subgraph, and a `Ref` is its foreign key column and stops — which is exactly the width a `Ref` declaration saves. Many rows against a wide graph is the signal to consider `Ref` on the branches that read does not need, or a [projection](projections.md).
-- **DEBUG detail**: with `st.orm.sql.perf` at `DEBUG`, the un-elided statement texts follow the summary, one per row in row order.
+- **TRACE detail**: with `st.orm.sql.perf` at `TRACE`, the un-elided statement texts follow the summary, one per row in row order. `TRACE` rather than `DEBUG` because this logger sits under `st.orm.sql`, so raising that to `DEBUG` for per-statement logging would otherwise repeat every statement twice. Summaries carry no parameter values at any level, so this level is as safe to enable as the others.
 - **Display width**: rows aim for 200 characters, the statement text eliding to what the other columns leave; `storm.sql-log.line-width` (Spring), `sqlLogLineWidth` (Ktor), or the `storm.sql_log.line_width` system property sets the target for narrow viewers (120) or wide ones (240).
 
 Statements group by the template they were generated from, not by text. A collection parameter that expands to a different number of placeholders per execution (`IN (?)`, `IN (?, ?)`) therefore stays one row, marked `(n variants)`.

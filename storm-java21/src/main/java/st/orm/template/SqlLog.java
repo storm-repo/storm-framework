@@ -31,7 +31,7 @@ import jakarta.annotation.Nullable;
  * }</pre>
  *
  * <p>The summary reports through the {@code st.orm.sql.perf} logger when the scope closes, and the logger is the
- * only switch: statements are recorded only while it is enabled at {@code INFO}, and at {@code DEBUG} the full
+ * only switch: statements are recorded only while it is enabled at {@code INFO}, and at {@code TRACE} the full
  * statement texts follow the summary. What a scope observed is a report, not an API: production numbers belong to
  * the Micrometer observations, and test assertions to {@code SqlCapture}.</p>
  *

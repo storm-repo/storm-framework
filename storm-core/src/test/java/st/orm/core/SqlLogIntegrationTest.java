@@ -361,6 +361,33 @@ public class SqlLogIntegrationTest {
     }
 
     @Test
+    public void testTheStatementTextsFollowAtTraceRatherThanDebug() {
+        var orm = ORMTemplate.of(dataSource);
+        var logger = (ch.qos.logback.classic.Logger) org.slf4j.LoggerFactory.getLogger("st.orm.sql.perf");
+        var appender = new ch.qos.logback.core.read.ListAppender<ch.qos.logback.classic.spi.ILoggingEvent>();
+        appender.start();
+        logger.addAppender(appender);
+        var level = logger.getLevel();
+        try {
+            List<SqlLog.Summary> summaries = new ArrayList<>();
+            SqlLog.record("levels", (Supplier<Object>) () -> orm.entity(City.class).getById(1), summaries::add);
+            var summary = summaries.getFirst();
+            // This logger sits under st.orm.sql, so DEBUG arrives by inheritance whenever per-statement logging
+            // is raised. Repeating the texts there would print every statement twice.
+            logger.setLevel(ch.qos.logback.classic.Level.DEBUG);
+            SqlLog.report(summary);
+            assertEquals(summary.toString(), appender.list.getFirst().getFormattedMessage());
+            appender.list.clear();
+            logger.setLevel(ch.qos.logback.classic.Level.TRACE);
+            SqlLog.report(summary);
+            assertEquals(summary.toDetailedString(), appender.list.getFirst().getFormattedMessage());
+        } finally {
+            logger.setLevel(level);
+            logger.detachAppender(appender);
+        }
+    }
+
+    @Test
     public void testASummaryWithoutStatementsIsNotReported() {
         var logger = (ch.qos.logback.classic.Logger) org.slf4j.LoggerFactory.getLogger("st.orm.sql.perf");
         var appender = new ch.qos.logback.core.read.ListAppender<ch.qos.logback.classic.spi.ILoggingEvent>();

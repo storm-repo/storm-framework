@@ -87,8 +87,12 @@ public final class SqlLog {
 
     /**
      * Reports a summary under the {@code st.orm.sql.perf} logger: at {@code INFO}, with the full statement texts
-     * appended while the logger is at {@code DEBUG}. A summary without statements says nothing worth a line and is
+     * appended while the logger is at {@code TRACE}. A summary without statements says nothing worth a line and is
      * not reported.
+     *
+     * <p>The texts follow at {@code TRACE} rather than {@code DEBUG} because this logger is a child of
+     * {@code st.orm.sql}: raising that to {@code DEBUG} for per-statement logging would otherwise raise this one
+     * with it and repeat every statement the statement logger had just written on its own line.</p>
      *
      * @param summary the summary to report.
      */
@@ -96,7 +100,7 @@ public final class SqlLog {
         if (summary.statementCount() == 0) {
             return;
         }
-        REPORT_LOGGER.info("{}", REPORT_LOGGER.isDebugEnabled() ? summary.toDetailedString() : summary);
+        REPORT_LOGGER.info("{}", REPORT_LOGGER.isTraceEnabled() ? summary.toDetailedString() : summary);
     }
 
     /**

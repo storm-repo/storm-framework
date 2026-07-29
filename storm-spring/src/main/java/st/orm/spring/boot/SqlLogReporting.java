@@ -50,9 +50,10 @@ final class SqlLogReporting {
         if (summary.statementCount() == 0) {
             return;
         }
-        // At DEBUG the full statement texts follow the summary, so an elided row can be matched to its
-        // statement.
-        Object rendered = logger.isDebugEnabled() ? summary.toDetailedString() : summary;
+        // At TRACE the full statement texts follow the summary, so an elided row can be matched to its
+        // statement. TRACE rather than DEBUG because this logger is a child of st.orm.sql: raising that to DEBUG
+        // for per-statement logging would otherwise repeat every statement the statement logger already wrote.
+        Object rendered = logger.isTraceEnabled() ? summary.toDetailedString() : summary;
         if (statementThreshold == null && durationThreshold == null) {
             logger.info("{}", rendered);
             return;

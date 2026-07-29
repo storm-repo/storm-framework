@@ -287,9 +287,10 @@ val Storm = createApplicationPlugin(name = "Storm", createConfiguration = ::Stor
             recordSqlLog(name, limit, callSites, { proceed() }) { summary ->
                 // A call that touched no database says nothing worth a line. Without thresholds every call that
                 // did is reported; with one, only calls that exceed it are, at WARN.
-                // At DEBUG the full statement texts follow the summary, so an elided row can be matched to its
-                // statement.
-                val rendered = if (logger.isDebugEnabled) summary.toDetailedString() else summary
+                // At TRACE the full statement texts follow the summary, so an elided row can be matched to its
+                // statement. TRACE rather than DEBUG because this logger is a child of st.orm.sql: raising that
+                // to DEBUG for per-statement logging would otherwise repeat every statement already written.
+                val rendered = if (logger.isTraceEnabled) summary.toDetailedString() else summary
                 when {
                     summary.statementCount() == 0 -> {}
                     !thresholded -> logger.info("{}", rendered)
