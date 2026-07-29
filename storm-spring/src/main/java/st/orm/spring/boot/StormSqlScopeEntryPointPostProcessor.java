@@ -1,0 +1,182 @@
+/*
+ * Copyright 2024 - 2026 the original author or authors.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *      https://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+package st.orm.spring.boot;
+
+import jakarta.annotation.Nonnull;
+import jakarta.annotation.Nullable;
+import java.lang.annotation.Annotation;
+import java.lang.reflect.Method;
+import java.lang.reflect.Modifier;
+import java.time.Duration;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Set;
+import org.aopalliance.intercept.MethodInterceptor;
+import org.aopalliance.intercept.MethodInvocation;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.aop.framework.Advised;
+import org.springframework.aop.framework.ProxyFactory;
+import org.springframework.aop.support.AopUtils;
+import org.springframework.aop.support.DefaultPointcutAdvisor;
+import org.springframework.aop.support.StaticMethodMatcherPointcut;
+import org.springframework.beans.factory.config.BeanPostProcessor;
+import org.springframework.core.Ordered;
+import org.springframework.util.ReflectionUtils;
+import st.orm.core.template.SqlScope;
+
+/**
+ * Wraps the entry points a request filter cannot see in a SQL scope: methods through which work enters the
+ * application without an HTTP request, such as {@code @Scheduled} tasks and {@code @KafkaListener},
+ * {@code @RabbitListener} or {@code @JmsListener} handlers.
+ *
+ * <p>Each invocation reports as one summary named after the method ({@code ReportJob.nightly}), with the same
+ * thresholds and through the same {@code st.orm.sql.scope} logger as the per-request filter, so what a scheduled
+ * import or a queue consumer cost the database reads exactly like what a request cost it.</p>
+ *
+ * <p>Entry points are matched by annotation type name, directly present on the bean method, so a default whose
+ * library is absent from the classpath simply never matches and costs nothing. The set is configurable through
+ * {@code storm.sql-scope.entry-points}.</p>
+ *
+ * <p>The scope follows the invoking thread, which is where a blocking task or listener does its work. Work the
+ * method hands to another thread falls outside it.</p>
+ *
+ * @since 1.13
+ */
+public class StormSqlScopeEntryPointPostProcessor implements BeanPostProcessor, Ordered {
+
+    private static final Logger LOGGER = LoggerFactory.getLogger("st.orm.sql.scope");
+
+    private final Set<String> entryPointAnnotations;
+    private final int limit;
+    private final boolean callSites;
+    private final @Nullable Integer statementThreshold;
+    private final @Nullable Duration durationThreshold;
+
+    /**
+     * Creates the post-processor.
+     *
+     * @param entryPointAnnotations fully qualified annotation type names that mark a method as an entry point.
+     * @param limit the number of statements to record per invocation; the summary counts the rest regardless.
+     * @param callSites whether to attribute each execution to the application frame that caused it.
+     * @param statementThreshold number of statements above which an invocation is reported, or {@code null}.
+     * @param durationThreshold invocation duration above which an invocation is reported, or {@code null}.
+     */
+    public StormSqlScopeEntryPointPostProcessor(@Nonnull Set<String> entryPointAnnotations,
+                                                int limit,
+                                                boolean callSites,
+                                                @Nullable Integer statementThreshold,
+                                                @Nullable Duration durationThreshold) {
+        this.entryPointAnnotations = Set.copyOf(entryPointAnnotations);
+        this.limit = limit;
+        this.callSites = callSites;
+        this.statementThreshold = statementThreshold;
+        this.durationThreshold = durationThreshold;
+    }
+
+    /**
+     * Runs before the scheduling and listener annotation post-processors, which sit at the lowest precedence, so
+     * they register their invocations against the wrapped bean.
+     */
+    @Override
+    public int getOrder() {
+        return Ordered.LOWEST_PRECEDENCE - 100;
+    }
+
+    @Override
+    public Object postProcessAfterInitialization(@Nonnull Object bean, @Nonnull String beanName) {
+        if (entryPointAnnotations.isEmpty()) {
+            return bean;
+        }
+        Class<?> targetClass = AopUtils.getTargetClass(bean);
+        List<Method> entryPoints = new ArrayList<>();
+        ReflectionUtils.doWithMethods(targetClass, method -> {
+            if (isEntryPoint(method)) {
+                entryPoints.add(method);
+            }
+        });
+        if (entryPoints.isEmpty()) {
+            return bean;
+        }
+        for (var method : entryPoints) {
+            if (Modifier.isFinal(method.getModifiers())) {
+                LOGGER.warn("Cannot wrap {}.{} in a SQL scope: the method is final, so the proxy cannot "
+                        + "intercept it. Open a scope inside the method instead.",
+                        targetClass.getSimpleName(), method.getName());
+            }
+        }
+        var advisor = new DefaultPointcutAdvisor(new EntryPointPointcut(), new EntryPointInterceptor(targetClass));
+        if (bean instanceof Advised advised && !advised.isFrozen()) {
+            // The bean is proxied already; the scope joins that proxy, outermost so it covers the other advice.
+            advised.addAdvisor(0, advisor);
+            return bean;
+        }
+        if (Modifier.isFinal(targetClass.getModifiers())) {
+            LOGGER.warn("Cannot wrap {} in a SQL scope: the class is final, so it cannot be proxied. Open a "
+                    + "scope inside the entry point instead.", targetClass.getSimpleName());
+            return bean;
+        }
+        var proxyFactory = new ProxyFactory(bean);
+        // The scheduling and listener post-processors read their annotations from the target class, so the proxy
+        // has to be a subclass for the entry points to remain discoverable.
+        proxyFactory.setProxyTargetClass(true);
+        proxyFactory.addAdvisor(advisor);
+        return proxyFactory.getProxy(targetClass.getClassLoader());
+    }
+
+    private boolean isEntryPoint(@Nonnull Method method) {
+        for (Annotation annotation : method.getDeclaredAnnotations()) {
+            if (entryPointAnnotations.contains(annotation.annotationType().getName())) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /** Routes only the entry points through the interceptor; every other method of the bean stays untouched. */
+    private final class EntryPointPointcut extends StaticMethodMatcherPointcut {
+        @Override
+        public boolean matches(@Nonnull Method method, @Nonnull Class<?> targetClass) {
+            return isEntryPoint(AopUtils.getMostSpecificMethod(method, targetClass));
+        }
+    }
+
+    /** Wraps an invocation in a scope named after the method, reporting like the per-request filter. */
+    private final class EntryPointInterceptor implements MethodInterceptor {
+        private final Class<?> targetClass;
+
+        private EntryPointInterceptor(@Nonnull Class<?> targetClass) {
+            this.targetClass = targetClass;
+        }
+
+        @Override
+        public Object invoke(@Nonnull MethodInvocation invocation) throws Throwable {
+            boolean thresholded = statementThreshold != null || durationThreshold != null;
+            if (!SqlScopeReporting.consumes(LOGGER, thresholded)) {
+                // Nothing consumes the summary, so do not open a scope to build one.
+                return invocation.proceed();
+            }
+            String name = targetClass.getSimpleName() + "." + invocation.getMethod().getName();
+            var scope = SqlScope.open(name, limit, callSites);
+            try {
+                return invocation.proceed();
+            } finally {
+                scope.close();
+                SqlScopeReporting.report(LOGGER, scope.summary(), statementThreshold, durationThreshold);
+            }
+        }
+    }
+}

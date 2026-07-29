@@ -37,9 +37,9 @@ import st.orm.core.template.SqlScope;
  * took, and which statement carried the weight.</p>
  *
  * <pre>{@code
- * SQL (GET /owners/42): 12 statements, 34 ms
- * 	 1 Owner
- * 	10 City             8 fetch
+ * SQL (GET /owners/42): 12 statements, 8 fetches, 34 ms in database, 96 ms total
+ * 	18 ms  112 rows  4x  Pet           SELECT p.id, p.name FROM pet p WHERE p.owner_id = ?
+ * 	 9 ms    8 rows  8x  City  fetch   SELECT c.id, c.name FROM city c WHERE c.id = ?
  * }</pre>
  *
  * <p>Enabled with {@code storm.sql-scope.enabled=true}. Statements are recorded only while the summary logger is
@@ -112,7 +112,7 @@ public class StormSqlScopeFilter extends OncePerRequestFilter {
     protected void doFilterInternal(@Nonnull HttpServletRequest request,
                                     @Nonnull HttpServletResponse response,
                                     @Nonnull FilterChain chain) throws ServletException, IOException {
-        if (thresholded() ? !LOGGER.isWarnEnabled() : !LOGGER.isInfoEnabled()) {
+        if (!SqlScopeReporting.consumes(LOGGER, thresholded())) {
             // Nothing consumes the summary, so do not open a scope to build one.
             chain.doFilter(request, response);
             return;
@@ -122,34 +122,11 @@ public class StormSqlScopeFilter extends OncePerRequestFilter {
             SqlScope.recordThrowing(name, limit, callSites, () -> {
                 chain.doFilter(request, response);
                 return null;
-            }, this::report);
+            }, summary -> SqlScopeReporting.report(LOGGER, summary, statementThreshold, durationThreshold));
         } catch (ServletException | IOException | RuntimeException e) {
             throw e;
         } catch (Exception e) {
             throw new ServletException(e);
-        }
-    }
-
-    /**
-     * Logs the summary. Without thresholds, every request that touched the database is reported; with one, only
-     * requests that exceed it are, at WARN. At DEBUG the rows carry their statements' declared hydration shapes
-     * and the full statement texts follow the summary.
-     */
-    private void report(@Nonnull SqlScope.Summary summary) {
-        if (summary.statementCount() == 0) {
-            return;
-        }
-        // At DEBUG the full statement texts follow the summary, so an elided row can be matched to its
-        // statement.
-        Object rendered = LOGGER.isDebugEnabled() ? summary.toDetailedString() : summary;
-        if (!thresholded()) {
-            LOGGER.info("{}", rendered);
-            return;
-        }
-        boolean exceeded = (statementThreshold != null && summary.statementCount() >= statementThreshold)
-                || (durationThreshold != null && summary.durationNanos() >= durationThreshold.toNanos());
-        if (exceeded) {
-            LOGGER.warn("{}", rendered);
         }
     }
 }

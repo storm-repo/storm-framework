@@ -312,6 +312,32 @@ public class StormProperties {
          */
         private List<String> callSiteSkip = java.util.List.of();
 
+        /**
+         * Annotations that mark a bean method as an entry point to be wrapped in its own scope, covering the
+         * ways work enters the application without an HTTP request. Each invocation reports as one summary
+         * named after the method ({@code ReportJob.nightly}), with the same thresholds as the per-request
+         * filter.
+         *
+         * <p>Matching is by annotation type name, directly present on the bean method, so a default whose
+         * library is absent from the classpath never matches and costs nothing. Setting the property replaces
+         * the default list; an empty list turns entry-point wrapping off.</p>
+         */
+        private List<String> entryPoints = java.util.List.of(
+                "org.springframework.scheduling.annotation.Scheduled",
+                "org.springframework.scheduling.annotation.Schedules",
+                "org.springframework.kafka.annotation.KafkaListener",
+                "org.springframework.kafka.annotation.KafkaListeners",
+                "org.springframework.amqp.rabbit.annotation.RabbitListener",
+                "org.springframework.amqp.rabbit.annotation.RabbitListeners",
+                "org.springframework.jms.annotation.JmsListener",
+                "org.springframework.jms.annotation.JmsListeners");
+
+        /** Returns the annotations that mark a bean method as an entry point. */
+        public List<String> getEntryPoints() { return entryPoints; }
+
+        /** Sets the annotations that mark a bean method as an entry point. */
+        public void setEntryPoints(List<String> entryPoints) { this.entryPoints = entryPoints; }
+
         /** Returns the packages skipped in call-site attribution. */
         public List<String> getCallSiteSkip() { return callSiteSkip; }
 

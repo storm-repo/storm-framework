@@ -119,9 +119,9 @@ The headline also counts what cost nothing: `3 from cache` reports the reads the
 
 A scope covers whatever runs inside it, whichever repository, query builder or template issued the statement. Summaries log under `st.orm.sql.scope` at `INFO`, and statements are recorded only while that logger is enabled.
 
-### Per Request
+### Per Entry Point
 
-Both web integrations can wrap every request, which needs no code change and no annotation.
+Both integrations can wrap every way work enters the application, which needs no code change and no annotation.
 
 <Tabs groupId="framework">
 <TabItem value="spring" label="Spring Boot" default>
@@ -130,10 +130,12 @@ Both web integrations can wrap every request, which needs no code change and no 
 storm:
   sql-scope:
     enabled: true
-    limit: 200      # statements recorded per request; the count covers the rest
+    limit: 200      # statements recorded per unit of work; the count covers the rest
 ```
 
-For production, thresholds turn the scope into a guardrail: only requests that exceed one are reported, at WARN.
+A servlet filter wraps each HTTP request. The same switch covers the entry points a filter cannot see: a method annotated `@Scheduled`, `@KafkaListener`, `@RabbitListener`, or `@JmsListener` reports as its own summary, named after the method (`ReportJob.nightly`), so a worker without a web layer reports the same way a web application does. Matching is by annotation name, directly present on the bean method, so a listener library that is absent from the classpath costs nothing, and `storm.sql-scope.entry-points` replaces the set for others — an SQS listener, or an application's own dispatch annotation. A final class or method cannot be proxied; open a scope inside it instead.
+
+For production, thresholds turn the scope into a guardrail: only units of work that exceed one are reported, at WARN.
 
 ```yaml
 storm:
@@ -167,9 +169,9 @@ install(Storm) {
 </TabItem>
 </Tabs>
 
-The request is the boundary, so the summary is named after it (`GET /owners/42`). Requests that touch no database produce no line.
+The boundary names the summary: a request after its route (`GET /owners/42`), an entry-point method after itself (`ReportJob.nightly`). A unit of work that touches no database produces no line.
 
-The request thread is what this covers. An application whose work runs in coroutines opens the scope inside the coroutine instead, where every child inherits it; see below.
+The invoking thread is what this covers, which is where a request handler, a scheduled task or a blocking listener does its work. An application whose work runs in coroutines opens the scope inside the coroutine instead, where every child inherits it; see below.
 
 ### A Narrower Boundary
 
