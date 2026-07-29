@@ -7,7 +7,7 @@ Automatic relationship loading is a core part of Storm's design. The database ow
 
 This design enables:
 
-- **Single-query loading.** No N+1 problems. One query returns the complete entity graph.
+- **Single-query loading.** One query returns the complete entity graph, so the declared relationships never cost a query each, and nothing loads behind your back.
 - **Type-safe path expressions.** Filter on joined fields with full IDE support, including auto-completion across relationships: `User_.city.name eq "Sunnyvale"`
 - **Concise syntax.** No manual joins, no fetch configuration, no lazy loading surprises.
 - **Predictable behavior.** What you define is what you get. The entity structure *is* the query structure.
@@ -560,7 +560,7 @@ When you query `Order`:
 3. `Address` for shipping is loaded (via JOIN)
 4. `Address` for customer default is loaded (via JOIN)
 
-All in **one SQL query**. No lazy loading surprises, no N+1 problems.
+All in **one SQL query**. No lazy loading surprises, and no query per relationship to avoid.
 
 ### How It Works
 

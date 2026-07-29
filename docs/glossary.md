@@ -14,7 +14,7 @@ A Kotlin data class or Java record that implements the `Entity<ID>` interface an
 A transaction-scoped cache that stores entities by primary key during a transaction. It avoids redundant database round-trips, skips repeated object construction during hydration, preserves object identity within a transaction, and tracks observed state for dirty checking. The cache is automatically cleared on commit or rollback. See [Entity Cache](entity-cache.md).
 
 **Entity Graph**
-The tree of related entities loaded through `@FK` relationships in a single query using JOINs. When Storm loads a `User` that has `@FK val city: City`, it automatically joins the `city` table and returns a fully populated `User` with its `City` object. This eliminates the N+1 query problem. See [Relationships](relationships.md).
+The tree of related entities loaded through `@FK` relationships in a single query using JOINs. When Storm loads a `User` that has `@FK val city: City`, it automatically joins the `city` table and returns a fully populated `User` with its `City` object. The declared graph therefore costs one statement rather than one per relationship, and because nothing loads lazily, no query is ever issued behind the application's back. See [Relationships](relationships.md).
 
 **Entity Lifecycle**
 The set of callback hooks (`beforeInsert`, `afterInsert`, `beforeUpdate`, `afterUpdate`, `beforeDelete`, `afterDelete`) that fire around mutation operations. Implemented via the `EntityCallback<E>` interface, these hooks enable cross-cutting concerns like auditing and validation. See [Entity Lifecycle](entity-lifecycle.md).
