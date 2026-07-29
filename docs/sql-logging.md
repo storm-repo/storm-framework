@@ -99,7 +99,7 @@ Two aids answer which query a row is:
   ```
 
   The shape is the type's declaration, derived at rendering and cached per type, so the setting costs nothing while calls run: an entity component is a join and recurses, an inline record is columns on the same table and no subgraph, and a `Ref` is its foreign key column and stops — which is exactly the width a `Ref` declaration saves. Many rows against a wide graph is the signal to consider `Ref` on the branches that read does not need, or a [projection](projections.md).
-- **DEBUG detail**: with `st.orm.sql.summary` at `DEBUG`, the un-elided statement texts follow the summary, one per row in row order.
+- **DEBUG detail**: with `st.orm.sql.perf` at `DEBUG`, the un-elided statement texts follow the summary, one per row in row order.
 - **Display width**: rows aim for 200 characters, the statement text eliding to what the other columns leave; `storm.sql-log.line-width` (Spring), `sqlLogLineWidth` (Ktor), or the `storm.sql_log.line_width` system property sets the target for narrow viewers (120) or wide ones (240).
 
 Statements group by the template they were generated from, not by text. A collection parameter that expands to a different number of placeholders per execution (`IN (?)`, `IN (?, ?)`) therefore stays one row, marked `(n variants)`.
@@ -117,7 +117,7 @@ Summed database time exceeds elapsed time whenever statements run concurrently, 
 
 The headline also counts what cost nothing: `3 from cache` reports the reads the transaction's entity cache served without a statement — a reference resolving to an entity the transaction had already read, or an identity lookup at `REPEATABLE_READ` and above. The fetch count is the cache misses; this is the other side, and it appears only when any read was served.
 
-A scope covers whatever runs inside it, whichever repository, query builder or template issued the statement. Summaries log under `st.orm.sql.summary` at `INFO`, and statements are recorded only while that logger is enabled.
+A scope covers whatever runs inside it, whichever repository, query builder or template issued the statement. Summaries log under `st.orm.sql.perf` at `INFO`, and statements are recorded only while that logger is enabled.
 
 ### Per Entry Point
 
@@ -175,7 +175,7 @@ The invoking thread is what this covers, which is where a request handler, a sch
 
 ### A Narrower Boundary
 
-To measure one service method rather than a whole request, open a scope directly. The summary reports the same way: under `st.orm.sql.summary`, only while that logger is enabled.
+To measure one service method rather than a whole request, open a scope directly. The summary reports the same way: under `st.orm.sql.perf`, only while that logger is enabled.
 
 <Tabs groupId="language">
 <TabItem value="kotlin" label="Kotlin" default>
@@ -214,7 +214,7 @@ The scope follows the thread that opened it. Work handed to another thread, incl
 
 ### The Summary Is the Report
 
-A scope hands nothing back: the summary reports through the `st.orm.sql.summary` logger, and the logger is the only switch. That is deliberate. Each number a summary shows already has a home for programmatic use — production metrics are the [Micrometer observations](spring-integration.md#observability), and test assertions are [`SqlCapture`](testing.md) — so the summary stays a report to be read, not an API to be coupled to.
+A scope hands nothing back: the summary reports through the `st.orm.sql.perf` logger, and the logger is the only switch. That is deliberate. Each number a summary shows already has a home for programmatic use — production metrics are the [Micrometer observations](spring-integration.md#observability), and test assertions are [`SqlCapture`](testing.md) — so the summary stays a report to be read, not an API to be coupled to.
 
 Parameter values are absent by design: they are database values, and a summary is meant to be safe to log in production. Raise `st.orm.sql` to `TRACE` to see values.
 

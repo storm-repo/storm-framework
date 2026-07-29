@@ -78,7 +78,7 @@ fun sqlLogContext(): CoroutineContext {
  * }
  * ```
  *
- * The summary reports through the `st.orm.sql.summary` logger when the block completes, normally or not, and the
+ * The summary reports through the `st.orm.sql.perf` logger when the block completes, normally or not, and the
  * logger is the only switch: statements are recorded only while it is enabled at INFO, and at DEBUG the full
  * statement texts follow the summary. What a scope observed is a report, not an API: production numbers belong to
  * the Micrometer observations, and test assertions to `SqlCapture`.

@@ -340,7 +340,7 @@ public class SqlLogIntegrationTest {
     @Test
     public void testAReportedSummaryLogsUnderTheScopeLogger() {
         var orm = ORMTemplate.of(dataSource);
-        var logger = (ch.qos.logback.classic.Logger) org.slf4j.LoggerFactory.getLogger("st.orm.sql.summary");
+        var logger = (ch.qos.logback.classic.Logger) org.slf4j.LoggerFactory.getLogger("st.orm.sql.perf");
         var appender = new ch.qos.logback.core.read.ListAppender<ch.qos.logback.classic.spi.ILoggingEvent>();
         appender.start();
         logger.addAppender(appender);
@@ -362,7 +362,7 @@ public class SqlLogIntegrationTest {
 
     @Test
     public void testASummaryWithoutStatementsIsNotReported() {
-        var logger = (ch.qos.logback.classic.Logger) org.slf4j.LoggerFactory.getLogger("st.orm.sql.summary");
+        var logger = (ch.qos.logback.classic.Logger) org.slf4j.LoggerFactory.getLogger("st.orm.sql.perf");
         var appender = new ch.qos.logback.core.read.ListAppender<ch.qos.logback.classic.spi.ILoggingEvent>();
         appender.start();
         logger.addAppender(appender);

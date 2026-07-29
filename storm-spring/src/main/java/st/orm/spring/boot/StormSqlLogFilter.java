@@ -59,7 +59,7 @@ import st.orm.core.template.SqlLog;
  */
 public class StormSqlLogFilter extends OncePerRequestFilter {
 
-    private static final Logger LOGGER = LoggerFactory.getLogger("st.orm.sql.summary");
+    private static final Logger LOGGER = LoggerFactory.getLogger("st.orm.sql.perf");
 
     private final int limit;
     private final boolean callSites;

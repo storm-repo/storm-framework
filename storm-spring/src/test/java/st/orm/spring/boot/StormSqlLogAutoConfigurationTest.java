@@ -105,7 +105,7 @@ public class StormSqlLogAutoConfigurationTest {
     }
 
     private void withScopeLogger(Consumer<List<ILoggingEvent>> test) {
-        var logger = (ch.qos.logback.classic.Logger) org.slf4j.LoggerFactory.getLogger("st.orm.sql.summary");
+        var logger = (ch.qos.logback.classic.Logger) org.slf4j.LoggerFactory.getLogger("st.orm.sql.perf");
         var appender = new ListAppender<ILoggingEvent>();
         appender.start();
         logger.addAppender(appender);

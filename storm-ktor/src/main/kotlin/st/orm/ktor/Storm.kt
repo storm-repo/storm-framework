@@ -273,7 +273,7 @@ val Storm = createApplicationPlugin(name = "Storm", createConfiguration = ::Stor
         val statementThreshold = pluginConfig.sqlLogStatementThreshold
         val durationThreshold = pluginConfig.sqlLogDurationThreshold
         val thresholded = statementThreshold != null || durationThreshold != null
-        val logger = LoggerFactory.getLogger("st.orm.sql.summary")
+        val logger = LoggerFactory.getLogger("st.orm.sql.perf")
         // Intercepting surrounds the rest of the pipeline, so the scope covers everything the call does rather
         // than a point within it. The scope follows the coroutine, so it keeps recording across a suspension
         // that resumes on another thread, which is exactly what a handler does around the database.

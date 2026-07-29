@@ -30,7 +30,7 @@ import st.orm.core.template.SqlLog as CoreSqlLog
  * resumes on another thread, which is the case a thread-bound scope loses.
  *
  * The recording machinery is exercised directly, since the summary it produces is internal wiring on its way to
- * the `st.orm.sql.summary` logger rather than something [sqlLog] hands to the application.
+ * the `st.orm.sql.perf` logger rather than something [sqlLog] hands to the application.
  */
 @ExtendWith(SpringExtension::class)
 @ContextConfiguration(classes = [IntegrationConfig::class])

@@ -73,20 +73,20 @@ public final class SqlLog {
      * it is enabled and read only through it, so what a scope observed never becomes API surface an application
      * couples to.
      */
-    private static final Logger REPORT_LOGGER = LoggerFactory.getLogger("st.orm.sql.summary");
+    private static final Logger REPORT_LOGGER = LoggerFactory.getLogger("st.orm.sql.perf");
 
     /**
      * Returns whether a reported summary reaches anything, so a caller can skip opening a scope whose summary
      * nothing consumes.
      *
-     * @return whether the {@code st.orm.sql.summary} logger is enabled at {@code INFO}.
+     * @return whether the {@code st.orm.sql.perf} logger is enabled at {@code INFO}.
      */
     public static boolean reporting() {
         return REPORT_LOGGER.isInfoEnabled();
     }
 
     /**
-     * Reports a summary under the {@code st.orm.sql.summary} logger: at {@code INFO}, with the full statement texts
+     * Reports a summary under the {@code st.orm.sql.perf} logger: at {@code INFO}, with the full statement texts
      * appended while the logger is at {@code DEBUG}. A summary without statements says nothing worth a line and is
      * not reported.
      *

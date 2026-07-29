@@ -45,7 +45,7 @@ import st.orm.core.template.SqlLog;
  * {@code @KafkaHandler} and {@code @RabbitHandler} methods of a class-level listener.
  *
  * <p>Each invocation reports as one summary named after the method ({@code ReportJob.nightly}), with the same
- * thresholds and through the same {@code st.orm.sql.summary} logger as the per-request filter, so what a scheduled
+ * thresholds and through the same {@code st.orm.sql.perf} logger as the per-request filter, so what a scheduled
  * import or a queue consumer cost the database reads exactly like what a request cost it.</p>
  *
  * <p>Entry points are matched by annotation type name, directly present on the bean method, so a default whose
@@ -59,7 +59,7 @@ import st.orm.core.template.SqlLog;
  */
 public class StormSqlLogEntryPointPostProcessor implements BeanPostProcessor, Ordered {
 
-    private static final Logger LOGGER = LoggerFactory.getLogger("st.orm.sql.summary");
+    private static final Logger LOGGER = LoggerFactory.getLogger("st.orm.sql.perf");
 
     private final Set<String> entryPointAnnotations;
     private final int limit;

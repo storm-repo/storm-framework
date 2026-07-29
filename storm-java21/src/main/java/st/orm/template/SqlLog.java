@@ -30,7 +30,7 @@ import jakarta.annotation.Nullable;
  * }
  * }</pre>
  *
- * <p>The summary reports through the {@code st.orm.sql.summary} logger when the scope closes, and the logger is the
+ * <p>The summary reports through the {@code st.orm.sql.perf} logger when the scope closes, and the logger is the
  * only switch: statements are recorded only while it is enabled at {@code INFO}, and at {@code DEBUG} the full
  * statement texts follow the summary. What a scope observed is a report, not an API: production numbers belong to
  * the Micrometer observations, and test assertions to {@code SqlCapture}.</p>
@@ -63,7 +63,7 @@ public final class SqlLog {
      * }</pre>
      *
      * <p>The scope must be closed on the thread that opened it, which a try-with-resources block guarantees.
-     * Closing reports the summary under {@code st.orm.sql.summary}; a scope whose summary nothing consumes, because
+     * Closing reports the summary under {@code st.orm.sql.perf}; a scope whose summary nothing consumes, because
      * that logger is disabled, records nothing.</p>
      *
      * @param name what the scope covers, used to label the summary.

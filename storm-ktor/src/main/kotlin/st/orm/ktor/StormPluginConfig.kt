@@ -100,7 +100,7 @@ class StormPluginConfig {
      * 	 9 ms    8 rows  8x  City  fetch   SELECT c.id, c.name FROM city c WHERE c.id = ?
      * ```
      *
-     * The summary logs under `st.orm.sql.summary` at INFO. Statements are recorded only while that logger is
+     * The summary logs under `st.orm.sql.perf` at INFO. Statements are recorded only while that logger is
      * enabled, so leaving this on costs nothing once the logger is turned down. Disabled by default.
      *
      * For a narrower boundary than a request, open a scope directly with
