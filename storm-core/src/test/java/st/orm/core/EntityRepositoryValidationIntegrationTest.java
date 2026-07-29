@@ -311,12 +311,12 @@ public class EntityRepositoryValidationIntegrationTest {
         List<String> afterLog = new ArrayList<>();
         var orm = ORMTemplate.of(dataSource).withEntityCallback(new EntityCallback<City>() {
             @Override
-            public void beforeDelete(@Nonnull City entity) {
+            public void beforeRemove(@Nonnull City entity) {
                 beforeLog.add(entity.name());
             }
 
             @Override
-            public void afterDelete(@Nonnull City entity) {
+            public void afterRemove(@Nonnull City entity) {
                 afterLog.add(entity.name());
             }
         });

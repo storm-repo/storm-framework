@@ -612,6 +612,26 @@ public interface SqlDialect {
     }
 
     /**
+     * Returns whether the JDBC driver for this dialect reports generated keys through {@code getGeneratedKeys} after
+     * an {@code executeBatch}.
+     *
+     * <p>This is the per-row key-fetch mechanism, used where neither multi-row form applies (see
+     * {@link #supportsInsertReturning()} and {@link #supportsMultiRowGeneratedKeys()}). When {@code true}, a caller
+     * that reads keys back may bind one prepared insert statement across several batches and read the keys from it.
+     * When {@code false}, the keys have to come from the insert statement itself, so those callers go through
+     * {@code insertAndFetchIds} and let the dialect emit the statement that carries them.</p>
+     *
+     * <p>Defaults to {@code true}, which is what the JDBC contract asks of a driver. Disabled for SQL Server, whose
+     * driver rejects reading a batch's generated keys.</p>
+     *
+     * @return {@code true} if a prepared batch reports its generated keys.
+     * @since 1.13
+     */
+    default boolean supportsBatchGeneratedKeys() {
+        return true;
+    }
+
+    /**
      * Returns the maximum number of bind parameters a single statement may carry.
      *
      * <p>Multi-row inserts are chunked so that the total number of bound values ({@code rows × bound columns}) never

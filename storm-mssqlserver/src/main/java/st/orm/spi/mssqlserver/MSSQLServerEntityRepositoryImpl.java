@@ -233,10 +233,9 @@ public class MSSQLServerEntityRepositoryImpl<E extends Entity<ID>, ID>
                         entityCache.ifPresent(cache -> batch.stream()
                                 .filter(e -> !model.isDefaultPrimaryKey(e.id()))
                                 .forEach(e -> cache.remove(e.id())));
-                        result.addAll(getUpsertQuery(batch).getResultList(model.primaryKeyType()));
-                        if (hasEntityCallbacks()) {
-                            batch.forEach(this::fireAfterUpsert);
-                        }
+                        List<ID> ids = getUpsertQuery(batch).getResultList(model.primaryKeyType());
+                        result.addAll(ids);
+                        fireAfterUpsert(batch, ids);
                     }
                     case SeqUpdateKey u -> {
                         List<E> batch = hasEntityCallbacks()
@@ -304,6 +303,7 @@ public class MSSQLServerEntityRepositoryImpl<E extends Entity<ID>, ID>
         if (generationStrategy != SEQUENCE) {
             return super.insertAndFetchId(entity);
         }
+        entity = fireBeforeInsert(entity);
         validateInsert(entity);
         assert primaryKeyColumns.size() == 1;
         var primaryKeyColumn = primaryKeyColumns.getFirst();
@@ -312,7 +312,9 @@ public class MSSQLServerEntityRepositoryImpl<E extends Entity<ID>, ID>
                 INSERT INTO \0
                 OUTPUT INSERTED.%s
                 VALUES \0""".formatted(pkName), model.type(), entity)).managed().prepare()) {
-            return query.getSingleResult(model.primaryKeyType());
+            ID id = query.getSingleResult(model.primaryKeyType());
+            fireAfterInsert(entity, id);
+            return id;
         }
     }
 
@@ -322,15 +324,20 @@ public class MSSQLServerEntityRepositoryImpl<E extends Entity<ID>, ID>
             return super.insertAndFetchIds(entities);
         }
         // Also use MSSQLServer specific logic for AUTO_INCREMENT as MSSQLServer does not support generated keys in batch mode.
-        entities.forEach(this::validateInsert);
+        List<E> transformed = toStream(entities)
+                .map(this::fireBeforeInsert)
+                .map(this::validateInsert)
+                .toList();
         assert primaryKeyColumns.size() == 1;
         var primaryKeyColumn = primaryKeyColumns.getFirst();
         String pkName = primaryKeyColumn.qualifiedName(ormTemplate.dialect());
         var query = ormTemplate.query(raw("""
             INSERT INTO \0
             OUTPUT INSERTED.%s
-            VALUES \0""".formatted(pkName), model.type(), entities))
+            VALUES \0""".formatted(pkName), model.type(), transformed))
                 .managed();
-        return query.getResultList(model.primaryKeyType());
+        List<ID> ids = query.getResultList(model.primaryKeyType());
+        fireAfterInsert(transformed, ids);
+        return ids;
     }
 }

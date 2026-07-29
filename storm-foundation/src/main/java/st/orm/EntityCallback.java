@@ -26,7 +26,7 @@ import jakarta.annotation.Nonnull;
  *
  * <p>The "before" callbacks for insert, update, and upsert return the (potentially transformed) entity to persist,
  * which is essential for immutable record-based entities that cannot be mutated in place. The "after" callbacks and
- * "before delete" are observers that do not affect the persisted data.</p>
+ * {@link #beforeRemove} are observers that do not affect the persisted data.</p>
  *
  * <h2>Upsert callback routing</h2>
  *
@@ -42,11 +42,18 @@ import jakarta.annotation.Nonnull;
  *
  * <h2>"After" callback entity state</h2>
  *
- * <p>The "after" callbacks always receive the entity as it was sent to the database (after the corresponding "before"
- * transformation), not the entity as it exists in the database after the operation. Database-generated values such
- * as auto-incremented primary keys, version increments, or default column values are not reflected. This applies to
- * all repository methods, including the {@code *AndFetch} variants; the fetched entity is only returned to the
- * caller, not passed to the callback.</p>
+ * <p>The "after" callbacks observe what the calling method reports to its caller:</p>
+ * <ul>
+ *   <li>Methods that return nothing ({@code insert}, {@code update}, {@code upsert}) report the entity as it was
+ *       sent to the database, after the corresponding "before" transformation. No key is read back, so a
+ *       database-generated primary key is not reflected.</li>
+ *   <li>The {@code *AndFetchId} methods report that same entity carrying the primary key the database assigned.</li>
+ *   <li>The {@code *AndFetch} methods report the entity as read back from the database, reflecting generated keys,
+ *       column defaults, version increments and trigger-applied changes.</li>
+ * </ul>
+ *
+ * <p>A callback that needs the primary key must therefore be driven by a method that reports one. Selecting the
+ * method is the caller's choice: the callback receives exactly what the caller receives, and no more.</p>
  *
  * <p>All methods have default no-op implementations, so users only need to override the hooks they care about.</p>
  *
@@ -92,9 +99,9 @@ public interface EntityCallback<E extends Entity<?>> {
     /**
      * Called after an entity has been successfully inserted into the database.
      *
-     * <p>The entity passed to this method is the entity as it was sent to the database (after
-     * {@link #beforeInsert} transformation). Database-generated values such as auto-incremented primary keys
-     * or default column values are not reflected.</p>
+     * <p>The entity passed to this method reflects what the calling method reports: the entity as sent for
+     * {@code insert}, the entity carrying its generated primary key for {@code insertAndFetchId(s)}, and the row as
+     * read back for {@code insertAndFetch}.</p>
      *
      * <p>This callback also fires when an upsert operation is routed to an insert.</p>
      *
@@ -105,9 +112,9 @@ public interface EntityCallback<E extends Entity<?>> {
     /**
      * Called after an entity has been successfully updated in the database.
      *
-     * <p>The entity passed to this method is the entity as it was sent to the database (after
-     * {@link #beforeUpdate} transformation). Database-side changes such as version increments or trigger-applied
-     * modifications are not reflected.</p>
+     * <p>The entity passed to this method reflects what the calling method reports: the entity as sent for
+     * {@code update}, and the row as read back for {@code updateAndFetch}. Only the latter reflects database-side
+     * changes such as version increments or trigger-applied modifications.</p>
      *
      * <p>This callback also fires when an upsert operation is routed to an update.</p>
      *
@@ -139,8 +146,9 @@ public interface EntityCallback<E extends Entity<?>> {
      * <p>This callback only fires when the upsert is executed as a SQL-level upsert. When the operation is routed
      * to a plain insert or update, {@link #afterInsert} or {@link #afterUpdate} fires instead.</p>
      *
-     * <p>The entity passed to this method is the entity as it was sent to the database (after
-     * {@link #beforeUpsert} transformation). Database-generated values are not reflected.</p>
+     * <p>The entity passed to this method reflects what the calling method reports: the entity as sent for
+     * {@code upsert}, the entity carrying its generated primary key for {@code upsertAndFetchId(s)}, and the row as
+     * read back for {@code upsertAndFetch}.</p>
      *
      * <p>By default, this delegates to {@link #afterInsert(Entity)}, so that insert callbacks automatically
      * cover the upsert path. Override this method to provide upsert-specific behavior.</p>
@@ -152,16 +160,24 @@ public interface EntityCallback<E extends Entity<?>> {
     }
 
     /**
-     * Called before an entity is deleted from the database.
+     * Called before an entity is removed from the database.
      *
-     * @param entity the entity about to be deleted; never {@code null}.
+     * <p>Fires where the operation carries an entity, so {@code remove(entity)} and its collection and stream forms
+     * trigger it. {@code removeById}, {@code removeByRef}, {@code removeAll} and the {@code delete()} query builder
+     * identify rows by key or by predicate rather than by entity, so there is no entity to pass and this callback does
+     * not fire. A callback that throws in order to block a removal therefore blocks only the paths that carry an
+     * entity, and is not an enforcement point.</p>
+     *
+     * @param entity the entity about to be removed; never {@code null}.
      */
-    default void beforeDelete(@Nonnull E entity) {}
+    default void beforeRemove(@Nonnull E entity) {}
 
     /**
-     * Called after an entity has been successfully deleted from the database.
+     * Called after an entity has been successfully removed from the database.
      *
-     * @param entity the entity that was deleted; never {@code null}.
+     * <p>As with {@link #beforeRemove}, fires only where the operation carries an entity.</p>
+     *
+     * @param entity the entity that was removed; never {@code null}.
      */
-    default void afterDelete(@Nonnull E entity) {}
+    default void afterRemove(@Nonnull E entity) {}
 }

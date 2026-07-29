@@ -85,11 +85,11 @@ public class EntityCallbackIntegrationTest {
     }
 
     @Test
-    public void testBeforeDeleteCalled() {
+    public void testBeforeRemoveCalled() {
         List<String> log = new ArrayList<>();
         var orm = ORMTemplate.of(dataSource).withEntityCallback(new EntityCallback<City>() {
             @Override
-            public void beforeDelete(@Nonnull City entity) {
+            public void beforeRemove(@Nonnull City entity) {
                 log.add("before:" + entity.name());
             }
         });
@@ -100,11 +100,11 @@ public class EntityCallbackIntegrationTest {
     }
 
     @Test
-    public void testAfterDeleteCalled() {
+    public void testAfterRemoveCalled() {
         List<String> log = new ArrayList<>();
         var orm = ORMTemplate.of(dataSource).withEntityCallback(new EntityCallback<City>() {
             @Override
-            public void afterDelete(@Nonnull City entity) {
+            public void afterRemove(@Nonnull City entity) {
                 log.add("after:" + entity.name());
             }
         });

@@ -320,9 +320,9 @@ public interface CustomerRepository extends EntityRepository<Customer, Integer> 
 </TabItem>
 </Tabs>
 
-### Enforcing Soft Deletes via Callback
+### Catching Hard Deletes via Callback
 
-To prevent accidental hard deletes, use an entity callback that converts `delete()` calls into soft deletes:
+To catch accidental hard deletes in development, use an entity callback that rejects them:
 
 <Tabs groupId="language">
 <TabItem value="kotlin" label="Kotlin" default>
@@ -330,7 +330,7 @@ To prevent accidental hard deletes, use an entity callback that converts `delete
 ```kotlin
 class SoftDeleteGuard : EntityCallback<Customer> {
 
-    override fun beforeDelete(entity: Customer) {
+    override fun beforeRemove(entity: Customer) {
         throw PersistenceException(
             "Hard deletes are not allowed for Customer. Use softDelete() instead."
         )
@@ -345,7 +345,7 @@ class SoftDeleteGuard : EntityCallback<Customer> {
 public class SoftDeleteGuard implements EntityCallback<Customer> {
 
     @Override
-    public void beforeDelete(Customer entity) {
+    public void beforeRemove(Customer entity) {
         throw new PersistenceException(
             "Hard deletes are not allowed for Customer. Use softDelete() instead.");
     }
@@ -354,6 +354,8 @@ public class SoftDeleteGuard implements EntityCallback<Customer> {
 
 </TabItem>
 </Tabs>
+
+This catches `remove(entity)`, but it is not an enforcement point: `removeById`, `removeByRef`, `removeAll` and the `delete()` query builder identify rows without reading them, so there is no entity to pass and `beforeRemove` does not fire. Treat it as a development guard that surfaces the call sites to fix, and enforce the rule in the database where it has to hold. See [Remove Callbacks](entity-lifecycle.md#remove-callbacks).
 
 ---
 
@@ -578,7 +580,7 @@ class TenantIsolationCallback : EntityCallback<TenantEntity<*>> {
         return entity
     }
 
-    override fun beforeDelete(entity: TenantEntity<*>) {
+    override fun beforeRemove(entity: TenantEntity<*>) {
         val currentTenant = TenantContext.current()
         if (entity.tenantId != currentTenant) {
             throw PersistenceException("Cannot delete entity belonging to tenant ${entity.tenantId}")
@@ -612,7 +614,7 @@ public class TenantIsolationCallback implements EntityCallback<TenantEntity<?>> 
     }
 
     @Override
-    public void beforeDelete(TenantEntity<?> entity) {
+    public void beforeRemove(TenantEntity<?> entity) {
         String currentTenant = TenantContext.current();
         if (!entity.tenantId().equals(currentTenant)) {
             throw new PersistenceException("Cannot delete entity belonging to tenant " + entity.tenantId());

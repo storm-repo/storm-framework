@@ -261,4 +261,17 @@ public class MSSQLServerSqlDialect extends DefaultSqlDialect implements SqlDiale
     public String sequenceNextVal(String sequenceName) {
         return "NEXT VALUE FOR " + getSafeIdentifier(sequenceName);
     }
+
+    /**
+     * Returns {@code false}: the SQL Server driver rejects reading a batch's generated keys, failing with
+     * "The statement must be executed before any results can be obtained". Keys come from an
+     * {@code OUTPUT INSERTED} clause on the insert statement instead.
+     *
+     * @return {@code false}.
+     * @since 1.13
+     */
+    @Override
+    public boolean supportsBatchGeneratedKeys() {
+        return false;
+    }
 }

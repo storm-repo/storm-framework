@@ -17,7 +17,7 @@ A transaction-scoped cache that stores entities by primary key during a transact
 The tree of related entities loaded through `@FK` relationships in a single query using JOINs. When Storm loads a `User` that has `@FK val city: City`, it automatically joins the `city` table and returns a fully populated `User` with its `City` object. The declared graph therefore costs one statement rather than one per relationship, and because nothing loads lazily, no query is ever issued behind the application's back. See [Relationships](relationships.md).
 
 **Entity Lifecycle**
-The set of callback hooks (`beforeInsert`, `afterInsert`, `beforeUpdate`, `afterUpdate`, `beforeDelete`, `afterDelete`) that fire around mutation operations. Implemented via the `EntityCallback<E>` interface, these hooks enable cross-cutting concerns like auditing and validation. See [Entity Lifecycle](entity-lifecycle.md).
+The set of callback hooks (`beforeInsert`, `afterInsert`, `beforeUpdate`, `afterUpdate`, `beforeUpsert`, `afterUpsert`, `beforeRemove`, `afterRemove`) that fire around mutation operations. An "after" callback observes what the calling method reports to its caller. Implemented via the `EntityCallback<E>` interface, these hooks enable cross-cutting concerns like auditing and validation. See [Entity Lifecycle](entity-lifecycle.md).
 
 **Hydration**
 The process of transforming flat database rows into structured Kotlin data classes or Java records. Storm maps SELECT columns to constructor parameters by position, with no runtime reflection on column names. Hydration plans are compiled once per type and reused. See [Hydration](hydration.md).
@@ -53,7 +53,7 @@ Storm's template engine that uses string interpolation to embed entity types, me
 Classifies what caused a statement to execute: `DIRECT` for statements the code asked for through a repository, query builder, or template, and `FETCH` for statements resolving a reference through `Ref.fetch()`. The origin appears on the `storm.origin` metric tag, in SQL log summaries, and on captured statements in tests, making the cost of resolving references measurable on its own. See [SQL Logging](sql-logging.md#fetches).
 
 **Static Metamodel**
-See [Metamodel](#metamodel) above.
+See **Metamodel** above.
 
 **Storm Config**
 A configuration object (`StormConfig`) that controls runtime behavior for features like dirty checking mode, entity cache retention, and template cache size. All settings have sensible defaults, so configuration is optional. See [Configuration](configuration.md).
