@@ -2295,4 +2295,88 @@ public class MSSQLServerEntityRepositoryTest {
         repo.remove(repo.getById(DEFAULT_KEY_ID));
         assertEquals(before - 1, repo.count());
     }
+
+
+    // Entity callbacks on the dialect-specific insert and upsert paths.
+
+    @Test
+    public void testSequenceInsertAndFetchIdFiresCallbacksWithGeneratedKey() {
+        var observed = new java.util.ArrayList<SeqNamedEntity>();
+        var orm = PreparedStatementTemplate.ORM(dataSource).withEntityCallback(new st.orm.EntityCallback<SeqNamedEntity>() {
+            @Override
+            public SeqNamedEntity beforeInsert(@Nonnull SeqNamedEntity entity) {
+                return entity.toBuilder().name(entity.name().toUpperCase()).build();
+            }
+
+            @Override
+            public void afterInsert(@Nonnull SeqNamedEntity entity) {
+                observed.add(entity);
+            }
+        });
+        var repo = orm.entity(SeqNamedEntity.class);
+        // The OUTPUT INSERTED path for sequence keys is dialect-specific; it must still run the callbacks.
+        var id = repo.insertAndFetchId(SeqNamedEntity.builder().name("callback seq").build());
+        assertEquals("CALLBACK SEQ", repo.getById(id).name());
+        assertEquals(1, observed.size());
+        assertEquals(id, observed.getFirst().id());
+    }
+
+    @Test
+    public void testBatchInsertAndFetchIdsFiresCallbacksWithGeneratedKeys() {
+        var observed = new java.util.ArrayList<Vet>();
+        var orm = PreparedStatementTemplate.ORM(dataSource).withEntityCallback(new st.orm.EntityCallback<Vet>() {
+            @Override
+            public Vet beforeInsert(@Nonnull Vet entity) {
+                return entity.toBuilder().lastName(entity.lastName().toUpperCase()).build();
+            }
+
+            @Override
+            public void afterInsert(@Nonnull Vet entity) {
+                observed.add(entity);
+            }
+        });
+        var repo = orm.entity(Vet.class);
+        // Identity keys also take the dialect-specific batch path, because this dialect cannot return generated keys
+        // from a JDBC batch.
+        var ids = repo.insertAndFetchIds(List.of(
+                Vet.builder().firstName("Cb").lastName("one").build(),
+                Vet.builder().firstName("Cb").lastName("two").build()));
+        assertEquals(2, ids.size());
+        assertEquals("ONE", repo.getById(ids.get(0)).lastName());
+        assertEquals("TWO", repo.getById(ids.get(1)).lastName());
+        assertEquals(ids, observed.stream().map(Vet::id).toList());
+        assertEquals(List.of("ONE", "TWO"), observed.stream().map(Vet::lastName).toList());
+    }
+
+    @Test
+    public void testUpsertAndFetchIdsReportsGeneratedKeysToCallbacks() {
+        var observed = new java.util.ArrayList<Vet>();
+        var orm = PreparedStatementTemplate.ORM(dataSource).withEntityCallback(new st.orm.EntityCallback<Vet>() {
+            @Override
+            public void afterInsert(@Nonnull Vet entity) {
+                observed.add(entity);
+            }
+        });
+        // An auto-generated key routes the upsert to insert on this dialect, so the insert callbacks fire and must
+        // carry the keys the database assigned.
+        var ids = orm.entity(Vet.class).upsertAndFetchIds(List.of(
+                Vet.builder().firstName("Upsert").lastName("cbOne").build(),
+                Vet.builder().firstName("Upsert").lastName("cbTwo").build()));
+        assertEquals(2, ids.size());
+        assertEquals(ids, observed.stream().map(Vet::id).toList());
+    }
+
+    @Test
+    public void testUpsertAndFetchIdsWithIdentityKeyRoutesToInsert() {
+        var repo = PreparedStatementTemplate.ORM(dataSource).entity(Vet.class);
+        // An auto-generated key cannot go through MERGE on this dialect, so the upsert routes to insert. The insert
+        // has to run through the dialect's own path, because this driver cannot report generated keys for a JDBC
+        // batch.
+        var ids = repo.upsertAndFetchIds(List.of(
+                Vet.builder().firstName("Routed").lastName("one").build(),
+                Vet.builder().firstName("Routed").lastName("two").build()));
+        assertEquals(2, ids.size());
+        assertEquals("one", repo.getById(ids.get(0)).lastName());
+        assertEquals("two", repo.getById(ids.get(1)).lastName());
+    }
 }

@@ -23,6 +23,7 @@ import java.lang.invoke.MethodType;
 import java.lang.reflect.ParameterizedType;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.HashMap;
 import java.util.IdentityHashMap;
 import java.util.LinkedHashMap;
@@ -30,6 +31,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
+import java.util.function.Supplier;
 import st.orm.Data;
 import st.orm.Entity;
 import st.orm.FK;
@@ -41,13 +43,12 @@ import st.orm.Ref;
 import st.orm.WriteSet;
 import st.orm.core.repository.EntityRepository;
 import st.orm.core.repository.RepositoryLookup;
-import st.orm.core.spi.Instantiators;
 import st.orm.core.spi.ORMReflection;
 import st.orm.core.spi.Providers;
 import st.orm.core.spi.RowIdentity;
 import st.orm.core.template.Column;
 import st.orm.core.template.Model;
-import st.orm.mapping.Instantiator;
+import st.orm.core.template.ORMTemplate;
 import st.orm.mapping.RecordField;
 import st.orm.mapping.RecordType;
 
@@ -73,22 +74,33 @@ public final class WriteSetImpl implements WriteSet {
     private enum Action { INSERT, UPSERT, UPDATE, REMOVE }
 
     private final RepositoryLookup lookup;
+
+    /**
+     * Whether the lookup this write set writes through registers entity callbacks. A template without callbacks
+     * never fires one, so the write paths skip the thread-scoped callback bookkeeping. A lookup that is not a
+     * template cannot be inspected and is treated as callback-bearing.
+     */
+    private final boolean entityCallbacksRegistered;
     private final ConcurrentMap<Class<?>, TypeInfo> typeInfoCache = new ConcurrentHashMap<>();
 
     public WriteSetImpl(@Nonnull RepositoryLookup lookup) {
         this.lookup = requireNonNull(lookup, "lookup");
+        this.entityCallbacksRegistered = !(lookup instanceof ORMTemplate template)
+                || !template.entityCallbacks().isEmpty();
     }
 
     @Override
     public void insert(@Nonnull Iterable<? extends Entity<?>> entities) {
-        executeOrdered(entities, Action.INSERT, false);
+        // The caller asked for nothing back. Keys retrieved to satisfy dependent rows stay out of the entity
+        // callbacks, so what a callback observes follows the method that was called rather than the shape of the
+        // dependency graph.
+        withoutObservedKeys(() -> executeOrdered(entities, Action.INSERT, false));
     }
 
     @Override
     @Nonnull
     public List<Entity<?>> insertAndFetch(@Nonnull Iterable<? extends Entity<?>> entities) {
-        Execution execution = executeOrdered(entities, Action.INSERT, true);
-        return fetch(execution);
+        return fetchAndFire(() -> executeOrdered(entities, Action.INSERT, true));
     }
 
     @Override
@@ -100,14 +112,13 @@ public final class WriteSetImpl implements WriteSet {
 
     @Override
     public void upsert(@Nonnull Iterable<? extends Entity<?>> entities) {
-        executeOrdered(entities, Action.UPSERT, false);
+        withoutObservedKeys(() -> executeOrdered(entities, Action.UPSERT, false));
     }
 
     @Override
     @Nonnull
     public List<Entity<?>> upsertAndFetch(@Nonnull Iterable<? extends Entity<?>> entities) {
-        Execution execution = executeOrdered(entities, Action.UPSERT, true);
-        return fetch(execution);
+        return fetchAndFire(() -> executeOrdered(entities, Action.UPSERT, true));
     }
 
     @Override
@@ -125,8 +136,7 @@ public final class WriteSetImpl implements WriteSet {
     @Override
     @Nonnull
     public List<Entity<?>> updateAndFetch(@Nonnull Iterable<? extends Entity<?>> entities) {
-        Execution execution = executeUpdate(entities);
-        return fetch(execution);
+        return fetchAndFire(() -> executeUpdate(entities));
     }
 
     @Override
@@ -333,7 +343,13 @@ public final class WriteSetImpl implements WriteSet {
         }
     }
 
-    /** Rebuilds the node's entity with every unsaved FK reference replaced by its persisted counterpart. */
+    /**
+     * Rebuilds the node's entity with every unsaved FK reference replaced by its persisted counterpart.
+     *
+     * <p>The rebuild descends the component paths of the recorded dependencies, whose intermediate components are
+     * non-null: a dependency is only recorded where {@link #valueAt(Object, int[])} resolved a non-null target
+     * through the same path, and records are immutable.</p>
+     */
     private Object propagateKeys(@Nonnull Node node, @Nonnull IdentityHashMap<Object, Object> persistedView) {
         Object entity = node.entity;
         for (Dependency dependency : node.dependencies) {
@@ -350,11 +366,11 @@ public final class WriteSetImpl implements WriteSet {
             Object newValue = edge.ref
                     ? Ref.of((Entity<?>) persisted)
                     : persisted;
-            entity = withComponent(entity, edge.path, 0, newValue);
+            entity = RecordRebuilder.withComponent(entity, edge.path, newValue);
             if (edge.keyPath != null) {
                 // The component's column value is carried by the primary key; write the generated key into the
                 // carrier so the insert binds it.
-                entity = withComponent(entity, edge.keyPath, 0, ((Entity<?>) persisted).id());
+                entity = RecordRebuilder.withComponent(entity, edge.keyPath, ((Entity<?>) persisted).id());
             }
         }
         return entity;
@@ -587,66 +603,9 @@ public final class WriteSetImpl implements WriteSet {
         return current;
     }
 
-    /**
-     * Rebuild metadata per record class: the record type with its canonical constructor made accessible once, and
-     * the generated metamodel instantiator when one is registered, so rebuilds construct through generated code
-     * rather than reflection.
-     */
-    private record RebuildType(@Nonnull RecordType recordType, @Nullable Instantiator<?> instantiator) {
-        Object newInstance(@Nonnull Object[] args) {
-            return instantiator != null ? instantiator.instantiate(args) : recordType.newInstance(args);
-        }
-
-        /**
-         * Reads the record's component values in declaration order, through the generated deconstructor when the
-         * metamodel registered one, so rebuilds run as generated code on both sides of the round trip.
-         */
-        @SuppressWarnings("unchecked")
-        Object[] deconstruct(@Nonnull Object record) {
-            if (instantiator != null) {
-                Object[] args = ((Instantiator<Object>) instantiator).deconstruct(record);
-                if (args != null) {
-                    return args;
-                }
-            }
-            List<RecordField> fields = recordType.fields();
-            Object[] args = new Object[fields.size()];
-            for (int i = 0; i < fields.size(); i++) {
-                args[i] = REFLECTION.invoke(fields.get(i), record);
-            }
-            return args;
-        }
-    }
-
-    private static final ClassValue<RebuildType> REBUILD_TYPES = new ClassValue<>() {
-        @Override
-        protected RebuildType computeValue(@Nonnull Class<?> type) {
-            RecordType recordType = REFLECTION.getRecordType(type);
-            recordType.constructor().trySetAccessible();
-            return new RebuildType(recordType, Instantiators.find(type));
-        }
-    };
-
-    /**
-     * Rebuilds the record with the component at the given path replaced, reconstructing nested records as needed.
-     *
-     * <p>Intermediate components along the path are never {@code null} here: a dependency is only recorded when
-     * {@link #valueAt(Object, int[])} resolved a non-null target through the same path, and records are
-     * immutable.</p>
-     */
-    private Object withComponent(@Nonnull Object record, @Nonnull int[] path, int depth, @Nullable Object newValue) {
-        RebuildType rebuildType = REBUILD_TYPES.get(record.getClass());
-        Object[] args = rebuildType.deconstruct(record);
-        int index = path[depth];
-        args[index] = depth == path.length - 1
-                ? newValue
-                : withComponent(args[index], path, depth + 1, newValue);
-        return rebuildType.newInstance(args);
-    }
-
     /** Rebuilds the entity with the given primary key. */
     private Object withPrimaryKey(@Nonnull TypeInfo info, @Nonnull Object entity, @Nonnull Object pk) {
-        return withComponent(entity, new int[] {info.primaryKeyIndex}, 0, pk);
+        return RecordRebuilder.withComponent(entity, info.primaryKeyIndex, pk);
     }
 
     //
@@ -665,33 +624,85 @@ public final class WriteSetImpl implements WriteSet {
         return result;
     }
 
+    /**
+     * Reports the passed entities as they exist in the database after the write, firing the entity callbacks against
+     * the rows that were read back.
+     *
+     * <p>When callbacks are waiting, every member the execution wrote is read back rather than only the passed ones.
+     * A write set pulls in unsaved entities reachable from those it is given, and a callback must not observe
+     * something different depending on whether its entity was passed or reached by discovery.</p>
+     */
+    @Nonnull
+    private List<Entity<?>> fetchAndFire(@Nonnull Supplier<Execution> write) {
+        if (!entityCallbacksRegistered) {
+            Execution execution = write.get();
+            return report(execution, readRows(passedMembers(execution)));
+        }
+        var observed = new ArrayList<Entity<?>>();
+        return CallbackSupport.fetchAndFire(() -> {
+            Execution execution = write.get();
+            Collection<Object> members = CallbackSupport.hasDeferred()
+                    ? execution.persistedView().values()
+                    : passedMembers(execution);
+            var rows = readRows(members);
+            observed.addAll(rows.values());
+            return report(execution, rows);
+        }, result -> observed);
+    }
+
+    /** Runs the write with retrieved keys withheld from the callbacks, skipping the scope when none are registered. */
+    private void withoutObservedKeys(@Nonnull Supplier<Execution> write) {
+        if (entityCallbacksRegistered) {
+            CallbackSupport.withoutObservedKeys(write);
+        } else {
+            write.get();
+        }
+    }
+
+    /**
+     * The persisted views of the passed entities, carrying the keys the database assigned, so rows are read back
+     * through them rather than through the instances that were passed in.
+     */
+    @Nonnull
+    private List<Object> passedMembers(@Nonnull Execution execution) {
+        return execution.inputs().stream()
+                .map(input -> requireNonNull(execution.persistedView().get(input), "persisted view"))
+                .toList();
+    }
+
+    /** Reads the given members back from the database, indexed by type and primary key. */
     @SuppressWarnings({"unchecked", "rawtypes"})
     @Nonnull
-    private List<Entity<?>> fetch(@Nonnull Execution execution) {
-        // Collect the ids of the passed entities per type, preserving first-seen type order.
+    private Map<TypeIdKey, Entity<?>> readRows(@Nonnull Collection<Object> members) {
+        // Collect the ids per type, preserving first-seen type order.
         var idsByType = new LinkedHashMap<Class<?>, List<Object>>();
-        for (Object input : execution.inputs()) {
-            Object persisted = execution.persistedView().get(input);
-            Object id = ((Entity<?>) requireNonNull(persisted, "persisted view")).id();
-            idsByType.computeIfAbsent(input.getClass(), type -> new ArrayList<>()).add(id);
+        for (Object member : members) {
+            idsByType.computeIfAbsent(member.getClass(), type -> new ArrayList<>())
+                    .add(((Entity<?>) member).id());
         }
-        var fetched = new HashMap<TypeIdKey, Entity<?>>();
+        var rows = new HashMap<TypeIdKey, Entity<?>>();
         for (var entry : idsByType.entrySet()) {
             EntityRepository repository = typeInfo(entry.getKey()).repository;
             for (Object entity : (List<Object>) repository.findAllById(entry.getValue())) {
-                Entity<?> fetchedEntity = (Entity<?>) entity;
-                fetched.put(new TypeIdKey(entry.getKey(), fetchedEntity.id()), fetchedEntity);
+                Entity<?> row = (Entity<?>) entity;
+                rows.put(new TypeIdKey(entry.getKey(), row.id()), row);
             }
         }
+        return rows;
+    }
+
+    /** Reports the passed entities from the rows that were read back, in input order. */
+    @Nonnull
+    private List<Entity<?>> report(@Nonnull Execution execution, @Nonnull Map<TypeIdKey, Entity<?>> rows) {
         var result = new ArrayList<Entity<?>>(execution.inputs().size());
         for (Object input : execution.inputs()) {
-            Object id = ((Entity<?>) execution.persistedView().get(input)).id();
-            Entity<?> fetchedEntity = fetched.get(new TypeIdKey(input.getClass(), id));
-            if (fetchedEntity == null) {
+            Object id = ((Entity<?>) requireNonNull(execution.persistedView().get(input), "persisted view")).id();
+            Entity<?> row = rows.get(new TypeIdKey(input.getClass(), id));
+            if (row == null) {
                 throw new PersistenceException("Failed to fetch %s with id %s after write."
                         .formatted(input.getClass().getSimpleName(), id));
             }
-            result.add(fetchedEntity);
+            result.add(row);
         }
         return result;
     }

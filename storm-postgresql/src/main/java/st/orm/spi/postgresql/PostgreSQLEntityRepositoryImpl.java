@@ -233,10 +233,9 @@ public class PostgreSQLEntityRepositoryImpl<E extends Entity<ID>, ID>
                         entityCache.ifPresent(cache -> batch.stream()
                                 .filter(e -> !model.isDefaultPrimaryKey(e.id()))
                                 .forEach(e -> cache.remove(e.id())));
-                        result.addAll(getUpsertQuery(batch).getResultList(model.primaryKeyType()));
-                        if (hasEntityCallbacks()) {
-                            batch.forEach(this::fireAfterUpsert);
-                        }
+                        List<ID> ids = getUpsertQuery(batch).getResultList(model.primaryKeyType());
+                        result.addAll(ids);
+                        fireAfterUpsert(batch, ids);
                     }
                     case SeqUpdateKey u -> {
                         List<E> batch = hasEntityCallbacks()
@@ -325,6 +324,7 @@ public class PostgreSQLEntityRepositoryImpl<E extends Entity<ID>, ID>
         if (generationStrategy != SEQUENCE) {
             return super.insertAndFetchId(entity);
         }
+        entity = fireBeforeInsert(entity);
         validateInsert(entity);
         assert primaryKeyColumns.size() == 1;
         var primaryKeyColumn = primaryKeyColumns.getFirst();
@@ -333,7 +333,9 @@ public class PostgreSQLEntityRepositoryImpl<E extends Entity<ID>, ID>
                 INSERT INTO \0
                 VALUES \0
                 RETURNING %s""".formatted(pkName), model.type(), entity)).managed().prepare()) {
-            return query.getSingleResult(model.primaryKeyType());
+            ID id = query.getSingleResult(model.primaryKeyType());
+            fireAfterInsert(entity, id);
+            return id;
         }
     }
 

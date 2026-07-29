@@ -242,7 +242,7 @@ public EntityCallback<?> auditCallback() {
 
 ### Mutation Logging
 
-Use `afterInsert`, `afterUpdate`, and `afterDelete` callbacks to record mutations for compliance or debugging:
+Use `afterInsert`, `afterUpdate`, and `afterRemove` callbacks to record mutations for compliance or debugging:
 
 <Tabs groupId="language">
 <TabItem value="kotlin" label="Kotlin" default>
@@ -260,7 +260,7 @@ class MutationLogger : EntityCallback<Entity<*>> {
         logger.log(System.Logger.Level.INFO, "UPDATE: ${entity::class.simpleName} id=${entity.id()}")
     }
 
-    override fun afterDelete(entity: Entity<*>) {
+    override fun afterRemove(entity: Entity<*>) {
         logger.log(System.Logger.Level.INFO, "DELETE: ${entity::class.simpleName} id=${entity.id()}")
     }
 }
@@ -287,7 +287,7 @@ public class MutationLogger implements EntityCallback<Entity<?>> {
     }
 
     @Override
-    public void afterDelete(Entity<?> entity) {
+    public void afterRemove(Entity<?> entity) {
         logger.log(System.Logger.Level.INFO,
             "DELETE: %s id=%s".formatted(entity.getClass().getSimpleName(), entity.id()));
     }
@@ -296,6 +296,8 @@ public class MutationLogger implements EntityCallback<Entity<?>> {
 
 </TabItem>
 </Tabs>
+
+For inserts, the primary key logged here comes from the database only when the calling method reports one. `insertAndFetchId` and `insertAndFetch` do; plain `insert` reads no key back and passes the entity as sent. See [After Callback Entity State](entity-lifecycle.md#after-callback-entity-state).
 
 ---
 
@@ -406,7 +408,7 @@ class WriteAccessCallback : EntityCallback<User> {
         return entity
     }
 
-    override fun beforeDelete(entity: User) {
+    override fun beforeRemove(entity: User) {
         val currentRole = SecurityContext.currentUserRole()
         if (currentRole != "ADMIN") {
             throw PersistenceException("Only administrators can delete user records.")
@@ -431,7 +433,7 @@ public class WriteAccessCallback implements EntityCallback<User> {
     }
 
     @Override
-    public void beforeDelete(User entity) {
+    public void beforeRemove(User entity) {
         String currentRole = SecurityContext.currentUserRole();
         if (!"ADMIN".equals(currentRole)) {
             throw new PersistenceException("Only administrators can delete user records.");

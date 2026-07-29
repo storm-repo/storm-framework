@@ -21,11 +21,11 @@ Rather than baking opinionated annotations like `@CreatedAt` or `@UpdatedBy` int
 | `afterInsert(entity)` | Called after a successful insert. |
 | `afterUpdate(entity)` | Called after a successful update. |
 | `afterUpsert(entity)` | Called after a successful SQL-level upsert. Delegates to `afterInsert` by default. |
-| `beforeDelete(entity)` | Called before deleting. |
-| `afterDelete(entity)` | Called after a successful delete. |
+| `beforeRemove(entity)` | Called before removing. |
+| `afterRemove(entity)` | Called after a successful removal. |
 
-:::warning After-Callback Entity State
-**Important:** The entity passed to `afterInsert`, `afterUpdate`, and `afterUpsert` is the **pre-persist entity**. It does not include database-generated values such as auto-incremented IDs, server defaults, or trigger-applied changes. To access the generated ID, use the return value of `insertAndFetch` instead.
+:::info After-Callback Entity State
+**The callback observes what the caller observes.** A method that returns nothing passes the entity as it was sent; a `*AndFetchId` method passes it carrying the generated primary key; a `*AndFetch` method passes the row read back from the database. See [After Callback Entity State](#after-callback-entity-state).
 :::
 
 Every mutation operation follows the same three-phase lifecycle: the "before" callback runs first and can transform the entity, then the SQL executes, and finally the "after" callback fires to observe the result. The following diagram illustrates this flow for an insert operation. Update, upsert, and delete follow the same pattern with their respective callback methods:
@@ -45,13 +45,13 @@ Every mutation operation follows the same three-phase lifecycle: the "before" ca
                              │
                              ▼
                     ┌───────────────────┐
-                    │  afterInsert()    │  ← observes the pre-persist entity
+                    │  afterInsert()    │  ← observes what the caller receives
                     └───────────────────┘
 ```
 
 ### Immutable Entity Transformation
 
-Storm entities are immutable records and data classes, so they cannot be mutated in place. To accommodate this, the "before" callbacks for insert, update, and upsert **return the entity** that will actually be persisted. Implementations can return a new instance with modified fields (e.g., audit timestamps set) or the original entity unchanged. The "after" callbacks and `beforeDelete` are purely observational and return `void`.
+Storm entities are immutable records and data classes, so they cannot be mutated in place. To accommodate this, the "before" callbacks for insert, update, and upsert **return the entity** that will actually be persisted. Implementations can return a new instance with modified fields (e.g., audit timestamps set) or the original entity unchanged. The "after" callbacks and `beforeRemove` are purely observational and return `void`.
 
 This design works naturally with both Kotlin's `copy()` and Java's builder pattern, keeping callback implementations concise and idiomatic in both languages.
 
@@ -162,14 +162,14 @@ An upsert operation does not always result in a SQL-level upsert statement. Depe
 ```
                               upsert(entity)
                                     │
-                 ┌──────────────────┼──────────────────┐
+                 ┌──────────────────┼───────────────────┐
                  ▼                  ▼                   ▼
           ┌─────────────┐   ┌─────────────┐   ┌──────────────────┐
           │ Route to    │   │ Route to    │   │ SQL-level upsert │
           │ update      │   │ insert      │   │                  │
           └──────┬──────┘   └──────┬──────┘   └────────┬─────────┘
-                 │                 │                    │
-                 ▼                 ▼                    ▼
+                 │                 │                   │
+                 ▼                 ▼                   ▼
           beforeUpdate /    beforeInsert /       beforeUpsert /
           afterUpdate       afterInsert          afterUpsert
 ```
@@ -186,9 +186,39 @@ The practical consequence is that you do not need to override all three pairs. I
 
 ### "After" Callback Entity State
 
-The "after" callbacks (`afterInsert`, `afterUpdate`, `afterUpsert`, `afterDelete`) always receive the entity as it was sent to the database, after the corresponding "before" transformation. They do **not** reflect database-generated values such as auto-incremented primary keys, version column increments, default column values, or trigger-applied modifications.
+The "after" callbacks receive exactly what the calling method reports to its caller, and no more. The method name at the call site therefore tells you what the callback will see:
 
-This applies to all repository methods, including the `*AndFetch` variants. For example, when `insertAndFetch` is called, `afterInsert` still receives the pre-persist entity; the fetched entity (with the generated ID, defaults, etc.) is only returned to the caller. This keeps the callback contract consistent and predictable regardless of which repository method was used.
+| Method | The callback receives |
+|---|---|
+| `insert`, `update`, `upsert` | The entity as sent to the database, after the "before" transformation. No key is read back, so a generated primary key is not reflected. |
+| `insertAndFetchId`, `insertAndFetchIds`, `upsertAndFetchId`, `upsertAndFetchIds` | That same entity, carrying the primary key the database assigned. |
+| `insertAndFetch`, `updateAndFetch`, `upsertAndFetch` | The entity as read back from the database, reflecting generated keys, column defaults, version increments, and trigger-applied changes. |
+
+`afterRemove` always receives the entity that was passed in.
+
+This is a deliberate trade. A method that returns nothing does not read generated keys, and making it do so would change the SQL it issues; a method that reads the row back has that row already. Rather than levelling every method down to the cheapest one, the callback is given whatever its caller paid for.
+
+:::warning Choosing a method that reports what your callback needs
+A callback that reads `entity.id()` needs a method that reports one. If an `afterInsert` callback writes a related row, calling plain `insert` elsewhere in the codebase leaves that callback with an unset primary key rather than an error. Where a callback depends on the generated key, make sure the call sites use `insertAndFetchId` or `insertAndFetch`.
+:::
+
+#### Write Sets
+
+Write sets report on the same terms: `writeSet.insert(...)` passes the entities as sent, `insertAndFetchIds` passes them carrying their keys, and `insertAndFetch` passes the rows read back.
+
+This holds regardless of the dependency graph. A write set retrieves the keys it needs to bind foreign keys on dependent rows, but those keys are a property of the graph rather than something the caller asked to observe, so they are not reported to callbacks unless the calling method reports them. Inserting a `City` on its own and inserting the same `City` alongside an `Owner` that references it therefore look identical to a callback.
+
+A write set also pulls in unsaved entities reachable from the ones you pass, so a callback can fire for an entity you never handed it directly. Those discovered members are reported to callbacks on the same terms as the ones you passed: on `insertAndFetch` their callbacks observe a row read back too, even though the entity itself is not returned to you. Whether an entity was passed or reached by discovery does not change what its callback sees.
+
+### Remove Callbacks
+
+`beforeRemove` and `afterRemove` receive an entity, so they fire where the operation has one: `remove(entity)` and its collection and stream forms. `removeById`, `removeByRef`, `removeAll`, the `removeByRef` collection forms, and the `delete()` query builder identify rows by key or by predicate rather than by entity, so there is no entity to hand to a callback and these callbacks do not fire.
+
+This follows the same principle as the "after" callback state above. Removing by key is one statement; reading the row first so a callback could observe it would make every removal by id a select plus a delete. Where a callback needs the entity, remove by entity.
+
+:::warning A remove callback is not an enforcement point
+A callback that throws in order to block a removal only blocks the paths that carry an entity, so `removeById`, `removeByRef` and the `delete()` builder pass straight through. Enforce an invariant in the database (a foreign key, a trigger, or a restricted grant) and use the callback for the bookkeeping that follows.
+:::
 
 ### Database Operations Inside Callbacks
 
@@ -245,7 +275,7 @@ This makes it safe to perform arbitrary database work inside a callback without 
 
 ### Batch Operations
 
-Callbacks work with both single and batch operations. For batch operations, the "before" callbacks (`beforeInsert`, `beforeUpdate`, `beforeUpsert`) are called per entity during the mapping phase, before the batch is sent to the database. The "after" callbacks (`afterInsert`, `afterUpdate`, `afterUpsert`, `afterDelete`) are called per entity after the batch executes successfully. This means the "before" callback can transform each entity individually, and all transformations are applied before the batch SQL is executed.
+Callbacks work with both single and batch operations. For batch operations, the "before" callbacks (`beforeInsert`, `beforeUpdate`, `beforeUpsert`) are called per entity during the mapping phase, before the batch is sent to the database. The "after" callbacks (`afterInsert`, `afterUpdate`, `afterUpsert`, `afterRemove`) are called per entity after the batch executes successfully. This means the "before" callback can transform each entity individually, and all transformations are applied before the batch SQL is executed.
 
 ---
 
@@ -348,7 +378,7 @@ public class ArticleValidationCallback implements EntityCallback<Article> {
 
 ### Logging
 
-The "after" callbacks are well-suited for logging, since they fire only after the database operation succeeds. This avoids logging mutations that were rolled back. The entity passed to the callback is the pre-persist version (see [After Callback Entity State](#after-callback-entity-state)), so the logged values reflect what your application sent to the database:
+The "after" callbacks are well-suited for logging, since they fire only after the database operation succeeds. This avoids logging mutations that were rolled back. What gets logged depends on the method that performed the write (see [After Callback Entity State](#after-callback-entity-state)): `insert` logs what your application sent, while `insertAndFetch` logs the stored row.
 
 ```java
 public class ArticleLoggingCallback implements EntityCallback<Article> {
@@ -365,7 +395,7 @@ public class ArticleLoggingCallback implements EntityCallback<Article> {
     }
 
     @Override
-    public void afterDelete(Article entity) {
+    public void afterRemove(Article entity) {
         log.info("Deleted article: {}", entity);
     }
 }

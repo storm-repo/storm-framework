@@ -18,7 +18,7 @@
 > GitHub: https://github.com/storm-orm/storm-framework
 > License: Apache 2.0
 
-# Generated: 2026-07-29T08:17:49Z
+# Generated: 2026-07-29T21:33:50Z
 
 ========================================
 ## Source: index.md
@@ -2472,7 +2472,7 @@ Automatic relationship loading is a core part of Storm's design. The database ow
 
 This design enables:
 
-- **Single-query loading.** No N+1 problems. One query returns the complete entity graph.
+- **Single-query loading.** One query returns the complete entity graph, so the declared relationships never cost a query each, and nothing loads behind your back.
 - **Type-safe path expressions.** Filter on joined fields with full IDE support, including auto-completion across relationships: `User_.city.name eq "Sunnyvale"`
 - **Concise syntax.** No manual joins, no fetch configuration, no lazy loading surprises.
 - **Predictable behavior.** What you define is what you get. The entity structure *is* the query structure.
@@ -2977,7 +2977,7 @@ When you query `Order`:
 3. `Address` for shipping is loaded (via JOIN)
 4. `Address` for customer default is loaded (via JOIN)
 
-All in **one SQL query**. No lazy loading surprises, no N+1 problems.
+All in **one SQL query**. No lazy loading surprises, and no query per relationship to avoid.
 
 ### How It Works
 
@@ -4463,7 +4463,7 @@ Optional<User> user = orm.entity(User.class)
 1. **Use the metamodel** -- `User_.email` catches typos at compile time; see [Metamodel](metamodel.md)
 2. **Kotlin: choose your style** -- quick queries (`orm.find`, `orm.findAll`) for simple cases, query builder for complex operations
 3. **Java: DSL or Templates** -- DSL for type-safe conditions, SQL Templates for complex SQL like CTEs, window functions, or database-specific features
-4. **Entity graphs load in one query** -- related entities marked with `@FK` are JOINed automatically, no N+1 problems
+4. **Entity graphs load in one query** -- related entities marked with `@FK` are JOINed automatically, so the declared graph costs one statement and nothing loads behind your back
 5. **Close Java streams** -- always use try-with-resources with `Stream` results
 6. **Combine conditions freely** -- use `and` / `or` in Kotlin, `it.where().and()` / `.or()` in Java to build complex predicates
 7. **Always use the returned builder** -- `QueryBuilder` is immutable; methods like `where()`, `orderBy()`, and `limit()` return a new instance. Ignoring the return value silently loses the change. Chain calls or reassign the variable.
@@ -11141,11 +11141,11 @@ Rather than baking opinionated annotations like `@CreatedAt` or `@UpdatedBy` int
 | `afterInsert(entity)` | Called after a successful insert. |
 | `afterUpdate(entity)` | Called after a successful update. |
 | `afterUpsert(entity)` | Called after a successful SQL-level upsert. Delegates to `afterInsert` by default. |
-| `beforeDelete(entity)` | Called before deleting. |
-| `afterDelete(entity)` | Called after a successful delete. |
+| `beforeRemove(entity)` | Called before removing. |
+| `afterRemove(entity)` | Called after a successful removal. |
 
-> **Warning:**
-**Important:** The entity passed to `afterInsert`, `afterUpdate`, and `afterUpsert` is the **pre-persist entity**. It does not include database-generated values such as auto-incremented IDs, server defaults, or trigger-applied changes. To access the generated ID, use the return value of `insertAndFetch` instead.
+> **Info:**
+**The callback observes what the caller observes.** A method that returns nothing passes the entity as it was sent; a `*AndFetchId` method passes it carrying the generated primary key; a `*AndFetch` method passes the row read back from the database. See [After Callback Entity State](#after-callback-entity-state).
 
 Every mutation operation follows the same three-phase lifecycle: the "before" callback runs first and can transform the entity, then the SQL executes, and finally the "after" callback fires to observe the result. The following diagram illustrates this flow for an insert operation. Update, upsert, and delete follow the same pattern with their respective callback methods:
 
@@ -11164,13 +11164,13 @@ Every mutation operation follows the same three-phase lifecycle: the "before" ca
                              │
                              ▼
                     ┌───────────────────┐
-                    │  afterInsert()    │  ← observes the pre-persist entity
+                    │  afterInsert()    │  ← observes what the caller receives
                     └───────────────────┘
 ```
 
 ### Immutable Entity Transformation
 
-Storm entities are immutable records and data classes, so they cannot be mutated in place. To accommodate this, the "before" callbacks for insert, update, and upsert **return the entity** that will actually be persisted. Implementations can return a new instance with modified fields (e.g., audit timestamps set) or the original entity unchanged. The "after" callbacks and `beforeDelete` are purely observational and return `void`.
+Storm entities are immutable records and data classes, so they cannot be mutated in place. To accommodate this, the "before" callbacks for insert, update, and upsert **return the entity** that will actually be persisted. Implementations can return a new instance with modified fields (e.g., audit timestamps set) or the original entity unchanged. The "after" callbacks and `beforeRemove` are purely observational and return `void`.
 
 This design works naturally with both Kotlin's `copy()` and Java's builder pattern, keeping callback implementations concise and idiomatic in both languages.
 
@@ -11269,14 +11269,14 @@ An upsert operation does not always result in a SQL-level upsert statement. Depe
 ```
                               upsert(entity)
                                     │
-                 ┌──────────────────┼──────────────────┐
+                 ┌──────────────────┼───────────────────┐
                  ▼                  ▼                   ▼
           ┌─────────────┐   ┌─────────────┐   ┌──────────────────┐
           │ Route to    │   │ Route to    │   │ SQL-level upsert │
           │ update      │   │ insert      │   │                  │
           └──────┬──────┘   └──────┬──────┘   └────────┬─────────┘
-                 │                 │                    │
-                 ▼                 ▼                    ▼
+                 │                 │                   │
+                 ▼                 ▼                   ▼
           beforeUpdate /    beforeInsert /       beforeUpsert /
           afterUpdate       afterInsert          afterUpsert
 ```
@@ -11293,9 +11293,37 @@ The practical consequence is that you do not need to override all three pairs. I
 
 ### "After" Callback Entity State
 
-The "after" callbacks (`afterInsert`, `afterUpdate`, `afterUpsert`, `afterDelete`) always receive the entity as it was sent to the database, after the corresponding "before" transformation. They do **not** reflect database-generated values such as auto-incremented primary keys, version column increments, default column values, or trigger-applied modifications.
+The "after" callbacks receive exactly what the calling method reports to its caller, and no more. The method name at the call site therefore tells you what the callback will see:
 
-This applies to all repository methods, including the `*AndFetch` variants. For example, when `insertAndFetch` is called, `afterInsert` still receives the pre-persist entity; the fetched entity (with the generated ID, defaults, etc.) is only returned to the caller. This keeps the callback contract consistent and predictable regardless of which repository method was used.
+| Method | The callback receives |
+|---|---|
+| `insert`, `update`, `upsert` | The entity as sent to the database, after the "before" transformation. No key is read back, so a generated primary key is not reflected. |
+| `insertAndFetchId`, `insertAndFetchIds`, `upsertAndFetchId`, `upsertAndFetchIds` | That same entity, carrying the primary key the database assigned. |
+| `insertAndFetch`, `updateAndFetch`, `upsertAndFetch` | The entity as read back from the database, reflecting generated keys, column defaults, version increments, and trigger-applied changes. |
+
+`afterRemove` always receives the entity that was passed in.
+
+This is a deliberate trade. A method that returns nothing does not read generated keys, and making it do so would change the SQL it issues; a method that reads the row back has that row already. Rather than levelling every method down to the cheapest one, the callback is given whatever its caller paid for.
+
+> **Warning:**
+A callback that reads `entity.id()` needs a method that reports one. If an `afterInsert` callback writes a related row, calling plain `insert` elsewhere in the codebase leaves that callback with an unset primary key rather than an error. Where a callback depends on the generated key, make sure the call sites use `insertAndFetchId` or `insertAndFetch`.
+
+#### Write Sets
+
+Write sets report on the same terms: `writeSet.insert(...)` passes the entities as sent, `insertAndFetchIds` passes them carrying their keys, and `insertAndFetch` passes the rows read back.
+
+This holds regardless of the dependency graph. A write set retrieves the keys it needs to bind foreign keys on dependent rows, but those keys are a property of the graph rather than something the caller asked to observe, so they are not reported to callbacks unless the calling method reports them. Inserting a `City` on its own and inserting the same `City` alongside an `Owner` that references it therefore look identical to a callback.
+
+A write set also pulls in unsaved entities reachable from the ones you pass, so a callback can fire for an entity you never handed it directly. Those discovered members are reported to callbacks on the same terms as the ones you passed: on `insertAndFetch` their callbacks observe a row read back too, even though the entity itself is not returned to you. Whether an entity was passed or reached by discovery does not change what its callback sees.
+
+### Remove Callbacks
+
+`beforeRemove` and `afterRemove` receive an entity, so they fire where the operation has one: `remove(entity)` and its collection and stream forms. `removeById`, `removeByRef`, `removeAll`, the `removeByRef` collection forms, and the `delete()` query builder identify rows by key or by predicate rather than by entity, so there is no entity to hand to a callback and these callbacks do not fire.
+
+This follows the same principle as the "after" callback state above. Removing by key is one statement; reading the row first so a callback could observe it would make every removal by id a select plus a delete. Where a callback needs the entity, remove by entity.
+
+> **Warning:**
+A callback that throws in order to block a removal only blocks the paths that carry an entity, so `removeById`, `removeByRef` and the `delete()` builder pass straight through. Enforce an invariant in the database (a foreign key, a trigger, or a restricted grant) and use the callback for the bookkeeping that follows.
 
 ### Database Operations Inside Callbacks
 
@@ -11352,7 +11380,7 @@ This makes it safe to perform arbitrary database work inside a callback without 
 
 ### Batch Operations
 
-Callbacks work with both single and batch operations. For batch operations, the "before" callbacks (`beforeInsert`, `beforeUpdate`, `beforeUpsert`) are called per entity during the mapping phase, before the batch is sent to the database. The "after" callbacks (`afterInsert`, `afterUpdate`, `afterUpsert`, `afterDelete`) are called per entity after the batch executes successfully. This means the "before" callback can transform each entity individually, and all transformations are applied before the batch SQL is executed.
+Callbacks work with both single and batch operations. For batch operations, the "before" callbacks (`beforeInsert`, `beforeUpdate`, `beforeUpsert`) are called per entity during the mapping phase, before the batch is sent to the database. The "after" callbacks (`afterInsert`, `afterUpdate`, `afterUpsert`, `afterRemove`) are called per entity after the batch executes successfully. This means the "before" callback can transform each entity individually, and all transformations are applied before the batch SQL is executed.
 
 ---
 
@@ -11449,7 +11477,7 @@ public class ArticleValidationCallback implements EntityCallback<Article> {
 
 ### Logging
 
-The "after" callbacks are well-suited for logging, since they fire only after the database operation succeeds. This avoids logging mutations that were rolled back. The entity passed to the callback is the pre-persist version (see [After Callback Entity State](#after-callback-entity-state)), so the logged values reflect what your application sent to the database:
+The "after" callbacks are well-suited for logging, since they fire only after the database operation succeeds. This avoids logging mutations that were rolled back. What gets logged depends on the method that performed the write (see [After Callback Entity State](#after-callback-entity-state)): `insert` logs what your application sent, while `insertAndFetch` logs the stored row.
 
 ```java
 public class ArticleLoggingCallback implements EntityCallback<Article> {
@@ -11466,7 +11494,7 @@ public class ArticleLoggingCallback implements EntityCallback<Article> {
     }
 
     @Override
-    public void afterDelete(Article entity) {
+    public void afterRemove(Article entity) {
         log.info("Deleted article: {}", entity);
     }
 }
@@ -16224,7 +16252,7 @@ Two aids answer which query a row is:
   ```
 
   The shape is the type's declaration, derived at rendering and cached per type, so the setting costs nothing while calls run: an entity component is a join and recurses, an inline record is columns on the same table and no subgraph, and a `Ref` is its foreign key column and stops — which is exactly the width a `Ref` declaration saves. Many rows against a wide graph is the signal to consider `Ref` on the branches that read does not need, or a [projection](projections.md).
-- **DEBUG detail**: with `st.orm.sql.summary` at `DEBUG`, the un-elided statement texts follow the summary, one per row in row order.
+- **TRACE detail**: with `st.orm.sql.perf` at `TRACE`, the un-elided statement texts follow the summary, one per row in row order. `TRACE` rather than `DEBUG` because this logger sits under `st.orm.sql`, so raising that to `DEBUG` for per-statement logging would otherwise repeat every statement twice. Summaries carry no parameter values at any level, so this level is as safe to enable as the others.
 - **Display width**: rows aim for 200 characters, the statement text eliding to what the other columns leave; `storm.sql-log.line-width` (Spring), `sqlLogLineWidth` (Ktor), or the `storm.sql_log.line_width` system property sets the target for narrow viewers (120) or wide ones (240).
 
 Statements group by the template they were generated from, not by text. A collection parameter that expands to a different number of placeholders per execution (`IN (?)`, `IN (?, ?)`) therefore stays one row, marked `(n variants)`.
@@ -16242,7 +16270,7 @@ Summed database time exceeds elapsed time whenever statements run concurrently, 
 
 The headline also counts what cost nothing: `3 from cache` reports the reads the transaction's entity cache served without a statement — a reference resolving to an entity the transaction had already read, or an identity lookup at `REPEATABLE_READ` and above. The fetch count is the cache misses; this is the other side, and it appears only when any read was served.
 
-A scope covers whatever runs inside it, whichever repository, query builder or template issued the statement. Summaries log under `st.orm.sql.summary` at `INFO`, and statements are recorded only while that logger is enabled.
+A scope covers whatever runs inside it, whichever repository, query builder or template issued the statement. Summaries log under `st.orm.sql.perf` at `INFO`, and statements are recorded only while that logger is enabled.
 
 ### Per Entry Point
 
@@ -16294,7 +16322,7 @@ The invoking thread is what this covers, which is where a request handler, a sch
 
 ### A Narrower Boundary
 
-To measure one service method rather than a whole request, open a scope directly. The summary reports the same way: under `st.orm.sql.summary`, only while that logger is enabled.
+To measure one service method rather than a whole request, open a scope directly. The summary reports the same way: under `st.orm.sql.perf`, only while that logger is enabled.
 
 [Kotlin]
 
@@ -16327,7 +16355,7 @@ try (var scope = SqlLog.open("importOwners")) {
 The scope follows the thread that opened it. Work handed to another thread, including a subtask forked from a `StructuredTaskScope`, falls outside it.
 ### The Summary Is the Report
 
-A scope hands nothing back: the summary reports through the `st.orm.sql.summary` logger, and the logger is the only switch. That is deliberate. Each number a summary shows already has a home for programmatic use — production metrics are the [Micrometer observations](spring-integration.md#observability), and test assertions are [`SqlCapture`](testing.md) — so the summary stays a report to be read, not an API to be coupled to.
+A scope hands nothing back: the summary reports through the `st.orm.sql.perf` logger, and the logger is the only switch. That is deliberate. Each number a summary shows already has a home for programmatic use — production metrics are the [Micrometer observations](spring-integration.md#observability), and test assertions are [`SqlCapture`](testing.md) — so the summary stays a report to be read, not an API to be coupled to.
 
 Parameter values are absent by design: they are database values, and a summary is meant to be safe to log in production. Raise `st.orm.sql` to `TRACE` to see values.
 
@@ -16732,7 +16760,7 @@ public EntityCallback<?> auditCallback() {
 ```
 ### Mutation Logging
 
-Use `afterInsert`, `afterUpdate`, and `afterDelete` callbacks to record mutations for compliance or debugging:
+Use `afterInsert`, `afterUpdate`, and `afterRemove` callbacks to record mutations for compliance or debugging:
 
 [Kotlin]
 
@@ -16749,7 +16777,7 @@ class MutationLogger : EntityCallback<Entity<*>> {
         logger.log(System.Logger.Level.INFO, "UPDATE: ${entity::class.simpleName} id=${entity.id()}")
     }
 
-    override fun afterDelete(entity: Entity<*>) {
+    override fun afterRemove(entity: Entity<*>) {
         logger.log(System.Logger.Level.INFO, "DELETE: ${entity::class.simpleName} id=${entity.id()}")
     }
 }
@@ -16775,12 +16803,14 @@ public class MutationLogger implements EntityCallback<Entity<?>> {
     }
 
     @Override
-    public void afterDelete(Entity<?> entity) {
+    public void afterRemove(Entity<?> entity) {
         logger.log(System.Logger.Level.INFO,
             "DELETE: %s id=%s".formatted(entity.getClass().getSimpleName(), entity.id()));
     }
 }
 ```
+For inserts, the primary key logged here comes from the database only when the calling method reports one. `insertAndFetchId` and `insertAndFetch` do; plain `insert` reads no key back and passes the entity as sent. See [After Callback Entity State](entity-lifecycle.md#after-callback-entity-state).
+
 ---
 
 ## DataSource Credentials Management
@@ -16883,7 +16913,7 @@ class WriteAccessCallback : EntityCallback<User> {
         return entity
     }
 
-    override fun beforeDelete(entity: User) {
+    override fun beforeRemove(entity: User) {
         val currentRole = SecurityContext.currentUserRole()
         if (currentRole != "ADMIN") {
             throw PersistenceException("Only administrators can delete user records.")
@@ -16907,7 +16937,7 @@ public class WriteAccessCallback implements EntityCallback<User> {
     }
 
     @Override
-    public void beforeDelete(User entity) {
+    public void beforeRemove(User entity) {
         String currentRole = SecurityContext.currentUserRole();
         if (!"ADMIN".equals(currentRole)) {
             throw new PersistenceException("Only administrators can delete user records.");
@@ -17942,16 +17972,16 @@ public interface CustomerRepository extends EntityRepository<Customer, Integer> 
     }
 }
 ```
-### Enforcing Soft Deletes via Callback
+### Catching Hard Deletes via Callback
 
-To prevent accidental hard deletes, use an entity callback that converts `delete()` calls into soft deletes:
+To catch accidental hard deletes in development, use an entity callback that rejects them:
 
 [Kotlin]
 
 ```kotlin
 class SoftDeleteGuard : EntityCallback<Customer> {
 
-    override fun beforeDelete(entity: Customer) {
+    override fun beforeRemove(entity: Customer) {
         throw PersistenceException(
             "Hard deletes are not allowed for Customer. Use softDelete() instead."
         )
@@ -17965,12 +17995,14 @@ class SoftDeleteGuard : EntityCallback<Customer> {
 public class SoftDeleteGuard implements EntityCallback<Customer> {
 
     @Override
-    public void beforeDelete(Customer entity) {
+    public void beforeRemove(Customer entity) {
         throw new PersistenceException(
             "Hard deletes are not allowed for Customer. Use softDelete() instead.");
     }
 }
 ```
+This catches `remove(entity)`, but it is not an enforcement point: `removeById`, `removeByRef`, `removeAll` and the `delete()` query builder identify rows without reading them, so there is no entity to pass and `beforeRemove` does not fire. Treat it as a development guard that surfaces the call sites to fix, and enforce the rule in the database where it has to hold. See [Remove Callbacks](entity-lifecycle.md#remove-callbacks).
+
 ---
 
 ## Pagination and Scrolling
@@ -18169,7 +18201,7 @@ class TenantIsolationCallback : EntityCallback<TenantEntity<*>> {
         return entity
     }
 
-    override fun beforeDelete(entity: TenantEntity<*>) {
+    override fun beforeRemove(entity: TenantEntity<*>) {
         val currentTenant = TenantContext.current()
         if (entity.tenantId != currentTenant) {
             throw PersistenceException("Cannot delete entity belonging to tenant ${entity.tenantId}")
@@ -18202,7 +18234,7 @@ public class TenantIsolationCallback implements EntityCallback<TenantEntity<?>> 
     }
 
     @Override
-    public void beforeDelete(TenantEntity<?> entity) {
+    public void beforeRemove(TenantEntity<?> entity) {
         String currentTenant = TenantContext.current();
         if (!entity.tenantId().equals(currentTenant)) {
             throw new PersistenceException("Cannot delete entity belonging to tenant " + entity.tenantId());
@@ -18286,7 +18318,7 @@ _All comparisons on this page last reviewed 2026-07-15 against: Hibernate ORM 7.
 
 <sup>7</sup> Storm uses codegen with reflection fallback.
 
-<sup>10</sup> Storm ships its reachability metadata and registers entities and repositories from the compile-time type index, through Spring AOT hints on Spring Boot and through a built-in GraalVM feature elsewhere. See [GraalVM Native Images](/docs/graalvm).
+<sup>10</sup> Storm ships its reachability metadata and registers entities and repositories from the compile-time type index, through Spring AOT hints on Spring Boot and through a built-in GraalVM feature elsewhere. See [GraalVM Native Images](graalvm.md).
 
 <sup>11</sup> jOOQ's generated record classes need reflection configuration, which framework tooling or the tracing agent can produce.
 
@@ -18927,7 +18959,15 @@ See [SQL Templates](sql-templates.md) for details on using `Data` and plain reco
 
 ### How do I prevent N+1 queries?
 
-You do not need to take any special action. Storm prevents N+1 queries by design. When you define a relationship with `@FK`, Storm generates a single SQL query that joins the related tables and hydrates the entire entity graph from one result set. There is no lazy loading that triggers additional queries behind the scenes. If you need a reference to a related entity without loading its full graph, use `Ref<T>` to defer fetching until you explicitly call `fetch()`. A `Ref` you do want in a particular query is named on the query builder with [`fetch(User_.city)`](refs.md#resolving-a-ref-as-part-of-the-query), which brings the referenced record back in the same statement.
+Two properties make it a non-issue for the entity graph, and neither is something you configure.
+
+**Storm issues no query you did not ask for.** There is no lazy loading and no persistence context, so reading a field never triggers a statement behind your back. A *hidden* N+1, the kind that appears in production because a template touched a relationship, cannot occur.
+
+**The graph you declared travels with the read.** Relationships declared with `@FK` are joined into the same statement and hydrated from one result set, so for those the problem never arises. That join is cheap: it is the join you would otherwise write by hand, across indexed foreign keys, and it replaces N round trips with one.
+
+What Storm does not do is stop you writing a loop. Calling a repository once per record still issues one statement per record. The difference is that the loop is in your code, where you can read it, rather than in the framework. Batch it with `findAllById`, an `inList` predicate (`IN` in Java), or [`resultGroupedBy`](queries.md) when you want parents with their children; raising the `st.orm.sql.perf` logger shows the repetition as a row with a high execution multiplier in the [per-call summary](sql-logging.md#per-call-summaries).
+
+If you want a relationship that does *not* travel with the entity, declare it `Ref<T>` and resolve it deliberately: `fetch()` on the reference, or [`fetch(User_.city)`](refs.md#resolving-a-ref-as-part-of-the-query) on the query when the read already knows it needs the record, which brings it back in the same statement.
 
 ### Can I write raw SQL?
 
@@ -19947,10 +19987,10 @@ A Kotlin data class or Java record that implements the `Entity<ID>` interface an
 A transaction-scoped cache that stores entities by primary key during a transaction. It avoids redundant database round-trips, skips repeated object construction during hydration, preserves object identity within a transaction, and tracks observed state for dirty checking. The cache is automatically cleared on commit or rollback. See [Entity Cache](entity-cache.md).
 
 **Entity Graph**
-The tree of related entities loaded through `@FK` relationships in a single query using JOINs. When Storm loads a `User` that has `@FK val city: City`, it automatically joins the `city` table and returns a fully populated `User` with its `City` object. This eliminates the N+1 query problem. See [Relationships](relationships.md).
+The tree of related entities loaded through `@FK` relationships in a single query using JOINs. When Storm loads a `User` that has `@FK val city: City`, it automatically joins the `city` table and returns a fully populated `User` with its `City` object. The declared graph therefore costs one statement rather than one per relationship, and because nothing loads lazily, no query is ever issued behind the application's back. See [Relationships](relationships.md).
 
 **Entity Lifecycle**
-The set of callback hooks (`beforeInsert`, `afterInsert`, `beforeUpdate`, `afterUpdate`, `beforeDelete`, `afterDelete`) that fire around mutation operations. Implemented via the `EntityCallback<E>` interface, these hooks enable cross-cutting concerns like auditing and validation. See [Entity Lifecycle](entity-lifecycle.md).
+The set of callback hooks (`beforeInsert`, `afterInsert`, `beforeUpdate`, `afterUpdate`, `beforeUpsert`, `afterUpsert`, `beforeRemove`, `afterRemove`) that fire around mutation operations. An "after" callback observes what the calling method reports to its caller. Implemented via the `EntityCallback<E>` interface, these hooks enable cross-cutting concerns like auditing and validation. See [Entity Lifecycle](entity-lifecycle.md).
 
 **Hydration**
 The process of transforming flat database rows into structured Kotlin data classes or Java records. Storm maps SELECT columns to constructor parameters by position, with no runtime reflection on column names. Hydration plans are compiled once per type and reused. See [Hydration](hydration.md).
@@ -19974,7 +20014,7 @@ A lightweight identifier (`Ref<T>`) that carries only the record type and primar
 An interface that provides database access methods for an entity or projection type. `EntityRepository<E, ID>` offers built-in CRUD operations; `ProjectionRepository<P, ID>` offers read-only operations. Custom repositories extend these interfaces with domain-specific query methods. See [Repositories](repositories.md).
 
 **SQL Log**
-Storm's built-in visibility into the statements it executes, in two grains under one logger tree. Raising `st.orm.sql` reports each statement as it executes, with parameter values at `TRACE`; `st.orm.sql.summary` reports what a unit of work, such as one request or one scheduled task, cost the database as a single summary: how many statements ran, how long the database spent on them against how long the call took, and which statement carried the weight. Summaries carry no parameter values, so they are safe to log in production, where thresholds report only calls that exceed them. See [SQL Logging](sql-logging.md).
+Storm's built-in visibility into the statements it executes, in two grains under one logger tree. Raising `st.orm.sql` reports each statement as it executes, with parameter values at `TRACE`; `st.orm.sql.perf` reports what a unit of work, such as one request or one scheduled task, cost the database as a single summary: how many statements ran, how long the database spent on them against how long the call took, and which statement carried the weight. Summaries carry no parameter values, so they are safe to log in production, where thresholds report only calls that exceed them. See [SQL Logging](sql-logging.md).
 
 **Scrollable**
 A scroll request that captures cursor state for fetching a window of results. The scrolling counterpart of `Pageable`. Created via `Scrollable.of(key, size)` or obtained from `Window.next()` / `Window.previous()`, which are always non-null when the window has content. Supports cursor serialization for REST APIs via `toCursor()` / `Scrollable.fromCursor(key, cursor)`. See [Pagination and Scrolling: Scrolling](pagination-and-scrolling.md#scrolling).
@@ -19986,7 +20026,7 @@ Storm's template engine that uses string interpolation to embed entity types, me
 Classifies what caused a statement to execute: `DIRECT` for statements the code asked for through a repository, query builder, or template, and `FETCH` for statements resolving a reference through `Ref.fetch()`. The origin appears on the `storm.origin` metric tag, in SQL log summaries, and on captured statements in tests, making the cost of resolving references measurable on its own. See [SQL Logging](sql-logging.md#fetches).
 
 **Static Metamodel**
-See [Metamodel](#metamodel) above.
+See **Metamodel** above.
 
 **Storm Config**
 A configuration object (`StormConfig`) that controls runtime behavior for features like dirty checking mode, entity cache retention, and template cache size. All settings have sensible defaults, so configuration is optional. See [Configuration](configuration.md).

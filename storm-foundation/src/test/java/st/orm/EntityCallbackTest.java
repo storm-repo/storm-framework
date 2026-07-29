@@ -66,14 +66,14 @@ class EntityCallbackTest {
     }
 
     @Test
-    void defaultBeforeDeleteDoesNotThrow() {
+    void defaultBeforeRemoveDoesNotThrow() {
         EntityCallback<TestEntity> callback = new EntityCallback<>() {};
-        callback.beforeDelete(new TestEntity(1));
+        callback.beforeRemove(new TestEntity(1));
     }
 
     @Test
-    void defaultAfterDeleteDoesNotThrow() {
+    void defaultAfterRemoveDoesNotThrow() {
         EntityCallback<TestEntity> callback = new EntityCallback<>() {};
-        callback.afterDelete(new TestEntity(1));
+        callback.afterRemove(new TestEntity(1));
     }
 }

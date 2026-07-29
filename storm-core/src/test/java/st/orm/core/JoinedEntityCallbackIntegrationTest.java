@@ -164,29 +164,29 @@ public class JoinedEntityCallbackIntegrationTest {
     }
 
     // Joined entity DELETE with callbacks
-    // Exercises deleteJoined + beforeDelete/afterDelete callback paths
+    // Exercises deleteJoined + beforeRemove/afterRemove callback paths
 
     @Test
     public void testJoinedEntityRemoveWithCallbacks() {
         List<String> log = new ArrayList<>();
         var orm = ORMTemplate.of(dataSource).withEntityCallback(new EntityCallback<JoinedAnimal>() {
             @Override
-            public void beforeDelete(@Nonnull JoinedAnimal entity) {
-                log.add("beforeDelete");
+            public void beforeRemove(@Nonnull JoinedAnimal entity) {
+                log.add("beforeRemove");
             }
 
             @Override
-            public void afterDelete(@Nonnull JoinedAnimal entity) {
-                log.add("afterDelete");
+            public void afterRemove(@Nonnull JoinedAnimal entity) {
+                log.add("afterRemove");
             }
         });
         var animals = orm.entity(JoinedAnimal.class);
         // First insert a new entity so we can safely delete it.
         Integer newId = animals.insertAndFetchId(new JoinedCat(null, "TempCatDel", false));
-        JoinedAnimal toDelete = animals.getById(newId);
-        animals.remove(toDelete);
-        assertTrue(log.contains("beforeDelete"));
-        assertTrue(log.contains("afterDelete"));
+        JoinedAnimal toRemove = animals.getById(newId);
+        animals.remove(toRemove);
+        assertTrue(log.contains("beforeRemove"));
+        assertTrue(log.contains("afterRemove"));
     }
 
     @Test
@@ -194,13 +194,13 @@ public class JoinedEntityCallbackIntegrationTest {
         List<String> log = new ArrayList<>();
         var orm = ORMTemplate.of(dataSource).withEntityCallback(new EntityCallback<JoinedAnimal>() {
             @Override
-            public void beforeDelete(@Nonnull JoinedAnimal entity) {
-                log.add("beforeDelete");
+            public void beforeRemove(@Nonnull JoinedAnimal entity) {
+                log.add("beforeRemove");
             }
 
             @Override
-            public void afterDelete(@Nonnull JoinedAnimal entity) {
-                log.add("afterDelete");
+            public void afterRemove(@Nonnull JoinedAnimal entity) {
+                log.add("afterRemove");
             }
         });
         var animals = orm.entity(JoinedAnimal.class);
@@ -209,7 +209,7 @@ public class JoinedEntityCallbackIntegrationTest {
         JoinedAnimal cat = animals.getById(id1);
         JoinedAnimal dog = animals.getById(id2);
         animals.remove(List.of(cat, dog));
-        assertEquals(4, log.size()); // 2 beforeDelete + 2 afterDelete
+        assertEquals(4, log.size()); // 2 beforeRemove + 2 afterRemove
     }
 
     // Joined entity deleteById (exercises deleteJoined with null concreteType)
@@ -501,8 +501,8 @@ public class JoinedEntityCallbackIntegrationTest {
         List<String> log = new ArrayList<>();
         var orm = ORMTemplate.of(dataSource).withEntityCallback(new EntityCallback<JoinedAnimal>() {
             @Override
-            public void beforeDelete(@Nonnull JoinedAnimal entity) {
-                log.add("beforeDelete:" + entity.id());
+            public void beforeRemove(@Nonnull JoinedAnimal entity) {
+                log.add("beforeRemove:" + entity.id());
             }
         });
         var animals = orm.entity(JoinedAnimal.class);

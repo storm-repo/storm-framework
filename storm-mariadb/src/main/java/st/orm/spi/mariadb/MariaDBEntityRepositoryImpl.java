@@ -53,6 +53,7 @@ public class MariaDBEntityRepositoryImpl<E extends Entity<ID>, ID>
         if (generationStrategy != SEQUENCE) {
             return super.insertAndFetchId(entity);
         }
+        entity = fireBeforeInsert(entity);
         validateInsert(entity);
         assert primaryKeyColumns.size() == 1;
         var primaryKeyColumn = primaryKeyColumns.getFirst();
@@ -61,7 +62,9 @@ public class MariaDBEntityRepositoryImpl<E extends Entity<ID>, ID>
                 INSERT INTO \0
                 VALUES \0
                 RETURNING %s""".formatted(pkName), model.type(), entity)).managed().prepare()) {
-            return query.getSingleResult(model.primaryKeyType());
+            ID id = query.getSingleResult(model.primaryKeyType());
+            fireAfterInsert(entity, id);
+            return id;
         }
     }
 
@@ -75,16 +78,21 @@ public class MariaDBEntityRepositoryImpl<E extends Entity<ID>, ID>
         if (generationStrategy != SEQUENCE) {
             return super.insertAndFetchIds(entities);
         }
-        entities.forEach(this::validateInsert);
+        List<E> transformed = toStream(entities)
+                .map(this::fireBeforeInsert)
+                .map(this::validateInsert)
+                .toList();
         assert primaryKeyColumns.size() == 1;
         var primaryKeyColumn = primaryKeyColumns.getFirst();
         String pkName = primaryKeyColumn.qualifiedName(ormTemplate.dialect());
         var query = ormTemplate.query(TemplateString.raw("""
             INSERT INTO \0
             VALUES \0
-            RETURNING %s""".formatted(pkName), model.type(), entities))
+            RETURNING %s""".formatted(pkName), model.type(), transformed))
                 .managed();
-        return query.getResultList(model.primaryKeyType());
+        List<ID> ids = query.getResultList(model.primaryKeyType());
+        fireAfterInsert(transformed, ids);
+        return ids;
     }
 
     @Override

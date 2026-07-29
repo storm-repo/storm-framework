@@ -70,7 +70,7 @@ _All comparisons on this page last reviewed 2026-07-15 against: Hibernate ORM 7.
 
 <sup>7</sup> Storm uses codegen with reflection fallback.
 
-<sup>10</sup> Storm ships its reachability metadata and registers entities and repositories from the compile-time type index, through Spring AOT hints on Spring Boot and through a built-in GraalVM feature elsewhere. See [GraalVM Native Images](/docs/graalvm).
+<sup>10</sup> Storm ships its reachability metadata and registers entities and repositories from the compile-time type index, through Spring AOT hints on Spring Boot and through a built-in GraalVM feature elsewhere. See [GraalVM Native Images](graalvm.md).
 
 <sup>11</sup> jOOQ's generated record classes need reflection configuration, which framework tooling or the tracing agent can produce.
 
