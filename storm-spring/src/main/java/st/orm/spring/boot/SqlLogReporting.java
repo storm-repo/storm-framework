@@ -19,7 +19,7 @@ import jakarta.annotation.Nonnull;
 import jakarta.annotation.Nullable;
 import java.time.Duration;
 import org.slf4j.Logger;
-import st.orm.core.template.SqlScope;
+import st.orm.core.template.SqlLog;
 
 /**
  * How a scope summary reports, shared by every Spring entry point so the request filter and the entry-point
@@ -27,9 +27,9 @@ import st.orm.core.template.SqlScope;
  * INFO; with a threshold set, only the ones that exceed it are, at WARN. At DEBUG the full statement texts follow
  * the summary.
  */
-final class SqlScopeReporting {
+final class SqlLogReporting {
 
-    private SqlScopeReporting() {
+    private SqlLogReporting() {
     }
 
     /**
@@ -44,7 +44,7 @@ final class SqlScopeReporting {
      * Reports the summary. A unit of work that touched no database says nothing worth a line.
      */
     static void report(@Nonnull Logger logger,
-                       @Nonnull SqlScope.Summary summary,
+                       @Nonnull SqlLog.Summary summary,
                        @Nullable Integer statementThreshold,
                        @Nullable Duration durationThreshold) {
         if (summary.statementCount() == 0) {

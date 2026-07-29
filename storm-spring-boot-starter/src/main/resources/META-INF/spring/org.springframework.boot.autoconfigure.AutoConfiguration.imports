@@ -5,4 +5,4 @@ st.orm.spring.boot.StormValidationAutoConfiguration
 st.orm.spring.boot.StormExceptionTranslationAutoConfiguration
 st.orm.spring.boot.StormObservationAutoConfiguration
 st.orm.spring.boot.StormTracingAutoConfiguration
-st.orm.spring.boot.StormSqlScopeAutoConfiguration
+st.orm.spring.boot.StormSqlLogAutoConfiguration

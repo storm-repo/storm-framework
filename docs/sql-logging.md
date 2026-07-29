@@ -90,8 +90,8 @@ One row per distinct statement, heaviest first by **total** time, so a statement
 
 Two aids answer which query a row is:
 
-- **Call sites** name the application frame that caused each execution (`VisitService.kt:88`), which is the identity a developer thinks in. An application with a database layer of its own declares it as plumbing, so rows name the caller beyond it: `storm.sql-scope.call-site-skip` in Spring, `sqlScopeCallSiteSkip` in Ktor, or `ignoreSqlScopeCallSites("com.acme.db")` programmatically. Entries ending in `.kt` or `.java` match by source file, which covers inline functions. Work resumed on another dispatcher has no caller on its stack at all; a context built with `sqlScopeContext()` (and every context Storm builds, such as `transaction { }`) carries the launch site, captured while the caller is still on the stack, so such rows name the frame that launched the work. A stack that is plumbing end to end with no carried site reports its innermost plumbing frame rather than none. A stack walk per execution, so it is opt-in and suited to development: `storm.sql-scope.call-sites: true` in Spring, `sqlScopeCallSites = true` in Ktor, or the `callSites` parameter on a scope opened directly. A row seen from several frames shows the first plus `(+n sites)`.
-- **Hydration shapes** append each row's declared shape, off by default: `storm.sql-scope.hydration` in Spring, `sqlScopeHydration` in Ktor, or `SqlScope.hydrationShapes(...)` / `sqlScopeHydrationShapes(...)` programmatically. `short` states the numbers on rows whose type hydrates beyond its own table — `j2 c12 d3`: joins, columns, and graph depth, with flat types showing none — and `full` names the joined-entity graph on every mapped row:
+- **Call sites** name the application frame that caused each execution (`VisitService.kt:88`), which is the identity a developer thinks in. An application with a database layer of its own declares it as plumbing, so rows name the caller beyond it: `storm.sql-log.call-site-skip` in Spring, `sqlLogCallSiteSkip` in Ktor, or `ignoreSqlLogCallSites("com.acme.db")` programmatically. Entries ending in `.kt` or `.java` match by source file, which covers inline functions. Work resumed on another dispatcher has no caller on its stack at all; a context built with `sqlLogContext()` (and every context Storm builds, such as `transaction { }`) carries the launch site, captured while the caller is still on the stack, so such rows name the frame that launched the work. A stack that is plumbing end to end with no carried site reports its innermost plumbing frame rather than none. A stack walk per execution, so it is opt-in and suited to development: `storm.sql-log.call-sites: true` in Spring, `sqlLogCallSites = true` in Ktor, or the `callSites` parameter on a scope opened directly. A row seen from several frames shows the first plus `(+n sites)`.
+- **Hydration shapes** append each row's declared shape, off by default: `storm.sql-log.hydration` in Spring, `sqlLogHydration` in Ktor, or `SqlLog.hydrationShapes(...)` / `sqlLogHydrationShapes(...)` programmatically. `short` states the numbers on rows whose type hydrates beyond its own table — `j2 c12 d3`: joins, columns, and graph depth, with flat types showing none — and `full` names the joined-entity graph on every mapped row:
 
   ```
   12 ms  1 rows  1x  Pet  SELECT p.id, … WHERE p.id = ?  j2 c12 d3                                  # short
@@ -99,8 +99,8 @@ Two aids answer which query a row is:
   ```
 
   The shape is the type's declaration, derived at rendering and cached per type, so the setting costs nothing while calls run: an entity component is a join and recurses, an inline record is columns on the same table and no subgraph, and a `Ref` is its foreign key column and stops — which is exactly the width a `Ref` declaration saves. Many rows against a wide graph is the signal to consider `Ref` on the branches that read does not need, or a [projection](projections.md).
-- **DEBUG detail**: with `st.orm.sql.scope` at `DEBUG`, the un-elided statement texts follow the summary, one per row in row order.
-- **Display width**: rows aim for 200 characters, the statement text eliding to what the other columns leave; `storm.sql-scope.line-width` (Spring), `sqlScopeLineWidth` (Ktor), or `SqlScope.lineWidth(int)` sets the target for narrow viewers (120) or wide ones (240).
+- **DEBUG detail**: with `st.orm.sql.summary` at `DEBUG`, the un-elided statement texts follow the summary, one per row in row order.
+- **Display width**: rows aim for 200 characters, the statement text eliding to what the other columns leave; `storm.sql-log.line-width` (Spring), `sqlLogLineWidth` (Ktor), or `SqlLog.lineWidth(int)` sets the target for narrow viewers (120) or wide ones (240).
 
 Statements group by the template they were generated from, not by text. A collection parameter that expands to a different number of placeholders per execution (`IN (?)`, `IN (?, ?)`) therefore stays one row, marked `(n variants)`.
 
@@ -117,7 +117,7 @@ Summed database time exceeds elapsed time whenever statements run concurrently, 
 
 The headline also counts what cost nothing: `3 from cache` reports the reads the transaction's entity cache served without a statement — a reference resolving to an entity the transaction had already read, or an identity lookup at `REPEATABLE_READ` and above. The fetch count is the cache misses; this is the other side, and it appears only when any read was served.
 
-A scope covers whatever runs inside it, whichever repository, query builder or template issued the statement. Summaries log under `st.orm.sql.scope` at `INFO`, and statements are recorded only while that logger is enabled.
+A scope covers whatever runs inside it, whichever repository, query builder or template issued the statement. Summaries log under `st.orm.sql.summary` at `INFO`, and statements are recorded only while that logger is enabled.
 
 ### Per Entry Point
 
@@ -128,18 +128,18 @@ Both integrations can wrap every way work enters the application, which needs no
 
 ```yaml
 storm:
-  sql-scope:
+  sql-log:
     enabled: true
     limit: 200      # statements recorded per unit of work; the count covers the rest
 ```
 
-A servlet filter wraps each HTTP request. The same switch covers the entry points a filter cannot see: a method annotated `@Scheduled`, `@KafkaListener`, `@RabbitListener`, or `@JmsListener` reports as its own summary, named after the method (`ReportJob.nightly`), so a worker without a web layer reports the same way a web application does. Matching is by annotation name, directly present on the bean method, so a listener library that is absent from the classpath costs nothing, and `storm.sql-scope.entry-points` replaces the set for others — an SQS listener, or an application's own dispatch annotation. A final class or method cannot be proxied; open a scope inside it instead.
+A servlet filter wraps each HTTP request. The same switch covers the entry points a filter cannot see: a method annotated `@Scheduled`, `@KafkaListener`, `@RabbitListener`, `@JmsListener`, or `@SqsListener` (including the `@KafkaHandler`/`@RabbitHandler` methods of a class-level listener) reports as its own summary, named after the method (`ReportJob.nightly`), so a worker without a web layer reports the same way a web application does. Matching is by annotation name, directly present on the bean method, so a listener library that is absent from the classpath costs nothing, and `storm.sql-log.entry-points` replaces the set for others — a Pulsar listener, or an application's own dispatch annotation. A final class or method cannot be proxied; open a scope inside it instead.
 
 For production, thresholds turn the scope into a guardrail: only units of work that exceed one are reported, at WARN.
 
 ```yaml
 storm:
-  sql-scope:
+  sql-log:
     enabled: true
     threshold:
       statements: 50
@@ -151,8 +151,8 @@ storm:
 
 ```kotlin
 install(Storm) {
-    sqlScope = true
-    sqlScopeLimit = 200
+    sqlLog = true
+    sqlLogLimit = 200
 }
 ```
 
@@ -160,9 +160,9 @@ For production, thresholds turn the scope into a guardrail: only calls that exce
 
 ```kotlin
 install(Storm) {
-    sqlScope = true
-    sqlScopeStatementThreshold = 50
-    sqlScopeDurationThreshold = 500.milliseconds
+    sqlLog = true
+    sqlLogStatementThreshold = 50
+    sqlLogDurationThreshold = 500.milliseconds
 }
 ```
 
@@ -175,13 +175,13 @@ The invoking thread is what this covers, which is where a request handler, a sch
 
 ### A Narrower Boundary
 
-To measure one service method rather than a whole request, open a scope directly. The summary reports the same way: under `st.orm.sql.scope`, only while that logger is enabled.
+To measure one service method rather than a whole request, open a scope directly. The summary reports the same way: under `st.orm.sql.summary`, only while that logger is enabled.
 
 <Tabs groupId="language">
 <TabItem value="kotlin" label="Kotlin" default>
 
 ```kotlin
-val owners = sqlScope("importOwners") {
+val owners = sqlLog("importOwners") {
     ownerService.importAll(batch)
 }
 ```
@@ -191,7 +191,7 @@ The scope follows the coroutine, so it keeps recording across a suspension that 
 Code that builds its own coroutine from blocking code passes the scope along explicitly:
 
 ```kotlin
-fun loadOwners(ids: List<Int>): List<Owner> = runBlocking(sqlScopeContext()) {
+fun loadOwners(ids: List<Int>): List<Owner> = runBlocking(sqlLogContext()) {
     ids.map { async { owners.getById(it) } }.awaitAll()
 }
 ```
@@ -202,7 +202,7 @@ fun loadOwners(ids: List<Int>): List<Owner> = runBlocking(sqlScopeContext()) {
 <TabItem value="java" label="Java">
 
 ```java
-try (var scope = SqlScope.open("importOwners")) {
+try (var scope = SqlLog.open("importOwners")) {
     ownerService.importAll(batch);
 }
 ```
@@ -214,7 +214,7 @@ The scope follows the thread that opened it. Work handed to another thread, incl
 
 ### The Summary Is the Report
 
-A scope hands nothing back: the summary reports through the `st.orm.sql.scope` logger, and the logger is the only switch. That is deliberate. Each number a summary shows already has a home for programmatic use — production metrics are the [Micrometer observations](spring-integration.md#observability), and test assertions are [`SqlCapture`](testing.md) — so the summary stays a report to be read, not an API to be coupled to.
+A scope hands nothing back: the summary reports through the `st.orm.sql.summary` logger, and the logger is the only switch. That is deliberate. Each number a summary shows already has a home for programmatic use — production metrics are the [Micrometer observations](spring-integration.md#observability), and test assertions are [`SqlCapture`](testing.md) — so the summary stays a report to be read, not an API to be coupled to.
 
 Parameter values are absent by design: they are database values, and a summary is meant to be safe to log in production. Raise `st.orm.sql` to `TRACE` to see values.
 

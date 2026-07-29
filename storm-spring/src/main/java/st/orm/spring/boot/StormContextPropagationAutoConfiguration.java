@@ -23,7 +23,7 @@ import org.springframework.boot.autoconfigure.condition.ConditionalOnClass;
 import st.orm.core.template.impl.SqlInterceptorManager;
 
 /**
- * Carries an open SQL scope across the boundaries a request crosses.
+ * Carries an open SQL log recording across the boundaries a request crosses.
  *
  * <p>A scope opened at the request is bound to the thread that opened it. A suspending controller runs its body on
  * another thread, and so does anything the application dispatches, which leaves the statements those threads issue
@@ -35,7 +35,7 @@ import st.orm.core.template.impl.SqlInterceptorManager;
  *
  * <p>This covers the hand-overs that context propagation instruments. A coroutine the application launches itself
  * inherits its parent's coroutine context, so a scope opened inside coroutine code with
- * {@code st.orm.template.sqlScope} covers its own children by construction; that is the boundary to use when the
+ * {@code st.orm.template.sqlLog} covers its own children by construction; that is the boundary to use when the
  * work never passes through an instrumented hand-over.</p>
  *
  * @since 1.13
@@ -45,7 +45,7 @@ import st.orm.core.template.impl.SqlInterceptorManager;
 public class StormContextPropagationAutoConfiguration implements InitializingBean {
 
     /** Key the scope travels under in a captured context snapshot. */
-    static final String SCOPE_KEY = "st.orm.sql.scope";
+    static final String SCOPE_KEY = "st.orm.sql.log";
 
     /** The registry is global, so registration happens once per JVM however many contexts start. */
     private static final AtomicBoolean REGISTERED = new AtomicBoolean();

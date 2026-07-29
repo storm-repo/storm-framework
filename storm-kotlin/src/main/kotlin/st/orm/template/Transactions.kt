@@ -146,7 +146,7 @@ suspend fun <T> transaction(
             TransactionScope.holder().asContextElement(scope) +
             TransactionRunner.callbacksHolder().asContextElement(parentCallbacks) +
             localTransactionOptions.asContextElement(options) +
-            sqlScopeContext()
+            sqlLogContext()
         val result = try {
             withContext(currentContext + elements) {
                 block(scopeTransaction(scope, parentCallbacks))
@@ -165,7 +165,7 @@ suspend fun <T> transaction(
         TransactionRunner.callbacksHolder().asContextElement(callbacks) +
         // Make the options available via the ThreadLocal in case the blocking variant is invoked from suspend context.
         localTransactionOptions.asContextElement(options) +
-        sqlScopeContext()
+        sqlLogContext()
     // The dispatcher only applies to outermost transactions; nested blocks stay on the caller's dispatcher.
     val context = if (parentScope == null) currentContext + dispatcher + elements else currentContext + elements
     // Fire callbacks AFTER withContext returns, so CallbacksKey and ThreadLocals are restored.
@@ -357,7 +357,7 @@ suspend fun <T> withTransactionOptions(
     )
     return withContext(
         Scoped(scoped) +
-            sqlScopeContext() +
+            sqlLogContext() +
             localTransactionOptions.asContextElement(scoped), // Make the defaults available via the ThreadLocal in case the blocking variant is invoked from suspend context.
     ) { block() }
 }

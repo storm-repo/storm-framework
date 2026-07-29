@@ -15,7 +15,7 @@
  */
 package st.orm.template;
 
-import static st.orm.core.template.SqlScope.HydrationShapes.*;
+import static st.orm.core.template.SqlLog.HydrationShapes.*;
 
 import jakarta.annotation.Nonnull;
 import jakarta.annotation.Nullable;
@@ -27,12 +27,12 @@ import jakarta.annotation.Nullable;
  * statement, so it can wrap the handling of a request rather than a single repository:</p>
  *
  * <pre>{@code
- * try (var scope = SqlScope.open("getOwner")) {
+ * try (var scope = SqlLog.open("getOwner")) {
  *     ownerService.load(id);
  * }
  * }</pre>
  *
- * <p>The summary reports through the {@code st.orm.sql.scope} logger when the scope closes, and the logger is the
+ * <p>The summary reports through the {@code st.orm.sql.summary} logger when the scope closes, and the logger is the
  * only switch: statements are recorded only while it is enabled at {@code INFO}, and at {@code DEBUG} the full
  * statement texts follow the summary. What a scope observed is a report, not an API: production numbers belong to
  * the Micrometer observations, and test assertions to {@code SqlCapture}.</p>
@@ -45,30 +45,30 @@ import jakarta.annotation.Nullable;
  *
  * @since 1.13
  */
-public final class SqlScope {
+public final class SqlLog {
 
-    private SqlScope() {
+    private SqlLog() {
     }
 
     /**
      * Opens a scope on the calling thread, closed with try-with-resources.
      *
      * <pre>{@code
-     * try (var scope = SqlScope.open("importOwners")) {
+     * try (var scope = SqlLog.open("importOwners")) {
      *     ownerService.importAll(batch);
      * }
      * }</pre>
      *
      * <p>The scope must be closed on the thread that opened it, which a try-with-resources block guarantees.
-     * Closing reports the summary under {@code st.orm.sql.scope}; a scope whose summary nothing consumes, because
+     * Closing reports the summary under {@code st.orm.sql.summary}; a scope whose summary nothing consumes, because
      * that logger is disabled, records nothing.</p>
      *
      * @param name what the scope covers, used to label the summary.
      * @return the open scope.
      */
     public static Scope open(@Nonnull String name) {
-        return new Scope(st.orm.core.template.SqlScope.reporting()
-                ? st.orm.core.template.SqlScope.open(name)
+        return new Scope(st.orm.core.template.SqlLog.reporting()
+                ? st.orm.core.template.SqlLog.open(name)
                 : null);
     }
 
@@ -80,8 +80,8 @@ public final class SqlScope {
      * @return the open scope.
      */
     public static Scope open(@Nonnull String name, int limit) {
-        return new Scope(st.orm.core.template.SqlScope.reporting()
-                ? st.orm.core.template.SqlScope.open(name, limit)
+        return new Scope(st.orm.core.template.SqlLog.reporting()
+                ? st.orm.core.template.SqlLog.open(name, limit)
                 : null);
     }
 
@@ -95,8 +95,8 @@ public final class SqlScope {
      * @return the open scope.
      */
     public static Scope open(@Nonnull String name, int limit, boolean callSites) {
-        return new Scope(st.orm.core.template.SqlScope.reporting()
-                ? st.orm.core.template.SqlScope.open(name, limit, callSites)
+        return new Scope(st.orm.core.template.SqlLog.reporting()
+                ? st.orm.core.template.SqlLog.open(name, limit, callSites)
                 : null);
     }
 
@@ -107,7 +107,7 @@ public final class SqlScope {
      * @param shapes how shapes render.
      */
     public static void hydrationShapes(@Nonnull HydrationShapes shapes) {
-        st.orm.core.template.SqlScope.hydrationShapes(switch (shapes) {
+        st.orm.core.template.SqlLog.hydrationShapes(switch (shapes) {
             case OFF -> OFF;
             case SHORT -> SHORT;
             case FULL -> FULL;
@@ -122,7 +122,7 @@ public final class SqlScope {
      * @param width the display width; at least 80.
      */
     public static void lineWidth(int width) {
-        st.orm.core.template.SqlScope.lineWidth(width);
+        st.orm.core.template.SqlLog.lineWidth(width);
     }
 
     /**
@@ -136,7 +136,7 @@ public final class SqlScope {
      *                        or {@code "DbExtensions.kt"}.
      */
     public static void ignoreCallSites(@Nonnull String... packagePrefixes) {
-        st.orm.core.template.SqlScope.ignoreCallSites(packagePrefixes);
+        st.orm.core.template.SqlLog.ignoreCallSites(packagePrefixes);
     }
 
     /**
@@ -145,9 +145,9 @@ public final class SqlScope {
     public static final class Scope implements AutoCloseable {
 
         /** The recording scope, or {@code null} when the summary would reach nothing. */
-        private final @Nullable st.orm.core.template.SqlScope.Scope scope;
+        private final @Nullable st.orm.core.template.SqlLog.Scope scope;
 
-        private Scope(@Nullable st.orm.core.template.SqlScope.Scope scope) {
+        private Scope(@Nullable st.orm.core.template.SqlLog.Scope scope) {
             this.scope = scope;
         }
 
@@ -157,7 +157,7 @@ public final class SqlScope {
                 return;
             }
             scope.close();
-            st.orm.core.template.SqlScope.report(scope.summary());
+            st.orm.core.template.SqlLog.report(scope.summary());
         }
     }
 }

@@ -89,7 +89,7 @@ class StormPluginConfig {
     var sqlCommenter: st.orm.core.spi.SqlCommenter? = null
 
     /**
-     * Whether each call is wrapped in a SQL scope whose summary is logged, reporting what one request cost the
+     * Whether each call is wrapped in a SQL log whose summary is logged, reporting what one request cost the
      * database: how many statements it took, how long they took against how long the call took, and which
      * statement carried the weight.
      *
@@ -99,15 +99,15 @@ class StormPluginConfig {
      * 	 9 ms    8 rows  8x  City  fetch   SELECT c.id, c.name FROM city c WHERE c.id = ?
      * ```
      *
-     * The summary logs under `st.orm.sql.scope` at INFO. Statements are recorded only while that logger is
+     * The summary logs under `st.orm.sql.summary` at INFO. Statements are recorded only while that logger is
      * enabled, so leaving this on costs nothing once the logger is turned down. Disabled by default.
      *
      * For a narrower boundary than a request, open a scope directly with
-     * [st.orm.template.sqlScope].
+     * [st.orm.template.sqlLog].
      *
      * @since 1.13
      */
-    var sqlScope: Boolean = false
+    var sqlLog: Boolean = false
 
     /**
      * Number of statements a per-request scope records; the summary counts the rest regardless. Bounds what a
@@ -115,7 +115,7 @@ class StormPluginConfig {
      *
      * @since 1.13
      */
-    var sqlScopeLimit: Int = 200
+    var sqlLogLimit: Int = 200
 
     /**
      * Number of statements above which a call's summary is reported, at WARN. With any threshold set, only
@@ -124,14 +124,14 @@ class StormPluginConfig {
      *
      * @since 1.13
      */
-    var sqlScopeStatementThreshold: Int? = null
+    var sqlLogStatementThreshold: Int? = null
 
     /**
      * Call duration above which a call's summary is reported, at WARN.
      *
      * @since 1.13
      */
-    var sqlScopeDurationThreshold: kotlin.time.Duration? = null
+    var sqlLogDurationThreshold: kotlin.time.Duration? = null
 
     /**
      * Whether each execution is attributed to the application frame that caused it, shown per row as
@@ -140,7 +140,7 @@ class StormPluginConfig {
      *
      * @since 1.13
      */
-    var sqlScopeCallSites: Boolean = false
+    var sqlLogCallSites: Boolean = false
 
     /**
      * Packages whose frames are skipped when attributing an execution to a call site, so rows name the code
@@ -148,7 +148,7 @@ class StormPluginConfig {
      *
      * @since 1.13
      */
-    var sqlScopeCallSiteSkip: List<String> = emptyList()
+    var sqlLogCallSiteSkip: List<String> = emptyList()
 
     /**
      * Width a summary row aims for, such as 120 for narrow viewers or 240 for wide ones; the statement text
@@ -157,7 +157,7 @@ class StormPluginConfig {
      *
      * @since 1.13
      */
-    var sqlScopeLineWidth: Int? = null
+    var sqlLogLineWidth: Int? = null
 
     /**
      * How summary rows render the declared hydration shape of their statement's type: [HydrationShapes.OFF]
@@ -166,7 +166,7 @@ class StormPluginConfig {
      *
      * @since 1.13
      */
-    var sqlScopeHydration: HydrationShapes = HydrationShapes.OFF
+    var sqlLogHydration: HydrationShapes = HydrationShapes.OFF
 
     /**
      * Whether to expose the [st.orm.template.ORMTemplate] and the registered repositories through Ktor's

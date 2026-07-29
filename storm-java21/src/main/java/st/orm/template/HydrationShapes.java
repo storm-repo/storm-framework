@@ -18,7 +18,7 @@ package st.orm.template;
 /**
  * How summary rows render the declared hydration shape of their statement's type.
  *
- * @see SqlScope#hydrationShapes(HydrationShapes)
+ * @see SqlLog#hydrationShapes(HydrationShapes)
  * @since 1.13
  */
 public enum HydrationShapes {

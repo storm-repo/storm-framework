@@ -22,27 +22,27 @@ import st.orm.core.template.impl.SqlInterceptorManager
 import st.orm.core.template.impl.SqlInterceptorManager.Operator
 import kotlin.coroutines.CoroutineContext
 import kotlin.coroutines.EmptyCoroutineContext
-import st.orm.core.template.SqlScope as CoreSqlScope
+import st.orm.core.template.SqlLog as CoreSqlLog
 
 /**
  * Records the statements executed by [block] into a coroutine-aware scope and hands the summary to [onSummary]
  * once the block completes, normally or not.
  *
- * This is the recording machinery behind [st.orm.template.sqlScope] and the Ktor plugin's per-call scope; the
- * summary is internal wiring on its way to the `st.orm.sql.scope` logger, not part of the public API.
+ * This is the recording machinery behind [st.orm.template.sqlLog] and the Ktor plugin's per-call scope; the
+ * summary is internal wiring on its way to the `st.orm.sql.summary` logger, not part of the public API.
  *
  * The scope follows the coroutine rather than the thread it happens to run on, so it keeps recording across a
  * suspension that resumes elsewhere, and a scope opened by one coroutine is never observed by another.
  */
-suspend fun <T> recordSqlScope(
+suspend fun <T> recordSqlLog(
     name: String,
     limit: Int,
     callSites: Boolean,
     block: suspend () -> T,
-    onSummary: (CoreSqlScope.Summary) -> Unit,
+    onSummary: (CoreSqlLog.Summary) -> Unit,
 ): T {
     // A scope times executions, so it listens around them rather than intercepting the statements a call builds.
-    val recorder = CoreSqlScope.recorder(limit, callSites)
+    val recorder = CoreSqlLog.recorder(limit, callSites)
     val holder = SqlInterceptorManager.holder()
     val previous: Array<Operator>? = holder.get()
     val operator = Operator({ sql -> sql }, { it }, recorder)
@@ -50,7 +50,7 @@ suspend fun <T> recordSqlScope(
     // The scope opens where the caller still is on the stack, so that frame is the launch-site fallback for
     // children whose own stack loses it.
     val hint: CoroutineContext = if (callSites) {
-        CoreSqlScope.captureCallSite()?.let { CoreSqlScope.callSiteHint().asContextElement(it) }
+        CoreSqlLog.captureCallSite()?.let { CoreSqlLog.callSiteHint().asContextElement(it) }
             ?: EmptyCoroutineContext
     } else {
         EmptyCoroutineContext
@@ -65,6 +65,6 @@ suspend fun <T> recordSqlScope(
         }
     } finally {
         SqlInterceptorManager.scopeUninstalled()
-        onSummary(CoreSqlScope.summary(name, recorder, System.nanoTime() - started))
+        onSummary(CoreSqlLog.summary(name, recorder, System.nanoTime() - started))
     }
 }

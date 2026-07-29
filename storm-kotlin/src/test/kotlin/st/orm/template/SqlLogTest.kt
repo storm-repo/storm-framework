@@ -18,9 +18,9 @@ import org.springframework.test.context.ContextConfiguration
 import org.springframework.test.context.jdbc.Sql
 import org.springframework.test.context.junit.jupiter.SpringExtension
 import st.orm.Metamodel
-import st.orm.core.template.SqlScope.Summary
+import st.orm.core.template.SqlLog.Summary
 import st.orm.core.template.StatementOrigin.FETCH
-import st.orm.template.impl.recordSqlScope
+import st.orm.template.impl.recordSqlLog
 import st.orm.template.model.Owner
 import st.orm.template.model.PetOwnerRef
 
@@ -29,12 +29,12 @@ import st.orm.template.model.PetOwnerRef
  * resumes on another thread, which is the case a thread-bound scope loses.
  *
  * The recording machinery is exercised directly, since the summary it produces is internal wiring on its way to
- * the `st.orm.sql.scope` logger rather than something [sqlScope] hands to the application.
+ * the `st.orm.sql.summary` logger rather than something [sqlLog] hands to the application.
  */
 @ExtendWith(SpringExtension::class)
 @ContextConfiguration(classes = [IntegrationConfig::class])
 @Sql("/data.sql")
-open class SqlScopeTest(
+open class SqlLogTest(
     @Autowired val orm: ORMTemplate,
 ) {
 
@@ -42,18 +42,18 @@ open class SqlScopeTest(
 
     private suspend fun <T> record(
         name: String,
-        limit: Int = DEFAULT_SQL_SCOPE_LIMIT,
+        limit: Int = DEFAULT_SQL_LOG_LIMIT,
         callSites: Boolean = false,
         block: suspend () -> T,
     ): Pair<T, Summary> {
         var summary: Summary? = null
-        val result = recordSqlScope(name, limit, callSites, block) { summary = it }
+        val result = recordSqlLog(name, limit, callSites, block) { summary = it }
         return result to summary!!
     }
 
     @Test
-    fun `sqlScope returns the block's result`(): Unit = runBlocking {
-        val pets = sqlScope("load") {
+    fun `sqlLog returns the block's result`(): Unit = runBlocking {
+        val pets = sqlLog("load") {
             orm.entity(PetOwnerRef::class).select().resultList
         }
         pets.shouldNotBeEmpty()
@@ -115,7 +115,7 @@ open class SqlScopeTest(
         var inner: Summary? = null
         val (_, outer) = record("outer") {
             orm.entity(PetOwnerRef::class).select().resultList
-            recordSqlScope("inner", DEFAULT_SQL_SCOPE_LIMIT, false, {
+            recordSqlLog("inner", DEFAULT_SQL_LOG_LIMIT, false, {
                 orm.entity(PetOwnerRef::class).select().resultList
             }) { inner = it }
         }
@@ -149,11 +149,11 @@ open class SqlScopeTest(
     }
 
     @Test
-    fun `a scope opened in blocking code reaches an app-built coroutine through sqlScopeContext`(): Unit = runBlocking {
+    fun `a scope opened in blocking code reaches an app-built coroutine through sqlLogContext`(): Unit = runBlocking {
         // The shape a blocking service takes: a thread-bound scope, then a coroutine the app builds itself.
         val summaries = mutableListOf<Summary>()
-        st.orm.core.template.SqlScope.record<Any?>("blocking", {
-            runBlocking(sqlScopeContext()) {
+        st.orm.core.template.SqlLog.record<Any?>("blocking", {
+            runBlocking(sqlLogContext()) {
                 withContext(Dispatchers.IO) {
                     orm.entity(PetOwnerRef::class).select().resultList
                 }
@@ -166,7 +166,7 @@ open class SqlScopeTest(
     fun `a scope opened in blocking code does not reach a coroutine that was not given the context`(): Unit = runBlocking {
         // Without the context, the coroutine inherits no binding and the statement falls outside the scope.
         val summaries = mutableListOf<Summary>()
-        st.orm.core.template.SqlScope.record<Any?>("blocking", {
+        st.orm.core.template.SqlLog.record<Any?>("blocking", {
             runBlocking {
                 withContext(Dispatchers.IO) {
                     orm.entity(PetOwnerRef::class).select().resultList
@@ -180,7 +180,7 @@ open class SqlScopeTest(
     fun `a transaction carries a blocking scope into the coroutines below it`(): Unit = runBlocking {
         // Storm builds the context here, so the fan-out below observes the scope without the caller arranging it.
         val summaries = mutableListOf<Summary>()
-        st.orm.core.template.SqlScope.record<Any?>("blocking", {
+        st.orm.core.template.SqlLog.record<Any?>("blocking", {
             runBlocking {
                 withTransactionOptions(timeoutSeconds = 30) {
                     withContext(Dispatchers.IO) {
@@ -228,7 +228,7 @@ open class SqlScopeTest(
     fun `a hydration shape renders for a data class entity`(): Unit = runBlocking {
         // The shape derives through the reflection provider, which recognizes Kotlin data classes; a JVM-record
         // check would leave these rows bare.
-        sqlScopeHydrationShapes(HydrationShapes.FULL)
+        sqlLogHydrationShapes(HydrationShapes.FULL)
         try {
             val (_, summary) = record("shape") {
                 orm.entity(PetOwnerRef::class).select().resultList
@@ -237,7 +237,7 @@ open class SqlScopeTest(
             rendered shouldContain "joins="
             rendered shouldContain "graph=PetOwnerRef"
         } finally {
-            sqlScopeHydrationShapes(HydrationShapes.OFF)
+            sqlLogHydrationShapes(HydrationShapes.OFF)
         }
     }
 }

@@ -65,8 +65,8 @@ public class StormProperties {
     /** Tracing configuration. */
     private Tracing tracing = new Tracing();
 
-    /** Per-request SQL scope configuration. */
-    private SqlScope sqlScope = new SqlScope();
+    /** Per-request SQL log configuration. */
+    private SqlLog sqlLog = new SqlLog();
 
     /** Whether to enable ANSI escape sequences in Storm's log output. */
     private Boolean ansiEscaping;
@@ -101,11 +101,11 @@ public class StormProperties {
     /** Returns the tracing configuration. */
     public Tracing getTracing() { return tracing; }
 
-    /** Returns the per-request SQL scope configuration. */
-    public SqlScope getSqlScope() { return sqlScope; }
+    /** Returns the per-request SQL log configuration. */
+    public SqlLog getSqlLog() { return sqlLog; }
 
-    /** Sets the per-request SQL scope configuration. */
-    public void setSqlScope(SqlScope sqlScope) { this.sqlScope = sqlScope; }
+    /** Sets the per-request SQL log configuration. */
+    public void setSqlLog(SqlLog sqlLog) { this.sqlLog = sqlLog; }
 
     /** Sets the tracing configuration. */
     public void setTracing(Tracing tracing) { this.tracing = tracing; }
@@ -271,11 +271,11 @@ public class StormProperties {
     }
 
     /**
-     * Per-request SQL scope configuration: what one request cost the database, reported as a single summary.
+     * Per-request SQL log configuration: what one request cost the database, reported as a single summary.
      */
-    public static class SqlScope {
+    public static class SqlLog {
 
-        /** Whether each request is wrapped in a SQL scope whose summary is logged. Defaults to false. */
+        /** Whether each request is wrapped in a SQL log whose summary is logged. Defaults to false. */
         private boolean enabled;
 
         /** Number of statements to record per request; the summary counts the rest regardless. */
@@ -327,10 +327,13 @@ public class StormProperties {
                 "org.springframework.scheduling.annotation.Schedules",
                 "org.springframework.kafka.annotation.KafkaListener",
                 "org.springframework.kafka.annotation.KafkaListeners",
+                "org.springframework.kafka.annotation.KafkaHandler",
                 "org.springframework.amqp.rabbit.annotation.RabbitListener",
                 "org.springframework.amqp.rabbit.annotation.RabbitListeners",
+                "org.springframework.amqp.rabbit.annotation.RabbitHandler",
                 "org.springframework.jms.annotation.JmsListener",
-                "org.springframework.jms.annotation.JmsListeners");
+                "org.springframework.jms.annotation.JmsListeners",
+                "io.awspring.cloud.sqs.annotation.SqsListener");
 
         /** Returns the annotations that mark a bean method as an entry point. */
         public List<String> getEntryPoints() { return entryPoints; }

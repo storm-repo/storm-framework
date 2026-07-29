@@ -141,7 +141,7 @@
             <artifactId>spring-tx</artifactId>
             <scope>provided</scope>
         </dependency>
-        <!-- Servlet support for the per-request SQL scope filter; guarded by @ConditionalOnClass. -->
+        <!-- Servlet support for the per-request SQL log filter; guarded by @ConditionalOnClass. -->
         <dependency>
             <groupId>org.springframework</groupId>
             <artifactId>spring-web</artifactId>
@@ -152,7 +152,7 @@
             <artifactId>jakarta.servlet-api</artifactId>
             <scope>provided</scope>
         </dependency>
-        <!-- Carries an open SQL scope across thread hand-overs; guarded by @ConditionalOnClass. -->
+        <!-- Carries an open SQL log across thread hand-overs; guarded by @ConditionalOnClass. -->
         <dependency>
             <groupId>io.micrometer</groupId>
             <artifactId>context-propagation</artifactId>

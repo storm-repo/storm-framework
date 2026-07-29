@@ -20,13 +20,13 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.List;
 import org.junit.jupiter.api.Test;
-import st.orm.core.template.SqlScope.StatementLine;
+import st.orm.core.template.SqlLog.StatementLine;
 
 /**
  * Tests the summary a log reader sees: the heaviest statement leads, repetition reads as a multiplier, and the
  * headline separates database time from the time the call took.
  */
-public class SqlScopeRenderTest {
+public class SqlLogRenderTest {
 
     private static final String NL = System.lineSeparator();
 
@@ -36,7 +36,7 @@ public class SqlScopeRenderTest {
 
     @Test
     public void theHeaviestStatementLeadsAndRepetitionReadsAsAMultiplier() {
-        String rendered = SqlScope.render("GET /owners/42", 12, 0, 0, 214, 214, 1, 678,
+        String rendered = SqlLog.render("GET /owners/42", 12, 0, 0, 214, 214, 1, 678,
                 List.of(line("SELECT a FROM city", "City", 1, 18, 1), line("SELECT b FROM owner", "Owner", 7, 96, 700)), 0);
         // The heaviest statement leads, whatever order it arrived in, and each row names its target type.
         assertTrue(rendered.startsWith("SQL (GET /owners/42): 12 statements, 214 ms in database, 678 ms total" + NL),
@@ -48,16 +48,16 @@ public class SqlScopeRenderTest {
 
     @Test
     public void concurrencyIsReportedOnlyWhenTheWorkOverlapped() {
-        String serial = SqlScope.render("call", 2, 0, 0, 40, 40, 1, 90, List.of(line("SELECT 1", "-", 2, 40, 2)), 0);
+        String serial = SqlLog.render("call", 2, 0, 0, 40, 40, 1, 90, List.of(line("SELECT 1", "-", 2, 40, 2)), 0);
         assertFalse(serial.contains("concurrent"), serial);
-        String parallel = SqlScope.render("call", 8, 0, 0, 214, 61, 4, 678, List.of(line("SELECT 1", "-", 8, 214, 8)), 0);
+        String parallel = SqlLog.render("call", 8, 0, 0, 214, 61, 4, 678, List.of(line("SELECT 1", "-", 8, 214, 8)), 0);
         assertTrue(parallel.contains("214 ms in database over 61 ms elapsed (peak 4 concurrent), 678 ms total"),
                 parallel);
     }
 
     @Test
     public void aFetchIsNamedOnItsOwnLine() {
-        String rendered = SqlScope.render("call", 9, 8, 0, 30, 30, 1, 40,
+        String rendered = SqlLog.render("call", 9, 8, 0, 30, 30, 1, 40,
                 List.of(new StatementLine("SELECT c FROM city WHERE id = ?", "City", true, 8, 1, 28_000_000L, null, 0, 8, true, null)), 0);
         assertTrue(rendered.contains("8 fetches"), rendered);
         assertTrue(rendered.contains("28 ms  8 rows  8x  City  fetch  SELECT c FROM city WHERE id = ?"), rendered);
@@ -65,7 +65,7 @@ public class SqlScopeRenderTest {
 
     @Test
     public void aLongStatementIsElidedOntoOneLine() {
-        String rendered = SqlScope.render("call", 1, 0, 0, 5, 5, 1, 9,
+        String rendered = SqlLog.render("call", 1, 0, 0, 5, 5, 1, 9,
                 List.of(line("SELECT " + "x".repeat(200) + "\n  FROM city", "City", 1, 5, 1)), 0);
         assertFalse(rendered.contains("\n  FROM"), rendered);
         assertTrue(rendered.contains("\u2026"), rendered);
@@ -76,7 +76,7 @@ public class SqlScopeRenderTest {
     @Test
     public void aNestedSubqueryClosesUpRatherThanCarryingItsLineBreaks() {
         // A subquery is rendered on lines of its own, which leaves its parentheses opening and closing lines.
-        String rendered = SqlScope.render("call", 1, 0, 0, 7, 7, 1, 9,
+        String rendered = SqlLog.render("call", 1, 0, 0, 7, 7, 1, 9,
                 List.of(line("""
                         SELECT SUM(c)
                         FROM ds
@@ -99,20 +99,20 @@ public class SqlScopeRenderTest {
     @Test
     public void aGroupCoveringSeveralTextsSaysSo() {
         // A collection parameter that expands per execution yields one group with several texts.
-        String rendered = SqlScope.render("call", 3, 0, 0, 12, 12, 1, 20,
+        String rendered = SqlLog.render("call", 3, 0, 0, 12, 12, 1, 20,
                 List.of(new StatementLine("SELECT c FROM city WHERE id IN (?, ?)", "City", false, 3, 3, 12_000_000L, null, 0, 6, true, null)), 0);
         assertTrue(rendered.contains("IN (?, ?) (3 variants)"), rendered);
     }
 
     @Test
     public void statementsBeyondTheLimitAreReportedRatherThanDropped() {
-        String rendered = SqlScope.render("call", 500, 0, 0, 90, 90, 1, 120, List.of(line("SELECT 1", "-", 200, 90, 200)), 300);
+        String rendered = SqlLog.render("call", 500, 0, 0, 90, 90, 1, 120, List.of(line("SELECT 1", "-", 200, 90, 200)), 300);
         assertTrue(rendered.endsWith("(300 statements not recorded)"), rendered);
     }
 
     @Test
     public void aCallSiteIsRenderedWhenRecorded() {
-        String rendered = SqlScope.render("call", 9, 0, 0, 30, 30, 1, 40,
+        String rendered = SqlLog.render("call", 9, 0, 0, 30, 30, 1, 40,
                 List.of(new StatementLine("SELECT s FROM user_session", "UserSession", false, 8, 1, 28_000_000L,
                         "MeController.kt:41", 3, 8, true, null)), 0);
         assertTrue(rendered.contains("MeController.kt:41 (+2 sites)  SELECT s FROM user_session"), rendered);
@@ -120,20 +120,20 @@ public class SqlScopeRenderTest {
 
     @Test
     public void aPlaceholderRunCollapsesInTheDisplay() {
-        String rendered = SqlScope.render("call", 1, 0, 0, 5, 5, 1, 9,
+        String rendered = SqlLog.render("call", 1, 0, 0, 5, 5, 1, 9,
                 List.of(line("INSERT INTO t (a, b) VALUES (?, ?, ?, ?, ?, ?, ?, ?)", "-", 1, 5, 4)), 0);
         assertTrue(rendered.contains("VALUES (?, \u2026, ?)"), rendered);
         // Short runs stay as they are.
-        String untouched = SqlScope.render("call", 1, 0, 0, 5, 5, 1, 9,
+        String untouched = SqlLog.render("call", 1, 0, 0, 5, 5, 1, 9,
                 List.of(line("SELECT c FROM city WHERE id IN (?, ?)", "-", 1, 5, 2)), 0);
         assertTrue(untouched.contains("IN (?, ?)"), untouched);
     }
 
     @Test
     public void cacheServedReadsAppearInTheHeadlineOnlyWhenAnyWere() {
-        String rendered = SqlScope.render("call", 3, 2, 4, 30, 30, 1, 40, List.of(line("SELECT 1", "-", 3, 30, 3)), 0);
+        String rendered = SqlLog.render("call", 3, 2, 4, 30, 30, 1, 40, List.of(line("SELECT 1", "-", 3, 30, 3)), 0);
         assertTrue(rendered.contains("3 statements, 2 fetches, 4 from cache, 30 ms in database"), rendered);
-        String without = SqlScope.render("call", 3, 0, 0, 30, 30, 1, 40, List.of(line("SELECT 1", "-", 3, 30, 3)), 0);
+        String without = SqlLog.render("call", 3, 0, 0, 30, 30, 1, 40, List.of(line("SELECT 1", "-", 3, 30, 3)), 0);
         assertFalse(without.contains("from cache"), without);
     }
 
@@ -141,7 +141,7 @@ public class SqlScopeRenderTest {
     public void anInexactRowCountIsMarkedAsALowerBound() {
         // A batch entry whose count the driver declined to report, or a stream closed before its end, leaves the
         // count a known lower bound; the star says so, and the exact count in the other row stays unmarked.
-        String rendered = SqlScope.render("call", 2, 0, 0, 45, 45, 1, 60, List.of(
+        String rendered = SqlLog.render("call", 2, 0, 0, 45, 45, 1, 60, List.of(
                 new StatementLine("INSERT INTO city (name) VALUES (?)", "City", false, 1, 1, 40_000_000L, null, 0,
                         500, false, null),
                 line("SELECT c FROM city", "City", 1, 5, 3)), 0);
@@ -152,7 +152,7 @@ public class SqlScopeRenderTest {
 
     @Test
     public void aHydrationShapeRendersAtTheEndOfItsRow() {
-        String rendered = SqlScope.render("call", 1, 0, 0, 5, 5, 1, 9,
+        String rendered = SqlLog.render("call", 1, 0, 0, 5, 5, 1, 9,
                 List.of(new StatementLine("SELECT p FROM pet", "Pet", false, 1, 1, 5_000_000L, null, 0, 1, true,
                         "joins=2 columns=10 graph=Pet(Owner(City))")), 0);
         assertTrue(rendered.contains("SELECT p FROM pet  joins=2 columns=10 graph=Pet(Owner(City))"), rendered);

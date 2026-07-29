@@ -9,12 +9,12 @@ import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.test.context.ContextConfiguration
 import org.springframework.test.context.jdbc.Sql
 import org.springframework.test.context.junit.jupiter.SpringExtension
-import st.orm.core.template.SqlScope.Summary
-import st.orm.template.DEFAULT_SQL_SCOPE_LIMIT
+import st.orm.core.template.SqlLog.Summary
+import st.orm.template.DEFAULT_SQL_LOG_LIMIT
 import st.orm.template.IntegrationConfig
 import st.orm.template.ORMTemplate
-import st.orm.template.ignoreSqlScopeCallSites
-import st.orm.template.impl.recordSqlScope
+import st.orm.template.ignoreSqlLogCallSites
+import st.orm.template.impl.recordSqlLog
 import st.orm.template.model.PetOwnerRef
 
 /**
@@ -32,13 +32,13 @@ open class CallSitePlumbingTest(
 
     private suspend fun <T> record(name: String, block: suspend () -> T): Summary {
         var summary: Summary? = null
-        recordSqlScope(name, DEFAULT_SQL_SCOPE_LIMIT, true, block) { summary = it }
+        recordSqlLog(name, DEFAULT_SQL_LOG_LIMIT, true, block) { summary = it }
         return summary!!
     }
 
     @Test
     fun `a plumbing file entry hides the frames of its inline functions`(): Unit = runBlocking {
-        ignoreSqlScopeCallSites("Plumbing.kt")
+        ignoreSqlLogCallSites("Plumbing.kt")
         val summary = record("plumbed") {
             throughDbLayer { orm.entity(PetOwnerRef::class).select().resultList }
         }
@@ -50,7 +50,7 @@ open class CallSitePlumbingTest(
 
     @Test
     fun `work launched onto another dispatcher names the frame that launched it`(): Unit = runBlocking {
-        ignoreSqlScopeCallSites("Plumbing.kt")
+        ignoreSqlLogCallSites("Plumbing.kt")
         val summary = record("launched") {
             fetchAllOnDispatcher(orm)
         }

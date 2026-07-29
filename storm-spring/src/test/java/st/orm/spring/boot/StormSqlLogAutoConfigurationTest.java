@@ -40,14 +40,14 @@ import org.springframework.scheduling.annotation.Scheduled;
 import st.orm.core.template.ORMTemplate;
 
 /**
- * Verifies that the SQL scope covers every way work enters the application: the servlet filter covers requests,
+ * Verifies that the SQL log covers every way work enters the application: the servlet filter covers requests,
  * and the entry-point post-processor covers the boundaries a filter cannot see, such as scheduled tasks and
  * message listeners.
  */
-public class StormSqlScopeAutoConfigurationTest {
+public class StormSqlLogAutoConfigurationTest {
 
     private final ApplicationContextRunner contextRunner = new ApplicationContextRunner()
-            .withConfiguration(AutoConfigurations.of(StormSqlScopeAutoConfiguration.class));
+            .withConfiguration(AutoConfigurations.of(StormSqlLogAutoConfiguration.class));
 
     /** An entry point of the application's own, standing in for a listener annotation Spring does not ship. */
     @Retention(RetentionPolicy.RUNTIME)
@@ -61,7 +61,7 @@ public class StormSqlScopeAutoConfigurationTest {
         @Bean
         DataSource dataSource() {
             return DataSourceBuilder.create()
-                    .url("jdbc:h2:mem:sql-scope-entry-points;DB_CLOSE_DELAY=-1")
+                    .url("jdbc:h2:mem:sql-log-entry-points;DB_CLOSE_DELAY=-1")
                     .build();
         }
 
@@ -105,7 +105,7 @@ public class StormSqlScopeAutoConfigurationTest {
     }
 
     private void withScopeLogger(Consumer<List<ILoggingEvent>> test) {
-        var logger = (ch.qos.logback.classic.Logger) org.slf4j.LoggerFactory.getLogger("st.orm.sql.scope");
+        var logger = (ch.qos.logback.classic.Logger) org.slf4j.LoggerFactory.getLogger("st.orm.sql.summary");
         var appender = new ListAppender<ILoggingEvent>();
         appender.start();
         logger.addAppender(appender);
@@ -123,7 +123,7 @@ public class StormSqlScopeAutoConfigurationTest {
     public void testAScheduledMethodReportsAScopeNamedAfterIt() {
         contextRunner
                 .withUserConfiguration(JobConfiguration.class)
-                .withPropertyValues("storm.sql-scope.enabled=true")
+                .withPropertyValues("storm.sql-log.enabled=true")
                 .run(context -> withScopeLogger(events -> {
                     var job = context.getBean(ReportJob.class);
                     assertTrue(AopUtils.isCglibProxy(job));
@@ -138,7 +138,7 @@ public class StormSqlScopeAutoConfigurationTest {
     public void testAMethodWithoutAnEntryPointAnnotationIsNotWrapped() {
         contextRunner
                 .withUserConfiguration(JobConfiguration.class)
-                .withPropertyValues("storm.sql-scope.enabled=true")
+                .withPropertyValues("storm.sql-log.enabled=true")
                 .run(context -> withScopeLogger(events -> {
                     context.getBean(ReportJob.class).plain();
                     assertTrue(events.isEmpty());
@@ -151,8 +151,8 @@ public class StormSqlScopeAutoConfigurationTest {
     public void testConfiguredEntryPointsReplaceTheDefaults() {
         contextRunner
                 .withUserConfiguration(JobConfiguration.class)
-                .withPropertyValues("storm.sql-scope.enabled=true",
-                        "storm.sql-scope.entry-points=" + CustomListener.class.getName())
+                .withPropertyValues("storm.sql-log.enabled=true",
+                        "storm.sql-log.entry-points=" + CustomListener.class.getName())
                 .run(context -> withScopeLogger(events -> {
                     var job = context.getBean(ReportJob.class);
                     job.nightly();
@@ -168,9 +168,9 @@ public class StormSqlScopeAutoConfigurationTest {
     public void testAThresholdReportsOnlyTheInvocationsExceedingIt() {
         contextRunner
                 .withUserConfiguration(JobConfiguration.class)
-                .withPropertyValues("storm.sql-scope.enabled=true",
-                        "storm.sql-scope.entry-points=" + CustomListener.class.getName(),
-                        "storm.sql-scope.threshold.statements=2")
+                .withPropertyValues("storm.sql-log.enabled=true",
+                        "storm.sql-log.entry-points=" + CustomListener.class.getName(),
+                        "storm.sql-log.threshold.statements=2")
                 .run(context -> withScopeLogger(events -> {
                     var job = context.getBean(ReportJob.class);
                     job.onMessage();
@@ -183,8 +183,8 @@ public class StormSqlScopeAutoConfigurationTest {
     public void testAThresholdKeepsAnInvocationBelowItQuiet() {
         contextRunner
                 .withUserConfiguration(JobConfiguration.class)
-                .withPropertyValues("storm.sql-scope.enabled=true",
-                        "storm.sql-scope.threshold.statements=2")
+                .withPropertyValues("storm.sql-log.enabled=true",
+                        "storm.sql-log.threshold.statements=2")
                 .run(context -> withScopeLogger(events -> {
                     context.getBean(ReportJob.class).nightly();
                     assertTrue(events.isEmpty());
@@ -196,7 +196,7 @@ public class StormSqlScopeAutoConfigurationTest {
         contextRunner
                 .withUserConfiguration(JobConfiguration.class)
                 .run(context -> {
-                    assertFalse(context.containsBean("stormSqlScopeEntryPointPostProcessor"));
+                    assertFalse(context.containsBean("stormSqlLogEntryPointPostProcessor"));
                     assertFalse(AopUtils.isAopProxy(context.getBean(ReportJob.class)));
                 });
     }
@@ -206,10 +206,10 @@ public class StormSqlScopeAutoConfigurationTest {
         // The runner is not a web application, so only the entry-point post-processor registers.
         contextRunner
                 .withUserConfiguration(JobConfiguration.class)
-                .withPropertyValues("storm.sql-scope.enabled=true")
+                .withPropertyValues("storm.sql-log.enabled=true")
                 .run(context -> {
-                    assertTrue(context.containsBean("stormSqlScopeEntryPointPostProcessor"));
-                    assertFalse(context.containsBean("stormSqlScopeFilter"));
+                    assertTrue(context.containsBean("stormSqlLogEntryPointPostProcessor"));
+                    assertFalse(context.containsBean("stormSqlLogFilter"));
                 });
     }
 }

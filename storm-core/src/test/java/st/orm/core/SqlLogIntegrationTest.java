@@ -29,7 +29,7 @@ import st.orm.core.model.PetOwnerRef;
 import st.orm.core.model.PetOwnerRef_;
 import st.orm.core.template.JpaTemplate;
 import st.orm.core.template.ORMTemplate;
-import st.orm.core.template.SqlScope;
+import st.orm.core.template.SqlLog;
 import st.orm.core.template.StatementOrigin;
 
 /**
@@ -40,7 +40,7 @@ import st.orm.core.template.StatementOrigin;
 @ExtendWith(SpringExtension.class)
 @ContextConfiguration(classes = IntegrationConfig.class)
 @DataJpaTest(showSql = false)
-public class SqlScopeIntegrationTest {
+public class SqlLogIntegrationTest {
 
     @Autowired
     private DataSource dataSource;
@@ -51,8 +51,8 @@ public class SqlScopeIntegrationTest {
     @Test
     public void testAScopeCoversEveryStatementOfTheCall() {
         var orm = ORMTemplate.of(dataSource);
-        List<SqlScope.Summary> summaries = new ArrayList<>();
-        SqlScope.record("call", () -> {
+        List<SqlLog.Summary> summaries = new ArrayList<>();
+        SqlLog.record("call", () -> {
             // Two unrelated repositories: a scope covers the call, not one repository.
             orm.entity(City.class).getById(1);
             orm.entity(PetOwnerRef.class).select().getResultList();
@@ -67,8 +67,8 @@ public class SqlScopeIntegrationTest {
     @Test
     public void testAScopeCountsTheReferencesTheCallResolved() {
         var orm = ORMTemplate.of(dataSource);
-        List<SqlScope.Summary> summaries = new ArrayList<>();
-        SqlScope.record("n-plus-one", () -> {
+        List<SqlLog.Summary> summaries = new ArrayList<>();
+        SqlLog.record("n-plus-one", () -> {
             var pets = orm.entity(PetOwnerRef.class).select().getResultList();
             pets.stream().map(PetOwnerRef::owner).filter(Objects::nonNull).forEach(Ref::fetch);
             return null;
@@ -84,8 +84,8 @@ public class SqlScopeIntegrationTest {
     @Test
     public void testAResolvingQueryLeavesTheScopeAtOneStatement() {
         var orm = ORMTemplate.of(dataSource);
-        List<SqlScope.Summary> summaries = new ArrayList<>();
-        SqlScope.record("fetched", () -> {
+        List<SqlLog.Summary> summaries = new ArrayList<>();
+        SqlLog.record("fetched", () -> {
             var pets = orm.entity(PetOwnerRef.class).select()
                     .fetch(PetOwnerRef_.owner)
                     .getResultList();
@@ -100,9 +100,9 @@ public class SqlScopeIntegrationTest {
     @Test
     public void testAFailedCallIsStillSummarized() {
         var orm = ORMTemplate.of(dataSource);
-        List<SqlScope.Summary> summaries = new ArrayList<>();
+        List<SqlLog.Summary> summaries = new ArrayList<>();
         try {
-            SqlScope.record("failing", () -> {
+            SqlLog.record("failing", () -> {
                 orm.entity(City.class).getById(1);
                 throw new IllegalStateException("boom");
             }, summaries::add);
@@ -115,8 +115,8 @@ public class SqlScopeIntegrationTest {
     @Test
     public void testStatementsBeyondTheLimitAreCountedAndReported() {
         var orm = ORMTemplate.of(dataSource);
-        List<SqlScope.Summary> summaries = new ArrayList<>();
-        SqlScope.record("limited", 1, (Supplier<Object>) () -> {
+        List<SqlLog.Summary> summaries = new ArrayList<>();
+        SqlLog.record("limited", 1, (Supplier<Object>) () -> {
             orm.entity(City.class).getById(1);
             orm.entity(City.class).getById(2);
             orm.entity(City.class).getById(3);
@@ -131,8 +131,8 @@ public class SqlScopeIntegrationTest {
     @Test
     public void testNoScopeLeaksAfterTheCall() {
         var orm = ORMTemplate.of(dataSource);
-        List<SqlScope.Summary> summaries = new ArrayList<>();
-        SqlScope.record("scoped", (Supplier<Object>) () -> orm.entity(City.class).getById(1), summaries::add);
+        List<SqlLog.Summary> summaries = new ArrayList<>();
+        SqlLog.record("scoped", (Supplier<Object>) () -> orm.entity(City.class).getById(1), summaries::add);
         int during = summaries.getFirst().statementCount();
         // A statement executed after the scope closed is not recorded into it.
         orm.entity(City.class).getById(2);
@@ -143,8 +143,8 @@ public class SqlScopeIntegrationTest {
     @Test
     public void testCollectionSizesGroupAsOneStatement() {
         var orm = ORMTemplate.of(dataSource);
-        List<SqlScope.Summary> summaries = new ArrayList<>();
-        SqlScope.record("in-lists", (Supplier<Object>) () -> {
+        List<SqlLog.Summary> summaries = new ArrayList<>();
+        SqlLog.record("in-lists", (Supplier<Object>) () -> {
             orm.entity(City.class).select().where(City_.id, IN, List.of(1)).getResultList();
             orm.entity(City.class).select().where(City_.id, IN, List.of(1, 2)).getResultList();
             orm.entity(City.class).select().where(City_.id, IN, List.of(1, 2, 3)).getResultList();
@@ -162,8 +162,8 @@ public class SqlScopeIntegrationTest {
     @Test
     public void testStatementsCarryTheirDuration() {
         var orm = ORMTemplate.of(dataSource);
-        List<SqlScope.Summary> summaries = new ArrayList<>();
-        SqlScope.record("timed", (Supplier<Object>) () -> orm.entity(City.class).getById(1), summaries::add);
+        List<SqlLog.Summary> summaries = new ArrayList<>();
+        SqlLog.record("timed", (Supplier<Object>) () -> orm.entity(City.class).getById(1), summaries::add);
         var summary = summaries.getFirst();
         assertTrue(summary.statements().getFirst().durationNanos() > 0, summary.statements().toString());
         assertTrue(summary.databaseNanos() > 0);
@@ -173,7 +173,7 @@ public class SqlScopeIntegrationTest {
     @Test
     public void testAScopeOpensAndClosesWithTryWithResources() {
         var orm = ORMTemplate.of(dataSource);
-        var scope = SqlScope.open("block");
+        var scope = SqlLog.open("block");
         try (scope) {
             orm.entity(City.class).getById(1);
             orm.entity(City.class).getById(2);
@@ -188,8 +188,8 @@ public class SqlScopeIntegrationTest {
     @Test
     public void testCallSitesNameTheFrameThatCausedTheExecution() throws Exception {
         var orm = ORMTemplate.of(dataSource);
-        List<SqlScope.Summary> summaries = new ArrayList<>();
-        SqlScope.recordThrowing("sited", 200, true, () -> {
+        List<SqlLog.Summary> summaries = new ArrayList<>();
+        SqlLog.recordThrowing("sited", 200, true, () -> {
             orm.entity(City.class).getById(1);
             return null;
         }, summaries::add);
@@ -204,16 +204,16 @@ public class SqlScopeIntegrationTest {
     @Test
     public void testWithoutCallSitesNoStackIsWalked() {
         var orm = ORMTemplate.of(dataSource);
-        List<SqlScope.Summary> summaries = new ArrayList<>();
-        SqlScope.record("unsited", (Supplier<Object>) () -> orm.entity(City.class).getById(1), summaries::add);
+        List<SqlLog.Summary> summaries = new ArrayList<>();
+        SqlLog.record("unsited", (Supplier<Object>) () -> orm.entity(City.class).getById(1), summaries::add);
         assertNull(summaries.getFirst().byStatement().getFirst().callSite());
     }
 
     @Test
     public void testTheDetailedRenderingCarriesTheFullStatement() {
         var orm = ORMTemplate.of(dataSource);
-        List<SqlScope.Summary> summaries = new ArrayList<>();
-        SqlScope.record("detailed", (Supplier<Object>) () -> orm.entity(City.class).getById(1), summaries::add);
+        List<SqlLog.Summary> summaries = new ArrayList<>();
+        SqlLog.record("detailed", (Supplier<Object>) () -> orm.entity(City.class).getById(1), summaries::add);
         String detailed = summaries.getFirst().toDetailedString();
         assertTrue(detailed.contains("statements:"), detailed);
         // The full text follows the summary, un-elided.
@@ -223,8 +223,8 @@ public class SqlScopeIntegrationTest {
     @Test
     public void testStatementsCarryTheRowsTheyProduced() {
         var orm = ORMTemplate.of(dataSource);
-        List<SqlScope.Summary> summaries = new ArrayList<>();
-        SqlScope.record("rows", (Supplier<Object>) () -> {
+        List<SqlLog.Summary> summaries = new ArrayList<>();
+        SqlLog.record("rows", (Supplier<Object>) () -> {
             orm.entity(City.class).getById(1);
             return orm.entity(City.class).select().getResultList();
         }, summaries::add);
@@ -242,8 +242,8 @@ public class SqlScopeIntegrationTest {
     @Test
     public void testAnEarlyClosedStreamReportsItsCountAsALowerBound() {
         var orm = ORMTemplate.of(dataSource);
-        List<SqlScope.Summary> summaries = new ArrayList<>();
-        SqlScope.record("partial", (Supplier<Object>) () -> {
+        List<SqlLog.Summary> summaries = new ArrayList<>();
+        SqlLog.record("partial", (Supplier<Object>) () -> {
             try (var stream = orm.entity(City.class).select().getResultStream()) {
                 return stream.findFirst().orElseThrow();
             }
@@ -260,8 +260,8 @@ public class SqlScopeIntegrationTest {
     @Test
     public void testCacheServedReadsAreCounted() {
         var orm = ORMTemplate.of(dataSource);
-        List<SqlScope.Summary> summaries = new ArrayList<>();
-        SqlScope.record("cached", (Supplier<Object>) () -> {
+        List<SqlLog.Summary> summaries = new ArrayList<>();
+        SqlLog.record("cached", (Supplier<Object>) () -> {
             var cities = orm.entity(City.class);
             cities.getById(1);
             // The second read is served by the transaction's entity cache: no statement, one hit.
@@ -277,8 +277,8 @@ public class SqlScopeIntegrationTest {
     @Test
     public void testAScopeCoversTheJpaTemplatePath() {
         var orm = JpaTemplate.ORM(entityManager);
-        List<SqlScope.Summary> summaries = new ArrayList<>();
-        SqlScope.record("jpa", (Supplier<Object>) () ->
+        List<SqlLog.Summary> summaries = new ArrayList<>();
+        SqlLog.record("jpa", (Supplier<Object>) () ->
                 orm.query("SELECT id, name FROM city WHERE id = 1").getResultList(), summaries::add);
         var summary = summaries.getFirst();
         // The JPA template path brackets its executions like the JDBC path: the statement, its duration, and
@@ -293,8 +293,8 @@ public class SqlScopeIntegrationTest {
     @Test
     public void testHydrationShapesAreOffByDefault() {
         var orm = ORMTemplate.of(dataSource);
-        List<SqlScope.Summary> summaries = new ArrayList<>();
-        SqlScope.record("off", (Supplier<Object>) () -> orm.entity(Pet.class).getById(1), summaries::add);
+        List<SqlLog.Summary> summaries = new ArrayList<>();
+        SqlLog.record("off", (Supplier<Object>) () -> orm.entity(Pet.class).getById(1), summaries::add);
         var summary = summaries.getFirst();
         // Shapes render only when switched on, in either rendering.
         assertFalse(summary.toString().contains("j2"), summary.toString());
@@ -304,14 +304,14 @@ public class SqlScopeIntegrationTest {
     @Test
     public void testShortShapesSkipFlatTypes() {
         var orm = ORMTemplate.of(dataSource);
-        SqlScope.hydrationShapes(SqlScope.HydrationShapes.SHORT);
+        SqlLog.hydrationShapes(SqlLog.HydrationShapes.SHORT);
         try {
-            List<SqlScope.Summary> summaries = new ArrayList<>();
-            SqlScope.record("short", (Supplier<Object>) () -> orm.entity(City.class).getById(1), summaries::add);
+            List<SqlLog.Summary> summaries = new ArrayList<>();
+            SqlLog.record("short", (Supplier<Object>) () -> orm.entity(City.class).getById(1), summaries::add);
             // A flat type says nothing its row does not already say, so the short form stays off its row.
             assertFalse(summaries.getFirst().toString().contains("j0"), summaries.getFirst().toString());
         } finally {
-            SqlScope.hydrationShapes(SqlScope.HydrationShapes.OFF);
+            SqlLog.hydrationShapes(SqlLog.HydrationShapes.OFF);
         }
     }
 
@@ -321,36 +321,36 @@ public class SqlScopeIntegrationTest {
         // Pet's type is a reference, so it stays a foreign key column; Owner reaches City through an inline
         // Address, which is columns on the owner table rather than a subgraph, so City splices into Owner's
         // children. The short form states the numbers only; the full form names the graph.
-        SqlScope.hydrationShapes(SqlScope.HydrationShapes.SHORT);
+        SqlLog.hydrationShapes(SqlLog.HydrationShapes.SHORT);
         try {
-            List<SqlScope.Summary> summaries = new ArrayList<>();
-            SqlScope.record("shape", (Supplier<Object>) () -> orm.entity(Pet.class).getById(1), summaries::add);
+            List<SqlLog.Summary> summaries = new ArrayList<>();
+            SqlLog.record("shape", (Supplier<Object>) () -> orm.entity(Pet.class).getById(1), summaries::add);
             assertTrue(summaries.getFirst().toString().contains("j2 c12 d3"), summaries.getFirst().toString());
             assertFalse(summaries.getFirst().toString().contains("graph="), summaries.getFirst().toString());
-            SqlScope.hydrationShapes(SqlScope.HydrationShapes.FULL);
+            SqlLog.hydrationShapes(SqlLog.HydrationShapes.FULL);
             summaries.clear();
-            SqlScope.record("shape", (Supplier<Object>) () -> orm.entity(Pet.class).getById(1), summaries::add);
+            SqlLog.record("shape", (Supplier<Object>) () -> orm.entity(Pet.class).getById(1), summaries::add);
             assertTrue(summaries.getFirst().toString().contains("joins=2 columns=12 graph=Pet(Owner(City))"),
                     summaries.getFirst().toString());
         } finally {
-            SqlScope.hydrationShapes(SqlScope.HydrationShapes.OFF);
+            SqlLog.hydrationShapes(SqlLog.HydrationShapes.OFF);
         }
     }
 
     @Test
     public void testAReportedSummaryLogsUnderTheScopeLogger() {
         var orm = ORMTemplate.of(dataSource);
-        var logger = (ch.qos.logback.classic.Logger) org.slf4j.LoggerFactory.getLogger("st.orm.sql.scope");
+        var logger = (ch.qos.logback.classic.Logger) org.slf4j.LoggerFactory.getLogger("st.orm.sql.summary");
         var appender = new ch.qos.logback.core.read.ListAppender<ch.qos.logback.classic.spi.ILoggingEvent>();
         appender.start();
         logger.addAppender(appender);
         var level = logger.getLevel();
         logger.setLevel(ch.qos.logback.classic.Level.INFO);
         try {
-            List<SqlScope.Summary> summaries = new ArrayList<>();
-            SqlScope.record("reported", (Supplier<Object>) () -> orm.entity(City.class).getById(1),
+            List<SqlLog.Summary> summaries = new ArrayList<>();
+            SqlLog.record("reported", (Supplier<Object>) () -> orm.entity(City.class).getById(1),
                     summaries::add);
-            SqlScope.report(summaries.getFirst());
+            SqlLog.report(summaries.getFirst());
             assertEquals(1, appender.list.size());
             assertTrue(appender.list.getFirst().getFormattedMessage().startsWith("SQL (reported):"),
                     appender.list.getFirst().getFormattedMessage());
@@ -362,16 +362,16 @@ public class SqlScopeIntegrationTest {
 
     @Test
     public void testASummaryWithoutStatementsIsNotReported() {
-        var logger = (ch.qos.logback.classic.Logger) org.slf4j.LoggerFactory.getLogger("st.orm.sql.scope");
+        var logger = (ch.qos.logback.classic.Logger) org.slf4j.LoggerFactory.getLogger("st.orm.sql.summary");
         var appender = new ch.qos.logback.core.read.ListAppender<ch.qos.logback.classic.spi.ILoggingEvent>();
         appender.start();
         logger.addAppender(appender);
         var level = logger.getLevel();
         logger.setLevel(ch.qos.logback.classic.Level.INFO);
         try {
-            List<SqlScope.Summary> summaries = new ArrayList<>();
-            SqlScope.record("silent", (Supplier<Object>) () -> null, summaries::add);
-            SqlScope.report(summaries.getFirst());
+            List<SqlLog.Summary> summaries = new ArrayList<>();
+            SqlLog.record("silent", (Supplier<Object>) () -> null, summaries::add);
+            SqlLog.report(summaries.getFirst());
             assertTrue(appender.list.isEmpty());
         } finally {
             logger.setLevel(level);

@@ -17,10 +17,10 @@ package st.orm.template
 
 import kotlinx.coroutines.asContextElement
 import st.orm.core.template.impl.SqlInterceptorManager
-import st.orm.template.impl.recordSqlScope
+import st.orm.template.impl.recordSqlLog
 import kotlin.coroutines.CoroutineContext
 import kotlin.coroutines.EmptyCoroutineContext
-import st.orm.core.template.SqlScope as CoreSqlScope
+import st.orm.core.template.SqlLog as CoreSqlLog
 
 /**
  * Declares packages or source files whose frames are skipped when a scope attributes an execution to a call
@@ -35,8 +35,8 @@ import st.orm.core.template.SqlScope as CoreSqlScope
  *   `"DbExtensions.kt"`.
  * @since 1.13
  */
-fun ignoreSqlScopeCallSites(vararg packagePrefixes: String) {
-    CoreSqlScope.ignoreCallSites(*packagePrefixes)
+fun ignoreSqlLogCallSites(vararg packagePrefixes: String) {
+    CoreSqlLog.ignoreCallSites(*packagePrefixes)
 }
 
 /**
@@ -47,8 +47,8 @@ fun ignoreSqlScopeCallSites(vararg packagePrefixes: String) {
  * @param width the display width; at least 80.
  * @since 1.13
  */
-fun sqlScopeLineWidth(width: Int) {
-    CoreSqlScope.lineWidth(width)
+fun sqlLogLineWidth(width: Int) {
+    CoreSqlLog.lineWidth(width)
 }
 
 /**
@@ -58,12 +58,12 @@ fun sqlScopeLineWidth(width: Int) {
  * @param shapes how shapes render.
  * @since 1.13
  */
-fun sqlScopeHydrationShapes(shapes: HydrationShapes) {
-    CoreSqlScope.hydrationShapes(
+fun sqlLogHydrationShapes(shapes: HydrationShapes) {
+    CoreSqlLog.hydrationShapes(
         when (shapes) {
-            HydrationShapes.OFF -> CoreSqlScope.HydrationShapes.OFF
-            HydrationShapes.SHORT -> CoreSqlScope.HydrationShapes.SHORT
-            HydrationShapes.FULL -> CoreSqlScope.HydrationShapes.FULL
+            HydrationShapes.OFF -> CoreSqlLog.HydrationShapes.OFF
+            HydrationShapes.SHORT -> CoreSqlLog.HydrationShapes.SHORT
+            HydrationShapes.FULL -> CoreSqlLog.HydrationShapes.FULL
         },
     )
 }
@@ -71,7 +71,7 @@ fun sqlScopeHydrationShapes(shapes: HydrationShapes) {
 /**
  * How summary rows render the declared hydration shape of their statement's type.
  *
- * @see sqlScopeHydrationShapes
+ * @see sqlLogHydrationShapes
  * @since 1.13
  */
 enum class HydrationShapes {
@@ -90,10 +90,10 @@ enum class HydrationShapes {
 }
 
 /** Statements recorded per scope before recording stops, keeping a runaway call from retaining the lot. */
-const val DEFAULT_SQL_SCOPE_LIMIT: Int = 200
+const val DEFAULT_SQL_LOG_LIMIT: Int = 200
 
 /**
- * Returns the coroutine context that carries the SQL scope open on the calling thread.
+ * Returns the coroutine context that carries the SQL log open on the calling thread.
  *
  * A coroutine inherits its parent's context, never the parent thread's thread locals, so a scope opened in
  * blocking code reaches a coroutine only when something binds it into that coroutine's context. Storm binds it
@@ -101,7 +101,7 @@ const val DEFAULT_SQL_SCOPE_LIMIT: Int = 200
  * its own coroutine passes this alongside:
  *
  * ```
- * fun loadOwners(ids: List<Int>): List<Owner> = runBlocking(sqlScopeContext()) {
+ * fun loadOwners(ids: List<Int>): List<Owner> = runBlocking(sqlLogContext()) {
  *     ids.map { async { owners.getById(it) } }.awaitAll()
  * }
  * ```
@@ -114,19 +114,19 @@ const val DEFAULT_SQL_SCOPE_LIMIT: Int = 200
  * plumbing.
  *
  * Returns [EmptyCoroutineContext] when no scope is open, so nothing is carried and no thread local is written on
- * suspension. Opening the scope inside coroutine code with [sqlScope] needs none of this: its children inherit by
+ * suspension. Opening the scope inside coroutine code with [sqlLog] needs none of this: its children inherit by
  * construction.
  *
  * @return the context carrying the open scope, or an empty context when none is open.
  * @since 1.13
  */
-fun sqlScopeContext(): CoroutineContext {
+fun sqlLogContext(): CoroutineContext {
     val holder = SqlInterceptorManager.holder()
     val open = holder.get() ?: return EmptyCoroutineContext
     var context: CoroutineContext = holder.asContextElement(open)
     if (SqlInterceptorManager.hasCallSiteListeners()) {
-        CoreSqlScope.captureCallSite()?.let { launchSite ->
-            context += CoreSqlScope.callSiteHint().asContextElement(launchSite)
+        CoreSqlLog.captureCallSite()?.let { launchSite ->
+            context += CoreSqlLog.callSiteHint().asContextElement(launchSite)
         }
     }
     return context
@@ -140,12 +140,12 @@ fun sqlScopeContext(): CoroutineContext {
  *
  * ```
  * get("/owners/{id}") {
- *     val view = sqlScope("getOwner") { ownerService.load(call.parameters.getOrFail<Int>("id")) }
+ *     val view = sqlLog("getOwner") { ownerService.load(call.parameters.getOrFail<Int>("id")) }
  *     call.respond(view)
  * }
  * ```
  *
- * The summary reports through the `st.orm.sql.scope` logger when the block completes, normally or not, and the
+ * The summary reports through the `st.orm.sql.summary` logger when the block completes, normally or not, and the
  * logger is the only switch: statements are recorded only while it is enabled at INFO, and at DEBUG the full
  * statement texts follow the summary. What a scope observed is a report, not an API: production numbers belong to
  * the Micrometer observations, and test assertions to `SqlCapture`.
@@ -164,15 +164,15 @@ fun sqlScopeContext(): CoroutineContext {
  * @return the block's result.
  * @since 1.13
  */
-suspend fun <T> sqlScope(
+suspend fun <T> sqlLog(
     name: String,
-    limit: Int = DEFAULT_SQL_SCOPE_LIMIT,
+    limit: Int = DEFAULT_SQL_LOG_LIMIT,
     callSites: Boolean = false,
     block: suspend () -> T,
 ): T {
-    if (!CoreSqlScope.reporting()) {
+    if (!CoreSqlLog.reporting()) {
         // Nothing consumes the summary, so no scope is opened to build one.
         return block()
     }
-    return recordSqlScope(name, limit, callSites, block, CoreSqlScope::report)
+    return recordSqlLog(name, limit, callSites, block, CoreSqlLog::report)
 }

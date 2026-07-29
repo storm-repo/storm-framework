@@ -26,7 +26,7 @@ import java.time.Duration;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.web.filter.OncePerRequestFilter;
-import st.orm.core.template.SqlScope;
+import st.orm.core.template.SqlLog;
 
 /**
  * Reports what each request cost the database, as one summary per request.
@@ -42,31 +42,31 @@ import st.orm.core.template.SqlScope;
  * 	 9 ms    8 rows  8x  City  fetch   SELECT c.id, c.name FROM city c WHERE c.id = ?
  * }</pre>
  *
- * <p>Enabled with {@code storm.sql-scope.enabled=true}. Statements are recorded only while the summary logger is
+ * <p>Enabled with {@code storm.sql-log.enabled=true}. Statements are recorded only while the summary logger is
  * enabled, so a disabled logger costs nothing beyond the check.</p>
  *
  * <p><strong>Covers the statements the request thread issues.</strong> A request is a thread boundary, so this
  * reports what runs on that thread and what Storm hands over from it. Work an application dispatches to a
  * coroutine it builds itself is a different unit of execution: a coroutine inherits its parent's context and not
  * the parent thread's thread locals, so its statements fall outside this scope. An application whose work runs in
- * coroutines opens the scope inside the coroutine with {@code st.orm.template.sqlScope} instead, where every child
- * inherits it, or passes {@code st.orm.template.sqlScopeContext()} to the coroutine it builds.</p>
+ * coroutines opens the scope inside the coroutine with {@code st.orm.template.sqlLog} instead, where every child
+ * inherits it, or passes {@code st.orm.template.sqlLogContext()} to the coroutine it builds.</p>
  *
  * <p>This filter is wiring shared by both language stacks, so it reads the core scope rather than a stack's own
- * summary type; an application reaching for a scope directly uses {@code st.orm.template.SqlScope} instead.</p>
+ * summary type; an application reaching for a scope directly uses {@code st.orm.template.SqlLog} instead.</p>
  *
  * @since 1.13
  */
-public class StormSqlScopeFilter extends OncePerRequestFilter {
+public class StormSqlLogFilter extends OncePerRequestFilter {
 
-    private static final Logger LOGGER = LoggerFactory.getLogger("st.orm.sql.scope");
+    private static final Logger LOGGER = LoggerFactory.getLogger("st.orm.sql.summary");
 
     private final int limit;
     private final boolean callSites;
     private final @Nullable Integer statementThreshold;
     private final @Nullable Duration durationThreshold;
 
-    public StormSqlScopeFilter(int limit) {
+    public StormSqlLogFilter(int limit) {
         this(limit, false, null, null);
     }
 
@@ -79,7 +79,7 @@ public class StormSqlScopeFilter extends OncePerRequestFilter {
      * @param statementThreshold number of statements above which a request is reported, or {@code null}.
      * @param durationThreshold request duration above which a request is reported, or {@code null}.
      */
-    public StormSqlScopeFilter(int limit,
+    public StormSqlLogFilter(int limit,
                                @Nullable Integer statementThreshold,
                                @Nullable Duration durationThreshold) {
         this(limit, false, statementThreshold, durationThreshold);
@@ -94,7 +94,7 @@ public class StormSqlScopeFilter extends OncePerRequestFilter {
      * @param statementThreshold number of statements above which a request is reported, or {@code null}.
      * @param durationThreshold request duration above which a request is reported, or {@code null}.
      */
-    public StormSqlScopeFilter(int limit,
+    public StormSqlLogFilter(int limit,
                                boolean callSites,
                                @Nullable Integer statementThreshold,
                                @Nullable Duration durationThreshold) {
@@ -112,17 +112,17 @@ public class StormSqlScopeFilter extends OncePerRequestFilter {
     protected void doFilterInternal(@Nonnull HttpServletRequest request,
                                     @Nonnull HttpServletResponse response,
                                     @Nonnull FilterChain chain) throws ServletException, IOException {
-        if (!SqlScopeReporting.consumes(LOGGER, thresholded())) {
+        if (!SqlLogReporting.consumes(LOGGER, thresholded())) {
             // Nothing consumes the summary, so do not open a scope to build one.
             chain.doFilter(request, response);
             return;
         }
         String name = "%s %s".formatted(request.getMethod(), request.getRequestURI());
         try {
-            SqlScope.recordThrowing(name, limit, callSites, () -> {
+            SqlLog.recordThrowing(name, limit, callSites, () -> {
                 chain.doFilter(request, response);
                 return null;
-            }, summary -> SqlScopeReporting.report(LOGGER, summary, statementThreshold, durationThreshold));
+            }, summary -> SqlLogReporting.report(LOGGER, summary, statementThreshold, durationThreshold));
         } catch (ServletException | IOException | RuntimeException e) {
             throw e;
         } catch (Exception e) {

@@ -36,29 +36,30 @@ import org.springframework.aop.support.StaticMethodMatcherPointcut;
 import org.springframework.beans.factory.config.BeanPostProcessor;
 import org.springframework.core.Ordered;
 import org.springframework.util.ReflectionUtils;
-import st.orm.core.template.SqlScope;
+import st.orm.core.template.SqlLog;
 
 /**
- * Wraps the entry points a request filter cannot see in a SQL scope: methods through which work enters the
+ * Wraps the entry points a request filter cannot see in a SQL log: methods through which work enters the
  * application without an HTTP request, such as {@code @Scheduled} tasks and {@code @KafkaListener},
- * {@code @RabbitListener} or {@code @JmsListener} handlers.
+ * {@code @RabbitListener}, {@code @JmsListener} or {@code @SqsListener} handlers, including the
+ * {@code @KafkaHandler} and {@code @RabbitHandler} methods of a class-level listener.
  *
  * <p>Each invocation reports as one summary named after the method ({@code ReportJob.nightly}), with the same
- * thresholds and through the same {@code st.orm.sql.scope} logger as the per-request filter, so what a scheduled
+ * thresholds and through the same {@code st.orm.sql.summary} logger as the per-request filter, so what a scheduled
  * import or a queue consumer cost the database reads exactly like what a request cost it.</p>
  *
  * <p>Entry points are matched by annotation type name, directly present on the bean method, so a default whose
  * library is absent from the classpath simply never matches and costs nothing. The set is configurable through
- * {@code storm.sql-scope.entry-points}.</p>
+ * {@code storm.sql-log.entry-points}.</p>
  *
  * <p>The scope follows the invoking thread, which is where a blocking task or listener does its work. Work the
  * method hands to another thread falls outside it.</p>
  *
  * @since 1.13
  */
-public class StormSqlScopeEntryPointPostProcessor implements BeanPostProcessor, Ordered {
+public class StormSqlLogEntryPointPostProcessor implements BeanPostProcessor, Ordered {
 
-    private static final Logger LOGGER = LoggerFactory.getLogger("st.orm.sql.scope");
+    private static final Logger LOGGER = LoggerFactory.getLogger("st.orm.sql.summary");
 
     private final Set<String> entryPointAnnotations;
     private final int limit;
@@ -75,7 +76,7 @@ public class StormSqlScopeEntryPointPostProcessor implements BeanPostProcessor, 
      * @param statementThreshold number of statements above which an invocation is reported, or {@code null}.
      * @param durationThreshold invocation duration above which an invocation is reported, or {@code null}.
      */
-    public StormSqlScopeEntryPointPostProcessor(@Nonnull Set<String> entryPointAnnotations,
+    public StormSqlLogEntryPointPostProcessor(@Nonnull Set<String> entryPointAnnotations,
                                                 int limit,
                                                 boolean callSites,
                                                 @Nullable Integer statementThreshold,
@@ -113,7 +114,7 @@ public class StormSqlScopeEntryPointPostProcessor implements BeanPostProcessor, 
         }
         for (var method : entryPoints) {
             if (Modifier.isFinal(method.getModifiers())) {
-                LOGGER.warn("Cannot wrap {}.{} in a SQL scope: the method is final, so the proxy cannot "
+                LOGGER.warn("Cannot wrap {}.{} in a SQL log: the method is final, so the proxy cannot "
                         + "intercept it. Open a scope inside the method instead.",
                         targetClass.getSimpleName(), method.getName());
             }
@@ -125,7 +126,7 @@ public class StormSqlScopeEntryPointPostProcessor implements BeanPostProcessor, 
             return bean;
         }
         if (Modifier.isFinal(targetClass.getModifiers())) {
-            LOGGER.warn("Cannot wrap {} in a SQL scope: the class is final, so it cannot be proxied. Open a "
+            LOGGER.warn("Cannot wrap {} in a SQL log: the class is final, so it cannot be proxied. Open a "
                     + "scope inside the entry point instead.", targetClass.getSimpleName());
             return bean;
         }
@@ -165,17 +166,17 @@ public class StormSqlScopeEntryPointPostProcessor implements BeanPostProcessor, 
         @Override
         public Object invoke(@Nonnull MethodInvocation invocation) throws Throwable {
             boolean thresholded = statementThreshold != null || durationThreshold != null;
-            if (!SqlScopeReporting.consumes(LOGGER, thresholded)) {
+            if (!SqlLogReporting.consumes(LOGGER, thresholded)) {
                 // Nothing consumes the summary, so do not open a scope to build one.
                 return invocation.proceed();
             }
             String name = targetClass.getSimpleName() + "." + invocation.getMethod().getName();
-            var scope = SqlScope.open(name, limit, callSites);
+            var scope = SqlLog.open(name, limit, callSites);
             try {
                 return invocation.proceed();
             } finally {
                 scope.close();
-                SqlScopeReporting.report(LOGGER, scope.summary(), statementThreshold, durationThreshold);
+                SqlLogReporting.report(LOGGER, scope.summary(), statementThreshold, durationThreshold);
             }
         }
     }

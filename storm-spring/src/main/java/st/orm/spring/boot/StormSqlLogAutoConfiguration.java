@@ -15,9 +15,9 @@
  */
 package st.orm.spring.boot;
 
-import static st.orm.core.template.SqlScope.HydrationShapes.FULL;
-import static st.orm.core.template.SqlScope.HydrationShapes.OFF;
-import static st.orm.core.template.SqlScope.HydrationShapes.SHORT;
+import static st.orm.core.template.SqlLog.HydrationShapes.FULL;
+import static st.orm.core.template.SqlLog.HydrationShapes.OFF;
+import static st.orm.core.template.SqlLog.HydrationShapes.SHORT;
 
 import jakarta.annotation.Nonnull;
 import jakarta.servlet.Filter;
@@ -39,22 +39,22 @@ import org.springframework.core.env.Environment;
 /**
  * Auto-configuration that reports what each unit of work cost the database.
  *
- * <p>Opt in with {@code storm.sql-scope.enabled=true}. Every way work enters the application is a boundary: HTTP
+ * <p>Opt in with {@code storm.sql-log.enabled=true}. Every way work enters the application is a boundary: HTTP
  * requests are wrapped by a servlet filter, and scheduled tasks and message listeners by a proxy around the
  * annotated entry-point method, so a worker without a web layer reports the same way a web application does. For
  * a narrower boundary, such as one service method, open a scope directly with
- * {@link st.orm.template.SqlScope}.</p>
+ * {@link st.orm.template.SqlLog}.</p>
  *
  * @since 1.13
  */
 @AutoConfiguration
-@ConditionalOnProperty(name = "storm.sql-scope.enabled", havingValue = "true")
+@ConditionalOnProperty(name = "storm.sql-log.enabled", havingValue = "true")
 @EnableConfigurationProperties(StormProperties.class)
-public class StormSqlScopeAutoConfiguration {
+public class StormSqlLogAutoConfiguration {
 
     /**
      * Provides the post-processor that wraps non-request entry points, such as {@code @Scheduled} tasks and
-     * message listeners, in a SQL scope.
+     * message listeners, in a SQL log.
      *
      * <p>Registered as a static bean and bound through the {@link Binder}, since a bean post-processor is
      * created before the configuration-properties machinery. The display settings, which apply to every summary
@@ -62,31 +62,31 @@ public class StormSqlScopeAutoConfiguration {
      * auto-configuration.</p>
      */
     @Bean
-    @ConditionalOnMissingBean(StormSqlScopeEntryPointPostProcessor.class)
-    static StormSqlScopeEntryPointPostProcessor stormSqlScopeEntryPointPostProcessor(
+    @ConditionalOnMissingBean(StormSqlLogEntryPointPostProcessor.class)
+    static StormSqlLogEntryPointPostProcessor stormSqlLogEntryPointPostProcessor(
             @Nonnull Environment environment) {
-        var sqlScope = new Binder(
+        var sqlLog = new Binder(
                 ConfigurationPropertySources.get(environment),
                 new PropertySourcesPlaceholdersResolver(environment),
                 ApplicationConversionService.getSharedInstance())
-                .bindOrCreate("storm.sql-scope", StormProperties.SqlScope.class);
-        applyDisplaySettings(sqlScope);
-        return new StormSqlScopeEntryPointPostProcessor(Set.copyOf(sqlScope.getEntryPoints()),
-                sqlScope.getLimit(),
-                sqlScope.isCallSites(),
-                sqlScope.getThreshold().getStatements(),
-                sqlScope.getThreshold().getDuration());
+                .bindOrCreate("storm.sql-log", StormProperties.SqlLog.class);
+        applyDisplaySettings(sqlLog);
+        return new StormSqlLogEntryPointPostProcessor(Set.copyOf(sqlLog.getEntryPoints()),
+                sqlLog.getLimit(),
+                sqlLog.isCallSites(),
+                sqlLog.getThreshold().getStatements(),
+                sqlLog.getThreshold().getDuration());
     }
 
     /** Applies the settings that shape how every summary renders, whichever boundary produced it. */
-    private static void applyDisplaySettings(@Nonnull StormProperties.SqlScope sqlScope) {
-        if (!sqlScope.getCallSiteSkip().isEmpty()) {
-            st.orm.core.template.SqlScope.ignoreCallSites(sqlScope.getCallSiteSkip().toArray(String[]::new));
+    private static void applyDisplaySettings(@Nonnull StormProperties.SqlLog sqlLog) {
+        if (!sqlLog.getCallSiteSkip().isEmpty()) {
+            st.orm.core.template.SqlLog.ignoreCallSites(sqlLog.getCallSiteSkip().toArray(String[]::new));
         }
-        if (sqlScope.getLineWidth() != null) {
-            st.orm.core.template.SqlScope.lineWidth(sqlScope.getLineWidth());
+        if (sqlLog.getLineWidth() != null) {
+            st.orm.core.template.SqlLog.lineWidth(sqlLog.getLineWidth());
         }
-        st.orm.core.template.SqlScope.hydrationShapes(switch (sqlScope.getHydration()) {
+        st.orm.core.template.SqlLog.hydrationShapes(switch (sqlLog.getHydration()) {
             case OFF -> OFF;
             case SHORT -> SHORT;
             case FULL -> FULL;
@@ -94,7 +94,7 @@ public class StormSqlScopeAutoConfiguration {
     }
 
     /**
-     * Wraps each HTTP request in a SQL scope; the request is the boundary a web application already has.
+     * Wraps each HTTP request in a SQL log; the request is the boundary a web application already has.
      */
     @Configuration(proxyBeanMethods = false)
     @ConditionalOnWebApplication(type = ConditionalOnWebApplication.Type.SERVLET)
@@ -102,16 +102,16 @@ public class StormSqlScopeAutoConfiguration {
     static class WebConfiguration {
 
         /**
-         * Provides the filter that wraps each request in a SQL scope.
+         * Provides the filter that wraps each request in a SQL log.
          */
         @Bean
-        @ConditionalOnMissingBean(StormSqlScopeFilter.class)
-        StormSqlScopeFilter stormSqlScopeFilter(@Nonnull StormProperties properties) {
-            var sqlScope = properties.getSqlScope();
-            return new StormSqlScopeFilter(sqlScope.getLimit(),
-                    sqlScope.isCallSites(),
-                    sqlScope.getThreshold().getStatements(),
-                    sqlScope.getThreshold().getDuration());
+        @ConditionalOnMissingBean(StormSqlLogFilter.class)
+        StormSqlLogFilter stormSqlLogFilter(@Nonnull StormProperties properties) {
+            var sqlLog = properties.getSqlLog();
+            return new StormSqlLogFilter(sqlLog.getLimit(),
+                    sqlLog.isCallSites(),
+                    sqlLog.getThreshold().getStatements(),
+                    sqlLog.getThreshold().getDuration());
         }
     }
 }
