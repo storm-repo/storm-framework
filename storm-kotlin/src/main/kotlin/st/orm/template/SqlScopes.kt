@@ -16,10 +16,8 @@
 package st.orm.template
 
 import kotlinx.coroutines.asContextElement
-import kotlinx.coroutines.currentCoroutineContext
-import kotlinx.coroutines.withContext
 import st.orm.core.template.impl.SqlInterceptorManager
-import st.orm.core.template.impl.SqlInterceptorManager.Operator
+import st.orm.template.impl.recordSqlScope
 import kotlin.coroutines.CoroutineContext
 import kotlin.coroutines.EmptyCoroutineContext
 import st.orm.core.template.SqlScope as CoreSqlScope
@@ -142,11 +140,15 @@ fun sqlScopeContext(): CoroutineContext {
  *
  * ```
  * get("/owners/{id}") {
- *     val (view, summary) = sqlScope("getOwner") { ownerService.load(call.parameters.getOrFail<Int>("id")) }
- *     log.info("{}", summary)
+ *     val view = sqlScope("getOwner") { ownerService.load(call.parameters.getOrFail<Int>("id")) }
  *     call.respond(view)
  * }
  * ```
+ *
+ * The summary reports through the `st.orm.sql.scope` logger when the block completes, normally or not, and the
+ * logger is the only switch: statements are recorded only while it is enabled at INFO, and at DEBUG the full
+ * statement texts follow the summary. What a scope observed is a report, not an API: production numbers belong to
+ * the Micrometer observations, and test assertions to `SqlCapture`.
  *
  * The scope follows the coroutine rather than the thread it happens to run on, so it keeps recording across a
  * suspension that resumes elsewhere, and a scope opened by one coroutine is never observed by another.
@@ -159,7 +161,7 @@ fun sqlScopeContext(): CoroutineContext {
  * @param callSites whether to attribute each execution to the application frame that caused it, which costs a
  *   stack walk per execution while the scope records.
  * @param block the work to record.
- * @return the block's result together with the summary.
+ * @return the block's result.
  * @since 1.13
  */
 suspend fun <T> sqlScope(
@@ -167,32 +169,10 @@ suspend fun <T> sqlScope(
     limit: Int = DEFAULT_SQL_SCOPE_LIMIT,
     callSites: Boolean = false,
     block: suspend () -> T,
-): Recorded<T> {
-    // A scope times executions, so it listens around them rather than intercepting the statements a call builds.
-    val recorder = CoreSqlScope.recorder(limit, callSites)
-    val holder = SqlInterceptorManager.holder()
-    val previous: Array<Operator>? = holder.get()
-    val operator = Operator({ sql -> sql }, { it }, recorder)
-    val installed: Array<Operator> = if (previous == null) arrayOf(operator) else arrayOf(operator, *previous)
-    // The scope opens where the caller still is on the stack, so that frame is the launch-site fallback for
-    // children whose own stack loses it.
-    val hint: CoroutineContext = if (callSites) {
-        CoreSqlScope.captureCallSite()?.let { CoreSqlScope.callSiteHint().asContextElement(it) }
-            ?: EmptyCoroutineContext
-    } else {
-        EmptyCoroutineContext
+): T {
+    if (!CoreSqlScope.reporting()) {
+        // Nothing consumes the summary, so no scope is opened to build one.
+        return block()
     }
-    val started = System.nanoTime()
-    // The count is what allows the statement path to skip the holder, so it has to cover the whole scope, on every
-    // thread the coroutine resumes on.
-    SqlInterceptorManager.scopeInstalled()
-    val result =
-        try {
-            withContext(currentCoroutineContext() + holder.asContextElement(installed) + hint) {
-                block()
-            }
-        } finally {
-            SqlInterceptorManager.scopeUninstalled()
-        }
-    return Recorded(result, SqlSummary(CoreSqlScope.summary(name, recorder, System.nanoTime() - started)))
+    return recordSqlScope(name, limit, callSites, block, CoreSqlScope::report)
 }

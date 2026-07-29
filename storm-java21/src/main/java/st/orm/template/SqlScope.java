@@ -18,9 +18,7 @@ package st.orm.template;
 import static st.orm.core.template.SqlScope.HydrationShapes.*;
 
 import jakarta.annotation.Nonnull;
-import java.util.concurrent.Callable;
-import java.util.function.Consumer;
-import java.util.function.Supplier;
+import jakarta.annotation.Nullable;
 
 /**
  * Records the statements a call executes, so a unit of work can be judged by what it cost the database.
@@ -29,10 +27,15 @@ import java.util.function.Supplier;
  * statement, so it can wrap the handling of a request rather than a single repository:</p>
  *
  * <pre>{@code
- * var view = SqlScope.record("getOwner",
- *         () -> ownerService.load(id),
- *         summary -> LOGGER.info("{}", summary));
+ * try (var scope = SqlScope.open("getOwner")) {
+ *     ownerService.load(id);
+ * }
  * }</pre>
+ *
+ * <p>The summary reports through the {@code st.orm.sql.scope} logger when the scope closes, and the logger is the
+ * only switch: statements are recorded only while it is enabled at {@code INFO}, and at {@code DEBUG} the full
+ * statement texts follow the summary. What a scope observed is a report, not an API: production numbers belong to
+ * the Micrometer observations, and test assertions to {@code SqlCapture}.</p>
  *
  * <p><strong>Cost when inactive is zero.</strong> A scope registers on the interceptor chain that every statement
  * already walks, so a statement executed with no scope open reads a single counter and stops.</p>
@@ -48,92 +51,25 @@ public final class SqlScope {
     }
 
     /**
-     * Runs the action, recording the statements it executes, and hands the summary to the given consumer.
-     *
-     * @param name what the scope covers, used to label the summary.
-     * @param action the action to run.
-     * @param onSummary receives the summary once the action completes, normally or not.
-     * @param <T> the result type.
-     * @return the action's result.
-     */
-    public static <T> T record(@Nonnull String name,
-                               @Nonnull Supplier<T> action,
-                               @Nonnull Consumer<SqlSummary> onSummary) {
-        return st.orm.core.template.SqlScope.record(name, action, summary -> onSummary.accept(convert(summary)));
-    }
-
-    /**
-     * Runs the action, recording up to {@code limit} of the statements it executes.
-     *
-     * @param name what the scope covers, used to label the summary.
-     * @param limit the number of statements to record; the summary counts the rest regardless.
-     * @param action the action to run.
-     * @param onSummary receives the summary once the action completes, normally or not.
-     * @param <T> the result type.
-     * @return the action's result.
-     */
-    public static <T> T record(@Nonnull String name,
-                               int limit,
-                               @Nonnull Supplier<T> action,
-                               @Nonnull Consumer<SqlSummary> onSummary) {
-        return st.orm.core.template.SqlScope.record(name, limit, action,
-                summary -> onSummary.accept(convert(summary)));
-    }
-
-    /**
-     * Runs the action, recording the statements it executes, allowing checked exceptions.
-     *
-     * @param name what the scope covers, used to label the summary.
-     * @param action the action to run.
-     * @param onSummary receives the summary once the action completes, normally or not.
-     * @param <T> the result type.
-     * @return the action's result.
-     * @throws Exception whatever the action throws.
-     */
-    public static <T> T recordThrowing(@Nonnull String name,
-                                       @Nonnull Callable<T> action,
-                                       @Nonnull Consumer<SqlSummary> onSummary) throws Exception {
-        return st.orm.core.template.SqlScope.recordThrowing(name, action,
-                summary -> onSummary.accept(convert(summary)));
-    }
-
-    /**
-     * Runs the action, recording up to {@code limit} of the statements it executes, allowing checked exceptions.
-     *
-     * @param name what the scope covers, used to label the summary.
-     * @param limit the number of statements to record; the summary counts the rest regardless.
-     * @param action the action to run.
-     * @param onSummary receives the summary once the action completes, normally or not.
-     * @param <T> the result type.
-     * @return the action's result.
-     * @throws Exception whatever the action throws.
-     */
-    public static <T> T recordThrowing(@Nonnull String name,
-                                       int limit,
-                                       @Nonnull Callable<T> action,
-                                       @Nonnull Consumer<SqlSummary> onSummary) throws Exception {
-        return st.orm.core.template.SqlScope.recordThrowing(name, limit, action,
-                summary -> onSummary.accept(convert(summary)));
-    }
-
-    /**
      * Opens a scope on the calling thread, closed with try-with-resources.
      *
      * <pre>{@code
-     * var scope = SqlScope.open("importOwners");
-     * try (scope) {
+     * try (var scope = SqlScope.open("importOwners")) {
      *     ownerService.importAll(batch);
      * }
-     * LOGGER.info("{}", scope.summary());
      * }</pre>
      *
-     * <p>The scope must be closed on the thread that opened it, which a try-with-resources block guarantees.</p>
+     * <p>The scope must be closed on the thread that opened it, which a try-with-resources block guarantees.
+     * Closing reports the summary under {@code st.orm.sql.scope}; a scope whose summary nothing consumes, because
+     * that logger is disabled, records nothing.</p>
      *
      * @param name what the scope covers, used to label the summary.
      * @return the open scope.
      */
     public static Scope open(@Nonnull String name) {
-        return new Scope(st.orm.core.template.SqlScope.open(name));
+        return new Scope(st.orm.core.template.SqlScope.reporting()
+                ? st.orm.core.template.SqlScope.open(name)
+                : null);
     }
 
     /**
@@ -144,7 +80,9 @@ public final class SqlScope {
      * @return the open scope.
      */
     public static Scope open(@Nonnull String name, int limit) {
-        return new Scope(st.orm.core.template.SqlScope.open(name, limit));
+        return new Scope(st.orm.core.template.SqlScope.reporting()
+                ? st.orm.core.template.SqlScope.open(name, limit)
+                : null);
     }
 
     /**
@@ -157,9 +95,10 @@ public final class SqlScope {
      * @return the open scope.
      */
     public static Scope open(@Nonnull String name, int limit, boolean callSites) {
-        return new Scope(st.orm.core.template.SqlScope.open(name, limit, callSites));
+        return new Scope(st.orm.core.template.SqlScope.reporting()
+                ? st.orm.core.template.SqlScope.open(name, limit, callSites)
+                : null);
     }
-
 
     /**
      * Sets how summary rows render the declared hydration shape of their statement's type. Off by default; a
@@ -175,34 +114,15 @@ public final class SqlScope {
         });
     }
 
+    /**
+     * Sets the width summary rows aim for, such as 120 for narrow viewers or 240 for wide ones; the statement
+     * text elides to what the row's other columns leave. A display property of the deployment; intended to be
+     * called once at startup.
+     *
+     * @param width the display width; at least 80.
+     */
     public static void lineWidth(int width) {
         st.orm.core.template.SqlScope.lineWidth(width);
-    }
-
-    /**
-     * A scope opened with {@link #open}, reporting its summary once closed.
-     */
-    public static final class Scope implements AutoCloseable {
-        private final st.orm.core.template.SqlScope.Scope scope;
-
-        private Scope(st.orm.core.template.SqlScope.Scope scope) {
-            this.scope = scope;
-        }
-
-        /**
-         * Returns what the scope observed. Available once the scope is closed.
-         *
-         * @return the summary.
-         * @throws IllegalStateException if the scope is still open.
-         */
-        public SqlSummary summary() {
-            return convert(scope.summary());
-        }
-
-        @Override
-        public void close() {
-            scope.close();
-        }
     }
 
     /**
@@ -219,8 +139,25 @@ public final class SqlScope {
         st.orm.core.template.SqlScope.ignoreCallSites(packagePrefixes);
     }
 
-    /** Wraps the core summary in the one an application reads, which carries no core type on its surface. */
-    static SqlSummary convert(@Nonnull st.orm.core.template.SqlScope.Summary summary) {
-        return new SqlSummary(summary);
+    /**
+     * A scope opened with {@link #open}, reporting its summary once closed.
+     */
+    public static final class Scope implements AutoCloseable {
+
+        /** The recording scope, or {@code null} when the summary would reach nothing. */
+        private final @Nullable st.orm.core.template.SqlScope.Scope scope;
+
+        private Scope(@Nullable st.orm.core.template.SqlScope.Scope scope) {
+            this.scope = scope;
+        }
+
+        @Override
+        public void close() {
+            if (scope == null) {
+                return;
+            }
+            scope.close();
+            st.orm.core.template.SqlScope.report(scope.summary());
+        }
     }
 }

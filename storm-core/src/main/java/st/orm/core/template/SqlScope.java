@@ -31,6 +31,8 @@ import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import st.orm.Data;
 import st.orm.PersistenceException;
 import st.orm.core.spi.QueryContext;
@@ -60,6 +62,37 @@ import st.orm.core.template.impl.StatementListener;
 public final class SqlScope {
 
     private SqlScope() {
+    }
+
+    /**
+     * The logger every scope summary reports through. The logger is the switch: a summary is recorded only while
+     * it is enabled and read only through it, so what a scope observed never becomes API surface an application
+     * couples to.
+     */
+    private static final Logger REPORT_LOGGER = LoggerFactory.getLogger("st.orm.sql.scope");
+
+    /**
+     * Returns whether a reported summary reaches anything, so a caller can skip opening a scope whose summary
+     * nothing consumes.
+     *
+     * @return whether the {@code st.orm.sql.scope} logger is enabled at {@code INFO}.
+     */
+    public static boolean reporting() {
+        return REPORT_LOGGER.isInfoEnabled();
+    }
+
+    /**
+     * Reports a summary under the {@code st.orm.sql.scope} logger: at {@code INFO}, with the full statement texts
+     * appended while the logger is at {@code DEBUG}. A summary without statements says nothing worth a line and is
+     * not reported.
+     *
+     * @param summary the summary to report.
+     */
+    public static void report(@Nonnull Summary summary) {
+        if (summary.statementCount() == 0) {
+            return;
+        }
+        REPORT_LOGGER.info("{}", REPORT_LOGGER.isDebugEnabled() ? summary.toDetailedString() : summary);
     }
 
     /**

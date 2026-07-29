@@ -36,7 +36,7 @@ import st.orm.core.spi.JdbcTransactionTemplateProviderImpl
 import st.orm.micrometer.MicrometerQueryObserver
 import st.orm.template.ORMTemplate
 import st.orm.template.ignoreSqlScopeCallSites
-import st.orm.template.sqlScope
+import st.orm.template.impl.recordSqlScope
 import st.orm.template.sqlScopeHydrationShapes
 import st.orm.template.sqlScopeLineWidth
 import javax.sql.DataSource
@@ -286,18 +286,22 @@ val Storm = createApplicationPlugin(name = "Storm", createConfiguration = ::Stor
                 return@intercept
             }
             val name = context.request.httpMethod.value + " " + context.request.path()
-            val (_, summary) = sqlScope(name, limit, callSites) { proceed() }
-            // A call that touched no database says nothing worth a line. Without thresholds every call that did
-            // is reported; with one, only calls that exceed it are, at WARN.
-            // At DEBUG the full statement texts follow the summary, so an elided row can be matched to its
-            // statement.
-            val rendered = if (logger.isDebugEnabled) summary.toDetailedString() else summary
-            when {
-                summary.statementCount == 0 -> {}
-                !thresholded -> logger.info("{}", rendered)
-                (statementThreshold != null && summary.statementCount >= statementThreshold) ||
-                    (durationThreshold != null && summary.duration >= durationThreshold) ->
-                    logger.warn("{}", rendered)
+            recordSqlScope(name, limit, callSites, { proceed() }) { summary ->
+                // A call that touched no database says nothing worth a line. Without thresholds every call that
+                // did is reported; with one, only calls that exceed it are, at WARN.
+                // At DEBUG the full statement texts follow the summary, so an elided row can be matched to its
+                // statement.
+                val rendered = if (logger.isDebugEnabled) summary.toDetailedString() else summary
+                when {
+                    summary.statementCount() == 0 -> {}
+                    !thresholded -> logger.info("{}", rendered)
+                    (statementThreshold != null && summary.statementCount() >= statementThreshold) ||
+                        (
+                            durationThreshold != null &&
+                                summary.durationNanos() >= durationThreshold.inWholeNanoseconds
+                            ) ->
+                        logger.warn("{}", rendered)
+                }
             }
         }
     }

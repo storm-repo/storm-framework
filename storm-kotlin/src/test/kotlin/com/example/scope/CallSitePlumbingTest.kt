@@ -9,11 +9,13 @@ import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.test.context.ContextConfiguration
 import org.springframework.test.context.jdbc.Sql
 import org.springframework.test.context.junit.jupiter.SpringExtension
+import st.orm.core.template.SqlScope.Summary
+import st.orm.template.DEFAULT_SQL_SCOPE_LIMIT
 import st.orm.template.IntegrationConfig
 import st.orm.template.ORMTemplate
 import st.orm.template.ignoreSqlScopeCallSites
+import st.orm.template.impl.recordSqlScope
 import st.orm.template.model.PetOwnerRef
-import st.orm.template.sqlScope
 
 /**
  * Verifies that a declared plumbing file hides the frames of its inline functions: their lambdas compile into
@@ -28,13 +30,19 @@ open class CallSitePlumbingTest(
     @Autowired val orm: ORMTemplate,
 ) {
 
+    private suspend fun <T> record(name: String, block: suspend () -> T): Summary {
+        var summary: Summary? = null
+        recordSqlScope(name, DEFAULT_SQL_SCOPE_LIMIT, true, block) { summary = it }
+        return summary!!
+    }
+
     @Test
     fun `a plumbing file entry hides the frames of its inline functions`(): Unit = runBlocking {
         ignoreSqlScopeCallSites("Plumbing.kt")
-        val (_, summary) = sqlScope("plumbed", callSites = true) {
+        val summary = record("plumbed") {
             throughDbLayer { orm.entity(PetOwnerRef::class).select().resultList }
         }
-        val callSite = summary.byStatement.first().callSite
+        val callSite = summary.byStatement().first().callSite()
         callSite.shouldNotBeNull()
         // The plumbing frames step aside; the row names this test, the caller beyond the layer.
         callSite shouldStartWith "CallSitePlumbingTest.kt:"
@@ -43,10 +51,10 @@ open class CallSitePlumbingTest(
     @Test
     fun `work launched onto another dispatcher names the frame that launched it`(): Unit = runBlocking {
         ignoreSqlScopeCallSites("Plumbing.kt")
-        val (_, summary) = sqlScope("launched", callSites = true) {
+        val summary = record("launched") {
             fetchAllOnDispatcher(orm)
         }
-        val callSite = summary.byStatement.first().callSite
+        val callSite = summary.byStatement().first().callSite()
         callSite.shouldNotBeNull()
         // The dispatcher thread's stack is plumbing end to end; without the carried launch site this row would
         // name the plumbing's innermost frame.

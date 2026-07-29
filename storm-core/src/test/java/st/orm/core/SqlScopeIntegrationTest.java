@@ -336,4 +336,46 @@ public class SqlScopeIntegrationTest {
             SqlScope.hydrationShapes(SqlScope.HydrationShapes.OFF);
         }
     }
+
+    @Test
+    public void testAReportedSummaryLogsUnderTheScopeLogger() {
+        var orm = ORMTemplate.of(dataSource);
+        var logger = (ch.qos.logback.classic.Logger) org.slf4j.LoggerFactory.getLogger("st.orm.sql.scope");
+        var appender = new ch.qos.logback.core.read.ListAppender<ch.qos.logback.classic.spi.ILoggingEvent>();
+        appender.start();
+        logger.addAppender(appender);
+        var level = logger.getLevel();
+        logger.setLevel(ch.qos.logback.classic.Level.INFO);
+        try {
+            List<SqlScope.Summary> summaries = new ArrayList<>();
+            SqlScope.record("reported", (Supplier<Object>) () -> orm.entity(City.class).getById(1),
+                    summaries::add);
+            SqlScope.report(summaries.getFirst());
+            assertEquals(1, appender.list.size());
+            assertTrue(appender.list.getFirst().getFormattedMessage().startsWith("SQL (reported):"),
+                    appender.list.getFirst().getFormattedMessage());
+        } finally {
+            logger.setLevel(level);
+            logger.detachAppender(appender);
+        }
+    }
+
+    @Test
+    public void testASummaryWithoutStatementsIsNotReported() {
+        var logger = (ch.qos.logback.classic.Logger) org.slf4j.LoggerFactory.getLogger("st.orm.sql.scope");
+        var appender = new ch.qos.logback.core.read.ListAppender<ch.qos.logback.classic.spi.ILoggingEvent>();
+        appender.start();
+        logger.addAppender(appender);
+        var level = logger.getLevel();
+        logger.setLevel(ch.qos.logback.classic.Level.INFO);
+        try {
+            List<SqlScope.Summary> summaries = new ArrayList<>();
+            SqlScope.record("silent", (Supplier<Object>) () -> null, summaries::add);
+            SqlScope.report(summaries.getFirst());
+            assertTrue(appender.list.isEmpty());
+        } finally {
+            logger.setLevel(level);
+            logger.detachAppender(appender);
+        }
+    }
 }

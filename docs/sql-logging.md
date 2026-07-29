@@ -173,16 +173,15 @@ The request thread is what this covers. An application whose work runs in corout
 
 ### A Narrower Boundary
 
-To measure one service method rather than a whole request, open a scope directly.
+To measure one service method rather than a whole request, open a scope directly. The summary reports the same way: under `st.orm.sql.scope`, only while that logger is enabled.
 
 <Tabs groupId="language">
 <TabItem value="kotlin" label="Kotlin" default>
 
 ```kotlin
-val (owners, summary) = sqlScope("importOwners") {
+val owners = sqlScope("importOwners") {
     ownerService.importAll(batch)
 }
-log.info("{}", summary)
 ```
 
 The scope follows the coroutine, so it keeps recording across a suspension that resumes on another thread, and every coroutine launched inside it is covered. A scope opened by one coroutine is never observed by another.
@@ -201,19 +200,9 @@ fun loadOwners(ids: List<Int>): List<Owner> = runBlocking(sqlScopeContext()) {
 <TabItem value="java" label="Java">
 
 ```java
-var scope = SqlScope.open("importOwners");
-try (scope) {
+try (var scope = SqlScope.open("importOwners")) {
     ownerService.importAll(batch);
 }
-LOGGER.info("{}", scope.summary());
-```
-
-The callback form wraps a callable instead:
-
-```java
-var owners = SqlScope.record("importOwners",
-        () -> ownerService.importAll(batch),
-        summary -> LOGGER.info("{}", summary));
 ```
 
 The scope follows the thread that opened it. Work handed to another thread, including a subtask forked from a `StructuredTaskScope`, falls outside it.
@@ -221,24 +210,13 @@ The scope follows the thread that opened it. Work handed to another thread, incl
 </TabItem>
 </Tabs>
 
-### What a Summary Contains
+### The Summary Is the Report
 
-| Property | Description |
-|----------|-------------|
-| `name` | What the scope covered. |
-| `statementCount` | Statements the call executed, including any beyond the recording limit. |
-| `fetchCount` | How many were fetches. |
-| `duration` | How long the call took. |
-| `databaseDuration` | The summed statement duration. |
-| `databaseElapsed` | The time during which at least one statement was in flight. |
-| `peakConcurrency` | The most statements in flight at once. |
-| `statements` | The recorded statements, each with its own duration and rows. |
-| `byStatement` | One entry per distinct statement, heaviest first, with executions, variants, and its call site when recorded. |
-| `truncated` | Whether the call ran past the recording limit. |
+A scope hands nothing back: the summary reports through the `st.orm.sql.scope` logger, and the logger is the only switch. That is deliberate. Each number a summary shows already has a home for programmatic use — production metrics are the [Micrometer observations](spring-integration.md#observability), and test assertions are [`SqlCapture`](testing.md) — so the summary stays a report to be read, not an API to be coupled to.
 
 Parameter values are absent by design: they are database values, and a summary is meant to be safe to log in production. Raise `st.orm.sql` to `TRACE` to see values.
 
-A fetch served by the transaction's entity cache issues no statement, so `fetchCount` counts distinct cache misses rather than `fetch()` call sites.
+A fetch served by the transaction's entity cache issues no statement, so the fetch count counts distinct cache misses rather than `fetch()` call sites.
 
 ---
 
