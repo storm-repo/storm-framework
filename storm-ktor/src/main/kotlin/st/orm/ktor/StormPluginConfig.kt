@@ -17,7 +17,9 @@ package st.orm.ktor
 
 import st.orm.EntityCallback
 import st.orm.StormConfig
+import st.orm.core.template.SqlLog.HydrationShapes
 import javax.sql.DataSource
+import kotlin.time.Duration
 
 /**
  * Configuration DSL for the Storm Ktor plugin.
@@ -86,6 +88,86 @@ class StormPluginConfig {
      * @since 1.13
      */
     var sqlCommenter: st.orm.core.spi.SqlCommenter? = null
+
+    /**
+     * Whether each call is wrapped in a SQL log whose summary is logged, reporting what one request cost the
+     * database: how many statements it took, how long they took against how long the call took, and which
+     * statement carried the weight.
+     *
+     * ```
+     * SQL (GET /owners/42): 12 statements, 8 fetches, 34 ms in database, 96 ms total
+     * 	18 ms  112 rows  4x  Pet           SELECT p.id, p.name FROM pet p WHERE p.owner_id = ?
+     * 	 9 ms    8 rows  8x  City  fetch   SELECT c.id, c.name FROM city c WHERE c.id = ?
+     * ```
+     *
+     * The summary logs under `st.orm.sql.perf` at INFO. Statements are recorded only while that logger is
+     * enabled, so leaving this on costs nothing once the logger is turned down. Disabled by default.
+     *
+     * For a narrower boundary than a request, open a scope directly with
+     * [st.orm.template.sqlLog].
+     *
+     * @since 1.13
+     */
+    var sqlLog: Boolean = false
+
+    /**
+     * Number of statements a per-request scope records; the summary counts the rest regardless. Bounds what a
+     * single runaway call can retain and print.
+     *
+     * @since 1.13
+     */
+    var sqlLogLimit: Int = 200
+
+    /**
+     * Number of statements above which a call's summary is reported, at WARN. With any threshold set, only
+     * calls that exceed one are reported, which is the guardrail form suited to production; without thresholds
+     * every call that touches the database is reported at INFO.
+     *
+     * @since 1.13
+     */
+    var sqlLogStatementThreshold: Int? = null
+
+    /**
+     * Call duration above which a call's summary is reported, at WARN.
+     *
+     * @since 1.13
+     */
+    var sqlLogDurationThreshold: Duration? = null
+
+    /**
+     * Whether each execution is attributed to the application frame that caused it, shown per row as
+     * `@ File.ext:line`. Costs a stack walk per execution while a scope records; suited to development.
+     * Defaults to false.
+     *
+     * @since 1.13
+     */
+    var sqlLogCallSites: Boolean = false
+
+    /**
+     * Packages whose frames are skipped when attributing an execution to a call site, so rows name the code
+     * that asked for the work rather than the application's own database plumbing.
+     *
+     * @since 1.13
+     */
+    var sqlLogCallSiteSkip: List<String> = emptyList()
+
+    /**
+     * Width a summary row aims for, such as 120 for narrow viewers or 240 for wide ones; the statement text
+     * elides to what the row's other columns leave. A display property of the deployment, applied once at
+     * installation.
+     *
+     * @since 1.13
+     */
+    var sqlLogLineWidth: Int? = null
+
+    /**
+     * How summary rows render the declared hydration shape of their statement's type: [HydrationShapes.OFF]
+     * (the default), [HydrationShapes.SHORT] for the numeric form (`j2 c12 d3`: joins, columns, graph depth;
+     * flat types show none), or [HydrationShapes.FULL] to name the joined-entity graph on every mapped row.
+     *
+     * @since 1.13
+     */
+    var sqlLogHydration: HydrationShapes = HydrationShapes.OFF
 
     /**
      * Whether to expose the [st.orm.template.ORMTemplate] and the registered repositories through Ktor's

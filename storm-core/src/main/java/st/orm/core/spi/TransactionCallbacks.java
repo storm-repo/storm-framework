@@ -16,6 +16,7 @@
 package st.orm.core.spi;
 
 import jakarta.annotation.Nonnull;
+import java.util.function.Consumer;
 
 /**
  * Sink for transaction lifecycle callbacks of the current physical transaction.
@@ -43,4 +44,15 @@ public interface TransactionCallbacks {
      * @param callback the callback to invoke after rollback.
      */
     void addOnRollback(@Nonnull Runnable callback);
+
+    /**
+     * Registers a callback invoked after the physical transaction completes, receiving {@code true} when the
+     * transaction committed and {@code false} when it rolled back.
+     *
+     * <p>Implementations keep this callback in the same order as the commit-only and rollback-only callbacks, so
+     * that a transaction's callbacks run in registration order regardless of which kind they are.</p>
+     *
+     * @param callback the callback to invoke after completion.
+     */
+    void addOnCompletion(@Nonnull Consumer<Boolean> callback);
 }

@@ -52,10 +52,30 @@ final class CacheableProcessor implements ElementProcessor<Cacheable> {
             @Nonnull Cacheable cacheable,
             @Nonnull Function<TemplateString, Object> keyGenerator
     ) throws SqlTemplateException {
+        return key(cacheable, keyGenerator, false);
+    }
+
+    /**
+     * Returns the shape key: the compilation key with collection arity erased, so statements that differ only in
+     * how far a collection expanded share it.
+     */
+    @Override
+    public Object getShapeKey(
+            @Nonnull Cacheable cacheable,
+            @Nonnull Function<TemplateString, Object> keyGenerator
+    ) throws SqlTemplateException {
+        return key(cacheable, keyGenerator, true);
+    }
+
+    private Object key(
+            @Nonnull Cacheable cacheable,
+            @Nonnull Function<TemplateString, Object> keyGenerator,
+            boolean ignoreArity
+    ) throws SqlTemplateException {
         return switch(cacheable.expression()) {
             case TemplateExpression(var template) -> keyGenerator.apply(template);
             case ObjectExpression(var metamodel, var operator, var object) -> {
-                var objectShape = getObjectShape(object);
+                var objectShape = getObjectShape(object, ignoreArity);
                 if (objectShape == null) {
                     yield null;
                 }
@@ -76,11 +96,15 @@ final class CacheableProcessor implements ElementProcessor<Cacheable> {
      * @return the shape of the object.
      * @throws SqlTemplateException if the shape cannot be determined.
      */
-    private static Object getObjectShape(@Nonnull Object object) throws SqlTemplateException {
+    private static Object getObjectShape(@Nonnull Object object, boolean ignoreArity)
+            throws SqlTemplateException {
         return switch (object) {
             case Collection<?> c -> {
                 if (c.isEmpty()) {
-                    yield List.of(0, CONSTANT_SHAPE);
+                    yield ignoreArity ? List.of(ARITY_ERASED, CONSTANT_SHAPE) : List.of(0, CONSTANT_SHAPE);
+                }
+                if (ignoreArity) {
+                    yield List.of(ARITY_ERASED, getTypeShape(c.iterator().next()));
                 }
                 if (c.size() > MAX_ARITY) {
                     yield null;
@@ -89,7 +113,10 @@ final class CacheableProcessor implements ElementProcessor<Cacheable> {
             }
             case Object[] a -> {
                 if (a.length == 0) {
-                    yield List.of(0, CONSTANT_SHAPE);
+                    yield ignoreArity ? List.of(ARITY_ERASED, CONSTANT_SHAPE) : List.of(0, CONSTANT_SHAPE);
+                }
+                if (ignoreArity) {
+                    yield List.of(ARITY_ERASED, getTypeShape(a[0]));
                 }
                 if (a.length > MAX_ARITY) {
                     yield null;
@@ -100,6 +127,9 @@ final class CacheableProcessor implements ElementProcessor<Cacheable> {
             default -> getTypeShape(object);
         };
     }
+
+    /** Marker taking the place of a collection's size in a shape key, so every arity shares the key. */
+    private static final String ARITY_ERASED = "*";
 
     /**
      * Ref and Data instances may impact the shape of the compiled SQL. All other objects are considered constant.

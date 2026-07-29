@@ -16,6 +16,7 @@
 package st.orm.ktor
 
 import io.ktor.server.application.Application
+import io.ktor.server.application.ApplicationCallPipeline
 import io.ktor.server.application.ApplicationStarted
 import io.ktor.server.application.ApplicationStopped
 import io.ktor.server.application.createApplicationPlugin
@@ -23,14 +24,19 @@ import io.ktor.server.application.log
 import io.ktor.server.plugins.di.DependencyKey
 import io.ktor.server.plugins.di.dependencies
 import io.ktor.server.plugins.di.getBlocking
+import io.ktor.server.request.httpMethod
+import io.ktor.server.request.path
 import io.ktor.util.reflect.TypeInfo
 import io.micrometer.common.KeyValues
 import io.micrometer.observation.ObservationConvention
 import io.micrometer.observation.ObservationRegistry
+import org.slf4j.LoggerFactory
 import st.orm.core.spi.JdbcConnectionProviderImpl
 import st.orm.core.spi.JdbcTransactionTemplateProviderImpl
+import st.orm.core.template.SqlLog
 import st.orm.micrometer.MicrometerQueryObserver
 import st.orm.template.ORMTemplate
+import st.orm.template.impl.recordSqlLog
 import javax.sql.DataSource
 import kotlin.reflect.KClass
 import kotlin.reflect.full.starProjectedType
@@ -251,6 +257,51 @@ val Storm = createApplicationPlugin(name = "Storm", createConfiguration = ::Stor
     if (delegatingObservers.isNotEmpty()) {
         application.monitor.subscribe(ApplicationStarted) {
             application.bindQueryObservations(delegatingObservers)
+        }
+    }
+
+    // ---- Per-call SQL log ----
+
+    if (pluginConfig.sqlLog) {
+        val limit = pluginConfig.sqlLogLimit
+        val callSites = pluginConfig.sqlLogCallSites
+        if (pluginConfig.sqlLogCallSiteSkip.isNotEmpty()) {
+            SqlLog.ignoreCallSites(*pluginConfig.sqlLogCallSiteSkip.toTypedArray())
+        }
+        pluginConfig.sqlLogLineWidth?.let { SqlLog.lineWidth(it) }
+        SqlLog.hydrationShapes(pluginConfig.sqlLogHydration)
+        val statementThreshold = pluginConfig.sqlLogStatementThreshold
+        val durationThreshold = pluginConfig.sqlLogDurationThreshold
+        val thresholded = statementThreshold != null || durationThreshold != null
+        val logger = LoggerFactory.getLogger("st.orm.sql.perf")
+        // Intercepting surrounds the rest of the pipeline, so the scope covers everything the call does rather
+        // than a point within it. The scope follows the coroutine, so it keeps recording across a suspension
+        // that resumes on another thread, which is exactly what a handler does around the database.
+        application.intercept(ApplicationCallPipeline.Monitoring) {
+            if (if (thresholded) !logger.isWarnEnabled else !logger.isInfoEnabled) {
+                // Nothing consumes the summary, so do not open a scope to build one.
+                proceed()
+                return@intercept
+            }
+            val name = context.request.httpMethod.value + " " + context.request.path()
+            recordSqlLog(name, limit, callSites, { proceed() }) { summary ->
+                // A call that touched no database says nothing worth a line. Without thresholds every call that
+                // did is reported; with one, only calls that exceed it are, at WARN.
+                // At TRACE the full statement texts follow the summary, so an elided row can be matched to its
+                // statement. TRACE rather than DEBUG because this logger is a child of st.orm.sql: raising that
+                // to DEBUG for per-statement logging would otherwise repeat every statement already written.
+                val rendered = if (logger.isTraceEnabled) summary.toDetailedString() else summary
+                when {
+                    summary.statementCount() == 0 -> {}
+                    !thresholded -> logger.info("{}", rendered)
+                    (statementThreshold != null && summary.statementCount() >= statementThreshold) ||
+                        (
+                            durationThreshold != null &&
+                                summary.durationNanos() >= durationThreshold.inWholeNanoseconds
+                            ) ->
+                        logger.warn("{}", rendered)
+                }
+            }
         }
     }
 

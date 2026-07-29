@@ -18,6 +18,7 @@ package st.orm.test;
 import static java.util.Objects.requireNonNull;
 
 import jakarta.annotation.Nonnull;
+import java.time.Duration;
 import java.util.List;
 
 /**
@@ -26,17 +27,53 @@ import java.util.List;
  * @param operation the type of SQL operation.
  * @param statement the SQL statement with {@code ?} placeholders.
  * @param parameters the bind variable values.
+ * @param origin what caused the statement to execute.
+ * @param duration how long the execution took.
+ * @param rows the rows the execution produced or affected; a lower bound when not exact.
+ * @param exactRows whether that count is exact; false when a driver declined to report a batch entry's count or
+ *                  a stream closed before its end.
  * @since 1.9
  */
 public record CapturedSql(
         @Nonnull Operation operation,
         @Nonnull String statement,
-        @Nonnull List<Object> parameters) {
+        @Nonnull List<Object> parameters,
+        @Nonnull Origin origin,
+        @Nonnull Duration duration,
+        long rows,
+        boolean exactRows) {
 
-    public CapturedSql(@Nonnull Operation operation, @Nonnull String statement, @Nonnull List<Object> parameters) {
+    public CapturedSql(@Nonnull Operation operation,
+                       @Nonnull String statement,
+                       @Nonnull List<Object> parameters,
+                       @Nonnull Origin origin,
+                       @Nonnull Duration duration,
+                       long rows,
+                       boolean exactRows) {
         this.operation = requireNonNull(operation, "operation");
         this.statement = requireNonNull(statement, "statement");
         this.parameters = List.copyOf(parameters);
+        this.origin = requireNonNull(origin, "origin");
+        this.duration = requireNonNull(duration, "duration");
+        this.rows = rows;
+        this.exactRows = exactRows;
+    }
+
+    /**
+     * Classifies what caused the statement to execute.
+     *
+     * <p>A statement resolving a reference is shaped exactly like a primary key lookup the test could have
+     * written itself, so asserting on the origin is what pins how many statements resolving references cost.</p>
+     *
+     * @since 1.13
+     */
+    public enum Origin {
+
+        /** The statement was asked for directly by the code under test. */
+        DIRECT,
+
+        /** The statement resolves a reference whose record was not loaded. */
+        FETCH
     }
 
     /**

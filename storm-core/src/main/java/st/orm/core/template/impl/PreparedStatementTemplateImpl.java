@@ -730,7 +730,10 @@ public final class PreparedStatementTemplateImpl implements PreparedStatementTem
                 sql.operation(),
                 sql.dataType().orElse(null),
                 FetchPlan.of(sql.fetchPaths()),
-                sql.statement());
+                sql.statement(),
+                sql.origin(),
+                sql.shapeId(),
+                sql.parameters());
         return new QueryImpl(environment, unsafe -> {
             try {
                 return templateProcessor.process(sql, unsafe);

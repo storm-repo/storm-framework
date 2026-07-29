@@ -17,6 +17,7 @@ package st.orm.template;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static st.orm.TransactionPropagation.REQUIRES_NEW;
 import static st.orm.template.Transactions.transaction;
 
@@ -28,6 +29,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.test.context.ContextConfiguration;
 import org.springframework.test.context.jdbc.Sql;
 import org.springframework.test.context.junit.jupiter.SpringExtension;
+import st.orm.TransactionCallbackException;
 import st.orm.template.model.Visit;
 
 /**
@@ -96,7 +98,7 @@ public class TransactionCallbackTest {
     @Test
     public void throwingCallbackDoesNotPreventRemainingCallbacks() {
         List<String> events = new ArrayList<>();
-        var thrown = assertThrows(IllegalStateException.class, () ->
+        var thrown = assertThrows(TransactionCallbackException.class, () ->
                 transaction(tx -> {
                     tx.onCommit(() -> {
                         throw new IllegalStateException("First callback failed.");
@@ -104,8 +106,59 @@ public class TransactionCallbackTest {
                     tx.onCommit(() -> events.add("second"));
                     return countVisits();
                 }));
-        assertEquals("First callback failed.", thrown.getMessage());
+        assertTrue(thrown.isCommitted());
+        assertEquals("First callback failed.", thrown.getCause().getMessage());
         assertEquals(List.of("second"), events);
+    }
+
+    @Test
+    public void completionCallbackReportsCommit() {
+        List<Boolean> outcomes = new ArrayList<>();
+        transaction(tx -> {
+            tx.onCompletion(outcomes::add);
+            return countVisits();
+        });
+        assertEquals(List.of(true), outcomes);
+    }
+
+    @Test
+    public void completionCallbackReportsRollback() {
+        List<Boolean> outcomes = new ArrayList<>();
+        transaction(tx -> {
+            tx.onCompletion(outcomes::add);
+            tx.setRollbackOnly();
+            return countVisits();
+        });
+        assertEquals(List.of(false), outcomes);
+    }
+
+    @Test
+    public void callbacksOfEveryKindFireInRegistrationOrder() {
+        List<String> events = new ArrayList<>();
+        transaction(tx -> {
+            tx.onCompletion(committed -> events.add("completion-1"));
+            tx.onCommit(() -> events.add("commit"));
+            tx.onRollback(() -> events.add("rollback"));
+            tx.onCompletion(committed -> events.add("completion-2"));
+            return countVisits();
+        });
+        assertEquals(List.of("completion-1", "commit", "completion-2"), events);
+    }
+
+    @Test
+    public void commitCallbackFailureReportsTheTransactionAsCommitted() {
+        var thrown = assertThrows(TransactionCallbackException.class, () ->
+                transaction(tx -> {
+                    orm.entity(Visit.class).removeAll();
+                    tx.onCommit(() -> {
+                        throw new IllegalStateException("Callback failed.");
+                    });
+                    return countVisits();
+                }));
+        assertTrue(thrown.isCommitted());
+        // The failure is a failed side effect: the transaction itself committed.
+        long remaining = transaction(tx -> countVisits());
+        assertEquals(0L, remaining);
     }
 
     @Test

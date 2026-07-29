@@ -158,7 +158,7 @@ ${navHtml('tutorials')}
   </a>
   <a class="tcard" href="/tutorials/observability">
     <div class="tt">Seeing what Storm does<span class="arrow">→</span></div>
-    <div class="td">@SqlLog shows every statement a repository runs, inlined parameters make the output copy-paste executable, and JMX metrics expose cache and dirty-checking behavior.</div>
+    <div class="td">The SQL log shows every statement where it executes, TRACE makes the output copy-paste executable, and per-call summaries show what each request or listener cost the database.</div>
     <div class="tm"><span>The Storm way</span><span>3 min read</span><span>Kotlin</span></div>
   </a>
 </div>

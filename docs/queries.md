@@ -949,7 +949,7 @@ Optional<User> user = orm.entity(User.class)
 1. **Use the metamodel** -- `User_.email` catches typos at compile time; see [Metamodel](metamodel.md)
 2. **Kotlin: choose your style** -- quick queries (`orm.find`, `orm.findAll`) for simple cases, query builder for complex operations
 3. **Java: DSL or Templates** -- DSL for type-safe conditions, SQL Templates for complex SQL like CTEs, window functions, or database-specific features
-4. **Entity graphs load in one query** -- related entities marked with `@FK` are JOINed automatically, no N+1 problems
+4. **Entity graphs load in one query** -- related entities marked with `@FK` are JOINed automatically, so the declared graph costs one statement and nothing loads behind your back
 5. **Close Java streams** -- always use try-with-resources with `Stream` results
 6. **Combine conditions freely** -- use `and` / `or` in Kotlin, `it.where().and()` / `.or()` in Java to build complex predicates
 7. **Always use the returned builder** -- `QueryBuilder` is immutable; methods like `where()`, `orderBy()`, and `limit()` return a new instance. Ignoring the return value silently loses the change. Chain calls or reassign the variable.

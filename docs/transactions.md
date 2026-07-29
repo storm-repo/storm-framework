@@ -621,6 +621,8 @@ Database transactions often need to trigger side effects, but only when the outc
 
 Storm's `onCommit` and `onRollback` callbacks solve this by letting you register logic that fires **after** the physical transaction completes. Callbacks are registered inside the transaction block but execute outside it, once the outcome is final. Note that running such logic right after the block is not a substitute: with `REQUIRED` propagation the block may have joined an outer transaction, in which case the end of the block commits nothing and the outer transaction may still roll back. Callbacks bind to the physical transaction, so they remain correct however deeply the block is nested.
 
+Work that has to happen either way — releasing a lock, closing a span — registers once with `onCompletion`, which receives whether the transaction committed. `onCommit` and `onRollback` stay the simpler form when only one outcome is of interest, and say so at the registration site.
+
 #### Basic Usage
 
 Register callbacks anywhere inside a `transaction` or `transactionBlocking` block:
@@ -642,6 +644,11 @@ transaction {
         // No changes were persisted.
         metrics.increment("orders.failed")
     }
+
+    onCompletion { committed ->
+        // Runs either way; committed says which outcome it followed.
+        lockService.release(order.id)
+    }
 }
 ```
 
@@ -661,15 +668,15 @@ transactionBlocking {
 
 Callbacks are deferred until the transaction outcome is determined. The following table summarizes the trigger conditions:
 
-| Scenario | `onCommit` | `onRollback` |
-|----------|------------|--------------|
-| Block completes normally | Fires | Does not fire |
-| Block throws an exception | Does not fire | Fires |
-| `setRollbackOnly()` called, block completes | Does not fire | Fires |
-| Transaction timeout expires | Does not fire | Fires |
-| Commit itself throws (e.g., constraint violation during flush) | Does not fire | Fires |
+| Scenario | `onCommit` | `onRollback` | `onCompletion` receives |
+|----------|------------|--------------|-------------------------|
+| Block completes normally | Fires | Does not fire | `true` |
+| Block throws an exception | Does not fire | Fires | `false` |
+| `setRollbackOnly()` called, block completes | Does not fire | Fires | `false` |
+| Transaction timeout expires | Does not fire | Fires | `false` |
+| Commit itself throws (e.g., constraint violation during flush) | Does not fire | Fires | `false` |
 
-The key guarantee is that `onCommit` callbacks only execute when data is actually durable. If the commit itself fails for any reason, `onCommit` callbacks are skipped and `onRollback` callbacks run instead.
+The key guarantee is that `onCommit` callbacks only execute when data is actually durable. If the commit itself fails for any reason, `onCommit` callbacks are skipped and `onRollback` callbacks run instead. `onCompletion` fires in every scenario and receives `true` exactly when the data is durable.
 
 This timeline shows the execution order for a successful transaction:
 
@@ -707,7 +714,7 @@ And for a failed transaction:
 
 #### Multiple Callbacks and Ordering
 
-You can register any number of callbacks. They execute in registration order, which makes it straightforward to reason about sequencing when multiple components register their own callbacks:
+You can register any number of callbacks. All three kinds share a single registration order — each run executes them in the order they were registered, skipping the ones that do not apply to the outcome — which makes it straightforward to reason about sequencing when multiple components register their own callbacks:
 
 ```kotlin
 transaction {
@@ -723,7 +730,7 @@ transaction {
 
 #### Exception Handling in Callbacks
 
-If a callback throws, the remaining callbacks still execute. This prevents one failing callback from silently skipping others. The first exception is surfaced to the caller; any subsequent exceptions are attached as suppressed:
+If a callback throws, the remaining callbacks still execute. This prevents one failing callback from silently skipping others. The failures surface as a `TransactionCallbackException` whose cause is the first one, with the rest attached to it as suppressed:
 
 ```kotlin
 transaction {
@@ -732,11 +739,14 @@ transaction {
     onCommit { throw RuntimeException("email failed") }   // throws, but...
     onCommit { cache.invalidate(order.productId) }         // ...still executes
 }
-// Caller sees RuntimeException("email failed")
-// cache.invalidate() ran successfully
+// Caller catches TransactionCallbackException: isCommitted() == true,
+// cause is RuntimeException("email failed").
+// cache.invalidate() ran successfully; the order IS persisted.
 ```
 
-When the transaction itself fails and a rollback callback also throws, the callback exception is added as suppressed to the original transaction exception:
+The distinct type is what lets a caller tell "the work was not persisted" apart from "the work was persisted and something after it failed". The two need opposite responses: the first is a candidate for a retry, the second usually is not, because retrying repeats work that already succeeded. `isCommitted()` says which completion the failure followed.
+
+When the transaction itself fails and a rollback callback also throws, the callback failure does not replace the original exception: it is attached to it as suppressed, still wrapped in `TransactionCallbackException`:
 
 ```kotlin
 try {
@@ -745,8 +755,9 @@ try {
         throw IllegalStateException("business error")
     }
 } catch (e: IllegalStateException) {
-    // e.message == "business error"              ← primary exception
-    // e.suppressed[0].message == "cleanup failed" ← callback exception
+    // e.message == "business error"                       ← primary exception
+    // e.suppressed[0] is TransactionCallbackException     ← callback failure,
+    //   whose cause is RuntimeException("cleanup failed")    attached, not thrown
 }
 ```
 
@@ -1175,11 +1186,12 @@ transaction(tx -> {
     }
     tx.onCommit(() -> notifications.orderPlaced(order));
     tx.onRollback(() -> log.warn("Order {} rolled back.", order.id()));
+    tx.onCompletion(committed -> locks.release(order.id()));
     return order;
 });
 ```
 
-Callbacks registered in a scope that joins an outer transaction are deferred to the outermost physical transaction's completion; `REQUIRES_NEW` scopes fire their own callbacks independently. Callbacks run in registration order after the transaction has fully completed; if one throws, the remaining callbacks still execute and the first exception is surfaced with the others suppressed.
+Callbacks registered in a scope that joins an outer transaction are deferred to the outermost physical transaction's completion; `REQUIRES_NEW` scopes fire their own callbacks independently. The three kinds share one registration order: callbacks run in the order they were registered after the transaction has fully completed, skipping the ones that do not apply to the outcome. `onCompletion` receives whether the transaction committed, which is the variant for work that has to happen either way. If a callback throws, the remaining callbacks still execute and the failures surface as a `TransactionCallbackException` whose cause is the first one, with the rest suppressed; `isCommitted()` tells a failed side effect apart from a failed transaction, which need opposite responses, since retrying the former repeats work that already succeeded.
 
 ### Global and Scoped Defaults
 

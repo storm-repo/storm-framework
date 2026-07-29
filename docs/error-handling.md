@@ -20,6 +20,9 @@ Storm uses unchecked exceptions for most error conditions. The root type is `Per
 | `NonUniqueResultException` | `PersistenceException` | `getSingleResult()` or `getOptionalResult()` returns more than one row. |
 | `OptimisticLockException` | `PersistenceException` | An update or delete detects a version conflict (the row was modified by another transaction). |
 | `SchemaValidationException` | `PersistenceException` | Schema validation finds mismatches between entity definitions and the database schema. |
+| `TransactionTimedOutException` | `PersistenceException` | A transaction exceeds its configured timeout. |
+| `UnexpectedRollbackException` | `PersistenceException` | A commit was attempted but the transaction had been marked rollback-only, for example by a joined inner scope. |
+| `TransactionCallbackException` | `PersistenceException` | A transaction completion callback failed. The transaction itself completed; `isCommitted()` says which way, so a failed side effect is distinguishable from a failed transaction. |
 | `SqlTemplateException` | `SQLException` | An error occurred during SQL template processing. Often attached as a suppressed exception to provide the generated SQL alongside the original error. |
 
 The hierarchy is intentionally flat. Most code only needs to catch `PersistenceException` and, occasionally, its specific subtypes.
@@ -30,7 +33,10 @@ RuntimeException
       ├── NoResultException
       ├── NonUniqueResultException
       ├── OptimisticLockException
-      └── SchemaValidationException
+      ├── SchemaValidationException
+      ├── TransactionTimedOutException
+      ├── UnexpectedRollbackException
+      └── TransactionCallbackException
 
 SQLException
  └── SqlTemplateException
@@ -227,28 +233,16 @@ try {
 
 ### Enable SQL Logging
 
-The fastest way to diagnose a query problem is to see the generated SQL. Use the `@SqlLog` annotation on your repository to log every statement:
+The fastest way to diagnose a query problem is to see the generated SQL. Raise the `st.orm.sql` logger; no code change is needed:
 
-<Tabs groupId="language">
-<TabItem value="kotlin" label="Kotlin" default>
-
-```kotlin
-@SqlLog
-interface UserRepository : EntityRepository<User, Int>
+```yaml
+logging:
+  level:
+    st.orm.sql: DEBUG      # statements as sent, with placeholders
+    # st.orm.sql: TRACE    # with parameter values rendered in, ready to paste into a console
 ```
 
-</TabItem>
-<TabItem value="java" label="Java">
-
-```java
-@SqlLog
-public interface UserRepository extends EntityRepository<User, Integer> {}
-```
-
-</TabItem>
-</Tabs>
-
-For more targeted logging, annotate individual methods instead of the entire repository. See the [SQL Logging](sql-logging.md) page for details.
+To narrow the focus to one entity, raise its own logger instead: `st.orm.sql.User`. To see what a whole call cost rather than the statements one by one, wrap it in `sqlLog("name") { }` or enable the per-entry-point summaries. See the [SQL Logging](sql-logging.md) page for details.
 
 ### Use SqlCapture in Tests
 

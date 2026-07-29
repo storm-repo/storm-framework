@@ -33,6 +33,8 @@ import java.util.Locale;
  *   {@code UNDEFINED}</li>
  *   <li>{@code storm.execution} — {@code QUERY}, {@code UPDATE} or {@code BATCH}</li>
  *   <li>{@code storm.data_type} — the simple name of the targeted entity or projection, or {@code none}</li>
+ *   <li>{@code storm.origin} — {@code DIRECT}, or {@code FETCH} for a statement resolving a
+ *   reference; the rate of the latter is what resolving references costs</li>
  * </ul>
  *
  * <p>The SQL statement is exposed as the high-cardinality key value {@code db.statement}; tracing handlers turn it
@@ -75,7 +77,8 @@ public class StormQueryObservationConvention implements ObservationConvention<St
         return KeyValues.of(
                         "storm.operation", queryContext.operation().name(),
                         "storm.execution", queryContext.kind().name(),
-                        "storm.data_type", queryContext.dataType().map(Class::getSimpleName).orElse("none"))
+                        "storm.data_type", queryContext.dataType().map(Class::getSimpleName).orElse("none"),
+                        "storm.origin", queryContext.origin().name())
                 .and(context.extraLowCardinalityKeyValues());
     }
 

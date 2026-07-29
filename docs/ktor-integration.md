@@ -734,10 +734,13 @@ Physical transactions report as `storm.transaction` observations with their dura
 | `storm.operation` | low | The SQL operation: `SELECT`, `INSERT`, `UPDATE`, `DELETE`, or `UNDEFINED`. |
 | `storm.execution` | low | How the statement executed: `QUERY`, `UPDATE`, or `BATCH`. |
 | `storm.data_type` | low | Simple name of the entity or projection type the statement operates on, or `none` for raw queries. |
+| `storm.origin` | low | What caused the statement: `DIRECT`, or `FETCH` for a statement resolving a reference. |
 | `storm.database` | low | The database name; `primary` for the primary database. |
 | `db.statement` | high | The SQL statement. Available to trace handlers as a span attribute; never a metric tag. |
 
 Queries against a named database are tagged `storm.database=<name>`; the primary database is tagged `storm.database=primary`. The tag is always present because meters of one name must share a single set of tag keys; registries such as Prometheus drop series whose tag keys differ. Queries issued during plugin installation, such as schema validation, run before the registry is resolved and are not observed.
+
+For development and per-call diagnosis, `sqlLog = true` in the plugin configuration reports what each call cost the database as one summary — statements, database time against total time, concurrency, and the statement that carried the weight — with thresholds that turn it into a production guardrail. See [SQL Logging](sql-logging.md#per-call-summaries).
 
 For full control, set an explicit observer in the plugin configuration; it takes precedence over the automatic binding. The `queryObserver` slot accepts any `st.orm.core.spi.QueryObserver`, including a hand-configured `MicrometerQueryObserver` from the `storm-micrometer` module (custom `ObservationConvention`, extra key values):
 

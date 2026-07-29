@@ -12,6 +12,9 @@ module storm.spring {
     requires jakarta.annotation;
     requires spring.core;
     requires spring.aop;
+    requires static spring.web;
+    requires static jakarta.servlet;
+    requires static context.propagation;
     requires org.slf4j;
     requires org.aspectj.weaver;
     requires java.logging;

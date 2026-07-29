@@ -15,7 +15,9 @@
  */
 package st.orm.spring.boot;
 
+import java.time.Duration;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 import st.orm.StormConfig;
@@ -63,6 +65,9 @@ public class StormProperties {
     /** Tracing configuration. */
     private Tracing tracing = new Tracing();
 
+    /** Per-request SQL log configuration. */
+    private SqlLog sqlLog = new SqlLog();
+
     /** Whether to enable ANSI escape sequences in Storm's log output. */
     private Boolean ansiEscaping;
 
@@ -95,6 +100,12 @@ public class StormProperties {
 
     /** Returns the tracing configuration. */
     public Tracing getTracing() { return tracing; }
+
+    /** Returns the per-request SQL log configuration. */
+    public SqlLog getSqlLog() { return sqlLog; }
+
+    /** Sets the per-request SQL log configuration. */
+    public void setSqlLog(SqlLog sqlLog) { this.sqlLog = sqlLog; }
 
     /** Sets the tracing configuration. */
     public void setTracing(Tracing tracing) { this.tracing = tracing; }
@@ -257,6 +268,148 @@ public class StormProperties {
 
         /** Sets the trace context SQL comment mode. */
         public void setSqlComments(String sqlComments) { this.sqlComments = sqlComments; }
+    }
+
+    /**
+     * Per-request SQL log configuration: what one request cost the database, reported as a single summary.
+     */
+    public static class SqlLog {
+
+        /** Whether each request is wrapped in a SQL log whose summary is logged. Defaults to false. */
+        private boolean enabled;
+
+        /** Number of statements to record per request; the summary counts the rest regardless. */
+        private int limit = 200;
+
+        /** Returns whether per-request scopes are enabled. */
+        public boolean isEnabled() { return enabled; }
+
+        /** Sets whether per-request scopes are enabled. */
+        public void setEnabled(boolean enabled) { this.enabled = enabled; }
+
+        /** Returns the number of statements recorded per request. */
+        public int getLimit() { return limit; }
+
+        /** Sets the number of statements recorded per request. */
+        public void setLimit(int limit) { this.limit = limit; }
+
+        /**
+         * Whether each execution is attributed to the application frame that caused it, shown per row as
+         * {@code @ File.ext:line}. Costs a stack walk per execution while a scope records; suited to
+         * development. Defaults to false.
+         */
+        private boolean callSites;
+
+        /** Returns whether call sites are recorded. */
+        public boolean isCallSites() { return callSites; }
+
+        /** Sets whether call sites are recorded. */
+        public void setCallSites(boolean callSites) { this.callSites = callSites; }
+
+        /**
+         * Packages whose frames are skipped when attributing an execution to a call site, so rows name the
+         * code that asked for the work rather than the application's own database plumbing.
+         */
+        private List<String> callSiteSkip = java.util.List.of();
+
+        /**
+         * Annotations that mark a bean method as an entry point to be wrapped in its own scope, covering the
+         * ways work enters the application without an HTTP request. Each invocation reports as one summary
+         * named after the method ({@code ReportJob.nightly}), with the same thresholds as the per-request
+         * filter.
+         *
+         * <p>Matching is by annotation type name, directly present on the bean method, so a default whose
+         * library is absent from the classpath never matches and costs nothing. Setting the property replaces
+         * the default list; an empty list turns entry-point wrapping off.</p>
+         */
+        private List<String> entryPoints = java.util.List.of(
+                "org.springframework.scheduling.annotation.Scheduled",
+                "org.springframework.scheduling.annotation.Schedules",
+                "org.springframework.kafka.annotation.KafkaListener",
+                "org.springframework.kafka.annotation.KafkaListeners",
+                "org.springframework.kafka.annotation.KafkaHandler",
+                "org.springframework.amqp.rabbit.annotation.RabbitListener",
+                "org.springframework.amqp.rabbit.annotation.RabbitListeners",
+                "org.springframework.amqp.rabbit.annotation.RabbitHandler",
+                "org.springframework.jms.annotation.JmsListener",
+                "org.springframework.jms.annotation.JmsListeners",
+                "io.awspring.cloud.sqs.annotation.SqsListener");
+
+        /** Returns the annotations that mark a bean method as an entry point. */
+        public List<String> getEntryPoints() { return entryPoints; }
+
+        /** Sets the annotations that mark a bean method as an entry point. */
+        public void setEntryPoints(List<String> entryPoints) { this.entryPoints = entryPoints; }
+
+        /** Returns the packages skipped in call-site attribution. */
+        public List<String> getCallSiteSkip() { return callSiteSkip; }
+
+        /** Sets the packages skipped in call-site attribution. */
+        public void setCallSiteSkip(List<String> callSiteSkip) { this.callSiteSkip = callSiteSkip; }
+
+        /**
+         * Width a summary row aims for, such as 120 for narrow viewers or 240 for wide ones; the statement
+         * text elides to what the row's other columns leave. A display property of the deployment, applied
+         * once at startup.
+         */
+        private Integer lineWidth;
+
+        /** Returns the display width summary rows aim for. */
+        public Integer getLineWidth() { return lineWidth; }
+
+        /** Sets the display width summary rows aim for. */
+        public void setLineWidth(Integer lineWidth) { this.lineWidth = lineWidth; }
+
+        /**
+         * How summary rows render the declared hydration shape of their statement's type: {@code off} (the
+         * default), {@code short} for the numeric form ({@code j2 c12 d3}: joins, columns, graph depth; flat
+         * types show none), or {@code full} to name the joined-entity graph on every mapped row.
+         */
+        private Hydration hydration = Hydration.OFF;
+
+        /** Returns how summary rows render hydration shapes. */
+        public Hydration getHydration() { return hydration; }
+
+        /** Sets how summary rows render hydration shapes. */
+        public void setHydration(Hydration hydration) { this.hydration = hydration; }
+
+        /** How summary rows render the declared hydration shape of their statement's type. */
+        public enum Hydration { OFF, SHORT, FULL }
+
+        /** Reporting thresholds; with any set, only requests that exceed one are reported. */
+        private Threshold threshold = new Threshold();
+
+        /** Returns the reporting thresholds. */
+        public Threshold getThreshold() { return threshold; }
+
+        /** Sets the reporting thresholds. */
+        public void setThreshold(Threshold threshold) { this.threshold = threshold; }
+
+        /**
+         * Reporting thresholds. Without thresholds every request that touches the database is reported, which
+         * suits development; with a threshold set, only requests that exceed one are reported, at WARN, which is
+         * a guardrail suited to production.
+         */
+        public static class Threshold {
+
+            /** Number of statements above which a request is reported. */
+            private Integer statements;
+
+            /** Request duration above which a request is reported, such as {@code 500ms}. */
+            private Duration duration;
+
+            /** Returns the statement threshold. */
+            public Integer getStatements() { return statements; }
+
+            /** Sets the statement threshold. */
+            public void setStatements(Integer statements) { this.statements = statements; }
+
+            /** Returns the duration threshold. */
+            public Duration getDuration() { return duration; }
+
+            /** Sets the duration threshold. */
+            public void setDuration(Duration duration) { this.duration = duration; }
+        }
     }
 
     /** Query observation configuration. */

@@ -20,7 +20,9 @@ import jakarta.annotation.Nullable;
 import java.sql.SQLTimeoutException;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.function.Consumer;
 import st.orm.Transaction;
+import st.orm.TransactionCallbackException;
 import st.orm.TransactionPropagation;
 import st.orm.TransactionTimedOutException;
 import st.orm.UnexpectedRollbackException;
@@ -247,6 +249,11 @@ public final class TransactionRunner {
             public void onRollback(@Nonnull Runnable callback) {
                 callbacks.addOnRollback(callback);
             }
+
+            @Override
+            public void onCompletion(@Nonnull Consumer<Boolean> callback) {
+                callbacks.addOnCompletion(callback);
+            }
         };
     }
 
@@ -261,32 +268,51 @@ public final class TransactionRunner {
      * suppressed.
      */
     private static final class BlockingCallbacks implements TransactionCallbacks {
-        private final List<Runnable> onCommit = new ArrayList<>();
-        private final List<Runnable> onRollback = new ArrayList<>();
+        private final List<Entry> callbacks = new ArrayList<>();
+
+        /**
+         * A registered callback and the outcomes it applies to, so that callbacks of every kind share a single
+         * registration order.
+         */
+        private record Entry(boolean onCommit, boolean onRollback, Consumer<Boolean> action) {
+            boolean applies(boolean committed) {
+                return committed ? onCommit : onRollback;
+            }
+        }
 
         @Override
         public void addOnCommit(@Nonnull Runnable callback) {
-            onCommit.add(callback);
+            callbacks.add(new Entry(true, false, committed -> callback.run()));
         }
 
         @Override
         public void addOnRollback(@Nonnull Runnable callback) {
-            onRollback.add(callback);
+            callbacks.add(new Entry(false, true, committed -> callback.run()));
+        }
+
+        @Override
+        public void addOnCompletion(@Nonnull Consumer<Boolean> callback) {
+            callbacks.add(new Entry(true, true, callback));
         }
 
         void fireCommit() {
-            fire(onCommit);
+            fire(true);
         }
 
         void fireRollback() {
-            fire(onRollback);
+            fire(false);
         }
 
-        private static void fire(List<Runnable> callbacks) {
+        private void fire(boolean committed) {
             Throwable first = null;
-            for (var callback : callbacks) {
+            // Iterate a snapshot so that a callback registering another callback is a no-op for this run rather
+            // than a concurrent modification.
+            for (var entry : List.copyOf(callbacks)) {
+                if (!entry.applies(committed)) {
+                    continue;
+                }
                 try {
-                    callback.run();
+                    entry.action().accept(committed);
                 } catch (Throwable e) {
                     if (first == null) {
                         first = e;
@@ -296,7 +322,9 @@ public final class TransactionRunner {
                 }
             }
             if (first != null) {
-                throw sneakyThrow(first);
+                throw new TransactionCallbackException(committed
+                        ? "Transaction committed, but a completion callback failed."
+                        : "Transaction rolled back, and a completion callback failed.", first, committed);
             }
         }
     }

@@ -29,6 +29,7 @@ import java.util.List;
 import java.util.MissingFormatArgumentException;
 import java.util.Optional;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.function.LongSupplier;
 import st.orm.BindVars;
 import st.orm.Data;
 import st.orm.Element;
@@ -44,6 +45,7 @@ import st.orm.core.template.SqlTemplate.NamedParameter;
 import st.orm.core.template.SqlTemplate.Parameter;
 import st.orm.core.template.SqlTemplate.PositionalParameter;
 import st.orm.core.template.SqlTemplateException;
+import st.orm.core.template.StatementOrigin;
 import st.orm.core.template.TemplateString;
 import st.orm.core.template.impl.BindHint.NoBindHint;
 import st.orm.core.template.impl.SqlTemplateImpl.Wrapped;
@@ -193,6 +195,13 @@ class TemplateProcessor {
      * Compile-time only: whether the compiled template requires binding.
      */
     private boolean requiresBinding;
+
+    /**
+     * The statement's shape identity, computed on first demand and stable for the processor's lifetime: every
+     * binding of one processor shares its shape. The sentinel marks it uncomputed; the benign race publishes a
+     * deterministic value.
+     */
+    private volatile long shapeId = Long.MIN_VALUE;
 
     /**
      * Compiler implementation used during compilation of elements and nested templates.
@@ -532,17 +541,31 @@ class TemplateProcessor {
     }
 
     /**
+     * Returns the cached shape identity, or the given fallback computed by the caller on first demand.
+     */
+    long shapeId(@Nonnull LongSupplier compute) {
+        long cached = shapeId;
+        if (cached == Long.MIN_VALUE) {
+            cached = compute.getAsLong();
+            shapeId = cached;
+        }
+        return cached;
+    }
+
+    /**
      * Binds runtime values and assembles the final {@link Sql} object for a compiled template.
      *
      * <p>This method is reusable and thread-safe, because it creates a new {@link BindingSession} for every invocation.
      * The session binds values while consuming bind hints recorded during compilation.</p>
      *
      * @param context binding context holding flattened elements.
+     * @param shapeId the identity of the statement's shape, derived from the compilation key; {@code 0} when
+     *                unknown.
      * @return the assembled SQL object containing the SQL string and bound parameters.
      * @throws SqlTemplateException if binding fails or parameter validation fails.
      * @throws IllegalStateException if called before {@link #compile(CompilationContext, boolean)}.
      */
-    Sql bind(@Nonnull BindingContext context) throws SqlTemplateException {
+    Sql bind(@Nonnull BindingContext context, long shapeId) throws SqlTemplateException {
         checkState(true);
         assert sql != null;
         var session = new BindingSession();
@@ -554,6 +577,7 @@ class TemplateProcessor {
         // The safety check is a pure function of the compiled SQL and operation and is computed once per
         // processor. The benign race publishes an immutable Optional.
         var warning = unsafeWarning;
+        //noinspection OptionalAssignedToNull
         if (warning == null) {
             warning = checkSafety(sql, operation);
             unsafeWarning = warning;
@@ -568,7 +592,9 @@ class TemplateProcessor {
                 ofNullable(dataType != null ? dataType : affectedType),
                 fetchPaths != null ? fetchPaths : List.of(),
                 versionAware != null && versionAware,
-                warning
+                warning,
+                StatementOrigin.DIRECT,
+                shapeId
         );
     }
 
@@ -931,25 +957,7 @@ class TemplateProcessor {
          * @return the SQL literal.
          */
         private static String toLiteral(@Nullable Object dbValue) {
-            return switch (dbValue) {
-                case null -> "NULL";
-                case Short s -> s.toString();
-                case Integer i -> i.toString();
-                case Long l -> l.toString();
-                case Float f -> f.toString();
-                case Double d -> d.toString();
-                case Byte b -> b.toString();
-                case Boolean b -> b ? "TRUE" : "FALSE";
-                case String s -> "'%s'".formatted(s.replace("\\", "\\\\").replace("'", "''"));
-                case java.sql.Date d -> "'%s'".formatted(d);
-                case java.sql.Time t -> "'%s'".formatted(t);
-                case java.sql.Timestamp t -> "'%s'".formatted(t);
-                case Enum<?> e -> "'%s'".formatted(e.name().replace("\\", "\\\\").replace("'", "''"));
-                default -> {
-                    String str = dbValue.toString().replace("\\", "\\\\").replace("'", "''");
-                    yield "'%s'".formatted(str);
-                }
-            };
+            return SqlLiterals.toLiteral(dbValue);
         }
     }
 

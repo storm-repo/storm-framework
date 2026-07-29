@@ -6,11 +6,14 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 import org.junit.jupiter.api.Test;
 import st.orm.core.template.Sql;
 import st.orm.core.template.SqlOperation;
+import st.orm.core.template.SqlTemplate;
+import st.orm.core.template.StatementOrigin;
 
 /**
  * Tests for {@link SqlImpl}.
@@ -28,7 +31,7 @@ public class SqlImplTest {
                 Optional.empty(),
                 List.of(),
                 false,
-                Optional.empty()
+                Optional.empty(), StatementOrigin.DIRECT, 0L
         );
     }
 
@@ -119,7 +122,7 @@ public class SqlImplTest {
                 Optional.empty(),
                 List.of(),
                 false,
-                Optional.of("existing warning")
+                Optional.of("existing warning"), StatementOrigin.DIRECT, 0L
         );
         Sql updated = sql.unsafeWarning(null);
         assertTrue(updated.unsafeWarning().isEmpty());
@@ -137,7 +140,8 @@ public class SqlImplTest {
                 Optional.empty(),
                 List.of(),
                 false,
-                Optional.empty()
+                Optional.empty(),
+                StatementOrigin.DIRECT, 0L
         ));
     }
 
@@ -153,7 +157,8 @@ public class SqlImplTest {
                 Optional.empty(),
                 List.of(),
                 false,
-                Optional.empty()
+                Optional.empty(),
+                StatementOrigin.DIRECT, 0L
         ));
     }
 
@@ -170,7 +175,7 @@ public class SqlImplTest {
                     Optional.empty(),
                     List.of(),
                     false,
-                    Optional.empty()
+                    Optional.empty(), StatementOrigin.DIRECT, 0L
             );
             assertEquals(operation, sql.operation());
         }
@@ -178,21 +183,24 @@ public class SqlImplTest {
 
     @Test
     public void testParametersAreDefensivelyCopied() {
-        List<Object> mutableParams = new java.util.ArrayList<>();
-        // SqlImpl compact constructor calls copyOf on parameters, so modifications should not affect the result.
+        List<SqlTemplate.Parameter> mutableParameters = new ArrayList<>();
+        mutableParameters.add(new SqlTemplate.PositionalParameter(1, "original"));
+        // SqlImpl's compact constructor calls copyOf on parameters, so later modifications of the list handed in
+        // must not affect the constructed statement.
         SqlImpl sql = new SqlImpl(
                 SqlOperation.SELECT,
                 "SELECT 1",
-                List.of(),
+                mutableParameters,
                 Optional.empty(),
                 List.of(),
                 Optional.empty(),
                 Optional.empty(),
                 List.of(),
                 false,
-                Optional.empty()
+                Optional.empty(), StatementOrigin.DIRECT, 0L
         );
-        assertTrue(sql.parameters().isEmpty());
+        mutableParameters.add(new SqlTemplate.PositionalParameter(2, "added later"));
+        assertEquals(List.of(new SqlTemplate.PositionalParameter(1, "original")), sql.parameters());
     }
 
     @Test
@@ -207,7 +215,7 @@ public class SqlImplTest {
                 Optional.empty(),
                 List.of(),
                 false,
-                Optional.empty()
+                Optional.empty(), StatementOrigin.DIRECT, 0L
         );
         assertEquals(1, sql.generatedKeys().size());
         assertEquals("id", sql.generatedKeys().getFirst());

@@ -163,9 +163,56 @@ public interface Sql {
      * @return the resolved reference paths, empty when every reference is selected as its foreign key column.
      * @since 1.13
      */
-    default List<String> fetchPaths() {
-        return List.of();
-    }
+    List<String> fetchPaths();
+
+    /**
+     * Returns what caused this statement to execute.
+     *
+     * <p>A statement resolving a reference is shaped exactly like a primary key lookup the application could have
+     * written itself; the origin is what tells the two apart.</p>
+     *
+     * @return the statement origin; {@link StatementOrigin#DIRECT} unless the statement resolves a reference.
+     * @since 1.13
+     */
+    StatementOrigin origin();
+
+    /**
+     * Returns a new instance of the SQL statement with the given origin.
+     *
+     * <p>The statement itself is unchanged: a statement resolving a reference is the same statement whichever way
+     * it was reached, so only what caused it differs.</p>
+     *
+     * @param origin what caused the statement to execute.
+     * @return a new instance of the SQL statement with the given origin.
+     * @since 1.13
+     */
+    Sql origin(@Nonnull StatementOrigin origin);
+
+    /**
+     * Returns the identity of the statement's shape: the template it was generated from, before values were
+     * bound.
+     *
+     * <p>Statements generated from one template share a shape whatever their parameters look like, including a
+     * collection parameter that expands to a different number of placeholders per execution. The shape is
+     * therefore what groups executions of the same statement, where the text alone would split them. Derived from
+     * the template's fragments at generation, so no statement text is ever parsed.</p>
+     *
+     * @return the shape identity; {@code 0} when unknown.
+     * @since 1.13
+     */
+    long shapeId();
+
+    /**
+     * Returns a new instance of the SQL statement with the given shape identity.
+     *
+     * <p>Set where the statement is generated, since the shape is a property of the template rather than of the
+     * text the statement ends up carrying.</p>
+     *
+     * @param shapeId the shape identity.
+     * @return a new instance of the SQL statement with the given shape identity.
+     * @since 1.13
+     */
+    Sql shapeId(long shapeId);
 
     /**
      * Returns a warning message if the statement is deemed potentially unsafe, an empty optional otherwise.

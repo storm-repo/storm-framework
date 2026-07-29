@@ -15,6 +15,7 @@
  */
 package st.orm.micrometer;
 
+import static io.micrometer.observation.Observation.*;
 import static java.util.Objects.requireNonNull;
 
 import io.micrometer.common.KeyValues;
@@ -87,8 +88,10 @@ public class MicrometerQueryObserver implements QueryObserver {
 
     @Override
     public TransactionObservation onTransaction(@Nonnull TransactionScope.Options options) {
-        var observation = io.micrometer.observation.Observation
-                .createNotStarted("storm.transaction", observationRegistry)
+        if (observationRegistry.isNoop()) {
+            return TransactionObservation.NOOP;
+        }
+        var observation = createNotStarted("storm.transaction", observationRegistry)
                 .contextualName("transaction")
                 .lowCardinalityKeyValue("storm.tx.propagation",
                         options.propagation() != null ? options.propagation().name() : "REQUIRED")
@@ -114,9 +117,12 @@ public class MicrometerQueryObserver implements QueryObserver {
 
     @Override
     public Observation onExecute(@Nonnull QueryContext context) {
+        if (observationRegistry.isNoop()) {
+            // Nothing handles the observation, so skip building the context it would have carried.
+            return Observation.NOOP;
+        }
         var observationContext = new StormQueryObservationContext(context, extraLowCardinalityKeyValues);
-        var observation = io.micrometer.observation.Observation
-                .createNotStarted(convention, () -> observationContext, observationRegistry)
+        var observation = createNotStarted(convention, () -> observationContext, observationRegistry)
                 .start();
         return new Observation() {
             @Override

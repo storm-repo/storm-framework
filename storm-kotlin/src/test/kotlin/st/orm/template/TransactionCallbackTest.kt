@@ -12,6 +12,7 @@ import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.test.context.ContextConfiguration
 import org.springframework.test.context.jdbc.Sql
 import org.springframework.test.context.junit.jupiter.SpringExtension
+import st.orm.TransactionCallbackException
 import st.orm.TransactionPropagation.*
 import st.orm.repository.exists
 import st.orm.repository.removeAll
@@ -141,14 +142,15 @@ open class TransactionCallbackTest(
     @Test
     fun `callback exception does not prevent other callbacks from running`(): Unit = runBlocking {
         var secondExecuted = false
-        val exception = assertThrows<IllegalStateException> {
+        val exception = assertThrows<TransactionCallbackException> {
             transactionBlocking {
                 onCommit { throw IllegalStateException("first") }
                 onCommit { secondExecuted = true }
             }
         }
         secondExecuted.shouldBeTrue()
-        exception.message shouldBe "first"
+        exception.isCommitted.shouldBeTrue()
+        exception.cause?.message shouldBe "first"
     }
 
     @Test
@@ -365,6 +367,79 @@ open class TransactionCallbackTest(
         }
         exception.message shouldBe "tx"
         exception.suppressed.size shouldBe 1
-        exception.suppressed[0].message shouldBe "callback"
+        val callbackFailure = exception.suppressed[0] as TransactionCallbackException
+        callbackFailure.isCommitted.shouldBeFalse()
+        callbackFailure.cause?.message shouldBe "callback"
+    }
+
+    @Test
+    fun `onCompletion reports a commit`(): Unit = runBlocking {
+        var observed: Boolean? = null
+        transaction {
+            onCompletion { committed -> observed = committed }
+        }
+        observed shouldBe true
+    }
+
+    @Test
+    fun `onCompletion reports a rollback`(): Unit = runBlocking {
+        var observed: Boolean? = null
+        transaction {
+            onCompletion { committed -> observed = committed }
+            setRollbackOnly()
+        }
+        observed shouldBe false
+    }
+
+    @Test
+    fun `onCompletion fires in registration order with the outcome-specific callbacks`(): Unit = runBlocking {
+        val events = mutableListOf<String>()
+        transaction {
+            onCompletion { events += "completion-1" }
+            onCommit { events += "commit" }
+            onRollback { events += "rollback" }
+            onCompletion { events += "completion-2" }
+        }
+        events shouldBe listOf("completion-1", "commit", "completion-2")
+    }
+
+    @Test
+    fun `commit callback failure reports the transaction as committed`(): Unit = runBlocking {
+        val exception = assertThrows<TransactionCallbackException> {
+            transaction {
+                orm.removeAll<Visit>()
+                onCommit { throw IllegalStateException("callback") }
+            }
+        }
+        exception.isCommitted.shouldBeTrue()
+        exception.cause?.message shouldBe "callback"
+        // The failure is a failed side effect: the transaction itself committed.
+        transaction { orm.exists<Visit>() }.shouldBeFalse()
+    }
+
+    @Test
+    fun `further callback failures are suppressed onto the first`(): Unit = runBlocking {
+        val exception = assertThrows<TransactionCallbackException> {
+            transaction {
+                onCommit { throw IllegalStateException("first") }
+                onCommit { throw IllegalStateException("second") }
+            }
+        }
+        exception.cause?.message shouldBe "first"
+        exception.cause?.suppressed?.size shouldBe 1
+        exception.cause?.suppressed?.get(0)?.message shouldBe "second"
+    }
+
+    @Test
+    fun `a callback registered from a callback does not disturb the run`(): Unit = runBlocking {
+        val events = mutableListOf<String>()
+        transaction {
+            onCommit {
+                events += "first"
+                onCommit { events += "registered-during-run" }
+            }
+            onCommit { events += "second" }
+        }
+        events shouldBe listOf("first", "second")
     }
 }

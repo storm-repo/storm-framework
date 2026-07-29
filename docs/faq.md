@@ -221,7 +221,15 @@ See [SQL Templates](sql-templates.md) for details on using `Data` and plain reco
 
 ### How do I prevent N+1 queries?
 
-You do not need to take any special action. Storm prevents N+1 queries by design. When you define a relationship with `@FK`, Storm generates a single SQL query that joins the related tables and hydrates the entire entity graph from one result set. There is no lazy loading that triggers additional queries behind the scenes. If you need a reference to a related entity without loading its full graph, use `Ref<T>` to defer fetching until you explicitly call `fetch()`. A `Ref` you do want in a particular query is named on the query builder with [`fetch(User_.city)`](refs.md#resolving-a-ref-as-part-of-the-query), which brings the referenced record back in the same statement.
+Two properties make it a non-issue for the entity graph, and neither is something you configure.
+
+**Storm issues no query you did not ask for.** There is no lazy loading and no persistence context, so reading a field never triggers a statement behind your back. A *hidden* N+1, the kind that appears in production because a template touched a relationship, cannot occur.
+
+**The graph you declared travels with the read.** Relationships declared with `@FK` are joined into the same statement and hydrated from one result set, so for those the problem never arises. That join is cheap: it is the join you would otherwise write by hand, across indexed foreign keys, and it replaces N round trips with one.
+
+What Storm does not do is stop you writing a loop. Calling a repository once per record still issues one statement per record. The difference is that the loop is in your code, where you can read it, rather than in the framework. Batch it with `findAllById`, an `inList` predicate (`IN` in Java), or [`resultGroupedBy`](queries.md) when you want parents with their children; raising the `st.orm.sql.perf` logger shows the repetition as a row with a high execution multiplier in the [per-call summary](sql-logging.md#per-call-summaries).
+
+If you want a relationship that does *not* travel with the entity, declare it `Ref<T>` and resolve it deliberately: `fetch()` on the reference, or [`fetch(User_.city)`](refs.md#resolving-a-ref-as-part-of-the-query) on the query when the read already knows it needs the record, which brings it back in the same statement.
 
 ### Can I write raw SQL?
 
@@ -588,19 +596,15 @@ List<User> getUsers() {
 
 ### How do I see the SQL Storm generates?
 
-Annotate your repository with `@SqlLog` to log all generated SQL:
+Raise the `st.orm.sql` logger:
 
-```java
-@SqlLog
-public interface UserRepository extends EntityRepository<User, Integer> { ... }
+```yaml
+logging:
+  level:
+    st.orm.sql: DEBUG
 ```
 
-To see executable SQL with actual parameter values instead of `?` placeholders, use `inlineParameters`:
-
-```java
-@SqlLog(inlineParameters = true)
-public interface UserRepository extends EntityRepository<User, Integer> { ... }
-```
+Every executed statement is logged, whichever repository, query builder or template issued it. To see executable SQL with actual parameter values instead of `?` placeholders, raise it to `TRACE`. Values are database values, so `TRACE` is the level to keep out of production.
 
 See [SQL Logging](sql-logging.md) for the full guide.
 

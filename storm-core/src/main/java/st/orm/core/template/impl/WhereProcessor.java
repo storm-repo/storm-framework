@@ -65,6 +65,20 @@ final class WhereProcessor implements ElementProcessor<Where> {
     }
 
     /**
+     * Returns the shape key by delegating to the wrapped expression's shape key, so collection arity stays
+     * erased through the delegation.
+     */
+    @Override
+    public Object getShapeKey(@Nonnull Where where, @Nonnull Function<TemplateString, Object> keyGenerator)
+            throws SqlTemplateException {
+        if (where.expression() != null) {
+            var cacheable = new Cacheable(where.expression());
+            return getElementProcessor(cacheable).getShapeKey(cacheable, keyGenerator);
+        }
+        return getCompilationKey(where, keyGenerator);
+    }
+
+    /**
      * Compiles the given element into an {@link CompiledElement}.
      *
      * <p>This method is responsible for producing the compile-time representation of the element. It must not perform

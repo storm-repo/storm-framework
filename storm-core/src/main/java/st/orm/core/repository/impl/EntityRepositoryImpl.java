@@ -68,6 +68,7 @@ import st.orm.core.template.Templates;
 import st.orm.core.template.impl.Elements;
 import st.orm.core.template.impl.JoinedEntityHelper;
 import st.orm.core.template.impl.LazySupplier;
+import st.orm.core.template.impl.SqlInterceptorManager;
 
 /**
  * Default implementation of {@link EntityRepository}.
@@ -734,6 +735,7 @@ public class EntityRepositoryImpl<E extends Entity<ID>, ID>
             if (cache.isPresent()) {
                 Optional<E> cached = cache.get().get(id);
                 if (cached.isPresent()) {
+                    SqlInterceptorManager.notifyCacheHits(model().type(), 1);
                     return cached;
                 }
             }
@@ -754,6 +756,7 @@ public class EntityRepositoryImpl<E extends Entity<ID>, ID>
             if (cache.isPresent()) {
                 Optional<E> cached = cache.get().get(id);
                 if (cached.isPresent()) {
+                    SqlInterceptorManager.notifyCacheHits(model().type(), 1);
                     return cached.get();
                 }
             }
@@ -775,6 +778,7 @@ public class EntityRepositoryImpl<E extends Entity<ID>, ID>
                 //noinspection unchecked
                 Optional<E> cached = cache.get().get((ID) ref.id());
                 if (cached.isPresent()) {
+                    SqlInterceptorManager.notifyCacheHits(model().type(), 1);
                     return cached;
                 }
             }
@@ -796,6 +800,7 @@ public class EntityRepositoryImpl<E extends Entity<ID>, ID>
                 //noinspection unchecked
                 Optional<E> cached = cache.get().get((ID) ref.id());
                 if (cached.isPresent()) {
+                    SqlInterceptorManager.notifyCacheHits(model().type(), 1);
                     return cached.get();
                 }
             }
@@ -821,6 +826,7 @@ public class EntityRepositoryImpl<E extends Entity<ID>, ID>
                 uncached.add(item);
             }
         }
+        SqlInterceptorManager.notifyCacheHits(model().type(), cached.size());
         if (uncached.isEmpty()) {
             return cached.stream();
         }
@@ -895,6 +901,7 @@ public class EntityRepositoryImpl<E extends Entity<ID>, ID>
                     uncached.add(id);
                 }
             }
+            SqlInterceptorManager.notifyCacheHits(model().type(), cached.size());
             if (uncached.isEmpty()) {
                 return cached.stream();
             }
@@ -931,6 +938,7 @@ public class EntityRepositoryImpl<E extends Entity<ID>, ID>
                     uncached.add(ref);
                 }
             }
+            SqlInterceptorManager.notifyCacheHits(model().type(), cached.size());
             if (uncached.isEmpty()) {
                 return cached.stream();
             }

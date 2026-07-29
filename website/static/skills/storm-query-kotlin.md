@@ -641,5 +641,7 @@ class UserQueryTest {
 
 Run the test. Show the user the captured SQL and explain how it aligns with the intended behavior. If a query produces unexpected SQL or the right approach is unclear, ask the user for feedback before changing the query.
 
+`SqlCapture` answers whether a query is correct. To find which query is expensive in a running application, raise the `st.orm.sql.perf` logger and read the per-call summary: it ranks statements by total time and shows which ones repeat, which resolve references on demand, and which hydrate more graph than they use. See the repository skill for how to act on each signal.
+
 
 The test can be temporary — verify and remove, or keep as a regression test. Ask the user which they prefer.
