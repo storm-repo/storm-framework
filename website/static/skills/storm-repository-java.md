@@ -473,7 +473,7 @@ Run the test. Show the user the captured SQL and explain how it aligns with the 
 
 **SQL visibility outside tests:** raise the `st.orm.sql` logger to `DEBUG` to log every executed statement at runtime, or to `TRACE` to render parameter values into it — useful for debugging without a test harness.
 
-**Finding what a call costs:** statement logging answers what ran; the SQL log summary answers what a unit of work cost. Raise `st.orm.sql.perf` to `INFO` and each request, scheduled task or listener invocation reports one line: how many statements it took, the summed database time against how long the call took, and a row per distinct statement ranked by total time. Read it for the usual wins:
+**Finding what a call costs:** statement logging answers what ran; the SQL log summary answers what a unit of work cost. Raise `st.orm.sql.perf` to `INFO` and each HTTP request, scheduled task or listener invocation reports one line: how many statements it took, the summed database time against how long the call took, and a row per distinct statement ranked by total time. Read it for the usual wins:
 
 - A row with a high execution multiplier (`7x`) is an N+1. Batch it with `findAllById`, an `IN` predicate, or `resultGroupedBy` instead of a query per parent.
 - A row marked `fetch` is a reference resolved on demand. Naming it in the query's fetch plan (`select().fetch(path)`) folds the load into the parent statement, and `getOrThrow()` then reads it without querying.
