@@ -29,6 +29,7 @@ import java.util.List;
 import java.util.MissingFormatArgumentException;
 import java.util.Optional;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.function.LongSupplier;
 import st.orm.BindVars;
 import st.orm.Data;
 import st.orm.Element;
@@ -540,6 +541,18 @@ class TemplateProcessor {
     }
 
     /**
+     * Returns the cached shape identity, or the given fallback computed by the caller on first demand.
+     */
+    long shapeId(@Nonnull LongSupplier compute) {
+        long cached = shapeId;
+        if (cached == Long.MIN_VALUE) {
+            cached = compute.getAsLong();
+            shapeId = cached;
+        }
+        return cached;
+    }
+
+    /**
      * Binds runtime values and assembles the final {@link Sql} object for a compiled template.
      *
      * <p>This method is reusable and thread-safe, because it creates a new {@link BindingSession} for every invocation.
@@ -552,18 +565,6 @@ class TemplateProcessor {
      * @throws SqlTemplateException if binding fails or parameter validation fails.
      * @throws IllegalStateException if called before {@link #compile(CompilationContext, boolean)}.
      */
-    /**
-     * Returns the cached shape identity, or the given fallback computed by the caller on first demand.
-     */
-    long shapeId(@Nonnull java.util.function.LongSupplier compute) {
-        long cached = shapeId;
-        if (cached == Long.MIN_VALUE) {
-            cached = compute.getAsLong();
-            shapeId = cached;
-        }
-        return cached;
-    }
-
     Sql bind(@Nonnull BindingContext context, long shapeId) throws SqlTemplateException {
         checkState(true);
         assert sql != null;
