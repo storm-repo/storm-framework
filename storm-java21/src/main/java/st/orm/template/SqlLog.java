@@ -15,8 +15,6 @@
  */
 package st.orm.template;
 
-import static st.orm.core.template.SqlLog.HydrationShapes.*;
-
 import jakarta.annotation.Nonnull;
 import jakarta.annotation.Nullable;
 
@@ -42,6 +40,11 @@ import jakarta.annotation.Nullable;
  *
  * <p>A scope follows the thread that opened it. Work handed to another thread, including a subtask forked from a
  * {@code StructuredTaskScope}, falls outside it.</p>
+ *
+ * <p>How summaries render — hydration shapes, line width, call-site skips — is a property of the deployment,
+ * configured rather than programmed: the {@code storm.sql_log.hydration}, {@code storm.sql_log.line_width} and
+ * {@code storm.sql_log.call_site_skip} system properties on a plain JVM, or the corresponding keys of the Spring
+ * and Ktor integrations.</p>
  *
  * @since 1.13
  */
@@ -98,45 +101,6 @@ public final class SqlLog {
         return new Scope(st.orm.core.template.SqlLog.reporting()
                 ? st.orm.core.template.SqlLog.open(name, limit, callSites)
                 : null);
-    }
-
-    /**
-     * Sets how summary rows render the declared hydration shape of their statement's type. Off by default; a
-     * display property of the deployment, intended to be called once at startup.
-     *
-     * @param shapes how shapes render.
-     */
-    public static void hydrationShapes(@Nonnull HydrationShapes shapes) {
-        st.orm.core.template.SqlLog.hydrationShapes(switch (shapes) {
-            case OFF -> OFF;
-            case SHORT -> SHORT;
-            case FULL -> FULL;
-        });
-    }
-
-    /**
-     * Sets the width summary rows aim for, such as 120 for narrow viewers or 240 for wide ones; the statement
-     * text elides to what the row's other columns leave. A display property of the deployment; intended to be
-     * called once at startup.
-     *
-     * @param width the display width; at least 80.
-     */
-    public static void lineWidth(int width) {
-        st.orm.core.template.SqlLog.lineWidth(width);
-    }
-
-    /**
-     * Declares packages or source files whose frames are skipped when a scope attributes an execution to a
-     * call site, so rows name the code that asked for the work rather than the application's own database
-     * plumbing. An entry ending in {@code .kt} or {@code .java} matches the frame's source file, which is what
-     * covers inline functions; when every application frame on a stack is declared plumbing, the innermost
-     * plumbing frame is reported rather than none. Intended to be called once at startup.
-     *
-     * @param packagePrefixes the package prefixes or source file names to skip, such as {@code "com.acme.db"}
-     *                        or {@code "DbExtensions.kt"}.
-     */
-    public static void ignoreCallSites(@Nonnull String... packagePrefixes) {
-        st.orm.core.template.SqlLog.ignoreCallSites(packagePrefixes);
     }
 
     /**

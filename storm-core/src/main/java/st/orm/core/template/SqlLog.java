@@ -18,10 +18,13 @@ package st.orm.core.template;
 import static java.util.Comparator.comparingLong;
 import static java.util.Objects.requireNonNull;
 import static java.util.concurrent.TimeUnit.NANOSECONDS;
+import static st.orm.core.spi.StormConfigHelper.getEnum;
+import static st.orm.core.spi.StormConfigHelper.getInt;
 
 import jakarta.annotation.Nonnull;
 import jakarta.annotation.Nullable;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -35,6 +38,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import st.orm.Data;
 import st.orm.PersistenceException;
+import st.orm.StormConfig;
 import st.orm.core.spi.QueryContext;
 import st.orm.core.template.SqlTemplate.Parameter;
 import st.orm.core.template.impl.SqlInterceptorManager;
@@ -1152,5 +1156,30 @@ public final class SqlLog {
             return true;
         }
         return false;
+    }
+
+    /**
+     * Applies the display settings from configuration ({@link StormConfig#defaults()}, which reads system
+     * properties). How the log renders is a property of the deployment, so it is configured like one —
+     * {@code storm.sql_log.hydration}, {@code storm.sql_log.line_width}, {@code storm.sql_log.call_site_skip} —
+     * rather than through an API. The Spring and Ktor integrations apply their own configuration through the
+     * setters.
+     */
+    private static void applyConfiguredDisplaySettings() {
+        var config = StormConfig.defaults();
+        hydrationShapes(getEnum(config, StormConfig.SQL_LOG_HYDRATION, HydrationShapes.class, HydrationShapes.OFF));
+        lineWidth(getInt(config, StormConfig.SQL_LOG_LINE_WIDTH, 200));
+        String skip = config.getProperty(StormConfig.SQL_LOG_CALL_SITE_SKIP);
+        if (skip != null) {
+            ignoreCallSites(Arrays.stream(skip.split(","))
+                    .map(String::trim)
+                    .filter(entry -> !entry.isEmpty())
+                    .toArray(String[]::new));
+        }
+    }
+
+    // Placed after every field it touches, since static initialization runs in textual order.
+    static {
+        applyConfiguredDisplaySettings();
     }
 }

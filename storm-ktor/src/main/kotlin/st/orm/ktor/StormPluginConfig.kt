@@ -17,8 +17,9 @@ package st.orm.ktor
 
 import st.orm.EntityCallback
 import st.orm.StormConfig
-import st.orm.template.HydrationShapes
+import st.orm.core.template.SqlLog.HydrationShapes
 import javax.sql.DataSource
+import kotlin.time.Duration
 
 /**
  * Configuration DSL for the Storm Ktor plugin.
@@ -131,7 +132,7 @@ class StormPluginConfig {
      *
      * @since 1.13
      */
-    var sqlLogDurationThreshold: kotlin.time.Duration? = null
+    var sqlLogDurationThreshold: Duration? = null
 
     /**
      * Whether each execution is attributed to the application frame that caused it, shown per row as

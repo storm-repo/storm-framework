@@ -23,6 +23,7 @@ import st.orm.core.template.StatementOrigin.FETCH
 import st.orm.template.impl.recordSqlLog
 import st.orm.template.model.Owner
 import st.orm.template.model.PetOwnerRef
+import st.orm.core.template.SqlLog as CoreSqlLog
 
 /**
  * Verifies that a scope follows the coroutine rather than the thread: it keeps recording across a suspension that
@@ -228,7 +229,7 @@ open class SqlLogTest(
     fun `a hydration shape renders for a data class entity`(): Unit = runBlocking {
         // The shape derives through the reflection provider, which recognizes Kotlin data classes; a JVM-record
         // check would leave these rows bare.
-        sqlLogHydrationShapes(HydrationShapes.FULL)
+        CoreSqlLog.hydrationShapes(CoreSqlLog.HydrationShapes.FULL)
         try {
             val (_, summary) = record("shape") {
                 orm.entity(PetOwnerRef::class).select().resultList
@@ -237,7 +238,7 @@ open class SqlLogTest(
             rendered shouldContain "joins="
             rendered shouldContain "graph=PetOwnerRef"
         } finally {
-            sqlLogHydrationShapes(HydrationShapes.OFF)
+            CoreSqlLog.hydrationShapes(CoreSqlLog.HydrationShapes.OFF)
         }
     }
 }

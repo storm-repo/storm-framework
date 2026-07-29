@@ -22,73 +22,6 @@ import kotlin.coroutines.CoroutineContext
 import kotlin.coroutines.EmptyCoroutineContext
 import st.orm.core.template.SqlLog as CoreSqlLog
 
-/**
- * Declares packages or source files whose frames are skipped when a scope attributes an execution to a call
- * site, so rows name the code that asked for the work rather than the application's own database plumbing.
- *
- * An entry ending in `.kt` or `.java` matches the frame's source file, which is what covers inline functions:
- * their lambdas compile into the caller's class, where a package prefix cannot see them, while the frame keeps
- * the declaring file's name. When every application frame on a stack is declared plumbing, the innermost
- * plumbing frame is reported rather than none. Intended to be called once at startup.
- *
- * @param packagePrefixes the package prefixes or source file names to skip, such as `"com.acme.db"` or
- *   `"DbExtensions.kt"`.
- * @since 1.13
- */
-fun ignoreSqlLogCallSites(vararg packagePrefixes: String) {
-    CoreSqlLog.ignoreCallSites(*packagePrefixes)
-}
-
-/**
- * Sets the width summary rows aim for, such as 120 for narrow viewers or 240 for wide ones; the statement
- * text elides to what the row's other columns leave. A display property of the deployment; intended to be
- * called once at startup.
- *
- * @param width the display width; at least 80.
- * @since 1.13
- */
-fun sqlLogLineWidth(width: Int) {
-    CoreSqlLog.lineWidth(width)
-}
-
-/**
- * Sets how summary rows render the declared hydration shape of their statement's type. Off by default; a
- * display property of the deployment, intended to be called once at startup.
- *
- * @param shapes how shapes render.
- * @since 1.13
- */
-fun sqlLogHydrationShapes(shapes: HydrationShapes) {
-    CoreSqlLog.hydrationShapes(
-        when (shapes) {
-            HydrationShapes.OFF -> CoreSqlLog.HydrationShapes.OFF
-            HydrationShapes.SHORT -> CoreSqlLog.HydrationShapes.SHORT
-            HydrationShapes.FULL -> CoreSqlLog.HydrationShapes.FULL
-        },
-    )
-}
-
-/**
- * How summary rows render the declared hydration shape of their statement's type.
- *
- * @see sqlLogHydrationShapes
- * @since 1.13
- */
-enum class HydrationShapes {
-
-    /** No shape renders. The default. */
-    OFF,
-
-    /**
-     * A row whose type hydrates beyond its own table ends with the numeric shape, `j2 c12 d3`: joins, columns,
-     * and graph depth. A flat type shows none.
-     */
-    SHORT,
-
-    /** Every mapped row ends with the full shape, `joins=2 columns=12 graph=Pet(Owner(City))`. */
-    FULL,
-}
-
 /** Statements recorded per scope before recording stops, keeping a runaway call from retaining the lot. */
 const val DEFAULT_SQL_LOG_LIMIT: Int = 200
 
@@ -155,6 +88,11 @@ fun sqlLogContext(): CoroutineContext {
  *
  * Cost when inactive is zero: a scope registers on the interceptor chain every statement already walks, so a
  * statement executed with no scope open reads a single counter and stops.
+ *
+ * How summaries render — hydration shapes, line width, call-site skips — is a property of the deployment,
+ * configured rather than programmed: the `storm.sql_log.hydration`, `storm.sql_log.line_width` and
+ * `storm.sql_log.call_site_skip` system properties on a plain JVM, or the corresponding keys of the Spring and
+ * Ktor integrations.
  *
  * @param name what the scope covers, used to label the summary.
  * @param limit the number of statements to record; the summary counts the rest regardless.
