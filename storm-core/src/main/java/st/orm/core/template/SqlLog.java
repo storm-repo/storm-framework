@@ -454,13 +454,17 @@ public final class SqlLog {
      * other reasons says so. Under a fan-out the summed database time exceeds the elapsed time, and their ratio is
      * the concurrency the work achieved.</p>
      *
+     * <p>Statements that ran past the recording limit are counted but not retained, so they contribute no duration
+     * and no row. The database times are then lower bounds and are marked {@code +}, and a closing line reports how
+     * many statements went unrecorded. The statement count and the call's own duration stay exact.</p>
+     *
      * @param name what the scope covered.
      * @param statementCount the statements the call executed.
      * @param fetchCount how many of those resolved a reference.
      * @param cacheHits the reads the transaction's entity cache served without a statement.
-     * @param databaseMillis the summed statement duration.
-     * @param databaseElapsedMillis the time during which at least one statement was in flight.
-     * @param peakConcurrency the greatest number of statements in flight at once.
+     * @param databaseMillis the summed duration of the recorded statements.
+     * @param databaseElapsedMillis the time during which at least one recorded statement was in flight.
+     * @param peakConcurrency the greatest number of recorded statements in flight at once.
      * @param totalMillis how long the call took.
      * @param byStatement one line per distinct statement, in any order.
      * @param notRecorded how many statements ran past the recording limit.
@@ -483,12 +487,15 @@ public final class SqlLog {
         if (cacheHits > 0) {
             rendered.append(", %d from cache".formatted(cacheHits));
         }
-        rendered.append(", %d ms in database".formatted(databaseMillis));
+        // Statements past the recording limit contribute no duration, so the database times cover the recorded
+        // ones only; mark them as lower bounds rather than let a truncated summary understate its own cost.
+        var bound = notRecorded > 0 ? "+" : "";
+        rendered.append(", %d%s ms in database".formatted(databaseMillis, bound));
         // Concurrency is a count of simultaneous executions, reported only when the work overlapped: summed
         // database time then exceeds the elapsed time it was compressed into, so both appear.
         if (peakConcurrency > 1) {
-            rendered.append(" over %d ms elapsed (peak %d concurrent)".formatted(
-                    databaseElapsedMillis, peakConcurrency));
+            rendered.append(" over %d%s ms elapsed (peak %d concurrent)".formatted(
+                    databaseElapsedMillis, bound, peakConcurrency));
         }
         rendered.append(", %d ms total".formatted(totalMillis));
         int width = byStatement.stream()

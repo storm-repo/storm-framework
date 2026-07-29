@@ -111,6 +111,21 @@ public class SqlLogRenderTest {
     }
 
     @Test
+    public void truncatedDatabaseTimesReadAsLowerBounds() {
+        // The unrecorded statements contributed no duration, so the summary must not present its own total as
+        // the whole cost of the call.
+        String truncated = SqlLog.render("call", 500, 0, 0, 90, 60, 4, 120,
+                List.of(line("SELECT 1", "-", 200, 90, 200)), 300);
+        assertTrue(truncated.contains("500 statements, 90+ ms in database over 60+ ms elapsed (peak 4 concurrent), 120 ms total"),
+                truncated);
+        // Nothing was dropped here, so the same numbers are exact and carry no marker.
+        String complete = SqlLog.render("call", 200, 0, 0, 90, 60, 4, 120,
+                List.of(line("SELECT 1", "-", 200, 90, 200)), 0);
+        assertTrue(complete.contains("200 statements, 90 ms in database over 60 ms elapsed (peak 4 concurrent), 120 ms total"),
+                complete);
+    }
+
+    @Test
     public void aCallSiteIsRenderedWhenRecorded() {
         String rendered = SqlLog.render("call", 9, 0, 0, 30, 30, 1, 40,
                 List.of(new StatementLine("SELECT s FROM user_session", "UserSession", false, 8, 1, 28_000_000L,
