@@ -215,6 +215,29 @@ open class QueryBuilderTest(
         cities[2].name shouldBe "Sun Paririe"
     }
 
+    @Test
+    fun `groupBy on a foreign key groups by its foreign key column`() {
+        // data.sql: 13 pets over owner ids 1..10 plus one pet without an owner. Grouping resolves to the foreign key
+        // column on the pet table itself, so the ownerless pet keeps its own NULL group instead of being dropped by a
+        // join to the owner table.
+        val counts = orm.entity(Pet::class).selectCount()
+            .groupBy(Metamodel.of<Pet, Owner>(Pet::class.java, "owner"))
+            .resultList
+        counts shouldHaveSize 11
+        counts.sum() shouldBe 13L
+    }
+
+    @Test
+    fun `groupBy on an inline record expands to its component columns`() {
+        // data.sql: 10 owners with 10 distinct (address, city) pairs. The inline record expands to its component
+        // columns on the owner table.
+        val counts = orm.entity(Owner::class).selectCount()
+            .groupBy(Metamodel.of<Owner, Address>(Owner::class.java, "address"))
+            .resultList
+        counts shouldHaveSize 10
+        counts.sum() shouldBe 10L
+    }
+
     // Limit and Offset tests
 
     @Test

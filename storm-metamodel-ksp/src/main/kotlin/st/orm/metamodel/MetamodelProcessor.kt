@@ -1413,7 +1413,15 @@ class MetamodelProcessor(
         }
     }
 
-    private fun buildFlattenMethod(classDeclaration: KSClassDeclaration, metaClassName: String): String {
+    private fun buildFlattenMethod(classDeclaration: KSClassDeclaration, metaClassName: String, isDataRoot: Boolean): String {
+        if (isDataRoot) {
+            // A Data node names its own column(s): at the root it names the table, as a foreign key field it names
+            // the foreign key column(s) on the referencing table. Column resolution expands it, so flatten does not
+            // recurse into the referenced table.
+            return "    override fun flatten(): List<Metamodel<T, *>> {\n" +
+                "        return listOf(this)\n" +
+                "    }"
+        }
         var hasInlineSubRecords = false
         val fieldNames = mutableListOf<String>()
         val fieldIsInline = mutableListOf<Boolean>()
@@ -1533,7 +1541,7 @@ class MetamodelProcessor(
             |        : this(path, field, false, parent, getter)
             """.trimMargin()
         }
-        val flattenMethod = buildFlattenMethod(classDeclaration, metaClassName)
+        val flattenMethod = buildFlattenMethod(classDeclaration, metaClassName, isDataRoot)
         val isNullableOverride = if (!isDataRoot) {
             """
             |    override fun isNullable(): Boolean {

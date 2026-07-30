@@ -48,6 +48,7 @@ import st.orm.core.template.SqlTemplateException;
 import st.orm.core.template.StatementOrigin;
 import st.orm.core.template.TemplateString;
 import st.orm.core.template.impl.BindHint.NoBindHint;
+import st.orm.core.template.impl.Elements.Fetch;
 import st.orm.core.template.impl.SqlTemplateImpl.Wrapped;
 import st.orm.core.template.impl.TemplatePreparation.BindingContext;
 import st.orm.core.template.impl.TemplatePreparation.CompilationContext;
@@ -175,6 +176,13 @@ class TemplateProcessor {
      */
     @Nullable
     private List<String> fetchPaths;
+
+    /**
+     * The fetch plan of the compilation in progress, collected from the {@link Fetch} elements of the context before
+     * its elements compile, so the select list can read it whatever position the element occupies. Nested
+     * compilations save and restore the enclosing plan.
+     */
+    private FetchPlan activeFetchPlan = FetchPlan.NONE;
 
     /**
      * The compiled SQL string.
@@ -471,6 +479,38 @@ class TemplateProcessor {
      * @throws SqlTemplateException if compilation fails or formatting placeholders are invalid.
      */
     String compile(@Nonnull CompilationContext context, boolean subquery) throws SqlTemplateException {
+        FetchPlan previousFetchPlan = activeFetchPlan;
+        activeFetchPlan = scanFetchPlan(context.elements());
+        try {
+            return compileElements(context, subquery);
+        } finally {
+            activeFetchPlan = previousFetchPlan;
+        }
+    }
+
+    /**
+     * Collects the fetch plan of the given elements: the union of every {@link Fetch} element's paths, including the
+     * elements wrapped for fragment alignment. An element list without fetch elements yields the empty plan.
+     */
+    private static FetchPlan scanFetchPlan(@Nonnull List<Element> elements) {
+        List<String> paths = null;
+        for (Element element : elements) {
+            if (element instanceof Wrapped(var wrapped)) {
+                for (var node : wrapped) {
+                    if (node.element() instanceof Fetch(var paths1)) {
+                        paths = paths == null ? new ArrayList<>() : paths;
+                        paths.addAll(paths1);
+                    }
+                }
+            } else if (element instanceof Fetch(var paths1)) {
+                paths = paths == null ? new ArrayList<>() : paths;
+                paths.addAll(paths1);
+            }
+        }
+        return paths == null ? FetchPlan.NONE : FetchPlan.of(paths);
+    }
+
+    private String compileElements(@Nonnull CompilationContext context, boolean subquery) throws SqlTemplateException {
         checkState(false);
         var fragments = context.fragments();
         var elements = context.elements();
@@ -925,6 +965,15 @@ class TemplateProcessor {
         }
 
         /**
+         * Returns the fetch plan of the compilation in progress, collected from the template's {@link Fetch}
+         * elements before its elements compile.
+         */
+        @Override
+        public FetchPlan getFetchPlan() {
+            return activeFetchPlan;
+        }
+
+        /**
          * Maps an iterable into an argument list suitable for IN clauses.
          *
          * @param iterable the iterable to expand.
@@ -962,7 +1011,7 @@ class TemplateProcessor {
     }
 
     /**
-     * A single binding session created per {@link #bind(BindingContext)} invocation.
+     * A single binding session created per {@link #bind(BindingContext, long)} invocation.
      *
      * <p>The session owns all mutable binding state, including bound parameters and cursor positions for bind hint and
      * bind vars consumption. Nested attached binding uses the same session and advances the same cursors.</p>

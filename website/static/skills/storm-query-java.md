@@ -110,6 +110,7 @@ List<User> result = users.select()
 ```
 
 Entity comparison: `.where(User_.city, EQUALS, city)` compares by FK — pass the entity directly, don't extract the ID. When you only have an ID, use `Ref.of(City.class, cityId)` instead of constructing a full entity with dummy field values.
+Foreign key columns: name the field itself, never `.id`. See **Naming a foreign key column** below.
 Nested paths: `User_.city.country.code` with appropriate operator
 Ordering: `.orderBy(User_.name)`, `.orderByDescending(User_.createdAt)`
 Limit/Offset: `.limit(10)`, `.offset(20)`
@@ -120,6 +121,51 @@ Explicit joins: `.innerJoin(Entity.class).on(OtherEntity.class)`, `.leftJoin(Ent
 Result type: `.select(ResultType.class)` to return a different type than the root entity. **Cross-entity pitfall:** Selecting a different entity type from the wrong root repository can fail with "Cannot find alias for column" when both entities have columns with the same name (e.g., `id`). Put the query on the target entity's repository instead.
 
 Operators: EQUALS, NOT_EQUALS, LESS_THAN, LESS_THAN_OR_EQUAL, GREATER_THAN, GREATER_THAN_OR_EQUAL, LIKE, NOT_LIKE, IS_NULL, IS_NOT_NULL, IN, NOT_IN
+
+### Naming a foreign key column
+
+**Name a foreign key by the field itself, never by `.id`.** A foreign key field already resolves to the foreign key column, so `User_.city` and `User_.city.id` are the same column and neither joins the target table. Prefer the plain field: `.id` reads as a navigation step into `City` and invites the reader to expect a join that is not there. This holds everywhere a column is named — predicates, template select lists, `groupBy`, `orderBy`, and aggregate expressions:
+
+```java
+record CityUserCount(@FK Ref<City> city, long userCount) {}
+
+// ✅ The foreign key field names the foreign key column
+List<CityUserCount> counts = orm.entity(User.class)
+    .select(CityUserCount.class, RAW."\{User_.city}, COUNT(*)")
+    .groupBy(User_.city)
+    .getResultList();
+
+// ❌ Redundant `.id` — identical SQL, and it reads like a join into City
+List<CityUserCount> counts = orm.entity(User.class)
+    .select(CityUserCount.class, RAW."\{User_.city.id}, COUNT(*)")
+    .groupBy(User_.city.id)
+    .getResultList();
+
+COUNT(DISTINCT \{User_.city})       // ✅ inside a template
+COUNT(DISTINCT \{User_.city.id})    // ❌ same column, longer
+```
+
+The rule extends to set membership: filter on the foreign key with the refs themselves via `whereRef(path, refs)` rather than unwrapping them into ids to compare against the same column.
+
+```java
+.whereRef(User_.city, cityRefs)                                          // ✅ IN over refs
+.where(User_.city.id, IN, cityRefs.stream().map(Ref::entityId).toList())  // ❌ unwraps refs to reach the column they already name
+```
+
+**A compound foreign key is several columns, and templates take only one.** A foreign key to an entity whose `@PK` is an inline record is a multi-column foreign key — Storm matches its columns to the target's primary key columns one for one. Code-first operators expand it; a template placeholder does not, because a placeholder stands for a single column. Interpolating one throws `SqlTemplateException: Expected exactly one column for metamodel: …` before any SQL reaches the database.
+
+```java
+// ✅ Code-first expands the compound key
+.where(Order_.line, EQUALS, orderLine)   // WHERE o.order_id = ? AND o.line_no = ?
+.groupBy(Order_.line)                    // GROUP BY o.order_id, o.line_no — same columns, no join
+
+// ❌ Template placeholders reject it — SqlTemplateException, not broken SQL
+RAW."COUNT(DISTINCT \{Order_.line})"
+RAW."\{Order_.line}, COUNT(*)"
+RAW."sub.line_id = \{Order_.line}"
+```
+
+So the naming rule stands unchanged for single-column foreign keys, which is the overwhelmingly common case, and a compound key simply cannot appear in a template expression at all — name one of its leaves (`Order_.line.lineNo`, which joins the referenced table) or restructure the query to use the code-first form. Naming the target's primary key through the foreign key is the same as naming the foreign key itself: `Order_.line.id` and `Order_.line` resolve to the same foreign key column(s) on the referencing table, without a join — for `Ref` and entity foreign keys alike. The same single-column assumption is why keyset scrolling rejects a composite key (see **Keyset Scrolling**).
 
 ## Aggregation
 
@@ -258,7 +304,7 @@ List<User> sharingACity = orm.entity(User.class).select()
     .getResultList();
 ```
 
-Nodes beyond a reference are navigation-only: usable in `where`, `orderBy`, `groupBy`, `having`, and selected columns, but not in value operations. Group by the reference itself with `getResultGroupedByRef`, not `getResultGroupedBy` on a beyond-reference path (which does not compile against the strict signature). Besides a path, the referenced table can be named by type: selecting it or joining onto it materializes the same join, and a query that does both joins it once; a table joined explicitly keeps that occurrence. Prefer a `Ref` for foreign keys you do not hydrate on most reads: it keeps SELECTs narrow while staying queryable. Navigation may cross more than one reference across distinct tables. A reference carries the target's primary key, so `User_.city.id` resolves to the foreign key column and needs no join, the same column an entity foreign key resolves its primary key to; any other column of the target joins. A self-referential foreign key must be a `Ref`, and it is navigable: the table is joined to itself, each occurrence under its own alias. The typed metamodel navigates a cycle two hops deep (generated metamodels build their children eagerly, so they cannot recurse); deeper cyclic paths are named as strings, which the engine resolves to any depth.
+Nodes beyond a reference are navigation-only: usable in `where`, `orderBy`, `groupBy`, `having`, and selected columns, but not in value operations. Group by the reference itself with `getResultGroupedByRef`, not `getResultGroupedBy` on a beyond-reference path (which does not compile against the strict signature). Besides a path, the referenced table can be named by type: selecting it or joining onto it materializes the same join, and a query that does both joins it once; a table joined explicitly keeps that occurrence. Prefer a `Ref` for foreign keys you do not hydrate on most reads: it keeps SELECTs narrow while staying queryable. Navigation may cross more than one reference across distinct tables. A reference carries the target's primary key, so `User_.city` and `User_.city.id` both resolve to the foreign key column and neither joins — prefer the plain field, which is the same column an entity foreign key resolves its primary key to; any other column of the target joins. A self-referential foreign key must be a `Ref`, and it is navigable: the table is joined to itself, each occurrence under its own alias. The typed metamodel navigates a cycle two hops deep (generated metamodels build their children eagerly, so they cannot recurse); deeper cyclic paths are named as strings, which the engine resolves to any depth.
 
 ### Resolving a Ref as Part of the Query
 

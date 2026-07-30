@@ -20,6 +20,7 @@ import st.orm.core.model.VetSpecialty;
 import st.orm.core.model.VetSpecialtyPK;
 import st.orm.core.model.VetSpecialty_;
 import st.orm.core.model.Visit;
+import st.orm.core.model.VisitWithCompoundFK_;
 import st.orm.core.model.Visit_;
 
 public class MetamodelTest {
@@ -312,5 +313,19 @@ public class MetamodelTest {
                 .allMatch(leaf -> leaf.getValue(entity) != null);
         assertTrue(allLeavesNonNull,
                 "All leaf columns of a non-nullable compound key must produce non-null values");
+    }
+
+    /** An entity node names its own column(s), so it flattens to itself rather than into the referenced table. */
+    @Test
+    public void testEntityNodeFlattensToItself() {
+        assertEquals(java.util.List.of(Visit_.pet), Visit_.pet.flatten());
+        assertEquals(java.util.List.of(VisitWithCompoundFK_.vetSpecialty), VisitWithCompoundFK_.vetSpecialty.flatten());
+    }
+
+    /** An inline record expands into its component columns. */
+    @Test
+    public void testInlineRecordFlattensToComponents() {
+        assertEquals(java.util.List.of(Owner_.address.address, Owner_.address.city), Owner_.address.flatten());
+        assertEquals(java.util.List.of(VetSpecialty_.id.vetId, VetSpecialty_.id.specialtyId), VetSpecialty_.id.flatten());
     }
 }

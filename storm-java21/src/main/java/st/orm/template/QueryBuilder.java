@@ -18,6 +18,7 @@ package st.orm.template;
 import static java.lang.StringTemplate.RAW;
 import static st.orm.Operator.EQUALS;
 import static st.orm.Operator.IN;
+import static st.orm.ResolveScope.CASCADE;
 
 import jakarta.annotation.Nonnull;
 import java.util.List;
@@ -39,6 +40,7 @@ import st.orm.Ref;
 import st.orm.Scrollable;
 import st.orm.TypedMetamodel;
 import st.orm.Window;
+import st.orm.core.template.impl.Elements.Columns;
 import st.orm.core.template.impl.Elements.ObjectExpression;
 
 /**
@@ -466,6 +468,10 @@ public abstract class QueryBuilder<T extends Data, R, ID> {
      * Adds a GROUP BY clause to the query for field at the specified path in the table graph. The metamodel can refer
      * to manually added joins.
      *
+     * <p>A path resolves to the same columns a predicate on that path would use: a foreign key expands to its foreign
+     * key column(s) on the referencing table, without joining the referenced table, and an inline record expands to
+     * its component columns. A single-column path contributes exactly one column.</p>
+     *
      * @param path the path to group by.
      * @return the query builder.
      * @since 1.2
@@ -482,6 +488,10 @@ public abstract class QueryBuilder<T extends Data, R, ID> {
      * Adds a GROUP BY clause to the query for field at the specified path in the table graph. The metamodel can refer
      * to manually added joins.
      *
+     * <p>A path resolves to the same columns a predicate on that path would use: a foreign key expands to its foreign
+     * key column(s) on the referencing table, without joining the referenced table, and an inline record expands to
+     * its component columns. A single-column path contributes exactly one column.</p>
+     *
      * @param path the path to group by.
      * @return the query builder.
      * @since 1.2
@@ -491,7 +501,7 @@ public abstract class QueryBuilder<T extends Data, R, ID> {
             throw new PersistenceException("At least one path must be provided for GROUP BY clause.");
         }
         List<StringTemplate> templates = Stream.of(path)
-                .flatMap(metamodel -> Stream.of(RAW."\{metamodel}", RAW.", "))
+                .flatMap(metamodel -> Stream.of(RAW."\{new Columns(metamodel, CASCADE, false)}", RAW.", "))
                 .toList();
         return groupBy(StringTemplate.combine(templates.subList(0, templates.size() - 1).toArray(new StringTemplate[0])));
     }
@@ -574,7 +584,7 @@ public abstract class QueryBuilder<T extends Data, R, ID> {
      * @since 1.2
      */
     public final QueryBuilder<T, R, ID> orderByDescending(@Nonnull Metamodel<T, ?> path) {
-        return orderBy(RAW."\{path} DESC");
+        return orderBy(RAW."\{new Columns(path, CASCADE, true)}");
     }
 
     /**
@@ -599,7 +609,7 @@ public abstract class QueryBuilder<T extends Data, R, ID> {
      * @since 1.9
      */
     public final QueryBuilder<T, R, ID> orderByDescendingAny(@Nonnull Metamodel<?, ?> path) {
-        return orderBy(RAW."\{path} DESC");
+        return orderBy(RAW."\{new Columns(path, CASCADE, true)}");
     }
 
     /**
@@ -615,7 +625,7 @@ public abstract class QueryBuilder<T extends Data, R, ID> {
             throw new PersistenceException("At least one path must be provided for ORDER BY clause.");
         }
         List<StringTemplate> templates = Stream.of(path)
-                .flatMap(metamodel -> Stream.of(RAW."\{metamodel}", RAW." DESC", RAW.", "))
+                .flatMap(metamodel -> Stream.of(RAW."\{new Columns(metamodel, CASCADE, true)}", RAW.", "))
                 .toList();
         return orderBy(StringTemplate.combine(templates.subList(0, templates.size() - 1).toArray(new StringTemplate[0])));
     }
@@ -645,7 +655,7 @@ public abstract class QueryBuilder<T extends Data, R, ID> {
             throw new PersistenceException("At least one path must be provided for ORDER BY clause.");
         }
         List<StringTemplate> templates = Stream.of(path)
-                .flatMap(metamodel -> Stream.of(RAW."\{metamodel}", RAW.", "))
+                .flatMap(metamodel -> Stream.of(RAW."\{new Columns(metamodel, CASCADE, false)}", RAW.", "))
                 .toList();
         return orderBy(StringTemplate.combine(templates.subList(0, templates.size() - 1).toArray(new StringTemplate[0])));
     }

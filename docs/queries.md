@@ -341,7 +341,7 @@ val users = orm.entity<User>()
     .resultList
 ```
 
-When an inline record (embedded component) is passed to `orderBy` or `orderByDescending`, Storm automatically expands it into its individual leaf columns using `flatten()`. For example, if `User_.fullName` is an inline record with `lastName` and `firstName` fields, `orderBy(User_.fullName)` produces `ORDER BY last_name, first_name`. The same expansion applies to `groupBy`.
+When a path passed to `orderBy`, `orderByDescending`, or `groupBy` resolves to multiple columns, it expands to those columns in order, resolved exactly as a predicate on that path would be. An inline record (embedded component) expands into its component columns: if `User_.fullName` is an inline record with `lastName` and `firstName` fields, `orderBy(User_.fullName)` produces `ORDER BY last_name, first_name`. A foreign key expands to its foreign key column(s) on the referencing table, without joining the referenced table, so `groupBy(Visit_.pet)` produces `GROUP BY visit.pet_id` and a foreign key to a table with a compound primary key contributes every foreign key column once. With `orderByDescending`, `DESC` follows every expanded column.
 
 For full control over the ORDER BY clause (for example, to use SQL expressions or database-specific syntax), use the template overload. Metamodel fields are resolved to their column names automatically.
 
@@ -389,7 +389,7 @@ List<User> users = orm.entity(User.class)
     .getResultList();
 ```
 
-When an inline record (embedded component) is passed to `orderBy` or `orderByDescending`, Storm automatically expands it into its individual leaf columns using `flatten()`. The same expansion applies to `groupBy`.
+When a path passed to `orderBy`, `orderByDescending`, or `groupBy` resolves to multiple columns — an inline record, or a foreign key to a table with a compound primary key — it expands to those columns in order, resolved exactly as a predicate on that path would be: component columns for an inline record, the foreign key column(s) on the referencing table for a foreign key.
 
 For full control over the ORDER BY clause, use the template overload:
 
@@ -720,7 +720,7 @@ Choose the simplest option that meets your needs. See [SQL Templates](sql-templa
 
 ## Compound Fields in Queries
 
-When an inline record (embedded component) is used in a query clause, Storm automatically expands it into its constituent columns. This applies to WHERE, ORDER BY, and GROUP BY clauses.
+When an inline record (embedded component) is used in a query clause, Storm automatically expands it into its constituent columns. This applies to WHERE, ORDER BY, and GROUP BY clauses. A foreign key expands the same way, into its foreign key column(s) on the referencing table.
 
 ### WHERE Clauses
 
@@ -850,7 +850,7 @@ ORDER BY o.address DESC, o.city_id DESC
 
 ### GROUP BY
 
-Inline records expand in GROUP BY the same way. This is particularly useful in combination with scrolling, where grouping by a column makes it unique in the result set. Wrap the metamodel with `.key()` to indicate it can serve as a cursor:
+Inline records expand in GROUP BY the same way, and a foreign key groups by its foreign key column(s) on the referencing table: `groupBy(Order_.city)` produces `GROUP BY o.city_id`, without joining the referenced table. Grouping by a column makes it unique in the result set, which is particularly useful in combination with scrolling. Wrap the metamodel with `.key()` to indicate it can serve as a cursor:
 
 ```kotlin
 data class CityOrderCount(val city: City, val count: Long)
