@@ -243,8 +243,8 @@ public final class SqlLog {
         /**
          * Returns the recorded statements grouped by their text, heaviest first, which is the view that answers
          * where the time went: a statement run many times cheaply outranks one slow statement when it cost more in
-         * total. When {@link #hydrationShapes(HydrationShapes)} enables shapes, each line carries the declared
-         * hydration shape of its statement's type in the configured form.
+         * total. When {@link #hydrationShapes(HydrationShapes)} enables shapes, each read's line carries the
+         * declared hydration shape of its type in the configured form.
          *
          * @return one line per distinct statement, ordered by total time.
          */
@@ -255,7 +255,7 @@ public final class SqlLog {
             for (var statement : statements) {
                 Object key = statement.shapeId() != 0 ? statement.shapeId() : statement.statement();
                 var group = groups.computeIfAbsent(key, ignore -> new Group(statement.statement(),
-                        statement.dataType() == null ? "-" : statement.dataType().getSimpleName()));
+                        statement.operation(), statement.dataType()));
                 group.executions++;
                 group.durationNanos += statement.durationNanos();
                 group.fetch |= statement.origin() == StatementOrigin.FETCH;
@@ -267,11 +267,11 @@ public final class SqlLog {
                 }
             }
             return groups.values().stream()
-                    .map(group -> new StatementLine(group.text, group.dataType, group.fetch, group.executions,
+                    .map(group -> new StatementLine(group.text, group.dataTypeName, group.fetch, group.executions,
                             group.texts.size(), group.durationNanos,
                             group.sites.isEmpty() ? null : group.sites.iterator().next(), group.sites.size(),
                             group.rows, group.exactRows,
-                            hydrationOf(group.text, hydrationShapes)))
+                            hydrationOf(group, hydrationShapes)))
                     .sorted(comparingLong(StatementLine::durationNanos).reversed())
                     .toList();
         }
@@ -279,7 +279,9 @@ public final class SqlLog {
         /** One statement group under construction; the first execution seen represents the group. */
         private static final class Group {
             final String text;
-            final String dataType;
+            final SqlOperation operation;
+            final @Nullable Class<? extends Data> dataType;
+            final String dataTypeName;
             final java.util.Set<String> texts = new java.util.HashSet<>();
             final java.util.Set<String> sites = new java.util.LinkedHashSet<>();
             boolean fetch;
@@ -288,9 +290,11 @@ public final class SqlLog {
             long rows;
             boolean exactRows = true;
 
-            Group(String text, String dataType) {
+            Group(String text, SqlOperation operation, @Nullable Class<? extends Data> dataType) {
                 this.text = text;
+                this.operation = operation;
                 this.dataType = dataType;
+                this.dataTypeName = dataType == null ? "-" : dataType.getSimpleName();
             }
         }
 
@@ -316,23 +320,24 @@ public final class SqlLog {
         }
 
         /**
-         * Returns the rendered hydration shape of the statement's type in the configured form, or {@code null}
-         * when shapes are off or the statement has none.
+         * Returns the rendered hydration shape of the group's type in the configured form, or {@code null} when
+         * shapes are off, the group is not a read, or its type has none.
          */
         @Nullable
-        private String hydrationOf(@Nonnull String statementText, @Nonnull HydrationShapes shapes) {
+        private static String hydrationOf(@Nonnull Group group, @Nonnull HydrationShapes shapes) {
             if (shapes == HydrationShapes.OFF) {
                 return null;
             }
-            var dataType = statements.stream()
-                    .filter(statement -> statement.statement().equals(statementText))
-                    .findFirst()
-                    .map(Statement::dataType)
-                    .orElse(null);
-            if (dataType == null) {
+            if (group.operation != SqlOperation.SELECT) {
+                // The shape states what reading the type joins and maps. A write touches its own table only, so
+                // the shape would describe a graph its statement never traverses and columns it never sets; a
+                // statement whose operation is undetermined cannot claim to be a read either.
                 return null;
             }
-            var shape = HYDRATION.get(dataType);
+            if (group.dataType == null) {
+                return null;
+            }
+            var shape = HYDRATION.get(group.dataType);
             if (shape == NO_HYDRATION) {
                 return null;
             }
@@ -378,8 +383,8 @@ public final class SqlLog {
      *                  stream closed before its end, the count is a lower bound and the rendering marks it
      *                  {@code *}.
      * @param hydration the rendered hydration shape of the statement's type in the configured
-     *                  {@link HydrationShapes} form, or {@code null} when shapes are off or the statement has no
-     *                  record type.
+     *                  {@link HydrationShapes} form, or {@code null} when shapes are off, the statement is not a
+     *                  SELECT, or it has no record type.
      */
     public record StatementLine(@Nonnull String statement,
                                 @Nonnull String dataType,
@@ -397,6 +402,9 @@ public final class SqlLog {
     /**
      * How summary rows render the declared hydration shape of their statement's type.
      *
+     * <p>Shapes state what reading a type costs, so they render on SELECT rows only. A write states its cost in
+     * the rows it affected, and the graph its type declares is not something it traverses.</p>
+     *
      * @since 1.13
      */
     public enum HydrationShapes {
@@ -405,12 +413,12 @@ public final class SqlLog {
         OFF,
 
         /**
-         * A row whose type hydrates beyond its own table ends with the numeric shape, {@code j2 c12 d3}: joins,
+         * A read whose type hydrates beyond its own table ends with the numeric shape, {@code j2 c12 d3}: joins,
          * columns, and graph depth. A flat type shows none.
          */
         SHORT,
 
-        /** Every mapped row ends with the full shape, {@code joins=2 columns=12 graph=Pet(Owner(City))}. */
+        /** Every mapped read ends with the full shape, {@code joins=2 columns=12 graph=Pet(Owner(City))}. */
         FULL
     }
 
@@ -421,8 +429,8 @@ public final class SqlLog {
     private static volatile HydrationShapes hydrationShapes = HydrationShapes.OFF;
 
     /**
-     * Sets how summary rows render the declared hydration shape of their statement's type. Off by default;
-     * intended to be called once at startup.
+     * Sets how a read's summary row renders the declared hydration shape of its type. Off by default; intended to
+     * be called once at startup.
      *
      * @param shapes how shapes render.
      */

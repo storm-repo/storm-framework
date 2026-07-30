@@ -161,9 +161,10 @@ class StormPluginConfig {
     var sqlLogLineWidth: Int? = null
 
     /**
-     * How summary rows render the declared hydration shape of their statement's type: [HydrationShapes.OFF]
-     * (the default), [HydrationShapes.SHORT] for the numeric form (`j2 c12 d3`: joins, columns, graph depth;
-     * flat types show none), or [HydrationShapes.FULL] to name the joined-entity graph on every mapped row.
+     * How a read's summary row renders the declared hydration shape of its type: [HydrationShapes.OFF] (the
+     * default), [HydrationShapes.SHORT] for the numeric form (`j2 c12 d3`: joins, columns, graph depth; flat
+     * types show none), or [HydrationShapes.FULL] to name the joined-entity graph on every mapped read. Writes
+     * carry no shape.
      *
      * @since 1.13
      */

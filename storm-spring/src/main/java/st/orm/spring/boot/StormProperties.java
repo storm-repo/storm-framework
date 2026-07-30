@@ -361,9 +361,9 @@ public class StormProperties {
         public void setLineWidth(Integer lineWidth) { this.lineWidth = lineWidth; }
 
         /**
-         * How summary rows render the declared hydration shape of their statement's type: {@code off} (the
-         * default), {@code short} for the numeric form ({@code j2 c12 d3}: joins, columns, graph depth; flat
-         * types show none), or {@code full} to name the joined-entity graph on every mapped row.
+         * How a read's summary row renders the declared hydration shape of its type: {@code off} (the default),
+         * {@code short} for the numeric form ({@code j2 c12 d3}: joins, columns, graph depth; flat types show
+         * none), or {@code full} to name the joined-entity graph on every mapped read. Writes carry no shape.
          */
         private Hydration hydration = Hydration.OFF;
 
@@ -373,7 +373,7 @@ public class StormProperties {
         /** Sets how summary rows render hydration shapes. */
         public void setHydration(Hydration hydration) { this.hydration = hydration; }
 
-        /** How summary rows render the declared hydration shape of their statement's type. */
+        /** How a read's summary row renders the declared hydration shape of its type. */
         public enum Hydration { OFF, SHORT, FULL }
 
         /** Reporting thresholds; with any set, only requests that exceed one are reported. */
