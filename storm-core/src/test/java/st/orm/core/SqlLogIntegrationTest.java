@@ -5,6 +5,7 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static st.orm.Operator.EQUALS;
 import static st.orm.Operator.IN;
 
 import jakarta.persistence.EntityManager;
@@ -27,6 +28,7 @@ import st.orm.core.model.City_;
 import st.orm.core.model.Pet;
 import st.orm.core.model.PetOwnerRef;
 import st.orm.core.model.PetOwnerRef_;
+import st.orm.core.model.Pet_;
 import st.orm.core.template.JpaTemplate;
 import st.orm.core.template.ORMTemplate;
 import st.orm.core.template.SqlLog;
@@ -334,6 +336,40 @@ public class SqlLogIntegrationTest {
                     summaries.getFirst().toString());
         } finally {
             SqlLog.hydrationShapes(SqlLog.HydrationShapes.OFF);
+        }
+    }
+
+    @Test
+    public void testAWriteRendersNoHydrationShape() {
+        var orm = ORMTemplate.of(dataSource);
+        // A shape states what reading a type costs. The delete below targets the same type as the read before it,
+        // yet touches its own table only, so its row states no shape in either form.
+        for (var shapes : List.of(SqlLog.HydrationShapes.SHORT, SqlLog.HydrationShapes.FULL)) {
+            SqlLog.hydrationShapes(shapes);
+            try {
+                List<SqlLog.Summary> summaries = new ArrayList<>();
+                SqlLog.record("write", (Supplier<Object>) () -> {
+                    orm.entity(Pet.class).getById(1);
+                    return orm.entity(Pet.class).delete()
+                            .where(Pet_.name, EQUALS, "no pet answers to this")
+                            .executeUpdate();
+                }, summaries::add);
+                var lines = summaries.getFirst().byStatement();
+                var read = lines.stream()
+                        .filter(line -> line.statement().startsWith("SELECT"))
+                        .findFirst()
+                        .orElseThrow(() -> new AssertionError(lines.toString()));
+                // The delete carries a subquery, so what leads the statement decides, not what it contains.
+                var write = lines.stream()
+                        .filter(line -> line.statement().startsWith("DELETE"))
+                        .findFirst()
+                        .orElseThrow(() -> new AssertionError(lines.toString()));
+                assertEquals("Pet", write.dataType());
+                assertNotNull(read.hydration(), shapes.toString());
+                assertNull(write.hydration(), shapes.toString());
+            } finally {
+                SqlLog.hydrationShapes(SqlLog.HydrationShapes.OFF);
+            }
         }
     }
 
