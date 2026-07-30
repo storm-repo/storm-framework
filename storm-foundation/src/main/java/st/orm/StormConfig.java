@@ -65,7 +65,7 @@ public final class StormConfig {
     public static final String VALIDATION_STRICT = "storm.validation.strict";
     /** Interpolation safety mode. Values: warn, fail, none. */
     public static final String VALIDATION_INTERPOLATION_MODE = "storm.validation.interpolation_mode";
-    /** How SQL log summary rows render the declared hydration shape of their statement's type. Values: off, short, full. */
+    /** How a read's SQL log summary row renders the declared hydration shape of its type. Values: off, short, full. */
     public static final String SQL_LOG_HYDRATION = "storm.sql_log.hydration";
     /** Display width SQL log summary rows aim for, such as 120 for narrow viewers or 240 for wide ones; at least 80. */
     public static final String SQL_LOG_LINE_WIDTH = "storm.sql_log.line_width";
