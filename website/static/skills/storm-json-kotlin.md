@@ -1,3 +1,8 @@
+---
+name: storm-json-kotlin
+description: Map JSON database columns with @Json and write JSON aggregation queries in Kotlin, with Jackson or kotlinx.serialization. Use for JSON or JSONB columns, not for serializing REST responses.
+---
+
 Help the user work with JSON columns in Storm entities using Kotlin.
 Ask: what data they want to store as JSON, which serialization library (Jackson or kotlinx.serialization), and whether they need JSON aggregation.
 

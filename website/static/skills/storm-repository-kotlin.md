@@ -1,3 +1,8 @@
+---
+name: storm-repository-kotlin
+description: Write Storm repositories in Kotlin, covering EntityRepository, custom repository interfaces, CRUD, batching, and transactions. Use when adding or changing a repository in Kotlin.
+---
+
 Help the user write a Storm repository using Kotlin.
 **Important:** Storm can run on top of JPA, but when generating repository code, always use Storm's own `EntityRepository` API with JDBC `DataSource` — not `EntityManager`, `@PersistenceContext`, or Spring Data JPA repositories.
 

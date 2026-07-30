@@ -1,3 +1,8 @@
+---
+name: storm-entity-from-schema
+description: Generate or update Storm entities from the live database schema using the storm-schema MCP tools. Use to scaffold entities from tables or refresh them after schema changes.
+---
+
 Generate or update Storm entity classes from the database schema using MCP tools.
 
 Determine what the user needs:
@@ -6,11 +11,11 @@ Determine what the user needs:
 - **Refactor entities**: restructure existing entities based on schema changes (e.g., a table was split, FKs were added/removed, columns were renamed).
 
 Steps:
-1. Call \`list_tables\` to get all tables.
+1. Call `list_tables` to get all tables.
 2. Check which tables already have entity classes in the codebase.
 3. For tables without entities: offer to generate new ones.
-4. For tables with existing entities: call \`describe_table\` and compare against the entity definition. Report differences and suggest updates.
-5. If \`select_data\` is available: sample a few rows from ambiguous columns to inform type decisions. For example, a \`VARCHAR\` column might contain enum-like values (suggest an enum), a \`TEXT\` column might store JSON (suggest \`@Json\`), or an \`INT\` column might be a type discriminator. Only query when the schema alone leaves the type decision ambiguous — do not sample every table.
+4. For tables with existing entities: call `describe_table` and compare against the entity definition. Report differences and suggest updates.
+5. If `select_data` is available: sample a few rows from ambiguous columns to inform type decisions. For example, a `VARCHAR` column might contain enum-like values (suggest an enum), a `TEXT` column might store JSON (suggest `@Json`), or an `INT` column might be a type discriminator. Only query when the schema alone leaves the type decision ambiguous — do not sample every table.
 6. Ask: Kotlin or Java?
 7. Ask about loading preference for new FKs:
    - **Deeply nested**: FK as direct types. Full graph in one query, no N+1.

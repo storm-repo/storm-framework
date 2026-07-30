@@ -1,3 +1,8 @@
+---
+name: storm-json-java
+description: Map JSON database columns with @Json and write JSON aggregation queries in Java. Use for JSON or JSONB columns, not for serializing REST responses.
+---
+
 Help the user work with JSON columns in Storm entities using Java.
 Ask: what data they want to store as JSON and whether they need JSON aggregation.
 

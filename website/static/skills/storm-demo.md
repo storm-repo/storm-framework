@@ -1,3 +1,8 @@
+---
+name: storm-demo
+description: Build a demo Storm web application on the public IMDB dataset, from schema to running app. Use to introduce Storm or evaluate it in a new project.
+---
+
 # Storm Demo
 
 Build a web application with Storm ORM using the public IMDB dataset. The purpose of this demo is to introduce Storm ORM and show how database development works with Storm: write entities, validate against the schema, write queries in repositories, verify with SqlCapture.

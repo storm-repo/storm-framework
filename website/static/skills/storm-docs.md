@@ -1,3 +1,8 @@
+---
+name: storm-docs
+description: Load the full Storm ORM documentation as context for the conversation. Use when a Storm question needs reference material beyond the other Storm skills.
+---
+
 Load the Storm ORM documentation and use it as context for the current conversation. The Storm skills already contain the core API reference, patterns, and conventions needed for development.
 
 After loading, briefly confirm what was loaded and offer to help with Storm development tasks such as:

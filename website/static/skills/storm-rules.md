@@ -20,31 +20,22 @@ Storm works directly with JDBC `DataSource`. There is no persistence context, no
 
 ### Framework Detection
 
-Before suggesting dependencies, patterns, or configuration, detect which framework the project uses by examining the build file and existing dependencies:
+Detect the framework from the build file and existing dependencies before suggesting dependencies, patterns, or configuration:
 
 - **Spring Boot**: build file contains `storm-kotlin-spring-boot-starter`, `storm-spring-boot-starter`, `spring-boot-starter`, or `@SpringBootApplication` in the codebase.
 - **Ktor**: build file contains `storm-ktor`, `ktor-server-core`, or `io.ktor` dependencies.
 - **Standalone**: neither Spring Boot nor Ktor detected. The project uses Storm directly with `ORMTemplate.of(dataSource)`.
 
-Adapt your suggestions to the detected framework:
-- **Spring Boot**: use Storm's programmatic transactions — suspend `transaction { }` at the service level (never in controllers), bridged with `runBlocking` only at non-suspend entry points such as MVC handlers (declarative `@Transactional` also works), constructor injection, `application.yml` for config.
-- **Ktor**: use `install(Storm)` plugin, `transaction { }` blocks, `application.conf` (HOCON) for config, `call.orm` for route access.
-- **Standalone**: use `DataSource.orm` or `ORMTemplate.of(dataSource)`, programmatic `transaction { }` blocks.
+The setup and repository skills listed below carry the per-framework entry points, transaction placement, and configuration.
 
 ### Query and Template Rules
 
-- **Always prefer QueryBuilder and metamodel-based methods** for joins, where clauses, ordering, etc. Only fall back to SQL template lambdas when QueryBuilder cannot express the query.
-- **Joins**: use `.innerJoin<Entity>().on<OtherEntity>()` unless it cannot be expressed with entity classes.
-- **Reified vs `::class` style (Kotlin)**: prefer the reified forms (`orm.entity<User>()`, `.innerJoin<X>().on<Y>()`, `select<Result, _, _> { template }`, `resultList<T>()`), but keep each snippet internally consistent — never mix reified and `::class` API styles in one query or code block. When surrounding code uses the `::class` style (or a call has no reified equivalent, forcing `::class` into the snippet), match it: write `select(Result::class) { template }` rather than mixing in underscores. Template interpolations such as `${User::class}` are template syntax, not API style — they never count as mixing.
-- **Template lambdas**: when you must use a template expression, write it as a lambda (`{ "..." }`) — never use `TemplateString.raw()`.
-- **Compiler plugin interpolation**: with the Storm compiler plugin (which Kotlin projects should always use), standard `${}` interpolation inside template lambdas is automatically processed. Do not call `t()` manually — it exists only as a fallback for projects without the compiler plugin.
-- **Metamodel in templates**: even inside template lambdas, use metamodel references (`${User_.email}`) instead of hardcoded column names wherever possible.
-- **Refs stay queryable**: a `Ref<T>` foreign key can be filtered, ordered, grouped, and selected through with the metamodel (`User_.city.country.name`); Storm joins the referenced table on demand, only when a query navigates beyond the foreign key. Declare an entity foreign key for relationships that are part of the entity, typically one or two levels, and a `Ref` for relationships that belong to particular queries. A `Ref` is complete on its own: `fetch()` on it loads the record. When a read already knows it needs that record, `select().fetch(User_.city)` is an optimization that folds the load into the same statement; read a reference resolved that way with `getOrThrow()`, which never queries and fails when the plan did not cover it, rather than `fetch()`, which would silently query. Nodes beyond a reference are navigation-only: usable in `where`, `orderBy`, `groupBy`, `having`, and selected columns, but not in value operations; group by the reference itself with `resultGroupedByRef`. The referenced table can also be named by type rather than by path: selecting it hydrates it with its own foreign keys, and joining onto it brings it in, both sharing the occurrence a navigating path resolves against. A self-referential foreign key must be a `Ref`; it is navigable (the table joins itself, one alias per occurrence), with the typed metamodel bounded to two hops and deeper cyclic paths named as strings.
+- **Prefer the QueryBuilder and metamodel-based methods** for joins, where clauses, ordering, and pagination. Fall back to SQL templates only when the QueryBuilder cannot express the query.
+- **Write template expressions as lambdas** (`{ "..." }`) in Kotlin, or `RAW."""..."""` in Java. Never construct `TemplateString.raw()`.
+- **Reference columns through the metamodel** (`User_.email`), including inside templates, rather than hardcoding column names.
+- **Keep one API style per snippet.** In Kotlin, prefer the reified forms (`orm.entity<User>()`, `.innerJoin<X>().on<Y>()`, `resultList<T>()`), and never mix reified and `::class` styles within one query or code block.
 
-If the project does not yet have Storm dependencies in its build file (pom.xml,
-build.gradle.kts), use /storm-setup to help the user configure their project.
-Detect the project's Kotlin or Java version from the build file to recommend the
-correct dependencies and compiler plugin version.
+Use /storm-setup when the project has no Storm dependencies in its build file yet.
 
 Available Storm skills:
 - /storm-setup - Help configure Maven/Gradle dependencies

@@ -1,3 +1,8 @@
+---
+name: storm-repository-java
+description: Write Storm repositories in Java, covering EntityRepository, custom repository interfaces, CRUD, batching, and transactions. Use when adding or changing a repository in Java.
+---
+
 Help the user write a Storm repository using Java.
 
 **Important:** Storm can run on top of JPA, but when generating repository code, always use Storm's own `EntityRepository` API with JDBC `DataSource` — not `EntityManager`, `@PersistenceContext`, or Spring Data JPA repositories.

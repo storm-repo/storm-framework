@@ -1,3 +1,8 @@
+---
+name: storm-sql-kotlin
+description: Write Storm SQL templates in Kotlin as template lambdas, for queries the QueryBuilder cannot express. Use only when no QueryBuilder equivalent exists.
+---
+
 Help the user write Storm SQL Templates using Kotlin.
 Ask what query they need and why QueryBuilder does not suffice.
 
