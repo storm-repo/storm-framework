@@ -29,6 +29,8 @@ import st.orm.core.template.impl.Elements.Columns;
  * key, or an inline record) and expands them in model column order. This is the expansion used by the
  * {@code groupBy} and {@code orderBy} metamodel overloads, keeping their column resolution identical to predicate
  * resolution.</p>
+ *
+ * @since 1.13
  */
 final class ColumnsProcessor implements ElementProcessor<Columns> {
 

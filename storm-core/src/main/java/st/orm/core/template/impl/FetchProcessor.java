@@ -24,6 +24,8 @@ import st.orm.core.template.impl.Elements.Fetch;
  * <p>The element's plan is collected by the compiler before any element compiles, so the select list and the row
  * mapper read it from the compiler state rather than from this processor. The element still participates in the
  * template's compilation key, so statements that resolve different references compile separately.</p>
+ *
+ * @since 1.13
  */
 final class FetchProcessor implements ElementProcessor<Fetch> {
 

@@ -75,6 +75,8 @@ public final class Elements {
      * not matter: the select list rendering and the row mapper read the plan from the compiler. Paths are
      * prefix-closed on construction, so plans that resolve the same references compare equal and share a compiled
      * statement, however they were spelled.</p>
+     *
+     * @since 1.13
      */
     public record Fetch(@Nonnull Collection<String> paths) implements Element {
         public Fetch {
@@ -277,6 +279,8 @@ public final class Elements {
      * predicate resolution: the columns are the ones the metamodel resolves to on the table that holds them, so a
      * foreign key expands to its foreign key column(s) on the referencing table without joining the referenced
      * table. When {@code descending} is set, each column is followed by {@code DESC}.</p>
+     *
+     * @since 1.13
      */
     public record Columns(@Nonnull Metamodel<?, ?> field, @Nonnull ResolveScope scope, boolean descending) implements Element {
         public Columns {
