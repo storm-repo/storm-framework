@@ -501,7 +501,10 @@ public abstract class QueryBuilder<T extends Data, R, ID> {
             throw new PersistenceException("At least one path must be provided for GROUP BY clause.");
         }
         List<StringTemplate> templates = Stream.of(path)
-                .flatMap(metamodel -> Stream.of(RAW."\{new Columns(metamodel, CASCADE, false)}", RAW.", "))
+                .flatMap(metamodel -> {
+                    Columns columns = new Columns(metamodel, CASCADE, false);
+                    return Stream.of(RAW."\{columns}", RAW.", ");
+                })
                 .toList();
         return groupBy(StringTemplate.combine(templates.subList(0, templates.size() - 1).toArray(new StringTemplate[0])));
     }
@@ -625,7 +628,10 @@ public abstract class QueryBuilder<T extends Data, R, ID> {
             throw new PersistenceException("At least one path must be provided for ORDER BY clause.");
         }
         List<StringTemplate> templates = Stream.of(path)
-                .flatMap(metamodel -> Stream.of(RAW."\{new Columns(metamodel, CASCADE, true)}", RAW.", "))
+                .flatMap(metamodel -> {
+                    Columns columns = new Columns(metamodel, CASCADE, true);
+                    return Stream.of(RAW."\{columns}", RAW.", ");
+                })
                 .toList();
         return orderBy(StringTemplate.combine(templates.subList(0, templates.size() - 1).toArray(new StringTemplate[0])));
     }
@@ -655,7 +661,10 @@ public abstract class QueryBuilder<T extends Data, R, ID> {
             throw new PersistenceException("At least one path must be provided for ORDER BY clause.");
         }
         List<StringTemplate> templates = Stream.of(path)
-                .flatMap(metamodel -> Stream.of(RAW."\{new Columns(metamodel, CASCADE, false)}", RAW.", "))
+                .flatMap(metamodel -> {
+                    Columns columns = new Columns(metamodel, CASCADE, false);
+                    return Stream.of(RAW."\{columns}", RAW.", ");
+                })
                 .toList();
         return orderBy(StringTemplate.combine(templates.subList(0, templates.size() - 1).toArray(new StringTemplate[0])));
     }
