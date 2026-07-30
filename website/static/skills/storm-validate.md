@@ -1,3 +1,8 @@
+---
+name: storm-validate
+description: Compare Storm entities against the live database schema and report mismatches. Use to verify entities after a schema or entity change.
+---
+
 Compare Storm entities against the live database schema.
 
 1. Find all entity classes (Kotlin data classes or Java records implementing Entity)

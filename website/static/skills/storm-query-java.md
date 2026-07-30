@@ -1,3 +1,8 @@
+---
+name: storm-query-java
+description: Write Storm queries in Java with the QueryBuilder, covering joins, predicates, ordering, pagination, keyset scrolling, and Ref navigation. Use for any read query in Java.
+---
+
 Help the user write Storm queries using Java.
 
 **Important:** Storm can run on top of JPA, but when writing queries, always use Storm's own QueryBuilder and operator-based predicates — not JPQL, `CriteriaBuilder`, or `EntityManager.createQuery()`.

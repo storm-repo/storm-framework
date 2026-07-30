@@ -1,3 +1,8 @@
+---
+name: storm-sql-java
+description: Write Storm SQL templates in Java with RAW string templates, for queries the QueryBuilder cannot express. Use only when no QueryBuilder equivalent exists.
+---
+
 Help the user write Storm SQL Templates using Java.
 Ask what query they need and why QueryBuilder does not suffice.
 
@@ -8,14 +13,14 @@ Ask what query they need and why QueryBuilder does not suffice.
 SQL Templates exist for two scenarios:
 
 **1. Template fragments** — a single clause (SELECT, HAVING) needs SQL that QueryBuilder cannot express, but the rest of the query is code-based. This is the most common case:
-\`\`\`java
+```java
 // Prefer code over templates — use templates only for expressions QueryBuilder can't produce
 List<CityUserCount> cityCounts = orm.entity(City.class)
         .select(CityUserCount.class, RAW."\{City.class}, COUNT(*)")
         .leftJoin(User.class).on(City.class)
         .groupBy(City_.id)
         .getResultList();
-\`\`\`
+```
 
 **2. Full SQL templates** — the entire query is custom SQL. This is truly a last resort for queries that cannot be composed with the QueryBuilder at all:
 - CTEs (`WITH` clauses)
@@ -36,33 +41,33 @@ Even in full SQL templates, users still benefit from bind variables (`\{value}`)
 
 **FK path references:** Use `\{User_.city.country}` (resolves to the FK column, e.g., `country_id`) rather than `\{User_.city.country.id}` (resolves to the PK column on the joined table). The shorter form is preferred — it references the FK directly without requiring a join.
 
-Requires --enable-preview. Java uses RAW string templates with \\{} syntax:
+Requires --enable-preview. Java uses RAW string templates with \{} syntax:
 
-\`\`\`java
+```java
 List<User> users = orm.query(RAW."""
-        SELECT \\{User.class}
-        FROM \\{User.class}
-        WHERE \\{User_.email} = \\{email}
-          AND \\{User_.city.country.code} = \\{countryCode}""")
+        SELECT \{User.class}
+        FROM \{User.class}
+        WHERE \{User_.email} = \{email}
+          AND \{User_.city.country.code} = \{countryCode}""")
     .getResultList(User.class);
-\`\`\`
+```
 
 Template elements:
-- \\{User.class} in SELECT: full column list with aliases
-- \\{User.class} in FROM: table + auto-JOINs for all @FK fields
-- \\{User_.email}: column reference with correct alias
-- \\{email}: parameterized bind variable (SQL injection safe)
-- \\{from(User.class, false)}: FROM without auto-joins
-- \\{table(User.class)}: table name only (for subqueries)
-- \\{select(User.class, SelectMode.PK)}: only PK columns
-- \\{column(User_.email)}: explicit column with alias
-- \\{unsafe("raw sql")}: raw SQL (use with caution)
+- \{User.class} in SELECT: full column list with aliases
+- \{User.class} in FROM: table + auto-JOINs for all @FK fields
+- \{User_.email}: column reference with correct alias
+- \{email}: parameterized bind variable (SQL injection safe)
+- \{from(User.class, false)}: FROM without auto-joins
+- \{table(User.class)}: table name only (for subqueries)
+- \{select(User.class, SelectMode.PK)}: only PK columns
+- \{column(User_.email)}: explicit column with alias
+- \{unsafe("raw sql")}: raw SQL (use with caution)
 
 ## Aggregate example — the primary use case
 
 Define a plain record for the result shape, then use a SQL Template for the aggregate:
 
-\`\`\`java
+```java
 /**
  * Query result shape: user count per city. Not backed by a database table
  * or view, so it is a plain record — deliberately not a Data type.
@@ -75,7 +80,7 @@ List<CityUserCount> cityCounts = orm.entity(City.class)
         .leftJoin(User.class).on(City.class)
         .groupBy(City_.id)
         .getResultList();
-\`\`\`
+```
 
 The join, grouping, and result retrieval are all code-based. Only the `COUNT(*)` aggregate — which QueryBuilder cannot express — uses a SQL template fragment. This keeps the template to the absolute minimum.
 

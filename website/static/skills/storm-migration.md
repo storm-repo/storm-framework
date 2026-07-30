@@ -1,3 +1,8 @@
+---
+name: storm-migration
+description: Write Flyway or Liquibase migration SQL that matches Storm's naming conventions. Use when a schema change accompanies an entity change.
+---
+
 Help the user write database migration SQL for Storm entities.
 
 Storm does NOT perform schema migration. Use Flyway or Liquibase.

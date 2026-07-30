@@ -1,3 +1,8 @@
+---
+name: storm-serialization-kotlin
+description: Serialize Storm entities to JSON for REST APIs with Jackson or kotlinx.serialization, including Ref fields. Use for API responses, caching, and messaging, not for JSON database columns.
+---
+
 Help the user serialize Storm entities to JSON for REST APIs using Kotlin.
 This is about serializing entities for API responses or caching (Jackson, kotlinx.serialization), not about JSON database columns (use /storm-json-kotlin for that).
 

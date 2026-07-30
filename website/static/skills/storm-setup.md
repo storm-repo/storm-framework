@@ -1,3 +1,8 @@
+---
+name: storm-setup
+description: Set up Storm ORM in a project, including Maven or Gradle dependencies, the compiler plugin, KSP, and the metamodel processor. Use when adding Storm to a project or fixing its build configuration.
+---
+
 Help the user set up Storm ORM in their project.
 **Important:** Use Storm's JDBC-based API with `DataSource`. Do not add JPA/Hibernate dependencies unless the project already uses them. Storm has its own annotations (`@PK`, `@FK`, `@DbTable`, etc.) — use those instead of JPA annotations.
 

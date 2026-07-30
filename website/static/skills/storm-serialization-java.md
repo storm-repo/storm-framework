@@ -1,3 +1,8 @@
+---
+name: storm-serialization-java
+description: Serialize Storm entities to JSON for REST APIs with Jackson, including Ref fields. Use for API responses and caching, not for JSON database columns.
+---
+
 Help the user serialize Storm entities to JSON for REST APIs using Java.
 This is about serializing entities for API responses (Jackson), not about JSON database columns (use /storm-json-java for that).
 

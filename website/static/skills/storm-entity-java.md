@@ -1,3 +1,8 @@
+---
+name: storm-entity-java
+description: Define Storm entities and projections as Java records, covering @PK, @FK, @UK, @Version, @Json, Ref fields, and inline records. Use when creating or changing entity types in Java.
+---
+
 Help the user create Storm entities using Java.
 
 **Important:** Storm can run on top of JPA, but when generating entities, always use Storm's own annotations from the `st.orm` package — not JPA annotations (`@Id`, `@Entity`, `@Table`, `@Column`, `@ManyToOne`, `@GeneratedValue`):
@@ -16,30 +21,30 @@ Help the user create Storm entities using Java.
 Ask the user to describe their domain model: tables, columns, types, constraints, and relationships.
 
 Before generating, ask about their relationship loading preference:
-- **Deeply nested**: FK fields as direct entity types (\`@FK City city\`). Full entity graph in one query. No N+1.
-- **Shallow / on-demand**: FK fields as \`Ref<T>\` (\`@FK Ref<City> city\`). Only FK ID stored, fetch on demand. No N+1 either way.
+- **Deeply nested**: FK fields as direct entity types (`@FK City city`). Full entity graph in one query. No N+1.
+- **Shallow / on-demand**: FK fields as `Ref<T>` (`@FK Ref<City> city`). Only FK ID stored, fetch on demand. No N+1 either way.
 
 Generation rules:
 
-1. Use Java records implementing \`Entity<ID>\`:
-   \`record City(@PK Integer id, String name, long population) implements Entity<Integer> {}\`
+1. Use Java records implementing `Entity<ID>`:
+   `record City(@PK Integer id, String name, long population) implements Entity<Integer> {}`
 
-2. Primary keys (\`@PK\`):
-   - IDENTITY (default): \`@PK Integer id\` with null on insert.
-   - SEQUENCE: \`@PK(generation = SEQUENCE, sequence = "seq_name") Long id\`
-   - NONE: \`@PK(generation = NONE) String code\` for natural keys.
+2. Primary keys (`@PK`):
+   - IDENTITY (default): `@PK Integer id` with null on insert.
+   - SEQUENCE: `@PK(generation = SEQUENCE, sequence = "seq_name") Long id`
+   - NONE: `@PK(generation = NONE) String code` for natural keys.
 
 3. Nullability:
-   - Record components are non-null by default, exactly like Kotlin. Mark nullable fields with \`@Nullable\`
-     (JSpecify \`org.jspecify.annotations.Nullable\`, \`jakarta.annotation.Nullable\`, or \`javax.annotation.Nullable\`).
-     \`@NullUnmarked\` on a class or package restores nullable-by-default components for that scope.
-   - Storm recognizes \`jakarta.annotation.Nonnull\`, \`javax.annotation.Nonnull\`, and JSpecify's
-     \`org.jspecify.annotations.NonNull\` on the component. Other null-marker annotations (Lombok,
-     JetBrains, Spring) are NOT recognized, and JSpecify \`@NullMarked\` scope defaults are NOT
+   - Record components are non-null by default, exactly like Kotlin. Mark nullable fields with `@Nullable`
+     (JSpecify `org.jspecify.annotations.Nullable`, `jakarta.annotation.Nullable`, or `javax.annotation.Nullable`).
+     `@NullUnmarked` on a class or package restores nullable-by-default components for that scope.
+   - Storm recognizes `jakarta.annotation.Nonnull`, `javax.annotation.Nonnull`, and JSpecify's
+     `org.jspecify.annotations.NonNull` on the component. Other null-marker annotations (Lombok,
+     JetBrains, Spring) are NOT recognized, and JSpecify `@NullMarked` scope defaults are NOT
      applied — only per-component annotations count.
-   - \`@PK\` fields and primitives (\`int\`, \`long\`) are implicitly non-nullable.
+   - `@PK` fields and primitives (`int`, `long`) are implicitly non-nullable.
 
-4. Foreign keys (\`@FK\`):
+4. Foreign keys (`@FK`):
    - **Every column with a FK constraint in the database must be modeled with `@FK` in the entity.** Without `@FK`, Storm has no FK metadata and cannot resolve joins automatically — forcing template-based joins that defeat the QueryBuilder.
    - **Declare an entity foreign key for relationships that are part of the entity** (`@FK City city`), the ones a read of it would normally include. In practice that is one or two levels. Storm hydrates the whole eager graph in a single query, so these come back with the entity and there is no N+1 to manage.
    - **Declare `Ref<T>` for relationships that belong to particular queries** (`@FK Ref<City> city`). The read stays focused on the entity, and the reference is resolved where it is needed: call `fetch()` on it and the record is loaded. A `Ref` is complete on its own; nothing about it depends on the query doing anything special.
@@ -47,26 +52,26 @@ Generation rules:
    - The eager graph is declared on the type, so every read of the entity gets the same one. It should describe what the entity is rather than what any one screen needs. Foreign keys side by side add a join each, while levels stacked on top of each other multiply by the fan-out above, so depth is the dimension to be deliberate about.
    - **Repeated `fetch()` calls on the same reference mean the declaration is in the wrong place.** If particular reads need the record, resolve it there with `select().fetch(...)`; if nearly all of them do, declare it as a plain foreign key instead.
    - A `Ref` gives up nothing: filter, order, and select through it with the metamodel from the owning entity (`User_.city.country.name`, where `city` is a `Ref<City>`), and Storm joins the referenced table only where a query asks for it.
-   - Non-nullable: \`@FK City city\` produces INNER JOIN (non-null is the default).
-   - Nullable: \`@Nullable @FK City city\` produces LEFT JOIN.
-   - **A bare \`@FK City city\` is non-null and produces an INNER JOIN.**
-     Match the database: if the FK column allows NULL, the field MUST carry \`@Nullable\`,
+   - Non-nullable: `@FK City city` produces INNER JOIN (non-null is the default).
+   - Nullable: `@Nullable @FK City city` produces LEFT JOIN.
+   - **A bare `@FK City city` is non-null and produces an INNER JOIN.**
+     Match the database: if the FK column allows NULL, the field MUST carry `@Nullable`,
      otherwise the INNER JOIN silently filters rows without the reference.
 
-5. CIRCULAR REFERENCES ARE NOT SUPPORTED. At least one side MUST use \`Ref<T>\`. Self-references MUST use \`Ref<T>\`: \`@Nullable @FK Ref<User> invitedBy\`.
+5. CIRCULAR REFERENCES ARE NOT SUPPORTED. At least one side MUST use `Ref<T>`. Self-references MUST use `Ref<T>`: `@Nullable @FK Ref<User> invitedBy`.
 
 6. NO COLLECTION FIELDS. Query the "many" side instead.
 
 7. Naming: camelCase to snake_case automatically. FK appends _id.
-   - For individual overrides: \`@DbTable("custom_name")\` / \`@DbColumn("custom_name")\`. For tables in another schema: \`@DbTable(name = "custom_name", schema = "other_schema")\`.
-   - For database-wide conventions (e.g., UPPER_CASE, prefixed tables like \`tbl_\`, or non-standard FK naming): configure a custom \`TableNameResolver\`, \`ColumnNameResolver\`, or \`ForeignKeyResolver\` via the \`TemplateDecorator\` on \`ORMTemplate.of()\` instead of annotating every entity. Example:
-     \`\`\`java
+   - For individual overrides: `@DbTable("custom_name")` / `@DbColumn("custom_name")`. For tables in another schema: `@DbTable(name = "custom_name", schema = "other_schema")`.
+   - For database-wide conventions (e.g., UPPER_CASE, prefixed tables like `tbl_`, or non-standard FK naming): configure a custom `TableNameResolver`, `ColumnNameResolver`, or `ForeignKeyResolver` via the `TemplateDecorator` on `ORMTemplate.of()` instead of annotating every entity. Example:
+     ```java
      var orm = ORMTemplate.of(dataSource, decorator -> decorator
          .withTableNameResolver(TableNameResolver.toUpperCase(TableNameResolver.DEFAULT))
          .withColumnNameResolver(ColumnNameResolver.toUpperCase(ColumnNameResolver.DEFAULT)));
-     \`\`\`
-   - Resolvers are functional interfaces. Compose them with built-in decorators (\`toUpperCase\`) or write custom lambdas that receive \`RecordType\` (for tables) or \`RecordField\` (for columns) with full access to class/field metadata and annotations.
-   - Use \`@DbTable\`/\`@DbColumn\` only for exceptions to the global convention. If the entire database follows one pattern, a resolver handles it without any annotations.
+     ```
+   - Resolvers are functional interfaces. Compose them with built-in decorators (`toUpperCase`) or write custom lambdas that receive `RecordType` (for tables) or `RecordField` (for columns) with full access to class/field metadata and annotations.
+   - Use `@DbTable`/`@DbColumn` only for exceptions to the global convention. If the entire database follows one pattern, a resolver handles it without any annotations.
 
 8. Composite primary keys (join/junction tables):
    - Wrap key columns in a separate record. Use raw column types (e.g., `int`, `String`) inside the PK record.
@@ -118,18 +123,18 @@ Generation rules:
    - **Composite** (only when needed in code): use an inline record + `@UK @Persist(insertable = false, updatable = false)`. Only add this when the user explicitly needs a composite `Metamodel.Key` for keyset pagination or type-safe lookups. Composite unique constraints that don't need a Key don't need to be modeled.
    - `@UK(constraint = false)` suppresses schema validation when no database constraint exists.
 
-11. Embedded components, enums, optimistic locking: same rules as Kotlin. Enums are stored by name (string) by default; \`@DbEnum(ORDINAL)\` for integer storage (import \`st.orm.EnumType.ORDINAL\`).
+11. Embedded components, enums, optimistic locking: same rules as Kotlin. Enums are stored by name (string) by default; `@DbEnum(ORDINAL)` for integer storage (import `st.orm.EnumType.ORDINAL`).
 
-11b. Database-managed columns: annotate columns the database computes or maintains (e.g. \`DEFAULT CURRENT_TIMESTAMP\`, \`ON UPDATE\` timestamps, computed values) with \`@Persist(insertable = false, updatable = false)\`. Storm then never writes the column and always reads it back:
-   \`\`\`java
+11b. Database-managed columns: annotate columns the database computes or maintains (e.g. `DEFAULT CURRENT_TIMESTAMP`, `ON UPDATE` timestamps, computed values) with `@Persist(insertable = false, updatable = false)`. Storm then never writes the column and always reads it back:
+   ```java
    record User(@PK Integer id,
                String email,
                @Persist(insertable = false, updatable = false) Instant registeredAt
    ) implements Entity<Integer> {}
-   \`\`\`
-   Use \`insertable = false\` alone for columns set by the database only on INSERT, or \`updatable = false\` alone for columns written once and never modified.
+   ```
+   Use `insertable = false` alone for columns set by the database only on INSERT, or `updatable = false` alone for columns written once and never modified.
 
-12. Java records are immutable. Consider Lombok \`@Builder(toBuilder = true)\` for copy-with-modification.
+12. Java records are immutable. Consider Lombok `@Builder(toBuilder = true)` for copy-with-modification.
 
 13. Use descriptive variable names, never abbreviated.
 
@@ -141,11 +146,11 @@ After generating, remind the user to rebuild for metamodel generation.
 
 ## Verification
 
-After creating or modifying entities, write a \`@StormTest\` to validate them against the database schema using \`validateSchema()\`.
+After creating or modifying entities, write a `@StormTest` to validate them against the database schema using `validateSchema()`.
 
-Tell the user what you are doing and why: explain that \`validateSchema()\` checks entities against the database at the JDBC level — catching type mismatches, nullability disagreements, missing columns, unmapped NOT NULL columns, and FK inconsistencies before anything reaches production. This is Storm's verify-then-trust pattern.
+Tell the user what you are doing and why: explain that `validateSchema()` checks entities against the database at the JDBC level — catching type mismatches, nullability disagreements, missing columns, unmapped NOT NULL columns, and FK inconsistencies before anything reaches production. This is Storm's verify-then-trust pattern.
 
-\`\`\`java
+```java
 @StormTest(scripts = {"/schema.sql"})
 class EntitySchemaTest {
     @Test
@@ -156,7 +161,7 @@ class EntitySchemaTest {
         assertTrue(errors.isEmpty(), () -> "Schema validation errors: " + errors);
     }
 }
-\`\`\`
+```
 
 Run the test. Show the user the result and explain what it proves. If validation fails, explain the errors and fix the entities. If a validation result is ambiguous or involves a trade-off (e.g., a nullable column mapped to a non-null field intentionally), ask the user for guidance before changing anything.
 
