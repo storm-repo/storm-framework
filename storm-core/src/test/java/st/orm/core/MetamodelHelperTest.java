@@ -326,12 +326,13 @@ public class MetamodelHelperTest {
     }
 
     @Test
-    public void testFlattenForeignKeyExpandsEntityColumns() {
+    public void testFlattenForeignKeyIsSingleton() {
         Metamodel<Visit, ?> model = Metamodel.of(Visit.class, "pet");
         List<Metamodel<Visit, ?>> flattened = model.flatten();
-        // Flattening a FK expands the referenced entity's column structure.
-        assertTrue(flattened.size() > 1,
-                "Flattening a FK metamodel should expand to the referenced entity's columns");
+        // A foreign key names its own column(s) on the referencing table, so it flattens to itself rather than
+        // into the referenced entity's columns.
+        assertEquals(List.of(model), flattened,
+                "Flattening a FK metamodel should yield the FK node itself");
     }
 
     // canonical() (uses MetamodelHelper.of() internally)

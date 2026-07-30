@@ -117,12 +117,14 @@ public interface Navigable<T extends Data, E> {
     }
 
     /**
-     * Returns a flat list of leaf metamodels for this navigable. If this navigable is not an inline record, it returns
-     * a singleton list containing the column metamodel for this path; if it is an inline record, it recursively expands
-     * all nested inline records into their individual column metamodels. The returned metamodels keep their position in
-     * the graph, so they are not canonical.
+     * Returns a flat list of leaf metamodels for this navigable. An inline record is recursively expanded into its
+     * individual column metamodels; any other navigable returns a singleton list, because it names its own
+     * column(s): an entity node names the foreign key column(s) that reference it, and a scalar names its column.
+     * The returned metamodels keep their position in the graph, so they are not canonical.
      *
-     * <p>Useful for ORDER BY and GROUP BY, where inline records must be expanded into their individual columns.</p>
+     * <p>The query builder's {@code groupBy} and {@code orderBy} metamodel overloads do not use this expansion: they
+     * resolve a path to the same columns a predicate on that path would use, so a multi-column path (a compound
+     * foreign key, an inline record) expands during column resolution rather than here.</p>
      *
      * @return a list of leaf metamodels.
      */

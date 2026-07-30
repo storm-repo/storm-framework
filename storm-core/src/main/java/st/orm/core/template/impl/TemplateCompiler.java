@@ -238,4 +238,12 @@ interface TemplateCompiler {
      * @since 1.13
      */
     void setFetchPaths(@Nonnull List<String> fetchPaths);
+
+    /**
+     * Returns the fetch plan of the compilation in progress: the references the statement resolves as part of its
+     * select list, collected from the template's fetch elements before its elements compile.
+     *
+     * @return the fetch plan, or the empty plan when the statement resolves no reference.
+     */
+    FetchPlan getFetchPlan();
 }

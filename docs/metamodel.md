@@ -740,7 +740,7 @@ Object countryName = User_.city.country.name.getValue(user);  // "United States"
 
 ### Flattening Inline Records
 
-`Metamodel.flatten()` expands an inline record (embedded component) into its individual leaf column metamodels. If the metamodel already represents a leaf column, it returns a singleton list containing itself. This is the same expansion Storm performs internally for ORDER BY and GROUP BY clauses.
+`Metamodel.flatten()` expands an inline record (embedded component) into its individual leaf column metamodels. Any other metamodel returns a singleton list containing itself: it names its own column(s) — a foreign key names the foreign key column(s) on the referencing table. ORDER BY and GROUP BY resolve a path to the same columns a predicate would use, expanding multi-column paths during column resolution.
 
 <Tabs groupId="language">
 <TabItem value="kotlin" label="Kotlin" default>

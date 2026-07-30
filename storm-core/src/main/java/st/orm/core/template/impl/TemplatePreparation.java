@@ -77,7 +77,9 @@ import st.orm.core.template.SqlOperation;
 import st.orm.core.template.SqlTemplate;
 import st.orm.core.template.SqlTemplateException;
 import st.orm.core.template.TemplateString;
+import st.orm.core.template.impl.Elements.Alias;
 import st.orm.core.template.impl.Elements.Column;
+import st.orm.core.template.impl.Elements.Columns;
 import st.orm.core.template.impl.Elements.Delete;
 import st.orm.core.template.impl.Elements.Expression;
 import st.orm.core.template.impl.Elements.From;
@@ -88,6 +90,7 @@ import st.orm.core.template.impl.Elements.Table;
 import st.orm.core.template.impl.Elements.TableSource;
 import st.orm.core.template.impl.Elements.TemplateTarget;
 import st.orm.core.template.impl.Elements.Update;
+import st.orm.core.template.impl.Elements.Where;
 import st.orm.core.template.impl.SqlTemplateImpl.ElementNode;
 import st.orm.core.template.impl.SqlTemplateImpl.Wrapped;
 import st.orm.mapping.RecordField;
@@ -447,7 +450,7 @@ class TemplatePreparation {
             @Nonnull Class<? extends Data> recordType
     ) throws SqlTemplateException {
         if (nextFragment.startsWith(".")) {
-            return new Elements.Alias(recordType, CASCADE);
+            return new Alias(recordType, CASCADE);
         }
         String next = removeComments(nextFragment, template.dialect()).stripLeading().toUpperCase();
         String previous = removeComments(previousFragment, template.dialect()).stripTrailing().toUpperCase();
@@ -1145,19 +1148,16 @@ class TemplatePreparation {
                                              @Nonnull Set<Class<? extends Data>> hydratedTables,
                                              @Nonnull Set<String> hydratedPaths) {
         switch (element) {
-            case Column column -> addReferencedTablePath(rootTable, column.field(), paths);
+            case Column column -> addReferencedTablePath(rootTable, MetamodelFactory.canonical(column.field()), paths);
+            case Columns columns -> addReferencedTablePath(rootTable, MetamodelFactory.canonical(columns.field()), paths);
             // A nested select materializes the table's record, so its own foreign keys are part of what is selected;
-            // the other modes select columns of that table alone. A resolved reference is materialized as well, so its
-            // path is hydrated in its own right: the referenced table is joined, and the foreign keys of the record it
-            // holds are joined with it.
-            case Select(var table, var mode, var fetchPaths) -> {
-                (mode == SelectMode.NESTED ? hydratedTables : tables).add(table);
-                if (mode == SelectMode.NESTED && table == rootTable) {
-                    hydratedPaths.addAll(FetchPlan.of(fetchPaths).paths());
-                }
-            }
-            case Elements.Alias alias -> tables.add(alias.table());
-            case Elements.Where where -> {
+            // the other modes select columns of that table alone.
+            case Select(var table, var mode) -> (mode == SelectMode.NESTED ? hydratedTables : tables).add(table);
+            // A resolved reference is materialized in its own right: the referenced table is joined, and the foreign
+            // keys of the record it holds are joined with it. The element's paths are prefix-closed.
+            case Elements.Fetch fetch -> hydratedPaths.addAll(fetch.paths());
+            case Alias alias -> tables.add(alias.table());
+            case Where where -> {
                 if (where.expression() != null) {
                     collectReferencedTablePaths(rootTable, where.expression(), paths, tables, hydratedTables, hydratedPaths);
                 }

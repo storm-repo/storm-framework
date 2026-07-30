@@ -117,6 +117,35 @@ public final class MetamodelFactory {
     }
 
     /**
+     * Returns the metamodel column resolution should use for the given metamodel. A path that names the primary key
+     * of a table reached through a foreign key resolves to the foreign key field itself: the key is the foreign key
+     * column(s) on the referencing table, so the path means the same thing whether the relationship is declared as
+     * a reference or as an entity. Reference paths are rewritten this way when they are built; generated entity
+     * metamodels are plain path carriers, so the equivalence is applied here instead. Every other metamodel is
+     * returned unchanged, and so is any metamodel whose path cannot be inspected reflectively.
+     */
+    @SuppressWarnings({"unchecked", "rawtypes"})
+    public static Metamodel<?, ?> canonical(@Nonnull Metamodel<?, ?> metamodel) {
+        try {
+            Class<? extends Data> rootTable = metamodel.root();
+            Class<? extends Data> fieldResolutionClass = rootTable;
+            if (rootTable.isSealed() && isSealedEntity(rootTable)) {
+                Class<?>[] permitted = rootTable.getPermittedSubclasses();
+                if (permitted != null && permitted.length > 0) {
+                    fieldResolutionClass = (Class<? extends Data>) permitted[0];
+                }
+            }
+            String foreignKeyPath = primaryKeyThroughForeignKeyPath(fieldResolutionClass, metamodel.fieldPath());
+            if (foreignKeyPath == null) {
+                return metamodel;
+            }
+            return of((Class) rootTable, foreignKeyPath);
+        } catch (RuntimeException ignore) {
+            return metamodel;
+        }
+    }
+
+    /**
      * Returns a flat list of leaf metamodels for the given metamodel. If the metamodel is not an inline record, it
      * returns a singleton list containing the metamodel. If it is an inline record, it recursively expands all nested
      * inline records and returns the individual column metamodels.
@@ -138,6 +167,40 @@ public final class MetamodelFactory {
             result.addAll(child.flatten());
         }
         return List.copyOf(result);
+    }
+
+    /**
+     * Returns the path of the foreign key field when {@code path} names the primary key of a table reached through
+     * a foreign key, or {@code null} otherwise. Mirrors the analysis in {@link #getModel(Class, String)}: inline
+     * parents fold into the field, and the node above must be a foreign key declared as a reference or as an entity
+     * whose primary key the folded field names.
+     */
+    @Nullable
+    private static String primaryKeyThroughForeignKeyPath(@Nonnull Class<? extends Data> fieldResolutionClass,
+                                                          @Nonnull String path) {
+        if (path.isEmpty()) return null;
+        try {
+            StringBuilder effectiveField = new StringBuilder(getRecordField(fieldResolutionClass, path).name());
+            String effectivePath = stripLast(path);
+            while (!effectivePath.isEmpty()) {
+                RecordField parent = getRecordField(fieldResolutionClass, effectivePath);
+                if (Data.class.isAssignableFrom(parent.type()) || Ref.class.isAssignableFrom(parent.type())) {
+                    break;
+                }
+                effectiveField.insert(0, parent.name() + ".");
+                effectivePath = stripLast(effectivePath);
+            }
+            if (effectivePath.isEmpty()) return null;
+            RecordField referenceField = getRecordField(fieldResolutionClass, effectivePath);
+            Class<?> referencedType = Ref.class.isAssignableFrom(referenceField.type())
+                    ? getRefDataType(referenceField)
+                    : Data.class.isAssignableFrom(referenceField.type()) ? referenceField.type() : null;
+            return referencedType != null && isPrimaryKeyName(referencedType, effectiveField.toString())
+                    ? effectivePath
+                    : null;
+        } catch (SqlTemplateException | RuntimeException e) {
+            return null;
+        }
     }
 
     /**
@@ -229,9 +292,10 @@ public final class MetamodelFactory {
             // key is the foreign key column on the row itself. The metamodel mirrors that, so the target's primary key
             // reached through a reference resolves to that column, while any other column of the target resolves in
             // the referenced table. This is also the column an entity foreign key resolves its primary key to, so a
-            // path means the same thing whether the relationship is declared as an entity or as a reference. Matching
-            // on the key therefore does not require the referenced row to exist; join the referenced table explicitly
-            // to require that.
+            // path means the same thing whether the relationship is declared as an entity or as a reference; for
+            // entity foreign keys the equivalence is applied by {@link #canonical(Metamodel)} at column resolution.
+            // Matching on the key therefore does not require the referenced row to exist; join the referenced table
+            // explicitly to require that.
             //
             // Only the column the query resolves to is rewritten. Value extraction keeps following the requested path,
             // which still crosses the reference, so reading a value beyond a reference stays rejected for every path

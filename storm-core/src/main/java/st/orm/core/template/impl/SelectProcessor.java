@@ -53,7 +53,7 @@ final class SelectProcessor implements ElementProcessor<Select> {
     @Override
     public CompiledElement compile(@Nonnull Select select, @Nonnull TemplateCompiler compiler) {
         compiler.setDataType(select.table());
-        FetchPlan fetchPlan = FetchPlan.of(select.fetchPaths());
+        FetchPlan fetchPlan = compiler.getFetchPlan();
         // The closed plan is what shaped the select list, so that is the form the row mapper has to read back.
         compiler.setFetchPaths(fetchPlan.toList());
         return new CompiledElement(compiler.getQueryModel()

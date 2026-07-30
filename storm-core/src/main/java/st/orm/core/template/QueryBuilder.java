@@ -20,6 +20,7 @@ import static st.orm.Operator.EQUALS;
 import static st.orm.Operator.GREATER_THAN;
 import static st.orm.Operator.IN;
 import static st.orm.Operator.LESS_THAN;
+import static st.orm.ResolveScope.CASCADE;
 import static st.orm.core.template.TemplateString.wrap;
 
 import jakarta.annotation.Nonnull;
@@ -50,6 +51,7 @@ import st.orm.Ref;
 import st.orm.Scrollable;
 import st.orm.TypedMetamodel;
 import st.orm.Window;
+import st.orm.core.template.impl.Elements.Columns;
 import st.orm.core.template.impl.Elements.ObjectExpression;
 
 /**
@@ -458,6 +460,10 @@ public abstract class QueryBuilder<T extends Data, R, ID> {
      * Adds a GROUP BY clause to the query for field at the specified path in the table graph. The metamodel can refer
      * to manually added joins.
      *
+     * <p>A path resolves to the same columns a predicate on that path would use: a foreign key expands to its foreign
+     * key column(s) on the referencing table, without joining the referenced table, and an inline record expands to
+     * its component columns. A single-column path contributes exactly one column.</p>
+     *
      * @param path the path to group by.
      * @return the query builder.
      * @since 1.2
@@ -475,6 +481,10 @@ public abstract class QueryBuilder<T extends Data, R, ID> {
      * Adds a GROUP BY clause to the query for field at the specified path in the table graph. The metamodel can refer
      * to manually added joins.
      *
+     * <p>A path resolves to the same columns a predicate on that path would use: a foreign key expands to its foreign
+     * key column(s) on the referencing table, without joining the referenced table, and an inline record expands to
+     * its component columns. A single-column path contributes exactly one column.</p>
+     *
      * @param path the path to group by.
      * @return the query builder.
      * @since 1.2
@@ -484,8 +494,7 @@ public abstract class QueryBuilder<T extends Data, R, ID> {
             throw new PersistenceException("At least one path must be provided for GROUP BY clause.");
         }
         List<TemplateString> templates = Stream.of(path)
-                .flatMap(metamodel -> metamodel.flatten().stream())
-                .flatMap(metamodel -> Stream.of(wrap(metamodel), TemplateString.of(", ")))
+                .flatMap(metamodel -> Stream.of(wrap(new Columns(metamodel, CASCADE, false)), TemplateString.of(", ")))
                 .toList();
         return groupBy(TemplateString.combine(templates.subList(0, templates.size() - 1).toArray(new TemplateString[0])));
     }
@@ -593,15 +602,16 @@ public abstract class QueryBuilder<T extends Data, R, ID> {
      * @since 1.9
      */
     public final QueryBuilder<T, R, ID> orderByDescendingAny(@Nonnull Metamodel<?, ?> path) {
-        List<TemplateString> templates = path.flatten().stream()
-                .flatMap(metamodel -> Stream.of(wrap(metamodel), TemplateString.of(" DESC"), TemplateString.of(", ")))
-                .toList();
-        return orderBy(TemplateString.combine(templates.subList(0, templates.size() - 1).toArray(new TemplateString[0])));
+        return orderBy(wrap(new Columns(path, CASCADE, true)));
     }
 
     /**
      * Adds an ORDER BY clause to the query for the fields at the specified paths in the table graph or manually
      * added joins. The results are sorted in descending order for each column.
+     *
+     * <p>A path resolves to the same columns a predicate on that path would use: a foreign key expands to its foreign
+     * key column(s) on the referencing table, without joining the referenced table, and an inline record expands to
+     * its component columns. A single-column path contributes exactly one column.</p>
      *
      * @param path the paths to order by.
      * @return the query builder.
@@ -612,8 +622,7 @@ public abstract class QueryBuilder<T extends Data, R, ID> {
             throw new PersistenceException("At least one path must be provided for ORDER BY clause.");
         }
         List<TemplateString> templates = Stream.of(path)
-                .flatMap(metamodel -> metamodel.flatten().stream())
-                .flatMap(metamodel -> Stream.of(wrap(metamodel), TemplateString.of(" DESC"), TemplateString.of(", ")))
+                .flatMap(metamodel -> Stream.of(wrap(new Columns(metamodel, CASCADE, true)), TemplateString.of(", ")))
                 .toList();
         return orderBy(TemplateString.combine(templates.subList(0, templates.size() - 1).toArray(new TemplateString[0])));
     }
@@ -634,6 +643,10 @@ public abstract class QueryBuilder<T extends Data, R, ID> {
      * Adds an ORDER BY clause to the query for the field at the specified path in the table graph or manually added
      * joins.
      *
+     * <p>A path resolves to the same columns a predicate on that path would use: a foreign key expands to its foreign
+     * key column(s) on the referencing table, without joining the referenced table, and an inline record expands to
+     * its component columns. A single-column path contributes exactly one column.</p>
+     *
      * @param path the path to order by.
      * @return the query builder.
      * @since 1.2
@@ -643,8 +656,7 @@ public abstract class QueryBuilder<T extends Data, R, ID> {
             throw new PersistenceException("At least one path must be provided for ORDER BY clause.");
         }
         List<TemplateString> templates = Stream.of(path)
-                .flatMap(metamodel -> metamodel.flatten().stream())
-                .flatMap(metamodel -> Stream.of(wrap(metamodel), TemplateString.of(", ")))
+                .flatMap(metamodel -> Stream.of(wrap(new Columns(metamodel, CASCADE, false)), TemplateString.of(", ")))
                 .toList();
         return orderBy(TemplateString.combine(templates.subList(0, templates.size() - 1).toArray(new TemplateString[0])));
     }

@@ -19,6 +19,8 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.stream.consumeAsFlow
 import st.orm.*
 import st.orm.Operator.*
+import st.orm.ResolveScope.CASCADE
+import st.orm.core.template.impl.Elements.Columns
 import st.orm.core.template.impl.Elements.ObjectExpression
 import st.orm.template.TemplateString.Companion.combine
 import st.orm.template.TemplateString.Companion.raw
@@ -608,6 +610,10 @@ abstract class QueryBuilder<T : Data, R, ID> {
      * Adds a GROUP BY clause to the query for field at the specified path in the table graph. The metamodel can refer
      * to manually added joins.
      *
+     * A path resolves to the same columns a predicate on that path would use: a foreign key expands to its foreign
+     * key column(s) on the referencing table, without joining the referenced table, and an inline record expands to
+     * its component columns. A single-column path contributes exactly one column.
+     *
      * @param path the path to group by.
      * @return the query builder.
      * @since 1.2
@@ -623,6 +629,10 @@ abstract class QueryBuilder<T : Data, R, ID> {
      * Adds a GROUP BY clause to the query for field at the specified path in the table graph. The metamodel can refer
      * to manually added joins.
      *
+     * A path resolves to the same columns a predicate on that path would use: a foreign key expands to its foreign
+     * key column(s) on the referencing table, without joining the referenced table, and an inline record expands to
+     * its component columns. A single-column path contributes exactly one column.
+     *
      * @param path the path to group by.
      * @return the query builder.
      * @since 1.2
@@ -633,7 +643,7 @@ abstract class QueryBuilder<T : Data, R, ID> {
         }
         val templates = buildList {
             path.forEachIndexed { index, navigable ->
-                add(TemplateString.wrap(navigable.asMetamodel()))
+                add(wrap(Columns(navigable.asMetamodel(), CASCADE, false)))
                 // only add a comma between elements, not after the last one.
                 if (index < path.lastIndex) {
                     add(raw(", "))
@@ -735,7 +745,7 @@ abstract class QueryBuilder<T : Data, R, ID> {
      * @return the query builder.
      * @since 1.2
      */
-    fun orderByDescending(path: Navigable<T, *>): QueryBuilder<T, R, ID> = orderBy(combine(wrap(path.asMetamodel()), raw(" DESC")))
+    fun orderByDescending(path: Navigable<T, *>): QueryBuilder<T, R, ID> = orderBy(wrap(Columns(path.asMetamodel(), CASCADE, true)))
 
     /**
      * Adds an ORDER BY clause to the query for the fields at the specified paths in the table graph. The results
@@ -755,7 +765,7 @@ abstract class QueryBuilder<T : Data, R, ID> {
      * @return the query builder.
      * @since 1.9
      */
-    fun orderByDescendingAny(path: Navigable<*, *>): QueryBuilder<T, R, ID> = orderBy(combine(wrap(path.asMetamodel()), raw(" DESC")))
+    fun orderByDescendingAny(path: Navigable<*, *>): QueryBuilder<T, R, ID> = orderBy(wrap(Columns(path.asMetamodel(), CASCADE, true)))
 
     /**
      * Adds an ORDER BY clause to the query for the fields at the specified paths in the table graph or manually
@@ -771,8 +781,7 @@ abstract class QueryBuilder<T : Data, R, ID> {
         }
         val templates = buildList {
             path.forEachIndexed { index, navigable ->
-                add(wrap(navigable.asMetamodel()))
-                add(raw(" DESC"))
+                add(wrap(Columns(navigable.asMetamodel(), CASCADE, true)))
                 if (index < path.size - 1) {
                     add(raw(", "))
                 }
@@ -815,7 +824,7 @@ abstract class QueryBuilder<T : Data, R, ID> {
         }
         val templates = buildList {
             path.forEachIndexed { index, navigable ->
-                add(wrap(navigable.asMetamodel()))
+                add(wrap(Columns(navigable.asMetamodel(), CASCADE, false)))
                 // only add a comma between elements, not after the last one.
                 if (index < path.lastIndex) {
                     add(raw(", "))

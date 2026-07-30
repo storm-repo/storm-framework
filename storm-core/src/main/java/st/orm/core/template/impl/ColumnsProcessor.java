@@ -15,11 +15,24 @@
  */
 package st.orm.core.template.impl;
 
+import static java.util.stream.Collectors.joining;
+
 import jakarta.annotation.Nonnull;
 import st.orm.core.template.SqlTemplateException;
-import st.orm.core.template.impl.Elements.Column;
+import st.orm.core.template.impl.Elements.Columns;
 
-final class ColumnProcessor implements ElementProcessor<Column> {
+/**
+ * Renders a {@link Columns} element: every column the metamodel resolves to, comma-separated.
+ *
+ * <p>Resolution mirrors {@link ColumnProcessor}, but where a {@code Column} requires the metamodel to resolve to
+ * exactly one column, this processor accepts multi-column paths (a foreign key to a table with a compound primary
+ * key, or an inline record) and expands them in model column order. This is the expansion used by the
+ * {@code groupBy} and {@code orderBy} metamodel overloads, keeping their column resolution identical to predicate
+ * resolution.</p>
+ *
+ * @since 1.13
+ */
+final class ColumnsProcessor implements ElementProcessor<Columns> {
 
     /**
      * Returns a key that represents the compiled shape of the given element.
@@ -28,40 +41,46 @@ final class ColumnProcessor implements ElementProcessor<Column> {
      * compilation output (SQL text, emitted fragments, placeholder shape, etc.). The key is compared using
      * value-based equality, so it should be immutable and implement stable {@code equals}/{@code hashCode}.</p>
      *
-     * <p>If this method returns {@code null} for any element in a template, the compiled result is considered
-     * non-cacheable and the template must be recompiled each time it is requested.</p>
-     *
-     * @param column the element to compute a key for.
+     * @param columns the element to compute a key for.
      * @return an immutable key for caching, or {@code null} if the element (or its compilation) cannot be cached.
      */
     @Override
-    public Object getCompilationKey(@Nonnull Column column) {
-        return column;
+    public Object getCompilationKey(@Nonnull Columns columns) {
+        return columns;
     }
 
     /**
      * Compiles the given element into an {@link CompiledElement}.
      *
      * <p>This method is responsible for producing the compile-time representation of the element. It must not perform
-     * runtime binding. Any binding should be deferred to {@link #bind(Column, TemplateBinder, BindHint)}.</p>
+     * runtime binding. Any binding should be deferred to {@link #bind(Columns, TemplateBinder, BindHint)}.</p>
      *
-     * @param column the element to compile.
+     * @param columns the element to compile.
      * @param compiler the active compiler context.
      * @return the compiled result for this element.
      * @throws SqlTemplateException if compilation fails.
      */
     @Override
-    public CompiledElement compile(@Nonnull Column column, @Nonnull TemplateCompiler compiler)
+    public CompiledElement compile(@Nonnull Columns columns, @Nonnull TemplateCompiler compiler)
             throws SqlTemplateException {
-        var metamodel = MetamodelFactory.canonical(column.field());
+        var metamodel = MetamodelFactory.canonical(columns.field());
         var model = compiler.getModel(metamodel.tableType());
         String alias = compiler.findQueryModel()
                 .map(QueryModel::getTable)
                 .filter(table -> table.type() == metamodel.root() && metamodel.path().isEmpty())
                 .map(AliasedTable::alias)
-                .orElseGet(() -> compiler.getAlias(metamodel, column.scope()));
-        var columnName = model.getSingleColumn(metamodel).qualifiedName(compiler.dialect());
-        return new CompiledElement("%s%s".formatted(alias.isEmpty() ? "" : alias + ".", columnName));
+                .orElseGet(() -> compiler.getAlias(metamodel, columns.scope()));
+        var resolved = model.getColumns(metamodel);
+        if (resolved.isEmpty()) {
+            throw new SqlTemplateException("No columns found for metamodel: %s.%s.%s"
+                    .formatted(metamodel.fieldType(), metamodel.path(), metamodel.field()));
+        }
+        String prefix = alias.isEmpty() ? "" : alias + ".";
+        String suffix = columns.descending() ? " DESC" : "";
+        String sql = resolved.stream()
+                .map(column -> prefix + column.qualifiedName(compiler.dialect()) + suffix)
+                .collect(joining(", "));
+        return new CompiledElement(sql);
     }
 
     /**
@@ -71,11 +90,11 @@ final class ColumnProcessor implements ElementProcessor<Column> {
      * parameters, registering bind variables, or applying runtime-only adjustments that must not affect the compiled
      * SQL shape.</p>
      *
-     * @param column the element that was compiled.
+     * @param columns the element that was compiled.
      * @param binder the binder used to bind runtime values.
      * @param bindHint the bind hint for the element, providing additional context for binding.
      */
     @Override
-    public void bind(@Nonnull Column column, @Nonnull TemplateBinder binder, @Nonnull BindHint bindHint) {
+    public void bind(@Nonnull Columns columns, @Nonnull TemplateBinder binder, @Nonnull BindHint bindHint) {
     }
 }

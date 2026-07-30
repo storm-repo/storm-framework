@@ -225,7 +225,7 @@ public class SelectBuilderImpl<T extends Data, R, ID> extends QueryBuilderImpl<T
         }
         return switch (selectTemplate.values().getFirst()) {
             case Class<?> selected -> selected == type;
-            case Elements.Select(var table, var mode, var ignore) -> table == type && mode == NESTED;
+            case Elements.Select(var table, var mode) -> table == type && mode == NESTED;
             case null, default -> false;
         };
     }
@@ -240,12 +240,13 @@ public class SelectBuilderImpl<T extends Data, R, ID> extends QueryBuilderImpl<T
                         TemplateString.of(" "));
             }
         }
-        // A resolved reference is expressed on the select element itself, so the referenced table's columns take the
-        // place its foreign key column would have occupied.
+        // A resolved reference is carried by the fetch element; the compiler collects it from the template before
+        // any element renders, so the element's position does not matter and the referenced table's columns take
+        // the place its foreign key column would have occupied.
+        //noinspection unchecked
         TemplateString selectClause = fetchPaths.isEmpty()
                 ? selectTemplate
-                //noinspection unchecked
-                : wrap(select((Class<? extends Data>) selectType, NESTED, fetchPaths));
+                : TemplateString.combine(wrap(select((Class<? extends Data>) selectType, NESTED)), wrap(new Elements.Fetch(fetchPaths)));
         template = TemplateString.combine(template, selectClause, TemplateString.raw("\nFROM \0", from(fromType, true)));
         boolean hasLock = forLock.fragments().size() == 1 && !forLock.fragments().getFirst().isEmpty();
         if (hasLock && queryTemplate.dialect().applyLockHintAfterFrom()) {

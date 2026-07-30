@@ -1284,7 +1284,16 @@ public final class MetamodelProcessor extends AbstractProcessor {
         return builder.toString();
     }
 
-    private String buildFlattenMethod(@Nonnull Element recordElement) {
+    private String buildFlattenMethod(@Nonnull Element recordElement, boolean isData) {
+        if (isData) {
+            // A Data node names its own column(s): at the root it names the table, as a foreign key field it names
+            // the foreign key column(s) on the referencing table. Column resolution expands it, so flatten does not
+            // recurse into the referenced table.
+            return "    @Override\n"
+                    + "    public java.util.List<Metamodel<T, ?>> flatten() {\n"
+                    + "        return java.util.List.<Metamodel<T, ?>>of(this);\n"
+                    + "    }\n\n";
+        }
         boolean hasInlineSubRecords = false;
         // Collect field entries: each is either "inline" (needs .flatten()) or "column" (add directly).
         List<String> fieldNames = new java.util.ArrayList<>();
@@ -1603,7 +1612,7 @@ public final class MetamodelProcessor extends AbstractProcessor {
                             "@Generated(\"" + getClass().getName() + "\")\n" +
                             "public final class " + metaClassName + "<T extends st.orm.Data> extends " + (isData ? "AbstractMetamodel" : "AbstractKeyMetamodel") + "<T, " + recordName + ", " + recordName + "> {\n\n";
 
-            String flattenMethod = buildFlattenMethod(recordElement);
+            String flattenMethod = buildFlattenMethod(recordElement, isData);
 
             String isNullableOverride = "";
             if (!isData) {
@@ -2008,7 +2017,8 @@ public final class MetamodelProcessor extends AbstractProcessor {
             initFields.setLength(initFields.length() - 1);
         }
 
-        // Build flatten method.
+        // Build flatten method. A Data node names its own column(s), so it flattens to itself; only a non-Data
+        // (inline) node expands into its components.
         List<String> fieldNames = new java.util.ArrayList<>();
         List<Boolean> fieldIsInline = new java.util.ArrayList<>();
         boolean hasInlineSubRecords = false;
@@ -2029,7 +2039,9 @@ public final class MetamodelProcessor extends AbstractProcessor {
         StringBuilder flattenMethod = new StringBuilder();
         flattenMethod.append("    @Override\n");
         flattenMethod.append("    public java.util.List<Metamodel<T, ?>> flatten() {\n");
-        if (!hasInlineSubRecords) {
+        if (isData) {
+            flattenMethod.append("        return java.util.List.<Metamodel<T, ?>>of(this);\n");
+        } else if (!hasInlineSubRecords) {
             flattenMethod.append("        return java.util.List.of(");
             for (int i = 0; i < fieldNames.size(); i++) {
                 if (i > 0) flattenMethod.append(", ");

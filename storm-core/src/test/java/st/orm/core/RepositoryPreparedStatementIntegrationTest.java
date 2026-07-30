@@ -99,6 +99,7 @@ import st.orm.core.model.Specialty;
 import st.orm.core.model.Vet;
 import st.orm.core.model.VetSpecialty;
 import st.orm.core.model.VetSpecialtyPK;
+import st.orm.core.model.VetSpecialty_;
 import st.orm.core.model.Visit;
 import st.orm.core.model.VisitWithCompoundFK;
 import st.orm.core.model.VisitWithCompoundFK_;
@@ -1635,6 +1636,240 @@ public class RepositoryPreparedStatementIntegrationTest {
         var repository = ORMTemplate.of(dataSource).entity(VisitWithCompoundFK.class);
         VisitWithCompoundFK visit = new VisitWithCompoundFK(0, LocalDate.now(), "test", Pet.builder().id(1).build(), VetSpecialty.builder().id(new VetSpecialtyPK(3, 2)).build(), Instant.now());
         repository.insert(visit);
+    }
+
+    /**
+     * A compound foreign key resolves to several columns, so it cannot stand in for a single column in a template.
+     * Storm rejects it up front rather than emitting SQL that only some dialects accept.
+     */
+    @Test
+    public void testCompoundFkInSelectTemplateRejected() {
+        var e = assertThrows(PersistenceException.class, () -> {
+            ORMTemplate.of(dataSource)
+                    .selectFrom(VisitWithCompoundFK.class, Integer.class, raw("COUNT(DISTINCT \0)", VisitWithCompoundFK_.vetSpecialty))
+                    .getSingleResult();
+        });
+        assertInstanceOf(SqlTemplateException.class, e.getCause());
+        assertTrue(e.getCause().getMessage().startsWith("Expected exactly one column for metamodel"),
+                "Expected a single-column diagnostic, got: " + e.getCause().getMessage());
+    }
+
+    /** A raw scalar comparison against a compound foreign key is rejected for the same reason. */
+    @Test
+    public void testCompoundFkInScalarComparisonRejected() {
+        var e = assertThrows(PersistenceException.class, () -> {
+            ORMTemplate.of(dataSource)
+                    .entity(VisitWithCompoundFK.class)
+                    .select()
+                    .where(it -> it.where(raw("\0 = 3", VisitWithCompoundFK_.vetSpecialty)))
+                    .getResultList();
+        });
+        assertInstanceOf(SqlTemplateException.class, e.getCause());
+        assertTrue(e.getCause().getMessage().startsWith("Expected exactly one column for metamodel"),
+                "Expected a single-column diagnostic, got: " + e.getCause().getMessage());
+    }
+
+    /** A single-column foreign key is a single column, so it stands in for one in a template. */
+    @Test
+    public void testSingleColumnFkInSelectTemplateAccepted() {
+        String expectedSql = """
+                SELECT COUNT(DISTINCT vwcfk.pet_id)
+                FROM visit vwcfk""";
+        observe(sql -> assertEquals(expectedSql, sql.statement()), () -> {
+            var count = ORMTemplate.of(dataSource)
+                    .selectFrom(VisitWithCompoundFK.class, Integer.class, raw("COUNT(DISTINCT \0)", VisitWithCompoundFK_.pet))
+                    .getSingleResult();
+            assertEquals(8, count, "8 distinct pets have visits in data.sql");
+        });
+    }
+
+    /**
+     * Code-first grouping resolves a compound foreign key like a predicate does: the foreign key columns on the
+     * referencing table, each once, without joining the referenced table.
+     */
+    @Test
+    public void testCompoundFkGroupByExpandsToForeignKeyColumns() {
+        String expectedSql = """
+                SELECT COUNT(*)
+                FROM visit vwcfk
+                GROUP BY vwcfk.vet_id, vwcfk.specialty_id""";
+        observe(sql -> assertEquals(expectedSql, sql.statement()), () -> {
+            ORMTemplate.of(dataSource)
+                    .selectFrom(VisitWithCompoundFK.class, Integer.class, TemplateString.of("COUNT(*)"))
+                    .groupBy(VisitWithCompoundFK_.vetSpecialty)
+                    .getResultList();
+        });
+    }
+
+    /** Code-first grouping resolves a single-column foreign key to its foreign key column, without a join. */
+    @Test
+    public void testSingleFkGroupByUsesForeignKeyColumn() {
+        String expectedSql = """
+                SELECT COUNT(*)
+                FROM visit v
+                GROUP BY v.pet_id""";
+        observe(sql -> assertEquals(expectedSql, sql.statement()), () -> {
+            ORMTemplate.of(dataSource)
+                    .selectFrom(Visit.class, Integer.class, TemplateString.of("COUNT(*)"))
+                    .groupBy(Visit_.pet)
+                    .getResultList();
+        });
+    }
+
+    /** Code-first grouping expands an inline record to its component columns on the owning table. */
+    @Test
+    public void testInlineRecordGroupByExpandsToComponentColumns() {
+        String expectedSql = """
+                SELECT COUNT(*)
+                FROM owner o
+                GROUP BY o.address, o.city_id""";
+        observe(sql -> assertEquals(expectedSql, sql.statement()), () -> {
+            ORMTemplate.of(dataSource)
+                    .selectFrom(Owner.class, Integer.class, TemplateString.of("COUNT(*)"))
+                    .groupBy(Owner_.address)
+                    .getResultList();
+        });
+    }
+
+    /** Code-first grouping expands a compound primary key on its own table to its key columns. */
+    @Test
+    public void testCompoundPkGroupByExpandsToKeyColumns() {
+        String expectedSql = """
+                SELECT COUNT(*)
+                FROM vet_specialty vs
+                GROUP BY vs.vet_id, vs.specialty_id""";
+        observe(sql -> assertEquals(expectedSql, sql.statement()), () -> {
+            ORMTemplate.of(dataSource)
+                    .selectFrom(VetSpecialty.class, Integer.class, TemplateString.of("COUNT(*)"))
+                    .groupBy(VetSpecialty_.id)
+                    .getResultList();
+        });
+    }
+
+    /** Descending ordering follows every expanded column of a compound foreign key with DESC. */
+    @Test
+    public void testCompoundFkOrderByDescendingExpandsPerColumn() {
+        observe(sql -> assertTrue(sql.statement().endsWith("ORDER BY vwcfk.vet_id DESC, vwcfk.specialty_id DESC"),
+                        "Expected DESC per expanded column, got: " + sql.statement()),
+                () -> {
+                    ORMTemplate.of(dataSource)
+                            .entity(VisitWithCompoundFK.class)
+                            .select()
+                            .orderByDescending(VisitWithCompoundFK_.vetSpecialty)
+                            .getResultList();
+                });
+    }
+
+    /** Ascending ordering on a compound foreign key expands to its foreign key columns without a join. */
+    @Test
+    public void testCompoundFkOrderByExpandsToForeignKeyColumns() {
+        observe(sql -> assertTrue(sql.statement().endsWith("ORDER BY vwcfk.vet_id, vwcfk.specialty_id"),
+                        "Expected the foreign key columns, got: " + sql.statement()),
+                () -> {
+                    ORMTemplate.of(dataSource)
+                            .entity(VisitWithCompoundFK.class)
+                            .select()
+                            .orderBy(VisitWithCompoundFK_.vetSpecialty)
+                            .getResultList();
+                });
+    }
+
+    /** A code-first predicate expands a compound foreign key into one comparison per key column. */
+    @Test
+    public void testCompoundFkPredicateExpandsToKeyColumns() {
+        observe(sql -> assertTrue(sql.statement().endsWith("WHERE vwcfk.vet_id = ? AND vwcfk.specialty_id = ?"),
+                        "Expected a comparison per key column, got: " + sql.statement()),
+                () -> {
+                    var visits = ORMTemplate.of(dataSource)
+                            .entity(VisitWithCompoundFK.class)
+                            .select()
+                            .where(VisitWithCompoundFK_.vetSpecialty, EQUALS, VetSpecialty.builder().id(new VetSpecialtyPK(3, 2)).build())
+                            .getResultList();
+                    assertEquals(1, visits.size(), "data.sql: visit 3 is the only visit for vet 3 / specialty 2");
+                });
+    }
+
+    /**
+     * The primary key reached through a foreign key is the foreign key column on the referencing table, whether the
+     * relationship is declared as an entity or as a reference.
+     */
+    @Test
+    public void testSingleFkPkPathGroupByUsesForeignKeyColumn() {
+        String expectedSql = """
+                SELECT COUNT(*)
+                FROM visit v
+                GROUP BY v.pet_id""";
+        observe(sql -> assertEquals(expectedSql, sql.statement()), () -> {
+            ORMTemplate.of(dataSource)
+                    .selectFrom(Visit.class, Integer.class, TemplateString.of("COUNT(*)"))
+                    .groupBy(Visit_.pet.id)
+                    .getResultList();
+        });
+    }
+
+    /** A compound primary key reached through a foreign key expands to the foreign key columns, without a join. */
+    @Test
+    public void testCompoundFkPkPathGroupByUsesForeignKeyColumns() {
+        String expectedSql = """
+                SELECT COUNT(*)
+                FROM visit vwcfk
+                GROUP BY vwcfk.vet_id, vwcfk.specialty_id""";
+        observe(sql -> assertEquals(expectedSql, sql.statement()), () -> {
+            ORMTemplate.of(dataSource)
+                    .selectFrom(VisitWithCompoundFK.class, Integer.class, TemplateString.of("COUNT(*)"))
+                    .groupBy(VisitWithCompoundFK_.vetSpecialty.id)
+                    .getResultList();
+        });
+    }
+
+    /** The same equivalence applies in templates: the pk-through-foreign-key path names the foreign key column. */
+    @Test
+    public void testSingleFkPkPathInTemplateUsesForeignKeyColumn() {
+        String expectedSql = """
+                SELECT COUNT(DISTINCT v.pet_id)
+                FROM visit v""";
+        observe(sql -> assertEquals(expectedSql, sql.statement()), () -> {
+            var count = ORMTemplate.of(dataSource)
+                    .selectFrom(Visit.class, Integer.class, raw("COUNT(DISTINCT \0)", Visit_.pet.id))
+                    .getSingleResult();
+            assertEquals(8, count, "8 distinct pets have visits in data.sql");
+        });
+    }
+
+    /** The pk path through a Ref foreign key resolves to the foreign key column, matching the entity declaration. */
+    @Test
+    public void testRefPkPathGroupByUsesForeignKeyColumn() {
+        String expectedSql = """
+                SELECT COUNT(*)
+                FROM pet por
+                GROUP BY por.owner_id""";
+        observe(sql -> assertEquals(expectedSql, sql.statement()), () -> {
+            ORMTemplate.of(dataSource)
+                    .selectFrom(PetOwnerRef.class, Integer.class, TemplateString.of("COUNT(*)"))
+                    .groupBy(PetOwnerRef_.owner.id)
+                    .getResultList();
+        });
+    }
+
+    /**
+     * A single component of a compound key reached through a foreign key resolves in the referenced table: no source
+     * column is addressable per component, so the referenced table is joined. Name the foreign key itself, or its
+     * primary key, to stay on the referencing table.
+     */
+    @Test
+    public void testCompoundPkComponentThroughFkResolvesInReferencedTable() {
+        observe(sql -> {
+                    assertTrue(sql.statement().contains("LEFT JOIN vet_specialty vs"),
+                            "Expected the referenced table to be joined, got: " + sql.statement());
+                    assertTrue(sql.statement().endsWith("GROUP BY vs.vet_id"),
+                            "Expected the component column in the referenced table, got: " + sql.statement());
+                },
+                () -> {
+                    ORMTemplate.of(dataSource)
+                            .selectFrom(VisitWithCompoundFK.class, Integer.class, TemplateString.of("COUNT(*)"))
+                            .groupBy(VisitWithCompoundFK_.vetSpecialty.id.vetId)
+                            .getResultList();
+                });
     }
 
     @Test
