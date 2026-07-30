@@ -5,6 +5,8 @@ import TabItem from '@theme/TabItem';
 
 Refs are lightweight identifiers for entities, projections, and other data types that defer fetching until explicitly required. They optimize performance by avoiding unnecessary data retrieval and are useful for managing large object graphs.
 
+Unlike a typical lazy reference, a `Ref` never trades away query capability. Filter, order, group, and select through it with the metamodel exactly as you would through a directly-referenced entity, and Storm adds the join only for the query that actually needs it. When a query already knows it needs the referenced record, it can resolve the `Ref` as part of that same statement instead of paying for a separate fetch. Choosing `Ref<T>` over the entity type is a decision about the SELECT you get by default, not a capability you give up.
+
 ---
 
 ## Using Refs in Entities
@@ -39,6 +41,8 @@ record User(@PK Integer id,
 ```
 
 The `city` field contains only the foreign key ID, not the full `City` entity.
+
+A `Ref` does not give up type-safe querying. Selecting the entity still stores only the foreign key value, but you can filter, order, and select *through* the reference by naming the target's columns on the metamodel (for example `User_.city.country.name`). Storm adds the join for the referenced table on demand, only for a query that actually navigates beyond the foreign key. See [Querying Through Refs](#querying-through-refs).
 
 </TabItem>
 </Tabs>
@@ -78,7 +82,7 @@ City city = user.map(u -> u.city().fetch()).orElse(null);  // Loads from databas
 
 ## Resolving a Ref as Part of the Query
 
-Calling `fetch()` costs one query per reference. When you know up front that you will need the referenced record, name it with `fetch(...)` on the query builder. Storm then selects the referenced table's columns in place of the foreign key column, joined into the same statement, and the reference comes back already loaded.
+Calling `fetch()` costs one query per reference. When you know up front that you will need the referenced record, name it with `fetch(...)` on the query builder. Storm then selects the referenced table's columns in place of the foreign key column, joined into the same statement, and the reference comes back already loaded. Read it with `getOrThrow()` rather than `fetch()`: both return the loaded record without a query, but `getOrThrow()` makes that guarantee visible at the call site instead of relying on `fetch()`'s dual on-demand/already-loaded behavior.
 
 <Tabs groupId="language">
 <TabItem value="kotlin" label="Kotlin" default>
@@ -88,7 +92,7 @@ val users = orm.entity<User>().select()
     .fetch(User_.city, User_.city.country)
     .resultList
 
-val city = users.first().city.fetch()   // already loaded, no query
+val city = users.first().city.getOrThrow()   // no query, and the code shows it
 ```
 
 </TabItem>
@@ -100,7 +104,7 @@ List<User> users = orm.entity(User.class)
     .fetch(User_.city, User_.city.country)
     .getResultList();
 
-City city = users.getFirst().city().fetch();   // already loaded, no query
+City city = users.getFirst().city().getOrThrow();   // no query, and the code shows it
 ```
 
 </TabItem>
@@ -121,8 +125,8 @@ List<User> users = orm.entity(User.class).select()
     .fetch(User_.city)
     .getResultList();
 
-City city = users.getFirst().city().fetch();    // loaded
-city.country().isLoaded();                      // false, still a foreign key column
+City city = users.getFirst().city().getOrThrow();    // no query, and the code shows it
+city.country().isLoaded();                           // false, still a foreign key column
 ```
 
 Because a reference is always a to-one foreign key, resolving one widens the row without multiplying it: there is no row fan-out to guard against, unlike a join across a collection. A cycle stays bounded by the depth the path names, so a self-reference is resolved exactly as far as you ask:
