@@ -1,6 +1,6 @@
 import React, {useEffect} from 'react';
 import Head from '@docusaurus/Head';
-import {TUT_CSS, navHtml, FOOT_HTML} from '../../components/tutorial/tutorialTheme';
+import {TUT_CSS, navHtml, FOOT_HTML, heroArt} from '../../components/tutorial/tutorialTheme';
 
 // The tutorial hub at /tutorials, rendered in the landing-page style (see
 // tutorialTheme.js). Three series: "From JPA" and "From Exposed" compare the
@@ -16,15 +16,17 @@ const DESC =
 const BODY = `
 ${navHtml('tutorials')}
 
-<div class="tuthero">
+<div class="pagehero">
   <h1>Familiar Tasks.<br><span class="grad">Simpler Solutions.</span></h1>
   <p class="sub">Task-focused tutorials for engineers coming from JPA, Hibernate, or Exposed, plus how-to recipes for Storm itself. Each comparison takes a persistence task you already know, shows both approaches side by side, and lets you inspect the SQL they produce.</p>
   <div class="catnav">
+    <a href="" class="on" data-all="1" aria-current="true">All<b>24</b></a>
     <a href="#start-here">Start here<b>1</b></a>
     <a href="#from-jpa">From JPA<b>10</b></a>
     <a href="#from-exposed">From Exposed<b>7</b></a>
     <a href="#storm-way">The Storm way<b>6</b></a>
   </div>
+  ${heroArt('tutorials', {priority: true})}
 </div>
 
 <div class="shead" id="start-here"><span class="mark">//</span>Start here<span class="sdesc">New to Storm? Build a complete REST API from an empty project, then use the task recipes below as you go.</span></div>
@@ -186,7 +188,13 @@ function wireTutorialFilters() {
   const sections = Array.from(root.querySelectorAll('.shead'));
   const handlers = [];
   const apply = (filter) => {
-    chips.forEach((c) => c.classList.toggle('on', !!filter && (c.getAttribute('href') || '').slice(1) === filter));
+    chips.forEach((c) => {
+      const isAll = c.hasAttribute('data-all');
+      const on = filter ? !isAll && (c.getAttribute('href') || '').slice(1) === filter : isAll;
+      c.classList.toggle('on', on);
+      if (on) c.setAttribute('aria-current', 'true');
+      else c.removeAttribute('aria-current');
+    });
     sections.forEach((shead) => {
       const cards = shead.nextElementSibling;
       const show = !filter || shead.id === filter;
@@ -197,7 +205,7 @@ function wireTutorialFilters() {
   chips.forEach((chip) => {
     const onClick = (e) => {
       e.preventDefault();
-      const id = (chip.getAttribute('href') || '').slice(1);
+      const id = chip.hasAttribute('data-all') ? '' : (chip.getAttribute('href') || '').slice(1);
       apply(chip.classList.contains('on') ? '' : id);
     };
     chip.addEventListener('click', onClick);

@@ -1,6 +1,6 @@
 import React, {useEffect} from 'react';
 import Head from '@docusaurus/Head';
-import {TUT_CSS, navHtml, FOOT_HTML} from '../../components/tutorial/tutorialTheme';
+import {TUT_CSS, navHtml, FOOT_HTML, heroArt} from '../../components/tutorial/tutorialTheme';
 
 // The blog hub at /blog, rendered in the landing-page style (see
 // tutorialTheme.js) rather than with Docusaurus's built-in blog plugin, so it
@@ -134,25 +134,20 @@ const cards = ORDERED.map(
   </a>`,
 ).join('');
 
-// One chip per category. No chip is active by default, so every card shows;
-// wireBlogFilters() applies the selected category and toggles it back off.
+// An "All" chip carrying the full count, then one chip per category. "All" is
+// selected on load so the unfiltered state is represented rather than implied;
+// wireBlogFilters() keeps it in sync with the category chips.
 const filterBar = `
 <div class="bfilters">
+  <button type="button" class="bchip on" data-filter="" aria-pressed="true">All<b>${ORDERED.length}</b></button>
   ${CATEGORIES.map(
-    (c) => `<button type="button" class="bchip" data-filter="${c.tag}">${c.tag}<b>${c.count}</b></button>`,
+    (c) => `<button type="button" class="bchip" data-filter="${c.tag}" aria-pressed="false">${c.tag}<b>${c.count}</b></button>`,
   ).join('')}
 </div>`;
 
-const BLOG_FILTER_CSS = `
-  .storm-tut .bfilters{display:flex;gap:12px;flex-wrap:wrap;margin-top:28px}
-  .storm-tut .bchip{font-family:var(--mono);font-size:12.5px;color:#b1b5da;border:1px solid transparent;border-radius:999px;padding:8px 16px;cursor:pointer;transition:color .16s ease,box-shadow .16s ease;line-height:1;
-    background:linear-gradient(#10101a,#10101a) padding-box,linear-gradient(150deg,#4a4e74 0%,#3c3e62 22%,#2d2e47 46%,#27273d 54%,#383a62 74%,#454877 92%,#313352 100%) border-box}
-  .storm-tut .bchip:hover{color:#e9eaf7;box-shadow:0 0 9px rgba(129,140,248,.12)}
-  .storm-tut .bchip.on{color:#f2ecff;font-weight:600;box-shadow:0 0 9px rgba(129,140,248,.12);
-    background:linear-gradient(#131028,#131028) padding-box,linear-gradient(150deg,#7a80be 0%,#6167a2 22%,#4a4f80 46%,#434877 54%,#6167a2 74%,#7c82c0 92%,#545a90 100%) border-box}
-  .storm-tut .bchip b{color:rgba(178,182,220,.55);font-weight:500;margin-left:7px}
-  .storm-tut .bchip.on b{color:rgba(215,220,255,.5)}
-`;
+// The filter pills themselves are styled in the shared theme, alongside the
+// tutorials row, so the two stay identical.
+const BLOG_FILTER_CSS = ``;
 
 // Wires the filter chips: clicking one highlights it and shows only the cards
 // whose data-tag matches (an empty filter shows all). Mirrors wireSqlToggles().
@@ -162,10 +157,11 @@ function wireBlogFilters() {
   const chips = Array.from(root.querySelectorAll('.bchip'));
   const cardEls = Array.from(root.querySelectorAll('.cards .tcard'));
   const handlers = [];
-  // No active chip means show everything; an active chip filters to its
-  // category; clicking the active chip again deselects it and shows all.
+  // Exactly one chip is always active: a category, or "All" (the empty filter)
+  // when nothing is narrowed. Clicking the active category chip returns to All.
   const apply = (filter) => {
-    chips.forEach((c) => c.classList.toggle('on', !!filter && c.getAttribute('data-filter') === filter));
+    chips.forEach((c) => c.classList.toggle('on', c.getAttribute('data-filter') === filter));
+    chips.forEach((c) => c.setAttribute('aria-pressed', String(c.classList.contains('on'))));
     cardEls.forEach((card) => {
       const show = !filter || card.getAttribute('data-tag') === filter;
       card.style.display = show ? '' : 'none';
@@ -185,10 +181,11 @@ function wireBlogFilters() {
 const BODY = `
 ${navHtml('blog')}
 
-<div class="tuthero">
+<div class="pagehero">
   <h1>Ideas behind<br><span class="grad">the framework.</span></h1>
   <p class="sub">Design decisions, deep dives, and the reasoning that shapes ST/ORM.</p>
 ${filterBar}
+${heroArt('blog', {priority: true})}
 </div>
 
 <div class="shead" id="articles"><span class="mark">//</span>Articles<span class="sdesc">Why ST/ORM is built the way it is, and what that means for the code you write.</span></div>
