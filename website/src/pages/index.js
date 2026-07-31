@@ -60,8 +60,8 @@ const CSS = `
      hold longer to clear it. Decorative only, hence aria-hidden. */
   .storm-home .heroart{display:block;position:absolute;top:-60px;right:calc(50% - 600px);width:min(60%,790px);height:560px;
     pointer-events:none;user-select:none;z-index:0;opacity:.9;mix-blend-mode:screen;
-    -webkit-mask-image:radial-gradient(72% 82% at 56% 42%,#000 18%,rgba(0,0,0,.55) 50%,transparent 76%),linear-gradient(to right,transparent 0%,rgba(0,0,0,.15) 38%,rgba(0,0,0,.5) 58%,#000 80%);
-    mask-image:radial-gradient(72% 82% at 56% 42%,#000 18%,rgba(0,0,0,.55) 50%,transparent 76%),linear-gradient(to right,transparent 0%,rgba(0,0,0,.15) 38%,rgba(0,0,0,.5) 58%,#000 80%);
+    -webkit-mask-image:radial-gradient(72% 82% at 56% 42%,#000 18%,rgba(0,0,0,.55) 50%,transparent 76%),linear-gradient(to right,transparent 0%,rgba(0,0,0,.15) 38%,rgba(0,0,0,.5) 58%,#000 80%),linear-gradient(to bottom,#000 48%,rgba(0,0,0,.74) 72%,transparent 94%);
+    mask-image:radial-gradient(72% 82% at 56% 42%,#000 18%,rgba(0,0,0,.55) 50%,transparent 76%),linear-gradient(to right,transparent 0%,rgba(0,0,0,.15) 38%,rgba(0,0,0,.5) 58%,#000 80%),linear-gradient(to bottom,#000 48%,rgba(0,0,0,.74) 72%,transparent 94%);
     -webkit-mask-composite:source-in;mask-composite:intersect}
   .storm-home .heroart img{width:100%;height:100%;object-fit:cover;object-position:center;display:block}
   /* Below the lane width the art would collide with the copy, so pull it back

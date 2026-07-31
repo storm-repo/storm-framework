@@ -145,19 +145,9 @@ const filterBar = `
   ).join('')}
 </div>`;
 
-const BLOG_FILTER_CSS = `
-  /* Capped to the same measure as the hero copy so the row wraps before it
-     reaches the artwork, rather than running into it at narrow desktop widths. */
-  .storm-tut .bfilters{display:flex;gap:12px;flex-wrap:wrap;margin-top:28px;max-width:700px}
-  .storm-tut .bchip{font-family:var(--mono);font-size:12.5px;color:#b1b5da;border:1px solid transparent;border-radius:999px;padding:8px 16px;cursor:pointer;transition:color .16s ease,box-shadow .16s ease;line-height:1;
-    background:linear-gradient(#10101a,#10101a) padding-box,linear-gradient(150deg,#4a4e74 0%,#3c3e62 22%,#2d2e47 46%,#27273d 54%,#383a62 74%,#454877 92%,#313352 100%) border-box}
-  .storm-tut .bchip:hover{color:#e9eaf7;box-shadow:0 0 9px rgba(129,140,248,.12)}
-  .storm-tut .bchip:focus-visible{outline:2px solid var(--accent);outline-offset:3px;color:#e9eaf7}
-  .storm-tut .bchip.on{color:#f2ecff;font-weight:600;box-shadow:0 0 9px rgba(129,140,248,.12);
-    background:linear-gradient(#131028,#131028) padding-box,linear-gradient(150deg,#7a80be 0%,#6167a2 22%,#4a4f80 46%,#434877 54%,#6167a2 74%,#7c82c0 92%,#545a90 100%) border-box}
-  .storm-tut .bchip b{color:rgba(178,182,220,.55);font-weight:500;margin-left:7px}
-  .storm-tut .bchip.on b{color:rgba(215,220,255,.5)}
-`;
+// The filter pills themselves are styled in the shared theme, alongside the
+// tutorials row, so the two stay identical.
+const BLOG_FILTER_CSS = ``;
 
 // Wires the filter chips: clicking one highlights it and shows only the cards
 // whose data-tag matches (an empty filter shows all). Mirrors wireSqlToggles().
