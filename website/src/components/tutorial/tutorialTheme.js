@@ -303,6 +303,31 @@ export const navHtml = (active) => `
   </div>
 </div></nav>`;
 
+/**
+ * Decorative schema artwork for a page hero.
+ *
+ * Three crops per page: a wide desktop composition with copy space on the
+ * left, a narrower tablet crop, and a square mobile crop the layout places
+ * below the copy. AVIF is offered first with WebP as the fallback, and the
+ * intrinsic size is declared so the art reserves its space instead of shifting
+ * the hero as it decodes.
+ *
+ * The artwork carries no information the copy does not already state, so it is
+ * marked `aria-hidden` with an empty alt: announcing it would only add noise
+ * to a screen reader. Pass `priority` on the page whose hero is the largest
+ * paint above the fold; the rest load lazily.
+ */
+export const heroArt = (page, {priority = false} = {}) => `
+<picture class="heroart heroart-${page}" aria-hidden="true">
+  <source media="(max-width:900px)" type="image/avif" srcset="/img/hero/orm-${page}-mobile.avif" />
+  <source media="(max-width:900px)" type="image/webp" srcset="/img/hero/orm-${page}-mobile.webp" />
+  <source media="(max-width:1200px)" type="image/avif" srcset="/img/hero/orm-${page}-tablet.avif" />
+  <source media="(max-width:1200px)" type="image/webp" srcset="/img/hero/orm-${page}-tablet.webp" />
+  <source type="image/avif" srcset="/img/hero/orm-${page}-desktop.avif" />
+  <img src="/img/hero/orm-${page}-desktop.webp" alt="" width="1600" height="900" decoding="async"
+    ${priority ? 'fetchpriority="high"' : 'loading="lazy"'} />
+</picture>`;
+
 export const FOOT_HTML = `
 <footer><div class="wrap foot">
   <div class="brand"><img class="logo" src="/img/storm-light.png" alt="Storm" /></div>
@@ -468,13 +493,72 @@ export const TUT_CSS = `
   .storm-tut .refs a{font-family:var(--mono);font-size:12px;color:var(--muted);border:1px solid var(--border-soft);border-radius:999px;padding:6px 14px;transition:.16s}
   .storm-tut .refs a:hover{color:var(--accent);border-color:rgba(129,140,248,.4)}
 
-  /* tutorial hub */
-  .storm-tut .tuthero{max-width:1080px;margin:0 auto;padding:64px 24px 6px}
-  .storm-tut .tuthero .sub{color:var(--muted);font-size:17.5px;line-height:1.66;margin:20px 0 0;max-width:700px}
-  .storm-tut .catnav{display:flex;gap:10px;margin-top:28px;flex-wrap:wrap}
+  /* One hero for every hub page: same centred measure, same horizontal padding,
+     same vertical rhythm, so heading position and spacing match as you move
+     between them. The proportions follow the comparison and benchmarks heroes,
+     which read best. */
+  /* Height follows the hero's own copy: the artwork is absolutely positioned and
+     overflows on its own, so reserving a minimum here only opened a gap under
+     the shorter heroes. */
+  .storm-tut .pagehero{position:relative;max-width:1080px;margin:0 auto;padding:56px 24px 14px}
+  .storm-tut .pagehero>*:not(.heroart){position:relative;z-index:1}
+  /* Hub pages share one measure end to end: the hero, the sections under it and
+     the article body all sit on the same lane, so the headline starts on the
+     site's left edge on every page and nothing is wider than what follows it.
+     .art keeps its narrower reading measure for the long-form tutorial and blog
+     posts; the hub pages opt into the wide lane. */
+  .storm-tut .art-wide{max-width:1080px}
+  /* Descriptive copy is held near 62ch: comfortable to read and narrow enough
+     that the artwork behind it stays clear of the text column. */
+  .storm-tut .pagehero .sub,.storm-tut .pagehero .dek{max-width:62ch}
+  .storm-tut .pagehero .dek{color:var(--muted);font-size:17.5px;line-height:1.66;margin:20px 0 0}
+  .storm-tut .pagehero .sub{color:var(--muted);font-size:17.5px;line-height:1.66;margin:20px 0 0}
+  .storm-tut .pagehero h1{text-wrap:balance}
+
+  /* The artwork sits to the right of the hero copy, sized and placed to the same
+     values on every page: one right edge, one height, one crop. The radial layer
+     dissolves its outer edges so nothing reads as a rectangle, and the
+     horizontal layer holds it back over the text column and releases it toward
+     the right. The image's black sits on a near-black page, so screen blending
+     drops that black into the background and leaves only the schema light. */
+  .storm-tut .heroart{display:block;position:absolute;top:-60px;right:-60px;width:min(62%,790px);height:560px;
+    pointer-events:none;user-select:none;z-index:0;opacity:.9;mix-blend-mode:screen;
+    -webkit-mask-image:radial-gradient(72% 82% at 56% 42%,#000 18%,rgba(0,0,0,.55) 50%,transparent 76%),linear-gradient(to right,transparent 0%,rgba(0,0,0,.15) 38%,rgba(0,0,0,.62) 54%,#000 68%);
+    mask-image:radial-gradient(72% 82% at 56% 42%,#000 18%,rgba(0,0,0,.55) 50%,transparent 76%),linear-gradient(to right,transparent 0%,rgba(0,0,0,.15) 38%,rgba(0,0,0,.62) 54%,#000 68%);
+    -webkit-mask-composite:source-in;mask-composite:intersect}
+  .storm-tut .heroart img{width:100%;height:100%;object-fit:cover;object-position:88% center;display:block}
+  /* Per-composition trim: each render places its schema a little differently in
+     the frame, so these settle them onto the same optical line. */
+  .storm-tut .heroart-examples{top:-30px}
+  /* Sits lowest of the set, so it also takes a bottom fade that finishes above
+     the article cards; without it the art would still be lit where they begin. */
+  .storm-tut .heroart-blog{top:-5px;
+    -webkit-mask-image:radial-gradient(72% 82% at 56% 42%,#000 18%,rgba(0,0,0,.55) 50%,transparent 76%),linear-gradient(to right,transparent 0%,rgba(0,0,0,.15) 38%,rgba(0,0,0,.62) 54%,#000 68%),linear-gradient(to bottom,#000 40%,transparent 74%);
+    mask-image:radial-gradient(72% 82% at 56% 42%,#000 18%,rgba(0,0,0,.55) 50%,transparent 76%),linear-gradient(to right,transparent 0%,rgba(0,0,0,.15) 38%,rgba(0,0,0,.62) 54%,#000 68%),linear-gradient(to bottom,#000 40%,transparent 74%)}
+  /* Positioned art would otherwise paint over the static sections that follow. */
+  .storm-tut .shead,.storm-tut .cards,.storm-tut .art>*{position:relative;z-index:1}
+  /* The hero already carries the leading space, so the article body that follows
+     it starts tight rather than adding its own. */
+  .storm-tut .pagehero + .art{padding-top:6px}
+  @media(max-width:900px){
+    /* Below the copy rather than behind it: the square crop reads as its own
+       band instead of competing with the heading for the same space. */
+    .storm-tut .pagehero{min-height:0}
+    .storm-tut .heroart{position:relative;top:auto;right:auto;width:auto;height:auto;margin:24px 0 0;opacity:.9;
+      -webkit-mask-image:linear-gradient(to bottom,#000 66%,transparent 100%);
+      mask-image:linear-gradient(to bottom,#000 66%,transparent 100%)}
+    .storm-tut .heroart img{height:auto;aspect-ratio:1/1;object-position:center}
+  }
+  @media(prefers-reduced-motion:no-preference){
+    .storm-tut .heroart{animation:storm-hero-fade .9s ease both}
+  }
+  @keyframes storm-hero-fade{from{opacity:0}to{opacity:1}}
+
+  .storm-tut .catnav{display:flex;gap:10px;margin-top:28px;flex-wrap:wrap;max-width:62ch}
   .storm-tut .catnav a{font-family:var(--mono);font-size:12.5px;color:#b1b5da;border:1px solid transparent;border-radius:999px;padding:8px 16px;transition:color .16s ease,box-shadow .16s ease;cursor:pointer;
     background:linear-gradient(#10101a,#10101a) padding-box,linear-gradient(150deg,#4a4e74 0%,#3c3e62 22%,#2d2e47 46%,#27273d 54%,#383a62 74%,#454877 92%,#313352 100%) border-box}
   .storm-tut .catnav a:hover{color:#e9eaf7;box-shadow:0 0 9px rgba(129,140,248,.12)}
+  .storm-tut .catnav a:focus-visible{outline:2px solid var(--accent);outline-offset:3px;color:#e9eaf7}
   .storm-tut .catnav a.on{color:#f2ecff;font-weight:600;box-shadow:0 0 9px rgba(129,140,248,.12);
     background:linear-gradient(#131028,#131028) padding-box,linear-gradient(150deg,#7a80be 0%,#6167a2 22%,#4a4f80 46%,#434877 54%,#6167a2 74%,#7c82c0 92%,#545a90 100%) border-box}
   .storm-tut .catnav a b{color:rgba(178,182,220,.55);font-weight:500;margin-left:7px}
@@ -486,11 +570,15 @@ export const TUT_CSS = `
   @media(max-width:840px){.storm-tut .cards{grid-template-columns:1fr}}
   .storm-tut .tcard{display:block;border:1px solid var(--border-soft);border-radius:14px;padding:20px 22px;background:var(--panel-2);transition:.16s}
   .storm-tut .tcard:hover{border-color:rgba(129,140,248,.45);transform:translateY(-1px)}
+  .storm-tut .tcard:focus-visible{outline:2px solid var(--accent);outline-offset:3px;border-color:rgba(129,140,248,.45)}
   .storm-tut .tcard .tt{font-size:16.5px;font-weight:650;letter-spacing:-.01em}
   .storm-tut .tcard .tt .arrow{color:var(--accent);margin-left:8px}
   .storm-tut .tcard .td{color:var(--muted);font-size:13.5px;line-height:1.62;margin-top:8px}
   .storm-tut .tcard .tm{display:flex;gap:8px;margin-top:14px;flex-wrap:wrap}
-  .storm-tut .tcard .tm span{font-family:var(--mono);font-size:11px;color:var(--faint);border:1px solid var(--border-soft);border-radius:999px;padding:4px 11px}
+  /* --muted rather than --faint: at 11px these are normal-size text, and --faint
+     on the card background measures 2.72:1, below the 4.5:1 minimum. --muted
+     clears it at 5.76:1 while staying quieter than the body copy. */
+  .storm-tut .tcard .tm span{font-family:var(--mono);font-size:11px;color:var(--muted);border:1px solid var(--border);border-radius:999px;padding:4px 11px}
   .storm-tut .soon{max-width:1080px;margin:0 auto;padding:30px 24px 70px}
   .storm-tut .soon .lbl{font-family:var(--mono);font-size:11px;letter-spacing:.16em;text-transform:uppercase;color:var(--faint)}
   .storm-tut .soon .chips{display:flex;gap:8px;margin-top:14px;flex-wrap:wrap}

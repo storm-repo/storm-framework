@@ -1,6 +1,6 @@
 import React, {useEffect} from 'react';
 import Head from '@docusaurus/Head';
-import {TUT_CSS, navHtml, FOOT_HTML, wireSqlToggles} from '../components/tutorial/tutorialTheme';
+import {TUT_CSS, navHtml, FOOT_HTML, wireSqlToggles, heroArt} from '../components/tutorial/tutorialTheme';
 
 // The comparison page at /comparison, in the landing/tutorial style. A
 // scannable, code-light companion to the in-depth docs/comparison.md: a
@@ -90,10 +90,13 @@ function buildBody() {
   return `
 ${navHtml('comparison')}
 
-<div class="art">
+<div class="pagehero">
   <h1>Your options.<br><span class="grad">Side by side.</span></h1>
   <p class="dek">There is no universally best data framework. Storm is built for teams who want explicit, predictable database access with concise, immutable models. Here is where it sits next to the alternatives, and where each of them is the better call.</p>
+  ${heroArt('comparison', {priority: true})}
+</div>
 
+<div class="art art-wide">
   <h2>At a glance</h2>
   <p>Decision-relevant differences across the most common choices. This page compares the designs; the measured numbers, on identical workloads, live on the <a class="tlink" href="/benchmarks">benchmarks page</a>.</p>
   ${matrix}

@@ -47,7 +47,33 @@ const CSS = `
   .storm-home .btn.primary.go:hover{filter:brightness(1.12)}
 
   /* hero: left aligned */
-  .storm-home header{padding:46px 0 34px}
+  .storm-home header{padding:46px 0 34px;position:relative;overflow:hidden}
+  /* Hero artwork: a schema render behind the hero copy, held inside the same
+     1120px lane as the rest of the page rather than bleeding to the viewport
+     edge. The render is a glow on near-black over a near-black page, so
+     screen blending drops its black into the background and leaves only the
+     schema light: no rectangle edge, just the glow sitting in the page. The
+     mask trims how far it reaches toward the copy and fades it out before the
+     editor below, which keeps the demo on a clean backdrop. The horizontal ramp
+     reaches full brightness later than on the other pages: this hero's copy runs
+     to roughly 77% of the frame, against about 55% elsewhere, so the veil has to
+     hold longer to clear it. Decorative only, hence aria-hidden. */
+  .storm-home .heroart{display:block;position:absolute;top:-60px;right:calc(50% - 600px);width:min(60%,790px);height:560px;
+    pointer-events:none;user-select:none;z-index:0;opacity:.9;mix-blend-mode:screen;
+    -webkit-mask-image:radial-gradient(72% 82% at 56% 42%,#000 18%,rgba(0,0,0,.55) 50%,transparent 76%),linear-gradient(to right,transparent 0%,rgba(0,0,0,.15) 38%,rgba(0,0,0,.5) 58%,#000 80%);
+    mask-image:radial-gradient(72% 82% at 56% 42%,#000 18%,rgba(0,0,0,.55) 50%,transparent 76%),linear-gradient(to right,transparent 0%,rgba(0,0,0,.15) 38%,rgba(0,0,0,.5) 58%,#000 80%);
+    -webkit-mask-composite:source-in;mask-composite:intersect}
+  .storm-home .heroart img{width:100%;height:100%;object-fit:cover;object-position:center;display:block}
+  /* Below the lane width the art would collide with the copy, so pull it back
+     to the viewport edge and let the mask carry the blend. */
+  @media(max-width:1180px){
+    .storm-home .heroart{right:0;width:min(50%,520px)}
+  }
+  .storm-home header .wrap{position:relative;z-index:1}
+  @media(prefers-reduced-motion:no-preference){
+    .storm-home .heroart{animation:storm-hero-fade .9s ease both}
+  }
+  @keyframes storm-hero-fade{from{opacity:0}to{opacity:1}}
   .storm-home h1{font-size:clamp(42px,7vw,78px);line-height:.97;letter-spacing:-.04em;font-weight:800;margin:0}
   .storm-home .grad{background:linear-gradient(100deg,#a78bfa,#818cf8 50%,#7dd3fc);-webkit-background-clip:text;background-clip:text;color:transparent}
   .storm-home .vs-chips{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:18px}
@@ -118,6 +144,10 @@ const CSS = `
     .storm-home .hero-cta{margin-top:20px}
     .storm-home .hero-cta .btn{flex:1 1 100%;justify-content:center;height:44px}
     .storm-home .stage{margin-top:34px}
+    /* The art would either sit under the heading, costing contrast, or take a
+       band of its own and push the CTA below the fold. Neither is worth it on
+       the screen size the fold is tuned for, so the hero goes back to copy. */
+    .storm-home .heroart{display:none}
   }
   .storm-home .sub{max-width:600px;margin:24px 0 0;color:var(--muted);font-size:18px;line-height:1.62}
   .storm-home .sub a{color:var(--accent);text-decoration:underline;text-underline-offset:3px}
@@ -261,7 +291,14 @@ const BODY = `
   </div>
 </div></nav>
 
-<header><div class="wrap">
+<header>
+<picture class="heroart" aria-hidden="true">
+  <source media="(max-width:1200px)" type="image/avif" srcset="/img/hero/orm-home-tablet.avif" />
+  <source media="(max-width:1200px)" type="image/webp" srcset="/img/hero/orm-home-tablet.webp" />
+  <source type="image/avif" srcset="/img/hero/orm-home-desktop.avif" />
+  <img src="/img/hero/orm-home-desktop.webp" alt="" width="1600" height="900" decoding="async" fetchpriority="high" />
+</picture>
+<div class="wrap">
   <h1><span class="hero-swap" id="heroTop">
     <span class="in">Radically Simple.</span>
     <span>Measurably Fast.</span>

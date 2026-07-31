@@ -1,6 +1,6 @@
 import React from 'react';
 import Head from '@docusaurus/Head';
-import {TUT_CSS, navHtml, FOOT_HTML} from '../../components/tutorial/tutorialTheme';
+import {TUT_CSS, navHtml, FOOT_HTML, heroArt} from '../../components/tutorial/tutorialTheme';
 
 // The example-projects hub at /examples, rendered in the landing-page style
 // (see tutorialTheme.js). Three complete movie-browser applications built on
@@ -17,9 +17,10 @@ const DESC =
 const BODY = `
 ${navHtml('examples')}
 
-<div class="tuthero">
+<div class="pagehero">
   <h1>Real applications,<br><span class="grad">built with Storm.</span></h1>
-  <p class="sub">The same movie browser on the public IMDB dataset, implemented on Ktor and Spring Boot, in Kotlin and Java, plus GraalVM native-image variants, so you can compare stacks and explore what idiomatic Storm looks like in a real project: immutable entities, metamodel-based queries, transactions, schema validation, and a full test suite. Clone one and run it with Docker and Gradle.</p>
+  <p class="sub">The same movie browser on the public IMDB dataset, built on Ktor and Spring Boot, in Kotlin and Java, with GraalVM native-image variants. Each one shows idiomatic Storm in a real project. Clone one and run it with Docker and Gradle.</p>
+  ${heroArt('examples', {priority: true})}
 </div>
 
 <div class="shead" id="projects"><span class="mark">//</span>Example projects<span class="sdesc">Server-rendered movie browsers: entities, repositories, projections, pagination, transactions, and tests in a working application.</span></div>

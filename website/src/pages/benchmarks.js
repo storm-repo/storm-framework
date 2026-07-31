@@ -1,7 +1,7 @@
 import React, {useEffect} from 'react';
 import Head from '@docusaurus/Head';
 import {
-  TUT_CSS, navHtml, FOOT_HTML, wireSqlToggles, editor, clonebar,
+  TUT_CSS, navHtml, FOOT_HTML, wireSqlToggles, editor, clonebar, heroArt,
   K, T, S, C, F, N, A, P, QK, QQ, QC,
 } from '../components/tutorial/tutorialTheme';
 
@@ -1640,7 +1640,7 @@ function buildBody() {
   return `
 ${navHtml('benchmarks')}
 
-<div class="art">
+<div class="pagehero">
   <h1>Concise by design.<br><span class="grad">Fast by default.</span></h1>
   <p class="dek">Across this reproducible latency suite, Storm is the fastest ORM on 7 of 12 workloads and second on the rest, its lead widening on the mapping-heavy joins.</p>
   <p class="dek">Eight implementations run against the same database with identical schema, data, and transaction boundaries. Every result includes a real TCP round trip, and the source behind every number is open for inspection.</p>
@@ -1649,14 +1649,19 @@ ${navHtml('benchmarks')}
   <div class="bm-stats">
     <div class="bm-stat"><b>7 of 12</b><span>workloads where Storm is the fastest ORM outright.</span></div>
     <div class="bm-stat"><b>Always top 2</b><span>No other ORM is that consistent; each drops to fourth or lower on some workload.</span></div>
-    <div class="bm-stat"><b>44% less</b><span>per-row hydration overhead than the closest framework on the thousand-row join; the rest of the field pays at least 2.6x Storm's cost.</span></div>
+    <div class="bm-stat"><b>44% less</b><span>per-row hydration overhead than the closest framework on the thousand-row join.</span></div>
   </div>
+  ${heroArt('benchmarks', {priority: true})}
+</div>
 
+<div class="art art-wide">
   <h2>Performance results</h2>
   <p>The workloads cover common data-access paths: point reads, joined entity hydration, projections, keyset pagination, dynamic queries, batch and dependency-ordered writes, change-aware updates and one-to-many object graphs.</p>
   <p>Eight implementations, one database, one discipline: same schema, same data, same transaction boundaries, every score a real network round trip away from PostgreSQL. The chart plots every workload as a multiple of the hand-written JDBC baseline, so each line traces a framework's overhead across the twelve workloads. The chart opens with the primary key lookup and then orders the workloads by how far the field spreads from JDBC, keeping the three join sizes together, so overhead grows to the right and a flat line means the framework does not follow. Lower is faster; the dashed line is JDBC itself.</p>
   ${lineChartHtml()}
   <p class="bm-matrix-read">Storm leads or shares the lead on ten of twelve workloads: alone in front on the primary-key lookup, keyset pagination, all three joins and both inserts, and within 2% of the leader on the dynamic query, the update and the create-then-amend. The two it does not reach go to jOOQ, which takes the object graph with a single MULTISET JSON aggregate instead of repeated join rows, and Hibernate, which edges the projection by 2.4%.</p>
+
+  <p class="bm-matrix-read">Hydration is where the field spreads furthest: on the thousand-row join Storm carries 44% less per-row overhead than the closest framework, and the rest of the field pays at least 2.6x Storm's cost.</p>
 
   <p class="bm-matrix-read">Storm's write advantage is a volume story: the batch and graph inserts run 1.4 to 1.5x faster than Hibernate, while the single-row update and create-then-amend are a near-tie at the front, Storm within a percent of the leader on both.</p>
 
