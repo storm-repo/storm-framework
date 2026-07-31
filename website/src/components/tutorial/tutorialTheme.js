@@ -306,11 +306,11 @@ export const navHtml = (active) => `
 /**
  * Decorative schema artwork for a page hero.
  *
- * Three crops per page: a wide desktop composition with copy space on the
- * left, a narrower tablet crop, and a square mobile crop the layout places
- * below the copy. AVIF is offered first with WebP as the fallback, and the
- * intrinsic size is declared so the art reserves its space instead of shifting
- * the hero as it decodes.
+ * Two crops per page: a wide desktop composition with copy space on the left,
+ * and a narrower tablet crop. AVIF is offered first with WebP as the fallback,
+ * and the intrinsic size is declared so the art reserves its space instead of
+ * shifting the hero as it decodes. There is no small-screen crop: below the
+ * width where the art has room beside the copy the layout hides it entirely.
  *
  * The artwork carries no information the copy does not already state, so it is
  * marked `aria-hidden` with an empty alt: announcing it would only add noise
@@ -319,8 +319,6 @@ export const navHtml = (active) => `
  */
 export const heroArt = (page, {priority = false} = {}) => `
 <picture class="heroart heroart-${page}" aria-hidden="true">
-  <source media="(max-width:900px)" type="image/avif" srcset="/img/hero/orm-${page}-mobile.avif" />
-  <source media="(max-width:900px)" type="image/webp" srcset="/img/hero/orm-${page}-mobile.webp" />
   <source media="(max-width:1200px)" type="image/avif" srcset="/img/hero/orm-${page}-tablet.avif" />
   <source media="(max-width:1200px)" type="image/webp" srcset="/img/hero/orm-${page}-tablet.webp" />
   <source type="image/avif" srcset="/img/hero/orm-${page}-desktop.avif" />
@@ -546,14 +544,12 @@ export const TUT_CSS = `
   /* The hero already carries the leading space, so the article body that follows
      it starts tight rather than adding its own. */
   .storm-tut .pagehero + .art{padding-top:6px}
-  @media(max-width:900px){
-    /* Below the copy rather than behind it: the square crop reads as its own
-       band instead of competing with the heading for the same space. */
-    .storm-tut .pagehero{min-height:0}
-    .storm-tut .heroart{position:relative;top:auto;right:auto;width:auto;height:auto;margin:24px 0 0;opacity:.9;
-      -webkit-mask-image:linear-gradient(to bottom,#000 66%,transparent 100%);
-      mask-image:linear-gradient(to bottom,#000 66%,transparent 100%)}
-    .storm-tut .heroart img{height:auto;aspect-ratio:1/1;object-position:center}
+  /* The artwork needs clear space to the right of the copy. Below this width
+     there is none: it would either sit under the text or take a screen of its
+     own to scroll past, and it carries no information the copy does not. So it
+     is dropped rather than restacked. */
+  @media(max-width:1100px){
+    .storm-tut .heroart{display:none}
   }
   @media(prefers-reduced-motion:no-preference){
     .storm-tut .heroart{animation:storm-hero-fade .9s ease both}

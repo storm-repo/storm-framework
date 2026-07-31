@@ -69,6 +69,12 @@ const CSS = `
   @media(max-width:1180px){
     .storm-home .heroart{right:0;width:min(50%,520px)}
   }
+  /* No room beside the copy below this width, and the art carries nothing the
+     copy does not say, so it goes rather than crowding the text or pushing the
+     call to action down the page. */
+  @media(max-width:1100px){
+    .storm-home .heroart{display:none}
+  }
   .storm-home header .wrap{position:relative;z-index:1}
   @media(prefers-reduced-motion:no-preference){
     .storm-home .heroart{animation:storm-hero-fade .9s ease both}
@@ -144,10 +150,6 @@ const CSS = `
     .storm-home .hero-cta{margin-top:20px}
     .storm-home .hero-cta .btn{flex:1 1 100%;justify-content:center;height:44px}
     .storm-home .stage{margin-top:34px}
-    /* The art would either sit under the heading, costing contrast, or take a
-       band of its own and push the CTA below the fold. Neither is worth it on
-       the screen size the fold is tuned for, so the hero goes back to copy. */
-    .storm-home .heroart{display:none}
   }
   .storm-home .sub{max-width:600px;margin:24px 0 0;color:var(--muted);font-size:18px;line-height:1.62}
   .storm-home .sub a{color:var(--accent);text-decoration:underline;text-underline-offset:3px}
