@@ -5,7 +5,7 @@ import TabItem from '@theme/TabItem';
 
 Transaction management is fundamental to database programming. Storm takes a practical approach: rather than inventing new abstractions, it provides first-class support for standard transaction semantics while integrating seamlessly with your existing infrastructure.
 
-Storm works directly with JDBC transactions and supports both programmatic and declarative transaction management. For Kotlin, Storm provides a coroutine-friendly API inspired by Exposed. For Java, Storm integrates with Spring's transaction management or works directly with JDBC connections.
+Storm works directly with JDBC transactions and supports both programmatic and declarative transaction management. For Kotlin, Storm provides a coroutine-friendly API inspired by Exposed. For Java, Storm provides the same programmatic API through `Transactions.transaction(...)`, and integrates with Spring's transaction management or works directly with JDBC connections.
 
 ---
 
@@ -763,6 +763,10 @@ try {
 
 This design ensures that the root cause of a failure is never masked by callback errors.
 
+Callbacks a block defers to a Spring-managed transaction run as Spring synchronizations and follow Spring's
+rules instead: a failure there is logged by Spring rather than thrown. See
+[Mixed-Usage Caveats](#mixed-usage-caveats).
+
 #### Propagation Interaction
 
 Callbacks are tied to the **physical** transaction, not the logical scope. This distinction matters when nesting transactions with different propagation modes.
@@ -949,6 +953,35 @@ transaction {
 }
 ```
 
+#### Registering from Nested Code
+
+The callbacks above are registered on the block's own handle, which works wherever the block is in view. Code
+that runs *beneath* the block never sees that handle: an [entity callback](entity-lifecycle.md#logging), a
+service method several frames down is called by Storm or by your own code, not handed the transaction.
+
+Such code participates the same way any transactional code does: it opens a `transaction { }` block of its own.
+With joining propagation, the default, the block is the same transaction, and its callbacks defer to the
+outermost physical commit exactly as the [propagation rules](#propagation-interaction) describe:
+
+```kotlin
+class ArticleCallback : EntityCallback<Article> {
+    override fun afterInsert(entity: Article) {
+        transactionBlocking {
+            // Joins the transaction the insert runs in; the publish waits for its commit.
+            onCommit { events.publish(ArticlePublished(entity)) }
+        }
+    }
+}
+```
+
+The nested block adds no transaction of its own and, when it performs no database work, no work at all: it is a
+registration point. This holds inside Spring-managed transactions as well; see
+[Mixed-Usage Caveats](#mixed-usage-caveats) for the fine print.
+
+Register once per unit of work rather than once per record. An entity callback fires per entity, including for
+each row of a batch, so registering there means one callback per row held until commit. Collect into a list and
+register a single callback when the volume is more than a handful.
+
 ### Global Transaction Options
 
 Set defaults for all transactions:
@@ -984,7 +1017,7 @@ withTransactionOptionsBlocking(isolation = SERIALIZABLE) {
 
 ### How Transactions Bind to Templates
 
-Since 1.13, a `transaction` or `transactionBlocking` block binds to the first `ORMTemplate` that executes inside it. Opening the block only records the requested options (propagation, isolation, timeout, read-only); the actual transaction is opened by that first template's transaction provider. This means the block automatically uses whatever transaction system the template is configured with, whether that is Storm's own JDBC transactions or a platform bridge such as Spring's transaction management. A block that never touches a template completes as a no-op.
+Since 1.13, a `transaction` or `transactionBlocking` block binds to the first `ORMTemplate` that executes inside it. Opening the block only records the requested options (propagation, isolation, timeout, read-only); the actual transaction is opened by that first template's transaction provider. This means the block automatically uses whatever transaction system the template is configured with, whether that is Storm's own JDBC transactions or a platform bridge such as Spring's transaction management. A block that never touches a template completes as a no-op; callbacks it registered and a rollback-only mark still settle against the transaction that surrounds it, whether that is an outer Storm block or a detected externally managed transaction (see [Mixed-Usage Caveats](#mixed-usage-caveats)).
 
 Templates that should share a transaction must use the same transaction provider instance. This is automatic for repositories of one application (the Spring Boot starter and the Ktor plugin configure one provider per application context or plugin installation). Mixing templates with *different* transaction providers inside one block fails fast with a descriptive error, since a single commit cannot span two transaction systems.
 
@@ -1037,83 +1070,111 @@ class UserService(private val orm: ORMTemplate) {
 }
 ```
 
-#### Propagation Interaction
+#### Mixed-Usage Caveats
+
+Storm blocks and Spring-managed transactions compose without special care. A Storm block finds the transaction
+it belongs to in one of three ways: through Storm's own scope chain, when the surrounding transaction is
+another Storm block; through the first query that executes inside it (see
+[How Transactions Bind to Templates](#how-transactions-bind-to-templates)); or, when neither exists and the
+propagation is joining, by detecting the Spring transaction active on the thread. In every case the result is
+the same, whether or not the block performs database work: `onCommit` and `onRollback` wait for the transaction
+that actually commits, and `setRollbackOnly()` dooms it.
+
+That is what makes the [nested-code pattern](#registering-from-nested-code) work identically under
+`@Transactional`. An entity callback that runs inside a Spring-managed write registers its commit hook the same
+way it would inside a Storm-managed one:
+
+```kotlin
+class ArticlePublishingCallback : EntityCallback<Article> {
+    override fun afterInsert(entity: Article) {
+        transactionBlocking {
+            // The block detects the Spring transaction the insert runs in; the publish waits for its commit.
+            onCommit { events.publish(ArticlePublished(entity)) }
+        }
+    }
+}
+```
+
+Two limits remain:
+
+- Callbacks that wait for Spring's completion run as Spring transaction synchronizations, so a callback that
+  throws is logged by Spring rather than surfacing as a `TransactionCallbackException`.
+- The rules above describe joining propagation, the default. A `REQUIRES_NEW` block opens its own independent
+  transaction and fires its own callbacks, exactly as within Storm-managed transactions.
+
+#### Propagation with @Transactional
 
 Storm's propagation modes work with Spring transactions:
 
 ```kotlin
 @Transactional
-suspend fun processWithAudit(user: User) {
-    transaction {
+fun processWithAudit(user: User) {
+    transactionBlocking {
         orm insert user
     }
 
     // REQUIRES_NEW creates an independent transaction, even within Spring's transaction
-    transaction(propagation = REQUIRES_NEW) {
+    transactionBlocking(propagation = REQUIRES_NEW) {
         auditRepository.log("User created: ${user.id}")
         // Commits independently - audit survives even if outer transaction rolls back
     }
 }
 ```
 
-#### Suspend Functions with @Transactional
+#### Suspend Functions and @Transactional
 
-For suspend functions, use Spring's `@Transactional` with the coroutine-aware transaction manager:
+Spring's `@Transactional` does not support suspending functions with a JDBC `PlatformTransactionManager`:
+Spring requires a `ReactiveTransactionManager` for suspending methods, which JDBC does not provide. Storm's
+suspending `transaction { }` variant is likewise rejected with Spring-managed transactions, since Spring binds
+its transaction state to the calling thread.
+
+Keep the transactional boundary blocking and call it from coroutine code on an IO dispatcher:
 
 ```kotlin
-@Configuration
-@EnableTransactionManagement
-class TransactionConfig {
-    @Bean
-    fun transactionManager(dataSource: DataSource): ReactiveTransactionManager {
-        return DataSourceTransactionManager(dataSource)
-    }
-}
-
 @Service
 class OrderService(private val orm: ORMTemplate) {
 
     @Transactional
-    suspend fun placeOrder(order: Order): Order {
-        val savedOrder = orm insert order
-
-        // Can switch dispatchers while staying in the same transaction
-        withContext(Dispatchers.Default) {
-            calculateLoyaltyPoints(savedOrder)
-        }
-
-        return savedOrder
-    }
+    fun placeOrder(order: Order): Order = orm insert order
 }
+
+// From coroutine code:
+val saved = withContext(Dispatchers.IO) { orderService.placeOrder(order) }
 ```
+
+Dispatcher freedom inside a transaction — switching with `withContext` while staying in the same transaction —
+is a property of Storm-managed [suspend transactions](#suspend-transactions); a Spring-managed transaction stays
+on the thread that started it.
 
 #### Using Storm Without @Transactional
 
-You can also use Storm's programmatic transactions without Spring's `@Transactional`. Storm manages the transaction lifecycle directly:
+You can also use Storm's programmatic transactions without Spring's `@Transactional`. With the Spring-composed
+template the blocks run through Spring's transaction manager all the same; only the boundary is programmatic:
 
 ```kotlin
 @Service
 class UserService(private val orm: ORMTemplate) {
 
-    // No @Transactional needed - Storm handles it
-    suspend fun createUser(user: User): User {
-        return transaction {
-            orm insert user
-        }
+    // No @Transactional needed - the block drives the transaction
+    fun createUser(user: User): User = transactionBlocking {
+        orm insert user
     }
 
     // Explicit propagation and isolation
-    suspend fun transferFunds(from: Account, to: Account, amount: BigDecimal) {
-        transaction(
-            propagation = REQUIRED,
-            isolation = SERIALIZABLE
-        ) {
+    fun transferFunds(from: Account, to: Account, amount: BigDecimal) {
+        transactionBlocking(propagation = REQUIRED, isolation = SERIALIZABLE) {
             accountRepository.debit(from, amount)
             accountRepository.credit(to, amount)
         }
     }
 }
 ```
+
+### Ktor Route Transactions
+
+In Ktor, the [`transactional { }` route DSL](ktor-integration.md#route-scoped-transactions) wraps a group of routes so that
+every call to a route inside it runs in its own transaction, opened before the handler and committed when it returns.
+It takes the same options as `transaction { }` and leaves the handlers free of transaction code.
 
 </TabItem>
 <TabItem value="java" label="Java">
@@ -1192,6 +1253,30 @@ transaction(tx -> {
 ```
 
 Callbacks registered in a scope that joins an outer transaction are deferred to the outermost physical transaction's completion; `REQUIRES_NEW` scopes fire their own callbacks independently. The three kinds share one registration order: callbacks run in the order they were registered after the transaction has fully completed, skipping the ones that do not apply to the outcome. `onCompletion` receives whether the transaction committed, which is the variant for work that has to happen either way. If a callback throws, the remaining callbacks still execute and the failures surface as a `TransactionCallbackException` whose cause is the first one, with the rest suppressed; `isCommitted()` tells a failed side effect apart from a failed transaction, which need opposite responses, since retrying the former repeats work that already succeeded.
+
+### Registering from Nested Code
+
+Code that does not see the block's `tx` handle — an [entity callback](entity-lifecycle.md#logging), a helper
+several frames down — participates by opening a joining block of its own. With the default `REQUIRED`
+propagation its callbacks register on the transaction it joins and defer to the outermost physical commit:
+
+```java
+public class ArticleCallback implements EntityCallback<Article> {
+    @Override
+    public void afterInsert(Article entity) {
+        Transactions.transaction(tx -> {
+            // Joins the transaction the insert runs in; the publish waits for its commit.
+            tx.onCommit(() -> events.publish(new ArticlePublished(entity)));
+            return null;
+        });
+    }
+}
+```
+
+The nested block adds no transaction of its own and, when it performs no database work, no work at all: it is a
+registration point. This holds inside Spring-managed transactions as well; see
+[Mixed-Usage Caveats](#mixed-usage-caveats-1) for the fine print. Register once per unit of work rather than once
+per record: an entity callback fires per entity, including for each row of a batch.
 
 ### Global and Scoped Defaults
 
@@ -1308,9 +1393,9 @@ public class AuditService {
 }
 ```
 
-#### Programmatic Transactions
+#### Spring's TransactionTemplate
 
-While `@Transactional` works well for most cases, sometimes you need finer control over transaction boundaries. For example, processing a batch where each item should be in its own transaction, or conditionally rolling back based on runtime conditions. Spring's `TransactionTemplate` provides this control while still integrating with Spring's transaction infrastructure.
+While `@Transactional` works well for most cases, sometimes you need finer control over transaction boundaries. For example, processing a batch where each item should be in its own transaction, or conditionally rolling back based on runtime conditions. Spring's `TransactionTemplate` provides this control while still integrating with Spring's transaction infrastructure. Storm's own [`transaction(...)`](#programmatic-transactions) blocks are the alternative, with the same boundaries and Storm's callback API.
 
 ```java
 @Service
@@ -1361,6 +1446,39 @@ List<User> users = template.execute(status -> {
 });
 ```
 
+#### Mixed-Usage Caveats
+
+Storm blocks and Spring-managed transactions compose without special care. A Storm block finds the transaction
+it belongs to in one of three ways: through Storm's own scope chain, when the surrounding transaction is
+another Storm block; through the first query that executes inside it; or, when neither exists and the
+propagation is joining, by detecting the Spring transaction active on the thread. In every case the result is
+the same, whether or not the block performs database work: `onCommit` and `onRollback` wait for the transaction
+that actually commits, and `setRollbackOnly()` dooms it.
+
+That is what makes the [nested-code pattern](#registering-from-nested-code-1) work identically under
+`@Transactional`. An entity callback that runs inside a Spring-managed write registers its commit hook the same
+way it would inside a Storm-managed one:
+
+```java
+public class ArticlePublishingCallback implements EntityCallback<Article> {
+    @Override
+    public void afterInsert(Article entity) {
+        Transactions.transaction(tx -> {
+            // The block detects the Spring transaction the insert runs in; the publish waits for its commit.
+            tx.onCommit(() -> events.publish(new ArticlePublished(entity)));
+            return null;
+        });
+    }
+}
+```
+
+Two limits remain:
+
+- Callbacks that wait for Spring's completion run as Spring transaction synchronizations, so a callback that
+  throws is logged by Spring rather than surfacing as a `TransactionCallbackException`.
+- The rules above describe joining propagation, the default. A `REQUIRES_NEW` block opens its own independent
+  transaction and fires its own callbacks, exactly as within Storm-managed transactions.
+
 ### JDBC Transactions
 
 For applications not using Spring, or for maximum control, you can manage transactions directly through JDBC. Storm works with any JDBC connection. Create an `ORMTemplate` from the connection and use it within your transaction scope.
@@ -1410,19 +1528,25 @@ public class HybridService {
 
 ---
 
-## Important Notes
+## A Transaction Runs One Thing at a Time
 
-Understanding these nuances helps avoid common pitfalls when working with transactions.
+A transaction owns a single database connection, and a connection can serve only one caller at a time. That, rather than any particular thread, is what bounds a transaction.
 
-### Concurrency
+**Moving between threads is fine.** A Storm-managed suspend `transaction { }` travels with the coroutine context, so `withContext(Dispatchers.IO)` or `Dispatchers.Default` inside the block offloads work and comes back in the same transaction. `withContext` suspends the caller until it returns, so the transaction is still doing one thing at a time. The same holds for the blocking API on virtual threads: a block parks on I/O rather than pinning its carrier thread, and the transaction goes with it.
 
-Launching concurrent work inside a transaction using `async`, `launch`, or other parallel coroutine builders is **not supported**. Database transactions are bound to the calling thread/coroutine. Use sequential operations or split work into separate transactions if parallelism is required.
+**Doing two things at once is not.** Work started with `async`, `launch`, an `ExecutorService`, or a parallel stream *inherits* the transaction and then uses its connection concurrently, which the connection cannot serve. Await each unit before starting the next, or give the parallel work its own transactions.
 
-### RollbackOnly Semantics
+```kotlin
+transaction {
+    // Fine: sequential, even though it changes dispatcher and thread.
+    val report = withContext(Dispatchers.Default) { render(orm.findAll<Order>()) }
+    orm insert Archive(report)
 
-- In `NESTED` propagation: rolls back to the savepoint, preserving outer transaction's work
-- In `REQUIRED` or `REQUIRES_NEW`: affects the entire transaction scope
+    // Not supported: both halves would use this transaction's connection at once.
+    // val a = async { orm insert first }
+    // val b = async { orm insert second }
+    // awaitAll(a, b)
+}
+```
 
-### Context Switching (Kotlin)
-
-Within any transactional scope, you can switch dispatchers (e.g., `withContext(Dispatchers.Default)`) and still access the **same active transaction**. This allows offloading CPU-bound work without breaking transactional context.
+A Spring-managed transaction is bound to its thread rather than a coroutine context, so it does not travel across dispatchers at all; see [Suspend Functions and @Transactional](#suspend-functions-and-transactional).

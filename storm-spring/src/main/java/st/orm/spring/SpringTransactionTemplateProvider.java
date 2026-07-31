@@ -25,6 +25,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.function.Consumer;
 import java.util.function.Supplier;
 import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.support.DefaultTransactionDefinition;
@@ -180,6 +181,23 @@ public class SpringTransactionTemplateProvider implements TransactionTemplatePro
                                 return context.isRollbackOnly();
                             }
                         };
+                    }
+
+                    @Override
+                    public boolean joinedExistingTransaction() {
+                        return context.joinedExistingTransaction();
+                    }
+
+                    @Override
+                    public void deferCompletion(@Nonnull Consumer<Boolean> callback) {
+                        // The Spring-managed transaction this handle joined owns the commit; the callback fires
+                        // on its outcome, as a synchronization on the physical transaction.
+                        TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+                            @Override
+                            public void afterCompletion(int status) {
+                                callback.accept(status == TransactionSynchronization.STATUS_COMMITTED);
+                            }
+                        });
                     }
 
                     @Override

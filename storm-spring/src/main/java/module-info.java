@@ -25,4 +25,5 @@ module storm.spring {
     exports st.orm.spring;
     exports st.orm.spring.boot;
     exports st.orm.spring.impl;
+    provides st.orm.core.spi.ExternalTransactionProvider with st.orm.spring.SpringExternalTransactionProvider;
 }

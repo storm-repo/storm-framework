@@ -149,6 +149,159 @@ class SpringTransactionBridgeTest {
     }
 
     @Test
+    void joinedBlockDefersCallbacksToTheSpringCommit() {
+        var events = new java.util.ArrayList<String>();
+        var springTransaction = new org.springframework.transaction.support.TransactionTemplate(transactionManager);
+        springTransaction.executeWithoutResult(status -> {
+            transaction(tx -> {
+                tx.onCommit(() -> events.add("commit"));
+                tx.onRollback(() -> events.add("rollback"));
+                insertVisit("joined");
+                return null;
+            });
+            // The joined block has returned, but the physical Spring transaction is still open.
+            assertEquals(List.of(), events, "callbacks must not fire while the physical transaction is open");
+            status.setRollbackOnly();
+        });
+        assertEquals(List.of("rollback"), events);
+    }
+
+    @Test
+    void joinedBlockCallbacksFireOnTheSpringCommit() {
+        var events = new java.util.ArrayList<String>();
+        var springTransaction = new org.springframework.transaction.support.TransactionTemplate(transactionManager);
+        springTransaction.executeWithoutResult(status -> {
+            transaction(tx -> {
+                tx.onCommit(() -> events.add("commit"));
+                tx.onRollback(() -> events.add("rollback"));
+                insertVisit("joined, kept");
+                return null;
+            });
+            assertEquals(List.of(), events, "callbacks must wait for the Spring commit");
+        });
+        assertEquals(List.of("commit"), events);
+    }
+
+    @Test
+    void entityCallbackParticipatesInAStormManagedTransaction() {
+        var events = new java.util.ArrayList<String>();
+        // An entity callback wanting commit-time work participates by opening a joining block of its own. The
+        // block joins the Storm-managed transaction the insert runs in, so the callback fires on its outcome.
+        ORMTemplate withCallback = orm.withEntityCallback(new st.orm.EntityCallback<Visit>() {
+            @Override
+            public void afterInsert(@jakarta.annotation.Nonnull Visit entity) {
+                transaction(tx -> {
+                    tx.onCommit(() -> events.add("inserted " + entity.description()));
+                    return null;
+                });
+            }
+        });
+        transaction(tx -> {
+            withCallback.entity(Visit.class).insert(new Visit(null, LocalDate.now(), "kept", pet, Instant.now()));
+            assertEquals(List.of(), events, "the log must wait for the commit");
+            return null;
+        });
+        assertEquals(List.of("inserted kept"), events);
+
+        events.clear();
+        assertThrows(IllegalStateException.class, () ->
+                transaction(tx -> {
+                    withCallback.entity(Visit.class).insert(new Visit(null, LocalDate.now(), "undone", pet, Instant.now()));
+                    throw new IllegalStateException("Fail the transaction.");
+                }));
+        assertEquals(List.of(), events, "a rolled-back insert must not be logged as if it had been applied");
+    }
+
+    @Test
+    void entityCallbackDefersItsLogToTheSpringCommit() {
+        var events = new java.util.ArrayList<String>();
+        // The same pattern as under Storm-managed transactions: the callback opens a joining block of its own.
+        // The block runs no query, so the detected Spring transaction is what its onCommit waits for.
+        ORMTemplate withCallback = orm.withEntityCallback(new st.orm.EntityCallback<Visit>() {
+            @Override
+            public void afterInsert(@jakarta.annotation.Nonnull Visit entity) {
+                transaction(tx -> {
+                    tx.onCommit(() -> events.add("inserted " + entity.description()));
+                    return null;
+                });
+            }
+        });
+        var springTransaction = new org.springframework.transaction.support.TransactionTemplate(transactionManager);
+        springTransaction.executeWithoutResult(status -> {
+            withCallback.entity(Visit.class).insert(new Visit(null, LocalDate.now(), "kept", pet, Instant.now()));
+            assertEquals(List.of(), events, "the log must wait for the commit");
+        });
+        assertEquals(List.of("inserted kept"), events);
+
+        events.clear();
+        springTransaction.executeWithoutResult(status -> {
+            withCallback.entity(Visit.class).insert(new Visit(null, LocalDate.now(), "undone", pet, Instant.now()));
+            status.setRollbackOnly();
+        });
+        assertEquals(List.of(), events, "a rolled-back insert must not be logged as if it had been applied");
+    }
+
+    @Test
+    void registrationOnlyBlockDefersCallbacksToTheSpringCommit() {
+        // The block performs no database work, so it never binds to a template; the detected Spring transaction
+        // is what settles its callbacks.
+        var events = new java.util.ArrayList<String>();
+        var springTransaction = new org.springframework.transaction.support.TransactionTemplate(transactionManager);
+        springTransaction.executeWithoutResult(status -> {
+            transaction(tx -> {
+                tx.onCommit(() -> events.add("commit"));
+                tx.onRollback(() -> events.add("rollback"));
+                return null;
+            });
+            assertEquals(List.of(), events, "callbacks must wait for the Spring commit");
+        });
+        assertEquals(List.of("commit"), events);
+    }
+
+    @Test
+    void registrationOnlyBlockCallbacksFollowTheSpringRollback() {
+        var events = new java.util.ArrayList<String>();
+        var springTransaction = new org.springframework.transaction.support.TransactionTemplate(transactionManager);
+        springTransaction.executeWithoutResult(status -> {
+            transaction(tx -> {
+                tx.onCommit(() -> events.add("commit"));
+                tx.onRollback(() -> events.add("rollback"));
+                return null;
+            });
+            status.setRollbackOnly();
+        });
+        assertEquals(List.of("rollback"), events);
+    }
+
+    @Test
+    void registrationOnlyBlockPropagatesRollbackOnlyToSpring() {
+        long before = visits.count();
+        var springTransaction = new org.springframework.transaction.support.TransactionTemplate(transactionManager);
+        // Spring reports a transaction that was marked rollback-only from within, rather than rolling back
+        // silently, which is how it treats every rollback-only mark it did not make itself.
+        assertThrows(org.springframework.transaction.UnexpectedRollbackException.class, () ->
+                springTransaction.executeWithoutResult(status -> {
+                    insertVisit("doomed by the inner mark");
+                    transaction(tx -> {
+                        tx.setRollbackOnly();
+                        return null;
+                    });
+                }));
+        assertEquals(before, visits.count());
+    }
+
+    @Test
+    void registrationOnlyBlockWithoutAnyTransactionFiresAtBlockEnd() {
+        // No transaction anywhere: block end is the completion, so the callbacks fire there.
+        var events = new java.util.ArrayList<String>();
+        transaction(tx -> {
+            tx.onCommit(() -> events.add("commit"));
+            return null;
+        });
+        assertEquals(List.of("commit"), events);
+    }
+
+    @Test
     void providerWithoutManagersRejectsStormInitiatedTransactions() {
         ORMTemplate unbridged = ORMTemplate.builder(dataSource)
                 .connectionProvider(new SpringConnectionProvider())

@@ -222,7 +222,7 @@ A callback that throws in order to block a removal only blocks the paths that ca
 
 ### Database Operations Inside Callbacks
 
-Callbacks execute in the same thread and transaction as the repository operation that triggered them. This means a callback can safely perform additional database work, such as inserting related entities, querying for validation data, or updating audit logs, and that work will participate in the same transaction. If the transaction rolls back, all changes made by callbacks roll back as well.
+Callbacks execute in the same thread and transaction as the repository operation that triggered them. This means a callback can safely perform additional database work, such as inserting related entities, querying for validation data, or updating audit logs, and that work will participate in the same transaction. If the transaction rolls back, all changes made by callbacks roll back as well. Work that must happen only once the transaction commits, and side effects outside the database that a rollback cannot take back, belong on a commit callback registered through a joining [`transaction { }`](transactions.md#registering-from-nested-code) block instead; see [Logging](#logging).
 
 In Spring Boot, callbacks are regular beans and can have repositories or other services injected through standard dependency injection. Outside Spring, a callback can capture a reference to the `ORMTemplate` or a repository at construction time.
 
@@ -378,7 +378,7 @@ public class ArticleValidationCallback implements EntityCallback<Article> {
 
 ### Logging
 
-The "after" callbacks are well-suited for logging, since they fire only after the database operation succeeds. This avoids logging mutations that were rolled back. What gets logged depends on the method that performed the write (see [After Callback Entity State](#after-callback-entity-state)): `insert` logs what your application sent, while `insertAndFetch` logs the stored row.
+The "after" callbacks are well-suited for logging, since they fire only after the database operation succeeds, so a statement that failed never produces an entry. What gets logged depends on the method that performed the write (see [After Callback Entity State](#after-callback-entity-state)): `insert` logs what your application sent, while `insertAndFetch` logs the stored row.
 
 ```java
 public class ArticleLoggingCallback implements EntityCallback<Article> {
@@ -400,3 +400,42 @@ public class ArticleLoggingCallback implements EntityCallback<Article> {
     }
 }
 ```
+
+They fire *within* the transaction, though, not after it commits. The statement succeeded, but the transaction it belongs to has not finished, so an entry written straight from the callback outlives a mutation that a later rollback undoes.
+
+That is fine for a log that records attempts. Where the record must reflect committed state, and for any side effect that cannot be taken back, such as publishing an event or invalidating a cache, the callback participates in the transaction the way any code does: it opens a joining [`transaction { }`](transactions.md#registering-from-nested-code) block and registers the work as a commit callback, which runs only if the transaction commits:
+
+<Tabs groupId="language">
+<TabItem value="kotlin" label="Kotlin" default>
+
+```kotlin
+class ArticlePublishingCallback : EntityCallback<Article> {
+    override fun afterInsert(entity: Article) {
+        transactionBlocking {
+            onCommit { events.publish(ArticlePublished(entity.id)) }
+        }
+    }
+}
+```
+
+</TabItem>
+<TabItem value="java" label="Java">
+
+```java
+public class ArticlePublishingCallback implements EntityCallback<Article> {
+    @Override
+    public void afterInsert(Article entity) {
+        Transactions.transaction(tx -> {
+            tx.onCommit(() -> events.publish(new ArticlePublished(entity.id())));
+            return null;
+        });
+    }
+}
+```
+
+</TabItem>
+</Tabs>
+
+The pattern works the same under a Spring-managed transaction (`@Transactional`): the block detects the active Spring transaction, so the publish waits for Spring's commit. See [Mixed-Usage Caveats](transactions.md#mixed-usage-caveats) for the fine print.
+
+The callback fires once per entity, including for each row of a batch write, so registering there registers one callback per row. For anything beyond a handful, collect the entities and register a single callback for the batch instead.

@@ -112,10 +112,20 @@ public final class TransactionRunner {
         CURRENT_CALLBACKS.set(callbacks);
         R value;
         boolean rollbackOnly;
+        // Read while the scope still holds its transaction state, which completing releases.
+        boolean joinedExternal;
+        boolean mayDefer;
+        boolean mayMark;
         try {
             value = block.execute(scopeTransaction(scope, callbacks));
             rollbackOnly = scope.isRollbackOnly();
+            joinedExternal = scope.joinedExistingTransaction();
+            mayDefer = mayDeferToExternal(scope);
+            mayMark = mayMarkExternalRollbackOnly(scope);
         } catch (Throwable e) {
+            joinedExternal = scope.joinedExistingTransaction();
+            mayDefer = mayDeferToExternal(scope);
+            mayMark = mayMarkExternalRollbackOnly(scope);
             // Restore and uninstall the scope before firing so callbacks see a clean state.
             restoreCallbacks(previousCallbacks);
             Throwable wrapped;
@@ -127,7 +137,7 @@ public final class TransactionRunner {
                 scope.close();
             }
             try {
-                callbacks.fireRollback();
+                complete(scope, callbacks, joinedExternal, mayDefer, mayMark, false);
             } catch (Throwable callbackException) {
                 wrapped.addSuppressed(callbackException);
             }
@@ -144,17 +154,13 @@ public final class TransactionRunner {
             }
         } catch (Throwable completionException) {
             try {
-                callbacks.fireRollback();
+                complete(scope, callbacks, joinedExternal, mayDefer, mayMark, false);
             } catch (Throwable callbackException) {
                 completionException.addSuppressed(callbackException);
             }
             throw sneakyThrow(completionException);
         }
-        if (rollbackOnly) {
-            callbacks.fireRollback();
-        } else {
-            callbacks.fireCommit();
-        }
+        complete(scope, callbacks, joinedExternal, mayDefer, rollbackOnly && mayMark, !rollbackOnly);
         return value;
     }
 
@@ -207,6 +213,114 @@ public final class TransactionRunner {
             return new TransactionTimedOutException(description != null ? base + " [" + description + "]" : base, e);
         }
         return e;
+    }
+
+    /**
+     * Settles the block's callbacks for the given outcome.
+     *
+     * <p>A block inside a physical transaction an external manager owns has not reached an outcome yet: that
+     * manager still decides one and commits. A block that joined the transaction hands its callbacks to its
+     * transaction handle, which registers them with the manager to fire on the real outcome, keeping their
+     * registration order. A block that never bound to a template settles the same way through the detected
+     * external transaction, which also receives the block's rollback-only demand, mirroring how a joined scope
+     * marks its parent. Everything else fires here, since the block's own transaction has completed.</p>
+     */
+    private static void complete(@Nonnull TransactionScope scope,
+                                 @Nonnull BlockingCallbacks callbacks,
+                                 boolean joinedExternal,
+                                 boolean mayDeferToExternal,
+                                 boolean markExternalRollbackOnly,
+                                 boolean committed) {
+        if (joinedExternal) {
+            if (!callbacks.isEmpty()) {
+                scope.deferCompletion(callbacks::fire);
+            }
+            return;
+        }
+        if (mayDeferToExternal && (markExternalRollbackOnly || !callbacks.isEmpty())) {
+            var external = externalTransaction();
+            if (external != null) {
+                if (markExternalRollbackOnly) {
+                    external.setRollbackOnly();
+                }
+                if (!callbacks.isEmpty()) {
+                    external.onCompletion(callbacks::fire);
+                }
+                return;
+            }
+        }
+        if (callbacks.isEmpty()) {
+            return;
+        }
+        if (committed) {
+            callbacks.fireCommit();
+        } else {
+            callbacks.fireRollback();
+        }
+    }
+
+    /**
+     * Returns whether the block may sit inside an externally managed transaction it never bound to: its scope
+     * never materialized while its propagation joins whatever transaction surrounds it. Settlement then asks
+     * the {@link ExternalTransactionProvider external transaction providers} whether one is active.
+     *
+     * <p>Must be called before the scope completes, since completing releases the transaction state this
+     * reads.</p>
+     *
+     * @param scope the scope of the completed block.
+     * @return {@code true} if the block's callbacks may belong to an external transaction.
+     * @since 1.13
+     */
+    public static boolean mayDeferToExternal(@Nonnull TransactionScope scope) {
+        return !scope.isMaterialized() && isJoining(scope.options().propagation());
+    }
+
+    /**
+     * Returns whether a rollback demand of an unbound block must be pushed onto the surrounding external
+     * transaction.
+     *
+     * <p>Mirrors {@link TransactionScope}'s parent-mark propagation: {@code REQUIRED}, {@code SUPPORTS} and
+     * {@code MANDATORY} join the surrounding transaction outright, so their rollback dooms it, while
+     * {@code NESTED} bounds its rollback at a savepoint. A materialized scope delivers the mark through its
+     * own handle, and needs no push here.</p>
+     *
+     * <p>Must be called before the scope completes, since completing releases the transaction state this
+     * reads.</p>
+     *
+     * @param scope the scope of the completed block.
+     * @return {@code true} if a rollback of the block must mark the surrounding external transaction.
+     * @since 1.13
+     */
+    public static boolean mayMarkExternalRollbackOnly(@Nonnull TransactionScope scope) {
+        if (scope.isMaterialized()) {
+            return false;
+        }
+        var propagation = scope.options().propagation();
+        return propagation == null
+                || propagation == TransactionPropagation.REQUIRED
+                || propagation == TransactionPropagation.SUPPORTS
+                || propagation == TransactionPropagation.MANDATORY;
+    }
+
+    /**
+     * Returns the handle of the externally managed transaction active on the current thread, asking each
+     * external transaction provider in resolution order and taking the first that answers, or {@code null}
+     * when there is none.
+     *
+     * <p>Exposed for language flows that own their callback orchestration, such as the Kotlin suspend flow,
+     * which settle their callbacks against the same external transaction this class does.</p>
+     *
+     * @return the externally managed transaction, or {@code null} when none is active.
+     * @since 1.13
+     */
+    public static @Nullable Transaction externalTransaction() {
+        for (var provider : Providers.getExternalTransactionProviders()) {
+            var transaction = provider.currentTransaction().orElse(null);
+            if (transaction != null) {
+                return transaction;
+            }
+        }
+        return null;
     }
 
     private static boolean isJoining(@Nullable TransactionPropagation propagation) {
@@ -293,6 +407,10 @@ public final class TransactionRunner {
         @Override
         public void addOnCompletion(@Nonnull Consumer<Boolean> callback) {
             callbacks.add(new Entry(true, true, callback));
+        }
+
+        boolean isEmpty() {
+            return callbacks.isEmpty();
         }
 
         void fireCommit() {

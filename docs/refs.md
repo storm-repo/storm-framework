@@ -417,11 +417,6 @@ A path names the referenced table one column at a time. A query can also name th
 ```kotlin
 // Selects the referenced entity: the city table is joined on demand, and so is its own country foreign key.
 val cities = orm.entity<User>().select(City::class).resultList
-
-// Joins another table onto the referenced one. The join needs the city table, so the reference brings it in.
-val sharingACity = orm.entity<User>().select()
-    .innerJoin<User>().on<City>()
-    .resultList
 ```
 
 </TabItem>
@@ -430,21 +425,18 @@ val sharingACity = orm.entity<User>().select()
 ```java
 // Selects the referenced entity: the city table is joined on demand, and so is its own country foreign key.
 List<City> cities = orm.entity(User.class).select(City.class).getResultList();
-
-// Joins another table onto the referenced one. The join needs the city table, so the reference brings it in.
-List<User> sharingACity = orm.entity(User.class).select()
-    .innerJoin(User.class).on(City.class)
-    .getResultList();
 ```
 
 </TabItem>
 </Tabs>
 
-A query that names the table both ways gets one occurrence: a path navigating to it resolves against the same join. A table the query joins explicitly keeps that occurrence, so an explicit join stays in charge of the table it brings in.
+An explicit `innerJoin(...).on(City.class)` names the table the same way, and the reference brings it in for the join to resolve against. A query that names the table both ways gets one occurrence: a path navigating to it resolves against the same join, and a table the query joins explicitly keeps that occurrence, so an explicit join stays in charge of the table it brings in.
+
+Bringing the table in is not the same as resolving the reference. A join makes the referenced table available to the rest of the statement, and `select(City::class)` makes it the result, but neither one touches the `User.city` of a selected user: it stays an unloaded foreign key. Resolving it into the user is what [`fetch(User_.city)`](#resolving-a-ref-as-part-of-the-query) does, and it works on the select list rather than on the tables the query can name. The two also differ in what they do to the rows: an inner join drops users whose city does not match, while `fetch(...)` uses an outer join for a nullable reference so every row survives.
 
 ### What You Can and Cannot Do Beyond a Ref
 
-Nodes reached *beyond* a reference are **navigation-only**. They can be used anywhere a query needs a column reference: `where`, `orderBy`, `groupBy`, `having`, and custom selected columns. They cannot extract a value from an in-memory record, because a `Ref` is never hydrated into the parent, so value operations (such as `getValue` or `resultGroupedBy`) are not available on them and fail to compile. The reference node itself (`User_.city`) is value-extractable and yields the `Ref`, so grouping by the reference with `resultGroupedByRef` works. See [Navigating Through Refs](metamodel.md#navigating-through-refs) for the type-level details.
+Nodes reached *beyond* a reference are **navigation-only**. They can be used anywhere a query needs a column reference: `where`, `orderBy`, `groupBy`, `having`, and custom selected columns. They cannot extract a value from an in-memory record, because a `Ref` is never hydrated into the parent, so value operations (such as `getValue` or `resultGroupedBy`) are not available on them and fail to compile. The reference node itself (`User_.city`) is value-extractable and yields the `Ref`, so grouping by the reference with [`resultGroupedByRef`](queries.md#grouped-results) works. See [Navigating Through Refs](metamodel.md#navigating-through-refs) for the type-level details.
 
 ### Designing Entities to Avoid Excessive Joins
 
@@ -547,16 +539,16 @@ By contrast, refs created with `Ref.of(entity)` wrap an already-loaded entity in
 | `Ref.of(entity)` | Yes (full entity) | Returns the wrapped entity | `false` |
 | Loaded by Storm (from query) | Yes (after fetch) | Returns entity or fetches from DB/cache | `true` |
 
-Use `Ref.of(entity)` when you already have the entity in memory and want to wrap it as a ref (for example, to pass into a method that expects `Ref<T>`). Use `Ref.of(type, primaryKey)` when you only have the ID and want a lightweight identifier for equality checks, map keys, or later resolution within a transaction context.
+Use `Ref.of(entity)` when you already have the entity in memory and want to wrap it as a ref (for example, to pass into a method that expects `Ref<T>`). Use `Ref.of(type, primaryKey)` when you only have the ID and want a lightweight identifier for equality checks, map keys, or a lookup you hand to a repository with `findByRef` or `findAllByRef`.
 
 ---
 
 ## Aggregation with Refs
 
+Refs are particularly useful in aggregation queries where you group by a foreign key. Instead of loading the full related entity for each group, you can select only the primary key as a Ref. This keeps the query lightweight while still giving you a typed identifier to use in subsequent lookups if needed.
+
 <Tabs groupId="language">
 <TabItem value="kotlin" label="Kotlin" default>
-
-Refs are particularly useful in aggregation queries where you group by a foreign key. Instead of loading the full related entity for each group, you can select only the primary key as a Ref. This keeps the query lightweight while still giving you a typed identifier to use in subsequent lookups if needed.
 
 ```kotlin
 data class GroupedByCity(
@@ -597,6 +589,8 @@ Map<Ref<City>, Long> counts = orm.query(RAW."""
 
 </TabItem>
 </Tabs>
+
+The database does the aggregating, so one row per city comes back and the reference carries the key you group by. Fetch the cities themselves with `findAllByRef(counts.keys)` when a later step needs them.
 
 ---
 
@@ -653,7 +647,8 @@ Understanding how `fetch()` resolves its target helps you predict performance an
 - `getOrThrow()` and `getOrNull()` never query. They return what is already loaded, so they are the accessors to reach for when the query was meant to resolve the reference.
 - `fetch()` checks the [entity cache](entity-cache.md) before querying the database. If the entity was already loaded in the current transaction, no additional query is issued.
 - Multiple Refs pointing to the same entity share the cached instance within a transaction, preserving object identity.
-- Calling `fetch()` on a detached Ref created with `Ref.of(type, id)` will fail unless an active transaction context is available.
+- Calling `fetch()` on a detached Ref created with `Ref.of(type, id)` always fails. Fetching needs the `ORMTemplate` that produced the reference, and a detached one carries only a type and a key. An active transaction does not change that; pass the reference to `findByRef` or `findAllByRef` instead.
+- An attached Ref, conversely, needs no transaction of its own. It fetches over the connection its template provides, and that read runs in whatever transaction happens to be active at the time, or in none. There is no session to keep open and no state to lose, so a reference fetched outside a transaction reads exactly as it would inside one.
 
 ## Tips
 

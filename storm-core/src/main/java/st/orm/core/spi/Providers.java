@@ -70,6 +70,7 @@ public final class Providers {
     private static final Supplier<List<SqlDialectProvider>> SQL_DIALECT_PROVIDERS = createProviders(SqlDialectProvider.class);
     private static final Supplier<List<ConnectionProvider>> CONNECTION_PROVIDERS = createProviders(ConnectionProvider.class);
     private static final Supplier<List<TransactionTemplateProvider>> TRANSACTION_TEMPLATE_PROVIDERS = createProviders(TransactionTemplateProvider.class);
+    private static final Supplier<List<ExternalTransactionProvider>> EXTERNAL_TRANSACTION_PROVIDERS = createProviders(ExternalTransactionProvider.class);
 
     private static final ConcurrentMap<Object, List<?>> PROVIDER_CACHE = new ConcurrentHashMap<>();
 
@@ -357,6 +358,20 @@ public final class Providers {
     public static TransactionTemplateProvider getTransactionTemplateProvider() {
         return selectUnique(TRANSACTION_TEMPLATE_PROVIDERS, "transaction template provider",
                 "ORMTemplate.builder(dataSource).transactionTemplateProvider(...)");
+    }
+
+    /**
+     * Resolves the external transaction providers via {@code ServiceLoader} discovery, in resolution order.
+     *
+     * <p>Unlike the other lookups this one returns every enabled provider rather than a single winner: each
+     * detects only the transaction manager it bridges, so several can coexist and at most one has a
+     * transaction active on a given thread. Enablement is re-evaluated on every resolution.</p>
+     *
+     * @return the external transaction providers, in the order they are consulted.
+     * @since 1.13
+     */
+    public static List<ExternalTransactionProvider> getExternalTransactionProviders() {
+        return Orderable.sort(enabled(EXTERNAL_TRANSACTION_PROVIDERS)).toList();
     }
 
     /**

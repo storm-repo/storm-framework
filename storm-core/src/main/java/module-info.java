@@ -7,6 +7,7 @@ module storm.core {
     uses st.orm.core.spi.SqlDialectProvider;
     uses st.orm.core.spi.ConnectionProvider;
     uses st.orm.core.spi.TransactionTemplateProvider;
+    uses st.orm.core.spi.ExternalTransactionProvider;
     uses st.orm.core.spi.CursorCodecProvider;
     uses st.orm.mapping.Instantiator;
     exports st.orm.core.template;
