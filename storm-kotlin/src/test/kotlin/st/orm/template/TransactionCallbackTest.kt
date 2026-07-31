@@ -442,4 +442,23 @@ open class TransactionCallbackTest(
         }
         events shouldBe listOf("first", "second")
     }
+
+    @Test
+    fun `a nested blocking block registers callbacks on the suspend transaction it joins`(): Unit = runBlocking {
+        val events = mutableListOf<String>()
+        transaction {
+            orm.exists<Visit>()
+            // Code that does not see this block's receiver, such as an entity callback, participates by opening
+            // a joining block of its own; its callbacks defer to the outermost physical commit.
+            registerAuditHook(events)
+            events shouldBe emptyList()
+        }
+        events shouldBe listOf("commit")
+    }
+
+    private fun registerAuditHook(events: MutableList<String>) {
+        transactionBlocking {
+            onCommit { events += "commit" }
+        }
+    }
 }

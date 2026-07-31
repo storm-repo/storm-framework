@@ -159,6 +159,22 @@ public final class SpringTransactionContext implements TransactionContext {
         return stack.isEmpty() ? null : stack.getLast();
     }
 
+    /**
+     * Returns whether the current frame joined a Spring transaction that was already open, which happens when
+     * the surrounding code is {@code @Transactional} or drives Spring's own {@code TransactionTemplate}. Spring
+     * then owns the completion, so the frame's commit is a participation rather than a physical commit.
+     *
+     * <p>A frame whose transaction has not started yet joined nothing, and neither did a frame that opened its
+     * own transaction, such as one propagating {@code REQUIRES_NEW}.</p>
+     *
+     * @return {@code true} if the current frame participates in an externally opened Spring transaction.
+     * @since 1.13
+     */
+    public boolean joinedExistingTransaction() {
+        var state = lastOrNull();
+        return state != null && state.transactionStatus != null && !state.transactionStatus.isNewTransaction();
+    }
+
     @Override
     public Optional<String> describe() {
         var state = lastOrNull();

@@ -175,30 +175,36 @@ suspend fun <T> transaction(
             TransactionOutcome(value, scope.isRollbackOnly)
         }
     } catch (e: Throwable) {
+        // Read while the scope still holds its transaction state, which completing releases.
+        val mayDefer = TransactionRunner.mayDeferToExternal(scope)
+        val mayMark = TransactionRunner.mayMarkExternalRollbackOnly(scope)
         val wrapped = try {
             TransactionRunner.completeAfterFailure(scope, e)
         } catch (completionException: Throwable) {
             completionException
         }
         try {
-            callbacks.fireRollback()
+            callbacks.settle(mayDefer, mayMark, committed = false)
         } catch (callbackException: Throwable) {
             wrapped.addSuppressed(callbackException)
         }
         throw wrapped
     }
+    // Read while the scope still holds its transaction state, which completing releases.
+    val mayDefer = TransactionRunner.mayDeferToExternal(scope)
+    val mayMark = TransactionRunner.mayMarkExternalRollbackOnly(scope)
     try {
         scope.complete(false)
         TransactionRunner.afterSuccessfulCompletion(scope)
     } catch (completionException: Throwable) {
         try {
-            callbacks.fireRollback()
+            callbacks.settle(mayDefer, mayMark, committed = false)
         } catch (callbackException: Throwable) {
             completionException.addSuppressed(callbackException)
         }
         throw completionException
     }
-    if (outcome.rollbackOnly) callbacks.fireRollback() else callbacks.fireCommit()
+    callbacks.settle(mayDefer, outcome.rollbackOnly && mayMark, committed = !outcome.rollbackOnly)
     return outcome.value
 }
 

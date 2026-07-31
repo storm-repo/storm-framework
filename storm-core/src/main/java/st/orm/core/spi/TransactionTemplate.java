@@ -20,6 +20,7 @@ import static java.util.Optional.ofNullable;
 import jakarta.annotation.Nonnull;
 import jakarta.annotation.Nullable;
 import java.util.Optional;
+import java.util.function.Consumer;
 import st.orm.PersistenceException;
 import st.orm.TransactionIsolation;
 import st.orm.TransactionPropagation;
@@ -136,6 +137,38 @@ public interface TransactionTemplate {
          * @return the transaction status; never {@code null}.
          */
         TransactionStatus status();
+
+        /**
+         * Returns whether this handle joined a physical transaction that an external transaction manager had
+         * already opened, rather than opening one of its own.
+         *
+         * <p>The distinction decides who completes the transaction, and therefore where completion callbacks
+         * belong: a handle that opened the transaction fires them when its block ends, while a handle that
+         * joined one defers them to the manager that will commit it, via {@link #deferCompletion(Consumer)}.
+         * Providers that always open their own transaction, such as the JDBC one, keep the default.</p>
+         *
+         * @return {@code true} if the physical transaction was already open and this handle joined it.
+         * @since 1.13
+         */
+        default boolean joinedExistingTransaction() {
+            return false;
+        }
+
+        /**
+         * Registers a completion callback with the physical transaction this handle joined.
+         *
+         * <p>Called only for handles that {@link #joinedExistingTransaction() joined an existing transaction}:
+         * the external manager owns the commit, so the callback must fire on that manager's outcome rather
+         * than at the end of the block. The provider registers it with its transaction manager, under Spring
+         * as a transaction synchronization. Providers that never join keep the default.</p>
+         *
+         * @param callback receives {@code true} when the transaction commits and {@code false} when it rolls
+         * back.
+         * @since 1.13
+         */
+        default void deferCompletion(@Nonnull Consumer<Boolean> callback) {
+            throw new UnsupportedOperationException("This transaction handle does not defer completion.");
+        }
 
         /**
          * Completes the opened transaction.

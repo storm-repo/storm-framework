@@ -17,6 +17,7 @@ package st.orm.core.spi;
 
 import jakarta.annotation.Nonnull;
 import jakarta.annotation.Nullable;
+import java.util.function.Consumer;
 import st.orm.PersistenceException;
 import st.orm.TransactionIsolation;
 import st.orm.TransactionPropagation;
@@ -227,6 +228,40 @@ public final class TransactionScope {
      */
     public @Nullable TransactionTemplateProvider owner() {
         return owner;
+    }
+
+    /**
+     * Returns whether this scope joined a physical transaction that an external transaction manager had already
+     * opened, which makes that manager, rather than this scope, the owner of its completion.
+     *
+     * <p>Must be read before the scope completes, since a provider releases the underlying transaction state as
+     * part of completing.</p>
+     *
+     * @return {@code true} if this scope materialized into an externally owned physical transaction.
+     * @since 1.13
+     */
+    public boolean joinedExistingTransaction() {
+        var currentHandle = handle;
+        return currentHandle != null && currentHandle.joinedExistingTransaction();
+    }
+
+    /**
+     * Hands a completion callback to the physical transaction this scope joined, so the external manager that
+     * owns it fires the callback on the real outcome.
+     *
+     * <p>Only valid for scopes that {@link #joinedExistingTransaction() joined an existing transaction}; the
+     * owning provider registers the callback with its transaction manager.</p>
+     *
+     * @param callback receives {@code true} when the external transaction commits and {@code false} when it
+     * rolls back.
+     * @since 1.13
+     */
+    public void deferCompletion(@Nonnull Consumer<Boolean> callback) {
+        var currentHandle = handle;
+        if (currentHandle == null) {
+            throw new IllegalStateException("Scope has not been materialized.");
+        }
+        currentHandle.deferCompletion(callback);
     }
 
     /**

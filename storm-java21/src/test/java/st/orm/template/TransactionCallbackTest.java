@@ -208,4 +208,21 @@ public class TransactionCallbackTest {
                 }));
         assertEquals(List.of("inner-rollback"), events);
     }
+
+    @Test
+    public void aNestedBlockRegistersCallbacksOnTheTransactionItJoins() {
+        List<String> events = new ArrayList<>();
+        transaction(outer -> {
+            countVisits();
+            // Code that does not see the outer handle, such as an entity callback, participates by opening a
+            // joining block of its own; its callbacks defer to the outermost physical commit.
+            transaction(inner -> {
+                inner.onCommit(() -> events.add("commit"));
+                return null;
+            });
+            assertEquals(List.of(), events);
+            return null;
+        });
+        assertEquals(List.of("commit"), events);
+    }
 }

@@ -15,7 +15,9 @@
  */
 package st.orm.template.impl
 
+import kotlinx.coroutines.runBlocking
 import st.orm.TransactionCallbackException
+import st.orm.core.spi.TransactionRunner
 import java.util.function.Consumer
 
 /**
@@ -70,6 +72,30 @@ internal class TransactionCallbacks : st.orm.core.spi.TransactionCallbacks {
 
     override fun addOnCompletion(callback: Consumer<Boolean>) {
         callbacks += Entry(onCommit = true, onRollback = true) { committed -> callback.accept(committed) }
+    }
+
+    /**
+     * Settles the callbacks for the given outcome, honoring external ownership of the physical transaction:
+     * the suspend-flow counterpart of the blocking flow's settlement in [TransactionRunner].
+     *
+     * When [mayDeferToExternal] and an external transaction is detected, the callbacks are handed over to fire
+     * on that transaction's outcome, and [markExternalRollbackOnly] pushes the block's rollback demand onto it.
+     * The external manager completes on its own thread without a coroutine context, so the transferred
+     * callbacks are bridged via `runBlocking`, matching the blocking flow's documented callback semantics.
+     * Otherwise the callbacks fire here for the given outcome.
+     */
+    suspend fun settle(mayDeferToExternal: Boolean, markExternalRollbackOnly: Boolean, committed: Boolean) {
+        if (mayDeferToExternal && (markExternalRollbackOnly || callbacks.isNotEmpty())) {
+            val external = TransactionRunner.externalTransaction()
+            if (external != null) {
+                if (markExternalRollbackOnly) external.setRollbackOnly()
+                if (callbacks.isNotEmpty()) {
+                    external.onCompletion { externalOutcome -> runBlocking { fire(externalOutcome) } }
+                }
+                return
+            }
+        }
+        if (committed) fireCommit() else fireRollback()
     }
 
     suspend fun fireCommit() {
