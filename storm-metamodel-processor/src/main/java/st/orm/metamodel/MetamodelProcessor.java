@@ -460,10 +460,16 @@ public final class MetamodelProcessor extends AbstractProcessor {
     @Nullable
     private TypeMirror getTypeElement(@Nonnull Element recordElement, @Nonnull String fieldName,
                                       boolean applyMetamodelType) {
-        var constructors = recordElement.getEnclosedElements()
-                .stream()
-                .filter(enclosed -> enclosed.getKind() == CONSTRUCTOR)
-                .toList();
+        // The canonical constructor defines the component types. A convenience constructor may reuse a component name
+        // for a parameter of another type — a record holding a Ref<City> taking the City it refers to, say — so
+        // scanning every constructor would resolve the field to whichever one is enclosed first.
+        var canonicalConstructor = findCanonicalConstructor(recordElement);
+        var constructors = canonicalConstructor != null
+                ? List.<Element>of(canonicalConstructor)
+                : recordElement.getEnclosedElements()
+                        .stream()
+                        .filter(enclosed -> enclosed.getKind() == CONSTRUCTOR)
+                        .toList();
         for (var constructor : constructors) {
             var parameters = ((ExecutableElement) constructor).getParameters();
             for (var parameter : parameters) {
