@@ -3,7 +3,7 @@ import TabItem from '@theme/TabItem';
 
 # Transactions
 
-Transaction management is fundamental to database programming. Storm takes a practical approach: rather than inventing new abstractions, it provides first-class support for standard transaction semantics while integrating seamlessly with your existing infrastructure.
+Storm does not invent new transaction abstractions. It supports the standard semantics directly and plugs into the transaction management you already run.
 
 Storm works directly with JDBC transactions and supports both programmatic and declarative transaction management. For Kotlin, Storm provides a coroutine-friendly API inspired by Exposed. For Java, Storm provides the same programmatic API through `Transactions.transaction(...)`, and integrates with Spring's transaction management or works directly with JDBC connections.
 
@@ -67,9 +67,9 @@ transactionBlocking {
 
 ### Transaction Propagation
 
-Propagation modes are one of the most powerful features of enterprise transaction management, yet they're often misunderstood. They control how transactions interact when code calls another transactional method. This is essential for building composable services where each method can define its transactional requirements independently.
+Propagation modes control how transactions interact when transactional code calls other transactional code. They are what lets each method state its own transactional requirements without knowing who calls it.
 
-Storm supports seven Spring-style propagation modes. Understanding when to use each mode helps you build robust, maintainable applications where components work correctly both standalone and when composed together.
+Storm supports seven Spring-style propagation modes.
 
 #### REQUIRED (Default)
 
@@ -358,13 +358,13 @@ fun runBatchJob() {
 
 ### Isolation Levels
 
-Isolation levels are the database's answer to concurrency. When multiple transactions run simultaneously, they can interfere with each other in various ways. The SQL standard defines four isolation levels, each preventing different types of concurrency anomalies.
+Transactions running at the same time can interfere with each other. The SQL standard defines four isolation levels, each preventing a different set of concurrency anomalies.
 
-Storm exposes all four standard isolation levels through its API, giving you full control over the consistency-performance trade-off. Most applications work fine with the database's default isolation level (typically `READ_COMMITTED`), but understanding when to use higher levels is crucial for building correct applications.
+Storm exposes all four through its API, so the consistency-performance trade-off is yours to make. Most applications are fine on the database default (usually `READ_COMMITTED`); the cases that are not are worth recognizing.
 
 #### Concurrency Phenomena
 
-Before diving into isolation levels, it's important to understand the three phenomena they prevent. Each represents a different way concurrent transactions can produce unexpected results:
+The three phenomena the isolation levels prevent. Each is a different way concurrent transactions can produce unexpected results:
 
 | Phenomenon | Description |
 |------------|-------------|
@@ -621,7 +621,7 @@ Database transactions often need to trigger side effects, but only when the outc
 
 Storm's `onCommit` and `onRollback` callbacks solve this by letting you register logic that fires **after** the physical transaction completes. Callbacks are registered inside the transaction block but execute outside it, once the outcome is final. Note that running such logic right after the block is not a substitute: with `REQUIRED` propagation the block may have joined an outer transaction, in which case the end of the block commits nothing and the outer transaction may still roll back. Callbacks bind to the physical transaction, so they remain correct however deeply the block is nested.
 
-Work that has to happen either way — releasing a lock, closing a span — registers once with `onCompletion`, which receives whether the transaction committed. `onCommit` and `onRollback` stay the simpler form when only one outcome is of interest, and say so at the registration site.
+Work that has to happen either way, such as releasing a lock or closing a span, registers once with `onCompletion`, which receives whether the transaction committed. `onCommit` and `onRollback` stay the simpler form when only one outcome is of interest, and say so at the registration site.
 
 #### Basic Usage
 
@@ -714,7 +714,7 @@ And for a failed transaction:
 
 #### Multiple Callbacks and Ordering
 
-You can register any number of callbacks. All three kinds share a single registration order — each run executes them in the order they were registered, skipping the ones that do not apply to the outcome — which makes it straightforward to reason about sequencing when multiple components register their own callbacks:
+You can register any number of callbacks. All three kinds share a single registration order: each run executes them in the order they were registered, skipping the ones that do not apply to the outcome. That makes it straightforward to reason about sequencing when multiple components register their own callbacks:
 
 ```kotlin
 transaction {
@@ -1142,7 +1142,7 @@ class OrderService(private val orm: ORMTemplate) {
 val saved = withContext(Dispatchers.IO) { orderService.placeOrder(order) }
 ```
 
-Dispatcher freedom inside a transaction — switching with `withContext` while staying in the same transaction —
+Dispatcher freedom inside a transaction, switching with `withContext` while staying in the same transaction,
 is a property of Storm-managed [suspend transactions](#suspend-transactions); a Spring-managed transaction stays
 on the thread that started it.
 
@@ -1256,8 +1256,8 @@ Callbacks registered in a scope that joins an outer transaction are deferred to 
 
 ### Registering from Nested Code
 
-Code that does not see the block's `tx` handle — an [entity callback](entity-lifecycle.md#logging), a helper
-several frames down — participates by opening a joining block of its own. With the default `REQUIRED`
+Code that does not see the block's `tx` handle, such as an [entity callback](entity-lifecycle.md#logging) or a helper
+several frames down, participates by opening a joining block of its own. With the default `REQUIRED`
 propagation its callbacks register on the transaction it joins and defer to the outermost physical commit:
 
 ```java

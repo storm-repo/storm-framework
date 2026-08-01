@@ -8,18 +8,18 @@ import TabItem from '@theme/TabItem';
 
 # Storm
 
-**Storm** is a modern, high-performance ORM for Kotlin 2.0+ and Java 21+, built around a powerful SQL template engine. It focuses on simplicity, type safety, and predictable performance through immutable models and compile-time metadata.
+**Storm** is an ORM for Kotlin 2.0+ and Java 21+, built on a SQL template engine. It aims for simplicity, type safety, and predictable performance, through immutable models and metadata generated at compile time.
 
 **Key benefits:**
 
 - **Minimal code**: Define entities with simple records/data classes and query with concise, readable syntax, no boilerplate.
 - **Parameterized by default**: String interpolations are automatically converted to bind variables, making queries SQL injection safe by design.
-- **Close to SQL**: Storm embraces SQL rather than abstracting it away, keeping you in control of your database operations.
-- **Type-safe**: Storm's DSL mirrors SQL, providing a type-safe, intuitive experience that makes queries easy to write and read while reducing the risk of runtime errors.
-- **Direct Database Interaction**: Storm translates method calls directly into database operations, offering a transparent and straightforward experience. It eliminates inefficiencies like the N+1 query problem for predictable and efficient interactions.
-- **Stateless**: Avoids hidden complexities and "magic" with stateless, record-based entities, ensuring simplicity and eliminating lazy initialization and transaction issues downstream.
-- **Performance**: Template caching, transaction-scoped entity caching, and zero-overhead dirty checking (thanks to immutability) ensure efficient database interactions. Batch processing, lazy streams, and upserts are built in.
-- **Universal Database Compatibility**: Fully compatible with all SQL databases, it offers flexibility and broad applicability across various database systems.
+- **Close to SQL**: Storm stays close to SQL rather than abstracting it away, so you keep control of what runs against your database.
+- **Type-safe**: Storm's DSL mirrors SQL, so a wrong column or a wrong type is a compile error rather than a runtime one.
+- **Direct Database Interaction**: Method calls translate directly into database operations. Entity graphs load in a single query, which removes the N+1 problem.
+- **Stateless**: Record-based entities carry no session state, so there is no lazy initialization to fail later and nothing to attach, detach, or merge.
+- **Performance**: Template caching, transaction-scoped entity caching, and zero-overhead dirty checking (thanks to immutability). Batch processing, lazy streams, and upserts are built in.
+- **Universal Database Compatibility**: Works with all SQL databases.
 
 ## Why Storm?
 
@@ -27,7 +27,7 @@ Storm draws inspiration from established ORMs such as Hibernate, but is built fr
 
 **Storm's mission:** Make database development productive and enjoyable, with full developer control and high performance.
 
-Storm embraces SQL rather than abstracting it away. It simplifies database interactions while remaining transparent, and scales from prototypes to enterprise systems.
+Storm embraces SQL rather than abstracting it away. Database interactions stay simple without becoming opaque.
 
 | Traditional ORM Pain | Storm Solution |
 |----------------------|----------------|
@@ -35,16 +35,16 @@ Storm embraces SQL rather than abstracting it away. It simplifies database inter
 | Hidden magic (proxies, implicit flush, cascades) | Stateless records; explicit, predictable behavior |
 | Entity state confusion (managed/detached/transient) | Immutable records; no state to manage |
 | Entities tied to session/context | Stateless records easily cached and shared across layers |
-| Dirty checking via bytecode manipulation | Lightning-fast dirty checking thanks to immutability |
+| Dirty checking via bytecode manipulation | Dirty checking that costs almost nothing, thanks to immutability |
 | Complex mapping configuration | Convention over configuration |
 | Runtime query errors | Compile-time type-safe DSL |
 | SQL hidden behind abstraction layers | SQL-first design; stay close to the database |
 
-**Storm is ideal for** developers who understand that the best solutions emerge when object model and database model work in harmony. If you value a database-first approach where records naturally mirror your schema, Storm is built for you. Custom mappings are supported when needed, but the real elegance comes from alignment, not abstraction.
+**Storm is ideal for** developers who want a database-first approach, where records mirror the schema. Custom mappings are supported when you need them, but the model works best when the two line up.
 
 ## Choose Your Language
 
-Both Kotlin and Java support SQL Templates for powerful query composition. Kotlin additionally provides a type-safe DSL with infix operators for a more idiomatic experience.
+Both Kotlin and Java support SQL Templates for query composition. Kotlin additionally provides a type-safe DSL with infix operators.
 
 <Tabs groupId="language">
 <TabItem value="kotlin" label="Kotlin" default>

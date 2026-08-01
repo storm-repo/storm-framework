@@ -16,7 +16,7 @@ Storm works with any JDBC-compatible database. Dialect packages provide optimize
 
 ### Can I use Storm with Spring Boot?
 
-Yes. Storm integrates seamlessly with Spring Boot. See [Spring Integration](spring-integration.md).
+Yes. See [Spring Integration](spring-integration.md).
 
 ### Is Storm production-ready?
 

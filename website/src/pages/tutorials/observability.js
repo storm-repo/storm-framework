@@ -15,7 +15,7 @@ const DESC =
   'to see what each request or listener cost the database.';
 
 const CODE_LOGGER = [
-  C('# application.yml — the log level is the only switch\n'),
+  C('# application.yml: the log level is the only switch\n'),
   P('logging:\n'),
   P('  level:\n'),
   P('    st.orm.sql.UserView: ', ), S('DEBUG'), P('   '), C('# one type, not the firehose\n'),
@@ -41,7 +41,7 @@ const SQL_TRACE = [
 
 const CODE_SUMMARY = [
   C('# One summary per unit of work: requests, @Scheduled tasks,\n'),
-  C('# Kafka/Rabbit/JMS/SQS listeners — every way work enters the app\n'),
+  C('# Kafka/Rabbit/JMS/SQS listeners: every way work enters the app\n'),
   P('storm:\n'),
   P('  sql-log:\n'),
   P('    enabled: '), K('true'), P('\n'),
@@ -76,16 +76,16 @@ ${navHtml('tutorials')}
   <h2><span class="hno">03</span>Copy-paste executable SQL</h2>
   <p>At <code>DEBUG</code> the log shows the statement as sent, placeholders included. At <code>TRACE</code> the bound values are rendered into it, producing SQL you can paste into a client to inspect the result set or check the plan with EXPLAIN:</p>
   ${editor({file: 'application.yml', tag: 'YAML', code: CODE_TRACE, sql: SQL_TRACE})}
-  <p>Values are database values — credentials, personal data, whatever your entities carry. That is why they appear only at <code>TRACE</code>, the level nobody enables in production by accident; <code>DEBUG</code> is the level to leave available for on-demand diagnosis.</p>
+  <p>Values are database values: credentials, personal data, whatever your entities carry. That is why they appear only at <code>TRACE</code>, the level nobody enables in production by accident; <code>DEBUG</code> is the level to leave available for on-demand diagnosis.</p>
 
   <h2><span class="hno">04</span>What one call cost</h2>
-  <p>Individual statements answer what ran; they do not answer what a unit of work cost, and that total is the part you act on. With one property, every way work enters the application — HTTP requests, <code>@Scheduled</code> tasks, Kafka, RabbitMQ, JMS and SQS listeners — reports as a single summary: one row per distinct statement, heaviest first, with a statement that resolved a reference marked <code>fetch</code>. A statement run many times cheaply ranks above one slow statement when it cost more in total, which is what puts an N+1 at the top instead of burying it under the slowest single query:</p>
+  <p>Individual statements answer what ran; they do not answer what a unit of work cost, and that total is the part you act on. With one property, every way work enters the application (HTTP requests, <code>@Scheduled</code> tasks, Kafka, RabbitMQ, JMS and SQS listeners) reports as a single summary: one row per distinct statement, heaviest first, with a statement that resolved a reference marked <code>fetch</code>. A statement run many times cheaply ranks above one slow statement when it cost more in total, which is what puts an N+1 at the top instead of burying it under the slowest single query:</p>
   ${editor({file: 'application.yml', tag: 'YAML', code: CODE_SUMMARY})}
   ${editor({file: 'console', tag: 'st.orm.sql.summary', code: CODE_SUMMARY_OUT})}
   <p>The summary carries no parameter values, so it is safe to log in production, and the thresholds turn it into a guardrail that stays silent until a call exceeds one. For a narrower boundary than a request, wrap a block with <code>sqlLog("importOwners")&nbsp;{ }</code>.</p>
 
   <h2><span class="hno">05</span>Beyond logging</h2>
-  <p>Two companions complete the picture. In tests, <a class="tlink" href="/tutorials/testing">SqlCapture</a> turns statement counts, origins and durations into assertions, so what you observed while debugging becomes a regression test. And in production, Storm reports queries and transactions as Micrometer observations — the <code>storm.origin</code> tag makes the cost of resolving references a quantity you can chart and alert on — alongside JMX metrics for the template cache, entity cache, and dirty checking. See <a class="tlink" href="/docs/metrics">Metrics</a>.</p>
+  <p>Two things sit next to the log. In tests, <a class="tlink" href="/tutorials/testing">SqlCapture</a> turns statement counts, origins and durations into assertions, so what you observed while debugging becomes a regression test. In production, Storm reports queries and transactions as Micrometer observations, alongside JMX metrics for the template cache, entity cache, and dirty checking. The <code>storm.origin</code> tag makes the cost of resolving references a quantity you can chart and alert on. See <a class="tlink" href="/docs/metrics">Metrics</a>.</p>
 
   <h2><span class="hno">06</span>Keep going</h2>
   <p>The reference documentation covers the mechanics in depth:</p>

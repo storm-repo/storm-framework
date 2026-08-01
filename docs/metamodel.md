@@ -5,7 +5,7 @@ import TabItem from '@theme/TabItem';
 
 The static metamodel is a code generation feature that creates companion classes for your entities at compile time. These generated classes provide type-safe references to entity fields, enabling the compiler to catch errors that would otherwise surface only at runtime.
 
-Using the metamodel is optional. Storm works without it using SQL Templates or string-based field references. However, for projects that want to leverage Storm's full capabilities, the metamodel provides significant benefits in terms of type safety, IDE support, and maintainability.
+Using the metamodel is optional. Storm works without it using SQL Templates or string-based field references. With it, you get compile-checked field references, IDE completion on entity paths, and refactorings that reach into your queries.
 
 ## Why Use a Metamodel?
 
@@ -129,7 +129,7 @@ Optional<User> user = orm.query(RAW."""
 
 ## Path Resolution
 
-Storm supports two forms of metamodel references: **nested paths** and **short form**. Understanding when to use each is important for writing correct queries.
+Storm supports two forms of metamodel references: **nested paths** and **short form**. They resolve differently: a nested path is always unambiguous, while a short form can fail at runtime if the table it names appears more than once in the entity graph.
 
 Consider an entity graph where `User` has a `city` field pointing to `City`, which has a `country` field pointing to `Country`:
 
@@ -740,7 +740,7 @@ Object countryName = User_.city.country.name.getValue(user);  // "United States"
 
 ### Flattening Inline Records
 
-`Metamodel.flatten()` expands an inline record (embedded component) into its individual leaf column metamodels. Any other metamodel returns a singleton list containing itself: it names its own column(s) — a foreign key names the foreign key column(s) on the referencing table. ORDER BY and GROUP BY resolve a path to the same columns a predicate would use, expanding multi-column paths during column resolution.
+`Metamodel.flatten()` expands an inline record (embedded component) into its individual leaf column metamodels. Any other metamodel returns a singleton list containing itself: it names its own column(s), and a foreign key names the foreign key column(s) on the referencing table. ORDER BY and GROUP BY resolve a path to the same columns a predicate would use, expanding multi-column paths during column resolution.
 
 <Tabs groupId="language">
 <TabItem value="kotlin" label="Kotlin" default>

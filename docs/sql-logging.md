@@ -91,14 +91,14 @@ One row per distinct statement, heaviest first by **total** time, so a statement
 Two aids answer which query a row is:
 
 - **Call sites** name the application frame that caused each execution (`VisitService.kt:88`), which is the identity a developer thinks in. An application with a database layer of its own declares it as plumbing, so rows name the caller beyond it: `storm.sql-log.call-site-skip` in Spring, `sqlLogCallSiteSkip` in Ktor, or the `storm.sql_log.call_site_skip` system property on a plain JVM. Entries ending in `.kt` or `.java` match by source file, which covers inline functions. Work resumed on another dispatcher has no caller on its stack at all; a context built with `sqlLogContext()` (and every context Storm builds, such as `transaction { }`) carries the launch site, captured while the caller is still on the stack, so such rows name the frame that launched the work. A stack that is plumbing end to end with no carried site reports its innermost plumbing frame rather than none. A stack walk per execution, so it is opt-in and suited to development: `storm.sql-log.call-sites: true` in Spring, `sqlLogCallSites = true` in Ktor, or the `callSites` parameter on a scope opened directly. A row seen from several frames shows the first plus `(+n sites)`.
-- **Hydration shapes** append each read's declared shape, off by default: `storm.sql-log.hydration` in Spring, `sqlLogHydration` in Ktor, or the `storm.sql_log.hydration` system property on a plain JVM. `short` states the numbers on reads whose type hydrates beyond its own table — `j2 c12 d3`: joins, columns, and graph depth, with flat types showing none — and `full` names the joined-entity graph on every mapped read:
+- **Hydration shapes** append each read's declared shape, off by default: `storm.sql-log.hydration` in Spring, `sqlLogHydration` in Ktor, or the `storm.sql_log.hydration` system property on a plain JVM. `short` states the numbers on reads whose type hydrates beyond its own table (`j2 c12 d3`: joins, columns, and graph depth, with flat types showing none), and `full` names the joined-entity graph on every mapped read:
 
   ```
   12 ms  1 rows  1x  Pet  SELECT p.id, … WHERE p.id = ?  j2 c12 d3                                  # short
   12 ms  1 rows  1x  Pet  SELECT p.id, … WHERE p.id = ?  joins=2 columns=12 graph=Pet(Owner(City))  # full
   ```
 
-  The shape is the type's declaration, derived at rendering and cached per type, so the setting costs nothing while calls run: an entity component is a join and recurses, an inline record is columns on the same table and no subgraph, and a `Ref` is its foreign key column and stops — which is exactly the width a `Ref` declaration saves. Many rows against a wide graph is the signal to consider `Ref` on the branches that read does not need, or a [projection](projections.md).
+  The shape is the type's declaration, derived at rendering and cached per type, so the setting costs nothing while calls run: an entity component is a join and recurses, an inline record is columns on the same table and no subgraph, and a `Ref` is its foreign key column and stops, which is exactly the width a `Ref` declaration saves. Many rows against a wide graph is the signal to consider `Ref` on the branches that read does not need, or a [projection](projections.md).
 
   Writes carry no shape. An insert, update or delete touches its own table, so the graph its type declares is not something the statement traverses, and its cost is the rows it affected. Shapes appear on `SELECT` rows only, which keeps the numbers on the rows where they mean something.
 - **TRACE detail**: with `st.orm.sql.perf` at `TRACE`, the un-elided statement texts follow the summary, one per row in row order. `TRACE` rather than `DEBUG` because this logger sits under `st.orm.sql`, so raising that to `DEBUG` for per-statement logging would otherwise repeat every statement twice. Summaries carry no parameter values at any level, so this level is as safe to enable as the others.
@@ -117,7 +117,7 @@ The headline separates three durations:
 
 Summed database time exceeds elapsed time whenever statements run concurrently, which is why both appear. The concurrency clause is omitted when nothing overlapped. And `214 ms in database` against `678 ms total` says most of that call was spent somewhere other than the database.
 
-The headline also counts what cost nothing: `3 from cache` reports the reads the transaction's entity cache served without a statement — a reference resolving to an entity the transaction had already read, or an identity lookup at `REPEATABLE_READ` and above. The fetch count is the cache misses; this is the other side, and it appears only when any read was served.
+The headline also counts what cost nothing: `3 from cache` reports the reads the transaction's entity cache served without a statement: a reference resolving to an entity the transaction had already read, or an identity lookup at `REPEATABLE_READ` and above. The fetch count is the cache misses; this is the other side, and it appears only when any read was served.
 
 A scope covers whatever runs inside it, whichever repository, query builder or template issued the statement. Summaries log under `st.orm.sql.perf` at `INFO`, and statements are recorded only while that logger is enabled.
 
@@ -135,7 +135,7 @@ storm:
     limit: 200      # statements recorded per unit of work; the count covers the rest
 ```
 
-A servlet filter wraps each HTTP request. The same switch covers the entry points a filter cannot see: a method annotated `@Scheduled`, `@KafkaListener`, `@RabbitListener`, `@JmsListener`, or `@SqsListener` (including the `@KafkaHandler`/`@RabbitHandler` methods of a class-level listener) reports as its own summary, named after the method (`ReportJob.nightly`), so a worker without a web layer reports the same way a web application does. Matching is by annotation name, directly present on the bean method, so a listener library that is absent from the classpath costs nothing, and `storm.sql-log.entry-points` replaces the set for others — a Pulsar listener, or an application's own dispatch annotation. A final class or method cannot be proxied; open a scope inside it instead.
+A servlet filter wraps each HTTP request. The same switch covers the entry points a filter cannot see: a method annotated `@Scheduled`, `@KafkaListener`, `@RabbitListener`, `@JmsListener`, or `@SqsListener` (including the `@KafkaHandler`/`@RabbitHandler` methods of a class-level listener) reports as its own summary, named after the method (`ReportJob.nightly`), so a worker without a web layer reports the same way a web application does. Matching is by annotation name, directly present on the bean method, so a listener library that is absent from the classpath costs nothing, and `storm.sql-log.entry-points` replaces the set for others, such as a Pulsar listener or an application's own dispatch annotation. A final class or method cannot be proxied; open a scope inside it instead.
 
 For production, thresholds turn the scope into a guardrail: only units of work that exceed one are reported, at WARN.
 
@@ -216,7 +216,7 @@ The scope follows the thread that opened it. Work handed to another thread, incl
 
 ### The Summary Is the Report
 
-A scope hands nothing back: the summary reports through the `st.orm.sql.perf` logger, and the logger is the only switch. That is deliberate. Each number a summary shows already has a home for programmatic use — production metrics are the [Micrometer observations](spring-integration.md#observability), and test assertions are [`SqlCapture`](testing.md) — so the summary stays a report to be read, not an API to be coupled to.
+A scope hands nothing back: the summary reports through the `st.orm.sql.perf` logger, and the logger is the only switch. That is deliberate. Each number a summary shows already has a home for programmatic use: production metrics are the [Micrometer observations](spring-integration.md#observability), and test assertions are [`SqlCapture`](testing.md). So the summary stays a report to be read, not an API to be coupled to.
 
 Parameter values are absent by design: they are database values, and a summary is meant to be safe to log in production. Raise `st.orm.sql` to `TRACE` to see values.
 

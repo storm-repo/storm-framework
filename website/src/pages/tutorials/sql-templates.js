@@ -82,7 +82,7 @@ ${navHtml('tutorials')}
 <div class="art">
   <div class="crumbs"><a href="/tutorials/">Tutorials</a><span class="sep">/</span>SQL templates</div>
   <h1>Full SQL without <span class="grad">giving up safety</span></h1>
-  <p class="dek">Every ORM eventually meets a query it cannot express. JPA answers with native queries and untyped rows. Storm treats full SQL as a first-class citizen with the same safety as the rest of the framework.</p>
+  <p class="dek">Every ORM eventually meets a query it cannot express. JPA answers with native queries and untyped rows. Storm treats full SQL as part of the same query API, with the same safety as the rest of the framework.</p>
   <div class="meta"><span>Series · JPA to Storm</span><span>6 min read</span><span>Kotlin</span></div>
 
   <h2><span class="hno">01</span>The task</h2>

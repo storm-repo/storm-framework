@@ -476,7 +476,7 @@ _Comparison reviewed against Ktorm 4.2.1. Last reviewed: 2026-07-15._
 
 ## Summary
 
-Storm is a newer framework, so community resources and third-party tutorials are still growing. However, the API is designed to be intuitive for developers familiar with SQL and Kotlin and modern Java.
+Storm is a newer framework, so community resources and third-party tutorials are still growing. The API should read familiarly if you know SQL and either Kotlin or modern Java.
 
 Choose Storm if you value:
 - **Simplicity** over complexity

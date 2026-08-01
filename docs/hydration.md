@@ -7,7 +7,7 @@ Hydration is the process of transforming flat database rows into structured Kotl
 
 Kotlin data classes and Java records are ideal for result mapping because they have a **canonical constructor** with a deterministic parameter order. This order matches the declaration order of the record components, providing a predictable and stable mapping target. Combined with their immutability, records eliminate the need for reflection-based field injection or setter calls during hydration.
 
-Storm leverages this by mapping SELECT columns directly to constructor parameters by position. Several optimizations ensure high performance and low memory usage:
+Storm uses that by mapping SELECT columns directly to constructor parameters by position. A few things keep it fast and cheap on memory:
 
 - **Positional mapping**: No runtime reflection on column names
 - **Compiled mapping plans**: Plans are computed once per type and reused
@@ -15,7 +15,7 @@ Storm leverages this by mapping SELECT columns directly to constructor parameter
 - **Query-level interning**: Duplicate entities within a result set share the same instance
 - **Memory-safe streaming**: Supports efficient iteration over large result sets
 
-Storm natively supports a wide range of field types beyond basic JDBC types:
+Storm natively supports many field types beyond the basic JDBC ones:
 
 - **Primitives and wrappers**: `boolean`, `byte`, `short`, `int`, `long`, `float`, `double`
 - **Common types**: `String`, `BigDecimal`, `byte[]`, enums

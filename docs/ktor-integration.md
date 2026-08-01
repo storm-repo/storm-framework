@@ -707,7 +707,7 @@ fun Application.module() {
 }
 ```
 
-No further configuration is needed; without a registry, queries run unobserved at no cost. To report the OpenTelemetry database client semantic conventions — the standard attributes observability backends key their database tooling on — register the convention alongside the registry:
+No further configuration is needed; without a registry, queries run unobserved at no cost. To report the OpenTelemetry database client semantic conventions, the standard attributes observability backends key their database tooling on, register the convention alongside the registry:
 
 ```kotlin
 dependencies {
@@ -740,7 +740,7 @@ Physical transactions report as `storm.transaction` observations with their dura
 
 Queries against a named database are tagged `storm.database=<name>`; the primary database is tagged `storm.database=primary`. The tag is always present because meters of one name must share a single set of tag keys; registries such as Prometheus drop series whose tag keys differ. Queries issued during plugin installation, such as schema validation, run before the registry is resolved and are not observed.
 
-For development and per-call diagnosis, `sqlLog = true` in the plugin configuration reports what each call cost the database as one summary — statements, database time against total time, concurrency, and the statement that carried the weight — with thresholds that turn it into a production guardrail. See [SQL Logging](sql-logging.md#per-call-summaries).
+For development and per-call diagnosis, `sqlLog = true` in the plugin configuration reports what each call cost the database as one summary (statements, database time against total time, concurrency, and the statement that carried the weight) with thresholds that turn it into a production guardrail. See [SQL Logging](sql-logging.md#per-call-summaries).
 
 For full control, set an explicit observer in the plugin configuration; it takes precedence over the automatic binding. The `queryObserver` slot accepts any `st.orm.core.spi.QueryObserver`, including a hand-configured `MicrometerQueryObserver` from the `storm-micrometer` module (custom `ObservationConvention`, extra key values):
 

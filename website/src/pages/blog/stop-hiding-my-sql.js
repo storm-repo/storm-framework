@@ -37,7 +37,7 @@ const BODY = `
   <h2>Type the SQL, do not bury it</h2>
   <p>ST/ORM's SQL templates, the piece that <a class="tlink" href="/blog/why-we-built-storm">started the whole project</a>, let you write real SQL with type-safe interpolation and automatic result mapping. Column references go through the generated metamodel, so a renamed field, a broken path, or a wrong type is a compile error, not a runtime surprise. Interpolated values become bind parameters, so a value is never concatenated into the SQL text. Results map to plain data classes and records. Take a window function, the kind of query a DSL will not express for you, and none of the safety goes away:</p>
   ${editor({file: 'ReportService.kt', tag: 'Kotlin · ST/ORM', code: CODE_SQL_TEMPLATE})}
-  <p>For the boring, high-volume queries there is a concise DSL, so you are not writing SQL for a find-by-id. The DSL is there for the common queries; the template is there when SQL is the clearest language for the job. It is not a trapdoor you fall through when the abstraction fails. It is a first-class way to work, sitting right next to the DSL, which means the full power of your database is always one line away. You get typed references, safe parameters, and automatic mapping, while the SQL stays visible.</p>
+  <p>For the boring, high-volume queries there is a concise DSL, so you are not writing SQL for a find-by-id. The DSL is there for the common queries; the template is there when SQL is the clearest language for the job. Neither is the fallback for the other, so everything your database can do stays one line away.</p>
 
   <div class="cta">
     <a href="/docs/sql-templates" class="btn primary">SQL templates →</a>
