@@ -41,7 +41,7 @@ function buildBody(version) {
     P('}\n\n') +
     F('dependencies') + P(' {\n') +
     P('    ') + F('runtimeOnly') + P('(') + S('"st.orm:storm-h2"') + P(')          ') + C('// zero-setup in-memory database\n') +
-    P('    ') + F('runtimeOnly') + P('(') + S('"com.h2database:h2:2.2.224"') + P(')\n') +
+    P('    ') + F('runtimeOnly') + P('(') + S('"com.h2database:h2:2.3.232"') + P(')\n') +
     P('}');
 
   const entity =
