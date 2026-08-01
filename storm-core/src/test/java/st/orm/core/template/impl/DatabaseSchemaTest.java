@@ -13,6 +13,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import st.orm.core.template.SqlDialect.ConstraintDiscoveryStrategy;
 import st.orm.core.template.SqlDialect.SequenceDiscoveryStrategy;
+import st.orm.core.template.impl.DatabaseSchema.ConstraintKind;
 import st.orm.core.template.impl.DatabaseSchema.DbColumn;
 import st.orm.core.template.impl.DatabaseSchema.DbForeignKey;
 import st.orm.core.template.impl.DatabaseSchema.DbPrimaryKey;
@@ -45,6 +46,38 @@ class DatabaseSchemaTest {
     }
 
     // Basic read() tests
+
+    // Constraint discovery outcome
+
+    @Test
+    void testConstraintsAreDiscoveredWithAFittingStrategy() throws SQLException {
+        execute("CREATE TABLE parent (id INTEGER PRIMARY KEY)");
+        execute("CREATE TABLE child (id INTEGER PRIMARY KEY, parent_id INTEGER REFERENCES parent (id))");
+        try (Connection connection = getConnection()) {
+            DatabaseSchema schema = DatabaseSchema.read(connection);
+            assertTrue(schema.isDiscovered(ConstraintKind.KEY));
+            assertTrue(schema.isDiscovered(ConstraintKind.FOREIGN_KEY));
+            assertEquals(1, schema.getForeignKeys("child").size());
+        }
+    }
+
+    @Test
+    void testForeignKeysStayUnknownWhenTheStrategyDoesNotFitTheDatabase() throws SQLException {
+        execute("CREATE TABLE parent (id INTEGER PRIMARY KEY)");
+        execute("CREATE TABLE child (id INTEGER PRIMARY KEY, parent_id INTEGER REFERENCES parent (id))");
+        try (Connection connection = getConnection()) {
+            // INFORMATION_SCHEMA_REFERENCING reads KEY_COLUMN_USAGE.REFERENCED_TABLE_NAME, a column H2 does not
+            // have, so the foreign key query fails and the foreign keys stay unknown.
+            DatabaseSchema schema = DatabaseSchema.read(connection, connection.getCatalog(), connection.getSchema(),
+                    SequenceDiscoveryStrategy.INFORMATION_SCHEMA,
+                    ConstraintDiscoveryStrategy.INFORMATION_SCHEMA_REFERENCING);
+            assertFalse(schema.isDiscovered(ConstraintKind.FOREIGN_KEY));
+            assertTrue(schema.getForeignKeys("child").isEmpty());
+            // The keys come from a query H2 does understand, so they are known and were read.
+            assertTrue(schema.isDiscovered(ConstraintKind.KEY));
+            assertEquals(1, schema.getPrimaryKeys("child").size());
+        }
+    }
 
     @Test
     void testReadEmptySchema() throws SQLException {

@@ -15,7 +15,9 @@
  */
 package st.orm.core.template.impl;
 
+import static st.orm.core.spi.Providers.getDatabaseProductName;
 import static st.orm.core.spi.Providers.getSqlDialect;
+import static st.orm.core.spi.Providers.getSqlDialectProvider;
 import static st.orm.core.template.impl.RecordReflection.isPolymorphicData;
 
 import jakarta.annotation.Nonnull;
@@ -47,12 +49,15 @@ import st.orm.GenerationStrategy;
 import st.orm.PK;
 import st.orm.ProjectionQuery;
 import st.orm.Ref;
+import st.orm.StormConfig;
 import st.orm.UK;
+import st.orm.core.spi.SqlDialectProvider;
 import st.orm.core.spi.TypeDiscovery;
 import st.orm.core.template.Column;
 import st.orm.core.template.Model;
 import st.orm.core.template.SqlDialect;
 import st.orm.core.template.SqlTemplateException;
+import st.orm.core.template.impl.DatabaseSchema.ConstraintKind;
 import st.orm.core.template.impl.DatabaseSchema.DbColumn;
 import st.orm.core.template.impl.DatabaseSchema.DbForeignKey;
 import st.orm.core.template.impl.DatabaseSchema.DbUniqueKey;
@@ -104,7 +109,7 @@ public final class SchemaValidator {
      */
     public static SchemaValidator of(@Nonnull DataSource dataSource) {
         return new SchemaValidator(dataSource, ModelBuilder.newInstance(), TypeCompatibility.defaultCompatibility(),
-                getSqlDialect());
+                resolveSqlDialect(dataSource));
     }
 
     /**
@@ -116,7 +121,22 @@ public final class SchemaValidator {
      */
     public static SchemaValidator of(@Nonnull DataSource dataSource, @Nonnull ModelBuilder modelBuilder) {
         return new SchemaValidator(dataSource, modelBuilder, TypeCompatibility.defaultCompatibility(),
-                getSqlDialect());
+                resolveSqlDialect(dataSource));
+    }
+
+    /**
+     * Resolves the dialect for the given data source from its database product, the same way the template factories
+     * do.
+     *
+     * <p>Selecting by product matters when several dialect modules are on the classpath: the strategies a dialect
+     * uses to read constraints and sequences are vendor-specific, so a dialect that does not match the database
+     * reads the schema with queries the database does not understand. Only when no provider claims the product does
+     * this fall back to the first registered dialect.</p>
+     */
+    private static SqlDialect resolveSqlDialect(@Nonnull DataSource dataSource) {
+        StormConfig config = StormConfig.defaults();
+        SqlDialectProvider provider = getSqlDialectProvider(getDatabaseProductName(dataSource));
+        return provider != null ? provider.getSqlDialect(config) : getSqlDialect(config);
     }
 
     /**
@@ -456,8 +476,9 @@ public final class SchemaValidator {
                                 .formatted(columnName, qualifiedTableName)));
             }
         }
-        // 5. Primary key match.
-        if (requirePrimaryKey) {
+        // 5. Primary key match. Skipped when the keys could not be read: an empty result would otherwise read as
+        // "the table has no primary key".
+        if (requirePrimaryKey && schema.isDiscovered(ConstraintKind.KEY)) {
             Set<String> entityPkColumns = model.declaredColumns().stream()
                     .filter(Column::primaryKey)
                     .map(column -> column.name().toUpperCase())
@@ -531,6 +552,10 @@ public final class SchemaValidator {
             @Nonnull Set<String> ignoredComponents,
             @Nonnull List<SchemaValidationError> errors
     ) {
+        if (!schema.isDiscovered(ConstraintKind.KEY)) {
+            // The unique keys could not be read, so nothing can be said about them.
+            return;
+        }
         // Build a map of unique index name -> set of column names from the database.
         List<DbUniqueKey> dbUniqueKeys = schema.getUniqueKeys(tableName);
         SortedMap<String, SortedSet<String>> indexColumnsByName = new TreeMap<>(String.CASE_INSENSITIVE_ORDER);
@@ -580,6 +605,10 @@ public final class SchemaValidator {
             @Nonnull Set<String> ignoredComponents,
             @Nonnull List<SchemaValidationError> errors
     ) {
+        if (!schema.isDiscovered(ConstraintKind.FOREIGN_KEY)) {
+            // The foreign keys could not be read, so nothing can be said about them.
+            return;
+        }
         List<DbForeignKey> dbForeignKeys = schema.getForeignKeys(tableName);
         for (RecordField field : model.recordType().fields()) {
             if (field.isAnnotationPresent(DbIgnore.class)) {
