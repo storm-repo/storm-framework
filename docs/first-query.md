@@ -280,7 +280,7 @@ Storm provides multiple query styles that you can mix freely:
 | Query builder | Ordering, pagination, joins, aggregation |
 | SQL Templates | Complex SQL, CTEs, window functions |
 
-Start with the simplest approach that fits your query. Move to a more powerful style only when needed.
+Start with the simplest approach that fits your query, and move down the table only when it stops fitting.
 
 ## Next Steps
 

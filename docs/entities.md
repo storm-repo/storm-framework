@@ -86,7 +86,7 @@ data class User(
 </TabItem>
 <TabItem value="java" label="Java">
 
-In Java, record components are non-null by default, exactly like Kotlin: `String` means a value is always present, and nullable is the marked case. Mark nullable fields with `@Nullable` — Storm recognizes JSpecify's `org.jspecify.annotations.Nullable` (as a type-use annotation), `jakarta.annotation.Nullable`, and `javax.annotation.Nullable`. This matches JSpecify's `@NullMarked` semantics: annotating your model package `@NullMarked` is welcome documentation for static checkers, and `@NullUnmarked` on a class or package opts back into lenient, nullable-by-default components for that scope. As with Kotlin, nullability determines JOIN behavior: a non-nullable `@FK` field — including a bare, unannotated one — produces an `INNER JOIN`, while a `@Nullable @FK` field produces a `LEFT JOIN`. If the FK column allows `NULL` in the database, annotate the field `@Nullable`, or rows without the reference are silently filtered by the inner join.
+In Java, record components are non-null by default, exactly like Kotlin: `String` means a value is always present, and nullable is the marked case. Mark nullable fields with `@Nullable`. Storm recognizes JSpecify's `org.jspecify.annotations.Nullable` (as a type-use annotation), `jakarta.annotation.Nullable`, and `javax.annotation.Nullable`. This matches JSpecify's `@NullMarked` semantics: annotating your model package `@NullMarked` is welcome documentation for static checkers, and `@NullUnmarked` on a class or package opts back into lenient, nullable-by-default components for that scope. As with Kotlin, nullability determines JOIN behavior: a non-nullable `@FK` field, including a bare unannotated one, produces an `INNER JOIN`, while a `@Nullable @FK` field produces a `LEFT JOIN`. If the FK column allows `NULL` in the database, annotate the field `@Nullable`, or rows without the reference are silently filtered by the inner join.
 
 ```java
 record User(@PK Integer id,
@@ -341,7 +341,7 @@ record SomeEntity(@PK Integer id,
 
 Compound unique constraints that do not require a metamodel key do not need to be modeled in the entity. Schema validation does not warn about unmodeled compound constraints.
 
-Use `@UK(constraint = false)` when the unique constraint does not exist in the database — for example, when uniqueness is enforced at the application level.
+Use `@UK(constraint = false)` when the unique constraint does not exist in the database: for example, when uniqueness is enforced at the application level.
 
 When a column is not annotated with `@UK` but becomes unique in a specific query context (for example, a GROUP BY column produces unique values in the result set), wrap the metamodel with `.key()` (Kotlin) or `Metamodel.key()` (Java) to indicate it can serve as a scrolling cursor. See [Manual Key Wrapping](metamodel.md#manual-key-wrapping) for details.
 

@@ -46,14 +46,14 @@ If you have a local development database running, Storm can set up a schema-awar
 
 The MCP server runs locally on your machine, exposes only schema metadata by default, and stores credentials in `~/.storm/` (outside your project, outside the LLM's reach). It supports PostgreSQL, MySQL, MariaDB, Oracle, SQL Server, SQLite, and H2. You can connect multiple databases to a single project, even across different database types.
 
-Optionally, you can enable read-only data access per connection. This lets the AI query individual records to inform type decisions — for example, recognizing that a `VARCHAR` column contains enum-like values, or that a `TEXT` column stores JSON. Data access is disabled by default because it means actual data from your database flows through the AI's context. When enabled, the database connection is read-only (enforced at both the application and database driver level), and the AI cannot write, modify, or delete data. See [Database Connections & MCP — Security](database-and-mcp.md#security) for the full details.
+Optionally, you can enable read-only data access per connection. This lets the AI query individual records to inform type decisions: for example, recognizing that a `VARCHAR` column contains enum-like values, or that a `TEXT` column stores JSON. Data access is disabled by default because it means actual data from your database flows through the AI's context. When enabled, the database connection is read-only (enforced at both the application and database driver level), and the AI cannot write, modify, or delete data. See [Database Connections & MCP: Security](database-and-mcp.md#security) for the full details.
 
 With the database connected, three additional skills become available for schema inspection, entity validation against the live schema, and entity generation from database tables. See [AI Tools Reference](ai-reference.md#database-skills) for details.
 
 To manage database connections later, use `storm db` for the global connection library and `storm mcp` for project-level configuration. See [Database Connections & MCP](database-and-mcp.md) for the full guide.
 
 :::tip Looking for a database MCP server for Python, Go, Ruby, or any other language?
-The Storm MCP server works standalone — no Storm ORM required. Run `npx @storm-orm/cli mcp` to set up schema access and optional read-only data queries without installing Storm rules or skills. See [Using Without Storm ORM](database-and-mcp.md#using-without-storm-orm).
+The Storm MCP server works standalone, with no Storm ORM required. Run `npx @storm-orm/cli mcp` to set up schema access and optional read-only data queries without installing Storm rules or skills. See [Using Without Storm ORM](database-and-mcp.md#using-without-storm-orm).
 :::
 
 ---
@@ -151,7 +151,7 @@ The AI generates and updates code (entities, migrations, queries). Storm validat
 
 In a schema-first workflow, the database is the source of truth. The schema already exists (or is managed by a DBA), and entities need to match it.
 
-When the MCP server is configured, the AI has access to the live database through `list_tables` and `describe_table`. This gives it full visibility into table definitions, column types, constraints, and foreign key relationships. When data access is enabled, the AI can also use `select_data` to sample individual records — useful when the schema alone is ambiguous about intent (e.g., a `VARCHAR` that holds enum values, or a `TEXT` column that stores JSON).
+When the MCP server is configured, the AI has access to the live database through `list_tables` and `describe_table`. This gives it full visibility into table definitions, column types, constraints, and foreign key relationships. When data access is enabled, the AI can also use `select_data` to sample individual records, which helps when the schema alone is ambiguous about intent (e.g., a `VARCHAR` that holds enum values, or a `TEXT` column that stores JSON).
 
 The AI workflow:
 

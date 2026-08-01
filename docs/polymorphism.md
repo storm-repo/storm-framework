@@ -3,13 +3,13 @@ import TabItem from '@theme/TabItem';
 
 # Polymorphism
 
-Storm supports polymorphic entity hierarchies using sealed types. Instead of the proxy-based inheritance strategies found in traditional ORMs, Storm leverages sealed interfaces and data classes (Kotlin) or records (Java) to provide compile-time type safety with exhaustive pattern matching. The sealed type hierarchy tells the compiler exactly which subtypes exist, so a `when` (Kotlin) or `switch` (Java) expression over a polymorphic result is guaranteed to cover all cases.
+Storm supports polymorphic entity hierarchies using sealed types. Where traditional ORMs use proxy-based inheritance strategies, Storm builds on sealed interfaces with data classes (Kotlin) or records (Java). The sealed hierarchy tells the compiler exactly which subtypes exist, so a `when` (Kotlin) or `switch` (Java) over a polymorphic result is guaranteed to cover every case.
 
 Storm provides three inheritance strategies: **Single-Table**, **Joined Table**, and **Polymorphic FK**. The strategy is detected automatically from how you structure the sealed type hierarchy. Single-Table stores a discriminator value in the entity's table and requires `@Discriminator` on the sealed interface. Joined Table supports an optional `@Discriminator`: when present, a physical discriminator column is stored in the base table; when absent, Storm resolves the concrete type at query time by checking which extension table has a matching row. Polymorphic FK stores discriminator values in the *referencing* entity instead, so the sealed interface itself needs no discriminator annotation.
 
 ## Decision Guide
 
-Before diving into the details, use this summary to choose the right strategy for your use case:
+Use this summary to pick a strategy, then read the section for it:
 
 | Strategy | Best For | Trade-offs |
 |----------|----------|------------|
@@ -1332,7 +1332,7 @@ If you later add a `Bird` subtype to the `Pet` hierarchy, the compiler flags eve
 ## Tips
 
 1. **Choose the strategy that matches your schema.** Single-Table suits compact hierarchies with few subtype-specific fields. Joined Table suits hierarchies with many distinct fields and a preference for normalization. Polymorphic FK suits cross-cutting concerns like comments, tags, and audit logs.
-2. **Leverage pattern matching.** Sealed types guarantee exhaustive handling. Prefer `when`/`switch` over `is`/`instanceof` chains.
+2. **Use pattern matching.** Sealed types guarantee exhaustive handling. Prefer `when`/`switch` over `is`/`instanceof` chains.
 3. **Keep hierarchies shallow.** Storm supports one level of sealed subtyping (interface + records). Deep inheritance chains are not supported and rarely needed with records.
 4. **`@Discriminator` is required for Single-Table, optional for Joined Table.** For Single-Table, the default column name `"dtype"` (consistent with JPA) is used when no column name is specified. For Joined Table, omitting `@Discriminator` enables implicit type resolution via extension table PKs.
 5. **Polymorphic FK targets cannot be auto-joined.** Use `Ref.fetch()` to load the target entity. This is by design: the target spans multiple tables, so a single JOIN is not possible.

@@ -102,7 +102,7 @@ const POSTS = [
     tag: 'Design',
     title: 'A first-principles approach to your data layer',
     blurb:
-      'The most concise way to describe a table turns out to be the ultimate carrier of your data, and the contract for querying the entire relation graph. Simplicity is the ultimate sophistication.',
+      'The most concise way to describe a table turns out to be the carrier of your data, and the contract for querying the entire relation graph.',
   },
   {
     slug: 'why-we-built-storm',

@@ -93,7 +93,7 @@ ${navHtml('tutorials')}
 <div class="art">
   <div class="crumbs"><a href="/tutorials/">Tutorials</a><span class="sep">/</span>Transactions</div>
   <h1>Transactions without <span class="grad">the proxy rules</span></h1>
-  <p class="dek">@Transactional is powerful, and it comes with rules: proxies, self-invocation, visibility, rollback defaults. Storm makes the transaction a block of code whose scope you can see.</p>
+  <p class="dek">@Transactional does a lot for you, and it comes with rules: proxies, self-invocation, visibility, rollback defaults. Storm makes the transaction a block of code whose scope you can see.</p>
   <div class="meta"><span>Series · JPA to Storm</span><span>6 min read</span><span>Kotlin</span></div>
 
   <h2><span class="hno">01</span>The task</h2>

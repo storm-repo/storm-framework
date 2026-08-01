@@ -348,7 +348,7 @@ transaction(isolation = REPEATABLE_READ) {
 
 See [Transactions](transactions.md#isolation-levels) for guidance on choosing isolation levels.
 
-### 2. Leverage Ref.fetch() Caching
+### 2. Let Ref.fetch() Use the Cache
 
 When navigating relationships, `Ref.fetch()` automatically uses the cache:
 

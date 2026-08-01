@@ -21,7 +21,7 @@ Database configuration in Storm has two layers: a **global connection library** 
 
 Global connections store the actual credentials and connection details. Projects reference them by name through aliases. This separation means you configure a database once and reuse it across as many projects as you need. Changing a password or hostname in the global connection updates every project that references it.
 
-Each project alias becomes an MCP server that your AI tool can query. The alias `default` becomes `storm-schema`; any other alias like `reporting` becomes `storm-schema-reporting`. The Storm MCP server handles all supported dialects — PostgreSQL, MySQL, MariaDB, Oracle, SQL Server, SQLite, and H2. The necessary drivers are installed automatically.
+Each project alias becomes an MCP server that your AI tool can query. The alias `default` becomes `storm-schema`; any other alias like `reporting` becomes `storm-schema-reporting`. The Storm MCP server handles all supported dialects: PostgreSQL, MySQL, MariaDB, Oracle, SQL Server, SQLite, and H2. The necessary drivers are installed automatically.
 
 ---
 
@@ -104,7 +104,7 @@ Run `storm mcp list` to see what is configured for the current project, includin
 
 ### Removing a project connection
 
-Run `storm mcp remove reporting` to remove an alias from the project. This unregisters the MCP server from your AI tool's configuration. The global connection itself is not affected — other projects that reference it continue to work.
+Run `storm mcp remove reporting` to remove an alias from the project. This unregisters the MCP server from your AI tool's configuration. The global connection itself is not affected, so other projects that reference it continue to work.
 
 ### Re-registering connections
 
@@ -169,7 +169,7 @@ If a project needs a different database, it simply references a different global
 
 Most connections should be global, since they represent databases on your machine that any project might use. However, some connections are inherently project-specific: a SQLite database file that lives inside the project directory, or a Docker Compose database that uses a project-specific port mapping.
 
-Project-local connections are stored in `.storm/connections/` inside the project directory. When Storm resolves a connection name, it checks the project-local directory first, then the global directory. This means a project-local connection can shadow a global one with the same name — useful for overriding connection details in a specific project without affecting others.
+Project-local connections are stored in `.storm/connections/` inside the project directory. When Storm resolves a connection name, it checks the project-local directory first, then the global directory. This means a project-local connection can shadow a global one with the same name, which is how you override connection details in a specific project without affecting others.
 
 ```
 .storm/
@@ -188,7 +188,7 @@ Global connections are stored in `~/.storm/connections/`. Project-level configur
 
 ## Using Without Storm ORM
 
-The Storm MCP server is a standalone database tool — it does not require Storm ORM in your project. If you use Python, Go, Ruby, or any other language and just want your AI tool to have schema awareness and optional data access, run:
+The Storm MCP server is a standalone database tool. It does not require Storm ORM in your project. If you use Python, Go, Ruby, or any other language and just want your AI tool to have schema awareness and optional data access, run:
 
 ```bash
 npx @storm-orm/cli mcp
@@ -209,7 +209,7 @@ After setup, you can manage connections with `storm db` and `storm mcp` commands
 
 ## Security
 
-Database credentials are stored in connection JSON files under `~/.storm/connections/` (global) or `.storm/connections/` (project-local). Both locations are outside the AI tool's context window: the MCP server reads them at startup, but the connection details are never sent to the AI. The AI only sees schema metadata — and optionally, query results — but it never learns your credentials.
+Database credentials are stored in connection JSON files under `~/.storm/connections/` (global) or `.storm/connections/` (project-local). Both locations are outside the AI tool's context window: the MCP server reads them at startup, but the connection details are never sent to the AI. The AI only sees schema metadata, and optionally query results, but it never learns your credentials.
 
 ### Schema access (always available)
 
@@ -255,7 +255,7 @@ This lets you:
 1. **Toggle data access** on or off for the connection.
 2. **Exclude specific tables** from data queries. Storm connects to the database, lists all tables, and presents a searchable checkbox where you can select which tables to exclude. You can type to filter the list, use Page Up/Down for large schemas, and press Space to toggle individual tables.
 
-Excluded tables still appear in `list_tables` and can be described with `describe_table` — the AI needs to see the schema to generate correct entities and foreign keys. Only `select_data` is restricted for excluded tables.
+Excluded tables still appear in `list_tables` and can be described with `describe_table`, because the AI needs to see the schema to generate correct entities and foreign keys. Only `select_data` is restricted for excluded tables.
 
 The settings are stored in the connection JSON file (`selectAccess` and `excludeTables`). You can re-run `storm db config` at any time to update them.
 
@@ -263,18 +263,18 @@ The settings are stored in the connection JSON file (`selectAccess` and `exclude
 
 Enabling data access does not give the AI the ability to write, modify, or delete data. The MCP server enforces read-only access through multiple independent layers:
 
-**1. Structured queries, not SQL.** The AI never writes SQL. The `select_data` tool accepts a structured request — table name, column names, filter conditions, sort order, and row limit — and the MCP server builds the SQL internally. There is no code path that produces anything other than a `SELECT` statement. This is read-only by construction: the server cannot generate `INSERT`, `UPDATE`, `DELETE`, `DROP`, or any other write operation because it simply does not contain the code to do so.
+**1. Structured queries, not SQL.** The AI never writes SQL. The `select_data` tool accepts a structured request (table name, column names, filter conditions, sort order, and row limit) and the MCP server builds the SQL internally. There is no code path that produces anything other than a `SELECT` statement. This is read-only by construction: the server cannot generate `INSERT`, `UPDATE`, `DELETE`, `DROP`, or any other write operation because it simply does not contain the code to do so.
 
-**2. Schema validation.** Every table and column name in a `select_data` request is validated against the actual database schema before any query is executed (case-insensitive; the server resolves the correct casing automatically). Unknown tables and columns are rejected. Filter operators are restricted to a fixed whitelist (`=`, `!=`, `<`, `>`, `<=`, `>=`, `LIKE`, `IN`, `IS NULL`, `IS NOT NULL`). Values are always parameterized — they never appear in the SQL string.
+**2. Schema validation.** Every table and column name in a `select_data` request is validated against the actual database schema before any query is executed (case-insensitive; the server resolves the correct casing automatically). Unknown tables and columns are rejected. Filter operators are restricted to a fixed whitelist (`=`, `!=`, `<`, `>`, `<=`, `>=`, `LIKE`, `IN`, `IS NULL`, `IS NOT NULL`). Values are always parameterized, so they never appear in the SQL string.
 
 **3. Read-only database connections.** Independent of the query builder, the database connection itself is configured to reject writes at the driver or protocol level:
 
 | Database | Read-only mechanism |
 |----------|-------------------|
-| PostgreSQL | `default_transaction_read_only = on` — the server rejects any write statement |
-| MySQL / MariaDB | `SET SESSION TRANSACTION READ ONLY` — session-level write rejection |
-| SQL Server | `readOnlyIntent: true` — connection-level read-only intent |
-| SQLite | `readonly: true` — OS-level read-only file handle |
+| PostgreSQL | `default_transaction_read_only = on`, the server rejects any write statement |
+| MySQL / MariaDB | `SET SESSION TRANSACTION READ ONLY`, session-level write rejection |
+| SQL Server | `readOnlyIntent: true`, connection-level read-only intent |
+| SQLite | `readonly: true`, OS-level read-only file handle |
 | H2 | `default_transaction_read_only = on` (via PG wire protocol) |
 | Oracle | Relies on the structured query builder (Oracle has no session-level read-only setting) |
 
@@ -297,7 +297,7 @@ Even if the structured query builder had a bug that somehow produced a write sta
 
 ## Command Reference
 
-### `storm db` — Global connection library
+### `storm db`: Global connection library
 
 #### `storm db`
 
@@ -322,11 +322,11 @@ Configure data access settings for a connection. This lets you:
 
 Excluded tables still appear in `list_tables` and can be described with `describe_table`. Only `select_data` is restricted.
 
-### `storm mcp` — Project MCP servers
+### `storm mcp`: Project MCP servers
 
 #### `storm mcp`
 
-Set up a MCP database server (default). Walks you through AI tool selection, database connections, data access, and MCP registration. Works standalone — no Storm ORM required. `storm mcp init` is an alias for this command.
+Set up a MCP database server (default). Walks you through AI tool selection, database connections, data access, and MCP registration. Works standalone, with no Storm ORM required. `storm mcp init` is an alias for this command.
 
 #### `storm mcp update`
 

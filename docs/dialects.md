@@ -247,7 +247,7 @@ mvn test -pl storm-postgresql
 
 ## Tips
 
-1. **Always include the dialect** for production databases to unlock all features
+1. **Always include the dialect** for production databases; without it you lose the database-specific features
 2. **Use H2 or SQLite** for unit tests; add `storm-h2` or `storm-sqlite` for upsert support
 3. **Dialect is runtime-only**; it doesn't affect your compile-time code or entity definitions
 4. **One dialect per application**; Storm auto-detects the right dialect from your connection URL

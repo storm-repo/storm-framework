@@ -3,9 +3,9 @@ import TabItem from '@theme/TabItem';
 
 # Error Handling
 
-When something goes wrong, Storm communicates the problem through a small, well-defined set of exception types. Understanding which exceptions can be thrown and when helps you write robust error handling that distinguishes between recoverable situations (like a missing entity) and programming mistakes (like a schema mismatch).
+When something goes wrong, Storm reports it through a small set of exception types. The distinction that matters when you catch them is between a recoverable situation, like a missing entity, and a programming mistake, like a schema mismatch.
 
-This page covers Storm's exception hierarchy, the most common error scenarios you will encounter, and strategies for diagnosing problems when they arise. For mapping these exceptions to HTTP responses in a Ktor application, see the StatusPages recipes in [Ktor Integration](ktor-integration.md#error-handling).
+This page covers the exception hierarchy, the errors you are most likely to hit, and how to diagnose them. For mapping these exceptions to HTTP responses in a Ktor application, see the StatusPages recipes in [Ktor Integration](ktor-integration.md#error-handling).
 
 ---
 

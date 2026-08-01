@@ -508,7 +508,7 @@ Storm extracts the primary key from the `User` entity and uses it as the value f
 
 ### Key Chains
 
-The referenced entity's primary key may itself be a foreign key — or a compound key record. Storm follows this *key chain* to its terminal columns. A dependent one-to-one on an entity that is itself a dependent one-to-one works the same way as the single-level case:
+The referenced entity's primary key may itself be a foreign key, or a compound key record. Storm follows this *key chain* to its terminal columns. A dependent one-to-one on an entity that is itself a dependent one-to-one works the same way as the single-level case:
 
 <Tabs groupId="language">
 <TabItem value="kotlin" label="Kotlin" default>

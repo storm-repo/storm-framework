@@ -3,7 +3,7 @@
 import Tabs from '@theme/Tabs';
 import TabItem from '@theme/TabItem';
 
-Storm provides a powerful and flexible query API. All queries are type-safe; the generated metamodel (`User_`, `City_`, etc.) catches errors at compile time rather than at runtime.
+All Storm queries are type-safe: the generated metamodel (`User_`, `City_`, etc.) catches errors at compile time rather than at runtime.
 
 Key features:
 - **Compile-time checked** -- field references are validated by the metamodel
@@ -389,7 +389,7 @@ List<User> users = orm.entity(User.class)
     .getResultList();
 ```
 
-When a path passed to `orderBy`, `orderByDescending`, or `groupBy` resolves to multiple columns — an inline record, or a foreign key to a table with a compound primary key — it expands to those columns in order, resolved exactly as a predicate on that path would be: component columns for an inline record, the foreign key column(s) on the referencing table for a foreign key.
+When a path passed to `orderBy`, `orderByDescending`, or `groupBy` resolves to multiple columns (an inline record, or a foreign key to a table with a compound primary key), it expands to those columns in order, resolved exactly as a predicate on that path would be: component columns for an inline record, the foreign key column(s) on the referencing table for a foreign key.
 
 For full control over the ORDER BY clause, use the template overload:
 

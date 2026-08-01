@@ -13,7 +13,7 @@ const BODY = `
 <div class="art">
   <div class="crumbs"><a href="/blog/">Blog</a><span class="sep">/</span>The static metamodel</div>
   <h1>The static <span class="grad">metamodel</span></h1>
-  <p class="dek">Every entity you write gets a generated metamodel class, produced at compile time. It is a quiet piece of the design, and it is where type safety and speed turn out to be the same decision.</p>
+  <p class="dek">Every entity you write gets a generated metamodel class, produced at compile time. It is a small piece of the design, and it is where type safety and speed turn out to be the same decision.</p>
   <div class="meta"><span>March 3, 2026</span><span>Internals</span><span>4 min read</span></div>
 
   <h2>A generated metamodel class</h2>
@@ -28,8 +28,8 @@ const BODY = `
   <h2>Where it pays off: hydration</h2>
   <p>The clearest place you feel this is hydration, turning a result row into an entity. That happens for every row of every query, so it is the part that has to be fast. With a generated metamodel, hydration is code-generated too: each column is read through a known path and lands in the right constructor argument, without asking the class at runtime what to do with it. There is no per-row reflection to pay for, so the mapping runs close to the cost of the work itself.</p>
 
-  <h2>One decision, two payoffs</h2>
-  <p>Type safety and performance came from one decision, not from two separate features you have to balance. Generate the model's shape once, at compile time, and the compiler can check your queries while the runtime skips reflection entirely. Everything downstream, from a query predicate to change detection, gets to stand on generated paths instead of runtime discovery. It is a small piece of generated code, but almost every part of the data layer gets to lean on it.</p>
+  <h2>One decision</h2>
+  <p>Type safety and performance came from one decision, not from two features you have to balance against each other. Generate the model's shape once, at compile time, and the compiler can check your queries while the runtime skips reflection entirely. Everything downstream stands on those generated paths instead of runtime discovery, from a query predicate to change detection.</p>
 
   <div class="cta">
     <a href="/docs/metamodel" class="btn primary">The metamodel →</a>
