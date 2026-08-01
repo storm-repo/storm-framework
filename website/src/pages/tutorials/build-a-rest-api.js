@@ -27,14 +27,14 @@ function buildBody(version) {
     C('// build.gradle.kts\n') +
     F('plugins') + P(' {\n') +
     P('    ') + F('kotlin') + P('(') + S('"jvm"') + P(') version ') + S(`"${kotlin}"`) + P('\n') +
-    P('    ') + F('id') + P('(') + S('"io.ktor.plugin"') + P(') version ') + S('"3.0.3"') + P('\n') +
+    P('    ') + F('id') + P('(') + S('"io.ktor.plugin"') + P(') version ') + S('"3.4.3"') + P('\n') +
     P('    ') + F('id') + P('(') + S('"com.google.devtools.ksp"') + P(') version ') + S(`"${ksp}"`) + P('\n') +
     P('    ') + F('id') + P('(') + S('"st.orm"') + P(') version ') + S(`"${version}"`) + P('\n') +
     P('}\n\n') +
     F('dependencies') + P(' {\n') +
     P('    ') + F('implementation') + P('(') + S('"st.orm:storm-ktor"') + P(')\n') +
     P('    ') + F('runtimeOnly') + P('(') + S('"st.orm:storm-h2"') + P(')\n') +
-    P('    ') + F('runtimeOnly') + P('(') + S('"com.h2database:h2:2.2.224"') + P(')\n\n') +
+    P('    ') + F('runtimeOnly') + P('(') + S('"com.h2database:h2:2.3.232"') + P(')\n\n') +
     P('    ') + F('implementation') + P('(') + S('"io.ktor:ktor-server-netty"') + P(')\n') +
     P('    ') + F('implementation') + P('(') + S('"io.ktor:ktor-server-content-negotiation"') + P(')\n') +
     P('    ') + F('implementation') + P('(') + S('"io.ktor:ktor-serialization-jackson"') + P(')\n') +
