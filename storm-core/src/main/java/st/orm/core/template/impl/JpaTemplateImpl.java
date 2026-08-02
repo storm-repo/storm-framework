@@ -26,9 +26,13 @@ import jakarta.annotation.Nullable;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.PersistenceException;
 import java.util.List;
+import java.util.Map;
 import java.util.function.Predicate;
 import java.util.stream.Stream;
 import java.util.stream.StreamSupport;
+import javax.sql.DataSource;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import st.orm.BindVars;
 import st.orm.Data;
 import st.orm.Ref;
@@ -47,6 +51,7 @@ import st.orm.core.template.ORMTemplate;
 import st.orm.core.template.PreparedQuery;
 import st.orm.core.template.Query;
 import st.orm.core.template.Sql;
+import st.orm.core.template.SqlDialect;
 import st.orm.core.template.SqlTemplate;
 import st.orm.core.template.SqlTemplate.NamedParameter;
 import st.orm.core.template.SqlTemplate.PositionalParameter;
@@ -58,6 +63,15 @@ import st.orm.mapping.ForeignKeyResolver;
 import st.orm.mapping.TableNameResolver;
 
 public final class JpaTemplateImpl implements JpaTemplate, QueryFactory {
+
+    private static final Logger LOGGER = LoggerFactory.getLogger(JpaTemplateImpl.class);
+
+    /** The properties a persistence unit publishes its data source under, newest name first. */
+    private static final List<String> DATA_SOURCE_PROPERTIES = List.of(
+            "jakarta.persistence.nonJtaDataSource",
+            "jakarta.persistence.jtaDataSource",
+            "javax.persistence.nonJtaDataSource",
+            "javax.persistence.jtaDataSource");
 
     @FunctionalInterface
     private interface TemplateProcessor {
@@ -71,6 +85,7 @@ public final class JpaTemplateImpl implements JpaTemplate, QueryFactory {
     private final RefFactory refFactory;
     private final SqlTemplate sqlTemplate;
     private final StormConfig config;
+    private final SqlDialect dialect;
 
     public JpaTemplateImpl(@Nonnull EntityManager entityManager) {
         this(entityManager, StormConfig.defaults());
@@ -95,15 +110,61 @@ public final class JpaTemplateImpl implements JpaTemplate, QueryFactory {
         this.tableAliasResolver = TableAliasResolver.DEFAULT;
         this.providerFilter = null;
         this.config = config;
+        this.dialect = resolveDialect(entityManager, config);
         this.refFactory = new RefFactoryImpl(this, modelBuilder, providerFilter);
         this.sqlTemplate = createSqlTemplate();
+    }
+
+    /**
+     * Resolves the dialect for the database behind the given entity manager.
+     *
+     * <p>Asking the persistence unit for its data source is the portable way to reach the database: unwrapping an
+     * entity manager to a {@link java.sql.Connection} is not supported by every provider. A persistence unit
+     * configured with a connection URL rather than a data source, or one whose database cannot be reached while the
+     * template is being built, leaves the database unknown, and the dialect then comes from the classpath as
+     * before.</p>
+     */
+    private static SqlDialect resolveDialect(@Nonnull EntityManager entityManager, @Nonnull StormConfig config) {
+        DataSource dataSource = dataSourceOf(entityManager);
+        if (dataSource == null) {
+            return Providers.getSqlDialect(config);
+        }
+        try {
+            return Providers.getSqlDialect(dataSource, config);
+        } catch (RuntimeException e) {
+            LOGGER.debug("Failed to determine the database of the persistence unit.", e);
+            return Providers.getSqlDialect(config);
+        }
+    }
+
+    /**
+     * Returns the data source the persistence unit was configured with, or {@code null} if it was configured
+     * without one. Both the Jakarta Persistence property names and their Java Persistence predecessors are
+     * consulted, since providers carry the legacy names forward.
+     */
+    private static @Nullable DataSource dataSourceOf(@Nonnull EntityManager entityManager) {
+        Map<String, Object> properties;
+        try {
+            properties = entityManager.getEntityManagerFactory().getProperties();
+        } catch (RuntimeException e) {
+            LOGGER.debug("Failed to read the properties of the persistence unit.", e);
+            return null;
+        }
+        for (String property : DATA_SOURCE_PROPERTIES) {
+            if (properties.get(property) instanceof DataSource dataSource) {
+                return dataSource;
+            }
+        }
+        return null;
     }
 
     private JpaTemplateImpl(@Nonnull TemplateProcessor templateProcessor,
                             @Nonnull ModelBuilder modelBuilder,
                             @Nonnull TableAliasResolver tableAliasResolver,
                             @Nullable Predicate<Provider> providerFilter,
-                            @Nonnull StormConfig config) {
+                            @Nonnull StormConfig config,
+                            @Nonnull SqlDialect dialect) {
+        this.dialect = dialect;
         this.templateProcessor = templateProcessor;
         this.modelBuilder = modelBuilder;
         this.tableAliasResolver = tableAliasResolver;
@@ -119,10 +180,10 @@ public final class JpaTemplateImpl implements JpaTemplate, QueryFactory {
                 .withColumnNameResolver(modelBuilder.columnNameResolver())
                 .withForeignKeyResolver(modelBuilder.foreignKeyResolver())
                 .withTableAliasResolver(tableAliasResolver);
-        if (providerFilter != null) {
-            template = template.withDialect(Providers.getSqlDialect(providerFilter, config));
-        }
-        return template;
+        // The shared template resolves a dialect without a database in view, so the dialect resolved for this
+        // persistence unit is applied on top. An explicit provider filter still wins.
+        return template.withDialect(
+                providerFilter != null ? Providers.getSqlDialect(providerFilter, config) : dialect);
     }
 
     private void setParameters(@Nonnull jakarta.persistence.Query query, @Nonnull List<SqlTemplate.Parameter> parameters) {
@@ -225,7 +286,7 @@ public final class JpaTemplateImpl implements JpaTemplate, QueryFactory {
      */
     @Override
     public JpaTemplate withTableNameResolver(@Nullable TableNameResolver tableNameResolver) {
-        return new JpaTemplateImpl(templateProcessor, modelBuilder.tableNameResolver(tableNameResolver), tableAliasResolver, providerFilter, config);
+        return new JpaTemplateImpl(templateProcessor, modelBuilder.tableNameResolver(tableNameResolver), tableAliasResolver, providerFilter, config, dialect);
     }
 
     /**
@@ -236,7 +297,7 @@ public final class JpaTemplateImpl implements JpaTemplate, QueryFactory {
      */
     @Override
     public JpaTemplate withColumnNameResolver(@Nullable ColumnNameResolver columnNameResolver) {
-        return new JpaTemplateImpl(templateProcessor, modelBuilder.columnNameResolver(columnNameResolver), tableAliasResolver, providerFilter, config);
+        return new JpaTemplateImpl(templateProcessor, modelBuilder.columnNameResolver(columnNameResolver), tableAliasResolver, providerFilter, config, dialect);
     }
 
     /**
@@ -247,7 +308,7 @@ public final class JpaTemplateImpl implements JpaTemplate, QueryFactory {
      */
     @Override
     public JpaTemplate withForeignKeyResolver(@Nullable ForeignKeyResolver foreignKeyResolver) {
-        return new JpaTemplateImpl(templateProcessor, modelBuilder.foreignKeyResolver(foreignKeyResolver), tableAliasResolver, providerFilter, config);
+        return new JpaTemplateImpl(templateProcessor, modelBuilder.foreignKeyResolver(foreignKeyResolver), tableAliasResolver, providerFilter, config, dialect);
     }
 
     /**
@@ -258,7 +319,7 @@ public final class JpaTemplateImpl implements JpaTemplate, QueryFactory {
      */
     @Override
     public JpaTemplate withTableAliasResolver(@Nonnull TableAliasResolver tableAliasResolver) {
-        return new JpaTemplateImpl(templateProcessor, modelBuilder, tableAliasResolver, providerFilter, config);
+        return new JpaTemplateImpl(templateProcessor, modelBuilder, tableAliasResolver, providerFilter, config, dialect);
     }
 
     /**
@@ -269,7 +330,7 @@ public final class JpaTemplateImpl implements JpaTemplate, QueryFactory {
      */
     @Override
     public JpaTemplate withProviderFilter(@Nullable Predicate<Provider> providerFilter) {
-        return new JpaTemplateImpl(templateProcessor, modelBuilder, tableAliasResolver, providerFilter, config);
+        return new JpaTemplateImpl(templateProcessor, modelBuilder, tableAliasResolver, providerFilter, config, dialect);
     }
 
     private class JpaPreparedQuery implements PreparedQuery {
