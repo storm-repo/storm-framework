@@ -17,7 +17,6 @@ package st.orm.spi.mysql;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
-import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import jakarta.annotation.Nonnull;
@@ -35,6 +34,8 @@ import st.orm.StormConfig;
 import st.orm.core.spi.DefaultSqlDialect;
 import st.orm.core.spi.Providers;
 import st.orm.core.template.ORMTemplate;
+import st.orm.core.template.SqlTemplate;
+import st.orm.core.template.impl.PreparedStatementTemplateImpl;
 import st.orm.core.template.impl.SchemaValidationError;
 import st.orm.core.template.impl.SchemaValidationError.ErrorKind;
 import st.orm.core.template.impl.SchemaValidator;
@@ -96,7 +97,7 @@ class MySQLDialectResolutionTest {
     @Test
     void theProductBlindLookupWouldPickThisModulesDialect() {
         // Guards the premise of the tests below: without consulting the database, resolution lands on MySQL.
-        assertInstanceOf(MySQLSqlDialect.class, Providers.getSqlDialect(StormConfig.defaults()),
+        assertEquals(MySQLSqlDialect.class, Providers.getSqlDialect(StormConfig.defaults()).getClass(),
                 "These tests only mean something while this module's dialect is the one a product-blind lookup "
                         + "returns. Adding another dialect to this module's test scope disarms them.");
     }
@@ -105,8 +106,27 @@ class MySQLDialectResolutionTest {
     void resolvingForAnUnclaimedDatabaseFallsBackToTheDefaultDialect() throws SQLException {
         var dataSource = h2(CHILD_WITH_FOREIGN_KEY);
 
-        assertInstanceOf(DefaultSqlDialect.class,
-                Providers.getSqlDialect(dataSource, StormConfig.defaults()));
+        assertEquals(DefaultSqlDialect.class,
+                Providers.getSqlDialect(dataSource, StormConfig.defaults()).getClass());
+    }
+
+    /**
+     * The dialect a template generates SQL with is the one resolved for its database, not the one the shared
+     * {@link SqlTemplate#PS} carries.
+     *
+     * <p>The shared template resolves a dialect once, with no database in view. Building on it unchanged writes
+     * MySQL syntax for a database that is not MySQL, while the statements are executed with the dialect the
+     * template did resolve for itself, so the two halves of one query disagree about the database.</p>
+     */
+    @Test
+    void sqlIsGeneratedWithTheDialectOfTheDatabaseTheTemplateIsBoundTo() throws SQLException {
+        // The dialects share a hierarchy, so only the exact class distinguishes them.
+        assertEquals(MySQLSqlDialect.class, SqlTemplate.PS.dialect().getClass(),
+                "The shared template resolves this module's dialect, which is the state this test needs");
+
+        var template = new PreparedStatementTemplateImpl(h2(CHILD_WITH_FOREIGN_KEY));
+
+        assertEquals(DefaultSqlDialect.class, template.sqlTemplate().dialect().getClass());
     }
 
     @Test
