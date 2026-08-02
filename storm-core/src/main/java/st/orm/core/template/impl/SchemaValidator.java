@@ -15,9 +15,6 @@
  */
 package st.orm.core.template.impl;
 
-import static st.orm.core.spi.Providers.getDatabaseProductName;
-import static st.orm.core.spi.Providers.getSqlDialect;
-import static st.orm.core.spi.Providers.getSqlDialectProvider;
 import static st.orm.core.template.impl.RecordReflection.isPolymorphicData;
 
 import jakarta.annotation.Nonnull;
@@ -51,7 +48,7 @@ import st.orm.ProjectionQuery;
 import st.orm.Ref;
 import st.orm.StormConfig;
 import st.orm.UK;
-import st.orm.core.spi.SqlDialectProvider;
+import st.orm.core.spi.Providers;
 import st.orm.core.spi.TypeDiscovery;
 import st.orm.core.template.Column;
 import st.orm.core.template.Model;
@@ -87,13 +84,14 @@ public final class SchemaValidator {
     private final DataSource dataSource;
     private final ModelBuilder modelBuilder;
     private final TypeCompatibility typeCompatibility;
-    private final SqlDialect sqlDialect;
+    /** The dialect to validate with, or {@code null} to resolve it from the connection when validating. */
+    private final @Nullable SqlDialect sqlDialect;
 
     private SchemaValidator(
             @Nonnull DataSource dataSource,
             @Nonnull ModelBuilder modelBuilder,
             @Nonnull TypeCompatibility typeCompatibility,
-            @Nonnull SqlDialect sqlDialect
+            @Nullable SqlDialect sqlDialect
     ) {
         this.dataSource = dataSource;
         this.modelBuilder = modelBuilder;
@@ -109,7 +107,7 @@ public final class SchemaValidator {
      */
     public static SchemaValidator of(@Nonnull DataSource dataSource) {
         return new SchemaValidator(dataSource, ModelBuilder.newInstance(), TypeCompatibility.defaultCompatibility(),
-                resolveSqlDialect(dataSource));
+                null);
     }
 
     /**
@@ -120,23 +118,7 @@ public final class SchemaValidator {
      * @return a new schema validator.
      */
     public static SchemaValidator of(@Nonnull DataSource dataSource, @Nonnull ModelBuilder modelBuilder) {
-        return new SchemaValidator(dataSource, modelBuilder, TypeCompatibility.defaultCompatibility(),
-                resolveSqlDialect(dataSource));
-    }
-
-    /**
-     * Resolves the dialect for the given data source from its database product, the same way the template factories
-     * do.
-     *
-     * <p>Selecting by product matters when several dialect modules are on the classpath: the strategies a dialect
-     * uses to read constraints and sequences are vendor-specific, so a dialect that does not match the database
-     * reads the schema with queries the database does not understand. Only when no provider claims the product does
-     * this fall back to the first registered dialect.</p>
-     */
-    private static SqlDialect resolveSqlDialect(@Nonnull DataSource dataSource) {
-        StormConfig config = StormConfig.defaults();
-        SqlDialectProvider provider = getSqlDialectProvider(getDatabaseProductName(dataSource));
-        return provider != null ? provider.getSqlDialect(config) : getSqlDialect(config);
+        return new SchemaValidator(dataSource, modelBuilder, TypeCompatibility.defaultCompatibility(), null);
     }
 
     /**
@@ -172,10 +154,16 @@ public final class SchemaValidator {
         try (Connection connection = dataSource.getConnection()) {
             String defaultCatalog = connection.getCatalog();
             String defaultSchema = connection.getSchema();
+            // The strategies a dialect reads constraints and sequences with are vendor-specific, so a dialect that
+            // does not match the database reads the schema with queries the database does not understand. Unless a
+            // dialect was supplied, it comes from the database on the other end of this connection.
+            SqlDialect dialect = sqlDialect != null
+                    ? sqlDialect
+                    : Providers.getSqlDialect(connection, StormConfig.defaults());
             // Cache DatabaseSchema instances per schema name (case-insensitive) to avoid redundant metadata reads.
             SortedMap<String, DatabaseSchema> schemaCache = new TreeMap<>(String.CASE_INSENSITIVE_ORDER);
             for (Class<? extends Data> type : types) {
-                validateType(type, connection, defaultCatalog, defaultSchema, schemaCache, errors);
+                validateType(type, connection, dialect, defaultCatalog, defaultSchema, schemaCache, errors);
             }
         } catch (SQLException e) {
             throw new st.orm.PersistenceException("Failed to read database schema for validation.", e);
@@ -356,6 +344,7 @@ public final class SchemaValidator {
      */
     private DatabaseSchema resolveSchema(
             @Nonnull Connection connection,
+            @Nonnull SqlDialect dialect,
             @Nullable String defaultCatalog,
             @Nullable String defaultSchema,
             @Nonnull String entitySchema,
@@ -371,7 +360,7 @@ public final class SchemaValidator {
         }
         String catalog;
         String schemaPattern;
-        if (!entitySchema.isEmpty() && sqlDialect.useCatalogAsSchema()) {
+        if (!entitySchema.isEmpty() && dialect.useCatalogAsSchema()) {
             // Database uses catalogs as schemas (e.g., MySQL, MariaDB). The entity's schema represents a
             // database name, which maps to the JDBC catalog.
             catalog = entitySchema;
@@ -381,7 +370,7 @@ public final class SchemaValidator {
             schemaPattern = entitySchema.isEmpty() ? defaultSchema : entitySchema;
         }
         DatabaseSchema databaseSchema = DatabaseSchema.read(connection, catalog, schemaPattern,
-                sqlDialect.sequenceDiscoveryStrategy(), sqlDialect.constraintDiscoveryStrategy());
+                dialect.sequenceDiscoveryStrategy(), dialect.constraintDiscoveryStrategy());
         schemaCache.put(schemaKey, databaseSchema);
         return databaseSchema;
     }
@@ -392,6 +381,7 @@ public final class SchemaValidator {
     private void validateType(
             @Nonnull Class<? extends Data> type,
             @Nonnull Connection connection,
+            @Nonnull SqlDialect dialect,
             @Nullable String defaultCatalog,
             @Nullable String defaultSchema,
             @Nonnull SortedMap<String, DatabaseSchema> schemaCache,
@@ -419,7 +409,7 @@ public final class SchemaValidator {
         String entitySchema = model.schema();
         DatabaseSchema schema;
         try {
-            schema = resolveSchema(connection, defaultCatalog, defaultSchema, entitySchema, schemaCache);
+            schema = resolveSchema(connection, dialect, defaultCatalog, defaultSchema, entitySchema, schemaCache);
         } catch (SQLException e) {
             throw new st.orm.PersistenceException(
                     "Failed to read database schema '%s' for validation.".formatted(entitySchema), e);
@@ -476,9 +466,9 @@ public final class SchemaValidator {
                                 .formatted(columnName, qualifiedTableName)));
             }
         }
-        // 5. Primary key match. Skipped when the keys could not be read: an empty result would otherwise read as
-        // "the table has no primary key".
-        if (requirePrimaryKey && schema.isDiscovered(ConstraintKind.KEY)) {
+        // 5. Primary key match. Skipped when this table's primary key could not be read: an empty result would
+        // otherwise read as "the table has no primary key".
+        if (requirePrimaryKey && schema.isDiscovered(tableName, ConstraintKind.PRIMARY_KEY)) {
             Set<String> entityPkColumns = model.declaredColumns().stream()
                     .filter(Column::primaryKey)
                     .map(column -> column.name().toUpperCase())
@@ -552,8 +542,8 @@ public final class SchemaValidator {
             @Nonnull Set<String> ignoredComponents,
             @Nonnull List<SchemaValidationError> errors
     ) {
-        if (!schema.isDiscovered(ConstraintKind.KEY)) {
-            // The unique keys could not be read, so nothing can be said about them.
+        if (!schema.isDiscovered(tableName, ConstraintKind.UNIQUE_KEY)) {
+            // This table's unique keys could not be read, so nothing can be said about them.
             return;
         }
         // Build a map of unique index name -> set of column names from the database.
@@ -605,8 +595,8 @@ public final class SchemaValidator {
             @Nonnull Set<String> ignoredComponents,
             @Nonnull List<SchemaValidationError> errors
     ) {
-        if (!schema.isDiscovered(ConstraintKind.FOREIGN_KEY)) {
-            // The foreign keys could not be read, so nothing can be said about them.
+        if (!schema.isDiscovered(tableName, ConstraintKind.FOREIGN_KEY)) {
+            // This table's foreign keys could not be read, so nothing can be said about them.
             return;
         }
         List<DbForeignKey> dbForeignKeys = schema.getForeignKeys(tableName);

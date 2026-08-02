@@ -23,12 +23,16 @@ import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.ArrayList;
-import java.util.EnumSet;
+import java.util.Collection;
+import java.util.Collections;
+import java.util.EnumMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
-import java.util.Set;
 import java.util.SortedMap;
+import java.util.SortedSet;
 import java.util.TreeMap;
+import java.util.TreeSet;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import st.orm.core.template.SqlDialect.ConstraintDiscoveryStrategy;
@@ -115,12 +119,15 @@ public final class DatabaseSchema {
     /**
      * A kind of constraint a schema read discovers.
      *
-     * <p>Each kind is read by one query (or one set of metadata calls) per strategy, so a failure applies to the
-     * kind as a whole. See {@link #isDiscovered(ConstraintKind)} for why the outcome is recorded.</p>
+     * <p>The kinds are separate because a strategy can read one and fail on another: the JDBC metadata strategy
+     * asks for each with its own call. See {@link #isDiscovered(String, ConstraintKind)} for why the outcome is
+     * recorded.</p>
      */
     public enum ConstraintKind {
-        /** Primary keys and unique keys, which every strategy reads together. */
-        KEY,
+        /** Primary keys. */
+        PRIMARY_KEY,
+        /** Unique keys. */
+        UNIQUE_KEY,
         /** Foreign keys. */
         FOREIGN_KEY
     }
@@ -131,7 +138,7 @@ public final class DatabaseSchema {
     private final SortedMap<String, List<DbUniqueKey>> uniqueKeysByTable;
     private final SortedMap<String, List<DbForeignKey>> foreignKeysByTable;
     private final SortedMap<String, Boolean> sequences;
-    private final Set<ConstraintKind> discoveredConstraints;
+    private final Map<ConstraintKind, SortedSet<String>> discoveredByKind;
 
     private DatabaseSchema(
             @Nonnull SortedMap<String, List<DbColumn>> columnsByTable,
@@ -139,28 +146,45 @@ public final class DatabaseSchema {
             @Nonnull SortedMap<String, List<DbUniqueKey>> uniqueKeysByTable,
             @Nonnull SortedMap<String, List<DbForeignKey>> foreignKeysByTable,
             @Nonnull SortedMap<String, Boolean> sequences,
-            @Nonnull Set<ConstraintKind> discoveredConstraints
+            @Nonnull Map<ConstraintKind, SortedSet<String>> discoveredByKind
     ) {
         this.columnsByTable = columnsByTable;
         this.primaryKeysByTable = primaryKeysByTable;
         this.uniqueKeysByTable = uniqueKeysByTable;
         this.foreignKeysByTable = foreignKeysByTable;
         this.sequences = sequences;
-        this.discoveredConstraints = discoveredConstraints;
+        this.discoveredByKind = discoveredByKind;
     }
 
     /**
-     * Returns whether constraints of the given kind were actually read from the database.
+     * Returns whether constraints of the given kind were actually read for the given table.
      *
-     * <p>A metadata query that fails leaves the corresponding map empty, which reads exactly like a schema that has
+     * <p>A metadata query that fails leaves the corresponding map empty, which reads exactly like a table that has
      * no such constraints. Callers that would otherwise report a constraint as missing must check this first, so a
      * database that cannot answer the query is reported as unknown rather than as wrong.</p>
      *
+     * <p>The answer is per table and per kind, because a read can fail for one table while succeeding for the rest,
+     * and for one kind while succeeding for another. A failure that costs the schema its foreign keys leaves its
+     * primary keys, and every other table, still worth validating.</p>
+     *
+     * @param tableName the table to check, case-insensitively.
      * @param kind the constraint kind to check.
      * @return {@code true} if the read succeeded, {@code false} if it failed and the constraints are unknown.
      */
-    public boolean isDiscovered(@Nonnull ConstraintKind kind) {
-        return discoveredConstraints.contains(kind);
+    public boolean isDiscovered(@Nonnull String tableName, @Nonnull ConstraintKind kind) {
+        return discoveredByKind.getOrDefault(kind, EMPTY_TABLES).contains(tableName);
+    }
+
+    private static final SortedSet<String> EMPTY_TABLES = Collections.emptySortedSet();
+
+    /** Records that the given kind was read successfully for the given tables. */
+    private static void discovered(
+            @Nonnull Map<ConstraintKind, SortedSet<String>> discoveredByKind,
+            @Nonnull ConstraintKind kind,
+            @Nonnull Collection<String> tableNames
+    ) {
+        discoveredByKind.computeIfAbsent(kind, k -> new TreeSet<>(String.CASE_INSENSITIVE_ORDER))
+                .addAll(tableNames);
     }
 
     /**
@@ -239,14 +263,14 @@ public final class DatabaseSchema {
             }
         }
         // Discover primary keys, unique keys, and foreign keys using the dialect-provided strategy.
-        Set<ConstraintKind> discoveredConstraints = EnumSet.noneOf(ConstraintKind.class);
+        Map<ConstraintKind, SortedSet<String>> discoveredByKind = new EnumMap<>(ConstraintKind.class);
         readConstraints(connection, metadata, catalog, schemaPattern, columnsByTable,
                 primaryKeysByTable, uniqueKeysByTable, foreignKeysByTable, constraintDiscoveryStrategy,
-                discoveredConstraints);
+                discoveredByKind);
         // Discover sequences using the dialect-provided strategy.
         readSequences(connection, catalog, schemaPattern, sequences, sequenceDiscoveryStrategy);
         return new DatabaseSchema(columnsByTable, primaryKeysByTable, uniqueKeysByTable, foreignKeysByTable, sequences,
-                discoveredConstraints);
+                discoveredByKind);
     }
 
     // ------------------------------------------------------------------------------------------------------------------
@@ -266,7 +290,7 @@ public final class DatabaseSchema {
             @Nonnull SortedMap<String, List<DbUniqueKey>> uniqueKeysByTable,
             @Nonnull SortedMap<String, List<DbForeignKey>> foreignKeysByTable,
             @Nonnull ConstraintDiscoveryStrategy strategy,
-            @Nonnull Set<ConstraintKind> discovered
+            @Nonnull Map<ConstraintKind, SortedSet<String>> discovered
     ) throws SQLException {
         switch (strategy) {
             case JDBC_METADATA -> readConstraintsFromJdbcMetadata(
@@ -298,10 +322,8 @@ public final class DatabaseSchema {
             @Nonnull SortedMap<String, List<DbPrimaryKey>> primaryKeysByTable,
             @Nonnull SortedMap<String, List<DbUniqueKey>> uniqueKeysByTable,
             @Nonnull SortedMap<String, List<DbForeignKey>> foreignKeysByTable,
-            @Nonnull Set<ConstraintKind> discovered
+            @Nonnull Map<ConstraintKind, SortedSet<String>> discovered
     ) throws SQLException {
-        boolean keysRead = true;
-        boolean foreignKeysRead = true;
         for (String tableName : new ArrayList<>(columnsByTable.keySet())) {
             try (ResultSet primaryKeys = metadata.getPrimaryKeys(catalog, schemaPattern, tableName)) {
                 while (primaryKeys.next()) {
@@ -311,10 +333,10 @@ public final class DatabaseSchema {
                     primaryKeysByTable.computeIfAbsent(pkTableName, k -> new ArrayList<>())
                             .add(new DbPrimaryKey(pkTableName, columnName, keySeq));
                 }
+                discovered(discovered, ConstraintKind.PRIMARY_KEY, List.of(tableName));
             } catch (SQLException e) {
-                // Some databases/views may not support getPrimaryKeys; the keys stay unknown.
+                // Some databases/views may not support getPrimaryKeys; this table's primary key stays unknown.
                 LOGGER.debug("Failed to read primary keys for table '{}'.", tableName, e);
-                keysRead = false;
             }
         }
         for (String tableName : new ArrayList<>(columnsByTable.keySet())) {
@@ -332,10 +354,10 @@ public final class DatabaseSchema {
                     uniqueKeysByTable.computeIfAbsent(tableName, k -> new ArrayList<>())
                             .add(new DbUniqueKey(tableName, indexName, columnName, ordinalPosition));
                 }
+                discovered(discovered, ConstraintKind.UNIQUE_KEY, List.of(tableName));
             } catch (SQLException e) {
-                // Some databases/views may not support getIndexInfo; the keys stay unknown.
+                // Some databases/views may not support getIndexInfo; this table's unique keys stay unknown.
                 LOGGER.debug("Failed to read unique indexes for table '{}'.", tableName, e);
-                keysRead = false;
             }
         }
         for (String tableName : new ArrayList<>(columnsByTable.keySet())) {
@@ -348,17 +370,11 @@ public final class DatabaseSchema {
                     foreignKeysByTable.computeIfAbsent(fkTableName, k -> new ArrayList<>())
                             .add(new DbForeignKey(fkTableName, fkColumnName, pkTableName, pkColumnName));
                 }
+                discovered(discovered, ConstraintKind.FOREIGN_KEY, List.of(tableName));
             } catch (SQLException e) {
-                // Some databases/views may not support getImportedKeys; the keys stay unknown.
+                // Some databases/views may not support getImportedKeys; this table's foreign keys stay unknown.
                 LOGGER.debug("Failed to read foreign keys for table '{}'.", tableName, e);
-                foreignKeysRead = false;
             }
-        }
-        if (keysRead) {
-            discovered.add(ConstraintKind.KEY);
-        }
-        if (foreignKeysRead) {
-            discovered.add(ConstraintKind.FOREIGN_KEY);
         }
     }
 
@@ -419,7 +435,7 @@ public final class DatabaseSchema {
             @Nonnull SortedMap<String, List<DbColumn>> columnsByTable,
             @Nonnull SortedMap<String, List<DbPrimaryKey>> primaryKeysByTable,
             @Nonnull SortedMap<String, List<DbUniqueKey>> uniqueKeysByTable,
-            @Nonnull Set<ConstraintKind> discovered
+            @Nonnull Map<ConstraintKind, SortedSet<String>> discovered
     ) {
         try {
             StringBuilder sql = new StringBuilder("""
@@ -454,9 +470,10 @@ public final class DatabaseSchema {
                     }
                 }
             }
-            discovered.add(ConstraintKind.KEY);
+            discovered(discovered, ConstraintKind.PRIMARY_KEY, columnsByTable.keySet());
+            discovered(discovered, ConstraintKind.UNIQUE_KEY, columnsByTable.keySet());
         } catch (SQLException e) {
-            // INFORMATION_SCHEMA views not available; the keys stay unknown.
+            // INFORMATION_SCHEMA views not available; the primary and unique keys stay unknown.
             LOGGER.debug("Failed to read primary and unique keys from INFORMATION_SCHEMA.", e);
         }
     }
@@ -474,7 +491,7 @@ public final class DatabaseSchema {
             @Nonnull SortedMap<String, List<DbPrimaryKey>> primaryKeysByTable,
             @Nonnull SortedMap<String, List<DbUniqueKey>> uniqueKeysByTable,
             @Nonnull SortedMap<String, List<DbForeignKey>> foreignKeysByTable,
-            @Nonnull Set<ConstraintKind> discovered
+            @Nonnull Map<ConstraintKind, SortedSet<String>> discovered
     ) {
         readPrimaryAndUniqueKeysFromInformationSchema(
                 connection, catalog, schemaPattern, columnsByTable, primaryKeysByTable, uniqueKeysByTable, discovered);
@@ -510,7 +527,7 @@ public final class DatabaseSchema {
                             .add(new DbForeignKey(fkTableName, fkColumnName, pkTableName, pkColumnName));
                 }
             }
-            discovered.add(ConstraintKind.FOREIGN_KEY);
+            discovered(discovered, ConstraintKind.FOREIGN_KEY, columnsByTable.keySet());
         } catch (SQLException e) {
             // REFERENTIAL_CONSTRAINTS not available; the foreign keys stay unknown.
             LOGGER.debug("Failed to read foreign keys from INFORMATION_SCHEMA.REFERENTIAL_CONSTRAINTS.", e);
@@ -529,7 +546,7 @@ public final class DatabaseSchema {
             @Nonnull SortedMap<String, List<DbPrimaryKey>> primaryKeysByTable,
             @Nonnull SortedMap<String, List<DbUniqueKey>> uniqueKeysByTable,
             @Nonnull SortedMap<String, List<DbForeignKey>> foreignKeysByTable,
-            @Nonnull Set<ConstraintKind> discovered
+            @Nonnull Map<ConstraintKind, SortedSet<String>> discovered
     ) {
         // For databases that use catalogs as schemas, the catalog value represents the database name and maps to
         // TABLE_SCHEMA in INFORMATION_SCHEMA views (not TABLE_CATALOG).
@@ -558,7 +575,7 @@ public final class DatabaseSchema {
                             .add(new DbForeignKey(fkTableName, fkColumnName, pkTableName, pkColumnName));
                 }
             }
-            discovered.add(ConstraintKind.FOREIGN_KEY);
+            discovered(discovered, ConstraintKind.FOREIGN_KEY, columnsByTable.keySet());
         } catch (SQLException e) {
             // REFERENCED columns not available; the foreign keys stay unknown.
             LOGGER.debug("Failed to read foreign keys from INFORMATION_SCHEMA.KEY_COLUMN_USAGE.", e);
@@ -575,7 +592,7 @@ public final class DatabaseSchema {
             @Nonnull SortedMap<String, List<DbPrimaryKey>> primaryKeysByTable,
             @Nonnull SortedMap<String, List<DbUniqueKey>> uniqueKeysByTable,
             @Nonnull SortedMap<String, List<DbForeignKey>> foreignKeysByTable,
-            @Nonnull Set<ConstraintKind> discovered
+            @Nonnull Map<ConstraintKind, SortedSet<String>> discovered
     ) {
         // Primary keys and unique constraints.
         try {
@@ -609,9 +626,10 @@ public final class DatabaseSchema {
                     }
                 }
             }
-            discovered.add(ConstraintKind.KEY);
+            discovered(discovered, ConstraintKind.PRIMARY_KEY, columnsByTable.keySet());
+            discovered(discovered, ConstraintKind.UNIQUE_KEY, columnsByTable.keySet());
         } catch (SQLException e) {
-            // ALL_CONSTRAINTS not available; the keys stay unknown.
+            // ALL_CONSTRAINTS not available; the primary and unique keys stay unknown.
             LOGGER.debug("Failed to read primary and unique keys from ALL_CONSTRAINTS.", e);
         }
         // Foreign keys.
@@ -647,7 +665,7 @@ public final class DatabaseSchema {
                             .add(new DbForeignKey(fkTableName, fkColumnName, pkTableName, pkColumnName));
                 }
             }
-            discovered.add(ConstraintKind.FOREIGN_KEY);
+            discovered(discovered, ConstraintKind.FOREIGN_KEY, columnsByTable.keySet());
         } catch (SQLException e) {
             // ALL_CONSTRAINTS FK query not available; the foreign keys stay unknown.
             LOGGER.debug("Failed to read foreign keys from ALL_CONSTRAINTS.", e);

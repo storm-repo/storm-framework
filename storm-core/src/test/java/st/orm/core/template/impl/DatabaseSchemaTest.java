@@ -4,7 +4,9 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import java.lang.reflect.Proxy;
 import java.sql.Connection;
+import java.sql.DatabaseMetaData;
 import java.sql.DriverManager;
 import java.sql.SQLException;
 import java.util.List;
@@ -55,8 +57,9 @@ class DatabaseSchemaTest {
         execute("CREATE TABLE child (id INTEGER PRIMARY KEY, parent_id INTEGER REFERENCES parent (id))");
         try (Connection connection = getConnection()) {
             DatabaseSchema schema = DatabaseSchema.read(connection);
-            assertTrue(schema.isDiscovered(ConstraintKind.KEY));
-            assertTrue(schema.isDiscovered(ConstraintKind.FOREIGN_KEY));
+            assertTrue(schema.isDiscovered("child", ConstraintKind.PRIMARY_KEY));
+            assertTrue(schema.isDiscovered("child", ConstraintKind.UNIQUE_KEY));
+            assertTrue(schema.isDiscovered("child", ConstraintKind.FOREIGN_KEY));
             assertEquals(1, schema.getForeignKeys("child").size());
         }
     }
@@ -71,11 +74,73 @@ class DatabaseSchemaTest {
             DatabaseSchema schema = DatabaseSchema.read(connection, connection.getCatalog(), connection.getSchema(),
                     SequenceDiscoveryStrategy.INFORMATION_SCHEMA,
                     ConstraintDiscoveryStrategy.INFORMATION_SCHEMA_REFERENCING);
-            assertFalse(schema.isDiscovered(ConstraintKind.FOREIGN_KEY));
+            assertFalse(schema.isDiscovered("child", ConstraintKind.FOREIGN_KEY));
             assertTrue(schema.getForeignKeys("child").isEmpty());
             // The keys come from a query H2 does understand, so they are known and were read.
-            assertTrue(schema.isDiscovered(ConstraintKind.KEY));
+            assertTrue(schema.isDiscovered("child", ConstraintKind.PRIMARY_KEY));
             assertEquals(1, schema.getPrimaryKeys("child").size());
+            // A table nothing was read for is unknown rather than assumed empty.
+            assertFalse(schema.isDiscovered("no_such_table", ConstraintKind.PRIMARY_KEY));
+        }
+    }
+
+    /**
+     * Wraps the connection so one {@link DatabaseMetaData} call fails, optionally only for one table, the way a
+     * driver refuses a call it does not support for a particular relation.
+     */
+    private Connection metadataFailing(String failingMethod, String failingTable) throws SQLException {
+        Connection delegate = getConnection();
+        DatabaseMetaData realMetaData = delegate.getMetaData();
+        DatabaseMetaData metaData = (DatabaseMetaData) Proxy.newProxyInstance(
+                DatabaseMetaData.class.getClassLoader(), new Class<?>[]{DatabaseMetaData.class},
+                (proxy, method, args) -> {
+                    if (method.getName().equals(failingMethod)
+                            && (failingTable == null || failingTable.equalsIgnoreCase(String.valueOf(args[2])))) {
+                        throw new SQLException("metadata call not supported");
+                    }
+                    return invoke(method, realMetaData, args);
+                });
+        return (Connection) Proxy.newProxyInstance(
+                Connection.class.getClassLoader(), new Class<?>[]{Connection.class},
+                (proxy, method, args) -> method.getName().equals("getMetaData")
+                        ? metaData
+                        : invoke(method, delegate, args));
+    }
+
+    private static Object invoke(java.lang.reflect.Method method, Object target, Object[] args) throws Throwable {
+        try {
+            return method.invoke(target, args);
+        } catch (java.lang.reflect.InvocationTargetException e) {
+            throw e.getCause();
+        }
+    }
+
+    private DatabaseSchema readWithJdbcMetadata(Connection connection) throws SQLException {
+        return DatabaseSchema.read(connection, connection.getCatalog(), connection.getSchema(),
+                SequenceDiscoveryStrategy.INFORMATION_SCHEMA, ConstraintDiscoveryStrategy.JDBC_METADATA);
+    }
+
+    @Test
+    void testAFailedReadForOneTableLeavesTheOthersDiscovered() throws SQLException {
+        execute("CREATE TABLE parent (id INTEGER PRIMARY KEY)");
+        execute("CREATE TABLE child (id INTEGER PRIMARY KEY, parent_id INTEGER REFERENCES parent (id))");
+        try (Connection connection = metadataFailing("getImportedKeys", "CHILD")) {
+            DatabaseSchema schema = readWithJdbcMetadata(connection);
+            // Only the table whose read failed is unknown; the rest of the schema stays worth validating.
+            assertFalse(schema.isDiscovered("child", ConstraintKind.FOREIGN_KEY));
+            assertTrue(schema.isDiscovered("parent", ConstraintKind.FOREIGN_KEY));
+        }
+    }
+
+    @Test
+    void testAFailedUniqueKeyReadLeavesPrimaryKeysDiscovered() throws SQLException {
+        execute("CREATE TABLE parent (id INTEGER PRIMARY KEY)");
+        try (Connection connection = metadataFailing("getIndexInfo", null)) {
+            DatabaseSchema schema = readWithJdbcMetadata(connection);
+            // Primary keys and unique keys are separate calls, so losing one keeps the other.
+            assertFalse(schema.isDiscovered("parent", ConstraintKind.UNIQUE_KEY));
+            assertTrue(schema.isDiscovered("parent", ConstraintKind.PRIMARY_KEY));
+            assertEquals(1, schema.getPrimaryKeys("parent").size());
         }
     }
 
