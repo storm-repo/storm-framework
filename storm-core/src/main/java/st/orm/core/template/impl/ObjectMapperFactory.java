@@ -29,6 +29,7 @@ import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Parameter;
 import java.lang.reflect.RecordComponent;
 import java.util.BitSet;
+import java.util.Collection;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
@@ -73,6 +74,32 @@ public final class ObjectMapperFactory {
      * Returns a factory for creating instances of the specified type, consuming the columns of the references the
      * statement resolved.
      *
+     * <p>A reference is selected as its foreign key column by default; a path named here was selected as the
+     * referenced table's columns instead, so the mapper consumes that wider shape. Pass the paths the statement
+     * reports through {@link st.orm.core.template.Sql#fetchPaths()}, and only when the rows are read back as the
+     * statement's own data type: read as anything else, a primary key for a ref stream in particular, the columns
+     * are consumed by that type's own shape.</p>
+     *
+     * @param columnCount the number of columns to use as constructor arguments.
+     * @param type the type of the instance to create.
+     * @param refFactory the factory for creating ref instances for entities and projections.
+     * @param fetchPaths the field paths of the references the statement resolved, relative to the selected type.
+     * @return a factory for creating instances of the specified type.
+     * @param <T> the type of the instance to create.
+     * @throws SqlTemplateException if the factory could not be created.
+     * @since 1.13
+     */
+    public static <T> Optional<ObjectMapper<T>> getObjectMapper(int columnCount,
+                                                                @Nonnull Class<T> type,
+                                                                @Nonnull RefFactory refFactory,
+                                                                @Nonnull Collection<String> fetchPaths) throws SqlTemplateException {
+        return getObjectMapper(columnCount, type, refFactory, FetchPlan.of(fetchPaths));
+    }
+
+    /**
+     * Returns a factory for creating instances of the specified type, consuming the columns of the references the
+     * statement resolved.
+     *
      * @param columnCount the number of columns to use as constructor arguments.
      * @param type the type of the instance to create.
      * @param refFactory the factory for creating ref instances for entities and projections.
@@ -82,10 +109,10 @@ public final class ObjectMapperFactory {
      * @throws SqlTemplateException if the factory could not be created.
      * @since 1.13
      */
-    public static <T> Optional<ObjectMapper<T>> getObjectMapper(int columnCount,
-                                                                @Nonnull Class<T> type,
-                                                                @Nonnull RefFactory refFactory,
-                                                                @Nonnull FetchPlan fetchPlan) throws SqlTemplateException {
+    static <T> Optional<ObjectMapper<T>> getObjectMapper(int columnCount,
+                                                         @Nonnull Class<T> type,
+                                                         @Nonnull RefFactory refFactory,
+                                                         @Nonnull FetchPlan fetchPlan) throws SqlTemplateException {
         if (type.isPrimitive()) {
             return PrimitiveMapper.getFactory(columnCount, type);
         }
