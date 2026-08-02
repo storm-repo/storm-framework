@@ -171,9 +171,12 @@ public final class ORMTemplateImpl extends QueryTemplateImpl implements ORMTempl
                     "Schema validation requires a DataSource-backed template. "
                     + "Templates created from a Connection or EntityManager do not support schema validation.");
         }
+        // Without an explicit provider filter, the dialect comes from the database this template is bound to. The
+        // schema is read with vendor-specific queries, so a dialect picked without consulting the database reads it
+        // with queries the database may not understand.
         var sqlDialect = providerFilter != null
                 ? Providers.getSqlDialect(providerFilter, config)
-                : Providers.getSqlDialect(config);
+                : Providers.getSqlDialect(dataSource, config);
         return SchemaValidator.of(dataSource, modelBuilder, sqlDialect);
     }
 

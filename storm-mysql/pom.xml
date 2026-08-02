@@ -114,5 +114,12 @@
             <version>8.0.33</version>
             <scope>test</scope>
         </dependency>
+        <!-- A database this module's dialect does not claim, so the tests can assert that it is not applied to
+             one. See MySQLDialectResolutionTest. -->
+        <dependency>
+            <groupId>com.h2database</groupId>
+            <artifactId>h2</artifactId>
+            <scope>test</scope>
+        </dependency>
     </dependencies>
 </project>

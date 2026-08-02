@@ -141,6 +141,7 @@ public final class PreparedStatementTemplateImpl implements PreparedStatementTem
     private final IntegrationStrategies strategies;
     private final SqlTemplate sqlTemplate;
     private final StormConfig config;
+    private final SqlDialect dialect;
 
     public PreparedStatementTemplateImpl(@Nonnull DataSource dataSource) {
         this(dataSource, StormConfig.defaults());
@@ -201,12 +202,20 @@ public final class PreparedStatementTemplateImpl implements PreparedStatementTem
                                           @Nonnull DataSource dataSource,
                                           @Nonnull StormConfig config,
                                           @Nullable SqlDialectProvider matchedProvider) {
-        this(createDataSourceProcessor(dataSource, strategies,
-                        matchedProvider != null ? matchedProvider.getSqlDialect(config) : getSqlDialect(config)),
+        this(strategies, dataSource, config, matchedProvider,
+                matchedProvider != null ? matchedProvider.getSqlDialect(config) : getSqlDialect(config));
+    }
+
+    private PreparedStatementTemplateImpl(@Nonnull IntegrationStrategies strategies,
+                                          @Nonnull DataSource dataSource,
+                                          @Nonnull StormConfig config,
+                                          @Nullable SqlDialectProvider matchedProvider,
+                                          @Nonnull SqlDialect dialect) {
+        this(createDataSourceProcessor(dataSource, strategies, dialect),
                 dataSource,
                 ModelBuilder.newInstance(), TableAliasResolver.DEFAULT,
                 matchedProvider != null ? matchedProvider.getProviderFilter() : null,
-                strategies, config);
+                strategies, config, dialect);
     }
 
     public PreparedStatementTemplateImpl(@Nonnull Connection connection) {
@@ -266,12 +275,20 @@ public final class PreparedStatementTemplateImpl implements PreparedStatementTem
                                           @Nonnull Connection connection,
                                           @Nonnull StormConfig config,
                                           @Nullable SqlDialectProvider matchedProvider) {
-        this(createConnectionProcessor(connection, strategies,
-                        matchedProvider != null ? matchedProvider.getSqlDialect(config) : getSqlDialect(config)),
+        this(strategies, connection, config, matchedProvider,
+                matchedProvider != null ? matchedProvider.getSqlDialect(config) : getSqlDialect(config));
+    }
+
+    private PreparedStatementTemplateImpl(@Nonnull IntegrationStrategies strategies,
+                                          @Nonnull Connection connection,
+                                          @Nonnull StormConfig config,
+                                          @Nullable SqlDialectProvider matchedProvider,
+                                          @Nonnull SqlDialect dialect) {
+        this(createConnectionProcessor(connection, strategies, dialect),
                 null,
                 ModelBuilder.newInstance(), TableAliasResolver.DEFAULT,
                 matchedProvider != null ? matchedProvider.getProviderFilter() : null,
-                strategies, config);
+                strategies, config, dialect);
     }
 
     private PreparedStatementTemplateImpl(@Nonnull TemplateProcessor templateProcessor,
@@ -280,8 +297,10 @@ public final class PreparedStatementTemplateImpl implements PreparedStatementTem
                                           @Nonnull TableAliasResolver tableAliasResolver,
                                           @Nullable Predicate<Provider> providerFilter,
                                           @Nonnull IntegrationStrategies strategies,
-                                          @Nonnull StormConfig config) {
+                                          @Nonnull StormConfig config,
+                                          @Nonnull SqlDialect dialect) {
         validate(config);
+        this.dialect = dialect;
         this.templateProcessor = templateProcessor;
         this.dataSource = dataSource;
         this.modelBuilder = modelBuilder;
@@ -414,10 +433,9 @@ public final class PreparedStatementTemplateImpl implements PreparedStatementTem
                 .withColumnNameResolver(modelBuilder.columnNameResolver())
                 .withForeignKeyResolver(modelBuilder.foreignKeyResolver())
                 .withTableAliasResolver(tableAliasResolver);
-        if (providerFilter != null) {
-            template = template.withDialect(getSqlDialect(providerFilter, config));
-        }
-        return template;
+        // The ambient template resolves a dialect without knowing which database this template is bound to, so the
+        // dialect resolved for this template's database is applied on top. An explicit provider filter still wins.
+        return template.withDialect(providerFilter != null ? getSqlDialect(providerFilter, config) : dialect);
     }
 
     /**
@@ -428,7 +446,7 @@ public final class PreparedStatementTemplateImpl implements PreparedStatementTem
      */
     @Override
     public PreparedStatementTemplateImpl withTableNameResolver(@Nullable TableNameResolver tableNameResolver) {
-        return new PreparedStatementTemplateImpl(templateProcessor, dataSource, modelBuilder.tableNameResolver(tableNameResolver), tableAliasResolver, providerFilter, strategies, config);
+        return new PreparedStatementTemplateImpl(templateProcessor, dataSource, modelBuilder.tableNameResolver(tableNameResolver), tableAliasResolver, providerFilter, strategies, config, dialect);
     }
 
     /**
@@ -439,7 +457,7 @@ public final class PreparedStatementTemplateImpl implements PreparedStatementTem
      */
     @Override
     public PreparedStatementTemplateImpl withColumnNameResolver(@Nullable ColumnNameResolver columnNameResolver) {
-        return new PreparedStatementTemplateImpl(templateProcessor, dataSource, modelBuilder.columnNameResolver(columnNameResolver), tableAliasResolver, providerFilter, strategies, config);
+        return new PreparedStatementTemplateImpl(templateProcessor, dataSource, modelBuilder.columnNameResolver(columnNameResolver), tableAliasResolver, providerFilter, strategies, config, dialect);
     }
 
     /**
@@ -450,7 +468,7 @@ public final class PreparedStatementTemplateImpl implements PreparedStatementTem
      */
     @Override
     public PreparedStatementTemplateImpl withForeignKeyResolver(@Nullable ForeignKeyResolver foreignKeyResolver) {
-        return new PreparedStatementTemplateImpl(templateProcessor, dataSource, modelBuilder.foreignKeyResolver(foreignKeyResolver), tableAliasResolver, providerFilter, strategies, config);
+        return new PreparedStatementTemplateImpl(templateProcessor, dataSource, modelBuilder.foreignKeyResolver(foreignKeyResolver), tableAliasResolver, providerFilter, strategies, config, dialect);
     }
 
     /**
@@ -461,7 +479,7 @@ public final class PreparedStatementTemplateImpl implements PreparedStatementTem
      */
     @Override
     public PreparedStatementTemplate withTableAliasResolver(@Nonnull TableAliasResolver tableAliasResolver) {
-        return new PreparedStatementTemplateImpl(templateProcessor, dataSource, modelBuilder, tableAliasResolver, providerFilter, strategies, config);
+        return new PreparedStatementTemplateImpl(templateProcessor, dataSource, modelBuilder, tableAliasResolver, providerFilter, strategies, config, dialect);
     }
 
     /**
@@ -472,7 +490,7 @@ public final class PreparedStatementTemplateImpl implements PreparedStatementTem
      */
     @Override
     public PreparedStatementTemplateImpl withProviderFilter(@Nullable Predicate<Provider> providerFilter) {
-        return new PreparedStatementTemplateImpl(templateProcessor, dataSource, modelBuilder, tableAliasResolver, providerFilter, strategies, config);
+        return new PreparedStatementTemplateImpl(templateProcessor, dataSource, modelBuilder, tableAliasResolver, providerFilter, strategies, config, dialect);
     }
 
     /**
