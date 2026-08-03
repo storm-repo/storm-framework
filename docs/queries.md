@@ -685,9 +685,11 @@ Storm automatically joins entities referenced by `@FK` fields. For entities not 
 List<Role> roles = orm.entity(Role.class)
     .select()
     .innerJoin(UserRole.class).on(Role.class)
-    .where(UserRole_.user, EQUALS, user)
+    .where(it -> it.whereAny(UserRole_.user, EQUALS, user))
     .getResultList();
 ```
+
+The typed `where(path, ...)` overloads take paths rooted at the query's root entity. `UserRole_.user` is rooted at the joined `UserRole`, so the condition goes through the where-lambda's `whereAny(...)`, which accepts a path rooted at any joined table.
 
 ### Joins (SQL Templates)
 
