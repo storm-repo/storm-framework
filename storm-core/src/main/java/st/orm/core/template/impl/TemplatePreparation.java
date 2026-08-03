@@ -1208,6 +1208,10 @@ class TemplatePreparation {
         for (var value : template.values()) {
             switch (value) {
                 case Metamodel<?, ?> metamodel -> addReferencedTablePath(rootTable, metamodel, paths);
+                // A navigation-only node (one that navigates beyond a Ref) is rebuilt into a resolvable metamodel,
+                // so the joins beyond the reference are derived for it.
+                case Navigable<?, ?> navigable when navigable.isColumn() ->
+                        addReferencedTablePath(rootTable, toColumnMetamodel(navigable), paths);
                 case Expression expression ->
                         collectReferencedTablePaths(rootTable, expression, paths, tables, hydratedTables, hydratedPaths);
                 case Element element -> collectReferencedTablePaths(rootTable, element, paths, tables, hydratedTables, hydratedPaths);

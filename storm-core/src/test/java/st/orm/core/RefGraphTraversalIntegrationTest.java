@@ -152,6 +152,21 @@ public class RefGraphTraversalIntegrationTest {
     }
 
     @Test
+    public void testFilterThroughRefInWhereTemplate() {
+        var orm = ORMTemplate.of(dataSource);
+        // A navigation-only node interpolated into a where template fragment must resolve to a column with its
+        // joins, exactly like the predicate form, rather than degrade to a bind parameter.
+        List<Integer> viaPredicate = orm.entity(PetOwnerRef.class).select()
+                .where(PetOwnerRef_.owner.address.city.name, EQUALS, "Madison")
+                .getResultList().stream().map(PetOwnerRef::id).sorted().toList();
+        List<Integer> viaTemplate = orm.entity(PetOwnerRef.class).select()
+                .where(raw("\0 = \0", PetOwnerRef_.owner.address.city.name, "Madison"))
+                .getResultList().stream().map(PetOwnerRef::id).sorted().toList();
+        assertFalse(viaPredicate.isEmpty());
+        assertEquals(viaPredicate, viaTemplate);
+    }
+
+    @Test
     public void testBeyondRefNodeIsNavigableOnly() {
         // The reference node itself is a value metamodel (getValue returns the Ref, so getResultGroupedByRef works),
         // but nodes beyond the reference are navigation-only: not TypedMetamodel, so value operations like

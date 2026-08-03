@@ -40,6 +40,7 @@ import st.orm.Data;
 import st.orm.Discriminator.DiscriminatorType;
 import st.orm.Element;
 import st.orm.Metamodel;
+import st.orm.Navigable;
 import st.orm.Operator;
 import st.orm.Ref;
 import st.orm.SelectMode;
@@ -612,10 +613,21 @@ final class QueryModelImpl implements QueryModel {
             case TemplateString ignore -> throw new SqlTemplateException("TemplateString is not allowed as a string template value.");
             case Stream<?> ignore -> throw new SqlTemplateException("Stream is not supported as a string template value. Collect the Stream into a List before passing it.");
             case Subqueryable t -> new Subquery(t.getSubquery(), true);
-            case Metamodel<?, ?> m when m.isColumn() -> new st.orm.core.template.impl.Elements.Column(m, CASCADE);
-            case Metamodel<?, ?> ignore -> throw new SqlTemplateException("Metamodel does not reference a column. Use a column-level metamodel (e.g., User_.name) rather than a table-level metamodel.");
+            case Navigable<?, ?> m when m.isColumn() -> new Elements.Column(toColumnMetamodel(m), CASCADE);
+            case Navigable<?, ?> ignore -> throw new SqlTemplateException("Path does not reference a column. Use a column-level path (e.g., User_.name) rather than a table-level path.");
             case null, default -> value;
         };
+    }
+
+    /**
+     * Resolves a navigable used as a template value into a column metamodel. Full metamodels are used as-is; a
+     * navigation-only node (one that navigates beyond a {@link Ref}) is rebuilt into a resolvable metamodel for its
+     * path so it can be selected or filtered. The rebuilt metamodel is query-only and cannot extract a value.
+     */
+    private static <T extends Data> Metamodel<T, ?> toColumnMetamodel(@Nonnull Navigable<T, ?> navigable) {
+        return navigable instanceof Metamodel<T, ?> metamodel
+                ? metamodel
+                : Metamodel.of(navigable.root(), navigable.fieldPath());
     }
 
     /**
