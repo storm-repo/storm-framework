@@ -286,7 +286,7 @@ For more control, use explicit join queries:
 List<Role> roles = orm.entity(Role.class)
     .select()
     .innerJoin(UserRole.class).on(Role.class)
-    .where(UserRole_.user, EQUALS, user)
+    .where(it -> it.whereAny(UserRole_.user, EQUALS, user))
     .getResultList();
 ```
 
