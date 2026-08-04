@@ -24,7 +24,7 @@ Use `import st.orm.template.*` to get all infix operators and the `ref()` / `orm
 
 **Import both packages with wildcards: `st.orm.template.*` and `st.orm.repository.*`.** Repository operations are top-level extensions in `st.orm.repository`, so `import st.orm.template.*` alone does not bring them in. Naming them individually is how one ends up missing.
 
-The custom-result form `select<Result, _, _> { ... }` is the one that punishes this hardest. Without its import the call falls back to the member `select(KClass, TemplateBuilder)`, which takes one type parameter instead of three, and on Kotlin 2.0.x the compiler crashes while reporting the mismatch rather than naming the missing import:
+The custom-result form `select<Result, _, _> { ... }` is the one that punishes this hardest. Without its import the extension is out of scope, and no `select` member matches a call that passes a template lambda and three type arguments, so nothing applies. On Kotlin 2.0.x the compiler crashes while reporting that resolution failure rather than naming the missing import:
 
 ```
 org.jetbrains.kotlin.util.FileAnalysisException: ... Unexpected FirPlaceholderProjectionImpl

@@ -642,10 +642,10 @@ import st.orm.repository.*
 ```
 
 `import st.orm.template.*` does not bring them in, since they live in `st.orm.repository`. Import both packages with
-wildcards rather than naming functions individually. Without it, a call such as
-`select<UserSummary, _, _> { ... }` falls back to the member `select(KClass, TemplateBuilder)`, which takes one type
-parameter rather than three, and nothing applies. Replacing the placeholders with explicit type arguments also turns
-the crash back into a readable error on 2.0.x, which is a quick way to find the cause without upgrading.
+wildcards rather than naming functions individually. Without it, a call such as `select<UserSummary, _, _> { ... }`
+has no applicable candidate at all: the extension is out of scope, and no `select` member matches a call that passes
+a template lambda and three type arguments. Replacing the placeholders with explicit type arguments turns the crash
+back into a readable error on 2.0.x, which is a quick way to find the cause without upgrading.
 
 ### Schema validation reports type narrowing warnings for my Integer columns
 
