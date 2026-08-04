@@ -49,6 +49,9 @@ website/node_modules/
 website/build/
 website/.docusaurus/
 website/static/api/
+# Generated from docs/ by website/scripts/generate-llms-full.sh, which runs as the
+# prebuild step of every site build. Committing it only lets it drift.
+website/static/llms-full.txt
 
 # Working analysis doc — not for check-in
 ADOPTION_ANALYSIS.md
