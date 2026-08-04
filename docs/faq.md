@@ -608,6 +608,45 @@ Every executed statement is logged, whichever repository, query builder or templ
 
 See [SQL Logging](sql-logging.md) for the full guide.
 
+### The Kotlin compiler crashes with "Unexpected FirPlaceholderProjectionImpl"
+
+This is a Kotlin 2.0.x compiler bug, fixed in **Kotlin 2.1.0**. It reports an unresolved call as an internal error
+rather than a diagnostic, whenever the call uses `_` type-argument placeholders:
+
+```
+org.jetbrains.kotlin.util.FileAnalysisException: While analysing Foo.kt:12:9:
+    Unexpected FirPlaceholderProjectionImpl
+```
+
+On 2.1.0 and later the same code reports `Unresolved reference 'select'`, which names the real problem. Upgrading
+the Kotlin version is the fix; nothing about Storm changes.
+
+If you are on 2.0.x, read the crash as "something in this call does not resolve". It names nothing you wrote, so it
+can stand in for any resolution failure at that call site. Two causes account for most of them.
+
+**A dependency compiled by a newer Kotlin.** A 2.0.x compiler cannot read metadata from Kotlin 2.2 or later, so every
+call into that library becomes unresolved. Look for this line above the crash, which is the one that actually explains
+it:
+
+```
+Module was compiled with an incompatible version of Kotlin.
+The binary version of its metadata is 2.2.0, expected version is 2.0.0.
+```
+
+A 2.1-built dependency is fine; 2.2 is where it breaks.
+
+**A missing import**, because repository operations are top-level extension functions:
+
+```kotlin
+import st.orm.repository.*
+```
+
+`import st.orm.template.*` does not bring them in, since they live in `st.orm.repository`. Import both packages with
+wildcards rather than naming functions individually. Without it, a call such as `select<UserSummary, _, _> { ... }`
+has no applicable candidate at all: the extension is out of scope, and no `select` member matches a call that passes
+a template lambda and three type arguments. Replacing the placeholders with explicit type arguments turns the crash
+back into a readable error on 2.0.x, which is a quick way to find the cause without upgrading.
+
 ### Schema validation reports type narrowing warnings for my Integer columns
 
 Some databases (notably Oracle) use a single numeric type for all integer columns. For example, Oracle's `NUMBER` maps to `java.sql.Types.NUMERIC`, which Storm considers a "narrowing" conversion for `Integer` fields. These are logged as warnings because the mapping works at runtime but may involve precision differences.

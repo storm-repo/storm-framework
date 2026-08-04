@@ -9,10 +9,12 @@ Help the user write a Storm repository using Kotlin.
 ## Key Imports
 
 ```kotlin
-import st.orm.repository.EntityRepository       // Repository base interface
-import st.orm.repository.entity                  // Reified: orm.entity<User>()
-import st.orm.repository.repository              // Reified: orm.repository<UserRepository>()
-import st.orm.repository.insert                  // Infix: orm insert entity
+import st.orm.repository.*                       // EntityRepository, plus every repository extension:
+                                                 //   entity<User>(), repository<UserRepository>(),
+                                                 //   select<Result, _, _> { }, selectRef, findBy, findAllBy,
+                                                 //   insert, writeSet, exists, count, ...
+                                                 // Use the wildcard: these are top-level extensions, and naming
+                                                 // them one by one is how an import ends up missing.
 import st.orm.template.*                         // ORMTemplate, QueryBuilder, orm, ref, eq, neq, etc.
 import st.orm.Operator.*                         // EQUALS, NOT_EQUALS, IN, etc.
 import st.orm.Ref                                // Lazy-loaded reference

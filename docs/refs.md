@@ -7,6 +7,8 @@ Refs are lightweight identifiers for entities, projections, and other data types
 
 Unlike a typical lazy reference, a `Ref` never trades away query capability. Filter, order, group, and select through it with the metamodel exactly as you would through a directly-referenced entity, and Storm adds the join only for the query that actually needs it. When a query already knows it needs the referenced record, it can resolve the `Ref` as part of that same statement instead of paying for a separate fetch. Choosing `Ref<T>` over the entity type is a decision about the SELECT you get by default, not a capability you give up.
 
+That said, it is a decision worth making sparingly. Joins on primary keys are cheap, so the default is to model foreign keys as direct types and reach for a `Ref` when an edge lets the graph grow beyond what your reads should carry. [Entity Design](entity-design.md) covers where that line sits and how Storm's schema-first generation draws it.
+
 ---
 
 ## Using Refs in Entities
@@ -545,7 +547,7 @@ Use `Ref.of(entity)` when you already have the entity in memory and want to wrap
 
 ## Aggregation with Refs
 
-Refs are particularly useful in aggregation queries where you group by a foreign key. Instead of loading the full related entity for each group, you can select only the primary key as a Ref. This keeps the query lightweight while still giving you a typed identifier to use in subsequent lookups if needed.
+Refs are particularly useful in aggregation queries where you group by a foreign key. Instead of loading the full related entity for each group, name the foreign key path and select it as a Ref. This keeps the query lightweight while still giving you a typed identifier to use in subsequent lookups if needed.
 
 <Tabs groupId="language">
 <TabItem value="kotlin" label="Kotlin" default>
@@ -557,7 +559,7 @@ data class GroupedByCity(
 )
 
 val counts: Map<Ref<City>, Long> = orm.entity<User>()
-    .select<GroupedByCity, _, _> { "${select(City::class, SelectMode.PK)}, COUNT(*)" }
+    .select<GroupedByCity, _, _> { "${User_.city}, COUNT(*)" }
     .groupBy(User_.city)
     .resultList
     .associate { it.city to it.count }
@@ -570,7 +572,7 @@ val counts: Map<Ref<City>, Long> = orm.entity<User>()
 record GroupedByCity(Ref<City> city, long count) {}
 
 Map<Ref<City>, Long> counts = orm.entity(User.class)
-    .select(GroupedByCity.class, RAW."\{select(City.class, SelectMode.PK)}, COUNT(*)")
+    .select(GroupedByCity.class, RAW."\{User_.city}, COUNT(*)")
     .groupBy(User_.city)
     .getResultList().stream()
     .collect(toMap(GroupedByCity::city, GroupedByCity::count));
@@ -580,7 +582,7 @@ Using SQL Templates:
 
 ```java
 Map<Ref<City>, Long> counts = orm.query(RAW."""
-        SELECT \{select(City.class, SelectMode.PK)}, COUNT(*)
+        SELECT \{User_.city}, COUNT(*)
         FROM \{User.class}
         GROUP BY \{User_.city}""")
     .getResultList(GroupedByCity.class).stream()
@@ -591,6 +593,16 @@ Map<Ref<City>, Long> counts = orm.query(RAW."""
 </Tabs>
 
 The database does the aggregating, so one row per city comes back and the reference carries the key you group by. Fetch the cities themselves with `findAllByRef(counts.keys)` when a later step needs them.
+
+Naming the foreign key path selects the key column on the user table itself, so the referenced table is never joined:
+
+```sql
+SELECT u.city_id, COUNT(*) FROM user u GROUP BY u.city_id
+```
+
+The key does not have to be a Ref. Selecting the entity itself, `${City::class}` in place of `${User_.city}` with a `City` component instead of `Ref<City>`, produces a `Map<City, Long>` whose keys carry their data, with no later fetch. That form pays for the join, for the city columns on every row, and for a `GROUP BY` over all of them, and its keys hash across every field rather than the primary key alone. Prefer the Ref form unless you need the records and would have fetched them anyway.
+
+This is not the same as [`resultGroupedBy`](queries.md#grouped-results). That variant does not change the SQL: it runs the same select and groups the hydrated rows, returning each city with the users that belong to it. Reach for it when you want the records themselves, and aggregate in the database, as above, when you only want a number per group.
 
 ---
 
@@ -652,7 +664,7 @@ Understanding how `fetch()` resolves its target helps you predict performance an
 
 ## Tips
 
-1. **Use Refs for optional relationships.** Avoid loading data you might not need.
+1. **Reach for a Ref when an edge lets the graph grow.** A join on its own is not a reason, and neither is an optional relationship. Optional edges are simply the natural first cut once a graph does need trimming. See [Entity Design](entity-design.md).
 2. **Use Refs for self-references.** Prevent circular loading in hierarchical data.
 3. **Use Refs in aggregations.** Get counts by FK without loading full entities.
 4. **Refs are reliable map keys.** They provide lightweight, identity-based comparison.

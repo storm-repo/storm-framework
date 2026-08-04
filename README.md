@@ -203,6 +203,7 @@ Everything you need to build applications with Storm. Start with Getting Started
 | [Queries](docs/queries.md) | Select, filter, aggregate, order (8 min) |
 | [Metamodel](docs/metamodel.md) | Compile-time type safety (10 min) |
 | [Refs](docs/refs.md) | Lazy loading and optimized references (7 min) |
+| [Entity Design](docs/entity-design.md) | Choosing between inlined foreign keys and Refs (9 min) |
 | [Batch & Streaming](docs/batch-streaming.md) | Bulk operations and Flow/Stream (5 min) |
 | [Upserts](docs/upserts.md) | Insert-or-update operations (6 min) |
 | [Write Sets](docs/write-sets.md) | Dependency-ordered writes of mixed-type entity graphs (7 min) |

@@ -17,14 +17,38 @@ Steps:
 4. For tables with existing entities: call `describe_table` and compare against the entity definition. Report differences and suggest updates.
 5. If `select_data` is available: sample a few rows from ambiguous columns to inform type decisions. For example, a `VARCHAR` column might contain enum-like values (suggest an enum), a `TEXT` column might store JSON (suggest `@Json`), or an `INT` column might be a type discriminator. Only query when the schema alone leaves the type decision ambiguous — do not sample every table.
 6. Ask: Kotlin or Java?
-7. Ask about loading preference for new FKs:
-   - **Deeply nested**: FK as direct types. Full graph in one query, no N+1.
-   - **Shallow**: FK as Ref<T>. Only ID stored, fetch on demand. No N+1 either way.
+7. Decide direct type vs `Ref<T>` for every FK using the algorithm below. Do NOT ask the user for a loading preference: the rule is deterministic, so the same schema always produces the same entities.
+
+Foreign key modeling (direct type vs `Ref<T>`):
+
+Joins on primary keys are cheap, so the default is a direct type and the algorithm below is a guard rail, not an optimization pass. It is calibrated so ordinary schemas trip nothing and every FK comes out as a direct type. It engages only where a graph would otherwise run away.
+
+Hold this invariant for EVERY table, treated as a potential root:
+- its inline closure adds at most **10 joins**, and
+- its inline closure adds at most **96 columns**, excluding the table's own columns.
+
+The *inline closure* of a table is the set of tables reachable from it through direct-type FKs. With `columns(T)` as the table's own column count (counting inline record components, which live in the same table and cost no join), `cost(T) = columns(T) + Σ cost(X)` over every inlined edge from T, and `joins(T)` is the number of joins that closure produces.
+
+Algorithm:
+1. **Break cycles.** Cut one edge per cycle; self-references are always cut. Visit tables in alphabetical order so the choice is reproducible. (This subsumes the CIRCULAR rule below.)
+2. **Topologically order** the remaining graph, leaves first.
+3. **Rank each table's outgoing FKs** into four tiers, tie-breaking on FK column name:
+   1. Identifying FKs, where the column participates in the target's PK.
+   2. Non-null FKs to targets that have no FKs of their own and are at most 32 columns wide.
+   3. Remaining non-null FKs, narrowest target first.
+   4. Nullable FKs, narrowest target first.
+4. **Inline down that ranking while the budget holds.** The first edge that would exceed it becomes `Ref<T>`, and so does every edge below it.
+
+Nothing is exempt from the budget, including tiers 1 and 2. The ranking gives those edges first claim, which in any realistic schema is enough for them to always survive.
+
+Work bottom-up, never top-down. A table has exactly one class, so a top-down walk makes roots disagree about the same edge. Bottom-up also means a new FK on a leaf gets cut at the leaf, leaving the entities above it unchanged.
+
+**Existing entities: report, never flip.** When a direct type already in the codebase exceeds the budget, report the table and the overrun and leave the code as written. Divergence is assumed deliberate. The budget describes what generation produces from a schema, not what a model is permitted to be.
 
 Generation/update rules:
 - snake_case table -> PascalCase class, snake_case column -> camelCase field
 - Remove _id from FK fields (city_id -> city)
-- **Every column with a FK constraint must be modeled with `@FK`.** Without `@FK`, Storm cannot resolve joins automatically. Prefer full entity types (`@FK val city: City` / `@FK City city`) over `Ref<T>`. Use `Ref<T>` when the entity hierarchy gets too deep or loading the full related entity is overkill.
+- **Every column with a FK constraint must be modeled with `@FK`.** Without `@FK`, Storm cannot resolve joins automatically. Whether the field is a full entity type (`@FK val city: City` / `@FK City city`) or a `Ref<T>` is decided by the foreign key modeling algorithm above, not by judgement.
 - **FK columns in primary keys:** When a PK column is also a FK (both PK and FK constraint on the same column), use raw IDs in the PK class and place `@FK @Persist(insertable = false, updatable = false)` fields on the entity for join metadata. Add a convenience constructor that accepts the FK entities/refs and constructs the PK internally.
 - Auto-increment PKs: IDENTITY. Others: NONE.
 - NOT NULL FKs: non-nullable. Nullable FKs: nullable. In Kotlin the type expresses this (`City` / `City?`); in Java components are non-null by default, so mark nullable columns `@Nullable` (JSpecify or jakarta) and leave NOT NULL columns unannotated.

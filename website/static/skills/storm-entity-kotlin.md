@@ -19,9 +19,16 @@ Help the user create Storm entities using Kotlin.
 
 Ask the user to describe their domain model: tables, columns, types, constraints, and relationships between entities.
 
-Before generating, ask about their relationship loading preference:
-- **Deeply nested**: FK fields as direct entity types (`@FK val city: City`). Loads the full entity graph in a single query with automatic JOINs. No N+1 problem.
-- **Shallow / on-demand**: FK fields as `Ref<T>` (`@FK val city: Ref<City>`). Stores only the FK ID, defers loading until `fetch()` is called. Reduces query width and memory for large graphs. No N+1 problem either way.
+Default posture for foreign keys: model them as direct entity types (`@FK val city: City`) and take the joins. A join on a primary key is the cheapest thing a relational database does, and one query returning a populated graph beats several round trips assembling the same object. Do not ask the user for a "deep or shallow" preference, and do not reach for `Ref<T>` pre-emptively.
+
+Reach for `Ref<T>` when an edge lets the graph grow beyond what reads should carry, not because a join exists:
+- The target carries its own foreign keys, so its cost is its whole closure rather than its own columns, and that closure grows whenever someone edits a table far away from this one.
+- The target is wide. Every inlined table adds its columns to every row of every entity that reaches it, which is the cost that actually bites.
+- The relationship is optional and usually absent, so the LEFT JOIN buys nulls.
+
+Two kinds of edge to leave inlined: identifying foreign keys, where the column is part of the target's own primary key and the row cannot exist without its parent, and targets with no foreign keys of their own, whose cost is bounded by their own width permanently. Lookup tables like `Country` and `Currency` are rarely worth cutting.
+
+When a graph does need cutting, cut the deepest edge rather than the nearest one. Trimming a tail narrows every entity above it at once, while cutting near the root severs a relationship people read through constantly.
 
 Generation rules:
 
@@ -36,10 +43,10 @@ Generation rules:
 
 3. Foreign keys (`@FK`):
    - **Every column with a FK constraint in the database must be modeled with `@FK` in the entity.** Without `@FK`, Storm has no FK metadata and cannot resolve joins automatically — forcing template-based joins that defeat the QueryBuilder.
-   - **Declare an entity foreign key for relationships that are part of the entity** (`@FK val city: City`), the ones a read of it would normally include. In practice that is one or two levels. Storm hydrates the whole eager graph in a single query, so these come back with the entity and there is no N+1 to manage.
+   - **Declare an entity foreign key by default** (`@FK val city: City`). Storm hydrates the whole eager graph in a single query, so these come back with the entity and there is no N+1 to manage.
    - **Declare `Ref<T>` for relationships that belong to particular queries** (`@FK val city: Ref<City>`). The read stays focused on the entity, and the reference is resolved where it is needed: call `fetch()` on it and the record is loaded. A `Ref` is complete on its own; nothing about it depends on the query doing anything special.
    - **`select().fetch(User_.city)` is an optimization, not a requirement.** When a read already knows it needs the referenced record, naming it folds the load into the same statement instead of a query of its own, and the reference comes back loaded. Use it where it helps; leaving it out is correct too.
-   - The eager graph is declared on the type, so every read of the entity gets the same one. It should describe what the entity is rather than what any one screen needs. Foreign keys side by side add a join each, while levels stacked on top of each other multiply by the fan-out above, so depth is the dimension to be deliberate about.
+   - The eager graph is declared on the type, so every read of the entity gets the same one. It should describe what the entity is rather than what any one screen needs. The dimension to be deliberate about is not depth but inherited growth: a direct type also adopts whatever foreign keys the target gains later, in an entity nobody was editing.
    - **Repeated `fetch()` calls on the same reference mean the declaration is in the wrong place.** If particular reads need the record, resolve it there with `select().fetch(...)`; if nearly all of them do, declare it as a plain foreign key instead.
    - A `Ref` gives up nothing: filter, order, and select through it with the metamodel from the owning entity (`User_.city.country.name`, where `city` is a `Ref<City>`), and Storm joins the referenced table only where a query asks for it.
    - Non-nullable `@FK val city: City` produces INNER JOIN.
