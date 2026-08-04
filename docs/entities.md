@@ -767,6 +767,8 @@ Nullability affects how relationships are loaded:
 - **Non-nullable FK:** INNER JOIN (referenced entity must exist)
 - **Nullable FK:** LEFT JOIN (referenced entity may be null)
 
+Foreign keys are joined transitively, so an entity's reads carry the columns of everything its graph reaches. Declaring a foreign key as [`Ref`](refs.md) stores the key and leaves the join to the queries that ask for it. See [Entity Design](entity-design.md) for when that is worth doing.
+
 ---
 
 ## Suppressing Schema Validation

@@ -30,6 +30,7 @@ DOCS=(
   pagination-and-scrolling.md
   metamodel.md
   refs.md
+  entity-design.md
   transactions.md
   spring-integration.md
   dialects.md

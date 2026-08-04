@@ -642,7 +642,7 @@ Storm's approach:
 
 ### Managing Graph Depth
 
-For deep or circular relationships, use `Ref` to break the loading chain:
+Circular relationships force a `Ref`, and a graph that has grown genuinely wide can use one to break the loading chain:
 
 ```kotlin
 data class Category(
@@ -656,9 +656,11 @@ A `Ref` removes the join from every read but keeps the relationship queryable: y
 
 The self-reference above is navigable too: `Category_.parent.name` joins the category table to itself, so it filters on the parent's name. The typed metamodel navigates a cycle two hops deep; deeper cyclic paths are named as strings. See [Refs](refs.md), [Querying Through Refs](refs.md#querying-through-refs) and [Cyclic References](metamodel.md#cyclic-references) for details.
 
+Deciding which edges to cut, and which to leave inlined, is a design question in its own right. See [Entity Design](entity-design.md).
+
 ## Tips
 
-1. **Keep entity graphs shallow.** Deep graphs mean large JOINs. Use `Ref` for optional or deep relationships.
+1. **Model foreign keys as direct types by default.** A join on a primary key is cheap, and one query beats several. Reach for `Ref` when an edge lets the graph grow, not because a join exists. See [Entity Design](entity-design.md).
 2. **Query the "many" side.** For one-to-many, query the child entity with a filter on the parent.
 3. **Use join entities for many-to-many.** Explicit join tables give you control over the relationship.
 4. **Match nullability to your schema.** Use nullable FKs only when the database column allows NULL.

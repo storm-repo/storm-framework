@@ -18,7 +18,7 @@
 > GitHub: https://github.com/storm-orm/storm-framework
 > License: Apache 2.0
 
-# Generated: 2026-07-29T21:33:50Z
+# Generated: 2026-08-04T13:24:41Z
 
 ========================================
 ## Source: index.md
@@ -26,18 +26,18 @@
 
 # Storm
 
-**Storm** is a modern, high-performance ORM for Kotlin 2.0+ and Java 21+, built around a powerful SQL template engine. It focuses on simplicity, type safety, and predictable performance through immutable models and compile-time metadata.
+**Storm** is an ORM for Kotlin 2.0+ and Java 21+, built on a SQL template engine. It aims for simplicity, type safety, and predictable performance, through immutable models and metadata generated at compile time.
 
 **Key benefits:**
 
 - **Minimal code**: Define entities with simple records/data classes and query with concise, readable syntax, no boilerplate.
 - **Parameterized by default**: String interpolations are automatically converted to bind variables, making queries SQL injection safe by design.
-- **Close to SQL**: Storm embraces SQL rather than abstracting it away, keeping you in control of your database operations.
-- **Type-safe**: Storm's DSL mirrors SQL, providing a type-safe, intuitive experience that makes queries easy to write and read while reducing the risk of runtime errors.
-- **Direct Database Interaction**: Storm translates method calls directly into database operations, offering a transparent and straightforward experience. It eliminates inefficiencies like the N+1 query problem for predictable and efficient interactions.
-- **Stateless**: Avoids hidden complexities and "magic" with stateless, record-based entities, ensuring simplicity and eliminating lazy initialization and transaction issues downstream.
-- **Performance**: Template caching, transaction-scoped entity caching, and zero-overhead dirty checking (thanks to immutability) ensure efficient database interactions. Batch processing, lazy streams, and upserts are built in.
-- **Universal Database Compatibility**: Fully compatible with all SQL databases, it offers flexibility and broad applicability across various database systems.
+- **Close to SQL**: Storm stays close to SQL rather than abstracting it away, so you keep control of what runs against your database.
+- **Type-safe**: Storm's DSL mirrors SQL, so a wrong column or a wrong type is a compile error rather than a runtime one.
+- **Direct Database Interaction**: Method calls translate directly into database operations. Entity graphs load in a single query, which removes the N+1 problem.
+- **Stateless**: Record-based entities carry no session state, so there is no lazy initialization to fail later and nothing to attach, detach, or merge.
+- **Performance**: Template caching, transaction-scoped entity caching, and zero-overhead dirty checking (thanks to immutability). Batch processing, lazy streams, and upserts are built in.
+- **Universal Database Compatibility**: Works with all SQL databases.
 
 ## Why Storm?
 
@@ -45,7 +45,7 @@ Storm draws inspiration from established ORMs such as Hibernate, but is built fr
 
 **Storm's mission:** Make database development productive and enjoyable, with full developer control and high performance.
 
-Storm embraces SQL rather than abstracting it away. It simplifies database interactions while remaining transparent, and scales from prototypes to enterprise systems.
+Storm embraces SQL rather than abstracting it away. Database interactions stay simple without becoming opaque.
 
 | Traditional ORM Pain | Storm Solution |
 |----------------------|----------------|
@@ -53,16 +53,16 @@ Storm embraces SQL rather than abstracting it away. It simplifies database inter
 | Hidden magic (proxies, implicit flush, cascades) | Stateless records; explicit, predictable behavior |
 | Entity state confusion (managed/detached/transient) | Immutable records; no state to manage |
 | Entities tied to session/context | Stateless records easily cached and shared across layers |
-| Dirty checking via bytecode manipulation | Lightning-fast dirty checking thanks to immutability |
+| Dirty checking via bytecode manipulation | Dirty checking that costs almost nothing, thanks to immutability |
 | Complex mapping configuration | Convention over configuration |
 | Runtime query errors | Compile-time type-safe DSL |
 | SQL hidden behind abstraction layers | SQL-first design; stay close to the database |
 
-**Storm is ideal for** developers who understand that the best solutions emerge when object model and database model work in harmony. If you value a database-first approach where records naturally mirror your schema, Storm is built for you. Custom mappings are supported when needed, but the real elegance comes from alignment, not abstraction.
+**Storm is ideal for** developers who want a database-first approach, where records mirror the schema. Custom mappings are supported when you need them, but the model works best when the two line up.
 
 ## Choose Your Language
 
-Both Kotlin and Java support SQL Templates for powerful query composition. Kotlin additionally provides a type-safe DSL with infix operators for a more idiomatic experience.
+Both Kotlin and Java support SQL Templates for query composition. Kotlin additionally provides a type-safe DSL with infix operators.
 
 [Kotlin]
 
@@ -212,6 +212,7 @@ If you are new to Storm, follow these guides in order to build a solid foundatio
 5. [Queries](queries.md) -- the full query DSL and builder reference
 6. [Repositories](repositories.md) -- the repository pattern and custom query methods
 7. [Relationships](relationships.md) -- foreign keys, entity graphs, and many-to-many
+8. [Entity Design](entity-design.md) -- when to inline a foreign key and when to reach for a Ref
 
 ### Migrating from JPA
 
@@ -1069,7 +1070,7 @@ List<User> page = users.select()
 List<Role> roles = orm.entity(Role.class)
     .select()
     .innerJoin(UserRole.class).on(Role.class)
-    .where(UserRole_.user, EQUALS, user)
+    .where(it -> it.whereAny(UserRole_.user, EQUALS, user))
     .getResultList();
 
 // Aggregation
@@ -1153,7 +1154,7 @@ Storm provides multiple query styles that you can mix freely:
 | Query builder | Ordering, pagination, joins, aggregation |
 | SQL Templates | Complex SQL, CTEs, window functions |
 
-Start with the simplest approach that fits your query. Move to a more powerful style only when needed.
+Start with the simplest approach that fits your query, and move down the table only when it stops fitting.
 
 ## Next Steps
 
@@ -1244,7 +1245,7 @@ data class User(
 
 [Java]
 
-In Java, record components are non-null by default, exactly like Kotlin: `String` means a value is always present, and nullable is the marked case. Mark nullable fields with `@Nullable` — Storm recognizes JSpecify's `org.jspecify.annotations.Nullable` (as a type-use annotation), `jakarta.annotation.Nullable`, and `javax.annotation.Nullable`. This matches JSpecify's `@NullMarked` semantics: annotating your model package `@NullMarked` is welcome documentation for static checkers, and `@NullUnmarked` on a class or package opts back into lenient, nullable-by-default components for that scope. As with Kotlin, nullability determines JOIN behavior: a non-nullable `@FK` field — including a bare, unannotated one — produces an `INNER JOIN`, while a `@Nullable @FK` field produces a `LEFT JOIN`. If the FK column allows `NULL` in the database, annotate the field `@Nullable`, or rows without the reference are silently filtered by the inner join.
+In Java, record components are non-null by default, exactly like Kotlin: `String` means a value is always present, and nullable is the marked case. Mark nullable fields with `@Nullable`. Storm recognizes JSpecify's `org.jspecify.annotations.Nullable` (as a type-use annotation), `jakarta.annotation.Nullable`, and `javax.annotation.Nullable`. This matches JSpecify's `@NullMarked` semantics: annotating your model package `@NullMarked` is welcome documentation for static checkers, and `@NullUnmarked` on a class or package opts back into lenient, nullable-by-default components for that scope. As with Kotlin, nullability determines JOIN behavior: a non-nullable `@FK` field, including a bare unannotated one, produces an `INNER JOIN`, while a `@Nullable @FK` field produces a `LEFT JOIN`. If the FK column allows `NULL` in the database, annotate the field `@Nullable`, or rows without the reference are silently filtered by the inner join.
 
 ```java
 record User(@PK Integer id,
@@ -1464,7 +1465,7 @@ record SomeEntity(@PK Integer id,
 ```
 Compound unique constraints that do not require a metamodel key do not need to be modeled in the entity. Schema validation does not warn about unmodeled compound constraints.
 
-Use `@UK(constraint = false)` when the unique constraint does not exist in the database — for example, when uniqueness is enforced at the application level.
+Use `@UK(constraint = false)` when the unique constraint does not exist in the database: for example, when uniqueness is enforced at the application level.
 
 When a column is not annotated with `@UK` but becomes unique in a specific query context (for example, a GROUP BY column produces unique values in the result set), wrap the metamodel with `.key()` (Kotlin) or `Metamodel.key()` (Java) to indicate it can serve as a scrolling cursor. See [Manual Key Wrapping](metamodel.md#manual-key-wrapping) for details.
 
@@ -1841,6 +1842,8 @@ Nullability affects how relationships are loaded:
 
 - **Non-nullable FK:** INNER JOIN (referenced entity must exist)
 - **Nullable FK:** LEFT JOIN (referenced entity may be null)
+
+Foreign keys are joined transitively, so an entity's reads carry the columns of everything its graph reaches. Declaring a foreign key as [`Ref`](refs.md) stores the key and leaves the join to the queries that ask for it. See [Entity Design](entity-design.md) for when that is worth doing.
 
 ---
 
@@ -2731,7 +2734,7 @@ For more control, use explicit join queries:
 List<Role> roles = orm.entity(Role.class)
     .select()
     .innerJoin(UserRole.class).on(Role.class)
-    .where(UserRole_.user, EQUALS, user)
+    .where(it -> it.whereAny(UserRole_.user, EQUALS, user))
     .getResultList();
 ```
 ---
@@ -2931,7 +2934,7 @@ orm.entity(UserProfile.class).insert(profile);
 Storm extracts the primary key from the `User` entity and uses it as the value for the `user_id` column.
 ### Key Chains
 
-The referenced entity's primary key may itself be a foreign key — or a compound key record. Storm follows this *key chain* to its terminal columns. A dependent one-to-one on an entity that is itself a dependent one-to-one works the same way as the single-level case:
+The referenced entity's primary key may itself be a foreign key, or a compound key record. Storm follows this *key chain* to its terminal columns. A dependent one-to-one on an entity that is itself a dependent one-to-one works the same way as the single-level case:
 
 [Kotlin]
 
@@ -3059,7 +3062,7 @@ Storm's approach:
 
 ### Managing Graph Depth
 
-For deep or circular relationships, use `Ref` to break the loading chain:
+Circular relationships force a `Ref`, and a graph that has grown genuinely wide can use one to break the loading chain:
 
 ```kotlin
 data class Category(
@@ -3073,9 +3076,11 @@ A `Ref` removes the join from every read but keeps the relationship queryable: y
 
 The self-reference above is navigable too: `Category_.parent.name` joins the category table to itself, so it filters on the parent's name. The typed metamodel navigates a cycle two hops deep; deeper cyclic paths are named as strings. See [Refs](refs.md), [Querying Through Refs](refs.md#querying-through-refs) and [Cyclic References](metamodel.md#cyclic-references) for details.
 
+Deciding which edges to cut, and which to leave inlined, is a design question in its own right. See [Entity Design](entity-design.md).
+
 ## Tips
 
-1. **Keep entity graphs shallow.** Deep graphs mean large JOINs. Use `Ref` for optional or deep relationships.
+1. **Model foreign keys as direct types by default.** A join on a primary key is cheap, and one query beats several. Reach for `Ref` when an edge lets the graph grow, not because a join exists. See [Entity Design](entity-design.md).
 2. **Query the "many" side.** For one-to-many, query the child entity with a filter on the parent.
 3. **Use join entities for many-to-many.** Explicit join tables give you control over the relationship.
 4. **Match nullability to your schema.** Use nullable FKs only when the database column allows NULL.
@@ -3087,7 +3092,7 @@ The self-reference above is navigable too: `Category_.parent.name` joins the cat
 ========================================
 
 # Repositories
-Entity repositories provide a high-level abstraction for managing entities in the database. They offer methods for creating, reading, updating, and deleting entities, as well as querying and filtering based on specific criteria.
+An entity repository is the entry point for working with one entity type: create, read, update, and delete, plus querying and filtering.
 
 ---
 
@@ -3627,7 +3632,7 @@ public class AcmeRepositoryBeanFactoryPostProcessor extends RepositoryBeanFactor
 ========================================
 
 # Queries
-Storm provides a powerful and flexible query API. All queries are type-safe; the generated metamodel (`User_`, `City_`, etc.) catches errors at compile time rather than at runtime.
+All Storm queries are type-safe: the generated metamodel (`User_`, `City_`, etc.) catches errors at compile time rather than at runtime.
 
 Key features:
 - **Compile-time checked** -- field references are validated by the metamodel
@@ -3940,7 +3945,7 @@ val users = orm.entity<User>()
     .resultList
 ```
 
-When an inline record (embedded component) is passed to `orderBy` or `orderByDescending`, Storm automatically expands it into its individual leaf columns using `flatten()`. For example, if `User_.fullName` is an inline record with `lastName` and `firstName` fields, `orderBy(User_.fullName)` produces `ORDER BY last_name, first_name`. The same expansion applies to `groupBy`.
+When a path passed to `orderBy`, `orderByDescending`, or `groupBy` resolves to multiple columns, it expands to those columns in order, resolved exactly as a predicate on that path would be. An inline record (embedded component) expands into its component columns: if `User_.fullName` is an inline record with `lastName` and `firstName` fields, `orderBy(User_.fullName)` produces `ORDER BY last_name, first_name`. A foreign key expands to its foreign key column(s) on the referencing table, without joining the referenced table, so `groupBy(Visit_.pet)` produces `GROUP BY visit.pet_id` and a foreign key to a table with a compound primary key contributes every foreign key column once. With `orderByDescending`, `DESC` follows every expanded column.
 
 For full control over the ORDER BY clause (for example, to use SQL expressions or database-specific syntax), use the template overload. Metamodel fields are resolved to their column names automatically.
 
@@ -3987,7 +3992,7 @@ List<User> users = orm.entity(User.class)
     .getResultList();
 ```
 
-When an inline record (embedded component) is passed to `orderBy` or `orderByDescending`, Storm automatically expands it into its individual leaf columns using `flatten()`. The same expansion applies to `groupBy`.
+When a path passed to `orderBy`, `orderByDescending`, or `groupBy` resolves to multiple columns (an inline record, or a foreign key to a table with a compound primary key), it expands to those columns in order, resolved exactly as a predicate on that path would be: component columns for an inline record, the foreign key column(s) on the referencing table for a foreign key.
 
 For full control over the ORDER BY clause, use the template overload:
 
@@ -4239,9 +4244,11 @@ Storm automatically joins entities referenced by `@FK` fields. For entities not 
 List<Role> roles = orm.entity(Role.class)
     .select()
     .innerJoin(UserRole.class).on(Role.class)
-    .where(UserRole_.user, EQUALS, user)
+    .where(it -> it.whereAny(UserRole_.user, EQUALS, user))
     .getResultList();
 ```
+
+The typed `where(path, ...)` overloads take paths rooted at the query's root entity. `UserRole_.user` is rooted at the joined `UserRole`, so the condition goes through the where-lambda's `whereAny(...)`, which accepts a path rooted at any joined table.
 
 ### Joins (SQL Templates)
 
@@ -4270,7 +4277,7 @@ Choose the simplest option that meets your needs. See [SQL Templates](sql-templa
 
 ## Compound Fields in Queries
 
-When an inline record (embedded component) is used in a query clause, Storm automatically expands it into its constituent columns. This applies to WHERE, ORDER BY, and GROUP BY clauses.
+When an inline record (embedded component) is used in a query clause, Storm automatically expands it into its constituent columns. This applies to WHERE, ORDER BY, and GROUP BY clauses. A foreign key expands the same way, into its foreign key column(s) on the referencing table.
 
 ### WHERE Clauses
 
@@ -4382,7 +4389,7 @@ ORDER BY o.address DESC, o.city_id DESC
 
 ### GROUP BY
 
-Inline records expand in GROUP BY the same way. This is particularly useful in combination with scrolling, where grouping by a column makes it unique in the result set. Wrap the metamodel with `.key()` to indicate it can serve as a cursor:
+Inline records expand in GROUP BY the same way, and a foreign key groups by its foreign key column(s) on the referencing table: `groupBy(Order_.city)` produces `GROUP BY o.city_id`, without joining the referenced table. Grouping by a column makes it unique in the result set, which is particularly useful in combination with scrolling. Wrap the metamodel with `.key()` to indicate it can serve as a cursor:
 
 ```kotlin
 data class CityOrderCount(val city: City, val count: Long)
@@ -4880,7 +4887,7 @@ Window<OrderSummary> next = orm.selectFrom(Order.class, OrderSummary.class, ...)
 # Static Metamodel
 The static metamodel is a code generation feature that creates companion classes for your entities at compile time. These generated classes provide type-safe references to entity fields, enabling the compiler to catch errors that would otherwise surface only at runtime.
 
-Using the metamodel is optional. Storm works without it using SQL Templates or string-based field references. However, for projects that want to leverage Storm's full capabilities, the metamodel provides significant benefits in terms of type safety, IDE support, and maintainability.
+Using the metamodel is optional. Storm works without it using SQL Templates or string-based field references. With it, you get compile-checked field references, IDE completion on entity paths, and refactorings that reach into your queries.
 
 ## Why Use a Metamodel?
 
@@ -4998,7 +5005,7 @@ Optional<User> user = orm.query(RAW."""
 ```
 ## Path Resolution
 
-Storm supports two forms of metamodel references: **nested paths** and **short form**. Understanding when to use each is important for writing correct queries.
+Storm supports two forms of metamodel references: **nested paths** and **short form**. They resolve differently: a nested path is always unambiguous, while a short form can fail at runtime if the table it names appears more than once in the entity graph.
 
 Consider an entity graph where `User` has a `city` field pointing to `City`, which has a `country` field pointing to `Country`:
 
@@ -5561,7 +5568,7 @@ Object countryName = User_.city.country.name.getValue(user);  // "United States"
 ```
 ### Flattening Inline Records
 
-`Metamodel.flatten()` expands an inline record (embedded component) into its individual leaf column metamodels. If the metamodel already represents a leaf column, it returns a singleton list containing itself. This is the same expansion Storm performs internally for ORDER BY and GROUP BY clauses.
+`Metamodel.flatten()` expands an inline record (embedded component) into its individual leaf column metamodels. Any other metamodel returns a singleton list containing itself: it names its own column(s), and a foreign key names the foreign key column(s) on the referencing table. ORDER BY and GROUP BY resolve a path to the same columns a predicate would use, expanding multi-column paths during column resolution.
 
 [Kotlin]
 
@@ -5673,6 +5680,10 @@ The metamodel is not required. You can use Storm with SQL Templates (Java) or ra
 # Refs
 Refs are lightweight identifiers for entities, projections, and other data types that defer fetching until explicitly required. They optimize performance by avoiding unnecessary data retrieval and are useful for managing large object graphs.
 
+Unlike a typical lazy reference, a `Ref` never trades away query capability. Filter, order, group, and select through it with the metamodel exactly as you would through a directly-referenced entity, and Storm adds the join only for the query that actually needs it. When a query already knows it needs the referenced record, it can resolve the `Ref` as part of that same statement instead of paying for a separate fetch. Choosing `Ref<T>` over the entity type is a decision about the SELECT you get by default, not a capability you give up.
+
+That said, it is a decision worth making sparingly. Joins on primary keys are cheap, so the default is to model foreign keys as direct types and reach for a `Ref` when an edge lets the graph grow beyond what your reads should carry. [Entity Design](entity-design.md) covers where that line sits and how Storm's schema-first generation draws it.
+
 ---
 
 ## Using Refs in Entities
@@ -5705,6 +5716,8 @@ record User(@PK Integer id,
 ```
 
 The `city` field contains only the foreign key ID, not the full `City` entity.
+
+A `Ref` does not give up type-safe querying. Selecting the entity still stores only the foreign key value, but you can filter, order, and select *through* the reference by naming the target's columns on the metamodel (for example `User_.city.country.name`). Storm adds the join for the referenced table on demand, only for a query that actually navigates beyond the foreign key. See [Querying Through Refs](#querying-through-refs).
 ---
 
 ## Fetching
@@ -5734,7 +5747,7 @@ City city = user.map(u -> u.city().fetch()).orElse(null);  // Loads from databas
 
 ## Resolving a Ref as Part of the Query
 
-Calling `fetch()` costs one query per reference. When you know up front that you will need the referenced record, name it with `fetch(...)` on the query builder. Storm then selects the referenced table's columns in place of the foreign key column, joined into the same statement, and the reference comes back already loaded.
+Calling `fetch()` costs one query per reference. When you know up front that you will need the referenced record, name it with `fetch(...)` on the query builder. Storm then selects the referenced table's columns in place of the foreign key column, joined into the same statement, and the reference comes back already loaded. Read it with `getOrThrow()` rather than `fetch()`: both return the loaded record without a query, but `getOrThrow()` makes that guarantee visible at the call site instead of relying on `fetch()`'s dual on-demand/already-loaded behavior.
 
 [Kotlin]
 
@@ -5743,7 +5756,7 @@ val users = orm.entity<User>().select()
     .fetch(User_.city, User_.city.country)
     .resultList
 
-val city = users.first().city.fetch()   // already loaded, no query
+val city = users.first().city.getOrThrow()   // no query, and the code shows it
 ```
 
 [Java]
@@ -5754,7 +5767,7 @@ List<User> users = orm.entity(User.class)
     .fetch(User_.city, User_.city.country)
     .getResultList();
 
-City city = users.getFirst().city().fetch();   // already loaded, no query
+City city = users.getFirst().city().getOrThrow();   // no query, and the code shows it
 ```
 The entity is unchanged: the field stays `Ref<City>`, so the same record type serves queries that resolve the reference and queries that do not. What changes is the state of the reference in the result. `isLoaded()` returns `true`, `fetch()` returns without querying, and `getOrNull()` returns the record. Identity and equality are untouched, since a reference is compared by its type and key, and `unload()` returns to a reference that carries the key alone.
 
@@ -5771,8 +5784,8 @@ List<User> users = orm.entity(User.class).select()
     .fetch(User_.city)
     .getResultList();
 
-City city = users.getFirst().city().fetch();    // loaded
-city.country().isLoaded();                      // false, still a foreign key column
+City city = users.getFirst().city().getOrThrow();    // no query, and the code shows it
+city.country().isLoaded();                           // false, still a foreign key column
 ```
 
 Because a reference is always a to-one foreign key, resolving one widens the row without multiplying it: there is no row fan-out to guard against, unlike a join across a collection. A cycle stays bounded by the depth the path names, so a self-reference is resolved exactly as far as you ask:
@@ -6026,11 +6039,6 @@ A path names the referenced table one column at a time. A query can also name th
 ```kotlin
 // Selects the referenced entity: the city table is joined on demand, and so is its own country foreign key.
 val cities = orm.entity<User>().select(City::class).resultList
-
-// Joins another table onto the referenced one. The join needs the city table, so the reference brings it in.
-val sharingACity = orm.entity<User>().select()
-    .innerJoin<User>().on<City>()
-    .resultList
 ```
 
 [Java]
@@ -6038,17 +6046,14 @@ val sharingACity = orm.entity<User>().select()
 ```java
 // Selects the referenced entity: the city table is joined on demand, and so is its own country foreign key.
 List<City> cities = orm.entity(User.class).select(City.class).getResultList();
-
-// Joins another table onto the referenced one. The join needs the city table, so the reference brings it in.
-List<User> sharingACity = orm.entity(User.class).select()
-    .innerJoin(User.class).on(City.class)
-    .getResultList();
 ```
-A query that names the table both ways gets one occurrence: a path navigating to it resolves against the same join. A table the query joins explicitly keeps that occurrence, so an explicit join stays in charge of the table it brings in.
+An explicit `innerJoin(...).on(City.class)` names the table the same way, and the reference brings it in for the join to resolve against. A query that names the table both ways gets one occurrence: a path navigating to it resolves against the same join, and a table the query joins explicitly keeps that occurrence, so an explicit join stays in charge of the table it brings in.
+
+Bringing the table in is not the same as resolving the reference. A join makes the referenced table available to the rest of the statement, and `select(City::class)` makes it the result, but neither one touches the `User.city` of a selected user: it stays an unloaded foreign key. Resolving it into the user is what [`fetch(User_.city)`](#resolving-a-ref-as-part-of-the-query) does, and it works on the select list rather than on the tables the query can name. The two also differ in what they do to the rows: an inner join drops users whose city does not match, while `fetch(...)` uses an outer join for a nullable reference so every row survives.
 
 ### What You Can and Cannot Do Beyond a Ref
 
-Nodes reached *beyond* a reference are **navigation-only**. They can be used anywhere a query needs a column reference: `where`, `orderBy`, `groupBy`, `having`, and custom selected columns. They cannot extract a value from an in-memory record, because a `Ref` is never hydrated into the parent, so value operations (such as `getValue` or `resultGroupedBy`) are not available on them and fail to compile. The reference node itself (`User_.city`) is value-extractable and yields the `Ref`, so grouping by the reference with `resultGroupedByRef` works. See [Navigating Through Refs](metamodel.md#navigating-through-refs) for the type-level details.
+Nodes reached *beyond* a reference are **navigation-only**. They can be used anywhere a query needs a column reference: `where`, `orderBy`, `groupBy`, `having`, and custom selected columns. They cannot extract a value from an in-memory record, because a `Ref` is never hydrated into the parent, so value operations (such as `getValue` or `resultGroupedBy`) are not available on them and fail to compile. The reference node itself (`User_.city`) is value-extractable and yields the `Ref`, so grouping by the reference with [`resultGroupedByRef`](queries.md#grouped-results) works. See [Navigating Through Refs](metamodel.md#navigating-through-refs) for the type-level details.
 
 ### Designing Entities to Avoid Excessive Joins
 
@@ -6145,15 +6150,15 @@ By contrast, refs created with `Ref.of(entity)` wrap an already-loaded entity in
 | `Ref.of(entity)` | Yes (full entity) | Returns the wrapped entity | `false` |
 | Loaded by Storm (from query) | Yes (after fetch) | Returns entity or fetches from DB/cache | `true` |
 
-Use `Ref.of(entity)` when you already have the entity in memory and want to wrap it as a ref (for example, to pass into a method that expects `Ref<T>`). Use `Ref.of(type, primaryKey)` when you only have the ID and want a lightweight identifier for equality checks, map keys, or later resolution within a transaction context.
+Use `Ref.of(entity)` when you already have the entity in memory and want to wrap it as a ref (for example, to pass into a method that expects `Ref<T>`). Use `Ref.of(type, primaryKey)` when you only have the ID and want a lightweight identifier for equality checks, map keys, or a lookup you hand to a repository with `findByRef` or `findAllByRef`.
 
 ---
 
 ## Aggregation with Refs
 
-[Kotlin]
+Refs are particularly useful in aggregation queries where you group by a foreign key. Instead of loading the full related entity for each group, name the foreign key path and select it as a Ref. This keeps the query lightweight while still giving you a typed identifier to use in subsequent lookups if needed.
 
-Refs are particularly useful in aggregation queries where you group by a foreign key. Instead of loading the full related entity for each group, you can select only the primary key as a Ref. This keeps the query lightweight while still giving you a typed identifier to use in subsequent lookups if needed.
+[Kotlin]
 
 ```kotlin
 data class GroupedByCity(
@@ -6162,7 +6167,7 @@ data class GroupedByCity(
 )
 
 val counts: Map<Ref<City>, Long> = orm.entity<User>()
-    .select<GroupedByCity, _, _> { "${select(City::class, SelectMode.PK)}, COUNT(*)" }
+    .select<GroupedByCity, _, _> { "${User_.city}, COUNT(*)" }
     .groupBy(User_.city)
     .resultList
     .associate { it.city to it.count }
@@ -6174,7 +6179,7 @@ val counts: Map<Ref<City>, Long> = orm.entity<User>()
 record GroupedByCity(Ref<City> city, long count) {}
 
 Map<Ref<City>, Long> counts = orm.entity(User.class)
-    .select(GroupedByCity.class, RAW."\{select(City.class, SelectMode.PK)}, COUNT(*)")
+    .select(GroupedByCity.class, RAW."\{User_.city}, COUNT(*)")
     .groupBy(User_.city)
     .getResultList().stream()
     .collect(toMap(GroupedByCity::city, GroupedByCity::count));
@@ -6184,12 +6189,24 @@ Using SQL Templates:
 
 ```java
 Map<Ref<City>, Long> counts = orm.query(RAW."""
-        SELECT \{select(City.class, SelectMode.PK)}, COUNT(*)
+        SELECT \{User_.city}, COUNT(*)
         FROM \{User.class}
         GROUP BY \{User_.city}""")
     .getResultList(GroupedByCity.class).stream()
     .collect(toMap(GroupedByCity::city, GroupedByCity::count));
 ```
+The database does the aggregating, so one row per city comes back and the reference carries the key you group by. Fetch the cities themselves with `findAllByRef(counts.keys)` when a later step needs them.
+
+Naming the foreign key path selects the key column on the user table itself, so the referenced table is never joined:
+
+```sql
+SELECT u.city_id, COUNT(*) FROM user u GROUP BY u.city_id
+```
+
+The key does not have to be a Ref. Selecting the entity itself, `${City::class}` in place of `${User_.city}` with a `City` component instead of `Ref<City>`, produces a `Map<City, Long>` whose keys carry their data, with no later fetch. That form pays for the join, for the city columns on every row, and for a `GROUP BY` over all of them, and its keys hash across every field rather than the primary key alone. Prefer the Ref form unless you need the records and would have fetched them anyway.
+
+This is not the same as [`resultGroupedBy`](queries.md#grouped-results). That variant does not change the SQL: it runs the same select and groups the hydrated rows, returning each city with the users that belong to it. Reach for it when you want the records themselves, and aggregate in the database, as above, when you only want a number per group.
+
 ---
 
 ## Use Cases
@@ -6245,11 +6262,12 @@ Understanding how `fetch()` resolves its target helps you predict performance an
 - `getOrThrow()` and `getOrNull()` never query. They return what is already loaded, so they are the accessors to reach for when the query was meant to resolve the reference.
 - `fetch()` checks the [entity cache](entity-cache.md) before querying the database. If the entity was already loaded in the current transaction, no additional query is issued.
 - Multiple Refs pointing to the same entity share the cached instance within a transaction, preserving object identity.
-- Calling `fetch()` on a detached Ref created with `Ref.of(type, id)` will fail unless an active transaction context is available.
+- Calling `fetch()` on a detached Ref created with `Ref.of(type, id)` always fails. Fetching needs the `ORMTemplate` that produced the reference, and a detached one carries only a type and a key. An active transaction does not change that; pass the reference to `findByRef` or `findAllByRef` instead.
+- An attached Ref, conversely, needs no transaction of its own. It fetches over the connection its template provides, and that read runs in whatever transaction happens to be active at the time, or in none. There is no session to keep open and no state to lose, so a reference fetched outside a transaction reads exactly as it would inside one.
 
 ## Tips
 
-1. **Use Refs for optional relationships.** Avoid loading data you might not need.
+1. **Reach for a Ref when an edge lets the graph grow.** A join on its own is not a reason, and neither is an optional relationship. Optional edges are simply the natural first cut once a graph does need trimming. See [Entity Design](entity-design.md).
 2. **Use Refs for self-references.** Prevent circular loading in hierarchical data.
 3. **Use Refs in aggregations.** Get counts by FK without loading full entities.
 4. **Refs are reliable map keys.** They provide lightweight, identity-based comparison.
@@ -6259,15 +6277,244 @@ Understanding how `fetch()` resolves its target helps you predict performance an
 
 
 ========================================
+## Source: entity-design.md
+========================================
+
+# Entity Design
+Every foreign key in your schema becomes one of two things in your model: a direct type, which Storm joins on every read, or a [`Ref`](refs.md), which stores the key and leaves the join to the queries that ask for it. That single choice, repeated across a schema, decides what your reads cost.
+
+This page describes how to make it, and how Storm's schema-first generation makes it for you.
+
+---
+
+## Where the Decision Lives
+
+Any framework that returns objects from a relational schema has to settle one question: when a query returns an entity, how much of the surrounding data comes back with it. Storm answers that question in the entity class. The relationships a class declares as direct types are loaded alongside it, on every read, in every query, for as long as they stay declared that way. The rest of this page follows from that answer, so it is worth setting out what the choice costs and what it buys before arriving at the rule itself.
+
+The alternative is to answer the question at each query instead. That approach is more flexible, since any given read can ask for exactly the data it needs and nothing more. What it asks in return is that every read state its requirements, and that those requirements stay correct as the surrounding code changes. When a read omits something it turns out to need, the shortfall is usually made up at runtime, one additional query per row returned, and that is a cost which stays invisible until the data grows.
+
+Storm takes the other position. The decision is made once, where the model is defined, and applies uniformly to every read of that entity. That uniformity is the cost: a query interested in two columns still pays for the relationships the class declares. It is also the benefit, because it makes the cost of a read a property of the model rather than of whichever code happens to be calling it. You can establish what an entity costs to read by looking at its declaration, without running anything, and tooling can check that cost against a budget before the code ships.
+
+Where a particular query genuinely needs more than the class declares, [`fetch(...)`](refs.md#resolving-a-ref-as-part-of-the-query) resolves the additional records as part of the same statement, so the class sets the default rather than an upper bound. What a class cannot do is prompt you to reconsider the decision later, because nothing at the call sites refers back to it. That is precisely why the reasoning behind it is worth writing down.
+
+---
+
+## Start by Not Optimizing
+
+The default is to model every foreign key as a direct type and take the joins.
+
+Storm joins on a primary key with an equality predicate, which is the cheapest thing a relational database does. It is an index lookup per row against a structure the database keeps hot. A query that joins six tables to return one fully populated entity graph is not a query in trouble. It is a query doing what the database is built for, and it beats six round trips to assemble the same object by a margin that does not depend on your schema.
+
+So `Ref` is not the careful choice, and a direct type is not the lazy one. Reaching for `Ref` before you have a reason gives up nothing in query capability, but it does move work into your application: a `fetch()` at the call site, a second round trip, and a loading decision that every caller now has to get right. Pay that when something is buying it.
+
+Concretely: build the graph, model the foreign keys as direct types, and move on. Most schemas never need anything else.
+
+---
+
+## What Actually Costs You
+
+When a graph does start to hurt, it helps to be precise about which part hurts. There are three costs, and they are not close to equal.
+
+**The join.** Nearly free, as above. This is the cost people optimize for, and it is the one that matters least.
+
+**The width.** Every inlined table adds its columns to every row that every ancestor selects. A join to a 40-column table does not cost you a join, it costs you 40 columns times however many rows come back, over the wire and through the row mapper, on every read of every entity that reaches it. Width is the real bill.
+
+**Growth you did not ask for.** This is the one worth designing against.
+
+Consider a `Visit` that references `Pet`:
+
+[Kotlin]
+
+```kotlin
+data class Visit(
+    @PK val id: Int = 0,
+    val visitDate: LocalDate,
+    val description: String,
+    @FK val pet: Pet
+) : Entity<Int>
+```
+
+[Java]
+
+```java
+record Visit(@PK Integer id,
+             LocalDate visitDate,
+             String description,
+             @FK Pet pet
+) implements Entity<Integer> {}
+```
+Later, someone adds a clinic reference to `Pet`. `Clinic` has its own foreign keys to `Address` and `Organization`, and `Address` reaches `City`, which reaches `Country`. Every query that selects a `Visit` now joins five more tables and carries their columns, and nothing about `Visit` changed. The developer who edited `Pet` had no way to see it.
+
+That asymmetry is what justifies a boundary. Not the join. A direct type has an unbounded blast radius that grows with your schema, and it grows in a place nobody is looking. A `Ref` has a blast radius of one edge, and it is written down at the edge.
+
+---
+
+## What a Ref Does Not Cost
+
+Before turning to where a cut belongs, it is worth being precise about what a cut gives up, which is less than it appears. Declaring a foreign key as a `Ref` narrows what a read returns by default. It does not narrow what a query is permitted to ask, and that distinction is what makes the choices in the next section a question of cost rather than of capability.
+
+A reference does not terminate the metamodel; paths continue straight through it. A column on the far side of a reference, however many hops beyond it, is named exactly as it would be on a directly-referenced entity. Storm joins the tables the path crosses, for the query that asks and for no other:
+
+[Kotlin]
+
+```kotlin
+// city is a Ref<City>, and the filter still reaches through it into country.
+orm.entity<User>()
+    .select()
+    .where(User_.city.country.name eq "Netherlands")
+    .resultList
+```
+
+[Java]
+
+```java
+// city is a Ref<City>, and the filter still reaches through it into country.
+List<User> users = orm.entity(User.class)
+    .select()
+    .where(User_.city.country.name, EQUALS, "Netherlands")
+    .getResultList();
+```
+The same paths are available inside a select template, so a query is free to return data from beyond a reference even though the entity itself does not carry it:
+
+[Kotlin]
+
+```kotlin
+// Selects a column two hops past the reference, joining city and country for this query alone.
+orm.entity<User>()
+    .select<UsersPerCountry, _, _> { "${User_.city.country.name}, COUNT(*)" }
+    .groupBy(User_.city.country.name)
+    .resultList
+```
+
+[Java]
+
+```java
+// Selects a column two hops past the reference, joining city and country for this query alone.
+orm.entity(User.class)
+    .select(UsersPerCountry.class, RAW."\{User_.city.country.name}, COUNT(*)")
+    .groupBy(User_.city.country.name)
+    .getResultList();
+```
+Both work anywhere a query names a column: `where`, `orderBy`, `groupBy`, `having`, and custom select templates. Naming the reference field on its own, `User_.city`, reads the foreign key column and adds no join at all, which is what makes it an inexpensive grouping key. Every other read of `User` is left alone throughout: the records still come back carrying an unloaded `Ref<City>`. See [Querying Through Refs](refs.md#querying-through-refs) and [Navigating Through Refs](metamodel.md#navigating-through-refs).
+
+---
+
+## Where to Draw the Line
+
+When a graph does need cutting, the useful question is not "is this join expensive." It is "how far does this edge let the graph grow, and who inherits that."
+
+**Cut at the deepest edge, not the nearest one.** If `Visit` to `Pet` to `Clinic` to `Organization` is too much, the edge to cut is the one from `Clinic` to `Organization`. Cutting close to the root severs a relationship people read through constantly. Cutting close to the leaf trims a tail that almost nobody reaches. It also localizes the fix: cut the deep edge and every entity above it gets narrower at once, without any of them changing.
+
+**Cut the wide before the narrow.** Between two candidates, the one that drags in more columns is the one worth cutting. Cutting a narrow table saves you almost nothing and costs a `fetch()` at every call site.
+
+**Optional relationships are the natural first cut.** A nullable foreign key is a `LEFT JOIN` that hydrates a null sub-object on the rows where the reference is absent. When the reference is usually absent, you are paying width for nothing.
+
+Two edges to leave alone:
+
+**Identifying foreign keys.** When the foreign key column is part of the referenced row's own primary key, the row cannot exist without its parent. That is composition, not association, and splitting it produces a model where you routinely hold half an object.
+
+**Foreign-key-free targets.** A table with no outgoing foreign keys can never grow a subtree. Its cost is bounded by its own width, permanently, and no future schema change can make it worse. Lookup tables like `Country`, `PetType`, and `Currency` fall here, and there is rarely a reason to make one a `Ref`.
+
+None of these cuts costs you the relationship, as above. The choice is about the SELECT you get by default, not about what you are allowed to ask.
+
+---
+
+## Circular References
+
+Cycles are not a judgment call. Two entities that reference each other cannot both use direct types, so one side must be a `Ref`, and a self-reference is always a `Ref`.
+
+[Kotlin]
+
+```kotlin
+data class Category(
+    @PK val id: Int = 0,
+    val name: String,
+    @FK val parent: Ref<Category>?
+) : Entity<Int>
+```
+
+[Java]
+
+```java
+record Category(@PK Integer id,
+                String name,
+                @Nullable @FK Ref<Category> parent
+) implements Entity<Integer> {}
+```
+The self-reference stays navigable: `Category_.parent.name` joins the table to itself. See [Cyclic References](metamodel.md#cyclic-references).
+
+---
+
+## How the Generator Decides
+
+Everything above is reasoning for a developer, who knows which paths their application actually reads through. A generator working from a schema does not know that, so it applies a fixed rule instead, and the same schema always produces the same entities.
+
+The rule is a guard rail, not an optimization pass. It is calibrated so that ordinary schemas trip nothing at all and every foreign key comes out as a direct type. It engages only where a graph would otherwise run away.
+
+### The Budget
+
+Storm's schema-first generation holds this invariant for every table, treated as a potential root:
+
+- The table's inline closure adds at most **10 joins**.
+- The table's inline closure adds at most **96 columns**, excluding the table's own.
+
+A table's *inline closure* is the set of tables reachable from it through direct-type foreign keys. Define `columns(T)` as the table's own column count, counting [inline record](entities.md#embedded-components) components, which live in the same table and cost no join. Then `cost(T) = columns(T) + Σ cost(X)` across every edge from `T` that is inlined, and `joins(T)` is the number of joins that closure produces.
+
+### The Algorithm
+
+1. **Break cycles.** Every cycle gets one edge cut, and self-references are cut. Tables are visited in alphabetical order so the choice is reproducible.
+2. **Order the remaining graph topologically**, leaves first.
+3. **For each table, rank its outgoing foreign keys** into four tiers, breaking ties on the foreign key column name:
+   1. Identifying foreign keys, where the column participates in the target's primary key.
+   2. Non-null foreign keys to targets that have no foreign keys of their own and are at most 32 columns wide.
+   3. Remaining non-null foreign keys, narrowest target first.
+   4. Nullable foreign keys, narrowest target first.
+4. **Inline down that ranking while the budget holds.** The first edge that would exceed it becomes a `Ref`, and so does every edge below it.
+
+Working bottom-up is what makes the result stable. A new foreign key on a leaf table is cut at the leaf, so the entities above it keep the shape they already had. Cutting top-down would put the cut near whichever root happened to be processed first, and since a table has one class, roots would disagree about the same edge.
+
+Ranking by cost is what removes the need for naming heuristics. `Country`, at two columns with no foreign keys, wins a budget in every schema it appears in. A transactional table that arrives with its own closure attached does not. The lookup-versus-aggregate distinction falls out of the schema instead of out of a list of table-name patterns.
+
+Nothing is exempt from the budget, including tiers 1 and 2. The ranking gives those edges first claim, which in any realistic schema is enough for them to always survive, and the invariant holds without exceptions.
+
+### A Worked Example
+
+Take a veterinary schema: `country(2 columns)`, `pet_type(2)`, `city(3, references country)`, `owner(6, references city)`, `pet(5, references owner and pet_type)`, `visit(4, references pet)`.
+
+Working leaves first: `cost(country) = 2` and `cost(pet_type) = 2`, both with no joins. `cost(city) = 3 + 2 = 5` across one join. `cost(owner) = 6 + 5 = 11` across two. `cost(pet) = 5 + 11 + 2 = 18` across four. `cost(visit) = 4 + 18 = 22` across five.
+
+The widest closure in the schema belongs to `visit`, at 5 joins and 18 columns. Both budgets are untouched, so nothing is cut and every foreign key is generated as a direct type.
+
+Now give `pet` a reference to a 40-column `clinic` table that carries its own foreign keys to `address` and `organization`. The closure under `visit` roughly doubles in joins and passes 96 columns, so the budget fires. The cut lands on `clinic`'s widest edge, `organization`, which is both the deepest edge and the one carrying the most width. The edge from `visit` to `pet`, and the edge from `pet` to `owner`, are untouched.
+
+### Existing Entities
+
+When generation runs against entities that already exist, a direct type that now exceeds the budget is **reported, never flipped**. You get a diagnostic naming the table and the overrun, and the code is left as written.
+
+An entity that diverges from the rule is assumed to be doing so deliberately. The budget describes what generation produces from a schema, and it does not describe what your model is permitted to be. If you know a path is read constantly, inline past the budget. If you know one is read almost never, cut inside it.
+
+---
+
+## Tips
+
+1. **Model foreign keys as direct types until something says otherwise.** Joins on primary keys are cheap, and one query beats several.
+2. **Design against inherited growth, not against joins.** The cost that bites is the subtree an edge lets in later, in an entity nobody was editing.
+3. **Cut deep, not shallow.** Trimming the tail of a graph narrows every entity above it at once.
+4. **Never cut a lookup table.** A table with no foreign keys of its own has a cost that cannot grow.
+5. **Cut optional relationships first.** A nullable foreign key is a `LEFT JOIN` whose width buys you nulls on the rows that lack the reference.
+6. **A `Ref` is not a smaller relationship.** It stays filterable, orderable, and selectable through the metamodel. See [Refs](refs.md).
+
+
+========================================
 ## Source: transactions.md
 ========================================
 
 
 # Transactions
 
-Transaction management is fundamental to database programming. Storm takes a practical approach: rather than inventing new abstractions, it provides first-class support for standard transaction semantics while integrating seamlessly with your existing infrastructure.
+Storm does not invent new transaction abstractions. It supports the standard semantics directly and plugs into the transaction management you already run.
 
-Storm works directly with JDBC transactions and supports both programmatic and declarative transaction management. For Kotlin, Storm provides a coroutine-friendly API inspired by Exposed. For Java, Storm integrates with Spring's transaction management or works directly with JDBC connections.
+Storm works directly with JDBC transactions and supports both programmatic and declarative transaction management. For Kotlin, Storm provides a coroutine-friendly API inspired by Exposed. For Java, Storm provides the same programmatic API through `Transactions.transaction(...)`, and integrates with Spring's transaction management or works directly with JDBC connections.
 
 ---
 
@@ -6328,9 +6575,9 @@ transactionBlocking {
 
 ### Transaction Propagation
 
-Propagation modes are one of the most powerful features of enterprise transaction management, yet they're often misunderstood. They control how transactions interact when code calls another transactional method. This is essential for building composable services where each method can define its transactional requirements independently.
+Propagation modes control how transactions interact when transactional code calls other transactional code. They are what lets each method state its own transactional requirements without knowing who calls it.
 
-Storm supports seven Spring-style propagation modes. Understanding when to use each mode helps you build robust, maintainable applications where components work correctly both standalone and when composed together.
+Storm supports seven Spring-style propagation modes.
 
 #### REQUIRED (Default)
 
@@ -6619,13 +6866,13 @@ fun runBatchJob() {
 
 ### Isolation Levels
 
-Isolation levels are the database's answer to concurrency. When multiple transactions run simultaneously, they can interfere with each other in various ways. The SQL standard defines four isolation levels, each preventing different types of concurrency anomalies.
+Transactions running at the same time can interfere with each other. The SQL standard defines four isolation levels, each preventing a different set of concurrency anomalies.
 
-Storm exposes all four standard isolation levels through its API, giving you full control over the consistency-performance trade-off. Most applications work fine with the database's default isolation level (typically `READ_COMMITTED`), but understanding when to use higher levels is crucial for building correct applications.
+Storm exposes all four through its API, so the consistency-performance trade-off is yours to make. Most applications are fine on the database default (usually `READ_COMMITTED`); the cases that are not are worth recognizing.
 
 #### Concurrency Phenomena
 
-Before diving into isolation levels, it's important to understand the three phenomena they prevent. Each represents a different way concurrent transactions can produce unexpected results:
+The three phenomena the isolation levels prevent. Each is a different way concurrent transactions can produce unexpected results:
 
 | Phenomenon | Description |
 |------------|-------------|
@@ -6882,7 +7129,7 @@ Database transactions often need to trigger side effects, but only when the outc
 
 Storm's `onCommit` and `onRollback` callbacks solve this by letting you register logic that fires **after** the physical transaction completes. Callbacks are registered inside the transaction block but execute outside it, once the outcome is final. Note that running such logic right after the block is not a substitute: with `REQUIRED` propagation the block may have joined an outer transaction, in which case the end of the block commits nothing and the outer transaction may still roll back. Callbacks bind to the physical transaction, so they remain correct however deeply the block is nested.
 
-Work that has to happen either way — releasing a lock, closing a span — registers once with `onCompletion`, which receives whether the transaction committed. `onCommit` and `onRollback` stay the simpler form when only one outcome is of interest, and say so at the registration site.
+Work that has to happen either way, such as releasing a lock or closing a span, registers once with `onCompletion`, which receives whether the transaction committed. `onCommit` and `onRollback` stay the simpler form when only one outcome is of interest, and say so at the registration site.
 
 #### Basic Usage
 
@@ -6975,7 +7222,7 @@ And for a failed transaction:
 
 #### Multiple Callbacks and Ordering
 
-You can register any number of callbacks. All three kinds share a single registration order — each run executes them in the order they were registered, skipping the ones that do not apply to the outcome — which makes it straightforward to reason about sequencing when multiple components register their own callbacks:
+You can register any number of callbacks. All three kinds share a single registration order: each run executes them in the order they were registered, skipping the ones that do not apply to the outcome. That makes it straightforward to reason about sequencing when multiple components register their own callbacks:
 
 ```kotlin
 transaction {
@@ -7023,6 +7270,10 @@ try {
 ```
 
 This design ensures that the root cause of a failure is never masked by callback errors.
+
+Callbacks a block defers to a Spring-managed transaction run as Spring synchronizations and follow Spring's
+rules instead: a failure there is logged by Spring rather than thrown. See
+[Mixed-Usage Caveats](#mixed-usage-caveats).
 
 #### Propagation Interaction
 
@@ -7210,6 +7461,35 @@ transaction {
 }
 ```
 
+#### Registering from Nested Code
+
+The callbacks above are registered on the block's own handle, which works wherever the block is in view. Code
+that runs *beneath* the block never sees that handle: an [entity callback](entity-lifecycle.md#logging), a
+service method several frames down is called by Storm or by your own code, not handed the transaction.
+
+Such code participates the same way any transactional code does: it opens a `transaction { }` block of its own.
+With joining propagation, the default, the block is the same transaction, and its callbacks defer to the
+outermost physical commit exactly as the [propagation rules](#propagation-interaction) describe:
+
+```kotlin
+class ArticleCallback : EntityCallback<Article> {
+    override fun afterInsert(entity: Article) {
+        transactionBlocking {
+            // Joins the transaction the insert runs in; the publish waits for its commit.
+            onCommit { events.publish(ArticlePublished(entity)) }
+        }
+    }
+}
+```
+
+The nested block adds no transaction of its own and, when it performs no database work, no work at all: it is a
+registration point. This holds inside Spring-managed transactions as well; see
+[Mixed-Usage Caveats](#mixed-usage-caveats) for the fine print.
+
+Register once per unit of work rather than once per record. An entity callback fires per entity, including for
+each row of a batch, so registering there means one callback per row held until commit. Collect into a list and
+register a single callback when the volume is more than a handful.
+
 ### Global Transaction Options
 
 Set defaults for all transactions:
@@ -7245,7 +7525,7 @@ withTransactionOptionsBlocking(isolation = SERIALIZABLE) {
 
 ### How Transactions Bind to Templates
 
-Since 1.13, a `transaction` or `transactionBlocking` block binds to the first `ORMTemplate` that executes inside it. Opening the block only records the requested options (propagation, isolation, timeout, read-only); the actual transaction is opened by that first template's transaction provider. This means the block automatically uses whatever transaction system the template is configured with, whether that is Storm's own JDBC transactions or a platform bridge such as Spring's transaction management. A block that never touches a template completes as a no-op.
+Since 1.13, a `transaction` or `transactionBlocking` block binds to the first `ORMTemplate` that executes inside it. Opening the block only records the requested options (propagation, isolation, timeout, read-only); the actual transaction is opened by that first template's transaction provider. This means the block automatically uses whatever transaction system the template is configured with, whether that is Storm's own JDBC transactions or a platform bridge such as Spring's transaction management. A block that never touches a template completes as a no-op; callbacks it registered and a rollback-only mark still settle against the transaction that surrounds it, whether that is an outer Storm block or a detected externally managed transaction (see [Mixed-Usage Caveats](#mixed-usage-caveats)).
 
 Templates that should share a transaction must use the same transaction provider instance. This is automatic for repositories of one application (the Spring Boot starter and the Ktor plugin configure one provider per application context or plugin installation). Mixing templates with *different* transaction providers inside one block fails fast with a descriptive error, since a single commit cannot span two transaction systems.
 
@@ -7298,83 +7578,111 @@ class UserService(private val orm: ORMTemplate) {
 }
 ```
 
-#### Propagation Interaction
+#### Mixed-Usage Caveats
+
+Storm blocks and Spring-managed transactions compose without special care. A Storm block finds the transaction
+it belongs to in one of three ways: through Storm's own scope chain, when the surrounding transaction is
+another Storm block; through the first query that executes inside it (see
+[How Transactions Bind to Templates](#how-transactions-bind-to-templates)); or, when neither exists and the
+propagation is joining, by detecting the Spring transaction active on the thread. In every case the result is
+the same, whether or not the block performs database work: `onCommit` and `onRollback` wait for the transaction
+that actually commits, and `setRollbackOnly()` dooms it.
+
+That is what makes the [nested-code pattern](#registering-from-nested-code) work identically under
+`@Transactional`. An entity callback that runs inside a Spring-managed write registers its commit hook the same
+way it would inside a Storm-managed one:
+
+```kotlin
+class ArticlePublishingCallback : EntityCallback<Article> {
+    override fun afterInsert(entity: Article) {
+        transactionBlocking {
+            // The block detects the Spring transaction the insert runs in; the publish waits for its commit.
+            onCommit { events.publish(ArticlePublished(entity)) }
+        }
+    }
+}
+```
+
+Two limits remain:
+
+- Callbacks that wait for Spring's completion run as Spring transaction synchronizations, so a callback that
+  throws is logged by Spring rather than surfacing as a `TransactionCallbackException`.
+- The rules above describe joining propagation, the default. A `REQUIRES_NEW` block opens its own independent
+  transaction and fires its own callbacks, exactly as within Storm-managed transactions.
+
+#### Propagation with @Transactional
 
 Storm's propagation modes work with Spring transactions:
 
 ```kotlin
 @Transactional
-suspend fun processWithAudit(user: User) {
-    transaction {
+fun processWithAudit(user: User) {
+    transactionBlocking {
         orm insert user
     }
 
     // REQUIRES_NEW creates an independent transaction, even within Spring's transaction
-    transaction(propagation = REQUIRES_NEW) {
+    transactionBlocking(propagation = REQUIRES_NEW) {
         auditRepository.log("User created: ${user.id}")
         // Commits independently - audit survives even if outer transaction rolls back
     }
 }
 ```
 
-#### Suspend Functions with @Transactional
+#### Suspend Functions and @Transactional
 
-For suspend functions, use Spring's `@Transactional` with the coroutine-aware transaction manager:
+Spring's `@Transactional` does not support suspending functions with a JDBC `PlatformTransactionManager`:
+Spring requires a `ReactiveTransactionManager` for suspending methods, which JDBC does not provide. Storm's
+suspending `transaction { }` variant is likewise rejected with Spring-managed transactions, since Spring binds
+its transaction state to the calling thread.
+
+Keep the transactional boundary blocking and call it from coroutine code on an IO dispatcher:
 
 ```kotlin
-@Configuration
-@EnableTransactionManagement
-class TransactionConfig {
-    @Bean
-    fun transactionManager(dataSource: DataSource): ReactiveTransactionManager {
-        return DataSourceTransactionManager(dataSource)
-    }
-}
-
 @Service
 class OrderService(private val orm: ORMTemplate) {
 
     @Transactional
-    suspend fun placeOrder(order: Order): Order {
-        val savedOrder = orm insert order
-
-        // Can switch dispatchers while staying in the same transaction
-        withContext(Dispatchers.Default) {
-            calculateLoyaltyPoints(savedOrder)
-        }
-
-        return savedOrder
-    }
+    fun placeOrder(order: Order): Order = orm insert order
 }
+
+// From coroutine code:
+val saved = withContext(Dispatchers.IO) { orderService.placeOrder(order) }
 ```
+
+Dispatcher freedom inside a transaction, switching with `withContext` while staying in the same transaction,
+is a property of Storm-managed [suspend transactions](#suspend-transactions); a Spring-managed transaction stays
+on the thread that started it.
 
 #### Using Storm Without @Transactional
 
-You can also use Storm's programmatic transactions without Spring's `@Transactional`. Storm manages the transaction lifecycle directly:
+You can also use Storm's programmatic transactions without Spring's `@Transactional`. With the Spring-composed
+template the blocks run through Spring's transaction manager all the same; only the boundary is programmatic:
 
 ```kotlin
 @Service
 class UserService(private val orm: ORMTemplate) {
 
-    // No @Transactional needed - Storm handles it
-    suspend fun createUser(user: User): User {
-        return transaction {
-            orm insert user
-        }
+    // No @Transactional needed - the block drives the transaction
+    fun createUser(user: User): User = transactionBlocking {
+        orm insert user
     }
 
     // Explicit propagation and isolation
-    suspend fun transferFunds(from: Account, to: Account, amount: BigDecimal) {
-        transaction(
-            propagation = REQUIRED,
-            isolation = SERIALIZABLE
-        ) {
+    fun transferFunds(from: Account, to: Account, amount: BigDecimal) {
+        transactionBlocking(propagation = REQUIRED, isolation = SERIALIZABLE) {
             accountRepository.debit(from, amount)
             accountRepository.credit(to, amount)
         }
     }
 }
 ```
+
+### Ktor Route Transactions
+
+In Ktor, the [`transactional { }` route DSL](ktor-integration.md#route-scoped-transactions) wraps a group of routes so that
+every call to a route inside it runs in its own transaction, opened before the handler and committed when it returns.
+It takes the same options as `transaction { }` and leaves the handlers free of transaction code.
 
 [Java]
 
@@ -7452,6 +7760,30 @@ transaction(tx -> {
 ```
 
 Callbacks registered in a scope that joins an outer transaction are deferred to the outermost physical transaction's completion; `REQUIRES_NEW` scopes fire their own callbacks independently. The three kinds share one registration order: callbacks run in the order they were registered after the transaction has fully completed, skipping the ones that do not apply to the outcome. `onCompletion` receives whether the transaction committed, which is the variant for work that has to happen either way. If a callback throws, the remaining callbacks still execute and the failures surface as a `TransactionCallbackException` whose cause is the first one, with the rest suppressed; `isCommitted()` tells a failed side effect apart from a failed transaction, which need opposite responses, since retrying the former repeats work that already succeeded.
+
+### Registering from Nested Code
+
+Code that does not see the block's `tx` handle, such as an [entity callback](entity-lifecycle.md#logging) or a helper
+several frames down, participates by opening a joining block of its own. With the default `REQUIRED`
+propagation its callbacks register on the transaction it joins and defer to the outermost physical commit:
+
+```java
+public class ArticleCallback implements EntityCallback<Article> {
+    @Override
+    public void afterInsert(Article entity) {
+        Transactions.transaction(tx -> {
+            // Joins the transaction the insert runs in; the publish waits for its commit.
+            tx.onCommit(() -> events.publish(new ArticlePublished(entity)));
+            return null;
+        });
+    }
+}
+```
+
+The nested block adds no transaction of its own and, when it performs no database work, no work at all: it is a
+registration point. This holds inside Spring-managed transactions as well; see
+[Mixed-Usage Caveats](#mixed-usage-caveats-1) for the fine print. Register once per unit of work rather than once
+per record: an entity callback fires per entity, including for each row of a batch.
 
 ### Global and Scoped Defaults
 
@@ -7568,9 +7900,9 @@ public class AuditService {
 }
 ```
 
-#### Programmatic Transactions
+#### Spring's TransactionTemplate
 
-While `@Transactional` works well for most cases, sometimes you need finer control over transaction boundaries. For example, processing a batch where each item should be in its own transaction, or conditionally rolling back based on runtime conditions. Spring's `TransactionTemplate` provides this control while still integrating with Spring's transaction infrastructure.
+While `@Transactional` works well for most cases, sometimes you need finer control over transaction boundaries. For example, processing a batch where each item should be in its own transaction, or conditionally rolling back based on runtime conditions. Spring's `TransactionTemplate` provides this control while still integrating with Spring's transaction infrastructure. Storm's own [`transaction(...)`](#programmatic-transactions) blocks are the alternative, with the same boundaries and Storm's callback API.
 
 ```java
 @Service
@@ -7621,6 +7953,39 @@ List<User> users = template.execute(status -> {
 });
 ```
 
+#### Mixed-Usage Caveats
+
+Storm blocks and Spring-managed transactions compose without special care. A Storm block finds the transaction
+it belongs to in one of three ways: through Storm's own scope chain, when the surrounding transaction is
+another Storm block; through the first query that executes inside it; or, when neither exists and the
+propagation is joining, by detecting the Spring transaction active on the thread. In every case the result is
+the same, whether or not the block performs database work: `onCommit` and `onRollback` wait for the transaction
+that actually commits, and `setRollbackOnly()` dooms it.
+
+That is what makes the [nested-code pattern](#registering-from-nested-code-1) work identically under
+`@Transactional`. An entity callback that runs inside a Spring-managed write registers its commit hook the same
+way it would inside a Storm-managed one:
+
+```java
+public class ArticlePublishingCallback implements EntityCallback<Article> {
+    @Override
+    public void afterInsert(Article entity) {
+        Transactions.transaction(tx -> {
+            // The block detects the Spring transaction the insert runs in; the publish waits for its commit.
+            tx.onCommit(() -> events.publish(new ArticlePublished(entity)));
+            return null;
+        });
+    }
+}
+```
+
+Two limits remain:
+
+- Callbacks that wait for Spring's completion run as Spring transaction synchronizations, so a callback that
+  throws is logged by Spring rather than surfacing as a `TransactionCallbackException`.
+- The rules above describe joining propagation, the default. A `REQUIRES_NEW` block opens its own independent
+  transaction and fires its own callbacks, exactly as within Storm-managed transactions.
+
 ### JDBC Transactions
 
 For applications not using Spring, or for maximum control, you can manage transactions directly through JDBC. Storm works with any JDBC connection. Create an `ORMTemplate` from the connection and use it within your transaction scope.
@@ -7666,22 +8031,28 @@ public class HybridService {
 ```
 ---
 
-## Important Notes
+## A Transaction Runs One Thing at a Time
 
-Understanding these nuances helps avoid common pitfalls when working with transactions.
+A transaction owns a single database connection, and a connection can serve only one caller at a time. That, rather than any particular thread, is what bounds a transaction.
 
-### Concurrency
+**Moving between threads is fine.** A Storm-managed suspend `transaction { }` travels with the coroutine context, so `withContext(Dispatchers.IO)` or `Dispatchers.Default` inside the block offloads work and comes back in the same transaction. `withContext` suspends the caller until it returns, so the transaction is still doing one thing at a time. The same holds for the blocking API on virtual threads: a block parks on I/O rather than pinning its carrier thread, and the transaction goes with it.
 
-Launching concurrent work inside a transaction using `async`, `launch`, or other parallel coroutine builders is **not supported**. Database transactions are bound to the calling thread/coroutine. Use sequential operations or split work into separate transactions if parallelism is required.
+**Doing two things at once is not.** Work started with `async`, `launch`, an `ExecutorService`, or a parallel stream *inherits* the transaction and then uses its connection concurrently, which the connection cannot serve. Await each unit before starting the next, or give the parallel work its own transactions.
 
-### RollbackOnly Semantics
+```kotlin
+transaction {
+    // Fine: sequential, even though it changes dispatcher and thread.
+    val report = withContext(Dispatchers.Default) { render(orm.findAll<Order>()) }
+    orm insert Archive(report)
 
-- In `NESTED` propagation: rolls back to the savepoint, preserving outer transaction's work
-- In `REQUIRED` or `REQUIRES_NEW`: affects the entire transaction scope
+    // Not supported: both halves would use this transaction's connection at once.
+    // val a = async { orm insert first }
+    // val b = async { orm insert second }
+    // awaitAll(a, b)
+}
+```
 
-### Context Switching (Kotlin)
-
-Within any transactional scope, you can switch dispatchers (e.g., `withContext(Dispatchers.Default)`) and still access the **same active transaction**. This allows offloading CPU-bound work without breaking transactional context.
+A Spring-managed transaction is bound to its thread rather than a coroutine context, so it does not travel across dispatchers at all; see [Suspend Functions and @Transactional](#suspend-functions-and-transactional).
 
 
 ========================================
@@ -7691,7 +8062,7 @@ Within any transactional scope, you can switch dispatchers (e.g., `withContext(D
 
 # Spring Integration
 
-Storm integrates seamlessly with Spring Framework and Spring Boot for dependency injection, transaction management, and repository auto-wiring. This guide covers setup for both languages.
+Storm integrates with Spring Framework and Spring Boot for dependency injection, transaction management, and repository auto-wiring. This guide covers setup for both languages.
 
 ## Installation
 
@@ -8278,9 +8649,9 @@ A generic DataSource proxy can only time statements. Storm knows the entity and 
 
 `storm.origin` separates statements your code asked for (`DIRECT`) from statements that resolved a reference (`FETCH`). A reference the query did not resolve is selected as its foreign key column and resolved on demand, one statement per reference, and such a statement is shaped exactly like a primary key lookup you could have written yourself. Tagging it `FETCH` makes what resolving references costs a quantity you can chart and alert on rather than a share of all lookups; naming the reference in the query's fetch plan is what drives the rate back to zero. Resolutions served by the transaction's entity cache issue no statement at all, so the rate counts distinct cache misses, not `fetch()` call sites.
 
-Transactions are observed alongside the queries: every physical transaction — an outermost `transaction` block or a `REQUIRES_NEW` block, in any language stack and through the Spring bridge alike — reports as a `storm.transaction` observation with its duration, `storm.tx.outcome` (`committed` or `rolled_back`), `storm.tx.propagation`, and `storm.tx.read_only`. Joined blocks run inside an existing transaction and are deliberately not double-counted. Long-running transactions and rollback rates become queryable per application, and per domain with the multi-template tagging.
+Transactions are observed alongside the queries: every physical transaction (an outermost `transaction` block or a `REQUIRES_NEW` block, in any language stack and through the Spring bridge alike) reports as a `storm.transaction` observation with its duration, `storm.tx.outcome` (`committed` or `rolled_back`), `storm.tx.propagation`, and `storm.tx.read_only`. Joined blocks run inside an existing transaction and are deliberately not double-counted. Long-running transactions and rollback rates become queryable per application, and per domain with the multi-template tagging.
 
-Observability backends key their database tooling — latency panels, service-map database nodes, query views — on the OpenTelemetry database client semantic conventions. Set `storm.observations.semantic-conventions: otel` and every observation additionally carries the standard attributes (`db.system.name` detected from the DataSource, `db.operation.name`, and `db.query.text` on spans), so Storm queries surface in the database UX of any OTLP-capable backend, from Elastic to Grafana to Datadog, while the `storm.*` key values remain for custom dashboards:
+Observability backends key their database tooling (latency panels, service-map database nodes, query views) on the OpenTelemetry database client semantic conventions. Set `storm.observations.semantic-conventions: otel` and every observation additionally carries the standard attributes (`db.system.name` detected from the DataSource, `db.operation.name`, and `db.query.text` on spans), so Storm queries surface in the database UX of any OTLP-capable backend, from Elastic to Grafana to Datadog, while the `storm.*` key values remain for custom dashboards:
 
 ```yaml
 storm:
@@ -8290,15 +8661,15 @@ storm:
 
 Customization follows the usual back-off rules: contribute an `ObservationConvention<StormQueryObservationContext>` bean to override the naming and key values (it wins over the property), define your own `QueryObserver` bean to replace the binding entirely, or disable the observation at the registry level with `management.observations.enable.storm.query=false`.
 
-For development and per-call diagnosis, `storm.sql-log.enabled=true` reports what each unit of work cost the database as one summary — statements, database time against total time, concurrency, and the statement that carried the weight — with thresholds that turn it into a production guardrail. Every way work enters the application is a boundary: HTTP requests through a servlet filter, and `@Scheduled` tasks and message listeners through a proxy around the entry-point method, so a worker without a web layer reports the same way. See [SQL Logging](sql-logging.md#per-call-summaries).
+For development and per-call diagnosis, `storm.sql-log.enabled=true` reports what each unit of work cost the database as one summary (statements, database time against total time, concurrency, and the statement that carried the weight) with thresholds that turn it into a production guardrail. Every way work enters the application is a boundary: HTTP requests through a servlet filter, and `@Scheduled` tasks and message listeners through a proxy around the entry-point method, so a worker without a web layer reports the same way. See [SQL Logging](sql-logging.md#per-call-summaries).
 
-With tracing in place, `storm.tracing.sql-comments` additionally appends the current trace context to statements as a sqlcommenter-style comment (`/*traceparent='00-…'*/`), so database-side diagnostics — MariaDB's slow query log, `pg_stat_activity` — correlate directly back to the trace that issued the statement. `true` comments every statement inside a span; `sampled` comments only statements of sampled traces, which is the recommended mode when the sampling probability is below 1.0. This is deliberately opt-in: a per-execution comment changes the statement text on every call, which defeats driver-side and server-side prepared statement caching.
+With tracing in place, `storm.tracing.sql-comments` additionally appends the current trace context to statements as a sqlcommenter-style comment (`/*traceparent='00-…'*/`), so database-side diagnostics such as MariaDB's slow query log and `pg_stat_activity` correlate directly back to the trace that issued the statement. `true` comments every statement inside a span; `sampled` comments only statements of sampled traces, which is the recommended mode when the sampling probability is below 1.0. This is deliberately opt-in: a per-execution comment changes the statement text on every call, which defeats driver-side and server-side prepared statement caching.
 
 One composition warning for applications that wire the integration beans themselves: define beans like the `ExceptionMapper`, `QueryObserver`, or `SqlCommenter` unconditionally in your `@Configuration` classes. A `@ConditionalOnBean` condition in a user configuration evaluates before auto-configurations contribute their beans (such as the `Tracer`), so it fails silently and the integration stays dormant while looking enabled.
 
 ## Testing with @DataStormTest
 
-`@DataStormTest` (from `storm-spring-boot-test-autoconfigure`, test scope) is the Storm test slice, the counterpart of `@DataJpaTest`: it starts only the `DataSource`, Storm's auto-configuration (template, repository scanning, transaction integration, schema validation, exception translation), and SQL initialization, plus Flyway or Liquibase when present. It complements [`@StormTest`](testing.md), which tests data logic without a Spring context: use `@StormTest` for fast query-level tests, and the slice when the test should see what production Spring code sees — injected repository beans, translated exceptions, Spring-managed transactions, and your `storm.*` configuration. Regular `@Component`, `@Service`, and `@Controller` beans stay out of the context. Each test method runs in a transaction that is rolled back afterwards, so tests cannot see each other's writes.
+`@DataStormTest` (from `storm-spring-boot-test-autoconfigure`, test scope) is the Storm test slice, the counterpart of `@DataJpaTest`: it starts only the `DataSource`, Storm's auto-configuration (template, repository scanning, transaction integration, schema validation, exception translation), and SQL initialization, plus Flyway or Liquibase when present. It complements [`@StormTest`](testing.md), which tests data logic without a Spring context: use `@StormTest` for fast query-level tests, and the slice when the test should see what production Spring code sees: injected repository beans, translated exceptions, Spring-managed transactions, and your `storm.*` configuration. Regular `@Component`, `@Service`, and `@Controller` beans stay out of the context. Each test method runs in a transaction that is rolled back afterwards, so tests cannot see each other's writes.
 
 The application's `DataSource` is replaced with an embedded in-memory database by default, on Spring Boot 3 and 4 alike (the slice ships a fallback for Boot 4's relocated test-database support); put a `schema.sql` (and optionally `data.sql`) on the test classpath to initialize it, or let Flyway or Liquibase (included in the slice) create the schema as in production:
 
@@ -8343,9 +8714,9 @@ class VisitRepositoryPostgresTest(
 }
 ```
 
-The slice works with both starters — it pulls in the starter's auto-configuration classes by name, which are identical for the Java and Kotlin stacks — and with both Spring Boot 3 and 4: where Spring Boot moved classes between the releases, the slice is exclusion-based rather than annotation-composed. The annotation supports `properties` for per-test configuration (for example `properties = ["storm.validation.schema-mode=none"]` when the test schema deliberately diverges from the entity model) and `includeFilters`/`excludeFilters` to pull additional components into the slice.
+The slice works with both starters, pulling in the starter's auto-configuration classes by name, which are identical for the Java and Kotlin stacks. It also works with both Spring Boot 3 and 4: where Spring Boot moved classes between the releases, the slice is exclusion-based rather than annotation-composed. The annotation supports `properties` for per-test configuration (for example `properties = ["storm.validation.schema-mode=none"]` when the test schema deliberately diverges from the entity model) and `includeFilters`/`excludeFilters` to pull additional components into the slice.
 
-Two composition notes. Test fixtures loaded per test method participate in the rollback transaction, so identity-generated keys drift across methods (sequences do not roll back); load reference fixtures once with `@Sql(executionPhase = ExecutionPhase.BEFORE_TEST_CLASS)` and let each test's own writes roll back. And an application that excludes `StormTransactionAutoConfiguration` (the coroutine-native setup) should re-enable it for the slice with `properties = ["spring.autoconfigure.exclude="]` — without the transaction bridge, repository writes cannot join the rollback transaction.
+Two composition notes. Test fixtures loaded per test method participate in the rollback transaction, so identity-generated keys drift across methods (sequences do not roll back); load reference fixtures once with `@Sql(executionPhase = ExecutionPhase.BEFORE_TEST_CLASS)` and let each test's own writes roll back. And an application that excludes `StormTransactionAutoConfiguration` (the coroutine-native setup) should re-enable it for the slice with `properties = ["spring.autoconfigure.exclude="]`; without the transaction bridge, repository writes cannot join the rollback transaction.
 
 ## Multiple Data Sources
 
@@ -8733,7 +9104,7 @@ mvn test -pl storm-postgresql
 
 ## Tips
 
-1. **Always include the dialect** for production databases to unlock all features
+1. **Always include the dialect** for production databases; without it you lose the database-specific features
 2. **Use H2 or SQLite** for unit tests; add `storm-h2` or `storm-sqlite` for upsert support
 3. **Dialect is runtime-only**; it doesn't affect your compile-time code or entity definitions
 4. **One dialect per application**; Storm auto-detects the right dialect from your connection URL
@@ -9884,13 +10255,13 @@ This approach gives you control over pagination, caching, and memory usage.
 
 # Polymorphism
 
-Storm supports polymorphic entity hierarchies using sealed types. Instead of the proxy-based inheritance strategies found in traditional ORMs, Storm leverages sealed interfaces and data classes (Kotlin) or records (Java) to provide compile-time type safety with exhaustive pattern matching. The sealed type hierarchy tells the compiler exactly which subtypes exist, so a `when` (Kotlin) or `switch` (Java) expression over a polymorphic result is guaranteed to cover all cases.
+Storm supports polymorphic entity hierarchies using sealed types. Where traditional ORMs use proxy-based inheritance strategies, Storm builds on sealed interfaces with data classes (Kotlin) or records (Java). The sealed hierarchy tells the compiler exactly which subtypes exist, so a `when` (Kotlin) or `switch` (Java) over a polymorphic result is guaranteed to cover every case.
 
 Storm provides three inheritance strategies: **Single-Table**, **Joined Table**, and **Polymorphic FK**. The strategy is detected automatically from how you structure the sealed type hierarchy. Single-Table stores a discriminator value in the entity's table and requires `@Discriminator` on the sealed interface. Joined Table supports an optional `@Discriminator`: when present, a physical discriminator column is stored in the base table; when absent, Storm resolves the concrete type at query time by checking which extension table has a matching row. Polymorphic FK stores discriminator values in the *referencing* entity instead, so the sealed interface itself needs no discriminator annotation.
 
 ## Decision Guide
 
-Before diving into the details, use this summary to choose the right strategy for your use case:
+Use this summary to pick a strategy, then read the section for it:
 
 | Strategy | Best For | Trade-offs |
 |----------|----------|------------|
@@ -11111,7 +11482,7 @@ If you later add a `Bird` subtype to the `Pet` hierarchy, the compiler flags eve
 ## Tips
 
 1. **Choose the strategy that matches your schema.** Single-Table suits compact hierarchies with few subtype-specific fields. Joined Table suits hierarchies with many distinct fields and a preference for normalization. Polymorphic FK suits cross-cutting concerns like comments, tags, and audit logs.
-2. **Leverage pattern matching.** Sealed types guarantee exhaustive handling. Prefer `when`/`switch` over `is`/`instanceof` chains.
+2. **Use pattern matching.** Sealed types guarantee exhaustive handling. Prefer `when`/`switch` over `is`/`instanceof` chains.
 3. **Keep hierarchies shallow.** Storm supports one level of sealed subtyping (interface + records). Deep inheritance chains are not supported and rarely needed with records.
 4. **`@Discriminator` is required for Single-Table, optional for Joined Table.** For Single-Table, the default column name `"dtype"` (consistent with JPA) is used when no column name is specified. For Joined Table, omitting `@Discriminator` enables implicit type resolution via extension table PKs.
 5. **Polymorphic FK targets cannot be auto-joined.** Use `Ref.fetch()` to load the target entity. This is by design: the target spans multiple tables, so a single JOIN is not possible.
@@ -11327,7 +11698,7 @@ A callback that throws in order to block a removal only blocks the paths that ca
 
 ### Database Operations Inside Callbacks
 
-Callbacks execute in the same thread and transaction as the repository operation that triggered them. This means a callback can safely perform additional database work, such as inserting related entities, querying for validation data, or updating audit logs, and that work will participate in the same transaction. If the transaction rolls back, all changes made by callbacks roll back as well.
+Callbacks execute in the same thread and transaction as the repository operation that triggered them. This means a callback can safely perform additional database work, such as inserting related entities, querying for validation data, or updating audit logs, and that work will participate in the same transaction. If the transaction rolls back, all changes made by callbacks roll back as well. Work that must happen only once the transaction commits, and side effects outside the database that a rollback cannot take back, belong on a commit callback registered through a joining [`transaction { }`](transactions.md#registering-from-nested-code) block instead; see [Logging](#logging).
 
 In Spring Boot, callbacks are regular beans and can have repositories or other services injected through standard dependency injection. Outside Spring, a callback can capture a reference to the `ORMTemplate` or a repository at construction time.
 
@@ -11477,7 +11848,7 @@ public class ArticleValidationCallback implements EntityCallback<Article> {
 
 ### Logging
 
-The "after" callbacks are well-suited for logging, since they fire only after the database operation succeeds. This avoids logging mutations that were rolled back. What gets logged depends on the method that performed the write (see [After Callback Entity State](#after-callback-entity-state)): `insert` logs what your application sent, while `insertAndFetch` logs the stored row.
+The "after" callbacks are well-suited for logging, since they fire only after the database operation succeeds, so a statement that failed never produces an entry. What gets logged depends on the method that performed the write (see [After Callback Entity State](#after-callback-entity-state)): `insert` logs what your application sent, while `insertAndFetch` logs the stored row.
 
 ```java
 public class ArticleLoggingCallback implements EntityCallback<Article> {
@@ -11499,6 +11870,39 @@ public class ArticleLoggingCallback implements EntityCallback<Article> {
     }
 }
 ```
+
+They fire *within* the transaction, though, not after it commits. The statement succeeded, but the transaction it belongs to has not finished, so an entry written straight from the callback outlives a mutation that a later rollback undoes.
+
+That is fine for a log that records attempts. Where the record must reflect committed state, and for any side effect that cannot be taken back, such as publishing an event or invalidating a cache, the callback participates in the transaction the way any code does: it opens a joining [`transaction { }`](transactions.md#registering-from-nested-code) block and registers the work as a commit callback, which runs only if the transaction commits:
+
+[Kotlin]
+
+```kotlin
+class ArticlePublishingCallback : EntityCallback<Article> {
+    override fun afterInsert(entity: Article) {
+        transactionBlocking {
+            onCommit { events.publish(ArticlePublished(entity.id)) }
+        }
+    }
+}
+```
+
+[Java]
+
+```java
+public class ArticlePublishingCallback implements EntityCallback<Article> {
+    @Override
+    public void afterInsert(Article entity) {
+        Transactions.transaction(tx -> {
+            tx.onCommit(() -> events.publish(new ArticlePublished(entity.id())));
+            return null;
+        });
+    }
+}
+```
+The pattern works the same under a Spring-managed transaction (`@Transactional`): the block detects the active Spring transaction, so the publish waits for Spring's commit. See [Mixed-Usage Caveats](transactions.md#mixed-usage-caveats) for the fine print.
+
+The callback fires once per entity, including for each row of a batch write, so registering there registers one callback per row. For anything beyond a handful, collect the entities and register a single callback for the batch instead.
 
 
 ========================================
@@ -13491,7 +13895,7 @@ The `\{expression}` syntax is Java's string template interpolation. The `RAW` pr
 
 Java String Templates are a **preview feature** that is still evolving in the JDK. Storm is a forward-looking framework, and String Templates are the best way to write SQL in Java that is both readable and injection-safe by design.
 
-Rather than wait for the feature to stabilize, Storm ships with String Template support today. The Java API is production-ready from a quality perspective, but its API surface will adapt as String Templates move toward a stable release. Once the redesigned string templates land in the JDK as a stable feature, the Java API moves front and center alongside Kotlin — same first-class status, no preview flags, no version pin.
+Rather than wait for the feature to stabilize, Storm ships with String Template support today. The Java API is production-ready from a quality perspective, but its API surface will adapt as String Templates move toward a stable release. Once the redesigned string templates land in the JDK as a stable feature, the Java API moves front and center alongside Kotlin: same first-class status, no preview flags, no version pin.
 
 Only `storm-java21` depends on this preview feature. The core framework and the Kotlin API are unaffected.
 
@@ -13566,7 +13970,7 @@ Hydration is the process of transforming flat database rows into structured Kotl
 
 Kotlin data classes and Java records are ideal for result mapping because they have a **canonical constructor** with a deterministic parameter order. This order matches the declaration order of the record components, providing a predictable and stable mapping target. Combined with their immutability, records eliminate the need for reflection-based field injection or setter calls during hydration.
 
-Storm leverages this by mapping SELECT columns directly to constructor parameters by position. Several optimizations ensure high performance and low memory usage:
+Storm uses that by mapping SELECT columns directly to constructor parameters by position. A few things keep it fast and cheap on memory:
 
 - **Positional mapping**: No runtime reflection on column names
 - **Compiled mapping plans**: Plans are computed once per type and reused
@@ -13574,7 +13978,7 @@ Storm leverages this by mapping SELECT columns directly to constructor parameter
 - **Query-level interning**: Duplicate entities within a result set share the same instance
 - **Memory-safe streaming**: Supports efficient iteration over large result sets
 
-Storm natively supports a wide range of field types beyond basic JDBC types:
+Storm natively supports many field types beyond the basic JDBC ones:
 
 - **Primitives and wrappers**: `boolean`, `byte`, `short`, `int`, `long`, `float`, `double`
 - **Common types**: `String`, `BigDecimal`, `byte[]`, enums
@@ -15241,7 +15645,7 @@ transaction(isolation = REPEATABLE_READ) {
 
 See [Transactions](transactions.md#isolation-levels) for guidance on choosing isolation levels.
 
-### 2. Leverage Ref.fetch() Caching
+### 2. Let Ref.fetch() Use the Cache
 
 When navigating relationships, `Ref.fetch()` automatically uses the cache:
 
@@ -15454,7 +15858,7 @@ Storm can be configured through `StormConfig`, system properties, Spring Boot's 
 | `storm.validation.schema_mode` | `fail` | Schema validation mode: `none`, `warn`, or `fail` (Spring Boot and Ktor) |
 | `storm.validation.strict` | `false` | Treat schema validation warnings as errors |
 | `storm.validation.interpolation_mode` | `warn` | Interpolation safety mode: `warn`, `fail`, or `none` (see [Interpolation Safety](#interpolation-safety)) |
-| `storm.sql_log.hydration` | `off` | How SQL log summary rows render their statement's declared hydration shape: `off`, `short`, or `full` (see [SQL Logging](sql-logging.md#per-call-summaries)) |
+| `storm.sql_log.hydration` | `off` | How a read's SQL log summary row renders its type's declared hydration shape: `off`, `short`, or `full` (see [SQL Logging](sql-logging.md#per-call-summaries)) |
 | `storm.sql_log.line_width` | `200` | Display width SQL log summary rows aim for; at least 80 |
 | `storm.sql_log.call_site_skip` | — | Comma-separated package prefixes or source file names skipped in SQL log call-site attribution |
 | `st.orm.scrollable.maxSize` | `1000` | Maximum window size allowed in a serialized cursor (system property only) |
@@ -16244,14 +16648,16 @@ One row per distinct statement, heaviest first by **total** time, so a statement
 Two aids answer which query a row is:
 
 - **Call sites** name the application frame that caused each execution (`VisitService.kt:88`), which is the identity a developer thinks in. An application with a database layer of its own declares it as plumbing, so rows name the caller beyond it: `storm.sql-log.call-site-skip` in Spring, `sqlLogCallSiteSkip` in Ktor, or the `storm.sql_log.call_site_skip` system property on a plain JVM. Entries ending in `.kt` or `.java` match by source file, which covers inline functions. Work resumed on another dispatcher has no caller on its stack at all; a context built with `sqlLogContext()` (and every context Storm builds, such as `transaction { }`) carries the launch site, captured while the caller is still on the stack, so such rows name the frame that launched the work. A stack that is plumbing end to end with no carried site reports its innermost plumbing frame rather than none. A stack walk per execution, so it is opt-in and suited to development: `storm.sql-log.call-sites: true` in Spring, `sqlLogCallSites = true` in Ktor, or the `callSites` parameter on a scope opened directly. A row seen from several frames shows the first plus `(+n sites)`.
-- **Hydration shapes** append each row's declared shape, off by default: `storm.sql-log.hydration` in Spring, `sqlLogHydration` in Ktor, or the `storm.sql_log.hydration` system property on a plain JVM. `short` states the numbers on rows whose type hydrates beyond its own table — `j2 c12 d3`: joins, columns, and graph depth, with flat types showing none — and `full` names the joined-entity graph on every mapped row:
+- **Hydration shapes** append each read's declared shape, off by default: `storm.sql-log.hydration` in Spring, `sqlLogHydration` in Ktor, or the `storm.sql_log.hydration` system property on a plain JVM. `short` states the numbers on reads whose type hydrates beyond its own table (`j2 c12 d3`: joins, columns, and graph depth, with flat types showing none), and `full` names the joined-entity graph on every mapped read:
 
   ```
   12 ms  1 rows  1x  Pet  SELECT p.id, … WHERE p.id = ?  j2 c12 d3                                  # short
   12 ms  1 rows  1x  Pet  SELECT p.id, … WHERE p.id = ?  joins=2 columns=12 graph=Pet(Owner(City))  # full
   ```
 
-  The shape is the type's declaration, derived at rendering and cached per type, so the setting costs nothing while calls run: an entity component is a join and recurses, an inline record is columns on the same table and no subgraph, and a `Ref` is its foreign key column and stops — which is exactly the width a `Ref` declaration saves. Many rows against a wide graph is the signal to consider `Ref` on the branches that read does not need, or a [projection](projections.md).
+  The shape is the type's declaration, derived at rendering and cached per type, so the setting costs nothing while calls run: an entity component is a join and recurses, an inline record is columns on the same table and no subgraph, and a `Ref` is its foreign key column and stops, which is exactly the width a `Ref` declaration saves. Many rows against a wide graph is the signal to consider `Ref` on the branches that read does not need, or a [projection](projections.md).
+
+  Writes carry no shape. An insert, update or delete touches its own table, so the graph its type declares is not something the statement traverses, and its cost is the rows it affected. Shapes appear on `SELECT` rows only, which keeps the numbers on the rows where they mean something.
 - **TRACE detail**: with `st.orm.sql.perf` at `TRACE`, the un-elided statement texts follow the summary, one per row in row order. `TRACE` rather than `DEBUG` because this logger sits under `st.orm.sql`, so raising that to `DEBUG` for per-statement logging would otherwise repeat every statement twice. Summaries carry no parameter values at any level, so this level is as safe to enable as the others.
 - **Display width**: rows aim for 200 characters, the statement text eliding to what the other columns leave; `storm.sql-log.line-width` (Spring), `sqlLogLineWidth` (Ktor), or the `storm.sql_log.line_width` system property sets the target for narrow viewers (120) or wide ones (240).
 
@@ -16268,7 +16674,7 @@ The headline separates three durations:
 
 Summed database time exceeds elapsed time whenever statements run concurrently, which is why both appear. The concurrency clause is omitted when nothing overlapped. And `214 ms in database` against `678 ms total` says most of that call was spent somewhere other than the database.
 
-The headline also counts what cost nothing: `3 from cache` reports the reads the transaction's entity cache served without a statement — a reference resolving to an entity the transaction had already read, or an identity lookup at `REPEATABLE_READ` and above. The fetch count is the cache misses; this is the other side, and it appears only when any read was served.
+The headline also counts what cost nothing: `3 from cache` reports the reads the transaction's entity cache served without a statement: a reference resolving to an entity the transaction had already read, or an identity lookup at `REPEATABLE_READ` and above. The fetch count is the cache misses; this is the other side, and it appears only when any read was served.
 
 A scope covers whatever runs inside it, whichever repository, query builder or template issued the statement. Summaries log under `st.orm.sql.perf` at `INFO`, and statements are recorded only while that logger is enabled.
 
@@ -16285,7 +16691,7 @@ storm:
     limit: 200      # statements recorded per unit of work; the count covers the rest
 ```
 
-A servlet filter wraps each HTTP request. The same switch covers the entry points a filter cannot see: a method annotated `@Scheduled`, `@KafkaListener`, `@RabbitListener`, `@JmsListener`, or `@SqsListener` (including the `@KafkaHandler`/`@RabbitHandler` methods of a class-level listener) reports as its own summary, named after the method (`ReportJob.nightly`), so a worker without a web layer reports the same way a web application does. Matching is by annotation name, directly present on the bean method, so a listener library that is absent from the classpath costs nothing, and `storm.sql-log.entry-points` replaces the set for others — a Pulsar listener, or an application's own dispatch annotation. A final class or method cannot be proxied; open a scope inside it instead.
+A servlet filter wraps each HTTP request. The same switch covers the entry points a filter cannot see: a method annotated `@Scheduled`, `@KafkaListener`, `@RabbitListener`, `@JmsListener`, or `@SqsListener` (including the `@KafkaHandler`/`@RabbitHandler` methods of a class-level listener) reports as its own summary, named after the method (`ReportJob.nightly`), so a worker without a web layer reports the same way a web application does. Matching is by annotation name, directly present on the bean method, so a listener library that is absent from the classpath costs nothing, and `storm.sql-log.entry-points` replaces the set for others, such as a Pulsar listener or an application's own dispatch annotation. A final class or method cannot be proxied; open a scope inside it instead.
 
 For production, thresholds turn the scope into a guardrail: only units of work that exceed one are reported, at WARN.
 
@@ -16355,7 +16761,7 @@ try (var scope = SqlLog.open("importOwners")) {
 The scope follows the thread that opened it. Work handed to another thread, including a subtask forked from a `StructuredTaskScope`, falls outside it.
 ### The Summary Is the Report
 
-A scope hands nothing back: the summary reports through the `st.orm.sql.perf` logger, and the logger is the only switch. That is deliberate. Each number a summary shows already has a home for programmatic use — production metrics are the [Micrometer observations](spring-integration.md#observability), and test assertions are [`SqlCapture`](testing.md) — so the summary stays a report to be read, not an API to be coupled to.
+A scope hands nothing back: the summary reports through the `st.orm.sql.perf` logger, and the logger is the only switch. That is deliberate. Each number a summary shows already has a home for programmatic use: production metrics are the [Micrometer observations](spring-integration.md#observability), and test assertions are [`SqlCapture`](testing.md). So the summary stays a report to be read, not an API to be coupled to.
 
 Parameter values are absent by design: they are database values, and a summary is meant to be safe to log in production. Raise `st.orm.sql` to `TRACE` to see values.
 
@@ -16954,9 +17360,9 @@ public class WriteAccessCallback implements EntityCallback<User> {
 
 # Error Handling
 
-When something goes wrong, Storm communicates the problem through a small, well-defined set of exception types. Understanding which exceptions can be thrown and when helps you write robust error handling that distinguishes between recoverable situations (like a missing entity) and programming mistakes (like a schema mismatch).
+When something goes wrong, Storm reports it through a small set of exception types. The distinction that matters when you catch them is between a recoverable situation, like a missing entity, and a programming mistake, like a schema mismatch.
 
-This page covers Storm's exception hierarchy, the most common error scenarios you will encounter, and strategies for diagnosing problems when they arise. For mapping these exceptions to HTTP responses in a Ktor application, see the StatusPages recipes in [Ktor Integration](ktor-integration.md#error-handling).
+This page covers the exception hierarchy, the errors you are most likely to hit, and how to diagnose them. For mapping these exceptions to HTTP responses in a Ktor application, see the StatusPages recipes in [Ktor Integration](ktor-integration.md#error-handling).
 
 ---
 
@@ -18724,7 +19130,7 @@ _Comparison reviewed against Ktorm 4.2.1. Last reviewed: 2026-07-15._
 
 ## Summary
 
-Storm is a newer framework, so community resources and third-party tutorials are still growing. However, the API is designed to be intuitive for developers familiar with SQL and Kotlin and modern Java.
+Storm is a newer framework, so community resources and third-party tutorials are still growing. The API should read familiarly if you know SQL and either Kotlin or modern Java.
 
 Choose Storm if you value:
 - **Simplicity** over complexity
@@ -18767,7 +19173,7 @@ Storm works with any JDBC-compatible database. Dialect packages provide optimize
 
 ### Can I use Storm with Spring Boot?
 
-Yes. Storm integrates seamlessly with Spring Boot. See [Spring Integration](spring-integration.md).
+Yes. See [Spring Integration](spring-integration.md).
 
 ### Is Storm production-ready?
 
@@ -19297,6 +19703,45 @@ logging:
 Every executed statement is logged, whichever repository, query builder or template issued it. To see executable SQL with actual parameter values instead of `?` placeholders, raise it to `TRACE`. Values are database values, so `TRACE` is the level to keep out of production.
 
 See [SQL Logging](sql-logging.md) for the full guide.
+
+### The Kotlin compiler crashes with "Unexpected FirPlaceholderProjectionImpl"
+
+This is a Kotlin 2.0.x compiler bug, fixed in **Kotlin 2.1.0**. It reports an unresolved call as an internal error
+rather than a diagnostic, whenever the call uses `_` type-argument placeholders:
+
+```
+org.jetbrains.kotlin.util.FileAnalysisException: While analysing Foo.kt:12:9:
+    Unexpected FirPlaceholderProjectionImpl
+```
+
+On 2.1.0 and later the same code reports `Unresolved reference 'select'`, which names the real problem. Upgrading
+the Kotlin version is the fix; nothing about Storm changes.
+
+If you are on 2.0.x, read the crash as "something in this call does not resolve". It names nothing you wrote, so it
+can stand in for any resolution failure at that call site. Two causes account for most of them.
+
+**A dependency compiled by a newer Kotlin.** A 2.0.x compiler cannot read metadata from Kotlin 2.2 or later, so every
+call into that library becomes unresolved. Look for this line above the crash, which is the one that actually explains
+it:
+
+```
+Module was compiled with an incompatible version of Kotlin.
+The binary version of its metadata is 2.2.0, expected version is 2.0.0.
+```
+
+A 2.1-built dependency is fine; 2.2 is where it breaks.
+
+**A missing import**, because repository operations are top-level extension functions:
+
+```kotlin
+import st.orm.repository.*
+```
+
+`import st.orm.template.*` does not bring them in, since they live in `st.orm.repository`. Import both packages with
+wildcards rather than naming functions individually. Without it, a call such as
+`select<UserSummary, _, _> { ... }` falls back to the member `select(KClass, TemplateBuilder)`, which takes one type
+parameter rather than three, and nothing applies. Replacing the placeholders with explicit type arguments also turns
+the crash back into a readable error on 2.0.x, which is a quick way to find the cause without upgrading.
 
 ### Schema validation reports type narrowing warnings for my Integer columns
 
@@ -20082,14 +20527,14 @@ If you have a local development database running, Storm can set up a schema-awar
 
 The MCP server runs locally on your machine, exposes only schema metadata by default, and stores credentials in `~/.storm/` (outside your project, outside the LLM's reach). It supports PostgreSQL, MySQL, MariaDB, Oracle, SQL Server, SQLite, and H2. You can connect multiple databases to a single project, even across different database types.
 
-Optionally, you can enable read-only data access per connection. This lets the AI query individual records to inform type decisions — for example, recognizing that a `VARCHAR` column contains enum-like values, or that a `TEXT` column stores JSON. Data access is disabled by default because it means actual data from your database flows through the AI's context. When enabled, the database connection is read-only (enforced at both the application and database driver level), and the AI cannot write, modify, or delete data. See [Database Connections & MCP — Security](database-and-mcp.md#security) for the full details.
+Optionally, you can enable read-only data access per connection. This lets the AI query individual records to inform type decisions: for example, recognizing that a `VARCHAR` column contains enum-like values, or that a `TEXT` column stores JSON. Data access is disabled by default because it means actual data from your database flows through the AI's context. When enabled, the database connection is read-only (enforced at both the application and database driver level), and the AI cannot write, modify, or delete data. See [Database Connections & MCP: Security](database-and-mcp.md#security) for the full details.
 
 With the database connected, three additional skills become available for schema inspection, entity validation against the live schema, and entity generation from database tables. See [AI Tools Reference](ai-reference.md#database-skills) for details.
 
 To manage database connections later, use `storm db` for the global connection library and `storm mcp` for project-level configuration. See [Database Connections & MCP](database-and-mcp.md) for the full guide.
 
 > **Tip:**
-The Storm MCP server works standalone — no Storm ORM required. Run `npx @storm-orm/cli mcp` to set up schema access and optional read-only data queries without installing Storm rules or skills. See [Using Without Storm ORM](database-and-mcp.md#using-without-storm-orm).
+The Storm MCP server works standalone, with no Storm ORM required. Run `npx @storm-orm/cli mcp` to set up schema access and optional read-only data queries without installing Storm rules or skills. See [Using Without Storm ORM](database-and-mcp.md#using-without-storm-orm).
 
 ---
 
@@ -20179,7 +20624,7 @@ The AI generates and updates code (entities, migrations, queries). Storm validat
 
 In a schema-first workflow, the database is the source of truth. The schema already exists (or is managed by a DBA), and entities need to match it.
 
-When the MCP server is configured, the AI has access to the live database through `list_tables` and `describe_table`. This gives it full visibility into table definitions, column types, constraints, and foreign key relationships. When data access is enabled, the AI can also use `select_data` to sample individual records — useful when the schema alone is ambiguous about intent (e.g., a `VARCHAR` that holds enum values, or a `TEXT` column that stores JSON).
+When the MCP server is configured, the AI has access to the live database through `list_tables` and `describe_table`. This gives it full visibility into table definitions, column types, constraints, and foreign key relationships. When data access is enabled, the AI can also use `select_data` to sample individual records, which helps when the schema alone is ambiguous about intent (e.g., a `VARCHAR` that holds enum values, or a `TEXT` column that stores JSON).
 
 The AI workflow:
 

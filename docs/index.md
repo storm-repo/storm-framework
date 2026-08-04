@@ -206,6 +206,7 @@ If you are new to Storm, follow these guides in order to build a solid foundatio
 5. [Queries](queries.md) -- the full query DSL and builder reference
 6. [Repositories](repositories.md) -- the repository pattern and custom query methods
 7. [Relationships](relationships.md) -- foreign keys, entity graphs, and many-to-many
+8. [Entity Design](entity-design.md) -- when to inline a foreign key and when to reach for a Ref
 
 ### Migrating from JPA
 

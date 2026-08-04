@@ -34,6 +34,7 @@ License: Apache 2.0
 - [Queries](https://orm.st/docs/queries)
 - [Metamodel](https://orm.st/docs/metamodel)
 - [Refs](https://orm.st/docs/refs)
+- [Entity Design](https://orm.st/docs/entity-design)
 - [Transactions](https://orm.st/docs/transactions)
 - [Spring Integration](https://orm.st/docs/spring-integration)
 - [Ktor Integration](https://orm.st/docs/ktor-integration)

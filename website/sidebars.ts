@@ -16,6 +16,7 @@ const sidebars: SidebarsConfig = {
         'pagination-and-scrolling',
         'metamodel',
         'refs',
+        'entity-design',
         'transactions',
         'spring-integration',
         'ktor-integration',

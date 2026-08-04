@@ -10,6 +10,7 @@ Help the user write Storm queries using Kotlin.
 
 ```kotlin
 import st.orm.template.*                         // QueryBuilder, eq, neq, like, ref, orm, etc.
+import st.orm.repository.*                       // entity<T>(), select<Result, _, _> { }, findBy, insert, ... (wildcard: see below)
 import st.orm.Operator.*                         // EQUALS, NOT_EQUALS, LIKE, IN, IS_NULL, etc.
 import st.orm.Ref                                // Lazy-loaded reference
 import st.orm.Page                               // Offset-based pagination result
@@ -20,6 +21,16 @@ import org.junit.jupiter.api.Assertions.*        // assertEquals, assertTrue, as
 ```
 
 Use `import st.orm.template.*` to get all infix operators and the `ref()` / `orm` extensions in one import. The `select { }` / `delete { }` block DSL and `and` / `or` combinators are member functions — no import needed.
+
+**Import both packages with wildcards: `st.orm.template.*` and `st.orm.repository.*`.** Repository operations are top-level extensions in `st.orm.repository`, so `import st.orm.template.*` alone does not bring them in. Naming them individually is how one ends up missing.
+
+The custom-result form `select<Result, _, _> { ... }` is the one that punishes this hardest. Without its import the call falls back to the member `select(KClass, TemplateBuilder)`, which takes one type parameter instead of three, and on Kotlin 2.0.x the compiler crashes while reporting the mismatch rather than naming the missing import:
+
+```
+org.jetbrains.kotlin.util.FileAnalysisException: ... Unexpected FirPlaceholderProjectionImpl
+```
+
+That crash is a Kotlin 2.0.x compiler bug, fixed in 2.1.0, where an unresolved call using `_` placeholders is reported as an internal error instead of a diagnostic. On 2.1.0+ the same code says `Unresolved reference 'select'`. Read it as "something here does not resolve", and check the import first.
 
 All infix predicate operators (`eq`, `neq`, `like`, `greater`, `less`, `inList`, `isNull`, `isNotNull`, `isTrue`, `isFalse`, `between`, etc.) are extension functions on `Metamodel<T, V>` defined in `st.orm.template` (in QueryBuilder.kt).
 
