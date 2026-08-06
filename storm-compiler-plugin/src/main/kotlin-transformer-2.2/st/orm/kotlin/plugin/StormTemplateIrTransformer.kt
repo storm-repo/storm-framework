@@ -5,6 +5,7 @@ package st.orm.kotlin.plugin
 import org.jetbrains.kotlin.backend.common.extensions.IrPluginContext
 import org.jetbrains.kotlin.backend.common.lower.DeclarationIrBuilder
 import org.jetbrains.kotlin.ir.builders.irCall
+import org.jetbrains.kotlin.ir.builders.irConcat
 import org.jetbrains.kotlin.ir.builders.irGet
 import org.jetbrains.kotlin.ir.declarations.IrFile
 import org.jetbrains.kotlin.ir.declarations.IrParameterKind
@@ -37,6 +38,11 @@ import org.jetbrains.kotlin.name.Name
  *
  * Expressions already wrapped in `t()` or `insert()` are left unchanged, so explicit usage remains valid.
  *
+ * The `+` operator on strings follows the same rules, so `"SELECT $col, " + "COUNT(*)"` yields the same template as
+ * `"SELECT $col, COUNT(*)"`: literal operands are SQL text and every other operand is interpolated. An expression
+ * inside an interpolation yields a value rather than SQL, so its own interpolations and concatenations are left to
+ * Kotlin: `"... LIKE ${"%" + name + "%"}"` interpolates a single string.
+ *
  * Example transformation:
  *
  * Source:
@@ -56,7 +62,15 @@ class StormTemplateIrTransformer(
     companion object {
         private val TEMPLATE_CONTEXT_FQN = FqName("st.orm.template.TemplateContext")
         private val TEMPLATE_CONTEXT_CLASS_ID = ClassId(FqName("st.orm.template"), Name.identifier("TemplateContext"))
+        private val STRING_FQN = FqName("kotlin.String")
     }
+
+    /**
+     * Tracks whether the expression being visited contributes SQL text. Text position covers the statements of a
+     * TemplateBuilder lambda; the arguments of a string template (`${...}`) are value position, because they yield
+     * bind values rather than SQL.
+     */
+    private var textPosition: Boolean = false
 
     /**
      * Tracks the `TemplateContext` receiver parameter when we're inside a TemplateBuilder lambda, so we can generate
@@ -96,7 +110,9 @@ class StormTemplateIrTransformer(
         }
         // We're inside a TemplateBuilder lambda. Set the receiver so nested visits can use it.
         val previousReceiver = templateContextReceiver
+        val previousTextPosition = textPosition
         templateContextReceiver = extensionReceiver
+        textPosition = true
         // Resolve function symbols if not already cached.
         if (tFunctionSymbol == null) {
             tFunctionSymbol = resolveTFunction()
@@ -111,21 +127,66 @@ class StormTemplateIrTransformer(
             injectAutoInterpolationCall(function, extensionReceiver, autoInterpolation)
         }
         templateContextReceiver = previousReceiver
+        textPosition = previousTextPosition
         return result
     }
 
     override fun visitStringConcatenation(expression: IrStringConcatenation): IrExpression {
-        val receiver = templateContextReceiver ?: return super.visitStringConcatenation(expression)
-        val tFunction = tFunctionSymbol ?: return super.visitStringConcatenation(expression)
-        // We're inside a TemplateBuilder lambda and found a string template. Wrap each non-constant argument in t().
-        // First, recursively transform each argument so that nested TemplateBuilder lambdas (e.g., inside subquery
+        if (templateContextReceiver == null || tFunctionSymbol == null) {
+            return super.visitStringConcatenation(expression)
+        }
+        if (!textPosition) {
+            // Value position: the string is computed as an ordinary Kotlin expression and interpolated as a single
+            // bind value, so its own interpolations are left alone. Nested TemplateBuilder lambdas are still visited.
+            return super.visitStringConcatenation(expression)
+        }
+        return processConcatenation(expression, isOperatorConcatenation(expression))
+    }
+
+    override fun visitCall(expression: IrCall): IrExpression {
+        val tFunction = tFunctionSymbol
+        if (templateContextReceiver == null || tFunction == null || !textPosition || !isStringPlus(expression)) {
+            return super.visitCall(expression)
+        }
+        // `a + b` in text position means the same as "$a$b", so rewrite it into a concatenation and apply the
+        // template rules to its operands. Nested `+` calls become concatenations in turn and are flattened below.
+        val operands = listOfNotNull(expression.dispatchReceiver, valueArgument(expression))
+        if (operands.size != 2) {
+            return super.visitCall(expression)
+        }
+        val builder = DeclarationIrBuilder(pluginContext, tFunction.symbol, expression.startOffset, expression.endOffset)
+        val concatenation = builder.irConcat()
+        concatenation.arguments.addAll(operands)
+        return processConcatenation(concatenation, operatorConcatenation = true)
+    }
+
+    /**
+     * Applies the template rules to the arguments of [expression]: literal text stays a fragment and every other
+     * argument is wrapped in a `t()` call.
+     *
+     * When [operatorConcatenation] is true, the node represents a `+` chain rather than a single string literal. Its
+     * arguments are operands that contribute SQL text, so they are visited in text position and nested concatenations
+     * are spliced in rather than interpolated as a value. The arguments of a string literal are `${...}` expressions,
+     * which are visited in value position.
+     */
+    private fun processConcatenation(
+        expression: IrStringConcatenation,
+        operatorConcatenation: Boolean,
+    ): IrExpression {
+        val receiver = templateContextReceiver ?: return expression
+        val tFunction = tFunctionSymbol ?: return expression
+        // Recursively transform each argument first, so that nested TemplateBuilder lambdas (e.g., inside subquery
         // calls) are processed before we wrap the argument in t().
         val newArguments = expression.arguments.flatMap { argument ->
-            val transformed = argument.transform(this, null)
+            val transformed = transformInPosition(argument, operatorConcatenation)
             when {
                 transformed is IrConst && isFragment(transformed) -> listOf(transformed)
                 transformed is IrConst && hasMergedConstant(transformed) ->
                     splitMergedConstant(transformed, receiver, tFunction)
+                // A string literal operand of a `+` chain is SQL text, like the literal part of a string template.
+                // Any other constant is interpolated, so that `+ 42` and `${42}` produce the same bind value.
+                transformed is IrConst && operatorConcatenation && transformed.value is String -> listOf(transformed)
+                transformed is IrStringConcatenation && operatorConcatenation -> transformed.arguments.toList()
                 isAlreadyWrappedInT(transformed) -> listOf(transformed)
                 else -> listOf(wrapInT(transformed, receiver, tFunction))
             }
@@ -133,6 +194,43 @@ class StormTemplateIrTransformer(
         expression.arguments.clear()
         expression.arguments.addAll(newArguments)
         return expression
+    }
+
+    /** Transforms [expression] with [textPosition] set for the duration of the visit. */
+    private fun transformInPosition(expression: IrExpression, textPosition: Boolean): IrExpression {
+        val previousTextPosition = this.textPosition
+        this.textPosition = textPosition
+        val result = expression.transform(this, null)
+        this.textPosition = previousTextPosition
+        return result
+    }
+
+    /**
+     * Checks whether an [IrStringConcatenation] represents a `+` chain rather than a single string literal.
+     *
+     * The compiler folds `"a${b}" + "c"` into one concatenation node whose arguments are the operands, which is
+     * indistinguishable in shape from the arguments of a string literal. The source range tells them apart: the
+     * arguments of a string literal all start after its opening quote, while the first operand of a `+` chain starts
+     * where the chain itself starts.
+     */
+    private fun isOperatorConcatenation(expression: IrStringConcatenation): Boolean {
+        val first = expression.arguments.firstOrNull() ?: return false
+        if (expression.startOffset < 0 || first.startOffset < 0) return false
+        return first.startOffset <= expression.startOffset
+    }
+
+    /** Checks whether a call is `String.plus`, the desugared form of the `+` operator on strings. */
+    private fun isStringPlus(expression: IrCall): Boolean {
+        if (expression.symbol.owner.name.asString() != "plus") return false
+        val receiverType = expression.dispatchReceiver?.type ?: return false
+        return receiverType.classOrNull?.owner?.fqNameWhenAvailable == STRING_FQN
+    }
+
+    /** Returns the single regular argument of a call, or null when the call takes a different shape. */
+    private fun valueArgument(expression: IrCall): IrExpression? {
+        val index = expression.symbol.owner.parameters.indexOfFirst { it.kind == IrParameterKind.Regular }
+        if (index < 0) return null
+        return expression.arguments.getOrNull(index)
     }
 
     /**
