@@ -718,6 +718,29 @@ class StormTemplatePluginTest {
     }
 
     @Test
+    fun `concatenated non-string constant is auto-wrapped`() {
+        val source = SourceFile.kotlin(
+            "Test.kt",
+            """
+            import st.orm.template.*
+
+            fun main() {
+                val builder: TemplateBuilder = { "SELECT * FROM users WHERE id = " + 42 + " ORDER BY name" }
+                val result = builder.build()
+                println(result.fragments.joinToString("|"))
+                println(result.values.joinToString(","))
+            }
+            """,
+        )
+        val result = compile(source)
+        assertEquals(KotlinCompilation.ExitCode.OK, result.exitCode, result.messages)
+        val output = result.runMain()
+        val lines = output.lines()
+        assertEquals("SELECT * FROM users WHERE id = | ORDER BY name", lines[0])
+        assertEquals("42", lines[1])
+    }
+
+    @Test
     fun `concatenated literals stay a single fragment`() {
         val source = SourceFile.kotlin(
             "Test.kt",

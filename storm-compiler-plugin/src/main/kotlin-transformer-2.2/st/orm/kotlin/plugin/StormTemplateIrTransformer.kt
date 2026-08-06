@@ -183,8 +183,9 @@ class StormTemplateIrTransformer(
                 transformed is IrConst && isFragment(transformed) -> listOf(transformed)
                 transformed is IrConst && hasMergedConstant(transformed) ->
                     splitMergedConstant(transformed, receiver, tFunction)
-                // A literal operand of a `+` chain is SQL text, like the literal part of a string template.
-                transformed is IrConst && operatorConcatenation -> listOf(transformed)
+                // A string literal operand of a `+` chain is SQL text, like the literal part of a string template.
+                // Any other constant is interpolated, so that `+ 42` and `${42}` produce the same bind value.
+                transformed is IrConst && operatorConcatenation && transformed.value is String -> listOf(transformed)
                 transformed is IrStringConcatenation && operatorConcatenation -> transformed.arguments.toList()
                 isAlreadyWrappedInT(transformed) -> listOf(transformed)
                 else -> listOf(wrapInT(transformed, receiver, tFunction))
