@@ -127,6 +127,38 @@ open class CompilerPluginTest(
     }
 
     @Test
+    fun `concatenated template and literal are auto-wrapped`() {
+        val cityId = 1
+        val city = orm.query { "SELECT ${City::class} FROM ${City::class} " + "WHERE id = $cityId" }
+            .getSingleResult(City::class)
+        city.name shouldBe "Sun Paririe"
+    }
+
+    @Test
+    fun `value concatenated with a literal is auto-wrapped`() {
+        val cityId = 2
+        val city = orm.query { "SELECT ${City::class} FROM ${City::class} WHERE id = " + cityId }
+            .getSingleResult(City::class)
+        city.name shouldBe "Madison"
+    }
+
+    @Test
+    fun `element concatenated with a literal is auto-wrapped`() {
+        val cities = orm.query { "SELECT " + City::class + " FROM " + City::class }
+            .getResultList(City::class)
+        cities shouldHaveSize 6
+    }
+
+    @Test
+    fun `concatenation inside an interpolation stays a single bind value`() {
+        val namePart = "adiso"
+        val cities = orm.query { "SELECT ${City::class} FROM ${City::class} WHERE name LIKE ${"%" + namePart + "%"}" }
+            .getResultList(City::class)
+        cities shouldHaveSize 1
+        cities[0].id shouldBe 2
+    }
+
+    @Test
     fun `unsafe element is auto-wrapped in t() and inlined as raw SQL`() {
         val cities = orm.query { "SELECT ${City::class} FROM ${City::class} WHERE ${unsafe("name = 'Madison'")}" }
             .getResultList(City::class)

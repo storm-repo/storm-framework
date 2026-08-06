@@ -619,6 +619,270 @@ class StormTemplatePluginTest {
         assertEquals("[1, 2, 3]", lines[1])
     }
 
+    // -- String concatenation (+) tests --
+
+    @Test
+    fun `interpolation concatenated with a literal is auto-wrapped`() {
+        val source = SourceFile.kotlin(
+            "Test.kt",
+            """
+            import st.orm.template.*
+
+            fun main() {
+                val country = "NL"
+                val builder: TemplateBuilder = { "SELECT ${'$'}{country}, " + "COUNT(*) FROM users" }
+                val result = builder.build()
+                println(result.fragments.joinToString("|"))
+                println(result.values.joinToString(","))
+            }
+            """,
+        )
+        val result = compile(source)
+        assertEquals(KotlinCompilation.ExitCode.OK, result.exitCode, result.messages)
+        val output = result.runMain()
+        val lines = output.lines()
+        assertEquals("SELECT |, COUNT(*) FROM users", lines[0])
+        assertEquals("NL", lines[1])
+    }
+
+    @Test
+    fun `literal concatenated with an interpolation is auto-wrapped`() {
+        val source = SourceFile.kotlin(
+            "Test.kt",
+            """
+            import st.orm.template.*
+
+            fun main() {
+                val id = 42
+                val builder: TemplateBuilder = { "SELECT * FROM users " + "WHERE id = ${'$'}id" }
+                val result = builder.build()
+                println(result.fragments.joinToString("|"))
+                println(result.values.joinToString(","))
+            }
+            """,
+        )
+        val result = compile(source)
+        assertEquals(KotlinCompilation.ExitCode.OK, result.exitCode, result.messages)
+        val output = result.runMain()
+        val lines = output.lines()
+        assertEquals("SELECT * FROM users WHERE id = |", lines[0])
+        assertEquals("42", lines[1])
+    }
+
+    @Test
+    fun `value concatenated with a literal is auto-wrapped`() {
+        val source = SourceFile.kotlin(
+            "Test.kt",
+            """
+            import st.orm.template.*
+
+            fun main() {
+                val id = 42
+                val builder: TemplateBuilder = { "SELECT * FROM users WHERE id = " + id }
+                val result = builder.build()
+                println(result.fragments.joinToString("|"))
+                println(result.values.joinToString(","))
+            }
+            """,
+        )
+        val result = compile(source)
+        assertEquals(KotlinCompilation.ExitCode.OK, result.exitCode, result.messages)
+        val output = result.runMain()
+        val lines = output.lines()
+        assertEquals("SELECT * FROM users WHERE id = |", lines[0])
+        assertEquals("42", lines[1])
+    }
+
+    @Test
+    fun `value between literals is auto-wrapped`() {
+        val source = SourceFile.kotlin(
+            "Test.kt",
+            """
+            import st.orm.template.*
+
+            fun main() {
+                val id = 42
+                val builder: TemplateBuilder = { "SELECT * FROM users WHERE id = " + id + " ORDER BY name" }
+                val result = builder.build()
+                println(result.fragments.joinToString("|"))
+                println(result.values.joinToString(","))
+            }
+            """,
+        )
+        val result = compile(source)
+        assertEquals(KotlinCompilation.ExitCode.OK, result.exitCode, result.messages)
+        val output = result.runMain()
+        val lines = output.lines()
+        assertEquals("SELECT * FROM users WHERE id = | ORDER BY name", lines[0])
+        assertEquals("42", lines[1])
+    }
+
+    @Test
+    fun `concatenated literals stay a single fragment`() {
+        val source = SourceFile.kotlin(
+            "Test.kt",
+            """
+            import st.orm.template.*
+
+            fun main() {
+                val builder: TemplateBuilder = { "SELECT COUNT(*) " + "FROM users" }
+                val result = builder.build()
+                println(result.fragments.joinToString("|"))
+                println(result.values.size)
+            }
+            """,
+        )
+        val result = compile(source)
+        assertEquals(KotlinCompilation.ExitCode.OK, result.exitCode, result.messages)
+        val output = result.runMain()
+        val lines = output.lines()
+        assertEquals("SELECT COUNT(*) FROM users", lines[0])
+        assertEquals("0", lines[1])
+    }
+
+    @Test
+    fun `concatenated interpolations are auto-wrapped in order`() {
+        val source = SourceFile.kotlin(
+            "Test.kt",
+            """
+            import st.orm.template.*
+
+            fun main() {
+                val id = 42
+                val status = "active"
+                val builder: TemplateBuilder = { "SELECT * FROM users WHERE id = ${'$'}id" + " AND status = ${'$'}status" }
+                val result = builder.build()
+                println(result.fragments.joinToString("|"))
+                println(result.values.joinToString(","))
+            }
+            """,
+        )
+        val result = compile(source)
+        assertEquals(KotlinCompilation.ExitCode.OK, result.exitCode, result.messages)
+        val output = result.runMain()
+        val lines = output.lines()
+        assertEquals("SELECT * FROM users WHERE id = | AND status = |", lines[0])
+        assertEquals("42,active", lines[1])
+    }
+
+    @Test
+    fun `explicit t() concatenated with a literal is not double-wrapped`() {
+        val source = SourceFile.kotlin(
+            "Test.kt",
+            """
+            import st.orm.template.*
+
+            fun main() {
+                val id = 42
+                val builder: TemplateBuilder = { "SELECT * FROM users WHERE id = " + t(id) + " ORDER BY name" }
+                val result = builder.build()
+                println(result.fragments.joinToString("|"))
+                println(result.values.joinToString(","))
+            }
+            """,
+        )
+        val result = compile(source)
+        assertEquals(KotlinCompilation.ExitCode.OK, result.exitCode, result.messages)
+        val output = result.runMain()
+        val lines = output.lines()
+        assertEquals("SELECT * FROM users WHERE id = | ORDER BY name", lines[0])
+        assertEquals("42", lines[1])
+    }
+
+    @Test
+    fun `concatenation in a conditional branch is auto-wrapped`() {
+        val source = SourceFile.kotlin(
+            "Test.kt",
+            """
+            import st.orm.template.*
+
+            fun main() {
+                val id = 42
+                val builder: TemplateBuilder = {
+                    if (id > 0) "SELECT * FROM users WHERE id = " + id else "SELECT * FROM users"
+                }
+                val result = builder.build()
+                println(result.fragments.joinToString("|"))
+                println(result.values.joinToString(","))
+            }
+            """,
+        )
+        val result = compile(source)
+        assertEquals(KotlinCompilation.ExitCode.OK, result.exitCode, result.messages)
+        val output = result.runMain()
+        val lines = output.lines()
+        assertEquals("SELECT * FROM users WHERE id = |", lines[0])
+        assertEquals("42", lines[1])
+    }
+
+    @Test
+    fun `concatenation inside an interpolation stays a single value`() {
+        val source = SourceFile.kotlin(
+            "Test.kt",
+            """
+            import st.orm.template.*
+
+            fun main() {
+                val name = "Alice"
+                val builder: TemplateBuilder = { "SELECT * FROM users WHERE name LIKE ${'$'}{"%" + name + "%"}" }
+                val result = builder.build()
+                println(result.fragments.joinToString("|"))
+                println(result.values.joinToString(","))
+            }
+            """,
+        )
+        val result = compile(source)
+        assertEquals(KotlinCompilation.ExitCode.OK, result.exitCode, result.messages)
+        val output = result.runMain()
+        val lines = output.lines()
+        assertEquals("SELECT * FROM users WHERE name LIKE |", lines[0])
+        assertEquals("%Alice%", lines[1])
+    }
+
+    @Test
+    fun `nested template inside an interpolation stays a single value`() {
+        val source = SourceFile.kotlin(
+            "Test.kt",
+            """
+            import st.orm.template.*
+
+            fun main() {
+                val name = "Alice"
+                val builder: TemplateBuilder = { "SELECT * FROM users WHERE name LIKE ${'$'}{"%${'$'}name%"}" }
+                val result = builder.build()
+                println(result.fragments.joinToString("|"))
+                println(result.values.joinToString(","))
+            }
+            """,
+        )
+        val result = compile(source)
+        assertEquals(KotlinCompilation.ExitCode.OK, result.exitCode, result.messages)
+        val output = result.runMain()
+        val lines = output.lines()
+        assertEquals("SELECT * FROM users WHERE name LIKE |", lines[0])
+        assertEquals("%Alice%", lines[1])
+    }
+
+    @Test
+    fun `concatenation outside TemplateBuilder is not rewritten`() {
+        val source = SourceFile.kotlin(
+            "Test.kt",
+            """
+            import st.orm.template.*
+
+            fun main() {
+                val id = 42
+                val regular = "id is " + id
+                println(regular)
+            }
+            """,
+        )
+        val result = compile(source)
+        assertEquals(KotlinCompilation.ExitCode.OK, result.exitCode, result.messages)
+        val output = result.runMain()
+        assertEquals("id is 42", output)
+    }
+
     // -- Multi-dollar string interpolation ($$) tests --
 
     @Test
