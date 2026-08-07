@@ -118,7 +118,8 @@ final class AliasMapper {
             if (path != null) {
                 return new SqlTemplateException("Multiple aliases found for: %s at path: '%s'. Use INNER scope to limit alias resolution to the current scope.".formatted(table.getSimpleName(), path));
             }
-            return new SqlTemplateException("Multiple aliases found for: %s.".formatted((table.getSimpleName())));
+            var paths = collectAliasEntries(table, null, 0).map(AliasEntry::path).toList();
+            return multiplePathsFoundException(table, paths);
         }
         var paths = aliasMap.get(table).stream()
                 .map(TableAlias::path)
@@ -166,7 +167,8 @@ final class AliasMapper {
                            @Nonnull ResolveScope scope,
                            @Nonnull SqlDialect dialect) throws SqlTemplateException {
         return getAlias(metamodel, scope, dialect,
-                () -> new SqlTemplateException("Alias for table not found at %s.".formatted(metamodel)));
+                () -> new SqlTemplateException("Alias for table not found at %s: %s is not part of this query. Join the table or reference it through a path from the query root.".formatted(
+                        metamodel, metamodel.tableType().getSimpleName())));
     }
 
     /**

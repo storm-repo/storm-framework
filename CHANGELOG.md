@@ -10,6 +10,15 @@ for the CLI, to [npm](https://www.npmjs.com/package/@storm-orm/cli)
 (`@storm-orm/cli`). Full release notes for every version are on the
 [GitHub Releases](https://github.com/storm-orm/storm-framework/releases) page.
 
+## [1.13.1] - 2026-08-07
+
+- Fixed the Java API and the `Any` variants rejecting navigation-only paths (beyond a `Ref`): every clause parameter now accepts `Navigable`, and the new `Navigable.asMetamodel()` resolves a node to its column.
+- Fixed template fragments degrading a beyond-`Ref` path to a bind parameter instead of resolving the column.
+- Fixed schema validation resolving the SQL dialect by classpath order instead of from the database product.
+- Fixed the Kotlin compiler plugin interpolating the wrong operands when a template lambda uses string concatenation.
+- Fixed row mapping for reference-resolving statements (`fetch(...)`) read through a custom query executor: the public mapper overload accepts the resolved reference paths.
+- Column resolution errors name the cause and the candidates: an ambiguous short-form reference lists the paths that pin it, and a reference to a table outside the query says so, naming the query root.
+
 ## [1.13.0] - 2026-08-01
 
 Feature and performance release: write sets, `Ref` navigation and resolution in queries, compiled query plans, GraalVM native images, the Storm Gradle plugin, Java transaction parity, SQL logging, and Micrometer observability, with the read, write and transaction hot paths leaner throughout.
