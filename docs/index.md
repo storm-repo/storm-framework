@@ -66,18 +66,11 @@ interface UserRepository : EntityRepository<User, Int> {
     fun findByCityName(name: String) = findAll(User_.city.name eq name)
 }
 
-// Block DSL — build queries with where, orderBy, joins, pagination
-val users = userRepository.select {
-    where(User_.city.name eq "Sunnyvale")
-    orderBy(User_.name)
-}.resultList
-
-// SQL Template for full control; parameterized by default, SQL injection safe
-val users = orm.query { """
-        SELECT ${User::class}
-        FROM ${User::class}
-        WHERE ${User_.city.name} = $cityName"""
-    }.resultList<User>()
+// Query builder — where, orderBy, joins, pagination
+val users = userRepository.select()
+    .where(User_.city.name eq "Sunnyvale")
+    .orderBy(User_.name)
+    .resultList
 ```
 
 Full coroutine support with `Flow` for streaming and programmatic transactions:
@@ -118,13 +111,6 @@ List<User> users = orm.entity(User.class)
     .where(User_.city.name, EQUALS, "Sunnyvale")
     .orderBy(User_.name)
     .getResultList();
-
-// SQL Template for full control; parameterized by default, SQL injection safe
-List<User> users = orm.query(RAW."""
-        SELECT \{User.class}
-        FROM \{User.class}
-        WHERE \{User_.city.name} = \{cityName}
-        """).getResultList(User.class);
 ```
 
 </TabItem>

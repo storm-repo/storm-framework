@@ -25,15 +25,9 @@ val users = orm.findAll(User_.city.name eq "Sunnyvale")
 interface UserRepository : EntityRepository<User, Int> {
     fun findByCity(name: String) = findAll(User_.city.name eq name)
 }
-
-// Drop to SQL whenever you want it. Interpolations become bind parameters.
-val users = orm.query { """
-    SELECT ${User::class}
-    FROM ${User::class}
-    WHERE ${User_.city.name} = $cityName""" }.resultList<User>()
 ```
 
-The `city` graph loads in a single query, `User_` is generated at compile time so a typo is a compile error, and every interpolation is a bind parameter. What you write is what runs.
+The `city` graph loads in a single query, and `User_` is generated at compile time so a typo is a compile error. What you write is what runs.
 
 ## Why Storm
 
