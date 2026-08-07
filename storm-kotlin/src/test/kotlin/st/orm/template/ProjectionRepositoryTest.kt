@@ -1595,7 +1595,7 @@ open class ProjectionRepositoryTest(
     fun `selectRef with IN operator and string values should return refs`() {
         val repo = orm.projection(OwnerView::class)
         val firstNamePath = metamodel<OwnerView, String>(repo.model, "first_name")
-        val refs = repo.selectRef().where(firstNamePath, IN, listOf("Betty", "Eduardo")).resultList
+        val refs = repo.selectRef().where(firstNamePath inList listOf("Betty", "Eduardo")).resultList
         refs shouldHaveSize 2
     }
 

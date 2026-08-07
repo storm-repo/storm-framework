@@ -19,6 +19,9 @@ import static st.orm.Operator.LIKE;
 import static st.orm.Operator.NOT_EQUALS;
 import static st.orm.Operator.NOT_IN;
 import static st.orm.Operator.NOT_LIKE;
+import static st.orm.ResolveScope.INNER;
+import static st.orm.ResolveScope.OUTER;
+import static st.orm.template.Templates.column;
 
 import java.util.List;
 import java.util.Optional;
@@ -45,6 +48,7 @@ import st.orm.template.model.Pet;
 import st.orm.template.model.PetType;
 import st.orm.template.model.Pet_;
 import st.orm.template.model.Visit;
+import st.orm.template.model.Visit_;
 
 @SuppressWarnings("ALL")
 @ExtendWith(SpringExtension.class)
@@ -568,6 +572,64 @@ public class QueryBuilderTest {
                 .havingAny(Owner_.lastName, IN, "Davis", "Franklin")
                 .getResultList();
         assertEquals(2, result.size());
+    }
+
+    // Correlated subqueries
+
+    @Test
+    public void testCorrelatedExistsResolvesTheOuterColumn() {
+        // Pets that have at least one visit. INNER resolves Visit_.pet from the subquery, OUTER resolves Pet_.id
+        // from the enclosing query.
+        List<Pet> viaLambda = orm.entity(Pet.class).select()
+                .where(wb -> wb.exists(wb.subquery(Visit.class)
+                        .where(RAW."\{column(Visit_.pet, INNER)} = \{column(Pet_.id, OUTER)}")))
+                .getResultList();
+        assertFalse(viaLambda.isEmpty());
+        // data.sql: pet 13 has no visit, so the correlation must exclude at least one pet.
+        assertTrue(viaLambda.size() < orm.entity(Pet.class).count());
+    }
+
+    @Test
+    public void testCorrelatedExistsFromASubqueryBuiltOnTheTemplate() {
+        // The subquery factory is the query template's, so a subquery built from the ORM template correlates the same
+        // way as one built inside the where lambda.
+        List<Pet> viaLambda = orm.entity(Pet.class).select()
+                .where(wb -> wb.exists(wb.subquery(Visit.class)
+                        .where(RAW."\{column(Visit_.pet, INNER)} = \{column(Pet_.id, OUTER)}")))
+                .getResultList();
+        List<Pet> viaTemplate = orm.entity(Pet.class).select()
+                .whereExists(orm.subquery(Visit.class)
+                        .where(RAW."\{column(Visit_.pet, INNER)} = \{column(Pet_.id, OUTER)}"))
+                .getResultList();
+        assertFalse(viaTemplate.isEmpty());
+        assertEquals(viaLambda, viaTemplate);
+    }
+
+    @Test
+    public void testCorrelatedHavingExistsFiltersGroups() {
+        // The same correlation drives a HAVING clause: keep the per-pet groups that have a visit.
+        List<Pet> withVisits = orm.entity(Pet.class).select()
+                .whereExists(orm.subquery(Visit.class)
+                        .where(RAW."\{column(Visit_.pet, INNER)} = \{column(Pet_.id, OUTER)}"))
+                .getResultList();
+        List<Long> groups = orm.entity(Pet.class).selectCount()
+                .groupBy(Pet_.id)
+                .havingExists(orm.subquery(Visit.class)
+                        .where(RAW."\{column(Visit_.pet, INNER)} = \{column(Pet_.id, OUTER)}"))
+                .getResultList();
+        assertFalse(groups.isEmpty());
+        assertEquals(withVisits.size(), groups.size());
+    }
+
+    @Test
+    public void testHavingWithOrTemplate() {
+        // Java composes a HAVING disjunction with the template form: it has no standalone predicate constructor.
+        List<Long> result = orm.entity(Owner.class).selectCount()
+                .groupBy(Owner_.lastName)
+                .having(RAW."\{Owner_.lastName} = \{"Davis"} OR \{Owner_.lastName} = \{"Franklin"}")
+                .getResultList();
+        assertEquals(2, result.size());
+        assertEquals(3L, result.stream().mapToLong(Long::longValue).sum());
     }
 
     // PredicateBuilder - andAny / orAny

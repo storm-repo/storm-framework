@@ -67,7 +67,7 @@ open class QueryBuilderTest(
         // data.sql: Only one city has name 'Madison' (id=2).
         val repo = orm.entity(City::class)
         val namePath = metamodel<City, String>(repo.model, "name")
-        val cities = repo.select().where(namePath, EQUALS, "Madison").resultList
+        val cities = repo.select().where(namePath eq "Madison").resultList
         cities shouldHaveSize 1
         cities[0].name shouldBe "Madison"
     }
@@ -77,7 +77,7 @@ open class QueryBuilderTest(
         // data.sql: 'Madison' (id=2) and 'Windsor' (id=4) are both present.
         val repo = orm.entity(City::class)
         val namePath = metamodel<City, String>(repo.model, "name")
-        val cities = repo.select().where(namePath, IN, listOf("Madison", "Windsor")).resultList
+        val cities = repo.select().where(namePath inList listOf("Madison", "Windsor")).resultList
         cities shouldHaveSize 2
     }
 
@@ -368,7 +368,7 @@ open class QueryBuilderTest(
         val firstNamePath = metamodel<Owner, String>(repo.model, "first_name")
         val lastNamePath = metamodel<Owner, String>(repo.model, "last_name")
         val result = repo.select().whereBuilder {
-            where(firstNamePath, EQUALS, "Harold") and where(lastNamePath, EQUALS, "Davis")
+            (firstNamePath eq "Harold") and (lastNamePath eq "Davis")
         }.resultList
         result shouldHaveSize 1
         result[0].firstName shouldBe "Harold"
@@ -381,7 +381,7 @@ open class QueryBuilderTest(
         val repo = orm.entity(City::class)
         val namePath = metamodel<City, String>(repo.model, "name")
         val result = repo.select().whereBuilder {
-            where(namePath, EQUALS, "Madison") or where(namePath, EQUALS, "Windsor")
+            (namePath eq "Madison") or (namePath eq "Windsor")
         }.resultList
         result shouldHaveSize 2
     }
@@ -407,8 +407,8 @@ open class QueryBuilderTest(
         val firstNamePath = metamodel<Owner, String>(repo.model, "first_name")
         val lastNamePath = metamodel<Owner, String>(repo.model, "last_name")
         val result = repo.select().whereBuilder {
-            (where(firstNamePath, EQUALS, "Betty") and where(lastNamePath, EQUALS, "Davis")) or
-                (where(firstNamePath, EQUALS, "George") and where(lastNamePath, EQUALS, "Franklin"))
+            ((firstNamePath eq "Betty") and (lastNamePath eq "Davis")) or
+                ((firstNamePath eq "George") and (lastNamePath eq "Franklin"))
         }.resultList
         result shouldHaveSize 2
     }
@@ -665,7 +665,7 @@ open class QueryBuilderTest(
     fun `where with NOT_EQUALS operator should exclude matching entity`() {
         val repo = orm.entity(City::class)
         val namePath = metamodel<City, String>(repo.model, "name")
-        val result = repo.select().where(namePath, NOT_EQUALS, "Madison").resultList
+        val result = repo.select().where(namePath neq "Madison").resultList
         result shouldHaveSize 5
     }
 
@@ -674,7 +674,7 @@ open class QueryBuilderTest(
         // data.sql: Cities containing 'on': Madison, Monona (2 of 6).
         val repo = orm.entity(City::class)
         val namePath = metamodel<City, String>(repo.model, "name")
-        val result = repo.select().where(namePath, LIKE, "%on%").resultList
+        val result = repo.select().where(namePath like "%on%").resultList
         result shouldHaveSize 2
     }
 
@@ -731,7 +731,7 @@ open class QueryBuilderTest(
     fun `where with NOT_IN and empty list should return all results`() {
         val repo = orm.entity(City::class)
         val namePath = metamodel<City, String>(repo.model, "name")
-        val result = repo.select().where(namePath, NOT_IN, emptyList<String>()).resultList
+        val result = repo.select().where(namePath notInList emptyList<String>()).resultList
         result shouldHaveSize 6
     }
 
@@ -1262,7 +1262,7 @@ open class QueryBuilderTest(
         val lastNamePath = metamodel<Owner, String>(repo.model, "last_name")
         // Use andAny to combine a predicate with another typed predicate.
         val result = repo.select().whereBuilder {
-            where(firstNamePath, EQUALS, "Betty") andAny where(lastNamePath, EQUALS, "Davis")
+            (firstNamePath eq "Betty") andAny (lastNamePath eq "Davis")
         }.resultList
         result shouldHaveSize 1
         result[0].firstName shouldBe "Betty"
@@ -1273,7 +1273,7 @@ open class QueryBuilderTest(
         val repo = orm.entity(City::class)
         val namePath = metamodel<City, String>(repo.model, "name")
         val result = repo.select().whereBuilder {
-            where(namePath, EQUALS, "Madison") orAny where(namePath, EQUALS, "Windsor")
+            (namePath eq "Madison") orAny (namePath eq "Windsor")
         }.resultList
         result shouldHaveSize 2
     }
@@ -1283,7 +1283,7 @@ open class QueryBuilderTest(
         val repo = orm.entity(City::class)
         val namePath = metamodel<City, String>(repo.model, "name")
         val result = repo.select().whereBuilder {
-            where(namePath, EQUALS, "Madison") and { "${t(Templates.column(metamodel<City, Int>(repo.model, "id")))} = ${t(2)}" }
+            (namePath eq "Madison") and { "${t(Templates.column(metamodel<City, Int>(repo.model, "id")))} = ${t(2)}" }
         }.resultList
         result shouldHaveSize 1
         result[0].name shouldBe "Madison"
@@ -1295,7 +1295,7 @@ open class QueryBuilderTest(
         val namePath = metamodel<City, String>(repo.model, "name")
         val templateString = TemplateString.raw { "${t(Templates.column(metamodel<City, Int>(repo.model, "id")))} = ${t(2)}" }
         val result = repo.select().whereBuilder {
-            where(namePath, EQUALS, "Madison") and templateString
+            (namePath eq "Madison") and templateString
         }.resultList
         result shouldHaveSize 1
         result[0].name shouldBe "Madison"
@@ -1306,7 +1306,7 @@ open class QueryBuilderTest(
         val repo = orm.entity(City::class)
         val namePath = metamodel<City, String>(repo.model, "name")
         val result = repo.select().whereBuilder {
-            where(namePath, EQUALS, "Madison") or { "${t(Templates.column(namePath))} = ${t("Windsor")}" }
+            (namePath eq "Madison") or { "${t(Templates.column(namePath))} = ${t("Windsor")}" }
         }.resultList
         result shouldHaveSize 2
     }
@@ -1317,7 +1317,7 @@ open class QueryBuilderTest(
         val namePath = metamodel<City, String>(repo.model, "name")
         val templateString = TemplateString.raw { "${t(Templates.column(namePath))} = ${t("Windsor")}" }
         val result = repo.select().whereBuilder {
-            where(namePath, EQUALS, "Madison") or templateString
+            (namePath eq "Madison") or templateString
         }.resultList
         result shouldHaveSize 2
     }
@@ -1414,7 +1414,7 @@ open class QueryBuilderTest(
         val repo = orm.entity(City::class)
         val namePath = metamodel<City, String>(repo.model, "name")
         val result = repo.select().whereAnyBuilder {
-            where(namePath, EQUALS, "Madison")
+            (namePath eq "Madison")
         }.resultList
         result shouldHaveSize 1
     }
@@ -1439,10 +1439,10 @@ open class QueryBuilderTest(
 
     @Test
     fun `where with path operator and iterable should filter`() {
-        // Use the where(path, IN, Iterable) overload
+        // Use the where(path inList Iterable) overload
         val repo = orm.entity(City::class)
         val namePath = metamodel<City, String>(repo.model, "name")
-        val result = repo.select().where(namePath, IN, listOf("Madison", "Windsor")).resultList
+        val result = repo.select().where(namePath inList listOf("Madison", "Windsor")).resultList
         result shouldHaveSize 2
     }
 
@@ -1575,7 +1575,7 @@ open class QueryBuilderTest(
         val repo = orm.entity(City::class)
         val namePath = metamodel<City, String>(repo.model, "name")
         val result = repo.select().whereBuilder {
-            whereAny(namePath, EQUALS, "Madison")
+            (namePath eq "Madison")
         }.resultList
         result shouldHaveSize 1
     }
@@ -1585,7 +1585,7 @@ open class QueryBuilderTest(
         val repo = orm.entity(City::class)
         val namePath = metamodel<City, String>(repo.model, "name")
         val result = repo.select().whereBuilder {
-            whereAny(namePath, IN, listOf("Madison", "Windsor"))
+            (namePath inList listOf("Madison", "Windsor"))
         }.resultList
         result shouldHaveSize 2
     }
@@ -1620,7 +1620,7 @@ open class QueryBuilderTest(
         val repo = orm.entity(City::class)
         val city = City(id = 2, name = "Madison")
         val idPath = metamodel<City, City>(repo.model, "id")
-        // This tests the whereAny(path, EQUALS, record) default method.
+        // This tests the whereAny(path eq record) default method.
         val result = repo.select().whereBuilder {
             @Suppress("UNCHECKED_CAST")
             whereAny(idPath as Metamodel<*, City>, city)
@@ -1709,7 +1709,7 @@ open class QueryBuilderTest(
     fun `forUpdate with where clause should lock and return matching entity`() {
         val repo = orm.entity(City::class)
         val namePath = metamodel<City, String>(repo.model, "name")
-        val cities = repo.select().where(namePath, EQUALS, "Windsor").forUpdate().resultList
+        val cities = repo.select().where(namePath eq "Windsor").forUpdate().resultList
         cities shouldHaveSize 1
         cities[0].id shouldBe 4
     }
@@ -1905,7 +1905,7 @@ open class QueryBuilderTest(
     fun `where with metamodel and IN operator and varargs should filter entities`() {
         val repo = orm.entity(City::class)
         val namePath = metamodel<City, String>(repo.model, "name")
-        val cities = repo.select().where(namePath, IN, "Madison", "Windsor").resultList
+        val cities = repo.select().where(namePath inList listOf("Madison", "Windsor")).resultList
         cities shouldHaveSize 2
     }
 
@@ -1956,7 +1956,7 @@ open class QueryBuilderTest(
     fun `resultCount with where should return filtered count`() {
         val repo = orm.entity(City::class)
         val namePath = metamodel<City, String>(repo.model, "name")
-        val count = repo.select().where(namePath, EQUALS, "Madison").resultCount
+        val count = repo.select().where(namePath eq "Madison").resultCount
         count shouldBe 1L
     }
 
@@ -2073,7 +2073,7 @@ open class QueryBuilderTest(
     fun `singleResult with metamodel path should return entity when exactly one match`() {
         val repo = orm.entity(City::class)
         val namePath = metamodel<City, String>(repo.model, "name")
-        val city = repo.select().where(namePath, EQUALS, "Madison").singleResult
+        val city = repo.select().where(namePath eq "Madison").singleResult
         city.name shouldBe "Madison"
     }
 
@@ -2082,7 +2082,7 @@ open class QueryBuilderTest(
         val repo = orm.entity(City::class)
         val namePath = metamodel<City, String>(repo.model, "name")
         assertThrows<NoResultException> {
-            repo.select().where(namePath, EQUALS, "NonExistent").singleResult
+            repo.select().where(namePath eq "NonExistent").singleResult
         }
     }
 
@@ -2091,7 +2091,7 @@ open class QueryBuilderTest(
         val repo = orm.entity(City::class)
         val namePath = metamodel<City, String>(repo.model, "name")
         assertThrows<NonUniqueResultException> {
-            repo.select().where(namePath, LIKE, "M%").singleResult
+            repo.select().where(namePath like "M%").singleResult
         }
     }
 
@@ -2099,7 +2099,7 @@ open class QueryBuilderTest(
     fun `optionalResult with metamodel path should return entity when exactly one match`() {
         val repo = orm.entity(City::class)
         val namePath = metamodel<City, String>(repo.model, "name")
-        val city = repo.select().where(namePath, EQUALS, "Madison").optionalResult
+        val city = repo.select().where(namePath eq "Madison").optionalResult
         city shouldNotBe null
         city!!.name shouldBe "Madison"
     }
@@ -2108,7 +2108,7 @@ open class QueryBuilderTest(
     fun `optionalResult should return null when no match`() {
         val repo = orm.entity(City::class)
         val namePath = metamodel<City, String>(repo.model, "name")
-        val city = repo.select().where(namePath, EQUALS, "NonExistent").optionalResult
+        val city = repo.select().where(namePath eq "NonExistent").optionalResult
         city shouldBe null
     }
 
@@ -2117,7 +2117,7 @@ open class QueryBuilderTest(
         val repo = orm.entity(City::class)
         val namePath = metamodel<City, String>(repo.model, "name")
         assertThrows<NonUniqueResultException> {
-            repo.select().where(namePath, LIKE, "M%").optionalResult
+            repo.select().where(namePath like "M%").optionalResult
         }
     }
 
@@ -2140,7 +2140,7 @@ open class QueryBuilderTest(
         val lastNamePath = metamodel<Owner, String>(repo.model, "last_name")
         val result = repo.selectCount()
             .groupBy(lastNamePath)
-            .having(lastNamePath, EQUALS, "Davis")
+            .having(lastNamePath eq "Davis")
             .resultList
         result shouldHaveSize 1
     }
@@ -2151,7 +2151,125 @@ open class QueryBuilderTest(
         val lastNamePath = metamodel<Owner, String>(repo.model, "last_name")
         val result = repo.selectCount()
             .groupBy(lastNamePath)
-            .havingAny(lastNamePath, IN, "Davis", "Franklin")
+            .havingAny(lastNamePath inList listOf("Davis", "Franklin"))
+            .resultList
+        result shouldHaveSize 2
+    }
+
+    // having / havingAny with PredicateBuilder
+
+    @Test
+    fun `having with predicate should filter groups`() {
+        // data.sql: Betty and Harold Davis share a last name, so the Davis group holds 2 owners.
+        val repo = orm.entity(Owner::class)
+        val lastNamePath = metamodel<Owner, String>(repo.model, "last_name")
+        val result = repo.selectCount()
+            .groupBy(lastNamePath)
+            .having(lastNamePath eq "Davis")
+            .resultList
+        result shouldHaveSize 1
+        result[0] shouldBe 2L
+    }
+
+    @Test
+    fun `having with or-composed predicate should filter groups`() {
+        // A disjunction has no other form: consecutive having() calls are AND-combined.
+        val repo = orm.entity(Owner::class)
+        val lastNamePath = metamodel<Owner, String>(repo.model, "last_name")
+        val result = repo.selectCount()
+            .groupBy(lastNamePath)
+            .having((lastNamePath eq "Davis") or (lastNamePath eq "Franklin"))
+            .resultList
+        result shouldHaveSize 2
+        result.sum() shouldBe 3L
+    }
+
+    @Test
+    fun `consecutive having predicates should be and-combined`() {
+        // The two clauses cannot both hold, so AND-combining them yields no groups.
+        val repo = orm.entity(Owner::class)
+        val lastNamePath = metamodel<Owner, String>(repo.model, "last_name")
+        val result = repo.selectCount()
+            .groupBy(lastNamePath)
+            .having(lastNamePath eq "Davis")
+            .having(lastNamePath eq "Franklin")
+            .resultList
+        result shouldHaveSize 0
+    }
+
+    @Test
+    fun `havingExists with subquery should keep every group when the subquery matches`() {
+        // The subquery is uncorrelated, so EXISTS holds for every group as long as any pet exists.
+        val repo = orm.entity(Owner::class)
+        val lastNamePath = metamodel<Owner, String>(repo.model, "last_name")
+        val groups = repo.selectCount().groupBy(lastNamePath).resultList
+        val kept = repo.selectCount()
+            .groupBy(lastNamePath)
+            .havingExists(orm.subquery(Pet::class))
+            .resultList
+        groups.size shouldNotBe 0
+        kept shouldBe groups
+    }
+
+    @Test
+    fun `havingExists lambda should build the subquery from the query's own factory`() {
+        // The lambda receiver is the query's subquery factory, not a WhereBuilder. It must produce the same groups as
+        // the subquery-argument form.
+        val repo = orm.entity(Owner::class)
+        val lastNamePath = metamodel<Owner, String>(repo.model, "last_name")
+        val viaArgument = repo.selectCount()
+            .groupBy(lastNamePath)
+            .havingExists(orm.subquery(Pet::class))
+            .resultList
+        val viaLambda = repo.selectCount()
+            .groupBy(lastNamePath)
+            .havingExists { subquery(Pet::class) }
+            .resultList
+        viaLambda.size shouldNotBe 0
+        viaLambda shouldBe viaArgument
+    }
+
+    @Test
+    fun `havingNotExists lambda should drop every group when the subquery matches`() {
+        val repo = orm.entity(Owner::class)
+        val lastNamePath = metamodel<Owner, String>(repo.model, "last_name")
+        val kept = repo.selectCount()
+            .groupBy(lastNamePath)
+            .havingNotExists { subquery(Pet::class) }
+            .resultList
+        kept shouldHaveSize 0
+    }
+
+    @Test
+    fun `havingNotExists with subquery should drop every group when the subquery matches`() {
+        val repo = orm.entity(Owner::class)
+        val lastNamePath = metamodel<Owner, String>(repo.model, "last_name")
+        val kept = repo.selectCount()
+            .groupBy(lastNamePath)
+            .havingNotExists(orm.subquery(Pet::class))
+            .resultList
+        kept shouldHaveSize 0
+    }
+
+    @Test
+    fun `havingAny with predicate should filter groups`() {
+        val repo = orm.entity(Owner::class)
+        val lastNamePath = metamodel<Owner, String>(repo.model, "last_name")
+        val result = repo.selectCount()
+            .groupBy(lastNamePath)
+            .havingAny(lastNamePath inList listOf("Davis", "Franklin"))
+            .resultList
+        result shouldHaveSize 2
+    }
+
+    @Test
+    fun `having with nested and-or predicate should filter groups`() {
+        val repo = orm.entity(Owner::class)
+        val lastNamePath = metamodel<Owner, String>(repo.model, "last_name")
+        val cityPath = metamodel<Owner, City>(repo.model, "city_id")
+        val result = repo.selectCount()
+            .groupBy(lastNamePath, cityPath)
+            .having(((lastNamePath eq "Davis") and (cityPath eq City(1, "Sun Paririe"))) or (lastNamePath eq "Franklin"))
             .resultList
         result shouldHaveSize 2
     }

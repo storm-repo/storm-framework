@@ -70,14 +70,14 @@ Use the `page` terminal method on the query builder. Pass a `Pageable` to specif
 val pageable = Pageable.ofSize(10)
 val page: Page<User> = orm.entity<User>()
     .select()
-    .where(User_.active, EQUALS, true)
+    .where(User_.active eq true)
     .page(pageable)
 
 // Navigate
 if (page.hasNext()) {
     val nextPage = orm.entity<User>()
         .select()
-        .where(User_.active, EQUALS, true)
+        .where(User_.active eq true)
         .page(page.nextPageable())
 }
 ```
@@ -236,7 +236,7 @@ Use `scroll` as a terminal operation on the query builder for filtering, joins, 
 
 ```kotlin
 val window = userRepository.select()
-    .where(User_.active, EQUALS, true)
+    .where(User_.active eq true)
     .scroll(Scrollable.of(User_.id, 10))
 ```
 

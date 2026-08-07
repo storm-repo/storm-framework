@@ -20,7 +20,7 @@ import static st.orm.Operator.IN;
 
 import jakarta.annotation.Nonnull;
 import st.orm.Data;
-import st.orm.Metamodel;
+import st.orm.Navigable;
 import st.orm.Operator;
 import st.orm.Ref;
 
@@ -171,7 +171,7 @@ public abstract class WhereBuilder<T extends Data, R, ID> implements SubqueryTem
      * @param record the records to match.
      * @return the predicate builder.
      */
-    public final <V extends Data> PredicateBuilder<T, R, ID> where(@Nonnull Metamodel<T, V> path, @Nonnull V record) {
+    public final <V extends Data> PredicateBuilder<T, R, ID> where(@Nonnull Navigable<T, V> path, @Nonnull V record) {
         return where(path, EQUALS, record);
     }
 
@@ -182,7 +182,7 @@ public abstract class WhereBuilder<T extends Data, R, ID> implements SubqueryTem
      * @param record the records to match.
      * @return the predicate builder.
      */
-    public final <V extends Data> PredicateBuilder<T, R, ID> whereAny(@Nonnull Metamodel<?, V> path, @Nonnull V record) {
+    public final <V extends Data> PredicateBuilder<T, R, ID> whereAny(@Nonnull Navigable<?, V> path, @Nonnull V record) {
         return whereAny(path, EQUALS, record);
     }
 
@@ -195,7 +195,7 @@ public abstract class WhereBuilder<T extends Data, R, ID> implements SubqueryTem
      * @return the predicate builder.
      * @since 1.3
      */
-    public abstract <V extends Data> PredicateBuilder<T, R, ID> where(@Nonnull Metamodel<T, V> path, @Nonnull Ref<V> ref);
+    public abstract <V extends Data> PredicateBuilder<T, R, ID> where(@Nonnull Navigable<T, V> path, @Nonnull Ref<V> ref);
 
     /**
      * Adds a condition to the WHERE clause that matches the specified ref. The record can represent any of
@@ -206,7 +206,7 @@ public abstract class WhereBuilder<T extends Data, R, ID> implements SubqueryTem
      * @return the predicate builder.
      * @since 1.3
      */
-    public abstract <V extends Data> PredicateBuilder<T, R, ID> whereAny(@Nonnull Metamodel<?, V> path, @Nonnull Ref<V> ref);
+    public abstract <V extends Data> PredicateBuilder<T, R, ID> whereAny(@Nonnull Navigable<?, V> path, @Nonnull Ref<V> ref);
 
     /**
      * Adds a condition to the WHERE clause that matches the specified refs. The refs can represent any of
@@ -217,7 +217,7 @@ public abstract class WhereBuilder<T extends Data, R, ID> implements SubqueryTem
      * @return the predicate builder.
      * @since 1.3
      */
-    public abstract <V extends Data> PredicateBuilder<T, R, ID> whereRef(@Nonnull Metamodel<T, V> path, @Nonnull Iterable<? extends Ref<V>> it);
+    public abstract <V extends Data> PredicateBuilder<T, R, ID> whereRef(@Nonnull Navigable<T, V> path, @Nonnull Iterable<? extends Ref<V>> it);
 
     /**
      * Adds a condition to the WHERE clause that matches the specified refs. The refs can represent any of
@@ -228,7 +228,7 @@ public abstract class WhereBuilder<T extends Data, R, ID> implements SubqueryTem
      * @return the predicate builder.
      * @since 1.3
      */
-    public abstract <V extends Data> PredicateBuilder<T, R, ID> whereAnyRef(@Nonnull Metamodel<?, V> path, @Nonnull Iterable<? extends Ref<V>> it);
+    public abstract <V extends Data> PredicateBuilder<T, R, ID> whereAnyRef(@Nonnull Navigable<?, V> path, @Nonnull Iterable<? extends Ref<V>> it);
 
     /**
      * Adds a condition to the WHERE clause that matches the specified records. The records can represent any of
@@ -238,7 +238,7 @@ public abstract class WhereBuilder<T extends Data, R, ID> implements SubqueryTem
      * @param it   the records to match.
      * @return the predicate builder.
      */
-    public final <V extends Data> PredicateBuilder<T, R, ID> where(@Nonnull Metamodel<T, V> path, @Nonnull Iterable<V> it) {
+    public final <V extends Data> PredicateBuilder<T, R, ID> where(@Nonnull Navigable<T, V> path, @Nonnull Iterable<V> it) {
         return where(path, IN, it);
     }
 
@@ -250,7 +250,7 @@ public abstract class WhereBuilder<T extends Data, R, ID> implements SubqueryTem
      * @param it   the records to match.
      * @return the predicate builder.
      */
-    public final <V extends Data> PredicateBuilder<T, R, ID> whereAny(@Nonnull Metamodel<?, V> path, @Nonnull Iterable<V> it) {
+    public final <V extends Data> PredicateBuilder<T, R, ID> whereAny(@Nonnull Navigable<?, V> path, @Nonnull Iterable<V> it) {
         return whereAny(path, IN, it);
     }
 
@@ -266,7 +266,7 @@ public abstract class WhereBuilder<T extends Data, R, ID> implements SubqueryTem
      * @return the query builder.
      * @since 1.2
      */
-    public abstract <V> PredicateBuilder<T, R, ID> where(@Nonnull Metamodel<T, V> path,
+    public abstract <V> PredicateBuilder<T, R, ID> where(@Nonnull Navigable<T, V> path,
                                                          @Nonnull Operator operator,
                                                          @Nonnull Iterable<? extends V> it);
 
@@ -282,7 +282,7 @@ public abstract class WhereBuilder<T extends Data, R, ID> implements SubqueryTem
      * @return the query builder.
      * @since 1.2
      */
-    public abstract <V> PredicateBuilder<T, R, ID> whereAny(@Nonnull Metamodel<?, V> path,
+    public abstract <V> PredicateBuilder<T, R, ID> whereAny(@Nonnull Navigable<?, V> path,
                                                             @Nonnull Operator operator,
                                                             @Nonnull Iterable<? extends V> it);
 
@@ -299,7 +299,7 @@ public abstract class WhereBuilder<T extends Data, R, ID> implements SubqueryTem
      * @since 1.2
      */
     @SafeVarargs
-    public final <V> PredicateBuilder<T, R, ID> where(@Nonnull Metamodel<T, V> path,
+    public final <V> PredicateBuilder<T, R, ID> where(@Nonnull Navigable<T, V> path,
                                                       @Nonnull Operator operator,
                                                       @Nonnull V... o) {
         return whereImpl(path, operator, o);
@@ -318,7 +318,7 @@ public abstract class WhereBuilder<T extends Data, R, ID> implements SubqueryTem
      * @since 1.2
      */
     @SafeVarargs
-    public final <V> PredicateBuilder<T, R, ID> whereAny(@Nonnull Metamodel<?, V> path,
+    public final <V> PredicateBuilder<T, R, ID> whereAny(@Nonnull Navigable<?, V> path,
                                                          @Nonnull Operator operator,
                                                          @Nonnull V... o) {
         return whereImpl(path, operator, o);
@@ -344,7 +344,7 @@ public abstract class WhereBuilder<T extends Data, R, ID> implements SubqueryTem
      * @return the query builder.
      * @since 1.2
      */
-    protected abstract <V> PredicateBuilder<T, R, ID> whereImpl(@Nonnull Metamodel<?, V> path,
+    protected abstract <V> PredicateBuilder<T, R, ID> whereImpl(@Nonnull Navigable<?, V> path,
                                                                 @Nonnull Operator operator,
                                                                 @Nonnull V[] o);
 }

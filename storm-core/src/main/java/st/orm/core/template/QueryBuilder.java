@@ -319,26 +319,14 @@ public abstract class QueryBuilder<T extends Data, R, ID> {
      * @return the predicate builder.
      */
     public final <V extends Data> QueryBuilder<T, R, ID> where(@Nonnull Navigable<T, V> path, @Nonnull V record) {
-        return where(asMetamodel(path), EQUALS, record);
-    }
-
-    /**
-     * Resolves a navigable to a value metamodel. Full metamodels are returned as-is; a navigation-only node (one that
-     * navigates beyond a {@link Ref}) is rebuilt into a resolvable metamodel for its path so it can be used to locate a
-     * column in WHERE, ORDER BY, GROUP BY, and HAVING. Such a rebuilt metamodel is query-only: it cannot extract a
-     * value from a record.
-     */
-    private static <T extends Data, V> Metamodel<T, V> asMetamodel(@Nonnull Navigable<T, V> path) {
-        return path instanceof Metamodel<T, V> metamodel
-                ? metamodel
-                : Metamodel.of(path.root(), path.fieldPath());
+        return where(path.asMetamodel(), EQUALS, record);
     }
 
     @SuppressWarnings("unchecked")
     private static <T extends Data> Metamodel<T, ?>[] asMetamodels(@Nonnull Navigable<T, ?>[] paths) {
         Metamodel<T, ?>[] result = new Metamodel[paths.length];
         for (int i = 0; i < paths.length; i++) {
-            result[i] = asMetamodel(paths[i]);
+            result[i] = paths[i].asMetamodel();
         }
         return result;
     }
@@ -353,7 +341,7 @@ public abstract class QueryBuilder<T extends Data, R, ID> {
      * @since 1.3
      */
     public final <V extends Data> QueryBuilder<T, R, ID> where(@Nonnull Navigable<T, V> path, @Nonnull Ref<V> ref) {
-        Metamodel<T, V> metamodel = asMetamodel(path);
+        Metamodel<T, V> metamodel = path.asMetamodel();
         return where(predicate -> predicate.where(metamodel, ref));
     }
 
@@ -366,7 +354,7 @@ public abstract class QueryBuilder<T extends Data, R, ID> {
      * @return the predicate builder.
      */
     public final <V extends Data> QueryBuilder<T, R, ID> where(@Nonnull Navigable<T, V> path, @Nonnull Iterable<V> it) {
-        return where(asMetamodel(path), IN, it);
+        return where(path.asMetamodel(), IN, it);
     }
 
     /**
@@ -379,7 +367,7 @@ public abstract class QueryBuilder<T extends Data, R, ID> {
      * @since 1.3
      */
     public final <V extends Data> QueryBuilder<T, R, ID> whereRef(@Nonnull Navigable<T, V> path, @Nonnull Iterable<? extends Ref<V>> it) {
-        Metamodel<T, V> metamodel = asMetamodel(path);
+        Metamodel<T, V> metamodel = path.asMetamodel();
         return where(predicate -> predicate.whereRef(metamodel, it));
     }
 
@@ -407,7 +395,7 @@ public abstract class QueryBuilder<T extends Data, R, ID> {
     public final <V> QueryBuilder<T, R, ID> where(@Nonnull Navigable<T, V> path,
                                                   @Nonnull Operator operator,
                                                   @Nonnull Iterable<? extends V> it) {
-        Metamodel<T, V> metamodel = asMetamodel(path);
+        Metamodel<T, V> metamodel = path.asMetamodel();
         return where(predicate -> predicate.where(metamodel, operator, it));
     }
 
@@ -426,7 +414,7 @@ public abstract class QueryBuilder<T extends Data, R, ID> {
     public final <V> QueryBuilder<T, R, ID> where(@Nonnull Navigable<T, V> path,
                                                   @Nonnull Operator operator,
                                                   @Nonnull V... o) {
-        Metamodel<T, V> metamodel = asMetamodel(path);
+        Metamodel<T, V> metamodel = path.asMetamodel();
         return where(predicate -> predicate.where(metamodel, operator, o));
     }
 
@@ -438,6 +426,25 @@ public abstract class QueryBuilder<T extends Data, R, ID> {
      */
     public final QueryBuilder<T, R, ID> where(@Nonnull TemplateString template) {
         return where(it -> it.where(template));
+    }
+
+    /**
+     * Adds a WHERE clause that matches the specified objects at the specified path in the table graph or manually
+     * added joins. Mirrors {@link #havingAny(Navigable, Operator, Object[])} for the WHERE clause.
+     *
+     * @param path the path to the object in the table graph.
+     * @param operator the operator to use for the comparison.
+     * @param o the object(s) to match, which can be primary keys, records representing the table, or fields in the
+     *          table graph or manually added joins.
+     * @return the query builder.
+     * @param <V> the type of the object that the metamodel represents.
+     * @since 1.13
+     */
+    @SafeVarargs
+    public final <V> QueryBuilder<T, R, ID> whereAny(@Nonnull Navigable<?, V> path,
+                                                     @Nonnull Operator operator,
+                                                     @Nonnull V... o) {
+        return whereAny(predicate -> predicate.whereAny(path, operator, o));
     }
 
     /**
@@ -455,6 +462,43 @@ public abstract class QueryBuilder<T extends Data, R, ID> {
      * @return the query builder.
      */
     public abstract QueryBuilder<T, R, ID> whereAny(@Nonnull Function<WhereBuilder<T, R, ID>, PredicateBuilder<?, ?, ?>> predicate);
+
+    /**
+     * Returns the factory this query builds its subqueries with.
+     *
+     * <p>The factory belongs to the query rather than to a clause: a subquery correlates through how it is embedded,
+     * not through where it was created, so a clause that takes a subquery can obtain one here without going through a
+     * {@link WhereBuilder}.</p>
+     *
+     * @return the subquery factory for this query.
+     * @since 1.13
+     */
+    public abstract SubqueryTemplate subqueryTemplate();
+
+    /**
+     * Adds a WHERE clause that keeps the rows for which the specified subquery returns at least one row.
+     *
+     * <p>Use {@link #where(Function)} with {@link WhereBuilder#exists} to combine the condition with others in a
+     * single clause; consecutive {@code where} calls are AND-combined.</p>
+     *
+     * @param subquery the subquery to test for existence.
+     * @return the query builder.
+     * @since 1.13
+     */
+    public final QueryBuilder<T, R, ID> whereExists(@Nonnull QueryBuilder<?, ?, ?> subquery) {
+        return where(predicate -> predicate.exists(subquery));
+    }
+
+    /**
+     * Adds a WHERE clause that keeps the rows for which the specified subquery returns no rows.
+     *
+     * @param subquery the subquery to test for absence.
+     * @return the query builder.
+     * @since 1.13
+     */
+    public final QueryBuilder<T, R, ID> whereNotExists(@Nonnull QueryBuilder<?, ?, ?> subquery) {
+        return where(predicate -> predicate.notExists(subquery));
+    }
 
     /**
      * Adds a GROUP BY clause to the query for field at the specified path in the table graph. The metamodel can refer
@@ -489,12 +533,12 @@ public abstract class QueryBuilder<T extends Data, R, ID> {
      * @return the query builder.
      * @since 1.2
      */
-    public final QueryBuilder<T, R, ID> groupByAny(@Nonnull Metamodel<?, ?>... path) {
+    public final QueryBuilder<T, R, ID> groupByAny(@Nonnull Navigable<?, ?>... path) {
         if (path.length == 0) {
             throw new PersistenceException("At least one path must be provided for GROUP BY clause.");
         }
         List<TemplateString> templates = Stream.of(path)
-                .flatMap(metamodel -> Stream.of(wrap(new Columns(metamodel, CASCADE, false)), TemplateString.of(", ")))
+                .flatMap(path_ -> Stream.of(wrap(new Columns(path_.asMetamodel(), CASCADE, false)), TemplateString.of(", ")))
                 .toList();
         return groupBy(TemplateString.combine(templates.subList(0, templates.size() - 1).toArray(new TemplateString[0])));
     }
@@ -523,7 +567,7 @@ public abstract class QueryBuilder<T extends Data, R, ID> {
     public final <V> QueryBuilder<T, R, ID> having(@Nonnull Navigable<T, V> path,
                                                    @Nonnull Operator operator,
                                                    @Nonnull V... o) {
-        return havingAny(asMetamodel(path), operator, o);
+        return havingAny(path.asMetamodel(), operator, o);
     }
 
     /**
@@ -537,10 +581,10 @@ public abstract class QueryBuilder<T extends Data, R, ID> {
      * @since 1.2
      */
     @SafeVarargs
-    public final <V> QueryBuilder<T, R, ID> havingAny(@Nonnull Metamodel<?, V> path,
+    public final <V> QueryBuilder<T, R, ID> havingAny(@Nonnull Navigable<?, V> path,
                                                       @Nonnull Operator operator,
                                                       @Nonnull V... o) {
-        return having(wrap(new ObjectExpression(path, operator, o)));
+        return having(wrap(new ObjectExpression(path.asMetamodel(), operator, o)));
     }
 
     /**
@@ -552,6 +596,52 @@ public abstract class QueryBuilder<T extends Data, R, ID> {
      * @since 1.2
      */
     public abstract QueryBuilder<T, R, ID> having(@Nonnull TemplateString template);
+
+    /**
+     * Adds a HAVING clause to the query for the specified predicate. Multiple calls to this method are combined using
+     * AND; compose the predicate with {@code and} and {@code or} to build a single clause that mixes both.
+     *
+     * <p>The predicate is taken directly rather than through a {@link WhereBuilder}. A HAVING clause filters groups
+     * rather than rows, so the builder's identity matching would not carry over, and its methods would read
+     * {@code where} at a {@code having} call site.</p>
+     *
+     * @param predicate the predicate to add.
+     * @return the query builder.
+     * @since 1.13
+     */
+    public abstract QueryBuilder<T, R, ID> having(@Nonnull PredicateBuilder<T, ?, ?> predicate);
+
+    /**
+     * Adds a HAVING clause to the query for the specified predicate. The predicate may refer to any entity in the
+     * table graph, including manually added joins.
+     *
+     * @param predicate the predicate to add.
+     * @return the query builder.
+     * @since 1.13
+     */
+    public abstract QueryBuilder<T, R, ID> havingAny(@Nonnull PredicateBuilder<?, ?, ?> predicate);
+
+    /**
+     * Adds a HAVING clause that keeps the groups for which the specified subquery returns at least one row.
+     *
+     * @param subquery the subquery to test for existence.
+     * @return the query builder.
+     * @since 1.13
+     */
+    public final QueryBuilder<T, R, ID> havingExists(@Nonnull QueryBuilder<?, ?, ?> subquery) {
+        return having(TemplateString.raw("EXISTS (\0)", subquery));
+    }
+
+    /**
+     * Adds a HAVING clause that keeps the groups for which the specified subquery returns no rows.
+     *
+     * @param subquery the subquery to test for absence.
+     * @return the query builder.
+     * @since 1.13
+     */
+    public final QueryBuilder<T, R, ID> havingNotExists(@Nonnull QueryBuilder<?, ?, ?> subquery) {
+        return having(TemplateString.raw("NOT EXISTS (\0)", subquery));
+    }
 
     /**
      * Adds an ORDER BY clause to the query for the field at the specified path in the table graph.
@@ -577,7 +667,7 @@ public abstract class QueryBuilder<T extends Data, R, ID> {
      * @since 1.2
      */
     public final QueryBuilder<T, R, ID> orderByDescending(@Nonnull Navigable<T, ?> path) {
-        return orderByDescendingAny(asMetamodel(path));
+        return orderByDescendingAny(path.asMetamodel());
     }
 
     /**
@@ -601,8 +691,8 @@ public abstract class QueryBuilder<T extends Data, R, ID> {
      * @return the query builder.
      * @since 1.9
      */
-    public final QueryBuilder<T, R, ID> orderByDescendingAny(@Nonnull Metamodel<?, ?> path) {
-        return orderBy(wrap(new Columns(path, CASCADE, true)));
+    public final QueryBuilder<T, R, ID> orderByDescendingAny(@Nonnull Navigable<?, ?> path) {
+        return orderBy(wrap(new Columns(path.asMetamodel(), CASCADE, true)));
     }
 
     /**
@@ -617,12 +707,12 @@ public abstract class QueryBuilder<T extends Data, R, ID> {
      * @return the query builder.
      * @since 1.9
      */
-    public final QueryBuilder<T, R, ID> orderByDescendingAny(@Nonnull Metamodel<?, ?>... path) {
+    public final QueryBuilder<T, R, ID> orderByDescendingAny(@Nonnull Navigable<?, ?>... path) {
         if (path.length == 0) {
             throw new PersistenceException("At least one path must be provided for ORDER BY clause.");
         }
         List<TemplateString> templates = Stream.of(path)
-                .flatMap(metamodel -> Stream.of(wrap(new Columns(metamodel, CASCADE, true)), TemplateString.of(", ")))
+                .<TemplateString>flatMap(path_ -> Stream.of(wrap(new Columns(path_.asMetamodel(), CASCADE, true)), TemplateString.of(", ")))
                 .toList();
         return orderBy(TemplateString.combine(templates.subList(0, templates.size() - 1).toArray(new TemplateString[0])));
     }
@@ -651,12 +741,12 @@ public abstract class QueryBuilder<T extends Data, R, ID> {
      * @return the query builder.
      * @since 1.2
      */
-    public final QueryBuilder<T, R, ID> orderByAny(@Nonnull Metamodel<?, ?>... path) {
+    public final QueryBuilder<T, R, ID> orderByAny(@Nonnull Navigable<?, ?>... path) {
         if (path.length == 0) {
             throw new PersistenceException("At least one path must be provided for ORDER BY clause.");
         }
         List<TemplateString> templates = Stream.of(path)
-                .flatMap(metamodel -> Stream.of(wrap(new Columns(metamodel, CASCADE, false)), TemplateString.of(", ")))
+                .flatMap(path_ -> Stream.of(wrap(new Columns(path_.asMetamodel(), CASCADE, false)), TemplateString.of(", ")))
                 .toList();
         return orderBy(TemplateString.combine(templates.subList(0, templates.size() - 1).toArray(new TemplateString[0])));
     }

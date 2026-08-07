@@ -27,6 +27,7 @@ import st.orm.TypedMetamodel;
 import st.orm.core.model.City;
 import st.orm.core.model.City_;
 import st.orm.core.model.Owner;
+import st.orm.core.model.Owner_;
 import st.orm.core.model.Pet;
 import st.orm.core.model.PetOwnerRef;
 import st.orm.core.model.PetOwnerRef_;
@@ -34,6 +35,8 @@ import st.orm.core.model.Pet_;
 import st.orm.core.model.Visit;
 import st.orm.core.model.Visit_;
 import st.orm.core.template.ORMTemplate;
+import st.orm.core.template.PredicateBuilder;
+import st.orm.core.template.impl.PredicateBuilderFactory;
 
 /**
  * Integration tests targeting uncovered predicate builder, where-builder, and QueryBuilder convenience methods
@@ -274,6 +277,55 @@ public class QueryBuilderPredicateIntegrationTest {
         assertTrue(results.size() > 0, "Expected at least one pet with more than 1 visit");
         for (var result : results) {
             assertTrue(result.visitCount() > 1);
+        }
+    }
+
+    // QueryBuilder.having with a predicate
+    //
+    // PredicateBuilderFactory is how the Kotlin infix operators build a predicate: standalone, with no WhereBuilder
+    // involved. These tests drive the same predicates into the HAVING clause.
+
+    @Test
+    public void testHavingCallsAreAndCombined() {
+        var orm = ORMTemplate.of(dataSource);
+        // The two clauses cannot both hold, so AND-combining them yields no groups.
+        List<Long> counts = orm.entity(Owner.class)
+                .selectCount()
+                .groupBy(Owner_.lastName)
+                .having(Owner_.lastName, EQUALS, "Davis")
+                .having(Owner_.lastName, EQUALS, "Franklin")
+                .getResultList();
+        assertTrue(counts.isEmpty());
+    }
+
+    @Test
+    public void testHavingWithOrComposedPredicate() {
+        var orm = ORMTemplate.of(dataSource);
+        // A disjunction cannot come from consecutive having() calls, which are AND-combined.
+        PredicateBuilder<Owner, ?, ?> davis = PredicateBuilderFactory.create(Owner_.lastName, EQUALS, List.of("Davis"));
+        PredicateBuilder<Owner, ?, ?> franklin = PredicateBuilderFactory.create(Owner_.lastName, EQUALS, List.of("Franklin"));
+        List<Long> counts = orm.entity(Owner.class)
+                .selectCount()
+                .groupBy(Owner_.lastName)
+                .having(davis.or(franklin))
+                .getResultList();
+        assertEquals(2, counts.size());
+        assertEquals(3L, counts.stream().mapToLong(Long::longValue).sum());
+    }
+
+    @Test
+    public void testHavingAnyWithPredicateOnJoinedEntity() {
+        var orm = ORMTemplate.of(dataSource);
+        record PetVisitCount(Pet pet, int visitCount) {}
+        PredicateBuilder<Visit, ?, ?> predicate = PredicateBuilderFactory.create(Visit_.pet.id, IN, List.of(7, 8));
+        var results = orm.selectFrom(Pet.class, PetVisitCount.class, raw("\0, COUNT(*)", Pet.class))
+                .innerJoin(Visit.class).on(Pet.class)
+                .groupBy(Pet_.id)
+                .havingAny(predicate)
+                .getResultList();
+        assertEquals(2, results.size());
+        for (var result : results) {
+            assertTrue(result.pet().id() == 7 || result.pet().id() == 8);
         }
     }
 

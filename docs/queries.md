@@ -260,7 +260,7 @@ Multiple `where()` calls on the same query builder are combined with AND. This l
 ```kotlin
 val results = orm.entity<User>()
     .select()
-    .where(User_.active, EQUALS, true)
+    .where(User_.active eq true)
     .where(User_.city eq city)           // AND-combined with previous where
     .resultList
 ```
@@ -270,7 +270,7 @@ Builder-style `where()` calls (with `and`/`or` predicates) compose with other `w
 ```kotlin
 val results = orm.entity<User>()
     .select()
-    .where(User_.active, EQUALS, true)
+    .where(User_.active eq true)
     .where(                              // AND-combined with the active filter above
         (User_.role eq adminRole) or (User_.role eq superUserRole)
     )
@@ -436,7 +436,7 @@ List<CityCount> counts = orm.entity(User.class)
 
 ### Aggregation (SQL Templates)
 
-For aggregation queries that involve multiple tables, CTEs, or HAVING clauses, SQL Templates give you full control over the query structure while still mapping results to typed records.
+For aggregation queries that involve multiple tables or CTEs, SQL Templates give you full control over the query structure while still mapping results to typed records.
 
 ```java
 List<CityCount> counts = orm.query(RAW."""
@@ -448,6 +448,62 @@ List<CityCount> counts = orm.query(RAW."""
 
 </TabItem>
 </Tabs>
+
+### Filtering Groups
+
+`having()` filters the groups that `groupBy()` produces, the way `where()` filters rows. A condition on a grouped
+column takes a predicate; a condition on an aggregate takes a template, because no metamodel path names a
+computed value.
+
+<Tabs groupId="language">
+<TabItem value="kotlin" label="Kotlin" default>
+
+```kotlin
+// Grouped column: a predicate
+val counts: List<Long> = orm.entity<User>()
+    .selectCount()
+    .groupBy(User_.city)
+    .having((User_.city eq amsterdam) or (User_.city eq rotterdam))
+    .resultList
+
+// Aggregate: a template
+val busy = orm.entity<User>()
+    .select<CityCount, _, _> { "${City::class}, COUNT(*)" }
+    .groupBy(User_.city)
+    .having { "COUNT(*) > $minimum" }
+    .resultList
+```
+
+</TabItem>
+<TabItem value="java" label="Java">
+
+```java
+// Grouped column
+List<Long> counts = orm.entity(User.class)
+    .selectCount()
+    .groupBy(User_.city)
+    .having(User_.city, EQUALS, amsterdam)
+    .getResultList();
+
+// Aggregate, or any condition combining groups with OR
+List<CityCount> busy = orm.entity(User.class)
+    .select(CityCount.class, RAW."\{City.class}, COUNT(*)")
+    .groupBy(User_.city)
+    .having(RAW."COUNT(*) > \{minimum}")
+    .getResultList();
+```
+
+</TabItem>
+</Tabs>
+
+Consecutive `having()` calls are AND-combined, each clause parenthesized, the same way consecutive `where()` calls
+are. In Kotlin a disjunction stays in code: compose the predicate with infix `or`. In Java a predicate cannot be
+built outside a `where()` lambda, so a HAVING disjunction uses the template form.
+
+Use `havingAny()` when the condition names a joined entity's column, mirroring
+[`whereAny()`](#composing-multiple-filters). The predicate form takes the predicate directly rather than a
+builder: a HAVING clause filters groups, so the id, ref and record matching that `where()`'s builder offers does
+not carry over.
 
 ## Data Retrieval Strategies
 
@@ -478,7 +534,7 @@ val results = orm.entity<User>().select()
 
 // Pagination
 val page: Page<User> = orm.entity<User>().select()
-    .where(User_.active, EQUALS, true)
+    .where(User_.active eq true)
     .page(Pageable.ofSize(10))
 
 // Scrolling
@@ -728,7 +784,7 @@ When an inline record (embedded component) is used in a query clause, Storm auto
 
 Inline records expand differently depending on the operator:
 
-**EQUALS / NOT_EQUALS** generate per-column AND conditions:
+**Equality** (`eq` / `neq`, Java `EQUALS` / `NOT_EQUALS`) generates per-column AND conditions:
 
 <Tabs groupId="language">
 <TabItem value="kotlin" label="Kotlin" default>
@@ -736,7 +792,7 @@ Inline records expand differently depending on the operator:
 ```kotlin
 val owner = orm.entity<Owner>()
     .select()
-    .where(Owner_.address, EQUALS, address)
+    .where(Owner_.address eq address)
     .singleResult
 ```
 
@@ -757,13 +813,13 @@ Owner owner = orm.entity(Owner.class)
 WHERE o.address = ? AND o.city_id = ?
 ```
 
-For NOT_EQUALS, the condition is wrapped in NOT:
+For inequality (`neq`, Java `NOT_EQUALS`), the condition is wrapped in NOT:
 
 ```sql
 WHERE NOT (o.address = ? AND o.city_id = ?)
 ```
 
-**Comparison operators** (GREATER_THAN, GREATER_THAN_OR_EQUAL, LESS_THAN, LESS_THAN_OR_EQUAL) generate lexicographic comparisons using nested OR/AND. This preserves the natural multi-column ordering:
+**Comparison operators** (`greater`, `greaterEq`, `less`, `lessEq`; Java `GREATER_THAN`, `GREATER_THAN_OR_EQUAL`, `LESS_THAN`, `LESS_THAN_OR_EQUAL`) generate lexicographic comparisons using nested OR/AND. This preserves the natural multi-column ordering:
 
 <Tabs groupId="language">
 <TabItem value="kotlin" label="Kotlin" default>
@@ -771,7 +827,7 @@ WHERE NOT (o.address = ? AND o.city_id = ?)
 ```kotlin
 val owners = orm.entity<Owner>()
     .select()
-    .where(Owner_.address, GREATER_THAN, address)
+    .where(Owner_.address greater address)
     .resultList
 ```
 
@@ -792,7 +848,7 @@ List<Owner> owners = orm.entity(Owner.class)
 WHERE (o.address > ? OR (o.address = ? AND o.city_id > ?))
 ```
 
-For GREATER_THAN_OR_EQUAL, only the last column uses the inclusive operator:
+For the inclusive variants (`greaterEq` / `lessEq`, Java `GREATER_THAN_OR_EQUAL` / `LESS_THAN_OR_EQUAL`), only the last column uses the inclusive operator:
 
 ```sql
 WHERE (o.address > ? OR (o.address = ? AND o.city_id >= ?))
@@ -804,7 +860,7 @@ Some databases (PostgreSQL, MySQL, MariaDB, Oracle) support native tuple compari
 WHERE (o.address, o.city_id) > (?, ?)
 ```
 
-**Unsupported operators.** LIKE, NOT_LIKE, IN, and NOT_IN do not have a meaningful multi-column interpretation and throw a `PersistenceException` when used with inline records. To filter on a sub-field, reference it directly:
+**Unsupported operators.** `like`, `notLike`, `inList`, and `notInList` (Java `LIKE`, `NOT_LIKE`, `IN`, `NOT_IN`) do not have a meaningful multi-column interpretation and throw a `PersistenceException` when used with inline records. To filter on a sub-field, reference it directly:
 
 <Tabs groupId="language">
 <TabItem value="kotlin" label="Kotlin" default>
@@ -812,7 +868,7 @@ WHERE (o.address, o.city_id) > (?, ?)
 ```kotlin
 val owners = orm.entity<Owner>()
     .select()
-    .where(Owner_.address.address, LIKE, "%Main%")
+    .where(Owner_.address.address like "%Main%")
     .resultList
 ```
 

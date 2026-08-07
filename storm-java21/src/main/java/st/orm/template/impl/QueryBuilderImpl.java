@@ -29,7 +29,6 @@ import java.util.function.Function;
 import java.util.stream.Stream;
 import st.orm.Data;
 import st.orm.JoinType;
-import st.orm.Metamodel;
 import st.orm.Navigable;
 import st.orm.Operator;
 import st.orm.PersistenceException;
@@ -155,6 +154,30 @@ public final class QueryBuilderImpl<T extends Data, R, ID> extends QueryBuilder<
     @Override
     public QueryBuilder<T, R, ID> having(@Nonnull StringTemplate template) {
         return new QueryBuilderImpl<>(core.having(convert(template)));
+    }
+
+    /**
+     * Adds a HAVING clause that keeps the groups for which the specified subquery returns at least one row.
+     *
+     * @param subquery the subquery to test for existence.
+     * @return the query builder.
+     * @since 1.13
+     */
+    @Override
+    public QueryBuilder<T, R, ID> havingExists(@Nonnull QueryBuilder<?, ?, ?> subquery) {
+        return new QueryBuilderImpl<>(core.havingExists(((QueryBuilderImpl<?, ?, ?>) subquery).core));
+    }
+
+    /**
+     * Adds a HAVING clause that keeps the groups for which the specified subquery returns no rows.
+     *
+     * @param subquery the subquery to test for absence.
+     * @return the query builder.
+     * @since 1.13
+     */
+    @Override
+    public QueryBuilder<T, R, ID> havingNotExists(@Nonnull QueryBuilder<?, ?, ?> subquery) {
+        return new QueryBuilderImpl<>(core.havingNotExists(((QueryBuilderImpl<?, ?, ?>) subquery).core));
     }
 
     /**
@@ -521,32 +544,32 @@ public final class QueryBuilderImpl<T extends Data, R, ID> extends QueryBuilder<
         }
 
         @Override
-        public <V extends Data> PredicateBuilder<TX, RX, IDX> where(@Nonnull Metamodel<TX, V> path, @Nonnull Ref<V> ref) {
+        public <V extends Data> PredicateBuilder<TX, RX, IDX> where(@Nonnull Navigable<TX, V> path, @Nonnull Ref<V> ref) {
             return new PredicateBuilderImpl<>(core.where(path, ref));
         }
 
         @Override
-        public <V extends Data> PredicateBuilder<TX, RX, IDX> whereAny(@Nonnull Metamodel<?, V> path, @Nonnull Ref<V> ref) {
+        public <V extends Data> PredicateBuilder<TX, RX, IDX> whereAny(@Nonnull Navigable<?, V> path, @Nonnull Ref<V> ref) {
             return new PredicateBuilderImpl<>(core.whereAny(path, ref));
         }
 
         @Override
-        public <V extends Data> PredicateBuilder<TX, RX, IDX> whereRef(@Nonnull Metamodel<TX, V> path, @Nonnull Iterable<? extends Ref<V>> it) {
+        public <V extends Data> PredicateBuilder<TX, RX, IDX> whereRef(@Nonnull Navigable<TX, V> path, @Nonnull Iterable<? extends Ref<V>> it) {
             return new PredicateBuilderImpl<>(core.whereRef(path, it));
         }
 
         @Override
-        public <V extends Data> PredicateBuilder<TX, RX, IDX> whereAnyRef(@Nonnull Metamodel<?, V> path, @Nonnull Iterable<? extends Ref<V>> it) {
+        public <V extends Data> PredicateBuilder<TX, RX, IDX> whereAnyRef(@Nonnull Navigable<?, V> path, @Nonnull Iterable<? extends Ref<V>> it) {
             return new PredicateBuilderImpl<>(core.whereAnyRef(path, it));
         }
 
         @Override
-        public <V> PredicateBuilder<TX, RX, IDX> where(@Nonnull Metamodel<TX, V> path, @Nonnull Operator operator, @Nonnull Iterable<? extends V> it) {
+        public <V> PredicateBuilder<TX, RX, IDX> where(@Nonnull Navigable<TX, V> path, @Nonnull Operator operator, @Nonnull Iterable<? extends V> it) {
             return new PredicateBuilderImpl<>(core.where(path, operator, it));
         }
 
         @Override
-        public <V> PredicateBuilder<TX, RX, IDX> whereAny(@Nonnull Metamodel<?, V> path, @Nonnull Operator operator, @Nonnull Iterable<? extends V> it) {
+        public <V> PredicateBuilder<TX, RX, IDX> whereAny(@Nonnull Navigable<?, V> path, @Nonnull Operator operator, @Nonnull Iterable<? extends V> it) {
             return new PredicateBuilderImpl<>(core.whereAny(path, operator, it));
         }
 
@@ -556,7 +579,7 @@ public final class QueryBuilderImpl<T extends Data, R, ID> extends QueryBuilder<
         }
 
         @Override
-        protected <V> PredicateBuilder<TX, RX, IDX> whereImpl(@Nonnull Metamodel<?, V> path, @Nonnull Operator operator, @Nonnull V[] o) {
+        protected <V> PredicateBuilder<TX, RX, IDX> whereImpl(@Nonnull Navigable<?, V> path, @Nonnull Operator operator, @Nonnull V[] o) {
             return new PredicateBuilderImpl<>(core.whereAny(path, operator, o));
         }
     }

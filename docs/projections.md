@@ -271,22 +271,22 @@ Use the `select()` method for type-safe queries with the generated metamodel:
 ```kotlin
 // Filter by field value
 val owners = ownerViews.select()
-    .where(OwnerView_.lastName, EQUALS, "Smith")
+    .where(OwnerView_.lastName eq "Smith")
     .resultList
 
 // Filter with comparison operators
 val recentVisits = orm.projection<VisitView>().select()
-    .where(VisitView_.visitDate, GREATER_THAN, LocalDate.of(2024, 1, 1))
+    .where(VisitView_.visitDate greater LocalDate.of(2024, 1, 1))
     .resultList
 
 // Filter by nested foreign key
 val ownerPets = orm.projection<PetView>().select()
-    .where(PetView_.owner.id, EQUALS, 1)
+    .where(PetView_.owner.id eq 1)
     .resultList
 
 // Count with filter
 val count = ownerViews.selectCount()
-    .where(OwnerView_.lastName, EQUALS, "Smith")
+    .where(OwnerView_.lastName eq "Smith")
     .singleResult
 ```
 
@@ -327,7 +327,7 @@ val owners = ownerViews.findAllById(ids)
 
 // Flow-based fetching (lazy evaluation, collect from a coroutine)
 ownerViews.select()
-    .where(OwnerView_.id, IN, ids)
+    .where(OwnerView_.id inList ids)
     .resultFlow
     .collect { owner ->
         // Process each owner

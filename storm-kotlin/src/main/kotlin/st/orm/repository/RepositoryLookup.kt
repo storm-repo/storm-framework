@@ -17,10 +17,10 @@ package st.orm.repository
 
 import kotlinx.coroutines.flow.Flow
 import st.orm.*
-import st.orm.Operator.EQUALS
-import st.orm.Operator.IN
 import st.orm.template.PredicateBuilder
 import st.orm.template.QueryBuilder
+import st.orm.template.eq
+import st.orm.template.inList
 import kotlin.reflect.KClass
 import kotlin.reflect.full.isSubclassOf
 
@@ -251,9 +251,9 @@ inline fun <reified T : Data> RepositoryLookup.findAllRef(): List<Ref<T>> = if (
  */
 @Suppress("UNCHECKED_CAST")
 inline fun <reified T : Data, V> RepositoryLookup.findBy(field: Metamodel<T, V>, value: V): T? = if (T::class.isSubclassOf(Entity::class)) {
-    (entity(T::class as KClass<Entity<Any>>) as EntityRepository<Entity<*>, *>).select().where(field as Metamodel<Entity<*>, V>, EQUALS, value).optionalResult as T?
+    (entity(T::class as KClass<Entity<Any>>) as EntityRepository<Entity<*>, *>).select().where((field as Metamodel<Entity<*>, V>) eq value).optionalResult as T?
 } else {
-    (projection(T::class as KClass<Projection<Any>>) as ProjectionRepository<Projection<*>, *>).select().where(field as Metamodel<Projection<*>, V>, EQUALS, value).optionalResult as T?
+    (projection(T::class as KClass<Projection<Any>>) as ProjectionRepository<Projection<*>, *>).select().where((field as Metamodel<Projection<*>, V>) eq value).optionalResult as T?
 }
 
 /**
@@ -285,9 +285,9 @@ inline fun <reified T : Data, V : Data> RepositoryLookup.findBy(field: Metamodel
  */
 @Suppress("UNCHECKED_CAST")
 inline fun <reified T : Data, V> RepositoryLookup.findAllBy(field: Metamodel<T, V>, value: V): List<T> = if (T::class.isSubclassOf(Entity::class)) {
-    (entity(T::class as KClass<Entity<Any>>) as EntityRepository<Entity<*>, *>).select().where(field as Metamodel<Entity<*>, V>, EQUALS, value).resultList as List<T>
+    (entity(T::class as KClass<Entity<Any>>) as EntityRepository<Entity<*>, *>).select().where((field as Metamodel<Entity<*>, V>) eq value).resultList as List<T>
 } else {
-    (projection(T::class as KClass<Projection<Any>>) as ProjectionRepository<Projection<*>, *>).select().where(field as Metamodel<Projection<*>, V>, EQUALS, value).resultList as List<T>
+    (projection(T::class as KClass<Projection<Any>>) as ProjectionRepository<Projection<*>, *>).select().where((field as Metamodel<Projection<*>, V>) eq value).resultList as List<T>
 }
 
 /**
@@ -319,9 +319,9 @@ inline fun <reified T : Data, V : Data> RepositoryLookup.findAllBy(field: Metamo
  */
 @Suppress("UNCHECKED_CAST")
 inline fun <reified T : Data, V> RepositoryLookup.findAllBy(field: Metamodel<T, V>, values: Iterable<V>): List<T> = if (T::class.isSubclassOf(Entity::class)) {
-    (entity(T::class as KClass<Entity<Any>>) as EntityRepository<Entity<*>, *>).select().where(field as Metamodel<Entity<*>, V>, IN, values).resultList as List<T>
+    (entity(T::class as KClass<Entity<Any>>) as EntityRepository<Entity<*>, *>).select().where((field as Metamodel<Entity<*>, V>) inList values).resultList as List<T>
 } else {
-    (projection(T::class as KClass<Projection<Any>>) as ProjectionRepository<Projection<*>, *>).select().where(field as Metamodel<Projection<*>, V>, IN, values).resultList as List<T>
+    (projection(T::class as KClass<Projection<Any>>) as ProjectionRepository<Projection<*>, *>).select().where((field as Metamodel<Projection<*>, V>) inList values).resultList as List<T>
 }
 
 /**
@@ -355,9 +355,9 @@ inline fun <reified T : Data, V : Data> RepositoryLookup.findAllByRef(field: Met
  */
 @Suppress("UNCHECKED_CAST")
 inline fun <reified T : Data, V> RepositoryLookup.getBy(field: Metamodel<T, V>, value: V): T = if (T::class.isSubclassOf(Entity::class)) {
-    (entity(T::class as KClass<Entity<Any>>) as EntityRepository<Entity<*>, *>).select().where(field as Metamodel<Entity<*>, V>, EQUALS, value).singleResult as T
+    (entity(T::class as KClass<Entity<Any>>) as EntityRepository<Entity<*>, *>).select().where((field as Metamodel<Entity<*>, V>) eq value).singleResult as T
 } else {
-    (projection(T::class as KClass<Projection<Any>>) as ProjectionRepository<Projection<*>, *>).select().where(field as Metamodel<Projection<*>, V>, EQUALS, value).singleResult as T
+    (projection(T::class as KClass<Projection<Any>>) as ProjectionRepository<Projection<*>, *>).select().where((field as Metamodel<Projection<*>, V>) eq value).singleResult as T
 }
 
 /**
@@ -389,9 +389,9 @@ inline fun <reified T : Data, V : Data> RepositoryLookup.getBy(field: Metamodel<
  */
 @Suppress("UNCHECKED_CAST")
 inline fun <reified T : Data, V> RepositoryLookup.findRefBy(field: Metamodel<T, V>, value: V): Ref<T>? = if (T::class.isSubclassOf(Entity::class)) {
-    (entity(T::class as KClass<Entity<Any>>) as EntityRepository<Entity<*>, *>).selectRef().where(field as Metamodel<Entity<*>, V>, EQUALS, value).optionalResult as Ref<T>?
+    (entity(T::class as KClass<Entity<Any>>) as EntityRepository<Entity<*>, *>).selectRef().where((field as Metamodel<Entity<*>, V>) eq value).optionalResult as Ref<T>?
 } else {
-    (projection(T::class as KClass<Projection<Any>>) as ProjectionRepository<Projection<*>, *>).selectRef().where(field as Metamodel<Projection<*>, V>, EQUALS, value).optionalResult as Ref<T>?
+    (projection(T::class as KClass<Projection<Any>>) as ProjectionRepository<Projection<*>, *>).selectRef().where((field as Metamodel<Projection<*>, V>) eq value).optionalResult as Ref<T>?
 }
 
 /**
@@ -419,9 +419,9 @@ inline fun <reified T : Data, V : Data> RepositoryLookup.findRefBy(field: Metamo
  */
 @Suppress("UNCHECKED_CAST")
 inline fun <reified T : Data, V> RepositoryLookup.findAllRefBy(field: Metamodel<T, V>, value: V): List<Ref<T>> = if (T::class.isSubclassOf(Entity::class)) {
-    (entity(T::class as KClass<Entity<Any>>) as EntityRepository<Entity<*>, *>).selectRef().where(field as Metamodel<Entity<*>, V>, EQUALS, value).resultList as List<Ref<T>>
+    (entity(T::class as KClass<Entity<Any>>) as EntityRepository<Entity<*>, *>).selectRef().where((field as Metamodel<Entity<*>, V>) eq value).resultList as List<Ref<T>>
 } else {
-    (projection(T::class as KClass<Projection<Any>>) as ProjectionRepository<Projection<*>, *>).selectRef().where(field as Metamodel<Projection<*>, V>, EQUALS, value).resultList as List<Ref<T>>
+    (projection(T::class as KClass<Projection<Any>>) as ProjectionRepository<Projection<*>, *>).selectRef().where((field as Metamodel<Projection<*>, V>) eq value).resultList as List<Ref<T>>
 }
 
 /**
@@ -449,9 +449,9 @@ inline fun <reified T : Data, V : Data> RepositoryLookup.findAllRefBy(field: Met
  */
 @Suppress("UNCHECKED_CAST")
 inline fun <reified T : Data, V> RepositoryLookup.findAllRefBy(field: Metamodel<T, V>, values: Iterable<V>): List<Ref<T>> = if (T::class.isSubclassOf(Entity::class)) {
-    (entity(T::class as KClass<Entity<Any>>) as EntityRepository<Entity<*>, *>).selectRef().where(field as Metamodel<Entity<*>, V>, IN, values).resultList as List<Ref<T>>
+    (entity(T::class as KClass<Entity<Any>>) as EntityRepository<Entity<*>, *>).selectRef().where((field as Metamodel<Entity<*>, V>) inList values).resultList as List<Ref<T>>
 } else {
-    (projection(T::class as KClass<Projection<Any>>) as ProjectionRepository<Projection<*>, *>).selectRef().where(field as Metamodel<Projection<*>, V>, IN, values).resultList as List<Ref<T>>
+    (projection(T::class as KClass<Projection<Any>>) as ProjectionRepository<Projection<*>, *>).selectRef().where((field as Metamodel<Projection<*>, V>) inList values).resultList as List<Ref<T>>
 }
 
 /**
@@ -481,9 +481,9 @@ inline fun <reified T : Data, V : Data> RepositoryLookup.findAllRefByRef(field: 
  */
 @Suppress("UNCHECKED_CAST")
 inline fun <reified T : Data, V> RepositoryLookup.getRefBy(field: Metamodel<T, V>, value: V): Ref<T> = if (T::class.isSubclassOf(Entity::class)) {
-    (entity(T::class as KClass<Entity<Any>>) as EntityRepository<Entity<*>, *>).selectRef().where(field as Metamodel<Entity<*>, V>, EQUALS, value).singleResult as Ref<T>
+    (entity(T::class as KClass<Entity<Any>>) as EntityRepository<Entity<*>, *>).selectRef().where((field as Metamodel<Entity<*>, V>) eq value).singleResult as Ref<T>
 } else {
-    (projection(T::class as KClass<Projection<Any>>) as ProjectionRepository<Projection<*>, *>).selectRef().where(field as Metamodel<Projection<*>, V>, EQUALS, value).singleResult as Ref<T>
+    (projection(T::class as KClass<Projection<Any>>) as ProjectionRepository<Projection<*>, *>).selectRef().where((field as Metamodel<Projection<*>, V>) eq value).singleResult as Ref<T>
 }
 
 /**
@@ -638,9 +638,9 @@ inline fun <reified T : Data> RepositoryLookup.selectRef(): QueryBuilder<T, Ref<
  */
 @Suppress("UNCHECKED_CAST")
 inline fun <reified T : Data, V> RepositoryLookup.countBy(field: Metamodel<T, V>, value: V): Long = if (T::class.isSubclassOf(Entity::class)) {
-    (entity(T::class as KClass<Entity<Any>>) as EntityRepository<Entity<*>, *>).selectCount().where(field as Metamodel<Entity<*>, V>, EQUALS, value).singleResult
+    (entity(T::class as KClass<Entity<Any>>) as EntityRepository<Entity<*>, *>).selectCount().where((field as Metamodel<Entity<*>, V>) eq value).singleResult
 } else {
-    (projection(T::class as KClass<Projection<Any>>) as ProjectionRepository<Projection<*>, *>).selectCount().where(field as Metamodel<Projection<*>, V>, EQUALS, value).singleResult
+    (projection(T::class as KClass<Projection<Any>>) as ProjectionRepository<Projection<*>, *>).selectCount().where((field as Metamodel<Projection<*>, V>) eq value).singleResult
 }
 
 /**
@@ -691,9 +691,9 @@ inline fun <reified T : Data> RepositoryLookup.count(predicate: PredicateBuilder
  */
 @Suppress("UNCHECKED_CAST")
 inline fun <reified T : Data, V> RepositoryLookup.existsBy(field: Metamodel<T, V>, value: V): Boolean = if (T::class.isSubclassOf(Entity::class)) {
-    (entity(T::class as KClass<Entity<Any>>) as EntityRepository<Entity<*>, *>).selectCount().where(field as Metamodel<Entity<*>, V>, EQUALS, value).singleResult > 0
+    (entity(T::class as KClass<Entity<Any>>) as EntityRepository<Entity<*>, *>).selectCount().where((field as Metamodel<Entity<*>, V>) eq value).singleResult > 0
 } else {
-    (projection(T::class as KClass<Projection<Any>>) as ProjectionRepository<Projection<*>, *>).selectCount().where(field as Metamodel<Projection<*>, V>, EQUALS, value).singleResult > 0
+    (projection(T::class as KClass<Projection<Any>>) as ProjectionRepository<Projection<*>, *>).selectCount().where((field as Metamodel<Projection<*>, V>) eq value).singleResult > 0
 }
 
 /**
@@ -879,7 +879,7 @@ inline fun <reified T : Entity<*>> RepositoryLookup.removeAll(predicate: Predica
  * @param value the ID value to match against.
  * @return the number of entities removed (0 or 1).
  */
-inline fun <reified T : Entity<ID>, ID : Any> RepositoryLookup.removeBy(field: Metamodel<T, ID>, value: ID): Int = entity<T>().delete().where(field, EQUALS, value).executeUpdate()
+inline fun <reified T : Entity<ID>, ID : Any> RepositoryLookup.removeBy(field: Metamodel<T, ID>, value: ID): Int = entity<T>().delete().where(field eq value).executeUpdate()
 
 /**
  * Removes entities of type [T] matching the specified ID field and its value.
@@ -897,7 +897,7 @@ inline fun <reified T : Entity<*>> RepositoryLookup.removeBy(field: Metamodel<T,
  * @param value the value to match against.
  * @return the number of entities removed.
  */
-inline fun <reified T : Entity<*>, V> RepositoryLookup.removeAllBy(field: Metamodel<T, V>, value: V): Int = entity<T>().delete().where(field, EQUALS, value).executeUpdate()
+inline fun <reified T : Entity<*>, V> RepositoryLookup.removeAllBy(field: Metamodel<T, V>, value: V): Int = entity<T>().delete().where(field eq value).executeUpdate()
 
 /**
  * Removes entities of type [T] matching the specified field and referenced value.
@@ -915,7 +915,7 @@ inline fun <reified T : Entity<*>, V : Data> RepositoryLookup.removeAllBy(field:
  * @param values Iterable of values to match against.
  * @return the number of entities removed.
  */
-inline fun <reified T : Entity<*>, V> RepositoryLookup.removeAllBy(field: Metamodel<T, V>, values: Iterable<V>): Int = entity<T>().delete().where(field, IN, values).executeUpdate()
+inline fun <reified T : Entity<*>, V> RepositoryLookup.removeAllBy(field: Metamodel<T, V>, values: Iterable<V>): Int = entity<T>().delete().where(field inList values).executeUpdate()
 
 /**
  * Removes entities of type [T] matching the specified field against multiple referenced values.

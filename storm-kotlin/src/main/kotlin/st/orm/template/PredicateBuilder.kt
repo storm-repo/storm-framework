@@ -33,9 +33,9 @@ import st.orm.Data
  *     .select()
  *     .where { predicate ->
  *         predicate
- *             .where(User_.active, EQUALS, true)
- *             .and(predicate.where(User_.email, IS_NOT_NULL))
- *             .or(predicate.where(User_.role, EQUALS, "admin"))
+ *             .where(User_.active eq true)
+ *             .and(predicate.where(User_.email.isNotNull()))
+ *             .or(predicate.where(User_.role eq "admin"))
  *     }
  *     .getResultList()
  * ```

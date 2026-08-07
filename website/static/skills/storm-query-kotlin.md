@@ -11,7 +11,7 @@ Help the user write Storm queries using Kotlin.
 ```kotlin
 import st.orm.template.*                         // QueryBuilder, eq, neq, like, ref, orm, etc.
 import st.orm.repository.*                       // entity<T>(), select<Result, _, _> { }, findBy, insert, ... (wildcard: see below)
-import st.orm.Operator.*                         // EQUALS, NOT_EQUALS, LIKE, IN, IS_NULL, etc.
+import st.orm.Operator.*                         // escape hatch: only when the operator is chosen at runtime
 import st.orm.Ref                                // Lazy-loaded reference
 import st.orm.Page                               // Offset-based pagination result
 import st.orm.Pageable                           // Pagination request
@@ -259,8 +259,15 @@ val userCount = orm.entity<User>().selectCount().singleResult
 val citySummaries = orm.entity<City>()
     .select(CitySummary::class)
     .groupBy(City_.country)
-    .having(City_.population, Operator.GREATER_THAN, 100000)
+    .having(City_.population greater 100000)
     .resultList
+```
+
+**HAVING takes predicates too.** `having(predicate)` accepts the same infix operators as `where(predicate)`, so a condition on a grouped column stays in code — including a disjunction, which consecutive `having()` calls cannot express because they are AND-combined. Use `havingAny(predicate)` for a joined entity's column. A condition on an *aggregate* still needs a template, since no metamodel path names a computed value:
+
+```kotlin
+.having((City_.country eq nl) or (City_.country eq be))   // grouped column — predicate
+.having { "COUNT(*) > ${minimum}" }                       // aggregate — template
 ```
 
 **Computed aggregates (COUNT, AVG, SUM, etc.):** When the SELECT clause needs expressions that QueryBuilder can't produce, use `select<ResultType, _, _> { template }` for the SELECT only — keep joins, groupBy, having, orderBy, and limit in code. The result type is explicit; the underscores let Kotlin infer the repository's entity and ID types. Style: use the underscore form only in code that is otherwise fully reified; if the surrounding query uses `::class` calls, write `select(ResultType::class) { template }` instead — keep each snippet internally consistent (template interpolations like `${City::class}` don't count).
@@ -492,9 +499,10 @@ The `where()` and `orderBy()` methods in the block DSL are typed to the root ent
 - `whereAny(predicate)` — accepts `PredicateBuilder<*, *, *>` (any entity type)
 - `orderByAny(path)` — accepts `Metamodel<*, *>` (any entity type)
 - `orderByDescendingAny(path)` — same, descending
-- `groupByAny(path)` — accepts `Metamodel<*, *>` (any entity type; chained API only, not in the block DSL)
+- `groupByAny(path)` — accepts `Metamodel<*, *>` (any entity type)
+- `havingAny(predicate)` — accepts `PredicateBuilder<*, *, *>` (any entity type). Pairs with `groupByAny`: a HAVING condition on a joined column is only valid once that column is grouped
 
-The `Any` variants (`whereAny`, `orderByAny`, `orderByDescendingAny`, `groupByAny`) are needed **only** when referencing fields from joined (non-root) entities — never for root paths, however deep: `User_.city.country.name` starts at the root, so it stays with `where()`/`orderBy()`. Escalate per clause, not per query: a root-field condition keeps `where()` even when the query also has a `whereAny()` for a joined field (see **Choosing the WHERE Form**).
+The `Any` variants (`whereAny`, `orderByAny`, `orderByDescendingAny`, `groupByAny`, `havingAny`) are needed **only** when referencing fields from joined (non-root) entities — never for root paths, however deep: `User_.city.country.name` starts at the root, so it stays with `where()`/`orderBy()`. Escalate per clause, not per query: a root-field condition keeps `where()` even when the query also has a `whereAny()` for a joined field (see **Choosing the WHERE Form**).
 
 ```kotlin
 // Root is User: the joined UserRole field escalates, the root field does not
@@ -506,7 +514,7 @@ select {
 }.resultList
 ```
 
-These are also available on the chained QueryBuilder API: `.whereAny(...)`, `.orderByAny(...)`, `.orderByDescendingAny(...)`, `.groupByAny(...)`.
+These are also available on the chained QueryBuilder API: `.whereAny(...)`, `.orderByAny(...)`, `.orderByDescendingAny(...)`, `.groupByAny(...)`, `.havingAny(...)`.
 
 ## Keyset Scrolling
 
@@ -647,7 +655,7 @@ select {
 }.page(page, size)
 ```
 
-Available in the block: `where`, `whereAny`, `whereBuilder`, `whereExists`, `whereNotExists`, `orderBy`, `orderByAny`, `orderByDescending`, `orderByDescendingAny`, `groupBy`, `having`, `limit`, `offset`, `distinct`, `unsafe`, `forUpdate`, `forShare`, `innerJoin`, `leftJoin`, `rightJoin`, `crossJoin`, `append`. Note: `groupByAny` is NOT available in the block — it exists only on the chained QueryBuilder API. The WHERE ladder applies in the block exactly as it does on the chained API: `where` first, `whereAny` only for joined-entity fields, `whereBuilder` last (see **Choosing the WHERE Form**).
+Available in the block: `where`, `whereAny`, `whereBuilder`, `whereExists`, `whereNotExists`, `orderBy`, `orderByAny`, `orderByDescending`, `orderByDescendingAny`, `groupBy`, `groupByAny`, `having`, `havingAny`, `limit`, `offset`, `distinct`, `unsafe`, `forUpdate`, `forShare`, `innerJoin`, `leftJoin`, `rightJoin`, `crossJoin`, `append`. The WHERE ladder applies in the block exactly as it does on the chained API: `where` first, `whereAny` only for joined-entity fields, `whereBuilder` last (see **Choosing the WHERE Form**).
 
 **Note:** The block DSL has `orderBy { template }` but NOT `orderByDescending { template }`. For template-based descending order, use the chained API: `.orderByDescending { template }` or escape to raw SQL.
 

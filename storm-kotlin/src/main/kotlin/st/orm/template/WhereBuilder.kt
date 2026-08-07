@@ -38,8 +38,8 @@ import st.orm.template.TemplateString.Companion.raw
  *     .select()
  *     .where { predicate ->
  *         predicate
- *             .where(User_.active, EQUALS, true)
- *             .and(predicate.where(User_.address.city.name, EQUALS, "Sunnyvale"))
+ *             .where(User_.active eq true)
+ *             .and(predicate.where(User_.address.city.name eq "Sunnyvale"))
  *     }
  *     .getResultList()
  * ```
