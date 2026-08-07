@@ -610,6 +610,28 @@ public abstract class QueryBuilder<T extends Data, R, ID> {
     public abstract QueryBuilder<T, R, ID> havingAny(@Nonnull PredicateBuilder<?, ?, ?> predicate);
 
     /**
+     * Adds a HAVING clause that keeps the groups for which the specified subquery returns at least one row.
+     *
+     * @param subquery the subquery to test for existence.
+     * @return the query builder.
+     * @since 1.13
+     */
+    public final QueryBuilder<T, R, ID> havingExists(@Nonnull QueryBuilder<?, ?, ?> subquery) {
+        return having(TemplateString.raw("EXISTS (\0)", subquery));
+    }
+
+    /**
+     * Adds a HAVING clause that keeps the groups for which the specified subquery returns no rows.
+     *
+     * @param subquery the subquery to test for absence.
+     * @return the query builder.
+     * @since 1.13
+     */
+    public final QueryBuilder<T, R, ID> havingNotExists(@Nonnull QueryBuilder<?, ?, ?> subquery) {
+        return having(TemplateString.raw("NOT EXISTS (\0)", subquery));
+    }
+
+    /**
      * Adds an ORDER BY clause to the query for the field at the specified path in the table graph.
      *
      * @param path the path to order by.

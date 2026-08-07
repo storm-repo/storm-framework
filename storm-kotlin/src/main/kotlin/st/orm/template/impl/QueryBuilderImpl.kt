@@ -450,6 +450,24 @@ class QueryBuilderImpl<T : Data, R, ID>(
     override fun havingAny(predicate: PredicateBuilder<*, *, *>): QueryBuilder<T, R, ID> = QueryBuilderImpl(core.havingAny((predicate as PredicateBuilderImpl<*, *, *>).core))
 
     /**
+     * Adds a HAVING clause that keeps the groups for which [subquery] returns at least one row.
+     *
+     * @param subquery the subquery to test for existence.
+     * @return the query builder.
+     * @since 1.13
+     */
+    override fun havingExists(subquery: QueryBuilder<*, *, *>): QueryBuilder<T, R, ID> = QueryBuilderImpl(core.havingExists((subquery as QueryBuilderImpl<*, *, *>).core))
+
+    /**
+     * Adds a HAVING clause that keeps the groups for which [subquery] returns no rows.
+     *
+     * @param subquery the subquery to test for absence.
+     * @return the query builder.
+     * @since 1.13
+     */
+    override fun havingNotExists(subquery: QueryBuilder<*, *, *>): QueryBuilder<T, R, ID> = QueryBuilderImpl(core.havingNotExists((subquery as QueryBuilderImpl<*, *, *>).core))
+
+    /**
      * Adds a LIMIT clause to the query.
      *
      * @param limit the maximum number of records to return.

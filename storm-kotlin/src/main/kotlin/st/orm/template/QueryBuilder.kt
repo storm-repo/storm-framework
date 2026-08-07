@@ -748,6 +748,24 @@ abstract class QueryBuilder<T : Data, R, ID> {
     abstract fun havingAny(predicate: PredicateBuilder<*, *, *>): QueryBuilder<T, R, ID>
 
     /**
+     * Adds a HAVING clause that keeps the groups for which [subquery] returns at least one row.
+     *
+     * @param subquery the subquery to test for existence.
+     * @return the query builder.
+     * @since 1.13
+     */
+    abstract fun havingExists(subquery: QueryBuilder<*, *, *>): QueryBuilder<T, R, ID>
+
+    /**
+     * Adds a HAVING clause that keeps the groups for which [subquery] returns no rows.
+     *
+     * @param subquery the subquery to test for absence.
+     * @return the query builder.
+     * @since 1.13
+     */
+    abstract fun havingNotExists(subquery: QueryBuilder<*, *, *>): QueryBuilder<T, R, ID>
+
+    /**
      * Adds an ORDER BY clause to the query for the field at the specified path in the table graph.
      *
      * @param path the path to order by.
@@ -1549,6 +1567,16 @@ class SqlScope<T : Data, R, ID : Any> @PublishedApi internal constructor(
     /** Adds a HAVING clause for a predicate on any entity type (e.g., a joined entity). */
     fun havingAny(predicate: PredicateBuilder<*, *, *>) {
         builder = builder.havingAny(predicate)
+    }
+
+    /** Adds a HAVING EXISTS clause with the given subquery. */
+    fun havingExists(subquery: QueryBuilder<*, *, *>) {
+        builder = builder.havingExists(subquery)
+    }
+
+    /** Adds a HAVING NOT EXISTS clause with the given subquery. */
+    fun havingNotExists(subquery: QueryBuilder<*, *, *>) {
+        builder = builder.havingNotExists(subquery)
     }
 
     /** Adds an ORDER BY clause (ascending) for the specified metamodel path(s). */

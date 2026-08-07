@@ -2198,6 +2198,31 @@ open class QueryBuilderTest(
     }
 
     @Test
+    fun `havingExists with subquery should keep every group when the subquery matches`() {
+        // The subquery is uncorrelated, so EXISTS holds for every group as long as any pet exists.
+        val repo = orm.entity(Owner::class)
+        val lastNamePath = metamodel<Owner, String>(repo.model, "last_name")
+        val groups = repo.selectCount().groupBy(lastNamePath).resultList
+        val kept = repo.selectCount()
+            .groupBy(lastNamePath)
+            .havingExists(orm.subquery(Pet::class))
+            .resultList
+        groups.size shouldNotBe 0
+        kept shouldBe groups
+    }
+
+    @Test
+    fun `havingNotExists with subquery should drop every group when the subquery matches`() {
+        val repo = orm.entity(Owner::class)
+        val lastNamePath = metamodel<Owner, String>(repo.model, "last_name")
+        val kept = repo.selectCount()
+            .groupBy(lastNamePath)
+            .havingNotExists(orm.subquery(Pet::class))
+            .resultList
+        kept shouldHaveSize 0
+    }
+
+    @Test
     fun `havingAny with predicate should filter groups`() {
         val repo = orm.entity(Owner::class)
         val lastNamePath = metamodel<Owner, String>(repo.model, "last_name")

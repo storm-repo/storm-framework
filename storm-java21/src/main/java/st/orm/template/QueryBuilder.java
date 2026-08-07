@@ -607,6 +607,24 @@ public abstract class QueryBuilder<T extends Data, R, ID> {
      */
     public abstract QueryBuilder<T, R, ID> having(@Nonnull StringTemplate template);
 
+    /**
+     * Adds a HAVING clause that keeps the groups for which the specified subquery returns at least one row.
+     *
+     * @param subquery the subquery to test for existence.
+     * @return the query builder.
+     * @since 1.13
+     */
+    public abstract QueryBuilder<T, R, ID> havingExists(@Nonnull QueryBuilder<?, ?, ?> subquery);
+
+    /**
+     * Adds a HAVING clause that keeps the groups for which the specified subquery returns no rows.
+     *
+     * @param subquery the subquery to test for absence.
+     * @return the query builder.
+     * @since 1.13
+     */
+    public abstract QueryBuilder<T, R, ID> havingNotExists(@Nonnull QueryBuilder<?, ?, ?> subquery);
+
 
 
     /**

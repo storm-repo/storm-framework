@@ -157,6 +157,30 @@ public final class QueryBuilderImpl<T extends Data, R, ID> extends QueryBuilder<
     }
 
     /**
+     * Adds a HAVING clause that keeps the groups for which the specified subquery returns at least one row.
+     *
+     * @param subquery the subquery to test for existence.
+     * @return the query builder.
+     * @since 1.13
+     */
+    @Override
+    public QueryBuilder<T, R, ID> havingExists(@Nonnull QueryBuilder<?, ?, ?> subquery) {
+        return new QueryBuilderImpl<>(core.havingExists(((QueryBuilderImpl<?, ?, ?>) subquery).core));
+    }
+
+    /**
+     * Adds a HAVING clause that keeps the groups for which the specified subquery returns no rows.
+     *
+     * @param subquery the subquery to test for absence.
+     * @return the query builder.
+     * @since 1.13
+     */
+    @Override
+    public QueryBuilder<T, R, ID> havingNotExists(@Nonnull QueryBuilder<?, ?, ?> subquery) {
+        return new QueryBuilderImpl<>(core.havingNotExists(((QueryBuilderImpl<?, ?, ?>) subquery).core));
+    }
+
+    /**
      * Returns {@code true} if any ORDER BY columns have been added to this query builder.
      *
      * @return {@code true} if ORDER BY columns are present, {@code false} otherwise.
