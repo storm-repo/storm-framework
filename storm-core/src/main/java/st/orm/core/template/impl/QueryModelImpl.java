@@ -749,7 +749,8 @@ final class QueryModelImpl implements QueryModel {
                 alias = aliasMapper.findAlias(metamodel.tableType(), null, INNER).orElse(null);
             }
             if (alias == null) {
-                throw new SqlTemplateException("Cannot find alias for column: %s.".formatted(column.qualifiedName(template.dialect())));
+                throw new SqlTemplateException("Cannot find alias for column %s: %s is not part of this query rooted at %s. Join the table or correct the metamodel path.".formatted(
+                        column.qualifiedName(template.dialect()), metamodel.tableType().getSimpleName(), model.type().getSimpleName()));
             }
             // For JOINED sealed entities without a discriminator, the discriminator column (index 1)
             // is replaced by a CASE expression that resolves the concrete type from extension table PKs.
