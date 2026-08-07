@@ -464,16 +464,6 @@ public abstract class QueryBuilder<T extends Data, R, ID> {
     public abstract QueryBuilder<T, R, ID> whereAny(@Nonnull Function<WhereBuilder<T, R, ID>, PredicateBuilder<?, ?, ?>> predicate);
 
     /**
-     * Adds a WHERE clause that keeps the rows for which the specified subquery returns at least one row.
-     *
-     * <p>Use {@link #where(Function)} with {@link WhereBuilder#exists} to combine the condition with others in a
-     * single clause; consecutive {@code where} calls are AND-combined.</p>
-     *
-     * @param subquery the subquery to test for existence.
-     * @return the query builder.
-     * @since 1.13
-     */
-    /**
      * Returns the factory this query builds its subqueries with.
      *
      * <p>The factory belongs to the query rather than to a clause: a subquery correlates through how it is embedded,
@@ -485,6 +475,16 @@ public abstract class QueryBuilder<T extends Data, R, ID> {
      */
     public abstract SubqueryTemplate subqueryTemplate();
 
+    /**
+     * Adds a WHERE clause that keeps the rows for which the specified subquery returns at least one row.
+     *
+     * <p>Use {@link #where(Function)} with {@link WhereBuilder#exists} to combine the condition with others in a
+     * single clause; consecutive {@code where} calls are AND-combined.</p>
+     *
+     * @param subquery the subquery to test for existence.
+     * @return the query builder.
+     * @since 1.13
+     */
     public final QueryBuilder<T, R, ID> whereExists(@Nonnull QueryBuilder<?, ?, ?> subquery) {
         return where(predicate -> predicate.exists(subquery));
     }

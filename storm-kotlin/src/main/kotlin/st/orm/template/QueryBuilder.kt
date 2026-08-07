@@ -472,12 +472,6 @@ abstract class QueryBuilder<T : Data, R, ID> {
     fun where(it: Iterable<T>): QueryBuilder<T, R, ID> = whereBuilder { where(it) }
 
     /**
-     * Adds a WHERE clause to the query for the specified expression.
-     *
-     * @param builder the expression.
-     * @return the query builder.
-     */
-    /**
      * Adds a WHERE clause that matches the specified objects at the specified path in the table graph.
      *
      * @param path the path to the object in the table graph.
@@ -511,6 +505,12 @@ abstract class QueryBuilder<T : Data, R, ID> {
         vararg o: V,
     ): QueryBuilder<T, R, ID> = whereBuilder { where(path, operator, *o) }
 
+    /**
+     * Adds a WHERE clause to the query for the specified expression.
+     *
+     * @param builder the expression.
+     * @return the query builder.
+     */
     fun where(builder: TemplateBuilder): QueryBuilder<T, R, ID> = where(builder.build())
 
     /**
@@ -675,13 +675,6 @@ abstract class QueryBuilder<T : Data, R, ID> {
     /**
      * Adds a HAVING clause to the query using the specified expression.
      *
-     * @param builder the expression to add.
-     * @return the query builder.
-     * @since 1.2
-     */
-    /**
-     * Adds a HAVING clause to the query using the specified expression.
-     *
      * @param path the path to the object in the table graph.
      * @param operator the operator to use for the comparison.
      * @param o the object(s) to match, which can be primary keys, records representing the table, or fields in the
@@ -711,6 +704,13 @@ abstract class QueryBuilder<T : Data, R, ID> {
         vararg o: V,
     ): QueryBuilder<T, R, ID> = having(wrap(ObjectExpression(path.asMetamodel(), operator, o)))
 
+    /**
+     * Adds a HAVING clause to the query using the specified expression.
+     *
+     * @param builder the expression to add.
+     * @return the query builder.
+     * @since 1.2
+     */
     fun having(builder: TemplateBuilder): QueryBuilder<T, R, ID> = having(builder.build())
 
     /**
