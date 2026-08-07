@@ -17,8 +17,6 @@ import org.springframework.test.context.ContextConfiguration
 import org.springframework.test.context.jdbc.Sql
 import org.springframework.test.context.junit.jupiter.SpringExtension
 import st.orm.*
-import st.orm.Operator.EQUALS
-import st.orm.Operator.IN
 import st.orm.repository.*
 import st.orm.template.model.*
 import javax.sql.DataSource
@@ -944,7 +942,7 @@ open class ORMTemplateTest(
     fun `orm deleteBy reified entity should delete matching`() {
         val repo = orm.entity(Vet::class)
         val firstNamePath = metamodel<Vet, String>(repo.model, "first_name")
-        val deleted = repo.delete().where(firstNamePath, EQUALS, "James").executeUpdate()
+        val deleted = repo.delete().where(firstNamePath eq "James").executeUpdate()
         deleted shouldBe 1
     }
 
@@ -1550,7 +1548,7 @@ open class ORMTemplateTest(
         val namePath = metamodel<City, String>(repo.model, "name")
         val idPath = metamodel<City, Int>(repo.model, "id")
         val cities = repo.select().whereBuilder {
-            where(namePath, EQUALS, "Madison") andAny where(idPath, EQUALS, 2)
+            (namePath eq "Madison") andAny (idPath eq 2)
         }.resultList
         cities shouldHaveSize 1
     }
@@ -1561,7 +1559,7 @@ open class ORMTemplateTest(
         val namePath = metamodel<City, String>(repo.model, "name")
         val idPath = metamodel<City, Int>(repo.model, "id")
         val cities = repo.select().whereBuilder {
-            where(namePath, EQUALS, "Madison") orAny where(idPath, EQUALS, 1)
+            (namePath eq "Madison") orAny (idPath eq 1)
         }.resultList
         cities shouldHaveSize 2
     }
@@ -1571,7 +1569,7 @@ open class ORMTemplateTest(
         val repo = orm.entity(City::class)
         val namePath = metamodel<City, String>(repo.model, "name")
         val cities = repo.select().whereBuilder {
-            where(namePath, EQUALS, "Madison") and { "${t(Templates.alias(City::class))}.id = ${t(2)}" }
+            (namePath eq "Madison") and { "${t(Templates.alias(City::class))}.id = ${t(2)}" }
         }.resultList
         cities shouldHaveSize 1
     }
@@ -1581,7 +1579,7 @@ open class ORMTemplateTest(
         val repo = orm.entity(City::class)
         val namePath = metamodel<City, String>(repo.model, "name")
         val cities = repo.select().whereBuilder {
-            where(namePath, EQUALS, "Madison") or { "${t(Templates.alias(City::class))}.id = ${t(1)}" }
+            (namePath eq "Madison") or { "${t(Templates.alias(City::class))}.id = ${t(1)}" }
         }.resultList
         cities shouldHaveSize 2
     }
@@ -1628,7 +1626,7 @@ open class ORMTemplateTest(
     fun `whereBuilder whereAny with metamodel path operator and iterable should filter correctly`() {
         val repo = orm.entity(City::class)
         val namePath = metamodel<City, String>(repo.model, "name")
-        val cities = repo.select().whereBuilder { whereAny(namePath, IN, listOf("Madison", "Windsor")) }.resultList
+        val cities = repo.select().whereBuilder { (namePath inList listOf("Madison", "Windsor")) }.resultList
         cities shouldHaveSize 2
     }
 
@@ -1636,7 +1634,7 @@ open class ORMTemplateTest(
     fun `whereBuilder whereAny with metamodel path operator and vararg should filter correctly`() {
         val repo = orm.entity(City::class)
         val namePath = metamodel<City, String>(repo.model, "name")
-        val cities = repo.select().whereBuilder { whereAny(namePath, IN, "Madison", "Windsor") }.resultList
+        val cities = repo.select().whereBuilder { (namePath inList listOf("Madison", "Windsor")) }.resultList
         cities shouldHaveSize 2
     }
 

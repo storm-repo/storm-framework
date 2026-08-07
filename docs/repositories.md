@@ -310,10 +310,10 @@ To scroll through a filtered subset, use the query builder with `scroll` as a te
 
 ```kotlin
 val activeWindow = userRepository.select()
-    .where(User_.active, EQUALS, true)
+    .where(User_.active eq true)
     .scroll(Scrollable.of(User_.id, 20))
 val nextActive = userRepository.select()
-    .where(User_.active, EQUALS, true)
+    .where(User_.active eq true)
     .scroll(activeWindow.next())
 ```
 
@@ -382,7 +382,7 @@ val next: Window<Post> = postRepository.scroll(window.next())
 
 // With filter (use query builder)
 val activeWindow = postRepository.select()
-    .where(Post_.active, EQUALS, true)
+    .where(Post_.active eq true)
     .scroll(Scrollable.of(Post_.id, Post_.createdAt, 20))
 ```
 

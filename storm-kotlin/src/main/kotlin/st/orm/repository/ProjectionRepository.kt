@@ -17,8 +17,6 @@ package st.orm.repository
 
 import kotlinx.coroutines.flow.Flow
 import st.orm.*
-import st.orm.Operator.EQUALS
-import st.orm.Operator.IN
 import st.orm.template.*
 import kotlin.reflect.KClass
 
@@ -475,7 +473,7 @@ interface ProjectionRepository<P, ID : Any> : Repository where P : Projection<ID
      * @param value the value to match against.
      * @return an optional entity, or null if none found.
      */
-    fun <V> findBy(field: Metamodel<P, V>, value: V): P? = select().where(field, EQUALS, value).optionalResult
+    fun <V> findBy(field: Metamodel<P, V>, value: V): P? = select().where(field eq value).optionalResult
 
     /**
      * Retrieves an optional entity of type [P] based on a single field and its value.
@@ -495,7 +493,7 @@ interface ProjectionRepository<P, ID : Any> : Repository where P : Projection<ID
      * @param value the value to match against.
      * @return list of matching entities.
      */
-    fun <V> findAllBy(field: Metamodel<P, V>, value: V): List<P> = select().where(field, EQUALS, value).resultList
+    fun <V> findAllBy(field: Metamodel<P, V>, value: V): List<P> = select().where(field eq value).resultList
 
     /**
      * Retrieves entities of type [P] matching a single field and a single value.
@@ -515,7 +513,7 @@ interface ProjectionRepository<P, ID : Any> : Repository where P : Projection<ID
      * @param values Iterable of values to match against.
      * @return list of matching entities.
      */
-    fun <V> findAllBy(field: Metamodel<P, V>, values: Iterable<V>): List<P> = select().where(field, IN, values).resultList
+    fun <V> findAllBy(field: Metamodel<P, V>, values: Iterable<V>): List<P> = select().where(field inList values).resultList
 
     /**
      * Retrieves entities of type [P] matching a single field against multiple values.
@@ -537,7 +535,7 @@ interface ProjectionRepository<P, ID : Any> : Repository where P : Projection<ID
      * @throws st.orm.NoResultException if there is no result.
      * @throws st.orm.NonUniqueResultException if more than one result.
      */
-    fun <V> getBy(field: Metamodel<P, V>, value: V): P = select().where(field, EQUALS, value).singleResult
+    fun <V> getBy(field: Metamodel<P, V>, value: V): P = select().where(field eq value).singleResult
 
     /**
      * Retrieves exactly one entity of type [P] based on a single field and its value.
@@ -559,7 +557,7 @@ interface ProjectionRepository<P, ID : Any> : Repository where P : Projection<ID
      * @param value the value to match against.
      * @return an optional entity, or null if none found.
      */
-    fun <T, ID, V> findRefBy(field: Metamodel<P, V>, value: V): Ref<P>? = selectRef().where(field, EQUALS, value).optionalResult
+    fun <T, ID, V> findRefBy(field: Metamodel<P, V>, value: V): Ref<P>? = selectRef().where(field eq value).optionalResult
 
     /**
      * Retrieves an optional entity of type [P] based on a single field and its value.
@@ -579,7 +577,7 @@ interface ProjectionRepository<P, ID : Any> : Repository where P : Projection<ID
      * @param value the value to match against.
      * @return a list of matching entities.
      */
-    fun <V> findAllRefBy(field: Metamodel<P, V>, value: V): List<Ref<P>> = selectRef().where(field, EQUALS, value).resultList
+    fun <V> findAllRefBy(field: Metamodel<P, V>, value: V): List<Ref<P>> = selectRef().where(field eq value).resultList
 
     /**
      * Retrieves entities of type [P] matching a single field and a single value.
@@ -599,7 +597,7 @@ interface ProjectionRepository<P, ID : Any> : Repository where P : Projection<ID
      * @param values Iterable of values to match against.
      * @return a list of matching entities.
      */
-    fun <V : Data> findAllRefBy(field: Metamodel<P, V>, values: Iterable<V>): List<Ref<P>> = selectRef().where(field, IN, values).resultList
+    fun <V : Data> findAllRefBy(field: Metamodel<P, V>, values: Iterable<V>): List<Ref<P>> = selectRef().where(field inList values).resultList
 
     /**
      * Retrieves entities of type [P] matching a single field against multiple values.
@@ -621,7 +619,7 @@ interface ProjectionRepository<P, ID : Any> : Repository where P : Projection<ID
      * @throws st.orm.NoResultException if there is no result.
      * @throws st.orm.NonUniqueResultException if more than one result.
      */
-    fun <V> getRefBy(field: Metamodel<P, V>, value: V): Ref<P> = selectRef().where(field, EQUALS, value).singleResult
+    fun <V> getRefBy(field: Metamodel<P, V>, value: V): Ref<P> = selectRef().where(field eq value).singleResult
 
     /**
      * Retrieves exactly one entity of type [P] based on a single field and its value.
@@ -703,7 +701,7 @@ interface ProjectionRepository<P, ID : Any> : Repository where P : Projection<ID
     fun <V> countBy(
         field: Metamodel<P, V>,
         value: V,
-    ): Long = selectCount().where(field, EQUALS, value).singleResult
+    ): Long = selectCount().where(field eq value).singleResult
 
     /**
      * Counts entities of type [P] matching the specified field and referenced value.
@@ -737,7 +735,7 @@ interface ProjectionRepository<P, ID : Any> : Repository where P : Projection<ID
     fun <V> existsBy(
         field: Metamodel<P, V>,
         value: V,
-    ): Boolean = selectCount().where(field, EQUALS, value).singleResult > 0
+    ): Boolean = selectCount().where(field eq value).singleResult > 0
 
     /**
      * Checks if entities of type [P] matching the specified field and referenced value exists.

@@ -570,6 +570,17 @@ public class QueryBuilderTest {
         assertEquals(2, result.size());
     }
 
+    @Test
+    public void testHavingWithOrTemplate() {
+        // Java composes a HAVING disjunction with the template form: it has no standalone predicate constructor.
+        List<Long> result = orm.entity(Owner.class).selectCount()
+                .groupBy(Owner_.lastName)
+                .having(RAW."\{Owner_.lastName} = \{"Davis"} OR \{Owner_.lastName} = \{"Franklin"}")
+                .getResultList();
+        assertEquals(2, result.size());
+        assertEquals(3L, result.stream().mapToLong(Long::longValue).sum());
+    }
+
     // PredicateBuilder - andAny / orAny
 
     @Test

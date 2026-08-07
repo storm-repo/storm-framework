@@ -131,4 +131,22 @@ public interface Navigable<T extends Data, E> {
     default List<Metamodel<T, ?>> flatten() {
         return MetamodelHelper.flatten(this);
     }
+
+    /**
+     * Returns this navigable as a metamodel that can locate a column. A full metamodel is returned as-is; a
+     * navigation-only node (one that navigates beyond a {@link Ref}) is rebuilt into a resolvable metamodel for its
+     * path, so it can name a column in WHERE, ORDER BY, GROUP BY and HAVING.
+     *
+     * <p>A rebuilt metamodel is query-only: it names a column but cannot extract a value from a record, which is why
+     * value operations keep taking {@link Metamodel} rather than {@code Navigable}.</p>
+     *
+     * @return this navigable as a metamodel.
+     * @since 1.13
+     */
+    @SuppressWarnings("unchecked")
+    default Metamodel<T, E> asMetamodel() {
+        return this instanceof Metamodel<?, ?>
+                ? (Metamodel<T, E>) this
+                : Metamodel.of(root(), fieldPath());
+    }
 }

@@ -17,8 +17,6 @@ import org.springframework.test.context.ContextConfiguration
 import org.springframework.test.context.jdbc.Sql
 import org.springframework.test.context.junit.jupiter.SpringExtension
 import st.orm.*
-import st.orm.Operator.EQUALS
-import st.orm.Operator.IN
 import st.orm.repository.*
 import st.orm.template.model.*
 
@@ -833,7 +831,7 @@ open class EntityRepositoryTest(
     fun `findAllRefBy with field and iterable values should return refs`() {
         val repo = orm.entity(City::class)
         val namePath = metamodel<City, String>(repo.model, "name")
-        val refs = repo.selectRef().where(namePath, IN, listOf("Madison", "Windsor")).resultList
+        val refs = repo.selectRef().where(namePath inList listOf("Madison", "Windsor")).resultList
         refs shouldHaveSize 2
     }
 
@@ -1042,7 +1040,7 @@ open class EntityRepositoryTest(
         val repo = orm.entity(City::class)
         val namePath = metamodel<City, String>(repo.model, "name")
         val cities = repo.select().whereAnyBuilder {
-            where(namePath, EQUALS, "Madison") or where(namePath, EQUALS, "Windsor")
+            (namePath eq "Madison") or (namePath eq "Windsor")
         }.resultList
         cities shouldHaveSize 2
     }
@@ -1055,8 +1053,8 @@ open class EntityRepositoryTest(
         val firstNamePath = metamodel<Owner, String>(repo.model, "first_name")
         val lastNamePath = metamodel<Owner, String>(repo.model, "last_name")
         val result = repo.select().whereBuilder {
-            where(lastNamePath, EQUALS, "Davis") andAny (
-                where(firstNamePath, EQUALS, "Betty") or where(firstNamePath, EQUALS, "Harold")
+            (lastNamePath eq "Davis") andAny (
+                (firstNamePath eq "Betty") or (firstNamePath eq "Harold")
                 )
         }.resultList
         result shouldHaveSize 2
@@ -1067,9 +1065,9 @@ open class EntityRepositoryTest(
         val repo = orm.entity(City::class)
         val namePath = metamodel<City, String>(repo.model, "name")
         val result = repo.select().whereAnyBuilder {
-            where(namePath, EQUALS, "Madison") or
-                where(namePath, EQUALS, "Windsor") or
-                where(namePath, EQUALS, "Monona")
+            (namePath eq "Madison") or
+                (namePath eq "Windsor") or
+                (namePath eq "Monona")
         }.resultList
         result shouldHaveSize 3
     }

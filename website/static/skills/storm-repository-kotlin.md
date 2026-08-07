@@ -16,7 +16,7 @@ import st.orm.repository.*                       // EntityRepository, plus every
                                                  // Use the wildcard: these are top-level extensions, and naming
                                                  // them one by one is how an import ends up missing.
 import st.orm.template.*                         // ORMTemplate, QueryBuilder, orm, ref, eq, neq, etc.
-import st.orm.Operator.*                         // EQUALS, NOT_EQUALS, IN, etc.
+import st.orm.Operator.*                         // escape hatch: only when the operator is chosen at runtime
 import st.orm.Ref                                // Lazy-loaded reference
 import st.orm.Page                               // Offset-based pagination result
 import st.orm.Pageable                           // Pagination request

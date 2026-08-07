@@ -432,6 +432,24 @@ class QueryBuilderImpl<T : Data, R, ID>(
     )
 
     /**
+     * Adds a HAVING clause to the query for the specified predicate.
+     *
+     * @param predicate the predicate to add.
+     * @return the query builder.
+     * @since 1.13
+     */
+    override fun having(predicate: PredicateBuilder<T, *, *>): QueryBuilder<T, R, ID> = QueryBuilderImpl(core.having((predicate as PredicateBuilderImpl<T, *, *>).core))
+
+    /**
+     * Adds a HAVING clause to the query for the specified predicate.
+     *
+     * @param predicate the predicate to add.
+     * @return the query builder.
+     * @since 1.13
+     */
+    override fun havingAny(predicate: PredicateBuilder<*, *, *>): QueryBuilder<T, R, ID> = QueryBuilderImpl(core.havingAny((predicate as PredicateBuilderImpl<*, *, *>).core))
+
+    /**
      * Adds a LIMIT clause to the query.
      *
      * @param limit the maximum number of records to return.

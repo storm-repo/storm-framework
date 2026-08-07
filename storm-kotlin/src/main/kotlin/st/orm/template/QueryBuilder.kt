@@ -45,7 +45,7 @@ import kotlin.reflect.KClass
  * ```kotlin
  * val users = userRepository
  *     .select()
- *     .where(User_.address.city.name, EQUALS, "Sunnyvale")
+ *     .where(User_.address.city.name eq "Sunnyvale")
  *     .orderBy(User_.email)
  *     .limit(10)
  *     .getResultList()
@@ -63,7 +63,7 @@ import kotlin.reflect.KClass
  * ```kotlin
  * val deleted = userRepository
  *     .delete()
- *     .where(User_.email, IS_NULL)
+ *     .where(User_.email.isNull())
  *     .executeUpdate()
  * ```
  *
@@ -75,12 +75,12 @@ import kotlin.reflect.KClass
  * ```kotlin
  * // WRONG - the where clause is lost because the return value is discarded:
  * val builder = userRepository.select()
- * builder.where(User_.active, EQUALS, true)  // returns a new builder, but it's ignored
- * builder.resultList                          // executes without the WHERE clause
+ * builder.where(User_.active eq true)  // returns a new builder, but it's ignored
+ * builder.resultList                   // executes without the WHERE clause
  *
  * // CORRECT - chain the calls or capture the returned builder:
  * val results = userRepository.select()
- *     .where(User_.active, EQUALS, true)
+ *     .where(User_.active eq true)
  *     .resultList
  * ```
  *
@@ -426,7 +426,7 @@ abstract class QueryBuilder<T : Data, R, ID> {
      * @param record the records to match.
      * @return the predicate builder.
      */
-    fun <V : Data> where(path: Metamodel<T, V>, record: V): QueryBuilder<T, R, ID> = where(path, EQUALS, record)
+    fun <V : Data> where(path: Metamodel<T, V>, record: V): QueryBuilder<T, R, ID> = where(path eq record)
 
     /**
      * Adds a WHERE clause that matches the specified ref. The ref can represent any of the related tables in the
@@ -447,7 +447,7 @@ abstract class QueryBuilder<T : Data, R, ID> {
      * @param it the records to match.
      * @return the predicate builder.
      */
-    fun <V : Data> where(path: Navigable<T, V>, it: Iterable<V>): QueryBuilder<T, R, ID> = where(path, IN, it)
+    fun <V : Data> where(path: Navigable<T, V>, it: Iterable<V>): QueryBuilder<T, R, ID> = where(path inList it)
 
     /**
      * Adds a WHERE clause that matches the specified records. The records can represent any of the related tables in
@@ -471,6 +471,12 @@ abstract class QueryBuilder<T : Data, R, ID> {
      */
     fun where(it: Iterable<T>): QueryBuilder<T, R, ID> = whereBuilder { where(it) }
 
+    /**
+     * Adds a WHERE clause to the query for the specified expression.
+     *
+     * @param builder the expression.
+     * @return the query builder.
+     */
     /**
      * Adds a WHERE clause that matches the specified objects at the specified path in the table graph.
      *
@@ -505,12 +511,6 @@ abstract class QueryBuilder<T : Data, R, ID> {
         vararg o: V,
     ): QueryBuilder<T, R, ID> = whereBuilder { where(path, operator, *o) }
 
-    /**
-     * Adds a WHERE clause to the query for the specified expression.
-     *
-     * @param builder the expression.
-     * @return the query builder.
-     */
     fun where(builder: TemplateBuilder): QueryBuilder<T, R, ID> = where(builder.build())
 
     /**
@@ -675,6 +675,13 @@ abstract class QueryBuilder<T : Data, R, ID> {
     /**
      * Adds a HAVING clause to the query using the specified expression.
      *
+     * @param builder the expression to add.
+     * @return the query builder.
+     * @since 1.2
+     */
+    /**
+     * Adds a HAVING clause to the query using the specified expression.
+     *
      * @param path the path to the object in the table graph.
      * @param operator the operator to use for the comparison.
      * @param o the object(s) to match, which can be primary keys, records representing the table, or fields in the
@@ -704,13 +711,6 @@ abstract class QueryBuilder<T : Data, R, ID> {
         vararg o: V,
     ): QueryBuilder<T, R, ID> = having(wrap(ObjectExpression(path.asMetamodel(), operator, o)))
 
-    /**
-     * Adds a HAVING clause to the query using the specified expression.
-     *
-     * @param builder the expression to add.
-     * @return the query builder.
-     * @since 1.2
-     */
     fun having(builder: TemplateBuilder): QueryBuilder<T, R, ID> = having(builder.build())
 
     /**
@@ -722,6 +722,30 @@ abstract class QueryBuilder<T : Data, R, ID> {
      * @since 1.2
      */
     abstract fun having(template: TemplateString): QueryBuilder<T, R, ID>
+
+    /**
+     * Adds a HAVING clause to the query for the specified predicate. Multiple calls to this method are combined using
+     * AND; compose the predicate with the infix `and` and `or` operators to build a single clause that mixes both.
+     *
+     * The predicate is taken directly rather than through a [WhereBuilder]. A HAVING clause filters groups rather than
+     * rows, so the builder's identity matching would not carry over, and its methods would read `where` at a `having`
+     * call site.
+     *
+     * @param predicate the predicate to add.
+     * @return the query builder.
+     * @since 1.13
+     */
+    abstract fun having(predicate: PredicateBuilder<T, *, *>): QueryBuilder<T, R, ID>
+
+    /**
+     * Adds a HAVING clause to the query for the specified predicate. The predicate may refer to any entity in the table
+     * graph, including manually added joins.
+     *
+     * @param predicate the predicate to add.
+     * @return the query builder.
+     * @since 1.13
+     */
+    abstract fun havingAny(predicate: PredicateBuilder<*, *, *>): QueryBuilder<T, R, ID>
 
     /**
      * Adds an ORDER BY clause to the query for the field at the specified path in the table graph.
@@ -1260,12 +1284,6 @@ abstract class QueryBuilder<T : Data, R, ID> {
 // Kotlin specific DSL
 
 /**
- * Resolves a navigable to a value metamodel. Full metamodels are returned as-is; a navigation-only node (one that
- * navigates beyond a Ref) is rebuilt into a resolvable, query-only metamodel for its path so it can locate a column.
- */
-fun <T : Data, V> Navigable<T, V>.asMetamodel(): Metamodel<T, V> = if (this is Metamodel<T, V>) this else Metamodel.of(root(), fieldPath())
-
-/**
  * Infix function to create a predicate to check if a field is in a list of values.
  */
 infix fun <T : Data, V> Navigable<T, V>.inList(value: Iterable<V>): PredicateBuilder<T, T, *> = create(this.asMetamodel(), IN, value)
@@ -1388,12 +1406,12 @@ class SqlScope<T : Data, R, ID : Any> @PublishedApi internal constructor(
         builder = builder.where(predicate)
     }
 
+    /** Adds a WHERE clause matching a metamodel path to a data record. */
     /** Adds a WHERE clause matching a metamodel path to value(s) using an [Operator]. */
     fun <V> where(path: Navigable<T, V>, operator: Operator, vararg value: V) {
         builder = builder.where(path, operator, *value)
     }
 
-    /** Adds a WHERE clause matching a metamodel path to a data record. */
     fun <V : Data> where(path: Metamodel<T, V>, record: V) {
         builder = builder.where(path, record)
     }
@@ -1443,6 +1461,21 @@ class SqlScope<T : Data, R, ID : Any> @PublishedApi internal constructor(
         builder = builder.whereNotExists(subquery)
     }
 
+    /** Adds a WHERE EXISTS clause for the subquery built by [subquery]. */
+    fun whereExists(subquery: SubqueryTemplate.() -> QueryBuilder<*, *, *>) {
+        builder = builder.whereExists(subquery)
+    }
+
+    /** Adds a WHERE NOT EXISTS clause for the subquery built by [subquery]. */
+    fun whereNotExists(subquery: SubqueryTemplate.() -> QueryBuilder<*, *, *>) {
+        builder = builder.whereNotExists(subquery)
+    }
+
+    /** Adds a WHERE clause using a [WhereBuilder], for a predicate on any entity type (e.g., a joined entity). */
+    fun whereAnyBuilder(predicate: WhereBuilder<T, R, ID>.() -> PredicateBuilder<*, *, *>) {
+        builder = builder.whereAnyBuilder(predicate)
+    }
+
     /** Adds an INNER JOIN with automatic ON resolution between [relation] and [on]. */
     fun innerJoin(relation: KClass<out Data>, on: KClass<out Data>) {
         builder = builder.innerJoin(relation).on(on)
@@ -1488,9 +1521,19 @@ class SqlScope<T : Data, R, ID : Any> @PublishedApi internal constructor(
         builder = builder.groupBy(*path)
     }
 
+    /** Adds a GROUP BY clause for path(s) on any entity type (e.g., a joined entity). */
+    fun groupByAny(vararg path: Navigable<*, *>) {
+        builder = builder.groupByAny(*path)
+    }
+
     /** Adds a GROUP BY clause using a SQL template expression. */
     fun groupBy(template: TemplateBuilder) {
         builder = builder.groupBy(template)
+    }
+
+    /** Adds a HAVING clause for the specified predicate. */
+    fun having(predicate: PredicateBuilder<T, *, *>) {
+        builder = builder.having(predicate)
     }
 
     /** Adds a HAVING clause matching a metamodel path to value(s) using an [Operator]. */
@@ -1501,6 +1544,11 @@ class SqlScope<T : Data, R, ID : Any> @PublishedApi internal constructor(
     /** Adds a HAVING clause using a SQL template expression (e.g., `having { "COUNT(*) > ${t(5)}" }`). */
     fun having(template: TemplateBuilder) {
         builder = builder.having(template)
+    }
+
+    /** Adds a HAVING clause for a predicate on any entity type (e.g., a joined entity). */
+    fun havingAny(predicate: PredicateBuilder<*, *, *>) {
+        builder = builder.havingAny(predicate)
     }
 
     /** Adds an ORDER BY clause (ascending) for the specified metamodel path(s). */

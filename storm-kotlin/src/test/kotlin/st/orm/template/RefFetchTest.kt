@@ -12,7 +12,6 @@ import org.springframework.test.context.ContextConfiguration
 import org.springframework.test.context.jdbc.Sql
 import org.springframework.test.context.junit.jupiter.SpringExtension
 import st.orm.Metamodel
-import st.orm.Operator.EQUALS
 import st.orm.PersistenceException
 import st.orm.template.model.Adoption
 import st.orm.template.model.Animal
@@ -49,12 +48,12 @@ open class RefFetchTest(
     @Test
     fun `resolved reference matches the entity graph`() {
         val viaEntity = orm.entity(Pet::class).select()
-            .where(Metamodel.of<Pet, String>(Pet::class.java, "name"), EQUALS, "Leo")
+            .where(Metamodel.of<Pet, String>(Pet::class.java, "name") eq "Leo")
             .resultList
             .map { it.owner }
         val viaRef = orm.entity(PetOwnerRef::class).select()
             .fetch(ownerPath)
-            .where(namePath, EQUALS, "Leo")
+            .where(namePath eq "Leo")
             .resultList
             .map { it.owner?.fetch() }
         viaEntity.shouldNotBeEmpty()
@@ -72,7 +71,7 @@ open class RefFetchTest(
     fun `nullable reference yields null`() {
         val pets = orm.entity(PetOwnerRef::class).select()
             .fetch(ownerPath)
-            .where(namePath, EQUALS, "Sly")
+            .where(namePath eq "Sly")
             .resultList
         pets.single().owner.shouldBeNull()
     }
@@ -81,7 +80,7 @@ open class RefFetchTest(
     fun `fetch is available in the select DSL`() {
         val pets = orm.entity(PetOwnerRef::class).select {
             fetch(ownerPath)
-            where(namePath, EQUALS, "Leo")
+            where(namePath eq "Leo")
         }.resultList
         pets.single().owner.shouldNotBeNull().isLoaded shouldBe true
     }

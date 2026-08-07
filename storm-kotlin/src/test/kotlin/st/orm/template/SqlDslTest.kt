@@ -98,7 +98,7 @@ open class SqlDslTest(
         val cityRepository = orm.entity(City::class)
         val namePath = metamodel<City, String>(cityRepository.model, "name")
         val cities = cityRepository.select {
-            where(namePath, IN, "Madison", "Windsor", "Monona")
+            where(namePath inList listOf("Madison", "Windsor", "Monona"))
             orderBy(namePath)
         }.resultList
         cities shouldHaveSize 3
@@ -137,6 +137,42 @@ open class SqlDslTest(
             leftJoin<Owner, Pet>()
         }.resultList
         pets shouldHaveSize 13
+    }
+
+    @Test
+    fun `select entities with groupBy and having predicate`() {
+        // City has exactly the two columns selected, so both belong in the GROUP BY.
+        val cityRepository = orm.entity(City::class)
+        val idPath = metamodel<City, Int>(cityRepository.model, "id")
+        val namePath = metamodel<City, String>(cityRepository.model, "name")
+        val cities = cityRepository.select {
+            groupBy(idPath, namePath)
+            having((namePath eq "Madison") or (namePath eq "Monona"))
+            orderBy(namePath)
+        }.resultList
+        cities shouldHaveSize 2
+        cities[0].name shouldBe "Madison"
+        cities[1].name shouldBe "Monona"
+    }
+
+    @Test
+    fun `select entities with groupByAny and havingAny on a joined entity`() {
+        // havingAny pairs with groupByAny: a HAVING condition on a joined column is only valid once that column is
+        // grouped. data.sql: Betty Davis lives in city 1, Harold Davis in city 4.
+        val cityRepository = orm.entity(City::class)
+        val idPath = metamodel<City, Int>(cityRepository.model, "id")
+        val namePath = metamodel<City, String>(cityRepository.model, "name")
+        val lastNamePath = metamodel<Owner, String>(orm.model(Owner::class), "last_name")
+        val cities = cityRepository.select {
+            innerJoin<Owner, City>()
+            groupBy(idPath, namePath)
+            groupByAny(lastNamePath)
+            havingAny(lastNamePath eq "Davis")
+            orderBy(idPath)
+        }.resultList
+        cities shouldHaveSize 2
+        cities[0].id shouldBe 1
+        cities[1].id shouldBe 4
     }
 
     @Test

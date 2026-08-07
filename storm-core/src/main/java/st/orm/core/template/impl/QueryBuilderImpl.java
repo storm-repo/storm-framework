@@ -485,8 +485,12 @@ abstract class QueryBuilderImpl<T extends Data, R, ID> extends QueryBuilder<T, R
             templates.add(template);
         }
 
-        private List<TemplateString> getTemplates() {
-            return templates;
+        /**
+         * Returns the predicate as a single template, for a clause that carries its conditions as templates rather
+         * than as {@link Where} elements.
+         */
+        private TemplateString asTemplate() {
+            return combine(templates);
         }
     }
 
@@ -578,33 +582,33 @@ abstract class QueryBuilderImpl<T extends Data, R, ID> extends QueryBuilder<T, R
         }
 
         @Override
-        public <V extends Data> PredicateBuilder<TX, RX, IDX> where(@Nonnull Metamodel<TX, V> path, @Nonnull Ref<V> ref) {
-            return new PredicateBuilderImpl<>(wrap(new ObjectExpression(path, EQUALS, ref)));
+        public <V extends Data> PredicateBuilder<TX, RX, IDX> where(@Nonnull Navigable<TX, V> path, @Nonnull Ref<V> ref) {
+            return new PredicateBuilderImpl<>(wrap(new ObjectExpression(path.asMetamodel(), EQUALS, ref)));
         }
 
         @Override
-        public <V extends Data> PredicateBuilder<TX, RX, IDX> whereAny(@Nonnull Metamodel<?, V> path, @Nonnull Ref<V> ref) {
-            return new PredicateBuilderImpl<>(wrap(new ObjectExpression(path, EQUALS, ref)));
+        public <V extends Data> PredicateBuilder<TX, RX, IDX> whereAny(@Nonnull Navigable<?, V> path, @Nonnull Ref<V> ref) {
+            return new PredicateBuilderImpl<>(wrap(new ObjectExpression(path.asMetamodel(), EQUALS, ref)));
         }
 
         @Override
-        public <V extends Data> PredicateBuilder<TX, RX, IDX> whereRef(@Nonnull Metamodel<TX, V> path, @Nonnull Iterable<? extends Ref<V>> it) {
-            return new PredicateBuilderImpl<>(wrap(new ObjectExpression(path, IN, it)));
+        public <V extends Data> PredicateBuilder<TX, RX, IDX> whereRef(@Nonnull Navigable<TX, V> path, @Nonnull Iterable<? extends Ref<V>> it) {
+            return new PredicateBuilderImpl<>(wrap(new ObjectExpression(path.asMetamodel(), IN, it)));
         }
 
         @Override
-        public <V extends Data> PredicateBuilder<TX, RX, IDX> whereAnyRef(@Nonnull Metamodel<?, V> path, @Nonnull Iterable<? extends Ref<V>> it) {
-            return new PredicateBuilderImpl<>(wrap(new ObjectExpression(path, IN, it)));
+        public <V extends Data> PredicateBuilder<TX, RX, IDX> whereAnyRef(@Nonnull Navigable<?, V> path, @Nonnull Iterable<? extends Ref<V>> it) {
+            return new PredicateBuilderImpl<>(wrap(new ObjectExpression(path.asMetamodel(), IN, it)));
         }
 
         @Override
-        public <V> PredicateBuilder<TX, RX, IDX> where(@Nonnull Metamodel<TX, V> path, @Nonnull Operator operator, @Nonnull Iterable<? extends V> it) {
-            return new PredicateBuilderImpl<>(wrap(new ObjectExpression(path, operator, it)));
+        public <V> PredicateBuilder<TX, RX, IDX> where(@Nonnull Navigable<TX, V> path, @Nonnull Operator operator, @Nonnull Iterable<? extends V> it) {
+            return new PredicateBuilderImpl<>(wrap(new ObjectExpression(path.asMetamodel(), operator, it)));
         }
 
         @Override
-        public <V> PredicateBuilder<TX, RX, IDX> whereAny(@Nonnull Metamodel<?, V> path, @Nonnull Operator operator, @Nonnull Iterable<? extends V> it) {
-            return new PredicateBuilderImpl<>(wrap(new ObjectExpression(path, operator, it)));
+        public <V> PredicateBuilder<TX, RX, IDX> whereAny(@Nonnull Navigable<?, V> path, @Nonnull Operator operator, @Nonnull Iterable<? extends V> it) {
+            return new PredicateBuilderImpl<>(wrap(new ObjectExpression(path.asMetamodel(), operator, it)));
         }
 
         @Override
@@ -613,10 +617,10 @@ abstract class QueryBuilderImpl<T extends Data, R, ID> extends QueryBuilder<T, R
         }
 
         @Override
-        protected <V> PredicateBuilder<TX, RX, IDX> whereImpl(@Nonnull Metamodel<?, V> path, @Nonnull Operator operator, @Nonnull V[] o) {
+        protected <V> PredicateBuilder<TX, RX, IDX> whereImpl(@Nonnull Navigable<?, V> path, @Nonnull Operator operator, @Nonnull V[] o) {
             try {
                 try {
-                    return PredicateBuilderFactory.createWithId(path, operator, List.of(o));
+                    return PredicateBuilderFactory.createWithId(path.asMetamodel(), operator, List.of(o));
                 } catch (NullPointerException e) {
                     throw new SqlTemplateException("Null value not allowed.");
                 }
@@ -632,8 +636,7 @@ abstract class QueryBuilderImpl<T extends Data, R, ID> extends QueryBuilder<T, R
             return null;
         }
 
-        private QueryBuilder<TX, RX, IDX> build(@Nonnull List<TemplateString> templates) {
-            var template = combine(templates);
+        private QueryBuilder<TX, RX, IDX> build(@Nonnull TemplateString template) {
             Where where;
             if (unwrap(template) instanceof Expression expression) {
                 where = new Where(expression, null);
@@ -654,7 +657,7 @@ abstract class QueryBuilderImpl<T extends Data, R, ID> extends QueryBuilder<T, R
     public QueryBuilder<T, R, ID> where(@Nonnull Function<WhereBuilder<T, R, ID>, PredicateBuilder<T, ?, ?>> predicate) {
         requireNonNull(predicate, "predicate");
         var whereBuilder = new WhereBuilderImpl<>(this);
-        return whereBuilder.build(((PredicateBuilderImpl<T, ?, ?>) predicate.apply(whereBuilder)).getTemplates());
+        return whereBuilder.build(((PredicateBuilderImpl<T, ?, ?>) predicate.apply(whereBuilder)).asTemplate());
     }
 
     /**
@@ -667,6 +670,39 @@ abstract class QueryBuilderImpl<T extends Data, R, ID> extends QueryBuilder<T, R
     public QueryBuilder<T, R, ID> whereAny(@Nonnull Function<WhereBuilder<T, R, ID>, PredicateBuilder<?, ?, ?>> predicate) {
         requireNonNull(predicate, "predicate");
         var whereBuilder = new WhereBuilderImpl<>(this);
-        return whereBuilder.build(((PredicateBuilderImpl<?, ?, ?>) predicate.apply(whereBuilder)).getTemplates());
+        return whereBuilder.build(((PredicateBuilderImpl<?, ?, ?>) predicate.apply(whereBuilder)).asTemplate());
+    }
+
+    /**
+     * Adds a HAVING clause to the query for the specified predicate.
+     *
+     * @param predicate the predicate to add.
+     * @return the query builder.
+     * @since 1.13
+     */
+    @Override
+    public QueryBuilder<T, R, ID> having(@Nonnull PredicateBuilder<T, ?, ?> predicate) {
+        return addHaving(predicate);
+    }
+
+    /**
+     * Adds a HAVING clause to the query for the specified predicate.
+     *
+     * @param predicate the predicate to add.
+     * @return the query builder.
+     * @since 1.13
+     */
+    @Override
+    public QueryBuilder<T, R, ID> havingAny(@Nonnull PredicateBuilder<?, ?, ?> predicate) {
+        return addHaving(predicate);
+    }
+
+    /**
+     * Appends the predicate to the HAVING clause, which carries its conditions as templates rather than as
+     * {@code Where} elements.
+     */
+    private QueryBuilder<T, R, ID> addHaving(@Nonnull PredicateBuilder<?, ?, ?> predicate) {
+        requireNonNull(predicate, "predicate");
+        return having(((PredicateBuilderImpl<?, ?, ?>) predicate).asTemplate());
     }
 }

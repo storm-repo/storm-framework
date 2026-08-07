@@ -1,5 +1,6 @@
 package st.orm.template;
 
+import static java.lang.StringTemplate.RAW;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
@@ -17,6 +18,9 @@ import org.springframework.test.context.ContextConfiguration;
 import org.springframework.test.context.jdbc.Sql;
 import org.springframework.test.context.junit.jupiter.SpringExtension;
 import st.orm.PersistenceException;
+import st.orm.Ref;
+import st.orm.template.model.City;
+import st.orm.template.model.City_;
 import st.orm.template.model.Owner;
 import st.orm.template.model.Pet;
 import st.orm.template.model.PetOwnerRef;
@@ -84,5 +88,40 @@ public class RefFetchTest {
         var exception = assertThrows(PersistenceException.class,
                 () -> orm.selectFrom(PetOwnerRef.class).fetch(PetOwnerRef_.type));
         assertTrue(exception.getMessage().contains("crosses no reference"), exception.getMessage());
+    }
+
+    @Test
+    public void testNavigationOnlyPathNamesAColumnInEveryClause() {
+        // A node beyond a reference is Navigable but not Metamodel. Storm joins the referenced table on demand, so
+        // the path can name a column in WHERE, GROUP BY, HAVING and ORDER BY.
+        List<String> names = orm.selectFrom(PetOwnerRef.class, String.class, RAW."\{PetOwnerRef_.owner.firstName}")
+                .where(PetOwnerRef_.owner.firstName, EQUALS, "Betty")
+                .groupBy(PetOwnerRef_.owner.firstName)
+                .having(PetOwnerRef_.owner.firstName, EQUALS, "Betty")
+                .orderBy(PetOwnerRef_.owner.firstName)
+                .getResultList();
+        assertFalse(names.isEmpty());
+        for (String name : names) {
+            assertEquals("Betty", name);
+        }
+    }
+
+    @Test
+    public void testNavigationOnlyPathMatchesRecordsAndRefs() {
+        // A foreign key reached beyond the reference names its own column, so it can be matched against a record or a
+        // ref the same way a root-typed foreign key can.
+        City city = orm.selectFrom(City.class).where(City_.id, EQUALS, 1).getSingleResult();
+        List<PetOwnerRef> byRecord = orm.selectFrom(PetOwnerRef.class)
+                .where(PetOwnerRef_.owner.address.city, city)
+                .getResultList();
+        List<PetOwnerRef> byRef = orm.selectFrom(PetOwnerRef.class)
+                .where(PetOwnerRef_.owner.address.city, Ref.of(City.class, 1))
+                .getResultList();
+        List<PetOwnerRef> byRefs = orm.selectFrom(PetOwnerRef.class)
+                .whereRef(PetOwnerRef_.owner.address.city, List.of(Ref.of(City.class, 1)))
+                .getResultList();
+        assertFalse(byRecord.isEmpty());
+        assertEquals(byRecord, byRef);
+        assertEquals(byRecord, byRefs);
     }
 }
