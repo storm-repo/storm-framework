@@ -766,6 +766,35 @@ abstract class QueryBuilder<T : Data, R, ID> {
     abstract fun havingNotExists(subquery: QueryBuilder<*, *, *>): QueryBuilder<T, R, ID>
 
     /**
+     * Adds a HAVING clause that keeps the groups for which the subquery built by [builder] returns at least one row.
+     *
+     * @param builder builds the subquery to test for existence.
+     * @return the query builder.
+     * @since 1.13
+     */
+    fun havingExists(builder: SubqueryTemplate.() -> QueryBuilder<*, *, *>): QueryBuilder<T, R, ID> = havingExists(builder(subqueryTemplate()))
+
+    /**
+     * Adds a HAVING clause that keeps the groups for which the subquery built by [builder] returns no rows.
+     *
+     * @param builder builds the subquery to test for absence.
+     * @return the query builder.
+     * @since 1.13
+     */
+    fun havingNotExists(builder: SubqueryTemplate.() -> QueryBuilder<*, *, *>): QueryBuilder<T, R, ID> = havingNotExists(builder(subqueryTemplate()))
+
+    /**
+     * Returns the factory this query builds its subqueries with.
+     *
+     * The factory belongs to the query rather than to a clause: a subquery correlates through how it is embedded, not
+     * through where it was created, so a clause that takes a subquery can obtain one here without a [WhereBuilder].
+     *
+     * @return the subquery factory for this query.
+     * @since 1.13
+     */
+    abstract fun subqueryTemplate(): SubqueryTemplate
+
+    /**
      * Adds an ORDER BY clause to the query for the field at the specified path in the table graph.
      *
      * @param path the path to order by.
@@ -1576,6 +1605,16 @@ class SqlScope<T : Data, R, ID : Any> @PublishedApi internal constructor(
 
     /** Adds a HAVING NOT EXISTS clause with the given subquery. */
     fun havingNotExists(subquery: QueryBuilder<*, *, *>) {
+        builder = builder.havingNotExists(subquery)
+    }
+
+    /** Adds a HAVING EXISTS clause for the subquery built by [subquery]. */
+    fun havingExists(subquery: SubqueryTemplate.() -> QueryBuilder<*, *, *>) {
+        builder = builder.havingExists(subquery)
+    }
+
+    /** Adds a HAVING NOT EXISTS clause for the subquery built by [subquery]. */
+    fun havingNotExists(subquery: SubqueryTemplate.() -> QueryBuilder<*, *, *>) {
         builder = builder.havingNotExists(subquery)
     }
 

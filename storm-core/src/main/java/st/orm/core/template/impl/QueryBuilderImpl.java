@@ -44,6 +44,7 @@ import st.orm.core.template.PredicateBuilder;
 import st.orm.core.template.QueryBuilder;
 import st.orm.core.template.QueryTemplate;
 import st.orm.core.template.SqlTemplateException;
+import st.orm.core.template.SubqueryTemplate;
 import st.orm.core.template.TemplateString;
 import st.orm.core.template.TypedJoinBuilder;
 import st.orm.core.template.WhereBuilder;
@@ -170,6 +171,17 @@ abstract class QueryBuilderImpl<T extends Data, R, ID> extends QueryBuilder<T, R
         List<Join> copy = new ArrayList<>(this.join);
         copy.add(join);
         return copyWith(queryTemplate, fromType, copy, where, templates, groupBy, having, orderBy);
+    }
+
+    /**
+     * Returns the factory this query builds its subqueries with.
+     *
+     * @return the subquery factory for this query.
+     * @since 1.13
+     */
+    @Override
+    public SubqueryTemplate subqueryTemplate() {
+        return queryTemplate;
     }
 
     /**

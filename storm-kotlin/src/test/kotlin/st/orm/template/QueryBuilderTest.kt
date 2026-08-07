@@ -2212,6 +2212,35 @@ open class QueryBuilderTest(
     }
 
     @Test
+    fun `havingExists lambda should build the subquery from the query's own factory`() {
+        // The lambda receiver is the query's subquery factory, not a WhereBuilder. It must produce the same groups as
+        // the subquery-argument form.
+        val repo = orm.entity(Owner::class)
+        val lastNamePath = metamodel<Owner, String>(repo.model, "last_name")
+        val viaArgument = repo.selectCount()
+            .groupBy(lastNamePath)
+            .havingExists(orm.subquery(Pet::class))
+            .resultList
+        val viaLambda = repo.selectCount()
+            .groupBy(lastNamePath)
+            .havingExists { subquery(Pet::class) }
+            .resultList
+        viaLambda.size shouldNotBe 0
+        viaLambda shouldBe viaArgument
+    }
+
+    @Test
+    fun `havingNotExists lambda should drop every group when the subquery matches`() {
+        val repo = orm.entity(Owner::class)
+        val lastNamePath = metamodel<Owner, String>(repo.model, "last_name")
+        val kept = repo.selectCount()
+            .groupBy(lastNamePath)
+            .havingNotExists { subquery(Pet::class) }
+            .resultList
+        kept shouldHaveSize 0
+    }
+
+    @Test
     fun `havingNotExists with subquery should drop every group when the subquery matches`() {
         val repo = orm.entity(Owner::class)
         val lastNamePath = metamodel<Owner, String>(repo.model, "last_name")

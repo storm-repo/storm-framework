@@ -468,6 +468,16 @@ class QueryBuilderImpl<T : Data, R, ID>(
     override fun havingNotExists(subquery: QueryBuilder<*, *, *>): QueryBuilder<T, R, ID> = QueryBuilderImpl(core.havingNotExists((subquery as QueryBuilderImpl<*, *, *>).core))
 
     /**
+     * Returns the factory this query builds its subqueries with.
+     *
+     * @return the subquery factory for this query.
+     * @since 1.13
+     */
+    override fun subqueryTemplate(): SubqueryTemplate = object : SubqueryTemplate {
+        override fun <X : Data> subquery(fromType: KClass<X>, template: TemplateString): QueryBuilder<X, *, *> = QueryBuilderImpl(core.subqueryTemplate().subquery(fromType.java, template.unwrap))
+    }
+
+    /**
      * Adds a LIMIT clause to the query.
      *
      * @param limit the maximum number of records to return.

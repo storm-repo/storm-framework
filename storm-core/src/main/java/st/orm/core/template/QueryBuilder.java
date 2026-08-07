@@ -473,6 +473,18 @@ public abstract class QueryBuilder<T extends Data, R, ID> {
      * @return the query builder.
      * @since 1.13
      */
+    /**
+     * Returns the factory this query builds its subqueries with.
+     *
+     * <p>The factory belongs to the query rather than to a clause: a subquery correlates through how it is embedded,
+     * not through where it was created, so a clause that takes a subquery can obtain one here without going through a
+     * {@link WhereBuilder}.</p>
+     *
+     * @return the subquery factory for this query.
+     * @since 1.13
+     */
+    public abstract SubqueryTemplate subqueryTemplate();
+
     public final QueryBuilder<T, R, ID> whereExists(@Nonnull QueryBuilder<?, ?, ?> subquery) {
         return where(predicate -> predicate.exists(subquery));
     }
