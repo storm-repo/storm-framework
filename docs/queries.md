@@ -500,10 +500,9 @@ Consecutive `having()` calls are AND-combined, each clause parenthesized, the sa
 are. In Kotlin a disjunction stays in code: compose the predicate with infix `or`. In Java a predicate cannot be
 built outside a `where()` lambda, so a HAVING disjunction uses the template form.
 
-Use `havingAny()` when the condition names a joined entity's column, mirroring
-[`whereAny()`](#composing-multiple-filters). The predicate form takes the predicate directly rather than a
-builder: a HAVING clause filters groups, so the id, ref and record matching that `where()`'s builder offers does
-not carry over.
+A joined entity's column goes through the same `having()` call: a join widens the query, so every clause accepts
+paths from any entity in it. The predicate form takes the predicate directly rather than a builder: a HAVING
+clause filters groups, so the id, ref and record matching that `where()`'s builder offers does not carry over.
 
 ## Data Retrieval Strategies
 
@@ -724,28 +723,34 @@ try (Stream<User> users = orm.entity(User.class).select().getResultStream()) {
 
 Storm automatically joins entities referenced by `@FK` fields. When you need to join entities that are not directly referenced in the result type (for example, filtering through a many-to-many join table), use explicit `innerJoin` or `leftJoin` calls. The `on` clause specifies which existing entity in the query the joined table relates to.
 
+A join widens the query: from the join onward, every clause accepts paths from any entity in the query, so the joined table's fields go through the same `where`, `orderBy`, `groupBy` and `having` calls as the root's.
+
 ```kotlin
 val roles = orm.entity<Role>()
     .select()
     .innerJoin<UserRole>().on<Role>()
-    .whereAny(UserRole_.user eq user)
+    .where(UserRole_.user eq user)
     .resultList
 ```
+
+The widening trades the compile-time root check for query-time resolution: a path on an entity that is not part of the query fails when the query is built, with an error naming the entity and the root. Root-relative operations are affected by the wider type: `fetch(...)` comes before any join, and a grouped terminal such as `resultGroupedBy` needs the root back — narrow with `typedRoot<Role>()`, which verifies the type against the query's FROM table.
 
 </TabItem>
 <TabItem value="java" label="Java">
 
 Storm automatically joins entities referenced by `@FK` fields. For entities not directly referenced in the result type, such as join tables in many-to-many relationships, use explicit `innerJoin` or `leftJoin` calls. The `on` clause specifies which existing entity in the query the joined table relates to.
 
+A join widens the query: from the join onward, every clause accepts paths from any entity in the query, so the joined table's fields go through the same `where`, `orderBy`, `groupBy` and `having` calls as the root's.
+
 ```java
 List<Role> roles = orm.entity(Role.class)
     .select()
     .innerJoin(UserRole.class).on(Role.class)
-    .where(it -> it.whereAny(UserRole_.user, EQUALS, user))
+    .where(UserRole_.user, EQUALS, user)
     .getResultList();
 ```
 
-The typed `where(path, ...)` overloads take paths rooted at the query's root entity. `UserRole_.user` is rooted at the joined `UserRole`, so the condition goes through the where-lambda's `whereAny(...)`, which accepts a path rooted at any joined table.
+The widening trades the compile-time root check for query-time resolution: a path on an entity that is not part of the query fails when the query is built, with an error naming the entity and the root. Root-relative operations are affected by the wider type: `fetch(...)` comes before any join, and a grouped terminal such as `getResultGroupedBy` needs the root back — narrow with `typedRoot(Role.class)`, which verifies the type against the query's FROM table.
 
 ### Joins (SQL Templates)
 

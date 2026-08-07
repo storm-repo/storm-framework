@@ -216,23 +216,23 @@ public class QueryBuilderTest {
     @Test
     public void testWhereAnyWithWhereBuilder() {
         List<City> cities = orm.entity(City.class).select()
-                .whereAny(wb -> wb.whereAny(orm.entity(City.class).getById(1)))
+                .where(wb -> wb.where(orm.entity(City.class).getById(1)))
                 .getResultList();
         assertEquals(1, cities.size());
     }
 
     @Test
-    public void testWhereBuilderWhereAnyRef() {
+    public void testWhereBuilderWhereRefSingle() {
         List<City> cities = orm.entity(City.class).select()
-                .where(wb -> wb.whereAnyRef(orm.entity(City.class).ref(1)))
+                .where(wb -> wb.whereRef(orm.entity(City.class).ref(1)))
                 .getResultList();
         assertEquals(1, cities.size());
     }
 
     @Test
-    public void testWhereBuilderWhereAnyRefIterable() {
+    public void testWhereBuilderWhereRefIterableCollapsed() {
         List<City> cities = orm.entity(City.class).select()
-                .where(wb -> wb.whereAnyRef(List.of(orm.entity(City.class).ref(1), orm.entity(City.class).ref(2))))
+                .where(wb -> wb.whereRef(List.of(orm.entity(City.class).ref(1), orm.entity(City.class).ref(2))))
                 .getResultList();
         assertEquals(2, cities.size());
     }
@@ -242,7 +242,7 @@ public class QueryBuilderTest {
         var city1 = orm.entity(City.class).getById(1);
         var city2 = orm.entity(City.class).getById(2);
         List<City> cities = orm.entity(City.class).select()
-                .where(wb -> wb.whereAny(List.of(city1, city2)))
+                .where(wb -> wb.where(List.of(city1, city2)))
                 .getResultList();
         assertEquals(2, cities.size());
     }
@@ -569,7 +569,7 @@ public class QueryBuilderTest {
     public void testHavingAnyWithMetamodelAndOperator() {
         List<Long> result = orm.entity(Owner.class).selectCount()
                 .groupBy(Owner_.lastName)
-                .havingAny(Owner_.lastName, IN, "Davis", "Franklin")
+                .having(Owner_.lastName, IN, "Davis", "Franklin")
                 .getResultList();
         assertEquals(2, result.size());
     }
@@ -934,10 +934,10 @@ public class QueryBuilderTest {
 
     @Test
     public void testWhereBuilderWhereAnyMetamodelRecordDefault() {
-        // WhereBuilder.whereAny(Metamodel<?,V>, V record) delegates to whereAny(path, EQUALS, record)
+        // WhereBuilder.where(Metamodel<?,V>, V record) delegates to whereAny(path, EQUALS, record)
         var city = orm.entity(City.class).getById(1);
         List<Owner> owners = orm.entity(Owner.class).select()
-                .where(wb -> wb.whereAny(Owner_.address.city, city))
+                .where(wb -> wb.where(Owner_.address.city, city))
                 .getResultList();
         assertNotNull(owners);
     }
@@ -957,11 +957,11 @@ public class QueryBuilderTest {
 
     @Test
     public void testWhereBuilderWhereAnyMetamodelIterableDefault() {
-        // WhereBuilder.whereAny(Metamodel<?,V>, Iterable<V>) delegates to whereAny(path, IN, it)
+        // WhereBuilder.where(Metamodel<?,V>, Iterable<V>) delegates to whereAny(path, IN, it)
         var city1 = orm.entity(City.class).getById(1);
         var city2 = orm.entity(City.class).getById(2);
         List<Owner> owners = orm.entity(Owner.class).select()
-                .where(wb -> wb.whereAny(Owner_.address.city, List.of(city1, city2)))
+                .where(wb -> wb.where(Owner_.address.city, List.of(city1, city2)))
                 .getResultList();
         assertNotNull(owners);
     }
@@ -1047,7 +1047,7 @@ public class QueryBuilderTest {
     @Test
     public void testGroupByAny() {
         long count = orm.entity(City.class).select()
-                .groupByAny(City_.name)
+                .groupBy(City_.name)
                 .getResultCount();
         assertEquals(6, count);
     }
@@ -1055,7 +1055,7 @@ public class QueryBuilderTest {
     @Test
     public void testOrderByAny() {
         List<City> cities = orm.entity(City.class).select()
-                .orderByAny(City_.name)
+                .orderBy(City_.name)
                 .getResultList();
         assertEquals(6, cities.size());
         assertTrue(cities.get(0).name().compareTo(cities.get(1).name()) <= 0);
@@ -1064,7 +1064,7 @@ public class QueryBuilderTest {
     @Test
     public void testOrderByDescendingAnyMetamodel() {
         List<City> cities = orm.entity(City.class).select()
-                .orderByDescendingAny(City_.name)
+                .orderByDescending(City_.name)
                 .getResultList();
         assertEquals(6, cities.size());
         assertTrue(cities.get(0).name().compareTo(cities.get(1).name()) >= 0);
@@ -1073,19 +1073,19 @@ public class QueryBuilderTest {
     @Test
     public void testGroupByAnyEmptyThrows() {
         assertThrows(PersistenceException.class, () ->
-                orm.entity(City.class).select().groupByAny());
+                orm.entity(City.class).select().groupBy());
     }
 
     @Test
     public void testOrderByAnyEmptyThrows() {
         assertThrows(PersistenceException.class, () ->
-                orm.entity(City.class).select().orderByAny());
+                orm.entity(City.class).select().orderBy());
     }
 
     @Test
     public void testOrderByDescendingAnyVarargsEmptyThrows() {
         assertThrows(PersistenceException.class, () ->
-                orm.entity(City.class).select().orderByDescendingAny(new st.orm.Metamodel[0]));
+                orm.entity(City.class).select().orderByDescending(new st.orm.Metamodel[0]));
     }
 
     // QueryBuilder - orderByDescending with multiple metamodels

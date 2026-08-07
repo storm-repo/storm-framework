@@ -671,7 +671,7 @@ fun findFiltered(city: Ref<City>?, page: Int, size: Int): Page<User> =
     select {
         if (city != null) {
             innerJoin<UserAddress, User>()
-            whereAny(UserAddress_.city eq city)
+            where(UserAddress_.city eq city)
         }
         orderByDescending(User_.createdAt)
     }.page(page, size)

@@ -84,7 +84,7 @@ City city = user.map(u -> u.city().fetch()).orElse(null);  // Loads from databas
 
 ## Resolving a Ref as Part of the Query
 
-Calling `fetch()` costs one query per reference. When you know up front that you will need the referenced record, name it with `fetch(...)` on the query builder. Storm then selects the referenced table's columns in place of the foreign key column, joined into the same statement, and the reference comes back already loaded. Read it with `getOrThrow()` rather than `fetch()`: both return the loaded record without a query, but `getOrThrow()` makes that guarantee visible at the call site instead of relying on `fetch()`'s dual on-demand/already-loaded behavior.
+Calling `fetch()` costs one query per reference. When you know up front that you will need the referenced record, name it with `fetch(...)` on the query builder. Storm then selects the referenced table's columns in place of the foreign key column, joined into the same statement, and the reference comes back already loaded. `fetch(...)` is defined relative to the query's root, so it comes right after `select()`, before any explicit join — a join widens the query's type past the point where the root-relative paths resolve. Read it with `getOrThrow()` rather than `fetch()`: both return the loaded record without a query, but `getOrThrow()` makes that guarantee visible at the call site instead of relying on `fetch()`'s dual on-demand/already-loaded behavior.
 
 <Tabs groupId="language">
 <TabItem value="kotlin" label="Kotlin" default>

@@ -1039,7 +1039,7 @@ open class EntityRepositoryTest(
     fun `whereAny with combined predicates should match any`() {
         val repo = orm.entity(City::class)
         val namePath = metamodel<City, String>(repo.model, "name")
-        val cities = repo.select().whereAnyBuilder {
+        val cities = repo.select().whereBuilder {
             (namePath eq "Madison") or (namePath eq "Windsor")
         }.resultList
         cities shouldHaveSize 2
@@ -1064,7 +1064,7 @@ open class EntityRepositoryTest(
     fun `orAny should combine predicates with OR logic`() {
         val repo = orm.entity(City::class)
         val namePath = metamodel<City, String>(repo.model, "name")
-        val result = repo.select().whereAnyBuilder {
+        val result = repo.select().whereBuilder {
             (namePath eq "Madison") or
                 (namePath eq "Windsor") or
                 (namePath eq "Monona")

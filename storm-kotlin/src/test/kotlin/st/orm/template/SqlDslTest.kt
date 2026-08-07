@@ -2,6 +2,7 @@ package st.orm.template
 
 import io.kotest.matchers.collections.shouldHaveSize
 import io.kotest.matchers.shouldBe
+import io.kotest.matchers.string.shouldContain
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.extension.ExtendWith
 import org.springframework.beans.factory.annotation.Autowired
@@ -166,13 +167,48 @@ open class SqlDslTest(
         val cities = cityRepository.select {
             innerJoin<Owner, City>()
             groupBy(idPath, namePath)
-            groupByAny(lastNamePath)
-            havingAny(lastNamePath eq "Davis")
+            groupBy(lastNamePath)
+            having(lastNamePath eq "Davis")
             orderBy(idPath)
         }.resultList
         cities shouldHaveSize 2
         cities[0].id shouldBe 1
         cities[1].id shouldBe 4
+    }
+
+    @Test
+    fun `a join inside the block stays queryable after it`() {
+        // The block returns the relaxed builder, so the chained continuation can reference the joined entity.
+        val lastNamePath = metamodel<Owner, String>(orm.model(Owner::class), "last_name")
+        val cities = orm.entity(City::class).select {
+            innerJoin<Owner, City>()
+        }.where(lastNamePath eq "Davis")
+            .resultList
+        // data.sql: Betty Davis lives in city 1, Harold Davis in city 4.
+        cities shouldHaveSize 2
+    }
+
+    @Test
+    fun `typedRoot narrows the block result back to the entity`() {
+        val idPath = metamodel<City, Int>(orm.model(City::class), "id")
+        val cities = orm.entity(City::class).select {
+            innerJoin<Owner, City>()
+            where(idPath eq 1)
+        }.typedRoot<City>()
+            .resultList
+        cities.map { it.id }.toSet() shouldBe setOf(1)
+    }
+
+    @Test
+    fun `a path on an entity outside the query fails with a descriptive error`() {
+        // The block no longer rejects foreign paths at compile time; resolution reports them at query time.
+        val visitDatePath = metamodel<Visit, java.time.LocalDate>(orm.model(Visit::class), "visit_date")
+        val exception = org.junit.jupiter.api.assertThrows<st.orm.PersistenceException> {
+            orm.entity(City::class).select {
+                where(visitDatePath eq java.time.LocalDate.now())
+            }.resultList
+        }
+        exception.message!! shouldContain "Visit is not part of this query rooted at City"
     }
 
     @Test
@@ -219,33 +255,33 @@ open class SqlDslTest(
     // SqlScope: whereAny, orderByAny, orderByDescendingAny
 
     @Test
-    fun `select with whereAny`() {
+    fun `select with a relaxed where predicate`() {
         val cityRepository = orm.entity(City::class)
         val namePath = metamodel<City, String>(cityRepository.model, "name")
         val cities = cityRepository.select {
-            whereAny(namePath eq "Madison")
+            where(namePath eq "Madison")
         }.resultList
         cities shouldHaveSize 1
         cities[0].name shouldBe "Madison"
     }
 
     @Test
-    fun `select with orderByAny`() {
+    fun `select with a relaxed orderBy`() {
         val cityRepository = orm.entity(City::class)
         val namePath = metamodel<City, String>(cityRepository.model, "name")
         val cities = cityRepository.select {
-            orderByAny(namePath)
+            orderBy(namePath)
         }.resultList
         cities shouldHaveSize 6
         cities[0].name shouldBe "Madison"
     }
 
     @Test
-    fun `select with orderByDescendingAny`() {
+    fun `select with a relaxed orderByDescending`() {
         val cityRepository = orm.entity(City::class)
         val namePath = metamodel<City, String>(cityRepository.model, "name")
         val cities = cityRepository.select {
-            orderByDescendingAny(namePath)
+            orderByDescending(namePath)
         }.resultList
         cities shouldHaveSize 6
         cities[0].name shouldBe "Windsor"
