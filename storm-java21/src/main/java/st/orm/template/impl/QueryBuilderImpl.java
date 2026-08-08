@@ -78,8 +78,19 @@ public final class QueryBuilderImpl<T extends Data, R, ID> extends QueryBuilder<
      * @since 1.14
      */
     @Override
-    public <X extends Data> QueryBuilder<X, R, ID> typedRoot(@Nonnull Class<X> rootType) {
-        return new QueryBuilderImpl<>(core.typedRoot(rootType));
+    public <X extends Data> QueryBuilder<X, R, ID> narrow(@Nonnull Class<X> rootType) {
+        return new QueryBuilderImpl<>(core.narrow(rootType));
+    }
+
+    /**
+     * Widens the query as a join does, without joining.
+     *
+     * @return the query builder, accepting paths from any entity in the query.
+     * @since 1.14
+     */
+    @Override
+    public QueryBuilder<Data, R, ID> widen() {
+        return new QueryBuilderImpl<>(core.widen());
     }
 
     /**

@@ -136,12 +136,24 @@ abstract class QueryBuilderImpl<T extends Data, R, ID> extends QueryBuilder<T, R
      */
     @Override
     @SuppressWarnings("unchecked")
-    public <X extends Data> QueryBuilder<X, R, ID> typedRoot(@Nonnull Class<X> rootType) {
+    public <X extends Data> QueryBuilder<X, R, ID> narrow(@Nonnull Class<X> rootType) {
         requireNonNull(rootType, "rootType");
         if (fromType != rootType) {
             throw new PersistenceException("Root type mismatch: expected %s, got %s.".formatted(fromType.getName(), rootType.getName()));
         }
         return (QueryBuilder<X, R, ID>) this;
+    }
+
+    /**
+     * Widens the query as a join does, without joining.
+     *
+     * @return the query builder, accepting paths from any entity in the query.
+     * @since 1.14
+     */
+    @Override
+    @SuppressWarnings("unchecked")
+    public QueryBuilder<Data, R, ID> widen() {
+        return (QueryBuilder<Data, R, ID>) this;
     }
 
     /**

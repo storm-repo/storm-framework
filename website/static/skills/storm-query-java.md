@@ -395,7 +395,7 @@ users.select()
     .getResultList();
 ```
 
-Two operations are defined relative to the root and are affected by the widening: `fetch(...)` comes before any join, and `getResultGroupedBy` needs the root back after one — narrow with `typedRoot(User.class)`, which verifies the type against the query's FROM table. (`typedId(Integer.class)` is the sibling that types the primary key.)
+Two operations are defined relative to the root and are affected by the widening: `fetch(...)` comes before any join, and `getResultGroupedBy` needs the root back after one: `narrow(User.class)` restores it, verified against the query's FROM table. The counterpart `widen()` widens without a join — the way to reference a graph entity in short form on a query that joins nothing. (`typedId(Integer.class)` types the primary key.)
 
 ## Keyset Scrolling
 

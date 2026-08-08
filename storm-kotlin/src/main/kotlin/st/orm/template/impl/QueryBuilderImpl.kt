@@ -37,7 +37,9 @@ class QueryBuilderImpl<T : Data, R, ID>(
      */
     override fun <X : Any> typedId(pkType: KClass<X>): QueryBuilder<T, R, X> = QueryBuilderImpl<T, R, X>(core.typedId<X>(pkType.java))
 
-    override fun <X : Data> typedRoot(rootType: KClass<X>): QueryBuilder<X, R, ID> = QueryBuilderImpl(core.typedRoot(rootType.java))
+    override fun <X : Data> narrow(rootType: KClass<X>): QueryBuilder<X, R, ID> = QueryBuilderImpl(core.narrow(rootType.java))
+
+    override fun widen(): QueryBuilder<Data, R, ID> = QueryBuilderImpl(core.widen())
 
     /**
      * Returns a query builder that does not require a WHERE clause for UPDATE and DELETE queries.

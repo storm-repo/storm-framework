@@ -100,7 +100,20 @@ public abstract class QueryBuilder<T extends Data, R, ID> {
      * @throws PersistenceException if {@code rootType} is not the type this query selects from.
      * @since 1.14
      */
-    public abstract <X extends Data> QueryBuilder<X, R, ID> typedRoot(@Nonnull Class<X> rootType);
+    public abstract <X extends Data> QueryBuilder<X, R, ID> narrow(@Nonnull Class<X> rootType);
+
+    /**
+     * Widens the query as a join does, without joining: from here on, every clause accepts paths from any entity in
+     * the query. Use it to reference an entity of the query's graph in short form on a query that joins nothing;
+     * resolution happens when the query is built, and a table the query does not contain, or contains more than once,
+     * fails with an error naming the candidates.
+     *
+     * <p>Widening is always safe, so unlike {@link #narrow(Class)} there is nothing to verify.</p>
+     *
+     * @return the query builder, accepting paths from any entity in the query.
+     * @since 1.14
+     */
+    public abstract QueryBuilder<Data, R, ID> widen();
 
     /**
      * Returns a query builder that allows UPDATE and DELETE queries without a WHERE clause.

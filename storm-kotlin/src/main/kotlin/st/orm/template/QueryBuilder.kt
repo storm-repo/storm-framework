@@ -124,7 +124,7 @@ abstract class QueryBuilder<T : Data, R, ID> {
      * @throws PersistenceException if [rootType] is not the type this query selects from.
      * @since 1.14
      */
-    abstract fun <X : Data> typedRoot(rootType: KClass<X>): QueryBuilder<X, R, ID>
+    abstract fun <X : Data> narrow(rootType: KClass<X>): QueryBuilder<X, R, ID>
 
     /**
      * Returns a query builder rooted at [X], narrowing a builder whose root was relaxed by a join.
@@ -132,7 +132,20 @@ abstract class QueryBuilder<T : Data, R, ID> {
      * @throws PersistenceException if [X] is not the type this query selects from.
      * @since 1.14
      */
-    inline fun <reified X : Data> typedRoot(): QueryBuilder<X, R, ID> = typedRoot(X::class)
+    inline fun <reified X : Data> narrow(): QueryBuilder<X, R, ID> = narrow(X::class)
+
+    /**
+     * Widens the query as a join does, without joining: from here on, every clause accepts paths from any entity in
+     * the query. Use it to reference an entity of the query's graph in short form on a query that joins nothing;
+     * resolution happens when the query is built, and a table the query does not contain, or contains more than once,
+     * fails with an error naming the candidates.
+     *
+     * Widening is always safe, so unlike [narrow] there is nothing to verify.
+     *
+     * @return the query builder, accepting paths from any entity in the query.
+     * @since 1.14
+     */
+    abstract fun widen(): QueryBuilder<Data, R, ID>
 
     /**
      * Returns a query builder that allows UPDATE and DELETE queries without a WHERE clause.

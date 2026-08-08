@@ -507,7 +507,7 @@ select {
 
 Inside `select { }` the block is widened from the start, so clause order does not matter there. On the chained API the builder is typed to the root **until** the join, so put joins before the clauses that reference them. A path on an entity that is not part of the query fails when the query is built, with an error naming the entity and the root.
 
-Two operations are defined relative to the root and are affected by the widening: `fetch(...)` comes before any join, and `resultGroupedBy` needs the root back after one — narrow with `typedRoot<User>()`, which verifies the type against the query's FROM table. (`typedId(Int::class)` is the sibling that types the primary key.)
+Two operations are defined relative to the root and are affected by the widening: `fetch(...)` comes before any join, and `resultGroupedBy` needs the root back after one: `narrow<User>()` restores it, verified against the query's FROM table. The counterpart `widen()` widens without a join — the chained equivalent of `select { }` starting widened. (`typedId(Int::class)` types the primary key.)
 
 ## Keyset Scrolling
 

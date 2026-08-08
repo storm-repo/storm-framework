@@ -238,7 +238,7 @@ interface EntityRepository<E, ID : Any> : Repository where E : Entity<ID> {
      */
     fun select(block: SqlScope<E, E, ID>.() -> Any?): QueryBuilder<Data, E, ID> {
         // The block may join, which relaxes the root; the scope's own type parameters keep record, id and ref
-        // matching typed to the entity. Narrow the result back with typedRoot() when a root-relative operation
+        // matching typed to the entity. Narrow the result back with narrow() when a root-relative operation
         // such as resultGroupedBy is needed.
         @Suppress("UNCHECKED_CAST")
         val scope = SqlScope<E, E, ID>(select() as QueryBuilder<Data, E, ID>)

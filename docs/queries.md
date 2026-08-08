@@ -733,7 +733,7 @@ val roles = orm.entity<Role>()
     .resultList
 ```
 
-The widening trades the compile-time root check for query-time resolution: a path on an entity that is not part of the query fails when the query is built, with an error naming the entity and the root. Root-relative operations are affected by the wider type: `fetch(...)` comes before any join, and a grouped terminal such as `resultGroupedBy` needs the root back — narrow with `typedRoot<Role>()`, which verifies the type against the query's FROM table.
+The widening trades the compile-time root check for query-time resolution: a path on an entity that is not part of the query fails when the query is built, with an error naming the entity and the root. Root-relative operations are affected by the wider type: `fetch(...)` comes before any join, and a grouped terminal such as `resultGroupedBy` needs the root back: `narrow<Role>()` restores it, verified against the query's FROM table. The counterpart `widen()` widens without a join, admitting short-form references to the entities already in the query's graph.
 
 </TabItem>
 <TabItem value="java" label="Java">
@@ -750,7 +750,7 @@ List<Role> roles = orm.entity(Role.class)
     .getResultList();
 ```
 
-The widening trades the compile-time root check for query-time resolution: a path on an entity that is not part of the query fails when the query is built, with an error naming the entity and the root. Root-relative operations are affected by the wider type: `fetch(...)` comes before any join, and a grouped terminal such as `getResultGroupedBy` needs the root back — narrow with `typedRoot(Role.class)`, which verifies the type against the query's FROM table.
+The widening trades the compile-time root check for query-time resolution: a path on an entity that is not part of the query fails when the query is built, with an error naming the entity and the root. Root-relative operations are affected by the wider type: `fetch(...)` comes before any join, and a grouped terminal such as `getResultGroupedBy` needs the root back: `narrow(Role.class)` restores it, verified against the query's FROM table. The counterpart `widen()` widens without a join, admitting short-form references to the entities already in the query's graph.
 
 ### Joins (SQL Templates)
 

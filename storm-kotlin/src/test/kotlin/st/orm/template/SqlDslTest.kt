@@ -189,12 +189,12 @@ open class SqlDslTest(
     }
 
     @Test
-    fun `typedRoot narrows the block result back to the entity`() {
+    fun `narrow narrows the block result back to the entity`() {
         val idPath = metamodel<City, Int>(orm.model(City::class), "id")
         val cities = orm.entity(City::class).select {
             innerJoin<Owner, City>()
             where(idPath eq 1)
-        }.typedRoot<City>()
+        }.narrow<City>()
             .resultList
         cities.map { it.id }.toSet() shouldBe setOf(1)
     }

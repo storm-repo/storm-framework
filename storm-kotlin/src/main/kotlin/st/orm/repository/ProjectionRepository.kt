@@ -81,7 +81,7 @@ interface ProjectionRepository<P, ID : Any> : Repository where P : Projection<ID
      * ```
      */
     fun select(block: SqlScope<P, P, ID>.() -> Any?): QueryBuilder<Data, P, ID> {
-        // The block may join, which relaxes the root; narrow back with typedRoot() when a root-relative
+        // The block may join, which relaxes the root; narrow back with narrow() when a root-relative
         // operation is needed.
         @Suppress("UNCHECKED_CAST")
         val scope = SqlScope<P, P, ID>(select() as QueryBuilder<Data, P, ID>)

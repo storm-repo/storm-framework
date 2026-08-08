@@ -200,7 +200,7 @@ val users = orm.entity<User>().select {
 
 The short form `Country_.name` works here because Storm first establishes `User` as the root entity, then looks up `Country` in User's entity graph. Since there's only one path to `Country` (via `city.country`), it's unambiguous.
 
-**Where each form is accepted:** the chained builder is typed to the root until a join, so before any join its `where()` takes root paths only — a `Country`-typed predicate does not compile there. Short form is accepted wherever the query is not root-typed: inside the `select { }` block, and on the chained builder from the first join onward. A nested path (`User_.city.country.name`) starts at the root, so it is accepted everywhere.
+**Where each form is accepted:** the chained builder is typed to the root until a join, so before any join its `where()` takes root paths only — a `Country`-typed predicate does not compile there. Short form is accepted wherever the query is not root-typed: inside the `select { }` block, on the chained builder from the first join onward, and after an explicit `widen()` — the opt-in for short-form references on a query that joins nothing. A nested path (`User_.city.country.name`) starts at the root, so it is accepted everywhere.
 
 **Type safety considerations:**
 
