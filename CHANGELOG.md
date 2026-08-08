@@ -10,6 +10,32 @@ for the CLI, to [npm](https://www.npmjs.com/package/@storm-orm/cli)
 (`@storm-orm/cli`). Full release notes for every version are on the
 [GitHub Releases](https://github.com/storm-orm/storm-framework/releases) page.
 
+## [1.14.0] - Unreleased
+
+A join widens the query: from the join onward, every clause accepts paths from any entity in the query, so referencing a joined table no longer needs a separate method — the `Any` clause variants are removed across all APIs.
+
+- Removed `whereAny`, `whereAnyRef`, `whereAnyBuilder`, `havingAny`, `groupByAny`, `orderByAny` and `orderByDescendingAny` from every API. The plain `where`, `having`, `groupBy` and `orderBy` absorb them, because the builder's root type now tracks what a clause may reference; migration is a rename per call site:
+
+  ```kotlin
+  // 1.13 — a joined entity's field needed the Any variant
+  orm.entity<Role>().select()
+      .innerJoin<UserRole>().on<Role>()
+      .whereAny(UserRole_.user eq user)
+      .resultList
+
+  // 1.14 — the join widens the query; the same call serves root and joined fields
+  orm.entity<Role>().select()
+      .innerJoin<UserRole>().on<Role>()
+      .where(UserRole_.user eq user)
+      .resultList
+  ```
+
+  In Java the lambda escalation goes with it: `.where(it -> it.whereAny(UserRole_.user, EQUALS, user))` becomes the typed overload `.where(UserRole_.user, EQUALS, user)`. A path on an entity that is not part of the query fails when the query is built, with the error naming the entity, the query root, and — when the table appears more than once — the paths that pin it.
+- Added `widen()` and `narrow(rootType)`, the two directions of the model made explicit: `widen()` widens without a join, admitting short-form references to entities of the query's graph on a query that joins nothing, and `narrow` restores the root for root-relative operations such as `resultGroupedBy` after a join, verified against the query's FROM table.
+- Renamed `typed(pkType)` to `typedId(pkType)` — it types the erased primary-key parameter, while `narrow` types the root — and added its missing null check.
+- `fetch(...)` comes right after `select()`, before any join, enforced at compile time: resolving references is defined relative to the root, and a join widens the builder past it.
+- Kotlin's `select { }` block is widened from the start — joined-entity fields use the plain calls with no escalation — and returns the widened builder, so joins made inside the block stay queryable in chained continuations. Record, id and ref matching remain typed to the entity inside the block.
+
 ## [1.13.1] - 2026-08-07
 
 - Fixed the Java API and the `Any` variants rejecting navigation-only paths (beyond a `Ref`): every clause parameter now accepts `Navigable`, and the new `Navigable.asMetamodel()` resolves a node to its column.
