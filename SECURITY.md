@@ -6,7 +6,7 @@ The Storm team takes security vulnerabilities seriously. We appreciate your effo
 
 **Please do NOT report security vulnerabilities through public GitHub issues.**
 
-Instead, please report them via email to **security@zantvoort.biz**.
+Instead, please report them via email to **dev@orm.st**.
 
 Include as much of the following information as possible to help us understand and resolve the issue quickly:
 
@@ -59,4 +59,4 @@ When a security vulnerability is confirmed and resolved, we will:
 
 ## Contact
 
-For any questions about this security policy, please contact **storm@zantvoort.biz**.
+For any questions about this security policy, please contact **dev@orm.st**.

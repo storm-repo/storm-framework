@@ -12,7 +12,7 @@
     <artifactId>storm-ktor</artifactId>
     <name>Storm Ktor</name>
     <description>Ktor integration for Storm.</description>
-    <url>https://github.com/storm-repo/storm-framework</url>
+    <url>https://github.com/storm-orm/storm-framework</url>
     <licenses>
         <license>
             <name>The Apache License, Version 2.0</name>
@@ -22,13 +22,13 @@
     <developers>
         <developer>
             <name>Leon van Zantvoort</name>
-            <email>storm@zantvoort.biz</email>
+            <email>dev@orm.st</email>
         </developer>
     </developers>
     <scm>
-        <connection>scm:git:git://github.com/storm-repo/storm-framework.git</connection>
-        <developerConnection>scm:git:ssh://github.com/storm-repo/storm-framework.git</developerConnection>
-        <url>https://github.com/storm-repo/storm-framework/</url>
+        <connection>scm:git:git://github.com/storm-orm/storm-framework.git</connection>
+        <developerConnection>scm:git:ssh://github.com/storm-orm/storm-framework.git</developerConnection>
+        <url>https://github.com/storm-orm/storm-framework/</url>
     </scm>
     <!-- Ktor 3.4 requires Kotlin 2.3 and kotlinx-coroutines 1.10; this module tracks Ktor's toolchain while
          the rest of the framework stays on Kotlin 2.0. As a leaf module (only storm-ktor-test consumes it, and
