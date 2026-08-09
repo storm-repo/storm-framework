@@ -37,10 +37,13 @@
                 <artifactId>maven-surefire-plugin</artifactId>
                 <configuration>
                     <useModulePath>true</useModulePath>
+                    <!-- The add-exports covers the test-scoped storm-test jar: surefire leaves it on the class
+                         path, where the qualified export to storm.test cannot name it. -->
                     <argLine>
                         @{argLine}
                         --add-reads kotlin.stdlib=kotlinx.coroutines.core
                         --add-reads storm.core=storm.kotlin
+                        --add-exports storm.core/st.orm.core.template.impl=ALL-UNNAMED
                         --add-opens java.base/java.lang=ALL-UNNAMED
                         --add-opens storm.kotlin/st.orm.template=ALL-UNNAMED
                         --add-opens storm.kotlin/st.orm.template.model=ALL-UNNAMED

@@ -33,7 +33,8 @@ import io.micrometer.observation.ObservationRegistry
 import org.slf4j.LoggerFactory
 import st.orm.core.spi.JdbcConnectionProviderImpl
 import st.orm.core.spi.JdbcTransactionTemplateProviderImpl
-import st.orm.core.template.SqlLog
+import st.orm.core.template.impl.CallSiteCapture
+import st.orm.core.template.impl.SqlLogRenderer
 import st.orm.micrometer.MicrometerQueryObserver
 import st.orm.template.ORMTemplate
 import st.orm.template.impl.recordSqlLog
@@ -266,10 +267,10 @@ val Storm = createApplicationPlugin(name = "Storm", createConfiguration = ::Stor
         val limit = pluginConfig.sqlLogLimit
         val callSites = pluginConfig.sqlLogCallSites
         if (pluginConfig.sqlLogCallSiteSkip.isNotEmpty()) {
-            SqlLog.ignoreCallSites(*pluginConfig.sqlLogCallSiteSkip.toTypedArray())
+            CallSiteCapture.ignoreCallSites(*pluginConfig.sqlLogCallSiteSkip.toTypedArray())
         }
-        pluginConfig.sqlLogLineWidth?.let { SqlLog.lineWidth(it) }
-        SqlLog.hydrationShapes(pluginConfig.sqlLogHydration)
+        pluginConfig.sqlLogLineWidth?.let { SqlLogRenderer.lineWidth(it) }
+        SqlLogRenderer.hydrationShapes(pluginConfig.sqlLogHydration)
         val statementThreshold = pluginConfig.sqlLogStatementThreshold
         val durationThreshold = pluginConfig.sqlLogDurationThreshold
         val thresholded = statementThreshold != null || durationThreshold != null

@@ -18,6 +18,7 @@ package st.orm.template.impl
 import kotlinx.coroutines.asContextElement
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.withContext
+import st.orm.core.template.impl.CallSiteCapture
 import st.orm.core.template.impl.SqlInterceptorManager
 import st.orm.core.template.impl.SqlInterceptorManager.Operator
 import kotlin.coroutines.CoroutineContext
@@ -50,7 +51,7 @@ suspend fun <T> recordSqlLog(
     // The scope opens where the caller still is on the stack, so that frame is the launch-site fallback for
     // children whose own stack loses it.
     val hint: CoroutineContext = if (callSites) {
-        CoreSqlLog.captureCallSite()?.let { CoreSqlLog.callSiteHint().asContextElement(it) }
+        CallSiteCapture.captureCallSite()?.let { CallSiteCapture.callSiteHint().asContextElement(it) }
             ?: EmptyCoroutineContext
     } else {
         EmptyCoroutineContext

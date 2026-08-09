@@ -20,6 +20,7 @@ import org.springframework.test.context.junit.jupiter.SpringExtension
 import st.orm.Metamodel
 import st.orm.core.template.SqlLog.Summary
 import st.orm.core.template.StatementOrigin.FETCH
+import st.orm.core.template.impl.SqlLogRenderer
 import st.orm.template.impl.recordSqlLog
 import st.orm.template.model.Owner
 import st.orm.template.model.PetOwnerRef
@@ -229,7 +230,7 @@ open class SqlLogTest(
     fun `a hydration shape renders for a data class entity`(): Unit = runBlocking {
         // The shape derives through the reflection provider, which recognizes Kotlin data classes; a JVM-record
         // check would leave these rows bare.
-        CoreSqlLog.hydrationShapes(CoreSqlLog.HydrationShapes.FULL)
+        SqlLogRenderer.hydrationShapes(CoreSqlLog.HydrationShapes.FULL)
         try {
             val (_, summary) = record("shape") {
                 orm.entity(PetOwnerRef::class).select().resultList
@@ -238,7 +239,7 @@ open class SqlLogTest(
             rendered shouldContain "joins="
             rendered shouldContain "graph=PetOwnerRef"
         } finally {
-            CoreSqlLog.hydrationShapes(CoreSqlLog.HydrationShapes.OFF)
+            SqlLogRenderer.hydrationShapes(CoreSqlLog.HydrationShapes.OFF)
         }
     }
 }

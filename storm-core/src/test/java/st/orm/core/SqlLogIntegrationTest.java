@@ -33,6 +33,7 @@ import st.orm.core.template.JpaTemplate;
 import st.orm.core.template.ORMTemplate;
 import st.orm.core.template.SqlLog;
 import st.orm.core.template.StatementOrigin;
+import st.orm.core.template.impl.SqlLogRenderer;
 
 /**
  * Verifies that a scope reports what a call cost the database: the statements it took whichever repository issued
@@ -306,14 +307,14 @@ public class SqlLogIntegrationTest {
     @Test
     public void testShortShapesSkipFlatTypes() {
         var orm = ORMTemplate.of(dataSource);
-        SqlLog.hydrationShapes(SqlLog.HydrationShapes.SHORT);
+        SqlLogRenderer.hydrationShapes(SqlLog.HydrationShapes.SHORT);
         try {
             List<SqlLog.Summary> summaries = new ArrayList<>();
             SqlLog.record("short", (Supplier<Object>) () -> orm.entity(City.class).getById(1), summaries::add);
             // A flat type says nothing its row does not already say, so the short form stays off its row.
             assertFalse(summaries.getFirst().toString().contains("j0"), summaries.getFirst().toString());
         } finally {
-            SqlLog.hydrationShapes(SqlLog.HydrationShapes.OFF);
+            SqlLogRenderer.hydrationShapes(SqlLog.HydrationShapes.OFF);
         }
     }
 
@@ -323,19 +324,19 @@ public class SqlLogIntegrationTest {
         // Pet's type is a reference, so it stays a foreign key column; Owner reaches City through an inline
         // Address, which is columns on the owner table rather than a subgraph, so City splices into Owner's
         // children. The short form states the numbers only; the full form names the graph.
-        SqlLog.hydrationShapes(SqlLog.HydrationShapes.SHORT);
+        SqlLogRenderer.hydrationShapes(SqlLog.HydrationShapes.SHORT);
         try {
             List<SqlLog.Summary> summaries = new ArrayList<>();
             SqlLog.record("shape", (Supplier<Object>) () -> orm.entity(Pet.class).getById(1), summaries::add);
             assertTrue(summaries.getFirst().toString().contains("j2 c12 d3"), summaries.getFirst().toString());
             assertFalse(summaries.getFirst().toString().contains("graph="), summaries.getFirst().toString());
-            SqlLog.hydrationShapes(SqlLog.HydrationShapes.FULL);
+            SqlLogRenderer.hydrationShapes(SqlLog.HydrationShapes.FULL);
             summaries.clear();
             SqlLog.record("shape", (Supplier<Object>) () -> orm.entity(Pet.class).getById(1), summaries::add);
             assertTrue(summaries.getFirst().toString().contains("joins=2 columns=12 graph=Pet(Owner(City))"),
                     summaries.getFirst().toString());
         } finally {
-            SqlLog.hydrationShapes(SqlLog.HydrationShapes.OFF);
+            SqlLogRenderer.hydrationShapes(SqlLog.HydrationShapes.OFF);
         }
     }
 
@@ -345,7 +346,7 @@ public class SqlLogIntegrationTest {
         // A shape states what reading a type costs. The delete below targets the same type as the read before it,
         // yet touches its own table only, so its row states no shape in either form.
         for (var shapes : List.of(SqlLog.HydrationShapes.SHORT, SqlLog.HydrationShapes.FULL)) {
-            SqlLog.hydrationShapes(shapes);
+            SqlLogRenderer.hydrationShapes(shapes);
             try {
                 List<SqlLog.Summary> summaries = new ArrayList<>();
                 SqlLog.record("write", (Supplier<Object>) () -> {
@@ -368,7 +369,7 @@ public class SqlLogIntegrationTest {
                 assertNotNull(read.hydration(), shapes.toString());
                 assertNull(write.hydration(), shapes.toString());
             } finally {
-                SqlLog.hydrationShapes(SqlLog.HydrationShapes.OFF);
+                SqlLogRenderer.hydrationShapes(SqlLog.HydrationShapes.OFF);
             }
         }
     }
