@@ -798,29 +798,17 @@ path1.canonical().equals(path2.canonical());  // true
 
 ## `@GenerateMetamodel` Annotation
 
-By default, the metamodel processor generates metamodel classes for all records that implement `Entity` or `Projection`. If you have a plain record (or data class) that does not implement either interface but you still want a metamodel generated for it, annotate it with `@GenerateMetamodel`.
-
-This is useful for:
-- Inline records (embedded components) that you want to reference in queries via the metamodel
-- `Data` implementations used in custom SQL templates
-- Any non-entity record where you want compile-time type-safe field references
+The metamodel processor generates metamodel classes for every record that implements `Data`, which includes all entities and projections, and for every record such a type references, so the entity graph is covered automatically. A record that stays outside the entity graph, such as a plain result row for a custom query, is skipped. Annotate it with `@GenerateMetamodel` to process it anyway: its metamodel class is generated next to it, and it receives an instantiator so the runtime constructs instances without reflection. On GraalVM native images this keeps custom query rows working without reflection configuration.
 
 <Tabs groupId="language">
 <TabItem value="kotlin" label="Kotlin" default>
 
 ```kotlin
 @GenerateMetamodel
-data class Address(
-    val street: String,
-    @FK val city: City
+data class CityStats(
+    val name: String,
+    val inhabitants: Int
 )
-
-// Now Address_ is available for type-safe references
-val addresses = orm.query { """
-    SELECT ${Address::class}
-    FROM ${Address::class}
-    WHERE ${Address_.street} LIKE ${"%Main%"}
-""" }
 ```
 
 </TabItem>
@@ -828,20 +816,15 @@ val addresses = orm.query { """
 
 ```java
 @GenerateMetamodel
-record Address(String street,
-               @FK City city) {}
-
-// Now Address_ is available for type-safe references
-var addresses = orm.query(RAW."""
-        SELECT \{Address.class}
-        FROM \{Address.class}
-        WHERE \{Address_.street} LIKE \{"%Main%"}""");
+record CityStats(String name, int inhabitants) {}
 ```
 
 </TabItem>
 </Tabs>
 
-The `@GenerateMetamodel` annotation is located in `st.orm.core.template` and requires the `storm-core` dependency at compile time (provided scope is sufficient).
+The root metamodel interface (`CityStats_` in this example) is only generated for `Data` types: every metamodel is rooted in a `Data` type, so a plain record participates in queries through the entity graph that references it rather than as a root of its own.
+
+The `@GenerateMetamodel` annotation is located in the `st.orm` package alongside Storm's other annotations.
 
 ## Benefits
 
