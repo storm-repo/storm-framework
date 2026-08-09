@@ -119,6 +119,9 @@ public interface Column {
     /**
      * Gets the metamodel of the column.
      *
+     * <p>In case of a foreign key relationship, this metamodel represents the foreign key column on the referencing
+     * entity, the entity that declares the foreign key field.</p>
+     *
      * @return the metamodel of the column.
      * @since 1.7
      */
