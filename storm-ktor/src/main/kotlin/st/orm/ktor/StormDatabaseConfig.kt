@@ -32,42 +32,42 @@ import javax.sql.DataSource
  *
  * @since 1.13
  */
-class StormDatabaseConfig internal constructor(internal val name: String) {
+public class StormDatabaseConfig internal constructor(internal val name: String) {
 
     /**
      * The [DataSource] to use for this database. If not provided, one is created from the HOCON configuration
      * under `storm.databases.<name>.datasource`.
      */
-    var dataSource: DataSource? = null
+    public var dataSource: DataSource? = null
 
     /**
      * Optional [StormConfig] override for this database. If not provided, configuration is read from the HOCON
      * configuration under `storm.databases.<name>`, falling back to defaults.
      */
-    var config: StormConfig? = null
+    public var config: StormConfig? = null
 
     /**
      * Optional [st.orm.core.spi.ConnectionProvider] override. When not set, this database uses its own
      * coroutine-aware provider instance.
      */
-    var connectionProvider: st.orm.core.spi.ConnectionProvider? = null
+    public var connectionProvider: st.orm.core.spi.ConnectionProvider? = null
 
     /**
      * Optional [st.orm.core.spi.TransactionTemplateProvider] override. When not set, this database uses its own
      * JDBC transaction provider instance. Each database has its own transaction provider, so a `transaction { }`
      * block binds to one database; blocks cannot atomically span databases.
      */
-    var transactionTemplateProvider: st.orm.core.spi.TransactionTemplateProvider? = null
+    public var transactionTemplateProvider: st.orm.core.spi.TransactionTemplateProvider? = null
 
     /**
      * Optional [st.orm.core.spi.ExceptionMapper] for this database's template.
      */
-    var exceptionMapper: st.orm.core.spi.ExceptionMapper? = null
+    public var exceptionMapper: st.orm.core.spi.ExceptionMapper? = null
 
     /**
      * Optional [st.orm.core.spi.QueryObserver] for this database's template.
      */
-    var queryObserver: st.orm.core.spi.QueryObserver? = null
+    public var queryObserver: st.orm.core.spi.QueryObserver? = null
 
     /**
      * Optional [st.orm.core.spi.SqlCommenter] for this database; inherits the plugin-level commenter when
@@ -75,7 +75,7 @@ class StormDatabaseConfig internal constructor(internal val name: String) {
      *
      * @since 1.13
      */
-    var sqlCommenter: st.orm.core.spi.SqlCommenter? = null
+    public var sqlCommenter: st.orm.core.spi.SqlCommenter? = null
 
     /**
      * Schema validation mode for this database: `"none"`, `"warn"`, or `"fail"`.
@@ -84,7 +84,7 @@ class StormDatabaseConfig internal constructor(internal val name: String) {
      * `storm.databases.<name>.validation.schemaMode` (or `schema_mode`), defaulting to `"fail"`. Validation covers
      * the entity and projection types under the packages declared with [repositories].
      */
-    var schemaValidation: String? = null
+    public var schemaValidation: String? = null
 
     internal var migration: ((DataSource) -> Unit)? = null
 
@@ -92,7 +92,7 @@ class StormDatabaseConfig internal constructor(internal val name: String) {
      * Registers a migration hook for this database, running after its [DataSource] is available but before the
      * template is created and the schema is validated.
      */
-    fun migration(block: (DataSource) -> Unit) {
+    public fun migration(block: (DataSource) -> Unit) {
         migration = block
     }
 
@@ -101,7 +101,7 @@ class StormDatabaseConfig internal constructor(internal val name: String) {
     /**
      * Registers an entity callback on this database's template.
      */
-    fun entityCallback(callback: EntityCallback<*>) {
+    public fun entityCallback(callback: EntityCallback<*>) {
         entityCallbacks += callback
     }
 
@@ -118,7 +118,7 @@ class StormDatabaseConfig internal constructor(internal val name: String) {
      * A database without declared packages exposes its template (`orm("name")`) but registers no repositories
      * automatically.
      */
-    fun repositories(vararg packages: String) {
+    public fun repositories(vararg packages: String) {
         repositoryPackages += packages
     }
 }

@@ -28,7 +28,7 @@ import kotlin.reflect.KClass
 
 /**
  */
-class ProjectionRepositoryImpl<P, ID : Any>(
+internal class ProjectionRepositoryImpl<P, ID : Any>(
     private val core: st.orm.core.repository.ProjectionRepository<P, ID>,
 ) : ProjectionRepository<P, ID> where P : Data, P : Projection<ID> {
 

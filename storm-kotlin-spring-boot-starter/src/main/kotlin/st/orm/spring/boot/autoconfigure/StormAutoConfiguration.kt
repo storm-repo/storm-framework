@@ -45,7 +45,7 @@ import javax.sql.DataSource
 @ConditionalOnClass(ORMTemplate::class)
 @ConditionalOnSingleCandidate(DataSource::class)
 @EnableConfigurationProperties(StormProperties::class)
-open class StormAutoConfiguration {
+public open class StormAutoConfiguration {
 
     private val logger = org.slf4j.LoggerFactory.getLogger(StormAutoConfiguration::class.java)
 
@@ -68,7 +68,7 @@ open class StormAutoConfiguration {
      */
     @Bean
     @ConditionalOnMissingBean(ORMTemplate::class)
-    open fun ormTemplate(
+    public open fun ormTemplate(
         dataSource: DataSource,
         properties: StormProperties,
         entityCallbacks: List<EntityCallback<*>>,

@@ -45,14 +45,14 @@ import kotlin.reflect.KClass
  * @see QueryBuilder
  * @see Query
  */
-interface QueryTemplate : SubqueryTemplate {
+public interface QueryTemplate : SubqueryTemplate {
     /**
      * Create a new bind variables instance that can be used to add bind variables to a batch.
      *
      * @return a new bind variables instance.
      * @see PreparedQuery.addBatch
      */
-    fun createBindVars(): BindVars
+    public fun createBindVars(): BindVars
 
     /**
      * Creates a ref instance for the specified record `type` and `pk`. This method can be used to generate
@@ -65,7 +65,7 @@ interface QueryTemplate : SubqueryTemplate {
      * @param <ID> primary key type.
      * @since 1.3
      */
-    fun <T : Data, ID : Any> ref(type: KClass<T>, id: ID): Ref<T>
+    public fun <T : Data, ID : Any> ref(type: KClass<T>, id: ID): Ref<T>
 
     /**
      * Creates a ref instance for the specified record `type` and `id`. This method can be used to generate
@@ -78,7 +78,7 @@ interface QueryTemplate : SubqueryTemplate {
      * @param <ID> primary key type.
      * @since 1.3
      */
-    fun <T : Data, ID : Any> ref(record: T, id: ID): Ref<T>
+    public fun <T : Data, ID : Any> ref(record: T, id: ID): Ref<T>
 
     /**
      * Get the model for the specified record `type`. The model provides information about the type's database
@@ -89,7 +89,7 @@ interface QueryTemplate : SubqueryTemplate {
      * @param <T> table type.
      * @param <ID> primary key type.
      */
-    fun <T : Data> model(type: KClass<T>): Model<T, *> = model(type, false)
+    public fun <T : Data> model(type: KClass<T>): Model<T, *> = model(type, false)
 
     /**
      * Get the model for the specified record `type`. The model provides information about the type's database
@@ -102,7 +102,7 @@ interface QueryTemplate : SubqueryTemplate {
      * @param <ID> primary key type.
      * @since 1.3
      */
-    fun <T : Data> model(type: KClass<T>, requirePrimaryKey: Boolean): Model<T, *>
+    public fun <T : Data> model(type: KClass<T>, requirePrimaryKey: Boolean): Model<T, *>
 
     /**
      * Creates a query builder for the specified table.
@@ -111,7 +111,7 @@ interface QueryTemplate : SubqueryTemplate {
      * @return the query builder.
      * @param <T> the table type to select from.
      */
-    fun <T : Data> selectFrom(fromType: KClass<T>): QueryBuilder<T, T, *> = selectFrom(fromType, fromType)
+    public fun <T : Data> selectFrom(fromType: KClass<T>): QueryBuilder<T, T, *> = selectFrom(fromType, fromType)
 
     /**
      * Creates a query builder for the specified table and select type.
@@ -122,7 +122,7 @@ interface QueryTemplate : SubqueryTemplate {
      * @param <T> the table type to select from.
      * @param <R> the result type.
      */
-    fun <T : Data, R : Any> selectFrom(
+    public fun <T : Data, R : Any> selectFrom(
         fromType: KClass<T>,
         selectType: KClass<R>,
     ): QueryBuilder<T, R, *> = selectFrom(fromType, selectType, wrap(selectType))
@@ -137,7 +137,7 @@ interface QueryTemplate : SubqueryTemplate {
      * @param <T> the table type to select from.
      * @param <R> the result type.
      */
-    fun <T : Data, R : Any> selectFrom(
+    public fun <T : Data, R : Any> selectFrom(
         fromType: KClass<T>,
         selectType: KClass<R>,
         template: TemplateBuilder,
@@ -153,7 +153,7 @@ interface QueryTemplate : SubqueryTemplate {
      * @param <T> the table type to select from.
      * @param <R> the result type.
      */
-    fun <T : Data, R : Any> selectFrom(
+    public fun <T : Data, R : Any> selectFrom(
         fromType: KClass<T>,
         selectType: KClass<R>,
         template: TemplateString,
@@ -166,7 +166,7 @@ interface QueryTemplate : SubqueryTemplate {
      * @return the query builder.
      * @param <T> the table type to delete from.
      */
-    fun <T : Data> deleteFrom(fromType: KClass<T>): QueryBuilder<T, *, *>
+    public fun <T : Data> deleteFrom(fromType: KClass<T>): QueryBuilder<T, *, *>
 
     /**
      * Creates a query for the specified `query` string.
@@ -174,7 +174,7 @@ interface QueryTemplate : SubqueryTemplate {
      * @param query the query.
      * @return the query.
      */
-    fun query(query: String): Query
+    public fun query(query: String): Query
 
     /**
      * Creates a query for the specified query `template`.
@@ -182,7 +182,7 @@ interface QueryTemplate : SubqueryTemplate {
      * @param template the query template.
      * @return the query.
      */
-    fun query(template: TemplateBuilder): Query = query(template.build())
+    public fun query(template: TemplateBuilder): Query = query(template.build())
 
     /**
      * Creates a query for the specified query `template`.
@@ -190,7 +190,7 @@ interface QueryTemplate : SubqueryTemplate {
      * @param template the query template.
      * @return the query.
      */
-    fun query(template: TemplateString): Query
+    public fun query(template: TemplateString): Query
 }
 
 /**
@@ -206,6 +206,6 @@ interface QueryTemplate : SubqueryTemplate {
  * @return the query builder.
  * @since 1.12
  */
-inline fun <reified T : Data, reified R : Any> QueryTemplate.selectFrom(
+public inline fun <reified T : Data, reified R : Any> QueryTemplate.selectFrom(
     noinline template: TemplateBuilder,
 ): QueryBuilder<T, R, *> = selectFrom(T::class, R::class, template)

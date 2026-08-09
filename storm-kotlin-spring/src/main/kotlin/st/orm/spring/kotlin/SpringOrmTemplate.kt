@@ -42,7 +42,7 @@ import javax.sql.DataSource
  * @param transactionManagers supplies the transaction managers of the owning application context.
  * @since 1.13
  */
-fun springOrmTemplate(
+public fun springOrmTemplate(
     dataSource: DataSource,
     config: StormConfig = StormConfig.defaults(),
     entityCallbacks: List<EntityCallback<*>> = emptyList(),

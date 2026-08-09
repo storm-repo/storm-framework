@@ -1,3 +1,5 @@
+@file:OptIn(InternalStormApi::class)
+
 package st.orm.template
 
 import io.kotest.matchers.collections.shouldNotBeEmpty
@@ -21,7 +23,6 @@ import st.orm.Metamodel
 import st.orm.core.template.SqlLog.Summary
 import st.orm.core.template.StatementOrigin.FETCH
 import st.orm.core.template.impl.SqlLogRenderer
-import st.orm.template.impl.recordSqlLog
 import st.orm.template.model.Owner
 import st.orm.template.model.PetOwnerRef
 import st.orm.core.template.SqlLog as CoreSqlLog

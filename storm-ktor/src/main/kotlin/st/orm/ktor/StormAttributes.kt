@@ -26,7 +26,7 @@ internal val OrmTemplateKey = AttributeKey<ORMTemplate>("StormORMTemplate")
 internal val DataSourceKey = AttributeKey<DataSource>("StormDataSource")
 
 @PublishedApi
-internal val RepositoryRegistryKey = AttributeKey<RepositoryRegistry>("StormRepositoryRegistry")
+internal val RepositoryRegistryKey: AttributeKey<RepositoryRegistry> = AttributeKey("StormRepositoryRegistry")
 
 /**
  * Attribute keys for the additional, named databases configured via `database("name") { }`.
@@ -35,4 +35,4 @@ internal val NamedOrmTemplatesKey = AttributeKey<Map<String, ORMTemplate>>("Stor
 internal val NamedDataSourcesKey = AttributeKey<Map<String, DataSource>>("StormNamedDataSources")
 
 @PublishedApi
-internal val NamedRepositoryRegistriesKey = AttributeKey<Map<String, RepositoryRegistry>>("StormNamedRepositoryRegistries")
+internal val NamedRepositoryRegistriesKey: AttributeKey<Map<String, RepositoryRegistry>> = AttributeKey("StormNamedRepositoryRegistries")

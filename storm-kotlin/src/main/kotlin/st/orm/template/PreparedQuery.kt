@@ -42,7 +42,7 @@ import kotlin.reflect.KClass
  * @see Query.prepare
  * @see QueryBuilder.prepare
  */
-interface PreparedQuery :
+public interface PreparedQuery :
     Query,
     AutoCloseable {
     /**
@@ -52,7 +52,7 @@ interface PreparedQuery :
      * @throws st.orm.PersistenceException if adding the batch fails, for instance when query has not specified
      * `BatchVars`.
      */
-    fun addBatch(record: Data)
+    public fun addBatch(record: Data)
 
     /**
      * Returns a stream of generated keys as the result of an insert statement. Returns an empty stream if the insert
@@ -71,7 +71,7 @@ interface PreparedQuery :
      * generated.
      * @throws st.orm.PersistenceException if the statement fails
      </ID> */
-    fun <ID : Any> getGeneratedKeys(type: KClass<ID>): Stream<ID>
+    public fun <ID : Any> getGeneratedKeys(type: KClass<ID>): Stream<ID>
 
     /**
      * Close the resources associated with this query.

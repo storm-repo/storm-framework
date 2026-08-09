@@ -45,7 +45,7 @@ import kotlin.reflect.full.starProjectedType
  * }
  * ```
  */
-val StormSerializers: SerializersModule = StormSerializersModule()
+public val StormSerializers: SerializersModule = StormSerializersModule()
 
 /**
  * Creates a [SerializersModule] for Storm ORM types with optional [RefFactory] support.
@@ -83,7 +83,7 @@ val StormSerializers: SerializersModule = StormSerializersModule()
  *   The provider is invoked on each deserialization, allowing for ThreadLocal or
  *   scoped value resolution.
  */
-fun StormSerializersModule(
+public fun StormSerializersModule(
     refFactoryProvider: (() -> RefFactory?)? = null,
 ): SerializersModule = SerializersModule {
     contextual(Ref::class) { typeArgs ->
@@ -114,7 +114,7 @@ fun StormSerializersModule(
  *   `List<Ref<Foo>>` containing `null` elements (JSON `null`).
  * - Requires JSON format (kotlinx.serialization Json).
  */
-class RefSerializer<T : Data>(
+public class RefSerializer<T : Data>(
     private val targetClass: Class<out Data>,
     targetSerializerProvider: () -> KSerializer<T>,
     private val refFactoryProvider: (() -> RefFactory?)? = null,

@@ -30,7 +30,7 @@ import st.orm.Ref
  *
  * Requires `import st.orm.template.ref`.
  */
-fun <E : Entity<*>> E.ref(): Ref<E> = Ref.of(this)
+public fun <E : Entity<*>> E.ref(): Ref<E> = Ref.of(this)
 
 /**
  * Creates a [Ref] from a type and primary key value, without needing an entity instance.
@@ -42,7 +42,7 @@ fun <E : Entity<*>> E.ref(): Ref<E> = Ref.of(this)
  *
  * Requires `import st.orm.template.refById`.
  */
-inline fun <reified T : Data> refById(id: Any): Ref<T> = Ref.of(T::class.java, id)
+public inline fun <reified T : Data> refById(id: Any): Ref<T> = Ref.of(T::class.java, id)
 
 /**
  * Extracts the primary key from an entity ref, returning a type-safe id.
@@ -55,7 +55,7 @@ inline fun <reified T : Data> refById(id: Any): Ref<T> = Ref.of(T::class.java, i
  *
  * Requires `import st.orm.template.entityId`.
  */
-fun <ID, E : Entity<ID>> Ref<E>.entityId(): ID = Ref.entityId(this)
+public fun <ID, E : Entity<ID>> Ref<E>.entityId(): ID = Ref.entityId(this)
 
 /**
  * Extracts the primary key from a projection ref, returning a type-safe id.
@@ -68,4 +68,4 @@ fun <ID, E : Entity<ID>> Ref<E>.entityId(): ID = Ref.entityId(this)
  *
  * Requires `import st.orm.template.projectionId`.
  */
-fun <ID, P : Projection<ID>> Ref<P>.projectionId(): ID = Ref.projectionId(this)
+public fun <ID, P : Projection<ID>> Ref<P>.projectionId(): ID = Ref.projectionId(this)

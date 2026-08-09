@@ -91,7 +91,7 @@ import kotlin.reflect.KClass
  * @see st.orm.repository.ProjectionRepository
  * @see QueryTemplate
  */
-abstract class QueryBuilder<T : Data, R, ID> {
+public abstract class QueryBuilder<T : Data, R, ID> {
     /**
      * Returns a typed query builder for the specified primary key type.
      *
@@ -101,7 +101,7 @@ abstract class QueryBuilder<T : Data, R, ID> {
      * @throws PersistenceException if the pk type is not valid.
      * @since 1.14
      */
-    abstract fun <X : Any> typedId(pkType: KClass<X>): QueryBuilder<T, R, X>
+    public abstract fun <X : Any> typedId(pkType: KClass<X>): QueryBuilder<T, R, X>
 
     /**
      * Returns a typed query builder for the specified primary key type.
@@ -111,7 +111,7 @@ abstract class QueryBuilder<T : Data, R, ID> {
      * @throws PersistenceException if the pk type is not valid.
      * @since 1.14
      */
-    inline fun <reified X : Any> typedId(): QueryBuilder<T, R, X> = typedId(X::class)
+    public inline fun <reified X : Any> typedId(): QueryBuilder<T, R, X> = typedId(X::class)
 
     /**
      * Returns a query builder rooted at the specified type, narrowing a builder whose root was relaxed by a join.
@@ -124,7 +124,7 @@ abstract class QueryBuilder<T : Data, R, ID> {
      * @throws PersistenceException if [rootType] is not the type this query selects from.
      * @since 1.14
      */
-    abstract fun <X : Data> narrow(rootType: KClass<X>): QueryBuilder<X, R, ID>
+    public abstract fun <X : Data> narrow(rootType: KClass<X>): QueryBuilder<X, R, ID>
 
     /**
      * Returns a query builder rooted at [X], narrowing a builder whose root was relaxed by a join.
@@ -132,7 +132,7 @@ abstract class QueryBuilder<T : Data, R, ID> {
      * @throws PersistenceException if [X] is not the type this query selects from.
      * @since 1.14
      */
-    inline fun <reified X : Data> narrow(): QueryBuilder<X, R, ID> = narrow(X::class)
+    public inline fun <reified X : Data> narrow(): QueryBuilder<X, R, ID> = narrow(X::class)
 
     /**
      * Widens the query as a join does, without joining: from here on, every clause accepts paths from any entity in
@@ -145,7 +145,7 @@ abstract class QueryBuilder<T : Data, R, ID> {
      * @return the query builder, accepting paths from any entity in the query.
      * @since 1.14
      */
-    abstract fun widen(): QueryBuilder<Data, R, ID>
+    public abstract fun widen(): QueryBuilder<Data, R, ID>
 
     /**
      * Returns a query builder that allows UPDATE and DELETE queries without a WHERE clause.
@@ -156,14 +156,14 @@ abstract class QueryBuilder<T : Data, R, ID> {
      *
      * @since 1.2
      */
-    abstract fun unsafe(): QueryBuilder<T, R, ID>
+    public abstract fun unsafe(): QueryBuilder<T, R, ID>
 
     /**
      * Marks the current query as a distinct query.
      *
      * @return the query builder.
      */
-    abstract fun distinct(): QueryBuilder<T, R, ID>
+    public abstract fun distinct(): QueryBuilder<T, R, ID>
 
     /**
      * Resolves the references at the specified paths as part of this query.
@@ -199,7 +199,7 @@ abstract class QueryBuilder<T : Data, R, ID> {
      * select a record that can hold one.
      * @since 1.13
      */
-    fun fetch(vararg path: Navigable<T, out Data>): QueryBuilder<T, R, ID> = fetch(path.toList())
+    public fun fetch(vararg path: Navigable<T, out Data>): QueryBuilder<T, R, ID> = fetch(path.toList())
 
     /**
      * Resolves the references at the specified paths as part of this query.
@@ -213,7 +213,7 @@ abstract class QueryBuilder<T : Data, R, ID> {
      * select a record that can hold one.
      * @since 1.13
      */
-    abstract fun fetch(paths: List<Navigable<T, out Data>>): QueryBuilder<T, R, ID>
+    public abstract fun fetch(paths: List<Navigable<T, out Data>>): QueryBuilder<T, R, ID>
 
     /**
      * Adds a cross join to the query.
@@ -221,7 +221,7 @@ abstract class QueryBuilder<T : Data, R, ID> {
      * @param relation the relation to join.
      * @return the query builder.
      */
-    abstract fun crossJoin(relation: KClass<out Data>): QueryBuilder<Data, R, ID>
+    public abstract fun crossJoin(relation: KClass<out Data>): QueryBuilder<Data, R, ID>
 
     /**
      * Adds a cross join to the query.
@@ -230,7 +230,7 @@ abstract class QueryBuilder<T : Data, R, ID> {
      * @return the query builder.
      * @since 1.12
      */
-    inline fun <reified J : Data> crossJoin(): QueryBuilder<Data, R, ID> = crossJoin(J::class)
+    public inline fun <reified J : Data> crossJoin(): QueryBuilder<Data, R, ID> = crossJoin(J::class)
 
     /**
      * Adds an inner join to the query.
@@ -238,7 +238,7 @@ abstract class QueryBuilder<T : Data, R, ID> {
      * @param relation the relation to join.
      * @return the query builder.
      */
-    abstract fun innerJoin(relation: KClass<out Data>): TypedJoinBuilder<T, R, ID>
+    public abstract fun innerJoin(relation: KClass<out Data>): TypedJoinBuilder<T, R, ID>
 
     /**
      * Adds an inner join to the query.
@@ -247,7 +247,7 @@ abstract class QueryBuilder<T : Data, R, ID> {
      * @return the query builder.
      * @since 1.12
      */
-    inline fun <reified J : Data> innerJoin(): TypedJoinBuilder<T, R, ID> = innerJoin(J::class)
+    public inline fun <reified J : Data> innerJoin(): TypedJoinBuilder<T, R, ID> = innerJoin(J::class)
 
     /**
      * Adds a left join to the query.
@@ -255,7 +255,7 @@ abstract class QueryBuilder<T : Data, R, ID> {
      * @param relation the relation to join.
      * @return the query builder.
      */
-    abstract fun leftJoin(relation: KClass<out Data>): TypedJoinBuilder<T, R, ID>
+    public abstract fun leftJoin(relation: KClass<out Data>): TypedJoinBuilder<T, R, ID>
 
     /**
      * Adds a left join to the query.
@@ -264,7 +264,7 @@ abstract class QueryBuilder<T : Data, R, ID> {
      * @return the query builder.
      * @since 1.12
      */
-    inline fun <reified J : Data> leftJoin(): TypedJoinBuilder<T, R, ID> = leftJoin(J::class)
+    public inline fun <reified J : Data> leftJoin(): TypedJoinBuilder<T, R, ID> = leftJoin(J::class)
 
     /**
      * Adds a right join to the query.
@@ -272,7 +272,7 @@ abstract class QueryBuilder<T : Data, R, ID> {
      * @param relation the relation to join.
      * @return the query builder.
      */
-    abstract fun rightJoin(relation: KClass<out Data>): TypedJoinBuilder<T, R, ID>
+    public abstract fun rightJoin(relation: KClass<out Data>): TypedJoinBuilder<T, R, ID>
 
     /**
      * Adds a right join to the query.
@@ -281,7 +281,7 @@ abstract class QueryBuilder<T : Data, R, ID> {
      * @return the query builder.
      * @since 1.12
      */
-    inline fun <reified J : Data> rightJoin(): TypedJoinBuilder<T, R, ID> = rightJoin(J::class)
+    public inline fun <reified J : Data> rightJoin(): TypedJoinBuilder<T, R, ID> = rightJoin(J::class)
 
     /**
      * Adds a join of the specified type to the query.
@@ -291,7 +291,7 @@ abstract class QueryBuilder<T : Data, R, ID> {
      * @param alias the alias to use for the joined relation.
      * @return the query builder.
      */
-    abstract fun join(
+    public abstract fun join(
         type: JoinType,
         relation: KClass<out Data>,
         alias: String,
@@ -303,7 +303,7 @@ abstract class QueryBuilder<T : Data, R, ID> {
      * @param template the condition to join.
      * @return the query builder.
      */
-    fun crossJoin(template: TemplateBuilder): QueryBuilder<Data, R, ID> = crossJoin(template.build())
+    public fun crossJoin(template: TemplateBuilder): QueryBuilder<Data, R, ID> = crossJoin(template.build())
 
     /**
      * Adds a cross join to the query.
@@ -311,7 +311,7 @@ abstract class QueryBuilder<T : Data, R, ID> {
      * @param template the condition to join.
      * @return the query builder.
      */
-    abstract fun crossJoin(template: TemplateString): QueryBuilder<Data, R, ID>
+    public abstract fun crossJoin(template: TemplateString): QueryBuilder<Data, R, ID>
 
     /**
      * Adds an inner join to the query.
@@ -320,7 +320,7 @@ abstract class QueryBuilder<T : Data, R, ID> {
      * @param alias the alias to use for the joined relation.
      * @return the query builder.
      */
-    fun innerJoin(template: TemplateBuilder, alias: String): JoinBuilder<T, R, ID> = innerJoin(template.build(), alias)
+    public fun innerJoin(template: TemplateBuilder, alias: String): JoinBuilder<T, R, ID> = innerJoin(template.build(), alias)
 
     /**
      * Adds an inner join to the query.
@@ -329,7 +329,7 @@ abstract class QueryBuilder<T : Data, R, ID> {
      * @param alias the alias to use for the joined relation.
      * @return the query builder.
      */
-    abstract fun innerJoin(template: TemplateString, alias: String): JoinBuilder<T, R, ID>
+    public abstract fun innerJoin(template: TemplateString, alias: String): JoinBuilder<T, R, ID>
 
     /**
      * Adds a left join to the query.
@@ -338,7 +338,7 @@ abstract class QueryBuilder<T : Data, R, ID> {
      * @param alias the alias to use for the joined relation.
      * @return the query builder.
      */
-    fun leftJoin(template: TemplateBuilder, alias: String): JoinBuilder<T, R, ID> = leftJoin(template.build(), alias)
+    public fun leftJoin(template: TemplateBuilder, alias: String): JoinBuilder<T, R, ID> = leftJoin(template.build(), alias)
 
     /**
      * Adds a left join to the query.
@@ -347,7 +347,7 @@ abstract class QueryBuilder<T : Data, R, ID> {
      * @param alias the alias to use for the joined relation.
      * @return the query builder.
      */
-    abstract fun leftJoin(template: TemplateString, alias: String): JoinBuilder<T, R, ID>
+    public abstract fun leftJoin(template: TemplateString, alias: String): JoinBuilder<T, R, ID>
 
     /**
      * Adds a right join to the query.
@@ -356,7 +356,7 @@ abstract class QueryBuilder<T : Data, R, ID> {
      * @param alias the alias to use for the joined relation.
      * @return the query builder.
      */
-    fun rightJoin(template: TemplateBuilder, alias: String): JoinBuilder<T, R, ID> = rightJoin(template.build(), alias)
+    public fun rightJoin(template: TemplateBuilder, alias: String): JoinBuilder<T, R, ID> = rightJoin(template.build(), alias)
 
     /**
      * Adds a right join to the query.
@@ -365,7 +365,7 @@ abstract class QueryBuilder<T : Data, R, ID> {
      * @param alias the alias to use for the joined relation.
      * @return the query builder.
      */
-    abstract fun rightJoin(template: TemplateString, alias: String): JoinBuilder<T, R, ID>
+    public abstract fun rightJoin(template: TemplateString, alias: String): JoinBuilder<T, R, ID>
 
     /**
      * Adds a join of the specified type to the query using a template.
@@ -375,7 +375,7 @@ abstract class QueryBuilder<T : Data, R, ID> {
      * @param alias the alias to use for the joined relation.
      * @return the query builder.
      */
-    fun join(
+    public fun join(
         type: JoinType,
         template: TemplateBuilder,
         alias: String,
@@ -389,7 +389,7 @@ abstract class QueryBuilder<T : Data, R, ID> {
      * @param alias the alias to use for the joined relation.
      * @return the query builder.
      */
-    abstract fun join(
+    public abstract fun join(
         type: JoinType,
         template: TemplateString,
         alias: String,
@@ -403,7 +403,7 @@ abstract class QueryBuilder<T : Data, R, ID> {
      * @param alias the alias to use for the joined relation.
      * @return the query builder.
      */
-    abstract fun join(
+    public abstract fun join(
         type: JoinType,
         subquery: QueryBuilder<*, *, *>,
         alias: String,
@@ -415,7 +415,7 @@ abstract class QueryBuilder<T : Data, R, ID> {
      * @param id the id to match.
      * @return the query builder.
      */
-    fun where(id: ID): QueryBuilder<T, R, ID> = whereBuilder { whereId(id) }
+    public fun where(id: ID): QueryBuilder<T, R, ID> = whereBuilder { whereId(id) }
 
     /**
      * Adds a WHERE clause that matches the specified primary key of the table, expressed by a ref.
@@ -424,7 +424,7 @@ abstract class QueryBuilder<T : Data, R, ID> {
      * @return the query builder.
      * @since 1.3
      */
-    fun where(ref: Ref<out T>): QueryBuilder<T, R, ID> = whereBuilder {
+    public fun where(ref: Ref<out T>): QueryBuilder<T, R, ID> = whereBuilder {
         @Suppress("UNCHECKED_CAST")
         whereRef(ref as Ref<T>)
     }
@@ -435,7 +435,7 @@ abstract class QueryBuilder<T : Data, R, ID> {
      * @param record the record to match.
      * @return the query builder.
      */
-    fun where(record: T): QueryBuilder<T, R, ID> = whereBuilder { where(record) }
+    public fun where(record: T): QueryBuilder<T, R, ID> = whereBuilder { where(record) }
 
     /**
      * Adds a WHERE clause that matches the specified primary keys of the table.
@@ -444,7 +444,7 @@ abstract class QueryBuilder<T : Data, R, ID> {
      * @return the query builder.
      * @since 1.2
      */
-    fun whereId(it: Iterable<ID>): QueryBuilder<T, R, ID> = whereBuilder { whereId(it) }
+    public fun whereId(it: Iterable<ID>): QueryBuilder<T, R, ID> = whereBuilder { whereId(it) }
 
     /**
      * Adds a WHERE clause that matches the specified primary keys of the table, expressed by a ref.
@@ -453,7 +453,7 @@ abstract class QueryBuilder<T : Data, R, ID> {
      * @return the query builder.
      * @since 1.3
      */
-    fun whereRef(it: Iterable<Ref<T>>): QueryBuilder<T, R, ID> = whereBuilder { whereRef(it) }
+    public fun whereRef(it: Iterable<Ref<T>>): QueryBuilder<T, R, ID> = whereBuilder { whereRef(it) }
 
     /**
      * Adds a WHERE clause that matches the specified record. The record can represent any of the related tables in the
@@ -463,7 +463,7 @@ abstract class QueryBuilder<T : Data, R, ID> {
      * @param record the records to match.
      * @return the predicate builder.
      */
-    fun <V : Data> where(path: Metamodel<out T, V>, record: V): QueryBuilder<T, R, ID> = where(path eq record)
+    public fun <V : Data> where(path: Metamodel<out T, V>, record: V): QueryBuilder<T, R, ID> = where(path eq record)
 
     /**
      * Adds a WHERE clause that matches the specified ref. The ref can represent any of the related tables in the
@@ -474,7 +474,7 @@ abstract class QueryBuilder<T : Data, R, ID> {
      * @return the predicate builder.
      * @since 1.3
      */
-    fun <V : Data> where(path: Metamodel<out T, V>, ref: Ref<V>): QueryBuilder<T, R, ID> = whereBuilder { where(path, ref) }
+    public fun <V : Data> where(path: Metamodel<out T, V>, ref: Ref<V>): QueryBuilder<T, R, ID> = whereBuilder { where(path, ref) }
 
     /**
      * Adds a WHERE clause that matches the specified records. The records can represent any of the related tables in
@@ -484,7 +484,7 @@ abstract class QueryBuilder<T : Data, R, ID> {
      * @param it the records to match.
      * @return the predicate builder.
      */
-    fun <V : Data> where(path: Navigable<out T, V>, it: Iterable<V>): QueryBuilder<T, R, ID> = where(path inList it)
+    public fun <V : Data> where(path: Navigable<out T, V>, it: Iterable<V>): QueryBuilder<T, R, ID> = where(path inList it)
 
     /**
      * Adds a WHERE clause that matches the specified records. The records can represent any of the related tables in
@@ -495,7 +495,7 @@ abstract class QueryBuilder<T : Data, R, ID> {
      * @return the predicate builder.
      * @since 1.3
      */
-    fun <V : Data> whereRef(
+    public fun <V : Data> whereRef(
         path: Metamodel<T, V>,
         it: Iterable<Ref<V>>,
     ): QueryBuilder<T, R, ID> = whereBuilder { whereRef(path, it) }
@@ -506,7 +506,7 @@ abstract class QueryBuilder<T : Data, R, ID> {
      * @param it the records to match.
      * @return the query builder.
      */
-    fun where(it: Iterable<T>): QueryBuilder<T, R, ID> = whereBuilder { where(it) }
+    public fun where(it: Iterable<T>): QueryBuilder<T, R, ID> = whereBuilder { where(it) }
 
     /**
      * Adds a WHERE clause that matches the specified objects at the specified path in the table graph.
@@ -519,7 +519,7 @@ abstract class QueryBuilder<T : Data, R, ID> {
      * @param <V> the type of the object that the metamodel represents.
      * @since 1.2
      */
-    fun <V> where(
+    public fun <V> where(
         path: Navigable<out T, V>,
         operator: Operator,
         it: Iterable<V>,
@@ -536,7 +536,7 @@ abstract class QueryBuilder<T : Data, R, ID> {
      * @param <V> the type of the object that the metamodel represents.
      * @since 1.2
      */
-    fun <V> where(
+    public fun <V> where(
         path: Navigable<out T, V>,
         operator: Operator,
         vararg o: V,
@@ -548,7 +548,7 @@ abstract class QueryBuilder<T : Data, R, ID> {
      * @param builder the expression.
      * @return the query builder.
      */
-    fun where(builder: TemplateBuilder): QueryBuilder<T, R, ID> = where(builder.build())
+    public fun where(builder: TemplateBuilder): QueryBuilder<T, R, ID> = where(builder.build())
 
     /**
      * Adds a WHERE clause to the query for the specified expression.
@@ -556,7 +556,7 @@ abstract class QueryBuilder<T : Data, R, ID> {
      * @param template the expression.
      * @return the query builder.
      */
-    fun where(template: TemplateString): QueryBuilder<T, R, ID> = whereBuilder { where(template) }
+    public fun where(template: TemplateString): QueryBuilder<T, R, ID> = whereBuilder { where(template) }
 
     /**
      * Adds a WHERE clause to the query using a [WhereBuilder].
@@ -564,7 +564,7 @@ abstract class QueryBuilder<T : Data, R, ID> {
      * @param predicate the predicate to add.
      * @return the query builder.
      */
-    fun where(predicate: PredicateBuilder<out T, *, *>): QueryBuilder<T, R, ID> = whereBuilder { predicate }
+    public fun where(predicate: PredicateBuilder<out T, *, *>): QueryBuilder<T, R, ID> = whereBuilder { predicate }
 
     /**
      * Adds an `EXISTS` WHERE clause using the specified subquery.
@@ -578,7 +578,7 @@ abstract class QueryBuilder<T : Data, R, ID> {
      * @param subquery the subquery to check for existence.
      * @return the query builder.
      */
-    fun whereExists(subquery: QueryBuilder<*, *, *>): QueryBuilder<T, R, ID> = whereBuilder { exists(subquery) }
+    public fun whereExists(subquery: QueryBuilder<*, *, *>): QueryBuilder<T, R, ID> = whereBuilder { exists(subquery) }
 
     /**
      * Adds an `EXISTS` WHERE clause using the specified subquery.
@@ -591,7 +591,7 @@ abstract class QueryBuilder<T : Data, R, ID> {
      * @param builder the subquery to check for existence.
      * @return the query builder.
      */
-    fun whereExists(builder: SubqueryTemplate.() -> QueryBuilder<*, *, *>): QueryBuilder<T, R, ID> = whereBuilder { exists(builder(this)) }
+    public fun whereExists(builder: SubqueryTemplate.() -> QueryBuilder<*, *, *>): QueryBuilder<T, R, ID> = whereBuilder { exists(builder(this)) }
 
     /**
      * Adds a `NOT EXISTS` WHERE clause using the specified subquery.
@@ -604,7 +604,7 @@ abstract class QueryBuilder<T : Data, R, ID> {
      * @param subquery the subquery to check for existence.
      * @return the query builder.
      */
-    fun whereNotExists(subquery: QueryBuilder<*, *, *>): QueryBuilder<T, R, ID> = whereBuilder { notExists(subquery) }
+    public fun whereNotExists(subquery: QueryBuilder<*, *, *>): QueryBuilder<T, R, ID> = whereBuilder { notExists(subquery) }
 
     /**
      * Adds a `NOT EXISTS` WHERE clause using the specified subquery.
@@ -617,7 +617,7 @@ abstract class QueryBuilder<T : Data, R, ID> {
      * @param builder the subquery to check for existence.
      * @return the query builder.
      */
-    fun whereNotExists(builder: SubqueryTemplate.() -> QueryBuilder<*, *, *>): QueryBuilder<T, R, ID> = whereBuilder { notExists(builder(this)) }
+    public fun whereNotExists(builder: SubqueryTemplate.() -> QueryBuilder<*, *, *>): QueryBuilder<T, R, ID> = whereBuilder { notExists(builder(this)) }
 
     /**
      * Adds a WHERE clause to the query using a [WhereBuilder].
@@ -625,7 +625,7 @@ abstract class QueryBuilder<T : Data, R, ID> {
      * @param predicate the predicate to add.
      * @return the query builder.
      */
-    abstract fun whereBuilder(predicate: WhereBuilder<T, R, ID>.() -> PredicateBuilder<out T, *, *>): QueryBuilder<T, R, ID>
+    public abstract fun whereBuilder(predicate: WhereBuilder<T, R, ID>.() -> PredicateBuilder<out T, *, *>): QueryBuilder<T, R, ID>
 
     /**
      * Adds a GROUP BY clause to the query for field at the specified path in the table graph. The metamodel can refer
@@ -639,7 +639,7 @@ abstract class QueryBuilder<T : Data, R, ID> {
      * @return the query builder.
      * @since 1.2
      */
-    fun groupBy(vararg path: Navigable<out T, *>): QueryBuilder<T, R, ID> {
+    public fun groupBy(vararg path: Navigable<out T, *>): QueryBuilder<T, R, ID> {
         // We can safely invoke groupByAny as the underlying logic is identical. The main purpose of having these
         // separate methods is to provide (more) type safety when using metamodels that are guaranteed to be present in
         // the table graph.
@@ -664,7 +664,7 @@ abstract class QueryBuilder<T : Data, R, ID> {
      * @return the query builder.
      * @since 1.2
      */
-    fun groupBy(builder: TemplateBuilder): QueryBuilder<T, R, ID> = groupBy(builder.build())
+    public fun groupBy(builder: TemplateBuilder): QueryBuilder<T, R, ID> = groupBy(builder.build())
 
     /**
      * Adds a GROUP BY clause to the query using a string template. Multiple calls to this method append additional
@@ -674,7 +674,7 @@ abstract class QueryBuilder<T : Data, R, ID> {
      * @return the query builder.
      * @since 1.2
      */
-    abstract fun groupBy(template: TemplateString): QueryBuilder<T, R, ID>
+    public abstract fun groupBy(template: TemplateString): QueryBuilder<T, R, ID>
 
     /**
      * Adds a HAVING clause to the query using the specified expression.
@@ -686,7 +686,7 @@ abstract class QueryBuilder<T : Data, R, ID> {
      * @return the query builder.
      * @since 1.2
      */
-    fun <V> having(
+    public fun <V> having(
         path: Navigable<out T, V>,
         operator: Operator,
         vararg o: V,
@@ -699,7 +699,7 @@ abstract class QueryBuilder<T : Data, R, ID> {
      * @return the query builder.
      * @since 1.2
      */
-    fun having(builder: TemplateBuilder): QueryBuilder<T, R, ID> = having(builder.build())
+    public fun having(builder: TemplateBuilder): QueryBuilder<T, R, ID> = having(builder.build())
 
     /**
      * Adds a HAVING clause to the query using the specified expression. Multiple calls to this method are combined
@@ -709,7 +709,7 @@ abstract class QueryBuilder<T : Data, R, ID> {
      * @return the query builder.
      * @since 1.2
      */
-    abstract fun having(template: TemplateString): QueryBuilder<T, R, ID>
+    public abstract fun having(template: TemplateString): QueryBuilder<T, R, ID>
 
     /**
      * Adds a HAVING clause to the query for the specified predicate. Multiple calls to this method are combined using
@@ -723,7 +723,7 @@ abstract class QueryBuilder<T : Data, R, ID> {
      * @return the query builder.
      * @since 1.13
      */
-    abstract fun having(predicate: PredicateBuilder<out T, *, *>): QueryBuilder<T, R, ID>
+    public abstract fun having(predicate: PredicateBuilder<out T, *, *>): QueryBuilder<T, R, ID>
 
     /**
      * Adds a HAVING clause that keeps the groups for which [subquery] returns at least one row.
@@ -732,7 +732,7 @@ abstract class QueryBuilder<T : Data, R, ID> {
      * @return the query builder.
      * @since 1.13
      */
-    abstract fun havingExists(subquery: QueryBuilder<*, *, *>): QueryBuilder<T, R, ID>
+    public abstract fun havingExists(subquery: QueryBuilder<*, *, *>): QueryBuilder<T, R, ID>
 
     /**
      * Adds a HAVING clause that keeps the groups for which [subquery] returns no rows.
@@ -741,7 +741,7 @@ abstract class QueryBuilder<T : Data, R, ID> {
      * @return the query builder.
      * @since 1.13
      */
-    abstract fun havingNotExists(subquery: QueryBuilder<*, *, *>): QueryBuilder<T, R, ID>
+    public abstract fun havingNotExists(subquery: QueryBuilder<*, *, *>): QueryBuilder<T, R, ID>
 
     /**
      * Adds a HAVING clause that keeps the groups for which the subquery built by [builder] returns at least one row.
@@ -750,7 +750,7 @@ abstract class QueryBuilder<T : Data, R, ID> {
      * @return the query builder.
      * @since 1.13
      */
-    fun havingExists(builder: SubqueryTemplate.() -> QueryBuilder<*, *, *>): QueryBuilder<T, R, ID> = havingExists(builder(subqueryTemplate()))
+    public fun havingExists(builder: SubqueryTemplate.() -> QueryBuilder<*, *, *>): QueryBuilder<T, R, ID> = havingExists(builder(subqueryTemplate()))
 
     /**
      * Adds a HAVING clause that keeps the groups for which the subquery built by [builder] returns no rows.
@@ -759,7 +759,7 @@ abstract class QueryBuilder<T : Data, R, ID> {
      * @return the query builder.
      * @since 1.13
      */
-    fun havingNotExists(builder: SubqueryTemplate.() -> QueryBuilder<*, *, *>): QueryBuilder<T, R, ID> = havingNotExists(builder(subqueryTemplate()))
+    public fun havingNotExists(builder: SubqueryTemplate.() -> QueryBuilder<*, *, *>): QueryBuilder<T, R, ID> = havingNotExists(builder(subqueryTemplate()))
 
     /**
      * Returns the factory this query builds its subqueries with.
@@ -770,7 +770,7 @@ abstract class QueryBuilder<T : Data, R, ID> {
      * @return the subquery factory for this query.
      * @since 1.13
      */
-    abstract fun subqueryTemplate(): SubqueryTemplate
+    public abstract fun subqueryTemplate(): SubqueryTemplate
 
     /**
      * Adds an ORDER BY clause to the query for the field at the specified path in the table graph.
@@ -779,7 +779,7 @@ abstract class QueryBuilder<T : Data, R, ID> {
      * @return the query builder.
      * @since 1.2
      */
-    fun orderBy(vararg path: Navigable<out T, *>): QueryBuilder<T, R, ID> {
+    public fun orderBy(vararg path: Navigable<out T, *>): QueryBuilder<T, R, ID> {
         if (path.isEmpty()) {
             throw PersistenceException("At least one path must be provided for ORDER BY clause.")
         }
@@ -802,7 +802,7 @@ abstract class QueryBuilder<T : Data, R, ID> {
      * @return the query builder.
      * @since 1.2
      */
-    fun orderByDescending(path: Navigable<out T, *>): QueryBuilder<T, R, ID> = orderBy(wrap(Columns(path.asMetamodel(), CASCADE, true)))
+    public fun orderByDescending(path: Navigable<out T, *>): QueryBuilder<T, R, ID> = orderBy(wrap(Columns(path.asMetamodel(), CASCADE, true)))
 
     /**
      * Adds an ORDER BY clause to the query for the fields at the specified paths in the table graph. The results
@@ -812,7 +812,7 @@ abstract class QueryBuilder<T : Data, R, ID> {
      * @return the query builder.
      * @since 1.9
      */
-    fun orderByDescending(vararg path: Navigable<out T, *>): QueryBuilder<T, R, ID> {
+    public fun orderByDescending(vararg path: Navigable<out T, *>): QueryBuilder<T, R, ID> {
         if (path.isEmpty()) {
             throw PersistenceException("At least one path must be provided for ORDER BY clause.")
         }
@@ -835,7 +835,7 @@ abstract class QueryBuilder<T : Data, R, ID> {
      * @return the query builder.
      * @since 1.9
      */
-    fun orderByDescending(builder: TemplateBuilder): QueryBuilder<T, R, ID> = orderByDescending(builder.build())
+    public fun orderByDescending(builder: TemplateBuilder): QueryBuilder<T, R, ID> = orderByDescending(builder.build())
 
     /**
      * Adds an ORDER BY clause to the query using a string template. The results are sorted in descending order.
@@ -845,7 +845,7 @@ abstract class QueryBuilder<T : Data, R, ID> {
      * @return the query builder.
      * @since 1.9
      */
-    fun orderByDescending(template: TemplateString): QueryBuilder<T, R, ID> = orderBy(combine(template, raw(" DESC")))
+    public fun orderByDescending(template: TemplateString): QueryBuilder<T, R, ID> = orderBy(combine(template, raw(" DESC")))
 
     /**
      * Adds an ORDER BY clause to the query using a string template.
@@ -854,7 +854,7 @@ abstract class QueryBuilder<T : Data, R, ID> {
      * @return the query builder.
      * @since 1.2
      */
-    fun orderBy(template: TemplateBuilder): QueryBuilder<T, R, ID> = orderBy(template.build())
+    public fun orderBy(template: TemplateBuilder): QueryBuilder<T, R, ID> = orderBy(template.build())
 
     /**
      * Adds an ORDER BY clause to the query using a string template. Multiple calls to this method append additional
@@ -864,7 +864,7 @@ abstract class QueryBuilder<T : Data, R, ID> {
      * @return the query builder.
      * @since 1.2
      */
-    abstract fun orderBy(template: TemplateString): QueryBuilder<T, R, ID>
+    public abstract fun orderBy(template: TemplateString): QueryBuilder<T, R, ID>
 
     /**
      * Returns `true` if any ORDER BY columns have been added to this query builder.
@@ -872,7 +872,7 @@ abstract class QueryBuilder<T : Data, R, ID> {
      * @return `true` if ORDER BY columns are present, `false` otherwise.
      * @since 1.9
      */
-    abstract fun hasOrderBy(): Boolean
+    public abstract fun hasOrderBy(): Boolean
 
     /**
      * Adds a LIMIT clause to the query.
@@ -881,7 +881,7 @@ abstract class QueryBuilder<T : Data, R, ID> {
      * @return the query builder.
      * @since 1.2
      */
-    abstract fun limit(limit: Int): QueryBuilder<T, R, ID>
+    public abstract fun limit(limit: Int): QueryBuilder<T, R, ID>
 
     /**
      * Adds an OFFSET clause to the query.
@@ -890,7 +890,7 @@ abstract class QueryBuilder<T : Data, R, ID> {
      * @return the query builder.
      * @since 1.2
      */
-    abstract fun offset(offset: Int): QueryBuilder<T, R, ID>
+    public abstract fun offset(offset: Int): QueryBuilder<T, R, ID>
 
     /**
      * Append the query with a string template.
@@ -898,7 +898,7 @@ abstract class QueryBuilder<T : Data, R, ID> {
      * @param builder the string template to append.
      * @return the query builder.
      */
-    fun append(builder: TemplateBuilder): QueryBuilder<T, R, ID> = append(builder.build())
+    public fun append(builder: TemplateBuilder): QueryBuilder<T, R, ID> = append(builder.build())
 
     /**
      * Append the query with a string template.
@@ -906,7 +906,7 @@ abstract class QueryBuilder<T : Data, R, ID> {
      * @param template the string template to append.
      * @return the query builder.
      */
-    abstract fun append(template: TemplateString): QueryBuilder<T, R, ID>
+    public abstract fun append(template: TemplateString): QueryBuilder<T, R, ID>
 
     //
     // Locking.
@@ -920,7 +920,7 @@ abstract class QueryBuilder<T : Data, R, ID> {
      * not supported for the current query.
      * @since 1.2
      */
-    abstract fun forShare(): QueryBuilder<T, R, ID>
+    public abstract fun forShare(): QueryBuilder<T, R, ID>
 
     /**
      * Locks the selected rows for reading.
@@ -930,7 +930,7 @@ abstract class QueryBuilder<T : Data, R, ID> {
      * not supported for the current query.
      * @since 1.2
      */
-    abstract fun forUpdate(): QueryBuilder<T, R, ID>
+    public abstract fun forUpdate(): QueryBuilder<T, R, ID>
 
     /**
      * Locks the selected rows using a custom lock mode.
@@ -942,7 +942,7 @@ abstract class QueryBuilder<T : Data, R, ID> {
      * @throws PersistenceException if the lock mode is not supported for the current query.
      * @since 1.2
      */
-    fun forLock(builder: TemplateBuilder): QueryBuilder<T, R, ID> = forLock(builder.build())
+    public fun forLock(builder: TemplateBuilder): QueryBuilder<T, R, ID> = forLock(builder.build())
 
     /**
      * Locks the selected rows using a custom lock mode.
@@ -954,7 +954,7 @@ abstract class QueryBuilder<T : Data, R, ID> {
      * @throws PersistenceException if the lock mode is not supported for the current query.
      * @since 1.2
      */
-    abstract fun forLock(template: TemplateString): QueryBuilder<T, R, ID>
+    public abstract fun forLock(template: TemplateString): QueryBuilder<T, R, ID>
 
     //
     // Finalization.
@@ -965,7 +965,7 @@ abstract class QueryBuilder<T : Data, R, ID> {
      *
      * @return the constructed query.
      */
-    abstract fun build(): Query
+    public abstract fun build(): Query
 
     /**
      * Prepares the query for execution.
@@ -979,7 +979,7 @@ abstract class QueryBuilder<T : Data, R, ID> {
      * @return the prepared query.
      * @throws PersistenceException if the query preparation fails.
      */
-    fun prepare(): PreparedQuery = build().prepare()
+    public fun prepare(): PreparedQuery = build().prepare()
 
     /**
      * Executes the query and returns a [Page] of results using offset-based pagination.
@@ -996,7 +996,7 @@ abstract class QueryBuilder<T : Data, R, ID> {
      * @throws IllegalArgumentException if [pageNumber] is negative or [pageSize] is not positive.
      * @since 1.10
      */
-    fun page(pageNumber: Int, pageSize: Int): Page<R> = page(Pageable.of(pageNumber, pageSize))
+    public fun page(pageNumber: Int, pageSize: Int): Page<R> = page(Pageable.of(pageNumber, pageSize))
 
     /**
      * Executes the query and returns a [Page] of results using offset-based pagination.
@@ -1014,7 +1014,7 @@ abstract class QueryBuilder<T : Data, R, ID> {
      * @throws PersistenceException if the pageable has sort orders and the query builder has explicit orderBy calls.
      * @since 1.10
      */
-    fun page(pageable: Pageable): Page<R> = page(pageable, resultCount)
+    public fun page(pageable: Pageable): Page<R> = page(pageable, resultCount)
 
     /**
      * Executes the query and returns a [Page] of results using offset-based pagination with a pre-computed
@@ -1034,7 +1034,7 @@ abstract class QueryBuilder<T : Data, R, ID> {
      * @throws PersistenceException if the pageable has sort orders and the query builder has explicit orderBy calls.
      * @since 1.10
      */
-    fun page(pageable: Pageable, totalCount: Long): Page<R> {
+    public fun page(pageable: Pageable, totalCount: Long): Page<R> {
         // Forbid combining explicit orderBy with Pageable sort orders for consistency with scroll, which also
         // manages ORDER BY internally and forbids explicit orderBy calls.
         if (hasOrderBy() && pageable.orders().isNotEmpty()) {
@@ -1061,7 +1061,7 @@ abstract class QueryBuilder<T : Data, R, ID> {
      * @throws IllegalArgumentException if [size] is not positive.
      * @since 1.11
      */
-    abstract fun scroll(size: Int): Window<R>
+    public abstract fun scroll(size: Int): Window<R>
 
     /**
      * Executes a scroll request from a [Scrollable] token, typically obtained from
@@ -1071,7 +1071,7 @@ abstract class QueryBuilder<T : Data, R, ID> {
      * @return a window containing the results for the requested scroll position.
      * @since 1.11
      */
-    abstract fun scroll(scrollable: Scrollable<T>): Window<R>
+    public abstract fun scroll(scrollable: Scrollable<T>): Window<R>
 
     //
     // Execution methods.
@@ -1093,17 +1093,17 @@ abstract class QueryBuilder<T : Data, R, ID> {
      * @throws PersistenceException if the query operation fails due to underlying database issues, such as
      * connectivity.
      */
-    abstract val resultStream: Stream<R>
+    public abstract val resultStream: Stream<R>
 
     /**
      * Executes the query and returns a flow of results.
      *
      * @since 1.5
      */
-    val resultFlow: Flow<R>
+    public val resultFlow: Flow<R>
         get() = resultStream.consumeAsFlow()
 
-    val resultCount: Long
+    public val resultCount: Long
         /**
          * Returns the number of results of this query.
          *
@@ -1117,7 +1117,7 @@ abstract class QueryBuilder<T : Data, R, ID> {
             }
         }
 
-    open val resultList: List<R>
+    public open val resultList: List<R>
         /**
          * Executes the query and returns a list of results.
          *
@@ -1164,7 +1164,7 @@ abstract class QueryBuilder<T : Data, R, ID> {
      * resolves to null for a result.
      * @since 1.13
      */
-    abstract fun <V : Data> resultGroupedBy(path: TypedMetamodel<T, V, out V?>): Map<V, List<R>>
+    public abstract fun <V : Data> resultGroupedBy(path: TypedMetamodel<T, V, out V?>): Map<V, List<R>>
 
     /**
      * Executes the query and returns the results grouped by a lightweight ref to the record reached via [path],
@@ -1205,9 +1205,9 @@ abstract class QueryBuilder<T : Data, R, ID> {
      * not reference an entity or ref, or if the path resolves to null for a result.
      * @since 1.13
      */
-    abstract fun <V : Data> resultGroupedByRef(path: Metamodel<T, V>): Map<Ref<V>, List<R>>
+    public abstract fun <V : Data> resultGroupedByRef(path: Metamodel<T, V>): Map<Ref<V>, List<R>>
 
-    open val singleResult: R
+    public open val singleResult: R
         /**
          * Executes the query and returns a single result.
          *
@@ -1233,7 +1233,7 @@ abstract class QueryBuilder<T : Data, R, ID> {
             }
         }
 
-    open val optionalResult: R?
+    public open val optionalResult: R?
         /**
          * Executes the query and returns an optional result.
          *
@@ -1264,7 +1264,7 @@ abstract class QueryBuilder<T : Data, R, ID> {
      * @return the number of rows impacted as result of the statement.
      * @throws PersistenceException if the statement fails.
      */
-    fun executeUpdate(): Int = build().executeUpdate()
+    public fun executeUpdate(): Int = build().executeUpdate()
 }
 
 // Kotlin specific DSL
@@ -1272,97 +1272,97 @@ abstract class QueryBuilder<T : Data, R, ID> {
 /**
  * Infix function to create a predicate to check if a field is in a list of values.
  */
-infix fun <T : Data, V> Navigable<T, V>.inList(value: Iterable<V>): PredicateBuilder<T, T, *> = create(this.asMetamodel(), IN, value)
+public infix fun <T : Data, V> Navigable<T, V>.inList(value: Iterable<V>): PredicateBuilder<T, T, *> = create(this.asMetamodel(), IN, value)
 
 /**
  * Infix function to create a predicate to check if a field is in a list of references.
  */
-infix fun <T : Data, V : Data> Metamodel<T, V>.inRefs(value: Iterable<Ref<V>>): PredicateBuilder<T, T, *> = createRef(this, IN, value)
+public infix fun <T : Data, V : Data> Metamodel<T, V>.inRefs(value: Iterable<Ref<V>>): PredicateBuilder<T, T, *> = createRef(this, IN, value)
 
 /**
  * Infix function to create a predicate to check if a field is not in a list of values.
  */
-infix fun <T : Data, V> Navigable<T, V>.notInList(value: Iterable<V>): PredicateBuilder<T, T, *> = create(this.asMetamodel(), NOT_IN, value)
+public infix fun <T : Data, V> Navigable<T, V>.notInList(value: Iterable<V>): PredicateBuilder<T, T, *> = create(this.asMetamodel(), NOT_IN, value)
 
 /**
  * Infix function to create a predicate to check if a field is not in a list of references.
  */
-infix fun <T : Data, V : Data> Metamodel<T, V>.notInRefs(value: Iterable<Ref<V>>): PredicateBuilder<T, T, *> = createRef(this, NOT_IN, value)
+public infix fun <T : Data, V : Data> Metamodel<T, V>.notInRefs(value: Iterable<Ref<V>>): PredicateBuilder<T, T, *> = createRef(this, NOT_IN, value)
 
 /**
  * Infix functions to create a predicate to check if a field is equal to a value.
  */
-infix fun <T : Data, V> Navigable<T, V>.eq(value: V): PredicateBuilder<T, T, *> = create(this.asMetamodel(), EQUALS, listOf(value))
+public infix fun <T : Data, V> Navigable<T, V>.eq(value: V): PredicateBuilder<T, T, *> = create(this.asMetamodel(), EQUALS, listOf(value))
 
 /**
  * Infix functions to create a predicate to check if a field is equal to a reference.
  */
-infix fun <T : Data, V : Data> Metamodel<T, V>.eq(value: Ref<V>): PredicateBuilder<T, T, *> = createRef(this, EQUALS, listOf(value))
+public infix fun <T : Data, V : Data> Metamodel<T, V>.eq(value: Ref<V>): PredicateBuilder<T, T, *> = createRef(this, EQUALS, listOf(value))
 
 /**
  * Infix functions to create a predicate to check if a field is not equal to a value.
  */
-infix fun <T : Data, V> Navigable<T, V>.neq(value: V): PredicateBuilder<T, T, *> = create(this.asMetamodel(), NOT_EQUALS, listOf(value))
+public infix fun <T : Data, V> Navigable<T, V>.neq(value: V): PredicateBuilder<T, T, *> = create(this.asMetamodel(), NOT_EQUALS, listOf(value))
 
 /**
  * Infix functions to create a predicate to check if a field is not equal to a reference.
  */
-infix fun <T : Data, V : Data> Metamodel<T, V>.neq(value: Ref<V>): PredicateBuilder<T, T, *> = createRef(this, NOT_EQUALS, listOf(value))
+public infix fun <T : Data, V : Data> Metamodel<T, V>.neq(value: Ref<V>): PredicateBuilder<T, T, *> = createRef(this, NOT_EQUALS, listOf(value))
 
 /**
  * Infix functions to create a predicate to check if a field is like a value.
  */
-infix fun <T : Data, V> Navigable<T, V>.like(value: V): PredicateBuilder<T, T, *> = create(this.asMetamodel(), LIKE, listOf(value))
+public infix fun <T : Data, V> Navigable<T, V>.like(value: V): PredicateBuilder<T, T, *> = create(this.asMetamodel(), LIKE, listOf(value))
 
 /**
  * Infix functions to create a predicate to check if a field is not like a value.
  */
-infix fun <T : Data, V> Navigable<T, V>.notLike(value: V): PredicateBuilder<T, T, *> = create(this.asMetamodel(), NOT_LIKE, listOf(value))
+public infix fun <T : Data, V> Navigable<T, V>.notLike(value: V): PredicateBuilder<T, T, *> = create(this.asMetamodel(), NOT_LIKE, listOf(value))
 
 /**
  * Infix functions to create a predicate to check if a field is greater than a value.
  */
-infix fun <T : Data, V> Navigable<T, V>.greater(value: V): PredicateBuilder<T, T, *> = create(this.asMetamodel(), GREATER_THAN, listOf(value))
+public infix fun <T : Data, V> Navigable<T, V>.greater(value: V): PredicateBuilder<T, T, *> = create(this.asMetamodel(), GREATER_THAN, listOf(value))
 
 /**
  * Infix functions to create a predicate to check if a field is less than a value.
  */
-infix fun <T : Data, V> Navigable<T, V>.less(value: V): PredicateBuilder<T, T, *> = create(this.asMetamodel(), LESS_THAN, listOf(value))
+public infix fun <T : Data, V> Navigable<T, V>.less(value: V): PredicateBuilder<T, T, *> = create(this.asMetamodel(), LESS_THAN, listOf(value))
 
 /**
  * Infix functions to create a predicate to check if a field is greater than or equal to a value.
  */
-infix fun <T : Data, V> Navigable<T, V>.greaterEq(value: V): PredicateBuilder<T, T, *> = create(this.asMetamodel(), GREATER_THAN_OR_EQUAL, listOf(value))
+public infix fun <T : Data, V> Navigable<T, V>.greaterEq(value: V): PredicateBuilder<T, T, *> = create(this.asMetamodel(), GREATER_THAN_OR_EQUAL, listOf(value))
 
 /**
  * Infix functions to create a predicate to check if a field is less than or equal to a value.
  */
-infix fun <T : Data, V> Navigable<T, V>.lessEq(value: V): PredicateBuilder<T, T, *> = create(this.asMetamodel(), LESS_THAN_OR_EQUAL, listOf(value))
+public infix fun <T : Data, V> Navigable<T, V>.lessEq(value: V): PredicateBuilder<T, T, *> = create(this.asMetamodel(), LESS_THAN_OR_EQUAL, listOf(value))
 
 /**
  * Infix functions to create a predicate to check if a field is between two values.
  */
-fun <T : Data, V> Navigable<T, V>.between(left: V, right: V): PredicateBuilder<T, T, *> = create(this.asMetamodel(), BETWEEN, listOf(left, right))
+public fun <T : Data, V> Navigable<T, V>.between(left: V, right: V): PredicateBuilder<T, T, *> = create(this.asMetamodel(), BETWEEN, listOf(left, right))
 
 /**
  * Infix functions to create a predicate to check if a field is true.
  */
-fun <T : Data, V> Navigable<T, V>.isTrue(): PredicateBuilder<T, T, *> = create(this.asMetamodel(), IS_TRUE, emptyList())
+public fun <T : Data, V> Navigable<T, V>.isTrue(): PredicateBuilder<T, T, *> = create(this.asMetamodel(), IS_TRUE, emptyList())
 
 /**
  * Infix functions to create a predicate to check if a field is false.
  */
-fun <T : Data, V> Navigable<T, V>.isFalse(): PredicateBuilder<T, T, *> = create(this.asMetamodel(), IS_FALSE, emptyList())
+public fun <T : Data, V> Navigable<T, V>.isFalse(): PredicateBuilder<T, T, *> = create(this.asMetamodel(), IS_FALSE, emptyList())
 
 /**
  * Infix functions to create a predicate to check if a field is null.
  */
-fun <T : Data, V> Navigable<T, V>.isNull(): PredicateBuilder<T, T, *> = create(this.asMetamodel(), IS_NULL, emptyList())
+public fun <T : Data, V> Navigable<T, V>.isNull(): PredicateBuilder<T, T, *> = create(this.asMetamodel(), IS_NULL, emptyList())
 
 /**
  * Infix functions to create a predicate to check if a field is not null.
  */
-fun <T : Data, V> Navigable<T, V>.isNotNull(): PredicateBuilder<T, T, *> = create(this.asMetamodel(), IS_NOT_NULL, emptyList())
+public fun <T : Data, V> Navigable<T, V>.isNotNull(): PredicateBuilder<T, T, *> = create(this.asMetamodel(), IS_NOT_NULL, emptyList())
 
 // Block-based query DSL
 
@@ -1384,186 +1384,186 @@ fun <T : Data, V> Navigable<T, V>.isNotNull(): PredicateBuilder<T, T, *> = creat
  * @param ID the primary key type.
  */
 @SqlDsl
-class SqlScope<T : Data, R, ID : Any> @PublishedApi internal constructor(
+public class SqlScope<T : Data, R, ID : Any> @PublishedApi internal constructor(
     @PublishedApi internal var builder: QueryBuilder<Data, R, ID>,
 ) {
     /** Adds a WHERE clause using a predicate built with metamodel infix operators (e.g., `User_.name eq "Alice"`). */
-    fun where(predicate: PredicateBuilder<*, *, *>) {
+    public fun where(predicate: PredicateBuilder<*, *, *>) {
         builder = builder.where(predicate)
     }
 
     /** Adds a WHERE clause matching a metamodel path to value(s) using an [Operator]. */
-    fun <V> where(path: Navigable<*, V>, operator: Operator, vararg value: V) {
+    public fun <V> where(path: Navigable<*, V>, operator: Operator, vararg value: V) {
         builder = builder.where(path, operator, *value)
     }
 
     /** Adds a WHERE clause matching a metamodel path to a data record. */
-    fun <V : Data> where(path: Metamodel<*, V>, record: V) {
+    public fun <V : Data> where(path: Metamodel<*, V>, record: V) {
         builder = builder.where(path, record)
     }
 
     /** Adds a WHERE clause matching a metamodel path to a [Ref]. */
-    fun <V : Data> where(path: Metamodel<*, V>, ref: Ref<V>) {
+    public fun <V : Data> where(path: Metamodel<*, V>, ref: Ref<V>) {
         builder = builder.where(path, ref)
     }
 
     /** Adds a WHERE clause matching a primary key. */
-    fun where(id: ID) {
+    public fun where(id: ID) {
         builder = builder.where(id)
     }
 
     /** Adds a WHERE clause matching a [Ref]. */
-    fun where(ref: Ref<T>) {
+    public fun where(ref: Ref<T>) {
         builder = builder.where(ref as Ref<out Data>)
     }
 
     /** Adds a WHERE clause matching a record. */
-    fun where(record: T) {
+    public fun where(record: T) {
         builder = builder.where(record)
     }
 
     /** Adds a WHERE clause using a SQL template expression (e.g., `where { "${t(User_.score)} > ${t(100)}" }`). */
-    fun where(template: TemplateBuilder) {
+    public fun where(template: TemplateBuilder) {
         builder = builder.where(template)
     }
 
     /** Adds a WHERE clause using a [WhereBuilder] for compound predicates with `and`/`or`. */
-    fun whereBuilder(predicate: WhereBuilder<Data, R, ID>.() -> PredicateBuilder<*, *, *>) {
+    public fun whereBuilder(predicate: WhereBuilder<Data, R, ID>.() -> PredicateBuilder<*, *, *>) {
         builder = builder.whereBuilder(predicate)
     }
 
     /** Adds a WHERE EXISTS clause with the given subquery. */
-    fun whereExists(subquery: QueryBuilder<*, *, *>) {
+    public fun whereExists(subquery: QueryBuilder<*, *, *>) {
         builder = builder.whereExists(subquery)
     }
 
     /** Adds a WHERE NOT EXISTS clause with the given subquery. */
-    fun whereNotExists(subquery: QueryBuilder<*, *, *>) {
+    public fun whereNotExists(subquery: QueryBuilder<*, *, *>) {
         builder = builder.whereNotExists(subquery)
     }
 
     /** Adds a WHERE EXISTS clause for the subquery built by [subquery]. */
-    fun whereExists(subquery: SubqueryTemplate.() -> QueryBuilder<*, *, *>) {
+    public fun whereExists(subquery: SubqueryTemplate.() -> QueryBuilder<*, *, *>) {
         builder = builder.whereExists(subquery)
     }
 
     /** Adds a WHERE NOT EXISTS clause for the subquery built by [subquery]. */
-    fun whereNotExists(subquery: SubqueryTemplate.() -> QueryBuilder<*, *, *>) {
+    public fun whereNotExists(subquery: SubqueryTemplate.() -> QueryBuilder<*, *, *>) {
         builder = builder.whereNotExists(subquery)
     }
 
     /** Adds an INNER JOIN with automatic ON resolution between [relation] and [on]. */
-    fun innerJoin(relation: KClass<out Data>, on: KClass<out Data>) {
+    public fun innerJoin(relation: KClass<out Data>, on: KClass<out Data>) {
         builder = builder.innerJoin(relation).on(on)
     }
 
     /** Adds an INNER JOIN with automatic ON resolution between [J] and [O] (e.g., `innerJoin<Order, User>()`). */
-    inline fun <reified J : Data, reified O : Data> innerJoin() {
+    public inline fun <reified J : Data, reified O : Data> innerJoin() {
         builder = builder.innerJoin(J::class).on(O::class)
     }
 
     /** Adds a LEFT JOIN with automatic ON resolution between [relation] and [on]. */
-    fun leftJoin(relation: KClass<out Data>, on: KClass<out Data>) {
+    public fun leftJoin(relation: KClass<out Data>, on: KClass<out Data>) {
         builder = builder.leftJoin(relation).on(on)
     }
 
     /** Adds a LEFT JOIN with automatic ON resolution between [J] and [O] (e.g., `leftJoin<Order, User>()`). */
-    inline fun <reified J : Data, reified O : Data> leftJoin() {
+    public inline fun <reified J : Data, reified O : Data> leftJoin() {
         builder = builder.leftJoin(J::class).on(O::class)
     }
 
     /** Adds a RIGHT JOIN with automatic ON resolution between [relation] and [on]. */
-    fun rightJoin(relation: KClass<out Data>, on: KClass<out Data>) {
+    public fun rightJoin(relation: KClass<out Data>, on: KClass<out Data>) {
         builder = builder.rightJoin(relation).on(on)
     }
 
     /** Adds a RIGHT JOIN with automatic ON resolution between [J] and [O] (e.g., `rightJoin<Order, User>()`). */
-    inline fun <reified J : Data, reified O : Data> rightJoin() {
+    public inline fun <reified J : Data, reified O : Data> rightJoin() {
         builder = builder.rightJoin(J::class).on(O::class)
     }
 
     /** Adds a CROSS JOIN for [relation]. */
-    fun crossJoin(relation: KClass<out Data>) {
+    public fun crossJoin(relation: KClass<out Data>) {
         builder = builder.crossJoin(relation)
     }
 
     /** Adds a CROSS JOIN for [J]. */
-    inline fun <reified J : Data> crossJoin() {
+    public inline fun <reified J : Data> crossJoin() {
         builder = builder.crossJoin(J::class)
     }
 
     /** Adds a GROUP BY clause for the specified metamodel path(s). */
-    fun groupBy(vararg path: Navigable<*, *>) {
+    public fun groupBy(vararg path: Navigable<*, *>) {
         builder = builder.groupBy(*path)
     }
 
     /** Adds a GROUP BY clause using a SQL template expression. */
-    fun groupBy(template: TemplateBuilder) {
+    public fun groupBy(template: TemplateBuilder) {
         builder = builder.groupBy(template)
     }
 
     /** Adds a HAVING clause for the specified predicate. */
-    fun having(predicate: PredicateBuilder<*, *, *>) {
+    public fun having(predicate: PredicateBuilder<*, *, *>) {
         builder = builder.having(predicate)
     }
 
     /** Adds a HAVING clause matching a metamodel path to value(s) using an [Operator]. */
-    fun <V> having(path: Navigable<*, V>, operator: Operator, vararg value: V) {
+    public fun <V> having(path: Navigable<*, V>, operator: Operator, vararg value: V) {
         builder = builder.having(path, operator, *value)
     }
 
     /** Adds a HAVING clause using a SQL template expression (e.g., `having { "COUNT(*) > ${t(5)}" }`). */
-    fun having(template: TemplateBuilder) {
+    public fun having(template: TemplateBuilder) {
         builder = builder.having(template)
     }
 
     /** Adds a HAVING EXISTS clause with the given subquery. */
-    fun havingExists(subquery: QueryBuilder<*, *, *>) {
+    public fun havingExists(subquery: QueryBuilder<*, *, *>) {
         builder = builder.havingExists(subquery)
     }
 
     /** Adds a HAVING NOT EXISTS clause with the given subquery. */
-    fun havingNotExists(subquery: QueryBuilder<*, *, *>) {
+    public fun havingNotExists(subquery: QueryBuilder<*, *, *>) {
         builder = builder.havingNotExists(subquery)
     }
 
     /** Adds a HAVING EXISTS clause for the subquery built by [subquery]. */
-    fun havingExists(subquery: SubqueryTemplate.() -> QueryBuilder<*, *, *>) {
+    public fun havingExists(subquery: SubqueryTemplate.() -> QueryBuilder<*, *, *>) {
         builder = builder.havingExists(subquery)
     }
 
     /** Adds a HAVING NOT EXISTS clause for the subquery built by [subquery]. */
-    fun havingNotExists(subquery: SubqueryTemplate.() -> QueryBuilder<*, *, *>) {
+    public fun havingNotExists(subquery: SubqueryTemplate.() -> QueryBuilder<*, *, *>) {
         builder = builder.havingNotExists(subquery)
     }
 
     /** Adds an ORDER BY clause (ascending) for the specified metamodel path(s). */
-    fun orderBy(vararg path: Navigable<*, *>) {
+    public fun orderBy(vararg path: Navigable<*, *>) {
         builder = builder.orderBy(*path)
     }
 
     /** Adds an ORDER BY clause (descending) for the specified metamodel path(s). */
-    fun orderByDescending(vararg path: Navigable<*, *>) {
+    public fun orderByDescending(vararg path: Navigable<*, *>) {
         builder = builder.orderByDescending(*path)
     }
 
     /** Adds an ORDER BY clause using a SQL template expression. */
-    fun orderBy(template: TemplateBuilder) {
+    public fun orderBy(template: TemplateBuilder) {
         builder = builder.orderBy(template)
     }
 
     /** Adds a LIMIT clause restricting the maximum number of results. */
-    fun limit(limit: Int) {
+    public fun limit(limit: Int) {
         builder = builder.limit(limit)
     }
 
     /** Adds an OFFSET clause skipping the first [offset] results. */
-    fun offset(offset: Int) {
+    public fun offset(offset: Int) {
         builder = builder.offset(offset)
     }
 
     /** Marks the query as SELECT DISTINCT. */
-    fun distinct() {
+    public fun distinct() {
         builder = builder.distinct()
     }
 
@@ -1571,28 +1571,28 @@ class SqlScope<T : Data, R, ID : Any> @PublishedApi internal constructor(
      * Resolves the references at the specified metamodel path(s) as part of this query, so [Ref.fetch] returns the
      * referenced record without querying.
      */
-    fun fetch(vararg path: Navigable<out T, out Data>) {
+    public fun fetch(vararg path: Navigable<out T, out Data>) {
         @Suppress("UNCHECKED_CAST")
         builder = builder.fetch(path.toList() as List<Navigable<Data, out Data>>)
     }
 
     /** Allows DELETE/UPDATE without a WHERE clause (Storm rejects this by default). */
-    fun unsafe() {
+    public fun unsafe() {
         builder = builder.unsafe()
     }
 
     /** Locks the selected rows for reading (SELECT ... FOR SHARE). */
-    fun forShare() {
+    public fun forShare() {
         builder = builder.forShare()
     }
 
     /** Locks the selected rows for writing (SELECT ... FOR UPDATE). */
-    fun forUpdate() {
+    public fun forUpdate() {
         builder = builder.forUpdate()
     }
 
     /** Appends raw SQL to the query using a template expression. */
-    fun append(template: TemplateBuilder) {
+    public fun append(template: TemplateBuilder) {
         builder = builder.append(template)
     }
 

@@ -18,13 +18,12 @@ package st.orm.template
 import kotlinx.coroutines.asContextElement
 import st.orm.core.template.impl.CallSiteCapture
 import st.orm.core.template.impl.SqlInterceptorManager
-import st.orm.template.impl.recordSqlLog
 import kotlin.coroutines.CoroutineContext
 import kotlin.coroutines.EmptyCoroutineContext
 import st.orm.core.template.SqlLog as CoreSqlLog
 
 /** Statements recorded per scope before recording stops, keeping a runaway call from retaining the lot. */
-const val DEFAULT_SQL_LOG_LIMIT: Int = 200
+public const val DEFAULT_SQL_LOG_LIMIT: Int = 200
 
 /**
  * Returns the coroutine context that carries the SQL log open on the calling thread.
@@ -54,7 +53,7 @@ const val DEFAULT_SQL_LOG_LIMIT: Int = 200
  * @return the context carrying the open scope, or an empty context when none is open.
  * @since 1.13
  */
-fun sqlLogContext(): CoroutineContext {
+public fun sqlLogContext(): CoroutineContext {
     val holder = SqlInterceptorManager.holder()
     val open = holder.get() ?: return EmptyCoroutineContext
     var context: CoroutineContext = holder.asContextElement(open)
@@ -103,7 +102,8 @@ fun sqlLogContext(): CoroutineContext {
  * @return the block's result.
  * @since 1.13
  */
-suspend fun <T> sqlLog(
+@OptIn(InternalStormApi::class)
+public suspend fun <T> sqlLog(
     name: String,
     limit: Int = DEFAULT_SQL_LOG_LIMIT,
     callSites: Boolean = false,

@@ -20,7 +20,7 @@ import st.orm.template.PreparedQuery
 import java.util.stream.Stream
 import kotlin.reflect.KClass
 
-class PreparedQueryImpl(private val core: st.orm.core.template.PreparedQuery) :
+internal class PreparedQueryImpl(private val core: st.orm.core.template.PreparedQuery) :
     QueryImpl(core),
     PreparedQuery {
     override fun addBatch(record: Data) {

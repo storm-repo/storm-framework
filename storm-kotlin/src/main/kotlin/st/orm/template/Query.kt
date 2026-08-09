@@ -45,7 +45,7 @@ import kotlin.reflect.KClass
  * @see PreparedQuery
  * @see QueryTemplate
  */
-interface Query {
+public interface Query {
     /**
      * Prepares the query for execution.
      *
@@ -58,7 +58,7 @@ interface Query {
      * @return the prepared query.
      * @throws st.orm.PersistenceException if the query preparation fails.
      */
-    fun prepare(): PreparedQuery
+    public fun prepare(): PreparedQuery
 
     /**
      * Returns a new query that allows dangerous operations, such as DELETE and UPDATE without a WHERE clause.
@@ -66,9 +66,9 @@ interface Query {
      * @return a new query that allows dangerous operations.
      * @since 1.2
      */
-    fun unsafe(): Query
+    public fun unsafe(): Query
 
-    val singleResult: Array<Any>
+    public val singleResult: Array<Any>
         /**
          * Execute a SELECT query and returns a single row, where the columns of the row corresponds to the order of values
          * in the list.
@@ -80,7 +80,7 @@ interface Query {
          */
         get() = singleResult(this.resultStream)
 
-    val optionalResult: Array<Any>?
+    public val optionalResult: Array<Any>?
         /**
          * Execute a SELECT query and returns a single row, where the columns of the row corresponds to the order of values
          * in the list.
@@ -92,7 +92,7 @@ interface Query {
          */
         get() = optionalResult(this.resultStream)
 
-    val resultCount: Long
+    public val resultCount: Long
         /**
          * Returns the number of results of this query.
          *
@@ -116,7 +116,7 @@ interface Query {
      * @throws st.orm.NonUniqueResultException if more than one result.
      * @throws st.orm.PersistenceException if the query fails.
      */
-    fun <T : Any> getSingleResult(type: KClass<T>): T = singleResult(getResultStream(type))
+    public fun <T : Any> getSingleResult(type: KClass<T>): T = singleResult(getResultStream(type))
 
     /**
      * Execute a SELECT query and returns a single row, where the columns of the row are mapped to the constructor
@@ -128,9 +128,9 @@ interface Query {
      * @throws st.orm.NonUniqueResultException if more than one result.
      * @throws st.orm.PersistenceException if the query fails.
      */
-    fun <T : Any> getOptionalResult(type: KClass<T>): T? = optionalResult(getResultStream(type))
+    public fun <T : Any> getOptionalResult(type: KClass<T>): T? = optionalResult(getResultStream(type))
 
-    val resultList: List<Array<Any>>
+    public val resultList: List<Array<Any>>
         /**
          * Execute a SELECT query and return the resulting rows as a list of row instances.
          *
@@ -156,7 +156,7 @@ interface Query {
      * @return the result list.
      * @throws st.orm.PersistenceException if the query fails.
      */
-    fun <T : Any> getResultList(type: KClass<T>): List<T> {
+    public fun <T : Any> getResultList(type: KClass<T>): List<T> {
         getResultStream(type).use { stream ->
             return stream.toList()
         }
@@ -174,7 +174,7 @@ interface Query {
      * @throws st.orm.PersistenceException if the query fails.
      * @since 1.3
      */
-    fun <T : Data> getRefList(type: KClass<T>, pkType: KClass<*>): List<Ref<T>> {
+    public fun <T : Data> getRefList(type: KClass<T>, pkType: KClass<*>): List<Ref<T>> {
         getRefStream(type, pkType).use { stream ->
             return stream.toList()
         }
@@ -199,7 +199,7 @@ interface Query {
      * @throws st.orm.PersistenceException if the query operation fails due to underlying database issues, such as
      * connectivity.
      */
-    val resultStream: Stream<Array<Any>>
+    public val resultStream: Stream<Array<Any>>
 
     /**
      * Execute a SELECT query and return the resulting rows as a flow of row instances.
@@ -212,7 +212,7 @@ interface Query {
      * connectivity.
      * @since 1.5
      */
-    val resultFlow: Flow<Array<Any>>
+    public val resultFlow: Flow<Array<Any>>
         get() = resultStream.consumeAsFlow()
 
     /**
@@ -234,7 +234,7 @@ interface Query {
      * @throws st.orm.PersistenceException if the query operation fails due to underlying database issues, such as
      * connectivity.
      */
-    fun <T : Any> getResultStream(type: KClass<T>): Stream<T>
+    public fun <T : Any> getResultStream(type: KClass<T>): Stream<T>
 
     /**
      * Execute a SELECT query and return the resulting rows as a flow of row instances.
@@ -247,7 +247,7 @@ interface Query {
      * connectivity.
      * @since 1.5
      */
-    fun <T : Any> getResultFlow(type: KClass<T>): Flow<T> = getResultStream(type).consumeAsFlow()
+    public fun <T : Any> getResultFlow(type: KClass<T>): Flow<T> = getResultStream(type).consumeAsFlow()
 
     /**
      * Execute a SELECT query and return the resulting rows as a stream of ref instances.
@@ -266,7 +266,7 @@ interface Query {
      * @throws st.orm.PersistenceException if the query fails.
      * @since 1.3
      */
-    fun <T : Data> getRefStream(type: KClass<T>, pkType: KClass<*>): Stream<Ref<T>>
+    public fun <T : Data> getRefStream(type: KClass<T>, pkType: KClass<*>): Stream<Ref<T>>
 
     /**
      * Execute a SELECT query and return the resulting rows as a flow of ref instances.
@@ -280,14 +280,14 @@ interface Query {
      * @throws st.orm.PersistenceException if the query fails.
      * @since 1.5
      */
-    fun <T : Data> getRefFlow(type: KClass<T>, pkType: KClass<*>): Flow<Ref<T>> = getRefStream(type, pkType).consumeAsFlow()
+    public fun <T : Data> getRefFlow(type: KClass<T>, pkType: KClass<*>): Flow<Ref<T>> = getRefStream(type, pkType).consumeAsFlow()
 
     /**
      * Returns true if the query is version aware, false otherwise.
      *
      * @return true if the query is version aware, false otherwise.
      */
-    val versionAware: Boolean
+    public val versionAware: Boolean
 
     /**
      * Execute a command, such as an INSERT, UPDATE, or DELETE statement.
@@ -295,7 +295,7 @@ interface Query {
      * @return the number of rows impacted as result of the statement.
      * @throws st.orm.PersistenceException if the statement fails.
      */
-    fun executeUpdate(): Int
+    public fun executeUpdate(): Int
 
     /**
      * Execute a batch of commands.
@@ -305,7 +305,7 @@ interface Query {
      * array are ordered according to the order in which commands were added to the batch, following
      * `Statement.executeBatch` semantics.
      */
-    fun executeBatch(): IntArray
+    public fun executeBatch(): IntArray
 
     /**
      * Returns the single result of the stream.
@@ -377,7 +377,7 @@ interface Query {
  * @see Query.getSingleResult
  * @since 1.12
  */
-inline fun <reified T : Any> Query.singleResult(): T = getSingleResult(T::class)
+public inline fun <reified T : Any> Query.singleResult(): T = getSingleResult(T::class)
 
 /**
  * Execute a SELECT query and returns a single row, where the columns of the row are mapped to the constructor
@@ -391,7 +391,7 @@ inline fun <reified T : Any> Query.singleResult(): T = getSingleResult(T::class)
  * @see Query.getOptionalResult
  * @since 1.12
  */
-inline fun <reified T : Any> Query.optionalResult(): T? = getOptionalResult(T::class)
+public inline fun <reified T : Any> Query.optionalResult(): T? = getOptionalResult(T::class)
 
 /**
  * Execute a SELECT query and return the resulting rows as a list of row instances.
@@ -412,7 +412,7 @@ inline fun <reified T : Any> Query.optionalResult(): T? = getOptionalResult(T::c
  * @see Query.getResultList
  * @since 1.12
  */
-inline fun <reified T : Any> Query.resultList(): List<T> = getResultList(T::class)
+public inline fun <reified T : Any> Query.resultList(): List<T> = getResultList(T::class)
 
 /**
  * Execute a SELECT query and return the resulting rows as a stream of row instances.
@@ -432,7 +432,7 @@ inline fun <reified T : Any> Query.resultList(): List<T> = getResultList(T::clas
  * @see Query.getResultStream
  * @since 1.12
  */
-inline fun <reified T : Any> Query.resultStream(): Stream<T> = getResultStream(T::class)
+public inline fun <reified T : Any> Query.resultStream(): Stream<T> = getResultStream(T::class)
 
 /**
  * Execute a SELECT query and return the resulting rows as a flow of row instances.
@@ -447,4 +447,4 @@ inline fun <reified T : Any> Query.resultStream(): Stream<T> = getResultStream(T
  * @see Query.getResultFlow
  * @since 1.12
  */
-inline fun <reified T : Any> Query.resultFlow(): Flow<T> = getResultFlow(T::class)
+public inline fun <reified T : Any> Query.resultFlow(): Flow<T> = getResultFlow(T::class)

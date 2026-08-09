@@ -25,7 +25,7 @@ import st.orm.spring.kotlin.RepositoryBeanFactoryPostProcessor
  *
  * This allows Storm repositories to be discovered without requiring the user to manually specify base packages.
  */
-class AutoConfiguredRepositoryBeanFactoryPostProcessor : RepositoryBeanFactoryPostProcessor() {
+internal class AutoConfiguredRepositoryBeanFactoryPostProcessor : RepositoryBeanFactoryPostProcessor() {
 
     private var resolvedPackages: Array<String>? = null
 

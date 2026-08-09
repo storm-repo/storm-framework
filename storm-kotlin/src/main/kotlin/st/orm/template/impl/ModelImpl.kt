@@ -20,7 +20,7 @@ import st.orm.template.Column
 import st.orm.template.Model
 import kotlin.reflect.KClass
 
-class ModelImpl<E : Data, ID : Any>(
+internal class ModelImpl<E : Data, ID : Any>(
     internal val core: st.orm.core.template.Model<E, ID>,
     override val columns: List<Column> = core.columns().map(::ColumnImpl),
     override val declaredColumns: List<Column> = core.declaredColumns().map(::ColumnImpl),

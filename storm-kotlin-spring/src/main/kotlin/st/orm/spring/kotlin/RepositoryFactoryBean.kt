@@ -24,7 +24,7 @@ import st.orm.template.ORMTemplate
  *
  * @since 1.13
  */
-open class RepositoryFactoryBean<R : Repository>(
+public open class RepositoryFactoryBean<R : Repository>(
     repositoryType: Class<R>,
     ormTemplateBeanName: String?,
 ) : AbstractRepositoryFactoryBean<R>(repositoryType, ormTemplateBeanName) {

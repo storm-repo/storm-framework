@@ -37,7 +37,7 @@ import kotlin.reflect.full.createInstance
 import kotlin.reflect.jvm.jvmErasure
 import kotlinx.serialization.json.Json as JsonMapper
 
-class JsonORMConverterImpl(
+internal class JsonORMConverterImpl(
     private val field: RecordField,
     kType: KType,
     json: Json,

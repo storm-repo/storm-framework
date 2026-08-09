@@ -79,6 +79,11 @@
                             <sourceDirs>
                                 <sourceDir>${project.basedir}/src/main/kotlin</sourceDir>
                             </sourceDirs>
+                            <!-- Main sources only: a missing visibility modifier or return type on the public
+                                 API fails the build, so nothing ships public by accident. -->
+                            <args combine.children="append">
+                                <arg>-Xexplicit-api=strict</arg>
+                            </args>
                         </configuration>
                     </execution>
                     <execution>

@@ -34,7 +34,7 @@ import st.orm.template.impl.QueryBuilderImpl.PredicateBuilderImpl
  * @param <V> the type of the values
  * @return a new instance of [PredicateBuilder]
 */
-fun <T : Data, R, V> create(
+internal fun <T : Data, R, V> create(
     path: Metamodel<*, V>,
     operator: Operator,
     o: Iterable<V>,
@@ -51,7 +51,7 @@ fun <T : Data, R, V> create(
  * @param <V> the type of the values
  * @return a new instance of [PredicateBuilder]
  */
-fun <T : Data, R, V : Data> createRef(
+internal fun <T : Data, R, V : Data> createRef(
     path: Metamodel<*, V>,
     operator: Operator,
     o: Iterable<Ref<V>>,
@@ -69,7 +69,7 @@ fun <T : Data, R, V : Data> createRef(
  * @param <V> the type of the values
  * @return a new instance of [PredicateBuilder]
  */
-fun <T : Data, R, ID, V> createWithId(
+internal fun <T : Data, R, ID, V> createWithId(
     path: Metamodel<*, V>,
     operator: Operator,
     o: Iterable<V>,
@@ -87,7 +87,7 @@ fun <T : Data, R, ID, V> createWithId(
  * @param <V> the type of the values
  * @return a new instance of [PredicateBuilder]
  */
-fun <T : Data, R, ID, V : Data> createRefWithId(
+internal fun <T : Data, R, ID, V : Data> createRefWithId(
     path: Metamodel<*, V>,
     operator: Operator,
     o: Iterable<Ref<V>>,

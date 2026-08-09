@@ -17,6 +17,7 @@ package st.orm.ktor
 
 import io.ktor.server.application.Application
 import io.ktor.server.application.ApplicationCallPipeline
+import io.ktor.server.application.ApplicationPlugin
 import io.ktor.server.application.ApplicationStarted
 import io.ktor.server.application.ApplicationStopped
 import io.ktor.server.application.createApplicationPlugin
@@ -36,8 +37,9 @@ import st.orm.core.spi.JdbcTransactionTemplateProviderImpl
 import st.orm.core.template.impl.CallSiteCapture
 import st.orm.core.template.impl.SqlLogRenderer
 import st.orm.micrometer.MicrometerQueryObserver
+import st.orm.template.InternalStormApi
 import st.orm.template.ORMTemplate
-import st.orm.template.impl.recordSqlLog
+import st.orm.template.recordSqlLog
 import javax.sql.DataSource
 import kotlin.reflect.KClass
 import kotlin.reflect.full.starProjectedType
@@ -91,7 +93,8 @@ import kotlin.reflect.typeOf
  *
  * @since 1.11
  */
-val Storm = createApplicationPlugin(name = "Storm", createConfiguration = ::StormPluginConfig) {
+@OptIn(InternalStormApi::class)
+public val Storm: ApplicationPlugin<StormPluginConfig> = createApplicationPlugin(name = "Storm", createConfiguration = ::StormPluginConfig) {
 
     // Packages claimed by the named databases (package name to database name). These partition repository
     // registration and schema validation: types under a claimed package belong to that database only.

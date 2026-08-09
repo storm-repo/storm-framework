@@ -34,13 +34,13 @@ import kotlin.reflect.KClass
  * @param <P> the type of projection managed by this repository.
  * @param <ID> the type of the primary key of the projection, or [Void] if the projection has no primary key.
  */
-interface ProjectionRepository<P, ID : Any> : Repository where P : Projection<ID> {
+public interface ProjectionRepository<P, ID : Any> : Repository where P : Projection<ID> {
     /**
      * Returns the projection model associated with this repository.
      *
      * @return the projection model.
      */
-    val model: Model<P, ID>
+    public val model: Model<P, ID>
 
     /**
      * Creates a new ref projection instance with the specified primary key.
@@ -48,7 +48,7 @@ interface ProjectionRepository<P, ID : Any> : Repository where P : Projection<ID
      * @param id the primary key of the projection.
      * @return a ref projection instance.
      */
-    fun ref(id: ID): Ref<P>
+    public fun ref(id: ID): Ref<P>
 
     /**
      * Creates a new ref projection instance with the specified projection.
@@ -56,7 +56,7 @@ interface ProjectionRepository<P, ID : Any> : Repository where P : Projection<ID
      * @param projection the projection.
      * @return a ref projection instance.
      */
-    fun ref(projection: P, id: ID): Ref<P>
+    public fun ref(projection: P, id: ID): Ref<P>
 
     // Query builder methods.
     /**
@@ -64,7 +64,7 @@ interface ProjectionRepository<P, ID : Any> : Repository where P : Projection<ID
      *
      * @return a new query builder for the projection type.
      */
-    fun select(): QueryBuilder<P, P, ID>
+    public fun select(): QueryBuilder<P, P, ID>
 
     /**
      * Constructs a SELECT query using a block-based DSL.
@@ -80,7 +80,7 @@ interface ProjectionRepository<P, ID : Any> : Repository where P : Projection<ID
      * }
      * ```
      */
-    fun select(block: SqlScope<P, P, ID>.() -> Any?): QueryBuilder<Data, P, ID> {
+    public fun select(block: SqlScope<P, P, ID>.() -> Any?): QueryBuilder<Data, P, ID> {
         // The block may join, which relaxes the root; narrow back with narrow() when a root-relative
         // operation is needed.
         @Suppress("UNCHECKED_CAST")
@@ -96,14 +96,14 @@ interface ProjectionRepository<P, ID : Any> : Repository where P : Projection<ID
      * ownerViewRepository.select(OwnerView_.city eq city).resultList
      * ```
      */
-    fun select(predicate: PredicateBuilder<P, *, *>): QueryBuilder<P, P, ID> = select().where(predicate)
+    public fun select(predicate: PredicateBuilder<P, *, *>): QueryBuilder<P, P, ID> = select().where(predicate)
 
     /**
      * Creates a new query builder for the projection type managed by this repository.
      *
      * @return a new query builder for the projection type.
      */
-    fun selectCount(): QueryBuilder<P, Long, ID>
+    public fun selectCount(): QueryBuilder<P, Long, ID>
 
     /**
      * Creates a new query builder for the custom `selectType`.
@@ -112,7 +112,7 @@ interface ProjectionRepository<P, ID : Any> : Repository where P : Projection<ID
      * @return a new query builder for the custom `selectType`.
      * @param <R> the result type of the query.
      */
-    fun <R : Any> select(selectType: KClass<R>): QueryBuilder<P, R, ID>
+    public fun <R : Any> select(selectType: KClass<R>): QueryBuilder<P, R, ID>
 
     /**
      * Creates a new query builder for selecting refs to projections of the type managed by this repository.
@@ -126,7 +126,7 @@ interface ProjectionRepository<P, ID : Any> : Repository where P : Projection<ID
      * @return a new query builder for selecting refs to projections.
      * @since 1.3
      */
-    fun selectRef(): QueryBuilder<P, Ref<P>, ID>
+    public fun selectRef(): QueryBuilder<P, Ref<P>, ID>
 
     /**
      * Constructs a SELECT query for refs, filtered by the given predicate.
@@ -137,7 +137,7 @@ interface ProjectionRepository<P, ID : Any> : Repository where P : Projection<ID
      *
      * @since 1.3
      */
-    fun selectRef(predicate: PredicateBuilder<P, *, *>): QueryBuilder<P, Ref<P>, ID> = selectRef().where(predicate)
+    public fun selectRef(predicate: PredicateBuilder<P, *, *>): QueryBuilder<P, Ref<P>, ID> = selectRef().where(predicate)
 
     /**
      * Creates a new query builder for the custom `selectType` and custom `template` for the select clause.
@@ -147,7 +147,7 @@ interface ProjectionRepository<P, ID : Any> : Repository where P : Projection<ID
      * @return a new query builder for the custom `selectType`.
      * @param <R> the result type of the query.
      */
-    fun <R : Any> select(selectType: KClass<R>, builder: TemplateBuilder): QueryBuilder<P, R, ID> = select(selectType, builder.build())
+    public fun <R : Any> select(selectType: KClass<R>, builder: TemplateBuilder): QueryBuilder<P, R, ID> = select(selectType, builder.build())
 
     /**
      * Creates a new query builder for the custom `selectType` and custom `template` for the select clause.
@@ -157,7 +157,7 @@ interface ProjectionRepository<P, ID : Any> : Repository where P : Projection<ID
      * @return a new query builder for the custom `selectType`.
      * @param <R> the result type of the query.
      */
-    fun <R : Any> select(selectType: KClass<R>, template: TemplateString): QueryBuilder<P, R, ID>
+    public fun <R : Any> select(selectType: KClass<R>, template: TemplateString): QueryBuilder<P, R, ID>
 
     /**
      * Creates a new query builder for selecting refs to projections of the type managed by this repository.
@@ -172,7 +172,7 @@ interface ProjectionRepository<P, ID : Any> : Repository where P : Projection<ID
      * @return a new query builder for selecting refs to projections.
      * @since 1.3
      */
-    fun <R : Data> selectRef(refType: KClass<R>): QueryBuilder<P, Ref<R>, ID>
+    public fun <R : Data> selectRef(refType: KClass<R>): QueryBuilder<P, Ref<R>, ID>
 
     // Base methods.
     /**
@@ -182,7 +182,7 @@ interface ProjectionRepository<P, ID : Any> : Repository where P : Projection<ID
      * @throws st.orm.PersistenceException if the count operation fails due to underlying database issues, such as
      * connectivity.
      */
-    fun count(): Long
+    public fun count(): Long
 
     /**
      * Checks if any projection of the type managed by this repository exists in the database.
@@ -190,7 +190,7 @@ interface ProjectionRepository<P, ID : Any> : Repository where P : Projection<ID
      * @return true if at least one projection exists, false otherwise.
      * @throws st.orm.PersistenceException if there is an underlying database issue during the count operation.
      */
-    fun exists(): Boolean
+    public fun exists(): Boolean
 
     /**
      * Checks if a projection with the specified primary key exists in the database.
@@ -204,7 +204,7 @@ interface ProjectionRepository<P, ID : Any> : Repository where P : Projection<ID
      * @return true if a projection with the specified primary key exists, false otherwise.
      * @throws st.orm.PersistenceException if there is an underlying database issue during the count operation.
      */
-    fun existsById(id: ID): Boolean
+    public fun existsById(id: ID): Boolean
 
     /**
      * Checks if a projection with the specified primary key exists in the database.
@@ -218,7 +218,7 @@ interface ProjectionRepository<P, ID : Any> : Repository where P : Projection<ID
      * @return true if a projection with the specified primary key exists, false otherwise.
      * @throws st.orm.PersistenceException if there is an underlying database issue during the count operation.
      */
-    fun existsByRef(ref: Ref<P>): Boolean
+    public fun existsByRef(ref: Ref<P>): Boolean
 
     // Singular findBy methods.
 
@@ -234,7 +234,7 @@ interface ProjectionRepository<P, ID : Any> : Repository where P : Projection<ID
      * @throws st.orm.PersistenceException if the retrieval operation fails due to underlying database issues, such as
      * connectivity problems or query execution errors.
      */
-    fun findById(id: ID): P?
+    public fun findById(id: ID): P?
 
     /**
      * Retrieves a projection based on its primary key.
@@ -248,7 +248,7 @@ interface ProjectionRepository<P, ID : Any> : Repository where P : Projection<ID
      * @throws st.orm.PersistenceException if the retrieval operation fails due to underlying database issues, such as
      * connectivity problems or query execution errors.
      */
-    fun findByRef(ref: Ref<P>): P?
+    public fun findByRef(ref: Ref<P>): P?
 
     /**
      * Retrieves a projection based on its primary key.
@@ -264,7 +264,7 @@ interface ProjectionRepository<P, ID : Any> : Repository where P : Projection<ID
      * @throws st.orm.PersistenceException if the retrieval operation fails due to underlying database issues, such as
      * connectivity problems or query execution errors.
      */
-    fun getById(id: ID): P
+    public fun getById(id: ID): P
 
     /**
      * Retrieves a projection based on its primary key.
@@ -280,7 +280,7 @@ interface ProjectionRepository<P, ID : Any> : Repository where P : Projection<ID
      * @throws st.orm.PersistenceException if the retrieval operation fails due to underlying database issues, such as
      * connectivity problems or query execution errors.
      */
-    fun getByRef(ref: Ref<P>): P
+    public fun getByRef(ref: Ref<P>): P
 
     // Singular findBy / getBy methods for unique keys.
 
@@ -292,7 +292,7 @@ interface ProjectionRepository<P, ID : Any> : Repository where P : Projection<ID
      * @return the projection matching the given key value, or null if none exists.
      * @since 1.9
      */
-    fun <V : Any> findBy(key: Metamodel.Key<P, V>, value: V): P?
+    public fun <V : Any> findBy(key: Metamodel.Key<P, V>, value: V): P?
 
     /**
      * Retrieves a projection by the value of a unique key field.
@@ -303,7 +303,7 @@ interface ProjectionRepository<P, ID : Any> : Repository where P : Projection<ID
      * @throws st.orm.NoResultException if no projection is found matching the given key value.
      * @since 1.9
      */
-    fun <V : Any> getBy(key: Metamodel.Key<P, V>, value: V): P
+    public fun <V : Any> getBy(key: Metamodel.Key<P, V>, value: V): P
 
     /**
      * Retrieves a projection by the ref value of a unique key field that references another entity.
@@ -313,7 +313,7 @@ interface ProjectionRepository<P, ID : Any> : Repository where P : Projection<ID
      * @return the projection matching the given ref value, or null if none exists.
      * @since 1.9
      */
-    fun <V : Data> findByRef(key: Metamodel.Key<P, V>, value: Ref<V>): P?
+    public fun <V : Data> findByRef(key: Metamodel.Key<P, V>, value: Ref<V>): P?
 
     /**
      * Retrieves a projection by the ref value of a unique key field that references another entity.
@@ -324,7 +324,7 @@ interface ProjectionRepository<P, ID : Any> : Repository where P : Projection<ID
      * @throws st.orm.NoResultException if no projection is found matching the given ref value.
      * @since 1.9
      */
-    fun <V : Data> getByRef(key: Metamodel.Key<P, V>, value: Ref<V>): P
+    public fun <V : Data> getByRef(key: Metamodel.Key<P, V>, value: Ref<V>): P
 
     // List based methods.
 
@@ -340,7 +340,7 @@ interface ProjectionRepository<P, ID : Any> : Repository where P : Projection<ID
      * @throws st.orm.PersistenceException if the selection operation fails due to underlying database issues, such as
      * connectivity.
      */
-    fun findAll(): List<P>
+    public fun findAll(): List<P>
 
     /**
      * Retrieves a list of projections based on their primary keys.
@@ -361,7 +361,7 @@ interface ProjectionRepository<P, ID : Any> : Repository where P : Projection<ID
      * @throws st.orm.PersistenceException if the selection operation fails due to database issues, such as connectivity
      * problems or invalid input parameters.
      */
-    fun findAllById(ids: Iterable<ID>): List<P>
+    public fun findAllById(ids: Iterable<ID>): List<P>
 
     /**
      * Retrieves a list of projections based on their primary keys.
@@ -382,7 +382,7 @@ interface ProjectionRepository<P, ID : Any> : Repository where P : Projection<ID
      * @throws st.orm.PersistenceException if the selection operation fails due to database issues, such as connectivity
      * problems or invalid input parameters.
      */
-    fun findAllByRef(refs: Iterable<Ref<P>>): List<P>
+    public fun findAllByRef(refs: Iterable<Ref<P>>): List<P>
 
     // Stream based methods.
     //
@@ -409,7 +409,7 @@ interface ProjectionRepository<P, ID : Any> : Repository where P : Projection<ID
      * @return the total count of projections matching the provided IDs.
      * @throws st.orm.PersistenceException if there is an error during the counting operation, such as connectivity issues.
      */
-    suspend fun countById(ids: Flow<ID>): Long
+    public suspend fun countById(ids: Flow<ID>): Long
 
     /**
      * Counts the number of projections identified by the provided stream of IDs, with the counting process divided into
@@ -426,7 +426,7 @@ interface ProjectionRepository<P, ID : Any> : Repository where P : Projection<ID
      * @return the total count of projections matching the provided IDs.
      * @throws st.orm.PersistenceException if there is an error during the counting operation, such as connectivity issues.
      */
-    suspend fun countById(ids: Flow<ID>, chunkSize: Int): Long
+    public suspend fun countById(ids: Flow<ID>, chunkSize: Int): Long
 
     /**
      * Counts the number of projections identified by the provided stream of refs using the default batch size.
@@ -440,7 +440,7 @@ interface ProjectionRepository<P, ID : Any> : Repository where P : Projection<ID
      * @return the total count of projections matching the provided IDs.
      * @throws st.orm.PersistenceException if there is an error during the counting operation, such as connectivity issues.
      */
-    suspend fun countByRef(refs: Flow<Ref<P>>): Long
+    public suspend fun countByRef(refs: Flow<Ref<P>>): Long
 
     /**
      * Counts the number of projections identified by the provided stream of refs, with the counting process divided into
@@ -457,7 +457,7 @@ interface ProjectionRepository<P, ID : Any> : Repository where P : Projection<ID
      * @return the total count of projections matching the provided IDs.
      * @throws st.orm.PersistenceException if there is an error during the counting operation, such as connectivity issues.
      */
-    suspend fun countByRef(refs: Flow<Ref<P>>, chunkSize: Int): Long
+    public suspend fun countByRef(refs: Flow<Ref<P>>, chunkSize: Int): Long
 
     // Kotlin specific DSL
 
@@ -466,7 +466,7 @@ interface ProjectionRepository<P, ID : Any> : Repository where P : Projection<ID
      *
      * @return a list containing refs to all projections.
      */
-    fun findAllRef(): List<Ref<P>> = selectRef().resultList
+    public fun findAllRef(): List<Ref<P>> = selectRef().resultList
 
     /**
      * Retrieves an optional entity of type [P] based on a single field and its value.
@@ -476,7 +476,7 @@ interface ProjectionRepository<P, ID : Any> : Repository where P : Projection<ID
      * @param value the value to match against.
      * @return an optional entity, or null if none found.
      */
-    fun <V> findBy(field: Metamodel<P, V>, value: V): P? = select().where(field eq value).optionalResult
+    public fun <V> findBy(field: Metamodel<P, V>, value: V): P? = select().where(field eq value).optionalResult
 
     /**
      * Retrieves an optional entity of type [P] based on a single field and its value.
@@ -486,7 +486,7 @@ interface ProjectionRepository<P, ID : Any> : Repository where P : Projection<ID
      * @param value the value to match against.
      * @return an optional entity, or null if none found.
      */
-    fun <V : Data> findBy(field: Metamodel<P, V>, value: Ref<V>): P? = select().where(field, value).optionalResult
+    public fun <V : Data> findBy(field: Metamodel<P, V>, value: Ref<V>): P? = select().where(field, value).optionalResult
 
     /**
      * Retrieves entities of type [P] matching a single field and a single value.
@@ -496,7 +496,7 @@ interface ProjectionRepository<P, ID : Any> : Repository where P : Projection<ID
      * @param value the value to match against.
      * @return list of matching entities.
      */
-    fun <V> findAllBy(field: Metamodel<P, V>, value: V): List<P> = select().where(field eq value).resultList
+    public fun <V> findAllBy(field: Metamodel<P, V>, value: V): List<P> = select().where(field eq value).resultList
 
     /**
      * Retrieves entities of type [P] matching a single field and a single value.
@@ -506,7 +506,7 @@ interface ProjectionRepository<P, ID : Any> : Repository where P : Projection<ID
      * @param value the value to match against.
      * @return a list of matching entities.
      */
-    fun <V : Data> findAllBy(field: Metamodel<P, V>, value: Ref<V>): List<P> = select().where(field, value).resultList
+    public fun <V : Data> findAllBy(field: Metamodel<P, V>, value: Ref<V>): List<P> = select().where(field, value).resultList
 
     /**
      * Retrieves entities of type [P] matching a single field against multiple values.
@@ -516,7 +516,7 @@ interface ProjectionRepository<P, ID : Any> : Repository where P : Projection<ID
      * @param values Iterable of values to match against.
      * @return list of matching entities.
      */
-    fun <V> findAllBy(field: Metamodel<P, V>, values: Iterable<V>): List<P> = select().where(field inList values).resultList
+    public fun <V> findAllBy(field: Metamodel<P, V>, values: Iterable<V>): List<P> = select().where(field inList values).resultList
 
     /**
      * Retrieves entities of type [P] matching a single field against multiple values.
@@ -526,7 +526,7 @@ interface ProjectionRepository<P, ID : Any> : Repository where P : Projection<ID
      * @param values Iterable of values to match against.
      * @return a list of matching entities.
      */
-    fun <V : Data> findAllByRef(field: Metamodel<P, V>, values: Iterable<Ref<V>>): List<P> = select().whereRef(field, values).resultList
+    public fun <V : Data> findAllByRef(field: Metamodel<P, V>, values: Iterable<Ref<V>>): List<P> = select().whereRef(field, values).resultList
 
     /**
      * Retrieves exactly one entity of type [P] based on a single field and its value.
@@ -538,7 +538,7 @@ interface ProjectionRepository<P, ID : Any> : Repository where P : Projection<ID
      * @throws st.orm.NoResultException if there is no result.
      * @throws st.orm.NonUniqueResultException if more than one result.
      */
-    fun <V> getBy(field: Metamodel<P, V>, value: V): P = select().where(field eq value).singleResult
+    public fun <V> getBy(field: Metamodel<P, V>, value: V): P = select().where(field eq value).singleResult
 
     /**
      * Retrieves exactly one entity of type [P] based on a single field and its value.
@@ -550,7 +550,7 @@ interface ProjectionRepository<P, ID : Any> : Repository where P : Projection<ID
      * @throws st.orm.NoResultException if there is no result.
      * @throws st.orm.NonUniqueResultException if more than one result.
      */
-    fun <V : Data> getBy(field: Metamodel<P, V>, value: Ref<V>): P = select().where(field, value).singleResult
+    public fun <V : Data> getBy(field: Metamodel<P, V>, value: Ref<V>): P = select().where(field, value).singleResult
 
     /**
      * Retrieves an optional entity of type [P] based on a single field and its value.
@@ -560,7 +560,7 @@ interface ProjectionRepository<P, ID : Any> : Repository where P : Projection<ID
      * @param value the value to match against.
      * @return an optional entity, or null if none found.
      */
-    fun <T, ID, V> findRefBy(field: Metamodel<P, V>, value: V): Ref<P>? = selectRef().where(field eq value).optionalResult
+    public fun <T, ID, V> findRefBy(field: Metamodel<P, V>, value: V): Ref<P>? = selectRef().where(field eq value).optionalResult
 
     /**
      * Retrieves an optional entity of type [P] based on a single field and its value.
@@ -570,7 +570,7 @@ interface ProjectionRepository<P, ID : Any> : Repository where P : Projection<ID
      * @param value the value to match against.
      * @return an optional entity, or null if none found.
      */
-    fun <V : Data> findRefBy(field: Metamodel<P, V>, value: Ref<V>): Ref<P>? = selectRef().where(field, value).optionalResult
+    public fun <V : Data> findRefBy(field: Metamodel<P, V>, value: Ref<V>): Ref<P>? = selectRef().where(field, value).optionalResult
 
     /**
      * Retrieves entities of type [P] matching a single field and a single value.
@@ -580,7 +580,7 @@ interface ProjectionRepository<P, ID : Any> : Repository where P : Projection<ID
      * @param value the value to match against.
      * @return a list of matching entities.
      */
-    fun <V> findAllRefBy(field: Metamodel<P, V>, value: V): List<Ref<P>> = selectRef().where(field eq value).resultList
+    public fun <V> findAllRefBy(field: Metamodel<P, V>, value: V): List<Ref<P>> = selectRef().where(field eq value).resultList
 
     /**
      * Retrieves entities of type [P] matching a single field and a single value.
@@ -590,7 +590,7 @@ interface ProjectionRepository<P, ID : Any> : Repository where P : Projection<ID
      * @param value the value to match against.
      * @return a list of matching entities.
      */
-    fun <V : Data> findAllRefBy(field: Metamodel<P, V>, value: Ref<V>): List<Ref<P>> = selectRef().where(field, value).resultList
+    public fun <V : Data> findAllRefBy(field: Metamodel<P, V>, value: Ref<V>): List<Ref<P>> = selectRef().where(field, value).resultList
 
     /**
      * Retrieves entities of type [P] matching a single field against multiple values.
@@ -600,7 +600,7 @@ interface ProjectionRepository<P, ID : Any> : Repository where P : Projection<ID
      * @param values Iterable of values to match against.
      * @return a list of matching entities.
      */
-    fun <V : Data> findAllRefBy(field: Metamodel<P, V>, values: Iterable<V>): List<Ref<P>> = selectRef().where(field inList values).resultList
+    public fun <V : Data> findAllRefBy(field: Metamodel<P, V>, values: Iterable<V>): List<Ref<P>> = selectRef().where(field inList values).resultList
 
     /**
      * Retrieves entities of type [P] matching a single field against multiple values.
@@ -610,7 +610,7 @@ interface ProjectionRepository<P, ID : Any> : Repository where P : Projection<ID
      * @param values Iterable of values to match against.
      * @return a list of matching entities.
      */
-    fun <V : Data> findAllRefByRef(field: Metamodel<P, V>, values: Iterable<Ref<V>>): List<Ref<P>> = selectRef().whereRef(field, values).resultList
+    public fun <V : Data> findAllRefByRef(field: Metamodel<P, V>, values: Iterable<Ref<V>>): List<Ref<P>> = selectRef().whereRef(field, values).resultList
 
     /**
      * Retrieves exactly one entity of type [P] based on a single field and its value.
@@ -622,7 +622,7 @@ interface ProjectionRepository<P, ID : Any> : Repository where P : Projection<ID
      * @throws st.orm.NoResultException if there is no result.
      * @throws st.orm.NonUniqueResultException if more than one result.
      */
-    fun <V> getRefBy(field: Metamodel<P, V>, value: V): Ref<P> = selectRef().where(field eq value).singleResult
+    public fun <V> getRefBy(field: Metamodel<P, V>, value: V): Ref<P> = selectRef().where(field eq value).singleResult
 
     /**
      * Retrieves exactly one entity of type [P] based on a single field and its value.
@@ -634,21 +634,21 @@ interface ProjectionRepository<P, ID : Any> : Repository where P : Projection<ID
      * @throws st.orm.NoResultException if there is no result.
      * @throws st.orm.NonUniqueResultException if more than one result.
      */
-    fun <V : Data> getRefBy(field: Metamodel<P, V>, value: Ref<V>): Ref<P> = selectRef().where(field, value).singleResult
+    public fun <V : Data> getRefBy(field: Metamodel<P, V>, value: Ref<V>): Ref<P> = selectRef().where(field, value).singleResult
 
     /**
      * Retrieves entities of type [P] matching the specified predicate.
      *
      * @return a list of matching entities.
      */
-    fun findAll(predicate: PredicateBuilder<P, *, *>): List<P> = select().where(predicate).resultList
+    public fun findAll(predicate: PredicateBuilder<P, *, *>): List<P> = select().where(predicate).resultList
 
     /**
      * Retrieves entities of type [P] matching the specified predicate.
      *
      * @return a list of matching entities.
      */
-    fun findAllRef(predicate: PredicateBuilder<P, *, *>): List<Ref<P>> = selectRef().where(predicate).resultList
+    public fun findAllRef(predicate: PredicateBuilder<P, *, *>): List<Ref<P>> = selectRef().where(predicate).resultList
 
     /**
      * Retrieves an optional entity of type [P] matching the specified predicate.
@@ -656,7 +656,7 @@ interface ProjectionRepository<P, ID : Any> : Repository where P : Projection<ID
      *
      * @return an optional entity, or null if none found.
      */
-    fun find(
+    public fun find(
         predicate: PredicateBuilder<P, *, *>,
     ): P? = select().where(predicate).optionalResult
 
@@ -666,7 +666,7 @@ interface ProjectionRepository<P, ID : Any> : Repository where P : Projection<ID
      *
      * @return an optional entity, or null if none found.
      */
-    fun findRef(
+    public fun findRef(
         predicate: PredicateBuilder<P, *, *>,
     ): Ref<P>? = selectRef().where(predicate).optionalResult
 
@@ -678,7 +678,7 @@ interface ProjectionRepository<P, ID : Any> : Repository where P : Projection<ID
      * @throws st.orm.NoResultException if there is no result.
      * @throws st.orm.NonUniqueResultException if more than one result.
      */
-    fun get(
+    public fun get(
         predicate: PredicateBuilder<P, *, *>,
     ): P = select().where(predicate).singleResult
 
@@ -690,7 +690,7 @@ interface ProjectionRepository<P, ID : Any> : Repository where P : Projection<ID
      * @throws st.orm.NoResultException if there is no result.
      * @throws st.orm.NonUniqueResultException if more than one result.
      */
-    fun getRef(
+    public fun getRef(
         predicate: PredicateBuilder<P, *, *>,
     ): Ref<P> = selectRef().where(predicate).singleResult
 
@@ -701,7 +701,7 @@ interface ProjectionRepository<P, ID : Any> : Repository where P : Projection<ID
      * @param value the value to match against.
      * @return the count of matching entities.
      */
-    fun <V> countBy(
+    public fun <V> countBy(
         field: Metamodel<P, V>,
         value: V,
     ): Long = selectCount().where(field eq value).singleResult
@@ -713,7 +713,7 @@ interface ProjectionRepository<P, ID : Any> : Repository where P : Projection<ID
      * @param value the referenced value to match against.
      * @return the count of matching entities.
      */
-    fun <V : Data> countBy(
+    public fun <V : Data> countBy(
         field: Metamodel<P, V>,
         value: Ref<V>,
     ): Long = selectCount().where(field, value).singleResult
@@ -724,7 +724,7 @@ interface ProjectionRepository<P, ID : Any> : Repository where P : Projection<ID
      * @param predicate Lambda to build the WHERE clause.
      * @return the count of matching entities.
      */
-    fun count(
+    public fun count(
         predicate: PredicateBuilder<P, *, *>,
     ): Long = selectCount().where(predicate).singleResult
 
@@ -735,7 +735,7 @@ interface ProjectionRepository<P, ID : Any> : Repository where P : Projection<ID
      * @param value the value to match against.
      * @return true if any matching entities exist, false otherwise.
      */
-    fun <V> existsBy(
+    public fun <V> existsBy(
         field: Metamodel<P, V>,
         value: V,
     ): Boolean = selectCount().where(field eq value).singleResult > 0
@@ -747,7 +747,7 @@ interface ProjectionRepository<P, ID : Any> : Repository where P : Projection<ID
      * @param value the referenced value to match against.
      * @return true if any matching entities exist, false otherwise.
      */
-    fun <V : Data> existsBy(
+    public fun <V : Data> existsBy(
         field: Metamodel<P, V>,
         value: Ref<V>,
     ): Boolean = selectCount().where(field, value).singleResult > 0
@@ -758,7 +758,7 @@ interface ProjectionRepository<P, ID : Any> : Repository where P : Projection<ID
      * @param predicate Lambda to build the WHERE clause.
      * @return true if any matching entities exist, false otherwise.
      */
-    fun exists(
+    public fun exists(
         predicate: PredicateBuilder<P, *, *>,
     ): Boolean = selectCount().where(predicate).singleResult > 0
 
@@ -775,7 +775,7 @@ interface ProjectionRepository<P, ID : Any> : Repository where P : Projection<ID
      * @return a page containing the results and pagination metadata.
      * @since 1.10
      */
-    fun page(pageNumber: Int, pageSize: Int): Page<P>
+    public fun page(pageNumber: Int, pageSize: Int): Page<P>
 
     /**
      * Returns a page of projections using offset-based pagination.
@@ -790,7 +790,7 @@ interface ProjectionRepository<P, ID : Any> : Repository where P : Projection<ID
      * @return a page containing the results and pagination metadata.
      * @since 1.10
      */
-    fun page(pageable: Pageable): Page<P>
+    public fun page(pageable: Pageable): Page<P>
 
     /**
      * Returns a page of projection refs using offset-based pagination.
@@ -802,7 +802,7 @@ interface ProjectionRepository<P, ID : Any> : Repository where P : Projection<ID
      * @return a page containing the ref results and pagination metadata.
      * @since 1.10
      */
-    fun pageRef(pageNumber: Int, pageSize: Int): Page<Ref<P>>
+    public fun pageRef(pageNumber: Int, pageSize: Int): Page<Ref<P>>
 
     /**
      * Returns a page of projection refs using offset-based pagination.
@@ -814,7 +814,7 @@ interface ProjectionRepository<P, ID : Any> : Repository where P : Projection<ID
      * @return a page containing the ref results and pagination metadata.
      * @since 1.10
      */
-    fun pageRef(pageable: Pageable): Page<Ref<P>>
+    public fun pageRef(pageable: Pageable): Page<Ref<P>>
 
     /**
      * Executes a scroll request from a [Scrollable] token, typically obtained from
@@ -824,7 +824,7 @@ interface ProjectionRepository<P, ID : Any> : Repository where P : Projection<ID
      * @return a window containing the projection results for the requested scroll position.
      * @since 1.11
      */
-    fun scroll(scrollable: Scrollable<P>): Window<P> = select().scroll(scrollable)
+    public fun scroll(scrollable: Scrollable<P>): Window<P> = select().scroll(scrollable)
 }
 
 /**
@@ -842,6 +842,6 @@ interface ProjectionRepository<P, ID : Any> : Repository where P : Projection<ID
  * @return a query builder producing results of type [R].
  * @since 1.12
  */
-inline fun <reified R : Any, P : Projection<ID>, ID : Any> ProjectionRepository<P, ID>.select(
+public inline fun <reified R : Any, P : Projection<ID>, ID : Any> ProjectionRepository<P, ID>.select(
     noinline template: TemplateBuilder,
 ): QueryBuilder<P, R, ID> = select(R::class, template)

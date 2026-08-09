@@ -64,7 +64,7 @@ import kotlin.coroutines.CoroutineContext
  * @throws st.orm.PersistenceException if transaction execution fails.
  * @since 1.5
  */
-fun <T> transactionBlocking(
+public fun <T> transactionBlocking(
     propagation: TransactionPropagation? = null,
     isolation: TransactionIsolation? = null,
     timeoutSeconds: Int? = null,
@@ -119,7 +119,7 @@ fun <T> transactionBlocking(
  * @throws st.orm.PersistenceException if transaction execution or rollback/commit fails.
  * @since 1.5
  */
-suspend fun <T> transaction(
+public suspend fun <T> transaction(
     dispatcher: CoroutineDispatcher = TransactionDispatchers.Default,
     propagation: TransactionPropagation? = null,
     isolation: TransactionIsolation? = null,
@@ -316,7 +316,7 @@ private val localTransactionOptions: ThreadLocal<TransactionOptions?> = ThreadLo
  * @param readOnly Whether the transaction is read-only.
  * @since 1.6
  */
-fun setGlobalTransactionOptions(
+public fun setGlobalTransactionOptions(
     propagation: TransactionPropagation? = null,
     isolation: TransactionIsolation? = null,
     timeoutSeconds: Int? = null,
@@ -346,7 +346,7 @@ fun setGlobalTransactionOptions(
  * @return The result of executing [block].
  * @since 1.6
  */
-suspend fun <T> withTransactionOptions(
+public suspend fun <T> withTransactionOptions(
     propagation: TransactionPropagation? = null,
     isolation: TransactionIsolation? = null,
     timeoutSeconds: Int? = null,
@@ -381,7 +381,7 @@ suspend fun <T> withTransactionOptions(
  * @return The result of executing [block].
  * @since 1.6
  */
-fun <T> withTransactionOptionsBlocking(
+public fun <T> withTransactionOptionsBlocking(
     propagation: TransactionPropagation? = null,
     isolation: TransactionIsolation? = null,
     timeoutSeconds: Int? = null,
