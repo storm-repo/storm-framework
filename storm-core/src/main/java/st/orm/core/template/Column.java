@@ -153,8 +153,10 @@ public interface Column {
     /**
      * Returns the metamodel for this element.
      *
-     * <p>In case of a foreign key relationship, this metamodel represents the foreign key column on the parent entity.
-     * For non-foreign relationships, this is the only metamodel that applies.</p>
+     * <p>In case of a foreign key relationship, this metamodel represents the foreign key column on the referencing
+     * entity, the entity that declares the foreign key field. The referenced entity's primary key is represented
+     * separately by {@link #secondaryMetamodel()}. For non-foreign relationships, this is the only metamodel that
+     * applies.</p>
      *
      * @return the metamodel for this element.
      * @since 1.7

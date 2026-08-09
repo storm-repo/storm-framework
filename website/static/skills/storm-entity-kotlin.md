@@ -13,6 +13,7 @@ Help the user create Storm entities using Kotlin.
 - `st.orm.DbTable` — custom table name
 - `st.orm.DbColumn` — custom column name
 - `st.orm.Version` — optimistic locking
+- `st.orm.DynamicUpdate` — per-entity update mode and dirty-check strategy
 - `st.orm.Inline` — embedded component
 - `st.orm.Ref` — lazy-loaded reference
 - `st.orm.GenerationStrategy` — PK generation: `IDENTITY`, `SEQUENCE`, `NONE`
@@ -160,6 +161,8 @@ Generation rules:
    ) : Entity<Int>
    ```
    Use `insertable = false` alone for columns set by the database only on INSERT, or `updatable = false` alone for columns that are written once and never modified.
+
+12c. Update tuning: `@DynamicUpdate` sets how the entity's UPDATE statements are generated. The default mode (`ENTITY`) skips the UPDATE entirely when nothing changed and writes the full row when anything did. `@DynamicUpdate(FIELD)` writes only the changed columns, at the cost of one SQL shape per distinct change pattern (which splits batches); `@DynamicUpdate(OFF)` always writes all columns without comparison. `dirtyCheck = VALUE` switches change detection from reference identity to `equals()`. Semantics, trade-offs, and the foreign-key comparison rule: /storm-repository-kotlin (Dirty Checking and Update Suppression).
 
 13. Use descriptive variable names, never abbreviated.
 

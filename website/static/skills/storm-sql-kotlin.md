@@ -37,6 +37,13 @@ Even in full SQL templates, users still benefit from bind variables (`$value`) a
 - Pagination, scrolling — use `page()`, `scroll()`
 - Simple CRUD — use `find`, `findAll`, `remove`, `removeAll`, `insert`, `update`
 
+**Mutations bypass dirty checking.** Entity updates through repositories compare against the
+transaction's observed state and can skip or narrow the UPDATE; template and raw SQL mutations
+write unconditionally. To keep later comparisons truthful, a template mutation whose entity type is
+known invalidates the observed state of that type, and a raw SQL string without type information
+clears all observed state in the transaction — repository updates after it fall back to full-row
+writes. Prefer entity updates for row-level changes; keep templates for set-based mutations.
+
 **Inside SQL templates, always use metamodel references** (`${User_.email}`, `${City_.id}`) instead of hardcoding column names. This keeps queries type-safe and refactor-proof. Only use `${unsafe("raw sql")}` when there is truly no metamodel equivalent.
 
 **FK path references:** Use `${User_.city.country}` (resolves to the FK column, e.g., `country_id`) rather than `${User_.city.country.id}` (resolves to the PK column on the joined table). The shorter form is preferred — it references the FK directly without requiring a join.

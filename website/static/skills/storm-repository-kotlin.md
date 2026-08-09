@@ -375,6 +375,68 @@ users.upsert(listOf(user1, user2))
 val upserted: List<User> = users.upsertAndFetch(listOf(user1, user2))
 ```
 
+## Dirty Checking and Update Suppression
+
+Inside a transaction, Storm observes entity state as it reads and compares against that observed
+state when `update()` is called. The observed state lives in the transaction context, never on the
+entity, and is discarded at commit. For an entity read in the same transaction:
+
+- **Nothing changed → no SQL at all.** `orm update user` with an unmodified instance executes no
+  statement. Read-modify-write code can pass entities back unconditionally and let Storm drop the
+  no-ops.
+- **Anything changed → full-row UPDATE** (default `ENTITY` mode): one stable SQL shape per entity,
+  which keeps JDBC batching effective.
+
+Suppression needs the observed state to be available: it applies inside a transaction, to entities
+read in that same transaction, through entity-repository updates. In every other case — outside a
+transaction, an entity constructed rather than read, observed state no longer available — Storm
+falls back to a full-row UPDATE. The fallback costs a redundant write, never a wrong one: treat the
+skipped UPDATE as an optimization, not a guarantee. Joined-inheritance entities
+(`@Polymorphic(JOINED)` hierarchies) are the exception: their multi-table updates always write and
+are not dirty-checked.
+
+**Delete-and-reinsert and dirty checking are mutually exclusive.** Inserts are never dirty-checked,
+and freshly constructed rows carry no observed state, so a write path that clears rows and
+re-inserts the desired set writes every row every time. The dirty-checking-native shape for "make
+the table match this desired state" keeps the instances that were read: update the full set and let
+Storm suppress the unchanged rows, reserving `insert`/`remove` (or a write set) for actual
+additions and removals. Batch updates apply this per entity — clean entities are dropped from the
+batch and only dirty ones are written.
+
+What a dirty entity writes is the update mode — `@DynamicUpdate` on the entity
+(/storm-entity-kotlin) or `storm.update.default_mode` globally:
+
+- `ENTITY` (default): any change writes the full row; no change writes nothing.
+- `FIELD`: only the changed columns are written (plus the `@Version` column when present). Narrower
+  writes, but every distinct combination of changed columns is its own SQL shape: batches split per
+  shape, and after `storm.update.max_shapes` distinct shapes (default 5) Storm falls back to
+  full-row updates to preserve batching.
+- `OFF`: no comparison; always write all columns. Predictable unconditional writes for batch/ETL
+  paths.
+
+How a field is compared is a separate axis — `@DynamicUpdate(dirtyCheck = ...)` per entity or
+`storm.update.dirty_check` globally. `INSTANCE` (default) marks a field dirty when its reference
+changed; `copy()` reuses the references of untouched fields, so unchanged fields compare clean at
+pointer cost. `VALUE` compares with `equals()` and differs only when code rebuilds equal values in
+new instances, e.g. mapping the same data back from a form or DTO.
+
+**Foreign keys compare by id, not by content.** The dirty check follows the column. Under `VALUE`,
+an `@FK` field compares the referenced entity's primary key only (the generated metamodel emits
+`a.city.id == b.city.id`): a referenced `City` whose own fields changed does not make the
+referencing `User` dirty, because the `city_id` column is unchanged — and updating the `User` would
+not write the `City`'s fields anyway. To persist changes inside a referenced entity, update that
+entity. Under `INSTANCE`, substituting a different instance with the same id marks the FK column
+dirty and costs a redundant write of the same value. `Ref<T>` fields compare by the id the ref
+carries.
+
+Dirty checking decides what to write; it does not detect concurrent writers. Lost-update protection
+is `@Version` (optimistic locking), unchanged by any of the above.
+
+Bulk mutations bypass dirty checking, and Storm invalidates observed state so later comparisons
+stay truthful: a mutation with a known entity type (`delete(...)` builders, template mutations
+naming the type) clears the observed state of that type; a raw SQL mutation clears all observed
+state in the transaction. Updates after such a mutation fall back to full-row writes.
+
 ## Write Sets (Mixed-Type Graphs)
 
 Apply one write operation to entities of multiple types. Storm orders the writes by foreign-key

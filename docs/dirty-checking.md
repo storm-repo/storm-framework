@@ -186,6 +186,7 @@ orm update updated
 
 **Characteristics**
 - UPDATE suppression when nothing changed
+- Unchanged entities are dropped from batch updates before execution
 - Stable SQL shape per entity (enables batching)
 - Low memory overhead (stores one copy of observed state per entity)
 - Minimal CPU overhead (single comparison per update)
@@ -320,24 +321,9 @@ record User(@PK Integer id,
 
 ### How It Works
 
-The `@DynamicUpdate` annotation is processed at compile time by Storm's KSP processor (Kotlin) or annotation processor (Java). The update mode is encoded in the generated metamodel class (`User_`), so there's no runtime reflection cost.
+Storm resolves the effective update mode once, when the repository for an entity type is initialized: an entity-level `@DynamicUpdate` annotation takes precedence over the configured default. Individual updates then use the precomputed mode without further lookups.
 
-```
-┌─────────────────────┐      Compile Time      ┌─────────────────────┐
-│                     │                        │                     │
-│   @DynamicUpdate    │  ───────────────────▶  │   User_ metamodel   │
-│   data class User   │    Annotation          │   updateMode=FIELD  │
-│                     │    Processor           │                     │
-└─────────────────────┘                        └─────────────────────┘
-                                                         │
-                                                         │ Runtime
-                                                         ▼
-                                               ┌─────────────────────┐
-                                               │  Storm reads mode   │
-                                               │  from metamodel     │
-                                               │  (no reflection)    │
-                                               └─────────────────────┘
-```
+The field comparisons themselves run through the generated metamodel classes (KSP for Kotlin, annotation processor for Java), which provide type-specific equality checks with no reflection and no boxing for primitive fields. Without a generated metamodel, Storm falls back to reflective accessors.
 
 ### Mixing Modes in an Application
 
@@ -377,9 +363,9 @@ When comparing an entity to its observed state, Storm needs to determine whether
 
 ### Instance-Based (Default)
 
-Instance-based checking treats a field as changed when the object reference differs (`!=` identity comparison). This is the fastest option because reference comparison is a single pointer check with no method dispatch. It works correctly in the vast majority of cases because Kotlin's `copy()` and Java's `with...()` patterns create new instances for modified fields while reusing the same references for unchanged fields.
+Instance-based checking treats a field as changed when the object reference differs (identity comparison). This is the fastest option because reference comparison is a single pointer check with no method dispatch. It works correctly in the vast majority of cases because Kotlin's `copy()` and Java's `with...()` patterns create new instances for modified fields while reusing the same references for unchanged fields.
 
-The only scenario where instance-based checking produces a false positive is when you construct a new object with identical content. For example, `user.copy(name = user.name)` creates a new `String` reference for `name`, even though the value is unchanged. In practice, this is rare and the cost of an extra column in the UPDATE is negligible.
+The only scenario where instance-based checking produces a false positive is when a field value is rebuilt as a distinct but equal instance. For example, mapping a submitted form or DTO back onto an entity reconstructs field values that may be equal to the current ones without being the same instances. In practice, this is rare and the cost of an extra column in the UPDATE is negligible.
 
 ### Value-Based
 
@@ -408,6 +394,12 @@ val config = StormConfig.of(mapOf(UPDATE_DIRTY_CHECK to "VALUE"))
 ```bash
 -Dstorm.update.dirty_check=VALUE
 ```
+
+### Foreign Keys Compare by Id
+
+For a foreign key field, dirty checking follows the column rather than the object graph. Under value-based checking, the referenced entity is compared by primary key only: a referenced `City` whose own fields changed does not make the referencing `User` dirty, because the `city_id` column is unchanged. Updating the `User` would not write the `City`'s fields anyway; to persist changes inside a referenced entity, update that entity itself.
+
+Under instance-based checking, substituting a different instance with the same id marks the foreign key column dirty and costs a redundant write of the same value. `Ref<T>` fields compare the same way, by the id the ref carries.
 
 ---
 
@@ -625,6 +617,10 @@ Storm uses compile-time generated metamodel classes for dirty checking operation
 
 Ensure your build is configured to run the KSP (Kotlin) or annotation processor (Java) to generate metamodel classes. If the metamodel is not available, Storm falls back to reflection.
 
+### 5. Joined Table Inheritance Always Writes
+
+Entities in a [Joined Table hierarchy](polymorphism.md#joined-table-inheritance) are not dirty-checked. Their updates write both the base and extension tables and always execute; update suppression and field-level updates do not apply to them.
+
 ---
 
 ## Best Practices
@@ -639,7 +635,11 @@ For most applications, the default `ENTITY` mode provides the right balance:
 
 Only switch to `FIELD` mode when you have a specific need (wide tables, high contention, large columns).
 
-### 2. Use FIELD Mode Strategically
+### 2. Update in Place, Don't Delete-and-Reinsert
+
+Delete-and-reinsert and dirty checking are mutually exclusive. Inserts are never dirty-checked, and freshly constructed rows carry no observed state, so a write path that clears rows and re-inserts the desired set writes every row every time. To make a table match a desired state, keep the instances that were read: update the full set and let Storm suppress the unchanged rows, reserving insert and remove for actual additions and removals.
+
+### 3. Use FIELD Mode Strategically
 
 Reserve `FIELD` mode for entities where it provides clear benefits:
 
@@ -670,7 +670,7 @@ data class AuditEntry(       // Keep ENTITY mode
 ) : Entity<Int>
 ```
 
-### 3. Always Use @Version for Concurrency Control
+### 4. Always Use @Version for Concurrency Control
 
 Dirty checking answers "what changed?" but not "did someone else change this?"
 
@@ -684,7 +684,7 @@ data class Account(
 
 Without `@Version`, concurrent updates can silently overwrite each other (lost update problem).
 
-### 4. Match Mode to Workload
+### 5. Match Mode to Workload
 
 ```
 ┌─────────────────────────────────────────────────────────────────────┐
@@ -704,7 +704,7 @@ Without `@Version`, concurrent updates can silently overwrite each other (lost u
 └─────────────────────────────────────────────────────────────────────┘
 ```
 
-### 5. Monitor in Production
+### 6. Monitor in Production
 
 If using `FIELD` mode extensively, monitor:
 
