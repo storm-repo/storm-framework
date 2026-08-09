@@ -171,8 +171,50 @@
         <dependency>
             <groupId>com.google.devtools.ksp</groupId>
             <artifactId>symbol-processing-api</artifactId>
-            <version>2.0.21-1.0.25</version>
+            <version>${kotlin.ksp.version}</version>
             <scope>provided</scope>
+        </dependency>
+        <dependency>
+            <groupId>st.orm</groupId>
+            <artifactId>storm-foundation</artifactId>
+            <version>${project.version}</version>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.junit.jupiter</groupId>
+            <artifactId>junit-jupiter</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>dev.zacsweers.kctfork</groupId>
+            <artifactId>ksp</artifactId>
+            <version>0.5.1</version>
+            <scope>test</scope>
+        </dependency>
+        <!-- Align kctfork's transitive compiler and KSP artifacts with this module's toolchain. -->
+        <dependency>
+            <groupId>org.jetbrains.kotlin</groupId>
+            <artifactId>kotlin-compiler-embeddable</artifactId>
+            <version>${kotlin.version}</version>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>com.google.devtools.ksp</groupId>
+            <artifactId>symbol-processing</artifactId>
+            <version>${kotlin.ksp.version}</version>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>com.google.devtools.ksp</groupId>
+            <artifactId>symbol-processing-common-deps</artifactId>
+            <version>${kotlin.ksp.version}</version>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>com.google.devtools.ksp</groupId>
+            <artifactId>symbol-processing-aa-embeddable</artifactId>
+            <version>${kotlin.ksp.version}</version>
+            <scope>test</scope>
         </dependency>
     </dependencies>
 </project>

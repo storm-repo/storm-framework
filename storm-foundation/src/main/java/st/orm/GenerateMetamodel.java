@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package st.orm.core.template;
+package st.orm;
 
 import static java.lang.annotation.ElementType.TYPE;
 import static java.lang.annotation.RetentionPolicy.RUNTIME;
@@ -22,9 +22,9 @@ import java.lang.annotation.Retention;
 import java.lang.annotation.Target;
 
 /**
- * Indicates that a metamodel class should be generated for the annotated record.
+ * Indicates that a metamodel class should be generated for the annotated record or data class.
  *
- * <p><strong>Note:</strong> This annotation is not required for records implementing {@code Entity} or
+ * <p><strong>Note:</strong> This annotation is not required for types implementing {@code Entity} or
  * {@code Projection}, as they are automatically included when the annotation processor is enabled.</p>
  *
  * @since 1.2
