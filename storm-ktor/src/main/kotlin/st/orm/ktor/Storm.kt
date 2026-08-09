@@ -17,6 +17,7 @@ package st.orm.ktor
 
 import io.ktor.server.application.Application
 import io.ktor.server.application.ApplicationCallPipeline
+import io.ktor.server.application.ApplicationPlugin
 import io.ktor.server.application.ApplicationStarted
 import io.ktor.server.application.ApplicationStopped
 import io.ktor.server.application.createApplicationPlugin
@@ -93,7 +94,7 @@ import kotlin.reflect.typeOf
  * @since 1.11
  */
 @OptIn(InternalStormApi::class)
-val Storm = createApplicationPlugin(name = "Storm", createConfiguration = ::StormPluginConfig) {
+public val Storm: ApplicationPlugin<StormPluginConfig> = createApplicationPlugin(name = "Storm", createConfiguration = ::StormPluginConfig) {
 
     // Packages claimed by the named databases (package name to database name). These partition repository
     // registration and schema validation: types under a claimed package belong to that database only.

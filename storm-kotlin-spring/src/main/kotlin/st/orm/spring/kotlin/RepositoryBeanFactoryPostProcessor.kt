@@ -31,7 +31,7 @@ import st.orm.spring.AbstractRepositoryFactoryBean
  * or with `@EnableStormRepositories`.
  */
 @Component
-open class RepositoryBeanFactoryPostProcessor(
+public open class RepositoryBeanFactoryPostProcessor(
     private val basePackages: Array<String> = emptyArray(),
     private val ormTemplateBeanName: String? = null,
     private val repositoryPrefix: String = "",

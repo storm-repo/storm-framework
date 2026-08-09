@@ -20,6 +20,7 @@ import org.springframework.boot.autoconfigure.condition.ConditionalOnClass
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean
 import org.springframework.context.annotation.Bean
 import st.orm.spring.AbstractRepositoryBeanFactoryPostProcessor
+import st.orm.spring.kotlin.RepositoryBeanFactoryPostProcessor
 import st.orm.template.ORMTemplate
 
 /**
@@ -30,20 +31,20 @@ import st.orm.template.ORMTemplate
  */
 @AutoConfiguration
 @ConditionalOnClass(ORMTemplate::class)
-open class StormRepositoryAutoConfiguration {
+public open class StormRepositoryAutoConfiguration {
 
-    companion object {
+    public companion object {
         /**
-         * Creates an [AutoConfiguredRepositoryBeanFactoryPostProcessor] that scans for Storm repository interfaces
+         * Creates a [RepositoryBeanFactoryPostProcessor] that scans for Storm repository interfaces
          * in the auto-configuration base packages.
          *
          * This bean backs off if the user has already defined their own [RepositoryBeanFactoryPostProcessor] bean.
          *
-         * @return a new [AutoConfiguredRepositoryBeanFactoryPostProcessor] instance.
+         * @return a new [RepositoryBeanFactoryPostProcessor] instance.
          */
         @JvmStatic
         @Bean
         @ConditionalOnMissingBean(AbstractRepositoryBeanFactoryPostProcessor::class)
-        fun repositoryBeanFactoryPostProcessor(): AutoConfiguredRepositoryBeanFactoryPostProcessor = AutoConfiguredRepositoryBeanFactoryPostProcessor()
+        public fun repositoryBeanFactoryPostProcessor(): RepositoryBeanFactoryPostProcessor = AutoConfiguredRepositoryBeanFactoryPostProcessor()
     }
 }

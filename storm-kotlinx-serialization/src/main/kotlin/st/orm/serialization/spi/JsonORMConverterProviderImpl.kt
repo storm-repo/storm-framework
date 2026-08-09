@@ -24,7 +24,7 @@ import kotlin.reflect.KClass
 import kotlin.reflect.KType
 import kotlin.reflect.full.declaredMemberProperties
 
-class JsonORMConverterProviderImpl : ORMConverterProvider {
+internal class JsonORMConverterProviderImpl : ORMConverterProvider {
 
     override fun getConverter(field: RecordField): Optional<ORMConverter> {
         val jsonAnn = field.getAnnotation(Json::class.java) ?: return Optional.empty()

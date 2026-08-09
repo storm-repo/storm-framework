@@ -30,7 +30,7 @@ import kotlin.reflect.KClass
  *
  * @since 1.11
  */
-class RepositoryRegistry internal constructor(
+public class RepositoryRegistry internal constructor(
     private val ormTemplate: ORMTemplate,
     private val application: Application,
 ) {
@@ -64,7 +64,7 @@ class RepositoryRegistry internal constructor(
      * @param type the repository interface to register.
      * @return the created repository instance.
      */
-    fun <T : Repository> register(type: KClass<T>): T {
+    public fun <T : Repository> register(type: KClass<T>): T {
         requireUnclaimed(type)
         val repository = ormTemplate.repository(type)
         repositories[type] = repository
@@ -84,7 +84,7 @@ class RepositoryRegistry internal constructor(
      * @param packages one or more package names to register repositories from.
      */
     @Suppress("UNCHECKED_CAST")
-    fun register(vararg packages: String) {
+    public fun register(vararg packages: String) {
         val discovered = TypeDiscovery.getRepositoryTypes()
         for (type in discovered) {
             val typeName = type.name
@@ -107,7 +107,7 @@ class RepositoryRegistry internal constructor(
      * This is useful for integrating with DI frameworks like Koin that need to register each repository
      * as a managed component.
      */
-    fun forEach(action: (type: KClass<out Repository>, instance: Repository) -> Unit) {
+    public fun forEach(action: (type: KClass<out Repository>, instance: Repository) -> Unit) {
         @Suppress("UNCHECKED_CAST")
         for ((type, instance) in repositories) {
             action(type as KClass<out Repository>, instance as Repository)
@@ -122,7 +122,7 @@ class RepositoryRegistry internal constructor(
      * @throws IllegalStateException if the repository type has not been registered.
      */
     @Suppress("UNCHECKED_CAST")
-    fun <T : Repository> get(type: KClass<T>): T = repositories[type] as? T
+    public fun <T : Repository> get(type: KClass<T>): T = repositories[type] as? T
         ?: throw IllegalStateException(
             "Repository ${type.simpleName} is not registered. " +
                 "Call register(${type.simpleName}::class) or register(\"<package>\") in stormRepositories { }.",
@@ -140,7 +140,7 @@ class RepositoryRegistry internal constructor(
      * @since 1.12
      */
     @Suppress("UNCHECKED_CAST")
-    fun <T : Repository> getOrCreate(type: KClass<T>): T = repositories.computeIfAbsent(type) {
+    public fun <T : Repository> getOrCreate(type: KClass<T>): T = repositories.computeIfAbsent(type) {
         requireUnclaimed(type)
         ormTemplate.repository(type)
     } as T
@@ -177,7 +177,7 @@ class RepositoryRegistry internal constructor(
  *
  * @since 1.11
  */
-fun Application.stormRepositories(block: RepositoryRegistry.() -> Unit): RepositoryRegistry {
+public fun Application.stormRepositories(block: RepositoryRegistry.() -> Unit): RepositoryRegistry {
     val registry = attributes.getOrNull(RepositoryRegistryKey)
         ?: RepositoryRegistry(orm, this).also { attributes.put(RepositoryRegistryKey, it) }
     registry.block()

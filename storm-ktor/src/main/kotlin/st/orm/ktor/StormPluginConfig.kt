@@ -33,19 +33,19 @@ import kotlin.time.Duration
  * }
  * ```
  */
-class StormPluginConfig {
+public class StormPluginConfig {
 
     /**
      * The [DataSource] to use. If not provided, one will be created from the HOCON configuration under
      * `storm.datasource`.
      */
-    var dataSource: DataSource? = null
+    public var dataSource: DataSource? = null
 
     /**
      * Optional [StormConfig] override. If not provided, configuration is read from the HOCON configuration under
      * `storm`.
      */
-    var config: StormConfig? = null
+    public var config: StormConfig? = null
 
     /**
      * Optional [st.orm.core.spi.ConnectionProvider] override. When not set, the plugin uses the coroutine-aware
@@ -53,7 +53,7 @@ class StormPluginConfig {
      *
      * @since 1.13
      */
-    var connectionProvider: st.orm.core.spi.ConnectionProvider? = null
+    public var connectionProvider: st.orm.core.spi.ConnectionProvider? = null
 
     /**
      * Optional [st.orm.core.spi.TransactionTemplateProvider] override. When not set, the plugin uses the JDBC
@@ -62,7 +62,7 @@ class StormPluginConfig {
      *
      * @since 1.13
      */
-    var transactionTemplateProvider: st.orm.core.spi.TransactionTemplateProvider? = null
+    public var transactionTemplateProvider: st.orm.core.spi.TransactionTemplateProvider? = null
 
     /**
      * Optional [st.orm.core.spi.ExceptionMapper] that maps failures raised during query execution to the runtime
@@ -70,7 +70,7 @@ class StormPluginConfig {
      *
      * @since 1.13
      */
-    var exceptionMapper: st.orm.core.spi.ExceptionMapper? = null
+    public var exceptionMapper: st.orm.core.spi.ExceptionMapper? = null
 
     /**
      * Optional [st.orm.core.spi.QueryObserver] that is notified of query executions, for metrics and tracing
@@ -78,7 +78,7 @@ class StormPluginConfig {
      *
      * @since 1.13
      */
-    var queryObserver: st.orm.core.spi.QueryObserver? = null
+    public var queryObserver: st.orm.core.spi.QueryObserver? = null
 
     /**
      * Optional [st.orm.core.spi.SqlCommenter] that appends per-execution comment content to statements, such
@@ -87,7 +87,7 @@ class StormPluginConfig {
      *
      * @since 1.13
      */
-    var sqlCommenter: st.orm.core.spi.SqlCommenter? = null
+    public var sqlCommenter: st.orm.core.spi.SqlCommenter? = null
 
     /**
      * Whether each call is wrapped in a SQL log whose summary is logged, reporting what one request cost the
@@ -108,7 +108,7 @@ class StormPluginConfig {
      *
      * @since 1.13
      */
-    var sqlLog: Boolean = false
+    public var sqlLog: Boolean = false
 
     /**
      * Number of statements a per-request scope records; the summary counts the rest regardless. Bounds what a
@@ -116,7 +116,7 @@ class StormPluginConfig {
      *
      * @since 1.13
      */
-    var sqlLogLimit: Int = 200
+    public var sqlLogLimit: Int = 200
 
     /**
      * Number of statements above which a call's summary is reported, at WARN. With any threshold set, only
@@ -125,14 +125,14 @@ class StormPluginConfig {
      *
      * @since 1.13
      */
-    var sqlLogStatementThreshold: Int? = null
+    public var sqlLogStatementThreshold: Int? = null
 
     /**
      * Call duration above which a call's summary is reported, at WARN.
      *
      * @since 1.13
      */
-    var sqlLogDurationThreshold: Duration? = null
+    public var sqlLogDurationThreshold: Duration? = null
 
     /**
      * Whether each execution is attributed to the application frame that caused it, shown per row as
@@ -141,7 +141,7 @@ class StormPluginConfig {
      *
      * @since 1.13
      */
-    var sqlLogCallSites: Boolean = false
+    public var sqlLogCallSites: Boolean = false
 
     /**
      * Packages whose frames are skipped when attributing an execution to a call site, so rows name the code
@@ -149,7 +149,7 @@ class StormPluginConfig {
      *
      * @since 1.13
      */
-    var sqlLogCallSiteSkip: List<String> = emptyList()
+    public var sqlLogCallSiteSkip: List<String> = emptyList()
 
     /**
      * Width a summary row aims for, such as 120 for narrow viewers or 240 for wide ones; the statement text
@@ -158,7 +158,7 @@ class StormPluginConfig {
      *
      * @since 1.13
      */
-    var sqlLogLineWidth: Int? = null
+    public var sqlLogLineWidth: Int? = null
 
     /**
      * How a read's summary row renders the declared hydration shape of its type: [HydrationShapes.OFF] (the
@@ -168,7 +168,7 @@ class StormPluginConfig {
      *
      * @since 1.13
      */
-    var sqlLogHydration: HydrationShapes = HydrationShapes.OFF
+    public var sqlLogHydration: HydrationShapes = HydrationShapes.OFF
 
     /**
      * Whether to expose the [st.orm.template.ORMTemplate] and the registered repositories through Ktor's
@@ -183,7 +183,7 @@ class StormPluginConfig {
      *
      * @since 1.13
      */
-    var registerDependencies: Boolean = true
+    public var registerDependencies: Boolean = true
 
     /**
      * Schema validation mode: `"none"`, `"warn"`, or `"fail"`.
@@ -194,7 +194,7 @@ class StormPluginConfig {
      * live database schema during installation, and mismatches abort startup. Run migrations in the
      * [migration] hook so the schema is up to date before validation, or set this to `"none"` to opt out.
      */
-    var schemaValidation: String? = null
+    public var schemaValidation: String? = null
 
     internal var migration: ((DataSource) -> Unit)? = null
 
@@ -215,19 +215,19 @@ class StormPluginConfig {
      *
      * @since 1.12
      */
-    fun migration(block: (DataSource) -> Unit) {
+    public fun migration(block: (DataSource) -> Unit) {
         migration = block
     }
 
     /**
      * Entity callbacks for lifecycle hooks on insert, update, and delete operations.
      */
-    val entityCallbacks: MutableList<EntityCallback<*>> = mutableListOf()
+    public val entityCallbacks: MutableList<EntityCallback<*>> = mutableListOf()
 
     /**
      * Adds an entity callback.
      */
-    fun entityCallback(callback: EntityCallback<*>) {
+    public fun entityCallback(callback: EntityCallback<*>) {
         entityCallbacks.add(callback)
     }
 
@@ -242,7 +242,7 @@ class StormPluginConfig {
      *
      * @since 1.12
      */
-    var autoRegisterRepositories: Boolean = true
+    public var autoRegisterRepositories: Boolean = true
 
     internal val repositoryPackages: MutableList<String> = mutableListOf()
 
@@ -256,7 +256,7 @@ class StormPluginConfig {
      * @param packages one or more package names to register repositories from.
      * @since 1.12
      */
-    fun repositories(vararg packages: String) {
+    public fun repositories(vararg packages: String) {
         repositoryPackages.addAll(packages)
     }
 
@@ -287,7 +287,7 @@ class StormPluginConfig {
      * @param block the configuration for the named database.
      * @since 1.13
      */
-    fun database(name: String, block: StormDatabaseConfig.() -> Unit) {
+    public fun database(name: String, block: StormDatabaseConfig.() -> Unit) {
         require(name.isNotBlank()) { "Database name must not be blank." }
         require(name !in databases) { "Database '$name' is already configured." }
         databases[name] = StormDatabaseConfig(name).apply(block)

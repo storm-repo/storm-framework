@@ -72,7 +72,7 @@ import st.orm.template.transaction
  * @return the route subtree wrapped by the transaction.
  * @since 1.13
  */
-fun Route.transactional(
+public fun Route.transactional(
     dispatcher: CoroutineDispatcher = TransactionDispatchers.Default,
     propagation: TransactionPropagation? = null,
     isolation: TransactionIsolation? = null,

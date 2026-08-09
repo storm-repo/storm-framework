@@ -36,7 +36,7 @@ import javax.sql.DataSource
  * @throws IllegalStateException if the Storm plugin is not installed.
  * @since 1.11
  */
-val Application.orm: ORMTemplate
+public val Application.orm: ORMTemplate
     get() = attributes.getOrNull(OrmTemplateKey)
         ?: throw IllegalStateException(
             "Storm plugin is not installed. Call install(Storm) in your application module.",
@@ -50,7 +50,7 @@ val Application.orm: ORMTemplate
  * @throws IllegalStateException if the Storm plugin is not installed.
  * @since 1.11
  */
-val Application.stormDataSource: DataSource
+public val Application.stormDataSource: DataSource
     get() = attributes.getOrNull(DataSourceKey)
         ?: throw IllegalStateException(
             "Storm plugin is not installed. Call install(Storm) in your application module.",
@@ -64,7 +64,7 @@ val Application.stormDataSource: DataSource
  * @throws IllegalStateException if the Storm plugin is not installed.
  * @since 1.11
  */
-val ApplicationCall.orm: ORMTemplate
+public val ApplicationCall.orm: ORMTemplate
     get() = application.orm
 
 /**
@@ -75,7 +75,7 @@ val ApplicationCall.orm: ORMTemplate
  * @throws IllegalStateException if the Storm plugin is not installed.
  * @since 1.11
  */
-val RoutingContext.orm: ORMTemplate
+public val RoutingContext.orm: ORMTemplate
     get() = call.application.orm
 
 /**
@@ -88,7 +88,7 @@ val RoutingContext.orm: ORMTemplate
  * configured.
  * @since 1.13
  */
-fun Application.orm(name: String): ORMTemplate {
+public fun Application.orm(name: String): ORMTemplate {
     val namedTemplates = attributes.getOrNull(NamedOrmTemplatesKey)
         ?: throw IllegalStateException(
             "Storm plugin is not installed. Call install(Storm) in your application module.",
@@ -109,7 +109,7 @@ fun Application.orm(name: String): ORMTemplate {
  * configured.
  * @since 1.13
  */
-fun ApplicationCall.orm(name: String): ORMTemplate = application.orm(name)
+public fun ApplicationCall.orm(name: String): ORMTemplate = application.orm(name)
 
 /**
  * Returns the Storm [ORMTemplate] of the named database.
@@ -120,7 +120,7 @@ fun ApplicationCall.orm(name: String): ORMTemplate = application.orm(name)
  * configured.
  * @since 1.13
  */
-fun RoutingContext.orm(name: String): ORMTemplate = call.application.orm(name)
+public fun RoutingContext.orm(name: String): ORMTemplate = call.application.orm(name)
 
 /**
  * Returns the [DataSource] of the named database.
@@ -130,7 +130,7 @@ fun RoutingContext.orm(name: String): ORMTemplate = call.application.orm(name)
  * configured.
  * @since 1.13
  */
-fun Application.stormDataSource(name: String): DataSource {
+public fun Application.stormDataSource(name: String): DataSource {
     val namedDataSources = attributes.getOrNull(NamedDataSourcesKey)
         ?: throw IllegalStateException(
             "Storm plugin is not installed. Call install(Storm) in your application module.",
@@ -150,7 +150,7 @@ fun Application.stormDataSource(name: String): DataSource {
  * @throws IllegalStateException if the Storm plugin is not installed.
  * @since 1.11
  */
-inline fun <reified T : Repository> Application.repository(): T {
+public inline fun <reified T : Repository> Application.repository(): T {
     val registry = attributes.getOrNull(RepositoryRegistryKey)
         ?: throw IllegalStateException(
             "Storm plugin is not installed. Call install(Storm) in your application module.",
@@ -169,7 +169,7 @@ inline fun <reified T : Repository> Application.repository(): T {
  * configured.
  * @since 1.13
  */
-inline fun <reified T : Repository> Application.repository(name: String): T {
+public inline fun <reified T : Repository> Application.repository(name: String): T {
     val namedRegistries = attributes.getOrNull(NamedRepositoryRegistriesKey)
         ?: throw IllegalStateException(
             "Storm plugin is not installed. Call install(Storm) in your application module.",
@@ -190,7 +190,7 @@ inline fun <reified T : Repository> Application.repository(name: String): T {
  * configured.
  * @since 1.13
  */
-inline fun <reified T : Repository> ApplicationCall.repository(name: String): T = application.repository<T>(name)
+public inline fun <reified T : Repository> ApplicationCall.repository(name: String): T = application.repository<T>(name)
 
 /**
  * Retrieves a Storm repository from the named database.
@@ -202,7 +202,7 @@ inline fun <reified T : Repository> ApplicationCall.repository(name: String): T 
  * configured.
  * @since 1.13
  */
-inline fun <reified T : Repository> RoutingContext.repository(name: String): T = call.application.repository<T>(name)
+public inline fun <reified T : Repository> RoutingContext.repository(name: String): T = call.application.repository<T>(name)
 
 /**
  * Retrieves a Storm repository.
@@ -213,7 +213,7 @@ inline fun <reified T : Repository> RoutingContext.repository(name: String): T =
  * @throws IllegalStateException if the Storm plugin is not installed.
  * @since 1.11
  */
-inline fun <reified T : Repository> ApplicationCall.repository(): T = application.repository()
+public inline fun <reified T : Repository> ApplicationCall.repository(): T = application.repository()
 
 /**
  * Retrieves a Storm repository.
@@ -224,7 +224,7 @@ inline fun <reified T : Repository> ApplicationCall.repository(): T = applicatio
  * @throws IllegalStateException if the Storm plugin is not installed.
  * @since 1.11
  */
-inline fun <reified T : Repository> RoutingContext.repository(): T = call.application.repository()
+public inline fun <reified T : Repository> RoutingContext.repository(): T = call.application.repository()
 
 /**
  * Returns the repository for entity type [T] with primary key type [ID].
@@ -235,7 +235,7 @@ inline fun <reified T : Repository> RoutingContext.repository(): T = call.applic
  * @since 1.12
  */
 @JvmName("entityTyped")
-inline fun <reified T : Entity<ID>, ID : Any> Application.entity(): EntityRepository<T, ID> = orm.entity<T, ID>()
+public inline fun <reified T : Entity<ID>, ID : Any> Application.entity(): EntityRepository<T, ID> = orm.entity<T, ID>()
 
 /**
  * Returns the repository for entity type [T] without binding the primary key type.
@@ -245,7 +245,7 @@ inline fun <reified T : Entity<ID>, ID : Any> Application.entity(): EntityReposi
  * @throws IllegalStateException if the Storm plugin is not installed.
  * @since 1.12
  */
-inline fun <reified T : Entity<*>> Application.entity(): EntityRepository<T, *> = orm.entity<T>()
+public inline fun <reified T : Entity<*>> Application.entity(): EntityRepository<T, *> = orm.entity<T>()
 
 /**
  * Returns the repository for entity type [T] with primary key type [ID].
@@ -256,7 +256,7 @@ inline fun <reified T : Entity<*>> Application.entity(): EntityRepository<T, *> 
  * @since 1.12
  */
 @JvmName("entityTyped")
-inline fun <reified T : Entity<ID>, ID : Any> ApplicationCall.entity(): EntityRepository<T, ID> = application.entity<T, ID>()
+public inline fun <reified T : Entity<ID>, ID : Any> ApplicationCall.entity(): EntityRepository<T, ID> = application.entity<T, ID>()
 
 /**
  * Returns the repository for entity type [T] without binding the primary key type.
@@ -266,7 +266,7 @@ inline fun <reified T : Entity<ID>, ID : Any> ApplicationCall.entity(): EntityRe
  * @throws IllegalStateException if the Storm plugin is not installed.
  * @since 1.12
  */
-inline fun <reified T : Entity<*>> ApplicationCall.entity(): EntityRepository<T, *> = application.entity<T>()
+public inline fun <reified T : Entity<*>> ApplicationCall.entity(): EntityRepository<T, *> = application.entity<T>()
 
 /**
  * Returns the repository for entity type [T] with primary key type [ID].
@@ -277,7 +277,7 @@ inline fun <reified T : Entity<*>> ApplicationCall.entity(): EntityRepository<T,
  * @since 1.12
  */
 @JvmName("entityTyped")
-inline fun <reified T : Entity<ID>, ID : Any> RoutingContext.entity(): EntityRepository<T, ID> = call.application.entity<T, ID>()
+public inline fun <reified T : Entity<ID>, ID : Any> RoutingContext.entity(): EntityRepository<T, ID> = call.application.entity<T, ID>()
 
 /**
  * Returns the repository for entity type [T] without binding the primary key type.
@@ -287,7 +287,7 @@ inline fun <reified T : Entity<ID>, ID : Any> RoutingContext.entity(): EntityRep
  * @throws IllegalStateException if the Storm plugin is not installed.
  * @since 1.12
  */
-inline fun <reified T : Entity<*>> RoutingContext.entity(): EntityRepository<T, *> = call.application.entity<T>()
+public inline fun <reified T : Entity<*>> RoutingContext.entity(): EntityRepository<T, *> = call.application.entity<T>()
 
 /**
  * Returns the repository for projection type [T] with primary key type [ID].
@@ -298,7 +298,7 @@ inline fun <reified T : Entity<*>> RoutingContext.entity(): EntityRepository<T, 
  * @since 1.12
  */
 @JvmName("projectionTyped")
-inline fun <reified T : Projection<ID>, ID : Any> Application.projection(): ProjectionRepository<T, ID> = orm.projection<T, ID>()
+public inline fun <reified T : Projection<ID>, ID : Any> Application.projection(): ProjectionRepository<T, ID> = orm.projection<T, ID>()
 
 /**
  * Returns the repository for projection type [T] without binding the primary key type.
@@ -308,7 +308,7 @@ inline fun <reified T : Projection<ID>, ID : Any> Application.projection(): Proj
  * @throws IllegalStateException if the Storm plugin is not installed.
  * @since 1.12
  */
-inline fun <reified T : Projection<*>> Application.projection(): ProjectionRepository<T, *> = orm.projection<T>()
+public inline fun <reified T : Projection<*>> Application.projection(): ProjectionRepository<T, *> = orm.projection<T>()
 
 /**
  * Returns the repository for projection type [T] with primary key type [ID].
@@ -319,7 +319,7 @@ inline fun <reified T : Projection<*>> Application.projection(): ProjectionRepos
  * @since 1.12
  */
 @JvmName("projectionTyped")
-inline fun <reified T : Projection<ID>, ID : Any> ApplicationCall.projection(): ProjectionRepository<T, ID> = application.projection<T, ID>()
+public inline fun <reified T : Projection<ID>, ID : Any> ApplicationCall.projection(): ProjectionRepository<T, ID> = application.projection<T, ID>()
 
 /**
  * Returns the repository for projection type [T] without binding the primary key type.
@@ -329,7 +329,7 @@ inline fun <reified T : Projection<ID>, ID : Any> ApplicationCall.projection(): 
  * @throws IllegalStateException if the Storm plugin is not installed.
  * @since 1.12
  */
-inline fun <reified T : Projection<*>> ApplicationCall.projection(): ProjectionRepository<T, *> = application.projection<T>()
+public inline fun <reified T : Projection<*>> ApplicationCall.projection(): ProjectionRepository<T, *> = application.projection<T>()
 
 /**
  * Returns the repository for projection type [T] with primary key type [ID].
@@ -340,7 +340,7 @@ inline fun <reified T : Projection<*>> ApplicationCall.projection(): ProjectionR
  * @since 1.12
  */
 @JvmName("projectionTyped")
-inline fun <reified T : Projection<ID>, ID : Any> RoutingContext.projection(): ProjectionRepository<T, ID> = call.application.projection<T, ID>()
+public inline fun <reified T : Projection<ID>, ID : Any> RoutingContext.projection(): ProjectionRepository<T, ID> = call.application.projection<T, ID>()
 
 /**
  * Returns the repository for projection type [T] without binding the primary key type.
@@ -350,4 +350,4 @@ inline fun <reified T : Projection<ID>, ID : Any> RoutingContext.projection(): P
  * @throws IllegalStateException if the Storm plugin is not installed.
  * @since 1.12
  */
-inline fun <reified T : Projection<*>> RoutingContext.projection(): ProjectionRepository<T, *> = call.application.projection<T>()
+public inline fun <reified T : Projection<*>> RoutingContext.projection(): ProjectionRepository<T, *> = call.application.projection<T>()
