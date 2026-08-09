@@ -99,9 +99,9 @@ abstract class QueryBuilder<T : Data, R, ID> {
      * @return the typed query builder.
      * @param <X> the type of the primary key.
      * @throws PersistenceException if the pk type is not valid.
-     * @since 1.2
+     * @since 1.14
      */
-    abstract fun <X : Any> typed(pkType: KClass<X>): QueryBuilder<T, R, X>
+    abstract fun <X : Any> typedId(pkType: KClass<X>): QueryBuilder<T, R, X>
 
     /**
      * Returns a typed query builder for the specified primary key type.
@@ -109,9 +109,43 @@ abstract class QueryBuilder<T : Data, R, ID> {
      * @param X the type of the primary key.
      * @return the typed query builder.
      * @throws PersistenceException if the pk type is not valid.
-     * @since 1.12
+     * @since 1.14
      */
-    inline fun <reified X : Any> typed(): QueryBuilder<T, R, X> = typed(X::class)
+    inline fun <reified X : Any> typedId(): QueryBuilder<T, R, X> = typedId(X::class)
+
+    /**
+     * Returns a query builder rooted at the specified type, narrowing a builder whose root was relaxed by a join.
+     *
+     * A join relaxes the root so that clauses may name any entity in the query. This narrows it again, which
+     * re-enables the operations defined relative to the root, such as [fetch] and [resultGroupedBy].
+     *
+     * @param rootType the type this query is rooted at.
+     * @return the query builder, rooted at [rootType].
+     * @throws PersistenceException if [rootType] is not the type this query selects from.
+     * @since 1.14
+     */
+    abstract fun <X : Data> narrow(rootType: KClass<X>): QueryBuilder<X, R, ID>
+
+    /**
+     * Returns a query builder rooted at [X], narrowing a builder whose root was relaxed by a join.
+     *
+     * @throws PersistenceException if [X] is not the type this query selects from.
+     * @since 1.14
+     */
+    inline fun <reified X : Data> narrow(): QueryBuilder<X, R, ID> = narrow(X::class)
+
+    /**
+     * Widens the query as a join does, without joining: from here on, every clause accepts paths from any entity in
+     * the query. Use it to reference an entity of the query's graph in short form on a query that joins nothing;
+     * resolution happens when the query is built, and a table the query does not contain, or contains more than once,
+     * fails with an error naming the candidates.
+     *
+     * Widening is always safe, so unlike [narrow] there is nothing to verify.
+     *
+     * @return the query builder, accepting paths from any entity in the query.
+     * @since 1.14
+     */
+    abstract fun widen(): QueryBuilder<Data, R, ID>
 
     /**
      * Returns a query builder that allows UPDATE and DELETE queries without a WHERE clause.
@@ -187,7 +221,7 @@ abstract class QueryBuilder<T : Data, R, ID> {
      * @param relation the relation to join.
      * @return the query builder.
      */
-    abstract fun crossJoin(relation: KClass<out Data>): QueryBuilder<T, R, ID>
+    abstract fun crossJoin(relation: KClass<out Data>): QueryBuilder<Data, R, ID>
 
     /**
      * Adds a cross join to the query.
@@ -196,7 +230,7 @@ abstract class QueryBuilder<T : Data, R, ID> {
      * @return the query builder.
      * @since 1.12
      */
-    inline fun <reified J : Data> crossJoin(): QueryBuilder<T, R, ID> = crossJoin(J::class)
+    inline fun <reified J : Data> crossJoin(): QueryBuilder<Data, R, ID> = crossJoin(J::class)
 
     /**
      * Adds an inner join to the query.
@@ -269,7 +303,7 @@ abstract class QueryBuilder<T : Data, R, ID> {
      * @param template the condition to join.
      * @return the query builder.
      */
-    fun crossJoin(template: TemplateBuilder): QueryBuilder<T, R, ID> = crossJoin(template.build())
+    fun crossJoin(template: TemplateBuilder): QueryBuilder<Data, R, ID> = crossJoin(template.build())
 
     /**
      * Adds a cross join to the query.
@@ -277,7 +311,7 @@ abstract class QueryBuilder<T : Data, R, ID> {
      * @param template the condition to join.
      * @return the query builder.
      */
-    abstract fun crossJoin(template: TemplateString): QueryBuilder<T, R, ID>
+    abstract fun crossJoin(template: TemplateString): QueryBuilder<Data, R, ID>
 
     /**
      * Adds an inner join to the query.
@@ -390,7 +424,10 @@ abstract class QueryBuilder<T : Data, R, ID> {
      * @return the query builder.
      * @since 1.3
      */
-    fun where(ref: Ref<T>): QueryBuilder<T, R, ID> = whereBuilder { whereRef(ref) }
+    fun where(ref: Ref<out T>): QueryBuilder<T, R, ID> = whereBuilder {
+        @Suppress("UNCHECKED_CAST")
+        whereRef(ref as Ref<T>)
+    }
 
     /**
      * Adds a WHERE clause that matches the specified record.
@@ -426,7 +463,7 @@ abstract class QueryBuilder<T : Data, R, ID> {
      * @param record the records to match.
      * @return the predicate builder.
      */
-    fun <V : Data> where(path: Metamodel<T, V>, record: V): QueryBuilder<T, R, ID> = where(path eq record)
+    fun <V : Data> where(path: Metamodel<out T, V>, record: V): QueryBuilder<T, R, ID> = where(path eq record)
 
     /**
      * Adds a WHERE clause that matches the specified ref. The ref can represent any of the related tables in the
@@ -437,7 +474,7 @@ abstract class QueryBuilder<T : Data, R, ID> {
      * @return the predicate builder.
      * @since 1.3
      */
-    fun <V : Data> where(path: Metamodel<T, V>, ref: Ref<V>): QueryBuilder<T, R, ID> = whereBuilder { where(path, ref) }
+    fun <V : Data> where(path: Metamodel<out T, V>, ref: Ref<V>): QueryBuilder<T, R, ID> = whereBuilder { where(path, ref) }
 
     /**
      * Adds a WHERE clause that matches the specified records. The records can represent any of the related tables in
@@ -447,7 +484,7 @@ abstract class QueryBuilder<T : Data, R, ID> {
      * @param it the records to match.
      * @return the predicate builder.
      */
-    fun <V : Data> where(path: Navigable<T, V>, it: Iterable<V>): QueryBuilder<T, R, ID> = where(path inList it)
+    fun <V : Data> where(path: Navigable<out T, V>, it: Iterable<V>): QueryBuilder<T, R, ID> = where(path inList it)
 
     /**
      * Adds a WHERE clause that matches the specified records. The records can represent any of the related tables in
@@ -483,7 +520,7 @@ abstract class QueryBuilder<T : Data, R, ID> {
      * @since 1.2
      */
     fun <V> where(
-        path: Navigable<T, V>,
+        path: Navigable<out T, V>,
         operator: Operator,
         it: Iterable<V>,
     ): QueryBuilder<T, R, ID> = whereBuilder { where(path, operator, it) }
@@ -500,7 +537,7 @@ abstract class QueryBuilder<T : Data, R, ID> {
      * @since 1.2
      */
     fun <V> where(
-        path: Navigable<T, V>,
+        path: Navigable<out T, V>,
         operator: Operator,
         vararg o: V,
     ): QueryBuilder<T, R, ID> = whereBuilder { where(path, operator, *o) }
@@ -527,15 +564,7 @@ abstract class QueryBuilder<T : Data, R, ID> {
      * @param predicate the predicate to add.
      * @return the query builder.
      */
-    fun where(predicate: PredicateBuilder<T, *, *>): QueryBuilder<T, R, ID> = whereBuilder { predicate }
-
-    /**
-     * Adds a WHERE clause to the query using a [WhereBuilder].
-     *
-     * @param predicate the predicate to add.
-     * @return the query builder.
-     */
-    fun whereAny(predicate: PredicateBuilder<*, *, *>): QueryBuilder<T, R, ID> = whereAnyBuilder { predicate }
+    fun where(predicate: PredicateBuilder<out T, *, *>): QueryBuilder<T, R, ID> = whereBuilder { predicate }
 
     /**
      * Adds an `EXISTS` WHERE clause using the specified subquery.
@@ -596,15 +625,7 @@ abstract class QueryBuilder<T : Data, R, ID> {
      * @param predicate the predicate to add.
      * @return the query builder.
      */
-    abstract fun whereBuilder(predicate: WhereBuilder<T, R, ID>.() -> PredicateBuilder<T, *, *>): QueryBuilder<T, R, ID>
-
-    /**
-     * Adds a WHERE clause to the query using a [WhereBuilder].
-     *
-     * @param predicate the predicate to add.
-     * @return the query builder.
-     */
-    abstract fun whereAnyBuilder(predicate: WhereBuilder<T, R, ID>.() -> PredicateBuilder<*, *, *>): QueryBuilder<T, R, ID>
+    abstract fun whereBuilder(predicate: WhereBuilder<T, R, ID>.() -> PredicateBuilder<out T, *, *>): QueryBuilder<T, R, ID>
 
     /**
      * Adds a GROUP BY clause to the query for field at the specified path in the table graph. The metamodel can refer
@@ -618,33 +639,16 @@ abstract class QueryBuilder<T : Data, R, ID> {
      * @return the query builder.
      * @since 1.2
      */
-    fun groupBy(vararg path: Navigable<T, *>): QueryBuilder<T, R, ID> {
+    fun groupBy(vararg path: Navigable<out T, *>): QueryBuilder<T, R, ID> {
         // We can safely invoke groupByAny as the underlying logic is identical. The main purpose of having these
         // separate methods is to provide (more) type safety when using metamodels that are guaranteed to be present in
         // the table graph.
-        return groupByAny(*path)
-    }
-
-    /**
-     * Adds a GROUP BY clause to the query for field at the specified path in the table graph. The metamodel can refer
-     * to manually added joins.
-     *
-     * A path resolves to the same columns a predicate on that path would use: a foreign key expands to its foreign
-     * key column(s) on the referencing table, without joining the referenced table, and an inline record expands to
-     * its component columns. A single-column path contributes exactly one column.
-     *
-     * @param path the path to group by.
-     * @return the query builder.
-     * @since 1.2
-     */
-    fun groupByAny(vararg path: Navigable<*, *>): QueryBuilder<T, R, ID> {
         if (path.isEmpty()) {
             throw PersistenceException("At least one path must be provided for GROUP BY clause.")
         }
         val templates = buildList {
             path.forEachIndexed { index, navigable ->
                 add(wrap(Columns(navigable.asMetamodel(), CASCADE, false)))
-                // only add a comma between elements, not after the last one.
                 if (index < path.lastIndex) {
                     add(raw(", "))
                 }
@@ -683,23 +687,7 @@ abstract class QueryBuilder<T : Data, R, ID> {
      * @since 1.2
      */
     fun <V> having(
-        path: Navigable<T, V>,
-        operator: Operator,
-        vararg o: V,
-    ): QueryBuilder<T, R, ID> = havingAny(path, operator, *o)
-
-    /**
-     * Adds a HAVING clause to the query using the specified expression. The metamodel can refer to manually added joins.
-     *
-     * @param path the path to the object in the table graph.
-     * @param operator the operator to use for the comparison.
-     * @param o the object(s) to match, which can be primary keys, records representing the table, or fields in the
-     * table graph or manually added joins.
-     * @return the query builder.
-     * @since 1.2
-     */
-    fun <V> havingAny(
-        path: Navigable<*, V>,
+        path: Navigable<out T, V>,
         operator: Operator,
         vararg o: V,
     ): QueryBuilder<T, R, ID> = having(wrap(ObjectExpression(path.asMetamodel(), operator, o)))
@@ -735,17 +723,7 @@ abstract class QueryBuilder<T : Data, R, ID> {
      * @return the query builder.
      * @since 1.13
      */
-    abstract fun having(predicate: PredicateBuilder<T, *, *>): QueryBuilder<T, R, ID>
-
-    /**
-     * Adds a HAVING clause to the query for the specified predicate. The predicate may refer to any entity in the table
-     * graph, including manually added joins.
-     *
-     * @param predicate the predicate to add.
-     * @return the query builder.
-     * @since 1.13
-     */
-    abstract fun havingAny(predicate: PredicateBuilder<*, *, *>): QueryBuilder<T, R, ID>
+    abstract fun having(predicate: PredicateBuilder<out T, *, *>): QueryBuilder<T, R, ID>
 
     /**
      * Adds a HAVING clause that keeps the groups for which [subquery] returns at least one row.
@@ -801,11 +779,19 @@ abstract class QueryBuilder<T : Data, R, ID> {
      * @return the query builder.
      * @since 1.2
      */
-    fun orderBy(vararg path: Navigable<T, *>): QueryBuilder<T, R, ID> {
-        // We can safely invoke orderByAny as the underlying logic is identical. The main purpose of having these
-        // separate methods is to provide (more) type safety when using metamodels that are guaranteed to be present in
-        // the table graph.
-        return orderByAny(*path)
+    fun orderBy(vararg path: Navigable<out T, *>): QueryBuilder<T, R, ID> {
+        if (path.isEmpty()) {
+            throw PersistenceException("At least one path must be provided for ORDER BY clause.")
+        }
+        val templates = buildList {
+            path.forEachIndexed { index, navigable ->
+                add(wrap(Columns(navigable.asMetamodel(), CASCADE, false)))
+                if (index < path.lastIndex) {
+                    add(raw(", "))
+                }
+            }
+        }
+        return orderBy(combine(*templates.toTypedArray()))
     }
 
     /**
@@ -816,7 +802,7 @@ abstract class QueryBuilder<T : Data, R, ID> {
      * @return the query builder.
      * @since 1.2
      */
-    fun orderByDescending(path: Navigable<T, *>): QueryBuilder<T, R, ID> = orderBy(wrap(Columns(path.asMetamodel(), CASCADE, true)))
+    fun orderByDescending(path: Navigable<out T, *>): QueryBuilder<T, R, ID> = orderBy(wrap(Columns(path.asMetamodel(), CASCADE, true)))
 
     /**
      * Adds an ORDER BY clause to the query for the fields at the specified paths in the table graph. The results
@@ -826,27 +812,7 @@ abstract class QueryBuilder<T : Data, R, ID> {
      * @return the query builder.
      * @since 1.9
      */
-    fun orderByDescending(vararg path: Navigable<T, *>): QueryBuilder<T, R, ID> = orderByDescendingAny(*path)
-
-    /**
-     * Adds an ORDER BY clause to the query for the field at the specified path in the table graph or manually added
-     * joins. The results are sorted in descending order.
-     *
-     * @param path the path to order by.
-     * @return the query builder.
-     * @since 1.9
-     */
-    fun orderByDescendingAny(path: Navigable<*, *>): QueryBuilder<T, R, ID> = orderBy(wrap(Columns(path.asMetamodel(), CASCADE, true)))
-
-    /**
-     * Adds an ORDER BY clause to the query for the fields at the specified paths in the table graph or manually
-     * added joins. The results are sorted in descending order for each column.
-     *
-     * @param path the paths to order by.
-     * @return the query builder.
-     * @since 1.9
-     */
-    fun orderByDescendingAny(vararg path: Navigable<*, *>): QueryBuilder<T, R, ID> {
+    fun orderByDescending(vararg path: Navigable<out T, *>): QueryBuilder<T, R, ID> {
         if (path.isEmpty()) {
             throw PersistenceException("At least one path must be provided for ORDER BY clause.")
         }
@@ -880,30 +846,6 @@ abstract class QueryBuilder<T : Data, R, ID> {
      * @since 1.9
      */
     fun orderByDescending(template: TemplateString): QueryBuilder<T, R, ID> = orderBy(combine(template, raw(" DESC")))
-
-    /**
-     * Adds an ORDER BY clause to the query for the field at the specified path in the table graph or manually added
-     * joins.
-     *
-     * @param path the path to order by.
-     * @return the query builder.
-     * @since 1.2
-     */
-    fun orderByAny(vararg path: Navigable<*, *>): QueryBuilder<T, R, ID> {
-        if (path.isEmpty()) {
-            throw PersistenceException("At least one path must be provided for ORDER BY clause.")
-        }
-        val templates = buildList {
-            path.forEachIndexed { index, navigable ->
-                add(wrap(Columns(navigable.asMetamodel(), CASCADE, false)))
-                // only add a comma between elements, not after the last one.
-                if (index < path.lastIndex) {
-                    add(raw(", "))
-                }
-            }
-        }
-        return orderBy(combine(*templates.toTypedArray()))
-    }
 
     /**
      * Adds an ORDER BY clause to the query using a string template.
@@ -1100,11 +1042,8 @@ abstract class QueryBuilder<T : Data, R, ID> {
         }
         var sorted: QueryBuilder<T, R, ID> = this
         for (order in pageable.orders()) {
-            sorted = if (order.descending()) {
-                sorted.orderByDescendingAny(order.field())
-            } else {
-                sorted.orderByAny(order.field())
-            }
+            // The Pageable's sort field may be rooted anywhere in the query, so the column is named directly.
+            sorted = sorted.orderBy(wrap(Columns(order.field(), CASCADE, order.descending())))
         }
         val content = sorted.offset(pageable.offset().toInt()).limit(pageable.pageSize()).resultList
         return Page(content, totalCount, pageable)
@@ -1446,25 +1385,25 @@ fun <T : Data, V> Navigable<T, V>.isNotNull(): PredicateBuilder<T, T, *> = creat
  */
 @SqlDsl
 class SqlScope<T : Data, R, ID : Any> @PublishedApi internal constructor(
-    @PublishedApi internal var builder: QueryBuilder<T, R, ID>,
+    @PublishedApi internal var builder: QueryBuilder<Data, R, ID>,
 ) {
     /** Adds a WHERE clause using a predicate built with metamodel infix operators (e.g., `User_.name eq "Alice"`). */
-    fun where(predicate: PredicateBuilder<T, *, *>) {
+    fun where(predicate: PredicateBuilder<*, *, *>) {
         builder = builder.where(predicate)
     }
 
-    /** Adds a WHERE clause matching a metamodel path to a data record. */
     /** Adds a WHERE clause matching a metamodel path to value(s) using an [Operator]. */
-    fun <V> where(path: Navigable<T, V>, operator: Operator, vararg value: V) {
+    fun <V> where(path: Navigable<*, V>, operator: Operator, vararg value: V) {
         builder = builder.where(path, operator, *value)
     }
 
-    fun <V : Data> where(path: Metamodel<T, V>, record: V) {
+    /** Adds a WHERE clause matching a metamodel path to a data record. */
+    fun <V : Data> where(path: Metamodel<*, V>, record: V) {
         builder = builder.where(path, record)
     }
 
     /** Adds a WHERE clause matching a metamodel path to a [Ref]. */
-    fun <V : Data> where(path: Metamodel<T, V>, ref: Ref<V>) {
+    fun <V : Data> where(path: Metamodel<*, V>, ref: Ref<V>) {
         builder = builder.where(path, ref)
     }
 
@@ -1475,7 +1414,7 @@ class SqlScope<T : Data, R, ID : Any> @PublishedApi internal constructor(
 
     /** Adds a WHERE clause matching a [Ref]. */
     fun where(ref: Ref<T>) {
-        builder = builder.where(ref)
+        builder = builder.where(ref as Ref<out Data>)
     }
 
     /** Adds a WHERE clause matching a record. */
@@ -1488,13 +1427,8 @@ class SqlScope<T : Data, R, ID : Any> @PublishedApi internal constructor(
         builder = builder.where(template)
     }
 
-    /** Adds a WHERE clause for any entity type (e.g., a joined entity). */
-    fun whereAny(predicate: PredicateBuilder<*, *, *>) {
-        builder = builder.whereAny(predicate)
-    }
-
     /** Adds a WHERE clause using a [WhereBuilder] for compound predicates with `and`/`or`. */
-    fun whereBuilder(predicate: WhereBuilder<T, R, ID>.() -> PredicateBuilder<T, *, *>) {
+    fun whereBuilder(predicate: WhereBuilder<Data, R, ID>.() -> PredicateBuilder<*, *, *>) {
         builder = builder.whereBuilder(predicate)
     }
 
@@ -1516,11 +1450,6 @@ class SqlScope<T : Data, R, ID : Any> @PublishedApi internal constructor(
     /** Adds a WHERE NOT EXISTS clause for the subquery built by [subquery]. */
     fun whereNotExists(subquery: SubqueryTemplate.() -> QueryBuilder<*, *, *>) {
         builder = builder.whereNotExists(subquery)
-    }
-
-    /** Adds a WHERE clause using a [WhereBuilder], for a predicate on any entity type (e.g., a joined entity). */
-    fun whereAnyBuilder(predicate: WhereBuilder<T, R, ID>.() -> PredicateBuilder<*, *, *>) {
-        builder = builder.whereAnyBuilder(predicate)
     }
 
     /** Adds an INNER JOIN with automatic ON resolution between [relation] and [on]. */
@@ -1564,13 +1493,8 @@ class SqlScope<T : Data, R, ID : Any> @PublishedApi internal constructor(
     }
 
     /** Adds a GROUP BY clause for the specified metamodel path(s). */
-    fun groupBy(vararg path: Navigable<T, *>) {
+    fun groupBy(vararg path: Navigable<*, *>) {
         builder = builder.groupBy(*path)
-    }
-
-    /** Adds a GROUP BY clause for path(s) on any entity type (e.g., a joined entity). */
-    fun groupByAny(vararg path: Navigable<*, *>) {
-        builder = builder.groupByAny(*path)
     }
 
     /** Adds a GROUP BY clause using a SQL template expression. */
@@ -1579,23 +1503,18 @@ class SqlScope<T : Data, R, ID : Any> @PublishedApi internal constructor(
     }
 
     /** Adds a HAVING clause for the specified predicate. */
-    fun having(predicate: PredicateBuilder<T, *, *>) {
+    fun having(predicate: PredicateBuilder<*, *, *>) {
         builder = builder.having(predicate)
     }
 
     /** Adds a HAVING clause matching a metamodel path to value(s) using an [Operator]. */
-    fun <V> having(path: Navigable<T, V>, operator: Operator, vararg value: V) {
+    fun <V> having(path: Navigable<*, V>, operator: Operator, vararg value: V) {
         builder = builder.having(path, operator, *value)
     }
 
     /** Adds a HAVING clause using a SQL template expression (e.g., `having { "COUNT(*) > ${t(5)}" }`). */
     fun having(template: TemplateBuilder) {
         builder = builder.having(template)
-    }
-
-    /** Adds a HAVING clause for a predicate on any entity type (e.g., a joined entity). */
-    fun havingAny(predicate: PredicateBuilder<*, *, *>) {
-        builder = builder.havingAny(predicate)
     }
 
     /** Adds a HAVING EXISTS clause with the given subquery. */
@@ -1619,23 +1538,13 @@ class SqlScope<T : Data, R, ID : Any> @PublishedApi internal constructor(
     }
 
     /** Adds an ORDER BY clause (ascending) for the specified metamodel path(s). */
-    fun orderBy(vararg path: Navigable<T, *>) {
+    fun orderBy(vararg path: Navigable<*, *>) {
         builder = builder.orderBy(*path)
     }
 
     /** Adds an ORDER BY clause (descending) for the specified metamodel path(s). */
-    fun orderByDescending(vararg path: Navigable<T, *>) {
+    fun orderByDescending(vararg path: Navigable<*, *>) {
         builder = builder.orderByDescending(*path)
-    }
-
-    /** Adds an ORDER BY clause (ascending) for any entity type (e.g., a joined entity). */
-    fun orderByAny(vararg path: Navigable<*, *>) {
-        builder = builder.orderByAny(*path)
-    }
-
-    /** Adds an ORDER BY clause (descending) for any entity type (e.g., a joined entity). */
-    fun orderByDescendingAny(vararg path: Navigable<*, *>) {
-        builder = builder.orderByDescendingAny(*path)
     }
 
     /** Adds an ORDER BY clause using a SQL template expression. */
@@ -1662,8 +1571,9 @@ class SqlScope<T : Data, R, ID : Any> @PublishedApi internal constructor(
      * Resolves the references at the specified metamodel path(s) as part of this query, so [Ref.fetch] returns the
      * referenced record without querying.
      */
-    fun fetch(vararg path: Navigable<T, out Data>) {
-        builder = builder.fetch(*path)
+    fun fetch(vararg path: Navigable<out T, out Data>) {
+        @Suppress("UNCHECKED_CAST")
+        builder = builder.fetch(path.toList() as List<Navigable<Data, out Data>>)
     }
 
     /** Allows DELETE/UPDATE without a WHERE clause (Storm rejects this by default). */

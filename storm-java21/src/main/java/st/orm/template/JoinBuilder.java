@@ -47,5 +47,5 @@ public interface JoinBuilder<T extends Data, R, ID> {
      * @param template the condition to join on.
      * @return the query builder.
      */
-    QueryBuilder<T, R, ID> on(@Nonnull StringTemplate template);
+    QueryBuilder<Data, R, ID> on(@Nonnull StringTemplate template);
 }

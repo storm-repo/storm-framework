@@ -77,7 +77,7 @@ const CODE_STORM_MANY_TO_MANY = [
   C('// ... or joined straight onto Role\n'),
   K('val '), P('sameRoles = orm.'), F('entity'), P('<'), T('Role'), P('>().'), F('select'), P('()\n'),
   P('    .'), F('innerJoin'), P('<'), T('UserRole'), P('>().'), F('on'), P('<'), T('Role'), P('>()\n'),
-  P('    .'), F('whereAny'), P('('), T('UserRole_'), P('.user '), K('eq'), P(' user)\n'),
+  P('    .'), F('where'), P('('), T('UserRole_'), P('.user '), K('eq'), P(' user)\n'),
   P('    .resultList'),
 ].join('');
 

@@ -143,13 +143,13 @@ public class QueryBuilderPredicateIntegrationTest {
     }
 
     // WhereBuilder.whereId(Iterable) - match by collection of ids
-    // Must use .typed(Integer.class) to resolve the wildcard ID type.
+    // Must use .typedId(Integer.class) to resolve the wildcard ID type.
 
     @Test
     public void testWhereBuilderWhereIdIterable() {
         var orm = ORMTemplate.of(dataSource);
         List<City> cities = orm.selectFrom(City.class)
-                .typed(Integer.class)
+                .typedId(Integer.class)
                 .where(predicate -> predicate.whereId(List.of(1, 3, 5)))
                 .getResultList();
         assertEquals(3, cities.size());
@@ -231,7 +231,7 @@ public class QueryBuilderPredicateIntegrationTest {
     public void testPredicateBuilderOrTemplate() {
         var orm = ORMTemplate.of(dataSource);
         List<City> cities = orm.selectFrom(City.class)
-                .typed(Integer.class)
+                .typedId(Integer.class)
                 .where(predicate -> predicate.whereId(1)
                         .or(raw("\0 = 'Waunakee'", City_.name)))
                 .getResultList();
@@ -256,7 +256,7 @@ public class QueryBuilderPredicateIntegrationTest {
     public void testPredicateBuilderOrAny() {
         var orm = ORMTemplate.of(dataSource);
         List<Visit> visits = orm.selectFrom(Visit.class)
-                .typed(Integer.class)
+                .typedId(Integer.class)
                 .where(predicate -> predicate.whereId(1)
                         .orAny(predicate.whereId(2)))
                 .getResultList();
@@ -321,7 +321,7 @@ public class QueryBuilderPredicateIntegrationTest {
         var results = orm.selectFrom(Pet.class, PetVisitCount.class, raw("\0, COUNT(*)", Pet.class))
                 .innerJoin(Visit.class).on(Pet.class)
                 .groupBy(Pet_.id)
-                .havingAny(predicate)
+                .having(predicate)
                 .getResultList();
         assertEquals(2, results.size());
         for (var result : results) {
@@ -335,7 +335,7 @@ public class QueryBuilderPredicateIntegrationTest {
     public void testGroupByAnyEmptyPathThrows() {
         var orm = ORMTemplate.of(dataSource);
         assertThrows(PersistenceException.class, () ->
-                orm.selectFrom(City.class).groupByAny());
+                orm.selectFrom(City.class).groupBy());
     }
 
     // QueryBuilder.orderByAny with empty path throws PersistenceException
@@ -344,7 +344,7 @@ public class QueryBuilderPredicateIntegrationTest {
     public void testOrderByAnyEmptyPathThrows() {
         var orm = ORMTemplate.of(dataSource);
         assertThrows(PersistenceException.class, () ->
-                orm.selectFrom(City.class).orderByAny());
+                orm.selectFrom(City.class).orderBy());
     }
 
     // QueryBuilder.orderByDescending via metamodel
@@ -502,7 +502,7 @@ public class QueryBuilderPredicateIntegrationTest {
         var orm = ORMTemplate.of(dataSource);
         // City id=1 is "Sun Paririe", id=2 is "Madison". Only Madison starts with M.
         List<City> cities = orm.selectFrom(City.class)
-                .typed(Integer.class)
+                .typedId(Integer.class)
                 .where(predicate ->
                         predicate.whereId(1).or(predicate.whereId(2)))
                 .where(predicate ->
@@ -531,7 +531,7 @@ public class QueryBuilderPredicateIntegrationTest {
     public void testWhereIdIterable() {
         var orm = ORMTemplate.of(dataSource);
         List<City> cities = orm.selectFrom(City.class)
-                .typed(Integer.class)
+                .typedId(Integer.class)
                 .whereId(List.of(1, 3, 5))
                 .getResultList();
         assertEquals(3, cities.size());
@@ -595,8 +595,8 @@ public class QueryBuilderPredicateIntegrationTest {
     public void testWhereAnyFunction() {
         var orm = ORMTemplate.of(dataSource);
         List<Visit> visits = orm.selectFrom(Visit.class)
-                .typed(Integer.class)
-                .whereAny(predicate -> predicate.whereId(1).or(predicate.whereId(2)))
+                .typedId(Integer.class)
+                .where(predicate -> predicate.whereId(1).or(predicate.whereId(2)))
                 .getResultList();
         assertEquals(2, visits.size());
     }

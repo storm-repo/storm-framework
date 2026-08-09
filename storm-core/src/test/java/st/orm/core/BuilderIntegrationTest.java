@@ -309,7 +309,7 @@ public class BuilderIntegrationTest {
         var orm = ORMTemplate.of(dataSource);
         // Owner has @Version, so update query should be version aware.
         var owner = orm.entity(Owner.class).select()
-                .typed(Integer.class)
+                .typedId(Integer.class)
                 .where(1)
                 .getSingleResult();
         // Build a select query (selects are not version-aware).
@@ -476,7 +476,7 @@ public class BuilderIntegrationTest {
         var orm = ORMTemplate.of(dataSource);
         // Fetch a visit and update its description.
         var visit = orm.entity(Visit.class).select()
-                .typed(Integer.class)
+                .typedId(Integer.class)
                 .where(1)
                 .getSingleResult();
         assertNotNull(visit);
@@ -489,7 +489,7 @@ public class BuilderIntegrationTest {
 
         // Verify the update.
         var reloaded = orm.entity(Visit.class).select()
-                .typed(Integer.class)
+                .typedId(Integer.class)
                 .where(1)
                 .getSingleResult();
         assertEquals("updated rabies shot", reloaded.description());
@@ -502,7 +502,7 @@ public class BuilderIntegrationTest {
         var orm = ORMTemplate.of(dataSource);
         // Fetch owner 1 and update.
         var owner = orm.entity(Owner.class).select()
-                .typed(Integer.class)
+                .typedId(Integer.class)
                 .where(1)
                 .getSingleResult();
         assertNotNull(owner);
@@ -516,7 +516,7 @@ public class BuilderIntegrationTest {
 
         // Verify the update and version increment.
         var reloaded = orm.entity(Owner.class).select()
-                .typed(Integer.class)
+                .typedId(Integer.class)
                 .where(1)
                 .getSingleResult();
         assertEquals("BettyUpdated", reloaded.firstName());
@@ -638,8 +638,8 @@ public class BuilderIntegrationTest {
         var orm = ORMTemplate.of(dataSource);
         // Use whereAny to match by any predicate (OR logic).
         var list = orm.selectFrom(City.class)
-                .typed(Integer.class)
-                .whereAny(wb -> wb.whereId(1).or(wb.whereId(2)).or(wb.whereId(3)))
+                .typedId(Integer.class)
+                .where(wb -> wb.whereId(1).or(wb.whereId(2)).or(wb.whereId(3)))
                 .getResultList();
         assertEquals(3, list.size());
     }
@@ -783,14 +783,14 @@ public class BuilderIntegrationTest {
         assertNotNull(bindVars);
     }
 
-    // Additional: QueryBuilder.typed()
+    // Additional: QueryBuilder.typedId()
 
     @Test
     public void testTypedQueryBuilder() {
         var orm = ORMTemplate.of(dataSource);
         var list = orm.entity(City.class)
                 .select()
-                .typed(Integer.class)
+                .typedId(Integer.class)
                 .where(1)
                 .getResultList();
         assertEquals(1, list.size());

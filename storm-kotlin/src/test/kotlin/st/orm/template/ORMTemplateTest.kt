@@ -1151,7 +1151,7 @@ open class ORMTemplateTest(
     @Test
     fun `queryBuilder typed with pkType should work`() {
         val repo = orm.entity(City::class)
-        val typedBuilder = repo.select().typed(Int::class)
+        val typedBuilder = repo.select().typedId(Int::class)
         val cities = typedBuilder.resultList
         cities shouldHaveSize 6
     }
@@ -1455,7 +1455,7 @@ open class ORMTemplateTest(
     fun `orderByAny with metamodel should order results`() {
         val repo = orm.entity(City::class)
         val idPath = metamodel<City, Int>(repo.model, "id")
-        val cities = repo.select().orderByAny(idPath).resultList
+        val cities = repo.select().orderBy(idPath).resultList
         cities.first().id shouldBe 1
     }
 
@@ -1463,7 +1463,7 @@ open class ORMTemplateTest(
     fun `orderByDescendingAny with metamodel should order results descending`() {
         val repo = orm.entity(City::class)
         val idPath = metamodel<City, Int>(repo.model, "id")
-        val cities = repo.select().orderByDescendingAny(idPath).resultList
+        val cities = repo.select().orderByDescending(idPath).resultList
         cities.first().id shouldBe 6
     }
 
@@ -1473,7 +1473,7 @@ open class ORMTemplateTest(
     fun `whereBuilder with whereAny record should filter correctly`() {
         val repo = orm.entity(City::class)
         val city = City(id = 1, name = "Sun Paririe")
-        val cities = repo.select().whereBuilder { whereAny(city) }.resultList
+        val cities = repo.select().whereBuilder { where(city) }.resultList
         cities shouldHaveSize 1
     }
 
@@ -1481,7 +1481,7 @@ open class ORMTemplateTest(
     fun `whereBuilder with whereAnyRef should filter correctly`() {
         val repo = orm.entity(City::class)
         val cityRef: Ref<City> = Ref.of(City::class.java, 1)
-        val cities = repo.select().whereBuilder { whereAnyRef(cityRef) }.resultList
+        val cities = repo.select().whereBuilder { whereRef(cityRef) }.resultList
         cities shouldHaveSize 1
     }
 
@@ -1489,18 +1489,18 @@ open class ORMTemplateTest(
     fun `whereBuilder with whereAnyRef iterable should filter correctly`() {
         val repo = orm.entity(City::class)
         val refs = listOf(Ref.of(City::class.java, 1), Ref.of(City::class.java, 2))
-        val cities = repo.select().whereBuilder { whereAnyRef(refs) }.resultList
+        val cities = repo.select().whereBuilder { whereRef(refs) }.resultList
         cities shouldHaveSize 2
     }
 
     @Test
     fun `whereBuilder with whereAny iterable of records should filter correctly`() {
         val repo = orm.entity(City::class)
-        val records: List<Data> = listOf(
+        val records = listOf(
             City(id = 1, name = "Sun Paririe"),
             City(id = 2, name = "Madison"),
         )
-        val cities = repo.select().whereBuilder { whereAny(records) }.resultList
+        val cities = repo.select().whereBuilder { where(records) }.resultList
         cities shouldHaveSize 2
     }
 
@@ -1591,7 +1591,7 @@ open class ORMTemplateTest(
         val repo = orm.entity(Owner::class)
         val cityPath = metamodel<Owner, City>(repo.model, "city_id")
         val city = City(id = 2, name = "Madison")
-        val owners = repo.select().whereBuilder { whereAny(cityPath, city) }.resultList
+        val owners = repo.select().whereBuilder { where(cityPath, city) }.resultList
         owners shouldHaveSize 4
     }
 
@@ -1600,7 +1600,7 @@ open class ORMTemplateTest(
         val repo = orm.entity(Owner::class)
         val cityPath = metamodel<Owner, City>(repo.model, "city_id")
         val cityRef: Ref<City> = Ref.of(City::class.java, 2)
-        val owners = repo.select().whereBuilder { whereAny(cityPath, cityRef) }.resultList
+        val owners = repo.select().whereBuilder { where(cityPath, cityRef) }.resultList
         owners shouldHaveSize 4
     }
 
@@ -1609,7 +1609,7 @@ open class ORMTemplateTest(
         val repo = orm.entity(Owner::class)
         val cityPath = metamodel<Owner, City>(repo.model, "city_id")
         val refs = listOf(Ref.of(City::class.java, 1), Ref.of(City::class.java, 2))
-        val owners = repo.select().whereBuilder { whereAnyRef(cityPath, refs) }.resultList
+        val owners = repo.select().whereBuilder { whereRef(cityPath, refs) }.resultList
         owners shouldHaveSize 5
     }
 
@@ -1618,7 +1618,7 @@ open class ORMTemplateTest(
         val repo = orm.entity(Owner::class)
         val cityPath = metamodel<Owner, City>(repo.model, "city_id")
         val cities = listOf(City(id = 1, name = "Sun Paririe"), City(id = 3, name = "McFarland"))
-        val owners = repo.select().whereBuilder { whereAny(cityPath, cities) }.resultList
+        val owners = repo.select().whereBuilder { where(cityPath, cities) }.resultList
         owners shouldHaveSize 2
     }
 
@@ -1688,7 +1688,7 @@ open class ORMTemplateTest(
         val repo = orm.entity(Owner::class)
         val cityPath = metamodel<Owner, City>(repo.model, "city_id")
         val builder = orm.selectFrom(Owner::class, Long::class) { "COUNT(*)" }
-        val result = builder.groupByAny(cityPath).resultList
+        val result = builder.groupBy(cityPath).resultList
         result.shouldNotBeNull()
     }
 

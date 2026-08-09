@@ -193,20 +193,19 @@ data class User(
 ) : Entity<Int>
 
 // Short form works - Country appears only once in User's entity graph
-val users = orm.entity<User>()
-    .select()
-    .whereAny(Country_.name eq "United States")  // Resolves to User → City → Country
-    .resultList
+val users = orm.entity<User>().select {
+    where(Country_.name eq "United States")  // Resolves to User → City → Country
+}.resultList
 ```
 
 The short form `Country_.name` works here because Storm first establishes `User` as the root entity, then looks up `Country` in User's entity graph. Since there's only one path to `Country` (via `city.country`), it's unambiguous.
 
-Note the use of `whereAny` instead of `where`. The `where` method requires predicates typed to the root entity (`User`), while `whereAny` accepts predicates for any table in the entity graph. Since `Country_.name` produces a `Country`-typed predicate, `whereAny` is required.
+**Where each form is accepted:** the chained builder is typed to the root until a join, so before any join its `where()` takes root paths only — a `Country`-typed predicate does not compile there. Short form is accepted wherever the query is not root-typed: inside the `select { }` block, on the chained builder from the first join onward, and after an explicit `widen()` — the opt-in for short-form references on a query that joins nothing. A nested path (`User_.city.country.name`) starts at the root, so it is accepted everywhere.
 
 **Type safety considerations:**
 
-- **`where`** is fully type-safe. The predicate must be rooted at the query's entity type, so column lookup is guaranteed to succeed at runtime.
-- **`whereAny`** is type-safe for the values you pass (e.g., comparing a `String` field to a `String` value), but the column lookup may fail at runtime if the referenced table doesn't exist in the entity graph or appears multiple times (ambiguity). Use nested paths or ensure uniqueness to avoid runtime exceptions.
+- A **nested path** is fully type-safe: it is rooted at the query's entity type, so column lookup is guaranteed to succeed at runtime.
+- A **short form** reference is type-safe for the values you pass (e.g., comparing a `String` field to a `String` value), but the column lookup may fail at query time if the referenced table doesn't exist in the query or appears multiple times (ambiguity). The error names the entity and the query root. Use nested paths or ensure uniqueness to avoid these.
 
 **Example where short form fails:**
 
@@ -230,11 +229,10 @@ data class User(
     @FK val birthCountry: Country  // Direct reference (path 2)
 ) : Entity<Int>
 
-// ERROR: Multiple paths to Country in User's entity graph
-val users = orm.entity<User>()
-    .select()
-    .whereAny(Country_.name eq "United States")
-    .resultList
+// ERROR at query time: Multiple paths to Country in User's entity graph
+val users = orm.entity<User>().select {
+    where(Country_.name eq "United States")
+}.resultList
 
 // OK: Nested paths are unambiguous (and can use where since they're rooted at User_)
 val users = orm.entity<User>()
@@ -272,12 +270,12 @@ When you add custom joins to a query, those joined tables can **only** be refere
 ```kotlin
 val users = orm.entity<User>()
     .select()
-    .innerJoin<Order>().on<User>()  // Custom join
-    .whereAny(Order_.total greater BigDecimal(100))  // Short form required, use whereAny
+    .innerJoin<Order>().on<User>()  // Custom join widens the query
+    .where(Order_.total greater BigDecimal(100))  // Short form required
     .resultList
 ```
 
-Custom joins are not part of the entity graph traversal, so nested paths cannot reach them. The short form works here because Storm registers the custom join's alias. Use `whereAny` since the predicate references `Order`, not the root entity `User`.
+Custom joins are not part of the entity graph traversal, so nested paths cannot reach them. The short form works here because Storm registers the custom join's alias, and the join has widened the query so `where()` accepts an `Order`-typed predicate.
 
 **Uniqueness still applies:** If you join the same table multiple times, you must use the `join` method with explicit aliases to disambiguate:
 

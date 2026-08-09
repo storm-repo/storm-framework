@@ -152,7 +152,7 @@ val page = users.select()
 val roles = orm.entity<Role>()
     .select()
     .innerJoin<UserRole>().on<Role>()
-    .whereAny(UserRole_.user eq user)
+    .where(UserRole_.user eq user)
     .resultList
 
 // Aggregation
@@ -180,7 +180,7 @@ List<User> page = users.select()
 List<Role> roles = orm.entity(Role.class)
     .select()
     .innerJoin(UserRole.class).on(Role.class)
-    .where(it -> it.whereAny(UserRole_.user, EQUALS, user))
+    .where(UserRole_.user, EQUALS, user)
     .getResultList();
 
 // Aggregation

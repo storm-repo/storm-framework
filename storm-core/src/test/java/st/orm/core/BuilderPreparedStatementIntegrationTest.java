@@ -104,7 +104,7 @@ public class BuilderPreparedStatementIntegrationTest {
         var list = ORMTemplate.of(dataSource)
                 .selectFrom(Pet.class)
                 .innerJoin(Visit.class).on(Pet.class)
-                .where(it -> it.whereAny(Visit.builder().id(1).build()))
+                .where(it -> it.where(Visit.builder().id(1).build()))
                 .getResultList();
          assertEquals(1, list.size());
          assertEquals(7, list.getFirst().id());
@@ -117,7 +117,7 @@ public class BuilderPreparedStatementIntegrationTest {
             ORMTemplate.of(dataSource)
                     .selectFrom(Pet.class)
                     .innerJoin(Visit.class).on(Pet.class)
-                    .where(it -> it.whereAny(Vet.builder().id(1).build()))
+                    .where(it -> it.where(Vet.builder().id(1).build()))
                     .getResultStream()
                     .count();
         });
@@ -164,7 +164,7 @@ public class BuilderPreparedStatementIntegrationTest {
         // so the result should be empty.
         var list = ORMTemplate.of(dataSource)
                 .selectFrom(Vet.class)
-                .typed(Integer.class)
+                .typedId(Integer.class)
                 .where(1)
                 .where(2)
                 .getResultList();
@@ -188,7 +188,7 @@ public class BuilderPreparedStatementIntegrationTest {
         // Vet ids 1 and 2 both exist in data.sql. OR predicate should match exactly 2 vets.
         var list = ORMTemplate.of(dataSource)
                 .selectFrom(Vet.class)
-                .typed(Integer.class)
+                .typedId(Integer.class)
                 .where(it -> it.whereId(1).or(it.whereId(2)))
                 .getResultList();
         assertEquals(2, list.size());
@@ -252,7 +252,7 @@ public class BuilderPreparedStatementIntegrationTest {
     public void testBuilderWithWhereTemplate() {
         var list = ORMTemplate.of(dataSource)
                 .selectFrom(Vet.class)
-                .typed(Integer.class)
+                .typedId(Integer.class)
                 .where(it -> it.whereId(1).or(it.where(raw("\0.id = 2", Vet.class))))
                 .getResultList();
         assertEquals(2, list.size());
@@ -272,7 +272,7 @@ public class BuilderPreparedStatementIntegrationTest {
     public void testBuilderWithWhereTemplateFunctionAfterOr() {
         var list = ORMTemplate.of(dataSource)
                 .selectFrom(Vet.class)
-                .typed(Integer.class)
+                .typedId(Integer.class)
                 .where(it -> it.whereId(1).or(
                         it.where(TemplateBuilder.create(i -> "%s.id = %s".formatted(i.interpolate(Vet.class), i.interpolate(2))))))
                 .getResultList();

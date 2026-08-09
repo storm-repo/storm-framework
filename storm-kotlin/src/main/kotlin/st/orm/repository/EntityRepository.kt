@@ -236,8 +236,12 @@ interface EntityRepository<E, ID : Any> : Repository where E : Entity<ID> {
      * }
      * ```
      */
-    fun select(block: SqlScope<E, E, ID>.() -> Any?): QueryBuilder<E, E, ID> {
-        val scope = SqlScope(select())
+    fun select(block: SqlScope<E, E, ID>.() -> Any?): QueryBuilder<Data, E, ID> {
+        // The block may join, which relaxes the root; the scope's own type parameters keep record, id and ref
+        // matching typed to the entity. Narrow the result back with narrow() when a root-relative operation
+        // such as resultGroupedBy is needed.
+        @Suppress("UNCHECKED_CAST")
+        val scope = SqlScope<E, E, ID>(select() as QueryBuilder<Data, E, ID>)
         scope.validateResult(scope.block())
         return scope.builder
     }
@@ -344,8 +348,8 @@ interface EntityRepository<E, ID : Any> : Repository where E : Entity<ID> {
     fun delete(predicate: PredicateBuilder<E, *, *>): QueryBuilder<E, *, ID> = delete().where(predicate)
 
     @Suppress("UNCHECKED_CAST")
-    fun delete(block: SqlScope<E, Any?, ID>.() -> Any?): QueryBuilder<E, Any?, ID> {
-        val scope = SqlScope(delete() as QueryBuilder<E, Any?, ID>)
+    fun delete(block: SqlScope<E, Any?, ID>.() -> Any?): QueryBuilder<Data, Any?, ID> {
+        val scope = SqlScope<E, Any?, ID>(delete() as QueryBuilder<Data, Any?, ID>)
         scope.validateResult(scope.block())
         return scope.builder
     }

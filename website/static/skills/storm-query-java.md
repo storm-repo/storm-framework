@@ -354,8 +354,7 @@ List<City> citiesWithoutUsers = orm.entity(City.class)
 
 Two preferences govern every WHERE clause, and both say: **use the weakest form that compiles**.
 
-- **Typed overloads over the lambda.** `where(User_.active, EQUALS, true)` beats `where(it -> it.where(User_.active, EQUALS, true))`. The chained typed `where(path, ...)` overloads take root-typed paths only — and a nested path from the root (`User_.city.country.code`) is root-typed, so navigating through a foreign key never forces the lambda. Reach for the `where(it -> ...)` lambda only for what the typed overloads cannot express: AND/OR grouping, EXISTS/NOT EXISTS, and joined-entity paths.
-- **`it.where(...)` over `it.whereAny(...)` inside the lambda.** `it.where(path, ...)` is typed to the root entity; `it.whereAny(path, ...)` accepts a path rooted at any entity and exists only for fields of explicitly joined (non-root) entities. Escalating without need gives up the compile-time root check for nothing. (The outer `whereAny(it -> ...)` form is the same escalation one level up: needed only when the lambda's resulting predicate is typed to another entity, e.g. built with `andAny`/`orAny`.)
+- **Typed overloads over the lambda.** `where(User_.active, EQUALS, true)` beats `where(it -> it.where(User_.active, EQUALS, true))`. Before a join the chained `where(path, ...)` overloads take root-typed paths — and a nested path from the root (`User_.city.country.code`) is root-typed, so navigating through a foreign key never forces the lambda. **A join widens the query**: from the join onward the same overloads accept paths from any entity in the query, so joined-entity fields need no special form. Reach for the `where(it -> ...)` lambda only for what the typed overloads cannot express: AND/OR grouping and EXISTS/NOT EXISTS.
 
 ```java
 // ✅ Single condition — typed overload, no lambda
@@ -373,33 +372,30 @@ List<User> users = orm.entity(User.class)
     .getResultList();
 ```
 
-Consecutive `where()` calls AND together (each clause parenthesized), so an AND of a root predicate and a joined-entity predicate is two calls, each in its weakest form — no single big lambda needed:
+Consecutive `where()` calls AND together (each clause parenthesized), so an AND of a root predicate and a joined-entity predicate is just two typed calls — no lambda needed:
 
 ```java
 users.select()
-    .innerJoin(UserRole.class).on(User.class)
-    .where(User_.active, EQUALS, true)                        // root field — typed overload
-    .where(it -> it.whereAny(UserRole_.role, EQUALS, role))   // joined entity — lambda + whereAny
+    .innerJoin(UserRole.class).on(User.class)     // the join widens the query
+    .where(User_.active, EQUALS, true)            // root field
+    .where(UserRole_.role, EQUALS, role)          // joined entity — same overload
     .getResultList();
 ```
 
 ## Joined-Entity Predicates, Ordering, and Grouping
 
-The typed `where(path, ...)` overloads, `orderBy()`, and `groupBy()` are typed to the root entity. For a joined entity's field:
-
-- **Filtering**: there is no chained `whereAny(path, ...)` overload — use the lambda with `it.whereAny(...)`: `.where(it -> it.whereAny(UserRole_.role, EQUALS, role))`.
-- **Ordering/grouping**: use the chained `Any` variants `.orderByAny(...)`, `.orderByDescendingAny(...)`, `.groupByAny(...)`.
-
-The `Any` forms are needed **only** for fields of joined (non-root) entities — never for root paths, however deep: `User_.city.country.name` starts at the root, so it stays with the typed `where(...)` overloads and `orderBy()`.
+A join widens the query: from the join onward, every clause accepts paths from any entity in the query — the joined table's fields go through the same `where`, `orderBy`, `groupBy` and `having` calls as the root's. Put joins before the clauses that reference them; a path on an entity that is not part of the query fails when the query is built, with an error naming the entity and the root.
 
 ```java
 users.select()
     .innerJoin(UserRole.class).on(User.class)
-    .where(it -> it.whereAny(UserRole_.role, EQUALS, role))  // joined entity
-    .orderBy(User_.name)                                     // root path — plain orderBy
-    .orderByAny(UserRole_.assignedAt)                        // joined entity
+    .where(UserRole_.role, EQUALS, role)   // joined entity — same overloads as root fields
+    .orderBy(User_.name)                   // root path
+    .orderBy(UserRole_.assignedAt)         // joined entity
     .getResultList();
 ```
+
+Two operations are defined relative to the root and are affected by the widening: `fetch(...)` comes before any join, and `getResultGroupedBy` needs the root back after one: `narrow(User.class)` restores it, verified against the query's FROM table. The counterpart `widen()` widens without a join — the way to reference a graph entity in short form on a query that joins nothing. (`typedId(Integer.class)` types the primary key.)
 
 ## Keyset Scrolling
 
@@ -413,7 +409,7 @@ userRoles.scroll(Scrollable.of(UserRole_.id, 20));  // fails — UserRole has co
 // ✅ Scroll User (simple PK) with a JOIN through UserRole for filtering
 users.select()
     .innerJoin(UserRole.class).on(User.class)
-    .where(it -> it.whereAny(UserRole_.role, EQUALS, role))
+    .where(UserRole_.role, EQUALS, role)
     .scroll(Scrollable.of(User_.id, 20));
 ```
 

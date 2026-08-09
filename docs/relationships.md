@@ -242,7 +242,7 @@ For more control, use explicit join queries:
 val roles: List<Role> = orm.entity<Role>()
     .select()
     .innerJoin<UserRole>().on<Role>()
-    .whereAny(UserRole_.user eq user)
+    .where(UserRole_.user eq user)
     .resultList
 ```
 
@@ -286,7 +286,7 @@ For more control, use explicit join queries:
 List<Role> roles = orm.entity(Role.class)
     .select()
     .innerJoin(UserRole.class).on(Role.class)
-    .where(it -> it.whereAny(UserRole_.user, EQUALS, user))
+    .where(UserRole_.user, EQUALS, user)
     .getResultList();
 ```
 

@@ -71,7 +71,7 @@ public class QueryBuilderScrollIntegrationTest {
         assertThrows(PersistenceException.class, () ->
                 ORMTemplate.of(dataSource)
                         .selectFrom(Vet.class)
-                        .orderByDescendingAny());
+                        .orderByDescending());
     }
 
     // Verify basic keyset pagination behavior with edge case sizes

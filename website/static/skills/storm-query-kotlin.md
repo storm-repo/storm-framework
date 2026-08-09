@@ -236,7 +236,7 @@ Pagination: `.page(0, 20)` or `.page(Pageable.ofSize(20).sortBy(User_.name))`. P
 Scrolling (keyset, better for large tables): `.scroll(Scrollable.of(User_.id, 20))` — do NOT combine with `orderBy()` (Scrollable manages ORDER BY internally, see Keyset Scrolling section)
 Explicit joins — two syntax forms depending on context:
 - **Block DSL** (inside `select { }`): `innerJoin<UserRole, Role>()` — reified two-type-arg form, no `.on()`
-- **Chained API**: `.innerJoin<UserRole>().on<Role>()` — returns builder, chain `.where()` for root fields, `.whereAny()` for joined fields
+- **Chained API**: `.innerJoin<UserRole>().on<Role>()` — the join widens the query; chain `.where()` for root and joined fields alike
 Select result type: `.select(ResultType::class)` to return a different type than the root entity
 
 **Always prefer entity/metamodel-based QueryBuilder methods over SQL template strings.** SQL templates are an escape hatch for things the QueryBuilder cannot express.
@@ -263,7 +263,7 @@ val citySummaries = orm.entity<City>()
     .resultList
 ```
 
-**HAVING takes predicates too.** `having(predicate)` accepts the same infix operators as `where(predicate)`, so a condition on a grouped column stays in code — including a disjunction, which consecutive `having()` calls cannot express because they are AND-combined. Use `havingAny(predicate)` for a joined entity's column. A condition on an *aggregate* still needs a template, since no metamodel path names a computed value:
+**HAVING takes predicates too.** `having(predicate)` accepts the same infix operators as `where(predicate)`, so a condition on a grouped column stays in code — including a disjunction, which consecutive `having()` calls cannot express because they are AND-combined. A joined entity's column goes through the same `having(predicate)` once the query has the join. A condition on an *aggregate* still needs a template, since no metamodel path names a computed value:
 
 ```kotlin
 .having((City_.country eq nl) or (City_.country eq be))   // grouped column — predicate
@@ -444,13 +444,12 @@ val citiesWithoutUsers = orm.entity<City>()
 
 The `whereExists { }` / `whereNotExists { }` lambdas receive a `SubqueryTemplate` that provides the `subquery()` method. The subquery is automatically correlated with the outer query.
 
-## Choosing the WHERE Form: where() → whereAny() → whereBuilder { }
+## Choosing the WHERE Form: where() → whereBuilder { }
 
-Three forms build a WHERE clause. They are a strict ladder: **always use the first form that can express the condition**, and escalate only when it cannot.
+Two forms build a WHERE clause: **always use `where(predicate)` unless the condition needs the builder scope itself**.
 
-1. **`where(predicate)`** — the default. Typed to the root entity: a predicate on another entity does not compile. Compound conditions stay at this level — compose them with infix `and`/`or`. A nested path that starts at the root (`User_.city.country.code eq "US"`) is root-typed too, so navigating through a foreign key never forces an escalation.
-2. **`whereAny(predicate)`** — only when the predicate references a **joined (non-root) entity's** field, which `where()` rejects at compile time. `whereAny` accepts a predicate on any entity, so it gives up that compile-time check — escalating without need trades safety for nothing.
-3. **`whereBuilder { }`** — only when the condition needs the builder scope itself: `exists()`/`notExists()` composed into compound logic, or id/ref/record/template matching (`whereId`, `whereRef`, `where(record)`, `where { template }`) inside a compound expression. Never for plain field predicates, and never for AND/OR grouping — infix operators inside `where()` already do that. (`whereAnyBuilder { }` is the same escalation applied to rung 2.)
+1. **`where(predicate)`** — the default, for every field condition. Compound conditions stay at this level — compose them with infix `and`/`or`. Before a join the chained builder is typed to the root entity, and a nested path that starts at the root (`User_.city.country.code eq "US"`) is root-typed however deep. **A join widens the query**: from the join onward, `where()` (and `orderBy`, `groupBy`, `having`) accepts paths from any entity in the query, so a joined table's fields go through the same plain calls. Inside `select { }` the block is widened from the start. A path on an entity that is not part of the query fails when the query is built, with an error naming the entity and the root.
+2. **`whereBuilder { }`** — only when the condition needs the builder scope itself: `exists()`/`notExists()` composed into compound logic, or id/ref/record/template matching (`whereId`, `whereRef`, `where(record)`, `where { template }`) inside a compound expression. Never for plain field predicates, and never for AND/OR grouping — infix operators inside `where()` already do that.
 
 ```kotlin
 // ✅ Compound predicates belong in where() — infix and/or, parenthesized per group
@@ -470,13 +469,13 @@ val users = orm.entity<User>()
     .resultList
 ```
 
-Consecutive `where()`/`whereAny()` calls AND together (each clause parenthesized), so an AND of a root predicate and a joined-entity predicate needs no `whereBuilder` either — each clause sits on its own rung:
+Consecutive `where()` calls AND together (each clause parenthesized), so an AND of a root predicate and a joined-entity predicate is just two `where()` calls:
 
 ```kotlin
 users.select()
-    .innerJoin<UserRole>().on<User>()
-    .where(User_.active eq true)          // root field — rung 1
-    .whereAny(UserRole_.role eq role)     // joined entity — rung 2, for this clause only
+    .innerJoin<UserRole>().on<User>()     // the join widens the query
+    .where(User_.active eq true)          // root field
+    .where(UserRole_.role eq role)        // joined entity — same call
     .resultList
 ```
 
@@ -494,27 +493,21 @@ The `whereBuilder { }` lambda receives a `WhereBuilder` that provides `where()`,
 
 ## Joined-Entity Predicates and Ordering
 
-The `where()` and `orderBy()` methods in the block DSL are typed to the root entity (`T`). To filter, order, or group by a joined entity's field, use the `Any` variants:
-
-- `whereAny(predicate)` — accepts `PredicateBuilder<*, *, *>` (any entity type)
-- `orderByAny(path)` — accepts `Metamodel<*, *>` (any entity type)
-- `orderByDescendingAny(path)` — same, descending
-- `groupByAny(path)` — accepts `Metamodel<*, *>` (any entity type)
-- `havingAny(predicate)` — accepts `PredicateBuilder<*, *, *>` (any entity type). Pairs with `groupByAny`: a HAVING condition on a joined column is only valid once that column is grouped
-
-The `Any` variants (`whereAny`, `orderByAny`, `orderByDescendingAny`, `groupByAny`, `havingAny`) are needed **only** when referencing fields from joined (non-root) entities — never for root paths, however deep: `User_.city.country.name` starts at the root, so it stays with `where()`/`orderBy()`. Escalate per clause, not per query: a root-field condition keeps `where()` even when the query also has a `whereAny()` for a joined field (see **Choosing the WHERE Form**).
+A join widens the query: from the join onward, every clause accepts paths from any entity in the query. There are no separate methods for joined entities — the joined table's fields go through the same `where`, `orderBy`, `groupBy` and `having` calls:
 
 ```kotlin
-// Root is User: the joined UserRole field escalates, the root field does not
+// Root is User: the joined UserRole fields go through the same calls as the root's
 select {
     innerJoin<UserRole, User>()
-    whereAny(UserRole_.role eq role)   // joined entity — Any variant required
-    orderBy(User_.name)                // root path — plain orderBy
-    orderByAny(UserRole_.assignedAt)   // joined entity — Any variant required
+    where(UserRole_.role eq role)      // joined entity — plain where
+    orderBy(User_.name)                // root path
+    orderBy(UserRole_.assignedAt)      // joined entity
 }.resultList
 ```
 
-These are also available on the chained QueryBuilder API: `.whereAny(...)`, `.orderByAny(...)`, `.orderByDescendingAny(...)`, `.groupByAny(...)`, `.havingAny(...)`.
+Inside `select { }` the block is widened from the start, so clause order does not matter there. On the chained API the builder is typed to the root **until** the join, so put joins before the clauses that reference them. A path on an entity that is not part of the query fails when the query is built, with an error naming the entity and the root.
+
+Two operations are defined relative to the root and are affected by the widening: `fetch(...)` comes before any join, and `resultGroupedBy` needs the root back after one: `narrow<User>()` restores it, verified against the query's FROM table. The counterpart `widen()` widens without a join — the chained equivalent of `select { }` starting widened. (`typedId(Int::class)` types the primary key.)
 
 ## Keyset Scrolling
 
@@ -528,7 +521,7 @@ userRoles.scroll(Scrollable.of(UserRole_.id, 20))  // fails — UserRole has com
 // ✅ Scroll User (simple PK) with a JOIN through UserRole for filtering
 users.select {
     innerJoin<UserRole, User>()
-    whereAny(UserRole_.role eq role)
+    where(UserRole_.role eq role)
 }.scroll(Scrollable.of(User_.id, 20))
 ```
 
@@ -649,13 +642,13 @@ This also works with joins — conditionally add a join only when needed:
 select {
     if (city != null) {
         innerJoin<UserAddress, User>()
-        whereAny(UserAddress_.city eq city)
+        where(UserAddress_.city eq city)
     }
     orderByDescending(User_.createdAt)
 }.page(page, size)
 ```
 
-Available in the block: `where`, `whereAny`, `whereBuilder`, `whereExists`, `whereNotExists`, `orderBy`, `orderByAny`, `orderByDescending`, `orderByDescendingAny`, `groupBy`, `groupByAny`, `having`, `havingAny`, `limit`, `offset`, `distinct`, `unsafe`, `forUpdate`, `forShare`, `innerJoin`, `leftJoin`, `rightJoin`, `crossJoin`, `append`. The WHERE ladder applies in the block exactly as it does on the chained API: `where` first, `whereAny` only for joined-entity fields, `whereBuilder` last (see **Choosing the WHERE Form**).
+Available in the block: `where`, `whereBuilder`, `whereExists`, `whereNotExists`, `orderBy`, `orderByDescending`, `groupBy`, `having`, `havingExists`, `havingNotExists`, `limit`, `offset`, `distinct`, `unsafe`, `forUpdate`, `forShare`, `fetch`, `innerJoin`, `leftJoin`, `rightJoin`, `crossJoin`, `append`. The block is widened from the start, so joined-entity fields go through the same calls as root fields; `whereBuilder` remains the escalation for `exists`/id/ref/record matching inside compound logic (see **Choosing the WHERE Form**).
 
 **Note:** The block DSL has `orderBy { template }` but NOT `orderByDescending { template }`. For template-based descending order, use the chained API: `.orderByDescending { template }` or escape to raw SQL.
 
@@ -674,7 +667,7 @@ select(UserSummary::class)
 // ✅ With joins — chained API uses .innerJoin<A>().on<B>(), not the two-type-arg form
 select(UserSummary::class)
     .innerJoin<UserRole>().on<User>()
-    .whereAny(UserRole_.role eq role)
+    .where(UserRole_.role eq role)
     .scroll(Scrollable.of(User_.id, 20))
 ```
 

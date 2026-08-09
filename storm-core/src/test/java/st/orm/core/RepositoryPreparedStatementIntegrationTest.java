@@ -112,6 +112,7 @@ import st.orm.core.model.Visit_;
 import st.orm.core.model.Wrapper;
 import st.orm.core.repository.PetRepository;
 import st.orm.core.template.ORMTemplate;
+import st.orm.core.template.QueryBuilder;
 import st.orm.core.template.Sql;
 import st.orm.core.template.SqlTemplate.PositionalParameter;
 import st.orm.core.template.SqlTemplateException;
@@ -126,6 +127,15 @@ public class RepositoryPreparedStatementIntegrationTest {
 
     @Autowired
     private DataSource dataSource;
+
+    /**
+     * Relaxes a builder's root, standing in for the join that would normally do it, so a test can exercise the
+     * runtime graph resolution behind the pathless record match.
+     */
+    @SuppressWarnings("unchecked")
+    private static <R, ID> QueryBuilder<Data, R, ID> relaxed(QueryBuilder<?, R, ID> builder) {
+        return (QueryBuilder<Data, R, ID>) builder;
+    }
 
     @Test
     public void testSelect() {
@@ -747,7 +757,7 @@ public class RepositoryPreparedStatementIntegrationTest {
     public void testSelectWithTwoPetsWithoutPath() {
         var e = assertThrows(PersistenceException.class, () -> {
             var owner = ORMTemplate.of(dataSource).selectFrom(Owner.class).getResultList().getFirst();
-            ORMTemplate.of(dataSource).entity(VisitWithTwoPets.class).select().where(it -> it.whereAny(owner)).getResultList();
+            relaxed(ORMTemplate.of(dataSource).entity(VisitWithTwoPets.class).select()).where(it -> it.where(owner)).getResultList();
         });
         assertInstanceOf(SqlTemplateException.class, e.getCause());
     }
@@ -853,7 +863,7 @@ public class RepositoryPreparedStatementIntegrationTest {
         var owner = ORMTemplate.of(dataSource).entity(Owner.class).select().append("LIMIT 1").getSingleResult();
         AtomicReference<Sql> sql = new AtomicReference<>();
         observe(sql::setPlain, () -> {
-            var visits = ORMTemplate.of(dataSource).entity(VisitWithTwoPetsOneRef.class).select().where(it -> it.whereAny(owner)).getResultList();
+            var visits = relaxed(ORMTemplate.of(dataSource).entity(VisitWithTwoPetsOneRef.class).select()).where(it -> it.where(owner)).getResultList();
             assertEquals(1, sql.getPlain().parameters().size());
             assertEquals(2, visits.size());
         });
@@ -913,9 +923,8 @@ public class RepositoryPreparedStatementIntegrationTest {
         var owner = ORMTemplate.of(dataSource).entity(Owner.class).select().append("LIMIT 1").getSingleResult();
         AtomicReference<Sql> sql = new AtomicReference<>();
         observe(sql::setPlain, () -> {
-            ORMTemplate.of(dataSource).entity(VisitWithTwoPetsOneRef.class)
-                    .select()
-                    .where(it -> it.whereAny(PetOwnerRef_.owner, owner)).getResultList();
+            relaxed(ORMTemplate.of(dataSource).entity(VisitWithTwoPetsOneRef.class).select())
+                    .where(it -> it.where(PetOwnerRef_.owner, owner)).getResultList();
         });
         assertEquals(expectedSql, sql.getPlain().statement());
     }
@@ -978,7 +987,7 @@ public class RepositoryPreparedStatementIntegrationTest {
     public void testSelectWithTwoPetsOneRefPetWithoutPath() {
         var e = assertThrows(PersistenceException.class, () -> {
             var pet = ORMTemplate.of(dataSource).entity(PetOwnerRef.class).select().append("LIMIT 1").getSingleResult();
-            ORMTemplate.of(dataSource).entity(VisitWithTwoPetsOneRef.class).select().where(it -> it.whereAny(pet)).getResultList();
+            relaxed(ORMTemplate.of(dataSource).entity(VisitWithTwoPetsOneRef.class).select()).where(it -> it.where(pet)).getResultList();
         });
         assertInstanceOf(SqlTemplateException.class, e.getCause());
     }
@@ -1045,7 +1054,7 @@ public class RepositoryPreparedStatementIntegrationTest {
     public void testSelectWithTwoPetRefsWithoutPath() {
         PersistenceException e = assertThrows(PersistenceException.class, () -> {
             var owner = ORMTemplate.of(dataSource).entity(Owner.class).select().append("LIMIT 1").getSingleResult();
-            ORMTemplate.of(dataSource).entity(VisitWithTwoPetRefs.class).select().where(it -> it.whereAny(owner)).getResultList();
+            relaxed(ORMTemplate.of(dataSource).entity(VisitWithTwoPetRefs.class).select()).where(it -> it.where(owner)).getResultList();
         });
         assertInstanceOf(SqlTemplateException.class, e.getCause());
     }
@@ -1111,7 +1120,7 @@ public class RepositoryPreparedStatementIntegrationTest {
         Owner owner = Owner.builder().id(1).build();
         var pets = ORMTemplate.of(dataSource).entity(Pet.class)
                 .select()
-                .where(it -> it.whereAny(owner))
+                .where(Pet_.owner, EQUALS, owner)
                 .getResultList();
         assertEquals(1, pets.size());
     }
@@ -1122,7 +1131,7 @@ public class RepositoryPreparedStatementIntegrationTest {
         Owner owner = Owner.builder().id(1).build();
         var pets = ORMTemplate.of(dataSource).entity(PetWithNullableOwnerRef.class)
                 .select()
-                .where(it -> it.whereAny(owner))
+                .where(PetWithNullableOwnerRef_.owner, EQUALS, owner)
                 .getResultList();
         assertEquals(1, pets.size());
     }
@@ -1134,7 +1143,7 @@ public class RepositoryPreparedStatementIntegrationTest {
             ORMTemplate.of(dataSource).entity(PetWithNullableOwnerRef.class)
                     .select()
                     .innerJoin(Owner.class).on(PetWithNullableOwnerRef.class)
-                    .where(it -> it.whereAny(owner))
+                    .where(it -> it.where(owner))
                     .getResultList();
         });
         assertInstanceOf(SqlTemplateException.class, e.getCause());
@@ -1219,7 +1228,7 @@ public class RepositoryPreparedStatementIntegrationTest {
     public void deleteByPet() {
         // data.sql: pet 1 (Leo) has 2 visits (ids 4, 8). After deleting, 14 - 2 = 12.
         var repo = ORMTemplate.of(dataSource).entity(Visit.class);
-        repo.delete().where(it -> it.whereAny(Pet.builder().id(1).build())).executeUpdate();
+        repo.delete().where(Visit_.pet, EQUALS, Pet.builder().id(1).build()).executeUpdate();
         assertEquals(12, repo.select().getResultCount());
     }
 
@@ -1227,7 +1236,7 @@ public class RepositoryPreparedStatementIntegrationTest {
     public void deleteByOwner() {
         // data.sql: owner 1 (Betty Davis) has 1 pet (Leo, id=1). Leo has 2 visits. 14 - 2 = 12.
         var repo = ORMTemplate.of(dataSource).entity(Visit.class);
-        repo.delete().where(it -> it.whereAny(Owner.builder().id(1).build())).executeUpdate();
+        repo.delete().where(Visit_.pet.owner, EQUALS, Owner.builder().id(1).build()).executeUpdate();
         assertEquals(12, repo.select().getResultCount());
     }
 
@@ -1286,13 +1295,13 @@ public class RepositoryPreparedStatementIntegrationTest {
                 .entity(Pet.class)
                 .select()
                 .innerJoin(Visit.class).on(Pet.class)
-                .where(it -> it.whereAny(Visit.builder().id(1).build()))
+                .where(it -> it.where(Visit.builder().id(1).build()))
                 .getResultList();
         var list2 = ORMTemplate.of(dataSource)
                 .entity(Pet.class)
                 .select()
                 .innerJoin(Visit.class).on(Pet.class)
-                .where(it -> it.whereAny(Visit.builder().id(1).build()))
+                .where(it -> it.where(Visit.builder().id(1).build()))
                 .getResultList();
 
         assertEquals(1, list2.size());
@@ -1306,7 +1315,7 @@ public class RepositoryPreparedStatementIntegrationTest {
                 .select()
                 .innerJoin(Visit.class).on(Pet.class)
                 .innerJoin(raw("SELECT * FROM \0", Pet.class), "x").on(raw("\0.id = x.id", Pet.class))    // Join just for the sake of testing multiple joins.
-                .where(it -> it.whereAny(Visit.builder().id(1).build()))
+                .where(it -> it.where(Visit.builder().id(1).build()))
                 .getResultList();
         assertEquals(1, list.size());
         assertEquals(7, list.getFirst().id());
@@ -1319,7 +1328,7 @@ public class RepositoryPreparedStatementIntegrationTest {
                     .entity(Pet.class)
                     .select()
                     .innerJoin(Visit.class).on(Pet.class)
-                    .where(it -> it.whereAny(Vet.builder().id(1).build()))
+                    .where(it -> it.where(Vet.builder().id(1).build()))
                     .getResultCount();
         });
         assertInstanceOf(SqlTemplateException.class, e.getCause());

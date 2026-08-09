@@ -36,7 +36,7 @@ abstract class JoinBuilder<T : Data, R, ID> {
      * @param template the condition to join on.
      * @return the query builder.
      */
-    fun on(template: TemplateBuilder): QueryBuilder<T, R, ID> = on(template.build())
+    fun on(template: TemplateBuilder): QueryBuilder<Data, R, ID> = on(template.build())
 
     /**
      * Specifies the join condition using a custom expression.
@@ -44,5 +44,5 @@ abstract class JoinBuilder<T : Data, R, ID> {
      * @param template the condition to join on.
      * @return the query builder.
      */
-    abstract fun on(template: TemplateString): QueryBuilder<T, R, ID>
+    abstract fun on(template: TemplateString): QueryBuilder<Data, R, ID>
 }

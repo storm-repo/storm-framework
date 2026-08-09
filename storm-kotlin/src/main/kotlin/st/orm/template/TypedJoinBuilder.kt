@@ -55,7 +55,7 @@ abstract class TypedJoinBuilder<T : Data, R, ID> : JoinBuilder<T, R, ID>() {
      * @param relation the relation to join on.
      * @return the query builder.
      */
-    abstract fun on(relation: KClass<out Data>): QueryBuilder<T, R, ID>
+    abstract fun on(relation: KClass<out Data>): QueryBuilder<Data, R, ID>
 
     /**
      * Specifies the relation to join on.
@@ -64,5 +64,5 @@ abstract class TypedJoinBuilder<T : Data, R, ID> : JoinBuilder<T, R, ID>() {
      * @return the query builder.
      * @since 1.12
      */
-    inline fun <reified O : Data> on(): QueryBuilder<T, R, ID> = on(O::class)
+    inline fun <reified O : Data> on(): QueryBuilder<Data, R, ID> = on(O::class)
 }

@@ -91,32 +91,12 @@ public abstract class WhereBuilder<T extends Data, R, ID> implements SubqueryTem
     public abstract PredicateBuilder<T, R, ID> whereRef(@Nonnull Ref<T> ref);
 
     /**
-     * Adds a condition to the WHERE clause that matches the specified primary key of the table, expressed by a ref.
-     * The ref can represent any of the related tables in the table graph or manually added joins.
-     *
-     * @param ref the ref to match.
-     * @return the predicate builder.
-     * @since 1.3
-     */
-    public abstract PredicateBuilder<T, R, ID> whereAnyRef(@Nonnull Ref<?> ref);
-
-    /**
      * Adds a condition to the WHERE clause that matches the specified record.
      *
      * @param record the record to match.
      * @return the predicate builder.
      */
     public abstract PredicateBuilder<T, R, ID> where(@Nonnull T record);
-
-    /**
-     * Adds a condition to the WHERE clause that matches the specified record. The record can represent any of the
-     * related tables in the table graph or manually added joins.
-     *
-     * @param record the record to match.
-     * @return the predicate builder.
-     * @since 1.2
-     */
-    public abstract PredicateBuilder<T, R, ID> whereAny(@Nonnull Data record);
 
     /**
      * Adds a condition to the WHERE clause that matches the specified primary keys of the table.
@@ -137,31 +117,12 @@ public abstract class WhereBuilder<T extends Data, R, ID> implements SubqueryTem
     public abstract PredicateBuilder<T, R, ID> whereRef(@Nonnull Iterable<? extends Ref<T>> it);
 
     /**
-     * Adds a condition to the WHERE clause that matches the specified primary keys of the table, expressed by a ref.
-     * The ref can represent any of the related tables in the table graph or manually added joins.
-     *
-     * @param it the refs to match.
-     * @return the predicate builder.
-     * @since 1.3
-     */
-    public abstract PredicateBuilder<T, R, ID> whereAnyRef(@Nonnull Iterable<? extends Ref<?>> it);
-
-    /**
      * Adds a condition to the WHERE clause that matches the specified records.
      *
      * @param it the records to match.
      * @return the predicate builder.
      */
     public abstract PredicateBuilder<T, R, ID> where(@Nonnull Iterable<? extends T> it);
-
-    /**
-     * Adds a condition to the WHERE clause that matches the specified records. The record can represent any of the
-     * related tables in the table graph or manually added joins.
-     *
-     * @param it the records to match.
-     * @return the query builder.
-     */
-    public abstract PredicateBuilder<T, R, ID> whereAny(@Nonnull Iterable<? extends Data> it);
 
     /**
      * Adds a condition to the WHERE clause that matches the specified record. The record can represent any of
@@ -171,22 +132,11 @@ public abstract class WhereBuilder<T extends Data, R, ID> implements SubqueryTem
      * @param record the records to match.
      * @return the predicate builder.
      */
-    public final <V extends Data> PredicateBuilder<T, R, ID> where(@Nonnull Navigable<T, V> path, @Nonnull V record) {
+    public final <V extends Data> PredicateBuilder<T, R, ID> where(@Nonnull Navigable<? extends T, V> path, @Nonnull V record) {
         return where(path, EQUALS, record);
     }
 
     /**
-     * Adds a condition to the WHERE clause that matches the specified record. The record can represent any of
-     * the related tables in the table graph or manually added joins.
-     *
-     * @param record the records to match.
-     * @return the predicate builder.
-     */
-    public final <V extends Data> PredicateBuilder<T, R, ID> whereAny(@Nonnull Navigable<?, V> path, @Nonnull V record) {
-        return whereAny(path, EQUALS, record);
-    }
-
-    /**
      * Adds a condition to the WHERE clause that matches the specified ref. The record can represent any of
      * the related tables in the table graph.
      *
@@ -195,18 +145,7 @@ public abstract class WhereBuilder<T extends Data, R, ID> implements SubqueryTem
      * @return the predicate builder.
      * @since 1.3
      */
-    public abstract <V extends Data> PredicateBuilder<T, R, ID> where(@Nonnull Navigable<T, V> path, @Nonnull Ref<V> ref);
-
-    /**
-     * Adds a condition to the WHERE clause that matches the specified ref. The record can represent any of
-     * the related tables in the table graph or manually added joins.
-     *
-     * @param path the path to the object in the table graph.
-     * @param ref  the ref to match.
-     * @return the predicate builder.
-     * @since 1.3
-     */
-    public abstract <V extends Data> PredicateBuilder<T, R, ID> whereAny(@Nonnull Navigable<?, V> path, @Nonnull Ref<V> ref);
+    public abstract <V extends Data> PredicateBuilder<T, R, ID> where(@Nonnull Navigable<? extends T, V> path, @Nonnull Ref<V> ref);
 
     /**
      * Adds a condition to the WHERE clause that matches the specified refs. The refs can represent any of
@@ -217,18 +156,7 @@ public abstract class WhereBuilder<T extends Data, R, ID> implements SubqueryTem
      * @return the predicate builder.
      * @since 1.3
      */
-    public abstract <V extends Data> PredicateBuilder<T, R, ID> whereRef(@Nonnull Navigable<T, V> path, @Nonnull Iterable<? extends Ref<V>> it);
-
-    /**
-     * Adds a condition to the WHERE clause that matches the specified refs. The refs can represent any of
-     * the related tables in the table graph.
-     *
-     * @param path the path to the ref in the table graph.
-     * @param it   the refs to match.
-     * @return the predicate builder.
-     * @since 1.3
-     */
-    public abstract <V extends Data> PredicateBuilder<T, R, ID> whereAnyRef(@Nonnull Navigable<?, V> path, @Nonnull Iterable<? extends Ref<V>> it);
+    public abstract <V extends Data> PredicateBuilder<T, R, ID> whereRef(@Nonnull Navigable<? extends T, V> path, @Nonnull Iterable<? extends Ref<V>> it);
 
     /**
      * Adds a condition to the WHERE clause that matches the specified records. The records can represent any of
@@ -238,20 +166,8 @@ public abstract class WhereBuilder<T extends Data, R, ID> implements SubqueryTem
      * @param it   the records to match.
      * @return the predicate builder.
      */
-    public final <V extends Data> PredicateBuilder<T, R, ID> where(@Nonnull Navigable<T, V> path, @Nonnull Iterable<V> it) {
+    public final <V extends Data> PredicateBuilder<T, R, ID> where(@Nonnull Navigable<? extends T, V> path, @Nonnull Iterable<V> it) {
         return where(path, IN, it);
-    }
-
-    /**
-     * Adds a condition to the WHERE clause that matches the specified records. The records can represent any of
-     * the related tables in the table graph or manually added joins.
-     *
-     * @param path the path to the object in the table graph.
-     * @param it   the records to match.
-     * @return the predicate builder.
-     */
-    public final <V extends Data> PredicateBuilder<T, R, ID> whereAny(@Nonnull Navigable<?, V> path, @Nonnull Iterable<V> it) {
-        return whereAny(path, IN, it);
     }
 
     /**
@@ -266,28 +182,12 @@ public abstract class WhereBuilder<T extends Data, R, ID> implements SubqueryTem
      * @return the query builder.
      * @since 1.2
      */
-    public abstract <V> PredicateBuilder<T, R, ID> where(@Nonnull Navigable<T, V> path,
+    public abstract <V> PredicateBuilder<T, R, ID> where(@Nonnull Navigable<? extends T, V> path,
                                                          @Nonnull Operator operator,
                                                          @Nonnull Iterable<? extends V> it);
 
     /**
      * Adds a condition to the WHERE clause that matches the specified objects at the specified path in the table
-     * graph or manually added joins.
-     *
-     * @param path     the path to the object in the table graph.
-     * @param operator the operator to use for the comparison.
-     * @param it       the objects to match, which can be primary keys, records representing the table, or fields in the
-     *                 table graph.
-     * @param <V>      the type of the object that the metamodel represents.
-     * @return the query builder.
-     * @since 1.2
-     */
-    public abstract <V> PredicateBuilder<T, R, ID> whereAny(@Nonnull Navigable<?, V> path,
-                                                            @Nonnull Operator operator,
-                                                            @Nonnull Iterable<? extends V> it);
-
-    /**
-     * Adds a condition to the WHERE clause that matches the specified objects at the specified path in the table
      * graph.
      *
      * @param path     the path to the object in the table graph.
@@ -299,28 +199,9 @@ public abstract class WhereBuilder<T extends Data, R, ID> implements SubqueryTem
      * @since 1.2
      */
     @SafeVarargs
-    public final <V> PredicateBuilder<T, R, ID> where(@Nonnull Navigable<T, V> path,
+    public final <V> PredicateBuilder<T, R, ID> where(@Nonnull Navigable<? extends T, V> path,
                                                       @Nonnull Operator operator,
                                                       @Nonnull V... o) {
-        return whereImpl(path, operator, o);
-    }
-
-    /**
-     * Adds a condition to the WHERE clause that matches the specified objects at the specified path in the table
-     * graph or manually added joins.
-     *
-     * @param path     the path to the object in the table graph.
-     * @param operator the operator to use for the comparison.
-     * @param o        the object(s) to match, which can be primary keys, records representing the table, or fields in the
-     *                 table graph.
-     * @param <V>      the type of the object that the metamodel represents.
-     * @return the query builder.
-     * @since 1.2
-     */
-    @SafeVarargs
-    public final <V> PredicateBuilder<T, R, ID> whereAny(@Nonnull Navigable<?, V> path,
-                                                         @Nonnull Operator operator,
-                                                         @Nonnull V... o) {
         return whereImpl(path, operator, o);
     }
 
