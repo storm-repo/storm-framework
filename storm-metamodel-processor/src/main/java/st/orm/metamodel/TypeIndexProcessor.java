@@ -107,8 +107,8 @@ public class TypeIndexProcessor extends AbstractProcessor {
 
     private boolean isSubtypeOf(TypeElement type, TypeMirror target, boolean allowInterfaces) {
         ElementKind kind = type.getKind();
-        if (kind == ElementKind.CLASS) {
-            // Classes are always allowed.
+        if (kind == ElementKind.CLASS || kind == ElementKind.RECORD) {
+            // Classes and records are always allowed; Java entities and projections are records.
         } else if (kind == ElementKind.INTERFACE && allowInterfaces) {
             // Interfaces are allowed only for certain indexed types (e.g., Repository).
         } else {

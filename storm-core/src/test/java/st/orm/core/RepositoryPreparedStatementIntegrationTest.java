@@ -88,9 +88,9 @@ import st.orm.core.model.OwnerView;
 import st.orm.core.model.Owner_;
 import st.orm.core.model.Pet;
 import st.orm.core.model.PetExtension;
-import st.orm.core.model.PetOwnerRecursion;
 import st.orm.core.model.PetOwnerRef;
 import st.orm.core.model.PetOwnerRef_;
+import st.orm.core.model.PetType;
 import st.orm.core.model.PetTypeEnum;
 import st.orm.core.model.PetWithNullableOwnerRef;
 import st.orm.core.model.PetWithNullableOwnerRef_;
@@ -848,6 +848,32 @@ public class RepositoryPreparedStatementIntegrationTest {
             assertEquals(2, sql.getPlain().parameters().size());
             assertEquals(2, visits.size());
         });
+    }
+
+    /**
+     * Deliberately cyclic entity pair. Nested types stay out of the type index, which keeps these
+     * invalid fixtures out of the boot-time validation of the discovered model; the cycle is detected
+     * when the entity is used.
+     */
+    @DbTable("owner")
+    public record OwnerRecursion(
+            @PK Integer id,
+            @Nonnull String firstName,
+            @Nonnull String lastName,
+            @Nonnull Address address,
+            @Nullable String telephone,
+            @FK PetOwnerRecursion pet   // Recursive reference; We can test this even though the column does not exist.
+    ) implements Entity<Integer> {
+    }
+
+    @DbTable("pet")
+    public record PetOwnerRecursion(
+            @PK Integer id,
+            @Nonnull String name,
+            @Nonnull LocalDate birthDate,
+            @Nonnull @FK @DbColumn("type_id") PetType petType,
+            @FK OwnerRecursion owner
+    ) implements Entity<Integer> {
     }
 
     @Test

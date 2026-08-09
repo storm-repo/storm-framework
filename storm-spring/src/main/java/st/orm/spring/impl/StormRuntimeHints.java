@@ -23,11 +23,14 @@ import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.Serializable;
+import java.io.UncheckedIOException;
 import java.net.URL;
 import java.util.Enumeration;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Set;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.aop.SpringProxy;
 import org.springframework.aop.framework.Advised;
 import org.springframework.aot.hint.MemberCategory;
@@ -69,9 +72,15 @@ import st.orm.core.spi.TypeDiscovery;
  * proxy, and the type index resources) ship as static reachability metadata in the storm-core and
  * storm-foundation jars and need no registration here.</p>
  *
+ * <p>The index is required for these registrations: when no Data index is present on the classpath,
+ * the metamodel processor did not run on the application's code and a warning is logged, and an index
+ * that cannot be read fails the AOT build.</p>
+ *
  * @since 1.13
  */
 public class StormRuntimeHints implements RuntimeHintsRegistrar {
+
+    private static final Logger LOGGER = LoggerFactory.getLogger("st.orm.spring.aot");
 
     private static final String INDEX_DIRECTORY = "META-INF/storm/";
     private static final String DATA_INDEX = INDEX_DIRECTORY + "st.orm.Data.idx";
@@ -81,6 +90,13 @@ public class StormRuntimeHints implements RuntimeHintsRegistrar {
     @Override
     public void registerHints(@Nonnull RuntimeHints hints, @Nullable ClassLoader classLoader) {
         ClassLoader loader = classLoader == null ? StormRuntimeHints.class.getClassLoader() : classLoader;
+        if (!hasDataIndex(loader)) {
+            LOGGER.warn("No Storm type index found for the application's entities on the classpath "
+                    + "(META-INF/storm/st.orm.Data.idx). The native image will miss the reflection "
+                    + "metadata for entities, so they will fail at runtime. Add the Storm metamodel "
+                    + "processor (storm-metamodel-processor for Java, storm-metamodel-ksp for Kotlin) "
+                    + "to the build so the index is generated at compile time.");
+        }
         for (String typeName : readIndex(loader, DATA_INDEX)) {
             registerDataType(hints, typeName);
             // Compound primary keys and inline components are introspected like the Data types that
@@ -136,6 +152,17 @@ public class StormRuntimeHints implements RuntimeHintsRegistrar {
                 MemberCategory.INVOKE_PUBLIC_METHODS);
     }
 
+    private static boolean hasDataIndex(@Nonnull ClassLoader loader) {
+        // The Data index is the reliable marker for the metamodel processor having run on application
+        // code: every Storm application declares Data types, while the framework jars themselves only
+        // ship repository index entries.
+        try {
+            return loader.getResources(DATA_INDEX).hasMoreElements();
+        } catch (IOException e) {
+            throw new UncheckedIOException("Failed to read Storm type index " + DATA_INDEX + ".", e);
+        }
+    }
+
     private static List<String> readIndex(@Nonnull ClassLoader loader, @Nonnull String resourceName) {
         Set<String> typeNames = new LinkedHashSet<>();
         try {
@@ -149,8 +176,10 @@ public class StormRuntimeHints implements RuntimeHintsRegistrar {
                             .forEach(typeNames::add);
                 }
             }
-        } catch (IOException ignore) {
-            // No index available; nothing to register.
+        } catch (IOException e) {
+            // A hint that is silently dropped only surfaces as a broken native image at runtime;
+            // an unreadable index must fail the AOT build instead.
+            throw new UncheckedIOException("Failed to read Storm type index " + resourceName + ".", e);
         }
         return List.copyOf(typeNames);
     }
