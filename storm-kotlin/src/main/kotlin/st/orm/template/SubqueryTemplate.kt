@@ -32,7 +32,7 @@ import kotlin.reflect.KClass
  * @see WhereBuilder.exists
  */
 @SqlDsl
-interface SubqueryTemplate {
+public interface SubqueryTemplate {
     /**
      * Create a subquery for the given table.
      *
@@ -40,7 +40,7 @@ interface SubqueryTemplate {
      * @param <T> the table type to select from.
      * @return the subquery builder.
      */
-    fun <T : Data> subquery(fromType: KClass<T>): QueryBuilder<T, *, *> = subquery(fromType, fromType)
+    public fun <T : Data> subquery(fromType: KClass<T>): QueryBuilder<T, *, *> = subquery(fromType, fromType)
 
     /**
      * Create a subquery for the given table and select type.
@@ -51,7 +51,7 @@ interface SubqueryTemplate {
      * @param <T> the table type to select from.
      * @param <R> the result type.
      */
-    fun <T : Data, R : Data> subquery(fromType: KClass<T>, selectType: KClass<R>): QueryBuilder<T, *, *> = subquery(fromType) { t(select(selectType, DECLARED)) }
+    public fun <T : Data, R : Data> subquery(fromType: KClass<T>, selectType: KClass<R>): QueryBuilder<T, *, *> = subquery(fromType) { t(select(selectType, DECLARED)) }
 
     /**
      * Create a subquery for the given table and select type using the given `template`.
@@ -61,7 +61,7 @@ interface SubqueryTemplate {
      * @return the subquery builder.
      * @param <T> the table type to select from.
      */
-    fun <T : Data> subquery(fromType: KClass<T>, template: TemplateBuilder): QueryBuilder<T, *, *> = subquery(fromType, template.build())
+    public fun <T : Data> subquery(fromType: KClass<T>, template: TemplateBuilder): QueryBuilder<T, *, *> = subquery(fromType, template.build())
 
     /**
      * Create a subquery for the given table and select type using the given `template`.
@@ -71,5 +71,5 @@ interface SubqueryTemplate {
      * @return the subquery builder.
      * @param <T> the table type to select from.
      */
-    fun <T : Data> subquery(fromType: KClass<T>, template: TemplateString): QueryBuilder<T, *, *>
+    public fun <T : Data> subquery(fromType: KClass<T>, template: TemplateString): QueryBuilder<T, *, *>
 }

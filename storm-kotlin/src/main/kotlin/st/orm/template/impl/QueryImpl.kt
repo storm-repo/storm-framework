@@ -22,7 +22,7 @@ import st.orm.template.Query
 import java.util.stream.Stream
 import kotlin.reflect.KClass
 
-open class QueryImpl(private val core: st.orm.core.template.Query) : Query {
+internal open class QueryImpl(private val core: st.orm.core.template.Query) : Query {
 
     /**
      * Prepares the query for execution.

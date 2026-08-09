@@ -28,13 +28,13 @@ import st.orm.template.ORMTemplate
  * @see ProjectionRepository
  * @see ORMTemplate
  */
-interface Repository {
+public interface Repository {
     /**
      * Provides access to the underlying ORM template.
      *
      * @return the ORM template.
      */
-    val orm: ORMTemplate
+    public val orm: ORMTemplate
 
     /**
      * Returns dependency-aware write operations over mixed-type sets of entities.
@@ -47,5 +47,5 @@ interface Repository {
      * @see WriteSet
      * @since 1.13
      */
-    fun writeSet(): WriteSet = orm.writeSet()
+    public fun writeSet(): WriteSet = orm.writeSet()
 }

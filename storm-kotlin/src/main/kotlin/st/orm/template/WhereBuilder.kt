@@ -51,17 +51,17 @@ import st.orm.template.TemplateString.Companion.raw
  * @see PredicateBuilder
  */
 @SqlDsl
-interface WhereBuilder<T : Data, R, ID> : SubqueryTemplate {
+public interface WhereBuilder<T : Data, R, ID> : SubqueryTemplate {
 
     /**
      * A predicate that always evaluates to true.
      */
-    fun TRUE(): PredicateBuilder<T, R, ID> = where(raw("TRUE"))
+    public fun TRUE(): PredicateBuilder<T, R, ID> = where(raw("TRUE"))
 
     /**
      * A predicate that always evaluates to false.
      */
-    fun FALSE(): PredicateBuilder<T, R, ID> = where(raw("FALSE"))
+    public fun FALSE(): PredicateBuilder<T, R, ID> = where(raw("FALSE"))
 
     /**
      * Adds an `EXISTS` condition to the WHERE clause using the specified subquery.
@@ -75,7 +75,7 @@ interface WhereBuilder<T : Data, R, ID> : SubqueryTemplate {
      * @param subquery the subquery to check for existence.
      * @return the updated [PredicateBuilder] with the EXISTS condition applied.
      */
-    fun exists(subquery: QueryBuilder<*, *, *>): PredicateBuilder<T, R, ID>
+    public fun exists(subquery: QueryBuilder<*, *, *>): PredicateBuilder<T, R, ID>
 
     /**
      * Adds an `EXISTS` condition to the WHERE clause using the specified subquery.
@@ -89,7 +89,7 @@ interface WhereBuilder<T : Data, R, ID> : SubqueryTemplate {
      * @param subquery the subquery to check for existence.
      * @return the updated [PredicateBuilder] with the EXISTS condition applied.
      */
-    fun exists(builder: SubqueryTemplate.() -> QueryBuilder<*, *, *>): PredicateBuilder<T, R, ID> = exists(builder(this))
+    public fun exists(builder: SubqueryTemplate.() -> QueryBuilder<*, *, *>): PredicateBuilder<T, R, ID> = exists(builder(this))
 
     /**
      * Adds an `NOT EXISTS` condition to the WHERE clause using the specified subquery.
@@ -103,7 +103,7 @@ interface WhereBuilder<T : Data, R, ID> : SubqueryTemplate {
      * @param subquery the subquery to check for existence.
      * @return the updated [PredicateBuilder] with the NOT EXISTS condition applied.
      */
-    fun notExists(subquery: QueryBuilder<*, *, *>): PredicateBuilder<T, R, ID>
+    public fun notExists(subquery: QueryBuilder<*, *, *>): PredicateBuilder<T, R, ID>
 
     /**
      * Adds an `NOT EXISTS` condition to the WHERE clause using the specified subquery.
@@ -117,7 +117,7 @@ interface WhereBuilder<T : Data, R, ID> : SubqueryTemplate {
      * @param subquery the subquery to check for existence.
      * @return the updated [PredicateBuilder] with the NOT EXISTS condition applied.
      */
-    fun notExists(builder: SubqueryTemplate.() -> QueryBuilder<*, *, *>): PredicateBuilder<T, R, ID> = notExists(builder(this))
+    public fun notExists(builder: SubqueryTemplate.() -> QueryBuilder<*, *, *>): PredicateBuilder<T, R, ID> = notExists(builder(this))
 
     /**
      * Adds a condition to the WHERE clause that matches the specified primary key of the table.
@@ -125,7 +125,7 @@ interface WhereBuilder<T : Data, R, ID> : SubqueryTemplate {
      * @param id the id to match.
      * @return the predicate builder.
      */
-    fun whereId(id: ID): PredicateBuilder<T, R, ID>
+    public fun whereId(id: ID): PredicateBuilder<T, R, ID>
 
     /**
      * Adds a condition to the WHERE clause that matches the specified primary key of the table, expressed by a ref.
@@ -134,7 +134,7 @@ interface WhereBuilder<T : Data, R, ID> : SubqueryTemplate {
      * @return the predicate builder.
      * @since 1.3
      */
-    fun whereRef(ref: Ref<T>): PredicateBuilder<T, R, ID>
+    public fun whereRef(ref: Ref<T>): PredicateBuilder<T, R, ID>
 
     /**
      * Adds a condition to the WHERE clause that matches the specified record.
@@ -142,7 +142,7 @@ interface WhereBuilder<T : Data, R, ID> : SubqueryTemplate {
      * @param record the record to match.
      * @return the predicate builder.
      */
-    fun where(record: T): PredicateBuilder<T, R, ID>
+    public fun where(record: T): PredicateBuilder<T, R, ID>
 
     /**
      * Adds a condition to the WHERE clause that matches the specified primary keys of the table.
@@ -151,7 +151,7 @@ interface WhereBuilder<T : Data, R, ID> : SubqueryTemplate {
      * @return the predicate builder.
      * @since 1.2
      */
-    fun whereId(it: Iterable<ID>): PredicateBuilder<T, R, ID>
+    public fun whereId(it: Iterable<ID>): PredicateBuilder<T, R, ID>
 
     /**
      * Adds a condition to the WHERE clause that matches the specified primary keys of the table, expressed by a ref.
@@ -160,7 +160,7 @@ interface WhereBuilder<T : Data, R, ID> : SubqueryTemplate {
      * @return the predicate builder.
      * @since 1.3
      */
-    fun whereRef(it: Iterable<Ref<T>>): PredicateBuilder<T, R, ID>
+    public fun whereRef(it: Iterable<Ref<T>>): PredicateBuilder<T, R, ID>
 
     /**
      * Adds a condition to the WHERE clause that matches the specified records.
@@ -168,7 +168,7 @@ interface WhereBuilder<T : Data, R, ID> : SubqueryTemplate {
      * @param it the records to match.
      * @return the predicate builder.
      */
-    fun where(it: Iterable<T>): PredicateBuilder<T, R, ID>
+    public fun where(it: Iterable<T>): PredicateBuilder<T, R, ID>
 
     /**
      * Adds a condition to the WHERE clause that matches the specified record. The record can represent any of
@@ -178,7 +178,7 @@ interface WhereBuilder<T : Data, R, ID> : SubqueryTemplate {
      * @param record the records to match.
      * @return the predicate builder.
      */
-    fun <V : Data> where(path: Metamodel<out T, V>, record: V): PredicateBuilder<T, R, ID> = where(path, Operator.EQUALS, record)
+    public fun <V : Data> where(path: Metamodel<out T, V>, record: V): PredicateBuilder<T, R, ID> = where(path, Operator.EQUALS, record)
 
     /**
      * Adds a condition to the WHERE clause that matches the specified ref. The record can represent any of
@@ -189,7 +189,7 @@ interface WhereBuilder<T : Data, R, ID> : SubqueryTemplate {
      * @return the predicate builder.
      * @since 1.3
      */
-    fun <V : Data> where(
+    public fun <V : Data> where(
         path: Metamodel<out T, V>,
         ref: Ref<V>,
     ): PredicateBuilder<T, R, ID>
@@ -203,7 +203,7 @@ interface WhereBuilder<T : Data, R, ID> : SubqueryTemplate {
      * @return the predicate builder.
      * @since 1.3
      */
-    fun <V : Data> whereRef(
+    public fun <V : Data> whereRef(
         path: Metamodel<out T, V>,
         it: Iterable<Ref<V>>,
     ): PredicateBuilder<T, R, ID>
@@ -216,7 +216,7 @@ interface WhereBuilder<T : Data, R, ID> : SubqueryTemplate {
      * @param it   the records to match.
      * @return the predicate builder.
      */
-    fun <V : Data> where(
+    public fun <V : Data> where(
         path: Metamodel<out T, V>,
         it: Iterable<V>,
     ): PredicateBuilder<T, R, ID> = where(path, Operator.IN, it)
@@ -233,7 +233,7 @@ interface WhereBuilder<T : Data, R, ID> : SubqueryTemplate {
      * @return the query builder.
      * @since 1.2
      */
-    fun <V> where(
+    public fun <V> where(
         path: Navigable<out T, V>,
         operator: Operator,
         it: Iterable<V>,
@@ -251,7 +251,7 @@ interface WhereBuilder<T : Data, R, ID> : SubqueryTemplate {
      * @return the query builder.
      * @since 1.2
      */
-    fun <V> where(
+    public fun <V> where(
         path: Navigable<out T, V>,
         operator: Operator,
         vararg o: V,
@@ -263,7 +263,7 @@ interface WhereBuilder<T : Data, R, ID> : SubqueryTemplate {
      * @param builder the expression to add.
      * @return the predicate builder.
      */
-    fun where(builder: TemplateBuilder): PredicateBuilder<T, R, ID> = where(builder.build())
+    public fun where(builder: TemplateBuilder): PredicateBuilder<T, R, ID> = where(builder.build())
 
     /**
      * Appends a custom expression to the WHERE clause.
@@ -271,5 +271,5 @@ interface WhereBuilder<T : Data, R, ID> : SubqueryTemplate {
      * @param template the expression to add.
      * @return the predicate builder.
      */
-    fun where(template: TemplateString): PredicateBuilder<T, R, ID>
+    public fun where(template: TemplateString): PredicateBuilder<T, R, ID>
 }

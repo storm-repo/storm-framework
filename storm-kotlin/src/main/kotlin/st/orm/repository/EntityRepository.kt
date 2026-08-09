@@ -158,12 +158,12 @@ import kotlin.reflect.KClass
  * @param <E> the type of entity managed by this repository.
  * @param <ID> the type of the primary key of the entity.
  */
-interface EntityRepository<E, ID : Any> : Repository where E : Entity<ID> {
+public interface EntityRepository<E, ID : Any> : Repository where E : Entity<ID> {
 
     /**
      * The entity model associated with this repository.
      */
-    val model: Model<E, ID>
+    public val model: Model<E, ID>
 
     /**
      * Creates a new ref entity instance with the specified primary key.
@@ -177,7 +177,7 @@ interface EntityRepository<E, ID : Any> : Repository where E : Entity<ID> {
      * @return a ref entity instance containing only the primary key.
      * @since 1.3
      */
-    fun ref(id: ID): Ref<E>
+    public fun ref(id: ID): Ref<E>
 
     /**
      * Creates a new ref entity instance for the specified entity.
@@ -192,7 +192,7 @@ interface EntityRepository<E, ID : Any> : Repository where E : Entity<ID> {
      * @return a ref entity instance containing the primary key of the provided entity.
      * @since 1.3
      */
-    fun ref(entity: E): Ref<E>
+    public fun ref(entity: E): Ref<E>
 
     /**
      * Unloads the given entity from memory by converting it into a lightweight ref containing only its primary key.
@@ -211,7 +211,7 @@ interface EntityRepository<E, ID : Any> : Repository where E : Entity<ID> {
      * again when needed.
      * @since 1.3
      */
-    fun unload(entity: E): Ref<E>
+    public fun unload(entity: E): Ref<E>
 
     // Query builder methods.
 
@@ -220,7 +220,7 @@ interface EntityRepository<E, ID : Any> : Repository where E : Entity<ID> {
      *
      * @return a new query builder for the entity type.
      */
-    fun select(): QueryBuilder<E, E, ID>
+    public fun select(): QueryBuilder<E, E, ID>
 
     /**
      * Constructs a SELECT query using a block-based DSL.
@@ -236,7 +236,7 @@ interface EntityRepository<E, ID : Any> : Repository where E : Entity<ID> {
      * }
      * ```
      */
-    fun select(block: SqlScope<E, E, ID>.() -> Any?): QueryBuilder<Data, E, ID> {
+    public fun select(block: SqlScope<E, E, ID>.() -> Any?): QueryBuilder<Data, E, ID> {
         // The block may join, which relaxes the root; the scope's own type parameters keep record, id and ref
         // matching typed to the entity. Narrow the result back with narrow() when a root-relative operation
         // such as resultGroupedBy is needed.
@@ -253,14 +253,14 @@ interface EntityRepository<E, ID : Any> : Repository where E : Entity<ID> {
      * userRepository.select(User_.active eq true).resultList
      * ```
      */
-    fun select(predicate: PredicateBuilder<E, *, *>): QueryBuilder<E, E, ID> = select().where(predicate)
+    public fun select(predicate: PredicateBuilder<E, *, *>): QueryBuilder<E, E, ID> = select().where(predicate)
 
     /**
      * Creates a new query builder for the entity type managed by this repository.
      *
      * @return a new query builder for the entity type.
      */
-    fun selectCount(): QueryBuilder<E, Long, ID>
+    public fun selectCount(): QueryBuilder<E, Long, ID>
 
     /**
      * Creates a new query builder for the specialized `selectType`.
@@ -269,7 +269,7 @@ interface EntityRepository<E, ID : Any> : Repository where E : Entity<ID> {
      * @return a new query builder for the specialized `selectType`.
      * @param <R> the result type of the query.
      */
-    fun <R : Any> select(selectType: KClass<R>): QueryBuilder<E, R, ID>
+    public fun <R : Any> select(selectType: KClass<R>): QueryBuilder<E, R, ID>
 
     /**
      * Creates a new query builder for selecting refs to entities of the type managed by this repository.
@@ -283,7 +283,7 @@ interface EntityRepository<E, ID : Any> : Repository where E : Entity<ID> {
      * @return a new query builder for selecting refs to entities.
      * @since 1.3
      */
-    fun selectRef(): QueryBuilder<E, Ref<E>, ID>
+    public fun selectRef(): QueryBuilder<E, Ref<E>, ID>
 
     /**
      * Constructs a SELECT query for refs, filtered by the given predicate.
@@ -294,7 +294,7 @@ interface EntityRepository<E, ID : Any> : Repository where E : Entity<ID> {
      *
      * @since 1.3
      */
-    fun selectRef(predicate: PredicateBuilder<E, *, *>): QueryBuilder<E, Ref<E>, ID> = selectRef().where(predicate)
+    public fun selectRef(predicate: PredicateBuilder<E, *, *>): QueryBuilder<E, Ref<E>, ID> = selectRef().where(predicate)
 
     /**
      * Creates a new query builder for the specialized `selectType` and specialized `template` for the select clause.
@@ -304,7 +304,7 @@ interface EntityRepository<E, ID : Any> : Repository where E : Entity<ID> {
      * @return a new query builder for the specialized `selectType`.
      * @param <R> the result type of the query.
      */
-    fun <R : Any> select(selectType: KClass<R>, template: TemplateBuilder): QueryBuilder<E, R, ID> = select(selectType, template.build())
+    public fun <R : Any> select(selectType: KClass<R>, template: TemplateBuilder): QueryBuilder<E, R, ID> = select(selectType, template.build())
 
     /**
      * Creates a new query builder for the specialized `selectType` and specialized `template` for the select clause.
@@ -314,7 +314,7 @@ interface EntityRepository<E, ID : Any> : Repository where E : Entity<ID> {
      * @return a new query builder for the specialized `selectType`.
      * @param <R> the result type of the query.
      */
-    fun <R : Any> select(selectType: KClass<R>, template: TemplateString): QueryBuilder<E, R, ID>
+    public fun <R : Any> select(selectType: KClass<R>, template: TemplateString): QueryBuilder<E, R, ID>
 
     /**
      * Creates a new query builder for selecting refs to entities of the type managed by this repository.
@@ -329,14 +329,14 @@ interface EntityRepository<E, ID : Any> : Repository where E : Entity<ID> {
      * @return a new query builder for selecting refs to entities.
      * @since 1.3
      */
-    fun <R : Data> selectRef(refType: KClass<R>): QueryBuilder<E, Ref<R>, ID>
+    public fun <R : Data> selectRef(refType: KClass<R>): QueryBuilder<E, Ref<R>, ID>
 
     /**
      * Creates a new query builder for delete entities of the type managed by this repository.
      *
      * @return a new query builder for the entity type.
      */
-    fun delete(): QueryBuilder<E, *, ID>
+    public fun delete(): QueryBuilder<E, *, ID>
 
     /**
      * Constructs a DELETE query filtered by the given predicate.
@@ -345,10 +345,10 @@ interface EntityRepository<E, ID : Any> : Repository where E : Entity<ID> {
      * userRepository.delete(User_.active eq false).executeUpdate()
      * ```
      */
-    fun delete(predicate: PredicateBuilder<E, *, *>): QueryBuilder<E, *, ID> = delete().where(predicate)
+    public fun delete(predicate: PredicateBuilder<E, *, *>): QueryBuilder<E, *, ID> = delete().where(predicate)
 
     @Suppress("UNCHECKED_CAST")
-    fun delete(block: SqlScope<E, Any?, ID>.() -> Any?): QueryBuilder<Data, Any?, ID> {
+    public fun delete(block: SqlScope<E, Any?, ID>.() -> Any?): QueryBuilder<Data, Any?, ID> {
         val scope = SqlScope<E, Any?, ID>(delete() as QueryBuilder<Data, Any?, ID>)
         scope.validateResult(scope.block())
         return scope.builder
@@ -363,7 +363,7 @@ interface EntityRepository<E, ID : Any> : Repository where E : Entity<ID> {
      * @throws st.orm.PersistenceException if the count operation fails due to underlying database issues, such as
      * connectivity.
      */
-    fun count(): Long
+    public fun count(): Long
 
     /**
      * Checks if any entity of the type managed by this repository exists in the database.
@@ -371,7 +371,7 @@ interface EntityRepository<E, ID : Any> : Repository where E : Entity<ID> {
      * @return true if at least one entity exists, false otherwise.
      * @throws st.orm.PersistenceException if there is an underlying database issue during the count operation.
      */
-    fun exists(): Boolean
+    public fun exists(): Boolean
 
     /**
      * Checks if an entity with the specified primary key exists in the database.
@@ -385,7 +385,7 @@ interface EntityRepository<E, ID : Any> : Repository where E : Entity<ID> {
      * @return true if an entity with the specified primary key exists, false otherwise.
      * @throws st.orm.PersistenceException if there is an underlying database issue during the count operation.
      */
-    fun existsById(id: ID): Boolean
+    public fun existsById(id: ID): Boolean
 
     /**
      * Checks if an entity with the specified primary key exists in the database.
@@ -399,7 +399,7 @@ interface EntityRepository<E, ID : Any> : Repository where E : Entity<ID> {
      * @return true if an entity with the specified primary key exists, false otherwise.
      * @throws st.orm.PersistenceException if there is an underlying database issue during the count operation.
      */
-    fun existsByRef(ref: Ref<E>): Boolean
+    public fun existsByRef(ref: Ref<E>): Boolean
 
     /**
      * Inserts an entity into the database.
@@ -413,7 +413,7 @@ interface EntityRepository<E, ID : Any> : Repository where E : Entity<ID> {
      * @throws st.orm.PersistenceException if the insert operation fails. This can happen due to a variety of reasons,
      * including database constraints violations, connectivity issues, or if the entity parameter is null.
      */
-    fun insert(entity: E)
+    public fun insert(entity: E)
 
     /**
      * Inserts an entity into the database.
@@ -430,7 +430,7 @@ interface EntityRepository<E, ID : Any> : Repository where E : Entity<ID> {
      * @throws st.orm.PersistenceException if the insert operation fails. This can happen due to a variety of reasons,
      * including database constraints violations, connectivity issues, or if the entity parameter is null.
      */
-    fun insert(entity: E, ignoreAutoGenerate: Boolean)
+    public fun insert(entity: E, ignoreAutoGenerate: Boolean)
 
     /**
      * Inserts an entity into the database and returns its primary key.
@@ -445,7 +445,7 @@ interface EntityRepository<E, ID : Any> : Repository where E : Entity<ID> {
      * @throws st.orm.PersistenceException if the insert operation fails for reasons such as database constraints violations,
      * connectivity issues, or if the entity parameter is null.
      */
-    fun insertAndFetchId(entity: E): ID
+    public fun insertAndFetchId(entity: E): ID
 
     /**
      * Inserts a single entity into the database and returns the inserted entity with its current state.
@@ -463,7 +463,7 @@ interface EntityRepository<E, ID : Any> : Repository where E : Entity<ID> {
      * @throws st.orm.PersistenceException if the insertion operation fails due to database issues, such as connectivity
      * problems, constraints violations, or invalid entity data.
      */
-    fun insertAndFetch(entity: E): E
+    public fun insertAndFetch(entity: E): E
 
     /**
      * Updates a single entity in the database.
@@ -477,7 +477,7 @@ interface EntityRepository<E, ID : Any> : Repository where E : Entity<ID> {
      * @throws st.orm.PersistenceException if the update operation fails due to database issues, such as connectivity
      * problems, constraints violations, or invalid entity data.
      */
-    fun update(entity: E)
+    public fun update(entity: E)
 
     /**
      * Updates a single entity in the database and returns the updated entity with its current state.
@@ -495,7 +495,7 @@ interface EntityRepository<E, ID : Any> : Repository where E : Entity<ID> {
      * @throws st.orm.PersistenceException if the update operation fails due to database issues, such as connectivity
      * problems, constraints violations, or invalid entity data.
      */
-    fun updateAndFetch(entity: E): E
+    public fun updateAndFetch(entity: E): E
 
     /**
      * Inserts or updates a single entity in the database.
@@ -511,7 +511,7 @@ interface EntityRepository<E, ID : Any> : Repository where E : Entity<ID> {
      * @throws st.orm.PersistenceException if the upsert operation fails due to database issues, such as connectivity
      * problems, constraints violations, or invalid entity data.
      */
-    fun upsert(entity: E)
+    public fun upsert(entity: E)
 
     /**
      * Inserts or updates a single entity in the database and returns its ID.
@@ -528,7 +528,7 @@ interface EntityRepository<E, ID : Any> : Repository where E : Entity<ID> {
      * @throws st.orm.PersistenceException if the upsert operation fails due to database issues, such as connectivity
      * problems, constraints violations, or invalid entity data.
      */
-    fun upsertAndFetchId(entity: E): ID
+    public fun upsertAndFetchId(entity: E): ID
 
     /**
      * Inserts or updates a single entity in the database and returns the entity with its current state.
@@ -547,7 +547,7 @@ interface EntityRepository<E, ID : Any> : Repository where E : Entity<ID> {
      * @throws st.orm.PersistenceException if the upsert operation fails due to database issues, such as connectivity
      * problems, constraints violations, or invalid entity data.
      */
-    fun upsertAndFetch(entity: E): E
+    public fun upsertAndFetch(entity: E): E
 
     /**
      * Deletes an entity from the database.
@@ -563,7 +563,7 @@ interface EntityRepository<E, ID : Any> : Repository where E : Entity<ID> {
      * being found in the database, violations of database constraints, connectivity
      * issues, or if the entity parameter is null.
      */
-    fun remove(entity: E)
+    public fun remove(entity: E)
 
     /**
      * Removes an entity from the database based on its primary key.
@@ -576,7 +576,7 @@ interface EntityRepository<E, ID : Any> : Repository where E : Entity<ID> {
      * @throws st.orm.PersistenceException if the removal operation fails due to violations of database constraints,
      * connectivity issues, or if the id parameter is null.
      */
-    fun removeById(id: ID)
+    public fun removeById(id: ID)
 
     /**
      * Removes an entity from the database by its reference.
@@ -589,7 +589,7 @@ interface EntityRepository<E, ID : Any> : Repository where E : Entity<ID> {
      * @throws st.orm.PersistenceException if the removal operation fails due to violations of database constraints,
      * connectivity issues, or if the ref parameter is null.
      */
-    fun removeByRef(ref: Ref<E>)
+    public fun removeByRef(ref: Ref<E>)
 
     /**
      * Removes all entities from the database.
@@ -602,7 +602,7 @@ interface EntityRepository<E, ID : Any> : Repository where E : Entity<ID> {
      * including but not limited to database access issues, transaction failures, or
      * underlying database constraints that prevent the removal of certain records.
      */
-    fun removeAll()
+    public fun removeAll()
 
     // Singular findBy methods.
 
@@ -618,7 +618,7 @@ interface EntityRepository<E, ID : Any> : Repository where E : Entity<ID> {
      * @throws st.orm.PersistenceException if the retrieval operation fails due to underlying database issues, such as
      * connectivity problems or query execution errors.
      */
-    fun findById(id: ID): E?
+    public fun findById(id: ID): E?
 
     /**
      * Retrieves an entity based on its primary key, expressed by a ref.
@@ -632,7 +632,7 @@ interface EntityRepository<E, ID : Any> : Repository where E : Entity<ID> {
      * @throws st.orm.PersistenceException if the retrieval operation fails due to underlying database issues, such as
      * connectivity problems or query execution errors.
      */
-    fun findByRef(ref: Ref<E>): E?
+    public fun findByRef(ref: Ref<E>): E?
 
     /**
      * Retrieves an entity based on its primary key.
@@ -648,7 +648,7 @@ interface EntityRepository<E, ID : Any> : Repository where E : Entity<ID> {
      * @throws st.orm.PersistenceException if the retrieval operation fails due to underlying database issues, such as
      * connectivity problems or query execution errors.
      */
-    fun getById(id: ID): E
+    public fun getById(id: ID): E
 
     /**
      * Retrieves an entity based on its primary key, expressed by a ref.
@@ -664,7 +664,7 @@ interface EntityRepository<E, ID : Any> : Repository where E : Entity<ID> {
      * @throws st.orm.PersistenceException if the retrieval operation fails due to underlying database issues, such as
      * connectivity problems or query execution errors.
      */
-    fun getByRef(ref: Ref<E>): E
+    public fun getByRef(ref: Ref<E>): E
 
     // Singular findBy / getBy methods for unique keys.
 
@@ -676,7 +676,7 @@ interface EntityRepository<E, ID : Any> : Repository where E : Entity<ID> {
      * @return the entity matching the given key value, or null if none exists.
      * @since 1.9
      */
-    fun <V : Any> findBy(key: Metamodel.Key<E, V>, value: V): E?
+    public fun <V : Any> findBy(key: Metamodel.Key<E, V>, value: V): E?
 
     /**
      * Retrieves an entity by the value of a unique key field.
@@ -687,7 +687,7 @@ interface EntityRepository<E, ID : Any> : Repository where E : Entity<ID> {
      * @throws st.orm.NoResultException if no entity is found matching the given key value.
      * @since 1.9
      */
-    fun <V : Any> getBy(key: Metamodel.Key<E, V>, value: V): E
+    public fun <V : Any> getBy(key: Metamodel.Key<E, V>, value: V): E
 
     /**
      * Retrieves an entity by the ref value of a unique key field that references another entity.
@@ -697,7 +697,7 @@ interface EntityRepository<E, ID : Any> : Repository where E : Entity<ID> {
      * @return the entity matching the given ref value, or null if none exists.
      * @since 1.9
      */
-    fun <V : Data> findByRef(key: Metamodel.Key<E, V>, value: Ref<V>): E?
+    public fun <V : Data> findByRef(key: Metamodel.Key<E, V>, value: Ref<V>): E?
 
     /**
      * Retrieves an entity by the ref value of a unique key field that references another entity.
@@ -708,7 +708,7 @@ interface EntityRepository<E, ID : Any> : Repository where E : Entity<ID> {
      * @throws st.orm.NoResultException if no entity is found matching the given ref value.
      * @since 1.9
      */
-    fun <V : Data> getByRef(key: Metamodel.Key<E, V>, value: Ref<V>): E
+    public fun <V : Data> getByRef(key: Metamodel.Key<E, V>, value: Ref<V>): E
 
     // List based methods.
 
@@ -723,7 +723,7 @@ interface EntityRepository<E, ID : Any> : Repository where E : Entity<ID> {
      * @throws st.orm.PersistenceException if the selection operation fails due to underlying database issues, such as
      * connectivity.
      */
-    fun findAll(): List<E>
+    public fun findAll(): List<E>
 
     /**
      * Retrieves a list of entities based on their primary keys.
@@ -741,7 +741,7 @@ interface EntityRepository<E, ID : Any> : Repository where E : Entity<ID> {
      * @throws st.orm.PersistenceException if the selection operation fails due to database issues, such as connectivity
      * problems or invalid input parameters.
      */
-    fun findAllById(ids: Iterable<ID>): List<E>
+    public fun findAllById(ids: Iterable<ID>): List<E>
 
     /**
      * Retrieves a list of entities based on their primary keys.
@@ -762,7 +762,7 @@ interface EntityRepository<E, ID : Any> : Repository where E : Entity<ID> {
      * @throws st.orm.PersistenceException if the selection operation fails due to database issues, such as connectivity
      * problems or invalid input parameters.
      */
-    fun findAllByRef(refs: Iterable<Ref<E>>): List<E>
+    public fun findAllByRef(refs: Iterable<Ref<E>>): List<E>
 
     /**
      * Inserts a collection of entities into the database in batches.
@@ -777,7 +777,7 @@ interface EntityRepository<E, ID : Any> : Repository where E : Entity<ID> {
      * @throws st.orm.PersistenceException if the insertion operation fails due to database issues, such as connectivity
      * problems, constraints violations, or invalid entity data.
      */
-    fun insert(entities: Iterable<E>)
+    public fun insert(entities: Iterable<E>)
 
     /**
      * Inserts a collection of entities into the database in batches.
@@ -795,7 +795,7 @@ interface EntityRepository<E, ID : Any> : Repository where E : Entity<ID> {
      * @throws st.orm.PersistenceException if the insertion operation fails due to database issues, such as connectivity
      * problems, constraints violations, or invalid entity data.
      */
-    fun insert(entities: Iterable<E>, ignoreAutoGenerate: Boolean)
+    public fun insert(entities: Iterable<E>, ignoreAutoGenerate: Boolean)
 
     /**
      * Inserts a collection of entities into the database in batches.
@@ -816,7 +816,7 @@ interface EntityRepository<E, ID : Any> : Repository where E : Entity<ID> {
      * @throws st.orm.PersistenceException if the insertion operation fails due to database issues, such as connectivity
      * problems, constraints violations, or invalid entity data.
      */
-    fun insertAndFetchIds(entities: Iterable<E>): List<ID>
+    public fun insertAndFetchIds(entities: Iterable<E>): List<ID>
 
     /**
      * Inserts a collection of entities into the database in batches.
@@ -838,7 +838,7 @@ interface EntityRepository<E, ID : Any> : Repository where E : Entity<ID> {
      * @throws st.orm.PersistenceException if the insertion operation fails due to database issues, such as connectivity
      * problems, constraints violations, or invalid entity data.
      */
-    fun insertAndFetch(entities: Iterable<E>): List<E>
+    public fun insertAndFetch(entities: Iterable<E>): List<E>
 
     /**
      * Updates a collection of entities in the database in batches.
@@ -853,7 +853,7 @@ interface EntityRepository<E, ID : Any> : Repository where E : Entity<ID> {
      * @throws st.orm.PersistenceException if the update operation fails due to database issues, such as connectivity
      * problems, constraints violations, or invalid entity data.
      */
-    fun update(entities: Iterable<E>)
+    public fun update(entities: Iterable<E>)
 
     /**
      * Updates a collection of entities in the database in batches and returns a list of the updated entities.
@@ -871,7 +871,7 @@ interface EntityRepository<E, ID : Any> : Repository where E : Entity<ID> {
      * @throws st.orm.PersistenceException if the update operation fails due to database issues, such as connectivity problems,
      * constraints violations, or invalid entity data.
      */
-    fun updateAndFetch(entities: Iterable<E>): List<E>
+    public fun updateAndFetch(entities: Iterable<E>): List<E>
 
     /**
      * Inserts or updates a collection of entities in the database in batches.
@@ -887,7 +887,7 @@ interface EntityRepository<E, ID : Any> : Repository where E : Entity<ID> {
      * @throws st.orm.PersistenceException if the upsert operation fails due to database issues, such as connectivity problems,
      * constraints violations, or invalid entity data.
      */
-    fun upsert(entities: Iterable<E>)
+    public fun upsert(entities: Iterable<E>)
 
     /**
      * Inserts or updates a collection of entities in the database in batches and returns a list of their IDs.
@@ -906,7 +906,7 @@ interface EntityRepository<E, ID : Any> : Repository where E : Entity<ID> {
      * @throws st.orm.PersistenceException if the upsert operation fails due to database issues, such as connectivity problems,
      * constraints violations, or invalid entity data.
      */
-    fun upsertAndFetchIds(entities: Iterable<E>): List<ID>
+    public fun upsertAndFetchIds(entities: Iterable<E>): List<ID>
 
     /**
      * Inserts or updates a collection of entities in the database in batches and returns a list of the upserted
@@ -927,7 +927,7 @@ interface EntityRepository<E, ID : Any> : Repository where E : Entity<ID> {
      * @throws st.orm.PersistenceException if the upsert operation fails due to database issues, such as connectivity problems,
      * constraints violations, or invalid entity data.
      */
-    fun upsertAndFetch(entities: Iterable<E>): List<E>
+    public fun upsertAndFetch(entities: Iterable<E>): List<E>
 
     /**
      * Removes a collection of entities from the database in batches.
@@ -942,7 +942,7 @@ interface EntityRepository<E, ID : Any> : Repository where E : Entity<ID> {
      * @throws st.orm.PersistenceException if the removal operation fails due to database issues, such as connectivity problems
      * or constraints violations.
      */
-    fun remove(entities: Iterable<E>)
+    public fun remove(entities: Iterable<E>)
 
     /**
      * Removes a collection of entities from the database in batches.
@@ -957,7 +957,7 @@ interface EntityRepository<E, ID : Any> : Repository where E : Entity<ID> {
      * @throws st.orm.PersistenceException if the removal operation fails due to database issues, such as connectivity problems
      * or constraints violations.
      */
-    fun removeByRef(refs: Iterable<Ref<E>>)
+    public fun removeByRef(refs: Iterable<Ref<E>>)
 
     /**
      * Counts the number of entities identified by the provided flow of IDs using the default batch size.
@@ -970,7 +970,7 @@ interface EntityRepository<E, ID : Any> : Repository where E : Entity<ID> {
      * @return the total count of entities matching the provided IDs.
      * @throws st.orm.PersistenceException if there is an error during the counting operation, such as connectivity issues.
      */
-    suspend fun countById(ids: Flow<ID>): Long
+    public suspend fun countById(ids: Flow<ID>): Long
 
     /**
      * Counts the number of entities identified by the provided flow of IDs, with the counting process divided into
@@ -986,7 +986,7 @@ interface EntityRepository<E, ID : Any> : Repository where E : Entity<ID> {
      * @return the total count of entities matching the provided IDs.
      * @throws st.orm.PersistenceException if there is an error during the counting operation, such as connectivity issues.
      */
-    suspend fun countById(ids: Flow<ID>, chunkSize: Int): Long
+    public suspend fun countById(ids: Flow<ID>, chunkSize: Int): Long
 
     /**
      * Counts the number of entities identified by the provided flow of refs using the default batch size.
@@ -999,7 +999,7 @@ interface EntityRepository<E, ID : Any> : Repository where E : Entity<ID> {
      * @return the total count of entities matching the provided IDs.
      * @throws st.orm.PersistenceException if there is an error during the counting operation, such as connectivity issues.
      */
-    suspend fun countByRef(refs: Flow<Ref<E>>): Long
+    public suspend fun countByRef(refs: Flow<Ref<E>>): Long
 
     /**
      * Counts the number of entities identified by the provided flow of refs, with the counting process divided into
@@ -1015,7 +1015,7 @@ interface EntityRepository<E, ID : Any> : Repository where E : Entity<ID> {
      * @return the total count of entities matching the provided IDs.
      * @throws st.orm.PersistenceException if there is an error during the counting operation, such as connectivity issues.
      */
-    suspend fun countByRef(refs: Flow<Ref<E>>, chunkSize: Int): Long
+    public suspend fun countByRef(refs: Flow<Ref<E>>, chunkSize: Int): Long
 
     /**
      * Inserts entities in a batch mode to optimize performance and reduce database load.
@@ -1028,7 +1028,7 @@ interface EntityRepository<E, ID : Any> : Repository where E : Entity<ID> {
      * @throws st.orm.PersistenceException if the insert fails due to database constraints, connectivity issues, or if the
      * entities parameter is null.
      */
-    suspend fun insert(entities: Flow<E>)
+    public suspend fun insert(entities: Flow<E>)
 
     /**
      * Inserts entities in a batch mode to optimize performance and reduce database load.
@@ -1044,7 +1044,7 @@ interface EntityRepository<E, ID : Any> : Repository where E : Entity<ID> {
      * @throws st.orm.PersistenceException if the insert fails due to database constraints, connectivity issues, or if the
      * entities parameter is null.
      */
-    suspend fun insert(entities: Flow<E>, ignoreAutoGenerate: Boolean)
+    public suspend fun insert(entities: Flow<E>, ignoreAutoGenerate: Boolean)
 
     /**
      * Inserts a flow of entities into the database, with the insertion process divided into batches of the specified
@@ -1061,7 +1061,7 @@ interface EntityRepository<E, ID : Any> : Repository where E : Entity<ID> {
      * @throws st.orm.PersistenceException if there is an error during the insertion operation, such as a violation of database
      * constraints, connectivity issues, or if any entity in the flow is null.
      */
-    suspend fun insert(entities: Flow<E>, batchSize: Int)
+    public suspend fun insert(entities: Flow<E>, batchSize: Int)
 
     /**
      * Inserts a flow of entities into the database, with the insertion process divided into batches of the specified
@@ -1081,7 +1081,7 @@ interface EntityRepository<E, ID : Any> : Repository where E : Entity<ID> {
      * @throws st.orm.PersistenceException if there is an error during the insertion operation, such as a violation of database
      * constraints, connectivity issues, or if any entity in the flow is null.
      */
-    suspend fun insert(entities: Flow<E>, batchSize: Int, ignoreAutoGenerate: Boolean)
+    public suspend fun insert(entities: Flow<E>, batchSize: Int, ignoreAutoGenerate: Boolean)
 
     /**
      * Inserts a flow of entities into the database using the default batch size and returns a flow of their
@@ -1097,7 +1097,7 @@ interface EntityRepository<E, ID : Any> : Repository where E : Entity<ID> {
      * violation of database constraints, connectivity issues, or if any entity in the
      * flow is null.
      */
-    fun insertAndFetchIds(entities: Flow<E>): Flow<ID>
+    public fun insertAndFetchIds(entities: Flow<E>): Flow<ID>
 
     /**
      * Inserts a flow of entities into the database using the default batch size and returns a flow of the inserted entities.
@@ -1112,7 +1112,7 @@ interface EntityRepository<E, ID : Any> : Repository where E : Entity<ID> {
      * violation of database constraints, connectivity issues, or if any entity in the
      * flow is null.
      */
-    fun insertAndFetch(entities: Flow<E>): Flow<E>
+    public fun insertAndFetch(entities: Flow<E>): Flow<E>
 
     /**
      * Inserts a flow of entities into the database with the insertion process divided into batches of the specified size,
@@ -1130,7 +1130,7 @@ interface EntityRepository<E, ID : Any> : Repository where E : Entity<ID> {
      * violation of database constraints, connectivity issues, or if any entity in the
      * flow is null.
      */
-    fun insertAndFetchIds(entities: Flow<E>, batchSize: Int): Flow<ID>
+    public fun insertAndFetchIds(entities: Flow<E>, batchSize: Int): Flow<ID>
 
     /**
      * Inserts a flow of entities into the database with the insertion process divided into batches of the specified size,
@@ -1149,7 +1149,7 @@ interface EntityRepository<E, ID : Any> : Repository where E : Entity<ID> {
      * violation of database constraints, connectivity issues, or if any entity in the
      * flow is null.
      */
-    fun insertAndFetch(entities: Flow<E>, batchSize: Int): Flow<E>
+    public fun insertAndFetch(entities: Flow<E>, batchSize: Int): Flow<E>
 
     /**
      * Updates a flow of entities in the database using the default batch size.
@@ -1163,7 +1163,7 @@ interface EntityRepository<E, ID : Any> : Repository where E : Entity<ID> {
      * @throws st.orm.PersistenceException if there is an error during the update operation, such as a violation of database
      * constraints, connectivity issues, or if any entity in the flow is null.
      */
-    suspend fun update(entities: Flow<E>)
+    public suspend fun update(entities: Flow<E>)
 
     /**
      * Updates a flow of entities in the database, with the update process divided into batches of the specified size.
@@ -1179,7 +1179,7 @@ interface EntityRepository<E, ID : Any> : Repository where E : Entity<ID> {
      * @throws st.orm.PersistenceException if there is an error during the update operation, such as a violation of database
      * constraints, connectivity issues, or if any entity in the flow is null.
      */
-    suspend fun update(entities: Flow<E>, batchSize: Int)
+    public suspend fun update(entities: Flow<E>, batchSize: Int)
 
     /**
      * Updates a flow of entities in the database using the default batch size and returns a flow of the updated entities.
@@ -1195,7 +1195,7 @@ interface EntityRepository<E, ID : Any> : Repository where E : Entity<ID> {
      * of database constraints, connectivity issues, or if any entity in the flow is
      * null.
      */
-    fun updateAndFetch(entities: Flow<E>): Flow<E>
+    public fun updateAndFetch(entities: Flow<E>): Flow<E>
 
     /**
      * Updates a flow of entities in the database, with the update process divided into batches of the specified size,
@@ -1214,7 +1214,7 @@ interface EntityRepository<E, ID : Any> : Repository where E : Entity<ID> {
      * of database constraints, connectivity issues, or if any entity in the flow is
      * null.
      */
-    fun updateAndFetch(entities: Flow<E>, batchSize: Int): Flow<E>
+    public fun updateAndFetch(entities: Flow<E>, batchSize: Int): Flow<E>
 
     /**
      * Inserts or updates a flow of entities in the database in batches.
@@ -1229,7 +1229,7 @@ interface EntityRepository<E, ID : Any> : Repository where E : Entity<ID> {
      * @throws st.orm.PersistenceException if the upsert operation fails due to database issues, such as connectivity
      * problems, constraints violations, or invalid entity data.
      */
-    suspend fun upsert(entities: Flow<E>)
+    public suspend fun upsert(entities: Flow<E>)
 
     /**
      * Inserts or updates a flow of entities in the database in configurable batch sizes.
@@ -1247,7 +1247,7 @@ interface EntityRepository<E, ID : Any> : Repository where E : Entity<ID> {
      * @throws st.orm.PersistenceException if the upsert operation fails due to database issues, such as connectivity
      * problems, constraints violations, or invalid entity data.
      */
-    suspend fun upsert(entities: Flow<E>, batchSize: Int)
+    public suspend fun upsert(entities: Flow<E>, batchSize: Int)
 
     /**
      * Inserts or updates a flow of entities in the database in batches and retrieves their IDs through a callback.
@@ -1262,7 +1262,7 @@ interface EntityRepository<E, ID : Any> : Repository where E : Entity<ID> {
      * @throws st.orm.PersistenceException if the upsert operation fails due to database issues, such as connectivity problems,
      * constraints violations, or invalid entity data.
      */
-    fun upsertAndFetchIds(entities: Flow<E>): Flow<ID>
+    public fun upsertAndFetchIds(entities: Flow<E>): Flow<ID>
 
     /**
      * Inserts or updates a flow of entities in the database in batches and retrieves the updated entities through a callback.
@@ -1278,7 +1278,7 @@ interface EntityRepository<E, ID : Any> : Repository where E : Entity<ID> {
      * @throws st.orm.PersistenceException if the upsert operation fails due to database issues, such as connectivity problems,
      * constraints violations, or invalid entity data.
      */
-    fun upsertAndFetch(entities: Flow<E>): Flow<E>
+    public fun upsertAndFetch(entities: Flow<E>): Flow<E>
 
     /**
      * Inserts or updates a flow of entities in the database in configurable batch sizes and retrieves their IDs through a callback.
@@ -1296,7 +1296,7 @@ interface EntityRepository<E, ID : Any> : Repository where E : Entity<ID> {
      * @throws st.orm.PersistenceException if the upsert operation fails due to database issues, such as connectivity problems,
      * constraints violations, or invalid entity data.
      */
-    fun upsertAndFetchIds(entities: Flow<E>, batchSize: Int): Flow<ID>
+    public fun upsertAndFetchIds(entities: Flow<E>, batchSize: Int): Flow<ID>
 
     /**
      * Inserts or updates a flow of entities in the database in configurable batch sizes and retrieves the updated entities through a callback.
@@ -1316,7 +1316,7 @@ interface EntityRepository<E, ID : Any> : Repository where E : Entity<ID> {
      * @throws st.orm.PersistenceException if the upsert operation fails due to database issues, such as connectivity problems,
      * constraints violations, or invalid entity data.
      */
-    fun upsertAndFetch(entities: Flow<E>, batchSize: Int): Flow<E>
+    public fun upsertAndFetch(entities: Flow<E>, batchSize: Int): Flow<E>
 
     /**
      * Removes a flow of entities from the database in batches.
@@ -1324,7 +1324,7 @@ interface EntityRepository<E, ID : Any> : Repository where E : Entity<ID> {
      * @param entities a flow of entities to be removed.
      * @throws st.orm.PersistenceException if the removal operation fails.
      */
-    suspend fun remove(entities: Flow<E>)
+    public suspend fun remove(entities: Flow<E>)
 
     /**
      * Removes a flow of entities from the database in configurable batch sizes.
@@ -1333,7 +1333,7 @@ interface EntityRepository<E, ID : Any> : Repository where E : Entity<ID> {
      * @param batchSize the number of entities to process in each batch.
      * @throws st.orm.PersistenceException if the removal operation fails.
      */
-    suspend fun remove(entities: Flow<E>, batchSize: Int)
+    public suspend fun remove(entities: Flow<E>, batchSize: Int)
 
     /**
      * Removes a flow of entities from the database in batches.
@@ -1341,7 +1341,7 @@ interface EntityRepository<E, ID : Any> : Repository where E : Entity<ID> {
      * @param refs a flow of entities to be removed.
      * @throws st.orm.PersistenceException if the removal operation fails.
      */
-    suspend fun removeByRef(refs: Flow<Ref<E>>)
+    public suspend fun removeByRef(refs: Flow<Ref<E>>)
 
     /**
      * Removes a flow of entities from the database in configurable batch sizes.
@@ -1350,7 +1350,7 @@ interface EntityRepository<E, ID : Any> : Repository where E : Entity<ID> {
      * @param batchSize the number of entities to process in each batch.
      * @throws st.orm.PersistenceException if the removal operation fails.
      */
-    suspend fun removeByRef(refs: Flow<Ref<E>>, batchSize: Int)
+    public suspend fun removeByRef(refs: Flow<Ref<E>>, batchSize: Int)
 
     // Kotlin specific DSL
 
@@ -1359,7 +1359,7 @@ interface EntityRepository<E, ID : Any> : Repository where E : Entity<ID> {
      *
      * @return a list containing refs to all entities.
      */
-    fun findAllRef(): List<Ref<E>> = selectRef().resultList
+    public fun findAllRef(): List<Ref<E>> = selectRef().resultList
 
     /**
      * Retrieves an optional entity of type [E] based on a single field and its value.
@@ -1369,7 +1369,7 @@ interface EntityRepository<E, ID : Any> : Repository where E : Entity<ID> {
      * @param value the value to match against.
      * @return an optional entity, or null if none found.
      */
-    fun <V> findBy(field: Metamodel<E, V>, value: V): E? = select().where(field eq value).optionalResult
+    public fun <V> findBy(field: Metamodel<E, V>, value: V): E? = select().where(field eq value).optionalResult
 
     /**
      * Retrieves an optional entity of type [E] based on a single field and its value.
@@ -1379,7 +1379,7 @@ interface EntityRepository<E, ID : Any> : Repository where E : Entity<ID> {
      * @param value the value to match against.
      * @return an optional entity, or null if none found.
      */
-    fun <V : Data> findBy(field: Metamodel<E, V>, value: Ref<V>): E? = select().where(field, value).optionalResult
+    public fun <V : Data> findBy(field: Metamodel<E, V>, value: Ref<V>): E? = select().where(field, value).optionalResult
 
     /**
      * Retrieves entities of type [E] matching a single field and a single value.
@@ -1389,7 +1389,7 @@ interface EntityRepository<E, ID : Any> : Repository where E : Entity<ID> {
      * @param value the value to match against.
      * @return list of matching entities.
      */
-    fun <V> findAllBy(field: Metamodel<E, V>, value: V): List<E> = select().where(field eq value).resultList
+    public fun <V> findAllBy(field: Metamodel<E, V>, value: V): List<E> = select().where(field eq value).resultList
 
     /**
      * Retrieves entities of type [E] matching a single field and a single value.
@@ -1399,7 +1399,7 @@ interface EntityRepository<E, ID : Any> : Repository where E : Entity<ID> {
      * @param value the value to match against.
      * @return a list of matching entities.
      */
-    fun <V : Data> findAllBy(field: Metamodel<E, V>, value: Ref<V>): List<E> = select().where(field, value).resultList
+    public fun <V : Data> findAllBy(field: Metamodel<E, V>, value: Ref<V>): List<E> = select().where(field, value).resultList
 
     /**
      * Retrieves entities of type [E] matching a single field against multiple values.
@@ -1409,7 +1409,7 @@ interface EntityRepository<E, ID : Any> : Repository where E : Entity<ID> {
      * @param values Iterable of values to match against.
      * @return list of matching entities.
      */
-    fun <V> findAllBy(field: Metamodel<E, V>, values: Iterable<V>): List<E> = select().where(field inList values).resultList
+    public fun <V> findAllBy(field: Metamodel<E, V>, values: Iterable<V>): List<E> = select().where(field inList values).resultList
 
     /**
      * Retrieves entities of type [E] matching a single field against multiple values.
@@ -1419,7 +1419,7 @@ interface EntityRepository<E, ID : Any> : Repository where E : Entity<ID> {
      * @param values Iterable of values to match against.
      * @return a list of matching entities.
      */
-    fun <V : Data> findAllByRef(field: Metamodel<E, V>, values: Iterable<Ref<V>>): List<E> = select().whereRef(field, values).resultList
+    public fun <V : Data> findAllByRef(field: Metamodel<E, V>, values: Iterable<Ref<V>>): List<E> = select().whereRef(field, values).resultList
 
     /**
      * Retrieves exactly one entity of type [E] based on a single field and its value.
@@ -1431,7 +1431,7 @@ interface EntityRepository<E, ID : Any> : Repository where E : Entity<ID> {
      * @throws st.orm.NoResultException if there is no result.
      * @throws st.orm.NonUniqueResultException if more than one result.
      */
-    fun <V> getBy(field: Metamodel<E, V>, value: V): E = select().where(field eq value).singleResult
+    public fun <V> getBy(field: Metamodel<E, V>, value: V): E = select().where(field eq value).singleResult
 
     /**
      * Retrieves exactly one entity of type [E] based on a single field and its value.
@@ -1443,7 +1443,7 @@ interface EntityRepository<E, ID : Any> : Repository where E : Entity<ID> {
      * @throws st.orm.NoResultException if there is no result.
      * @throws st.orm.NonUniqueResultException if more than one result.
      */
-    fun <V : Data> getBy(field: Metamodel<E, V>, value: Ref<V>): E = select().where(field, value).singleResult
+    public fun <V : Data> getBy(field: Metamodel<E, V>, value: Ref<V>): E = select().where(field, value).singleResult
 
     /**
      * Retrieves an optional entity of type [E] based on a single field and its value.
@@ -1453,7 +1453,7 @@ interface EntityRepository<E, ID : Any> : Repository where E : Entity<ID> {
      * @param value the value to match against.
      * @return an optional entity, or null if none found.
      */
-    fun <T, ID, V> findRefBy(field: Metamodel<E, V>, value: V): Ref<E>? = selectRef().where(field eq value).optionalResult
+    public fun <T, ID, V> findRefBy(field: Metamodel<E, V>, value: V): Ref<E>? = selectRef().where(field eq value).optionalResult
 
     /**
      * Retrieves an optional entity of type [E] based on a single field and its value.
@@ -1463,7 +1463,7 @@ interface EntityRepository<E, ID : Any> : Repository where E : Entity<ID> {
      * @param value the value to match against.
      * @return an optional entity, or null if none found.
      */
-    fun <V : Data> findRefBy(field: Metamodel<E, V>, value: Ref<V>): Ref<E>? = selectRef().where(field, value).optionalResult
+    public fun <V : Data> findRefBy(field: Metamodel<E, V>, value: Ref<V>): Ref<E>? = selectRef().where(field, value).optionalResult
 
     /**
      * Retrieves entities of type [E] matching a single field and a single value.
@@ -1473,7 +1473,7 @@ interface EntityRepository<E, ID : Any> : Repository where E : Entity<ID> {
      * @param value the value to match against.
      * @return a list of matching entities.
      */
-    fun <V> findAllRefBy(field: Metamodel<E, V>, value: V): List<Ref<E>> = selectRef().where(field eq value).resultList
+    public fun <V> findAllRefBy(field: Metamodel<E, V>, value: V): List<Ref<E>> = selectRef().where(field eq value).resultList
 
     /**
      * Retrieves entities of type [E] matching a single field and a single value.
@@ -1483,7 +1483,7 @@ interface EntityRepository<E, ID : Any> : Repository where E : Entity<ID> {
      * @param value the value to match against.
      * @return a list of matching entities.
      */
-    fun <V : Data> findAllRefBy(field: Metamodel<E, V>, value: Ref<V>): List<Ref<E>> = selectRef().where(field, value).resultList
+    public fun <V : Data> findAllRefBy(field: Metamodel<E, V>, value: Ref<V>): List<Ref<E>> = selectRef().where(field, value).resultList
 
     /**
      * Retrieves entities of type [E] matching a single field against multiple values.
@@ -1493,7 +1493,7 @@ interface EntityRepository<E, ID : Any> : Repository where E : Entity<ID> {
      * @param values Iterable of values to match against.
      * @return a list of matching entities.
      */
-    fun <V : Data> findAllRefBy(field: Metamodel<E, V>, values: Iterable<V>): List<Ref<E>> = selectRef().where(field inList values).resultList
+    public fun <V : Data> findAllRefBy(field: Metamodel<E, V>, values: Iterable<V>): List<Ref<E>> = selectRef().where(field inList values).resultList
 
     /**
      * Retrieves entities of type [E] matching a single field against multiple values.
@@ -1503,7 +1503,7 @@ interface EntityRepository<E, ID : Any> : Repository where E : Entity<ID> {
      * @param values Iterable of values to match against.
      * @return a list of matching entities.
      */
-    fun <V : Data> findAllRefByRef(field: Metamodel<E, V>, values: Iterable<Ref<V>>): List<Ref<E>> = selectRef().whereRef(field, values).resultList
+    public fun <V : Data> findAllRefByRef(field: Metamodel<E, V>, values: Iterable<Ref<V>>): List<Ref<E>> = selectRef().whereRef(field, values).resultList
 
     /**
      * Retrieves exactly one entity of type [E] based on a single field and its value.
@@ -1515,7 +1515,7 @@ interface EntityRepository<E, ID : Any> : Repository where E : Entity<ID> {
      * @throws st.orm.NoResultException if there is no result.
      * @throws st.orm.NonUniqueResultException if more than one result.
      */
-    fun <V> getRefBy(field: Metamodel<E, V>, value: V): Ref<E> = selectRef().where(field eq value).singleResult
+    public fun <V> getRefBy(field: Metamodel<E, V>, value: V): Ref<E> = selectRef().where(field eq value).singleResult
 
     /**
      * Retrieves exactly one entity of type [E] based on a single field and its value.
@@ -1527,21 +1527,21 @@ interface EntityRepository<E, ID : Any> : Repository where E : Entity<ID> {
      * @throws st.orm.NoResultException if there is no result.
      * @throws st.orm.NonUniqueResultException if more than one result.
      */
-    fun <V : Data> getRefBy(field: Metamodel<E, V>, value: Ref<V>): Ref<E> = selectRef().where(field, value).singleResult
+    public fun <V : Data> getRefBy(field: Metamodel<E, V>, value: Ref<V>): Ref<E> = selectRef().where(field, value).singleResult
 
     /**
      * Retrieves entities of type [E] matching the specified predicate.
      *
      * @return a list of matching entities.
      */
-    fun findAll(predicate: PredicateBuilder<E, *, *>): List<E> = select().where(predicate).resultList
+    public fun findAll(predicate: PredicateBuilder<E, *, *>): List<E> = select().where(predicate).resultList
 
     /**
      * Retrieves entities of type [E] matching the specified predicate.
      *
      * @return a list of matching entities.
      */
-    fun findAllRef(predicate: PredicateBuilder<E, *, *>): List<Ref<E>> = selectRef().where(predicate).resultList
+    public fun findAllRef(predicate: PredicateBuilder<E, *, *>): List<Ref<E>> = selectRef().where(predicate).resultList
 
     /**
      * Retrieves an optional entity of type [E] matching the specified predicate.
@@ -1549,7 +1549,7 @@ interface EntityRepository<E, ID : Any> : Repository where E : Entity<ID> {
      *
      * @return an optional entity, or null if none found.
      */
-    fun find(
+    public fun find(
         predicate: PredicateBuilder<E, *, *>,
     ): E? = select().where(predicate).optionalResult
 
@@ -1559,7 +1559,7 @@ interface EntityRepository<E, ID : Any> : Repository where E : Entity<ID> {
      *
      * @return an optional entity, or null if none found.
      */
-    fun findRef(
+    public fun findRef(
         predicate: PredicateBuilder<E, *, *>,
     ): Ref<E>? = selectRef().where(predicate).optionalResult
 
@@ -1571,7 +1571,7 @@ interface EntityRepository<E, ID : Any> : Repository where E : Entity<ID> {
      * @throws st.orm.NoResultException if there is no result.
      * @throws st.orm.NonUniqueResultException if more than one result.
      */
-    fun get(
+    public fun get(
         predicate: PredicateBuilder<E, *, *>,
     ): E = select().where(predicate).singleResult
 
@@ -1583,7 +1583,7 @@ interface EntityRepository<E, ID : Any> : Repository where E : Entity<ID> {
      * @throws st.orm.NoResultException if there is no result.
      * @throws st.orm.NonUniqueResultException if more than one result.
      */
-    fun getRef(
+    public fun getRef(
         predicate: PredicateBuilder<E, *, *>,
     ): Ref<E> = selectRef().where(predicate).singleResult
 
@@ -1594,7 +1594,7 @@ interface EntityRepository<E, ID : Any> : Repository where E : Entity<ID> {
      * @param value the value to match against.
      * @return the count of matching entities.
      */
-    fun <V> countBy(
+    public fun <V> countBy(
         field: Metamodel<E, V>,
         value: V,
     ): Long = selectCount().where(field eq value).singleResult
@@ -1606,7 +1606,7 @@ interface EntityRepository<E, ID : Any> : Repository where E : Entity<ID> {
      * @param value the referenced value to match against.
      * @return the count of matching entities.
      */
-    fun <V : Data> countBy(
+    public fun <V : Data> countBy(
         field: Metamodel<E, V>,
         value: Ref<V>,
     ): Long = selectCount().where(field, value).singleResult
@@ -1617,7 +1617,7 @@ interface EntityRepository<E, ID : Any> : Repository where E : Entity<ID> {
      * @param predicate Lambda to build the WHERE clause.
      * @return the count of matching entities.
      */
-    fun count(
+    public fun count(
         predicate: PredicateBuilder<E, *, *>,
     ): Long = selectCount().where(predicate).singleResult
 
@@ -1628,7 +1628,7 @@ interface EntityRepository<E, ID : Any> : Repository where E : Entity<ID> {
      * @param value the value to match against.
      * @return true if any matching entities exist, false otherwise.
      */
-    fun <V> existsBy(
+    public fun <V> existsBy(
         field: Metamodel<E, V>,
         value: V,
     ): Boolean = selectCount().where(field eq value).singleResult > 0
@@ -1640,7 +1640,7 @@ interface EntityRepository<E, ID : Any> : Repository where E : Entity<ID> {
      * @param value the referenced value to match against.
      * @return true if any matching entities exist, false otherwise.
      */
-    fun <V : Data> existsBy(
+    public fun <V : Data> existsBy(
         field: Metamodel<E, V>,
         value: Ref<V>,
     ): Boolean = selectCount().where(field, value).singleResult > 0
@@ -1651,7 +1651,7 @@ interface EntityRepository<E, ID : Any> : Repository where E : Entity<ID> {
      * @param predicate Lambda to build the WHERE clause.
      * @return true if any matching entities exist, false otherwise.
      */
-    fun exists(
+    public fun exists(
         predicate: PredicateBuilder<E, *, *>,
     ): Boolean = selectCount().where(predicate).singleResult > 0
 
@@ -1661,7 +1661,7 @@ interface EntityRepository<E, ID : Any> : Repository where E : Entity<ID> {
      * @param predicate Lambda to build the WHERE clause.
      * @return the number of entities removed.
      */
-    fun removeAll(
+    public fun removeAll(
         predicate: PredicateBuilder<E, *, *>,
     ): Int = delete().where(predicate).executeUpdate()
 
@@ -1672,7 +1672,7 @@ interface EntityRepository<E, ID : Any> : Repository where E : Entity<ID> {
      * @param value the value to match against.
      * @return the number of entities removed.
      */
-    fun <V> removeAllBy(
+    public fun <V> removeAllBy(
         field: Metamodel<E, V>,
         value: V,
     ): Int = delete().where(field eq value).executeUpdate()
@@ -1684,7 +1684,7 @@ interface EntityRepository<E, ID : Any> : Repository where E : Entity<ID> {
      * @param value the referenced value to match against.
      * @return the number of entities removed.
      */
-    fun <V : Data> removeAllBy(
+    public fun <V : Data> removeAllBy(
         field: Metamodel<E, V>,
         value: Ref<V>,
     ): Int = delete().where(field, value).executeUpdate()
@@ -1696,7 +1696,7 @@ interface EntityRepository<E, ID : Any> : Repository where E : Entity<ID> {
      * @param values Iterable of values to match against.
      * @return the number of entities removed.
      */
-    fun <V> removeAllBy(
+    public fun <V> removeAllBy(
         field: Metamodel<E, V>,
         values: Iterable<V>,
     ): Int = delete().where(field inList values).executeUpdate()
@@ -1708,7 +1708,7 @@ interface EntityRepository<E, ID : Any> : Repository where E : Entity<ID> {
      * @param values Iterable of referenced values to match against.
      * @return the number of entities removed.
      */
-    fun <V : Data> removeAllByRef(
+    public fun <V : Data> removeAllByRef(
         field: Metamodel<E, V>,
         values: Iterable<Ref<V>>,
     ): Int = delete().whereRef(field, values).executeUpdate()
@@ -1726,7 +1726,7 @@ interface EntityRepository<E, ID : Any> : Repository where E : Entity<ID> {
      * @return a page containing the results and pagination metadata.
      * @since 1.10
      */
-    fun page(pageNumber: Int, pageSize: Int): Page<E>
+    public fun page(pageNumber: Int, pageSize: Int): Page<E>
 
     /**
      * Returns a page of entities using offset-based pagination.
@@ -1741,7 +1741,7 @@ interface EntityRepository<E, ID : Any> : Repository where E : Entity<ID> {
      * @return a page containing the results and pagination metadata.
      * @since 1.10
      */
-    fun page(pageable: Pageable): Page<E>
+    public fun page(pageable: Pageable): Page<E>
 
     /**
      * Returns a page of entity refs using offset-based pagination.
@@ -1753,7 +1753,7 @@ interface EntityRepository<E, ID : Any> : Repository where E : Entity<ID> {
      * @return a page containing the ref results and pagination metadata.
      * @since 1.10
      */
-    fun pageRef(pageNumber: Int, pageSize: Int): Page<Ref<E>>
+    public fun pageRef(pageNumber: Int, pageSize: Int): Page<Ref<E>>
 
     /**
      * Returns a page of entity refs using offset-based pagination.
@@ -1765,7 +1765,7 @@ interface EntityRepository<E, ID : Any> : Repository where E : Entity<ID> {
      * @return a page containing the ref results and pagination metadata.
      * @since 1.10
      */
-    fun pageRef(pageable: Pageable): Page<Ref<E>>
+    public fun pageRef(pageable: Pageable): Page<Ref<E>>
 
     /**
      * Executes a scroll request from a [Scrollable] token, typically obtained from
@@ -1775,7 +1775,7 @@ interface EntityRepository<E, ID : Any> : Repository where E : Entity<ID> {
      * @return a window containing the entity results for the requested scroll position.
      * @since 1.11
      */
-    fun scroll(scrollable: Scrollable<E>): Window<E> = select().scroll(scrollable)
+    public fun scroll(scrollable: Scrollable<E>): Window<E> = select().scroll(scrollable)
 }
 
 /**
@@ -1793,6 +1793,6 @@ interface EntityRepository<E, ID : Any> : Repository where E : Entity<ID> {
  * @return a query builder producing results of type [R].
  * @since 1.12
  */
-inline fun <reified R : Any, E : Entity<ID>, ID : Any> EntityRepository<E, ID>.select(
+public inline fun <reified R : Any, E : Entity<ID>, ID : Any> EntityRepository<E, ID>.select(
     noinline template: TemplateBuilder,
 ): QueryBuilder<E, R, ID> = select(R::class, template)

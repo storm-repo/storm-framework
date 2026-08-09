@@ -21,7 +21,7 @@ import st.orm.Ref
 import st.orm.template.*
 import kotlin.reflect.KClass
 
-open class QueryTemplateImpl(private val core: st.orm.core.template.QueryTemplate) : QueryTemplate {
+internal open class QueryTemplateImpl(private val core: st.orm.core.template.QueryTemplate) : QueryTemplate {
 
     override fun createBindVars(): BindVars = core.createBindVars()
 

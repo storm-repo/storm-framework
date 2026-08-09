@@ -46,7 +46,7 @@ import st.orm.Data
  * @see WhereBuilder
  * @see QueryBuilder
  */
-interface PredicateBuilder<T : Data, R, ID> {
+public interface PredicateBuilder<T : Data, R, ID> {
     /**
      * Adds a predicate to the WHERE clause using an AND condition.
      *
@@ -56,7 +56,7 @@ interface PredicateBuilder<T : Data, R, ID> {
      * @param predicate the predicate to add.
      * @return the predicate builder.
      */
-    infix fun and(predicate: PredicateBuilder<T, *, *>): PredicateBuilder<T, R, ID>
+    public infix fun and(predicate: PredicateBuilder<T, *, *>): PredicateBuilder<T, R, ID>
 
     /**
      * Adds a predicate to the WHERE clause using an AND condition.
@@ -68,7 +68,7 @@ interface PredicateBuilder<T : Data, R, ID> {
      * @param predicate the predicate to add.
      * @return the predicate builder.
      */
-    infix fun <TX : Data, RX, IDX> andAny(predicate: PredicateBuilder<TX, RX, IDX>): PredicateBuilder<TX, RX, IDX>
+    public infix fun <TX : Data, RX, IDX> andAny(predicate: PredicateBuilder<TX, RX, IDX>): PredicateBuilder<TX, RX, IDX>
 
     /**
      * Adds a predicate to the WHERE clause using an AND condition.
@@ -79,7 +79,7 @@ interface PredicateBuilder<T : Data, R, ID> {
      * @param template the predicate builder to add.
      * @return the predicate builder.
      */
-    infix fun and(template: TemplateBuilder): PredicateBuilder<T, R, ID> = and(template.build())
+    public infix fun and(template: TemplateBuilder): PredicateBuilder<T, R, ID> = and(template.build())
 
     /**
      * Adds a predicate to the WHERE clause using an AND condition.
@@ -90,7 +90,7 @@ interface PredicateBuilder<T : Data, R, ID> {
      * @param template the predicate template to add.
      * @return the predicate builder.
      */
-    infix fun and(template: TemplateString): PredicateBuilder<T, R, ID>
+    public infix fun and(template: TemplateString): PredicateBuilder<T, R, ID>
 
     /**
      * Adds a predicate to the WHERE clause using an OR condition.
@@ -102,7 +102,7 @@ interface PredicateBuilder<T : Data, R, ID> {
      * @param predicate the predicate to add.
      * @return the predicate builder.
      */
-    infix fun or(predicate: PredicateBuilder<T, *, *>): PredicateBuilder<T, R, ID>
+    public infix fun or(predicate: PredicateBuilder<T, *, *>): PredicateBuilder<T, R, ID>
 
     /**
      * Adds a predicate to the WHERE clause using an OR condition.
@@ -114,7 +114,7 @@ interface PredicateBuilder<T : Data, R, ID> {
      * @param predicate the predicate to add.
      * @return the predicate builder.
      */
-    infix fun <TX : Data, RX, IDX> orAny(predicate: PredicateBuilder<TX, RX, IDX>): PredicateBuilder<TX, RX, IDX>
+    public infix fun <TX : Data, RX, IDX> orAny(predicate: PredicateBuilder<TX, RX, IDX>): PredicateBuilder<TX, RX, IDX>
 
     /**
      * Adds a predicate to the WHERE clause using an OR condition.
@@ -125,7 +125,7 @@ interface PredicateBuilder<T : Data, R, ID> {
      * @param template the predicate builder to add.
      * @return the predicate builder.
      */
-    infix fun or(template: TemplateBuilder): PredicateBuilder<T, R, ID> = or(template.build())
+    public infix fun or(template: TemplateBuilder): PredicateBuilder<T, R, ID> = or(template.build())
 
     /**
      * Adds a predicate to the WHERE clause using an OR condition.
@@ -136,5 +136,5 @@ interface PredicateBuilder<T : Data, R, ID> {
      * @param template the predicate template to add.
      * @return the predicate builder.
      */
-    infix fun or(template: TemplateString): PredicateBuilder<T, R, ID>
+    public infix fun or(template: TemplateString): PredicateBuilder<T, R, ID>
 }

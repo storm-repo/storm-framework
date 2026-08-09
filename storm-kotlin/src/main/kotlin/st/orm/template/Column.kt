@@ -32,89 +32,89 @@ import kotlin.reflect.KClass
  *
  * @see Model
  */
-interface Column {
+public interface Column {
     /**
      * Gets the 1-based index of the column.
      *
      * @return the column index.
      */
-    val index: Int
+    public val index: Int
 
     /**
      * Gets the name of the column.
      *
      * @return the column name.
      */
-    val name: String
+    public val name: String
 
     /**
      * Gets the type of the column.
      *
      * @return the type of the column.
      */
-    val type: KClass<*>
+    public val type: KClass<*>
 
     /**
      * Determines if the column is a primary key.
      *
      * @return true if it is a primary key, false otherwise.
      */
-    val primaryKey: Boolean
+    public val primaryKey: Boolean
 
     /**
      * Gets the generation strategy for the primary key.
      *
      * @return the generation strategy for the primary key.
      */
-    val generation: GenerationStrategy
+    public val generation: GenerationStrategy
 
     /**
      * Gets the name of the sequence to use for generating values for the primary key, or null if the column is not a
      * primary key or does not require a sequence.
      */
-    val sequence: String?
+    public val sequence: String?
 
     /**
      * Determines if the column is a foreign key.
      *
      * @return true if it is a foreign key, false otherwise.
      */
-    val foreignKey: Boolean
+    public val foreignKey: Boolean
 
     /**
      * Determines if the column is nullable.
      *
      * @return true if the column can be null, false otherwise.
      */
-    val nullable: Boolean
+    public val nullable: Boolean
 
     /**
      * Determines if the column is insertable.
      *
      * @return true if the column can be inserted, false otherwise.
      */
-    val insertable: Boolean
+    public val insertable: Boolean
 
     /**
      * Determines if the column is updatable.
      *
      * @return true if the column can be updated, false otherwise.
      */
-    val updatable: Boolean
+    public val updatable: Boolean
 
     /**
      * Determines if the column is used for versioning.
      *
      * @return true if it is a version column, false otherwise.
      */
-    val version: Boolean
+    public val version: Boolean
 
     /**
      * Determines if the column is a ref column.
      *
      * @return if the column is a ref column, false otherwise.
      */
-    val ref: Boolean
+    public val ref: Boolean
 
     /**
      * Gets the metamodel of the column.
@@ -122,5 +122,5 @@ interface Column {
      * @return the metamodel of the column.
      * @since 1.7
      */
-    val metamodel: Metamodel<Data, *>
+    public val metamodel: Metamodel<Data, *>
 }

@@ -53,7 +53,7 @@ import kotlin.reflect.KClass
  * @see st.orm.repository.EntityRepository
  * @see st.orm.repository.ProjectionRepository
  */
-interface ORMTemplate :
+public interface ORMTemplate :
     QueryTemplate,
     RepositoryLookup {
 
@@ -69,7 +69,7 @@ interface ORMTemplate :
      * @return a new [ORMTemplate] with the callback added.
      * @since 1.9
      */
-    fun withEntityCallback(callback: EntityCallback<*>): ORMTemplate
+    public fun withEntityCallback(callback: EntityCallback<*>): ORMTemplate
 
     /**
      * Returns a new [ORMTemplate] with the specified entity callbacks added.
@@ -82,7 +82,7 @@ interface ORMTemplate :
      * @return a new [ORMTemplate] with the callbacks added.
      * @since 1.9
      */
-    fun withEntityCallbacks(callbacks: List<EntityCallback<*>>): ORMTemplate
+    public fun withEntityCallbacks(callbacks: List<EntityCallback<*>>): ORMTemplate
 
     /**
      * Validates all discovered entity and projection types against the database schema.
@@ -97,7 +97,7 @@ interface ORMTemplate :
      * @throws st.orm.PersistenceException if the template does not support schema validation.
      * @since 1.9
      */
-    fun validateSchema(): List<String>
+    public fun validateSchema(): List<String>
 
     /**
      * Validates discovered types matching the filter against the database schema.
@@ -117,7 +117,7 @@ interface ORMTemplate :
      * @throws st.orm.PersistenceException if the template does not support schema validation.
      * @since 1.11
      */
-    fun validateSchema(filter: (KClass<out Data>) -> Boolean): List<String>
+    public fun validateSchema(filter: (KClass<out Data>) -> Boolean): List<String>
 
     /**
      * Validates the specified types against the database schema.
@@ -133,7 +133,7 @@ interface ORMTemplate :
      * @throws st.orm.PersistenceException if the template does not support schema validation.
      * @since 1.9
      */
-    fun validateSchema(vararg types: KClass<out Data>): List<String>
+    public fun validateSchema(vararg types: KClass<out Data>): List<String>
 
     /**
      * Validates all discovered types and throws if any errors are found.
@@ -144,7 +144,7 @@ interface ORMTemplate :
      * @throws st.orm.PersistenceException if validation fails or the template does not support schema validation.
      * @since 1.9
      */
-    fun validateSchemaOrThrow()
+    public fun validateSchemaOrThrow()
 
     /**
      * Validates discovered types matching the filter and throws if any errors are found.
@@ -160,7 +160,7 @@ interface ORMTemplate :
      * @throws st.orm.PersistenceException if validation fails or the template does not support schema validation.
      * @since 1.11
      */
-    fun validateSchemaOrThrow(filter: (KClass<out Data>) -> Boolean)
+    public fun validateSchemaOrThrow(filter: (KClass<out Data>) -> Boolean)
 
     /**
      * Validates the specified types and throws if any errors are found.
@@ -172,9 +172,9 @@ interface ORMTemplate :
      * @throws st.orm.PersistenceException if validation fails or the template does not support schema validation.
      * @since 1.9
      */
-    fun validateSchemaOrThrow(vararg types: KClass<out Data>)
+    public fun validateSchemaOrThrow(vararg types: KClass<out Data>)
 
-    companion object {
+    public companion object {
         /**
          * Returns an [ORMTemplate] for use with JDBC.
          *
@@ -195,7 +195,7 @@ interface ORMTemplate :
          * @param dataSource the [DataSource] to use for database operations; must not be `null`.
          * @return an [ORMTemplate] configured for use with JDBC.
          */
-        fun of(dataSource: DataSource): ORMTemplate = ORMTemplateImpl(st.orm.core.template.ORMTemplate.of(dataSource))
+        public fun of(dataSource: DataSource): ORMTemplate = ORMTemplateImpl(st.orm.core.template.ORMTemplate.of(dataSource))
 
         /**
          * Returns an [ORMTemplate] for use with JDBC.
@@ -220,7 +220,7 @@ interface ORMTemplate :
          * @param connection the [Connection] to use for database operations; must not be `null`.
          * @return an [ORMTemplate] configured for use with JDBC.
          */
-        fun of(connection: Connection): ORMTemplate = ORMTemplateImpl(st.orm.core.template.ORMTemplate.of(connection))
+        public fun of(connection: Connection): ORMTemplate = ORMTemplateImpl(st.orm.core.template.ORMTemplate.of(connection))
 
         /**
          * Returns an [ORMTemplate] for use with JDBC, with a custom template decorator.
@@ -232,7 +232,7 @@ interface ORMTemplate :
          * @param decorator a function that transforms the [TemplateDecorator] to customize template processing.
          * @return an [ORMTemplate] configured for use with JDBC.
          */
-        fun of(
+        public fun of(
             dataSource: DataSource,
             decorator: (TemplateDecorator) -> TemplateDecorator,
         ): ORMTemplate = ORMTemplateImpl(st.orm.core.template.ORMTemplate.of(dataSource, decorator))
@@ -249,7 +249,7 @@ interface ORMTemplate :
          * @param decorator a function that transforms the [TemplateDecorator] to customize template processing.
          * @return an [ORMTemplate] configured for use with JDBC.
          */
-        fun of(
+        public fun of(
             connection: Connection,
             decorator: (TemplateDecorator) -> TemplateDecorator,
         ): ORMTemplate = ORMTemplateImpl(st.orm.core.template.ORMTemplate.of(connection, decorator))
@@ -261,7 +261,7 @@ interface ORMTemplate :
          * @param config the Storm configuration to apply.
          * @return an [ORMTemplate] configured for use with JDBC.
          */
-        fun of(dataSource: DataSource, config: StormConfig): ORMTemplate = ORMTemplateImpl(st.orm.core.template.ORMTemplate.of(dataSource, config))
+        public fun of(dataSource: DataSource, config: StormConfig): ORMTemplate = ORMTemplateImpl(st.orm.core.template.ORMTemplate.of(dataSource, config))
 
         /**
          * Returns an [ORMTemplate] for use with JDBC, configured with the provided [StormConfig] and a custom
@@ -272,7 +272,7 @@ interface ORMTemplate :
          * @param decorator a function that transforms the [TemplateDecorator] to customize template processing.
          * @return an [ORMTemplate] configured for use with JDBC.
          */
-        fun of(
+        public fun of(
             dataSource: DataSource,
             config: StormConfig,
             decorator: (TemplateDecorator) -> TemplateDecorator,
@@ -287,7 +287,7 @@ interface ORMTemplate :
          * @param config the Storm configuration to apply.
          * @return an [ORMTemplate] configured for use with JDBC.
          */
-        fun of(connection: Connection, config: StormConfig): ORMTemplate = ORMTemplateImpl(st.orm.core.template.ORMTemplate.of(connection, config))
+        public fun of(connection: Connection, config: StormConfig): ORMTemplate = ORMTemplateImpl(st.orm.core.template.ORMTemplate.of(connection, config))
 
         /**
          * Returns an [ORMTemplate] for use with JDBC, configured with the provided [StormConfig] and a custom
@@ -300,7 +300,7 @@ interface ORMTemplate :
          * @param decorator a function that transforms the [TemplateDecorator] to customize template processing.
          * @return an [ORMTemplate] configured for use with JDBC.
          */
-        fun of(
+        public fun of(
             connection: Connection,
             config: StormConfig,
             decorator: (TemplateDecorator) -> TemplateDecorator,
@@ -317,7 +317,7 @@ interface ORMTemplate :
          * @return a builder for constructing the ORM template.
          * @since 1.13
          */
-        fun builder(dataSource: DataSource): Builder = Builder(st.orm.core.template.ORMTemplate.builder(dataSource))
+        public fun builder(dataSource: DataSource): Builder = Builder(st.orm.core.template.ORMTemplate.builder(dataSource))
 
         /**
          * Returns a builder for constructing an [ORMTemplate] backed by a single connection, with instance-scoped
@@ -329,7 +329,7 @@ interface ORMTemplate :
          * @return a builder for constructing the ORM template.
          * @since 1.13
          */
-        fun builder(connection: Connection): Builder = Builder(st.orm.core.template.ORMTemplate.builder(connection))
+        public fun builder(connection: Connection): Builder = Builder(st.orm.core.template.ORMTemplate.builder(connection))
     }
 
     /**
@@ -337,42 +337,42 @@ interface ORMTemplate :
      *
      * @since 1.13
      */
-    class Builder internal constructor(private val core: st.orm.core.template.ORMTemplate.Builder) {
+    public class Builder internal constructor(private val core: st.orm.core.template.ORMTemplate.Builder) {
 
         /**
          * Sets the Storm configuration to apply to the template instance.
          */
-        fun config(config: StormConfig): Builder = apply { core.config(config) }
+        public fun config(config: StormConfig): Builder = apply { core.config(config) }
 
         /**
          * Sets a function that transforms the [TemplateDecorator] to customize template processing.
          */
-        fun decorator(decorator: (TemplateDecorator) -> TemplateDecorator): Builder = apply { core.decorator(decorator) }
+        public fun decorator(decorator: (TemplateDecorator) -> TemplateDecorator): Builder = apply { core.decorator(decorator) }
 
         /**
          * Sets the connection provider used by the template to acquire and release connections.
          *
          * Only valid for data source backed templates; [build] fails fast otherwise.
          */
-        fun connectionProvider(connectionProvider: st.orm.core.spi.ConnectionProvider): Builder = apply { core.connectionProvider(connectionProvider) }
+        public fun connectionProvider(connectionProvider: st.orm.core.spi.ConnectionProvider): Builder = apply { core.connectionProvider(connectionProvider) }
 
         /**
          * Sets the transaction template provider used by the template to participate in transactions.
          *
          * Templates that should share transactions must be configured with the *same provider instance*.
          */
-        fun transactionTemplateProvider(transactionTemplateProvider: st.orm.core.spi.TransactionTemplateProvider): Builder = apply { core.transactionTemplateProvider(transactionTemplateProvider) }
+        public fun transactionTemplateProvider(transactionTemplateProvider: st.orm.core.spi.TransactionTemplateProvider): Builder = apply { core.transactionTemplateProvider(transactionTemplateProvider) }
 
         /**
          * Sets the exception mapper that maps failures raised during query execution to the runtime exception thrown
          * to the caller.
          */
-        fun exceptionMapper(exceptionMapper: st.orm.core.spi.ExceptionMapper): Builder = apply { core.exceptionMapper(exceptionMapper) }
+        public fun exceptionMapper(exceptionMapper: st.orm.core.spi.ExceptionMapper): Builder = apply { core.exceptionMapper(exceptionMapper) }
 
         /**
          * Sets the query observer that is notified of query executions performed by the template.
          */
-        fun queryObserver(queryObserver: st.orm.core.spi.QueryObserver): Builder = apply { core.queryObserver(queryObserver) }
+        public fun queryObserver(queryObserver: st.orm.core.spi.QueryObserver): Builder = apply { core.queryObserver(queryObserver) }
 
         /**
          * Sets the SQL commenter that appends per-execution comment content to statements, such as the
@@ -380,12 +380,12 @@ interface ORMTemplate :
          *
          * @since 1.13
          */
-        fun sqlCommenter(sqlCommenter: st.orm.core.spi.SqlCommenter): Builder = apply { core.sqlCommenter(sqlCommenter) }
+        public fun sqlCommenter(sqlCommenter: st.orm.core.spi.SqlCommenter): Builder = apply { core.sqlCommenter(sqlCommenter) }
 
         /**
          * Builds the ORM template.
          */
-        fun build(): ORMTemplate = ORMTemplateImpl(core.build())
+        public fun build(): ORMTemplate = ORMTemplateImpl(core.build())
     }
 }
 
@@ -398,7 +398,7 @@ interface ORMTemplate :
  *
  * Requires `import st.orm.template.orm`.
  */
-val DataSource.orm: ORMTemplate
+public val DataSource.orm: ORMTemplate
     get() = ORMTemplate.of(this)
 
 /**
@@ -406,7 +406,7 @@ val DataSource.orm: ORMTemplate
  *
  * Requires `import st.orm.template.orm`.
  */
-val Connection.orm: ORMTemplate
+public val Connection.orm: ORMTemplate
     get() = ORMTemplate.of(this)
 
 /**
@@ -416,39 +416,39 @@ val Connection.orm: ORMTemplate
  *
  * Requires `import st.orm.template.orm`.
  */
-fun DataSource.orm(decorator: (TemplateDecorator) -> TemplateDecorator): ORMTemplate = ORMTemplate.of(this, decorator)
+public fun DataSource.orm(decorator: (TemplateDecorator) -> TemplateDecorator): ORMTemplate = ORMTemplate.of(this, decorator)
 
 /**
  * Creates an [ORMTemplate] from this [Connection] with a custom [TemplateDecorator].
  *
  * Requires `import st.orm.template.orm`.
  */
-fun Connection.orm(decorator: (TemplateDecorator) -> TemplateDecorator): ORMTemplate = ORMTemplate.of(this, decorator)
+public fun Connection.orm(decorator: (TemplateDecorator) -> TemplateDecorator): ORMTemplate = ORMTemplate.of(this, decorator)
 
 /**
  * Creates an [ORMTemplate] from this [DataSource] with a custom [StormConfig].
  *
  * Requires `import st.orm.template.orm`.
  */
-fun DataSource.orm(config: StormConfig): ORMTemplate = ORMTemplate.of(this, config)
+public fun DataSource.orm(config: StormConfig): ORMTemplate = ORMTemplate.of(this, config)
 
 /**
  * Creates an [ORMTemplate] from this [Connection] with a custom [StormConfig].
  *
  * Requires `import st.orm.template.orm`.
  */
-fun Connection.orm(config: StormConfig): ORMTemplate = ORMTemplate.of(this, config)
+public fun Connection.orm(config: StormConfig): ORMTemplate = ORMTemplate.of(this, config)
 
 /**
  * Creates an [ORMTemplate] from this [DataSource] with a custom [StormConfig] and [TemplateDecorator].
  *
  * Requires `import st.orm.template.orm`.
  */
-fun DataSource.orm(config: StormConfig, decorator: (TemplateDecorator) -> TemplateDecorator): ORMTemplate = ORMTemplate.of(this, config, decorator)
+public fun DataSource.orm(config: StormConfig, decorator: (TemplateDecorator) -> TemplateDecorator): ORMTemplate = ORMTemplate.of(this, config, decorator)
 
 /**
  * Creates an [ORMTemplate] from this [Connection] with a custom [StormConfig] and [TemplateDecorator].
  *
  * Requires `import st.orm.template.orm`.
  */
-fun Connection.orm(config: StormConfig, decorator: (TemplateDecorator) -> TemplateDecorator): ORMTemplate = ORMTemplate.of(this, config, decorator)
+public fun Connection.orm(config: StormConfig, decorator: (TemplateDecorator) -> TemplateDecorator): ORMTemplate = ORMTemplate.of(this, config, decorator)

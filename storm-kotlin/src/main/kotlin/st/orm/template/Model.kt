@@ -39,41 +39,41 @@ import kotlin.reflect.KClass
  * @see Column
  * @see QueryTemplate.model
  */
-interface Model<E : Data, ID : Any> {
+public interface Model<E : Data, ID : Any> {
     /**
      * Returns the schema, or an empty String if the schema is not specified.
      *
      * @return the schema, or an empty String if the schema is not specified.
      */
-    val schema: String
+    public val schema: String
 
     /**
      * Returns the name of the table or view.
      *
      * @return the name of the table or view.
      */
-    val name: String
+    public val name: String
 
     /**
      * Returns the type of the entity or projection.
      *
      * @return the type of the entity or projection.
      */
-    val type: KClass<E>
+    public val type: KClass<E>
 
     /**
      * Returns the type of the primary key.
      *
      * @return the type of the primary key.
      */
-    val primaryKeyType: KClass<ID>
+    public val primaryKeyType: KClass<ID>
 
     /**
      * Returns an immutable list of columns in the entity or projection.
      *
      * @return an immutable list of columns in the entity or projection.
      */
-    val columns: List<Column>
+    public val columns: List<Column>
 
     /**
      * Returns the columns declared directly on this model.
@@ -86,7 +86,7 @@ interface Model<E : Data, ID : Any> {
      * @return the declared columns of this model.
      * @since 1.8
      */
-    val declaredColumns: List<Column>
+    public val declaredColumns: List<Column>
 
     /**
      *
@@ -97,7 +97,7 @@ interface Model<E : Data, ID : Any> {
      * @return {code true} if the specified primary key represents a default value, `false` otherwise.
      * @since 1.2
      */
-    fun isDefaultPrimaryKey(pk: ID?): Boolean
+    public fun isDefaultPrimaryKey(pk: ID?): Boolean
 
     /**
      * Iterates over the values of the given columns for the supplied record.
@@ -113,7 +113,7 @@ interface Model<E : Data, ID : Any> {
      * @throws SqlTemplateException if extraction fails.
      * @since 1.8
      */
-    fun forEachValue(
+    public fun forEachValue(
         columns: List<Column>,
         record: E,
         consumer: (Column, Any?) -> Unit,
@@ -131,7 +131,7 @@ interface Model<E : Data, ID : Any> {
      * @throws SqlTemplateException if extraction fails.
      * @since 1.8
      */
-    fun values(
+    public fun values(
         columns: List<Column>,
         record: E,
     ): Map<Column, Any?> {
@@ -152,7 +152,7 @@ interface Model<E : Data, ID : Any> {
      * @throws SqlTemplateException if extraction fails.
      * @since 1.8
      */
-    fun values(
+    public fun values(
         record: E,
     ): Map<Column, Any?> = values(columns, record)
 }

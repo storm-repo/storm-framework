@@ -21,7 +21,7 @@ import st.orm.Metamodel
 import st.orm.template.Column
 import kotlin.reflect.KClass
 
-class ColumnImpl(
+internal class ColumnImpl(
     internal val core: st.orm.core.template.Column,
 ) : Column {
     override val index: Int get() = core.index()

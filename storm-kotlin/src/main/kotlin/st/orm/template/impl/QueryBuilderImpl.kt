@@ -21,7 +21,7 @@ import st.orm.template.*
 import java.util.stream.Stream
 import kotlin.reflect.KClass
 
-class QueryBuilderImpl<T : Data, R, ID>(
+internal class QueryBuilderImpl<T : Data, R, ID>(
     private val core: st.orm.core.template.QueryBuilder<T, R, ID>,
 ) : QueryBuilder<T, R, ID>(),
     Subqueryable {

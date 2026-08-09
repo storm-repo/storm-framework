@@ -145,7 +145,7 @@ import kotlin.reflect.KClass
  * @see st.orm.repository.EntityRepository
  * @see st.orm.repository.ProjectionRepository
  */
-object Templates {
+public object Templates {
 
     /**
      * Generates a SELECT element for the specified table class.
@@ -171,7 +171,7 @@ object Templates {
      * @param table the [KClass] object representing the table record.
      * @return an [Element] representing the SELECT clause for the specified table.
      */
-    fun select(table: KClass<out Data>): Element = Elements.Select(table.java, SelectMode.NESTED)
+    public fun select(table: KClass<out Data>): Element = Elements.Select(table.java, SelectMode.NESTED)
 
     /**
      * Generates a SELECT element for the specified [table] class with a specific selection mode.
@@ -199,7 +199,7 @@ object Templates {
      * include only the primary key fields.
      * @return an [Element] representing the SELECT clause for the specified table.
      */
-    fun select(table: KClass<out Data>, mode: SelectMode = SelectMode.NESTED): Element = Elements.Select(table.java, mode)
+    public fun select(table: KClass<out Data>, mode: SelectMode = SelectMode.NESTED): Element = Elements.Select(table.java, mode)
 
     /**
      * Generates a FROM element for the specified table class without an alias and optional auto-joining of foreign
@@ -227,7 +227,7 @@ object Templates {
      * @param autoJoin if `true`, automatically join all foreign keys listed in the record.
      * @return an [Element] representing the FROM clause for the specified table.
      */
-    fun from(table: KClass<out Data>, autoJoin: Boolean): Element = Elements.From(table.java, autoJoin)
+    public fun from(table: KClass<out Data>, autoJoin: Boolean): Element = Elements.From(table.java, autoJoin)
 
     /**
      * Generates a FROM element for the specified table class, with an alias and optional auto-joining of foreign keys.
@@ -248,7 +248,7 @@ object Templates {
      * @param autoJoin if `true`, automatically join all foreign keys listed in the record.
      * @return an [Element] representing the FROM clause for the specified table.
      */
-    fun from(table: KClass<out Data>, alias: String, autoJoin: Boolean): Element = Elements.From(Elements.TableSource(table.java), alias, autoJoin)
+    public fun from(table: KClass<out Data>, alias: String, autoJoin: Boolean): Element = Elements.From(Elements.TableSource(table.java), alias, autoJoin)
 
     /**
      * Generates a FROM element using a provided SQL string template with an alias.
@@ -269,7 +269,7 @@ object Templates {
      * @param alias the alias to assign to the frame clause in the query. The alias must not require escaping.
      * @return an [Element] representing the FROM clause with the specified template and alias.
      */
-    fun from(builder: TemplateBuilder, alias: String): Element = from(builder.build(), alias)
+    public fun from(builder: TemplateBuilder, alias: String): Element = from(builder.build(), alias)
 
     /**
      * Generates a FROM element using a provided SQL template string with an alias.
@@ -290,7 +290,7 @@ object Templates {
      * @param alias the alias to assign to the frame clause in the query. The alias must not require escaping.
      * @return an [Element] representing the FROM clause with the specified template and alias.
      */
-    fun from(template: TemplateString, alias: String): Element = Elements.From(TemplateSource(template.unwrap), alias, false)
+    public fun from(template: TemplateString, alias: String): Element = Elements.From(TemplateSource(template.unwrap), alias, false)
 
     /**
      * Generates an INSERT element for the specified table class.
@@ -316,7 +316,7 @@ object Templates {
      * @param table the [KClass] object representing the table record.
      * @return an [Element] representing the INSERT clause for the specified table.
      */
-    fun insert(table: KClass<out Data>): Element = Elements.Insert(table.java)
+    public fun insert(table: KClass<out Data>): Element = Elements.Insert(table.java)
 
     /**
      * Generates an INSERT element for the specified table class with control over auto-generation.
@@ -345,7 +345,7 @@ object Templates {
      * key value (e.g., migrations, data exports).
      * @return an [Element] representing the INSERT clause for the specified table.
      */
-    fun insert(table: KClass<out Data>, ignoreAutoGenerate: Boolean): Element = Elements.Insert(table.java, ignoreAutoGenerate)
+    public fun insert(table: KClass<out Data>, ignoreAutoGenerate: Boolean): Element = Elements.Insert(table.java, ignoreAutoGenerate)
 
     /**
      * Generates a VALUES clause for a single record instance with control over auto-generation.
@@ -375,7 +375,7 @@ object Templates {
      * key value (e.g., migrations, data exports).
      * @return an [Element] representing the VALUES clause with the specified record.
      */
-    fun values(r: Data, ignoreAutoGenerate: Boolean): Element = Elements.Values(listOf(r), null, ignoreAutoGenerate)
+    public fun values(r: Data, ignoreAutoGenerate: Boolean): Element = Elements.Values(listOf(r), null, ignoreAutoGenerate)
 
     /**
      * Generates a VALUES clause for the specified record instance(s).
@@ -403,7 +403,7 @@ object Templates {
      * @param r one or more [Data] instances containing the values to be inserted.
      * @return an [Element] representing the VALUES clause with the specified records.
      */
-    fun values(vararg r: Data): Element = Elements.Values(listOf(*r), null)
+    public fun values(vararg r: Data): Element = Elements.Values(listOf(*r), null)
 
     /**
      * Generates a VALUES clause for the specified iterable of record instances.
@@ -431,7 +431,7 @@ object Templates {
      * @param records an [Iterable] of [Data] instances containing the values to be inserted.
      * @return an [Element] representing the VALUES clause with the specified records.
      */
-    fun values(records: Iterable<Data>): Element = Elements.Values(records, null)
+    public fun values(records: Iterable<Data>): Element = Elements.Values(records, null)
 
     /**
      * Generates a VALUES clause for the specified iterable of record instances with control over auto-generation.
@@ -462,7 +462,7 @@ object Templates {
      * key value (e.g., migrations, data exports).
      * @return an [Element] representing the VALUES clause with the specified records.
      */
-    fun values(records: Iterable<Data>, ignoreAutoGenerate: Boolean): Element = Elements.Values(records, null, ignoreAutoGenerate)
+    public fun values(records: Iterable<Data>, ignoreAutoGenerate: Boolean): Element = Elements.Values(records, null, ignoreAutoGenerate)
 
     /**
      * Generates a VALUES clause using the specified [BindVars] for batch insertion.
@@ -496,7 +496,7 @@ object Templates {
      * @param bindVars the [BindVars] instance used for batch insertion.
      * @return an [Element] representing the VALUES clause utilizing the specified bind variables.
      */
-    fun values(bindVars: BindVars): Element = Elements.Values(null, bindVars)
+    public fun values(bindVars: BindVars): Element = Elements.Values(null, bindVars)
 
     /**
      * Generates a VALUES clause using the specified [BindVars] for batch insertion with control over auto-generation.
@@ -533,7 +533,7 @@ object Templates {
      * key value (e.g., migrations, data exports).
      * @return an [Element] representing the VALUES clause utilizing the specified bind variables.
      */
-    fun values(bindVars: BindVars, ignoreAutoGenerate: Boolean): Element = Elements.Values(null, bindVars, ignoreAutoGenerate)
+    public fun values(bindVars: BindVars, ignoreAutoGenerate: Boolean): Element = Elements.Values(null, bindVars, ignoreAutoGenerate)
 
     /**
      * Generates an UPDATE element for the specified table class.
@@ -561,7 +561,7 @@ object Templates {
      * @param table the [KClass] object representing the table record.
      * @return an [Element] representing the UPDATE clause for the specified table.
      */
-    fun update(table: KClass<out Data>): Element = Elements.Update(table.java)
+    public fun update(table: KClass<out Data>): Element = Elements.Update(table.java)
 
     /**
      * Generates an UPDATE element for the specified table class with an alias.
@@ -583,7 +583,7 @@ object Templates {
      * @param alias the alias to use for the table in the query. The alias must not require escaping.
      * @return an [Element] representing the UPDATE clause for the specified table with alias.
      */
-    fun update(table: KClass<out Data>, alias: String): Element = Elements.Update(table.java, alias)
+    public fun update(table: KClass<out Data>, alias: String): Element = Elements.Update(table.java, alias)
 
     /**
      * Generates a SET clause for the specified record.
@@ -611,7 +611,7 @@ object Templates {
      * @param record the [Data] instance containing the values to be set.
      * @return an [Element] representing the SET clause with the specified record.
      */
-    fun set(record: Data): Element = Elements.Set(record, null, listOf())
+    public fun set(record: Data): Element = Elements.Set(record, null, listOf())
 
     /**
      * Generates a SET clause for the specified record.
@@ -641,7 +641,7 @@ object Templates {
      * @return an [Element] representing the SET clause with the specified record.
      * @since 1.7
      */
-    fun set(record: Data, fields: Collection<Metamodel<*, *>>): Element = Elements.Set(record, null, fields)
+    public fun set(record: Data, fields: Collection<Metamodel<*, *>>): Element = Elements.Set(record, null, fields)
 
     /**
      * Generates a SET clause using the specified [BindVars] for batch updates.
@@ -677,7 +677,7 @@ object Templates {
      * @param bindVars the [BindVars] instance used for batch updates.
      * @return an [Element] representing the SET clause utilizing the specified bind variables.
      */
-    fun set(bindVars: BindVars): Element = Elements.Set(null, bindVars, listOf())
+    public fun set(bindVars: BindVars): Element = Elements.Set(null, bindVars, listOf())
 
     /**
      * Generates a SET clause using the specified [BindVars] for batch updates.
@@ -715,7 +715,7 @@ object Templates {
      * @return an [Element] representing the SET clause utilizing the specified bind variables.
      * @since 1.7
      */
-    fun set(bindVars: BindVars, fields: Collection<Metamodel<*, *>>): Element = Elements.Set(null, bindVars, fields)
+    public fun set(bindVars: BindVars, fields: Collection<Metamodel<*, *>>): Element = Elements.Set(null, bindVars, fields)
 
     /**
      * Generates a WHERE clause based on the provided iterable of values or records.
@@ -768,7 +768,7 @@ object Templates {
      * @param it an [Iterable] of values or records to match against the primary key(s) or foreign keys.
      * @return an [Element] representing the WHERE clause.
      */
-    fun where(it: Iterable<*>): Element = Elements.Where(ObjectExpression(Operator.IN, it), null)
+    public fun where(it: Iterable<*>): Element = Elements.Where(ObjectExpression(Operator.IN, it), null)
 
     /**
      * Generates a WHERE clause based on the provided value or record.
@@ -820,7 +820,7 @@ object Templates {
      * @param o the value or record to match against the primary key or foreign key.
      * @return an [Element] representing the WHERE clause.
      */
-    fun where(o: Any): Element = Elements.Where(ObjectExpression(o), null)
+    public fun where(o: Any): Element = Elements.Where(ObjectExpression(o), null)
 
     /**
      * Generates a WHERE clause based on the provided path, operator, and iterable of values or records.
@@ -859,7 +859,7 @@ object Templates {
      * @param it an [Iterable] of values or records for the condition.
      * @return an [Element] representing the WHERE clause.
      */
-    fun <V> where(
+    public fun <V> where(
         path: Metamodel<*, V>,
         operator: Operator,
         it: Iterable<V>,
@@ -891,7 +891,7 @@ object Templates {
      * @param o the values or records for the condition.
      * @return an [Element] representing the WHERE clause.
      */
-    fun <V> where(path: Metamodel<*, V>, operator: Operator, vararg o: V): Element = Elements.Where(ObjectExpression(path, operator, o), null)
+    public fun <V> where(path: Metamodel<*, V>, operator: Operator, vararg o: V): Element = Elements.Where(ObjectExpression(path, operator, o), null)
 
     /**
      * Generates a WHERE clause using the specified [BindVars] for batch operations.
@@ -927,7 +927,7 @@ object Templates {
      * @param bindVars the [BindVars] instance used for binding variables in the WHERE clause; must not be null.
      * @return an [Element] representing the WHERE clause utilizing the specified bind variables.
      */
-    fun where(bindVars: BindVars): Element = Elements.Where(null, bindVars)
+    public fun where(bindVars: BindVars): Element = Elements.Where(null, bindVars)
 
     /**
      * Generates a DELETE element for the specified table class.
@@ -960,7 +960,7 @@ object Templates {
      * @param table the [KClass] object representing the table record.
      * @return an [Element] representing the DELETE clause for the specified table.
      */
-    fun delete(table: KClass<out Data>): Element = Elements.Delete(table.java)
+    public fun delete(table: KClass<out Data>): Element = Elements.Delete(table.java)
 
     /**
      * Generates a DELETE element for the specified table class with an alias.
@@ -988,7 +988,7 @@ object Templates {
      * @param alias the alias to use for the table in the query. The alias must not require escaping.
      * @return an [Element] representing the DELETE clause for the specified table with an alias.
      */
-    fun delete(table: KClass<out Data>, alias: String): Element = Elements.Delete(table.java, alias)
+    public fun delete(table: KClass<out Data>, alias: String): Element = Elements.Delete(table.java, alias)
 
     /**
      * Generates a Table element for the specified table class.
@@ -1025,7 +1025,7 @@ object Templates {
      * @param table the [KClass] object representing the table record.
      * @return an [Element] representing the table.
      */
-    fun table(table: KClass<out Data>): Element = Elements.Table(table.java)
+    public fun table(table: KClass<out Data>): Element = Elements.Table(table.java)
 
     /**
      * Generates a Table element with an alias for the specified table class.
@@ -1048,7 +1048,7 @@ object Templates {
      * @param alias the alias to use for the table in the query. The alias must not require escaping.
      * @return an [Element] representing the table with an alias.
      */
-    fun table(table: KClass<out Data>, alias: String): Element = Elements.Table(table.java, alias)
+    public fun table(table: KClass<out Data>, alias: String): Element = Elements.Table(table.java, alias)
 
     /**
      * Generates an alias element for the specified table class.
@@ -1078,7 +1078,7 @@ object Templates {
      * @param table the [KClass] object representing the table record.
      * @return an [Element] representing the table's alias.
      */
-    fun alias(table: KClass<out Data>): Element = Elements.Alias(table.java, ResolveScope.CASCADE)
+    public fun alias(table: KClass<out Data>): Element = Elements.Alias(table.java, ResolveScope.CASCADE)
 
     /**
      * Generates an alias element for the specified table class with a specific resolution scope.
@@ -1110,7 +1110,7 @@ object Templates {
      * aliases, LOCAL to include local aliases only, and OUTER to include outer aliases only.
      * @return an [Element] representing the table's alias.
      */
-    fun alias(table: KClass<out Data>, scope: ResolveScope): Element = Elements.Alias(table.java, scope)
+    public fun alias(table: KClass<out Data>, scope: ResolveScope): Element = Elements.Alias(table.java, scope)
 
     /**
      * Generates a column element for a column specified by the given [field] in a type safe manner.
@@ -1132,7 +1132,7 @@ object Templates {
      * @return an [Element] representing the table's column with the specified path.
      * @since 1.2
      */
-    fun column(field: Metamodel<*, *>): Element = Elements.Column(field, ResolveScope.CASCADE)
+    public fun column(field: Metamodel<*, *>): Element = Elements.Column(field, ResolveScope.CASCADE)
 
     /**
      * Generates a column element for a column specified by the given [field] in a type safe manner with a specific
@@ -1157,7 +1157,7 @@ object Templates {
      * @return an [Element] representing the table's column with the specified path.
      * @since 1.2
      */
-    fun column(field: Metamodel<*, *>, scope: ResolveScope): Element = Elements.Column(field, scope)
+    public fun column(field: Metamodel<*, *>, scope: ResolveScope): Element = Elements.Column(field, scope)
 
     /**
      * Generates a parameter element for the specified value, to be used in SQL queries.
@@ -1189,7 +1189,7 @@ object Templates {
      * @param value the value to be used as a parameter in the SQL query; may be null.
      * @return an [Element] representing the parameter.
      */
-    fun param(value: Any?): Element = Elements.Param(null, value)
+    public fun param(value: Any?): Element = Elements.Param(null, value)
 
     /**
      * Generates a named parameter element for the specified value, to be used in SQL queries.
@@ -1211,7 +1211,7 @@ object Templates {
      * @param value the value to be used as a parameter in the SQL query; may be null.
      * @return an [Element] representing the named parameter.
      */
-    fun param(name: String, value: Any?): Element = Elements.Param(name, value)
+    public fun param(name: String, value: Any?): Element = Elements.Param(name, value)
 
     /**
      * Generates a parameter element for the specified value with a converter function.
@@ -1232,7 +1232,7 @@ object Templates {
      * @param converter a function that converts the value to a database-compatible format; must not be null.
      * @return an [Element] representing the parameter with a converter applied.
      */
-    fun <P> param(value: P, converter: (P) -> Any?): Element = Elements.Param(null, value) {
+    public fun <P> param(value: P, converter: (P) -> Any?): Element = Elements.Param(null, value) {
         @Suppress("UNCHECKED_CAST")
         converter(it as P)
     }
@@ -1257,7 +1257,7 @@ object Templates {
      * @param converter a function that converts the value to a database-compatible format; must not be null.
      * @return an [Element] representing the named parameter with a converter applied.
      */
-    fun <P> param(name: String, value: P, converter: (P) -> Any?): Element = Elements.Param(name, value) {
+    public fun <P> param(name: String, value: P, converter: (P) -> Any?): Element = Elements.Param(name, value) {
         @Suppress("UNCHECKED_CAST")
         converter(it as P)
     }
@@ -1280,7 +1280,7 @@ object Templates {
      * @param temporalType the [TemporalType] specifying how the date should be handled; must not be null.
      * @return an [Element] representing the date parameter with the specified temporal type.
      */
-    fun param(value: Date, temporalType: TemporalType): Element = param(value) {
+    public fun param(value: Date, temporalType: TemporalType): Element = param(value) {
         when (temporalType) {
             TemporalType.DATE -> java.sql.Date(it.time)
             TemporalType.TIME -> Time(it.time)
@@ -1307,7 +1307,7 @@ object Templates {
      * @param temporalType the [TemporalType] specifying how the date should be handled; must not be null.
      * @return an [Element] representing the named date parameter with the specified temporal type.
      */
-    fun param(name: String, value: Date, temporalType: TemporalType): Element = param(name, value) {
+    public fun param(name: String, value: Date, temporalType: TemporalType): Element = param(name, value) {
         when (temporalType) {
             TemporalType.DATE -> java.sql.Date(it.time)
             TemporalType.TIME -> Time(it.time)
@@ -1333,7 +1333,7 @@ object Templates {
      * @param temporalType the [TemporalType] specifying how the calendar should be handled; must not be null.
      * @return an [Element] representing the calendar parameter with the specified temporal type.
      */
-    fun param(value: Calendar, temporalType: TemporalType): Element = param(value) {
+    public fun param(value: Calendar, temporalType: TemporalType): Element = param(value) {
         when (temporalType) {
             TemporalType.DATE -> java.sql.Date(it.timeInMillis)
             TemporalType.TIME -> Time(it.timeInMillis)
@@ -1368,7 +1368,7 @@ object Templates {
      * @param extractor extracts the value to bind for this variable from the record passed to `addBatch`.
      * @return an [Element] representing a single bind variable placeholder.
      */
-    fun bindVar(bindVars: BindVars, extractor: (Data) -> Any): Element = Elements.BindVar(bindVars, extractor)
+    public fun bindVar(bindVars: BindVars, extractor: (Data) -> Any): Element = Elements.BindVar(bindVars, extractor)
 
     /**
      * Creates a subquery element from a query builder.
@@ -1390,7 +1390,7 @@ object Templates {
      * @param correlate whether the subquery may reference outer query aliases.
      * @return an [Element] representing the subquery.
      */
-    fun subquery(builder: QueryBuilder<*, *, *>, correlate: Boolean): Element = Elements.Subquery((builder as Subqueryable).subquery, correlate)
+    public fun subquery(builder: QueryBuilder<*, *, *>, correlate: Boolean): Element = Elements.Subquery((builder as Subqueryable).subquery, correlate)
 
     /**
      * Creates a subquery element from a [TemplateBuilder].
@@ -1411,7 +1411,7 @@ object Templates {
      * @param correlate whether the subquery may reference outer query aliases.
      * @return an [Element] representing the subquery.
      */
-    fun subquery(builder: TemplateBuilder, correlate: Boolean): Element = subquery(builder.build(), correlate)
+    public fun subquery(builder: TemplateBuilder, correlate: Boolean): Element = subquery(builder.build(), correlate)
 
     /**
      * Creates a subquery element from a [TemplateString].
@@ -1430,7 +1430,7 @@ object Templates {
      * @param correlate whether the subquery may reference outer query aliases.
      * @return an [Element] representing the subquery.
      */
-    fun subquery(template: TemplateString, correlate: Boolean): Element = Elements.Subquery(template.unwrap, correlate)
+    public fun subquery(template: TemplateString, correlate: Boolean): Element = Elements.Subquery(template.unwrap, correlate)
 
     /**
      * Injects raw SQL into the query without any processing or sanitization.
@@ -1452,5 +1452,5 @@ object Templates {
      * @param sql the raw SQL string to inject into the query.
      * @return an [Element] that represents the raw SQL code to be inserted into the query.
      */
-    fun unsafe(sql: String): Element = Elements.Unsafe(sql)
+    public fun unsafe(sql: String): Element = Elements.Unsafe(sql)
 }

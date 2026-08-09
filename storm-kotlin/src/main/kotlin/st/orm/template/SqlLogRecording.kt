@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package st.orm.template.impl
+package st.orm.template
 
 import kotlinx.coroutines.asContextElement
 import kotlinx.coroutines.currentCoroutineContext
@@ -29,13 +29,14 @@ import st.orm.core.template.SqlLog as CoreSqlLog
  * Records the statements executed by [block] into a coroutine-aware scope and hands the summary to [onSummary]
  * once the block completes, normally or not.
  *
- * This is the recording machinery behind [st.orm.template.sqlLog] and the Ktor plugin's per-call scope; the
- * summary is internal wiring on its way to the `st.orm.sql.perf` logger, not part of the public API.
+ * This is the recording machinery behind [sqlLog] and the Ktor plugin's per-call scope; the summary is internal
+ * wiring on its way to the `st.orm.sql.perf` logger, not part of the public API.
  *
  * The scope follows the coroutine rather than the thread it happens to run on, so it keeps recording across a
  * suspension that resumes elsewhere, and a scope opened by one coroutine is never observed by another.
  */
-suspend fun <T> recordSqlLog(
+@InternalStormApi
+public suspend fun <T> recordSqlLog(
     name: String,
     limit: Int,
     callSites: Boolean,

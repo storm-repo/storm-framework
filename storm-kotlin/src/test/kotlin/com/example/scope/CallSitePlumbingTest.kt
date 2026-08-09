@@ -1,3 +1,5 @@
+@file:OptIn(InternalStormApi::class)
+
 package com.example.scope
 
 import io.kotest.matchers.nulls.shouldNotBeNull
@@ -13,9 +15,10 @@ import st.orm.core.template.SqlLog.Summary
 import st.orm.core.template.impl.CallSiteCapture
 import st.orm.template.DEFAULT_SQL_LOG_LIMIT
 import st.orm.template.IntegrationConfig
+import st.orm.template.InternalStormApi
 import st.orm.template.ORMTemplate
-import st.orm.template.impl.recordSqlLog
 import st.orm.template.model.PetOwnerRef
+import st.orm.template.recordSqlLog
 
 /**
  * Verifies that a declared plumbing file hides the frames of its inline functions: their lambdas compile into

@@ -34,7 +34,7 @@ import java.lang.reflect.ParameterizedType
 import java.lang.reflect.Proxy
 import kotlin.reflect.KClass
 
-class ORMTemplateImpl(private val core: st.orm.core.template.ORMTemplate) :
+internal class ORMTemplateImpl(private val core: st.orm.core.template.ORMTemplate) :
     QueryTemplateImpl(core),
     ORMTemplate {
     companion object {

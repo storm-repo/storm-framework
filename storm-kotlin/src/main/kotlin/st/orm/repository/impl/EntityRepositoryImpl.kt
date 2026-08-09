@@ -36,7 +36,7 @@ import kotlin.reflect.KClass
 
 /**
  */
-class EntityRepositoryImpl<E, ID : Any>(
+internal class EntityRepositoryImpl<E, ID : Any>(
     private val core: st.orm.core.repository.EntityRepository<E, ID>,
 ) : EntityRepository<E, ID> where E : Data, E : Entity<ID> {
 

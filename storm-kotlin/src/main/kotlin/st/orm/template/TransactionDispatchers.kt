@@ -31,7 +31,7 @@ import java.util.concurrent.atomic.AtomicReference
  *
  * @since 1.5
  */
-object TransactionDispatchers {
+public object TransactionDispatchers {
 
     // Backing reference allowing atomic updates.
     private val overrideRef = AtomicReference<CoroutineDispatcher?>(null)
@@ -39,7 +39,7 @@ object TransactionDispatchers {
     /**
      * Public default dispatcher. Uses override if set; otherwise resolves lazily via [resolveDefault].
      */
-    var Default: CoroutineDispatcher
+    public var Default: CoroutineDispatcher
         get() = overrideRef.get() ?: resolveDefault()
         set(value) {
             overrideRef.set(value)
@@ -48,14 +48,14 @@ object TransactionDispatchers {
     /**
      * Virtual-thread dispatcher (created lazily).
      */
-    val Virtual: CoroutineDispatcher by lazy(LazyThreadSafetyMode.SYNCHRONIZED) {
+    public val Virtual: CoroutineDispatcher by lazy(LazyThreadSafetyMode.SYNCHRONIZED) {
         VirtualThreadDispatcher(threadNamePrefix = "tx")
     }
 
     /**
      * Cleanly shuts down the VT dispatcher if it was instantiated.
      */
-    fun shutdown() {
+    public fun shutdown() {
         (Virtual as? Closeable)?.close()
     }
 

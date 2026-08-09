@@ -28,4 +28,4 @@ package st.orm.template
  * @see SqlScope
  */
 @DslMarker
-annotation class SqlDsl
+public annotation class SqlDsl

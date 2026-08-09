@@ -14,7 +14,7 @@ import kotlin.coroutines.CoroutineContext
  *
  * @since 1.5
  */
-class VirtualThreadDispatcher(
+internal class VirtualThreadDispatcher(
     threadNamePrefix: String = "virtual",
 ) : CoroutineDispatcher(),
     Closeable {

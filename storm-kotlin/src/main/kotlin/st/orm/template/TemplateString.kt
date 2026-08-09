@@ -35,27 +35,27 @@ import st.orm.template.TemplateString.Companion.wrap
  * @see TemplateBuilder
  * @see TemplateContext
  */
-sealed interface TemplateString {
-    companion object {
+public sealed interface TemplateString {
+    public companion object {
         /**
          * Create a new template string from the given [TemplateBuilder].
          */
-        fun raw(builder: TemplateBuilder): TemplateString = builder.build()
+        public fun raw(builder: TemplateBuilder): TemplateString = builder.build()
 
         /**
          * Create a new template string from a raw SQL string. No parameter interpolation is performed.
          */
-        fun raw(str: String): TemplateString = TemplateStringHolder(st.orm.core.template.TemplateString.of(str))
+        public fun raw(str: String): TemplateString = TemplateStringHolder(st.orm.core.template.TemplateString.of(str))
 
         /**
          * Create a new template string that wraps a single value as a bind variable.
          */
-        fun wrap(value: Any?): TemplateString = TemplateStringHolder(st.orm.core.template.TemplateString.wrap(value))
+        public fun wrap(value: Any?): TemplateString = TemplateStringHolder(st.orm.core.template.TemplateString.wrap(value))
 
         /**
          * Combine multiple template strings into a single template string.
          */
-        fun combine(vararg templates: TemplateString): TemplateString = TemplateStringHolder(st.orm.core.template.TemplateString.combine(*templates.map { it.unwrap }.toTypedArray()))
+        public fun combine(vararg templates: TemplateString): TemplateString = TemplateStringHolder(st.orm.core.template.TemplateString.combine(*templates.map { it.unwrap }.toTypedArray()))
     }
 }
 
@@ -70,7 +70,7 @@ sealed interface TemplateString {
  * @see TemplateContext
  * @see TemplateString
  */
-typealias TemplateBuilder = TemplateContext.() -> String
+public typealias TemplateBuilder = TemplateContext.() -> String
 
 /**
  * Provides the interpolation context for building SQL template strings.
@@ -83,7 +83,7 @@ typealias TemplateBuilder = TemplateContext.() -> String
  * @see TemplateString
  */
 @SqlDsl
-interface TemplateContext {
+public interface TemplateContext {
 
     /**
      * Interpolates the given object into the SQL template. Shorthand for [interpolate].
@@ -91,7 +91,7 @@ interface TemplateContext {
      * @param o the object to interpolate (a value, [KClass][kotlin.reflect.KClass], [Element][st.orm.Element], record, etc.).
      * @return a placeholder string that the template engine replaces with the appropriate SQL fragment.
      */
-    fun t(o: Any?): String = interpolate(o)
+    public fun t(o: Any?): String = interpolate(o)
 
     /**
      * Interpolates the given object into the SQL template.
@@ -99,7 +99,7 @@ interface TemplateContext {
      * @param o the object to interpolate.
      * @return a placeholder string that the template engine replaces with the appropriate SQL fragment.
      */
-    fun interpolate(o: Any?): String
+    public fun interpolate(o: Any?): String
 
     /**
      * Signals that the Storm compiler plugin has processed this lambda and automatically wrapped all string
@@ -111,7 +111,7 @@ interface TemplateContext {
      * `storm.validation.interpolation_mode` system property: `warn` (default) logs a warning, `fail` throws an
      * [IllegalStateException], and `none` disables the check entirely.
      */
-    fun autoInterpolation() {}
+    public fun autoInterpolation() {}
 }
 
 /**
@@ -122,7 +122,7 @@ interface TemplateContext {
  * calls were made. If neither is detected, the behavior depends on the `storm.validation.interpolation_mode` system
  * property: `warn` (default) logs a warning, `fail` throws an [IllegalStateException], and `none` disables the check.
  */
-fun TemplateBuilder.build(): TemplateString {
+public fun TemplateBuilder.build(): TemplateString {
     var autoInterpolation = false
     var interpolateCalled = false
     val coreTemplate = st.orm.core.template.TemplateBuilder.create { ctx ->

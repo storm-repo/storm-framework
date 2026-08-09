@@ -36,8 +36,9 @@ import st.orm.core.spi.JdbcTransactionTemplateProviderImpl
 import st.orm.core.template.impl.CallSiteCapture
 import st.orm.core.template.impl.SqlLogRenderer
 import st.orm.micrometer.MicrometerQueryObserver
+import st.orm.template.InternalStormApi
 import st.orm.template.ORMTemplate
-import st.orm.template.impl.recordSqlLog
+import st.orm.template.recordSqlLog
 import javax.sql.DataSource
 import kotlin.reflect.KClass
 import kotlin.reflect.full.starProjectedType
@@ -91,6 +92,7 @@ import kotlin.reflect.typeOf
  *
  * @since 1.11
  */
+@OptIn(InternalStormApi::class)
 val Storm = createApplicationPlugin(name = "Storm", createConfiguration = ::StormPluginConfig) {
 
     // Packages claimed by the named databases (package name to database name). These partition repository

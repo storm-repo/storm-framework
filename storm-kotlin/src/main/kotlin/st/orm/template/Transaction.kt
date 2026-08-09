@@ -23,7 +23,7 @@ package st.orm.template
  *
  * @since 1.5
  */
-interface Transaction : st.orm.Transaction {
+public interface Transaction : st.orm.Transaction {
 
     /**
      * Registers a callback that will be invoked after the physical transaction commits successfully.
@@ -55,7 +55,7 @@ interface Transaction : st.orm.Transaction {
      * @param callback the callback to invoke after commit.
      * @since 1.11
      */
-    fun onCommit(callback: suspend () -> Unit)
+    public fun onCommit(callback: suspend () -> Unit)
 
     /**
      * Registers a callback that will be invoked after the physical transaction rolls back.
@@ -76,7 +76,7 @@ interface Transaction : st.orm.Transaction {
      * @param callback the callback to invoke after rollback.
      * @since 1.11
      */
-    fun onRollback(callback: suspend () -> Unit)
+    public fun onRollback(callback: suspend () -> Unit)
 
     /**
      * Registers a callback that will be invoked after the physical transaction completes, whichever way it
@@ -92,5 +92,5 @@ interface Transaction : st.orm.Transaction {
      * @param callback the callback to invoke after completion.
      * @since 1.13
      */
-    fun onCompletion(callback: suspend (committed: Boolean) -> Unit)
+    public fun onCompletion(callback: suspend (committed: Boolean) -> Unit)
 }
