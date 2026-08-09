@@ -31,7 +31,7 @@ import st.orm.core.spi.TypeDiscovery;
  * whenever storm-core is on the image classpath, so no configuration is needed.</p>
  *
  * <p>Per Data type (including compound primary keys and inline components, resolved through
- * {@link TypeDiscovery#getDataTypesWithComponents()}), the declared constructors and public methods are
+ * {@link TypeDiscovery#getComponentTypes(Class)}), the declared constructors and public methods are
  * registered for reflection (model introspection), along with the generated metamodel companion classes.
  * Per repository interface, the JDK proxy shape Storm creates behind {@code ORMTemplate.repository(..)}
  * is registered, along with the Kotlin {@code $DefaultImpls} class that carries default method bodies.
@@ -48,6 +48,13 @@ public final class StormFeature implements Feature {
 
     @Override
     public void beforeAnalysis(@Nonnull BeforeAnalysisAccess access) {
+        if (!TypeDiscovery.isIndexAvailable()) {
+            System.err.println("Storm: no type index found for the application's entities on the image "
+                    + "classpath (META-INF/storm/st.orm.Data.idx). Entities will not be registered for "
+                    + "reflection, so they will fail at runtime in the native image. Add the Storm "
+                    + "metamodel processor (storm-metamodel-processor for Java, storm-metamodel-ksp for "
+                    + "Kotlin) to the build so the index is generated at compile time.");
+        }
         int dataTypes = 0;
         for (Class<?> type : TypeDiscovery.getDataTypes()) {
             registerDataType(access, type);

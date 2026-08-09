@@ -3,12 +3,16 @@ package st.orm.spring.impl;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import java.io.IOException;
+import java.io.UncheckedIOException;
 import java.net.URL;
 import java.net.URLClassLoader;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.Enumeration;
 import java.util.List;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
@@ -121,5 +125,16 @@ public class StormRuntimeHintsTest {
         RuntimeHints hints = registerHints(loader);
         assertEquals(0, hints.reflection().typeHints().count());
         assertEquals(0, hints.proxies().jdkProxyHints().count());
+    }
+
+    @Test
+    public void testUnreadableIndexFailsTheAotBuild() {
+        ClassLoader failingLoader = new ClassLoader(null) {
+            @Override
+            public Enumeration<URL> getResources(String name) throws IOException {
+                throw new IOException("simulated read failure");
+            }
+        };
+        assertThrows(UncheckedIOException.class, () -> registerHints(failingLoader));
     }
 }

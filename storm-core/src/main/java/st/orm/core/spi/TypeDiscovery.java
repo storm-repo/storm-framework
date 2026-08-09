@@ -26,10 +26,14 @@ import java.lang.reflect.Type;
 import java.lang.reflect.WildcardType;
 import java.net.URL;
 import java.util.*;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import st.orm.Converter;
 import st.orm.Data;
 
 public final class TypeDiscovery {
+
+    private static final Logger LOGGER = LoggerFactory.getLogger("st.orm.discovery");
 
     private static final String INDEX_DIRECTORY = "META-INF/storm/";
     private static final String DATA_TYPE = "st.orm.Data";
@@ -37,6 +41,33 @@ public final class TypeDiscovery {
     private static final String REPOSITORY_TYPE = "st.orm.repository.Repository";
 
     private TypeDiscovery() {
+    }
+
+    /**
+     * Whether a compile-time type index is present for the application's Data types.
+     *
+     * <p>The index is written by the Storm metamodel processor (annotation processor or KSP) at compile
+     * time. The Data index is the reliable marker for the processor having run on application code: every
+     * Storm application declares Data types, while the framework jars themselves only ship repository
+     * index entries. When the Data index is absent, the discovery methods return empty lists for the
+     * application's types. Consumers that require the index, such as the GraalVM feature, use this to
+     * report the missing processor instead of silently registering nothing.</p>
+     *
+     * @return {@code true} if a Data index resource is present on the classpath.
+     * @since 1.14
+     */
+    public static boolean isIndexAvailable() {
+        ClassLoader classLoader = Thread.currentThread().getContextClassLoader();
+        if (classLoader == null) {
+            classLoader = TypeDiscovery.class.getClassLoader();
+        }
+        String resourceName = INDEX_DIRECTORY + DATA_TYPE + ".idx";
+        try {
+            return classLoader.getResources(resourceName).hasMoreElements();
+        } catch (IOException e) {
+            LOGGER.warn("Failed to read type index {}.", resourceName, e);
+            return false;
+        }
     }
 
     /**
@@ -158,8 +189,8 @@ public final class TypeDiscovery {
         for (String fqClassName : new LinkedHashSet<>(classNames)) {
             try {
                 result.add(Class.forName(fqClassName, false, classLoader));
-            } catch (Throwable ignore) {
-                // Skip bad entries or missing classes.
+            } catch (Throwable e) {
+                LOGGER.debug("Skipping type index entry {} that cannot be loaded.", fqClassName, e);
             }
         }
         return result;
@@ -184,8 +215,8 @@ public final class TypeDiscovery {
                     Class<? extends T> cast = (Class<? extends T>) cls;
                     result.add(cast);
                 }
-            } catch (Throwable ignore) {
-                // Skip bad entries or missing classes.
+            } catch (Throwable e) {
+                LOGGER.debug("Skipping type index entry {} that cannot be loaded.", fqClassName, e);
             }
         }
         return result;
@@ -211,6 +242,7 @@ public final class TypeDiscovery {
             }
             return lines;
         } catch (IOException e) {
+            LOGGER.warn("Failed to read type index {}; treating it as empty.", resourceName, e);
             return List.of();
         }
     }
