@@ -21,7 +21,7 @@ Thank you for your interest in contributing to Storm! This document provides gui
 
 ```bash
 # Clone the repository
-git clone https://github.com/storm-repo/storm-framework.git
+git clone https://github.com/storm-orm/storm-framework.git
 cd storm-framework
 
 # Build all modules

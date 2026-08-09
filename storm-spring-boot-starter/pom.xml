@@ -12,7 +12,7 @@
     <artifactId>storm-spring-boot-starter</artifactId>
     <name>Storm Spring Boot Starter</name>
     <description>Spring Boot Starter for Storm, providing auto-configuration for the Storm ORM framework.</description>
-    <url>https://github.com/storm-repo/storm-framework</url>
+    <url>https://github.com/storm-orm/storm-framework</url>
     <licenses>
         <license>
             <name>The Apache License, Version 2.0</name>
@@ -22,13 +22,13 @@
     <developers>
         <developer>
             <name>Leon van Zantvoort</name>
-            <email>storm@zantvoort.biz</email>
+            <email>zantvoort@orm.st</email>
         </developer>
     </developers>
     <scm>
-        <connection>scm:git:git://github.com/storm-repo/storm-framework.git</connection>
-        <developerConnection>scm:git:ssh://github.com/storm-repo/storm-framework.git</developerConnection>
-        <url>https://github.com/storm-repo/storm-framework/</url>
+        <connection>scm:git:git://github.com/storm-orm/storm-framework.git</connection>
+        <developerConnection>scm:git:ssh://github.com/storm-orm/storm-framework.git</developerConnection>
+        <url>https://github.com/storm-orm/storm-framework/</url>
     </scm>
     <build>
         <plugins>
