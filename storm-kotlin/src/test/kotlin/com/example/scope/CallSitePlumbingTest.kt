@@ -10,12 +10,12 @@ import org.springframework.test.context.ContextConfiguration
 import org.springframework.test.context.jdbc.Sql
 import org.springframework.test.context.junit.jupiter.SpringExtension
 import st.orm.core.template.SqlLog.Summary
+import st.orm.core.template.impl.CallSiteCapture
 import st.orm.template.DEFAULT_SQL_LOG_LIMIT
 import st.orm.template.IntegrationConfig
 import st.orm.template.ORMTemplate
 import st.orm.template.impl.recordSqlLog
 import st.orm.template.model.PetOwnerRef
-import st.orm.core.template.SqlLog as CoreSqlLog
 
 /**
  * Verifies that a declared plumbing file hides the frames of its inline functions: their lambdas compile into
@@ -38,7 +38,7 @@ open class CallSitePlumbingTest(
 
     @Test
     fun `a plumbing file entry hides the frames of its inline functions`(): Unit = runBlocking {
-        CoreSqlLog.ignoreCallSites("Plumbing.kt")
+        CallSiteCapture.ignoreCallSites("Plumbing.kt")
         val summary = record("plumbed") {
             throughDbLayer { orm.entity(PetOwnerRef::class).select().resultList }
         }
@@ -50,7 +50,7 @@ open class CallSitePlumbingTest(
 
     @Test
     fun `work launched onto another dispatcher names the frame that launched it`(): Unit = runBlocking {
-        CoreSqlLog.ignoreCallSites("Plumbing.kt")
+        CallSiteCapture.ignoreCallSites("Plumbing.kt")
         val summary = record("launched") {
             fetchAllOnDispatcher(orm)
         }

@@ -16,6 +16,7 @@
 package st.orm.template
 
 import kotlinx.coroutines.asContextElement
+import st.orm.core.template.impl.CallSiteCapture
 import st.orm.core.template.impl.SqlInterceptorManager
 import st.orm.template.impl.recordSqlLog
 import kotlin.coroutines.CoroutineContext
@@ -58,8 +59,8 @@ fun sqlLogContext(): CoroutineContext {
     val open = holder.get() ?: return EmptyCoroutineContext
     var context: CoroutineContext = holder.asContextElement(open)
     if (SqlInterceptorManager.hasCallSiteListeners()) {
-        CoreSqlLog.captureCallSite()?.let { launchSite ->
-            context += CoreSqlLog.callSiteHint().asContextElement(launchSite)
+        CallSiteCapture.captureCallSite()?.let { launchSite ->
+            context += CallSiteCapture.callSiteHint().asContextElement(launchSite)
         }
     }
     return context

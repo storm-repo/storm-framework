@@ -11,10 +11,34 @@ module storm.core {
     uses st.orm.core.spi.CursorCodecProvider;
     uses st.orm.mapping.Instantiator;
     exports st.orm.core.template;
-    exports st.orm.core.template.impl;
+    // The impl packages are reachable by Storm's own modules only; to everyone else they are not API.
+    exports st.orm.core.template.impl to
+            storm.foundation,
+            storm.h2,
+            storm.jackson2,
+            storm.jackson3,
+            storm.java,
+            storm.kotlin,
+            storm.ktor,
+            storm.mariadb,
+            storm.mssqlserver,
+            storm.mysql,
+            storm.oracle,
+            storm.postgresql,
+            storm.spring,
+            storm.sqlite,
+            storm.test;
     exports st.orm.core.spi;
     exports st.orm.core.repository;
-    exports st.orm.core.repository.impl;
+    exports st.orm.core.repository.impl to
+            storm.h2,
+            storm.kotlin,
+            storm.mariadb,
+            storm.mssqlserver,
+            storm.mysql,
+            storm.oracle,
+            storm.postgresql,
+            storm.sqlite;
     requires java.management;
     requires java.sql;
     requires static jakarta.persistence;

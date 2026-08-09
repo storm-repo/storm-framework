@@ -35,6 +35,8 @@ import org.springframework.boot.convert.ApplicationConversionService;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.core.env.Environment;
+import st.orm.core.template.impl.CallSiteCapture;
+import st.orm.core.template.impl.SqlLogRenderer;
 
 /**
  * Auto-configuration that reports what each unit of work cost the database.
@@ -81,12 +83,12 @@ public class StormSqlLogAutoConfiguration {
     /** Applies the settings that shape how every summary renders, whichever boundary produced it. */
     private static void applyDisplaySettings(@Nonnull StormProperties.SqlLog sqlLog) {
         if (!sqlLog.getCallSiteSkip().isEmpty()) {
-            st.orm.core.template.SqlLog.ignoreCallSites(sqlLog.getCallSiteSkip().toArray(String[]::new));
+            CallSiteCapture.ignoreCallSites(sqlLog.getCallSiteSkip().toArray(String[]::new));
         }
         if (sqlLog.getLineWidth() != null) {
-            st.orm.core.template.SqlLog.lineWidth(sqlLog.getLineWidth());
+            SqlLogRenderer.lineWidth(sqlLog.getLineWidth());
         }
-        st.orm.core.template.SqlLog.hydrationShapes(switch (sqlLog.getHydration()) {
+        SqlLogRenderer.hydrationShapes(switch (sqlLog.getHydration()) {
             case OFF -> OFF;
             case SHORT -> SHORT;
             case FULL -> FULL;

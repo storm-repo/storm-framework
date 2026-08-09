@@ -17,14 +17,9 @@ package st.orm.core.template;
 
 import static java.util.Comparator.comparingLong;
 import static java.util.Objects.requireNonNull;
-import static java.util.concurrent.TimeUnit.NANOSECONDS;
-import static st.orm.core.spi.StormConfigHelper.getEnum;
-import static st.orm.core.spi.StormConfigHelper.getInt;
 
 import jakarta.annotation.Nonnull;
 import jakarta.annotation.Nullable;
-import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -38,10 +33,11 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import st.orm.Data;
 import st.orm.PersistenceException;
-import st.orm.StormConfig;
 import st.orm.core.spi.QueryContext;
 import st.orm.core.template.SqlTemplate.Parameter;
+import st.orm.core.template.impl.CallSiteCapture;
 import st.orm.core.template.impl.SqlInterceptorManager;
+import st.orm.core.template.impl.SqlLogRenderer;
 import st.orm.core.template.impl.StatementListener;
 
 /**
@@ -60,6 +56,11 @@ import st.orm.core.template.impl.StatementListener;
  *
  * <p>A scope is bound to the thread that opened it, so it records the statements of a blocking call. Statements
  * issued after a suspension that resumed on another thread fall outside it.</p>
+ *
+ * <p>How summaries render — hydration shapes, line width, call-site skips — is a property of the deployment,
+ * configured rather than programmed: the {@code storm.sql_log.hydration}, {@code storm.sql_log.line_width} and
+ * {@code storm.sql_log.call_site_skip} system properties on a plain JVM, or the corresponding keys of the Spring
+ * and Ktor integrations.</p>
  *
  * @since 1.13
  */
@@ -243,7 +244,7 @@ public final class SqlLog {
         /**
          * Returns the recorded statements grouped by their text, heaviest first, which is the view that answers
          * where the time went: a statement run many times cheaply outranks one slow statement when it cost more in
-         * total. When {@link #hydrationShapes(HydrationShapes)} enables shapes, each read's line carries the
+         * total. When hydration shapes are enabled ({@code storm.sql_log.hydration}), each read's line carries the
          * declared hydration shape of its type in the configured form.
          *
          * @return one line per distinct statement, ordered by total time.
@@ -271,7 +272,7 @@ public final class SqlLog {
                             group.texts.size(), group.durationNanos,
                             group.sites.isEmpty() ? null : group.sites.iterator().next(), group.sites.size(),
                             group.rows, group.exactRows,
-                            hydrationOf(group, hydrationShapes)))
+                            SqlLogRenderer.hydrationOf(group.operation, group.dataType)))
                     .sorted(comparingLong(StatementLine::durationNanos).reversed())
                     .toList();
         }
@@ -305,51 +306,7 @@ public final class SqlLog {
          * @return the rendered summary, followed by the full statements.
          */
         public String toDetailedString() {
-            var rendered = new StringBuilder(render(name, recorded, count(StatementOrigin.FETCH), cacheHits,
-                    NANOSECONDS.toMillis(databaseNanos()), NANOSECONDS.toMillis(databaseElapsedNanos()),
-                    peakConcurrency(), NANOSECONDS.toMillis(durationNanos), byStatement(),
-                    recorded - statements.size()));
-            var lines = byStatement();
-            if (!lines.isEmpty()) {
-                rendered.append(String.format("%n\tstatements:"));
-            }
-            for (var line : lines) {
-                rendered.append(String.format("%n\t  ")).append(flatten(line.statement()));
-            }
-            return rendered.toString();
-        }
-
-        /**
-         * Returns the rendered hydration shape of the group's type in the configured form, or {@code null} when
-         * shapes are off, the group is not a read, or its type has none.
-         */
-        @Nullable
-        private static String hydrationOf(@Nonnull Group group, @Nonnull HydrationShapes shapes) {
-            if (shapes == HydrationShapes.OFF) {
-                return null;
-            }
-            if (group.operation != SqlOperation.SELECT) {
-                // The shape states what reading the type joins and maps. A write touches its own table only, so
-                // the shape would describe a graph its statement never traverses and columns it never sets; a
-                // statement whose operation is undetermined cannot claim to be a read either.
-                return null;
-            }
-            if (group.dataType == null) {
-                return null;
-            }
-            var shape = HYDRATION.get(group.dataType);
-            if (shape == NO_HYDRATION) {
-                return null;
-            }
-            if (shapes == HydrationShapes.FULL) {
-                return "joins=%d columns=%d graph=%s".formatted(shape.joins(), shape.columns(), shape.graph());
-            }
-            if (shape.joins() == 0) {
-                // A flat type says nothing its row does not already say; the short token appears when hydration
-                // reaches beyond the statement's own table.
-                return null;
-            }
-            return "j%d c%d d%d".formatted(shape.joins(), shape.columns(), shape.depth());
+            return SqlLogRenderer.renderDetailed(this);
         }
 
         /**
@@ -357,10 +314,7 @@ public final class SqlLog {
          */
         @Override
         public String toString() {
-            return render(name, recorded, count(StatementOrigin.FETCH), cacheHits,
-                    NANOSECONDS.toMillis(databaseNanos()), NANOSECONDS.toMillis(databaseElapsedNanos()),
-                    peakConcurrency(), NANOSECONDS.toMillis(durationNanos), byStatement(),
-                    recorded - statements.size());
+            return SqlLogRenderer.render(this);
         }
     }
 
@@ -420,220 +374,6 @@ public final class SqlLog {
 
         /** Every mapped read ends with the full shape, {@code joins=2 columns=12 graph=Pet(Owner(City))}. */
         FULL
-    }
-
-    /**
-     * How shapes render, a property of the log viewer rather than of any scope: derived at rendering and cached
-     * per type, the setting costs nothing while calls run. Set once at startup; read at rendering only.
-     */
-    private static volatile HydrationShapes hydrationShapes = HydrationShapes.OFF;
-
-    /**
-     * Sets how a read's summary row renders the declared hydration shape of its type. Off by default; intended to
-     * be called once at startup.
-     *
-     * @param shapes how shapes render.
-     */
-    public static void hydrationShapes(@Nonnull HydrationShapes shapes) {
-        hydrationShapes = requireNonNull(shapes, "shapes");
-    }
-
-    /**
-     * Width a summary row aims for, a property of the log viewer rather than of any scope. The statement text
-     * receives what the row's other columns leave, down to a floor that keeps it identifiable. Set once at
-     * startup; read at rendering only.
-     */
-    private static volatile int lineWidth = 200;
-
-    /** The least statement text a row keeps, whatever its other columns consume. */
-    private static final int MIN_STATEMENT_WIDTH = 40;
-
-    /**
-     * Sets the width summary rows aim for, such as {@code 120} for narrow viewers or {@code 240} for wide
-     * ones. The statement text elides to what the row's other columns leave. Intended to be called once at
-     * startup.
-     *
-     * @param width the display width; at least 80.
-     */
-    public static void lineWidth(int width) {
-        lineWidth = Math.max(80, width);
-    }
-
-    /**
-     * Renders a summary as a headline plus a line per distinct statement, heaviest first.
-     *
-     * <p>The headline separates the time the database spent from the time the call took, so a call that is slow for
-     * other reasons says so. Under a fan-out the summed database time exceeds the elapsed time, and their ratio is
-     * the concurrency the work achieved.</p>
-     *
-     * <p>Statements that ran past the recording limit are counted but not retained, so they contribute no duration
-     * and no row. The database times are then lower bounds and are marked {@code +}, and a closing line reports how
-     * many statements went unrecorded. The statement count and the call's own duration stay exact.</p>
-     *
-     * @param name what the scope covered.
-     * @param statementCount the statements the call executed.
-     * @param fetchCount how many of those resolved a reference.
-     * @param cacheHits the reads the transaction's entity cache served without a statement.
-     * @param databaseMillis the summed duration of the recorded statements.
-     * @param databaseElapsedMillis the time during which at least one recorded statement was in flight.
-     * @param peakConcurrency the greatest number of recorded statements in flight at once.
-     * @param totalMillis how long the call took.
-     * @param byStatement one line per distinct statement, in any order.
-     * @param notRecorded how many statements ran past the recording limit.
-     * @return the rendered summary.
-     */
-    public static String render(@Nonnull String name,
-                                int statementCount,
-                                int fetchCount,
-                                int cacheHits,
-                                long databaseMillis,
-                                long databaseElapsedMillis,
-                                int peakConcurrency,
-                                long totalMillis,
-                                @Nonnull List<StatementLine> byStatement,
-                                int notRecorded) {
-        var rendered = new StringBuilder("SQL (%s): %s".formatted(name, statements(statementCount)));
-        if (fetchCount > 0) {
-            rendered.append(", ").append(fetches(fetchCount));
-        }
-        if (cacheHits > 0) {
-            rendered.append(", %d from cache".formatted(cacheHits));
-        }
-        // Statements past the recording limit contribute no duration, so the database times cover the recorded
-        // ones only; mark them as lower bounds rather than let a truncated summary understate its own cost.
-        var bound = notRecorded > 0 ? "+" : "";
-        rendered.append(", %d%s ms in database".formatted(databaseMillis, bound));
-        // Concurrency is a count of simultaneous executions, reported only when the work overlapped: summed
-        // database time then exceeds the elapsed time it was compressed into, so both appear.
-        if (peakConcurrency > 1) {
-            rendered.append(" over %d%s ms elapsed (peak %d concurrent)".formatted(
-                    databaseElapsedMillis, bound, peakConcurrency));
-        }
-        rendered.append(", %d ms total".formatted(totalMillis));
-        int width = byStatement.stream()
-                .mapToInt(line -> String.valueOf(NANOSECONDS.toMillis(line.durationNanos())).length())
-                .max()
-                .orElse(1);
-        int executionWidth = byStatement.stream()
-                .mapToInt(line -> String.valueOf(line.executions()).length())
-                .max()
-                .orElse(1);
-        int typeWidth = byStatement.stream()
-                .mapToInt(line -> line.dataType().length())
-                .max()
-                .orElse(1);
-        int rowsWidth = byStatement.stream()
-                .mapToInt(line -> rowsLabel(line).length())
-                .max()
-                .orElse(1);
-        // The identifying columns align and lead; the free-form statement text comes last, where raggedness
-        // does not break the columns after it. The fetch and call-site columns appear only when any row has one.
-        boolean anyFetch = byStatement.stream().anyMatch(StatementLine::fetch);
-        int siteWidth = byStatement.stream()
-                .mapToInt(line -> siteLabel(line).length())
-                .max()
-                .orElse(0);
-        // The row aims for the configured line width: the statement text receives what the fixed columns and
-        // the row's own suffixes leave, down to a floor that keeps it identifiable.
-        int prefixWidth = width + 5 + executionWidth + 3 + rowsWidth + 6 + typeWidth + 2
-                + (anyFetch ? 7 : 0) + (siteWidth > 0 ? siteWidth + 2 : 0);
-        // Ordering is presentation, so the renderer owns it rather than trusting the order it was handed.
-        for (var line : byStatement.stream()
-                .sorted(comparingLong(StatementLine::durationNanos).reversed())
-                .toList()) {
-            rendered.append(String.format(
-                    "%n\t%" + width + "d ms  %" + rowsWidth + "s rows  %" + executionWidth + "dx  %-" + typeWidth + "s",
-                    NANOSECONDS.toMillis(line.durationNanos()),
-                    rowsLabel(line),
-                    line.executions(),
-                    line.dataType()));
-            if (anyFetch) {
-                rendered.append(String.format("  %-5s", line.fetch() ? "fetch" : ""));
-            }
-            if (siteWidth > 0) {
-                rendered.append(String.format("  %-" + siteWidth + "s", siteLabel(line)));
-            }
-            int suffixWidth = (line.variants() > 1 ? 12 + String.valueOf(line.variants()).length() : 0)
-                    + (line.hydration() != null ? 2 + line.hydration().length() : 0);
-            int statementBudget = Math.max(MIN_STATEMENT_WIDTH, lineWidth - prefixWidth - suffixWidth);
-            rendered.append("  ").append(elide(line.statement(), statementBudget));
-            if (line.variants() > 1) {
-                rendered.append(" (%d variants)".formatted(line.variants()));
-            }
-            if (line.hydration() != null) {
-                rendered.append("  ").append(line.hydration());
-            }
-        }
-        if (notRecorded > 0) {
-            rendered.append("%n\t(%s not recorded)".formatted(statements(notRecorded)));
-        }
-        return rendered.toString();
-    }
-
-    /** Returns the row-count column content: the count, marked {@code *} when it is a lower bound. */
-    private static String rowsLabel(@Nonnull StatementLine line) {
-        return line.exactRows() ? String.valueOf(line.rows()) : line.rows() + "*";
-    }
-
-    /** Returns the call-site column content for the line, empty when the scope recorded none. */
-    private static String siteLabel(@Nonnull StatementLine line) {
-        if (line.callSite() == null) {
-            return "";
-        }
-        return line.sites() > 1
-                ? "%s (+%d sites)".formatted(line.callSite(), line.sites() - 1)
-                : line.callSite();
-    }
-
-    /**
-     * Returns the statement on one line, elided from the middle so a summary stays scannable: the head names the
-     * operation and columns, the tail carries the FROM and WHERE clauses that identify what the statement does.
-     */
-    private static String elide(@Nonnull String statement, int width) {
-        // A run of placeholders says nothing its length does not; collapsing it leaves the elision budget to
-        // the clauses that identify the statement. Display only: the detailed rendering keeps the exact text.
-        String flattened = flatten(statement).replaceAll("\\?(?:, \\?){3,}", "?, \u2026, ?");
-        if (flattened.length() <= width) {
-            return flattened;
-        }
-        int head = width / 3;
-        int tail = width - head - 1;
-        return flattened.substring(0, head) + "\u2026" + flattened.substring(flattened.length() - tail);
-    }
-
-    /**
-     * Returns the statement on one line, joining it on the line breaks it was rendered with.
-     *
-     * <p>A nested subquery is rendered on lines of its own, which leaves its closing parenthesis opening a line.
-     * Joining every break with a space reads that back as {@code WHERE id = ? ) ) x}, so a break between characters
-     * that belong together closes up instead.</p>
-     */
-    private static String flatten(@Nonnull String statement) {
-        var flattened = new StringBuilder();
-        statement.lines()
-                .map(String::strip)
-                .filter(line -> !line.isEmpty())
-                .forEach(line -> {
-                    if (!flattened.isEmpty()
-                            && separated(flattened.charAt(flattened.length() - 1), line.charAt(0))) {
-                        flattened.append(' ');
-                    }
-                    flattened.append(line);
-                });
-        return flattened.toString();
-    }
-
-    /** Returns whether a line break between the two characters reads as a space rather than as nothing at all. */
-    private static boolean separated(char before, char after) {
-        return before != '(' && after != ')' && after != ',';
-    }
-
-    private static String statements(int count) {
-        return "%d statement%s".formatted(count, count == 1 ? "" : "s");
-    }
-
-    private static String fetches(int count) {
-        return "%d fetch%s".formatted(count, count == 1 ? "" : "es");
     }
 
     /** Statements recorded per scope before recording stops, keeping a runaway call from retaining the lot. */
@@ -894,7 +634,7 @@ public final class SqlLog {
             if (recorded.incrementAndGet() > limit) {
                 return Handle.NOOP;
             }
-            var callSite = callSites ? callSite() : null;
+            var callSite = callSites ? CallSiteCapture.callSite() : null;
             long start = System.nanoTime();
             var operation = context.operation();
             var dataType = context.dataType().orElse(null);
@@ -914,291 +654,5 @@ public final class SqlLog {
         public void onCacheHit(@Nonnull Class<? extends Data> dataType, int count) {
             cacheHits.addAndGet(count);
         }
-    }
-
-    /**
-     * The declared hydration shape of a type: what an eager read of it joins and maps.
-     *
-     * <p>Derived from the type declaration, not from any statement: an entity component is a join edge and
-     * recurses; an inline record is columns on the same table and no subgraph, so a joined entity it carries
-     * splices into its parent's children; a reference is its foreign key column and stops, which is exactly the
-     * width a {@code Ref} declaration saves. Computed once per type, at display time.</p>
-     *
-     * @param joins the join edges an eager read of the type takes.
-     * @param columns the columns it maps.
-     * @param depth the entity levels along the deepest chain: {@code 1} for a flat entity, {@code 3} for
-     *              {@code Pet(Owner(City))}.
-     * @param graph the joined-entity tree, such as {@code Pet(PetType, Owner(City))}.
-     */
-    record Hydration(int joins, int columns, int depth, @Nonnull String graph) {
-    }
-
-    /** Marks a type without a mapped record structure, for which no shape renders. */
-    private static final Hydration NO_HYDRATION = new Hydration(0, 0, 0, "");
-
-    private static final ClassValue<Hydration> HYDRATION = new ClassValue<>() {
-        @Override
-        protected Hydration computeValue(@Nonnull Class<?> type) {
-            // The reflection provider recognizes the mapped structure of Java records and Kotlin data classes
-            // alike, which is the same bridge the model itself is built over.
-            if (st.orm.core.spi.Providers.getORMReflection().findRecordType(type).isEmpty()) {
-                return NO_HYDRATION;
-            }
-            var shape = shape(type, new java.util.HashSet<>());
-            String graph = type.getSimpleName()
-                    + (shape.children().isEmpty() ? "" : "(" + shape.children() + ")");
-            return new Hydration(shape.joins(), shape.columns(), 1 + shape.depth(), graph);
-        }
-    };
-
-    /**
-     * The shape of one type level: its joins and columns, the entity levels below it, and its joined children
-     * rendered as a list.
-     */
-    private record Shape(int joins, int columns, int depth, @Nonnull String children) {
-    }
-
-    private static Shape shape(@Nonnull Class<?> type, @Nonnull java.util.Set<Class<?>> path) {
-        if (!path.add(type)) {
-            // A cycle recurses no further; the revisited entity contributes its foreign key column.
-            return new Shape(0, 1, 0, "");
-        }
-        try {
-            var reflection = st.orm.core.spi.Providers.getORMReflection();
-            var recordType = reflection.findRecordType(type).orElse(null);
-            if (recordType == null) {
-                return new Shape(0, 1, 0, "");
-            }
-            int joins = 0;
-            int columns = 0;
-            int depth = 0;
-            var children = new StringBuilder();
-            for (var field : recordType.fields()) {
-                Class<?> fieldType = field.type();
-                if (st.orm.Ref.class.isAssignableFrom(fieldType)) {
-                    // The foreign key column; a reference does not widen the read.
-                    columns++;
-                } else if (st.orm.Entity.class.isAssignableFrom(fieldType)) {
-                    var child = shape(fieldType, path);
-                    joins += 1 + child.joins();
-                    columns += child.columns();
-                    depth = Math.max(depth, 1 + child.depth());
-                    if (!children.isEmpty()) {
-                        children.append(", ");
-                    }
-                    children.append(fieldType.getSimpleName());
-                    if (!child.children().isEmpty()) {
-                        children.append('(').append(child.children()).append(')');
-                    }
-                } else if (reflection.findRecordType(fieldType).isPresent()) {
-                    // Any other mapped record structure is an inline record: columns on this table, not a
-                    // subgraph; entities it joins splice up.
-                    // An inline record is not a level of its own, so an entity it joins counts at this level.
-                    var inline = shape(fieldType, path);
-                    joins += inline.joins();
-                    columns += inline.columns();
-                    depth = Math.max(depth, inline.depth());
-                    if (!inline.children().isEmpty()) {
-                        if (!children.isEmpty()) {
-                            children.append(", ");
-                        }
-                        children.append(inline.children());
-                    }
-                } else {
-                    columns++;
-                }
-            }
-            return new Shape(joins, columns, depth, children.toString());
-        } finally {
-            path.remove(type);
-        }
-    }
-
-    private static final StackWalker CALL_SITE_WALKER = StackWalker.getInstance();
-
-    /**
-     * The launch-site fallback for executions whose stack no longer contains the caller, such as work resumed
-     * on a coroutine dispatcher. Bound by integrations that carry a scope onto another thread, alongside the
-     * scope itself.
-     */
-    private static final ThreadLocal<String> CALL_SITE_HINT = new ThreadLocal<>();
-
-    /**
-     * Returns the thread local carrying the launch-site fallback for executions whose stack no longer contains
-     * the caller.
-     *
-     * <p>Intended for integrations that carry a scope onto another thread, such as coroutine context elements,
-     * which bind it alongside the scope. Application code should not modify it.</p>
-     *
-     * @return the thread local holding the current launch site.
-     */
-    public static ThreadLocal<String> callSiteHint() {
-        return CALL_SITE_HINT;
-    }
-
-    /**
-     * Returns the application frame launching work, for an integration to carry as the call-site fallback of a
-     * scope that records call sites.
-     *
-     * <p>At the moment work is launched, the caller is still on the stack; on the thread the work resumes on,
-     * it no longer is. Carrying what this returns, bound through {@link #callSiteHint()}, is what lets a
-     * statement whose stack is plumbing end to end name the frame that launched the work. When the launch
-     * itself has no application frame on its stack, the fallback already carried is returned, so chained
-     * launches preserve the original caller.</p>
-     *
-     * <p>Costs a stack walk; callers gate on whether an observing scope records call sites.</p>
-     *
-     * @return the launching application frame, or {@code null} when there is none to carry.
-     */
-    @Nullable
-    public static String captureCallSite() {
-        var walked = walkFrames();
-        return walked.application() != null ? walked.application() : CALL_SITE_HINT.get();
-    }
-
-    /**
-     * Returns the application frame that caused the execution: the innermost frame that is neither framework
-     * infrastructure nor declared plumbing, as {@code File.ext:line}.
-     *
-     * <p>When every application frame on the stack is declared plumbing, the carried launch site is returned
-     * when one is bound, since it names the caller the stack lost; the innermost plumbing frame otherwise, as a
-     * plumbing site still says more than none.</p>
-     */
-    @Nullable
-    private static String callSite() {
-        var walked = walkFrames();
-        if (walked.application() != null) {
-            return walked.application();
-        }
-        String hint = CALL_SITE_HINT.get();
-        if (hint != null) {
-            return hint;
-        }
-        return walked.plumbing();
-    }
-
-    /** The two frames a walk can surface: the first application frame, and the innermost plumbing frame. */
-    private record WalkedFrames(@Nullable String application, @Nullable String plumbing) {
-    }
-
-    private static WalkedFrames walkFrames() {
-        return CALL_SITE_WALKER.walk(frames -> {
-            String plumbing = null;
-            for (var iterator = frames.iterator(); iterator.hasNext(); ) {
-                var frame = iterator.next();
-                if (isInfrastructure(frame.getClassName())) {
-                    continue;
-                }
-                if (isDeclaredPlumbing(frame.getClassName(), frame.getFileName())) {
-                    if (plumbing == null) {
-                        plumbing = format(frame);
-                    }
-                    continue;
-                }
-                return new WalkedFrames(format(frame), plumbing);
-            }
-            return new WalkedFrames(null, plumbing);
-        });
-    }
-
-    private static String format(@Nonnull StackWalker.StackFrame frame) {
-        String file = frame.getFileName();
-        return file != null
-                ? "%s:%d".formatted(file, frame.getLineNumber())
-                : "%s.%s".formatted(frame.getClassName(), frame.getMethodName());
-    }
-
-    /**
-     * Returns whether the frame belongs to a package or source file the application declared as plumbing.
-     *
-     * <p>Entries naming a source file match the frame's file, which is what covers inline functions: inlining
-     * regenerates a lambda under the caller's class, where a package prefix cannot see it, while the frame keeps
-     * the declaring file's name.</p>
-     */
-    private static boolean isDeclaredPlumbing(@Nonnull String className, @Nullable String fileName) {
-        for (var entry : ignoredCallSitePrefixes) {
-            if (entry.endsWith(".kt") || entry.endsWith(".java")) {
-                if (entry.equals(fileName)) {
-                    return true;
-                }
-            } else if (className.startsWith(entry)) {
-                return true;
-            }
-        }
-        return false;
-    }
-
-    /**
-     * Package prefixes the application declared as its own database plumbing, so call sites name the code that
-     * asked for the work rather than the layer that carried it. Copy-on-write: registered once at startup, read
-     * on every walk.
-     */
-    private static volatile String[] ignoredCallSitePrefixes = {};
-
-    /**
-     * Declares packages whose frames are skipped when attributing an execution to a call site.
-     *
-     * <p>A database layer of the application's own, such as a wrapper that fans a query out over several
-     * templates, sits between the caller and Storm on every statement; its frames identify the plumbing rather
-     * than the code that asked for the work. Declaring its packages here makes call sites name the caller
-     * beyond it.</p>
-     *
-     * <p>An entry is a package prefix matched against the fully qualified class name, or, when it ends in
-     * {@code .kt} or {@code .java}, a source file name matched against the frame's file. The file form covers
-     * inline functions, whose lambdas are regenerated under the caller's class while keeping the declaring
-     * file's name. When every application frame on a stack is declared plumbing, the innermost plumbing frame is
-     * reported rather than none. Intended to be called once at startup.</p>
-     *
-     * @param packagePrefixes the package prefixes or source file names to skip, such as {@code "com.acme.db"} or
-     *                        {@code "DbExtensions.kt"}.
-     */
-    public static void ignoreCallSites(@Nonnull String... packagePrefixes) {
-        var merged = new ArrayList<>(List.of(ignoredCallSitePrefixes));
-        for (var prefix : packagePrefixes) {
-            merged.add(requireNonNull(prefix, "packagePrefix"));
-        }
-        ignoredCallSitePrefixes = merged.toArray(String[]::new);
-    }
-
-    private static boolean isInfrastructure(@Nonnull String className) {
-        if (className.startsWith("st.orm.")
-                || className.startsWith("java.")
-                || className.startsWith("jdk.")
-                || className.startsWith("sun.")
-                || className.startsWith("kotlin.")
-                || className.startsWith("kotlinx.")
-                || className.startsWith("org.springframework.")
-                || className.startsWith("org.apache.")
-                || className.startsWith("io.ktor.")
-                || className.startsWith("io.netty.")
-                || className.startsWith("org.eclipse.jetty.")) {
-            return true;
-        }
-        return false;
-    }
-
-    /**
-     * Applies the display settings from configuration ({@link StormConfig#defaults()}, which reads system
-     * properties). How the log renders is a property of the deployment, so it is configured like one —
-     * {@code storm.sql_log.hydration}, {@code storm.sql_log.line_width}, {@code storm.sql_log.call_site_skip} —
-     * rather than through an API. The Spring and Ktor integrations apply their own configuration through the
-     * setters.
-     */
-    private static void applyConfiguredDisplaySettings() {
-        var config = StormConfig.defaults();
-        hydrationShapes(getEnum(config, StormConfig.SQL_LOG_HYDRATION, HydrationShapes.class, HydrationShapes.OFF));
-        lineWidth(getInt(config, StormConfig.SQL_LOG_LINE_WIDTH, 200));
-        String skip = config.getProperty(StormConfig.SQL_LOG_CALL_SITE_SKIP);
-        if (skip != null) {
-            ignoreCallSites(Arrays.stream(skip.split(","))
-                    .map(String::trim)
-                    .filter(entry -> !entry.isEmpty())
-                    .toArray(String[]::new));
-        }
-    }
-
-    // Placed after every field it touches, since static initialization runs in textual order.
-    static {
-        applyConfiguredDisplaySettings();
     }
 }
