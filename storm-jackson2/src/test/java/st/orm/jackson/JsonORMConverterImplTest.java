@@ -34,7 +34,9 @@ import st.orm.Entity;
 import st.orm.Json;
 import st.orm.PK;
 import st.orm.PersistenceException;
+import st.orm.Ref;
 import st.orm.jackson.model.Address;
+import st.orm.jackson.model.Owner;
 
 /**
  * Tests for {@link st.orm.jackson.spi.JsonORMConverterImpl} targeting uncovered branches:
@@ -276,5 +278,49 @@ public class JsonORMConverterImplTest {
         var result = orm.query("SELECT id, address, telephone FROM owner WHERE id = 1")
                 .getSingleResult(OwnerWithFailOnMissing.class);
         assertNotNull(result.address());
+    }
+
+    // Nested deserialization: a custom deserializer that issues a query mid-deserialization.
+
+    public static class NestedQueryMarkerDeserializer extends JsonDeserializer<String> {
+        static DataSource nestedDataSource;
+
+        @Override
+        public String deserialize(JsonParser parser, DeserializationContext context)
+                throws java.io.IOException {
+            String text = parser.getText();
+            // Maps Owner, whose @Json address field enters fromDatabase re-entrantly on this thread.
+            of(nestedDataSource)
+                    .query("SELECT id, first_name, last_name, address, telephone FROM owner WHERE id = 2")
+                    .getSingleResult(Owner.class);
+            return text;
+        }
+    }
+
+    public record OwnerSnapshot(
+            @JsonDeserialize(using = NestedQueryMarkerDeserializer.class) String marker,
+            Ref<Owner> owner
+    ) {}
+
+    @Builder(toBuilder = true)
+    @DbTable("owner")
+    public record OwnerWithSnapshot(
+            @PK Integer id,
+            @Nonnull @Json OwnerSnapshot snapshot,
+            @Nullable String telephone
+    ) implements Entity<Integer> {}
+
+    @Test
+    public void refDeserializedAfterNestedConversionShouldRemainAttached() {
+        // The marker field deserializes first and issues a nested query, which binds and unbinds the nested
+        // conversion's RefFactory. The owner field that follows must still see the outer factory: the
+        // resulting ref is attached and fetches the owner.
+        NestedQueryMarkerDeserializer.nestedDataSource = dataSource;
+        var orm = of(dataSource);
+        var query = orm.query("SELECT id, JSON_OBJECT('marker' VALUE 'audit', 'owner' VALUE id) AS snapshot, telephone FROM owner WHERE id = 1");
+        var result = query.getSingleResult(OwnerWithSnapshot.class);
+        var ownerRef = result.snapshot().owner();
+        assertTrue(ownerRef.isFetchable());
+        assertEquals("Betty", ownerRef.fetch().firstName());
     }
 }

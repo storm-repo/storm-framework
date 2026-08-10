@@ -1,7 +1,13 @@
 package st.orm.serialization
 
+import kotlinx.serialization.Contextual
+import kotlinx.serialization.KSerializer
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
+import kotlinx.serialization.descriptors.PrimitiveKind
+import kotlinx.serialization.descriptors.PrimitiveSerialDescriptor
+import kotlinx.serialization.encoding.Decoder
+import kotlinx.serialization.encoding.Encoder
 import kotlinx.serialization.json.JsonClassDiscriminator
 import org.junit.jupiter.api.Assertions
 import org.junit.jupiter.api.Assertions.assertNotNull
@@ -451,5 +457,64 @@ open class JsonORMConverterIntegrationTest(@Autowired val dataSource: DataSource
         val result = query.getSingleResult(PlainListHolder::class)
         assertNotNull(result)
         assertEquals(listOf("a", "b", "c"), result.names)
+    }
+
+    // Nested deserialization: a custom serializer that issues a query mid-deserialization.
+
+    object NestedQueryMarkerSerializer : KSerializer<String> {
+        lateinit var nestedDataSource: DataSource
+
+        override val descriptor = PrimitiveSerialDescriptor("NestedQueryMarker", PrimitiveKind.STRING)
+
+        override fun serialize(encoder: Encoder, value: String) = encoder.encodeString(value)
+
+        override fun deserialize(decoder: Decoder): String {
+            val text = decoder.decodeString()
+            // Maps Owner, whose @Json address field enters fromDatabase re-entrantly on this thread.
+            ORMTemplate.of(nestedDataSource)
+                .query("SELECT id, first_name, last_name, address, telephone FROM owner WHERE id = 2")
+                .getSingleResult(Owner::class)
+            return text
+        }
+    }
+
+    // The ref target must be @Serializable itself, since the compiler requires a serializer for the type
+    // argument of a @Contextual Ref property. Maps the owner table without its @Json address column.
+    @Serializable
+    @DbTable("owner")
+    data class SerializableOwner(
+        @PK val id: Int = 0,
+        val firstName: String,
+        val lastName: String,
+        val telephone: String?,
+    ) : Entity<Int>
+
+    @Serializable
+    data class OwnerSnapshot(
+        @Serializable(with = NestedQueryMarkerSerializer::class) val marker: String,
+        @Contextual val owner: Ref<SerializableOwner>,
+    )
+
+    @DbTable("owner")
+    data class OwnerWithSnapshot(
+        @PK val id: Int,
+        @Json val snapshot: OwnerSnapshot,
+        val telephone: String?,
+    ) : Entity<Int>
+
+    @Test
+    fun `ref deserialized after nested conversion should remain attached`() {
+        // The marker field deserializes first and issues a nested query, which binds and unbinds the nested
+        // conversion's RefFactory. The owner field that follows must still see the outer factory: the
+        // resulting ref is attached and fetches the owner.
+        NestedQueryMarkerSerializer.nestedDataSource = dataSource
+        val orm = ORMTemplate.of(dataSource)
+        val query = orm.query(
+            "SELECT id, JSON_OBJECT('marker' VALUE 'audit', 'owner' VALUE id) AS snapshot, telephone FROM owner WHERE id = 1",
+        )
+        val result = query.getSingleResult(OwnerWithSnapshot::class)
+        val ownerRef = result.snapshot.owner
+        Assertions.assertTrue(ownerRef.isFetchable)
+        assertEquals("Betty", ownerRef.fetch().firstName)
     }
 }

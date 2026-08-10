@@ -454,4 +454,53 @@ public class JsonORMConverterIntegrationTest {
         assertEquals(10, owner.size());
         assertTrue(owner.stream().allMatch(x -> x.person instanceof NamedPersonA));
     }
+
+    // Nested deserialization: a custom deserializer that issues a query mid-deserialization.
+
+    public static class NestedQueryMarkerDeserializer extends tools.jackson.databind.deser.std.StdDeserializer<String> {
+        static DataSource nestedDataSource;
+
+        public NestedQueryMarkerDeserializer() {
+            super(String.class);
+        }
+
+        @Override
+        public String deserialize(tools.jackson.core.JsonParser parser,
+                                  tools.jackson.databind.DeserializationContext ctxt)
+                throws tools.jackson.core.JacksonException {
+            String text = parser.getText();
+            // Maps Owner, whose @Json address field enters fromDatabase re-entrantly on this thread.
+            of(nestedDataSource)
+                    .query("SELECT id, first_name, last_name, address, telephone FROM owner WHERE id = 2")
+                    .getSingleResult(Owner.class);
+            return text;
+        }
+    }
+
+    public record OwnerSnapshot(
+            @tools.jackson.databind.annotation.JsonDeserialize(using = NestedQueryMarkerDeserializer.class) String marker,
+            Ref<Owner> owner
+    ) {}
+
+    @Builder(toBuilder = true)
+    @DbTable("owner")
+    public record OwnerWithSnapshot(
+            @PK Integer id,
+            @Nonnull @Json OwnerSnapshot snapshot,
+            @Nullable String telephone
+    ) implements Entity<Integer> {}
+
+    @Test
+    public void refDeserializedAfterNestedConversionShouldRemainAttached() {
+        // The marker field deserializes first and issues a nested query, which binds and unbinds the nested
+        // conversion's RefFactory. The owner field that follows must still see the outer factory: the
+        // resulting ref is attached and fetches the owner.
+        NestedQueryMarkerDeserializer.nestedDataSource = dataSource;
+        var orm = of(dataSource);
+        var query = orm.query("SELECT id, JSON_OBJECT('marker' VALUE 'audit', 'owner' VALUE id) AS snapshot, telephone FROM owner WHERE id = 1");
+        var result = query.getSingleResult(OwnerWithSnapshot.class);
+        var ownerRef = result.snapshot().owner();
+        assertTrue(ownerRef.isFetchable());
+        assertEquals("Betty", ownerRef.fetch().firstName());
+    }
 }

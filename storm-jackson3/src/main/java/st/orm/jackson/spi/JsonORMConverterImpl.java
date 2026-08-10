@@ -181,13 +181,21 @@ public final class JsonORMConverterImpl implements ORMConverter {
         if (value == null) {
             return null;
         }
+        // A custom deserializer may issue a query, nesting another fromDatabase call on this thread. The previous
+        // factory is therefore restored rather than removed, so the remaining fields of the outer value still
+        // deserialize with the outer factory and produce attached refs.
+        RefFactory outerRefFactory = REF_FACTORY.get();
+        REF_FACTORY.set(refFactory);
         try {
-            REF_FACTORY.set(refFactory);
             return mapper.readValue((String) values[0], typeReference);
         } catch (JacksonException e) {
             throw new SqlTemplateException(e);
         } finally {
-            REF_FACTORY.remove();
+            if (outerRefFactory == null) {
+                REF_FACTORY.remove();
+            } else {
+                REF_FACTORY.set(outerRefFactory);
+            }
         }
     }
 }
