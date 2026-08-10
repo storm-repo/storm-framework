@@ -418,7 +418,16 @@ final class RecordValidation {
                                                         @Nonnull Set<RecordType> currentPath) {
         // Check if the current record type is already in the path (cycle detected).
         if (currentPath.contains(recordType)) {
-            return Optional.of("Cyclic dependency detected: %s.".formatted(buildCyclePath(recordType, currentPath)));
+            String cycle = buildCyclePath(recordType, currentPath);
+            if (Data.class.isAssignableFrom(recordType.type())) {
+                return Optional.of(("Cycle of non-Ref foreign keys: %s. "
+                        + "A foreign key cycle must cross a Ref boundary to be loadable. "
+                        + "Mark one of the foreign keys as Ref (for example Ref<%s>) to break the cycle.")
+                        .formatted(cycle, recordType.type().getSimpleName()));
+            }
+            return Optional.of(("Cycle of inline records: %s. "
+                    + "An inline record embeds its fields in the enclosing table, so a cycle cannot be modeled.")
+                    .formatted(cycle));
         }
         currentPath.add(recordType);
         for (RecordField field : recordType.fields()) {
@@ -439,17 +448,22 @@ final class RecordValidation {
     }
 
     /**
-     * Builds a string representation of the cycle path for error messaging.
+     * Builds a string representation of the cycle for error messaging: the tail of the traversal path from the type
+     * the cycle re-enters, closed by naming that type again.
      *
      * @param currentType the record type where the cycle was detected.
      * @param path        the current traversal path leading up to the cycle.
-     * @return a string describing the cycle path.
+     * @return a string describing the cycle.
      */
     private static String buildCyclePath(@Nonnull RecordType currentType,
                                                   @Nonnull Set<RecordType> path) {
         StringBuilder cyclePath = new StringBuilder();
+        boolean inCycle = false;
         for (RecordType type : path) {
-            cyclePath.append(type.type().getSimpleName()).append(" -> ");
+            inCycle = inCycle || type.equals(currentType);
+            if (inCycle) {
+                cyclePath.append(type.type().getSimpleName()).append(" -> ");
+            }
         }
         cyclePath.append(currentType.type().getSimpleName());
         return cyclePath.toString();

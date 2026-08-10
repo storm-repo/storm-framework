@@ -202,6 +202,85 @@ class MetamodelProcessorTest {
     }
 
     @Test
+    void rejectsNonRefForeignKeyCycleBetweenEntities() throws Exception {
+        Compilation compilation = compile("Owner.java", """
+                import st.orm.Entity;
+                import st.orm.FK;
+                import st.orm.PK;
+
+                public record Owner(@PK Integer id, @FK Pet pet) implements Entity<Integer> {}
+
+                record Pet(@PK Integer id, @FK Owner owner) implements Entity<Integer> {}
+                """);
+        assertFalse(compilation.success(),
+                "the generated metamodels would construct each other until the stack overflows, so the cycle "
+                + "must be rejected at generation time");
+        assertTrue(compilation.errors().contains("Cycle of non-Ref foreign keys: Owner -> Pet -> Owner")
+                        || compilation.errors().contains("Cycle of non-Ref foreign keys: Pet -> Owner -> Pet"),
+                compilation.errors());
+        assertTrue(compilation.errors().contains("Mark one of the foreign keys as Ref"), compilation.errors());
+        assertEquals(1, compilation.errors().split("Cycle of non-Ref foreign keys", -1).length - 1,
+                "the cycle must be reported once:\n" + compilation.errors());
+    }
+
+    @Test
+    void rejectsSelfReferencingNonRefForeignKey() throws Exception {
+        Compilation compilation = compile("Employee.java", """
+                import st.orm.Entity;
+                import st.orm.FK;
+                import st.orm.PK;
+
+                public record Employee(@PK Integer id, @FK Employee manager) implements Entity<Integer> {}
+                """);
+        assertFalse(compilation.success(),
+                "a self-referencing non-Ref foreign key must be rejected at generation time");
+        assertTrue(compilation.errors().contains("Cycle of non-Ref foreign keys: Employee -> Employee"),
+                compilation.errors());
+    }
+
+    @Test
+    void acceptsForeignKeyCycleThroughRefBoundary() throws Exception {
+        Compilation compilation = compile("Owner.java", """
+                import st.orm.Entity;
+                import st.orm.FK;
+                import st.orm.PK;
+                import st.orm.Ref;
+
+                public record Owner(@PK Integer id, @FK Pet pet) implements Entity<Integer> {}
+
+                record Pet(@PK Integer id, @FK Ref<Owner> owner) implements Entity<Integer> {}
+                """);
+        assertTrue(compilation.success(), compilation.errors());
+        assertTrue(compilation.generated("OwnerMetamodel.java"),
+                "a cycle through a Ref boundary is loadable and generates as usual");
+        assertTrue(compilation.generated("PetMetamodel.java"),
+                "a cycle through a Ref boundary is loadable and generates as usual");
+    }
+
+    @Test
+    void acceptsDeepForeignKeyChainClosedByRefBoundary() throws Exception {
+        Compilation compilation = compile("Country.java", """
+                import st.orm.Entity;
+                import st.orm.FK;
+                import st.orm.PK;
+                import st.orm.Ref;
+
+                public record Country(@PK Integer id, @FK Region region) implements Entity<Integer> {}
+
+                record Region(@PK Integer id, @FK City city) implements Entity<Integer> {}
+
+                record City(@PK Integer id, @FK Ref<Country> country) implements Entity<Integer> {}
+                """);
+        assertTrue(compilation.success(), compilation.errors());
+        assertTrue(compilation.generated("CityMetamodel.java"),
+                "the chain closed by a Ref at depth three generates as usual");
+        assertTrue(compilation.generated("CountryRefMetamodel.java"),
+                "the Ref boundary generates a reference metamodel");
+        assertTrue(compilation.generated("NavigableRegionMetamodel.java"),
+                "navigation beyond the Ref boundary reaches the deeper graph");
+    }
+
+    @Test
     void ignoresPlainRecordWithoutAnnotation() throws Exception {
         Compilation compilation = compile("CityStats.java", """
                 public record CityStats(String name, int inhabitants) {}

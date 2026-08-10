@@ -96,6 +96,17 @@ public final class MetamodelProcessor extends AbstractProcessor {
     private final Set<String> expandedReferencedRecords;
 
     /**
+     * Tracks which record types we already checked for non-Ref record cycles.
+     */
+    private final Set<String> checkedForRecordCycles;
+
+    /**
+     * Qualified names of the record types on the current cycle-check walk, in walk order, so a detected cycle is
+     * reported by naming its members.
+     */
+    private final Set<String> recordCyclePath;
+
+    /**
      * Tracks which record types we already generated a reference metamodel class ({@code <Type>RefMetamodel}) for.
      */
     private final Set<String> generatedReferenceMetamodels;
@@ -125,6 +136,8 @@ public final class MetamodelProcessor extends AbstractProcessor {
         this.generatedMetamodelClasses = new HashSet<>();
         this.generatedMetamodelInterfaces = new HashSet<>();
         this.expandedReferencedRecords = new HashSet<>();
+        this.checkedForRecordCycles = new HashSet<>();
+        this.recordCyclePath = new LinkedHashSet<>();
         this.generatedReferenceMetamodels = new HashSet<>();
         this.generatedNavigableMetamodels = new HashSet<>();
         this.navPath = new HashSet<>();
@@ -382,12 +395,78 @@ public final class MetamodelProcessor extends AbstractProcessor {
     }
 
     /**
+     * Rejects cycles in the graph of non-Ref record fields. The generated metamodels construct their record-typed
+     * children eagerly, so a cycle that does not cross a {@code Ref} boundary fails at class initialization. The
+     * engine states the same rule at template level for self-references: a foreign key cycle must be marked as
+     * {@code Ref} to be loadable.
+     */
+    private void checkRecordCycles(@Nonnull TypeElement recordElement) {
+        String qualifiedName = recordElement.getQualifiedName().toString();
+        if (!checkedForRecordCycles.add(qualifiedName)) return;
+        recordCyclePath.add(qualifiedName);
+        try {
+            for (Element enclosed : recordElement.getEnclosedElements()) {
+                if (getRecordComponentType(enclosed).isEmpty()) continue;
+                String fieldName = enclosed.getSimpleName().toString();
+                TypeMirror fieldType = getTypeElement(recordElement, fieldName);
+                if (fieldType == null) continue;
+                if (!isRecord(fieldType) || isRefType(fieldType) || isNestedRecord(fieldType)) continue;
+                TypeElement child = asTypeElement(fieldType);
+                if (child == null) continue;
+                String childQualifiedName = child.getQualifiedName().toString();
+                if (recordCyclePath.contains(childQualifiedName)) {
+                    String cycle = renderCycle(childQualifiedName);
+                    if (implementsData(child)) {
+                        processingEnv.getMessager().printMessage(ERROR,
+                                "Cycle of non-Ref foreign keys: " + cycle + ". "
+                                + "A foreign key cycle must cross a Ref boundary to be loadable. "
+                                + "Mark one of the foreign keys as Ref (for example Ref<" + child.getSimpleName()
+                                + ">) to break the cycle.",
+                                enclosed);
+                    } else {
+                        processingEnv.getMessager().printMessage(ERROR,
+                                "Cycle of inline records: " + cycle + ". "
+                                + "An inline record embeds its fields in the enclosing table, so a cycle cannot "
+                                + "be modeled.",
+                                enclosed);
+                    }
+                } else {
+                    checkRecordCycles(child);
+                }
+            }
+        } finally {
+            recordCyclePath.remove(qualifiedName);
+        }
+    }
+
+    /**
+     * Renders the members of the detected cycle: the tail of the current walk from the type the cycle re-enters,
+     * closed by naming that type again.
+     */
+    private String renderCycle(@Nonnull String cycleStart) {
+        StringBuilder cycle = new StringBuilder();
+        boolean inCycle = false;
+        for (String qualifiedName : recordCyclePath) {
+            inCycle = inCycle || qualifiedName.equals(cycleStart);
+            if (inCycle) {
+                cycle.append(simpleNameOf(qualifiedName)).append(" -> ");
+            }
+        }
+        return cycle.append(simpleNameOf(cycleStart)).toString();
+    }
+
+    private static String simpleNameOf(@Nonnull String qualifiedName) {
+        return qualifiedName.substring(qualifiedName.lastIndexOf('.') + 1);
+    }
+
+    /**
      * Generates the metamodel class for all records.
      * Generates the metamodel interface only if the record implements Data (directly or indirectly).
      */
     private void generateMetamodelArtifacts(@Nonnull Element recordElement) {
         TypeElement typeElement = asTypeElement(recordElement.asType());
         if (typeElement == null) return;
+        checkRecordCycles(typeElement);
 
         String qn = typeElement.getQualifiedName().toString();
         boolean isData = implementsData(recordElement);
