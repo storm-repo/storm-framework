@@ -808,14 +808,18 @@ public class RepositoryPreparedStatementIntegrationTest {
 
     @Test
     public void testSelectWithTwoPetsWithPathRaw() {
-        var owner = ORMTemplate.of(dataSource).entity(Owner.class).select().append("LIMIT 1").getSingleResult();
-        var list = ORMTemplate.of(dataSource).entity(VisitWithTwoPets.class).select().append(raw("WHERE \0", where(VisitWithTwoPets_.pet1.owner, EQUALS, owner))).getResultList();
+        var owner = ORMTemplate.of(dataSource).entity(Owner.class).select().limit(1).getSingleResult();
+        var list = ORMTemplate.of(dataSource).query(raw("""
+                SELECT \0
+                FROM \0
+                WHERE \0""", VisitWithTwoPets.class, VisitWithTwoPets.class, where(VisitWithTwoPets_.pet1.owner, EQUALS, owner)))
+                .getResultList(VisitWithTwoPets.class);
         assertEquals(2, list.size());
     }
 
     @Test
     public void testSelectWithTwoPetsWithPathTemplate() {
-        var owner = ORMTemplate.of(dataSource).entity(Owner.class).select().append("LIMIT 1").getSingleResult();
+        var owner = ORMTemplate.of(dataSource).entity(Owner.class).select().limit(1).getSingleResult();
         var visits = ORMTemplate.of(dataSource).entity(VisitWithTwoPets.class)
                 .select()
                 .where(it -> it.where(raw("\0 = \0", VisitWithTwoPets_.pet1.owner, owner.id()))).getResultList();
@@ -825,7 +829,7 @@ public class RepositoryPreparedStatementIntegrationTest {
     @Test
     public void testSelectWithTwoPetsWithMultipleParameters() {
         var orm = ORMTemplate.of(dataSource);
-        var owner = orm.entity(Owner.class).select().append("LIMIT 1").getSingleResult();
+        var owner = orm.entity(Owner.class).select().limit(1).getSingleResult();
         AtomicReference<Sql> sql = new AtomicReference<>();
         observe(sql::setPlain, () -> {
             var visits = orm.entity(VisitWithTwoPets.class)
@@ -839,7 +843,7 @@ public class RepositoryPreparedStatementIntegrationTest {
 
     @Test
     public void testSelectWithTwoPetsWithMultipleParametersTemplate() {
-        var owner = ORMTemplate.of(dataSource).entity(Owner.class).select().append("LIMIT 1").getSingleResult();
+        var owner = ORMTemplate.of(dataSource).entity(Owner.class).select().limit(1).getSingleResult();
         AtomicReference<Sql> sql = new AtomicReference<>();
         observe(sql::setPlain, () -> {
             var visits = ORMTemplate.of(dataSource).entity(VisitWithTwoPets.class)
@@ -886,7 +890,7 @@ public class RepositoryPreparedStatementIntegrationTest {
 
     @Test
     public void testSelectWithTwoPetsOneRefWithoutPath() throws Exception {
-        var owner = ORMTemplate.of(dataSource).entity(Owner.class).select().append("LIMIT 1").getSingleResult();
+        var owner = ORMTemplate.of(dataSource).entity(Owner.class).select().limit(1).getSingleResult();
         AtomicReference<Sql> sql = new AtomicReference<>();
         observe(sql::setPlain, () -> {
             var visits = relaxed(ORMTemplate.of(dataSource).entity(VisitWithTwoPetsOneRef.class).select()).where(it -> it.where(owner)).getResultList();
@@ -897,7 +901,7 @@ public class RepositoryPreparedStatementIntegrationTest {
 
     @Test
     public void testSelectWithTwoPetsOneRefWithoutPathTemplate() {
-        var owner = ORMTemplate.of(dataSource).entity(Owner.class).select().append("LIMIT 1").getSingleResult();
+        var owner = ORMTemplate.of(dataSource).entity(Owner.class).select().limit(1).getSingleResult();
         AtomicReference<Sql> sql = new AtomicReference<>();
         observe(sql::setPlain, () -> {
             var visits = ORMTemplate.of(dataSource).entity(VisitWithTwoPetsOneRef.class)
@@ -910,7 +914,7 @@ public class RepositoryPreparedStatementIntegrationTest {
 
     @Test
     public void testSelectWithTwoPetsOneRefWithRootPathTemplateMetamodel() {
-        var owner = ORMTemplate.of(dataSource).entity(Owner.class).select().append("LIMIT 1").getSingleResult();
+        var owner = ORMTemplate.of(dataSource).entity(Owner.class).select().limit(1).getSingleResult();
         AtomicReference<Sql> sql = new AtomicReference<>();
         observe(sql::setPlain, () -> {
             var list = ORMTemplate.of(dataSource).entity(VisitWithTwoPetsOneRef.class)
@@ -927,7 +931,7 @@ public class RepositoryPreparedStatementIntegrationTest {
     @Test
     public void testSelectWithTwoPetsOneRefWithInvalidPathTemplateMetamodel() {
         var e = assertThrows(PersistenceException.class, () -> {
-            var owner = ORMTemplate.of(dataSource).entity(Owner.class).select().append("LIMIT 1").getSingleResult();
+            var owner = ORMTemplate.of(dataSource).entity(Owner.class).select().limit(1).getSingleResult();
             AtomicReference<Sql> sql = new AtomicReference<>();
             observe(sql::setPlain, () -> {
                 ORMTemplate.of(dataSource).entity(VisitWithTwoPetsOneRef.class)
@@ -946,7 +950,7 @@ public class RepositoryPreparedStatementIntegrationTest {
             LEFT JOIN pet por ON vwtpor.pet_id = por.id
             LEFT JOIN pet_type pt ON por.type_id = pt.id
             WHERE por.owner_id = ?""";
-        var owner = ORMTemplate.of(dataSource).entity(Owner.class).select().append("LIMIT 1").getSingleResult();
+        var owner = ORMTemplate.of(dataSource).entity(Owner.class).select().limit(1).getSingleResult();
         AtomicReference<Sql> sql = new AtomicReference<>();
         observe(sql::setPlain, () -> {
             relaxed(ORMTemplate.of(dataSource).entity(VisitWithTwoPetsOneRef.class).select())
@@ -957,7 +961,7 @@ public class RepositoryPreparedStatementIntegrationTest {
 
     @Test
     public void testSelectWithTwoPetsOneRefWithRootPathMetamodelTemplate() {
-        var owner = ORMTemplate.of(dataSource).entity(Owner.class).select().append("LIMIT 1").getSingleResult();
+        var owner = ORMTemplate.of(dataSource).entity(Owner.class).select().limit(1).getSingleResult();
         AtomicReference<Sql> sql = new AtomicReference<>();
         observe(sql::setPlain, () -> {
             var list = ORMTemplate.of(dataSource).entity(VisitWithTwoPetsOneRef.class)
@@ -974,7 +978,7 @@ public class RepositoryPreparedStatementIntegrationTest {
     @Test
     public void testSelectWithTwoPetsOneRefWithInvalidPathMetamodelTemplate() {
         var e = assertThrows(PersistenceException.class, () -> {
-            var owner = ORMTemplate.of(dataSource).entity(Owner.class).select().append("LIMIT 1").getSingleResult();
+            var owner = ORMTemplate.of(dataSource).entity(Owner.class).select().limit(1).getSingleResult();
             AtomicReference<Sql> sql = new AtomicReference<>();
             observe(sql::setPlain, () -> {
                 ORMTemplate.of(dataSource).entity(VisitWithTwoPetsOneRef.class)
@@ -987,7 +991,7 @@ public class RepositoryPreparedStatementIntegrationTest {
 
     @Test
     public void testSelectWithTwoPetsOneRefWithPath() {
-        var owner = ORMTemplate.of(dataSource).entity(Owner.class).select().append("LIMIT 1").getSingleResult();
+        var owner = ORMTemplate.of(dataSource).entity(Owner.class).select().limit(1).getSingleResult();
         AtomicReference<Sql> sql = new AtomicReference<>();
         observe(sql::setPlain, () -> {
             var visits = ORMTemplate.of(dataSource).entity(VisitWithTwoPetsOneRef.class).select().where(VisitWithTwoPetsOneRef_.pet1.owner, EQUALS, owner).getResultList();
@@ -998,7 +1002,7 @@ public class RepositoryPreparedStatementIntegrationTest {
 
     @Test
     public void testSelectWithTwoPetsOneRefWithPathTemplate() {
-        var owner = ORMTemplate.of(dataSource).entity(Owner.class).select().append("LIMIT 1").getSingleResult();
+        var owner = ORMTemplate.of(dataSource).entity(Owner.class).select().limit(1).getSingleResult();
         AtomicReference<Sql> sql = new AtomicReference<>();
         observe(sql::setPlain, () -> {
             var visits = ORMTemplate.of(dataSource).entity(VisitWithTwoPetsOneRef.class)
@@ -1012,7 +1016,7 @@ public class RepositoryPreparedStatementIntegrationTest {
     @Test
     public void testSelectWithTwoPetsOneRefPetWithoutPath() {
         var e = assertThrows(PersistenceException.class, () -> {
-            var pet = ORMTemplate.of(dataSource).entity(PetOwnerRef.class).select().append("LIMIT 1").getSingleResult();
+            var pet = ORMTemplate.of(dataSource).entity(PetOwnerRef.class).select().limit(1).getSingleResult();
             relaxed(ORMTemplate.of(dataSource).entity(VisitWithTwoPetsOneRef.class).select()).where(it -> it.where(pet)).getResultList();
         });
         assertInstanceOf(SqlTemplateException.class, e.getCause());
@@ -1021,7 +1025,7 @@ public class RepositoryPreparedStatementIntegrationTest {
     @Test
     public void testSelectWithTwoPetsOneRefPetWithoutPathTemplate() {
         // Note that this test is not comparable to the previous test because of the re-use of pet_id.
-        var pet = ORMTemplate.of(dataSource).entity(PetOwnerRef.class).select().append("LIMIT 1").getSingleResult();
+        var pet = ORMTemplate.of(dataSource).entity(PetOwnerRef.class).select().limit(1).getSingleResult();
         var visits = ORMTemplate.of(dataSource).entity(VisitWithTwoPetsOneRef.class)
                 .select()
                 .where(it -> it.where(raw("\0.id = \0", PetOwnerRef.class, pet.id()))).getResultList();
@@ -1030,7 +1034,7 @@ public class RepositoryPreparedStatementIntegrationTest {
 
     @Test
     public void testSelectWithTwoPetsOneRefPetWithPath() {
-        var pet = ORMTemplate.of(dataSource).entity(PetOwnerRef.class).select().append("LIMIT 1").getSingleResult();
+        var pet = ORMTemplate.of(dataSource).entity(PetOwnerRef.class).select().limit(1).getSingleResult();
         AtomicReference<Sql> sql = new AtomicReference<>();
         observe(sql::setPlain, () -> {
             var visits = ORMTemplate.of(dataSource).entity(VisitWithTwoPetsOneRef.class).select().where(VisitWithTwoPetsOneRef_.pet1, EQUALS, pet).getResultList();
@@ -1042,7 +1046,7 @@ public class RepositoryPreparedStatementIntegrationTest {
     @Test
     public void testSelectWithTwoPetsOneRefPetWithPathTemplateMetamodel() throws Exception {
         var ORM = ORMTemplate.of(dataSource);
-        var pet = ORM.entity(PetOwnerRef.class).select().append("LIMIT 1").getSingleResult();
+        var pet = ORM.entity(PetOwnerRef.class).select().limit(1).getSingleResult();
         AtomicReference<Sql> sql = new AtomicReference<>();
         observe(sql::setPlain, () -> {
             var visits = ORM.entity(VisitWithTwoPetsOneRef.class)
@@ -1079,7 +1083,7 @@ public class RepositoryPreparedStatementIntegrationTest {
     @Test
     public void testSelectWithTwoPetRefsWithoutPath() {
         PersistenceException e = assertThrows(PersistenceException.class, () -> {
-            var owner = ORMTemplate.of(dataSource).entity(Owner.class).select().append("LIMIT 1").getSingleResult();
+            var owner = ORMTemplate.of(dataSource).entity(Owner.class).select().limit(1).getSingleResult();
             relaxed(ORMTemplate.of(dataSource).entity(VisitWithTwoPetRefs.class).select()).where(it -> it.where(owner)).getResultList();
         });
         assertInstanceOf(SqlTemplateException.class, e.getCause());
@@ -1088,7 +1092,7 @@ public class RepositoryPreparedStatementIntegrationTest {
     @Test
     public void testSelectWithTwoPetRefsWithoutPathTemplate() {
         PersistenceException e = assertThrows(PersistenceException.class, () -> {
-            var owner = ORMTemplate.of(dataSource).entity(Owner.class).select().append("LIMIT 1").getSingleResult();
+            var owner = ORMTemplate.of(dataSource).entity(Owner.class).select().limit(1).getSingleResult();
             ORMTemplate.of(dataSource).entity(VisitWithTwoPetRefs.class)
                     .select()
                     .where(it -> it.where(raw("\0.id = \0", PetOwnerRef.class, owner.id()))) // Cannot find PetOwnerRef alias as ref fields are not joined.
@@ -1531,22 +1535,22 @@ public class RepositoryPreparedStatementIntegrationTest {
     }
 
     @Test
-    public void testWhereExistsAppendSubquery() {
+    public void testWhereExistsSubqueryWithOuterAlias() {
         var orm = ORMTemplate.of(dataSource);
         var list = ORMTemplate.of(dataSource).entity(Owner.class)
                 .select()
-                .append(raw("WHERE EXISTS (\0)", orm.subquery(Visit.class).where(raw("\0.id = \0.id", alias(Owner.class, OUTER), alias(Owner.class, INNER)))))
+                .where(raw("EXISTS (\0)", orm.subquery(Visit.class).where(raw("\0.id = \0.id", alias(Owner.class, OUTER), alias(Owner.class, INNER)))))
                 .getResultList();
         assertEquals(6, list.size());
     }
 
     @Test
-    public void testWhereAppendQuery() {
-        // We cannot append a query, we need to use a query builder instead.
+    public void testWhereQuery() {
+        // A query cannot be embedded in a WHERE clause; a query builder must be used instead.
         var e = assertThrows(PersistenceException.class, () -> {
             ORMTemplate.of(dataSource).entity(Owner.class)
                     .select()
-                    .append(raw("WHERE (\0)", ORMTemplate.of(dataSource).query("SELECT 1")))
+                    .where(raw("(\0)", ORMTemplate.of(dataSource).query("SELECT 1")))
                     .getResultList();
         });
         assertInstanceOf(SqlTemplateException.class, e.getCause());
@@ -1583,18 +1587,16 @@ public class RepositoryPreparedStatementIntegrationTest {
     }
 
     @Test
-    public void testWhereAppendQueryBuilderParameters() {
+    public void testWhereQueryBuilderParameters() {
         String expectedSql = """
             SELECT o.id, o.first_name, o.last_name, o.address, o.city_id, c.name, o.telephone, o.version
             FROM owner o
             LEFT JOIN city c ON o.city_id = c.id
-            WHERE o.id = ?
-            AND EXISTS (
+            WHERE (o.id = ?) AND EXISTS (
               SELECT o1.id, o1.first_name, o1.last_name, o1.address, o1.city_id, o1.telephone, o1.version
               FROM owner o1
               WHERE o1.id = ?
-            )
-            AND 3 = ?""";
+            ) AND (3 = ?)""";
         observe(sql -> {
             assertEquals(expectedSql, sql.statement());
             assertTrue(sql.parameters().get(0) instanceof PositionalParameter(int position, Object dbValue)
@@ -1607,9 +1609,9 @@ public class RepositoryPreparedStatementIntegrationTest {
             var orm = ORMTemplate.of(dataSource);
             orm.entity(Owner.class)
                     .select()
-                    .append(raw("WHERE \0.id = \0", alias(Owner.class, INNER), 1))
-                    .append(raw("AND EXISTS (\0)", orm.subquery(Owner.class).where(raw("\0.id = \0", alias(Owner.class, INNER), 2))))
-                    .append(raw("AND 3 = \0", 3))
+                    .where(it -> it.where(raw("\0.id = \0", alias(Owner.class, INNER), 1))
+                            .and(it.exists(orm.subquery(Owner.class).where(raw("\0.id = \0", alias(Owner.class, INNER), 2))))
+                            .and(it.where(raw("3 = \0", 3))))
                     .getResultList();
         });
     }

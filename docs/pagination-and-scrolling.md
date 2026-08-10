@@ -59,7 +59,7 @@ List<User> results = orm.entity(User.class)
 
 ## Pagination
 
-Pagination navigates by page number and returns a `Page<R>`. Each request typically requires two queries: a `SELECT COUNT(*)` to determine the total number of results, and a data query with `OFFSET`/`LIMIT` for the content.
+Pagination navigates by page number and returns a `Page<R>`. Each request runs a data query with `OFFSET`/`LIMIT` for the content, plus a `SELECT COUNT(*)` when the total cannot be derived from the fetched page. A page that is not full determines the total directly, so the count query only runs for a full page, or for an empty page beyond the first.
 
 Use the `page` terminal method on the query builder. Pass a `Pageable` to specify the page number and page size. The result is a `Page` containing the content, total count, and navigation methods.
 

@@ -701,24 +701,6 @@ public abstract class QueryBuilder<T extends Data, R, ID> {
      */
     public abstract QueryBuilder<T, R, ID> offset(int offset);
 
-    /**
-     * Append the query with a string template.
-     *
-     * @param template the string template to append.
-     * @return the query builder.
-     */
-    public abstract QueryBuilder<T, R, ID> append(@Nonnull TemplateString template);
-
-    /**
-     * Append the query with a string template.
-     *
-     * @param template the string template to append.
-     * @return the query builder.
-     */
-    public final QueryBuilder<T, R, ID> append(@Nonnull String template) {
-        return append(TemplateString.of(template));
-    }
-
     //
     // Locking.
     //
@@ -800,9 +782,10 @@ public abstract class QueryBuilder<T extends Data, R, ID> {
     /**
      * Executes the query and returns a {@link Page} of results using offset-based pagination.
      *
-     * <p>This method executes two queries: one to count the total number of matching results (without offset or
-     * limit), and one to fetch the content for the requested page. The caller is responsible for adding ORDER BY
-     * clauses to ensure deterministic ordering across pages.</p>
+     * <p>This method executes the query for the requested page and, when the total cannot be derived from the
+     * fetched page, a count query (without offset or limit). A page that is not full determines the total directly,
+     * so the count query only runs for a full page, or for an empty page beyond the first. The caller is responsible
+     * for adding ORDER BY clauses to ensure deterministic ordering across pages.</p>
      *
      * <p>Page numbers are zero-based: pass {@code 0} for the first page.</p>
      *
@@ -819,10 +802,11 @@ public abstract class QueryBuilder<T extends Data, R, ID> {
     /**
      * Executes the query and returns a {@link Page} of results using offset-based pagination.
      *
-     * <p>This method executes two queries: one to count the total number of matching results (without offset or
-     * limit), and one to fetch the content for the requested page. Sort orders can be specified either through the
-     * pageable or through explicit {@code orderBy} calls on the query builder, but not both. If both are present,
-     * a {@link PersistenceException} is thrown.</p>
+     * <p>This method executes the query for the requested page and, when the total cannot be derived from the
+     * fetched page, a count query (without offset or limit). A page that is not full determines the total directly,
+     * so the count query only runs for a full page, or for an empty page beyond the first. Sort orders can be
+     * specified either through the pageable or through explicit {@code orderBy} calls on the query builder, but not
+     * both. If both are present, a {@link PersistenceException} is thrown.</p>
      *
      * <p>Use {@link Pageable#ofSize(int)} for the first page, then navigate with
      * {@link Page#nextPageable()} or {@link Page#previousPageable()}.</p>
@@ -833,7 +817,16 @@ public abstract class QueryBuilder<T extends Data, R, ID> {
      * @since 1.10
      */
     public final Page<R> page(@Nonnull Pageable pageable) {
-        return page(pageable, getResultCount());
+        List<R> content = pageContent(pageable);
+        long totalCount;
+        if (content.size() < pageable.pageSize() && (pageable.offset() == 0 || !content.isEmpty())) {
+            // A page that is not full is the last page, so the total follows from the page itself. An empty page
+            // beyond the first proves nothing: the offset may lie anywhere past the end.
+            totalCount = pageable.offset() + content.size();
+        } else {
+            totalCount = getResultCount();
+        }
+        return new Page<>(content, totalCount, pageable);
     }
 
     /**
@@ -855,6 +848,13 @@ public abstract class QueryBuilder<T extends Data, R, ID> {
      * @since 1.10
      */
     public final Page<R> page(@Nonnull Pageable pageable, long totalCount) {
+        return new Page<>(pageContent(pageable), totalCount, pageable);
+    }
+
+    /**
+     * Fetches the content for the requested page, applying the pageable's sort orders and offset/limit window.
+     */
+    private List<R> pageContent(@Nonnull Pageable pageable) {
         // Forbid combining explicit orderBy with Pageable sort orders for consistency with scroll, which also
         // manages ORDER BY internally and forbids explicit orderBy calls.
         if (hasOrderBy() && !pageable.orders().isEmpty()) {
@@ -865,8 +865,7 @@ public abstract class QueryBuilder<T extends Data, R, ID> {
             // The Pageable's sort field may be rooted anywhere in the query, so the column is named directly.
             sorted = sorted.orderBy(wrap(new Columns(order.field(), CASCADE, order.descending())));
         }
-        List<R> content = sorted.offset((int) pageable.offset()).limit(pageable.pageSize()).getResultList();
-        return new Page<>(content, totalCount, pageable);
+        return sorted.offset((int) pageable.offset()).limit(pageable.pageSize()).getResultList();
     }
 
     /**
@@ -1058,11 +1057,16 @@ public abstract class QueryBuilder<T extends Data, R, ID> {
     /**
      * Returns the number of results of this query.
      *
+     * <p>Select queries execute a dedicated count query derived from this builder: the select clause is replaced by
+     * {@code COUNT(*)}, or the query is counted as a derived table when its shape requires it (DISTINCT, GROUP BY,
+     * HAVING, limit, offset or a custom select clause). Queries that lock rows fetch and count
+     * the results instead, so the requested locks are acquired.</p>
+     *
      * @return the total number of results of this query as a long value.
      * @throws PersistenceException if the query operation fails due to underlying database issues, such as
      *                              connectivity.
      */
-    public final long getResultCount() {
+    public long getResultCount() {
         try (var stream = getResultStream()) {
             return stream.count();
         }

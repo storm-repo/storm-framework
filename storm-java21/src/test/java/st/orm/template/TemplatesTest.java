@@ -267,13 +267,13 @@ public class TemplatesTest {
         assertEquals(5, cities.size());
     }
 
-    // QueryBuilderImpl.append
+    // QueryBuilderImpl.orderBy template
 
     @Test
-    public void testQueryBuilderAppend() {
+    public void testQueryBuilderOrderByTemplate() {
         List<City> cities = orm.entity(City.class).select()
                 .where(wb -> wb.where(RAW."1 = 1"))
-                .append(RAW." ORDER BY \{City.class}.name ASC")
+                .orderBy(RAW."\{City.class}.name")
                 .getResultList();
         assertFalse(cities.isEmpty());
         // Verify ordering

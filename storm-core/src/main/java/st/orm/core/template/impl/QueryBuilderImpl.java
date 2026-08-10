@@ -70,7 +70,6 @@ abstract class QueryBuilderImpl<T extends Data, R, ID> extends QueryBuilder<T, R
     protected final Class<T> fromType;
     protected final List<Join> join;
     protected final List<Where> where;
-    protected final List<TemplateString> templates;
     protected final List<TemplateString> groupBy;
     protected final List<TemplateString> having;
     protected final List<TemplateString> orderBy;
@@ -80,7 +79,6 @@ abstract class QueryBuilderImpl<T extends Data, R, ID> extends QueryBuilder<T, R
                                @Nonnull Class<T> fromType,
                                @Nonnull List<Join> join,
                                @Nonnull List<Where> where,
-                               @Nonnull List<TemplateString> templates,
                                @Nonnull List<TemplateString> groupBy,
                                @Nonnull List<TemplateString> having,
                                @Nonnull List<TemplateString> orderBy,
@@ -89,7 +87,6 @@ abstract class QueryBuilderImpl<T extends Data, R, ID> extends QueryBuilder<T, R
         this.fromType = fromType;
         this.join = List.copyOf(join);
         this.where = List.copyOf(where);
-        this.templates = List.copyOf(templates);
         this.groupBy = List.copyOf(groupBy);
         this.having = List.copyOf(having);
         this.orderBy = List.copyOf(orderBy);
@@ -163,14 +160,12 @@ abstract class QueryBuilderImpl<T extends Data, R, ID> extends QueryBuilder<T, R
      * @param fromType the type of the table being queried.
      * @param join the list of joins.
      * @param where the list of where clauses.
-     * @param templates the list of string templates.
      * @return a new query builder.
      */
     abstract QueryBuilder<T, R, ID> copyWith(@Nonnull QueryTemplate queryTemplate,
                                              @Nonnull Class<T> fromType,
                                              @Nonnull List<Join> join,
                                              @Nonnull List<Where> where,
-                                             @Nonnull List<TemplateString> templates,
                                              @Nonnull List<TemplateString> groupBy,
                                              @Nonnull List<TemplateString> having,
                                              @Nonnull List<TemplateString> orderBy);
@@ -201,7 +196,7 @@ abstract class QueryBuilderImpl<T extends Data, R, ID> extends QueryBuilder<T, R
     private QueryBuilder<Data, R, ID> addJoin(@Nonnull Join join) {
         List<Join> copy = new ArrayList<>(this.join);
         copy.add(join);
-        return (QueryBuilder<Data, R, ID>) copyWith(queryTemplate, fromType, copy, where, templates, groupBy, having, orderBy);
+        return (QueryBuilder<Data, R, ID>) copyWith(queryTemplate, fromType, copy, where, groupBy, having, orderBy);
     }
 
     /**
@@ -224,23 +219,7 @@ abstract class QueryBuilderImpl<T extends Data, R, ID> extends QueryBuilder<T, R
     private QueryBuilder<T, R, ID> addWhere(@Nonnull Where where) {
         List<Where> copy = new ArrayList<>(this.where);
         copy.add(where);
-        return copyWith(queryTemplate, fromType, join, copy, templates, groupBy, having, orderBy);
-    }
-
-    /**
-     * Append the query with a string template.
-     *
-     * @param template the string template to append.
-     * @return the query builder.
-     */
-    @Override
-    public QueryBuilder<T, R, ID> append(@Nonnull TemplateString template) {
-        List<TemplateString> copy = new ArrayList<>(templates);
-        if (!template.fragments().isEmpty()) {
-            template = combine(TemplateString.of("\n"), template);
-        }
-        copy.add(template);
-        return copyWith(queryTemplate, fromType, join, where, copy, groupBy, having, orderBy);
+        return copyWith(queryTemplate, fromType, join, copy, groupBy, having, orderBy);
     }
 
     /**
@@ -254,7 +233,7 @@ abstract class QueryBuilderImpl<T extends Data, R, ID> extends QueryBuilder<T, R
     public QueryBuilder<T, R, ID> orderBy(@Nonnull TemplateString template) {
         List<TemplateString> copy = new ArrayList<>(orderBy);
         copy.add(template);
-        return copyWith(queryTemplate, fromType, join, where, templates, groupBy, having, copy);
+        return copyWith(queryTemplate, fromType, join, where, groupBy, having, copy);
     }
 
     /**
@@ -268,7 +247,7 @@ abstract class QueryBuilderImpl<T extends Data, R, ID> extends QueryBuilder<T, R
     public QueryBuilder<T, R, ID> groupBy(@Nonnull TemplateString template) {
         List<TemplateString> copy = new ArrayList<>(groupBy);
         copy.add(template);
-        return copyWith(queryTemplate, fromType, join, where, templates, copy, having, orderBy);
+        return copyWith(queryTemplate, fromType, join, where, copy, having, orderBy);
     }
 
     /**
@@ -282,7 +261,7 @@ abstract class QueryBuilderImpl<T extends Data, R, ID> extends QueryBuilder<T, R
     public QueryBuilder<T, R, ID> having(@Nonnull TemplateString template) {
         List<TemplateString> copy = new ArrayList<>(having);
         copy.add(template);
-        return copyWith(queryTemplate, fromType, join, where, templates, groupBy, copy, orderBy);
+        return copyWith(queryTemplate, fromType, join, where, groupBy, copy, orderBy);
     }
 
     /**

@@ -130,17 +130,6 @@ public final class QueryBuilderImpl<T extends Data, R, ID> extends QueryBuilder<
     }
 
     /**
-     * Returns a processor that can be used to append the query with a string template.
-     *
-     * @param template the string template to append.
-     * @return a processor that can be used to append the query with a string template.
-     */
-    @Override
-    public QueryBuilder<T, R, ID> append(@Nonnull StringTemplate template) {
-        return new QueryBuilderImpl<>(core.append(convert(template)));
-    }
-
-    /**
      * Adds an ORDER BY clause to the query using a string template. Multiple calls to this method append additional
      * columns to the ORDER BY clause.
      *
@@ -282,6 +271,14 @@ public final class QueryBuilderImpl<T extends Data, R, ID> extends QueryBuilder<
     @Override
     public Stream<R> getResultStream() {
         return core.getResultStream();
+    }
+
+    /**
+     * Delegates to the core builder, which executes a dedicated count query derived from the builder's shape.
+     */
+    @Override
+    public long getResultCount() {
+        return core.getResultCount();
     }
 
     /**
