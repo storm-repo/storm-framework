@@ -68,13 +68,18 @@ public final class LazySupplier<T> implements Supplier<T> {
 
     /**
      * Gets a result. On the first invocation, the supplier is called to produce the value. The supplier is then
-     * released for garbage collection.
+     * released for garbage collection. A resolved value is returned with a single volatile read, so shared
+     * suppliers on hot paths stay free of write contention.
      *
      * @return a result.
      */
     @Override
     public T get() {
-        T result = reference.updateAndGet(value -> requireNonNullElseGet(value, supplier));
+        T result = reference.get();
+        if (result != null) {
+            return result;
+        }
+        result = reference.updateAndGet(value -> requireNonNullElseGet(value, supplier));
         supplier = null;    // Release the supplier (and its captured context) for GC.
         return result;
     }

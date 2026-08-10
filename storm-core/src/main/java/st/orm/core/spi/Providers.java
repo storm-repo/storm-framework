@@ -235,11 +235,20 @@ public final class Providers {
         return getSqlDialect(StormConfig.defaults());
     }
 
+    /**
+     * Resolves the SQL dialect from the classpath, without a database in view.
+     *
+     * <p>Enablement is re-evaluated on every resolution, and an ambiguous resolution fails fast.</p>
+     *
+     * @param config the Storm configuration to apply.
+     * @return the SQL dialect.
+     * @throws PersistenceException if no dialect provider is found or the resolution is ambiguous.
+     */
     public static SqlDialect getSqlDialect(@Nonnull StormConfig config) {
-        return enabled(SQL_DIALECT_PROVIDERS)
-                .map(p -> p.getSqlDialect(config))
-                .findFirst()
-                .orElseThrow();
+        return selectUnique(SQL_DIALECT_PROVIDERS, "SQL dialect provider",
+                "SqlTemplate.withDialect(...), or by binding the template to a DataSource or Connection so the " +
+                        "dialect is derived from the database")
+                .getSqlDialect(config);
     }
 
     public static SqlDialect getSqlDialect(@Nonnull Predicate<? super SqlDialectProvider> filter) {

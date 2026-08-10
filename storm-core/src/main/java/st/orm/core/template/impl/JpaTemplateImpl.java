@@ -19,6 +19,7 @@ import static jakarta.persistence.TemporalType.DATE;
 import static jakarta.persistence.TemporalType.TIME;
 import static jakarta.persistence.TemporalType.TIMESTAMP;
 import static st.orm.core.template.SqlTemplate.JPA;
+import static st.orm.core.template.impl.LazySupplier.lazy;
 import static st.orm.core.template.impl.RecordValidation.validate;
 
 import jakarta.annotation.Nonnull;
@@ -28,6 +29,7 @@ import jakarta.persistence.PersistenceException;
 import java.util.List;
 import java.util.Map;
 import java.util.function.Predicate;
+import java.util.function.Supplier;
 import java.util.stream.Stream;
 import java.util.stream.StreamSupport;
 import javax.sql.DataSource;
@@ -83,9 +85,21 @@ public final class JpaTemplateImpl implements JpaTemplate, QueryFactory {
     private final TableAliasResolver tableAliasResolver;
     private final Predicate<Provider> providerFilter;
     private final RefFactory refFactory;
-    private final SqlTemplate sqlTemplate;
+
+    /**
+     * Built on first use: without a provider filter it consumes the resolved dialect, whose classpath fallback must
+     * stay untouched until the template is actually used.
+     */
+    private final Supplier<SqlTemplate> sqlTemplate;
+
     private final StormConfig config;
-    private final SqlDialect dialect;
+
+    /**
+     * The dialect of the persistence unit's database, or a classpath fallback resolved on first use when the database
+     * is unknown. Deferring the fallback keeps an ambiguous classpath from failing template construction, so a
+     * provider filter can still be applied via {@link #withProviderFilter(Predicate)}.
+     */
+    private final Supplier<SqlDialect> dialect;
 
     public JpaTemplateImpl(@Nonnull EntityManager entityManager) {
         this(entityManager, StormConfig.defaults());
@@ -112,7 +126,7 @@ public final class JpaTemplateImpl implements JpaTemplate, QueryFactory {
         this.config = config;
         this.dialect = resolveDialect(entityManager, config);
         this.refFactory = new RefFactoryImpl(this, modelBuilder, providerFilter);
-        this.sqlTemplate = createSqlTemplate();
+        this.sqlTemplate = lazy(this::createSqlTemplate);
     }
 
     /**
@@ -121,19 +135,19 @@ public final class JpaTemplateImpl implements JpaTemplate, QueryFactory {
      * <p>Asking the persistence unit for its data source is the portable way to reach the database: unwrapping an
      * entity manager to a {@link java.sql.Connection} is not supported by every provider. A persistence unit
      * configured with a connection URL rather than a data source, or one whose database cannot be reached while the
-     * template is being built, leaves the database unknown, and the dialect then comes from the classpath as
-     * before.</p>
+     * template is being built, leaves the database unknown, and the dialect then comes from the classpath, resolved
+     * on first use.</p>
      */
-    private static SqlDialect resolveDialect(@Nonnull EntityManager entityManager, @Nonnull StormConfig config) {
+    private static Supplier<SqlDialect> resolveDialect(@Nonnull EntityManager entityManager, @Nonnull StormConfig config) {
         DataSource dataSource = dataSourceOf(entityManager);
         if (dataSource == null) {
-            return Providers.getSqlDialect(config);
+            return lazy(() -> Providers.getSqlDialect(config));
         }
         try {
-            return Providers.getSqlDialect(dataSource, config);
+            return new LazySupplier<>(Providers.getSqlDialect(dataSource, config));
         } catch (RuntimeException e) {
             LOGGER.debug("Failed to determine the database of the persistence unit.", e);
-            return Providers.getSqlDialect(config);
+            return lazy(() -> Providers.getSqlDialect(config));
         }
     }
 
@@ -163,7 +177,7 @@ public final class JpaTemplateImpl implements JpaTemplate, QueryFactory {
                             @Nonnull TableAliasResolver tableAliasResolver,
                             @Nullable Predicate<Provider> providerFilter,
                             @Nonnull StormConfig config,
-                            @Nonnull SqlDialect dialect) {
+                            @Nonnull Supplier<SqlDialect> dialect) {
         this.dialect = dialect;
         this.templateProcessor = templateProcessor;
         this.modelBuilder = modelBuilder;
@@ -171,7 +185,7 @@ public final class JpaTemplateImpl implements JpaTemplate, QueryFactory {
         this.providerFilter = providerFilter;
         this.config = config;
         this.refFactory = new RefFactoryImpl(this, modelBuilder, providerFilter);
-        this.sqlTemplate = createSqlTemplate();
+        this.sqlTemplate = lazy(this::createSqlTemplate);
     }
 
     private SqlTemplate createSqlTemplate() {
@@ -183,7 +197,7 @@ public final class JpaTemplateImpl implements JpaTemplate, QueryFactory {
         // The shared template resolves a dialect without a database in view, so the dialect resolved for this
         // persistence unit is applied on top. An explicit provider filter still wins.
         return template.withDialect(
-                providerFilter != null ? Providers.getSqlDialect(providerFilter, config) : dialect);
+                providerFilter != null ? Providers.getSqlDialect(providerFilter, config) : dialect.get());
     }
 
     private void setParameters(@Nonnull jakarta.persistence.Query query, @Nonnull List<SqlTemplate.Parameter> parameters) {
@@ -252,7 +266,7 @@ public final class JpaTemplateImpl implements JpaTemplate, QueryFactory {
      */
     @Override
     public SqlTemplate sqlTemplate() {
-        return  SqlInterceptorManager.customize(sqlTemplate);
+        return  SqlInterceptorManager.customize(sqlTemplate.get());
     }
 
     /**

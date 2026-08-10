@@ -286,14 +286,19 @@ public interface SqlTemplate extends TemplateDecorator {
     /**
      * Returns the SQL dialect used by this template.
      *
+     * <p>When no dialect has been set via {@link #withDialect(SqlDialect)}, the dialect is resolved from the
+     * classpath on first use. That resolution fails with a descriptive exception when multiple dialect providers
+     * are eligible without a defined order.</p>
+     *
      * @return the SQL dialect used by this template.
      * @since 1.2
      */
     SqlDialect dialect();
 
     /**
-     * Returns a new SQL template with the specified Storm configuration. The SQL dialect is re-resolved from the
-     * provided configuration.
+     * Returns a new SQL template with the specified Storm configuration. A dialect set via
+     * {@link #withDialect(SqlDialect)} is retained; a classpath-resolved dialect is re-resolved under the new
+     * configuration, as dialects capture their configuration at construction.
      *
      * @param config the Storm configuration to apply.
      * @return a new SQL template.
