@@ -93,36 +93,10 @@ public interface Orderable<T extends Orderable<T>> {
      * constraints.
      *
      * @param <T> the type parameter for the {@code Orderable} instances.
-     * @param orderables the orderable instances to sort.
-     * @param cache use caching for improved performance.
-     * @return the sorted orderable instances.
-     */
-    static <T extends Orderable<?>> List<T> sort(@Nonnull List<T> orderables, boolean cache) {
-        return OrderableHelper.sort(orderables, cache);
-    }
-
-    /**
-     * Sorts the provided {@code Orderable} instances based on the ordering constraints defined by the orderable
-     * constraints.
-     *
-     * @param <T> the type parameter for the {@code Orderable} instances.
      * @param orderableStream the orderable instances to sort.
      * @return the sorted orderable instances.
      */
     static <T extends Orderable<?>> Stream<T> sort(@Nonnull Stream<T> orderableStream) {
         return OrderableHelper.sort(orderableStream);
-    }
-
-    /**
-     * Sorts the provided {@code Orderable} instances based on the ordering constraints defined by the orderable
-     * constraints.
-     *
-     * @param <T> the type parameter for the {@code Orderable} instances.
-     * @param cache use caching for improved performance.
-     * @param orderableStream the orderable instances to sort.
-     * @return the sorted orderable instances.
-     */
-    static <T extends Orderable<?>> Stream<T> sort(@Nonnull Stream<T> orderableStream, boolean cache) {
-        return OrderableHelper.sort(orderableStream, cache);
     }
 }

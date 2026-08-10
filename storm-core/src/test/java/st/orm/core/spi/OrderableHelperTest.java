@@ -68,7 +68,7 @@ public class OrderableHelperTest {
     public void testBeforeConstraint() {
         var beforeItem = new ABeforeB();
         var orderableB = new OrderableB();
-        List<BaseOrderable> result = Orderable.sort(List.of(orderableB, beforeItem), false);
+        List<BaseOrderable> result = Orderable.sort(List.of(orderableB, beforeItem));
         int indexBefore = result.indexOf(beforeItem);
         int indexB = result.indexOf(orderableB);
         assertTrue(indexBefore < indexB, "ABeforeB should appear before OrderableB");
@@ -78,7 +78,7 @@ public class OrderableHelperTest {
     public void testAfterConstraint() {
         var orderableA = new OrderableA();
         var afterItem = new CAfterA();
-        List<BaseOrderable> result = Orderable.sort(List.of(afterItem, orderableA), false);
+        List<BaseOrderable> result = Orderable.sort(List.of(afterItem, orderableA));
         int indexA = result.indexOf(orderableA);
         int indexAfter = result.indexOf(afterItem);
         assertTrue(indexA < indexAfter, "OrderableA should appear before CAfterA");
@@ -89,7 +89,7 @@ public class OrderableHelperTest {
         var first = new FirstOrderable();
         var orderableA = new OrderableA();
         var orderableB = new OrderableB();
-        List<BaseOrderable> result = Orderable.sort(List.of(orderableA, orderableB, first), false);
+        List<BaseOrderable> result = Orderable.sort(List.of(orderableA, orderableB, first));
         assertEquals(first, result.getFirst(), "BeforeAny should place the item first");
     }
 
@@ -98,7 +98,7 @@ public class OrderableHelperTest {
         var last = new LastOrderable();
         var orderableA = new OrderableA();
         var orderableB = new OrderableB();
-        List<BaseOrderable> result = Orderable.sort(List.of(last, orderableA, orderableB), false);
+        List<BaseOrderable> result = Orderable.sort(List.of(last, orderableA, orderableB));
         assertEquals(last, result.getLast(), "AfterAny should place the item last");
     }
 
@@ -107,7 +107,7 @@ public class OrderableHelperTest {
         var first = new FirstOrderable();
         var last = new LastOrderable();
         var middle = new OrderableA();
-        List<BaseOrderable> result = Orderable.sort(List.of(last, middle, first), false);
+        List<BaseOrderable> result = Orderable.sort(List.of(last, middle, first));
         assertEquals(first, result.getFirst(), "BeforeAny item should be first");
         assertEquals(last, result.getLast(), "AfterAny item should be last");
     }
@@ -117,7 +117,7 @@ public class OrderableHelperTest {
         var orderableA = new OrderableA();
         var between = new BetweenAAndB();
         var orderableB = new OrderableB();
-        List<BaseOrderable> result = Orderable.sort(List.of(orderableB, between, orderableA), false);
+        List<BaseOrderable> result = Orderable.sort(List.of(orderableB, between, orderableA));
         int indexA = result.indexOf(orderableA);
         int indexBetween = result.indexOf(between);
         int indexB = result.indexOf(orderableB);
@@ -130,7 +130,7 @@ public class OrderableHelperTest {
         var circularA = new CircularA();
         var circularB = new CircularB();
         assertThrows(IllegalStateException.class,
-                () -> Orderable.sort(List.of(circularA, circularB), false));
+                () -> Orderable.sort(List.of(circularA, circularB)));
     }
 
     @Test
@@ -138,7 +138,7 @@ public class OrderableHelperTest {
         var first = new FirstOrderable();
         var last = new LastOrderable();
         var middle = new OrderableA();
-        List<BaseOrderable> result = Orderable.sort(Stream.of(last, middle, first), false).toList();
+        List<BaseOrderable> result = Orderable.sort(Stream.of(last, middle, first)).toList();
         assertEquals(first, result.getFirst(), "BeforeAny item should be first in stream result");
         assertEquals(last, result.getLast(), "AfterAny item should be last in stream result");
     }
@@ -164,7 +164,7 @@ public class OrderableHelperTest {
         // When the @Before target is not in the list, the constraint should be ignored.
         var beforeItem = new ABeforeB();
         var orderableA = new OrderableA();
-        List<BaseOrderable> result = Orderable.sort(List.of(beforeItem, orderableA), false);
+        List<BaseOrderable> result = Orderable.sort(List.of(beforeItem, orderableA));
         assertEquals(2, result.size());
     }
 
@@ -173,7 +173,7 @@ public class OrderableHelperTest {
         // When the @After target is not in the list, the constraint should be ignored.
         var afterItem = new CAfterA();
         var orderableB = new OrderableB();
-        List<BaseOrderable> result = Orderable.sort(List.of(afterItem, orderableB), false);
+        List<BaseOrderable> result = Orderable.sort(List.of(afterItem, orderableB));
         assertEquals(2, result.size());
     }
 
@@ -182,7 +182,7 @@ public class OrderableHelperTest {
         var orderableA = new OrderableA();
         var orderableB = new OrderableB();
         var orderableC = new OrderableC();
-        List<BaseOrderable> result = Orderable.sort(List.of(orderableA, orderableB, orderableC), false);
+        List<BaseOrderable> result = Orderable.sort(List.of(orderableA, orderableB, orderableC));
         assertEquals(3, result.size());
     }
 }

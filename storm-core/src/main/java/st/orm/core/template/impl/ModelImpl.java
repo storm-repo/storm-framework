@@ -49,8 +49,6 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ConcurrentMap;
 import java.util.function.BiConsumer;
 import st.orm.Data;
 import st.orm.DbEnum;
@@ -94,8 +92,20 @@ public final class ModelImpl<E extends Data, ID> implements Model<E, ID> {
     /**
      * Caches field-name to component-index maps per concrete sealed subtype. Since the set of permitted subtypes is
      * small and fixed, this avoids rebuilding a HashMap on every row during sealed entity value extraction.
+     * {@link ClassValue} ties each entry to the lifetime of the subtype, so the cache never pins its class loader.
      */
-    private static final ConcurrentMap<Class<?>, Map<String, Integer>> FIELD_INDEX_CACHE = new ConcurrentHashMap<>();
+    private static final ClassValue<Map<String, Integer>> FIELD_INDEX_CACHE = new ClassValue<>() {
+        @Override
+        protected Map<String, Integer> computeValue(@Nonnull Class<?> type) {
+            RecordType concreteRecordType = REFLECTION.getRecordType(type);
+            var concreteFields = concreteRecordType.fields();
+            Map<String, Integer> map = HashMap.newHashMap(concreteFields.size());
+            for (int i = 0; i < concreteFields.size(); i++) {
+                map.put(concreteFields.get(i).name(), i);
+            }
+            return Map.copyOf(map);
+        }
+    };
 
     private final RecordType recordType;
     private final Class<E> typeOverride;
@@ -751,15 +761,7 @@ public final class ModelImpl<E extends Data, ID> implements Model<E, ID> {
         assert typeOverride != null && typeOverride.isSealed();
         Class<?> concreteType = record.getClass();
         // Look up (or compute once) the field-name -> component-index map for the concrete type.
-        Map<String, Integer> fieldIndexMap = FIELD_INDEX_CACHE.computeIfAbsent(concreteType, type -> {
-            RecordType concreteRecordType = REFLECTION.getRecordType(type);
-            var concreteFields = concreteRecordType.fields();
-            Map<String, Integer> map = HashMap.newHashMap(concreteFields.size());
-            for (int i = 0; i < concreteFields.size(); i++) {
-                map.put(concreteFields.get(i).name(), i);
-            }
-            return Map.copyOf(map);
-        });
+        Map<String, Integer> fieldIndexMap = FIELD_INDEX_CACHE.get(concreteType);
         for (var column : view) {
             int index = column.index();
             if (index == discriminatorColumnIndex) {

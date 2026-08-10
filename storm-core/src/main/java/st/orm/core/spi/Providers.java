@@ -15,6 +15,7 @@
  */
 package st.orm.core.spi;
 
+import static java.lang.System.identityHashCode;
 import static java.lang.Thread.currentThread;
 import static java.util.Arrays.asList;
 import static java.util.Objects.requireNonNullElseGet;
@@ -27,11 +28,13 @@ import static java.util.stream.StreamSupport.stream;
 
 import jakarta.annotation.Nonnull;
 import jakarta.annotation.Nullable;
+import java.lang.ref.Reference;
+import java.lang.ref.ReferenceQueue;
+import java.lang.ref.WeakReference;
 import java.sql.Connection;
 import java.sql.SQLException;
 import java.util.Collections;
 import java.util.List;
-import java.util.Map;
 import java.util.Optional;
 import java.util.ServiceLoader;
 import java.util.concurrent.ConcurrentHashMap;
@@ -72,7 +75,12 @@ public final class Providers {
     private static final Supplier<List<TransactionTemplateProvider>> TRANSACTION_TEMPLATE_PROVIDERS = createProviders(TransactionTemplateProvider.class);
     private static final Supplier<List<ExternalTransactionProvider>> EXTERNAL_TRANSACTION_PROVIDERS = createProviders(ExternalTransactionProvider.class);
 
-    private static final ConcurrentMap<Object, List<?>> PROVIDER_CACHE = new ConcurrentHashMap<>();
+    /**
+     * Provider instances per class loader, keyed by provider class. The loaded instances keep their class loader
+     * reachable, so the per-loader map is scoped to the loader's lifetime via {@link ClassLoaderCache} rather than
+     * pinned for the lifetime of the JVM.
+     */
+    private static final ClassLoaderCache<ConcurrentMap<Class<?>, List<?>>> PROVIDER_CACHE = new ClassLoaderCache<>();
 
     /**
      * Returns a supplier that caches the provider instances responsible for providing the actual service
@@ -87,9 +95,10 @@ public final class Providers {
         return () -> {
             ClassLoader contextClassLoader = currentThread().getContextClassLoader();
             ClassLoader providersClassloader = Providers.class.getClassLoader();
-            Object key = asList(providerClass, ofNullable(contextClassLoader).orElse(providersClassloader));
+            ClassLoader loader = ofNullable(contextClassLoader).orElse(providersClassloader);
+            var providersByClass = PROVIDER_CACHE.computeIfAbsent(loader, ignore -> new ConcurrentHashMap<>());
             // Prefetch all providers to prevent race conditions in case of parallel execution.
-            return (List<S>) PROVIDER_CACHE.computeIfAbsent(key, ignore -> {
+            return (List<S>) providersByClass.computeIfAbsent(providerClass, ignore -> {
                     if (contextClassLoader != null) {
                         // Try the context class loader first.
                         List<S> list = toUnmodifiableList(load(providerClass, contextClassLoader));
@@ -104,7 +113,9 @@ public final class Providers {
     }
 
     /**
-     * Returns a list of all services that are loaded by the specified {@code loader}.
+     * Returns a list of all services that are loaded by the specified {@code loader}, sorted by their
+     * {@link Orderable} constraints. Sorting once at load time keeps every resolution in provider order: a filtered
+     * subset of a valid topological order is itself a valid topological order.
      *
      * <p>Note that {@link Provider#isEnabled()} is deliberately not evaluated here: the returned list is cached for
      * the lifetime of the class loader, whereas enablement may depend on runtime state. Enablement is re-evaluated
@@ -112,19 +123,19 @@ public final class Providers {
      *
      * @param loader loader of services.
      * @param <S> service type.
-     * @return a list of all services loaded by the specified {@code loader}.
+     * @return a list of all services loaded by the specified {@code loader}, in provider order.
      */
     private static <S extends Provider> List<S> toUnmodifiableList(@Nonnull ServiceLoader<S> loader) {
         return stream(loader.spliterator(), false)
-                .collect(collectingAndThen(toList(), Collections::unmodifiableList));
+                .collect(collectingAndThen(toList(), list -> Collections.unmodifiableList(Orderable.sort(list))));
     }
 
     /**
-     * Returns a stream of the currently enabled providers from the given cached provider list.
+     * Returns a stream of the currently enabled providers from the given cached provider list, in provider order.
      *
      * @param providers the cached provider list supplier.
      * @param <S> provider type.
-     * @return a stream of enabled providers.
+     * @return a stream of enabled providers, in provider order.
      */
     private static <S extends Provider> Stream<S> enabled(@Nonnull Supplier<List<S>> providers) {
         return providers.get().stream().filter(Provider::isEnabled);
@@ -133,25 +144,26 @@ public final class Providers {
     private static final AtomicReference<ORMReflection> ORM_REFLECTION = new AtomicReference<>();
 
     /**
-     * Represents a key for a record field.
+     * Resolved converters per declaring record class, keyed by field name. {@link ClassValue} ties each entry to
+     * the lifetime of the declaring class, so cached converters never pin the class or its class loader.
      */
-    record FieldKey(Class<?> declaringType, String name) {
-        FieldKey(RecordField field) {
-            this(field.declaringType(), field.name());
+    private static final ClassValue<ConcurrentMap<String, Optional<ORMConverter>>> ORM_CONVERTERS = new ClassValue<>() {
+        @Override
+        protected ConcurrentMap<String, Optional<ORMConverter>> computeValue(@Nonnull Class<?> type) {
+            return new ConcurrentHashMap<>();
         }
-    }
-    private static final Map<FieldKey, Optional<ORMConverter>> ORM_CONVERTERS = new ConcurrentHashMap<>();
+    };
 
     public static ORMReflection getORMReflection() {
-        return ORM_REFLECTION.updateAndGet(value -> requireNonNullElseGet(value, () -> Orderable.sort(enabled(ORM_REFLECTION_PROVIDERS))
+        return ORM_REFLECTION.updateAndGet(value -> requireNonNullElseGet(value, () -> enabled(ORM_REFLECTION_PROVIDERS)
                 .map(ORMReflectionProvider::getReflection)
                 .findFirst()
                 .orElseThrow()));
     }
 
     public static Optional<ORMConverter> getORMConverter(@Nonnull RecordField field) {
-        return ORM_CONVERTERS.computeIfAbsent(new FieldKey(field), ignore ->
-                Orderable.sort(enabled(ORM_CONVERTER_PROVIDERS))
+        return ORM_CONVERTERS.get(field.declaringType()).computeIfAbsent(field.name(), ignore ->
+                enabled(ORM_CONVERTER_PROVIDERS)
                         .map(p -> p.getConverter(field))
                         .filter(Optional::isPresent)
                         .map(Optional::get)
@@ -162,7 +174,7 @@ public final class Providers {
             @Nonnull ORMTemplate ormTemplate,
             @Nonnull Model<E, ID> model,
             @Nonnull Predicate<? super EntityRepositoryProvider> filter) {
-        return Orderable.sort(enabled(ENTITY_REPOSITORY_PROVIDERS))
+        return enabled(ENTITY_REPOSITORY_PROVIDERS)
                 .filter(filter)
                 .map(provider -> provider.getEntityRepository(ormTemplate, model))
                 .findFirst()
@@ -173,7 +185,7 @@ public final class Providers {
             @Nonnull ORMTemplate ormTemplate,
             @Nonnull Model<P, ID> model,
             @Nonnull Predicate<? super ProjectionRepositoryProvider> filter) {
-        return Orderable.sort(enabled(PROJECTION_REPOSITORY_PROVIDERS))
+        return enabled(PROJECTION_REPOSITORY_PROVIDERS)
                 .filter(filter)
                 .map(provider -> provider.getProjectionRepository(ormTemplate, model))
                 .findFirst()
@@ -188,7 +200,7 @@ public final class Providers {
      */
     private static QueryBuilderProvider queryBuilderProvider() {
         return QUERY_BUILDER_PROVIDER.updateAndGet(value -> requireNonNullElseGet(value, () ->
-                Orderable.sort(enabled(QUERY_BUILDER_REPOSITORY_PROVIDERS))
+                enabled(QUERY_BUILDER_REPOSITORY_PROVIDERS)
                         .findFirst()
                         .orElseThrow()));
     }
@@ -224,7 +236,7 @@ public final class Providers {
     }
 
     public static SqlDialect getSqlDialect(@Nonnull StormConfig config) {
-        return Orderable.sort(enabled(SQL_DIALECT_PROVIDERS))
+        return enabled(SQL_DIALECT_PROVIDERS)
                 .map(p -> p.getSqlDialect(config))
                 .findFirst()
                 .orElseThrow();
@@ -236,14 +248,44 @@ public final class Providers {
 
     public static SqlDialect getSqlDialect(@Nonnull Predicate<? super SqlDialectProvider> filter,
                                             @Nonnull StormConfig config) {
-        return Orderable.sort(enabled(SQL_DIALECT_PROVIDERS))
+        return enabled(SQL_DIALECT_PROVIDERS)
                 .filter(filter)
                 .map(p -> p.getSqlDialect(config))
                 .findFirst()
                 .orElseThrow();
     }
 
-    private static final ConcurrentMap<DataSource, String> DATABASE_PRODUCT_NAMES = new ConcurrentHashMap<>();
+    /** A weak reference to a data source with identity-based equality, usable as a map key. */
+    private static final class DataSourceIdentity extends WeakReference<DataSource> {
+        private final int hash;
+
+        DataSourceIdentity(@Nonnull DataSource dataSource, @Nonnull ReferenceQueue<DataSource> queue) {
+            super(dataSource, queue);
+            this.hash = identityHashCode(dataSource);
+        }
+
+        @Override
+        public int hashCode() {
+            return hash;
+        }
+
+        @Override
+        public boolean equals(Object other) {
+            if (this == other) {
+                // Required to locate this key after its referent is cleared, so a stale entry can be removed.
+                return true;
+            }
+            return other instanceof DataSourceIdentity identity && get() != null && get() == identity.get();
+        }
+    }
+
+    private static final ReferenceQueue<DataSource> DATA_SOURCE_QUEUE = new ReferenceQueue<>();
+
+    /**
+     * Database product names per data source. The data source is held weakly so the cache never pins it, or the
+     * connection pool behind it, once the application discards it; stale entries are drained on each access.
+     */
+    private static final ConcurrentMap<DataSourceIdentity, String> DATABASE_PRODUCT_NAMES = new ConcurrentHashMap<>();
 
     /**
      * Returns the database product name for the given data source, caching the result per data source identity.
@@ -253,8 +295,14 @@ public final class Providers {
      * @since 1.11
      */
     public static String getDatabaseProductName(@Nonnull DataSource dataSource) {
-        return DATABASE_PRODUCT_NAMES.computeIfAbsent(dataSource, ds -> {
-            try (Connection connection = ds.getConnection()) {
+        Reference<? extends DataSource> stale;
+        while ((stale = DATA_SOURCE_QUEUE.poll()) != null) {
+            if (stale instanceof DataSourceIdentity identity) {
+                DATABASE_PRODUCT_NAMES.remove(identity);
+            }
+        }
+        return DATABASE_PRODUCT_NAMES.computeIfAbsent(new DataSourceIdentity(dataSource, DATA_SOURCE_QUEUE), ignore -> {
+            try (Connection connection = dataSource.getConnection()) {
                 return connection.getMetaData().getDatabaseProductName();
             } catch (SQLException e) {
                 throw new PersistenceException("Failed to determine database product name.", e);
@@ -286,7 +334,7 @@ public final class Providers {
      * @since 1.11
      */
     public static @Nullable SqlDialectProvider getSqlDialectProvider(@Nonnull String databaseProductName) {
-        return Orderable.sort(enabled(SQL_DIALECT_PROVIDERS))
+        return enabled(SQL_DIALECT_PROVIDERS)
                 .filter(p -> p.supports(databaseProductName))
                 .findFirst()
                 .orElse(null);
@@ -303,7 +351,7 @@ public final class Providers {
      */
     public static SqlDialect getSqlDialect(@Nonnull DataSource dataSource, @Nonnull StormConfig config) {
         String productName = getDatabaseProductName(dataSource);
-        return Orderable.sort(enabled(SQL_DIALECT_PROVIDERS))
+        return enabled(SQL_DIALECT_PROVIDERS)
                 .filter(p -> p.supports(productName))
                 .map(p -> p.getSqlDialect(config))
                 .findFirst()
@@ -321,7 +369,7 @@ public final class Providers {
      */
     public static SqlDialect getSqlDialect(@Nonnull Connection connection, @Nonnull StormConfig config) {
         String productName = getDatabaseProductName(connection);
-        return Orderable.sort(enabled(SQL_DIALECT_PROVIDERS))
+        return enabled(SQL_DIALECT_PROVIDERS)
                 .filter(p -> p.supports(productName))
                 .map(p -> p.getSqlDialect(config))
                 .findFirst()
@@ -371,7 +419,7 @@ public final class Providers {
      * @since 1.13
      */
     public static List<ExternalTransactionProvider> getExternalTransactionProviders() {
-        return Orderable.sort(enabled(EXTERNAL_TRANSACTION_PROVIDERS)).toList();
+        return enabled(EXTERNAL_TRANSACTION_PROVIDERS).toList();
     }
 
     /**
@@ -383,7 +431,7 @@ public final class Providers {
     private static <S extends Provider> S selectUnique(@Nonnull Supplier<List<S>> providers,
                                                        @Nonnull String description,
                                                        @Nonnull String remedy) {
-        var sorted = Orderable.sort(enabled(providers)).toList();
+        var sorted = enabled(providers).toList();
         if (sorted.isEmpty()) {
             throw new PersistenceException("No %s found on the classpath.".formatted(description));
         }
