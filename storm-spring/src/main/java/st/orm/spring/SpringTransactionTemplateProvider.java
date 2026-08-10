@@ -83,8 +83,9 @@ public class SpringTransactionTemplateProvider implements TransactionTemplatePro
 
     /**
      * Creates a provider that bridges Storm-initiated transactions through the given transaction managers; the
-     * matching {@code DataSourceTransactionManager} is resolved lazily, when the first data source touches the
-     * transaction.
+     * manager owning the touched {@code DataSource} is resolved lazily, when the first data source touches the
+     * transaction. Both JDBC transaction managers and JPA transaction managers backed by the data source
+     * qualify.
      *
      * @param transactionManagers supplies the transaction managers of the owning application context.
      */

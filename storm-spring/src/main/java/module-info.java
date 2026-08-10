@@ -5,6 +5,8 @@ module storm.spring {
     requires static micrometer.tracing;
     requires static micrometer.commons;
     requires spring.jdbc;
+    requires static spring.orm;
+    requires static jakarta.persistence;
     requires spring.tx;
     requires spring.context;
     requires spring.beans;
