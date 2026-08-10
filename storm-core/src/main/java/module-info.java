@@ -1,3 +1,6 @@
+// The qualified exports below target sibling modules that depend on storm-core, so they are never
+// observable while storm-core itself compiles; suppress the resulting "module not found" warnings.
+@SuppressWarnings("module")
 module storm.core {
     uses st.orm.core.spi.ORMReflectionProvider;
     uses st.orm.core.spi.ORMConverterProvider;
