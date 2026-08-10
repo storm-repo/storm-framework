@@ -56,7 +56,6 @@
                 <groupId>org.jetbrains.kotlin</groupId>
                 <artifactId>kotlin-maven-plugin</artifactId>
                 <version>${kotlin.version}</version>
-                <extensions>true</extensions>
                 <configuration>
                     <jvmTarget>21</jvmTarget>
                     <args>
@@ -104,6 +103,11 @@
                         <groupId>org.jetbrains.kotlin</groupId>
                         <artifactId>kotlin-maven-serialization</artifactId>
                         <version>${kotlin.version}</version>
+                    </dependency>
+                    <dependency>
+                        <groupId>st.orm</groupId>
+                        <artifactId>storm-compiler-plugin-${kotlin.major.minor}</artifactId>
+                        <version>${project.version}</version>
                     </dependency>
                 </dependencies>
             </plugin>

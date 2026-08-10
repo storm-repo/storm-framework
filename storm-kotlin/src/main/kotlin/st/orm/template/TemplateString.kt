@@ -18,6 +18,7 @@ package st.orm.template
 import st.orm.template.TemplateString.Companion.combine
 import st.orm.template.TemplateString.Companion.raw
 import st.orm.template.TemplateString.Companion.wrap
+import java.util.concurrent.atomic.AtomicBoolean
 
 /**
  * Represents a compiled SQL template string that can be passed to Storm's query engine for execution.
@@ -107,9 +108,10 @@ public interface TemplateContext {
      * [TemplateBuilder] lambda it transforms. It should not be called manually.
      *
      * At runtime, Storm uses this signal to verify interpolation safety: if a [TemplateBuilder] lambda executes
-     * without this method being called and without any explicit [t] or [interpolate] calls, Storm acts based on the
-     * `storm.validation.interpolation_mode` system property: `warn` (default) logs a warning, `fail` throws an
-     * [IllegalStateException], and `none` disables the check entirely.
+     * without this method being called, Storm cannot verify that all string interpolations are wrapped and acts
+     * based on the `storm.validation.interpolation_mode` system property: `warn` (default) logs a warning once per
+     * JVM, `fail` throws an [IllegalStateException], and `none` disables the check entirely. Any other value fails
+     * with an [IllegalStateException].
      */
     public fun autoInterpolation() {}
 }
@@ -118,20 +120,18 @@ public interface TemplateContext {
  * Builds this [TemplateBuilder] into a [TemplateString] ready for use with the Storm query engine.
  *
  * This method validates interpolation safety by checking whether the Storm compiler plugin processed the lambda
- * (via [TemplateContext.autoInterpolation]) or whether explicit [TemplateContext.t]/[TemplateContext.interpolate]
- * calls were made. If neither is detected, the behavior depends on the `storm.validation.interpolation_mode` system
- * property: `warn` (default) logs a warning, `fail` throws an [IllegalStateException], and `none` disables the check.
+ * (via [TemplateContext.autoInterpolation]). Explicit [TemplateContext.t]/[TemplateContext.interpolate] calls do not
+ * satisfy the check, because they cannot prove that every interpolation in the template is wrapped. If the plugin
+ * marker is absent, the behavior depends on the `storm.validation.interpolation_mode` system property: `warn`
+ * (default) logs a warning once per JVM, `fail` throws an [IllegalStateException], and `none` disables the check.
+ * Any other value fails with an [IllegalStateException].
  */
 public fun TemplateBuilder.build(): TemplateString {
     var autoInterpolation = false
-    var interpolateCalled = false
     val coreTemplate = st.orm.core.template.TemplateBuilder.create { ctx ->
         with(
             object : TemplateContext {
-                override fun interpolate(o: Any?): String {
-                    interpolateCalled = true
-                    return ctx.interpolate(o)
-                }
+                override fun interpolate(o: Any?): String = ctx.interpolate(o)
                 override fun autoInterpolation() {
                     autoInterpolation = true
                 }
@@ -139,20 +139,28 @@ public fun TemplateBuilder.build(): TemplateString {
             this,
         )
     }
-    if (!autoInterpolation && !interpolateCalled) {
-        // No plugin marker and no t()/interpolate() calls. The result could be:
-        // 1. A pure literal (safe), or
-        // 2. String interpolations concatenated without t() wrapping (SQL injection risk).
-        // We cannot distinguish these cases at runtime, so we act based on the configured mode.
-        val message = "TemplateBuilder lambda executed without the Storm compiler plugin and without explicit t() " +
-            "or interpolate() calls. If this template uses string interpolations, values may have been " +
-            "concatenated directly into the SQL, risking SQL injection. " +
+    if (!autoInterpolation) {
+        // The plugin marker is the only reliable safety signal. A raw interpolation is plain string concatenation
+        // by the time the lambda runs, so explicit t() calls cannot prove that the remaining interpolations are
+        // wrapped, and a pure literal is indistinguishable from a string with concatenated values. Without the
+        // marker, the configured mode decides how to act.
+        val message = "TemplateBuilder lambda executed without the Storm compiler plugin. Storm cannot verify " +
+            "that every string interpolation is wrapped in a t() or interpolate() call; an unwrapped " +
+            "interpolation concatenates its value directly into the SQL, risking SQL injection. " +
             "See https://orm.st/string-templates for setup instructions. " +
             "To change this behavior, set -Dstorm.validation.interpolation_mode=warn|fail|none."
-        when (InterpolationMode.mode) {
+        val mode = InterpolationMode.mode
+        when (mode.trim().lowercase()) {
             "fail" -> throw IllegalStateException(message)
-            "warn" -> InterpolationMode.logger.log(System.Logger.Level.WARNING, message)
-            // "off" -> do nothing
+            // One warning identifies the problem and the remedy is global (apply the plugin), so repeating it for
+            // every template would only flood the logs of applications that wrap interpolations manually.
+            "warn" -> if (InterpolationMode.warned.compareAndSet(false, true)) {
+                InterpolationMode.logger.log(System.Logger.Level.WARNING, message)
+            }
+            "none" -> {}
+            else -> throw IllegalStateException(
+                "Invalid storm.validation.interpolation_mode: '$mode'. Valid values are: warn, fail, none.",
+            )
         }
     }
     return TemplateStringHolder(coreTemplate)
@@ -160,7 +168,8 @@ public fun TemplateBuilder.build(): TemplateString {
 
 private object InterpolationMode {
     val logger: System.Logger = System.getLogger("st.orm.template")
-    val mode: String = System.getProperty("storm.validation.interpolation_mode", "warn")
+    val mode: String get() = System.getProperty("storm.validation.interpolation_mode", "warn")
+    val warned: AtomicBoolean = AtomicBoolean()
 }
 
 internal data class TemplateStringHolder(
