@@ -17,6 +17,7 @@ package st.orm.metamodel
 
 import com.google.devtools.ksp.getAllSuperTypes
 import com.google.devtools.ksp.getDeclaredProperties
+import com.google.devtools.ksp.isAbstract
 import com.google.devtools.ksp.processing.*
 import com.google.devtools.ksp.symbol.*
 import com.google.devtools.ksp.validate
@@ -155,6 +156,27 @@ class MetamodelProcessor(
             "kotlin.UIntArray",
             "kotlin.ULongArray",
         )
+
+        /**
+         * Kotlin hard keywords. A property so named is declared with backticks and must be emitted with backticks
+         * wherever it appears as an identifier; path and field string literals keep the raw name.
+         */
+        private val KOTLIN_HARD_KEYWORDS: Set<String> = setOf(
+            "as", "break", "class", "continue", "do", "else", "false", "for", "fun", "if", "in",
+            "interface", "is", "null", "object", "package", "return", "super", "this", "throw",
+            "true", "try", "typealias", "typeof", "val", "var", "when", "while",
+        )
+
+        /**
+         * Renders a property name as a Kotlin identifier, backticked when the raw name would not parse as one.
+         */
+        private fun escaped(name: String): String {
+            val identifier = name.isNotEmpty() &&
+                name.first().isJavaIdentifierStart() &&
+                name.all { it.isJavaIdentifierPart() } &&
+                '$' !in name
+            return if (name in KOTLIN_HARD_KEYWORDS || !identifier) "`$name`" else name
+        }
     }
 
     override fun process(resolver: Resolver): List<KSAnnotated> {
@@ -223,13 +245,16 @@ class MetamodelProcessor(
 
     /**
      * Returns the properties to include in the metamodel for the given class declaration.
-     * For sealed interfaces, only declared properties are included.
-     * For data classes, all properties (including inherited) are included.
+     * For sealed interfaces, only abstract declared properties are included: a defaulted property has no column.
+     * For data classes, the primary constructor defines the components: a body-declared or inherited property has
+     * no column, so it carries no metamodel field.
      */
     private fun getModelProperties(classDeclaration: KSClassDeclaration): Sequence<KSPropertyDeclaration> = if (isSealedInterface(classDeclaration)) {
-        classDeclaration.getDeclaredProperties()
+        classDeclaration.getDeclaredProperties().filter { it.isAbstract() }
     } else {
-        classDeclaration.getAllProperties()
+        val properties = classDeclaration.getAllProperties().associateBy { it.simpleName.asString() }
+        classDeclaration.primaryConstructor?.parameters.orEmpty().asSequence()
+            .mapNotNull { parameter -> parameter.name?.asString()?.let { properties[it] } }
     }
 
     private fun KSClassDeclaration.implementsInterface(interfaceName: String): Boolean = try {
@@ -641,7 +666,7 @@ class MetamodelProcessor(
      * Recursively walks inline sub-records. Used to determine if a compound key has nullable constituents.
      */
     private fun hasNullableLeaf(classDeclaration: KSClassDeclaration): Boolean {
-        classDeclaration.getAllProperties().forEach { prop ->
+        getModelProperties(classDeclaration).forEach { prop ->
             val typeRef = prop.type
             if (typeRef.isDataClass()) {
                 if (typeRef.isNestedDataClass()) return@forEach
@@ -778,6 +803,7 @@ class MetamodelProcessor(
         val modelRef = "${className}Metamodel.instance<$className>()"
         getModelProperties(classDeclaration).forEach { prop ->
             val fieldName = prop.simpleName.asString()
+            val fieldRef = escaped(fieldName)
             val typeRef = prop.type
             val propNullable = typeRef.resolve().isMarkedNullable
             if (typeRef.isDataClass()) {
@@ -791,16 +817,16 @@ class MetamodelProcessor(
                 val childMetaType = "$childMetaClass<$className>"
                 builder.append("        /** Represents the $className.$fieldName record. */\n")
                 builder.append(
-                    "        val $fieldName: $childMetaType = " +
-                        "$modelRef.$fieldName\n",
+                    "        val $fieldRef: $childMetaType = " +
+                        "$modelRef.$fieldRef\n",
                 )
             } else if (isRefType(typeRef)) {
                 val simpleTypeName = getSimpleTypeName(typeRef, packageName)
                 val refMetaClassName = "${simpleTypeName}RefMetamodel"
                 builder.append("        /** Represents the $className.$fieldName reference. */\n")
                 builder.append(
-                    "        val $fieldName: $refMetaClassName<$className> = " +
-                        "$modelRef.$fieldName\n",
+                    "        val $fieldRef: $refMetaClassName<$className> = " +
+                        "$modelRef.$fieldRef\n",
                 )
             } else {
                 val override = metamodelTypeOverride(prop)
@@ -811,8 +837,8 @@ class MetamodelProcessor(
                 val baseClass = if (unique) "AbstractKeyMetamodel" else "AbstractMetamodel"
                 builder.append("        /** Represents the $className.$fieldName field. */\n")
                 builder.append(
-                    "        val $fieldName: $baseClass<$className, $kotlinTypeName, $valueKotlinTypeName> = " +
-                        "$modelRef.$fieldName\n",
+                    "        val $fieldRef: $baseClass<$className, $kotlinTypeName, $valueKotlinTypeName> = " +
+                        "$modelRef.$fieldRef\n",
                 )
             }
         }
@@ -828,7 +854,7 @@ class MetamodelProcessor(
     ): String {
         val builder = StringBuilder()
         getModelProperties(classDeclaration).forEach { prop ->
-            val fieldName = prop.simpleName.asString()
+            val fieldRef = escaped(prop.simpleName.asString())
             val typeRef = prop.type
             val propNullable = typeRef.resolve().isMarkedNullable
             if (typeRef.isDataClass()) {
@@ -836,10 +862,10 @@ class MetamodelProcessor(
                 val simpleTypeName = getSimpleTypeName(typeRef, packageName)
                 val childForceNullable = forceNullableChain || propNullable
                 val childType = if (childForceNullable) "${simpleTypeName}NullableMetamodel" else "${simpleTypeName}Metamodel"
-                builder.append("    val $fieldName: $childType<T>\n")
+                builder.append("    val $fieldRef: $childType<T>\n")
             } else if (isRefType(typeRef)) {
                 val simpleTypeName = getSimpleTypeName(typeRef, packageName)
-                builder.append("    val $fieldName: ${simpleTypeName}RefMetamodel<T>\n")
+                builder.append("    val $fieldRef: ${simpleTypeName}RefMetamodel<T>\n")
             } else {
                 val override = metamodelTypeOverride(prop)
                 val kotlinTypeName = override?.let { kotlinTypeNameOf(it, packageName) }
@@ -849,7 +875,7 @@ class MetamodelProcessor(
                 val unique = isEffectivelyUniqueField(prop)
                 val isData = classDeclaration.implementsInterface(DATA)
                 val baseClass = if (!isData || unique) "AbstractKeyMetamodel" else "AbstractMetamodel"
-                builder.append("    val $fieldName: $baseClass<T, $kotlinTypeName, $v>\n")
+                builder.append("    val $fieldRef: $baseClass<T, $kotlinTypeName, $v>\n")
             }
         }
         return builder.toString()
@@ -865,6 +891,7 @@ class MetamodelProcessor(
 
         getModelProperties(classDeclaration).forEach { prop ->
             val fieldName = prop.simpleName.asString()
+            val fieldRef = escaped(fieldName)
             val typeRef = prop.type
             val propNullable = typeRef.resolve().isMarkedNullable
 
@@ -873,8 +900,9 @@ class MetamodelProcessor(
 
                 val simpleTypeName = getSimpleTypeName(typeRef, packageName)
                 val isChildData = isDataType(prop)
-                // Validate: @PK, @FK, and @UK are not supported on inline record fields.
-                if (!classDeclaration.implementsInterface(DATA)) {
+                // Validate: @PK, @FK, and @UK are not supported on inline record fields. Both chain variants walk
+                // the same properties; only the base pass reports, so a diagnostic prints once.
+                if (!forceNullableChain && !classDeclaration.implementsInterface(DATA)) {
                     if (hasAnnotationOrMeta(prop, PRIMARY_KEY)) {
                         logger.error(
                             "@PK is not supported on inline record fields. " +
@@ -903,14 +931,14 @@ class MetamodelProcessor(
                     if (childForceNullable) "${simpleTypeName}NullableMetamodel" else "${simpleTypeName}Metamodel"
 
                 val effectiveGetterExpr = if (forceNullableChain) {
-                    "{ t: T -> this@$metaClassName.getValue(t)?.$fieldName }"
+                    "{ t: T -> this@$metaClassName.getValue(t)?.$fieldRef }"
                 } else {
-                    "{ t: T -> this@$metaClassName.getValue(t).$fieldName }"
+                    "{ t: T -> this@$metaClassName.getValue(t).$fieldRef }"
                 }
                 if (!isChildData && isEffectivelyUniqueField(prop)) {
                     val nullsDistinct = getNullsDistinct(prop)
                     val referencedDecl = typeRef.resolve().declaration as? KSClassDeclaration
-                    if (nullsDistinct && referencedDecl != null && hasNullableLeaf(referencedDecl)) {
+                    if (!forceNullableChain && nullsDistinct && referencedDecl != null && hasNullableLeaf(referencedDecl)) {
                         logger.warn(
                             "Unique key field '$fieldName' has nullable constituent fields. " +
                                 "Scrolling (scroll/scrollAfter/scrollBefore) will be rejected at runtime. " +
@@ -920,21 +948,21 @@ class MetamodelProcessor(
                         )
                     }
                     builder.append(
-                        "        this.$fieldName = $childMetaClassName(" +
+                        "        this.$fieldRef = $childMetaClassName(" +
                             "subPath, fieldBase + \"$fieldName\", $inlineFlag, this, " +
                             "$effectiveGetterExpr, $nullsDistinct)\n",
                     )
                 } else if (!isChildData) {
                     // Inline (non-Data) record: getter must be inside parens (nullable param follows in constructor).
                     builder.append(
-                        "        this.$fieldName = $childMetaClassName(" +
+                        "        this.$fieldRef = $childMetaClassName(" +
                             "subPath, fieldBase + \"$fieldName\", $inlineFlag, this, " +
                             "$effectiveGetterExpr)\n",
                     )
                 } else {
                     // Data (FK) record: trailing lambda syntax still works.
                     builder.append(
-                        "        this.$fieldName = $childMetaClassName(" +
+                        "        this.$fieldRef = $childMetaClassName(" +
                             "subPath, fieldBase + \"$fieldName\", $inlineFlag, this) $effectiveGetterExpr\n",
                     )
                 }
@@ -944,12 +972,12 @@ class MetamodelProcessor(
                 val simpleTypeName = getSimpleTypeName(typeRef, packageName)
                 val refMetaClassName = "${simpleTypeName}RefMetamodel"
                 val refGetterExpr = if (forceNullableChain) {
-                    "{ t: T -> this@$metaClassName.getValue(t)?.$fieldName }"
+                    "{ t: T -> this@$metaClassName.getValue(t)?.$fieldRef }"
                 } else {
-                    "{ t: T -> this@$metaClassName.getValue(t).$fieldName }"
+                    "{ t: T -> this@$metaClassName.getValue(t).$fieldRef }"
                 }
                 builder.append(
-                    "        this.$fieldName = $refMetaClassName(" +
+                    "        this.$fieldRef = $refMetaClassName(" +
                         "subPath, fieldBase + \"$fieldName\", false, this, $refGetterExpr)\n",
                 )
             } else {
@@ -965,23 +993,24 @@ class MetamodelProcessor(
                     "val ra = this@$metaClassName.getValue(a)\n" +
                         "                val rb = this@$metaClassName.getValue(b)\n"
 
-                val leftValue = if (forceNullableChain) "ra?.$fieldName" else "ra.$fieldName"
-                val rightValue = if (forceNullableChain) "rb?.$fieldName" else "rb.$fieldName"
+                val leftValue = if (forceNullableChain) "ra?.$fieldRef" else "ra.$fieldRef"
+                val rightValue = if (forceNullableChain) "rb?.$fieldRef" else "rb.$fieldRef"
 
                 val isSameExpr = sameExpr(leftValue, rightValue, typeRef, forceNullableChain)
                 val isIdenticalExpr = identicalExpr(leftValue, rightValue, typeRef, forceNullableChain)
 
                 val getValueBody = if (forceNullableChain) {
                     "            override fun getValue(record: T): $v =\n" +
-                        "                this@$metaClassName.getValue(record)?.$fieldName\n"
+                        "                this@$metaClassName.getValue(record)?.$fieldRef\n"
                 } else {
                     "            override fun getValue(record: T): $v =\n" +
-                        "                this@$metaClassName.getValue(record).$fieldName\n"
+                        "                this@$metaClassName.getValue(record).$fieldRef\n"
                 }
                 val unique = isEffectivelyUniqueField(prop)
                 val isData = classDeclaration.implementsInterface(DATA)
-                // Validate: @PK, @FK, and @UK are not supported on inline record fields.
-                if (!isData) {
+                // Validate: @PK, @FK, and @UK are not supported on inline record fields. Both chain variants walk
+                // the same properties; only the base pass reports, so a diagnostic prints once.
+                if (!forceNullableChain && !isData) {
                     if (hasAnnotationOrMeta(prop, PRIMARY_KEY)) {
                         logger.error(
                             "@PK is not supported on inline record fields. " +
@@ -1011,7 +1040,7 @@ class MetamodelProcessor(
                     val nullable = isEffectivelyNullable(prop)
                     val nullsDistinct = getNullsDistinct(prop)
                     val result = nullable && nullsDistinct
-                    if (result) {
+                    if (!forceNullableChain && result) {
                         logger.warn(
                             "Unique key field '$fieldName' is nullable. " +
                                 "Scrolling (scroll/scrollAfter/scrollBefore) will be rejected at runtime. " +
@@ -1031,7 +1060,7 @@ class MetamodelProcessor(
                     "$javaTypeName, subPath, fieldBase + \"$fieldName\", false, this"
                 }
                 builder.append(
-                    "        this.$fieldName = object : $baseClass<T, $kotlinTypeName, $v>(" +
+                    "        this.$fieldRef = object : $baseClass<T, $kotlinTypeName, $v>(" +
                         "$constructorArgs" +
                         ") {\n" +
                         getValueBody +
@@ -1124,6 +1153,7 @@ class MetamodelProcessor(
         val className = classDeclaration.simpleName.asString()
         getModelProperties(classDeclaration).forEach { prop ->
             val fieldName = prop.simpleName.asString()
+            val fieldRef = escaped(fieldName)
             val typeRef = prop.type
             val record = typeRef.isDataClass() && !isRefType(typeRef)
             val ref = isRefType(typeRef)
@@ -1131,11 +1161,11 @@ class MetamodelProcessor(
             builder.append("    /** Represents navigation to $className.$fieldName. */\n")
             if ((record || ref) && !isCyclicNavChild(typeRef)) {
                 val simpleTypeName = getSimpleTypeName(typeRef, packageName)
-                builder.append("    val $fieldName: ${navClassName(simpleTypeName)}<T>\n")
+                builder.append("    val $fieldRef: ${navClassName(simpleTypeName)}<T>\n")
             } else {
                 // Scalar column, or a cyclic navigation edge broken to a leaf.
                 val kotlinTypeName = getKotlinTypeName(typeRef, packageName)
-                builder.append("    val $fieldName: st.orm.AbstractNavigableMetamodel<T, $kotlinTypeName>\n")
+                builder.append("    val $fieldRef: st.orm.AbstractNavigableMetamodel<T, $kotlinTypeName>\n")
             }
         }
         return builder.toString()
@@ -1145,6 +1175,7 @@ class MetamodelProcessor(
         val builder = StringBuilder()
         getModelProperties(classDeclaration).forEach { prop ->
             val fieldName = prop.simpleName.asString()
+            val fieldRef = escaped(fieldName)
             val typeRef = prop.type
             val record = typeRef.isDataClass() && !isRefType(typeRef)
             val ref = isRefType(typeRef)
@@ -1153,14 +1184,14 @@ class MetamodelProcessor(
                 val simpleTypeName = getSimpleTypeName(typeRef, packageName)
                 val inlineFlag = if (record && !isDataType(prop)) "true" else "false"
                 builder.append(
-                    "        this.$fieldName = ${navClassName(simpleTypeName)}(subPath, fieldBase + \"$fieldName\", $inlineFlag, this)\n",
+                    "        this.$fieldRef = ${navClassName(simpleTypeName)}(subPath, fieldBase + \"$fieldName\", $inlineFlag, this)\n",
                 )
             } else {
                 // Scalar column, or a cyclic navigation edge broken to a leaf so eager construction terminates.
                 val javaTypeName = getJavaTypeName(typeRef, packageName)
                 val kotlinTypeName = getKotlinTypeName(typeRef, packageName)
                 builder.append(
-                    "        this.$fieldName = object : st.orm.AbstractNavigableMetamodel<T, $kotlinTypeName>(" +
+                    "        this.$fieldRef = object : st.orm.AbstractNavigableMetamodel<T, $kotlinTypeName>(" +
                         "$javaTypeName, subPath, fieldBase + \"$fieldName\", false, this) {}\n",
                 )
             }
@@ -1320,7 +1351,7 @@ class MetamodelProcessor(
             "        args[$index] as ${getKotlinValueTypeName(parameter.type, packageName)}"
         }.joinToString(",\n")
         val componentNames = primaryConstructor.parameters.map { it.name?.asString() ?: return }
-        val components = componentNames.joinToString(",\n") { "        instance.`$it`" }
+        val components = componentNames.joinToString(",\n") { "        instance.${escaped(it)}" }
         val containingFile = classDeclaration.containingFile
         val deps = if (containingFile != null) Dependencies(true, containingFile) else Dependencies(false)
         val file = codeGenerator.createNewFile(
@@ -1449,16 +1480,16 @@ class MetamodelProcessor(
             builder.append("        return listOf(")
             fieldNames.forEachIndexed { index, name ->
                 if (index > 0) builder.append(", ")
-                builder.append("this.$name")
+                builder.append("this.${escaped(name)}")
             }
             builder.append(")\n")
         } else {
             builder.append("        return buildList {\n")
             fieldNames.forEachIndexed { index, name ->
                 if (fieldIsInline[index]) {
-                    builder.append("            addAll(this@$metaClassName.$name.flatten())\n")
+                    builder.append("            addAll(this@$metaClassName.${escaped(name)}.flatten())\n")
                 } else {
-                    builder.append("            add(this@$metaClassName.$name)\n")
+                    builder.append("            add(this@$metaClassName.${escaped(name)})\n")
                 }
             }
             builder.append("        }\n")
@@ -1478,7 +1509,7 @@ class MetamodelProcessor(
         val abstractVType = recordValueType
         val pkProp = findPrimaryKeyProperty(classDeclaration)
         val isSameMethod = if (pkProp != null) {
-            val pkName = pkProp.simpleName.asString()
+            val pkName = escaped(pkProp.simpleName.asString())
             if (forceNullableChain) {
                 """
                 |    override fun isSame(a: T, b: T): Boolean {

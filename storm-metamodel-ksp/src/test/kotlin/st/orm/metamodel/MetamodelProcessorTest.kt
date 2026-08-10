@@ -49,6 +49,8 @@ class MetamodelProcessorTest {
 
     private fun KotlinCompilation.generatedFileNames(): Set<String> = kspSourcesDir.walkTopDown().filter { it.isFile }.map { it.name }.toSet()
 
+    private fun KotlinCompilation.generatedSource(name: String): String = kspSourcesDir.walkTopDown().first { it.isFile && it.name == name }.readText()
+
     @Test
     fun `generates metamodel for annotated plain data class`() {
         val compilation = compile(
@@ -77,6 +79,117 @@ class MetamodelProcessorTest {
         val services = compilation.workingDir.walkTopDown().filter { it.isFile }
         assertTrue(services.any { it.name == "st.orm.mapping.Instantiator" && "CityStatsInstantiator" in it.readText() }) {
             "expected an instantiator service registration"
+        }
+    }
+
+    @Test
+    fun `sources components from the primary constructor only`() {
+        val compilation = compile(
+            """
+            package com.example
+
+            import st.orm.GenerateMetamodel
+
+            interface Labeled {
+                val label: String get() = "label"
+            }
+
+            @GenerateMetamodel
+            data class CityStats(val name: String, val inhabitants: Int) : Labeled {
+                val density: Int get() = inhabitants / 2
+            }
+            """.trimIndent(),
+        )
+        val metamodel = compilation.generatedSource("CityStatsMetamodel.kt")
+        assertTrue("val name" in metamodel) { "expected the constructor component in the metamodel:\n$metamodel" }
+        assertFalse("density" in metamodel) { "a body-declared property has no column and no metamodel field:\n$metamodel" }
+        assertFalse("label" in metamodel) { "an inherited property has no column and no metamodel field:\n$metamodel" }
+    }
+
+    @Test
+    fun `escapes keyword-named properties at every emission site`() {
+        val compilation = compile(
+            """
+            package com.example
+
+            import st.orm.GenerateMetamodel
+
+            @GenerateMetamodel
+            data class CityStats(val name: String, val `object`: String, val `fun`: Int)
+            """.trimIndent(),
+        )
+        val metamodel = compilation.generatedSource("CityStatsMetamodel.kt")
+        assertTrue("`object`" in metamodel) { "expected the keyword-named property backticked:\n$metamodel" }
+        assertTrue("fieldBase + \"object\"" in metamodel) { "the field string literal keeps the raw name:\n$metamodel" }
+    }
+
+    @Test
+    fun `selects child metamodel by property nullability`() {
+        val compilation = compile(
+            """
+            package com.example
+
+            import st.orm.GenerateMetamodel
+
+            @GenerateMetamodel
+            data class Owner(val name: String, val address: Address, val previousAddress: Address?)
+
+            data class Address(val street: String, val city: String)
+            """.trimIndent(),
+        )
+        val metamodel = compilation.generatedSource("OwnerMetamodel.kt")
+        assertTrue("val address: AddressMetamodel<T>" in metamodel) {
+            "a non-null property selects the base child metamodel:\n$metamodel"
+        }
+        assertTrue("val previousAddress: AddressNullableMetamodel<T>" in metamodel) {
+            "a nullable property selects the nullable-chain child metamodel:\n$metamodel"
+        }
+        val nullableMetamodel = compilation.generatedSource("OwnerNullableMetamodel.kt")
+        assertTrue("val address: AddressNullableMetamodel<T>" in nullableMetamodel) {
+            "inside a nullable chain every child is the nullable-chain variant:\n$nullableMetamodel"
+        }
+    }
+
+    @Test
+    fun `sealed interfaces contribute abstract declared properties only`() {
+        val compilation = compile(
+            """
+            package com.example
+
+            import st.orm.Data
+
+            sealed interface Vehicle : Data {
+                val code: String
+                val label: String get() = "vehicle"
+            }
+
+            data class Car(override val code: String, val doors: Int) : Vehicle
+            """.trimIndent(),
+        )
+        val metamodel = compilation.generatedSource("VehicleMetamodel.kt")
+        assertTrue("val code" in metamodel) { "expected the abstract property in the sealed metamodel:\n$metamodel" }
+        assertFalse("label" in metamodel) { "a defaulted property has no column and no metamodel field:\n$metamodel" }
+    }
+
+    @Test
+    fun `escapes keyword-named properties in the metamodel interface and primary key`() {
+        val compilation = compile(
+            """
+            package com.example
+
+            import st.orm.Entity
+            import st.orm.PK
+
+            data class Registry(@PK val `object`: Int, val `fun`: String) : Entity<Int>
+            """.trimIndent(),
+        )
+        val metamodelInterface = compilation.generatedSource("Registry_.kt")
+        assertTrue("`object`" in metamodelInterface) {
+            "expected the keyword-named property backticked in the interface:\n$metamodelInterface"
+        }
+        val metamodel = compilation.generatedSource("RegistryMetamodel.kt")
+        assertTrue("ra.`object` == rb.`object`" in metamodel) {
+            "expected the primary key backticked in isSame:\n$metamodel"
         }
     }
 

@@ -16,7 +16,9 @@
 package st.orm.metamodel;
 
 import static java.util.stream.Collectors.joining;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.io.IOException;
@@ -50,10 +52,14 @@ class MetamodelProcessorTest {
     @TempDir
     private Path tempDir;
 
-    private record Compilation(boolean success, String errors, Path generatedSources, Path classes) {
+    private record Compilation(boolean success, String errors, List<String> warnings, Path generatedSources, Path classes) {
 
         boolean generated(String relativePath) {
             return Files.exists(generatedSources.resolve(relativePath));
+        }
+
+        String generatedSource(String relativePath) throws IOException {
+            return Files.readString(generatedSources.resolve(relativePath));
         }
     }
 
@@ -77,6 +83,122 @@ class MetamodelProcessorTest {
         Path services = compilation.classes().resolve("META-INF/services/st.orm.mapping.Instantiator");
         assertTrue(Files.exists(services), "expected an instantiator service registration");
         assertTrue(Files.readString(services).contains("CityStatsInstantiator"));
+    }
+
+    @Test
+    void generatesNullableChainVariantForEveryRecord() throws Exception {
+        Compilation compilation = compile("CityStats.java", """
+                import st.orm.GenerateMetamodel;
+
+                @GenerateMetamodel
+                public record CityStats(String name, int inhabitants) {}
+                """);
+        assertTrue(compilation.success(), compilation.errors());
+        assertTrue(compilation.generated("CityStatsNullableMetamodel.java"),
+                "expected a nullable-chain metamodel for the @GenerateMetamodel record");
+        assertTrue(Files.exists(compilation.classes().resolve("CityStatsNullableMetamodel.class")),
+                "expected the generated nullable-chain metamodel to compile");
+    }
+
+    @Test
+    void selectsChildMetamodelByFieldNullability() throws Exception {
+        Compilation compilation = compile("Owner.java", """
+                import jakarta.annotation.Nullable;
+                import st.orm.GenerateMetamodel;
+
+                @GenerateMetamodel
+                public record Owner(String name, Address address, @Nullable Address previousAddress) {}
+
+                record Address(String street, String city) {}
+                """);
+        assertTrue(compilation.success(), compilation.errors());
+        assertTrue(compilation.generated("AddressMetamodel.java"),
+                "expected a metamodel for the referenced record");
+        assertTrue(compilation.generated("AddressNullableMetamodel.java"),
+                "expected a nullable-chain metamodel for the referenced record");
+        String ownerMetamodel = compilation.generatedSource("OwnerMetamodel.java");
+        assertTrue(ownerMetamodel.contains("AddressMetamodel<T> address"),
+                "a non-null field selects the base child metamodel:\n" + ownerMetamodel);
+        assertTrue(ownerMetamodel.contains("AddressNullableMetamodel<T> previousAddress"),
+                "a nullable field selects the nullable-chain child metamodel:\n" + ownerMetamodel);
+        String ownerNullableMetamodel = compilation.generatedSource("OwnerNullableMetamodel.java");
+        assertTrue(ownerNullableMetamodel.contains("AddressNullableMetamodel<T> address"),
+                "inside a nullable chain every child is the nullable-chain variant:\n" + ownerNullableMetamodel);
+        assertTrue(Files.exists(compilation.classes().resolve("OwnerNullableMetamodel.class")),
+                "expected the generated metamodels to compile");
+    }
+
+    @Test
+    void interfaceSelectsChildMetamodelByForeignKeyNullability() throws Exception {
+        Compilation compilation = compile("Owner.java", """
+                import jakarta.annotation.Nullable;
+                import st.orm.Entity;
+                import st.orm.FK;
+                import st.orm.PK;
+
+                public record Owner(@PK Integer id, @FK City city, @Nullable @FK City previousCity)
+                        implements Entity<Integer> {}
+
+                record City(@PK Integer id, String name) implements Entity<Integer> {}
+                """);
+        assertTrue(compilation.success(), compilation.errors());
+        String ownerInterface = compilation.generatedSource("Owner_.java");
+        assertTrue(ownerInterface.contains("CityMetamodel<Owner> city"),
+                "a non-null foreign key reads as the base child metamodel:\n" + ownerInterface);
+        assertTrue(ownerInterface.contains("CityNullableMetamodel<Owner> previousCity"),
+                "a nullable foreign key reads as the nullable-chain child metamodel:\n" + ownerInterface);
+        assertTrue(Files.exists(compilation.classes().resolve("Owner_.class")),
+                "expected the generated metamodel interface to compile");
+    }
+
+    @Test
+    void generatesNullableChainVariantForSealedInterfaces() throws Exception {
+        Compilation compilation = compile("Shipment.java", """
+                import st.orm.Data;
+
+                public sealed interface Shipment extends Data permits Parcel {
+                    String code();
+                }
+
+                record Parcel(String code) implements Shipment {}
+                """);
+        assertTrue(compilation.success(), compilation.errors());
+        assertTrue(compilation.generated("ShipmentMetamodel.java"),
+                "expected a metamodel for the sealed Data interface");
+        assertTrue(compilation.generated("ShipmentNullableMetamodel.java"),
+                "expected a nullable-chain metamodel for the sealed Data interface");
+        assertTrue(Files.exists(compilation.classes().resolve("ShipmentNullableMetamodel.class")),
+                "expected the generated nullable-chain metamodel to compile");
+    }
+
+    @Test
+    void reportsUniqueKeyNullabilityWarningOncePerRecord() throws Exception {
+        Compilation compilation = compile("Account.java", """
+                import jakarta.annotation.Nullable;
+                import st.orm.Entity;
+                import st.orm.PK;
+                import st.orm.UK;
+
+                public record Account(@PK Integer id, @UK @Nullable String email) implements Entity<Integer> {}
+                """);
+        assertTrue(compilation.success(), compilation.errors());
+        long emailWarnings = compilation.warnings().stream()
+                .filter(warning -> warning.contains("Unique key field 'email'"))
+                .count();
+        assertEquals(1, emailWarnings,
+                "both chain variants walk the field; the warning must print once:\n" + compilation.warnings());
+    }
+
+    @Test
+    void registersProcessorsForGradleIncrementalProcessing() throws IOException {
+        var descriptor = MetamodelProcessor.class.getResource("/META-INF/gradle/incremental.annotation.processors");
+        assertNotNull(descriptor, "expected the Gradle incremental annotation processing descriptor");
+        String content;
+        try (var stream = descriptor.openStream()) {
+            content = new String(stream.readAllBytes(), StandardCharsets.UTF_8);
+        }
+        assertTrue(content.contains(MetamodelProcessor.class.getName() + ",aggregating"), content);
+        assertTrue(content.contains(TypeIndexProcessor.class.getName() + ",aggregating"), content);
     }
 
     @Test
@@ -116,7 +238,12 @@ class MetamodelProcessorTest {
                     .filter(diagnostic -> diagnostic.getKind() == Diagnostic.Kind.ERROR)
                     .map(Object::toString)
                     .collect(joining("\n"));
-            return new Compilation(success, errors, generatedSources, classes);
+            List<String> warnings = diagnostics.getDiagnostics().stream()
+                    .filter(diagnostic -> diagnostic.getKind() == Diagnostic.Kind.WARNING
+                            || diagnostic.getKind() == Diagnostic.Kind.MANDATORY_WARNING)
+                    .map(Object::toString)
+                    .toList();
+            return new Compilation(success, errors, warnings, generatedSources, classes);
         }
     }
 
