@@ -126,6 +126,8 @@ See https://orm.st/string-templates for setup instructions.
 To change this behavior, set -Dstorm.validation.interpolation_mode=warn|fail|none.
 ```
 
+The warning is logged once per JVM: one occurrence identifies the problem, and the remedy (applying the compiler plugin) is global. `fail` mode applies to every template.
+
 This helps catch cases where the compiler plugin is missing from the build configuration, causing interpolated values to be concatenated directly into the SQL string instead of being parameterized.
 
 **Configuring the mode:**

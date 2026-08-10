@@ -18,6 +18,7 @@ package st.orm.template
 import st.orm.template.TemplateString.Companion.combine
 import st.orm.template.TemplateString.Companion.raw
 import st.orm.template.TemplateString.Companion.wrap
+import java.util.concurrent.atomic.AtomicBoolean
 
 /**
  * Represents a compiled SQL template string that can be passed to Storm's query engine for execution.
@@ -108,9 +109,9 @@ public interface TemplateContext {
      *
      * At runtime, Storm uses this signal to verify interpolation safety: if a [TemplateBuilder] lambda executes
      * without this method being called, Storm cannot verify that all string interpolations are wrapped and acts
-     * based on the `storm.validation.interpolation_mode` system property: `warn` (default) logs a warning, `fail`
-     * throws an [IllegalStateException], and `none` disables the check entirely. Any other value fails with an
-     * [IllegalStateException].
+     * based on the `storm.validation.interpolation_mode` system property: `warn` (default) logs a warning once per
+     * JVM, `fail` throws an [IllegalStateException], and `none` disables the check entirely. Any other value fails
+     * with an [IllegalStateException].
      */
     public fun autoInterpolation() {}
 }
@@ -122,8 +123,8 @@ public interface TemplateContext {
  * (via [TemplateContext.autoInterpolation]). Explicit [TemplateContext.t]/[TemplateContext.interpolate] calls do not
  * satisfy the check, because they cannot prove that every interpolation in the template is wrapped. If the plugin
  * marker is absent, the behavior depends on the `storm.validation.interpolation_mode` system property: `warn`
- * (default) logs a warning, `fail` throws an [IllegalStateException], and `none` disables the check. Any other value
- * fails with an [IllegalStateException].
+ * (default) logs a warning once per JVM, `fail` throws an [IllegalStateException], and `none` disables the check.
+ * Any other value fails with an [IllegalStateException].
  */
 public fun TemplateBuilder.build(): TemplateString {
     var autoInterpolation = false
@@ -151,7 +152,11 @@ public fun TemplateBuilder.build(): TemplateString {
         val mode = InterpolationMode.mode
         when (mode.trim().lowercase()) {
             "fail" -> throw IllegalStateException(message)
-            "warn" -> InterpolationMode.logger.log(System.Logger.Level.WARNING, message)
+            // One warning identifies the problem and the remedy is global (apply the plugin), so repeating it for
+            // every template would only flood the logs of applications that wrap interpolations manually.
+            "warn" -> if (InterpolationMode.warned.compareAndSet(false, true)) {
+                InterpolationMode.logger.log(System.Logger.Level.WARNING, message)
+            }
             "none" -> {}
             else -> throw IllegalStateException(
                 "Invalid storm.validation.interpolation_mode: '$mode'. Valid values are: warn, fail, none.",
@@ -164,6 +169,7 @@ public fun TemplateBuilder.build(): TemplateString {
 private object InterpolationMode {
     val logger: System.Logger = System.getLogger("st.orm.template")
     val mode: String get() = System.getProperty("storm.validation.interpolation_mode", "warn")
+    val warned: AtomicBoolean = AtomicBoolean()
 }
 
 internal data class TemplateStringHolder(
