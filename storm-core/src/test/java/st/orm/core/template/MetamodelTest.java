@@ -16,6 +16,7 @@ import st.orm.core.model.NullableCompoundUK;
 import st.orm.core.model.Owner;
 import st.orm.core.model.Owner_;
 import st.orm.core.model.Pet;
+import st.orm.core.model.Pet_;
 import st.orm.core.model.VetSpecialty;
 import st.orm.core.model.VetSpecialtyPK;
 import st.orm.core.model.VetSpecialty_;
@@ -274,6 +275,47 @@ public class MetamodelTest {
         // Owner_.address is an inline record without @UK, so isNullable() defaults to false.
         Metamodel.Key<?, ?> key = Owner_.address;
         assertFalse(key.isNullable());
+    }
+
+    // Metamodel.key() factory nullability tests.
+
+    @Test
+    public void testWrappedNullableFieldIsNullable() {
+        // Owner.telephone is @Nullable and not unique, so its generated metamodel carries no Key marker;
+        // the key() view derives nullability from the underlying field.
+        Metamodel.Key<Owner, String> key = Metamodel.key(Owner_.telephone);
+        assertInstanceOf(Metamodel.KeyDelegate.class, key);
+        assertTrue(key.isNullable());
+    }
+
+    @Test
+    public void testWrappedNonNullableFieldIsNotNullable() {
+        // Owner.firstName is @Nonnull, so its key() view is non-nullable.
+        Metamodel.Key<Owner, String> key = Metamodel.key(Owner_.firstName);
+        assertInstanceOf(Metamodel.KeyDelegate.class, key);
+        assertFalse(key.isNullable());
+    }
+
+    @Test
+    public void testWrappedFactoryMetamodelWithNullableFieldIsNullable() {
+        // The factory route for manually constructed metamodels keeps the field's nullability.
+        Metamodel<Owner, String> telephone = Metamodel.of(Owner.class, "telephone");
+        assertTrue(Metamodel.key(telephone).isNullable());
+    }
+
+    @Test
+    public void testWrappedNestedFieldResolvesNullabilityAtLeaf() {
+        // A nested path resolves nullability at the leaf field.
+        Metamodel<Pet, String> telephone = Metamodel.of(Pet.class, "owner.telephone");
+        assertTrue(Metamodel.key(telephone).isNullable());
+        Metamodel<Pet, String> firstName = Metamodel.of(Pet.class, "owner.firstName");
+        assertFalse(Metamodel.key(firstName).isNullable());
+    }
+
+    @Test
+    public void testWrappedNullableForeignKeyIsNullable() {
+        // Pet.owner is a @Nullable @FK, so its foreign key column allows NULLs.
+        assertTrue(Metamodel.key(Pet_.owner).isNullable());
     }
 
     @Test
