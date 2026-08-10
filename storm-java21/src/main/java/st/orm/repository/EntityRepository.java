@@ -989,8 +989,9 @@ public interface EntityRepository<E extends Entity<ID>, ID> extends Repository {
     /**
      * Returns a page of entities using offset-based pagination.
      *
-     * <p>This method executes two queries: a {@code SELECT COUNT(*)} to determine the total number of entities, and
-     * a query with OFFSET and LIMIT to fetch the content for the requested page.</p>
+     * <p>This method executes a query with OFFSET and LIMIT to fetch the content for the requested page and, when
+     * the total cannot be derived from the fetched page, a {@code SELECT COUNT(*)} to determine the total number of
+     * entities.</p>
      *
      * <p>Page numbers are zero-based: pass {@code 0} for the first page.</p>
      *
@@ -1004,8 +1005,9 @@ public interface EntityRepository<E extends Entity<ID>, ID> extends Repository {
     /**
      * Returns a page of entities using offset-based pagination.
      *
-     * <p>This method executes two queries: a {@code SELECT COUNT(*)} to determine the total number of entities, and
-     * a query with OFFSET and LIMIT to fetch the content for the requested page.</p>
+     * <p>This method executes a query with OFFSET and LIMIT to fetch the content for the requested page and, when
+     * the total cannot be derived from the fetched page, a {@code SELECT COUNT(*)} to determine the total number of
+     * entities.</p>
      *
      * <p>Use {@link Pageable#ofSize(int)} for the first page, then navigate with
      * {@link Page#nextPageable()} or {@link Page#previousPageable()}.</p>
@@ -1031,8 +1033,9 @@ public interface EntityRepository<E extends Entity<ID>, ID> extends Repository {
     /**
      * Returns a page of entity refs using offset-based pagination.
      *
-     * <p>This method executes two queries: a {@code SELECT COUNT(*)} to determine the total number of entities, and
-     * a query with OFFSET and LIMIT to fetch the refs for the requested page.</p>
+     * <p>This method executes a query with OFFSET and LIMIT to fetch the refs for the requested page and, when
+     * the total cannot be derived from the fetched page, a {@code SELECT COUNT(*)} to determine the total number of
+     * entities.</p>
      *
      * @param pageable the pagination request specifying page number and page size.
      * @return a page containing the ref results and pagination metadata.

@@ -892,22 +892,6 @@ public abstract class QueryBuilder<T : Data, R, ID> {
      */
     public abstract fun offset(offset: Int): QueryBuilder<T, R, ID>
 
-    /**
-     * Append the query with a string template.
-     *
-     * @param builder the string template to append.
-     * @return the query builder.
-     */
-    public fun append(builder: TemplateBuilder): QueryBuilder<T, R, ID> = append(builder.build())
-
-    /**
-     * Append the query with a string template.
-     *
-     * @param template the string template to append.
-     * @return the query builder.
-     */
-    public abstract fun append(template: TemplateString): QueryBuilder<T, R, ID>
-
     //
     // Locking.
     //
@@ -984,9 +968,10 @@ public abstract class QueryBuilder<T : Data, R, ID> {
     /**
      * Executes the query and returns a [Page] of results using offset-based pagination.
      *
-     * This method executes two queries: one to count the total number of matching results (without offset or
-     * limit), and one to fetch the content for the requested page. The caller is responsible for adding ORDER BY
-     * clauses to ensure deterministic ordering across pages.
+     * This method executes the query for the requested page and, when the total cannot be derived from the
+     * fetched page, a count query (without offset or limit). A page that is not full determines the total directly,
+     * so the count query only runs for a full page, or for an empty page beyond the first. The caller is responsible
+     * for adding ORDER BY clauses to ensure deterministic ordering across pages.
      *
      * Page numbers are zero-based: pass `0` for the first page.
      *
@@ -1001,10 +986,11 @@ public abstract class QueryBuilder<T : Data, R, ID> {
     /**
      * Executes the query and returns a [Page] of results using offset-based pagination.
      *
-     * This method executes two queries: one to count the total number of matching results (without offset or
-     * limit), and one to fetch the content for the requested page. Sort orders can be specified either through the
-     * pageable or through explicit `orderBy` calls on the query builder, but not both. If both are present,
-     * a [PersistenceException] is thrown.
+     * This method executes the query for the requested page and, when the total cannot be derived from the
+     * fetched page, a count query (without offset or limit). A page that is not full determines the total directly,
+     * so the count query only runs for a full page, or for an empty page beyond the first. Sort orders can be
+     * specified either through the pageable or through explicit `orderBy` calls on the query builder, but not both.
+     * If both are present, a [PersistenceException] is thrown.
      *
      * Use [Pageable.ofSize] for the first page, then navigate with
      * [Page.nextPageable] or [Page.previousPageable].
@@ -1014,7 +1000,17 @@ public abstract class QueryBuilder<T : Data, R, ID> {
      * @throws PersistenceException if the pageable has sort orders and the query builder has explicit orderBy calls.
      * @since 1.10
      */
-    public fun page(pageable: Pageable): Page<R> = page(pageable, resultCount)
+    public fun page(pageable: Pageable): Page<R> {
+        val content = pageContent(pageable)
+        val totalCount = if (content.size < pageable.pageSize() && (pageable.offset() == 0L || content.isNotEmpty())) {
+            // A page that is not full is the last page, so the total follows from the page itself. An empty page
+            // beyond the first proves nothing: the offset may lie anywhere past the end.
+            pageable.offset() + content.size
+        } else {
+            resultCount
+        }
+        return Page(content, totalCount, pageable)
+    }
 
     /**
      * Executes the query and returns a [Page] of results using offset-based pagination with a pre-computed
@@ -1034,7 +1030,12 @@ public abstract class QueryBuilder<T : Data, R, ID> {
      * @throws PersistenceException if the pageable has sort orders and the query builder has explicit orderBy calls.
      * @since 1.10
      */
-    public fun page(pageable: Pageable, totalCount: Long): Page<R> {
+    public fun page(pageable: Pageable, totalCount: Long): Page<R> = Page(pageContent(pageable), totalCount, pageable)
+
+    /**
+     * Fetches the content for the requested page, applying the pageable's sort orders and offset/limit window.
+     */
+    private fun pageContent(pageable: Pageable): List<R> {
         // Forbid combining explicit orderBy with Pageable sort orders for consistency with scroll, which also
         // manages ORDER BY internally and forbids explicit orderBy calls.
         if (hasOrderBy() && pageable.orders().isNotEmpty()) {
@@ -1045,8 +1046,7 @@ public abstract class QueryBuilder<T : Data, R, ID> {
             // The Pageable's sort field may be rooted anywhere in the query, so the column is named directly.
             sorted = sorted.orderBy(wrap(Columns(order.field(), CASCADE, order.descending())))
         }
-        val content = sorted.offset(pageable.offset().toInt()).limit(pageable.pageSize()).resultList
-        return Page(content, totalCount, pageable)
+        return sorted.offset(pageable.offset().toInt()).limit(pageable.pageSize()).resultList
     }
 
     /**
@@ -1103,9 +1103,14 @@ public abstract class QueryBuilder<T : Data, R, ID> {
     public val resultFlow: Flow<R>
         get() = resultStream.consumeAsFlow()
 
-    public val resultCount: Long
+    public open val resultCount: Long
         /**
          * Returns the number of results of this query.
+         *
+         * Select queries execute a dedicated count query derived from this builder: the select clause is replaced by
+         * `COUNT(*)`, or the query is counted as a derived table when its shape requires it (DISTINCT, GROUP BY,
+         * HAVING, limit, offset or a custom select clause). Queries that lock rows fetch and
+         * count the results instead, so the requested locks are acquired.
          *
          * @return the total number of results of this query as a long value.
          * @throws PersistenceException if the query operation fails due to underlying database issues, such as
@@ -1589,11 +1594,6 @@ public class SqlScope<T : Data, R, ID : Any> @PublishedApi internal constructor(
     /** Locks the selected rows for writing (SELECT ... FOR UPDATE). */
     public fun forUpdate() {
         builder = builder.forUpdate()
-    }
-
-    /** Appends raw SQL to the query using a template expression. */
-    public fun append(template: TemplateBuilder) {
-        builder = builder.append(template)
     }
 
     /**

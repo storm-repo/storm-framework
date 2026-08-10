@@ -1716,8 +1716,9 @@ public interface EntityRepository<E, ID : Any> : Repository where E : Entity<ID>
     /**
      * Returns a page of entities using offset-based pagination.
      *
-     * This method executes two queries: a `SELECT COUNT(*)` to determine the total number of entities, and
-     * a query with OFFSET and LIMIT to fetch the content for the requested page.
+     * This method executes a query with OFFSET and LIMIT to fetch the content for the requested page and, when
+     * the total cannot be derived from the fetched page, a `SELECT COUNT(*)` to determine the total number of
+     * entities.
      *
      * Page numbers are zero-based: pass `0` for the first page.
      *
@@ -1731,8 +1732,9 @@ public interface EntityRepository<E, ID : Any> : Repository where E : Entity<ID>
     /**
      * Returns a page of entities using offset-based pagination.
      *
-     * This method executes two queries: a `SELECT COUNT(*)` to determine the total number of entities, and
-     * a query with OFFSET and LIMIT to fetch the content for the requested page.
+     * This method executes a query with OFFSET and LIMIT to fetch the content for the requested page and, when
+     * the total cannot be derived from the fetched page, a `SELECT COUNT(*)` to determine the total number of
+     * entities.
      *
      * Use [Pageable.ofSize] for the first page, then navigate with
      * [Page.nextPageable] or [Page.previousPageable].
@@ -1758,8 +1760,9 @@ public interface EntityRepository<E, ID : Any> : Repository where E : Entity<ID>
     /**
      * Returns a page of entity refs using offset-based pagination.
      *
-     * This method executes two queries: a `SELECT COUNT(*)` to determine the total number of entities, and
-     * a query with OFFSET and LIMIT to fetch the refs for the requested page.
+     * This method executes a query with OFFSET and LIMIT to fetch the refs for the requested page and, when
+     * the total cannot be derived from the fetched page, a `SELECT COUNT(*)` to determine the total number of
+     * entities.
      *
      * @param pageable the pagination request specifying page number and page size.
      * @return a page containing the ref results and pagination metadata.

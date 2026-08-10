@@ -1054,7 +1054,7 @@ public class TemplatePreparedStatementIntegrationTest {
     @Test
     public void testSelect() {
         // Append a raw WHERE clause to a builder query. Visit id=1 exists; exactly 1 result.
-        var count = ORMTemplate.of(dataSource).selectFrom(Visit.class).append(raw("WHERE \0.id = \0", alias(Visit.class), 1)).getResultCount();
+        var count = ORMTemplate.of(dataSource).selectFrom(Visit.class).where(raw("\0.id = \0", alias(Visit.class), 1)).getResultCount();
         assertEquals(1, count);
     }
 

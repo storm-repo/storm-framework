@@ -62,14 +62,6 @@ internal class QueryBuilderImpl<T : Data, R, ID>(
     override fun fetch(paths: List<Navigable<T, out Data>>): QueryBuilder<T, R, ID> = QueryBuilderImpl<T, R, ID>(core.fetch(paths))
 
     /**
-     * Returns a processor that can be used to append the query with a string template.
-     *
-     * @param template the string template to append.
-     * @return a processor that can be used to append the query with a string template.
-     */
-    override fun append(template: TemplateString): QueryBuilder<T, R, ID> = QueryBuilderImpl<T, R, ID>(core.append(template.unwrap))
-
-    /**
      * Adds an ORDER BY clause to the query using a string template. Multiple calls to this method append additional
      * columns to the ORDER BY clause.
      *
@@ -165,6 +157,12 @@ internal class QueryBuilderImpl<T : Data, R, ID>(
          * connectivity.
          */
         get() = core.getResultStream()
+
+    override val resultCount: Long
+        /**
+         * Delegates to the core builder, which executes a dedicated count query derived from the builder's shape.
+         */
+        get() = core.resultCount
 
     override val resultList: List<R>
         /**

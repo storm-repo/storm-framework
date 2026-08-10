@@ -586,8 +586,9 @@ public interface ProjectionRepository<P extends Projection<ID>, ID> extends Repo
     /**
      * Returns a page of projections using offset-based pagination.
      *
-     * <p>This method executes two queries: a {@code SELECT COUNT(*)} to determine the total number of projections, and
-     * a query with OFFSET and LIMIT to fetch the content for the requested page.</p>
+     * <p>This method executes a query with OFFSET and LIMIT to fetch the content for the requested page and, when
+     * the total cannot be derived from the fetched page, a {@code SELECT COUNT(*)} to determine the total number of
+     * projections.</p>
      *
      * <p>Page numbers are zero-based: pass {@code 0} for the first page.</p>
      *
@@ -601,8 +602,9 @@ public interface ProjectionRepository<P extends Projection<ID>, ID> extends Repo
     /**
      * Returns a page of projections using offset-based pagination.
      *
-     * <p>This method executes two queries: a {@code SELECT COUNT(*)} to determine the total number of projections, and
-     * a query with OFFSET and LIMIT to fetch the content for the requested page.</p>
+     * <p>This method executes a query with OFFSET and LIMIT to fetch the content for the requested page and, when
+     * the total cannot be derived from the fetched page, a {@code SELECT COUNT(*)} to determine the total number of
+     * projections.</p>
      *
      * <p>Use {@link Pageable#ofSize(int)} for the first page, then navigate with
      * {@link Page#nextPageable()} or {@link Page#previousPageable()}.</p>
@@ -628,8 +630,9 @@ public interface ProjectionRepository<P extends Projection<ID>, ID> extends Repo
     /**
      * Returns a page of projection refs using offset-based pagination.
      *
-     * <p>This method executes two queries: a {@code SELECT COUNT(*)} to determine the total number of projections, and
-     * a query with OFFSET and LIMIT to fetch the refs for the requested page.</p>
+     * <p>This method executes a query with OFFSET and LIMIT to fetch the refs for the requested page and, when
+     * the total cannot be derived from the fetched page, a {@code SELECT COUNT(*)} to determine the total number of
+     * projections.</p>
      *
      * @param pageable the pagination request specifying page number and page size.
      * @return a page containing the ref results and pagination metadata.

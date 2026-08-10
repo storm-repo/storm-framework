@@ -37,20 +37,20 @@ public interface PetRepository extends EntityRepository<Pet, Integer> {
     }
 
     default Pet getById3(int id) {
-        return orm().selectFrom(Pet.class).append(raw("WHERE \0", where(id))).getSingleResult();
+        return select().where(it -> it.whereId(id)).getSingleResult();
     }
 
     default List<Pet> findByOwnerFirstName(String firstName) {
-        return orm().selectFrom(Pet.class).append(raw("WHERE \0.first_name = \0",
+        return orm().selectFrom(Pet.class).where(raw("\0.first_name = \0",
                 alias(Owner.class), firstName)).getResultList();
     }
 
     default List<Pet> findByOwnerCity(String city) {
-        return select().append(raw("WHERE \0.name = \0", City.class, city)).getResultList();
+        return select().where(raw("\0.name = \0", City.class, city)).getResultList();
     }
 
     default List<Pet> findByOwnerCityQuery(String city) {
-        return orm().selectFrom(Pet.class).append(raw("WHERE \0.city = \0", alias(Owner.class), city)).getResultList();
+        return orm().selectFrom(Pet.class).where(raw("\0.city = \0", alias(Owner.class), city)).getResultList();
     }
 
     record PetVisitCount(Pet pet, int visitCount) {}

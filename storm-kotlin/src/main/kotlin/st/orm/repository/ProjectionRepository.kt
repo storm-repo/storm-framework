@@ -765,8 +765,9 @@ public interface ProjectionRepository<P, ID : Any> : Repository where P : Projec
     /**
      * Returns a page of projections using offset-based pagination.
      *
-     * This method executes two queries: a `SELECT COUNT(*)` to determine the total number of projections, and
-     * a query with OFFSET and LIMIT to fetch the content for the requested page.
+     * This method executes a query with OFFSET and LIMIT to fetch the content for the requested page and, when
+     * the total cannot be derived from the fetched page, a `SELECT COUNT(*)` to determine the total number of
+     * projections.
      *
      * Page numbers are zero-based: pass `0` for the first page.
      *
@@ -780,8 +781,9 @@ public interface ProjectionRepository<P, ID : Any> : Repository where P : Projec
     /**
      * Returns a page of projections using offset-based pagination.
      *
-     * This method executes two queries: a `SELECT COUNT(*)` to determine the total number of projections, and
-     * a query with OFFSET and LIMIT to fetch the content for the requested page.
+     * This method executes a query with OFFSET and LIMIT to fetch the content for the requested page and, when
+     * the total cannot be derived from the fetched page, a `SELECT COUNT(*)` to determine the total number of
+     * projections.
      *
      * Use [Pageable.ofSize] for the first page, then navigate with
      * [Page.nextPageable] or [Page.previousPageable].
@@ -807,8 +809,9 @@ public interface ProjectionRepository<P, ID : Any> : Repository where P : Projec
     /**
      * Returns a page of projection refs using offset-based pagination.
      *
-     * This method executes two queries: a `SELECT COUNT(*)` to determine the total number of projections, and
-     * a query with OFFSET and LIMIT to fetch the refs for the requested page.
+     * This method executes a query with OFFSET and LIMIT to fetch the refs for the requested page and, when
+     * the total cannot be derived from the fetched page, a `SELECT COUNT(*)` to determine the total number of
+     * projections.
      *
      * @param pageable the pagination request specifying page number and page size.
      * @return a page containing the ref results and pagination metadata.

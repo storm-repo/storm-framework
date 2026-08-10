@@ -45,20 +45,19 @@ public class DeleteBuilderImpl<T extends Data, ID> extends QueryBuilderImpl<T, O
     private final boolean unsafe;
 
     public DeleteBuilderImpl(@Nonnull QueryTemplate queryTemplate, @Nonnull Class<T> fromType, @Nonnull Supplier<Model<T, ID>> modelSupplier) {
-        this(queryTemplate, fromType, List.of(), List.of(), List.of(), List.of(), List.of(), List.of(), modelSupplier, false);
+        this(queryTemplate, fromType, List.of(), List.of(), List.of(), List.of(), List.of(), modelSupplier, false);
     }
 
     private DeleteBuilderImpl(@Nonnull QueryTemplate queryTemplate,
                               @Nonnull Class<T> fromType,
                               @Nonnull List<Join> join,
                               @Nonnull List<Where> where,
-                              @Nonnull List<TemplateString> templates,
                               @Nonnull List<TemplateString> groupBy,
                               @Nonnull List<TemplateString> having,
                               @Nonnull List<TemplateString> orderBy,
                               @Nonnull Supplier<Model<T, ID>> modelSupplier,
                               boolean unsafe) {
-        super(queryTemplate, fromType, join, where, templates, groupBy, having, orderBy, modelSupplier);
+        super(queryTemplate, fromType, join, where, groupBy, having, orderBy, modelSupplier);
         this.unsafe = unsafe;
     }
 
@@ -73,7 +72,7 @@ public class DeleteBuilderImpl<T extends Data, ID> extends QueryBuilderImpl<T, O
      */
     @Override
     public QueryBuilder<T, Object, ID> unsafe() {
-        return new DeleteBuilderImpl<>(queryTemplate, fromType, join, where, templates, groupBy, having, orderBy, modelSupplier, true);
+        return new DeleteBuilderImpl<>(queryTemplate, fromType, join, where, groupBy, having, orderBy, modelSupplier, true);
     }
 
     /**
@@ -83,7 +82,6 @@ public class DeleteBuilderImpl<T extends Data, ID> extends QueryBuilderImpl<T, O
      * @param fromType the type of the table being queried.
      * @param join the list of joins.
      * @param where the list of where clauses.
-     * @param templates the list of string templates.
      * @return a new query builder.
      */
     @Override
@@ -91,11 +89,10 @@ public class DeleteBuilderImpl<T extends Data, ID> extends QueryBuilderImpl<T, O
                                          @Nonnull Class<T> fromType,
                                          @Nonnull List<Join> join,
                                          @Nonnull List<Where> where,
-                                         @Nonnull List<TemplateString> templates,
                                          @Nonnull List<TemplateString> groupBy,
                                          @Nonnull List<TemplateString> having,
                                          @Nonnull List<TemplateString> orderBy) {
-        return new DeleteBuilderImpl<>(queryTemplate, fromType, join, where, templates, groupBy, having, orderBy, modelSupplier, unsafe);
+        return new DeleteBuilderImpl<>(queryTemplate, fromType, join, where, groupBy, having, orderBy, modelSupplier, unsafe);
     }
 
     /**
@@ -216,9 +213,6 @@ public class DeleteBuilderImpl<T extends Data, ID> extends QueryBuilderImpl<T, O
                         .orElseThrow();
                 template = TemplateString.combine(template, TemplateString.of("\nWHERE "), whereClause);
             }
-        }
-        if (!templates.isEmpty()) {
-            template = TemplateString.combine(template, TemplateString.combine(templates));
         }
         if (!supportsJoin()) {
             template = TemplateString.combine(TemplateString.raw("DELETE\nFROM \0\nWHERE (", from(fromType, false)),

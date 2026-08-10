@@ -36,6 +36,7 @@ import org.springframework.test.context.jdbc.Sql;
 import org.springframework.test.context.junit.jupiter.SpringExtension;
 import st.orm.NoResultException;
 import st.orm.NonUniqueResultException;
+import st.orm.Pageable;
 import st.orm.PersistenceException;
 import st.orm.Ref;
 import st.orm.Scrollable;
@@ -400,14 +401,71 @@ public class QueryBuilderTest {
         assertFalse(cities.isEmpty());
     }
 
-    // QueryBuilder - append
+    // QueryBuilder - orderBy template
 
     @Test
-    public void testAppend() {
+    public void testOrderByTemplate() {
         List<City> cities = orm.selectFrom(City.class)
-                .append(RAW." ORDER BY \{City.class}.name")
+                .orderBy(RAW."\{City.class}.name")
                 .getResultList();
         assertEquals(6, cities.size());
+    }
+
+    // QueryBuilder - page
+
+    @Test
+    public void testPagePartialFirstPageInfersTotal() {
+        var page = orm.selectFrom(City.class).page(Pageable.ofSize(20));
+        assertEquals(6, page.totalCount());
+        assertEquals(6, page.content().size());
+    }
+
+    @Test
+    public void testPageFullPageCountsTotal() {
+        var page = orm.selectFrom(City.class).page(0, 3);
+        assertEquals(6, page.totalCount());
+        assertEquals(3, page.content().size());
+    }
+
+    @Test
+    public void testPagePartialLastPageInfersTotal() {
+        var page = orm.selectFrom(City.class).page(1, 4);
+        assertEquals(6, page.totalCount());
+        assertEquals(2, page.content().size());
+    }
+
+    @Test
+    public void testPageBeyondEndCountsTotal() {
+        var page = orm.selectFrom(City.class).page(5, 4);
+        assertEquals(6, page.totalCount());
+        assertTrue(page.content().isEmpty());
+    }
+
+    @Test
+    public void testPageWithPrecomputedTotal() {
+        var page = orm.selectFrom(City.class).page(Pageable.ofSize(3), 42);
+        assertEquals(42, page.totalCount());
+        assertEquals(3, page.content().size());
+    }
+
+    @Test
+    public void testPageAppliesPageableSortOrders() {
+        var page = orm.selectFrom(City.class).page(Pageable.ofSize(10).sortByDescending(City_.id));
+        assertEquals(6, page.content().getFirst().id());
+    }
+
+    @Test
+    public void testPageableSortsWithExplicitOrderByThrows() {
+        assertThrows(PersistenceException.class, () ->
+                orm.selectFrom(City.class).orderBy(City_.name).page(Pageable.ofSize(3).sortBy(City_.id)));
+    }
+
+    // QueryBuilder - whereNotExists convenience
+
+    @Test
+    public void testWhereNotExistsConvenience() {
+        var list = orm.selectFrom(City.class).whereNotExists(orm.selectFrom(City.class)).getResultList();
+        assertTrue(list.isEmpty());
     }
 
     // QueryBuilder - forUpdate / forShare / forLock

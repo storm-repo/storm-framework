@@ -16,15 +16,20 @@ import org.springframework.test.context.junit.jupiter.SpringExtension
 import st.orm.Data
 import st.orm.JoinType
 import st.orm.Metamodel
+import st.orm.Navigable
 import st.orm.NoResultException
 import st.orm.NonUniqueResultException
 import st.orm.Operator.*
+import st.orm.Pageable
 import st.orm.PersistenceException
 import st.orm.Ref
 import st.orm.Scrollable
 import st.orm.TypedMetamodel
+import st.orm.Window
 import st.orm.repository.entity
 import st.orm.template.model.*
+import java.util.stream.Stream
+import kotlin.reflect.KClass
 
 @ExtendWith(SpringExtension::class)
 @ContextConfiguration(classes = [IntegrationConfig::class])
@@ -923,10 +928,10 @@ open class QueryBuilderTest(
         results shouldHaveSize 4
     }
 
-    // QueryBuilder: append
+    // QueryBuilder: orderBy with limit
 
     @Test
-    fun `append with template should add raw SQL to query`() {
+    fun `orderBy with limit should window ordered results`() {
         val repo = orm.entity(City::class)
         val idPath = metamodel<City, Int>(repo.model, "id")
         // Use orderBy + limit to get first 3 cities by id.
@@ -1088,7 +1093,7 @@ open class QueryBuilderTest(
     fun `orderBy with TemplateBuilder should sort results`() {
         val repo = orm.entity(City::class)
         val idPath = metamodel<City, Int>(repo.model, "id")
-        val cities = repo.select().orderBy { "${t(Templates.column(idPath))} ASC" }.resultList
+        val cities = repo.select().orderBy { "${t(Templates.column(idPath))}" }.resultList
         cities[0].id shouldBe 1
         cities[5].id shouldBe 6
     }
@@ -1222,24 +1227,6 @@ open class QueryBuilderTest(
         val templateString = TemplateString.raw { "COUNT(*) > ${t(1)}" }
         val counts = repo.selectCount().groupBy(cityPath).having(templateString).resultList
         counts shouldHaveSize 2
-    }
-
-    @Test
-    fun `append with TemplateBuilder should add clause`() {
-        val repo = orm.entity(City::class)
-        val idPath = metamodel<City, Int>(repo.model, "id")
-        val cities = repo.select().orderBy(idPath).append { "" }.resultList
-        cities shouldHaveSize 6
-        cities[0].id shouldBe 1
-    }
-
-    @Test
-    fun `append with TemplateString should add clause`() {
-        val repo = orm.entity(City::class)
-        val idPath = metamodel<City, Int>(repo.model, "id")
-        val cities = repo.select().orderBy(idPath).append(TemplateString.raw("")).resultList
-        cities shouldHaveSize 6
-        cities[0].id shouldBe 1
     }
 
     @Test
@@ -1729,29 +1716,17 @@ open class QueryBuilderTest(
         }
     }
 
-    // append() tests
+    // orderBy() template tests
 
     @Test
-    fun `append with raw SQL template should modify query`() {
-        // Use append to add a raw ORDER BY clause. The first 3 cities by id should be 1, 2, 3.
+    fun `orderBy with raw SQL template should order query`() {
+        // Order by a raw column template. The first 3 cities by id should be 1, 2, 3.
         val repo = orm.entity(City::class)
-        val cities = repo.select().append { "ORDER BY ${t(Templates.column(metamodel<City, Int>(repo.model, "id")))}" }.limit(3).resultList
+        val cities = repo.select().orderBy { "${t(Templates.column(metamodel<City, Int>(repo.model, "id")))}" }.limit(3).resultList
         cities shouldHaveSize 3
         cities[0].id shouldBe 1
         cities[1].id shouldBe 2
         cities[2].id shouldBe 3
-    }
-
-    @Test
-    fun `append with TemplateString should add clause to query`() {
-        // Use append with a TemplateString (raw) to add a comment-like clause.
-        val repo = orm.entity(City::class)
-        val idPath = metamodel<City, Int>(repo.model, "id")
-        // Append an ORDER BY and verify ordering is applied.
-        val cities = repo.select().orderBy(idPath).append(TemplateString.raw("")).resultList
-        cities shouldHaveSize 6
-        cities[0].id shouldBe 1
-        cities[5].id shouldBe 6
     }
 
     // typed() tests
@@ -2507,5 +2482,138 @@ open class QueryBuilderTest(
                 (pet.owner === ownerRef.getOrNull()) shouldBe true
             }
         }
+    }
+
+    // page() tests
+
+    @Test
+    fun `page with partial first page should infer total`() {
+        val page = orm.entity(City::class).select().page(Pageable.ofSize(20))
+        page.totalCount() shouldBe 6L
+        page.content() shouldHaveSize 6
+    }
+
+    @Test
+    fun `page with full page should count total`() {
+        val page = orm.entity(City::class).select().page(0, 3)
+        page.totalCount() shouldBe 6L
+        page.content() shouldHaveSize 3
+    }
+
+    @Test
+    fun `page with partial last page should infer total`() {
+        val page = orm.entity(City::class).select().page(1, 4)
+        page.totalCount() shouldBe 6L
+        page.content() shouldHaveSize 2
+    }
+
+    @Test
+    fun `page beyond the end should count total`() {
+        val page = orm.entity(City::class).select().page(5, 4)
+        page.totalCount() shouldBe 6L
+        page.content() shouldHaveSize 0
+    }
+
+    @Test
+    fun `page with precomputed total should skip count`() {
+        val page = orm.entity(City::class).select().page(Pageable.ofSize(3), 42)
+        page.totalCount() shouldBe 42L
+        page.content() shouldHaveSize 3
+    }
+
+    @Test
+    fun `page with pageable sorts and explicit orderBy should throw`() {
+        val repo = orm.entity(City::class)
+        val idPath = metamodel<City, Int>(repo.model, "id")
+        assertThrows<PersistenceException> {
+            repo.select().orderBy(idPath).page(Pageable.ofSize(3).sortBy(idPath))
+        }
+    }
+
+    // where/having convenience overload tests
+
+    @Test
+    fun `where with operator and iterable should filter results`() {
+        val repo = orm.entity(City::class)
+        val idPath = metamodel<City, Int>(repo.model, "id")
+        repo.select().where(idPath, IN, listOf(1, 2)).resultList shouldHaveSize 2
+    }
+
+    @Test
+    fun `where with operator and vararg should filter results`() {
+        val repo = orm.entity(City::class)
+        val idPath = metamodel<City, Int>(repo.model, "id")
+        repo.select().where(idPath, EQUALS, 1).resultList shouldHaveSize 1
+    }
+
+    @Test
+    fun `whereExists with subquery should filter results`() {
+        val repo = orm.entity(City::class)
+        repo.select().whereExists(orm.entity(City::class).select()).resultList shouldHaveSize 6
+    }
+
+    @Test
+    fun `having with operator should filter grouped results`() {
+        val repo = orm.entity(City::class)
+        val idPath = metamodel<City, Int>(repo.model, "id")
+        repo.selectCount().groupBy(idPath).having(idPath, EQUALS, 1).resultList shouldHaveSize 1
+    }
+
+    // Base result terminals: a minimal subclass inherits the streaming defaults, so they are exercised directly.
+
+    private class ForwardingQueryBuilder(private val delegate: QueryBuilder<City, City, Int>) : QueryBuilder<City, City, Int>() {
+        override fun <X : Any> typedId(pkType: KClass<X>): QueryBuilder<City, City, X> = delegate.typedId(pkType)
+        override fun <X : Data> narrow(rootType: KClass<X>): QueryBuilder<X, City, Int> = delegate.narrow(rootType)
+        override fun widen(): QueryBuilder<Data, City, Int> = delegate.widen()
+        override fun unsafe(): QueryBuilder<City, City, Int> = delegate.unsafe()
+        override fun distinct(): QueryBuilder<City, City, Int> = delegate.distinct()
+        override fun fetch(paths: List<Navigable<City, out Data>>): QueryBuilder<City, City, Int> = delegate.fetch(paths)
+        override fun crossJoin(relation: KClass<out Data>): QueryBuilder<Data, City, Int> = delegate.crossJoin(relation)
+        override fun innerJoin(relation: KClass<out Data>): TypedJoinBuilder<City, City, Int> = delegate.innerJoin(relation)
+        override fun leftJoin(relation: KClass<out Data>): TypedJoinBuilder<City, City, Int> = delegate.leftJoin(relation)
+        override fun rightJoin(relation: KClass<out Data>): TypedJoinBuilder<City, City, Int> = delegate.rightJoin(relation)
+        override fun join(type: JoinType, relation: KClass<out Data>, alias: String): TypedJoinBuilder<City, City, Int> = delegate.join(type, relation, alias)
+        override fun crossJoin(template: TemplateString): QueryBuilder<Data, City, Int> = delegate.crossJoin(template)
+        override fun innerJoin(template: TemplateString, alias: String): JoinBuilder<City, City, Int> = delegate.innerJoin(template, alias)
+        override fun leftJoin(template: TemplateString, alias: String): JoinBuilder<City, City, Int> = delegate.leftJoin(template, alias)
+        override fun rightJoin(template: TemplateString, alias: String): JoinBuilder<City, City, Int> = delegate.rightJoin(template, alias)
+        override fun join(type: JoinType, template: TemplateString, alias: String): JoinBuilder<City, City, Int> = delegate.join(type, template, alias)
+        override fun join(type: JoinType, subquery: QueryBuilder<*, *, *>, alias: String): JoinBuilder<City, City, Int> = delegate.join(type, subquery, alias)
+        override fun whereBuilder(predicate: WhereBuilder<City, City, Int>.() -> PredicateBuilder<out City, *, *>): QueryBuilder<City, City, Int> = delegate.whereBuilder(predicate)
+        override fun groupBy(template: TemplateString): QueryBuilder<City, City, Int> = delegate.groupBy(template)
+        override fun having(template: TemplateString): QueryBuilder<City, City, Int> = delegate.having(template)
+        override fun having(predicate: PredicateBuilder<out City, *, *>): QueryBuilder<City, City, Int> = delegate.having(predicate)
+        override fun havingExists(subquery: QueryBuilder<*, *, *>): QueryBuilder<City, City, Int> = delegate.havingExists(subquery)
+        override fun havingNotExists(subquery: QueryBuilder<*, *, *>): QueryBuilder<City, City, Int> = delegate.havingNotExists(subquery)
+        override fun subqueryTemplate(): SubqueryTemplate = delegate.subqueryTemplate()
+        override fun orderBy(template: TemplateString): QueryBuilder<City, City, Int> = delegate.orderBy(template)
+        override fun hasOrderBy(): Boolean = delegate.hasOrderBy()
+        override fun limit(limit: Int): QueryBuilder<City, City, Int> = delegate.limit(limit)
+        override fun offset(offset: Int): QueryBuilder<City, City, Int> = delegate.offset(offset)
+        override fun forShare(): QueryBuilder<City, City, Int> = delegate.forShare()
+        override fun forUpdate(): QueryBuilder<City, City, Int> = delegate.forUpdate()
+        override fun forLock(template: TemplateString): QueryBuilder<City, City, Int> = delegate.forLock(template)
+        override fun build(): Query = delegate.build()
+        override fun scroll(size: Int): Window<City> = delegate.scroll(size)
+        override fun scroll(scrollable: Scrollable<City>): Window<City> = delegate.scroll(scrollable)
+        override val resultStream: Stream<City> get() = delegate.resultStream
+        override fun <V : Data> resultGroupedBy(path: TypedMetamodel<City, V, out V?>): Map<V, List<City>> = delegate.resultGroupedBy(path)
+        override fun <V : Data> resultGroupedByRef(path: Metamodel<City, V>): Map<Ref<V>, List<City>> = delegate.resultGroupedByRef(path)
+    }
+
+    @Test
+    fun `base result terminals stream and count`() {
+        val repo = orm.entity(City::class)
+        val all = ForwardingQueryBuilder(repo.select())
+        all.resultCount shouldBe 6L
+        all.resultList shouldHaveSize 6
+        assertThrows<NonUniqueResultException> { all.singleResult }
+        assertThrows<NonUniqueResultException> { all.optionalResult }
+        val single = ForwardingQueryBuilder(repo.select().where(1))
+        single.singleResult.id shouldBe 1
+        single.optionalResult?.id shouldBe 1
+        val none = ForwardingQueryBuilder(repo.select().where(999))
+        assertThrows<NoResultException> { none.singleResult }
+        none.optionalResult shouldBe null
     }
 }

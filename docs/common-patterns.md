@@ -365,7 +365,7 @@ Storm provides two strategies for traversing large result sets: pagination (by p
 
 ### Offset-Based Pagination
 
-Use the `page()` method on any entity or projection repository. Storm executes the data query and count query automatically, returning a `Page` that includes the result list and total count.
+Use the `page()` method on any entity or projection repository. Storm executes the data query, adds a count query only when the total cannot be derived from the fetched page, and returns a `Page` that includes the result list and total count.
 
 <Tabs groupId="language">
 <TabItem value="kotlin" label="Kotlin" default>

@@ -380,25 +380,23 @@ public class BuilderIntegrationTest {
         assertEquals(5, list.size());
     }
 
-    // 13. append
+    // 13. template-based orderBy and where
 
     @Test
-    public void testAppendRawSql() {
+    public void testOrderByOrdinalTemplate() {
         var orm = ORMTemplate.of(dataSource);
-        // Append a LIMIT clause manually.
         var list = orm.selectFrom(City.class)
-                .append("ORDER BY 1")
+                .orderBy(raw("1"))
                 .limit(3)
                 .getResultList();
         assertEquals(3, list.size());
     }
 
     @Test
-    public void testAppendTemplateString() {
+    public void testWhereTemplateString() {
         var orm = ORMTemplate.of(dataSource);
-        // Append a WHERE clause via template.
         var list = orm.selectFrom(City.class)
-                .append(raw("WHERE \0.name = \0", City.class, "Madison"))
+                .where(raw("\0.name = \0", City.class, "Madison"))
                 .getResultList();
         assertEquals(1, list.size());
         assertEquals("Madison", list.getFirst().name());
@@ -856,5 +854,141 @@ public class BuilderIntegrationTest {
         var row = query.getSingleResult();
         assertEquals(1, row.length);
         assertEquals(6L, ((Number) row[0]).longValue());
+    }
+
+    // Additional: ref single/optional results.
+
+    @Test
+    public void testRefSingleResult() {
+        var orm = ORMTemplate.of(dataSource);
+        var ref = orm.entity(Pet.class).selectRef().where(it -> it.whereId(1)).getSingleResult();
+        assertEquals(1, ref.id());
+    }
+
+    @Test
+    public void testRefOptionalResultEmpty() {
+        var orm = ORMTemplate.of(dataSource);
+        assertTrue(orm.entity(Pet.class).selectRef().where(it -> it.whereId(-1)).getOptionalResult().isEmpty());
+    }
+
+    // Additional: multi-path orderBy and template-based descending order.
+
+    @Test
+    public void testOrderByMultiplePaths() {
+        var list = ORMTemplate.of(dataSource).selectFrom(Pet.class).orderBy(Pet_.name, Pet_.id).getResultList();
+        assertFalse(list.isEmpty());
+    }
+
+    @Test
+    public void testOrderByDescendingTemplate() {
+        var list = ORMTemplate.of(dataSource).selectFrom(City.class)
+                .orderByDescending(raw("\0.id", City.class))
+                .getResultList();
+        assertEquals(6, list.getFirst().id());
+    }
+
+    // Additional: exists/notExists conveniences on the builder.
+
+    @Test
+    public void testWhereExistsConvenience() {
+        var orm = ORMTemplate.of(dataSource);
+        var list = orm.selectFrom(Owner.class)
+                .whereExists(orm.subquery(Visit.class).where(raw("\0.id = \0.id", alias(Owner.class, OUTER), alias(Owner.class, INNER))))
+                .getResultList();
+        assertEquals(6, list.size());
+    }
+
+    @Test
+    public void testWhereNotExistsConvenience() {
+        var orm = ORMTemplate.of(dataSource);
+        var list = orm.selectFrom(Owner.class)
+                .whereNotExists(orm.subquery(Visit.class).where(raw("\0.id = \0.id", alias(Owner.class, OUTER), alias(Owner.class, INNER))))
+                .getResultList();
+        assertEquals(4, list.size());
+    }
+
+    @Test
+    public void testHavingExistsConvenience() {
+        var orm = ORMTemplate.of(dataSource);
+        var count = orm.entity(Owner.class).selectCount()
+                .havingExists(orm.subquery(Visit.class))
+                .getSingleResult();
+        assertEquals(10, count);
+    }
+
+    @Test
+    public void testHavingNotExistsConvenience() {
+        var orm = ORMTemplate.of(dataSource);
+        var result = orm.entity(Owner.class).selectCount()
+                .havingNotExists(orm.subquery(Visit.class))
+                .getOptionalResult();
+        assertTrue(result.isEmpty());
+    }
+
+    // Additional: subquery builders cannot be executed directly.
+
+    @Test
+    public void testSubqueryCannotExecute() {
+        var orm = ORMTemplate.of(dataSource);
+        var subquery = orm.subquery(City.class);
+        assertThrows(PersistenceException.class, subquery::getResultList);
+        assertThrows(PersistenceException.class, subquery::plan);
+        assertThrows(PersistenceException.class, subquery::getResultCount);
+    }
+
+    // Additional: unsafe() is a no-op for select queries.
+
+    @Test
+    public void testUnsafeSelect() {
+        assertEquals(6, ORMTemplate.of(dataSource).selectFrom(City.class).unsafe().getResultList().size());
+    }
+
+    // Additional: fetch() rejects queries that do not select the root record graph.
+
+    @Test
+    public void testFetchOnRefSelectThrows() {
+        var orm = ORMTemplate.of(dataSource);
+        assertThrows(PersistenceException.class, () -> orm.entity(Pet.class).selectRef().fetch(Pet_.owner));
+    }
+
+    @Test
+    public void testFetchOnCustomSelectTypeThrows() {
+        var orm = ORMTemplate.of(dataSource);
+        assertThrows(PersistenceException.class, () -> orm.entity(Pet.class).select(City.class).fetch(Pet_.owner));
+    }
+
+    @Test
+    public void testFetchOnCustomColumnListThrows() {
+        var orm = ORMTemplate.of(dataSource);
+        assertThrows(PersistenceException.class, () -> orm.entity(Pet.class)
+                .select(Pet.class, raw("\0.id, \0.name", Pet.class, Pet.class))
+                .fetch(Pet_.owner));
+    }
+
+    @Test
+    public void testFetchWithoutPathsThrows() {
+        var orm = ORMTemplate.of(dataSource);
+        assertThrows(PersistenceException.class, () -> orm.selectFrom(Pet.class).fetch());
+    }
+
+    // Additional: DELETE builder plans and subquery restrictions.
+
+    @Test
+    public void testDeletePlan() {
+        var orm = ORMTemplate.of(dataSource);
+        // A plan without the unsafe marker defers the missing-WHERE check to execution.
+        assertNotNull(orm.deleteFrom(Visit.class).plan());
+        // The unsafe marker carries over to every query the plan produces; the delete rolls back with the test
+        // transaction.
+        var plan = orm.deleteFrom(Visit.class).unsafe().plan();
+        assertEquals(14, plan.query().executeUpdate());
+    }
+
+    @Test
+    public void testDeleteAsSubqueryThrows() {
+        var orm = ORMTemplate.of(dataSource);
+        assertThrows(PersistenceException.class, () -> orm.selectFrom(Owner.class)
+                .whereExists(orm.deleteFrom(Visit.class))
+                .getResultList());
     }
 }
