@@ -17,6 +17,7 @@ package st.orm.metamodel;
 
 import static java.util.stream.Collectors.joining;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.io.IOException;
@@ -55,6 +56,10 @@ class MetamodelProcessorTest {
         boolean generated(String relativePath) {
             return Files.exists(generatedSources.resolve(relativePath));
         }
+
+        String generatedSource(String relativePath) throws IOException {
+            return Files.readString(generatedSources.resolve(relativePath));
+        }
     }
 
     @Test
@@ -77,6 +82,61 @@ class MetamodelProcessorTest {
         Path services = compilation.classes().resolve("META-INF/services/st.orm.mapping.Instantiator");
         assertTrue(Files.exists(services), "expected an instantiator service registration");
         assertTrue(Files.readString(services).contains("CityStatsInstantiator"));
+    }
+
+    @Test
+    void generatesNullableChainVariantForEveryRecord() throws Exception {
+        Compilation compilation = compile("CityStats.java", """
+                import st.orm.GenerateMetamodel;
+
+                @GenerateMetamodel
+                public record CityStats(String name, int inhabitants) {}
+                """);
+        assertTrue(compilation.success(), compilation.errors());
+        assertTrue(compilation.generated("CityStatsNullableMetamodel.java"),
+                "expected a nullable-chain metamodel for the @GenerateMetamodel record");
+        assertTrue(Files.exists(compilation.classes().resolve("CityStatsNullableMetamodel.class")),
+                "expected the generated nullable-chain metamodel to compile");
+    }
+
+    @Test
+    void selectsChildMetamodelByFieldNullability() throws Exception {
+        Compilation compilation = compile("Owner.java", """
+                import jakarta.annotation.Nullable;
+                import st.orm.GenerateMetamodel;
+
+                @GenerateMetamodel
+                public record Owner(String name, Address address, @Nullable Address previousAddress) {}
+
+                record Address(String street, String city) {}
+                """);
+        assertTrue(compilation.success(), compilation.errors());
+        assertTrue(compilation.generated("AddressMetamodel.java"),
+                "expected a metamodel for the referenced record");
+        assertTrue(compilation.generated("AddressNullableMetamodel.java"),
+                "expected a nullable-chain metamodel for the referenced record");
+        String ownerMetamodel = compilation.generatedSource("OwnerMetamodel.java");
+        assertTrue(ownerMetamodel.contains("AddressMetamodel<T> address"),
+                "a non-null field selects the base child metamodel:\n" + ownerMetamodel);
+        assertTrue(ownerMetamodel.contains("AddressNullableMetamodel<T> previousAddress"),
+                "a nullable field selects the nullable-chain child metamodel:\n" + ownerMetamodel);
+        String ownerNullableMetamodel = compilation.generatedSource("OwnerNullableMetamodel.java");
+        assertTrue(ownerNullableMetamodel.contains("AddressNullableMetamodel<T> address"),
+                "inside a nullable chain every child is the nullable-chain variant:\n" + ownerNullableMetamodel);
+        assertTrue(Files.exists(compilation.classes().resolve("OwnerNullableMetamodel.class")),
+                "expected the generated metamodels to compile");
+    }
+
+    @Test
+    void registersProcessorsForGradleIncrementalProcessing() throws IOException {
+        var descriptor = MetamodelProcessor.class.getResource("/META-INF/gradle/incremental.annotation.processors");
+        assertNotNull(descriptor, "expected the Gradle incremental annotation processing descriptor");
+        String content;
+        try (var stream = descriptor.openStream()) {
+            content = new String(stream.readAllBytes(), StandardCharsets.UTF_8);
+        }
+        assertTrue(content.contains(MetamodelProcessor.class.getName() + ",aggregating"), content);
+        assertTrue(content.contains(TypeIndexProcessor.class.getName() + ",aggregating"), content);
     }
 
     @Test

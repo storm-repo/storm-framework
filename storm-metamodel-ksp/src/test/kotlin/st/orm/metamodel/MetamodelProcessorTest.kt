@@ -49,6 +49,8 @@ class MetamodelProcessorTest {
 
     private fun KotlinCompilation.generatedFileNames(): Set<String> = kspSourcesDir.walkTopDown().filter { it.isFile }.map { it.name }.toSet()
 
+    private fun KotlinCompilation.generatedSource(name: String): String = kspSourcesDir.walkTopDown().first { it.isFile && it.name == name }.readText()
+
     @Test
     fun `generates metamodel for annotated plain data class`() {
         val compilation = compile(
@@ -78,6 +80,47 @@ class MetamodelProcessorTest {
         assertTrue(services.any { it.name == "st.orm.mapping.Instantiator" && "CityStatsInstantiator" in it.readText() }) {
             "expected an instantiator service registration"
         }
+    }
+
+    @Test
+    fun `sources components from the primary constructor only`() {
+        val compilation = compile(
+            """
+            package com.example
+
+            import st.orm.GenerateMetamodel
+
+            interface Labeled {
+                val label: String get() = "label"
+            }
+
+            @GenerateMetamodel
+            data class CityStats(val name: String, val inhabitants: Int) : Labeled {
+                val density: Int get() = inhabitants / 2
+            }
+            """.trimIndent(),
+        )
+        val metamodel = compilation.generatedSource("CityStatsMetamodel.kt")
+        assertTrue("val name" in metamodel) { "expected the constructor component in the metamodel:\n$metamodel" }
+        assertFalse("density" in metamodel) { "a body-declared property has no column and no metamodel field:\n$metamodel" }
+        assertFalse("label" in metamodel) { "an inherited property has no column and no metamodel field:\n$metamodel" }
+    }
+
+    @Test
+    fun `escapes keyword-named properties at every emission site`() {
+        val compilation = compile(
+            """
+            package com.example
+
+            import st.orm.GenerateMetamodel
+
+            @GenerateMetamodel
+            data class CityStats(val name: String, val `object`: String, val `fun`: Int)
+            """.trimIndent(),
+        )
+        val metamodel = compilation.generatedSource("CityStatsMetamodel.kt")
+        assertTrue("`object`" in metamodel) { "expected the keyword-named property backticked:\n$metamodel" }
+        assertTrue("fieldBase + \"object\"" in metamodel) { "the field string literal keeps the raw name:\n$metamodel" }
     }
 
     @Test

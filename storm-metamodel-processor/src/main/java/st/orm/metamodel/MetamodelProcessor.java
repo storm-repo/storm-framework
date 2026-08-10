@@ -27,6 +27,10 @@ import static javax.tools.Diagnostic.Kind.WARNING;
 
 import jakarta.annotation.Nonnull;
 import jakarta.annotation.Nullable;
+import java.io.IOException;
+import java.io.PrintWriter;
+import java.io.StringWriter;
+import java.io.UncheckedIOException;
 import java.io.Writer;
 import java.util.HashSet;
 import java.util.LinkedHashSet;
@@ -277,8 +281,8 @@ public final class MetamodelProcessor extends AbstractProcessor {
     public boolean process(@Nonnull Set<? extends TypeElement> annotations,
                            @Nonnull RoundEnvironment roundEnv) {
         processingEnv.getMessager().printMessage(NOTE, "Storm Metamodel Processor is running.");
-        try {
-            for (Element element : roundEnv.getRootElements()) {
+        for (Element element : roundEnv.getRootElements()) {
+            try {
                 if (isRecord(element)) {
                     boolean hasGenerateMetamodel = element.getAnnotationMirrors().stream()
                             .anyMatch(annotationMirror -> GENERATE_METAMODEL
@@ -297,14 +301,25 @@ public final class MetamodelProcessor extends AbstractProcessor {
                         generateSealedMetamodelArtifacts(typeElement, declaredGetters);
                     }
                 }
+            } catch (Exception e) {
+                processingEnv.getMessager().printMessage(ERROR,
+                        "Failed to process metamodel for " + element + ": " + e + "\n" + stackTraceOf(e),
+                        element);
+                throw (e instanceof RuntimeException runtimeException)
+                        ? runtimeException
+                        : new IllegalStateException(e);
             }
-        } catch (Exception e) {
-            processingEnv.getMessager().printMessage(ERROR, "Failed to process metamodel. Error: " + e);
         }
         if (roundEnv.processingOver()) {
             writeInstantiatorServices();
         }
         return false;
+    }
+
+    private static String stackTraceOf(@Nonnull Throwable throwable) {
+        StringWriter stringWriter = new StringWriter();
+        throwable.printStackTrace(new PrintWriter(stringWriter));
+        return stringWriter.toString();
     }
 
     /**
@@ -325,7 +340,8 @@ public final class MetamodelProcessor extends AbstractProcessor {
                 }
             }
         } catch (Exception e) {
-            processingEnv.getMessager().printMessage(ERROR, "Failed to write instantiator services file. Error: " + e + ".");
+            processingEnv.getMessager().printMessage(ERROR,
+                    "Failed to write instantiator services file: " + e + "\n" + stackTraceOf(e));
         }
     }
 
@@ -376,9 +392,10 @@ public final class MetamodelProcessor extends AbstractProcessor {
         String qn = typeElement.getQualifiedName().toString();
         boolean isData = implementsData(recordElement);
 
-        // Always generate the class once.
+        // Always generate both chain variants once; a nullable field selects the nullable variant of its child.
         if (generatedMetamodelClasses.add(qn)) {
-            generateMetamodelClass(recordElement);
+            generateMetamodelClass(recordElement, false);
+            generateMetamodelClass(recordElement, true);
             generateInstantiator(recordElement);
         }
 
@@ -681,12 +698,19 @@ public final class MetamodelProcessor extends AbstractProcessor {
     private boolean isNullableUniqueField(@Nonnull Element recordElement, @Nonnull String fieldName) {
         // PK fields are always non-null.
         if (isPrimaryKeyField(recordElement, fieldName)) return false;
+        return isNullableField(recordElement, fieldName);
+    }
 
+    /**
+     * Returns the derived nullability of a field, matching the runtime contract: primitives are never null,
+     * explicit annotations win (nullable before non-null), and unannotated fields are non-null unless a
+     * {@code @NullUnmarked} scope applies.
+     */
+    private boolean isNullableField(@Nonnull Element recordElement, @Nonnull String fieldName) {
         // Primitive types are never null.
         TypeMirror fieldType = getTypeElement(recordElement, fieldName);
         if (fieldType != null && isPrimitiveReturn(fieldType)) return false;
 
-        // Explicit annotations win, nullable before non-null, matching the runtime contract.
         // Check record components first.
         if (recordElement.getKind() == RECORD && recordElement instanceof TypeElement te) {
             for (RecordComponentElement rc : te.getRecordComponents()) {
@@ -911,12 +935,13 @@ public final class MetamodelProcessor extends AbstractProcessor {
                     generateMetamodelArtifacts(nestedTypeEl);
                 }
                 boolean inline = !isDataType(recordElement, fieldName);
+                String childMetamodel = metamodelClassName(fieldTypeName, isNullableField(recordElement, fieldName));
                 builder.append("    /** Represents the ")
                         .append(inline ? "inline " : "")
                         .append("{@link ").append(recordName).append("#").append(fieldName).append("} ")
                         .append(inline ? "record." : "foreign key.")
                         .append(" */\n");
-                builder.append("    ").append(fieldTypeName).append("Metamodel<").append(recordName).append("> ")
+                builder.append("    ").append(childMetamodel).append("<").append(recordName).append("> ")
                         .append(fieldName).append(" = ").append(modelRef).append(".")
                         .append(fieldName).append(";\n");
             } else if (isRefType(fieldType)) {
@@ -1028,8 +1053,8 @@ public final class MetamodelProcessor extends AbstractProcessor {
                 ));
             }
             generatedInstantiators.add((packageName.isEmpty() ? "" : packageName + ".") + instantiatorName);
-        } catch (Exception e) {
-            processingEnv.getMessager().printMessage(ERROR, "Failed to process " + instantiatorName + ". Error: " + e + ".");
+        } catch (IOException e) {
+            throw new UncheckedIOException("Failed to write " + instantiatorName, e);
         }
     }
 
@@ -1066,14 +1091,15 @@ public final class MetamodelProcessor extends AbstractProcessor {
                         buildInterfaceFields(recordElement, packageName)
                 ));
             }
-        } catch (Exception e) {
-            processingEnv.getMessager().printMessage(ERROR, "Failed to process " + metaInterfaceName + ". Error: " + e + ".");
+        } catch (IOException e) {
+            throw new UncheckedIOException("Failed to write " + metaInterfaceName, e);
         }
     }
 
     private String buildClassFields(@Nonnull Element recordElement,
                                     @Nonnull String packageName,
-                                    @Nonnull String recordName) {
+                                    @Nonnull String recordName,
+                                    boolean nullableChain) {
         StringBuilder builder = new StringBuilder();
         for (Element enclosed : recordElement.getEnclosedElements()) {
             TypeMirror recordComponent = getRecordComponentType(enclosed).orElse(null);
@@ -1089,10 +1115,12 @@ public final class MetamodelProcessor extends AbstractProcessor {
                 if (isNestedRecord(fieldType)) continue;
 
                 boolean inline = !isDataType(recordElement, fieldName);
+                boolean childNullableChain = nullableChain || isNullableField(recordElement, fieldName);
                 builder.append("    /** Represents the ").append(inline ? "inline " : "")
                         .append("{@link ").append(recordName).append("#").append(fieldName).append("} ")
                         .append(inline ? "record." : "foreign key.").append(" */\n");
-                builder.append("    public final ").append(fieldTypeName).append("Metamodel<T> ").append(fieldName)
+                builder.append("    public final ").append(metamodelClassName(fieldTypeName, childNullableChain))
+                        .append("<T> ").append(fieldName)
                         .append(";\n");
             } else if (isRefType(fieldType)) {
                 // A Ref<X> foreign key: a reference metamodel that selects the foreign key column but also navigates
@@ -1121,7 +1149,8 @@ public final class MetamodelProcessor extends AbstractProcessor {
     private String initClassFields(@Nonnull Element recordElement,
                                    @Nonnull String packageName,
                                    @Nonnull String recordName,
-                                   @Nonnull String metaClassName) {
+                                   @Nonnull String metaClassName,
+                                   boolean nullableChain) {
         StringBuilder builder = new StringBuilder();
 
         for (Element enclosed : recordElement.getEnclosedElements()) {
@@ -1137,8 +1166,11 @@ public final class MetamodelProcessor extends AbstractProcessor {
                 if (isNestedRecord(fieldType)) continue;
 
                 boolean inline = !isDataType(recordElement, fieldName);
-                // Validate: @PK, @FK, and @UK are not supported on inline record fields.
-                if (!implementsData(recordElement)) {
+                boolean childNullableChain = nullableChain || isNullableField(recordElement, fieldName);
+                String childMetamodel = metamodelClassName(fieldTypeName, childNullableChain);
+                // Validate: @PK, @FK, and @UK are not supported on inline record fields. Both chain variants walk
+                // the same fields; only the base pass reports, so a diagnostic prints once.
+                if (!nullableChain && !implementsData(recordElement)) {
                     if (hasAnnotationOrMeta(enclosed, PRIMARY_KEY)) {
                         processingEnv.getMessager().printMessage(ERROR,
                                 "@PK is not supported on inline record fields. "
@@ -1167,7 +1199,7 @@ public final class MetamodelProcessor extends AbstractProcessor {
                                 "        }";
                 if (inline && isEffectivelyUniqueField(recordElement, fieldName)) {
                     boolean nullsDistinct = getNullsDistinct(recordElement, fieldName);
-                    if (nullsDistinct && hasNullableLeaf(asTypeElement(fieldType))) {
+                    if (!nullableChain && nullsDistinct && hasNullableLeaf(asTypeElement(fieldType))) {
                         processingEnv.getMessager().printMessage(
                                 WARNING,
                                 "Unique key field '" + fieldName + "' on " + recordName + " has nullable constituent fields. "
@@ -1176,15 +1208,15 @@ public final class MetamodelProcessor extends AbstractProcessor {
                                 + "@UK(nullsDistinct = false) if the database constraint prevents duplicate NULLs.",
                                 enclosed);
                     }
-                    builder.append("        this.").append(fieldName).append(" = new ").append(fieldTypeName)
-                            .append("Metamodel<>(")
+                    builder.append("        this.").append(fieldName).append(" = new ").append(childMetamodel)
+                            .append("<>(")
                             .append("subPath, fieldBase + \"").append(fieldName).append("\", ")
                             .append(inlineFlag).append(", this, ")
                             .append(nestedGetter).append(", ").append(nullsDistinct)
                             .append(");\n");
                 } else {
-                    builder.append("        this.").append(fieldName).append(" = new ").append(fieldTypeName)
-                            .append("Metamodel<>(")
+                    builder.append("        this.").append(fieldName).append(" = new ").append(childMetamodel)
+                            .append("<>(")
                             .append("subPath, fieldBase + \"").append(fieldName).append("\", ")
                             .append(inlineFlag).append(", this, ")
                             .append(nestedGetter)
@@ -1208,8 +1240,9 @@ public final class MetamodelProcessor extends AbstractProcessor {
                 String valueTypeName = getValueTypeName(getDeclaredTypeElement(recordElement, fieldName), packageName);
                 boolean unique = isEffectivelyUniqueField(recordElement, fieldName);
                 boolean isData = implementsData(recordElement);
-                // Validate: @PK, @FK, and @UK are not supported on inline record fields.
-                if (!isData) {
+                // Validate: @PK, @FK, and @UK are not supported on inline record fields. Both chain variants walk
+                // the same fields; only the base pass reports, so a diagnostic prints once.
+                if (!nullableChain && !isData) {
                     if (hasAnnotationOrMeta(enclosed, PRIMARY_KEY)) {
                         processingEnv.getMessager().printMessage(ERROR,
                                 "@PK is not supported on inline record fields. "
@@ -1238,7 +1271,7 @@ public final class MetamodelProcessor extends AbstractProcessor {
                     boolean nullable = isNullableUniqueField(recordElement, fieldName);
                     boolean nullsDistinct = getNullsDistinct(recordElement, fieldName);
                     effectivelyNullable = nullable && nullsDistinct;
-                    if (effectivelyNullable) {
+                    if (!nullableChain && effectivelyNullable) {
                         processingEnv.getMessager().printMessage(
                                 WARNING,
                                 "Unique key field '" + fieldName + "' on " + recordName + " is nullable. "
@@ -1358,6 +1391,15 @@ public final class MetamodelProcessor extends AbstractProcessor {
 
     private static String refClassName(@Nonnull String recordName) {
         return recordName + "RefMetamodel";
+    }
+
+    /**
+     * Returns the metamodel class name for a record name. The nullable-chain variant matches the KSP output, so a
+     * field reads as the same static type from Java and Kotlin. A qualified record name keeps its qualifier; the
+     * variant lives in the record's package.
+     */
+    private static String metamodelClassName(@Nonnull String recordName, boolean nullableChain) {
+        return recordName + (nullableChain ? "NullableMetamodel" : "Metamodel");
     }
 
     /**
@@ -1553,15 +1595,15 @@ public final class MetamodelProcessor extends AbstractProcessor {
             try (Writer writer = fileObject.openWriter()) {
                 writer.write(content);
             }
-        } catch (Exception e) {
-            processingEnv.getMessager().printMessage(ERROR, "Failed to generate " + className + ". Error: " + e);
+        } catch (IOException e) {
+            throw new UncheckedIOException("Failed to write " + className, e);
         }
     }
 
-    private void generateMetamodelClass(@Nonnull Element recordElement) {
+    private void generateMetamodelClass(@Nonnull Element recordElement, boolean nullableChain) {
         String packageName = elementUtils.getPackageOf(recordElement).getQualifiedName().toString();
         String recordName = recordElement.getSimpleName().toString();
-        String metaClassName = recordName + "Metamodel";
+        String metaClassName = metamodelClassName(recordName, nullableChain);
         boolean isData = implementsData(recordElement);
 
         // Root isSame: compare by PK if present, else compare by value, but guard for null root record.
@@ -1571,8 +1613,10 @@ public final class MetamodelProcessor extends AbstractProcessor {
             String pkName = pkNameOpt.get();
             TypeMirror pkType = getTypeElement(recordElement, pkName);
             if (pkType == null) {
-                processingEnv.getMessager().printMessage(ERROR,
-                        "Found @PK on '" + pkName + "' but could not resolve its type on " + recordName);
+                if (!nullableChain) {
+                    processingEnv.getMessager().printMessage(ERROR,
+                            "Found @PK on '" + pkName + "' but could not resolve its type on " + recordName);
+                }
                 rootIsSameBody =
                         recordName + " ra = getter.apply(a);\n" +
                                 "        " + recordName + " rb = getter.apply(b);\n" +
@@ -1599,8 +1643,8 @@ public final class MetamodelProcessor extends AbstractProcessor {
             JavaFileObject fileObject = processingEnv.getFiler()
                     .createSourceFile((packageName.isEmpty() ? "" : packageName + ".") + metaClassName, recordElement);
 
-            String classFields = buildClassFields(recordElement, packageName, recordName);
-            String initFields = initClassFields(recordElement, packageName, recordName, metaClassName);
+            String classFields = buildClassFields(recordElement, packageName, recordName, nullableChain);
+            String initFields = initClassFields(recordElement, packageName, recordName, metaClassName, nullableChain);
 
             String header =
                     (packageName.isEmpty() ? "" : "package " + packageName + ";\n\n") +
@@ -1611,7 +1655,10 @@ public final class MetamodelProcessor extends AbstractProcessor {
                             "import javax.annotation.processing.Generated;\n" +
                             "import java.util.Objects;\n\n" +
                             "/**\n" +
-                            " * Metamodel implementation for " + recordName + ".\n" +
+                            (nullableChain
+                                    ? " * Nullable-chain metamodel implementation for " + recordName
+                                            + ": a parent in the graph can be null, so every value read through it can be.\n"
+                                    : " * Metamodel implementation for " + recordName + ".\n") +
                             " *\n" +
                             " * @param <T> the record type of the root table of the entity graph.\n" +
                             " */\n" +
@@ -1709,7 +1756,7 @@ public final class MetamodelProcessor extends AbstractProcessor {
                                 "    }\n";
             }
             String staticInstance = "";
-            if (isData) {
+            if (isData && !nullableChain) {
                 staticInstance =
                         "\n    @SuppressWarnings(\"rawtypes\")\n" +
                         "    private static final " + metaClassName + " INSTANCE = new " + metaClassName + "();\n\n" +
@@ -1727,8 +1774,8 @@ public final class MetamodelProcessor extends AbstractProcessor {
                 writer.write(staticInstance);
                 writer.write(footer);
             }
-        } catch (Exception e) {
-            processingEnv.getMessager().printMessage(ERROR, "Failed to process " + metaClassName + ". Error: " + e);
+        } catch (IOException e) {
+            throw new UncheckedIOException("Failed to write " + metaClassName, e);
         }
     }
 
@@ -1792,13 +1839,44 @@ public final class MetamodelProcessor extends AbstractProcessor {
         return firstRecord != null && isNullableUniqueField(firstRecord, fieldName);
     }
 
+    /**
+     * Returns whether the getter carries any of the given annotations, checking both the method and the return
+     * type use (JSpecify annotations annotate the type rather than the declaration).
+     */
+    private static boolean hasAnyReturnAnnotation(@Nonnull ExecutableElement getter, @Nonnull Set<String> names) {
+        for (AnnotationMirror am : getter.getAnnotationMirrors()) {
+            if (names.contains(am.getAnnotationType().toString())) {
+                return true;
+            }
+        }
+        for (AnnotationMirror am : getter.getReturnType().getAnnotationMirrors()) {
+            if (names.contains(am.getAnnotationType().toString())) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /**
+     * Returns the derived nullability of a sealed interface getter, matching the runtime contract: primitives are
+     * never null, explicit annotations win (nullable before non-null), and unannotated getters are non-null unless
+     * a {@code @NullUnmarked} scope applies.
+     */
+    private static boolean isNullableGetter(@Nonnull ExecutableElement getter) {
+        if (isPrimitiveReturn(getter.getReturnType())) return false;
+        if (hasAnyReturnAnnotation(getter, NULLABLE_ANNOTATIONS)) return true;
+        if (hasAnyReturnAnnotation(getter, NONNULL_ANNOTATIONS)) return false;
+        return isNullUnmarkedScope(getter);
+    }
+
     private void generateSealedMetamodelArtifacts(@Nonnull TypeElement sealedInterface,
                                                    @Nonnull List<ExecutableElement> declaredGetters) {
         String qn = sealedInterface.getQualifiedName().toString();
         boolean isData = implementsData(sealedInterface);
 
         if (generatedMetamodelClasses.add(qn)) {
-            generateSealedMetamodelClass(sealedInterface, declaredGetters);
+            generateSealedMetamodelClass(sealedInterface, declaredGetters, false);
+            generateSealedMetamodelClass(sealedInterface, declaredGetters, true);
         }
 
         if (isData && generatedMetamodelInterfaces.add(qn)) {
@@ -1827,7 +1905,8 @@ public final class MetamodelProcessor extends AbstractProcessor {
                 }
                 fields.append("    /** Represents the {@link ").append(typeName).append("#").append(fieldName)
                         .append("()} record. */\n");
-                fields.append("    ").append(fieldTypeName).append("Metamodel<").append(typeName).append("> ")
+                fields.append("    ").append(metamodelClassName(fieldTypeName, isNullableGetter(getter)))
+                        .append("<").append(typeName).append("> ")
                         .append(fieldName).append(" = ").append(modelRef).append(".")
                         .append(fieldName).append(";\n");
             } else {
@@ -1872,16 +1951,17 @@ public final class MetamodelProcessor extends AbstractProcessor {
                         fields.toString()
                 ));
             }
-        } catch (Exception e) {
-            processingEnv.getMessager().printMessage(ERROR, "Failed to process " + metaInterfaceName + ". Error: " + e + ".");
+        } catch (IOException e) {
+            throw new UncheckedIOException("Failed to write " + metaInterfaceName, e);
         }
     }
 
     private void generateSealedMetamodelClass(@Nonnull TypeElement sealedInterface,
-                                               @Nonnull List<ExecutableElement> declaredGetters) {
+                                               @Nonnull List<ExecutableElement> declaredGetters,
+                                               boolean nullableChain) {
         String packageName = elementUtils.getPackageOf(sealedInterface).getQualifiedName().toString();
         String typeName = sealedInterface.getSimpleName().toString();
-        String metaClassName = typeName + "Metamodel";
+        String metaClassName = metamodelClassName(typeName, nullableChain);
         boolean isData = implementsData(sealedInterface);
 
         // Find PK via subclass.
@@ -1923,10 +2003,12 @@ public final class MetamodelProcessor extends AbstractProcessor {
             if (isRecord(fieldType) && !isRefType(fieldType)) {
                 if (isNestedRecord(fieldType)) continue;
                 boolean inline = !implementsInterface(fieldType, DATA, typeUtils);
+                boolean childNullableChain = nullableChain || isNullableGetter(getter);
                 classFields.append("    /** Represents the ").append(inline ? "inline " : "")
                         .append("{@link ").append(typeName).append("#").append(fieldName).append("()} ")
                         .append(inline ? "record." : "foreign key.").append(" */\n");
-                classFields.append("    public final ").append(fieldTypeName).append("Metamodel<T> ").append(fieldName)
+                classFields.append("    public final ").append(metamodelClassName(fieldTypeName, childNullableChain))
+                        .append("<T> ").append(fieldName)
                         .append(";\n");
             } else {
                 String valueTypeName = getValueTypeName(fieldType, packageName);
@@ -1949,6 +2031,8 @@ public final class MetamodelProcessor extends AbstractProcessor {
             if (isRecord(fieldType) && !isRefType(fieldType)) {
                 if (isNestedRecord(fieldType)) continue;
                 boolean inline = !implementsInterface(fieldType, DATA, typeUtils);
+                boolean childNullableChain = nullableChain || isNullableGetter(getter);
+                String childMetamodel = metamodelClassName(fieldTypeName, childNullableChain);
                 String inlineFlag = inline ? "true" : "false";
                 String nestedGetter =
                         "t -> {\n" +
@@ -1957,15 +2041,15 @@ public final class MetamodelProcessor extends AbstractProcessor {
                                 "        }";
                 if (inline && isEffectivelyUniqueFieldOnSubclass(sealedInterface, fieldName)) {
                     boolean nullsDistinct = getNullsDistinctOnSubclass(sealedInterface, fieldName);
-                    initFields.append("        this.").append(fieldName).append(" = new ").append(fieldTypeName)
-                            .append("Metamodel<>(")
+                    initFields.append("        this.").append(fieldName).append(" = new ").append(childMetamodel)
+                            .append("<>(")
                             .append("subPath, fieldBase + \"").append(fieldName).append("\", ")
                             .append(inlineFlag).append(", this, ")
                             .append(nestedGetter).append(", ").append(nullsDistinct)
                             .append(");\n");
                 } else {
-                    initFields.append("        this.").append(fieldName).append(" = new ").append(fieldTypeName)
-                            .append("Metamodel<>(")
+                    initFields.append("        this.").append(fieldName).append(" = new ").append(childMetamodel)
+                            .append("<>(")
                             .append("subPath, fieldBase + \"").append(fieldName).append("\", ")
                             .append(inlineFlag).append(", this, ")
                             .append(nestedGetter)
@@ -2081,7 +2165,10 @@ public final class MetamodelProcessor extends AbstractProcessor {
                             "import javax.annotation.processing.Generated;\n" +
                             "import java.util.Objects;\n\n" +
                             "/**\n" +
-                            " * Metamodel implementation for " + typeName + ".\n" +
+                            (nullableChain
+                                    ? " * Nullable-chain metamodel implementation for " + typeName
+                                            + ": a parent in the graph can be null, so every value read through it can be.\n"
+                                    : " * Metamodel implementation for " + typeName + ".\n") +
                             " *\n" +
                             " * @param <T> the record type of the root table of the entity graph.\n" +
                             " */\n" +
@@ -2165,7 +2252,7 @@ public final class MetamodelProcessor extends AbstractProcessor {
                                 "    }\n";
             }
             String staticInstance = "";
-            if (isData) {
+            if (isData && !nullableChain) {
                 staticInstance =
                         "\n    @SuppressWarnings(\"rawtypes\")\n" +
                         "    private static final " + metaClassName + " INSTANCE = new " + metaClassName + "();\n\n" +
@@ -2183,8 +2270,8 @@ public final class MetamodelProcessor extends AbstractProcessor {
                 writer.write(staticInstance);
                 writer.write(footer);
             }
-        } catch (Exception e) {
-            processingEnv.getMessager().printMessage(ERROR, "Failed to process " + metaClassName + ". Error: " + e);
+        } catch (IOException e) {
+            throw new UncheckedIOException("Failed to write " + metaClassName, e);
         }
     }
 }
