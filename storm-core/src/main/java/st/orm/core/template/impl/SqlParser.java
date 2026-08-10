@@ -36,9 +36,6 @@ import st.orm.core.template.impl.Elements.Unsafe;
 final class SqlParser {
 
     private static final Pattern WITH_PATTERN = Pattern.compile("^(?i:WITH)\\b.*", DOTALL);
-    private static final Pattern WHERE_PATTERN = Pattern.compile(
-            "(?i:\\bWHERE\\b)", DOTALL
-    );
 
     private SqlParser() {
     }
@@ -83,16 +80,33 @@ final class SqlParser {
      * Returns whether {@code sql} begins with {@code keyword} (case-insensitive) followed by a word boundary, matching
      * the semantics of the {@code ^(?i:keyword)\b} anchored pattern.
      */
-    private static boolean startsWithKeyword(@Nonnull String sql, @Nonnull String keyword) {
+    static boolean startsWithKeyword(@Nonnull String sql, @Nonnull String keyword) {
         int length = keyword.length();
         if (sql.length() < length || !sql.regionMatches(true, 0, keyword, 0, length)) {
             return false;
         }
-        if (sql.length() == length) {
-            return true;
+        return sql.length() == length || !isIdentifierChar(sql.charAt(length));
+    }
+
+    /**
+     * Returns whether {@code sql} ends with {@code keyword} (case-insensitive) preceded by a word boundary, matching
+     * the semantics of the {@code \b(?i:keyword)$} anchored pattern. A bare {@code endsWith} would also match an
+     * identifier that merely carries the keyword as a suffix, such as {@code nowhere} or {@code dataset}.
+     */
+    static boolean endsWithKeyword(@Nonnull String sql, @Nonnull String keyword) {
+        int offset = sql.length() - keyword.length();
+        if (offset < 0 || !sql.regionMatches(true, offset, keyword, 0, keyword.length())) {
+            return false;
         }
-        char next = sql.charAt(length);
-        return !(Character.isLetterOrDigit(next) || next == '_');
+        return offset == 0 || !isIdentifierChar(sql.charAt(offset - 1));
+    }
+
+    /**
+     * Returns whether {@code ch} can be part of an SQL identifier, the character class that separates a keyword from
+     * an identifier that carries it as a prefix or suffix.
+     */
+    private static boolean isIdentifierChar(char ch) {
+        return Character.isLetterOrDigit(ch) || ch == '_';
     }
 
     /**
@@ -120,8 +134,29 @@ final class SqlParser {
         return operation;
     }
 
+    /**
+     * Returns whether {@code sql} has a WHERE clause at the top level of the statement. A WHERE inside parentheses
+     * belongs to a subquery and says nothing about the statement itself: an unqualified UPDATE or DELETE whose only
+     * WHERE sits in a subquery still touches every row, which is exactly what the safety check exists to flag.
+     */
     static boolean hasWhereClause(@Nonnull String sql, @Nonnull SqlDialect dialect) {
-        return WHERE_PATTERN.matcher(clearStringLiterals(clearQuotedIdentifiers(removeComments(sql, dialect), dialect), dialect)).find();
+        String cleared = clearStringLiterals(clearQuotedIdentifiers(removeComments(sql, dialect), dialect), dialect);
+        int depth = 0;
+        for (int i = 0; i < cleared.length(); i++) {
+            char ch = cleared.charAt(i);
+            if (ch == '(') {
+                depth++;
+            } else if (ch == ')') {
+                depth--;
+            } else if (depth == 0
+                    && (ch == 'W' || ch == 'w')
+                    && cleared.regionMatches(true, i, "WHERE", 0, 5)
+                    && (i == 0 || !isIdentifierChar(cleared.charAt(i - 1)))
+                    && (i + 5 == cleared.length() || !isIdentifierChar(cleared.charAt(i + 5)))) {
+                return true;
+            }
+        }
+        return false;
     }
 
     private static String removeWithClause(@Nonnull String sql, @Nonnull SqlDialect dialect) {
