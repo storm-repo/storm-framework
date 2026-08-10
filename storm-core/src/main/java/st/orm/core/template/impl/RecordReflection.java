@@ -33,6 +33,7 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentMap;
 import java.util.stream.Stream;
 import st.orm.Data;
 import st.orm.DbColumn;
@@ -430,19 +431,20 @@ final class RecordReflection {
     }
 
     /**
-     * Represents a key for a record field.
+     * Ref primary key types per declaring record class, keyed by field name. {@link ClassValue} ties each entry to
+     * the lifetime of the declaring class, so cached types never pin the class or its class loader.
      */
-    record FieldKey(Class<?> declaringType, String name) {
-        FieldKey(RecordField field) {
-            this(field.declaringType(), field.name());
+    private static final ClassValue<ConcurrentMap<String, Class<?>>> REF_PK_TYPE_CACHE = new ClassValue<>() {
+        @Override
+        protected ConcurrentMap<String, Class<?>> computeValue(@Nonnull Class<?> type) {
+            return new ConcurrentHashMap<>();
         }
-    }
-    private static final java.util.Map<FieldKey, Class<?>> REF_PK_TYPE_CACHE = new ConcurrentHashMap<>();
+    };
 
     @SuppressWarnings("unchecked")
     static Class<?> getRefPkType(@Nonnull RecordField field) throws SqlTemplateException {
         try {
-            return REF_PK_TYPE_CACHE.computeIfAbsent(new FieldKey(field), ignore -> {
+            return REF_PK_TYPE_CACHE.get(field.declaringType()).computeIfAbsent(field.name(), ignore -> {
                 try {
                     var type = field.genericType();
                     if (type instanceof ParameterizedType parameterizedType) {
@@ -476,12 +478,18 @@ final class RecordReflection {
         }
     }
 
-    private static final Map<FieldKey, Class<? extends Data>> REF_RECORD_TYPE_CACHE = new ConcurrentHashMap<>();
+    /** Ref data types per declaring record class, keyed by field name; entries die with the declaring class. */
+    private static final ClassValue<ConcurrentMap<String, Class<? extends Data>>> REF_RECORD_TYPE_CACHE = new ClassValue<>() {
+        @Override
+        protected ConcurrentMap<String, Class<? extends Data>> computeValue(@Nonnull Class<?> type) {
+            return new ConcurrentHashMap<>();
+        }
+    };
 
     @SuppressWarnings("unchecked")
     static Class<? extends Data> getRefDataType(@Nonnull RecordField field) throws SqlTemplateException {
         try {
-            return REF_RECORD_TYPE_CACHE.computeIfAbsent(new FieldKey(field), ignore -> {
+            return REF_RECORD_TYPE_CACHE.get(field.declaringType()).computeIfAbsent(field.name(), ignore -> {
                 try {
                     Class<?> recordType = null;
                     var type = field.genericType();
@@ -801,18 +809,11 @@ final class RecordReflection {
     }
 
     /**
-     * Cache for sealed pattern detection results.
+     * Sealed pattern detection results per type; entries die with the type.
      */
-    private static final Map<Class<?>, Optional<SealedPattern>> SEALED_PATTERN_CACHE = new ConcurrentHashMap<>();
-
-    /**
-     * Detects the polymorphic pattern for the given sealed type, if any.
-     *
-     * @param type the type to inspect.
-     * @return an Optional containing the detected SealedPattern, or empty if the type is not a sealed hierarchy.
-     */
-    static Optional<SealedPattern> detectSealedPattern(@Nonnull Class<?> type) {
-        return SEALED_PATTERN_CACHE.computeIfAbsent(type, t -> {
+    private static final ClassValue<Optional<SealedPattern>> SEALED_PATTERN_CACHE = new ClassValue<>() {
+        @Override
+        protected Optional<SealedPattern> computeValue(@Nonnull Class<?> t) {
             if (!t.isSealed()) {
                 return Optional.empty();
             }
@@ -847,7 +848,17 @@ final class RecordReflection {
                 }
             }
             return Optional.empty();
-        });
+        }
+    };
+
+    /**
+     * Detects the polymorphic pattern for the given sealed type, if any.
+     *
+     * @param type the type to inspect.
+     * @return an Optional containing the detected SealedPattern, or empty if the type is not a sealed hierarchy.
+     */
+    static Optional<SealedPattern> detectSealedPattern(@Nonnull Class<?> type) {
+        return SEALED_PATTERN_CACHE.get(type);
     }
 
     /**
@@ -1052,9 +1063,22 @@ final class RecordReflection {
     }
 
     /**
-     * Cache for discriminator value to concrete type mappings.
+     * Discriminator value to concrete type mappings per sealed type; entries die with the sealed type.
      */
-    private static final Map<Class<?>, Map<Object, Class<?>>> DISCRIMINATOR_MAP_CACHE = new ConcurrentHashMap<>();
+    private static final ClassValue<Map<Object, Class<?>>> DISCRIMINATOR_MAP_CACHE = new ClassValue<>() {
+        @Override
+        protected Map<Object, Class<?>> computeValue(@Nonnull Class<?> t) {
+            Map<Object, Class<?>> m = new ConcurrentHashMap<>();
+            Class<?>[] permitted = t.getPermittedSubclasses();
+            if (permitted != null) {
+                for (Class<?> sub : permitted) {
+                    Object value = getDiscriminatorValue(sub, t);
+                    m.put(value, sub);
+                }
+            }
+            return m;
+        }
+    };
 
     /**
      * Resolves a discriminator value to a concrete subtype for the given sealed type.
@@ -1066,17 +1090,7 @@ final class RecordReflection {
      */
     static Class<?> resolveConcreteType(@Nonnull Class<?> sealedType,
                                         @Nonnull Object discriminatorValue) throws SqlTemplateException {
-        Map<Object, Class<?>> map = DISCRIMINATOR_MAP_CACHE.computeIfAbsent(sealedType, t -> {
-            Map<Object, Class<?>> m = new ConcurrentHashMap<>();
-            Class<?>[] permitted = t.getPermittedSubclasses();
-            if (permitted != null) {
-                for (Class<?> sub : permitted) {
-                    Object value = getDiscriminatorValue(sub, t);
-                    m.put(value, sub);
-                }
-            }
-            return m;
-        });
+        Map<Object, Class<?>> map = DISCRIMINATOR_MAP_CACHE.get(sealedType);
         Class<?> resolved = map.get(discriminatorValue);
         if (resolved == null) {
             throw new SqlTemplateException("Unknown discriminator value '%s' for sealed type %s. Known values: %s."

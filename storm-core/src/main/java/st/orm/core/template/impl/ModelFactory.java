@@ -41,6 +41,7 @@ import jakarta.annotation.Nullable;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.atomic.AtomicInteger;
 import st.orm.Data;
 import st.orm.DbColumn;
@@ -67,12 +68,16 @@ import st.orm.mapping.RecordType;
 final class ModelFactory {
 
     /**
-     * The cached models, keyed by the record type together with the references the statement resolves. The plan
-     * changes the column list, so a model built for one plan cannot serve another.
+     * The cached models per record type, keyed by the references the statement resolves. The plan changes the
+     * column list, so a model built for one plan cannot serve another. {@link ClassValue} ties the models to the
+     * lifetime of the record type, so they never pin the type or its class loader.
      */
-    private record ModelKey(@Nonnull Class<?> type, @Nonnull FetchPlan fetchPlan) {}
-
-    private static final ConcurrentHashMap<ModelKey, Model<?, ?>> MODEL_CACHE = new ConcurrentHashMap<>();
+    private static final ClassValue<ConcurrentMap<FetchPlan, Model<?, ?>>> MODEL_CACHE = new ClassValue<>() {
+        @Override
+        protected ConcurrentMap<FetchPlan, Model<?, ?>> computeValue(@Nonnull Class<?> type) {
+            return new ConcurrentHashMap<>();
+        }
+    };
 
     private ModelFactory() {
     }
@@ -85,7 +90,7 @@ final class ModelFactory {
         try {
             validateDataType(type, requirePrimaryKey);
             //noinspection unchecked
-            return (Model<T, ID>) MODEL_CACHE.computeIfAbsent(new ModelKey(type, fetchPlan), ignore -> {
+            return (Model<T, ID>) MODEL_CACHE.get(type).computeIfAbsent(fetchPlan, ignore -> {
                 try {
                     return createModel(builder, type, requirePrimaryKey, fetchPlan);
                 } catch (SqlTemplateException e) {

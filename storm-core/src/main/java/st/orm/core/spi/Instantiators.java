@@ -24,8 +24,6 @@ import jakarta.annotation.Nullable;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.ServiceLoader;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ConcurrentMap;
 import st.orm.mapping.Instantiator;
 
 /**
@@ -38,9 +36,13 @@ import st.orm.mapping.Instantiator;
  */
 public final class Instantiators {
 
-    /** Instantiators per class loader, keyed by the record type they construct. */
-    private static final ConcurrentMap<ClassLoader, Map<Class<?>, Instantiator<?>>> INSTANTIATOR_CACHE =
-            new ConcurrentHashMap<>();
+    /**
+     * Instantiators per class loader, keyed by the record type they construct. The registered instantiators and
+     * record types keep their class loader reachable, so the registry is scoped to the loader's lifetime via
+     * {@link ClassLoaderCache} rather than pinned for the lifetime of the JVM.
+     */
+    private static final ClassLoaderCache<Map<Class<?>, Instantiator<?>>> INSTANTIATOR_CACHE =
+            new ClassLoaderCache<>();
 
     private Instantiators() {
     }

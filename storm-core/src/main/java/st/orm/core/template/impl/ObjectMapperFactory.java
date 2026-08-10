@@ -30,9 +30,9 @@ import java.lang.reflect.Parameter;
 import java.lang.reflect.RecordComponent;
 import java.util.BitSet;
 import java.util.Collection;
-import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentMap;
 import java.util.function.Supplier;
 import st.orm.Data;
 import st.orm.PK;
@@ -214,7 +214,8 @@ public final class ObjectMapperFactory {
         try {
             // Constructor metadata is precomputed and cached: per-invocation getParameterTypes/getParameters calls
             // clone their arrays, which is measurable on the row mapping hot path.
-            ConstructorMeta meta = CONSTRUCTOR_META.computeIfAbsent(constructor, ObjectMapperFactory::constructorMeta);
+            ConstructorMeta meta = CONSTRUCTOR_META.get(constructor.getDeclaringClass())
+                    .computeIfAbsent(constructor, ObjectMapperFactory::constructorMeta);
             boolean[] nonNull = meta.nonNull();
             boolean[] primitive = meta.primitive();
             for (int i = 0; i < nonNull.length; i++) {
@@ -265,8 +266,16 @@ public final class ObjectMapperFactory {
                                    @Nonnull boolean[] primitive,
                                    @Nullable Instantiator<?> instantiator) {}
 
-    /** Cache of precomputed constructor metadata, keyed by constructor. Thread-safe for concurrent access. */
-    private static final Map<Constructor<?>, ConstructorMeta> CONSTRUCTOR_META = new ConcurrentHashMap<>();
+    /**
+     * Precomputed constructor metadata per declaring class, keyed by constructor. {@link ClassValue} ties each
+     * entry to the lifetime of the declaring class, so cached constructors never pin the class or its class loader.
+     */
+    private static final ClassValue<ConcurrentMap<Constructor<?>, ConstructorMeta>> CONSTRUCTOR_META = new ClassValue<>() {
+        @Override
+        protected ConcurrentMap<Constructor<?>, ConstructorMeta> computeValue(@Nonnull Class<?> type) {
+            return new ConcurrentHashMap<>();
+        }
+    };
 
     private static ConstructorMeta constructorMeta(@Nonnull Constructor<?> constructor) {
         Class<?>[] parameterTypes = constructor.getParameterTypes();

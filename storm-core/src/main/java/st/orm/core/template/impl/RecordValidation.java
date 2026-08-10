@@ -37,6 +37,7 @@ import java.util.SortedSet;
 import java.util.TreeSet;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.atomic.AtomicReference;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -74,8 +75,17 @@ final class RecordValidation {
     private RecordValidation() {
     }
 
-    record TypeValidationKey(@Nonnull Class<? extends Data> type, boolean requirePrimaryKey) {}
-    private static final Map<TypeValidationKey, String> VALIDATE_RECORD_TYPE_CACHE = new ConcurrentHashMap<>();
+    /**
+     * Validation messages per data type, keyed by the require-primary-key flag; an empty message marks a valid type.
+     * {@link ClassValue} ties each entry to the lifetime of the validated type, so the cache never pins the type or
+     * its class loader.
+     */
+    private static final ClassValue<ConcurrentMap<Boolean, String>> VALIDATE_RECORD_TYPE_CACHE = new ClassValue<>() {
+        @Override
+        protected ConcurrentMap<Boolean, String> computeValue(@Nonnull Class<?> type) {
+            return new ConcurrentHashMap<>();
+        }
+    };
 
     private static volatile boolean validationCompleted = false;
 
@@ -333,8 +343,8 @@ final class RecordValidation {
         if (!Data.class.isAssignableFrom(dataType)) {
             throw new IllegalArgumentException("Not a data type: %s".formatted(dataType.getSimpleName()));
         }
-        String message = VALIDATE_RECORD_TYPE_CACHE.computeIfAbsent(
-                new TypeValidationKey(dataType, requirePrimaryKey),
+        String message = VALIDATE_RECORD_TYPE_CACHE.get(dataType).computeIfAbsent(
+                requirePrimaryKey,
                 ignore -> doValidateDataType(dataType, requirePrimaryKey));
         if (!message.isEmpty()) {
             throw new SqlTemplateException(message);
@@ -373,8 +383,6 @@ final class RecordValidation {
         }
         return validate(dataType, requirePrimaryKey, new HashSet<>());
     }
-
-    record GraphValidationKey(@Nonnull Class<? extends Data> dataType) {}
 
     /**
      * Validates that the provided record type does not contain cyclic dependencies. Specifically, it ensures that no

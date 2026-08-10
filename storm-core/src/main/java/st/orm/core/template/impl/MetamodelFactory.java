@@ -31,9 +31,9 @@ import java.lang.invoke.MethodHandles;
 import java.lang.reflect.Method;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Map;
 import java.util.Objects;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentMap;
 import st.orm.AbstractKeyMetamodel;
 import st.orm.AbstractMetamodel;
 import st.orm.Data;
@@ -57,16 +57,32 @@ public final class MetamodelFactory {
         // Prevent instantiation.
     }
 
-    private record CacheKey(@Nonnull Class<?> table, @Nullable String path) { }
-    private static final Map<Class<?>, Metamodel<?, ?>> ROOT_METAMODEL_CACHE = new ConcurrentHashMap<>();
-    private static final Map<CacheKey, Metamodel<?, ?>> METAMODEL_CACHE = new ConcurrentHashMap<>();
+    /**
+     * Root metamodels per record type. {@link ClassValue} ties each entry to the lifetime of the record type, so
+     * cached metamodels never pin the type or its class loader.
+     */
+    private static final ClassValue<Metamodel<?, ?>> ROOT_METAMODEL_CACHE = new ClassValue<>() {
+        @Override
+        @SuppressWarnings("unchecked")
+        protected Metamodel<?, ?> computeValue(@Nonnull Class<?> table) {
+            return getRootModel((Class<? extends Data>) table);
+        }
+    };
+
+    /** Metamodels per root table, keyed by path; entries die with the root table. */
+    private static final ClassValue<ConcurrentMap<String, Metamodel<?, ?>>> METAMODEL_CACHE = new ClassValue<>() {
+        @Override
+        protected ConcurrentMap<String, Metamodel<?, ?>> computeValue(@Nonnull Class<?> table) {
+            return new ConcurrentHashMap<>();
+        }
+    };
 
     /**
      * Creates a new metamodel for the given record type.
      */
     public static <T extends Data> Metamodel<T, T> root(@Nonnull Class<T> table) {
         //noinspection unchecked
-        return (Metamodel<T, T>) ROOT_METAMODEL_CACHE.computeIfAbsent(table, ignore -> getRootModel(table));
+        return (Metamodel<T, T>) ROOT_METAMODEL_CACHE.get(table);
     }
 
     /**
@@ -112,8 +128,8 @@ public final class MetamodelFactory {
      */
     public static <T extends Data, E> Metamodel<T, E> of(@Nonnull Class<T> rootTable, @Nonnull String path) {
         //noinspection unchecked
-        return (Metamodel<T, E>) METAMODEL_CACHE.computeIfAbsent(
-                new CacheKey(rootTable, path), ignore -> getModel(rootTable, path));
+        return (Metamodel<T, E>) METAMODEL_CACHE.get(rootTable)
+                .computeIfAbsent(path, ignore -> getModel(rootTable, path));
     }
 
     /**

@@ -30,9 +30,9 @@ import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.lang.reflect.RecordComponent;
 import java.util.List;
-import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentMap;
 import st.orm.Data;
 import st.orm.PK;
 import st.orm.PersistenceException;
@@ -42,17 +42,24 @@ import st.orm.mapping.RecordField;
 import st.orm.mapping.RecordType;
 
 public final class DefaultORMReflectionImpl implements ORMReflection {
-    private static final Map<Class<?>, Optional<RecordType>> TYPE_CACHE = new ConcurrentHashMap<>();
-    private static final Map<Class<?>, Optional<RecordField>> PK_FIELD_CACHE = new ConcurrentHashMap<>();
-    private static final Map<Class<?>, Optional<Constructor<?>>> CONSTRUCTOR_CACHE = new ConcurrentHashMap<>();
-    private static final Map<Method, Accessor> ACCESSOR_CACHE = new ConcurrentHashMap<>();
 
     private interface Accessor {
         Object get(Object receiver) throws Throwable;
     }
 
+    /**
+     * Accessors per declaring class, keyed by method. {@link ClassValue} ties each entry to the lifetime of the
+     * declaring class, so cached reflection artifacts never outlive the class or its class loader.
+     */
+    private static final ClassValue<ConcurrentMap<Method, Accessor>> ACCESSOR_CACHE = new ClassValue<>() {
+        @Override
+        protected ConcurrentMap<Method, Accessor> computeValue(@Nonnull Class<?> type) {
+            return new ConcurrentHashMap<>();
+        }
+    };
+
     private static Accessor accessorFor(Method m) {
-        return ACCESSOR_CACHE.computeIfAbsent(m, method -> {
+        return ACCESSOR_CACHE.get(m.getDeclaringClass()).computeIfAbsent(m, method -> {
             try {
                 Class<?> owner = method.getDeclaringClass();
                 MethodType mt = MethodType.methodType(method.getReturnType(), method.getParameterTypes());
@@ -73,13 +80,21 @@ public final class DefaultORMReflectionImpl implements ORMReflection {
         });
     }
 
+    /** Primary key field per record class; empty when the record declares no {@link PK} field. */
+    private static final ClassValue<Optional<RecordField>> PK_FIELD_CACHE = new ClassValue<>() {
+        @Override
+        protected Optional<RecordField> computeValue(@Nonnull Class<?> type) {
+            return TYPE_CACHE.get(type)
+                    .orElseThrow(() -> new PersistenceException("Record type expected: %s.".formatted(type.getName())))
+                    .fields().stream()
+                    .filter(field -> field.isAnnotationPresent(PK.class))
+                    .findFirst();
+        }
+    };
+
     @Override
     public Object getId(@Nonnull Data data) {
-        return PK_FIELD_CACHE.computeIfAbsent(data.getClass(), ignore ->
-            getRecordType(data.getClass()).fields().stream()
-                .filter(field -> field.isAnnotationPresent(PK.class))
-                .findFirst()
-        )
+        return PK_FIELD_CACHE.get(data.getClass())
                 .map(field -> invoke(field, data))
                 .orElseThrow(() -> new PersistenceException("No PK found for %s.".formatted(data.getClass().getName())));
     }
@@ -89,13 +104,14 @@ public final class DefaultORMReflectionImpl implements ORMReflection {
         return invoke(getRecordType(record.getClass()).fields().get(index), record);
     }
 
-    @Override
-    public Optional<RecordType> findRecordType(@Nonnull Class<?> type) {
-        return TYPE_CACHE.computeIfAbsent(type, ignore -> {
+    /** Record type descriptor per class; empty when the class is not a record. */
+    private static final ClassValue<Optional<RecordType>> TYPE_CACHE = new ClassValue<>() {
+        @Override
+        protected Optional<RecordType> computeValue(@Nonnull Class<?> type) {
             if (!type.isRecord()) {
                 return empty();
             }
-            return findCanonicalConstructor(type)
+            return CONSTRUCTOR_CACHE.get(type)
                     .map(constructor -> new RecordType(
                             type,
                             constructor,
@@ -115,11 +131,18 @@ public final class DefaultORMReflectionImpl implements ORMReflection {
                                     .toList()
                         )
                     );
-        });
+        }
+    };
+
+    @Override
+    public Optional<RecordType> findRecordType(@Nonnull Class<?> type) {
+        return TYPE_CACHE.get(type);
     }
 
-    private Optional<Constructor<?>> findCanonicalConstructor(@Nonnull Class<?> type) {
-        return CONSTRUCTOR_CACHE.computeIfAbsent(type, ignore -> {
+    /** Canonical constructor per record class; empty when no constructor matches the record components. */
+    private static final ClassValue<Optional<Constructor<?>>> CONSTRUCTOR_CACHE = new ClassValue<>() {
+        @Override
+        protected Optional<Constructor<?>> computeValue(@Nonnull Class<?> type) {
             RecordComponent[] components = type.getRecordComponents();
             Constructor<?>[] constructors = type.getDeclaredConstructors();
             for (Constructor<?> constructor : constructors) {
@@ -140,8 +163,8 @@ public final class DefaultORMReflectionImpl implements ORMReflection {
                 }
             }
             return empty();
-        });
-    }
+        }
+    };
 
     @Override
     public Class<?> getType(@Nonnull Object o) {
@@ -198,24 +221,26 @@ public final class DefaultORMReflectionImpl implements ORMReflection {
         return false;
     }
 
-    private static final ConcurrentHashMap<Class<?>, List<RecordComponent>> RECORD_COMPONENT_CACHE
-            = new ConcurrentHashMap<>();
+    /** Record components per record class, cached to avoid repeated expensive reflection lookups. */
+    private static final ClassValue<List<RecordComponent>> RECORD_COMPONENT_CACHE = new ClassValue<>() {
+        @Override
+        protected List<RecordComponent> computeValue(@Nonnull Class<?> recordType) {
+            if (!recordType.isRecord()) {
+                throw new IllegalArgumentException("The specified class %s is not a record type.".formatted(recordType.getName()));
+            }
+            return List.of(recordType.getRecordComponents());
+        }
+    };
 
     /**
-     * Returns the record components for the specified record type. The result is cached to avoid repeated expensive
-     * reflection lookups.
+     * Returns the record components for the specified record type.
      *
      * @param recordType the record type to obtain the record components for.
      * @return the record components for the specified record type.
      * @throws IllegalArgumentException if the record type is not a record.
      */
     private static List<RecordComponent> getRecordComponents(@Nonnull Class<?> recordType) {
-        return RECORD_COMPONENT_CACHE.computeIfAbsent(recordType, ignore -> {
-            if (!recordType.isRecord()) {
-                throw new IllegalArgumentException("The specified class %s is not a record type.".formatted(recordType.getName()));
-            }
-            return List.of(recordType.getRecordComponents());
-        });
+        return RECORD_COMPONENT_CACHE.get(recordType);
     }
 
     private boolean areRecordComponentsDefault(Object record) {
@@ -239,7 +264,7 @@ public final class DefaultORMReflectionImpl implements ORMReflection {
         return clazz instanceof Class<?>;
     }
 
-    private boolean isNonnull(@Nonnull RecordComponent component) {
+    private static boolean isNonnull(@Nonnull RecordComponent component) {
         return component.isAnnotationPresent(PK.class)
                 || component.getType().isPrimitive()
                 || Nullability.isNonNull(component, component.getAnnotatedType(), null, component.getDeclaringRecord());

@@ -15,6 +15,7 @@
  */
 package st.orm.core.spi;
 
+import static java.util.Comparator.comparingInt;
 import static java.util.stream.Collectors.counting;
 import static java.util.stream.Collectors.groupingBy;
 import static java.util.stream.Collectors.joining;
@@ -22,7 +23,6 @@ import static java.util.stream.Collectors.toList;
 
 import jakarta.annotation.Nonnull;
 import java.util.ArrayList;
-import java.util.Comparator;
 import java.util.Deque;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -31,7 +31,6 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Stream;
 import st.orm.core.spi.Orderable.After;
 import st.orm.core.spi.Orderable.AfterAny;
@@ -40,11 +39,12 @@ import st.orm.core.spi.Orderable.BeforeAny;
 
 /**
  * Helper class for sorting objects that implement the {@link Orderable} interface.
+ *
+ * <p>The topological sort runs on each call. Inputs are small provider sets that callers sort once per load, so a
+ * global order cache would only keep provider classes, and their class loaders, reachable without a measurable
+ * win.</p>
  */
 final class OrderableHelper {
-
-    /** Cache for storing the order of classes. */
-    private static final Map<List<Class<?>>, List<Class<?>>> CLASS_ORDER_CACHE = new ConcurrentHashMap<>();
 
     /**
      * Sorts a stream of orderables.
@@ -54,19 +54,7 @@ final class OrderableHelper {
      * @return Sorted stream of orderables.
      */
     static <T extends Orderable<?>> Stream<T> sort(@Nonnull Stream<T> orderables) {
-        return sort(orderables, true);  // Always cache.
-    }
-
-    /**
-     * Sorts a stream of orderables with an option to cache.
-     *
-     * @param orderables Stream of orderables to be sorted.
-     * @param cache      Whether to cache the class order.
-     * @param <T>        Type of orderable.
-     * @return Sorted stream of orderables.
-     */
-    static <T extends Orderable<?>> Stream<T> sort(@Nonnull Stream<T> orderables, boolean cache) {
-        return sort(orderables.collect(toList()), cache).stream();
+        return sort(orderables.toList()).stream();
     }
 
     /**
@@ -77,41 +65,15 @@ final class OrderableHelper {
      * @return Sorted list of orderables.
      */
     static <T extends Orderable<?>> List<T> sort(@Nonnull List<T> orderables) {
-        return sort(orderables, true);  // Always cache.
-    }
-
-    /**
-     * Sorts a list of orderables with an option to cache.
-     *
-     * @param orderables List of orderables to be sorted.
-     * @param cache      Whether to cache the class order.
-     * @param <T>        Type of orderable.
-     * @return Sorted list of orderables.
-     */
-    static <T extends Orderable<?>> List<T> sort(@Nonnull List<T> orderables, boolean cache) {
         if (orderables.size() <= 1) {
             return orderables;  // A list of zero or one elements is already sorted; skip the graph and topological sort.
         }
-        List<Class<?>> classOrder = getClassOrder(orderables.stream()
+        List<Class<?>> classOrder = topologicalSort(buildClassDependencyGraph(orderables.stream()
                 .map(Object::getClass)
-                .collect(toList()), cache);
+                .collect(toList())));
         return orderables.stream()
-                .sorted(Comparator.comparingInt(o -> classOrder.indexOf(o.getClass())))
+                .sorted(comparingInt(o -> classOrder.indexOf(o.getClass())))
                 .collect(toList());
-    }
-
-    /**
-     * Retrieves the order of classes, with an option to cache.
-     *
-     * @param classes List of classes to determine the order.
-     * @param cache   Whether to cache the class order.
-     * @return Ordered list of classes.
-     */
-    private static List<Class<?>> getClassOrder(@Nonnull List<Class<?>> classes, boolean cache) {
-        if (cache) {
-            return CLASS_ORDER_CACHE.computeIfAbsent(classes, cls -> topologicalSort(buildClassDependencyGraph(cls)));
-        }
-        return topologicalSort(buildClassDependencyGraph(classes));
     }
 
     /**

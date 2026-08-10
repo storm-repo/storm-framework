@@ -48,6 +48,7 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.regex.Pattern;
 import st.orm.Data;
 import st.orm.DbEnum;
@@ -249,26 +250,35 @@ final class RecordMapper {
             int[] extensionColumnIndices  // Subtype column indices that are extension-specific (not common)
     ) {}
 
-    /** Cache of sealed entity compiled plans, keyed by sealed interface class. */
-    private static final ConcurrentMap<Class<?>, SealedCompiled> SEALED_COMPILED = new ConcurrentHashMap<>();
+    /**
+     * Sealed entity compiled plans, held per sealed interface class. {@link ClassValue} ties each plan to the
+     * lifetime of the sealed class, so cached plans never pin the class or its class loader. The holder starts
+     * empty because the plan is compiled with a {@link RefFactory}, which is not available to
+     * {@link ClassValue#computeValue}.
+     */
+    private static final ClassValue<AtomicReference<SealedCompiled>> SEALED_COMPILED = new ClassValue<>() {
+        @Override
+        protected AtomicReference<SealedCompiled> computeValue(@Nonnull Class<?> type) {
+            return new AtomicReference<>();
+        }
+    };
 
     /**
      * Returns the compiled sealed entity information, creating and caching it if necessary.
      */
     private static SealedCompiled sealedCompiledFor(@Nonnull Class<?> sealedType,
                                                      @Nonnull RefFactory refFactory) throws SqlTemplateException {
-        try {
-            return SEALED_COMPILED.computeIfAbsent(sealedType, t -> {
-                try {
-                    return compileSealedPlan(t, refFactory);
-                } catch (SqlTemplateException e) {
-                    throw new RuntimeException(e);
-                }
-            });
-        } catch (RuntimeException e) {
-            if (e.getCause() instanceof SqlTemplateException ste) throw ste;
-            throw e;
+        AtomicReference<SealedCompiled> holder = SEALED_COMPILED.get(sealedType);
+        SealedCompiled compiled = holder.get();
+        if (compiled == null) {
+            // Concurrent first calls may compile the plan more than once; the first published plan wins and the
+            // compilation is a pure function of the sealed type, so every candidate is equivalent.
+            compiled = compileSealedPlan(sealedType, refFactory);
+            if (!holder.compareAndSet(null, compiled)) {
+                compiled = holder.get();
+            }
         }
+        return compiled;
     }
 
     /**
@@ -377,14 +387,17 @@ final class RecordMapper {
                             @Nonnull List<ColumnSkipper.SkipRegion> skipRegions) {}
 
     /**
-     * The key of a compiled plan: the record type together with the references the statement resolves. A resolved
-     * reference consumes the referenced table's columns rather than its foreign key column alone, so a plan compiled
-     * for one set of resolved references cannot read a row shaped by another.
+     * Compiled plans per record class, keyed by the references the statement resolves. A resolved reference
+     * consumes the referenced table's columns rather than its foreign key column alone, so a plan compiled for one
+     * set of resolved references cannot read a row shaped by another. {@link ClassValue} ties the plans to the
+     * lifetime of the record class, so they never pin the class or its class loader.
      */
-    private record CompiledKey(@Nonnull Class<?> type, @Nonnull FetchPlan fetchPlan) {}
-
-    /** Global cache of compiled plans, keyed by record class and fetch plan. Thread-safe for concurrent access. */
-    private static final ConcurrentMap<CompiledKey, Compiled> COMPILED = new ConcurrentHashMap<>();
+    private static final ClassValue<ConcurrentMap<FetchPlan, Compiled>> COMPILED = new ClassValue<>() {
+        @Override
+        protected ConcurrentMap<FetchPlan, Compiled> computeValue(@Nonnull Class<?> type) {
+            return new ConcurrentHashMap<>();
+        }
+    };
 
     /**
      * Returns the compiled plan for the given record type, creating and caching it if necessary.
@@ -399,7 +412,7 @@ final class RecordMapper {
                                         @Nonnull RefFactory refFactory,
                                         @Nonnull FetchPlan fetchPlan) throws SqlTemplateException {
         try {
-            return COMPILED.computeIfAbsent(new CompiledKey(type.type(), fetchPlan), t -> {
+            return COMPILED.get(type.type()).computeIfAbsent(fetchPlan, t -> {
                 try {
                     PkInfo pkInfo = Entity.class.isAssignableFrom(type.type())
                             ? calculatePkInfo(type, fetchPlan)
