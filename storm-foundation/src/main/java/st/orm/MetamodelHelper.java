@@ -10,6 +10,7 @@ class MetamodelHelper {
     private static final Method ROOT_METHOD;
     private static final Method OF_METHOD;
     private static final Method FLATTEN_METHOD;
+    private static final Method IS_NULLABLE_METHOD;
 
     static {
         try {
@@ -17,6 +18,7 @@ class MetamodelHelper {
             ROOT_METHOD = factoryClass.getMethod("root", Class.class);
             OF_METHOD = factoryClass.getMethod("of", Class.class, String.class);
             FLATTEN_METHOD = factoryClass.getMethod("flatten", Navigable.class);
+            IS_NULLABLE_METHOD = factoryClass.getMethod("isNullable", Metamodel.class);
         } catch (ReflectiveOperationException e) {
             var ex = new ExceptionInInitializerError("Failed to initialize Metamodel. Please ensure that storm-core is present in the classpath.");
             ex.initCause(e);
@@ -35,8 +37,8 @@ class MetamodelHelper {
                 return (Metamodel<T, T>) ROOT_METHOD.invoke(null, rootTable);
             } catch (InvocationTargetException e) {
                 throw e.getTargetException();
-            } catch (ReflectiveOperationException e) {
-                throw new RuntimeException("Reflection invocation failed for MetamodelFactory.of", e);
+            } catch (IllegalAccessException e) {
+                throw new RuntimeException("Reflection invocation failed for MetamodelFactory.root", e);
             }
         } catch (RuntimeException e) {
             throw e;
@@ -52,7 +54,7 @@ class MetamodelHelper {
                 return (Metamodel<T, E>) OF_METHOD.invoke(null, rootTable, path);
             } catch (InvocationTargetException e) {
                 throw e.getTargetException();
-            } catch (ReflectiveOperationException e) {
+            } catch (IllegalAccessException e) {
                 throw new RuntimeException("Reflection invocation failed for MetamodelFactory.of", e);
             }
         } catch (RuntimeException e) {
@@ -69,8 +71,24 @@ class MetamodelHelper {
                 return (List<Metamodel<T, ?>>) FLATTEN_METHOD.invoke(null, metamodel);
             } catch (InvocationTargetException e) {
                 throw e.getTargetException();
-            } catch (ReflectiveOperationException e) {
+            } catch (IllegalAccessException e) {
                 throw new RuntimeException("Reflection invocation failed for MetamodelFactory.flatten", e);
+            }
+        } catch (RuntimeException e) {
+            throw e;
+        } catch (Throwable t) {
+            throw new PersistenceException(t);
+        }
+    }
+
+    static boolean isNullable(@Nonnull Metamodel<?, ?> metamodel) {
+        try {
+            try {
+                return (Boolean) IS_NULLABLE_METHOD.invoke(null, metamodel);
+            } catch (InvocationTargetException e) {
+                throw e.getTargetException();
+            } catch (IllegalAccessException e) {
+                throw new RuntimeException("Reflection invocation failed for MetamodelFactory.isNullable", e);
             }
         } catch (RuntimeException e) {
             throw e;

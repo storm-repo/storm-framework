@@ -92,10 +92,10 @@ class KeyDelegateTest {
     }
 
     @Test
-    void keyDelegateIsNotNullableForNonKeyMetamodel() {
-        TestMetamodel metamodel = new TestMetamodel();
-        Metamodel.Key<TestData, Integer> key = Metamodel.key(metamodel);
-        assertFalse(key.isNullable());
+    void keyDelegateIsNotNullableWhenDelegateIsNonNullableKey() {
+        TestKeyMetamodel nonNullableKey = new TestKeyMetamodel(false);
+        Metamodel.KeyDelegate<TestData, Integer> delegate = new Metamodel.KeyDelegate<>(nonNullableKey);
+        assertFalse(delegate.isNullable());
     }
 
     @Test

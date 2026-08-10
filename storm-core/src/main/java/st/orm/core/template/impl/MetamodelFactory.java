@@ -144,14 +144,7 @@ public final class MetamodelFactory {
     public static Metamodel<?, ?> canonical(@Nonnull Metamodel<?, ?> metamodel) {
         try {
             Class<? extends Data> rootTable = metamodel.root();
-            Class<? extends Data> fieldResolutionClass = rootTable;
-            if (rootTable.isSealed() && isSealedEntity(rootTable)) {
-                Class<?>[] permitted = rootTable.getPermittedSubclasses();
-                if (permitted != null && permitted.length > 0) {
-                    fieldResolutionClass = (Class<? extends Data>) permitted[0];
-                }
-            }
-            String foreignKeyPath = primaryKeyThroughForeignKeyPath(fieldResolutionClass, metamodel.fieldPath());
+            String foreignKeyPath = primaryKeyThroughForeignKeyPath(fieldResolutionClass(rootTable), metamodel.fieldPath());
             if (foreignKeyPath == null) {
                 return metamodel;
             }
@@ -183,6 +176,69 @@ public final class MetamodelFactory {
             result.addAll(child.flatten());
         }
         return List.copyOf(result);
+    }
+
+    /**
+     * Returns whether the field designated by the given metamodel allows NULL values, following the semantics of
+     * {@link Metamodel.Key#isNullable()}. A metamodel that carries the {@link Metamodel.Key} marker answers for
+     * itself. For any other metamodel the record field at the metamodel's path decides: a unique field applies its
+     * {@code nullsDistinct} setting, an inline record derives its nullability from its constituent fields, and a
+     * plain field is as nullable as the field itself, because no unique constraint restricts its NULL values.
+     *
+     * <p>This backs {@link Metamodel#key(Metamodel)} delegates, which wrap metamodels that do not carry the key
+     * marker themselves.</p>
+     */
+    public static boolean isNullable(@Nonnull Metamodel<?, ?> metamodel) {
+        if (metamodel instanceof Metamodel.Key<?, ?> key) {
+            return key.isNullable();
+        }
+        String path = metamodel.fieldPath();
+        if (path.isEmpty()) {
+            // The root metamodel designates the row itself rather than a column.
+            return false;
+        }
+        try {
+            RecordField field = getRecordField(fieldResolutionClass(metamodel.root()), path);
+            boolean nullsDistinct = getNullsDistinct(field);
+            boolean inline = !Ref.class.isAssignableFrom(field.type())
+                    && getORMConverter(field).isEmpty()
+                    && isRecord(field.type())
+                    && !Data.class.isAssignableFrom(field.type());
+            if (inline) {
+                // Mirrors SimpleKeyMetamodel: an inline record is nullable when its unique constraint treats NULLs
+                // as distinct and any of its constituent fields is nullable.
+                boolean fieldIsUnique = field.isAnnotationPresent(UK.class) || field.isAnnotationPresent(PK.class);
+                if (!fieldIsUnique || !nullsDistinct) {
+                    return false;
+                }
+                for (var leaf : metamodel.flatten()) {
+                    if (leaf instanceof Metamodel.Key<?, ?> leafKey && leafKey.isNullable()) {
+                        return true;
+                    }
+                }
+                return false;
+            }
+            return field.nullable() && nullsDistinct;
+        } catch (SqlTemplateException e) {
+            throw new PersistenceException("Failed to resolve nullability for metamodel field at path '%s' on type %s.".formatted(path, metamodel.root().getName()), e);
+        }
+    }
+
+    /**
+     * Returns the class that field resolution should inspect for the given root table. For sealed entity interfaces,
+     * resolution is delegated to the first permitted subclass: the sealed interface itself declares accessor methods
+     * but is not a record, so {@code getRecordField()} cannot inspect it directly. This mirrors the delegation
+     * pattern used by {@code findPkField()}.
+     */
+    @SuppressWarnings("unchecked")
+    private static Class<? extends Data> fieldResolutionClass(@Nonnull Class<? extends Data> rootTable) {
+        if (rootTable.isSealed() && isSealedEntity(rootTable)) {
+            Class<?>[] permitted = rootTable.getPermittedSubclasses();
+            if (permitted != null && permitted.length > 0) {
+                return (Class<? extends Data>) permitted[0];
+            }
+        }
+        return rootTable;
     }
 
     /**
@@ -242,17 +298,7 @@ public final class MetamodelFactory {
         if (path.isEmpty()) {
             return (Metamodel<T, E>) root(rootTable);
         }
-        // For sealed entity interfaces, delegate field resolution to the first permitted subclass.
-        // The sealed interface itself declares accessor methods but is not a record, so getRecordField()
-        // cannot inspect it directly. This mirrors the delegation pattern used by findPkField().
-        Class<? extends Data> fieldResolutionClass = rootTable;
-        if (rootTable.isSealed() && isSealedEntity(rootTable)) {
-            Class<?>[] permitted = rootTable.getPermittedSubclasses();
-            if (permitted != null && permitted.length > 0) {
-                //noinspection unchecked
-                fieldResolutionClass = (Class<? extends Data>) permitted[0];
-            }
-        }
+        Class<? extends Data> fieldResolutionClass = fieldResolutionClass(rootTable);
         Class<E> fieldType;
         String effectivePath;
         StringBuilder effectiveField;

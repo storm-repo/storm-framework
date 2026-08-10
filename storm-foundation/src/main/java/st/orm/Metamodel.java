@@ -222,6 +222,9 @@ public interface Metamodel<T extends Data, E> extends Navigable<T, E> {
      * context where the key is used. Using a non-unique column as a keyset pagination key will silently skip rows when
      * duplicate values span page boundaries.</p>
      *
+     * <p>The returned key reports {@link Key#isNullable()} from the underlying field: a nullable field stays nullable
+     * when viewed as a key, so keyset pagination keeps rejecting it.</p>
+     *
      * @param metamodel the metamodel to view as a key.
      * @return a {@code Key} instance backed by the given metamodel.
      * @param <T> the root table type.
@@ -263,7 +266,16 @@ public interface Metamodel<T extends Data, E> extends Navigable<T, E> {
         @Override public boolean isIdentical(@Nonnull T a, @Nonnull T b) { return delegate.isIdentical(a, b); }
         @Override public boolean isSame(@Nonnull T a, @Nonnull T b)  { return delegate.isSame(a, b); }
         @Override public List<Metamodel<T, ?>> flatten()             { return delegate.flatten(); }
-        @Override public boolean isNullable()                        { return delegate instanceof Key<?, ?> key && key.isNullable(); }
+
+        /**
+         * Returns the nullability of the underlying field. A delegate around a {@link Key} answers through that key;
+         * any other delegate derives the answer from the record field the metamodel designates, so a nullable field
+         * wrapped by {@link #key(Metamodel)} is still rejected as a keyset pagination cursor.
+         */
+        @Override
+        public boolean isNullable() {
+            return delegate instanceof Key<?, ?> key ? key.isNullable() : MetamodelHelper.isNullable(delegate);
+        }
 
         @Override
         public boolean equals(Object o) {

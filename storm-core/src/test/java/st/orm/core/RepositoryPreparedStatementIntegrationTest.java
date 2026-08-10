@@ -2592,6 +2592,27 @@ public class RepositoryPreparedStatementIntegrationTest {
     }
 
     @Test
+    public void testScrollRejectsWrappedNullableKey() {
+        // Owner.telephone is @Nullable and not unique; its key() view keeps the field's nullability,
+        // so scroll rejects it as a cursor key.
+        var key = Metamodel.key(Owner_.telephone);
+        assertTrue(key.isNullable());
+        assertThrows(PersistenceException.class, () ->
+                ORMTemplate.of(dataSource)
+                        .selectFrom(Owner.class)
+                        .scroll(Scrollable.of(key, 5)));
+    }
+
+    @Test
+    public void testScrollWithWrappedNonNullableKey() {
+        // Owner.lastName is @Nonnull; its key() view passes the nullability validation.
+        var window = ORMTemplate.of(dataSource)
+                .selectFrom(Owner.class)
+                .scroll(Scrollable.of(Metamodel.key(Owner_.lastName), 5));
+        assertEquals(5, window.content().size());
+    }
+
+    @Test
     public void testScrollAcceptsNullsNotDistinctCompoundKey() {
         // EntityWithNullsNotDistinctUK has @UK(nullsDistinct = false) NullableCompoundUK.
         // The key should NOT be considered nullable, so scroll should not throw PersistenceException.
@@ -2607,10 +2628,11 @@ public class RepositoryPreparedStatementIntegrationTest {
     public void testMetamodelKeyFactory() {
         // Owner_.id is already a Key (via @PK -> @UK), so key() should return the same instance.
         assertSame(Owner_.id, Metamodel.key(Owner_.id));
-        // Owner_.address is not unique, so key() should wrap it in a KeyDelegate.
+        // Owner_.address is an inline record, which carries the Key marker; key() returns it as-is.
         var addressKey = Metamodel.key(Owner_.address);
         assertNotNull(addressKey);
         assertInstanceOf(Metamodel.Key.class, addressKey);
+        assertSame(Owner_.address, addressKey);
         // The delegate should be equal to the original metamodel.
         assertEquals(Owner_.address, addressKey);
         assertEquals(addressKey, Owner_.address);
