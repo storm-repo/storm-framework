@@ -6,11 +6,15 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNotSame;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static st.orm.StormConfig.ANSI_ESCAPING;
 import static st.orm.core.template.TemplateString.raw;
 
+import java.util.Map;
 import org.junit.jupiter.api.Test;
 import st.orm.StormConfig;
+import st.orm.core.spi.DefaultSqlDialect;
 import st.orm.core.template.Sql;
+import st.orm.core.template.SqlDialect;
 import st.orm.core.template.SqlTemplate;
 import st.orm.core.template.SqlTemplateException;
 import st.orm.core.template.TableAliasResolver;
@@ -119,6 +123,44 @@ public class SqlTemplateImplTest {
         SqlTemplate result = template.withConfig(st.orm.StormConfig.defaults());
         // The defaults singleton comparison; if same instance, returns this.
         assertNotNull(result);
+    }
+
+    @Test
+    public void testWithConfigRetainsExplicitDialect() {
+        SqlDialect dialect = new DefaultSqlDialect();
+        SqlTemplate template = SqlTemplate.PS.withDialect(dialect)
+                .withConfig(StormConfig.of(Map.of(ANSI_ESCAPING, "true")));
+        assertSame(dialect, template.dialect(), "Explicitly set dialect must survive withConfig");
+    }
+
+    @Test
+    public void testWithConfigAppliesConfigToClasspathResolvedDialect() {
+        assertEquals("\"name\"",
+                SqlTemplate.PS.withConfig(StormConfig.of(Map.of(ANSI_ESCAPING, "true"))).dialect().escape("name"),
+                "Classpath-resolved dialect must be re-resolved under the new configuration");
+        assertEquals("name",
+                SqlTemplate.PS.withConfig(StormConfig.of(Map.of(ANSI_ESCAPING, "false"))).dialect().escape("name"),
+                "Classpath-resolved dialect must be re-resolved under the new configuration");
+    }
+
+    @Test
+    public void testWithResolversRetainExplicitDialect() {
+        SqlDialect dialect = new DefaultSqlDialect();
+        SqlTemplate template = SqlTemplate.PS.withDialect(dialect)
+                .withTableNameResolver(type -> "prefix_" + type.type().getSimpleName())
+                .withTableAliasResolver((type, counter) -> "alias");
+        assertSame(dialect, template.dialect(), "Explicitly set dialect must survive resolver customization");
+    }
+
+    @Test
+    public void testWithResolversRetainClasspathResolution() {
+        SqlTemplate template = SqlTemplate.PS.withTableNameResolver(type -> "prefix_" + type.type().getSimpleName());
+        assertEquals("\"name\"",
+                template.withConfig(StormConfig.of(Map.of(ANSI_ESCAPING, "true"))).dialect().escape("name"),
+                "Resolver customization must not pin the classpath-resolved dialect");
+        assertEquals("name",
+                template.withConfig(StormConfig.of(Map.of(ANSI_ESCAPING, "false"))).dialect().escape("name"),
+                "Resolver customization must not pin the classpath-resolved dialect");
     }
 
     // positionalOnly and expandCollection

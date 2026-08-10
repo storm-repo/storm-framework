@@ -24,12 +24,14 @@ import static st.orm.core.template.impl.ElementRouter.getElementProcessor;
 import static st.orm.core.template.impl.SqlInterceptorManager.intercept;
 
 import jakarta.annotation.Nonnull;
+import jakarta.annotation.Nullable;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.function.Function;
+import java.util.function.Supplier;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import st.orm.BindVars;
@@ -84,15 +86,33 @@ public final class SqlTemplateImpl implements SqlTemplate {
     private final boolean inlineParameters;
     private final ModelBuilder modelBuilder;
     private final TableAliasResolver tableAliasResolver;
-    private final SqlDialect dialect;
-    private final TemplatePreparation templatePreparation;
+
+    /**
+     * The dialect set via {@link #withDialect(SqlDialect)} or a dialect-taking constructor, or {@code null} when the
+     * dialect is resolved from the classpath. An explicit dialect is preserved across {@link #withConfig(StormConfig)},
+     * whereas a classpath-resolved dialect is re-resolved under the new configuration.
+     */
+    private final @Nullable SqlDialect explicitDialect;
+
+    /**
+     * The dialect in use, resolved on first use. Classpath resolution fails fast when multiple dialect providers are
+     * eligible without a defined order, so templates that receive an explicit dialect before processing, such as the
+     * shared {@link SqlTemplate#PS} and {@link SqlTemplate#JPA} instances customized by database-bound templates,
+     * must never trigger it. All dialect-dependent state is therefore initialized lazily.
+     */
+    private final LazySupplier<SqlDialect> dialect;
+
+    private final Supplier<TemplatePreparation> templatePreparation;
     private final Function<TemplateString, Object> keyGenerator;
     private final StormConfig config;
-    private final SegmentedLruCache<Object, TemplateProcessor> cache;
+
+    /** The template cache, keyed by the resolved dialect and therefore lazy; {@code null} when caching is disabled. */
+    private final @Nullable Supplier<SegmentedLruCache<Object, TemplateProcessor>> cache;
+
     private final TemplateMetrics templateMetrics;
 
     public SqlTemplateImpl(boolean positionalOnly, boolean expandCollection, boolean supportRecords) {
-        this(positionalOnly, expandCollection, supportRecords, false, ModelBuilder.newInstance(), TableAliasResolver.DEFAULT, getSqlDialect());
+        this(positionalOnly, expandCollection, supportRecords, false, ModelBuilder.newInstance(), TableAliasResolver.DEFAULT, null, StormConfig.defaults());
     }
 
     public SqlTemplateImpl(boolean positionalOnly,
@@ -102,7 +122,7 @@ public final class SqlTemplateImpl implements SqlTemplate {
                            @Nonnull ModelBuilder modelBuilder,
                            @Nonnull TableAliasResolver tableAliasResolver,
                            @Nonnull SqlDialect dialect) {
-        this(positionalOnly, expandCollection, supportRecords, inlineParameters, modelBuilder, tableAliasResolver, dialect, StormConfig.defaults());
+        this(positionalOnly, expandCollection, supportRecords, inlineParameters, modelBuilder, tableAliasResolver, requireNonNull(dialect), StormConfig.defaults());
     }
 
     SqlTemplateImpl(boolean positionalOnly,
@@ -111,7 +131,7 @@ public final class SqlTemplateImpl implements SqlTemplate {
                     boolean inlineParameters,
                     @Nonnull ModelBuilder modelBuilder,
                     @Nonnull TableAliasResolver tableAliasResolver,
-                    @Nonnull SqlDialect dialect,
+                    @Nullable SqlDialect dialect,
                     @Nonnull StormConfig config) {
         this.positionalOnly = positionalOnly;
         this.expandCollection = expandCollection;
@@ -119,17 +139,20 @@ public final class SqlTemplateImpl implements SqlTemplate {
         this.inlineParameters = inlineParameters;
         this.modelBuilder = requireNonNull(modelBuilder);
         this.tableAliasResolver = requireNonNull(tableAliasResolver);
-        this.dialect = requireNonNull(dialect);
+        this.explicitDialect = dialect;
         this.config = requireNonNull(config);
-        this.templatePreparation = new TemplatePreparation(this, modelBuilder);
+        this.dialect = dialect != null ? new LazySupplier<>(dialect) : new LazySupplier<>(() -> getSqlDialect(config));
+        this.templatePreparation = new LazySupplier<>(() -> new TemplatePreparation(this, modelBuilder));
         this.keyGenerator = keyGenerator();
         int templateCacheSize = Math.max(0, getInt(config, TEMPLATE_CACHE_SIZE, 2048));
         if (templateCacheSize == 0 || inlineParameters) {
             // We don't want to cache templates with inline parameters. No caching takes place if inline parameters are enabled.
             this.cache = null;
         } else {
-            var key = List.of(positionalOnly, expandCollection, supportRecords, new IdentityKey(modelBuilder), new IdentityKey(tableAliasResolver), dialect.name(), configCacheKey(config));
-            this.cache = CacheHolder.INSTANCE.getOrCompute(key, () -> new SegmentedLruCache<>(templateCacheSize));
+            this.cache = new LazySupplier<>(() -> {
+                var key = List.of(positionalOnly, expandCollection, supportRecords, new IdentityKey(modelBuilder), new IdentityKey(tableAliasResolver), dialect().name(), configCacheKey(config));
+                return CacheHolder.INSTANCE.getOrCompute(key, () -> new SegmentedLruCache<>(templateCacheSize));
+            });
         }
         this.templateMetrics = TemplateMetrics.getInstance();
         this.templateMetrics.registerCacheSize(templateCacheSize);
@@ -148,7 +171,7 @@ public final class SqlTemplateImpl implements SqlTemplate {
     private Function<TemplateString, Object> keyGenerator() {
         return template -> {
             try {
-                return getCompilationKey(templatePreparation.preprocess(template));
+                return getCompilationKey(templatePreparation.get().preprocess(template));
             } catch (SqlTemplateException e) {
                 throw new UncheckedSqlTemplateException(e);
             }
@@ -158,7 +181,7 @@ public final class SqlTemplateImpl implements SqlTemplate {
     private Function<TemplateString, Object> shapeGenerator() {
         return template -> {
             try {
-                return getShapeKey(templatePreparation.preprocess(template));
+                return getShapeKey(templatePreparation.get().preprocess(template));
             } catch (SqlTemplateException e) {
                 throw new UncheckedSqlTemplateException(e);
             }
@@ -197,7 +220,7 @@ public final class SqlTemplateImpl implements SqlTemplate {
         if (tableNameResolver == modelBuilder.tableNameResolver()) {
             return this;
         }
-        return new SqlTemplateImpl(positionalOnly, expandCollection, supportRecords, inlineParameters, modelBuilder.tableNameResolver(tableNameResolver), tableAliasResolver, dialect, config);
+        return new SqlTemplateImpl(positionalOnly, expandCollection, supportRecords, inlineParameters, modelBuilder.tableNameResolver(tableNameResolver), tableAliasResolver, explicitDialect, config);
     }
 
     /**
@@ -221,7 +244,7 @@ public final class SqlTemplateImpl implements SqlTemplate {
         if (tableAliasResolver == this.tableAliasResolver) {
             return this;
         }
-        return new SqlTemplateImpl(positionalOnly, expandCollection, supportRecords, inlineParameters, modelBuilder, tableAliasResolver, dialect, config);
+        return new SqlTemplateImpl(positionalOnly, expandCollection, supportRecords, inlineParameters, modelBuilder, tableAliasResolver, explicitDialect, config);
     }
 
     /**
@@ -245,7 +268,7 @@ public final class SqlTemplateImpl implements SqlTemplate {
         if (columnNameResolver == modelBuilder.columnNameResolver()) {
             return this;
         }
-        return new SqlTemplateImpl(positionalOnly, expandCollection, supportRecords, inlineParameters, modelBuilder.columnNameResolver(columnNameResolver), tableAliasResolver, dialect, config);
+        return new SqlTemplateImpl(positionalOnly, expandCollection, supportRecords, inlineParameters, modelBuilder.columnNameResolver(columnNameResolver), tableAliasResolver, explicitDialect, config);
     }
 
     /**
@@ -269,7 +292,7 @@ public final class SqlTemplateImpl implements SqlTemplate {
         if (foreignKeyResolver == modelBuilder.foreignKeyResolver()) {
             return this;
         }
-        return new SqlTemplateImpl(positionalOnly, expandCollection, supportRecords, inlineParameters, modelBuilder.foreignKeyResolver(foreignKeyResolver), tableAliasResolver, dialect, config);
+        return new SqlTemplateImpl(positionalOnly, expandCollection, supportRecords, inlineParameters, modelBuilder.foreignKeyResolver(foreignKeyResolver), tableAliasResolver, explicitDialect, config);
     }
 
     /**
@@ -290,21 +313,23 @@ public final class SqlTemplateImpl implements SqlTemplate {
      */
     @Override
     public SqlTemplate withDialect(@Nonnull SqlDialect dialect) {
-        if (dialect == this.dialect) {
+        requireNonNull(dialect);
+        if (dialect == this.explicitDialect || this.dialect.value().orElse(null) == dialect) {
             return this;
         }
         return new SqlTemplateImpl(positionalOnly, expandCollection, supportRecords, inlineParameters, modelBuilder, tableAliasResolver, dialect, config);
     }
 
     /**
-     * Returns the SQL dialect used by this template.
+     * Returns the SQL dialect used by this template, resolving it from the classpath on first use when no dialect
+     * has been set explicitly.
      *
      * @return the SQL dialect used by this template.
      * @since 1.2
      */
     @Override
     public SqlDialect dialect() {
-        return dialect;
+        return dialect.get();
     }
 
     @Override
@@ -312,7 +337,7 @@ public final class SqlTemplateImpl implements SqlTemplate {
         if (config == this.config) {
             return this;
         }
-        return new SqlTemplateImpl(positionalOnly, expandCollection, supportRecords, inlineParameters, modelBuilder, tableAliasResolver, getSqlDialect(config), config);
+        return new SqlTemplateImpl(positionalOnly, expandCollection, supportRecords, inlineParameters, modelBuilder, tableAliasResolver, explicitDialect, config);
     }
 
     /**
@@ -326,7 +351,7 @@ public final class SqlTemplateImpl implements SqlTemplate {
         if (supportRecords == this.supportRecords) {
             return this;
         }
-        return new SqlTemplateImpl(positionalOnly, expandCollection, supportRecords, inlineParameters, modelBuilder, tableAliasResolver, dialect, config);
+        return new SqlTemplateImpl(positionalOnly, expandCollection, supportRecords, inlineParameters, modelBuilder, tableAliasResolver, explicitDialect, config);
     }
 
     /**
@@ -353,7 +378,7 @@ public final class SqlTemplateImpl implements SqlTemplate {
         if (inlineParameters == this.inlineParameters) {
             return this;
         }
-        return new SqlTemplateImpl(positionalOnly, expandCollection, supportRecords, inlineParameters, modelBuilder, tableAliasResolver, dialect, config);
+        return new SqlTemplateImpl(positionalOnly, expandCollection, supportRecords, inlineParameters, modelBuilder, tableAliasResolver, explicitDialect, config);
     }
 
     /**
@@ -408,6 +433,8 @@ public final class SqlTemplateImpl implements SqlTemplate {
         TemplateProcessor processor;
         try {
             try (var request = templateMetrics.startRequest()) {
+                var templatePreparation = this.templatePreparation.get();
+                var cache = this.cache == null ? null : this.cache.get();
                 bindingContext = templatePreparation.preprocess(template);
                 compilationKey = cache == null ? null : getCompilationKey(bindingContext);
                 processor = compilationKey == null ? null : cache.get(compilationKey);
