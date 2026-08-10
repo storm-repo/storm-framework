@@ -258,6 +258,29 @@ class MetamodelProcessorTest {
     }
 
     @Test
+    void acceptsDeepForeignKeyChainClosedByRefBoundary() throws Exception {
+        Compilation compilation = compile("Country.java", """
+                import st.orm.Entity;
+                import st.orm.FK;
+                import st.orm.PK;
+                import st.orm.Ref;
+
+                public record Country(@PK Integer id, @FK Region region) implements Entity<Integer> {}
+
+                record Region(@PK Integer id, @FK City city) implements Entity<Integer> {}
+
+                record City(@PK Integer id, @FK Ref<Country> country) implements Entity<Integer> {}
+                """);
+        assertTrue(compilation.success(), compilation.errors());
+        assertTrue(compilation.generated("CityMetamodel.java"),
+                "the chain closed by a Ref at depth three generates as usual");
+        assertTrue(compilation.generated("CountryRefMetamodel.java"),
+                "the Ref boundary generates a reference metamodel");
+        assertTrue(compilation.generated("NavigableRegionMetamodel.java"),
+                "navigation beyond the Ref boundary reaches the deeper graph");
+    }
+
+    @Test
     void ignoresPlainRecordWithoutAnnotation() throws Exception {
         Compilation compilation = compile("CityStats.java", """
                 public record CityStats(String name, int inhabitants) {}

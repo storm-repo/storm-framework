@@ -266,6 +266,36 @@ class MetamodelProcessorTest {
     }
 
     @Test
+    fun `accepts deep foreign key chain closed by a Ref boundary`() {
+        val compilation = compile(
+            """
+            package com.example
+
+            import st.orm.Entity
+            import st.orm.FK
+            import st.orm.PK
+            import st.orm.Ref
+
+            data class Country(@PK val id: Int, @FK val region: Region) : Entity<Int>
+
+            data class Region(@PK val id: Int, @FK val city: City) : Entity<Int>
+
+            data class City(@PK val id: Int, @FK val country: Ref<Country>) : Entity<Int>
+            """.trimIndent(),
+        )
+        val generated = compilation.generatedFileNames()
+        assertTrue("CityMetamodel.kt" in generated) {
+            "the chain closed by a Ref at depth three generates as usual, generated: $generated"
+        }
+        assertTrue("CountryRefMetamodel.kt" in generated) {
+            "the Ref boundary generates a reference metamodel, generated: $generated"
+        }
+        assertTrue("NavigableRegionMetamodel.kt" in generated) {
+            "navigation beyond the Ref boundary reaches the deeper graph, generated: $generated"
+        }
+    }
+
+    @Test
     fun `ignores plain data class without annotation`() {
         val compilation = compile(
             """
