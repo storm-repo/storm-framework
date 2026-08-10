@@ -104,6 +104,21 @@ orm.query { "SELECT ${t(User::class)} FROM ${t(User::class)} WHERE id = ${t(id)}
 
 This produces identical behavior. The `t()` function is always available inside template lambdas. The compiler plugin simply automates the wrapping. Note that Storm cannot verify manual wrapping at runtime, so templates built without the plugin trigger the interpolation safety check described below.
 
+### Constant Interpolations
+
+Every interpolation yields a bind value, including compile-time constants:
+
+```kotlin
+const val DOMAIN = "%@gmail.com"
+
+orm.query { "SELECT ${User::class} FROM ${User::class} WHERE email LIKE ${"%@gmail.com"}" }
+orm.query { "SELECT ${User::class} FROM ${User::class} WHERE email LIKE $DOMAIN" }
+```
+
+Both templates bind `%@gmail.com` exactly like a runtime value would. The Kotlin compiler folds constant expressions into the template text before the plugin runs; the plugin recovers them from the source and verifies the result against the folded value, so constants keep value semantics. In the rare case that a folded constant cannot be recovered, the plugin reports a compile error naming the expression; wrapping the interpolation in an explicit `t()` call resolves it.
+
+To contribute constant SQL text rather than a bind value, put the text in the template itself or concatenate literals with `+`.
+
 ### Interpolation Safety
 
 When a `TemplateBuilder` lambda runs without the compiler plugin, Storm cannot verify that every string interpolation is wrapped in a `t()` or `interpolate()` call: a single unwrapped interpolation concatenates its value directly into the SQL. Explicit `t()` calls do not satisfy the check, because they say nothing about the other interpolations in the same template. The `storm.validation.interpolation_mode` system property controls how Storm handles templates it cannot verify:
