@@ -636,7 +636,7 @@ See [Validation](validation.md) for a complete list of what each validation leve
 
 ## Interpolation Safety
 
-Storm's Kotlin API uses the Storm compiler plugin to automatically wrap string interpolations inside SQL template lambdas, ensuring all values are parameterized and SQL injection safe. When a `TemplateBuilder` lambda runs without the compiler plugin and without any explicit `t()` or `interpolate()` calls, Storm cannot distinguish a pure SQL literal (safe) from a string with accidentally concatenated interpolations (SQL injection risk). The `storm.validation.interpolation_mode` property controls how Storm handles this situation.
+Storm's Kotlin API uses the Storm compiler plugin to automatically wrap string interpolations inside SQL template lambdas, ensuring all values are parameterized and SQL injection safe. When a `TemplateBuilder` lambda runs without the compiler plugin, Storm cannot verify that every string interpolation is wrapped in a `t()` or `interpolate()` call: a single unwrapped interpolation concatenates its value directly into the SQL (SQL injection risk). Explicit `t()` calls do not satisfy the check, because they say nothing about the other interpolations in the same template. The `storm.validation.interpolation_mode` property controls how Storm handles templates it cannot verify.
 
 ### storm.validation.interpolation_mode
 
@@ -644,7 +644,9 @@ Storm's Kotlin API uses the Storm compiler plugin to automatically wrap string i
 |-------|----------|
 | `warn` | Logs a warning at `WARNING` level (default). |
 | `fail` | Throws an `IllegalStateException`, preventing execution of potentially unsafe templates. |
-| `none` | Disables the check entirely. Use only when you are certain the compiler plugin is not needed. |
+| `none` | Disables the check entirely. Use when every interpolation is wrapped manually or templates are pure literals. |
+
+Any other value fails with an `IllegalStateException` naming the valid values.
 
 See [String Templates](string-templates.md) for setup instructions for the compiler plugin.
 
@@ -757,7 +759,7 @@ This reduces memory usage at the cost of less efficient dirty checking.
 
 ### Production Hardening
 
-For production environments, consider enabling strict validation and interpolation safety checks. These settings catch configuration issues and potential security problems that should not reach production:
+For production environments, enable strict validation and interpolation safety checks. These settings catch configuration issues and potential security problems that should not reach production:
 
 ```bash
 java -Dstorm.validation.schema_mode=fail \
@@ -766,6 +768,6 @@ java -Dstorm.validation.schema_mode=fail \
 ```
 
 - `storm.validation.schema_mode=fail` catches entity-to-schema mismatches at startup rather than at runtime.
-- `storm.validation.interpolation_mode=fail` prevents execution of templates that were not processed by the compiler plugin and do not use explicit `t()` calls, protecting against accidental SQL injection.
+- `storm.validation.interpolation_mode=fail` prevents execution of templates that were not processed by the compiler plugin, protecting against accidental SQL injection. Set this in every production deployment that uses Kotlin templates: the default `warn` reduces a missing compiler plugin to a log line.
 
 In the Spring Boot starter and Ktor plugin, `schema_mode` already defaults to `fail`, so entity-to-schema mismatches abort startup out of the box; relax it to `warn` or `none` while a schema is still evolving. `interpolation_mode` defaults to `warn`, so missing compiler plugin usage is logged rather than blocking execution until you opt into `fail`.

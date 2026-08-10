@@ -102,11 +102,11 @@ The compiler plugin is optional. Without it, you can still use Storm's template 
 orm.query { "SELECT ${t(User::class)} FROM ${t(User::class)} WHERE id = ${t(id)}" }
 ```
 
-This produces identical behavior. The `t()` function is always available inside template lambdas. The compiler plugin simply automates the wrapping.
+This produces identical behavior. The `t()` function is always available inside template lambdas. The compiler plugin simply automates the wrapping. Note that Storm cannot verify manual wrapping at runtime, so templates built without the plugin trigger the interpolation safety check described below.
 
 ### Interpolation Safety
 
-When a `TemplateBuilder` lambda runs without the compiler plugin and without any explicit `t()` or `interpolate()` calls, Storm cannot distinguish a pure SQL literal from a string with accidentally concatenated interpolations. The `storm.validation.interpolation_mode` system property controls how Storm handles this situation:
+When a `TemplateBuilder` lambda runs without the compiler plugin, Storm cannot verify that every string interpolation is wrapped in a `t()` or `interpolate()` call: a single unwrapped interpolation concatenates its value directly into the SQL. Explicit `t()` calls do not satisfy the check, because they say nothing about the other interpolations in the same template. The `storm.validation.interpolation_mode` system property controls how Storm handles templates it cannot verify:
 
 | Value | Behavior |
 |-------|----------|
@@ -114,12 +114,14 @@ When a `TemplateBuilder` lambda runs without the compiler plugin and without any
 | `fail` | Throws an `IllegalStateException`. Recommended for production. |
 | `none` | Disables the check entirely. |
 
+Any other value fails with an `IllegalStateException` naming the valid values.
+
 In `warn` mode (the default), Storm logs the following message:
 
 ```
-WARNING: TemplateBuilder lambda executed without the Storm compiler plugin and without
-explicit t() or interpolate() calls. If this template uses string interpolations, values may
-have been concatenated directly into the SQL, risking SQL injection.
+WARNING: TemplateBuilder lambda executed without the Storm compiler plugin. Storm cannot
+verify that every string interpolation is wrapped in a t() or interpolate() call; an
+unwrapped interpolation concatenates its value directly into the SQL, risking SQL injection.
 See https://orm.st/string-templates for setup instructions.
 To change this behavior, set -Dstorm.validation.interpolation_mode=warn|fail|none.
 ```
@@ -167,7 +169,7 @@ If the compiler plugin is not available, you can wrap interpolations in `t()` ma
 orm.query { "SELECT ${t(User::class)} FROM ${t(User::class)} WHERE id = ${t(id)}" }
 ```
 
-When using `t()` manually, the interpolation safety check is automatically suppressed because Storm detects the explicit calls. If you use pure literal templates without any interpolations, you can disable the check with the JVM system property:
+Manual `t()` calls cannot be verified at runtime, so templates built without the compiler plugin still trigger the [interpolation safety check](#interpolation-safety) and log a warning by default. If you wrap every interpolation manually, or use pure literal templates without any interpolations, you can disable the check with the JVM system property:
 
 ```bash
 -Dstorm.validation.interpolation_mode=none
