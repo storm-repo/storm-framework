@@ -37,8 +37,8 @@ class MetamodelHelper {
                 return (Metamodel<T, T>) ROOT_METHOD.invoke(null, rootTable);
             } catch (InvocationTargetException e) {
                 throw e.getTargetException();
-            } catch (ReflectiveOperationException e) {
-                throw new RuntimeException("Reflection invocation failed for MetamodelFactory.of", e);
+            } catch (IllegalAccessException e) {
+                throw new RuntimeException("Reflection invocation failed for MetamodelFactory.root", e);
             }
         } catch (RuntimeException e) {
             throw e;
@@ -54,7 +54,7 @@ class MetamodelHelper {
                 return (Metamodel<T, E>) OF_METHOD.invoke(null, rootTable, path);
             } catch (InvocationTargetException e) {
                 throw e.getTargetException();
-            } catch (ReflectiveOperationException e) {
+            } catch (IllegalAccessException e) {
                 throw new RuntimeException("Reflection invocation failed for MetamodelFactory.of", e);
             }
         } catch (RuntimeException e) {
@@ -71,7 +71,7 @@ class MetamodelHelper {
                 return (List<Metamodel<T, ?>>) FLATTEN_METHOD.invoke(null, metamodel);
             } catch (InvocationTargetException e) {
                 throw e.getTargetException();
-            } catch (ReflectiveOperationException e) {
+            } catch (IllegalAccessException e) {
                 throw new RuntimeException("Reflection invocation failed for MetamodelFactory.flatten", e);
             }
         } catch (RuntimeException e) {
@@ -87,7 +87,7 @@ class MetamodelHelper {
                 return (Boolean) IS_NULLABLE_METHOD.invoke(null, metamodel);
             } catch (InvocationTargetException e) {
                 throw e.getTargetException();
-            } catch (ReflectiveOperationException e) {
+            } catch (IllegalAccessException e) {
                 throw new RuntimeException("Reflection invocation failed for MetamodelFactory.isNullable", e);
             }
         } catch (RuntimeException e) {
