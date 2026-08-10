@@ -61,6 +61,17 @@ class MetamodelProcessor(
     private val expandedReferencedTypes = mutableSetOf<String>()
 
     /**
+     * Track types we’ve already checked for non-Ref record cycles.
+     */
+    private val checkedForRecordCycles = mutableSetOf<String>()
+
+    /**
+     * Qualified names of the types on the current cycle-check walk, in walk order, so a detected cycle is reported
+     * by naming its members.
+     */
+    private val recordCyclePath = LinkedHashSet<String>()
+
+    /**
      * Track types we’ve already generated a reference metamodel (`<Type>RefMetamodel`) for.
      */
     private val generatedReferenceMetamodels = mutableSetOf<String>()
@@ -1307,8 +1318,59 @@ class MetamodelProcessor(
         }
     }
 
+    /**
+     * Rejects cycles in the graph of non-Ref record properties. The generated metamodels construct their
+     * record-typed children eagerly, so a cycle that does not cross a `Ref` boundary fails at class initialization.
+     * The engine states the same rule at template level for self-references: a foreign key cycle must be marked as
+     * `Ref` to be loadable.
+     */
+    private fun checkRecordCycles(classDeclaration: KSClassDeclaration) {
+        val qualifiedName = classDeclaration.qualifiedName?.asString() ?: return
+        if (!checkedForRecordCycles.add(qualifiedName)) return
+        recordCyclePath.add(qualifiedName)
+        try {
+            getModelProperties(classDeclaration).forEach { prop ->
+                val typeRef = prop.type
+                if (!typeRef.isDataClass() || isRefType(typeRef) || typeRef.isNestedDataClass()) return@forEach
+                val child = typeRef.resolve().declaration as? KSClassDeclaration ?: return@forEach
+                val childQualifiedName = child.qualifiedName?.asString() ?: return@forEach
+                if (childQualifiedName in recordCyclePath) {
+                    val cycle = renderCycle(childQualifiedName)
+                    if (child.implementsInterface(DATA)) {
+                        logger.error(
+                            "Cycle of non-Ref foreign keys: $cycle. " +
+                                "A foreign key cycle must cross a Ref boundary to be loadable. " +
+                                "Mark one of the foreign keys as Ref (for example Ref<${child.simpleName.asString()}>) " +
+                                "to break the cycle.",
+                            prop,
+                        )
+                    } else {
+                        logger.error(
+                            "Cycle of inline records: $cycle. " +
+                                "An inline record embeds its fields in the enclosing table, so a cycle cannot " +
+                                "be modeled.",
+                            prop,
+                        )
+                    }
+                } else {
+                    checkRecordCycles(child)
+                }
+            }
+        } finally {
+            recordCyclePath.remove(qualifiedName)
+        }
+    }
+
+    /**
+     * Renders the members of the detected cycle: the tail of the current walk from the type the cycle re-enters,
+     * closed by naming that type again.
+     */
+    private fun renderCycle(cycleStart: String): String = (recordCyclePath.dropWhile { it != cycleStart } + cycleStart)
+        .joinToString(" -> ") { it.substringAfterLast('.') }
+
     private fun generateMetamodelArtifacts(classDeclaration: KSClassDeclaration, resolver: Resolver) {
         val qualifiedName = classDeclaration.qualifiedName?.asString() ?: return
+        checkRecordCycles(classDeclaration)
 
         // Always generate classes (both variants) once.
         if (processedClasses.add(qualifiedName)) {

@@ -34,17 +34,26 @@ import org.junit.jupiter.api.Test
 @OptIn(ExperimentalCompilerApi::class)
 class MetamodelProcessorTest {
 
+    private fun compilation(source: String): KotlinCompilation = KotlinCompilation().apply {
+        sources = listOf(SourceFile.kotlin("CityStats.kt", source))
+        useKsp2()
+        symbolProcessorProviders = mutableListOf(MetamodelProcessorProvider())
+        inheritClassPath = true
+        verbose = false
+    }
+
     private fun compile(source: String): KotlinCompilation {
-        val compilation = KotlinCompilation().apply {
-            sources = listOf(SourceFile.kotlin("CityStats.kt", source))
-            useKsp2()
-            symbolProcessorProviders = mutableListOf(MetamodelProcessorProvider())
-            inheritClassPath = true
-            verbose = false
-        }
+        val compilation = compilation(source)
         val result = compilation.compile()
         assertEquals(KotlinCompilation.ExitCode.OK, result.exitCode, result.messages)
         return compilation
+    }
+
+    private fun compileExpectingError(source: String): String {
+        val compilation = compilation(source)
+        val result = compilation.compile()
+        assertEquals(KotlinCompilation.ExitCode.COMPILATION_ERROR, result.exitCode, result.messages)
+        return result.messages
     }
 
     private fun KotlinCompilation.generatedFileNames(): Set<String> = kspSourcesDir.walkTopDown().filter { it.isFile }.map { it.name }.toSet()
@@ -190,6 +199,69 @@ class MetamodelProcessorTest {
         val metamodel = compilation.generatedSource("RegistryMetamodel.kt")
         assertTrue("ra.`object` == rb.`object`" in metamodel) {
             "expected the primary key backticked in isSame:\n$metamodel"
+        }
+    }
+
+    @Test
+    fun `rejects non-Ref foreign key cycle between entities`() {
+        val messages = compileExpectingError(
+            """
+            package com.example
+
+            import st.orm.Entity
+            import st.orm.FK
+            import st.orm.PK
+
+            data class Owner(@PK val id: Int, @FK val pet: Pet) : Entity<Int>
+
+            data class Pet(@PK val id: Int, @FK val owner: Owner) : Entity<Int>
+            """.trimIndent(),
+        )
+        assertTrue(
+            "Cycle of non-Ref foreign keys: Owner -> Pet -> Owner" in messages ||
+                "Cycle of non-Ref foreign keys: Pet -> Owner -> Pet" in messages,
+        ) { messages }
+        assertTrue("Mark one of the foreign keys as Ref" in messages) { messages }
+    }
+
+    @Test
+    fun `rejects self-referencing non-Ref foreign key`() {
+        val messages = compileExpectingError(
+            """
+            package com.example
+
+            import st.orm.Entity
+            import st.orm.FK
+            import st.orm.PK
+
+            data class Employee(@PK val id: Int, @FK val manager: Employee) : Entity<Int>
+            """.trimIndent(),
+        )
+        assertTrue("Cycle of non-Ref foreign keys: Employee -> Employee" in messages) { messages }
+    }
+
+    @Test
+    fun `accepts foreign key cycle through a Ref boundary`() {
+        val compilation = compile(
+            """
+            package com.example
+
+            import st.orm.Entity
+            import st.orm.FK
+            import st.orm.PK
+            import st.orm.Ref
+
+            data class Owner(@PK val id: Int, @FK val pet: Pet) : Entity<Int>
+
+            data class Pet(@PK val id: Int, @FK val owner: Ref<Owner>) : Entity<Int>
+            """.trimIndent(),
+        )
+        val generated = compilation.generatedFileNames()
+        assertTrue("OwnerMetamodel.kt" in generated) {
+            "a cycle through a Ref boundary is loadable and generates as usual, generated: $generated"
+        }
+        assertTrue("PetMetamodel.kt" in generated) {
+            "a cycle through a Ref boundary is loadable and generates as usual, generated: $generated"
         }
     }
 
