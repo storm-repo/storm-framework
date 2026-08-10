@@ -185,13 +185,21 @@ internal class JsonORMConverterImpl(
 
     override fun fromDatabase(values: Array<Any?>, refFactory: RefFactory): Any? {
         val raw = values[0] as? String? ?: return null
+        // A custom serializer may issue a query, nesting another fromDatabase call on this thread. The previous
+        // factory is therefore restored rather than removed, so the remaining fields of the outer value still
+        // deserialize with the outer factory and produce attached refs.
+        val outerRefFactory = REF_FACTORY.get()
+        REF_FACTORY.set(refFactory)
         return try {
-            REF_FACTORY.set(refFactory)
             this@JsonORMConverterImpl.json.decodeFromString(serializer, raw)
         } catch (e: SerializationException) {
             throw SqlTemplateException(e)
         } finally {
-            REF_FACTORY.remove()
+            if (outerRefFactory == null) {
+                REF_FACTORY.remove()
+            } else {
+                REF_FACTORY.set(outerRefFactory)
+            }
         }
     }
 }
