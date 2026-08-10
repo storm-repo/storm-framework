@@ -594,4 +594,45 @@ public class TemplatePreparationTest {
             assertNotNull(owner.address().city());
         }
     }
+
+    // ==================== keyword boundaries in value dispatch ====================
+
+    @Test
+    public void testIdentifierWithWhereSuffixDoesNotDispatchWhere() throws Exception {
+        // An identifier that merely ends in WHERE must not reclassify the next value as a where-object.
+        Sql sql = TEMPLATE.process(raw("SELECT * FROM city AS nowhere \0", 42));
+        assertEquals("SELECT * FROM city AS nowhere ?", sql.statement());
+        assertEquals(1, sql.parameters().size());
+    }
+
+    @Test
+    public void testIdentifierWithValuesSuffixDoesNotDispatchValues() throws Exception {
+        // An identifier that merely ends in VALUES must not reclassify the next value as an insert row.
+        Sql sql = TEMPLATE.process(raw("INSERT INTO key_values \0", "text"));
+        assertEquals("INSERT INTO key_values ?", sql.statement());
+        assertEquals(1, sql.parameters().size());
+    }
+
+    @Test
+    public void testIdentifierWithSetSuffixDoesNotDispatchSet() throws Exception {
+        // An identifier that merely ends in SET must not reclassify the next value as an update row.
+        Sql sql = TEMPLATE.process(raw("UPDATE test_entity SET name = dataset\0", 1));
+        assertEquals("UPDATE test_entity SET name = dataset?", sql.statement());
+        assertEquals(1, sql.parameters().size());
+    }
+
+    // ==================== top-level WHERE detection for the unsafe-statement check ====================
+
+    @Test
+    public void testUpdateWithSubqueryWhereOnlyIsFlaggedUnsafe() throws Exception {
+        // The only WHERE sits in a subquery; the update itself is unqualified and must be flagged.
+        Sql sql = TEMPLATE.process(raw("UPDATE test_entity SET name = (SELECT name FROM other WHERE other.id = 1)"));
+        assertTrue(sql.unsafeWarning().isPresent());
+    }
+
+    @Test
+    public void testUpdateWithTopLevelWhereIsNotFlagged() throws Exception {
+        Sql sql = TEMPLATE.process(raw("UPDATE test_entity SET name = (SELECT name FROM other WHERE other.id = 1) WHERE id = 1"));
+        assertTrue(sql.unsafeWarning().isEmpty());
+    }
 }

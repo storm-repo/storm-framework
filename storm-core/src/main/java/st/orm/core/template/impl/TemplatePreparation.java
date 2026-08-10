@@ -45,8 +45,10 @@ import static st.orm.core.template.impl.RecordReflection.isSealedEntity;
 import static st.orm.core.template.impl.RecordReflection.isTypePresent;
 import static st.orm.core.template.impl.RecordReflection.mapForeignKeys;
 import static st.orm.core.template.impl.RecordValidation.validateDataType;
+import static st.orm.core.template.impl.SqlParser.endsWithKeyword;
 import static st.orm.core.template.impl.SqlParser.getSqlOperation;
 import static st.orm.core.template.impl.SqlParser.removeComments;
+import static st.orm.core.template.impl.SqlParser.startsWithKeyword;
 
 import jakarta.annotation.Nonnull;
 import jakarta.annotation.Nullable;
@@ -280,25 +282,25 @@ class TemplatePreparation {
         String previous = removeComments(previousFragment, template.dialect()).stripTrailing().toUpperCase();
         return switch (operation) {
             case SELECT, DELETE, UNDEFINED -> {
-                if (previous.endsWith("WHERE")) {
+                if (endsWithKeyword(previous, "WHERE")) {
                     yield where(bindVars);
                 }
                 throw new SqlTemplateException("BindVars element expected after WHERE.");
             }
             case INSERT -> {
-                if (previous.endsWith("WHERE")) {
+                if (endsWithKeyword(previous, "WHERE")) {
                     yield where(bindVars);
                 }
-                if (previous.endsWith("VALUES")) {
+                if (endsWithKeyword(previous, "VALUES")) {
                     yield values(bindVars);
                 }
                 throw new SqlTemplateException("BindVars element expected after VALUES or WHERE.");
             }
             case UPDATE -> {
-                if (previous.endsWith("SET")) {
+                if (endsWithKeyword(previous, "SET")) {
                     yield set(bindVars);
                 }
-                if (previous.endsWith("WHERE")) {
+                if (endsWithKeyword(previous, "WHERE")) {
                     yield where(bindVars);
                 }
                 throw new SqlTemplateException("BindVars element expected after SET or WHERE.");
@@ -326,7 +328,7 @@ class TemplatePreparation {
         String previous = removeComments(previousFragment, template.dialect()).stripTrailing().toUpperCase();
         return switch (operation) {
             case SELECT, DELETE, UNDEFINED -> {
-                if (previous.endsWith("WHERE")) {
+                if (endsWithKeyword(previous, "WHERE")) {
                     if (o != null) {
                         yield where(o);
                     }
@@ -335,13 +337,13 @@ class TemplatePreparation {
                 yield param(o);
             }
             case INSERT -> {
-                if (previous.endsWith("VALUES")) {
+                if (endsWithKeyword(previous, "VALUES")) {
                     if (o instanceof Data r) {
                         yield values(r);
                     }
                     throw new SqlTemplateException("Record expected after VALUES.");
                 }
-                if (previous.endsWith("WHERE")) {
+                if (endsWithKeyword(previous, "WHERE")) {
                     if (o != null) {
                         yield where(o);
                     }
@@ -350,13 +352,13 @@ class TemplatePreparation {
                 yield param(o);
             }
             case UPDATE -> {
-                if (previous.endsWith("SET")) {
+                if (endsWithKeyword(previous, "SET")) {
                     if (o instanceof Data r) {
                         yield set(r);
                     }
                     throw new SqlTemplateException("Record expected after SET.");
                 }
-                if (previous.endsWith("WHERE")) {
+                if (endsWithKeyword(previous, "WHERE")) {
                     if (o != null) {
                         yield where(o);
                     }
@@ -408,19 +410,19 @@ class TemplatePreparation {
         String previous = removeComments(previousFragment, template.dialect()).stripTrailing().toUpperCase();
         return switch (operation) {
             case SELECT, UPDATE, DELETE, UNDEFINED -> {
-                if (previous.endsWith("WHERE")) {
+                if (endsWithKeyword(previous, "WHERE")) {
                     yield where(iterable);
                 }
                 yield param(iterable);
             }
             case INSERT -> {
-                if (previous.endsWith("VALUES")) {
+                if (endsWithKeyword(previous, "VALUES")) {
                     if (StreamSupport.stream(iterable.spliterator(), false).allMatch(it -> it instanceof Data)) {
                         yield values((Iterable<? extends Data>) iterable);
                     }
                     throw new SqlTemplateException("Records expected after VALUES.");
                 }
-                if (previous.endsWith("WHERE")) {
+                if (endsWithKeyword(previous, "WHERE")) {
                     yield where(iterable);
                 }
                 yield param(iterable);
@@ -456,32 +458,32 @@ class TemplatePreparation {
         String previous = removeComments(previousFragment, template.dialect()).stripTrailing().toUpperCase();
         return switch (operation) {
             case SELECT -> {
-                if (previous.endsWith("FROM")) {
+                if (endsWithKeyword(previous, "FROM")) {
                     boolean autoJoin = first instanceof Select select && isTypePresent(recordType, select.table());
                     yield from(recordType, autoJoin);
                 }
-                if (previous.endsWith("JOIN")) {
+                if (endsWithKeyword(previous, "JOIN")) {
                     yield table(recordType);
                 }
                 yield select(recordType);
             }
             case INSERT -> {
-                if (previous.endsWith("INTO")) {
+                if (endsWithKeyword(previous, "INTO")) {
                     yield insert(recordType);
                 }
                 yield table(recordType);
             }
             case UPDATE -> {
-                if (previous.endsWith("UPDATE")) {
+                if (endsWithKeyword(previous, "UPDATE")) {
                     yield update(recordType);
                 }
                 yield table(recordType);
             }
             case DELETE -> {
-                if (next.startsWith("FROM")) {
+                if (startsWithKeyword(next, "FROM")) {
                     yield delete(recordType);
                 }
-                if (previous.endsWith("FROM")) {
+                if (endsWithKeyword(previous, "FROM")) {
                     yield from(recordType, false);
                 }
                 yield table(recordType);

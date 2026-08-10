@@ -655,6 +655,16 @@ public class BuilderIntegrationTest {
     }
 
     @Test
+    public void testUpdateWithSubqueryWhereOnlyRequiresUnsafe() {
+        var orm = ORMTemplate.of(dataSource);
+        // The only WHERE sits in a subquery; the update itself is unqualified and touches every row.
+        var query = orm.query(raw("UPDATE visit SET description = (SELECT name FROM city WHERE city.id = 1)"));
+        var e = assertThrows(PersistenceException.class, query::executeUpdate);
+        assertTrue(e.getMessage().contains("unsafe"));
+        assertEquals(14, query.unsafe().executeUpdate());
+    }
+
+    @Test
     public void testQueryManaged() {
         var orm = ORMTemplate.of(dataSource);
         var query = orm.selectFrom(City.class).build();
