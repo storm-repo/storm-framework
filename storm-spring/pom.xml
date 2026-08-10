@@ -141,6 +141,17 @@
             <artifactId>spring-tx</artifactId>
             <scope>provided</scope>
         </dependency>
+        <!-- JPA transaction manager support for the transaction bridge; guarded by a class-presence check. -->
+        <dependency>
+            <groupId>org.springframework</groupId>
+            <artifactId>spring-orm</artifactId>
+            <scope>provided</scope>
+        </dependency>
+        <dependency>
+            <groupId>jakarta.persistence</groupId>
+            <artifactId>jakarta.persistence-api</artifactId>
+            <scope>provided</scope>
+        </dependency>
         <!-- Servlet support for the per-request SQL log filter; guarded by @ConditionalOnClass. -->
         <dependency>
             <groupId>org.springframework</groupId>

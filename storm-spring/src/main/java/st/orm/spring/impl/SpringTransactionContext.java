@@ -38,13 +38,16 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.function.Supplier;
+import java.util.stream.Collectors;
 import javax.sql.DataSource;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.jdbc.datasource.DataSourceTransactionManager;
+import org.springframework.orm.jpa.JpaTransactionManager;
 import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.TransactionDefinition;
 import org.springframework.transaction.TransactionStatus;
+import org.springframework.transaction.support.ResourceTransactionManager;
+import org.springframework.util.ClassUtils;
 import st.orm.Entity;
 import st.orm.PersistenceException;
 import st.orm.TransactionTimedOutException;
@@ -409,15 +412,73 @@ public final class SpringTransactionContext implements TransactionContext {
         }
     }
 
+    /**
+     * Resolves the transaction manager that owns the given data source.
+     *
+     * <p>A manager owns the data source when it is a {@link ResourceTransactionManager} working directly on it,
+     * which covers {@code DataSourceTransactionManager} and {@code JdbcTransactionManager}, or a JPA transaction
+     * manager whose entity manager factory is backed by it, which is what Spring Boot registers when JPA is on
+     * the class path. Resolution fails fast when several managers own the same data source: the choice decides
+     * which manager completes Storm-initiated transactions, so it must be made by configuration rather than by
+     * list order.</p>
+     */
     private PlatformTransactionManager resolveTransactionManager(@Nonnull DataSource dataSource) {
-        return transactionManagers.get().stream()
-                .filter(DataSourceTransactionManager.class::isInstance)
-                .map(DataSourceTransactionManager.class::cast)
-                .filter(manager -> manager.getDataSource() == dataSource)
-                .map(PlatformTransactionManager.class::cast)
+        var candidates = transactionManagers.get().stream()
+                .filter(manager -> managesDataSource(manager, dataSource))
+                .toList();
+        if (candidates.size() > 1) {
+            throw new IllegalStateException(
+                    "Multiple TransactionManagers found for DataSource " + dataSource + ": "
+                            + candidates.stream()
+                                    .map(manager -> manager.getClass().getName())
+                                    .collect(Collectors.joining(", "))
+                            + ". Keep a single transaction manager per DataSource, or define a "
+                            + "TransactionTemplateProvider bean constructed with the manager that must own "
+                            + "Storm-initiated transactions.");
+        }
+        return candidates.stream()
                 .findFirst()
                 .orElseThrow(() -> new IllegalStateException(
                         "No TransactionManager found for DataSource " + dataSource + "."));
+    }
+
+    private static final boolean JPA_PRESENT = ClassUtils.isPresent(
+            "org.springframework.orm.jpa.JpaTransactionManager",
+            SpringTransactionContext.class.getClassLoader());
+
+    private static boolean managesDataSource(@Nonnull PlatformTransactionManager manager,
+                                             @Nonnull DataSource dataSource) {
+        if (JPA_PRESENT && JpaSupport.isJpaTransactionManager(manager)) {
+            return JpaSupport.managesDataSource(manager, dataSource);
+        }
+        if (manager instanceof ResourceTransactionManager resourceManager) {
+            return resourceFactoryOrNull(resourceManager) == dataSource;
+        }
+        return false;
+    }
+
+    @Nullable
+    private static Object resourceFactoryOrNull(@Nonnull ResourceTransactionManager manager) {
+        try {
+            return manager.getResourceFactory();
+        } catch (IllegalStateException e) {
+            // The manager has no resource factory configured, so it owns no data source.
+            return null;
+        }
+    }
+
+    /**
+     * Touches spring-orm types; only loaded when spring-orm is on the class path.
+     */
+    private static final class JpaSupport {
+        static boolean isJpaTransactionManager(@Nonnull PlatformTransactionManager manager) {
+            return manager instanceof JpaTransactionManager;
+        }
+
+        static boolean managesDataSource(@Nonnull PlatformTransactionManager manager,
+                                         @Nonnull DataSource dataSource) {
+            return manager instanceof JpaTransactionManager jpaManager && jpaManager.getDataSource() == dataSource;
+        }
     }
 
     /**

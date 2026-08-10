@@ -36,19 +36,22 @@ import st.orm.spring.SpringTransactionTemplateProvider;
  * {@code ORMTemplate} created by the starter's auto-configuration; nothing is registered globally. Define your
  * own {@link ConnectionProvider} or {@link TransactionTemplateProvider} bean to override.</p>
  *
- * <p>The ordering hints reference DataSourceTransactionManagerAutoConfiguration by name rather than by class
- * literal: the class moved to the modular spring-boot-jdbc jar in Spring Boot 4, and a class literal to
- * whichever location is absent would fail annotation introspection. Name-based hints are ignored when the
- * class is not on the classpath, so both locations can be listed safely.</p>
+ * <p>The ordering hints cover both auto-configurations that register a transaction manager: the JDBC one and,
+ * for applications with JPA on the class path where the JDBC one backs off, the Hibernate JPA one. They
+ * reference the classes by name rather than by class literal: the classes moved to modular jars in Spring
+ * Boot 4, and a class literal to whichever location is absent would fail annotation introspection. Name-based
+ * hints are ignored when the class is not on the classpath, so both locations can be listed safely.</p>
  *
  * @since 1.13
  */
 @AutoConfiguration(
         afterName = {
-                // Spring Boot 3.x location.
+                // Spring Boot 3.x locations.
                 "org.springframework.boot.autoconfigure.jdbc.DataSourceTransactionManagerAutoConfiguration",
-                // Spring Boot 4.x location.
+                "org.springframework.boot.autoconfigure.orm.jpa.HibernateJpaAutoConfiguration",
+                // Spring Boot 4.x locations.
                 "org.springframework.boot.jdbc.autoconfigure.DataSourceTransactionManagerAutoConfiguration",
+                "org.springframework.boot.hibernate.autoconfigure.HibernateJpaAutoConfiguration",
         })
 @ConditionalOnBean(PlatformTransactionManager.class)
 public class StormTransactionAutoConfiguration {
