@@ -16,6 +16,7 @@
 package st.orm.test;
 
 import java.lang.annotation.ElementType;
+import java.lang.annotation.Inherited;
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
@@ -41,10 +42,14 @@ import org.junit.jupiter.api.extension.ExtendWith;
  * }
  * }</pre>
  *
+ * <p>The annotation is {@code @Inherited}: it may be placed on an abstract base class and applies to every concrete
+ * subclass, each of which gets its own database.</p>
+ *
  * @since 1.9
  */
 @Target(ElementType.TYPE)
 @Retention(RetentionPolicy.RUNTIME)
+@Inherited
 @ExtendWith(StormExtension.class)
 public @interface StormTest {
 

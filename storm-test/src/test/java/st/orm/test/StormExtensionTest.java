@@ -20,6 +20,7 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import javax.sql.DataSource;
+import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import st.orm.Entity;
 import st.orm.PK;
@@ -93,5 +94,19 @@ class StormExtensionTest {
         var stmt = statements.getFirst();
         assertNotNull(stmt.statement());
         assertTrue(stmt.statement().toUpperCase().contains("SELECT"));
+    }
+
+    @Nested
+    class NestedCases {
+
+        @Test
+        void dataSourceShouldBeInjectedInNestedTests(DataSource dataSource) {
+            assertNotNull(dataSource);
+        }
+
+        @Test
+        void ormTemplateShouldQueryEntitiesInNestedTests(ORMTemplate orm) {
+            assertTrue(orm.entity(Item.class).findAll().size() >= 3);
+        }
     }
 }

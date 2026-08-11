@@ -65,19 +65,27 @@ public class StormExtension implements BeforeAllCallback, ParameterResolver {
 
     @Override
     public void beforeAll(ExtensionContext context) throws Exception {
-        StormTest annotation = context.getRequiredTestClass().getAnnotation(StormTest.class);
+        Class<?> testClass = context.getRequiredTestClass();
+        StormTest annotation = testClass.getAnnotation(StormTest.class);
         if (annotation == null) {
             return;
         }
-        DataSource dataSource = findDataSourceFactory(context.getRequiredTestClass());
+        DataSource dataSource = findDataSourceFactory(testClass);
         if (dataSource == null) {
-            String url = annotation.url().isEmpty()
-                    ? "jdbc:h2:mem:" + context.getRequiredTestClass().getSimpleName() + ";DB_CLOSE_DELAY=-1"
-                    : annotation.url();
-            dataSource = new SimpleDataSource(url, annotation.username(), annotation.password());
+            if (annotation.url().isEmpty()) {
+                // The nanoTime suffix keeps equally named test classes in different packages, and repeated runs of
+                // the same class within one JVM, from sharing a database.
+                String url = "jdbc:h2:mem:" + testClass.getSimpleName() + "-" + System.nanoTime()
+                        + ";DB_CLOSE_DELAY=-1";
+                dataSource = new SimpleDataSource(url, annotation.username(), annotation.password());
+                // DB_CLOSE_DELAY=-1 keeps the database alive for the JVM lifetime; shut it down when the class-level
+                // store closes. Only the database created here is shut down, never a user-provided one.
+                getStore(context).put(DatabaseShutdown.class, new DatabaseShutdown(dataSource));
+            } else {
+                dataSource = new SimpleDataSource(annotation.url(), annotation.username(), annotation.password());
+            }
         }
         if (annotation.scripts().length > 0) {
-            Class<?> testClass = context.getRequiredTestClass();
             try (Connection conn = dataSource.getConnection()) {
                 for (String script : annotation.scripts()) {
                     String sql = readScript(testClass, script);
@@ -124,26 +132,37 @@ public class StormExtension implements BeforeAllCallback, ParameterResolver {
         return getStore(context).get(DataSource.class, DataSource.class);
     }
 
+    /**
+     * Returns the store for the given context. In {@link #beforeAll} the context is the class-level context, so the
+     * {@link DataSource} is stored per test class; concurrently executing test classes never see each other's entry.
+     * Lookups from method-level contexts fall back to ancestor stores, which also makes the entry visible to
+     * {@code @Nested} test classes.
+     */
     private ExtensionContext.Store getStore(ExtensionContext context) {
-        return context.getRoot().getStore(NAMESPACE);
+        return context.getStore(NAMESPACE);
     }
 
     /**
-     * Looks for a static {@code dataSource()} method on the test class. If found, invokes it and returns the result.
-     * This also checks for a Kotlin companion object with a {@code dataSource()} method.
+     * Looks for a static {@code dataSource()} method on the test class or one of its superclasses. If found, invokes
+     * it and returns the result. This also checks for a Kotlin companion object with a {@code dataSource()} method.
+     *
+     * <p>Superclasses are searched because {@link StormTest} is {@code @Inherited}: the annotation and the factory
+     * method may both live on an abstract base class while the extension runs for the concrete subclass.</p>
      *
      * @return the {@link DataSource} returned by the factory method, or {@code null} if no such method exists.
      */
     private static DataSource findDataSourceFactory(Class<?> testClass) throws Exception {
-        // Check for a Java static method.
-        try {
-            Method method = testClass.getDeclaredMethod("dataSource");
-            if (Modifier.isStatic(method.getModifiers())
-                    && DataSource.class.isAssignableFrom(method.getReturnType())) {
-                method.setAccessible(true);
-                return (DataSource) method.invoke(null);
+        // Check for a Java static method, nearest declaration first.
+        for (Class<?> type = testClass; type != null && type != Object.class; type = type.getSuperclass()) {
+            try {
+                Method method = type.getDeclaredMethod("dataSource");
+                if (Modifier.isStatic(method.getModifiers())
+                        && DataSource.class.isAssignableFrom(method.getReturnType())) {
+                    method.setAccessible(true);
+                    return (DataSource) method.invoke(null);
+                }
+            } catch (NoSuchMethodException ignored) {
             }
-        } catch (NoSuchMethodException ignored) {
         }
         // Check for a Kotlin companion object with a dataSource() method.
         try {
@@ -291,6 +310,25 @@ public class StormExtension implements BeforeAllCallback, ParameterResolver {
             statements.add(current.toString().trim());
         }
         return statements;
+    }
+
+    /**
+     * Shuts down the extension-created H2 database when the class-level store closes, releasing the memory that
+     * {@code DB_CLOSE_DELAY=-1} would otherwise hold onto for the remainder of the JVM lifetime.
+     *
+     * <p>Implements both {@link ExtensionContext.Store.CloseableResource} and {@link AutoCloseable} so the store
+     * invokes it on JUnit 5 as well as on JUnit 6, where {@code CloseableResource} is no longer supported.</p>
+     */
+    private record DatabaseShutdown(DataSource dataSource)
+            implements ExtensionContext.Store.CloseableResource, AutoCloseable {
+
+        @Override
+        public void close() throws SQLException {
+            try (Connection conn = dataSource.getConnection();
+                 var stmt = conn.createStatement()) {
+                stmt.execute("SHUTDOWN");
+            }
+        }
     }
 
     // --- Simple DataSource implementation ---
