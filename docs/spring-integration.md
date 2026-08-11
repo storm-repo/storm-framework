@@ -646,7 +646,7 @@ One composition warning for applications that wire the integration beans themsel
 
 ## Testing with @DataStormTest
 
-`@DataStormTest` (from `storm-spring-boot-test-autoconfigure`, test scope) is the Storm test slice, the counterpart of `@DataJpaTest`: it starts only the `DataSource`, Storm's auto-configuration (template, repository scanning, transaction integration, schema validation, exception translation), and SQL initialization, plus Flyway or Liquibase when present. It complements [`@StormTest`](testing.md), which tests data logic without a Spring context: use `@StormTest` for fast query-level tests, and the slice when the test should see what production Spring code sees: injected repository beans, translated exceptions, Spring-managed transactions, and your `storm.*` configuration. Regular `@Component`, `@Service`, and `@Controller` beans stay out of the context. Each test method runs in a transaction that is rolled back afterwards, so tests cannot see each other's writes.
+`@DataStormTest` (from `storm-spring-boot-test-autoconfigure`, test scope) is the Storm test slice, the counterpart of `@DataJpaTest`: it starts only the `DataSource`, Storm's auto-configuration (template, repository scanning and proxying, transaction integration, schema validation, exception translation), and SQL initialization, plus Flyway or Liquibase when present. Repositories carry the same AOP proxy as in the running application, so `@Transactional` and other interface-level advice behave identically under test, and a `JdbcTemplate` and `JdbcClient` are available for verifying database state through a channel independent of the ORM under test. It complements [`@StormTest`](testing.md), which tests data logic without a Spring context: use `@StormTest` for fast query-level tests, and the slice when the test should see what production Spring code sees: injected repository beans, translated exceptions, Spring-managed transactions, and your `storm.*` configuration. Regular `@Component`, `@Service`, and `@Controller` beans stay out of the context. Each test method runs in a transaction that is rolled back afterwards, so tests cannot see each other's writes.
 
 The application's `DataSource` is replaced with an embedded in-memory database by default, on Spring Boot 3 and 4 alike (the slice ships a fallback for Boot 4's relocated test-database support); put a `schema.sql` (and optionally `data.sql`) on the test classpath to initialize it, or let Flyway or Liquibase (included in the slice) create the schema as in production:
 
@@ -690,6 +690,8 @@ class VisitRepositoryPostgresTest(
     }
 }
 ```
+
+`@ServiceConnection` also works on a container declared as a `@Bean` in a test configuration, the pattern `@TestConfiguration` classes shared between tests use.
 
 The slice works with both starters, pulling in the starter's auto-configuration classes by name, which are identical for the Java and Kotlin stacks. It also works with both Spring Boot 3 and 4: where Spring Boot moved classes between the releases, the slice is exclusion-based rather than annotation-composed. The annotation supports `properties` for per-test configuration (for example `properties = ["storm.validation.schema-mode=none"]` when the test schema deliberately diverges from the entity model) and `includeFilters`/`excludeFilters` to pull additional components into the slice.
 

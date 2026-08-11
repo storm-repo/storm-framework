@@ -33,13 +33,17 @@ import org.springframework.transaction.annotation.Transactional;
  * Annotation for a Storm test slice, the counterpart of annotations like {@code @DataJpaTest}.
  *
  * <p>Starts only the parts of the application relevant to Storm: the {@code DataSource}, Storm's
- * auto-configuration (template, repository scanning, transaction integration, schema validation, exception
- * translation), SQL initialization, and Flyway or Liquibase when present. Regular {@code @Component},
- * {@code @Service} and {@code @Controller} beans are not loaded.</p>
+ * auto-configuration (template, repository scanning and proxying, transaction integration, schema
+ * validation, exception translation), SQL initialization, and Flyway or Liquibase when present. Regular
+ * {@code @Component}, {@code @Service} and {@code @Controller} beans are not loaded. Repositories carry the
+ * same AOP proxy as in the running application, so {@code @Transactional} and other interface-level advice
+ * behave identically under test. A {@code JdbcTemplate} and {@code JdbcClient} are available for verifying
+ * database state through a channel independent of the ORM under test.</p>
  *
  * <p>On Spring Boot 3 an embedded in-memory database replaces the application's {@code DataSource} by
  * default; set {@code spring.test.database.replace=none} to run against the configured database instead,
- * such as a Testcontainers-managed one ({@code @ServiceConnection} works with the slice). On Spring Boot 4
+ * such as a Testcontainers-managed one ({@code @ServiceConnection} works with the slice, on a static
+ * {@code @Container} field as well as on a container declared as a {@code @Bean}). On Spring Boot 4
  * the replacement activates when the {@code spring-boot-jdbc-test-autoconfigure} artifact is present;
  * without it, point the slice at a database with the {@code properties} attribute. Each test method runs
  * in a transaction that is rolled back afterwards.</p>
