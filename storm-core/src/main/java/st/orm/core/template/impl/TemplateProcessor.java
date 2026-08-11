@@ -65,7 +65,11 @@ import st.orm.core.template.impl.TemplatePreparation.PreparedTemplate;
  * consuming the previously recorded bind hints in the same order they were produced during compilation.</p>
  *
  * <p>The processor instance is safe to cache and reuse across threads. All mutable binding state is kept inside
- * {@link BindingSession}. Compile-time state is produced once and treated as immutable after compilation completes.</p>
+ * {@link BindingSession}. Compile-time state is produced once and treated as immutable after compilation completes.
+ * The compile-time fields are neither volatile nor final, so their cross-thread visibility rests entirely on the
+ * publication through {@link SegmentedLruCache}{@code .putIfAbsent}: its synchronized segments supply the
+ * happens-before edge between the compiling thread and every later reader. Publishing a processor to other threads
+ * through any channel without such an edge is unsafe.</p>
  *
  * @since 1.8
  */

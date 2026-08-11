@@ -32,14 +32,14 @@ public final class EqualitySupport {
     private EqualitySupport() {}
 
     /**
-     * Compiles an {@link Same} implementation for the given field getter.
+     * Compiles a {@link ValueComparator} implementation for the given field getter.
      *
      * <p>The handle is expected to behave like {@code (receiverType) -> returnType}. If your handle has a different
      * shape, adapt it before calling this method.</p>
      *
      * <p>No boxing is performed for primitive return types.</p>
      */
-    public static <T> Same<T> compileIsSame(MethodHandle handle) {
+    public static <T> ValueComparator<T> compileIsSame(MethodHandle handle) {
         requireNonNull(handle, "handle");
         Class<?> r = handle.type().returnType();
         if (r == int.class) {
@@ -115,14 +115,14 @@ public final class EqualitySupport {
     }
 
     /**
-     * Compiles an {@link Identical} implementation for the given field getter.
+     * Compiles an {@link IdentityComparator} implementation for the given field getter.
      *
      * <p>Identity comparison is only defined for reference-typed fields. For primitive return types this method wraps
      * the isSame implementation.
      *
      * <p>No boxing is performed.</p>
      */
-    public static <T> Identical<T> compileIsIdentical(MethodHandle handle) {
+    public static <T> IdentityComparator<T> compileIsIdentical(MethodHandle handle) {
         requireNonNull(handle, "handle");
         Class<?> r = handle.type().returnType();
         if (r.isPrimitive()) {

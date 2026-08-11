@@ -88,7 +88,7 @@ public final class MetamodelFactory {
      * Creates a new metamodel for the given record type.
      */
     private static <T extends Data> Metamodel<T, T> getRootModel(Class<T> table) {
-        Same<T> wrapped = null;
+        ValueComparator<T> wrapped = null;
         if (Data.class.isAssignableFrom(table)) {
             var pkField = findPkField(table).orElse(null);
             if (pkField != null) {
@@ -97,7 +97,7 @@ public final class MetamodelFactory {
                 wrapped = s::isSame;
             }
         }
-        Same<T> same = wrapped == null ? Objects::equals : wrapped;
+        ValueComparator<T> same = wrapped == null ? Objects::equals : wrapped;
         return new AbstractMetamodel<>(table) {
             @Override
             public T getValue(T record) {
@@ -682,8 +682,8 @@ public final class MetamodelFactory {
         private final Class<T> root;
         private final Metamodel<T, ? extends Data> table;
         private final MethodHandle handle;
-        private final Identical<T> identical;
-        private final Same<T> same;
+        private final IdentityComparator<T> identical;
+        private final ValueComparator<T> same;
 
         SimpleKeyMetamodel(Class<T> root,
                            String path,
@@ -699,7 +699,7 @@ public final class MetamodelFactory {
             this.table = table;
             this.handle = handle;
             this.identical = EqualitySupport.compileIsIdentical(handle);
-            Same<T> wrapped = null;
+            ValueComparator<T> wrapped = null;
             if (Data.class.isAssignableFrom(fieldType)) {
                 var pkField = findPkField(fieldType).orElse(null);
                 if (pkField != null) {
@@ -786,8 +786,8 @@ public final class MetamodelFactory {
         private final Class<T> root;
         private final Metamodel<T, ? extends Data> table;
         private final MethodHandle handle;
-        private final Identical<T> identical;
-        private final Same<T> same;
+        private final IdentityComparator<T> identical;
+        private final ValueComparator<T> same;
 
         SimpleMetamodel(Class<T> root,
                         String path,
@@ -802,7 +802,7 @@ public final class MetamodelFactory {
             this.table = table;
             this.handle = handle;
             this.identical = EqualitySupport.compileIsIdentical(handle);
-            Same<T> wrapped = null;
+            ValueComparator<T> wrapped = null;
             if (Data.class.isAssignableFrom(fieldType)) {
                 var pkField = findPkField(fieldType).orElse(null);
                 if (pkField != null) {

@@ -812,7 +812,8 @@ class TemplatePreparation {
         // When demandOnly is set, only referenced foreign keys are joined (the hydrated graph is not expanded), so
         // the recursion starts already beyond the eager region.
         if (!isSealedEntity(table)) {
-            addAutoJoins(getRecordType(table), table, rootTable, List.of(), aliasMapper, tableMapper, joins, null, false, referenced, demandOnly);
+            var context = new AutoJoinContext(rootTable, aliasMapper, tableMapper, joins, referenced);
+            deriveAutoJoins(getRecordType(table), table, List.of(), null, false, demandOnly, context);
         } else if (!demandOnly && isJoinedEntity(table)) {
             // For JOINED inheritance, add LEFT JOIN for each extension table (permitted subclass with
             // @DbTable) using PK=PK ON conditions.
@@ -882,6 +883,19 @@ class TemplatePreparation {
     }
 
     /**
+     * The arguments of an auto-join derivation that stay fixed across the recursion: the root the mappings are
+     * registered against, the mappers that receive them, the output join list, and the query's referenced paths.
+     * Bundling them leaves the genuinely varying traversal state visible in the recursive signature.
+     */
+    private record AutoJoinContext(
+            Class<? extends Data> rootTable,
+            AliasMapper aliasMapper,
+            TableMapper tableMapper,
+            List<Join> joins,
+            ReferencedPaths referenced) {
+    }
+
+    /**
      * Recursively derives joins and alias mappings for a record type graph.
      *
      * <p>{@link FK} fields trigger join generation. {@link Ref} foreign keys do not generate a join, but they register
@@ -890,28 +904,27 @@ class TemplatePreparation {
      *
      * @param type        the current record type.
      * @param table       the current table type.
-     * @param rootTable   the root table for mapping purposes.
      * @param path        the current record field path.
-     * @param aliasMapper alias mapper used for alias lookup and generation.
-     * @param tableMapper table mapper used for mapping foreign keys.
-     * @param joins       output list that receives derived joins.
      * @param fkName      the alias to use as the join source for nested traversal, or {@code null}.
      * @param outerJoin   whether joins in this subtree must be outer joins due to a nullable ancestor.
+     * @param beyondRef   whether the traversal is below a reference boundary, where joins are demand-driven.
+     * @param context     the arguments that stay fixed across the recursion.
      * @throws SqlTemplateException if derivation fails.
      */
-    private void addAutoJoins(
+    private void deriveAutoJoins(
             RecordType type,
             Class<? extends Data> table,
-            Class<? extends Data> rootTable,
             List<RecordField> path,
-            AliasMapper aliasMapper,
-            TableMapper tableMapper,
-            List<Join> joins,
             @Nullable String fkName,
             boolean outerJoin,
-            ReferencedPaths referenced,
-            boolean beyondRef
+            boolean beyondRef,
+            AutoJoinContext context
     ) throws SqlTemplateException {
+        var rootTable = context.rootTable();
+        var aliasMapper = context.aliasMapper();
+        var tableMapper = context.tableMapper();
+        var joins = context.joins();
+        var referenced = context.referenced();
         for (var field : type.fields()) {
             var list = new ArrayList<>(path);
             String fkPath = toPathString(path);
@@ -943,9 +956,8 @@ class TemplatePreparation {
                             boolean effectiveOuterJoin = outerJoin || field.nullable();
                             String alias = addForeignKeyJoin(table, rootTable, field, fieldType, fromAlias, fkPath,
                                     pkPath, effectiveOuterJoin, aliasMapper, tableMapper, joins);
-                            addAutoJoins(fieldType, fieldType.requireDataType(), rootTable, copy, aliasMapper,
-                                    tableMapper, joins, alias, effectiveOuterJoin, referenced,
-                                    !referenced.hydrated().contains(pkPath));
+                            deriveAutoJoins(fieldType, fieldType.requireDataType(), copy, alias,
+                                    effectiveOuterJoin, !referenced.hydrated().contains(pkPath), context);
                         }
                     }
                     continue;
@@ -982,7 +994,8 @@ class TemplatePreparation {
                 boolean effectiveOuterJoin = outerJoin || field.nullable();
                 String alias = addForeignKeyJoin(table, rootTable, field, fieldType, fromAlias, fkPath,
                         pkPath, effectiveOuterJoin, aliasMapper, tableMapper, joins);
-                addAutoJoins(fieldType, fieldType.requireDataType(), rootTable, copy, aliasMapper, tableMapper, joins, alias, effectiveOuterJoin, referenced, beyondRef && !referenced.hydrated().contains(pkPath));
+                deriveAutoJoins(fieldType, fieldType.requireDataType(), copy, alias, effectiveOuterJoin,
+                        beyondRef && !referenced.hydrated().contains(pkPath), context);
             } else if (isRecord(field.type())) {
                 if (field.isAnnotationPresent(PK.class) || getORMConverter(field).isPresent()) {
                     continue;
@@ -1005,7 +1018,7 @@ class TemplatePreparation {
                 } else {
                     fromAlias = fkName;
                 }
-                addAutoJoins(getRecordType(field.type()), table, rootTable, copy, aliasMapper, tableMapper, joins, fromAlias, outerJoin, referenced, beyondRef);
+                deriveAutoJoins(getRecordType(field.type()), table, copy, fromAlias, outerJoin, beyondRef, context);
             }
         }
     }
