@@ -43,7 +43,7 @@ plugins {
 }
 ```
 
-That is the entire Storm setup, including the `--enable-preview` flags on compilation, tests, and execution that storm-java21's String Templates (JEP 430) require. Use a JDK 21 toolchain: preview class files are version-locked, so storm-java21 runs on JDK 21 exactly.
+That is the entire Storm setup, including the `--enable-preview` flags on compilation, tests, execution, and javadoc generation that storm-java21's String Templates (JEP 430) require. Use a JDK 21 toolchain: preview class files are version-locked, so storm-java21 runs on JDK 21 exactly.
 
 </TabItem>
 </Tabs>
@@ -55,9 +55,9 @@ The plugin configures, per language path:
 | BOM | `storm-bom` imported as a platform | `storm-bom` imported as a platform |
 | API | `storm-kotlin` | `storm-java21` |
 | Engine | `storm-core` (runtime only) | `storm-core` (runtime only) |
-| Metamodel | `storm-metamodel-ksp` on `ksp` | `storm-metamodel-processor` on `annotationProcessor` |
+| Metamodel | `storm-metamodel-ksp` on every source set's KSP configuration (`ksp`, `kspTest`, ...) | `storm-metamodel-processor` on every source set's processor configuration (`annotationProcessor`, `testAnnotationProcessor`, ...) |
 | Compiler plugin | `storm-compiler-plugin-<variant>` matching the Kotlin version | — |
-| Compiler flags | — | `--enable-preview` on compile, test, and exec tasks |
+| Compiler flags | — | `--enable-preview` on compile, test, exec, and javadoc tasks |
 
 All Storm coordinates use the plugin's own version; the plugin and the artifacts are released together. Because the BOM is imported, optional modules stay version-less: `runtimeOnly("st.orm:storm-postgresql")` just works.
 

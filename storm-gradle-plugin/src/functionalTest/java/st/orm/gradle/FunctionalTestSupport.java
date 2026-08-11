@@ -22,9 +22,12 @@ import java.nio.file.Path;
 /**
  * Helpers for TestKit projects. The generated build script registers a {@code stormDump} task that queries
  * the declared dependencies (triggering the plugin's dependency callbacks without resolving artifacts) and
- * prints the compiler argument providers, so assertions run offline and fast. The dump is captured at
- * configuration time and the task action only replays the captured lines, so the task itself is
- * configuration-cache compatible and the same assertions hold on a cache-reusing run.
+ * prints the compiler argument providers and javadoc options, so assertions run offline and fast. The
+ * javadoc options added through {@code addBooleanOption} have no public read accessor, so the dump reads the
+ * task's option file reflectively; {@code JavadocOptionFile.getOptions()} has had this shape since well
+ * before the plugin's minimum Gradle version. The dump is captured at configuration time and the task action
+ * only replays the captured lines, so the task itself is configuration-cache compatible and the same
+ * assertions hold on a cache-reusing run.
  */
 final class FunctionalTestSupport {
 
@@ -42,13 +45,26 @@ final class FunctionalTestSupport {
 
             tasks.register("stormDump") {
                 val lines = buildList {
-                    listOf("implementation", "runtimeOnly", "annotationProcessor", "ksp", "kotlinCompilerPluginClasspath").forEach { name ->
+                    val processorNames = configurations.names.filter { name ->
+                        name == "annotationProcessor" || name.endsWith("AnnotationProcessor") ||
+                            name == "ksp" || (name.startsWith("ksp") && name.length > 3 && name[3].isUpperCase())
+                    }.sorted()
+                    (listOf("implementation", "runtimeOnly", "kotlinCompilerPluginClasspath") + processorNames).forEach { name ->
                         configurations.findByName(name)?.incoming?.dependencies?.forEach { d ->
                             add("DEP $name ${d.group}:${d.name}:${d.version}")
                         }
                     }
                     tasks.withType(JavaCompile::class).forEach { t ->
                         add("ARGS ${t.name} " + t.options.compilerArgumentProviders.flatMap { it.asArguments() })
+                    }
+                    tasks.withType(Javadoc::class).forEach { t ->
+                        val options = t.options as CoreJavadocOptions
+                        val optionFileField = CoreJavadocOptions::class.java.getDeclaredField("optionFile")
+                        optionFileField.isAccessible = true
+                        val optionFile = optionFileField.get(options)
+                        @Suppress("UNCHECKED_CAST")
+                        val names = (optionFile.javaClass.getMethod("getOptions").invoke(optionFile) as Map<String, *>).keys
+                        add("JAVADOC ${t.name} source=${options.source} preview=${names.contains("-enable-preview")}")
                     }
                 }
                 doLast {

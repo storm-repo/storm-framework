@@ -63,7 +63,26 @@ public class KotlinPathFunctionalTest {
         assertFalse(output.contains("storm-java21:"), "The Kotlin path must not add storm-java21.");
         assertFalse(output.contains("storm-metamodel-processor"),
                 "The Kotlin path must not add the Java annotation processor.");
-        assertFalse(output.contains("--enable-preview"), "Preview flags are Java-path only.");
+        assertFalse(output.contains("-enable-preview"), "Preview flags are Java-path only.");
+        assertTrue(output.contains("JAVADOC javadoc source=null preview=false"),
+                "The Kotlin path must leave the javadoc options alone:\n" + output);
+    }
+
+    @Test
+    public void wiresTheProcessorIntoEverySourceSetsKspConfiguration() throws Exception {
+        var output = runDump("""
+                plugins {
+                    id("org.jetbrains.kotlin.jvm") version "2.4.0"
+                    id("com.google.devtools.ksp") version "2.3.10"
+                    id("st.orm")
+                }
+                sourceSets.create("integration")
+                """);
+        assertTrue(output.contains("DEP ksp st.orm:storm-metamodel-ksp:"));
+        assertTrue(output.contains("DEP kspTest st.orm:storm-metamodel-ksp:"),
+                "Entities declared in test sources need the processor too:\n" + output);
+        assertTrue(output.contains("DEP kspIntegration st.orm:storm-metamodel-ksp:"),
+                "Custom source sets need the processor too:\n" + output);
     }
 
     @Test
