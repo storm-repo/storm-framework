@@ -690,22 +690,22 @@ public class QueryBuilderTest {
         assertEquals(3L, result.stream().mapToLong(Long::longValue).sum());
     }
 
-    // PredicateBuilder - andAny / orAny
+    // PredicateBuilder - and / or with a second predicate
 
     @Test
-    public void testPredicateAndAny() {
+    public void testPredicateAndPredicate() {
         List<City> cities = orm.entity(City.class).select()
                 .where(wb -> wb.where(RAW."\{City.class}.id = \{1}")
-                        .andAny(wb.where(RAW."\{City.class}.name = \{"Sun Paririe"}")))
+                        .and(wb.where(RAW."\{City.class}.name = \{"Sun Paririe"}")))
                 .getResultList();
         assertEquals(1, cities.size());
     }
 
     @Test
-    public void testPredicateOrAny() {
+    public void testPredicateOrPredicate() {
         List<City> cities = orm.entity(City.class).select()
                 .where(wb -> wb.where(RAW."\{City.class}.id = \{999}")
-                        .orAny(wb.where(RAW."\{City.class}.name = \{"Madison"}")))
+                        .or(wb.where(RAW."\{City.class}.name = \{"Madison"}")))
                 .getResultList();
         assertEquals(1, cities.size());
     }

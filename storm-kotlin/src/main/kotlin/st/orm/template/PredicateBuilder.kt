@@ -20,12 +20,14 @@ import st.orm.Data
 /**
  * Represents a composable predicate for the WHERE clause of a query, supporting `AND` and `OR` composition.
  *
- * `PredicateBuilder` instances are returned by the methods on [WhereBuilder] and can be combined using [and]
- * and [or] to build compound conditions. Each combinator returns a new `PredicateBuilder` that represents the
- * combined expression.
+ * `PredicateBuilder` instances are returned by the methods on [WhereBuilder] and by the infix operators such as
+ * `eq` and `like`. They combine with `and` and `or`; each combinator returns a new `PredicateBuilder` that
+ * represents the combined expression.
  *
- * Methods named `and`/`or` are type-safe and restrict predicates to the root table's entity graph.
- * Methods named `andAny`/`orAny` accept predicates from any table, including manually added joins.
+ * Inside a [WhereBuilder] scope, the scope's `and`/`or` combinators inherit the query root: a narrow scope
+ * combines predicates within the root table's entity graph, and a join widens the root so the same syntax
+ * combines predicates across all entities in the query. Outside a scope, the top-level `and`/`or` extensions
+ * combine predicates that share the same root.
  *
  * ## Example
  * ```kotlin
@@ -52,29 +54,6 @@ public interface PredicateBuilder<T : Data, R, ID> {
      * This method combines the specified predicate with existing predicates using an AND operation, ensuring
      * that all added conditions must be true.
      *
-     * @param predicate the predicate to add.
-     * @return the predicate builder.
-     */
-    public infix fun and(predicate: PredicateBuilder<T, *, *>): PredicateBuilder<T, R, ID>
-
-    /**
-     * Adds a predicate to the WHERE clause using an AND condition.
-     *
-     *
-     * This method combines the specified predicate with existing predicates using an AND operation, ensuring
-     * that all added conditions must be true.
-     *
-     * @param predicate the predicate to add.
-     * @return the predicate builder.
-     */
-    public infix fun <TX : Data, RX, IDX> andAny(predicate: PredicateBuilder<TX, RX, IDX>): PredicateBuilder<TX, RX, IDX>
-
-    /**
-     * Adds a predicate to the WHERE clause using an AND condition.
-     *
-     * This method combines the specified predicate with existing predicates using an AND operation, ensuring
-     * that all added conditions must be true.
-     *
      * @param template the predicate builder to add.
      * @return the predicate builder.
      */
@@ -90,30 +69,6 @@ public interface PredicateBuilder<T : Data, R, ID> {
      * @return the predicate builder.
      */
     public infix fun and(template: TemplateString): PredicateBuilder<T, R, ID>
-
-    /**
-     * Adds a predicate to the WHERE clause using an OR condition.
-     *
-     *
-     * This method combines the specified predicate with existing predicates using an OR operation, allowing any
-     * of the added conditions to be true.
-     *
-     * @param predicate the predicate to add.
-     * @return the predicate builder.
-     */
-    public infix fun or(predicate: PredicateBuilder<T, *, *>): PredicateBuilder<T, R, ID>
-
-    /**
-     * Adds a predicate to the WHERE clause using an OR condition.
-     *
-     *
-     * This method combines the specified predicate with existing predicates using an OR operation, allowing any
-     * of the added conditions to be true.
-     *
-     * @param predicate the predicate to add.
-     * @return the predicate builder.
-     */
-    public infix fun <TX : Data, RX, IDX> orAny(predicate: PredicateBuilder<TX, RX, IDX>): PredicateBuilder<TX, RX, IDX>
 
     /**
      * Adds a predicate to the WHERE clause using an OR condition.

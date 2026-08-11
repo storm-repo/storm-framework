@@ -1033,10 +1033,10 @@ open class EntityRepositoryTest(
         preparedQuery.close()
     }
 
-    // QueryBuilder: whereAny with multiple predicates
+    // QueryBuilder: whereBuilder with multiple predicates
 
     @Test
-    fun `whereAny with combined predicates should match any`() {
+    fun `whereBuilder with combined predicates should match any`() {
         val repo = orm.entity(City::class)
         val namePath = metamodel<City, String>(repo.model, "name")
         val cities = repo.select().whereBuilder {
@@ -1045,15 +1045,15 @@ open class EntityRepositoryTest(
         cities shouldHaveSize 2
     }
 
-    // QueryBuilder: andAny / orAny predicate builders
+    // QueryBuilder: and / or predicate combinators
 
     @Test
-    fun `andAny should combine predicates with AND-OR logic`() {
+    fun `and should combine predicates with AND-OR logic`() {
         val repo = orm.entity(Owner::class)
         val firstNamePath = metamodel<Owner, String>(repo.model, "first_name")
         val lastNamePath = metamodel<Owner, String>(repo.model, "last_name")
         val result = repo.select().whereBuilder {
-            (lastNamePath eq "Davis") andAny (
+            (lastNamePath eq "Davis") and (
                 (firstNamePath eq "Betty") or (firstNamePath eq "Harold")
                 )
         }.resultList
@@ -1061,7 +1061,7 @@ open class EntityRepositoryTest(
     }
 
     @Test
-    fun `orAny should combine predicates with OR logic`() {
+    fun `or should combine predicates with OR logic`() {
         val repo = orm.entity(City::class)
         val namePath = metamodel<City, String>(repo.model, "name")
         val result = repo.select().whereBuilder {

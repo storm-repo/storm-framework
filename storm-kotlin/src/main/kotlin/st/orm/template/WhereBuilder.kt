@@ -29,9 +29,9 @@ import st.orm.template.TemplateString.Companion.raw
  * matching by primary key, record, ref, metamodel path, or custom template string expressions. Each method returns
  * a [PredicateBuilder] that can be further composed using `and()` and `or()` combinators.
  *
- * The `where` methods are type-safe and restrict metamodel paths to the root table's entity graph. Predicates for
- * other tables, including manually added joins, can be combined using the [PredicateBuilder.andAny] and
- * [PredicateBuilder.orAny] combinators or expressed as custom template strings.
+ * The `where` methods are type-safe and restrict metamodel paths to the root table's entity graph. A join widens
+ * the query root, and the scope's `and`/`or` combinators inherit it: a narrow scope combines predicates within
+ * the root graph, a widened scope combines predicates across all entities in the query.
  *
  * ## Example
  * ```kotlin
@@ -61,6 +61,30 @@ public interface WhereBuilder<T : Data, R, ID> : SubqueryTemplate {
      * A predicate that always evaluates to false.
      */
     public fun FALSE(): PredicateBuilder<T, R, ID> = where(raw("FALSE"))
+
+    /**
+     * Combines this predicate with another using an AND condition.
+     *
+     * The combinator inherits the query root of this `WhereBuilder`: a narrow scope combines predicates within
+     * the root table's entity graph, and a join widens the root so predicates rooted at any entity in the query
+     * combine with the same syntax.
+     *
+     * @param predicate the predicate to add.
+     * @return the combined predicate builder.
+     */
+    public infix fun PredicateBuilder<out T, *, *>.and(predicate: PredicateBuilder<out T, *, *>): PredicateBuilder<T, R, ID>
+
+    /**
+     * Combines this predicate with another using an OR condition.
+     *
+     * The combinator inherits the query root of this `WhereBuilder`: a narrow scope combines predicates within
+     * the root table's entity graph, and a join widens the root so predicates rooted at any entity in the query
+     * combine with the same syntax.
+     *
+     * @param predicate the predicate to add.
+     * @return the combined predicate builder.
+     */
+    public infix fun PredicateBuilder<out T, *, *>.or(predicate: PredicateBuilder<out T, *, *>): PredicateBuilder<T, R, ID>
 
     /**
      * Adds an `EXISTS` condition to the WHERE clause using the specified subquery.

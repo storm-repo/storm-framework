@@ -1243,26 +1243,38 @@ open class QueryBuilderTest(
     }
 
     @Test
-    fun `andAny should combine predicates across different types`() {
+    fun `and should combine two predicates`() {
         val repo = orm.entity(Owner::class)
         val firstNamePath = metamodel<Owner, String>(repo.model, "first_name")
         val lastNamePath = metamodel<Owner, String>(repo.model, "last_name")
-        // Use andAny to combine a predicate with another typed predicate.
         val result = repo.select().whereBuilder {
-            (firstNamePath eq "Betty") andAny (lastNamePath eq "Davis")
+            (firstNamePath eq "Betty") and (lastNamePath eq "Davis")
         }.resultList
         result shouldHaveSize 1
         result[0].firstName shouldBe "Betty"
     }
 
     @Test
-    fun `orAny should combine predicates across different types`() {
+    fun `or should combine two predicates`() {
         val repo = orm.entity(City::class)
         val namePath = metamodel<City, String>(repo.model, "name")
         val result = repo.select().whereBuilder {
-            (namePath eq "Madison") orAny (namePath eq "Windsor")
+            (namePath eq "Madison") or (namePath eq "Windsor")
         }.resultList
         result shouldHaveSize 2
+    }
+
+    @Test
+    fun `and should combine predicates across entities after a join`() {
+        val petNamePath = metamodel<Pet, String>(orm.entity(Pet::class).model, "name")
+        val ownerLastNamePath = metamodel<Owner, String>(orm.entity(Owner::class).model, "last_name")
+        val pets = orm.entity(Pet::class).select()
+            .innerJoin(Owner::class).on(Pet::class)
+            .whereBuilder {
+                (petNamePath eq "Leo") and (ownerLastNamePath eq "Davis")
+            }.resultList
+        pets shouldHaveSize 1
+        pets[0].name shouldBe "Leo"
     }
 
     @Test

@@ -446,16 +446,9 @@ abstract class QueryBuilderImpl<T extends Data, R, ID> extends QueryBuilder<T, R
         }
 
         @Override
-        public PredicateBuilder<TX, RX, IDX> and(@Nonnull PredicateBuilder<TX, ?, ?> predicate) {
+        public PredicateBuilder<TX, RX, IDX> and(@Nonnull PredicateBuilder<? extends Data, ?, ?> predicate) {
             add(RAW_AND, predicate);
             return this;
-        }
-
-        @Override
-        public <TY extends Data, RY, IDY> PredicateBuilder<TY, RY, IDY> andAny(@Nonnull PredicateBuilder<TY, RY, IDY> predicate) {
-            add(RAW_AND, predicate);
-            //noinspection unchecked
-            return (PredicateBuilder<TY, RY, IDY>) this;
         }
 
         @Override
@@ -465,16 +458,9 @@ abstract class QueryBuilderImpl<T extends Data, R, ID> extends QueryBuilder<T, R
         }
 
         @Override
-        public PredicateBuilder<TX, RX, IDX> or(@Nonnull PredicateBuilder<TX, ?, ?> predicate) {
+        public PredicateBuilder<TX, RX, IDX> or(@Nonnull PredicateBuilder<? extends Data, ?, ?> predicate) {
             add(RAW_OR, predicate);
             return this;
-        }
-
-        @Override
-        public <TY extends Data, RY, IDY> PredicateBuilder<TY, RY, IDY> orAny(@Nonnull PredicateBuilder<TY, RY, IDY> predicate) {
-            add(RAW_OR, predicate);
-            //noinspection unchecked
-            return (PredicateBuilder<TY, RY, IDY>) this;
         }
 
         @Override

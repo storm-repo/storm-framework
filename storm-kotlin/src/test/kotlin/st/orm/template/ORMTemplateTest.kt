@@ -1540,26 +1540,26 @@ open class ORMTemplateTest(
         cities shouldHaveSize 0
     }
 
-    // PredicateBuilder: andAny/orAny
+    // PredicateBuilder: and/or
 
     @Test
-    fun `predicateBuilder andAny should combine predicates from different entities`() {
+    fun `predicateBuilder and should combine predicates`() {
         val repo = orm.entity(City::class)
         val namePath = metamodel<City, String>(repo.model, "name")
         val idPath = metamodel<City, Int>(repo.model, "id")
         val cities = repo.select().whereBuilder {
-            (namePath eq "Madison") andAny (idPath eq 2)
+            (namePath eq "Madison") and (idPath eq 2)
         }.resultList
         cities shouldHaveSize 1
     }
 
     @Test
-    fun `predicateBuilder orAny should combine predicates from different entities`() {
+    fun `predicateBuilder or should combine predicates`() {
         val repo = orm.entity(City::class)
         val namePath = metamodel<City, String>(repo.model, "name")
         val idPath = metamodel<City, Int>(repo.model, "id")
         val cities = repo.select().whereBuilder {
-            (namePath eq "Madison") orAny (idPath eq 1)
+            (namePath eq "Madison") or (idPath eq 1)
         }.resultList
         cities shouldHaveSize 2
     }

@@ -34,9 +34,8 @@ import st.orm.Ref;
  * {@code and()} and {@code or()} combinators.</p>
  *
  * <p>The {@code where} methods are type-safe and restrict metamodel paths to the root table's entity graph.
- * Predicates for other tables, including manually added joins, can be combined using the
- * {@link PredicateBuilder#andAny} and {@link PredicateBuilder#orAny} combinators or expressed as custom string
- * template expressions.</p>
+ * A join widens the query root, after which the {@code where} methods accept paths from any entity in the query;
+ * a path on an entity outside the query fails when the query is built.</p>
  *
  * <h2>Example</h2>
  * <pre>{@code

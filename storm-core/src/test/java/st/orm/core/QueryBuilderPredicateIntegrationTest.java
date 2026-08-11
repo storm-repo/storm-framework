@@ -238,27 +238,27 @@ public class QueryBuilderPredicateIntegrationTest {
         assertTrue(cities.size() >= 1);
     }
 
-    // PredicateBuilder.andAny - AND with cross-type predicate
+    // PredicateBuilder.and - AND with a second predicate
 
     @Test
-    public void testPredicateBuilderAndAny() {
+    public void testPredicateBuilderAndPredicate() {
         var orm = ORMTemplate.of(dataSource);
         List<Visit> visits = orm.selectFrom(Visit.class)
                 .where(predicate -> predicate.where(Visit_.id, GREATER_THAN, 0)
-                        .andAny(predicate.where(Visit_.id, IN, List.of(1, 2, 3))))
+                        .and(predicate.where(Visit_.id, IN, List.of(1, 2, 3))))
                 .getResultList();
         assertEquals(3, visits.size());
     }
 
-    // PredicateBuilder.orAny - OR with cross-type predicate
+    // PredicateBuilder.or - OR with a second predicate
 
     @Test
-    public void testPredicateBuilderOrAny() {
+    public void testPredicateBuilderOrPredicate() {
         var orm = ORMTemplate.of(dataSource);
         List<Visit> visits = orm.selectFrom(Visit.class)
                 .typedId(Integer.class)
                 .where(predicate -> predicate.whereId(1)
-                        .orAny(predicate.whereId(2)))
+                        .or(predicate.whereId(2)))
                 .getResultList();
         assertEquals(2, visits.size());
     }
