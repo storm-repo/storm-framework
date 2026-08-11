@@ -90,7 +90,7 @@ private class AnimalRefMetamodel_generated<T : st.orm.Data>(
 }
 
 /** A self-referential entity. Its `parent` reference points back at the table that declares it. */
-data class SelfNode(
+internal data class SelfNode(
     @PK val id: Int = 0,
     @FK val parent: Ref<SelfNode>? = null,
 ) : Entity<Int>
@@ -164,7 +164,7 @@ private class SelfNodeRefMetamodel_generated<T : st.orm.Data>(
     }
 }
 
-class RefGraphTraversalTest {
+internal class RefGraphTraversalTest {
 
     @Test
     fun `self-referential reference metamodel constructs without recursing`() {

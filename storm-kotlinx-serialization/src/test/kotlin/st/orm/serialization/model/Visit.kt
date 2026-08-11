@@ -10,7 +10,7 @@ import java.time.LocalDate
 /**
  * Simple domain object representing a visit.
  */
-data class Visit(
+internal data class Visit(
     @PK val id: Int = 0,
     val visitDate: LocalDate,
     val description: String? = null,

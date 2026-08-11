@@ -28,7 +28,7 @@ import javax.sql.DataSource
  * JVM-global static state that the second context overwrote, so transactions could bind to the wrong manager and
  * standalone templates were silently hijacked by whichever Spring context refreshed last.
  */
-class DualContextIsolationTest {
+internal class DualContextIsolationTest {
 
     private val contexts = mutableListOf<AnnotationConfigApplicationContext>()
 

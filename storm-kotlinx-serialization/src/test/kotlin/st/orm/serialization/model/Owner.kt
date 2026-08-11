@@ -7,7 +7,7 @@ import st.orm.PK
 /**
  * Simple domain object representing an owner.
  */
-data class Owner(
+internal data class Owner(
     @PK val id: Int = 0,
     override val firstName: String,
     override val lastName: String,

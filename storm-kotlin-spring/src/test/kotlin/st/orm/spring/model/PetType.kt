@@ -8,7 +8,7 @@ import st.orm.PK
  * Can be Cat, Dog, Hamster...
  */
 @JvmRecord
-data class PetType(
+internal data class PetType(
     @PK(generation = GenerationStrategy.NONE) val id: Int = 0,
     val name: String,
 ) : Entity<Int>

@@ -47,7 +47,7 @@ import st.orm.template.ORMTemplate
 import javax.sql.DataSource
 
 @ExtendWith(OutputCaptureExtension::class)
-class StormAutoConfigurationTest {
+internal class StormAutoConfigurationTest {
 
     private val contextRunner = ApplicationContextRunner()
         .withConfiguration(

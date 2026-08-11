@@ -23,7 +23,7 @@ import st.orm.spring.repository.VisitRepository
 @TestConstructor(autowireMode = ALL)
 @SpringBootTest
 @Sql("/data.sql")
-class NullBeanNameRepositoryTest(
+internal class NullBeanNameRepositoryTest(
     val visitRepository: VisitRepository,
 ) {
 

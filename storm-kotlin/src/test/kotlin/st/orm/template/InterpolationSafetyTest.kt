@@ -12,7 +12,7 @@ import org.junit.jupiter.api.Test
  * execute without the [TemplateContext.autoInterpolation] marker: they model templates compiled without the plugin.
  * Lambdas declared in this module are transformed by the plugin during test compilation and carry the marker.
  */
-class InterpolationSafetyTest {
+internal class InterpolationSafetyTest {
 
     @Test
     fun `fail mode throws for a template without the plugin marker`() {

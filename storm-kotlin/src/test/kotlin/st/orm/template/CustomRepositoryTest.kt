@@ -26,7 +26,7 @@ import st.orm.template.model.OwnerView
  * `ORMReflectionImpl.execute()`, which in turn calls `findKotlinDefault()` and `scanMethods()`
  * to locate and invoke the static helper in `DefaultImpls`.
  */
-interface CityCustomRepo : EntityRepository<City, Int> {
+internal interface CityCustomRepo : EntityRepository<City, Int> {
 
     /**
      * Default method that delegates to [count].
@@ -52,7 +52,7 @@ interface CityCustomRepo : EntityRepository<City, Int> {
 /**
  * Custom ProjectionRepository with a Kotlin default method.
  */
-interface OwnerViewCustomRepo : ProjectionRepository<OwnerView, Int> {
+internal interface OwnerViewCustomRepo : ProjectionRepository<OwnerView, Int> {
 
     /**
      * Default method that delegates to [count].
@@ -78,7 +78,7 @@ interface OwnerViewCustomRepo : ProjectionRepository<OwnerView, Int> {
 @ExtendWith(SpringExtension::class)
 @ContextConfiguration(classes = [IntegrationConfig::class])
 @Sql("/data.sql")
-open class CustomRepositoryTest(
+internal open class CustomRepositoryTest(
     @Autowired val orm: ORMTemplate,
 ) {
 

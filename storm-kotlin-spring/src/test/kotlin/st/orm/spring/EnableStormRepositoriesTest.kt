@@ -17,7 +17,7 @@ import javax.sql.DataSource
  * Verifies that [EnableStormRepositories] binds repositories through the Kotlin adapter when
  * storm-kotlin-spring is on the classpath.
  */
-class EnableStormRepositoriesTest {
+internal class EnableStormRepositoriesTest {
 
     @Configuration
     open class DatabaseConfiguration {

@@ -24,7 +24,7 @@ import st.orm.template.*
 @ContextConfiguration(classes = [SpringIntegrationConfig::class])
 @SpringBootTest
 @Sql("/data.sql")
-open class SpringManagedTransactionTest(
+internal open class SpringManagedTransactionTest(
     @Autowired val orm: ORMTemplate,
 ) {
 

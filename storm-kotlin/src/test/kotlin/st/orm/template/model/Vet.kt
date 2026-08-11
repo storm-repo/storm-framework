@@ -21,7 +21,7 @@ import st.orm.PK
 /**
  * Simple domain object representing a veterinarian.
  */
-data class Vet(
+internal data class Vet(
     @PK val id: Int = 0,
     override val firstName: String,
     override val lastName: String,

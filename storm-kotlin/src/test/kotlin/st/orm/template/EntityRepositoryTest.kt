@@ -23,7 +23,7 @@ import st.orm.template.model.*
 @ExtendWith(SpringExtension::class)
 @ContextConfiguration(classes = [IntegrationConfig::class])
 @Sql("/data.sql")
-open class EntityRepositoryTest(
+internal open class EntityRepositoryTest(
     @Autowired val orm: ORMTemplate,
 ) {
 

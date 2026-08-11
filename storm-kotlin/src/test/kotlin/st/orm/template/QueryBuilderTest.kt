@@ -34,7 +34,7 @@ import kotlin.reflect.KClass
 @ExtendWith(SpringExtension::class)
 @ContextConfiguration(classes = [IntegrationConfig::class])
 @Sql("/data.sql")
-open class QueryBuilderTest(
+internal open class QueryBuilderTest(
     @Autowired val orm: ORMTemplate,
 ) {
 

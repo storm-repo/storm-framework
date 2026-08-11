@@ -23,7 +23,7 @@ import javax.sql.DataSource
 @ExtendWith(SpringExtension::class)
 @ContextConfiguration(classes = [IntegrationConfig::class])
 @DataJpaTest(showSql = false)
-open class JsonORMConverterProviderTest(
+internal open class JsonORMConverterProviderTest(
     @Autowired val dataSource: DataSource,
 ) {
 

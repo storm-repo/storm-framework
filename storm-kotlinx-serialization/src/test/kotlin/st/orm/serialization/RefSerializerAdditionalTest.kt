@@ -22,7 +22,7 @@ import st.orm.Ref
  * round-trip serialization, mixed loaded/unloaded refs, and edge cases not covered by
  * the primary [RefSerializerTest].
  */
-class RefSerializerAdditionalTest {
+internal class RefSerializerAdditionalTest {
 
     @Serializable
     data class SimpleEntity(

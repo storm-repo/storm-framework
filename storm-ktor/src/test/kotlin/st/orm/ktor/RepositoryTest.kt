@@ -11,7 +11,7 @@ import st.orm.ktor.model.Pet
 import st.orm.ktor.model.PetRepository
 import st.orm.ktor.model.PetView
 
-class RepositoryTest {
+internal class RepositoryTest {
 
     private fun createTestDataSource(): HikariDataSource {
         val config = HikariConfig().apply {

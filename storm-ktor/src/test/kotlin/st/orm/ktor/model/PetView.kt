@@ -5,7 +5,7 @@ import st.orm.PK
 import st.orm.Projection
 
 @DbTable("pet")
-data class PetView(
+internal data class PetView(
     @PK val id: Int = 0,
     val name: String,
 ) : Projection<Int>

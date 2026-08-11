@@ -23,7 +23,7 @@ import st.orm.Ref
  * - resolveClassFromSerialName (via serialName-based resolution)
  * - serializerOrNull (via PK type resolution fallback)
  */
-class StormSerializersModuleHelperTest {
+internal class StormSerializersModuleHelperTest {
 
     // Standard entity types that exercise the generated serializer naming patterns
 

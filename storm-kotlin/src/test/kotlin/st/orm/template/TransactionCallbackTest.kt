@@ -21,7 +21,7 @@ import st.orm.template.model.Visit
 @ExtendWith(SpringExtension::class)
 @ContextConfiguration(classes = [IntegrationConfig::class])
 @Sql("/data.sql")
-open class TransactionCallbackTest(
+internal open class TransactionCallbackTest(
     @Autowired val orm: ORMTemplate,
 ) {
 

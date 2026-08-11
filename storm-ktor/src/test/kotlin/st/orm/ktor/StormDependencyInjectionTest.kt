@@ -20,7 +20,7 @@ import kotlin.reflect.full.starProjectedType
  * Verifies that the Storm plugin exposes the [ORMTemplate] and the registered repositories through Ktor's
  * dependency injection (`ktor-server-di`), and that the exposure can be disabled.
  */
-class StormDependencyInjectionTest {
+internal class StormDependencyInjectionTest {
 
     private fun createTestDataSource(): HikariDataSource {
         val config = HikariConfig().apply {

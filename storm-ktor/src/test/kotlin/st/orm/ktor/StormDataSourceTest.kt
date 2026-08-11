@@ -7,7 +7,7 @@ import io.ktor.server.testing.testApplication
 import org.junit.jupiter.api.Test
 import java.sql.DriverManager
 
-class StormDataSourceTest {
+internal class StormDataSourceTest {
 
     @Test
     fun `creates DataSource from HOCON config`() = testApplication {

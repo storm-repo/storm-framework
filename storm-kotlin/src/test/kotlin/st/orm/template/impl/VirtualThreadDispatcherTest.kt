@@ -13,7 +13,7 @@ import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicReference
 import kotlin.coroutines.EmptyCoroutineContext
 
-class VirtualThreadDispatcherTest {
+internal class VirtualThreadDispatcherTest {
 
     @Test
     fun `constructor with default thread name prefix should create dispatcher`() {

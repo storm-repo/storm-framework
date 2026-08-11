@@ -28,7 +28,7 @@ import javax.sql.DataSource
  * transaction-per-test isolation applies to statements executed by Storm templates.
  */
 @BeforeAny
-class TestSpringConnectionProvider : ConnectionProvider {
+internal class TestSpringConnectionProvider : ConnectionProvider {
 
     override fun getConnection(dataSource: DataSource, context: TransactionContext?): Connection {
         try {

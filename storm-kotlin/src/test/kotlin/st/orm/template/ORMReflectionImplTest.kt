@@ -26,40 +26,40 @@ import java.lang.reflect.Proxy
 
 // Test interfaces with self-contained Kotlin default methods for scanMethods tests.
 
-interface ScanTestNoArgs {
+internal interface ScanTestNoArgs {
     fun greeting(): String = "hello"
 }
 
-interface ScanTestPrimitiveArgs {
+internal interface ScanTestPrimitiveArgs {
     fun add(a: Int, b: Int): Int = a + b
 }
 
-interface ScanTestNullableArgs {
+internal interface ScanTestNullableArgs {
     fun withDefault(name: String?): String = name ?: "default"
 }
 
-interface ScanTestCollectionArgs {
+internal interface ScanTestCollectionArgs {
     fun listSize(items: List<String>): Int = items.size
 }
 
-interface ScanTestReturnsUnit {
+internal interface ScanTestReturnsUnit {
     fun doNothing() {}
 }
 
-interface ScanTestOverloaded {
+internal interface ScanTestOverloaded {
     fun compute(a: Int): Int = a * 2
     fun compute(a: Int, b: Int): Int = a + b
 }
 
-interface ScanTestAbstractOnly {
+internal interface ScanTestAbstractOnly {
     fun abstractMethod(): String
 }
 
-interface ScanTestParent {
+internal interface ScanTestParent {
     fun value(): String = "parent"
 }
 
-interface ScanTestChild : ScanTestParent {
+internal interface ScanTestChild : ScanTestParent {
     override fun value(): String = "child"
 }
 
@@ -70,7 +70,7 @@ interface ScanTestChild : ScanTestParent {
 @ExtendWith(SpringExtension::class)
 @ContextConfiguration(classes = [IntegrationConfig::class])
 @Sql("/data.sql")
-open class ORMReflectionImplTest(
+internal open class ORMReflectionImplTest(
     @Autowired val orm: ORMTemplate,
 ) {
 

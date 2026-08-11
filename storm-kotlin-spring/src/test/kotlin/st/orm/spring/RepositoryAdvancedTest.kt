@@ -41,7 +41,7 @@ import java.time.LocalDate
 @TestConstructor(autowireMode = ALL)
 @SpringBootTest
 @Sql("/data.sql")
-class RepositoryAdvancedTest(
+internal class RepositoryAdvancedTest(
     val visitRepository: VisitRepository,
     val orm: ORMTemplate,
 ) {

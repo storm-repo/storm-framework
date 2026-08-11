@@ -51,7 +51,7 @@ import st.orm.template.transactionBlocking
 @ContextConfiguration(classes = [SpringIntegrationConfig::class])
 @SpringBootTest
 @Sql("/data.sql")
-open class AdditionalTest(
+internal open class AdditionalTest(
     @Autowired val orm: ORMTemplate,
 ) {
 

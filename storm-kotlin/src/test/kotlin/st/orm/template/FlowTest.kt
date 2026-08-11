@@ -15,7 +15,7 @@ import st.orm.template.model.Visit
 @ExtendWith(SpringExtension::class)
 @ContextConfiguration(classes = [IntegrationConfig::class])
 @Sql("/data.sql")
-open class FlowTest(
+internal open class FlowTest(
     @Autowired val orm: ORMTemplate,
 ) {
 

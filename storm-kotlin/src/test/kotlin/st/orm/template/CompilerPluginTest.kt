@@ -31,7 +31,7 @@ import st.orm.template.model.Owner
 @ExtendWith(SpringExtension::class)
 @ContextConfiguration(classes = [IntegrationConfig::class])
 @Sql("/data.sql")
-open class CompilerPluginTest(
+internal open class CompilerPluginTest(
     @Autowired val orm: ORMTemplate,
 ) {
 

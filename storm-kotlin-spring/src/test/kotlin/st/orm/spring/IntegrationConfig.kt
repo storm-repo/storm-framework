@@ -10,7 +10,7 @@ import javax.sql.DataSource
 
 @Configuration
 @EnableTransactionManagement
-open class IntegrationConfig {
+internal open class IntegrationConfig {
 
     @Bean
     open fun dataSource(): DataSource = DataSourceBuilder.create()

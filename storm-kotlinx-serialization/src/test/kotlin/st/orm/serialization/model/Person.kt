@@ -3,7 +3,7 @@ package st.orm.serialization.model
 /**
  * Simple domain object representing a person.
  */
-interface Person {
+internal interface Person {
     val name: String
         get() = "$firstName $lastName"
 

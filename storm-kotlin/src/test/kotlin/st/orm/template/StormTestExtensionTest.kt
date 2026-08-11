@@ -25,7 +25,7 @@ import st.orm.test.StormTest
 import javax.sql.DataSource
 
 @StormTest(scripts = ["/data.sql"])
-class StormTestExtensionTest {
+internal class StormTestExtensionTest {
 
     @Test
     fun `data source should be injected`(dataSource: DataSource) {

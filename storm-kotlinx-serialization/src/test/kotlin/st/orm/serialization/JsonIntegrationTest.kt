@@ -22,7 +22,7 @@ import kotlinx.serialization.json.Json as JsonMapper
 @ExtendWith(SpringExtension::class)
 @ContextConfiguration(classes = [IntegrationConfig::class])
 @DataJpaTest(showSql = false)
-open class JsonIntegrationTest(
+internal open class JsonIntegrationTest(
     @Autowired val dataSource: DataSource,
 ) {
 

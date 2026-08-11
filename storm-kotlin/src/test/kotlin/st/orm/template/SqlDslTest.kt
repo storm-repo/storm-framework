@@ -27,7 +27,7 @@ import st.orm.template.model.Visit
 @ExtendWith(SpringExtension::class)
 @ContextConfiguration(classes = [IntegrationConfig::class])
 @Sql("/data.sql")
-open class SqlDslTest(
+internal open class SqlDslTest(
     @Autowired val orm: ORMTemplate,
 ) {
 

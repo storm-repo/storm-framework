@@ -13,7 +13,7 @@ import st.orm.repository.impl.chunked
 import st.orm.repository.impl.flatMapConcat
 import st.orm.repository.impl.flattenConcat
 
-class FlowUtilsTest {
+internal class FlowUtilsTest {
 
     // chunked() tests
 

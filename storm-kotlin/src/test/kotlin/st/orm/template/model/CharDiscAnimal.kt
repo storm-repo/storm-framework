@@ -8,17 +8,17 @@ import st.orm.PK
 
 @Discriminator(type = CHAR)
 @DbTable("char_disc_animal")
-sealed interface CharDiscAnimal : Entity<Int>
+internal sealed interface CharDiscAnimal : Entity<Int>
 
 @Discriminator("C")
-data class CharDiscCat(
+internal data class CharDiscCat(
     @PK val id: Int = 0,
     val name: String,
     val indoor: Boolean,
 ) : CharDiscAnimal
 
 @Discriminator("D")
-data class CharDiscDog(
+internal data class CharDiscDog(
     @PK val id: Int = 0,
     val name: String,
     val weight: Int,

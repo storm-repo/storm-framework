@@ -16,7 +16,7 @@ import org.junit.jupiter.api.Test
 import st.orm.ktor.model.PetType
 import st.orm.template.ORMTemplate
 
-class StormPluginTest {
+internal class StormPluginTest {
 
     private fun createTestDataSource(): HikariDataSource {
         val config = HikariConfig().apply {

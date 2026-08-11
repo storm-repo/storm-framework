@@ -16,7 +16,7 @@ import st.orm.repository.entity
 @ExtendWith(SpringExtension::class)
 @ContextConfiguration(classes = [IntegrationConfig::class])
 @Sql("/data.sql")
-open class RecordValidationTest(
+internal open class RecordValidationTest(
     @Autowired val orm: ORMTemplate,
 ) {
 

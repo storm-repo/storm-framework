@@ -19,7 +19,7 @@ import st.orm.template.model.Owner
 @ExtendWith(SpringExtension::class)
 @ContextConfiguration(classes = [IntegrationConfig::class])
 @Sql("/data.sql")
-open class EntityCallbackObservedEntityTest(
+internal open class EntityCallbackObservedEntityTest(
     @Autowired val orm: ORMTemplate,
 ) {
 

@@ -13,7 +13,7 @@ import javax.sql.DataSource
  * [IntegrationConfig], whose template falls back to the platform-neutral providers.
  */
 @Configuration
-open class SpringIntegrationConfig : IntegrationConfig() {
+internal open class SpringIntegrationConfig : IntegrationConfig() {
 
     @Bean
     override fun ormTemplate(dataSource: DataSource): ORMTemplate = springOrmTemplate(dataSource) { listOf(transactionManager(dataSource)) }

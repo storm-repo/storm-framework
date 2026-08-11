@@ -28,7 +28,7 @@ import st.orm.Ref
  * generated `$$serializer` or `$$$serializer` patterns, which happens when a type
  * uses `@Serializable(with = CustomSerializer::class)`.
  */
-class ResolveTargetClassStrategyTest {
+internal class ResolveTargetClassStrategyTest {
 
     /**
      * Entity that uses a custom serializer (not the generated one).
@@ -99,7 +99,7 @@ class ResolveTargetClassStrategyTest {
  * The descriptor's serialName is set to the fully qualified class name of the target type,
  * including nested class notation with dots.
  */
-class CustomEntityDataSerializer : KSerializer<ResolveTargetClassStrategyTest.CustomEntity> {
+internal class CustomEntityDataSerializer : KSerializer<ResolveTargetClassStrategyTest.CustomEntity> {
     override val descriptor: SerialDescriptor = buildClassSerialDescriptor(
         // Use the serialName that includes dots for nested class reference.
         // resolveClassFromSerialName will try to resolve this, first as-is (fails),

@@ -18,7 +18,7 @@ import st.orm.template.model.*
 @ExtendWith(SpringExtension::class)
 @ContextConfiguration(classes = [IntegrationConfig::class])
 @Sql("/data.sql")
-open class ModelTest(
+internal open class ModelTest(
     @Autowired val orm: ORMTemplate,
 ) {
 
