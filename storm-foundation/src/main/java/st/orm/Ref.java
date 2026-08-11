@@ -118,12 +118,17 @@ public interface Ref<T extends Data> {
     }
 
     /**
-     * Creates a fully loaded ref instance that wraps the given projection along with its primary key.
+     * Creates a fully loaded ref instance that wraps the given projection along with its row identity.
+     *
+     * <p>The id is a parameter because {@link Projection} deliberately declares no id accessor: a projection's
+     * row identity is not in general derivable from its components. It may differ in type from the primary key
+     * component (a foreign key typed key is identified by the referenced table's key rather than the component
+     * value), or it may not be among the mapped columns at all.</p>
      *
      * @param projection the fully loaded projection to wrap in a ref.
-     * @param id the primary key of the projection.
+     * @param id the row identity of the projection.
      * @param <P> the type of the projection.
-     * @param <ID> the type of the primary key.
+     * @param <ID> the row identity type of the projection.
      * @return a fully loaded ref instance for the provided projection.
      */
     static <P extends Projection<ID>, ID> Ref<P> of(P projection, ID id) {

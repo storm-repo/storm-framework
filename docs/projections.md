@@ -102,6 +102,14 @@ record VisitSummary(
 
 This projection reads from a `visit_summary` view, following the default class name to table name conversion.
 
+### The ID Type Parameter
+
+`Projection<ID>` declares the projection's row identity type: the type the id-based operations work with, such as `findById`, `ref(id)`, and `selectById`. When the primary key component is a foreign key, the row identity is the referenced table's key rather than the component value. A projection with `@PK @FK val basket: Basket` is identified by the basket's `Int` key, so it declares `Projection<Int>`.
+
+Unlike entities, projections expose no `id()` accessor: a projection's row identity is not always derivable from its components. It may differ in type from the primary key component, as above, or it may not be among the mapped columns at all. Operations that need the id of a projection instance take it explicitly, as in `Ref.of(projection, id)`.
+
+Storm validates the declared type argument against the mapped primary key: a projection that maps a `@PK` component must not declare `Void`, and the declared type must match the key's row identity type. A projection without a `@PK` component may still declare a row identity type. This supports typed detached refs, while the id-based repository operations require the mapped key.
+
 ### Projection with Foreign Keys
 
 Projections can reference entities or other projections using `@FK`:

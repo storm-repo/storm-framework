@@ -32,7 +32,8 @@ import kotlin.reflect.KClass
  * @see QueryBuilder
  *
  * @param <P> the type of projection managed by this repository.
- * @param <ID> the type of the primary key of the projection, or [Void] if the projection has no primary key.
+ * @param <ID> the row identity type of the projection, or [Void] if the projection has no primary key. See
+ *             the [Projection] contract for how the row identity relates to the primary key component.
  */
 public interface ProjectionRepository<P, ID : Any> : Repository where P : Projection<ID> {
     /**
@@ -51,9 +52,12 @@ public interface ProjectionRepository<P, ID : Any> : Repository where P : Projec
     public fun ref(id: ID): Ref<P>
 
     /**
-     * Creates a new ref projection instance with the specified projection.
+     * Creates a new ref projection instance with the specified projection and its row identity. The id is a
+     * parameter because a projection's row identity is not in general derivable from its components; see the
+     * [Projection] contract.
      *
      * @param projection the projection.
+     * @param id the row identity of the projection.
      * @return a ref projection instance.
      */
     public fun ref(projection: P, id: ID): Ref<P>

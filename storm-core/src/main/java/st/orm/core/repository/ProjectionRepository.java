@@ -43,7 +43,8 @@ import st.orm.core.template.TemplateString;
  * @since 1.1
  * @see QueryBuilder
  * @param <P> the type of projection managed by this repository.
- * @param <ID> the type of the primary key of the projection, or {@link Void} if the projection has no primary key.
+ * @param <ID> the row identity type of the projection, or {@link Void} if the projection has no primary key. See
+ *             the {@link Projection} contract for how the row identity relates to the primary key component.
  */
 public interface ProjectionRepository<P extends Projection<ID>, ID> extends Repository {
 
@@ -71,9 +72,12 @@ public interface ProjectionRepository<P extends Projection<ID>, ID> extends Repo
     Ref<P> ref(ID id);
 
     /**
-     * Creates a new ref projection instance with the specified projection.
+     * Creates a new ref projection instance with the specified projection and its row identity. The id is a
+     * parameter because a projection's row identity is not in general derivable from its components; see the
+     * {@link Projection} contract.
      *
      * @param projection the projection.
+     * @param id the row identity of the projection.
      * @return a ref projection instance.
      */
     Ref<P> ref(P projection, ID id);
