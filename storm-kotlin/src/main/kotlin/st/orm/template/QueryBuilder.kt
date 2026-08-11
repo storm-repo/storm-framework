@@ -1408,6 +1408,12 @@ public infix fun <T : Data, R, ID> PredicateBuilder<T, R, ID>.or(predicate: Pred
  * }.resultList
  * ```
  *
+ * The scope holds both ends of the root-model axis at once: clauses delegate to a widened builder, so paths of any
+ * entity in the query work without escalation, while the scope's own type parameters keep record, id, ref and fetch
+ * matching typed to the root. Operations that change the builder's type ([QueryBuilder.narrow], [QueryBuilder.widen]
+ * and [QueryBuilder.typedId]) and terminals such as [QueryBuilder.page] and [QueryBuilder.scroll] are deliberately
+ * absent: they belong on the builder the block returns, as in `select { }.narrow<Pet>().resultGroupedBy(Pet_.owner)`.
+ *
  * @param T the entity type being queried.
  * @param R the result type of the query.
  * @param ID the primary key type.
@@ -1449,6 +1455,20 @@ public class SqlScope<T : Data, R, ID : Any> @PublishedApi internal constructor(
     /** Adds a WHERE clause matching a record. */
     public fun where(record: T) {
         builder = builder.where(record)
+    }
+
+    /** Adds a WHERE clause matching any of the specified primary keys. */
+    public fun whereId(it: Iterable<ID>) {
+        builder = builder.whereId(it)
+    }
+
+    /** Adds a WHERE clause matching any of the specified [Ref]s. */
+    public fun whereRef(it: Iterable<Ref<T>>) {
+        // The scope's T is the FROM entity by construction, so this signature already checks what the widened
+        // builder's Ref<Data> parameter cannot: the refs reference the table the query selects from. The cast
+        // re-labels the checked refs to fit the widened signature.
+        @Suppress("UNCHECKED_CAST")
+        builder = builder.whereRef(it as Iterable<Ref<Data>>)
     }
 
     /** Adds a WHERE clause using a SQL template expression (e.g., `where { "${t(User_.score)} > ${t(100)}" }`). */
@@ -1519,6 +1539,76 @@ public class SqlScope<T : Data, R, ID : Any> @PublishedApi internal constructor(
     /** Adds a CROSS JOIN for [J]. */
     public inline fun <reified J : Data> crossJoin() {
         builder = builder.crossJoin(J::class)
+    }
+
+    /** Adds an INNER JOIN for [relation] with a template ON condition. */
+    public fun innerJoin(relation: KClass<out Data>, on: TemplateBuilder) {
+        builder = builder.innerJoin(relation).on(on)
+    }
+
+    /** Adds an INNER JOIN for [J] with a template ON condition (e.g., `innerJoin<Order> { "..." }`). */
+    public inline fun <reified J : Data> innerJoin(noinline on: TemplateBuilder) {
+        builder = builder.innerJoin(J::class).on(on)
+    }
+
+    /** Adds a LEFT JOIN for [relation] with a template ON condition. */
+    public fun leftJoin(relation: KClass<out Data>, on: TemplateBuilder) {
+        builder = builder.leftJoin(relation).on(on)
+    }
+
+    /** Adds a LEFT JOIN for [J] with a template ON condition (e.g., `leftJoin<Order> { "..." }`). */
+    public inline fun <reified J : Data> leftJoin(noinline on: TemplateBuilder) {
+        builder = builder.leftJoin(J::class).on(on)
+    }
+
+    /** Adds a RIGHT JOIN for [relation] with a template ON condition. */
+    public fun rightJoin(relation: KClass<out Data>, on: TemplateBuilder) {
+        builder = builder.rightJoin(relation).on(on)
+    }
+
+    /** Adds a RIGHT JOIN for [J] with a template ON condition (e.g., `rightJoin<Order> { "..." }`). */
+    public inline fun <reified J : Data> rightJoin(noinline on: TemplateBuilder) {
+        builder = builder.rightJoin(J::class).on(on)
+    }
+
+    /** Adds a join of the specified [type] for [relation] under [alias], with automatic ON resolution against [on]. */
+    public fun join(type: JoinType, relation: KClass<out Data>, alias: String, on: KClass<out Data>) {
+        builder = builder.join(type, relation, alias).on(on)
+    }
+
+    /** Adds a join of the specified [type] for [relation] under [alias], with a template ON condition. */
+    public fun join(type: JoinType, relation: KClass<out Data>, alias: String, on: TemplateBuilder) {
+        builder = builder.join(type, relation, alias).on(on)
+    }
+
+    /** Adds an INNER JOIN for the relation given by [template] under [alias], with a template ON condition. */
+    public fun innerJoin(template: TemplateBuilder, alias: String, on: TemplateBuilder) {
+        builder = builder.innerJoin(template, alias).on(on)
+    }
+
+    /** Adds a LEFT JOIN for the relation given by [template] under [alias], with a template ON condition. */
+    public fun leftJoin(template: TemplateBuilder, alias: String, on: TemplateBuilder) {
+        builder = builder.leftJoin(template, alias).on(on)
+    }
+
+    /** Adds a RIGHT JOIN for the relation given by [template] under [alias], with a template ON condition. */
+    public fun rightJoin(template: TemplateBuilder, alias: String, on: TemplateBuilder) {
+        builder = builder.rightJoin(template, alias).on(on)
+    }
+
+    /** Adds a join of the specified [type] for the relation given by [template] under [alias], with a template ON condition. */
+    public fun join(type: JoinType, template: TemplateBuilder, alias: String, on: TemplateBuilder) {
+        builder = builder.join(type, template, alias).on(on)
+    }
+
+    /** Adds a join of the specified [type] for [subquery] under [alias], with a template ON condition. */
+    public fun join(type: JoinType, subquery: QueryBuilder<*, *, *>, alias: String, on: TemplateBuilder) {
+        builder = builder.join(type, subquery, alias).on(on)
+    }
+
+    /** Adds a CROSS JOIN for the relation given by [template]. */
+    public fun crossJoin(template: TemplateBuilder) {
+        builder = builder.crossJoin(template)
     }
 
     /** Adds a GROUP BY clause for the specified metamodel path(s). */
@@ -1601,6 +1691,9 @@ public class SqlScope<T : Data, R, ID : Any> @PublishedApi internal constructor(
      * referenced record without querying.
      */
     public fun fetch(vararg path: Navigable<out T, out Data>) {
+        // The scope's T is the FROM entity by construction, so this signature already checks what the widened
+        // builder's Data-rooted fetch cannot: the paths start at the table the query selects from. The cast
+        // re-labels the checked paths to fit the widened signature.
         @Suppress("UNCHECKED_CAST")
         builder = builder.fetch(path.toList() as List<Navigable<Data, out Data>>)
     }
@@ -1618,6 +1711,11 @@ public class SqlScope<T : Data, R, ID : Any> @PublishedApi internal constructor(
     /** Locks the selected rows for writing (SELECT ... FOR UPDATE). */
     public fun forUpdate() {
         builder = builder.forUpdate()
+    }
+
+    /** Locks the selected rows using a dialect-specific template (e.g., `forLock { "FOR UPDATE SKIP LOCKED" }`). */
+    public fun forLock(template: TemplateBuilder) {
+        builder = builder.forLock(template)
     }
 
     /**
