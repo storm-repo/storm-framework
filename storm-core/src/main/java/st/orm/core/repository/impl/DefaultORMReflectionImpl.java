@@ -16,19 +16,22 @@
 package st.orm.core.repository.impl;
 
 import static java.util.Arrays.asList;
-import static java.util.Arrays.stream;
 import static java.util.Objects.requireNonNull;
 import static java.util.Optional.empty;
+import static java.util.stream.IntStream.range;
 
 import jakarta.annotation.Nonnull;
 import jakarta.annotation.Nullable;
+import java.lang.annotation.Annotation;
 import java.lang.invoke.MethodHandle;
 import java.lang.invoke.MethodHandles;
 import java.lang.invoke.MethodType;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
+import java.lang.reflect.Parameter;
 import java.lang.reflect.RecordComponent;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
@@ -111,28 +114,49 @@ public final class DefaultORMReflectionImpl implements ORMReflection {
             if (!type.isRecord()) {
                 return empty();
             }
+            var components = requireNonNull(type.getRecordComponents(), "getRecordComponents should not return null");
             return CONSTRUCTOR_CACHE.get(type)
                     .map(constructor -> new RecordType(
                             type,
                             constructor,
                             asList(type.getAnnotations()),
-                            stream(requireNonNull(type.getRecordComponents(), "getRecordComponents should not return null"))
-                                    .map(component -> new RecordField(
-                                            component.getDeclaringRecord(),
-                                            component.getName(),
-                                            component.getType(),
-                                            component.getGenericType(),
-                                            !isNonnull(component),
-                                            false,
-                                            component.getAccessor(),
-                                            asList(component.getAnnotations())
-                                        )
-                                    )
+                            range(0, components.length)
+                                    .mapToObj(index -> {
+                                        var component = components[index];
+                                        return new RecordField(
+                                                component.getDeclaringRecord(),
+                                                component.getName(),
+                                                component.getType(),
+                                                component.getGenericType(),
+                                                !isNonnull(component),
+                                                false,
+                                                component.getAccessor(),
+                                                getAnnotations(component, constructor.getParameters()[index])
+                                        );
+                                    })
                                     .toList()
                         )
                     );
         }
     };
+
+    /**
+     * An annotation on a record component reaches the component itself only when its targets include
+     * RECORD_COMPONENT; annotations from other libraries typically propagate to the backing field, accessor or
+     * constructor parameter instead, so all four sites are folded together. An instance propagated to several
+     * sites compares equal and collapses to one, keeping single-instance lookups unambiguous.
+     */
+    private static List<Annotation> getAnnotations(@Nonnull RecordComponent component, @Nonnull Parameter parameter) {
+        var annotations = new LinkedHashSet<>(asList(component.getAnnotations()));
+        try {
+            annotations.addAll(asList(component.getDeclaringRecord().getDeclaredField(component.getName()).getAnnotations()));
+        } catch (NoSuchFieldException e) {
+            // A record component always has a backing field of the same name.
+        }
+        annotations.addAll(asList(component.getAccessor().getAnnotations()));
+        annotations.addAll(asList(parameter.getAnnotations()));
+        return List.copyOf(annotations);
+    }
 
     @Override
     public Optional<RecordType> findRecordType(@Nonnull Class<?> type) {

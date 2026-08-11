@@ -27,16 +27,21 @@ import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.JsonDeserializer;
 import com.fasterxml.jackson.databind.JsonSerializer;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.ObjectWriter;
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import com.fasterxml.jackson.databind.annotation.JsonSerialize;
 import com.fasterxml.jackson.databind.jsontype.NamedType;
 import com.fasterxml.jackson.databind.module.SimpleModule;
 import jakarta.annotation.Nonnull;
 import jakarta.annotation.Nullable;
+import java.lang.reflect.GenericArrayType;
 import java.lang.reflect.ParameterizedType;
 import java.lang.reflect.Type;
+import java.lang.reflect.WildcardType;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 import st.orm.Json;
 import st.orm.core.spi.JsonString;
 import st.orm.core.spi.Name;
@@ -61,9 +66,11 @@ public final class JsonORMConverterImpl implements ORMConverter {
     private final RecordField field;
     private final TypeReference<?> typeReference;
     private final ObjectMapper mapper;
+    private final ObjectWriter writer;
 
     record CacheKey(@Nonnull Json json,
-                    @Nullable Class<?> sealedType,
+                    @Nonnull List<Class<?>> sealedTypes,
+                    @Nullable Class<?> targetType,
                     @Nullable Class<? extends JsonSerializer<?>> serializer,
                     @Nullable Class<? extends JsonDeserializer<?>> deserializer) {}
 
@@ -73,9 +80,7 @@ public final class JsonORMConverterImpl implements ORMConverter {
                                 @Nonnull Json json) {
         this.field = requireNonNull(field, "field");
         this.typeReference = requireNonNull(typeReference, "typeReference");
-        var type = getRawType(typeReference.getType())
-                .filter(Class::isSealed)
-                .orElse(null);
+        var sealedTypes = getSealedTypes(typeReference.getType());
         // Check for custom serializer/deserializer annotations.
         var serializeAnnotation = field.getAnnotation(JsonSerialize.class);
         var deserializeAnnotation = field.getAnnotation(JsonDeserialize.class);
@@ -87,8 +92,14 @@ public final class JsonORMConverterImpl implements ORMConverter {
                 deserializeAnnotation != null && deserializeAnnotation.using() != JsonDeserializer.None.class
                         ? (Class<? extends JsonDeserializer<?>>) deserializeAnnotation.using()
                         : null;
+        // Custom serializers are registered against the raw field type, so that type is part of the cache key
+        // whenever one is present; without it, fields of different types sharing a serializer class would share
+        // a mapper that only serves the first field's type.
+        Class<?> targetType = serializerClass != null || deserializerClass != null
+                ? getRawType(typeReference.getType()).orElse(Object.class)
+                : null;
         this.mapper = OBJECT_MAPPER.getOrCompute(
-                new CacheKey(requireNonNull(json, "json"), type, serializerClass, deserializerClass),
+                new CacheKey(requireNonNull(json, "json"), sealedTypes, targetType, serializerClass, deserializerClass),
                 () -> {
                     var mapper = new ObjectMapper();
                     mapper.findAndRegisterModules();
@@ -98,8 +109,8 @@ public final class JsonORMConverterImpl implements ORMConverter {
                     if (!json.failOnMissing()) {
                         mapper.disable(FAIL_ON_MISSING_CREATOR_PROPERTIES);
                     }
-                    if (type != null) {
-                        mapper.registerSubtypes(getPermittedSubtypes(type));
+                    for (var sealedType : sealedTypes) {
+                        mapper.registerSubtypes(getPermittedSubtypes(sealedType));
                     }
                     // Register StormModule with supplier for dynamic RefFactory resolution.
                     mapper.registerModule(new StormModule(REF_FACTORY::get));
@@ -108,18 +119,16 @@ public final class JsonORMConverterImpl implements ORMConverter {
                         var customModule = new SimpleModule();
                         if (serializerClass != null) {
                             try {
-                                Class<?> fieldType = getRawType(typeReference.getType()).orElse(Object.class);
                                 JsonSerializer serializerInstance = serializerClass.getDeclaredConstructor().newInstance();
-                                customModule.addSerializer(fieldType, serializerInstance);
+                                customModule.addSerializer((Class) targetType, serializerInstance);
                             } catch (Exception e) {
                                 throw new RuntimeException("Failed to instantiate custom serializer: " + serializerClass, e);
                             }
                         }
                         if (deserializerClass != null) {
                             try {
-                                Class fieldType = getRawType(typeReference.getType()).orElse(Object.class);
                                 JsonDeserializer deserializerInstance = deserializerClass.getDeclaredConstructor().newInstance();
-                                customModule.addDeserializer(fieldType, deserializerInstance);
+                                customModule.addDeserializer((Class) targetType, deserializerInstance);
                             } catch (Exception e) {
                                 throw new RuntimeException("Failed to instantiate custom deserializer: " + deserializerClass, e);
                             }
@@ -128,6 +137,9 @@ public final class JsonORMConverterImpl implements ORMConverter {
                     }
                     return mapper;
                 });
+        // Serialization carries the declared field type rather than the erased runtime type, so polymorphic
+        // values write the discriminator that reading with the same declared type expects.
+        this.writer = mapper.writerFor(typeReference);
     }
 
     private static Optional<Class<?>> getRawType(@Nonnull Type type) {
@@ -137,6 +149,35 @@ public final class JsonORMConverterImpl implements ORMConverter {
             return Optional.of((Class<?>) type);
         } else {
             return empty();
+        }
+    }
+
+    /**
+     * Collects the sealed classes appearing anywhere in the field's generic type, so that permitted subtypes are
+     * registered for container-typed fields such as {@code List<Shape>} as well as top-level sealed fields.
+     */
+    private static List<Class<?>> getSealedTypes(@Nonnull Type type) {
+        var sealedTypes = new LinkedHashSet<Class<?>>();
+        collectSealedTypes(type, sealedTypes);
+        return List.copyOf(sealedTypes);
+    }
+
+    private static void collectSealedTypes(@Nonnull Type type, @Nonnull Set<Class<?>> sealedTypes) {
+        if (type instanceof Class<?> clazz) {
+            if (clazz.isSealed()) {
+                sealedTypes.add(clazz);
+            }
+        } else if (type instanceof ParameterizedType parameterizedType) {
+            collectSealedTypes(parameterizedType.getRawType(), sealedTypes);
+            for (Type typeArgument : parameterizedType.getActualTypeArguments()) {
+                collectSealedTypes(typeArgument, sealedTypes);
+            }
+        } else if (type instanceof GenericArrayType arrayType) {
+            collectSealedTypes(arrayType.getGenericComponentType(), sealedTypes);
+        } else if (type instanceof WildcardType wildcardType) {
+            for (Type bound : wildcardType.getUpperBounds()) {
+                collectSealedTypes(bound, sealedTypes);
+            }
         }
     }
 
@@ -169,7 +210,7 @@ public final class JsonORMConverterImpl implements ORMConverter {
     public List<Object> toDatabase(@Nullable Object record) throws SqlTemplateException {
         try {
             Object o = record == null ? null : REFLECTION.invoke(field, record);
-            return singletonList(o == null ? null : new JsonString(mapper.writeValueAsString(o)));
+            return singletonList(o == null ? null : new JsonString(writer.writeValueAsString(o)));
         } catch (Throwable e) {
             throw new SqlTemplateException(e);
         }
