@@ -24,6 +24,7 @@ import static st.orm.core.template.impl.RecordReflection.getRefDataType;
 import static st.orm.core.template.impl.RecordReflection.getRefPkType;
 import static st.orm.core.template.impl.RecordReflection.isRecord;
 
+import java.lang.invoke.MethodType;
 import java.math.BigInteger;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -213,7 +214,9 @@ final class RecordValidation {
                     return "Multiple primary keys found: %s.".formatted(dataType.getSimpleName());
                 }
                 pkFound = true;
-                if (fk != null && pk.generation() != GenerationStrategy.NONE) {
+                // Generation only applies to inserted types; projections and plain data classes are never
+                // inserted, so a declared strategy is meaningless rather than wrong there.
+                if (fk != null && Entity.class.isAssignableFrom(dataType) && pk.generation() != GenerationStrategy.NONE) {
                     return "Foreign key must not be an auto-generated primary key: %s.%s.".formatted(dataType.getSimpleName(), field.name());
                 }
                 if (isRecord(field.type())) {
@@ -302,6 +305,12 @@ final class RecordValidation {
         if (requirePrimaryKey && !pkFound) {
             return "No primary key found for %s.".formatted(dataType.getSimpleName());
         }
+        if (Projection.class.isAssignableFrom(dataType)) {
+            String idMessage = validateProjectionIdType(dataType, type);
+            if (!idMessage.isEmpty()) {
+                return idMessage;
+            }
+        }
         ProjectionQuery projectionQuery = type.getAnnotation(ProjectionQuery.class);
         if (projectionQuery != null) {
             if (!Projection.class.isAssignableFrom(dataType)) {
@@ -312,6 +321,77 @@ final class RecordValidation {
             }
         }
         return "";
+    }
+
+    /**
+     * Validates the type argument a projection supplies for {@code Projection<ID>} against the record's primary
+     * key. {@code ID} is the projection's row identity type: the type the id-based repository operations bind and
+     * refs carry for the projection. The declaration is only checked where it contradicts the mapped key. A
+     * projection without a {@code @PK} field may supply any argument: its row identity can exist in the database
+     * without being among the mapped columns, which still supports detached refs, while the id-based repository
+     * operations require the mapped key and fail at query time.
+     */
+    private static String validateProjectionIdType(Class<? extends Data> dataType, RecordType type) {
+        Class<?> declaredIdType = RecordReflection.findTypeArgument(dataType, Projection.class).orElse(null);
+        if (declaredIdType == null) {
+            return "";  // Raw or unresolved declarations cannot be checked.
+        }
+        RecordField pkField = type.fields().stream()
+                .filter(field -> field.isAnnotationPresent(PK.class))
+                .findFirst()
+                .orElse(null);
+        if (pkField == null) {
+            return "";
+        }
+        if (declaredIdType == Void.class) {
+            return "Projection %s declares Projection<Void> but has a primary key: %s."
+                    .formatted(dataType.getSimpleName(), pkField.name());
+        }
+        Class<?> rowIdentityType = rowIdentityType(pkField, new HashSet<>());
+        if (rowIdentityType == null) {
+            return "";  // The key chain itself is rejected by other validations.
+        }
+        if (declaredIdType != boxed(rowIdentityType)) {
+            return "Projection %s declares id type %s but its primary key %s identifies rows by %s."
+                    .formatted(dataType.getSimpleName(), declaredIdType.getSimpleName(), pkField.name(),
+                            rowIdentityType.getSimpleName());
+        }
+        return "";
+    }
+
+    /**
+     * Returns the row identity type of a primary key field: the type the id-based operations bind for the key. A
+     * key that is a foreign key identifies rows by the referenced table's key, applied recursively; a plain key
+     * identifies rows by its own type. Returns {@code null} when the chain cannot be resolved; the key itself is
+     * rejected by other validations in that case.
+     */
+    private static Class<?> rowIdentityType(RecordField field, Set<Class<?>> visited) {
+        if (field.isAnnotationPresent(FK.class) || Ref.class.isAssignableFrom(field.type())) {
+            Class<?> target;
+            try {
+                target = RecordReflection.getFkTargetType(field);
+            } catch (SqlTemplateException e) {
+                return null;
+            }
+            if (!visited.add(target)) {
+                return null;    // Circular key chain.
+            }
+            return findPkField(target)
+                    .map(targetPkField -> rowIdentityType(targetPkField, visited))
+                    .orElse(null);
+        }
+        return field.type();
+    }
+
+    /**
+     * Returns the wrapper class for a primitive type; any other type is returned unchanged. Declared type
+     * arguments are always reference types, so primitive key fields compare by their wrapper.
+     */
+    private static Class<?> boxed(Class<?> type) {
+        if (!type.isPrimitive()) {
+            return type;
+        }
+        return MethodType.methodType(type).wrap().returnType();
     }
 
     /**

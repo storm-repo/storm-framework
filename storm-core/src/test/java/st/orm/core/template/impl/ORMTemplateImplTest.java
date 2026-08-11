@@ -129,4 +129,35 @@ public class ORMTemplateImplTest {
         assertTrue(result.isPresent());
         assertEquals(TestEntity.class, result.get());
     }
+
+    interface Marker<X> {}
+
+    interface MarkedRepository extends Marker<String>, DirectEntityRepository {}
+
+    @Test
+    public void testFindGenericTypeSkipsUnrelatedParameterizedInterface() {
+        // Only arguments of the target interface qualify; the Marker<String> listed first must not shadow them.
+        Optional<Type> result = ORMTemplateImpl.findGenericType(
+                MarkedRepository.class, EntityRepository.class, 0);
+        assertTrue(result.isPresent());
+        assertEquals(TestEntity.class, result.get());
+    }
+
+    interface SwappedRepository<A, B extends Entity<A>> extends EntityRepository<B, A> {}
+
+    interface ConcreteSwappedRepository extends SwappedRepository<Integer, TestEntity> {}
+
+    @Test
+    public void testFindGenericTypeSubstitutesThroughGenericIntermediate() {
+        // The intermediate interface reorders its parameters; resolution follows the substitution, not the
+        // intermediate's own argument positions.
+        Optional<Type> entityResult = ORMTemplateImpl.findGenericType(
+                ConcreteSwappedRepository.class, EntityRepository.class, 0);
+        assertTrue(entityResult.isPresent());
+        assertEquals(TestEntity.class, entityResult.get());
+        Optional<Type> idResult = ORMTemplateImpl.findGenericType(
+                ConcreteSwappedRepository.class, EntityRepository.class, 1);
+        assertTrue(idResult.isPresent());
+        assertEquals(Integer.class, idResult.get());
+    }
 }

@@ -22,8 +22,10 @@ import static st.orm.core.spi.Providers.getORMConverter;
 import java.lang.annotation.Annotation;
 import java.lang.reflect.ParameterizedType;
 import java.lang.reflect.Type;
+import java.lang.reflect.TypeVariable;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
@@ -245,6 +247,109 @@ final class RecordReflection {
             }
         }
         return fkType;
+    }
+
+    /**
+     * Resolves the class the given type supplies for the single type parameter of the given generic interface,
+     * walking the interface and superclass hierarchy and substituting type variables along the way.
+     *
+     * @param type the type whose declaration to inspect.
+     * @param genericInterface the generic interface whose type parameter to resolve.
+     * @return the supplied class, or empty when the interface is implemented raw or the argument does not resolve
+     *         to a class.
+     */
+    static Optional<Class<?>> findTypeArgument(Class<?> type, Class<?> genericInterface) {
+        Type argument = resolveTypeArgument(type, genericInterface, 0, Map.of());
+        return argument instanceof Class<?> cls ? Optional.of(cls) : empty();
+    }
+
+    /**
+     * Resolves the type argument the given type supplies at the given index of the given generic interface,
+     * walking the interface and superclass hierarchy and substituting type variables along the way.
+     *
+     * @param type the type whose declaration to inspect.
+     * @param genericInterface the generic interface whose type parameter to resolve.
+     * @param index the index of the interface's type parameter to resolve.
+     * @return the supplied type argument, or empty when the type does not implement the interface, implements it
+     *         raw, the index is out of bounds, or the argument is an unbound type variable.
+     */
+    static Optional<Type> findTypeArgument(Class<?> type, Class<?> genericInterface, int index) {
+        return Optional.ofNullable(resolveTypeArgument(type, genericInterface, index, Map.of()));
+    }
+
+    @Nullable
+    private static Type resolveTypeArgument(Class<?> type,
+                                            Class<?> genericInterface,
+                                            int index,
+                                            Map<TypeVariable<?>, Type> bindings) {
+        for (Type supertype : directSupertypes(type)) {
+            Class<?> raw = rawType(supertype);
+            if (raw == null || !genericInterface.isAssignableFrom(raw)) {
+                continue;
+            }
+            if (raw == genericInterface) {
+                if (supertype instanceof ParameterizedType parameterized) {
+                    Type[] arguments = parameterized.getActualTypeArguments();
+                    if (index < 0 || index >= arguments.length) {
+                        return null;
+                    }
+                    return substitute(arguments[index], bindings);
+                }
+                return null;    // Raw declaration.
+            }
+            Type resolved = resolveTypeArgument(raw, genericInterface, index, bindingsFor(supertype, raw, bindings));
+            if (resolved != null) {
+                return resolved;
+            }
+        }
+        return null;
+    }
+
+    private static List<Type> directSupertypes(Class<?> type) {
+        List<Type> supertypes = new ArrayList<>(Arrays.asList(type.getGenericInterfaces()));
+        Type superclass = type.getGenericSuperclass();
+        if (superclass != null) {
+            supertypes.add(superclass);
+        }
+        return supertypes;
+    }
+
+    @Nullable
+    private static Class<?> rawType(Type type) {
+        if (type instanceof Class<?> cls) {
+            return cls;
+        }
+        if (type instanceof ParameterizedType parameterized && parameterized.getRawType() instanceof Class<?> cls) {
+            return cls;
+        }
+        return null;
+    }
+
+    /**
+     * Maps the type parameters of {@code raw} to the arguments {@code supertype} supplies for them, resolved
+     * against the caller's bindings.
+     */
+    private static Map<TypeVariable<?>, Type> bindingsFor(Type supertype,
+                                                          Class<?> raw,
+                                                          Map<TypeVariable<?>, Type> bindings) {
+        if (!(supertype instanceof ParameterizedType parameterized)) {
+            return Map.of();
+        }
+        TypeVariable<?>[] parameters = raw.getTypeParameters();
+        Type[] arguments = parameterized.getActualTypeArguments();
+        Map<TypeVariable<?>, Type> result = new HashMap<>();
+        for (int i = 0; i < parameters.length; i++) {
+            Type argument = substitute(arguments[i], bindings);
+            if (argument != null) {
+                result.put(parameters[i], argument);
+            }
+        }
+        return result;
+    }
+
+    @Nullable
+    private static Type substitute(Type argument, Map<TypeVariable<?>, Type> bindings) {
+        return argument instanceof TypeVariable<?> variable ? bindings.get(variable) : argument;
     }
 
     private static void flattenPk(Class<?> table,

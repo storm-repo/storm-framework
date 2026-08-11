@@ -24,7 +24,6 @@ import static st.orm.core.spi.StormConfigHelper.*;
 
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
-import java.lang.reflect.ParameterizedType;
 import java.lang.reflect.Type;
 import java.util.ArrayList;
 import java.util.List;
@@ -328,35 +327,21 @@ public final class ORMTemplateImpl extends QueryTemplateImpl implements ORMTempl
                 .map(type -> (Class<T>) type);
     }
 
-    @SuppressWarnings("ConstantValue")
+    /**
+     * Resolves the type argument the given class supplies at the given index of the given generic interface,
+     * following the class and interface hierarchy and substituting type variables along the way. Only arguments
+     * of the target interface itself qualify: an unrelated parameterized interface on the same class contributes
+     * nothing, and a generic intermediate interface resolves through its own parameter positions.
+     *
+     * @param clazz the class whose declaration to inspect.
+     * @param targetInterface the generic interface whose type argument to resolve.
+     * @param typeArgumentIndex the index of the interface's type parameter to resolve.
+     * @return the supplied type argument, or empty when the class does not implement the interface, implements it
+     *         raw, the index is out of bounds, or the argument does not resolve.
+     */
     public static Optional<Type> findGenericType(Class<?> clazz,
                                                  Class<?> targetInterface,
                                                  int typeArgumentIndex) {
-        // Inspect interfaces directly implemented by the class.
-        for (Type genericInterface : clazz.getGenericInterfaces()) {
-            if (genericInterface instanceof ParameterizedType parameterizedType) {
-                Type rawType = parameterizedType.getRawType();
-                // Check if this is the interface we're interested in.
-                if (rawType.equals(targetInterface) || rawType.equals(parameterizedType.getRawType())) {
-                    Type[] actualTypeArguments = parameterizedType.getActualTypeArguments();
-                    if (typeArgumentIndex >= 0 && typeArgumentIndex < actualTypeArguments.length) {
-                        return Optional.of(actualTypeArguments[typeArgumentIndex]); // Found the type
-                    }
-                }
-            }
-            // If the current interface itself extends other interfaces, recursively check them.
-            if (genericInterface instanceof Class<?>) {
-                Optional<Type> foundType = findGenericType((Class<?>) genericInterface, targetInterface, typeArgumentIndex);
-                if (foundType.isPresent()) {
-                    return foundType;
-                }
-            }
-        }
-        // If not found, check the superclass.
-        Class<?> superclass = clazz.getSuperclass();
-        if (superclass != null && !superclass.equals(Object.class)) {
-            return findGenericType(superclass, targetInterface, typeArgumentIndex);
-        }
-        return Optional.empty(); // Type not found.
+        return RecordReflection.findTypeArgument(clazz, targetInterface, typeArgumentIndex);
     }
 }
