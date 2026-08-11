@@ -9,7 +9,7 @@ import { basename, join, dirname } from 'path';
 import { homedir } from 'os';
 import { execSync, spawn } from 'child_process';
 
-const VERSION = '1.11.3';
+const VERSION = '1.11.4';
 
 // ─── ANSI ────────────────────────────────────────────────────────────────────
 
@@ -847,8 +847,43 @@ const STORM_SKILL_MARKER = '<!-- storm-managed: storm-docs -->';
 let devSkillsDir = null;
 {
   const devIdx = process.argv.indexOf('--dev');
-  if (devIdx !== -1 && process.argv[devIdx + 1]) {
-    devSkillsDir = process.argv[devIdx + 1];
+  if (devIdx !== -1) {
+    const value = process.argv[devIdx + 1];
+    if (!value || value.startsWith('-')) {
+      console.error('Option --dev requires a directory argument.');
+      process.exit(1);
+    }
+    devSkillsDir = value;
+  }
+}
+
+// Positional arguments with option values excluded: --dev consumes the argument
+// that follows it, so a path passed to --dev never lands in a command slot.
+function positionalArgs(args) {
+  const positional = [];
+  for (let i = 0; i < args.length; i++) {
+    const arg = args[i];
+    if (arg === '--dev') {
+      i++;
+      continue;
+    }
+    if (arg.startsWith('-')) continue;
+    positional.push(arg);
+  }
+  return positional;
+}
+
+// Bounded timeout and one retry per fetch: without them, an orm.st outage hangs
+// onboarding indefinitely instead of degrading into a reported skip.
+async function fetchWithRetry(url) {
+  for (let attempt = 0; ; attempt++) {
+    try {
+      const res = await fetch(url, { signal: AbortSignal.timeout(10_000) });
+      if (!res.ok) throw new Error(`${res.status}`);
+      return res;
+    } catch (error) {
+      if (attempt >= 1) throw error;
+    }
   }
 }
 
@@ -857,8 +892,7 @@ async function fetchRules() {
     if (devSkillsDir) {
       return readFileSync(join(devSkillsDir, 'storm-rules.md'), 'utf-8');
     }
-    const res = await fetch(`${SKILLS_BASE_URL}/storm-rules.md`);
-    if (!res.ok) throw new Error(`${res.status}`);
+    const res = await fetchWithRetry(`${SKILLS_BASE_URL}/storm-rules.md`);
     return await res.text();
   } catch {
     return null;
@@ -871,8 +905,7 @@ async function fetchSkillIndex(language) {
     if (devSkillsDir) {
       return JSON.parse(readFileSync(join(devSkillsDir, `index-${language}.json`), 'utf-8'));
     }
-    const res = await fetch(`${SKILLS_BASE_URL}/index-${language}.json`);
-    if (!res.ok) throw new Error(`${res.status}`);
+    const res = await fetchWithRetry(`${SKILLS_BASE_URL}/index-${language}.json`);
     return await res.json();
   } catch {
     return null;
@@ -900,14 +933,27 @@ async function fetchSkill(name) {
       if (name === 'storm-setup') content = content.trimEnd() + '\n' + DEV_SETUP_APPEND;
       return content.trimEnd() + '\n\n' + STORM_SKILL_MARKER + '\n';
     }
-    const url = `${SKILLS_BASE_URL}/${name}.md`;
-    const res = await fetch(url);
-    if (!res.ok) throw new Error(`${res.status}`);
+    const res = await fetchWithRetry(`${SKILLS_BASE_URL}/${name}.md`);
     const content = await res.text();
     return content.trimEnd() + '\n\n' + STORM_SKILL_MARKER + '\n';
   } catch {
     return null;
   }
+}
+
+// A run that could not fetch everything must not read as a clean success: name what is
+// missing and how to retry, instead of the success line.
+function reportOutcome(skipped, successLine) {
+  const suffix = ' (fetch failed)';
+  const fetchFailures = skipped.filter(s => s.endsWith(suffix)).map(s => s.slice(0, -suffix.length));
+  if (fetchFailures.length === 0) {
+    console.log(bold(successLine));
+    return;
+  }
+  const source = devSkillsDir ? devSkillsDir : 'https://orm.st';
+  console.log(boltYellow(`  Finished, but ${fetchFailures.length} skill(s) could not be fetched from ${source}:`));
+  fetchFailures.forEach(name => console.log(boltYellow(`    - ${name}`)));
+  console.log(dimText("  Run 'storm update' to retry."));
 }
 
 function installSkill(name, content, toolConfig, created, appended) {
@@ -2052,6 +2098,7 @@ async function update() {
     // Also update schema-dependent skills if database is configured.
     if (Object.keys(readDatabases()).length > 0) {
       const schemaRules = await fetchSkill('storm-schema-rules');
+      if (!schemaRules) skipped.push('storm-schema-rules (fetch failed)');
       for (const toolId of tools) {
         const config = TOOL_CONFIGS[toolId];
         if (config.rulesFile && schemaRules) {
@@ -2096,7 +2143,7 @@ async function update() {
     skipped.forEach(f => console.log(dimText(`    - ${f}`)));
   }
   console.log();
-  console.log(bold('  Skills and rules updated.'));
+  reportOutcome(skipped, '  Skills and rules updated.');
   console.log();
 }
 
@@ -2762,6 +2809,7 @@ async function setup() {
 
     // Fetch schema rules and append to each tool's rules block.
     const schemaRules = await fetchSkill('storm-schema-rules');
+    if (!schemaRules) skipped.push('storm-schema-rules (fetch failed)');
     for (const toolId of tools) {
       const config = TOOL_CONFIGS[toolId];
       if (config.rulesFile && schemaRules) {
@@ -2816,7 +2864,7 @@ async function setup() {
   }
 
   console.log();
-  console.log(bold("  You're all set!"));
+  reportOutcome(skipped, "  You're all set!");
   console.log();
   if (dbConfigured) {
     console.log(`  ${boltYellow('Quick start:')} Ask your AI tool to inspect the database schema or generate entities.`);
@@ -2956,6 +3004,7 @@ async function demo() {
 
     // Fetch and install schema rules into the rules block.
     const schemaRules = await fetchSkill('storm-schema-rules');
+    if (!schemaRules) skipped.push('storm-schema-rules (fetch failed)');
     if (config.rulesFile && schemaRules) {
       installSchemaRules(join(cwd, config.rulesFile), schemaRules, appended);
     }
@@ -3011,7 +3060,7 @@ async function demo() {
 
   // Instructions.
   console.log();
-  console.log(bold("  You're all set!"));
+  reportOutcome(skipped, "  You're all set!");
   console.log();
   if (tool === 'claude') {
     console.log(`  Start ${boltYellow('Claude Code')} in this directory and type:`);
@@ -3033,7 +3082,8 @@ async function demo() {
 
 async function run() {
   const args = process.argv.slice(2);
-  const command = args.find(a => !a.startsWith('-'));
+  const positional = positionalArgs(args);
+  const command = positional[0];
 
   if (args.includes('--help') || args.includes('-h')) {
     console.log(`
@@ -3071,15 +3121,18 @@ async function run() {
   if (command === 'update') {
     await update();
   } else if (command === 'db') {
-    const dbSubArgs = args.filter(a => !a.startsWith('-')).slice(1);
-    await updateDb(dbSubArgs);
+    await updateDb(positional.slice(1));
   } else if (command === 'mcp') {
-    const mcpSubArgs = args.filter(a => !a.startsWith('-')).slice(1);
-    await updateMcp(mcpSubArgs);
+    await updateMcp(positional.slice(1));
   } else if (command === 'demo') {
     await demo();
-  } else {
+  } else if (command === undefined || command === 'init') {
     await setup();
+  } else {
+    // A typo must not launch the interactive setup wizard.
+    console.log(boltYellow(`\n  Unknown command: ${command}`));
+    console.log(dimText('  Available: init, demo, update, db, mcp. See storm --help.\n'));
+    process.exit(1);
   }
 }
 
