@@ -90,6 +90,7 @@ public final class JdbcTransactionContext implements TransactionContext {
         boolean ownsConnection;
         @Nullable Integer originalIsolationLevel;
         @Nullable Boolean originalReadOnly;
+        @Nullable Boolean originalAutoCommit;
         @Nullable Savepoint savepoint;
         boolean rollbackOnly;
         boolean rollbackInherited;
@@ -176,12 +177,34 @@ public final class JdbcTransactionContext implements TransactionContext {
      * Obtains a JDBC connection for the current transaction, creating or reusing one based on the transaction
      * propagation rules.
      *
+     * <p>Connections are expected to arrive from the data source in auto-commit mode.</p>
+     *
      * @param dataSource the data source to get the connection from.
      * @return the JDBC connection.
      * @throws PersistenceException if the connection cannot be obtained.
      */
     public Connection getConnection(DataSource dataSource) {
-        useDataSource(dataSource);
+        return getConnection(dataSource, false);
+    }
+
+    /**
+     * Obtains a JDBC connection for the current transaction, creating or reusing one based on the transaction
+     * propagation rules.
+     *
+     * <p>The {@code manualCommitConnections} declaration selects which arrival state is correct for connections
+     * freshly obtained from the data source; the arrival state is verified in both directions, so a wrong
+     * declaration fails fast rather than silently corrupting transaction semantics. In declared mode the
+     * transactional path performs no auto-commit flips and releases connections in their arrived state.</p>
+     *
+     * @param dataSource the data source to get the connection from.
+     * @param manualCommitConnections whether the data source is declared to hand out connections with
+     * auto-commit disabled.
+     * @return the JDBC connection.
+     * @throws PersistenceException if the connection cannot be obtained.
+     * @since 1.14
+     */
+    public Connection getConnection(DataSource dataSource, boolean manualCommitConnections) {
+        useDataSource(dataSource, manualCommitConnections);
         return currentState().connection;
     }
 
@@ -356,7 +379,7 @@ public final class JdbcTransactionContext implements TransactionContext {
         }
     }
 
-    private void useDataSource(DataSource dataSource) {
+    private void useDataSource(DataSource dataSource, boolean manualCommitConnections) {
         for (int i = 0; i < stack.size(); i++) {
             var state = stack.get(i);
             if (state.connection == null) {
@@ -367,14 +390,14 @@ public final class JdbcTransactionContext implements TransactionContext {
                         if (outerBound) {
                             joinOuterTransaction(state, outer);
                         } else {
-                            openNewTransaction(state, dataSource);
+                            openNewTransaction(state, dataSource, manualCommitConnections);
                         }
                     }
                     case SUPPORTS -> {
                         if (outerBound) {
                             joinOuterTransaction(state, outer);
                         } else {
-                            openConnection(state, dataSource); // Non-transactional.
+                            openConnection(state, dataSource, manualCommitConnections); // Non-transactional.
                         }
                     }
                     case MANDATORY -> {
@@ -388,25 +411,25 @@ public final class JdbcTransactionContext implements TransactionContext {
                         if (outerBound) {
                             suspendTransaction(state, outer);
                         }
-                        openNewTransaction(state, dataSource);
+                        openNewTransaction(state, dataSource, manualCommitConnections);
                     }
                     case NOT_SUPPORTED -> {
                         if (outerBound) {
                             suspendTransaction(state, outer);
                         }
-                        openConnection(state, dataSource); // Non-transactional.
+                        openConnection(state, dataSource, manualCommitConnections); // Non-transactional.
                     }
                     case NEVER -> {
                         if (outerBound) {
                             throw new PersistenceException("Existing transaction found for NEVER propagation.");
                         }
-                        openConnection(state, dataSource); // Non-transactional.
+                        openConnection(state, dataSource, manualCommitConnections); // Non-transactional.
                     }
                     case NESTED -> {
                         if (outerBound) {
                             openNestedTransaction(state, outer, dataSource);
                         } else {
-                            openNewTransaction(state, dataSource);
+                            openNewTransaction(state, dataSource, manualCommitConnections);
                         }
                     }
                 }
@@ -490,8 +513,8 @@ public final class JdbcTransactionContext implements TransactionContext {
                     }
                 } finally {
                     // Always return the connection to the pool — even if commit() threw — so the pool does not
-                    // retain a connection with autoCommit=false (which would fail the auto-commit precondition
-                    // on the next openNewTransaction()).
+                    // retain a connection in a different state than it handed out (which would fail the
+                    // arrival-state precondition on the next openNewTransaction()).
                     try {
                         close(connection, state);
                     } catch (SQLException closeException) {
@@ -531,8 +554,8 @@ public final class JdbcTransactionContext implements TransactionContext {
                     }
                 } finally {
                     // Always return the connection to the pool — even if rollback() threw — so the pool does
-                    // not retain a connection with autoCommit=false (which would fail the auto-commit
-                    // precondition on the next openNewTransaction()).
+                    // not retain a connection in a different state than it handed out (which would fail the
+                    // arrival-state precondition on the next openNewTransaction()).
                     try {
                         close(connection, state);
                     } catch (SQLException closeException) {
@@ -577,7 +600,11 @@ public final class JdbcTransactionContext implements TransactionContext {
         if (state.originalReadOnly != null) {
             connection.setReadOnly(state.originalReadOnly);
         }
-        connection.setAutoCommit(true);
+        // Restore auto-commit only when this frame changed it, so the pool gets the connection back in its
+        // arrived state: auto-commit for regular pools, manual-commit for declared pools.
+        if (state.originalAutoCommit != null) {
+            connection.setAutoCommit(state.originalAutoCommit);
+        }
         connection.close();
     }
 
@@ -591,7 +618,7 @@ public final class JdbcTransactionContext implements TransactionContext {
     /**
      * Opens a fresh JDBC connection for REQUIRED (when no outer) or REQUIRES_NEW.
      */
-    private void openNewTransaction(TransactionState state, DataSource dataSource) {
+    private void openNewTransaction(TransactionState state, DataSource dataSource, boolean manualCommitConnections) {
         // Lock the TransactionState so that only one thread can initialize its connection. Without this, two
         // threads could race to assign different connections (or tx modes) to the same state. Ensuring a
         // single, consistent connection instance lets downstream logic detect and fail fast on concurrent
@@ -605,36 +632,43 @@ public final class JdbcTransactionContext implements TransactionContext {
                 return;
             }
             LOGGER.trace("Opening new transaction ({}).", state.transactionId);
-            var connection = dataSource.getConnection();
+            Connection connection;
+            try {
+                connection = dataSource.getConnection();
+            } catch (SQLException e) {
+                throw new PersistenceException("Failed to open transaction.", e);
+            }
             LOGGER.trace("Obtained connection {} ({}).", connection, state.transactionId);
-            if (!connection.getAutoCommit()) {
-                throw new PersistenceException("""
-                        Connection returned from DataSource must be in auto-commit mode, but arrived with \
-                        auto-commit disabled. Either the pool is configured for manual-commit connections, or the \
-                        connection carries an unfinished transaction. Configure the pool to hand out auto-commit \
-                        connections; Storm disables auto-commit for the duration of a transaction and re-enables it \
-                        before releasing the connection.""");
+            verifyArrivedAutoCommitState(connection, manualCommitConnections);
+            try {
+                // Only read and change the connection settings when explicitly requested: reading the isolation
+                // level can cost a round trip on some drivers, and close() restores (another round trip) only what
+                // was captured here.
+                if (state.isolationLevel != null) {
+                    state.originalIsolationLevel = connection.getTransactionIsolation();
+                    connection.setTransactionIsolation(state.isolationLevel);
+                }
+                if (state.readOnly != null) {
+                    state.originalReadOnly = connection.isReadOnly();
+                    connection.setReadOnly(state.readOnly);
+                }
+                // A declared manual-commit pool hands the connection out with auto-commit already disabled (the
+                // arrival state is verified above), so the transactional path performs no flips and the
+                // connection is released in its arrived state.
+                if (!manualCommitConnections) {
+                    connection.setAutoCommit(false);
+                    state.originalAutoCommit = true;
+                }
+            } catch (SQLException e) {
+                closeQuietly(connection, state.transactionId);
+                throw new PersistenceException("Failed to open transaction.", e);
             }
-            // Only read and change the connection settings when explicitly requested: reading the isolation
-            // level can cost a round trip on some drivers, and close() restores (another round trip) only what
-            // was captured here.
-            if (state.isolationLevel != null) {
-                state.originalIsolationLevel = connection.getTransactionIsolation();
-                connection.setTransactionIsolation(state.isolationLevel);
-            }
-            if (state.readOnly != null) {
-                state.originalReadOnly = connection.isReadOnly();
-                connection.setReadOnly(state.readOnly);
-            }
-            connection.setAutoCommit(false);
             state.dataSource = dataSource;
             state.ownsConnection = true;
             if (state.deadlineNanos == null && state.timeoutSeconds != null) {
                 state.deadlineNanos = deadlineFromNow(state.timeoutSeconds);
             }
             state.connection = connection;
-        } catch (SQLException e) {
-            throw new PersistenceException("Failed to open transaction.", e);
         } finally {
             state.bindLock.unlock();
         }
@@ -643,7 +677,7 @@ public final class JdbcTransactionContext implements TransactionContext {
     /**
      * Opens a non-transactional connection (auto-commit).
      */
-    private void openConnection(TransactionState state, DataSource dataSource) {
+    private void openConnection(TransactionState state, DataSource dataSource, boolean manualCommitConnections) {
         // Lock the TransactionState so that only one thread can initialize its connection; see
         // openNewTransaction for the rationale.
         if (state.connection != null) {
@@ -655,19 +689,80 @@ public final class JdbcTransactionContext implements TransactionContext {
                 return;
             }
             LOGGER.trace("Opening connection ({}).", state.transactionId);
-            var connection = dataSource.getConnection();
-            connection.setAutoCommit(true);
+            Connection connection;
+            try {
+                connection = dataSource.getConnection();
+            } catch (SQLException e) {
+                throw new PersistenceException("Failed to open connection.", e);
+            }
             LOGGER.trace("Obtained connection {} ({}).", connection, state.transactionId);
+            verifyArrivedAutoCommitState(connection, manualCommitConnections);
+            // Non-transactional scopes execute each statement in auto-commit mode. On a declared manual-commit
+            // pool the connection arrives with auto-commit disabled, so auto-commit is enabled for the scope and
+            // restored to the arrived state before the connection is released; leaving it disabled would let the
+            // pool roll back uncommitted statements on release, silently losing writes.
+            if (manualCommitConnections) {
+                try {
+                    connection.setAutoCommit(true);
+                    state.originalAutoCommit = false;
+                } catch (SQLException e) {
+                    closeQuietly(connection, state.transactionId);
+                    throw new PersistenceException("Failed to open connection.", e);
+                }
+            }
             state.dataSource = dataSource;
             state.ownsConnection = true;
             // Non-transactional: deadline is not meaningful (no commit), but the decorator still uses
             // remainingSeconds().
             state.deadlineNanos = state.timeoutSeconds == null ? null : deadlineFromNow(state.timeoutSeconds);
             state.connection = connection;
-        } catch (SQLException e) {
-            throw new PersistenceException("Failed to open connection.", e);
         } finally {
             state.bindLock.unlock();
+        }
+    }
+
+    /**
+     * Verifies that a connection freshly obtained from a data source arrived in the declared auto-commit state,
+     * closing the connection and failing fast on a mismatch.
+     *
+     * <p>An undeclared template requires auto-commit arrivals: a connection arriving with auto-commit disabled
+     * is indistinguishable from a connection carrying an unfinished transaction, and silently adopting it would
+     * let Storm commit or roll back work it does not own. A declared template requires manual-commit arrivals
+     * for the same reason in the opposite direction: a trusted-but-wrong declaration would commit transactional
+     * work per statement and turn rollback into a no-op. The declaration only selects which arrival state is
+     * correct; misconfiguration stays loud in every combination.</p>
+     */
+    static void verifyArrivedAutoCommitState(Connection connection, boolean manualCommitConnections) {
+        boolean autoCommit;
+        try {
+            autoCommit = connection.getAutoCommit();
+        } catch (SQLException e) {
+            closeQuietly(connection, null);
+            throw new PersistenceException("Failed to determine the auto-commit state of the connection.", e);
+        }
+        if (autoCommit == manualCommitConnections) {
+            closeQuietly(connection, null);
+            if (manualCommitConnections) {
+                throw new PersistenceException("""
+                        Connection returned from DataSource arrived in auto-commit mode, but the template \
+                        declares manual-commit connections. Remove the manualCommitConnections declaration, or \
+                        configure the pool to hand out manual-commit connections.""");
+            }
+            throw new PersistenceException("""
+                    Connection returned from DataSource must be in auto-commit mode, but arrived with \
+                    auto-commit disabled. Either the pool is configured for manual-commit connections, or the \
+                    connection carries an unfinished transaction. Configure the pool to hand out auto-commit \
+                    connections, or declare the pool's mode via \
+                    ORMTemplate.builder(dataSource).manualCommitConnections() if manual-commit connections are \
+                    intended.""");
+        }
+    }
+
+    private static void closeQuietly(Connection connection, @Nullable String transactionId) {
+        try {
+            connection.close();
+        } catch (SQLException e) {
+            LOGGER.warn("Failed to close connection after failed open ({}).", transactionId, e);
         }
     }
 

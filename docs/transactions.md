@@ -1021,6 +1021,33 @@ Since 1.13, a `transaction` or `transactionBlocking` block binds to the first `O
 
 Templates that should share a transaction must use the same transaction provider instance. This is automatic for repositories of one application (the Spring Boot starter and the Ktor plugin configure one provider per application context or plugin installation). Mixing templates with *different* transaction providers inside one block fails fast with a descriptive error, since a single commit cannot span two transaction systems.
 
+### Manual-Commit Connection Pools
+
+Storm-managed transactions expect connections to arrive from the `DataSource` in auto-commit mode and fail fast otherwise: a connection arriving with auto-commit disabled is indistinguishable from a connection carrying an unfinished transaction, and silently adopting it would let Storm commit or roll back work it does not own.
+
+Some pools are deliberately configured to hand out manual-commit connections, for example HikariCP with `autoCommit=false`, to save the two `setAutoCommit` round trips per transaction on drivers that issue a statement for them. Declare that mode on the template builder:
+
+```kotlin
+val orm = ORMTemplate.builder(dataSource)
+    .manualCommitConnections()
+    .build()
+```
+
+```java
+ORMTemplate orm = ORMTemplate.builder(dataSource)
+        .manualCommitConnections()
+        .build();
+```
+
+The declaration only selects which arrival state is correct; it is verified in both directions, so misconfiguration stays loud in every combination. A declared template that receives an auto-commit connection fails fast naming the misdeclaration, exactly like an undeclared template that receives a manual-commit one.
+
+With the declaration in place:
+
+- The transactional path performs no `setAutoCommit` flips and releases connections in their arrived state, so the pool gets back exactly what it handed out.
+- Statements executed outside a transaction still commit per statement: Storm enables auto-commit while it uses the connection and restores the arrived state before release. Without this, the pool would roll back uncommitted work when the connection is returned.
+
+The declaration configures Storm's built-in JDBC connection handling and cannot be combined with a custom connection provider; integrations that construct the provider themselves pass the declared mode to its constructor, `JdbcConnectionProviderImpl(true)`. Platform-managed connections, such as templates wired to Spring's transaction management, are not affected: the platform owns commit semantics there.
+
 ### Spring-Managed Transactions
 
 While Storm's programmatic transaction API works standalone, many applications use Spring's transaction management for its declarative `@Transactional` support and integration with other Spring components. Storm integrates seamlessly with Spring's transaction management.

@@ -33,9 +33,33 @@ import st.orm.PersistenceException;
  * closed directly on the data source. Integrations that bind connections to an external transaction subsystem
  * supply their own {@link ConnectionProvider} via the template builder.</p>
  *
+ * <p>The provider declares the auto-commit state in which the data source hands out connections, auto-commit
+ * by default, and verifies every fresh connection against the declaration in both directions.</p>
+ *
  * @since 1.13
  */
 public final class JdbcConnectionProviderImpl implements ConnectionProvider {
+
+    private final boolean manualCommitConnections;
+
+    public JdbcConnectionProviderImpl() {
+        this(false);
+    }
+
+    /**
+     * Creates a provider that declares the auto-commit state in which the data source hands out connections.
+     *
+     * <p>The declared mode is verified in both directions on every fresh connection, so a wrong declaration
+     * fails fast in every combination. For a declared manual-commit pool the transactional path performs no
+     * auto-commit flips and releases connections in their arrived state; non-transactional connections get
+     * auto-commit enabled while Storm uses them and restored before release, so each statement commits.</p>
+     *
+     * @param manualCommitConnections whether the data source hands out connections with auto-commit disabled.
+     * @since 1.14
+     */
+    public JdbcConnectionProviderImpl(boolean manualCommitConnections) {
+        this.manualCommitConnections = manualCommitConnections;
+    }
 
     @Override
     public Connection getConnection(DataSource dataSource, @Nullable TransactionContext context) {
@@ -43,7 +67,7 @@ public final class JdbcConnectionProviderImpl implements ConnectionProvider {
             if (!(context instanceof JdbcTransactionContext jdbcContext)) {
                 throw new IllegalArgumentException("Transaction context must be of type JdbcTransactionContext.");
             }
-            var connection = jdbcContext.getConnection(dataSource);
+            var connection = jdbcContext.getConnection(dataSource, manualCommitConnections);
             ConcurrencyDetector.beforeAccess(connection, context);
             return connection;
         }
@@ -69,16 +93,40 @@ public final class JdbcConnectionProviderImpl implements ConnectionProvider {
     }
 
     private Connection getRegularConnection(DataSource dataSource) {
+        Connection connection;
         try {
-            return dataSource.getConnection();
+            connection = dataSource.getConnection();
         } catch (Throwable t) {
             throw new PersistenceException("Failed to get connection from DataSource.", t);
         }
+        JdbcTransactionContext.verifyArrivedAutoCommitState(connection, manualCommitConnections);
+        // Non-transactional statements execute in auto-commit mode. On a declared manual-commit pool the
+        // connection arrives with auto-commit disabled, so auto-commit is enabled here and restored on release;
+        // leaving it disabled would let the pool roll back uncommitted statements on release, silently losing
+        // writes.
+        if (manualCommitConnections) {
+            try {
+                connection.setAutoCommit(true);
+            } catch (Throwable t) {
+                try {
+                    connection.close();
+                } catch (Throwable ignore) {}
+                throw new PersistenceException("Failed to get connection from DataSource.", t);
+            }
+        }
+        return connection;
     }
 
     private void releaseRegularConnection(Connection connection) {
         try {
-            connection.close();
+            try {
+                // Return the connection to the pool in its arrived state.
+                if (manualCommitConnections) {
+                    connection.setAutoCommit(false);
+                }
+            } finally {
+                connection.close();
+            }
         } catch (Throwable t) {
             throw new PersistenceException("Failed to release connection.", t);
         }

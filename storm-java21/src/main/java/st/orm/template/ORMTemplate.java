@@ -394,6 +394,27 @@ public interface ORMTemplate extends QueryTemplate, RepositoryLookup {
         }
 
         /**
+         * Declares that the data source hands out connections with auto-commit disabled.
+         *
+         * <p>The declared mode is verified in both directions: a declared template that receives an auto-commit
+         * connection fails fast naming the misdeclaration, exactly like an undeclared template that receives a
+         * manual-commit one. With the declaration in place, the transactional path performs no auto-commit flips
+         * and releases connections in their arrived state; non-transactional connections get auto-commit enabled
+         * while Storm uses them and restored before release, so each statement still commits.</p>
+         *
+         * <p>Cannot be combined with a custom {@link #connectionProvider(st.orm.core.spi.ConnectionProvider)
+         * connection provider} and only valid for data source backed templates; {@link #build()} fails fast
+         * otherwise.</p>
+         *
+         * @return this builder.
+         * @since 1.14
+         */
+        public Builder manualCommitConnections() {
+            core.manualCommitConnections();
+            return this;
+        }
+
+        /**
          * Sets the transaction template provider used by the template to participate in transactions.
          *
          * <p>Templates that should share transactions must be configured with the <em>same provider instance</em>.</p>

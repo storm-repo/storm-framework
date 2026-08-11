@@ -32,6 +32,8 @@ import st.orm.core.repository.ProjectionRepository;
 import st.orm.core.repository.RepositoryLookup;
 import st.orm.core.spi.ConnectionProvider;
 import st.orm.core.spi.ExceptionMapper;
+import st.orm.core.spi.JdbcConnectionProviderImpl;
+import st.orm.core.spi.Providers;
 import st.orm.core.spi.QueryObserver;
 import st.orm.core.spi.SqlCommenter;
 import st.orm.core.spi.TransactionTemplateProvider;
@@ -430,6 +432,7 @@ public interface ORMTemplate extends QueryTemplate, RepositoryLookup {
         private StormConfig config = StormConfig.defaults();
         private @Nullable UnaryOperator<TemplateDecorator> decorator;
         private @Nullable ConnectionProvider connectionProvider;
+        private boolean manualCommitConnections;
         private @Nullable TransactionTemplateProvider transactionTemplateProvider;
         private @Nullable ExceptionMapper exceptionMapper;
         private @Nullable QueryObserver queryObserver;
@@ -472,6 +475,35 @@ public interface ORMTemplate extends QueryTemplate, RepositoryLookup {
          */
         public Builder connectionProvider(ConnectionProvider connectionProvider) {
             this.connectionProvider = requireNonNull(connectionProvider, "connectionProvider");
+            return this;
+        }
+
+        /**
+         * Declares that the data source hands out connections with auto-commit disabled.
+         *
+         * <p>Storm-managed transactions require connections to arrive from the data source in auto-commit mode
+         * and fail fast otherwise, since a manual-commit arrival is indistinguishable from a connection carrying
+         * an unfinished transaction. Pools that are deliberately configured to hand out manual-commit
+         * connections, for example to save the two auto-commit round trips per transaction, declare that mode
+         * here.</p>
+         *
+         * <p>The declared mode is verified in both directions: a declared template that receives an auto-commit
+         * connection fails fast naming the misdeclaration, exactly like an undeclared template that receives a
+         * manual-commit one. With the declaration in place, the transactional path performs no auto-commit flips
+         * and releases connections in their arrived state; non-transactional connections get auto-commit enabled
+         * while Storm uses them and restored before release, so each statement still commits.</p>
+         *
+         * <p>The declaration configures Storm's built-in JDBC connection handling and cannot be combined with a
+         * custom {@link #connectionProvider(ConnectionProvider) connection provider}; a provider that manages
+         * connections itself carries its own arrival-state contract, such as
+         * {@code new JdbcConnectionProviderImpl(true)}. Only valid for data source backed templates;
+         * {@link #build()} fails fast otherwise.</p>
+         *
+         * @return this builder.
+         * @since 1.14
+         */
+        public Builder manualCommitConnections() {
+            this.manualCommitConnections = true;
             return this;
         }
 
@@ -534,12 +566,37 @@ public interface ORMTemplate extends QueryTemplate, RepositoryLookup {
         public ORMTemplate build() {
             PreparedStatementTemplateImpl template;
             if (dataSource != null) {
-                template = new PreparedStatementTemplateImpl(dataSource, config, connectionProvider,
+                var effectiveConnectionProvider = connectionProvider;
+                if (manualCommitConnections) {
+                    if (connectionProvider != null) {
+                        throw new PersistenceException(
+                                "A manual-commit declaration cannot be combined with a custom connection " +
+                                "provider; the declaration configures Storm's built-in JDBC connection " +
+                                "handling. Construct the connection provider in the declared mode instead.");
+                    }
+                    // The declaration only governs Storm's built-in JDBC connection handling. Silently
+                    // replacing a discovered platform provider would change how connections bind to the
+                    // platform's transaction subsystem, so a non-default resolution fails fast instead.
+                    var discovered = Providers.getConnectionProvider();
+                    if (!(discovered instanceof JdbcConnectionProviderImpl)) {
+                        throw new PersistenceException(
+                                "A manual-commit declaration only applies to Storm's built-in JDBC connection " +
+                                "handling, but connection provider discovery resolved " +
+                                discovered.getClass().getName() + ". Configure that provider for " +
+                                "manual-commit connections instead.");
+                    }
+                    effectiveConnectionProvider = new JdbcConnectionProviderImpl(true);
+                }
+                template = new PreparedStatementTemplateImpl(dataSource, config, effectiveConnectionProvider,
                         transactionTemplateProvider, exceptionMapper, queryObserver, sqlCommenter);
             } else {
                 if (connectionProvider != null) {
                     throw new PersistenceException(
                             "A connection provider cannot be configured for a connection backed template.");
+                }
+                if (manualCommitConnections) {
+                    throw new PersistenceException(
+                            "A manual-commit declaration cannot be configured for a connection backed template.");
                 }
                 assert connection != null;
                 template = new PreparedStatementTemplateImpl(connection, config,
