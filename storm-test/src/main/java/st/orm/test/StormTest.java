@@ -45,6 +45,9 @@ import org.junit.jupiter.api.extension.ExtendWith;
  * <p>The annotation is {@code @Inherited}: it may be placed on an abstract base class and applies to every concrete
  * subclass, each of which gets its own database.</p>
  *
+ * <p>Each test runs inside a database transaction that is rolled back afterwards, so tests never observe each
+ * other's writes. Set {@link #rollback()} to {@code false} for tests that need their writes to commit.</p>
+ *
  * @since 1.9
  */
 @Target(ElementType.TYPE)
@@ -79,4 +82,22 @@ public @interface StormTest {
      * Database password. Defaults to an empty string.
      */
     String password() default "";
+
+    /**
+     * Whether each test runs inside a transaction that is rolled back after the test. Defaults to {@code true}.
+     *
+     * <p>With rollback enabled, all connections handed out during a test share a single database transaction that is
+     * rolled back when the test completes, so every test observes the database exactly as the {@link #scripts()}
+     * left it. Storm's transaction API works as usual inside such a test; transactions are demarcated with
+     * savepoints, so a commit keeps the changes pending in the surrounding test transaction and everything is still
+     * undone afterwards.</p>
+     *
+     * <p>Set to {@code false} for tests that need real commit semantics: writes that must be visible to other
+     * connections or threads, {@code REQUIRES_NEW} transactions that must be independent of the caller, or DDL
+     * statements (which implicitly commit on most databases). With rollback disabled, writes persist across the
+     * tests of the class, so such tests must not depend on test execution order or clean up after themselves.</p>
+     *
+     * @since 1.14
+     */
+    boolean rollback() default true;
 }

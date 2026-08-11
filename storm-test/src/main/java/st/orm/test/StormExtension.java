@@ -20,18 +20,24 @@ import java.io.InputStream;
 import java.io.PrintWriter;
 import java.io.UncheckedIOException;
 import java.lang.reflect.Field;
+import java.lang.reflect.InvocationHandler;
+import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
+import java.lang.reflect.Proxy;
 import java.nio.charset.StandardCharsets;
 import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.SQLException;
 import java.sql.SQLFeatureNotSupportedException;
+import java.sql.Savepoint;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.logging.Logger;
 import javax.sql.DataSource;
+import org.junit.jupiter.api.extension.AfterEachCallback;
 import org.junit.jupiter.api.extension.BeforeAllCallback;
+import org.junit.jupiter.api.extension.BeforeEachCallback;
 import org.junit.jupiter.api.extension.ExtensionContext;
 import org.junit.jupiter.api.extension.ParameterContext;
 import org.junit.jupiter.api.extension.ParameterResolutionException;
@@ -56,9 +62,15 @@ import st.orm.core.template.impl.SchemaValidator;
  * {@code password} attributes of {@link StormTest}. SQL scripts specified in {@link StormTest#scripts()} are still
  * executed against the returned {@link DataSource}.</p>
  *
+ * <p>Unless {@link StormTest#rollback()} is disabled, each test runs inside a database transaction that is rolled
+ * back after the test: the {@link DataSource} injected into test methods (and used by types created from it, such as
+ * {@code ORMTemplate}) hands out connections that share one database transaction for the duration of the test.
+ * Parameters injected into {@code @BeforeAll} methods resolve to the unwrapped {@link DataSource}, so class-level
+ * setup commits.</p>
+ *
  * @since 1.9
  */
-public class StormExtension implements BeforeAllCallback, ParameterResolver {
+public class StormExtension implements BeforeAllCallback, BeforeEachCallback, AfterEachCallback, ParameterResolver {
 
     private static final ExtensionContext.Namespace NAMESPACE =
             ExtensionContext.Namespace.create(StormExtension.class);
@@ -97,6 +109,44 @@ public class StormExtension implements BeforeAllCallback, ParameterResolver {
     }
 
     @Override
+    public void beforeEach(ExtensionContext context) {
+        StormTest annotation = findAnnotation(context.getRequiredTestClass());
+        if (annotation == null || !annotation.rollback()) {
+            return;
+        }
+        DataSource dataSource = getStore(context).get(DataSource.class, DataSource.class);
+        if (dataSource == null) {
+            // The extension is active without @StormTest; there is no database to wrap.
+            return;
+        }
+        // The wrapper lands in the method-level store, so each test gets its own transaction and lookups from the
+        // class-level context (@BeforeAll parameters) keep resolving to the unwrapped DataSource.
+        getStore(context).put(TestTransaction.class, new TestTransaction(dataSource));
+    }
+
+    @Override
+    public void afterEach(ExtensionContext context) throws Exception {
+        TestTransaction transaction = getStore(context).get(TestTransaction.class, TestTransaction.class);
+        if (transaction != null) {
+            transaction.rollback();
+        }
+    }
+
+    /**
+     * Returns the {@link StormTest} annotation governing the given test class: the annotation on the class or one of
+     * its superclasses (it is {@code @Inherited}), or on an enclosing class for {@code @Nested} test classes.
+     */
+    private static StormTest findAnnotation(Class<?> testClass) {
+        for (Class<?> type = testClass; type != null; type = type.getEnclosingClass()) {
+            StormTest annotation = type.getAnnotation(StormTest.class);
+            if (annotation != null) {
+                return annotation;
+            }
+        }
+        return null;
+    }
+
+    @Override
     public boolean supportsParameter(ParameterContext paramCtx, ExtensionContext extCtx)
             throws ParameterResolutionException {
         Class<?> type = paramCtx.getParameter().getType();
@@ -129,6 +179,11 @@ public class StormExtension implements BeforeAllCallback, ParameterResolver {
     }
 
     private DataSource getDataSource(ExtensionContext context) {
+        // Method-level contexts see the test's transactional wrapper; class-level contexts see the raw DataSource.
+        DataSource testTransaction = getStore(context).get(TestTransaction.class, TestTransaction.class);
+        if (testTransaction != null) {
+            return testTransaction;
+        }
         return getStore(context).get(DataSource.class, DataSource.class);
     }
 
@@ -327,6 +382,228 @@ public class StormExtension implements BeforeAllCallback, ParameterResolver {
             try (Connection conn = dataSource.getConnection();
                  var stmt = conn.createStatement()) {
                 stmt.execute("SHUTDOWN");
+            }
+        }
+    }
+
+    /**
+     * A per-test {@link DataSource} wrapper that runs everything a test does in one database transaction and rolls it
+     * back afterwards.
+     *
+     * <p>The first {@link #getConnection()} opens a single physical connection with auto-commit disabled; every
+     * subsequent request hands out a proxy over that same connection, so all work of a test shares one transaction
+     * regardless of how many connections are requested. Closing a proxy never closes the physical connection; the
+     * extension rolls back and closes it in {@code afterEach}.</p>
+     *
+     * <p>The proxies present themselves as regular auto-commit connections and translate transaction demarcation
+     * into savepoints: {@code setAutoCommit(false)} creates a savepoint, {@code commit()} abandons it, and
+     * {@code rollback()} rolls back to it. Storm's transaction API therefore works unchanged inside a test (it
+     * requires connections to arrive in auto-commit mode), while its commits keep all changes pending in the test
+     * transaction. The simulation is faithful for single-threaded tests; because every proxy shares one physical
+     * connection, {@code REQUIRES_NEW} loses its independence and concurrent transactions on separate threads are
+     * not supported — such tests should disable {@link StormTest#rollback()}.</p>
+     *
+     * <p>Implements both {@link ExtensionContext.Store.CloseableResource} and {@link AutoCloseable} as a safety net
+     * (see {@link DatabaseShutdown}); the extension normally rolls back in {@code afterEach}.</p>
+     */
+    private static final class TestTransaction
+            implements DataSource, ExtensionContext.Store.CloseableResource, AutoCloseable {
+
+        private final DataSource delegate;
+        private final Object lock = new Object();
+        private Connection physical;
+        private boolean completed;
+
+        TestTransaction(DataSource delegate) {
+            this.delegate = delegate;
+        }
+
+        @Override
+        public Connection getConnection() throws SQLException {
+            synchronized (lock) {
+                if (completed) {
+                    // A wrapper outliving its test (for example, retained in a field with a per-class test instance
+                    // lifecycle) must not silently open a connection that nothing would ever roll back.
+                    throw new SQLException("The test transaction has completed; obtain a new DataSource for each test.");
+                }
+                if (physical == null) {
+                    Connection connection = delegate.getConnection();
+                    connection.setAutoCommit(false);
+                    physical = connection;
+                }
+                return (Connection) Proxy.newProxyInstance(Connection.class.getClassLoader(),
+                        new Class<?>[] {Connection.class}, new TransactionSimulatingConnection(physical));
+            }
+        }
+
+        @Override
+        public Connection getConnection(String username, String password) throws SQLException {
+            // The test transaction spans one physical connection; per-call credentials cannot apply to it.
+            return getConnection();
+        }
+
+        void rollback() throws SQLException {
+            synchronized (lock) {
+                completed = true;
+                Connection connection = physical;
+                if (connection == null) {
+                    return;
+                }
+                physical = null;
+                try (connection) {
+                    if (!connection.isClosed()) {
+                        connection.rollback();
+                        // Restore auto-commit before close so a pooled connection returns clean.
+                        connection.setAutoCommit(true);
+                    }
+                }
+            }
+        }
+
+        @Override
+        public void close() throws SQLException {
+            rollback();
+        }
+
+        @Override
+        public PrintWriter getLogWriter() throws SQLException {
+            return delegate.getLogWriter();
+        }
+
+        @Override
+        public void setLogWriter(PrintWriter out) throws SQLException {
+            delegate.setLogWriter(out);
+        }
+
+        @Override
+        public void setLoginTimeout(int seconds) throws SQLException {
+            delegate.setLoginTimeout(seconds);
+        }
+
+        @Override
+        public int getLoginTimeout() throws SQLException {
+            return delegate.getLoginTimeout();
+        }
+
+        @Override
+        public Logger getParentLogger() throws SQLFeatureNotSupportedException {
+            return delegate.getParentLogger();
+        }
+
+        @Override
+        public <T> T unwrap(Class<T> iface) throws SQLException {
+            return delegate.unwrap(iface);
+        }
+
+        @Override
+        public boolean isWrapperFor(Class<?> iface) throws SQLException {
+            return delegate.isWrapperFor(iface);
+        }
+    }
+
+    /**
+     * Handler for the connection proxies handed out by {@link TestTransaction}. The physical connection runs with
+     * auto-commit disabled; the proxy reports the auto-commit state a caller would see on a dedicated connection and
+     * maps transaction demarcation onto savepoints:
+     * <ul>
+     *     <li>{@code setAutoCommit(false)} creates a savepoint marking the simulated transaction start.</li>
+     *     <li>{@code commit()} abandons the savepoint and creates a fresh one for the next implicit transaction.
+     *         Savepoints are abandoned rather than released because not every database supports releasing
+     *         savepoints; an unreleased savepoint simply expires with the test transaction.</li>
+     *     <li>{@code rollback()} rolls back to the savepoint, which remains valid for the next implicit
+     *         transaction.</li>
+     *     <li>{@code close()} only detaches the proxy; an open simulated transaction is rolled back, mirroring how
+     *         drivers commonly treat a connection closed mid-transaction.</li>
+     * </ul>
+     * Caller-created savepoints pass through and nest inside the simulated transaction. All methods are confined to
+     * the test's thread, like the connection a test would otherwise own.
+     */
+    private static final class TransactionSimulatingConnection implements InvocationHandler {
+
+        private final Connection physical;
+        private boolean autoCommit = true;
+        private Savepoint savepoint;
+        private boolean closed;
+
+        TransactionSimulatingConnection(Connection physical) {
+            this.physical = physical;
+        }
+
+        @Override
+        public Object invoke(Object proxy, Method method, Object[] args) throws Throwable {
+            switch (method.getName()) {
+                case "equals":
+                    return proxy == args[0];
+                case "hashCode":
+                    return System.identityHashCode(proxy);
+                case "toString":
+                    return "Test transaction connection for " + physical;
+                case "close":
+                    if (!closed) {
+                        closed = true;
+                        if (savepoint != null) {
+                            physical.rollback(savepoint);
+                            savepoint = null;
+                        }
+                    }
+                    return null;
+                case "isClosed":
+                    return closed || physical.isClosed();
+                default:
+                    // Fall through to the transaction-state methods and pass-through below.
+            }
+            if (closed) {
+                throw new SQLException("Connection is closed.");
+            }
+            switch (method.getName()) {
+                case "getAutoCommit":
+                    return autoCommit;
+                case "setAutoCommit": {
+                    boolean requested = (Boolean) args[0];
+                    if (requested == autoCommit) {
+                        return null;
+                    }
+                    if (requested) {
+                        // Enabling auto-commit commits the active transaction; abandon its savepoint.
+                        savepoint = null;
+                    } else {
+                        savepoint = physical.setSavepoint();
+                    }
+                    autoCommit = requested;
+                    return null;
+                }
+                case "commit":
+                    requireTransaction();
+                    savepoint = physical.setSavepoint();
+                    return null;
+                case "rollback":
+                    if (args == null || args.length == 0) {
+                        requireTransaction();
+                        physical.rollback(savepoint);
+                        return null;
+                    }
+                    requireTransaction();
+                    return passThrough(method, args);
+                case "setSavepoint":
+                case "releaseSavepoint":
+                    requireTransaction();
+                    return passThrough(method, args);
+                default:
+                    return passThrough(method, args);
+            }
+        }
+
+        private void requireTransaction() throws SQLException {
+            if (autoCommit) {
+                throw new SQLException("Connection is in auto-commit mode.");
+            }
+        }
+
+        private Object passThrough(Method method, Object[] args) throws Throwable {
+            try {
+                return method.invoke(physical, args);
+            } catch (InvocationTargetException e) {
+                throw e.getCause();
             }
         }
     }

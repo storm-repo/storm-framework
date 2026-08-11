@@ -36,15 +36,14 @@ class StormExtensionAdditionalTest {
     @Test
     void statementCaptureExecuteShouldReturnResult(ORMTemplate orm, SqlCapture capture) {
         var items = capture.execute(() -> orm.entity(Item.class).findAll());
-        // At least 3 rows from test data; may be more if insert tests run in the same class.
-        assertTrue(items.size() >= 3);
+        assertEquals(3, items.size());
         assertEquals(1, capture.count(CapturedSql.Operation.SELECT));
     }
 
     @Test
     void statementCaptureExecuteThrowingShouldReturnResult(ORMTemplate orm, SqlCapture capture) throws Exception {
         var items = capture.executeThrowing(() -> orm.entity(Item.class).findAll());
-        assertTrue(items.size() >= 3);
+        assertEquals(3, items.size());
         assertEquals(1, capture.count(CapturedSql.Operation.SELECT));
     }
 
