@@ -6,9 +6,9 @@
 [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
 [![Docs](https://img.shields.io/badge/docs-orm.st-blue)](https://orm.st)
 [![Kotlin 2.0+](https://img.shields.io/badge/Kotlin-2.0%2B-purple)](https://kotlinlang.org/)
-[![Java 21+](https://img.shields.io/badge/Java-21%2B-blue)](https://openjdk.org/projects/jdk/21/)
+[![Java 21](https://img.shields.io/badge/Java-21-blue)](https://openjdk.org/projects/jdk/21/)
 
-**Storm is the type-safe, SQL-first ORM for Kotlin 2.0+ and Java 21+.** Immutable data-class entities, one-line queries checked at compile time, and none of the machinery you fight in traditional ORMs: no proxies, no N+1, no persistence context.
+**Storm is the type-safe, SQL-first ORM for Kotlin 2.0+ and Java 21.** Immutable data-class entities, one-line queries checked at compile time, and none of the machinery you fight in traditional ORMs: no proxies, no N+1, no persistence context.
 
 ```kotlin
 // An entity is a data class. This is the whole mapping.
@@ -250,9 +250,9 @@ Storm works with any JDBC-compatible database. Dialect packages provide optimize
 ## Requirements
 
 [![Kotlin](https://img.shields.io/badge/Kotlin-2.0%2B-7F52FF?style=for-the-badge&logo=kotlin&logoColor=white)](https://kotlinlang.org/)
-[![Java](https://img.shields.io/badge/Java-21%2B-ED8B00?style=for-the-badge&logo=openjdk&logoColor=white)](https://openjdk.org/)
+[![Java](https://img.shields.io/badge/Java-21-ED8B00?style=for-the-badge&logo=openjdk&logoColor=white)](https://openjdk.org/)
 
-Storm targets Kotlin 2.0+ and Java 21+ as minimum supported versions. These baselines will be maintained for the foreseeable future.
+Storm targets Kotlin 2.0+ as its minimum supported Kotlin version; the Kotlin path runs on JDK 21 or later. The Java API uses String Templates, a preview feature, and preview class files are version-locked: the Java path compiles and runs on JDK 21 exactly until the platform reintroduces string templates as a stable feature. See [String Templates](https://orm.st/docs/string-templates#status) for the full story.
 
 ## Contributing
 

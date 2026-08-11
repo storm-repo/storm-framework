@@ -17,7 +17,7 @@ Both Kotlin and Java provide language-level string interpolation that Storm leve
 |---|---|---|
 | **Syntax** | `$variable` or `${expression}` | `\{expression}` |
 | **Mechanism** | Compiler plugin (auto-wraps interpolations) | String Templates (preview feature) |
-| **Status** | Stable (Kotlin 2.0+) | Preview (Java 21+, evolving) |
+| **Status** | Stable (Kotlin 2.0+) | Preview (JDK 21 exactly) |
 | **Module** | `storm-kotlin` | `storm-java21` |
 
 ---
@@ -213,7 +213,7 @@ The `\{expression}` syntax is Java's string template interpolation. The `RAW` pr
 
 Java String Templates are a **preview feature** that is still evolving in the JDK. Storm is a forward-looking framework, and String Templates are the best way to write SQL in Java that is both readable and injection-safe by design.
 
-Rather than wait for the feature to stabilize, Storm ships with String Template support today. The Java API is production-ready from a quality perspective, but its API surface will adapt as String Templates move toward a stable release. Once the redesigned string templates land in the JDK as a stable feature, the Java API moves front and center alongside Kotlin: same first-class status, no preview flags, no version pin.
+Rather than wait for the feature to stabilize, Storm ships with String Template support today. The Java API is production-ready from a quality perspective, but its API surface will adapt to whatever shape the platform ultimately gives the feature. If the JDK reintroduces string templates as a stable feature, the Java API moves front and center alongside Kotlin: same first-class status, no preview flags, no version pin. Until then, the preview pin applies: preview class files are version-locked, so the Java path compiles and runs on JDK 21 exactly.
 
 Only `storm-java21` depends on this preview feature. The core framework and the Kotlin API are unaffected.
 

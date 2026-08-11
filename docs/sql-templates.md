@@ -44,7 +44,7 @@ orm.query(RAW."""
     WHERE \{User_.email} = \{email}""")
 ```
 
-> **Note:** Java string templates are a preview feature. Storm for Java requires Java 21+ with preview mode enabled (`--enable-preview`). Storm will adapt to the final string template specification once it's released.
+> **Note:** Java string templates are a preview feature. Storm for Java requires JDK 21 exactly with preview mode enabled (`--enable-preview`); preview class files are version-locked. Storm's Java API will adapt to whatever shape the platform ultimately gives the feature.
 
 </TabItem>
 </Tabs>
