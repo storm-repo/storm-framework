@@ -12,12 +12,15 @@ import jakarta.annotation.Nullable;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import org.junit.jupiter.api.Test;
 import st.orm.Data;
 import st.orm.Entity;
 import st.orm.PK;
 import st.orm.Projection;
 import st.orm.Ref;
 import st.orm.core.spi.RefFactory;
+import st.orm.jackson.model.VetSpecialty;
+import st.orm.jackson.model.VetSpecialtyPK;
 import tools.jackson.databind.DatabindException;
 import tools.jackson.databind.json.JsonMapper;
 
@@ -37,7 +40,7 @@ class StormModuleTest {
 
     // RefSerializer tests
 
-    @org.junit.jupiter.api.Test
+    @Test
     void serializeUnloadedEntityRefToRawId() throws Exception {
         var mapper = JsonMapper.builder()
                 .addModule(new StormModule())
@@ -47,7 +50,7 @@ class StormModuleTest {
         assertEquals("{\"entity\":42}", json);
     }
 
-    @org.junit.jupiter.api.Test
+    @Test
     void serializeLoadedEntityRefWithEntityWrapper() throws Exception {
         var mapper = JsonMapper.builder()
                 .addModule(new StormModule())
@@ -58,7 +61,7 @@ class StormModuleTest {
         assertEquals("{\"entity\":{\"@entity\":{\"id\":7,\"name\":\"Test\"}}}", json);
     }
 
-    @org.junit.jupiter.api.Test
+    @Test
     void serializeLoadedProjectionRefWithProjectionWrapper() throws Exception {
         var mapper = JsonMapper.builder()
                 .addModule(new StormModule())
@@ -71,7 +74,7 @@ class StormModuleTest {
                 json);
     }
 
-    @org.junit.jupiter.api.Test
+    @Test
     void serializeNullRefFieldToNull() throws Exception {
         var mapper = JsonMapper.builder()
                 .addModule(new StormModule())
@@ -83,7 +86,7 @@ class StormModuleTest {
 
     // RefDeserializer tests
 
-    @org.junit.jupiter.api.Test
+    @Test
     void deserializeRawIdToDetachedRef() throws Exception {
         var mapper = JsonMapper.builder()
                 .addModule(new StormModule())
@@ -93,7 +96,7 @@ class StormModuleTest {
         assertEquals(42, holder.entity().id());
     }
 
-    @org.junit.jupiter.api.Test
+    @Test
     void deserializeRawIdWithRefFactory() throws Exception {
         RefFactory factory = new RefFactory() {
             @SuppressWarnings({"unchecked", "rawtypes"})
@@ -116,7 +119,7 @@ class StormModuleTest {
         assertEquals(99, holder.entity().id());
     }
 
-    @org.junit.jupiter.api.Test
+    @Test
     void deserializeEntityObjectToLoadedRef() throws Exception {
         var mapper = JsonMapper.builder()
                 .addModule(new StormModule())
@@ -131,7 +134,7 @@ class StormModuleTest {
         assertEquals("Test", entity.name());
     }
 
-    @org.junit.jupiter.api.Test
+    @Test
     void deserializeProjectionObjectToLoadedRef() throws Exception {
         var mapper = JsonMapper.builder()
                 .addModule(new StormModule())
@@ -146,7 +149,7 @@ class StormModuleTest {
         assertEquals("Label", projection.label());
     }
 
-    @org.junit.jupiter.api.Test
+    @Test
     void deserializeNullRefFieldToNull() throws Exception {
         var mapper = JsonMapper.builder()
                 .addModule(new StormModule())
@@ -155,7 +158,7 @@ class StormModuleTest {
         assertNull(holder.entity());
     }
 
-    @org.junit.jupiter.api.Test
+    @Test
     void deserializeObjectWithoutEntityOrProjectionFieldShouldThrow() {
         var mapper = JsonMapper.builder()
                 .addModule(new StormModule())
@@ -164,7 +167,7 @@ class StormModuleTest {
                 () -> mapper.readValue("{\"entity\":{\"unknown\":1}}", EntityHolder.class));
     }
 
-    @org.junit.jupiter.api.Test
+    @Test
     void deserializeStringIdToDetachedRef() throws Exception {
         // Test VALUE_STRING token path
         record StringIdEntity(@PK String id, @Nonnull String name)
@@ -178,7 +181,7 @@ class StormModuleTest {
         assertEquals("abc", holder.entity().id());
     }
 
-    @org.junit.jupiter.api.Test
+    @Test
     void deserializeListOfRefsWithNullElement() throws Exception {
         // Test List<Ref<T>> with null elements - exercises the container unwrapping + null handling
         var mapper = JsonMapper.builder()
@@ -193,7 +196,7 @@ class StormModuleTest {
         assertEquals(7, holder.entities().get(2).id());
     }
 
-    @org.junit.jupiter.api.Test
+    @Test
     void roundTripEntityRefShouldPreserveLoadedState() throws Exception {
         var mapper = JsonMapper.builder()
                 .addModule(new StormModule())
@@ -207,7 +210,7 @@ class StormModuleTest {
         assertEquals(entity, restored.entity().fetch());
     }
 
-    @org.junit.jupiter.api.Test
+    @Test
     void roundTripProjectionRefShouldPreserveLoadedState() throws Exception {
         var mapper = JsonMapper.builder()
                 .addModule(new StormModule())
@@ -219,6 +222,42 @@ class StormModuleTest {
         assertNotNull(restored.projection());
         assertTrue(restored.projection().isLoaded());
         assertEquals(projection, restored.projection().fetch());
+    }
+
+    // Tests for compound PK refs (plain object without @entity/@projection)
+
+    public record CompoundPkRefHolder(@Nullable Ref<VetSpecialty> entity) {}
+
+    @Test
+    void serializeUnloadedCompoundPkRefToPkObject() throws Exception {
+        var mapper = JsonMapper.builder()
+                .addModule(new StormModule())
+                .build();
+        var holder = new CompoundPkRefHolder(Ref.of(VetSpecialty.class, new VetSpecialtyPK(1, 2)));
+        var json = mapper.writeValueAsString(holder);
+        assertEquals("{\"entity\":{\"vetId\":1,\"specialtyId\":2}}", json);
+    }
+
+    @Test
+    void deserializeCompoundPkObjectToUnloadedRef() throws Exception {
+        var mapper = JsonMapper.builder()
+                .addModule(new StormModule())
+                .build();
+        String json = "{\"entity\":{\"vetId\":1,\"specialtyId\":2}}";
+        var holder = mapper.readValue(json, CompoundPkRefHolder.class);
+        assertNotNull(holder.entity());
+        assertEquals(new VetSpecialtyPK(1, 2), holder.entity().id());
+    }
+
+    @Test
+    void roundTripCompoundPkRefShouldPreserveId() throws Exception {
+        var mapper = JsonMapper.builder()
+                .addModule(new StormModule())
+                .build();
+        var original = new CompoundPkRefHolder(Ref.of(VetSpecialty.class, new VetSpecialtyPK(3, 4)));
+        var json = mapper.writeValueAsString(original);
+        var restored = mapper.readValue(json, CompoundPkRefHolder.class);
+        assertEquals(original, restored);
     }
 
     // Tests for Data record without @PK (fallback deserialization paths)
@@ -233,7 +272,7 @@ class StormModuleTest {
 
     public record NoPkDataProjectionHolder(@Nullable Ref<NoPkDataProjection> data) {}
 
-    @org.junit.jupiter.api.Test
+    @Test
     void deserializeIntIdFallbackForNoPkData() throws Exception {
         // When pkType is null (no @PK on target), the fallback deserializeId path is used.
         // This exercises the VALUE_NUMBER_INT fallback in deserializeId.
@@ -245,7 +284,7 @@ class StormModuleTest {
         assertEquals(42, ((Number) holder.data().id()).intValue());
     }
 
-    @org.junit.jupiter.api.Test
+    @Test
     void deserializeStringIdFallbackForNoPkData() throws Exception {
         // Exercises the VALUE_STRING fallback in deserializeId.
         var mapper = JsonMapper.builder()
@@ -256,7 +295,7 @@ class StormModuleTest {
         assertEquals("abc", holder.data().id());
     }
 
-    @org.junit.jupiter.api.Test
+    @Test
     void deserializeFloatIdFallbackForNoPkData() throws Exception {
         // Exercises the VALUE_NUMBER_FLOAT fallback in deserializeId.
         var mapper = JsonMapper.builder()
@@ -267,7 +306,7 @@ class StormModuleTest {
         assertEquals(3.14, holder.data().id());
     }
 
-    @org.junit.jupiter.api.Test
+    @Test
     void deserializeLargeIntIdFallbackForNoPkData() throws Exception {
         // Exercises the VALUE_NUMBER_INT fallback with a value > Integer.MAX_VALUE.
         var mapper = JsonMapper.builder()
@@ -279,7 +318,7 @@ class StormModuleTest {
         assertEquals(largeValue, holder.data().id());
     }
 
-    @org.junit.jupiter.api.Test
+    @Test
     void deserializeNegativeLargeIntIdFallbackForNoPkData() throws Exception {
         // Exercises the VALUE_NUMBER_INT fallback with a value < Integer.MIN_VALUE.
         // This covers the short-circuit branch when value < Integer.MIN_VALUE.
@@ -292,7 +331,7 @@ class StormModuleTest {
         assertEquals(negativeValue, holder.data().id());
     }
 
-    @org.junit.jupiter.api.Test
+    @Test
     void deserializeProjectionObjectWithIntIdNodeFallbackForNoPk() throws Exception {
         // Exercises the deserializeIdFromNode fallback path for a Projection without @PK.
         // When pkType is null, the node.isInt() path is taken.
@@ -306,7 +345,7 @@ class StormModuleTest {
         assertEquals(5, holder.data().id());
     }
 
-    @org.junit.jupiter.api.Test
+    @Test
     void deserializeProjectionObjectWithStringIdNodeFallbackForNoPk() throws Exception {
         // Exercises the deserializeIdFromNode node.isTextual() path.
         record NoPkStringProjection(String id, @Nonnull String value)
@@ -322,7 +361,7 @@ class StormModuleTest {
         assertEquals("abc", holder.data().id());
     }
 
-    @org.junit.jupiter.api.Test
+    @Test
     void deserializeProjectionObjectWithLongIdNodeFallbackForNoPk() throws Exception {
         // Exercises the deserializeIdFromNode node.isLong() path.
         record NoPkLongProjection(Long id, @Nonnull String value)
@@ -340,7 +379,7 @@ class StormModuleTest {
         assertEquals(largeValue, holder.data().id());
     }
 
-    @org.junit.jupiter.api.Test
+    @Test
     void deserializeProjectionObjectWithDoubleIdNodeFallbackForNoPk() throws Exception {
         // Exercises the deserializeIdFromNode node.isDouble() path.
         record NoPkDoubleProjection(Double id, @Nonnull String value)
@@ -356,7 +395,7 @@ class StormModuleTest {
         assertEquals(3.14, holder.data().id());
     }
 
-    @org.junit.jupiter.api.Test
+    @Test
     void constructorWithRefFactoryShouldPassThroughToSupplier() throws Exception {
         RefFactory factory = new RefFactory() {
             @SuppressWarnings({"unchecked", "rawtypes"})
@@ -408,7 +447,7 @@ class StormModuleTest {
 
     // Constructor with null RefFactory
 
-    @org.junit.jupiter.api.Test
+    @Test
     void constructorWithNullRefFactoryShouldCreateModuleWithDetachedRefs() throws Exception {
         var mapper = JsonMapper.builder()
                 .addModule(new StormModule((RefFactory) null))
@@ -418,7 +457,7 @@ class StormModuleTest {
         assertEquals(1, holder.entity().id());
     }
 
-    @org.junit.jupiter.api.Test
+    @Test
     void constructorWithNullSupplierResultShouldCreateDetachedRef() throws Exception {
         var mapper = JsonMapper.builder()
                 .addModule(new StormModule(() -> null))
@@ -430,7 +469,7 @@ class StormModuleTest {
 
     // Serialization for different ID types
 
-    @org.junit.jupiter.api.Test
+    @Test
     void unloadedRefWithStringIdShouldSerializeAsStringValue() throws Exception {
         var mapper = JsonMapper.builder()
                 .addModule(new StormModule())
@@ -440,7 +479,7 @@ class StormModuleTest {
         assertEquals("{\"entity\":\"abc-123\"}", json);
     }
 
-    @org.junit.jupiter.api.Test
+    @Test
     void unloadedRefWithLongIdShouldSerializeAsLongValue() throws Exception {
         var mapper = JsonMapper.builder()
                 .addModule(new StormModule())
@@ -452,7 +491,7 @@ class StormModuleTest {
 
     // Deserialization for different ID types
 
-    @org.junit.jupiter.api.Test
+    @Test
     void rawLongIdShouldDeserializeToUnloadedRef() throws Exception {
         var mapper = JsonMapper.builder()
                 .addModule(new StormModule())
@@ -464,7 +503,7 @@ class StormModuleTest {
 
     // Deserialization error paths
 
-    @org.junit.jupiter.api.Test
+    @Test
     void projectionObjectWithoutIdFieldShouldThrowException() {
         var mapper = JsonMapper.builder()
                 .addModule(new StormModule())
@@ -473,7 +512,7 @@ class StormModuleTest {
                 () -> mapper.readValue("{\"projection\":{\"@projection\":{\"id\":5,\"label\":\"Test\"}}}", ProjectionHolder.class));
     }
 
-    @org.junit.jupiter.api.Test
+    @Test
     void booleanTokenShouldThrowExceptionDuringRefDeserialization() {
         var mapper = JsonMapper.builder()
                 .addModule(new StormModule())
@@ -482,7 +521,7 @@ class StormModuleTest {
                 () -> mapper.readValue("{\"entity\":true}", EntityHolder.class));
     }
 
-    @org.junit.jupiter.api.Test
+    @Test
     void arrayTokenShouldThrowExceptionDuringRefDeserialization() {
         var mapper = JsonMapper.builder()
                 .addModule(new StormModule())
@@ -493,7 +532,7 @@ class StormModuleTest {
 
     // Set and Map container types
 
-    @org.junit.jupiter.api.Test
+    @Test
     void refInSetShouldDeserializeCorrectly() throws Exception {
         var mapper = JsonMapper.builder()
                 .addModule(new StormModule())
@@ -502,7 +541,7 @@ class StormModuleTest {
         assertEquals(3, holder.entities().size());
     }
 
-    @org.junit.jupiter.api.Test
+    @Test
     void refInMapValueShouldDeserializeCorrectly() throws Exception {
         var mapper = JsonMapper.builder()
                 .addModule(new StormModule())
@@ -513,7 +552,7 @@ class StormModuleTest {
         assertEquals(2, holder.entities().get("b").id());
     }
 
-    @org.junit.jupiter.api.Test
+    @Test
     void refSetSerializationShouldRoundTrip() throws Exception {
         var mapper = JsonMapper.builder()
                 .addModule(new StormModule())
@@ -528,7 +567,7 @@ class StormModuleTest {
         assertEquals(2, deserialized.entities().size());
     }
 
-    @org.junit.jupiter.api.Test
+    @Test
     void refMapSerializationShouldWork() throws Exception {
         var mapper = JsonMapper.builder()
                 .addModule(new StormModule())
@@ -543,7 +582,7 @@ class StormModuleTest {
 
     // NoPk projection node fallback paths
 
-    @org.junit.jupiter.api.Test
+    @Test
     void noPkProjectionWithIntIdNodeShouldDeserializeViaNodeFallback() throws Exception {
         var mapper = JsonMapper.builder()
                 .addModule(new StormModule())
@@ -555,7 +594,7 @@ class StormModuleTest {
         assertEquals(42, holder.projection().id());
     }
 
-    @org.junit.jupiter.api.Test
+    @Test
     void noPkProjectionWithLongIdNodeShouldDeserializeViaNodeFallback() throws Exception {
         var mapper = JsonMapper.builder()
                 .addModule(new StormModule())
@@ -566,7 +605,7 @@ class StormModuleTest {
         assertEquals(9999999999L, holder.projection().id());
     }
 
-    @org.junit.jupiter.api.Test
+    @Test
     void noPkProjectionWithDoubleIdNodeShouldDeserializeViaNodeFallback() throws Exception {
         var mapper = JsonMapper.builder()
                 .addModule(new StormModule())
@@ -578,7 +617,7 @@ class StormModuleTest {
         assertEquals(3.14, holder.projection().id());
     }
 
-    @org.junit.jupiter.api.Test
+    @Test
     void noPkProjectionWithStringIdNodeShouldDeserializeViaNodeFallback() throws Exception {
         var mapper = JsonMapper.builder()
                 .addModule(new StormModule())
@@ -590,7 +629,7 @@ class StormModuleTest {
         assertEquals("abc", holder.projection().id());
     }
 
-    @org.junit.jupiter.api.Test
+    @Test
     void noPkProjectionWithObjectIdNodeShouldDeserializeViaObjectFallback() throws Exception {
         var mapper = JsonMapper.builder()
                 .addModule(new StormModule())
@@ -604,7 +643,7 @@ class StormModuleTest {
 
     // Entity via @projection path and non-Entity via @entity path
 
-    @org.junit.jupiter.api.Test
+    @Test
     void projectionPathWithEntityDataShouldCreateEntityRef() throws Exception {
         var mapper = JsonMapper.builder()
                 .addModule(new StormModule())
@@ -616,7 +655,7 @@ class StormModuleTest {
         assertNotNull(holder.entity().getOrNull());
     }
 
-    @org.junit.jupiter.api.Test
+    @Test
     void entityPathWithNonEntityDataShouldThrowException() {
         var mapper = JsonMapper.builder()
                 .addModule(new StormModule())
@@ -625,7 +664,7 @@ class StormModuleTest {
                 () -> mapper.readValue("{\"data\":{\"@entity\":{\"id\":42,\"value\":\"test\"}}}", DataRefHolder.class));
     }
 
-    @org.junit.jupiter.api.Test
+    @Test
     void projectionPathWithPlainDataAndIdShouldCreateUnloadedRef() throws Exception {
         var mapper = JsonMapper.builder()
                 .addModule(new StormModule())
@@ -639,7 +678,7 @@ class StormModuleTest {
 
     // NoPk data serialization and list tests
 
-    @org.junit.jupiter.api.Test
+    @Test
     void unloadedNoPkRefShouldSerializeAsRawId() throws Exception {
         var mapper = JsonMapper.builder()
                 .addModule(new StormModule())
@@ -649,7 +688,7 @@ class StormModuleTest {
         assertTrue(json.contains("42"));
     }
 
-    @org.junit.jupiter.api.Test
+    @Test
     void noPkDataSerializerShouldHandleMissingPkTypeGracefully() throws Exception {
         var mapper = JsonMapper.builder()
                 .addModule(new StormModule())
@@ -659,7 +698,7 @@ class StormModuleTest {
         assertTrue(json.contains("text-id"));
     }
 
-    @org.junit.jupiter.api.Test
+    @Test
     void noPkRefListWithMixedIdTypesShouldDeserializeViaFallback() throws Exception {
         var mapper = JsonMapper.builder()
                 .addModule(new StormModule())
@@ -671,7 +710,7 @@ class StormModuleTest {
         assertEquals(3, ((Number) holder.data().get(2).id()).intValue());
     }
 
-    @org.junit.jupiter.api.Test
+    @Test
     void noPkRefWithNullIdInListShouldReturnNullRef() throws Exception {
         var mapper = JsonMapper.builder()
                 .addModule(new StormModule())
@@ -684,7 +723,7 @@ class StormModuleTest {
 
     // Double ID round-trip
 
-    @org.junit.jupiter.api.Test
+    @Test
     void doubleIdRefShouldRoundTrip() throws Exception {
         var mapper = JsonMapper.builder()
                 .addModule(new StormModule())
@@ -696,7 +735,7 @@ class StormModuleTest {
         assertEquals(3.14, deserialized.entity().id());
     }
 
-    @org.junit.jupiter.api.Test
+    @Test
     void loadedDoubleIdEntityRefShouldRoundTrip() throws Exception {
         var mapper = JsonMapper.builder()
                 .addModule(new StormModule())
@@ -711,7 +750,7 @@ class StormModuleTest {
 
     // Additional round-trip tests
 
-    @org.junit.jupiter.api.Test
+    @Test
     void stringIdRefShouldRoundTrip() throws Exception {
         var mapper = JsonMapper.builder()
                 .addModule(new StormModule())
@@ -722,7 +761,7 @@ class StormModuleTest {
         assertEquals(holder, deserialized);
     }
 
-    @org.junit.jupiter.api.Test
+    @Test
     void loadedStringIdEntityRefShouldRoundTrip() throws Exception {
         var mapper = JsonMapper.builder()
                 .addModule(new StormModule())
@@ -734,7 +773,7 @@ class StormModuleTest {
         assertEquals(holder, deserialized);
     }
 
-    @org.junit.jupiter.api.Test
+    @Test
     void loadedLongIdEntityRefShouldRoundTrip() throws Exception {
         var mapper = JsonMapper.builder()
                 .addModule(new StormModule())
@@ -748,7 +787,7 @@ class StormModuleTest {
 
     // Null projection ref
 
-    @org.junit.jupiter.api.Test
+    @Test
     void nullProjectionRefShouldSerializeToNull() throws Exception {
         var mapper = JsonMapper.builder()
                 .addModule(new StormModule())
@@ -758,7 +797,7 @@ class StormModuleTest {
         assertEquals("{\"projection\":null}", json);
     }
 
-    @org.junit.jupiter.api.Test
+    @Test
     void nullProjectionRefShouldDeserializeFromNull() throws Exception {
         var mapper = JsonMapper.builder()
                 .addModule(new StormModule())
@@ -770,7 +809,7 @@ class StormModuleTest {
     // Raw Ref without type info
 
     @SuppressWarnings("rawtypes")
-    @org.junit.jupiter.api.Test
+    @Test
     void rawRefWithoutTypeInfoShouldThrowOnDeserialization() {
         var mapper = JsonMapper.builder()
                 .addModule(new StormModule())
@@ -781,7 +820,7 @@ class StormModuleTest {
 
     // NoPk boolean error
 
-    @org.junit.jupiter.api.Test
+    @Test
     void noPkDataWithBooleanShouldThrowExceptionViaFallbackPath() {
         var mapper = JsonMapper.builder()
                 .addModule(new StormModule())
@@ -802,7 +841,7 @@ class StormModuleTest {
 
     public record RefListHolder(@Nonnull List<Ref<SimpleEntity>> entities) {}
 
-    @org.junit.jupiter.api.Test
+    @Test
     void serializerShouldHandleDirectRefSerializationWithoutProperty() throws Exception {
         var mapper = JsonMapper.builder()
                 .addModule(new StormModule())
@@ -813,7 +852,7 @@ class StormModuleTest {
         assertTrue(json.contains("42"));
     }
 
-    @org.junit.jupiter.api.Test
+    @Test
     void nonRefFieldShouldNotAffectSerialization() throws Exception {
         record NonRefHolder(@Nonnull String value) {}
 
@@ -825,7 +864,7 @@ class StormModuleTest {
         assertEquals("{\"value\":\"test\"}", json);
     }
 
-    @org.junit.jupiter.api.Test
+    @Test
     void refListWithLoadedEntitiesAndNullsShouldDeserializeCorrectly() throws Exception {
         var mapper = JsonMapper.builder()
                 .addModule(new StormModule())
@@ -839,7 +878,7 @@ class StormModuleTest {
         assertNotNull(holder.entities().get(2).getOrNull());
     }
 
-    @org.junit.jupiter.api.Test
+    @Test
     void supplierReturningNullFactoryShouldCreateDetachedRef() throws Exception {
         var mapper = JsonMapper.builder()
                 .addModule(new StormModule(() -> null))
@@ -851,7 +890,7 @@ class StormModuleTest {
         assertNull(holder.entity().getOrNull());
     }
 
-    @org.junit.jupiter.api.Test
+    @Test
     void defaultConstructorShouldCreateModuleWithDetachedRefs() throws Exception {
         var mapper = JsonMapper.builder()
                 .addModule(new StormModule())
@@ -863,7 +902,7 @@ class StormModuleTest {
         assertNull(holder.entity().getOrNull());
     }
 
-    @org.junit.jupiter.api.Test
+    @Test
     void projectionWithEntityTypeInProjectionPathShouldCreateEntityRef() throws Exception {
         var mapper = JsonMapper.builder()
                 .addModule(new StormModule())
@@ -877,7 +916,7 @@ class StormModuleTest {
         assertEquals("Via Projection Path", loaded.name());
     }
 
-    @org.junit.jupiter.api.Test
+    @Test
     void refFactorySupplierShouldBeCalledDuringDeserialization() throws Exception {
         var factoryCallCount = new int[]{0};
         RefFactory factory = new RefFactory() {
@@ -903,7 +942,7 @@ class StormModuleTest {
         assertEquals(3, factoryCallCount[0]);
     }
 
-    @org.junit.jupiter.api.Test
+    @Test
     void simpleNoPkDataWithProjectionFormatAndNullIdShouldThrow() {
         var mapper = JsonMapper.builder()
                 .addModule(new StormModule())
@@ -915,7 +954,7 @@ class StormModuleTest {
 
     public record SimpleNoPkDataProjectionHolder(@Nullable Ref<SimpleNoPkData> data) {}
 
-    @org.junit.jupiter.api.Test
+    @Test
     void simpleNoPkDataWithProjectionFormatAndNonNullIdShouldCreateRefWithId() throws Exception {
         var mapper = JsonMapper.builder()
                 .addModule(new StormModule())
@@ -926,7 +965,7 @@ class StormModuleTest {
         assertEquals(42, ((Number) holder.data().id()).intValue());
     }
 
-    @org.junit.jupiter.api.Test
+    @Test
     void emptyRefListShouldDeserializeCorrectly() throws Exception {
         var mapper = JsonMapper.builder()
                 .addModule(new StormModule())
@@ -937,7 +976,7 @@ class StormModuleTest {
         assertEquals(0, holder.entities().size());
     }
 
-    @org.junit.jupiter.api.Test
+    @Test
     void loadedEntityRefInListShouldSerializeAndDeserialize() throws Exception {
         var mapper = JsonMapper.builder()
                 .addModule(new StormModule())
@@ -959,7 +998,7 @@ class StormModuleTest {
 
     public record ProjectionRefListHolder(@Nonnull List<Ref<SimpleProjection>> projections) {}
 
-    @org.junit.jupiter.api.Test
+    @Test
     void loadedProjectionRefInListShouldSerializeAndDeserialize() throws Exception {
         var mapper = JsonMapper.builder()
                 .addModule(new StormModule())
@@ -981,7 +1020,7 @@ class StormModuleTest {
             @Nullable Ref<SimpleEntity> entity,
             @Nullable Ref<SimpleProjection> projection) {}
 
-    @org.junit.jupiter.api.Test
+    @Test
     void multipleRefTypesInSameHolderShouldDeserializeCorrectly() throws Exception {
         var mapper = JsonMapper.builder()
                 .addModule(new StormModule())
@@ -994,7 +1033,7 @@ class StormModuleTest {
         assertEquals(7, holder.projection().id());
     }
 
-    @org.junit.jupiter.api.Test
+    @Test
     void entityPathWithSimpleNoPkDataShouldThrowException() {
         var mapper = JsonMapper.builder()
                 .addModule(new StormModule())
@@ -1004,7 +1043,7 @@ class StormModuleTest {
                 mapper.readValue(json, SimpleNoPkDataProjectionHolder.class));
     }
 
-    @org.junit.jupiter.api.Test
+    @Test
     void simpleNoPkDataSerializerShouldHandleMissingPkTypeGracefully() throws Exception {
         var mapper = JsonMapper.builder()
                 .addModule(new StormModule())
@@ -1015,7 +1054,7 @@ class StormModuleTest {
         assertTrue(json.contains("text-id"));
     }
 
-    @org.junit.jupiter.api.Test
+    @Test
     void deserializeIdWithFloatValueForSimpleNoPkShouldWork() throws Exception {
         var mapper = JsonMapper.builder()
                 .addModule(new StormModule())
@@ -1026,7 +1065,7 @@ class StormModuleTest {
         assertEquals(3.14, ((Number) holder.data().id()).doubleValue(), 0.001);
     }
 
-    @org.junit.jupiter.api.Test
+    @Test
     void deserializeIdWithStringValueForSimpleNoPkShouldWork() throws Exception {
         var mapper = JsonMapper.builder()
                 .addModule(new StormModule())
@@ -1037,7 +1076,7 @@ class StormModuleTest {
         assertEquals("abc-123", holder.data().id());
     }
 
-    @org.junit.jupiter.api.Test
+    @Test
     void deserializeIdWithLongValueForSimpleNoPkShouldReturnLong() throws Exception {
         var mapper = JsonMapper.builder()
                 .addModule(new StormModule())
@@ -1048,7 +1087,7 @@ class StormModuleTest {
         assertEquals(3000000000L, ((Number) holder.data().id()).longValue());
     }
 
-    @org.junit.jupiter.api.Test
+    @Test
     void deserializeIdFromNodeWithLongValueForSimpleNoPkShouldWork() throws Exception {
         var mapper = JsonMapper.builder()
                 .addModule(new StormModule())
@@ -1059,7 +1098,7 @@ class StormModuleTest {
         assertEquals(3000000000L, ((Number) holder.data().id()).longValue());
     }
 
-    @org.junit.jupiter.api.Test
+    @Test
     void deserializeIdFromNodeWithDoubleValueForSimpleNoPkShouldWork() throws Exception {
         var mapper = JsonMapper.builder()
                 .addModule(new StormModule())
@@ -1070,7 +1109,7 @@ class StormModuleTest {
         assertEquals(2.71, ((Number) holder.data().id()).doubleValue(), 0.001);
     }
 
-    @org.junit.jupiter.api.Test
+    @Test
     void deserializeIdFromNodeWithStringValueForSimpleNoPkShouldWork() throws Exception {
         var mapper = JsonMapper.builder()
                 .addModule(new StormModule())
@@ -1081,7 +1120,7 @@ class StormModuleTest {
         assertEquals("uuid-value", holder.data().id());
     }
 
-    @org.junit.jupiter.api.Test
+    @Test
     void projectionWithoutIdFieldShouldThrow() {
         var mapper = JsonMapper.builder()
                 .addModule(new StormModule())
@@ -1091,7 +1130,7 @@ class StormModuleTest {
                 mapper.readValue(json, ProjectionRefHolder.class));
     }
 
-    @org.junit.jupiter.api.Test
+    @Test
     void refObjectWithoutEntityOrProjectionFieldShouldThrow() {
         var mapper = JsonMapper.builder()
                 .addModule(new StormModule())

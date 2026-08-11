@@ -20,6 +20,8 @@ import st.orm.PK;
 import st.orm.Projection;
 import st.orm.Ref;
 import st.orm.core.spi.RefFactory;
+import st.orm.jackson.model.VetSpecialty;
+import st.orm.jackson.model.VetSpecialtyPK;
 
 public class StormModuleTest {
 
@@ -57,6 +59,8 @@ public class StormModuleTest {
     public record NoPkRefHolder(@Nullable Ref<NoPkData> data) {}
 
     public record NoPkRefListHolder(@Nonnull List<Ref<NoPkData>> data) {}
+
+    public record CompoundPkRefHolder(@Nonnull Ref<VetSpecialty> entity) {}
 
     // Tests for constructor variations.
 
@@ -342,6 +346,39 @@ public class StormModuleTest {
         String loadedJson = mapper.writeValueAsString(loadedHolder);
         ProjectionRefHolder deserializedLoaded = mapper.readValue(loadedJson, ProjectionRefHolder.class);
         assertEquals(loadedHolder, deserializedLoaded);
+    }
+
+    @Test
+    public void unloadedCompoundPkRefShouldSerializeAsPkObject() throws Exception {
+        ObjectMapper mapper = new ObjectMapper();
+        mapper.registerModule(new StormModule());
+
+        Ref<VetSpecialty> ref = Ref.of(VetSpecialty.class, new VetSpecialtyPK(1, 2));
+        String json = mapper.writeValueAsString(new CompoundPkRefHolder(ref));
+        assertEquals("{\"entity\":{\"vetId\":1,\"specialtyId\":2}}", json);
+    }
+
+    @Test
+    public void compoundPkObjectShouldDeserializeToUnloadedRef() throws Exception {
+        ObjectMapper mapper = new ObjectMapper();
+        mapper.registerModule(new StormModule());
+
+        String json = "{\"entity\":{\"vetId\":1,\"specialtyId\":2}}";
+        CompoundPkRefHolder holder = mapper.readValue(json, CompoundPkRefHolder.class);
+        assertNotNull(holder.entity());
+        assertEquals(new VetSpecialtyPK(1, 2), holder.entity().id());
+    }
+
+    @Test
+    public void compoundPkRefSerializationShouldRoundTrip() throws Exception {
+        ObjectMapper mapper = new ObjectMapper();
+        mapper.registerModule(new StormModule());
+
+        Ref<VetSpecialty> ref = Ref.of(VetSpecialty.class, new VetSpecialtyPK(3, 4));
+        CompoundPkRefHolder holder = new CompoundPkRefHolder(ref);
+        String json = mapper.writeValueAsString(holder);
+        CompoundPkRefHolder deserialized = mapper.readValue(json, CompoundPkRefHolder.class);
+        assertEquals(holder, deserialized);
     }
 
     @Test
