@@ -1,0 +1,23 @@
+# Watches the dependency surfaces that previously drifted unwatched: the Maven
+# build (Spring Boot, Kotlin, hardcoded tool versions), the workflow actions,
+# and the two npm trees (website, CLI). Monthly cadence keeps the PR noise low.
+version: 2
+updates:
+  - package-ecosystem: maven
+    directory: /
+    schedule:
+      interval: monthly
+    open-pull-requests-limit: 5
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: monthly
+  - package-ecosystem: npm
+    directory: /website
+    schedule:
+      interval: monthly
+    open-pull-requests-limit: 3
+  - package-ecosystem: npm
+    directory: /storm-cli
+    schedule:
+      interval: monthly

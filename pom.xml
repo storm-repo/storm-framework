@@ -230,6 +230,29 @@
         </pluginManagement>
         <plugins>
             <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-enforcer-plugin</artifactId>
+                <executions>
+                    <execution>
+                        <id>require-jdk-21</id>
+                        <goals>
+                            <goal>enforce</goal>
+                        </goals>
+                        <configuration>
+                            <rules>
+                                <!-- storm-java21 compiles with the enable-preview flag, and preview compilation
+                                     only works on the matching JDK release; any other default JDK fails with a
+                                     confusing compiler error instead of this sentence. -->
+                                <requireJavaVersion>
+                                    <version>[21,22)</version>
+                                    <message>Storm builds on JDK 21 exactly: storm-java21 uses preview features, and preview compilation requires the matching JDK release.</message>
+                                </requireJavaVersion>
+                            </rules>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
+            <plugin>
                 <groupId>org.codehaus.mojo</groupId>
                 <artifactId>flatten-maven-plugin</artifactId>
             </plugin>

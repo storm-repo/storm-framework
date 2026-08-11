@@ -1,6 +1,6 @@
 services:
   mariadb:
-    image: mariadb:latest
+    image: mariadb:11.8
     platform: ${DOCKER_PLATFORM:-linux/arm64/v8}
     container_name: mariadb-db
     ports:
