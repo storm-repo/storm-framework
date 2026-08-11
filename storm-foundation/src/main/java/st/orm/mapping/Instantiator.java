@@ -47,10 +47,11 @@ public interface Instantiator<T> {
      * <p>The arguments are positional and fully adapted: the caller has already performed null checks and type
      * conversion, so implementations only cast and invoke the constructor.</p>
      *
-     * @param args the canonical constructor arguments, in declaration order.
+     * @param args the canonical constructor arguments, in declaration order; elements are {@code null} where the
+     *             corresponding component is.
      * @return the constructed instance.
      */
-    T instantiate(Object[] args);
+    T instantiate(@Nullable Object[] args);
 
     /**
      * Deconstructs the given instance into its canonical constructor arguments, in declaration order.
@@ -67,8 +68,7 @@ public interface Instantiator<T> {
      * @return the component values in declaration order, or {@code null} when not supported.
      * @since 1.13
      */
-    @Nullable
-    default Object[] deconstruct(T instance) {
+    default @Nullable Object @Nullable [] deconstruct(T instance) {
         return null;
     }
 }

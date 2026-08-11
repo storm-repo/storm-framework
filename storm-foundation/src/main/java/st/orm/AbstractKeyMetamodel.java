@@ -29,7 +29,7 @@ import org.jspecify.annotations.Nullable;
  * @param <V> the value type of the designated element.
  * @since 1.9
  */
-public abstract class AbstractKeyMetamodel<T extends Data, E, V> extends AbstractMetamodel<T, E, V>
+public abstract class AbstractKeyMetamodel<T extends Data, E, V extends @Nullable Object> extends AbstractMetamodel<T, E, V>
         implements Metamodel.Key<T, E> {
 
     private final boolean nullable;

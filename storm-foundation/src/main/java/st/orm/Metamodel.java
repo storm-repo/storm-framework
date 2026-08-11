@@ -18,6 +18,7 @@ package st.orm;
 import static java.util.Objects.requireNonNull;
 
 import java.util.List;
+import org.jspecify.annotations.Nullable;
 
 /**
  * The metamodel provides type-safe references to entity fields for use in queries. Generated metamodel classes
@@ -118,6 +119,7 @@ public interface Metamodel<T extends Data, E> extends Navigable<T, E> {
      * @return the extracted value, or {@code null} if the value cannot be resolved.
      * @since 1.7
      */
+    @Nullable
     Object getValue(T record);
 
     /**
@@ -261,7 +263,7 @@ public interface Metamodel<T extends Data, E> extends Navigable<T, E> {
         @Override public String path()                               { return delegate.path(); }
         @Override public Class<E> fieldType()                        { return delegate.fieldType(); }
         @Override public String field()                              { return delegate.field(); }
-        @Override public Object getValue(T record)          { return delegate.getValue(record); }
+        @Override public @Nullable Object getValue(T record)         { return delegate.getValue(record); }
         @Override public boolean isIdentical(T a, T b) { return delegate.isIdentical(a, b); }
         @Override public boolean isSame(T a, T b)  { return delegate.isSame(a, b); }
         @Override public List<Metamodel<T, ?>> flatten()             { return delegate.flatten(); }

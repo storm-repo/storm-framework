@@ -15,6 +15,7 @@
  */
 package st.orm;
 
+import org.jspecify.annotations.Nullable;
 
 /**
  * A {@link Metamodel} that also carries the declared component type of the field it represents.
@@ -24,14 +25,17 @@ package st.orm;
  * both parameters to the same type variable to require an eagerly fetched path at compile time, for example
  * {@code TypedMetamodel<T, V, V>}.</p>
  *
+ * <p>{@code V} admits nullable arguments: the generated nullable metamodel chain binds it to the nullable form of
+ * the component type, carrying the field's nullability in the type.</p>
+ *
  * <p>The metamodels generated for record fields implement this interface via {@link AbstractMetamodel}.</p>
  *
  * @param <T> the root table type.
  * @param <E> the field type.
- * @param <V> the declared component type.
+ * @param <V> the declared component type, possibly nullable.
  * @since 1.13
  */
-public interface TypedMetamodel<T extends Data, E, V> extends Metamodel<T, E> {
+public interface TypedMetamodel<T extends Data, E, V extends @Nullable Object> extends Metamodel<T, E> {
 
     /**
      * Extracts the value of the field represented by this metamodel from the given record, typed as the declared
