@@ -186,7 +186,7 @@ public class StormPluginConfig {
     public var registerDependencies: Boolean = true
 
     /**
-     * Schema validation mode: `"none"`, `"warn"`, or `"fail"`.
+     * Schema validation mode: `"none"`, `"warn"`, or `"fail"`. Any other value aborts installation.
      *
      * When not set, the mode is read from the application configuration under
      * `storm.validation.schemaMode` (or `storm.validation.schema_mode`), matching the Spring Boot

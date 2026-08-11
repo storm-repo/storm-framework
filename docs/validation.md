@@ -340,3 +340,5 @@ The `schema-mode` values:
 | `storm.validation.record_mode` | `fail` | Record validation mode: `fail`, `warn`, or `none` |
 | `storm.validation.schema_mode` | `fail` | Schema validation mode: `none`, `warn`, or `fail` (Spring Boot and Ktor) |
 | `storm.validation.strict` | `false` | When `true`, schema validation warnings are treated as errors |
+
+Mode values are matched case-insensitively after trimming, and a blank value means the default. Any other value is a configuration error: Storm fails fast with an error naming the property, the given value, and the valid values, so a typo cannot silently change validation behavior.

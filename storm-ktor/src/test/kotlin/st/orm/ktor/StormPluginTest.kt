@@ -290,16 +290,48 @@ class StormPluginTest {
     }
 
     @Test
-    fun `unknown schema validation mode does not throw`() {
+    fun `unknown schema validation mode fails startup`() {
+        // A valid schema proves the failure is the unrecognized mode, not a validation mismatch.
+        val dataSource = createTestDataSource()
+        initializeSchema(dataSource)
+        try {
+            testApplication {
+                application {
+                    try {
+                        install(Storm) {
+                            this.dataSource = dataSource
+                            schemaValidation = "invalid"
+                        }
+                        throw AssertionError("Expected unknown schema validation mode to fail startup")
+                    } catch (expected: IllegalStateException) {
+                        expected.message shouldBe "Invalid schema validation mode 'invalid' for primary database " +
+                            "(schemaValidation option or storm.validation.schemaMode). " +
+                            "Valid values are: none, warn, fail."
+                    }
+                }
+            }
+        } finally {
+            dataSource.close()
+        }
+    }
+
+    @Test
+    fun `blank schema validation mode falls back to the fail default`() {
+        // No schema initialized: blank means unset, so the fail default must abort startup instead of
+        // skipping validation.
         val dataSource = createTestDataSource()
         try {
             testApplication {
                 application {
-                    install(Storm) {
-                        this.dataSource = dataSource
-                        schemaValidation = "invalid"
+                    try {
+                        install(Storm) {
+                            this.dataSource = dataSource
+                            schemaValidation = "  "
+                        }
+                        throw AssertionError("Expected schema validation to fail startup")
+                    } catch (expected: st.orm.PersistenceException) {
+                        // Blank resolved to the fail default and validation ran.
                     }
-                    orm shouldNotBe null
                 }
             }
         } finally {

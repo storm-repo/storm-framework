@@ -243,6 +243,7 @@ public val Storm: ApplicationPlugin<StormPluginConfig> = createApplicationPlugin
             ?: application.environment.config.propertyOrNull("storm.validation.schemaMode")?.getString()
             ?: application.environment.config.propertyOrNull("storm.validation.schema_mode")?.getString()
             ?: "fail",
+        property = "storm.validation.schemaMode",
         description = "primary database",
     ) { type -> claimedPackages.keys.none { type.java.name.startsWith("$it.") } }
     for (databaseConfig in pluginConfig.databases.values) {
@@ -253,6 +254,7 @@ public val Storm: ApplicationPlugin<StormPluginConfig> = createApplicationPlugin
                 ?: application.environment.config.propertyOrNull("storm.databases.$name.validation.schemaMode")?.getString()
                 ?: application.environment.config.propertyOrNull("storm.databases.$name.validation.schema_mode")?.getString()
                 ?: "fail",
+            property = "storm.databases.$name.validation.schemaMode",
             description = "database '$name'",
         ) { type -> databaseConfig.repositoryPackages.any { type.java.name.startsWith("$it.") } }
     }
@@ -412,23 +414,28 @@ private fun Application.registerRepositories(registry: RepositoryRegistry): List
 
 /**
  * Runs schema validation for one database's template, limited to the types accepted by [filter].
+ *
+ * The mode is matched case-insensitively after trimming; a blank value means the `fail` default, matching the
+ * Spring entry point. Any other value is a configuration error and fails installation, so a typo cannot
+ * silently disable validation. [property] names the configuration key in that error.
  */
 private fun Application.runSchemaValidation(
     template: ORMTemplate,
     configuredMode: String,
+    property: String,
     description: String,
     filter: (KClass<out st.orm.Data>) -> Boolean,
 ) {
-    val schemaMode = configuredMode.trim().lowercase()
-    if (schemaMode == "none" || schemaMode.isBlank()) {
-        return
-    }
-    when (schemaMode) {
+    when (configuredMode.trim().lowercase().ifEmpty { "fail" }) {
+        "none" -> {}
         "fail" -> {
             template.validateSchemaOrThrow(filter)
             log.info("Storm schema validation passed for $description (mode=fail).")
         }
         "warn" -> template.validateSchema(filter).forEach { log.warn(it) }
-        else -> log.warn("Unknown schema validation mode: '$configuredMode'. Expected 'none', 'warn', or 'fail'.")
+        else -> throw IllegalStateException(
+            "Invalid schema validation mode '$configuredMode' for $description " +
+                "(schemaValidation option or $property). Valid values are: none, warn, fail.",
+        )
     }
 }

@@ -1,10 +1,13 @@
 package st.orm.core.template.impl;
 
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static st.orm.StormConfig.VALIDATION_RECORD_MODE;
 
 import java.util.List;
+import java.util.Map;
 import org.jspecify.annotations.Nullable;
 import org.junit.jupiter.api.Test;
 import st.orm.Data;
@@ -13,9 +16,11 @@ import st.orm.FK;
 import st.orm.GenerationStrategy;
 import st.orm.Inline;
 import st.orm.PK;
+import st.orm.PersistenceException;
 import st.orm.Projection;
 import st.orm.ProjectionQuery;
 import st.orm.Ref;
+import st.orm.StormConfig;
 import st.orm.Version;
 import st.orm.core.template.SqlTemplate.NamedParameter;
 import st.orm.core.template.SqlTemplate.Parameter;
@@ -712,6 +717,34 @@ class RecordValidationTest {
                 () -> RecordValidation.validateDataType(EntityWithProjectionInside.class));
         assertTrue(exception.getMessage().contains("@FK") || exception.getMessage().contains("@Inline"),
                 "Expected error message to mention @FK or @Inline, got: " + exception.getMessage());
+    }
+
+    // Record validation mode resolution
+
+    @Test
+    void testRecordModeDefaultsToFail() {
+        assertEquals("fail", RecordValidation.resolveRecordMode(StormConfig.defaults()));
+    }
+
+    @Test
+    void testRecordModeBlankFallsBackToFail() {
+        var config = StormConfig.of(Map.of(VALIDATION_RECORD_MODE, "  "));
+        assertEquals("fail", RecordValidation.resolveRecordMode(config));
+    }
+
+    @Test
+    void testRecordModeMatchesCaseInsensitivelyAfterTrimming() {
+        var config = StormConfig.of(Map.of(VALIDATION_RECORD_MODE, "  WARN  "));
+        assertEquals("warn", RecordValidation.resolveRecordMode(config));
+    }
+
+    @Test
+    void testRecordModeUnknownValueFailsFast() {
+        var config = StormConfig.of(Map.of(VALIDATION_RECORD_MODE, "fial"));
+        PersistenceException exception = assertThrows(PersistenceException.class,
+                () -> RecordValidation.resolveRecordMode(config));
+        assertEquals("Invalid storm.validation.record_mode: 'fial'. Valid values are: none, warn, fail.",
+                exception.getMessage());
     }
 
 }

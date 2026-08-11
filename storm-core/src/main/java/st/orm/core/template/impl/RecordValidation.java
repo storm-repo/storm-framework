@@ -15,6 +15,7 @@
  */
 package st.orm.core.template.impl;
 
+import static java.util.Locale.ROOT;
 import static java.util.Optional.empty;
 import static st.orm.StormConfig.VALIDATION_RECORD_MODE;
 import static st.orm.core.spi.Providers.getORMConverter;
@@ -102,12 +103,12 @@ final class RecordValidation {
             if (validationCompleted) {
                 return;
             }
-            if ("none".equalsIgnoreCase(recordMode)) {
+            if ("none".equals(recordMode)) {
                 LOGGER.info("Skipping Data type validation. Set storm.validation.record_mode=fail to enable validation.");
                 validationCompleted = true;
                 return;
             }
-            boolean warningsOnly = "warn".equalsIgnoreCase(recordMode);
+            boolean warningsOnly = "warn".equals(recordMode);
             LOGGER.info("Validating Data types for correctness.");
             var dataTypes = TypeDiscovery.getDataTypes();
             var validationErrors = new AtomicReference<>(0);
@@ -142,15 +143,25 @@ final class RecordValidation {
     /**
      * Resolves the record validation mode from the given configuration.
      *
+     * <p>The value is trimmed and matched case-insensitively; an absent or blank value means the {@code fail}
+     * default. Any other value is a configuration error and fails fast, so a typo cannot silently change the
+     * validation semantics.</p>
+     *
      * @param config the Storm configuration.
      * @return the resolved record validation mode: {@code "none"}, {@code "warn"}, or {@code "fail"}.
+     * @throws PersistenceException if the configured value is not a valid mode.
      */
-    private static String resolveRecordMode(StormConfig config) {
+    static String resolveRecordMode(StormConfig config) {
         String recordMode = config.getProperty(VALIDATION_RECORD_MODE, null);
-        if (recordMode != null) {
-            return recordMode.trim();
+        if (recordMode == null || recordMode.isBlank()) {
+            return "fail";
         }
-        return "fail";
+        String mode = recordMode.trim().toLowerCase(ROOT);
+        if (!"none".equals(mode) && !"warn".equals(mode) && !"fail".equals(mode)) {
+            throw new PersistenceException("Invalid %s: '%s'. Valid values are: none, warn, fail."
+                    .formatted(VALIDATION_RECORD_MODE, recordMode.trim()));
+        }
+        return mode;
     }
 
     /**
