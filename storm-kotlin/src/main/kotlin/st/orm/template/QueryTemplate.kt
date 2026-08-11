@@ -38,7 +38,7 @@ import kotlin.reflect.KClass
  * ```kotlin
  * val users = orm.selectFrom(User::class)
  *     .where(User_.name eq "Alice")
- *     .getResultList()
+ *     .resultList
  * ```
  *
  * @see ORMTemplate

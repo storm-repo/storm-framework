@@ -192,10 +192,8 @@ class OperatorTest {
     }
 
     @Test
-    void equalsOperatorWithNullColumn() {
-        // When column is null, the operator format still produces SQL with "null" as string
-        String result = Operator.EQUALS.format(null, "?");
-        assertEquals("null = ?", result);
+    void equalsOperatorWithNullColumnThrows() {
+        assertThrows(IllegalArgumentException.class, () -> Operator.EQUALS.format(null, "?"));
     }
 
     @Test
@@ -247,87 +245,79 @@ class OperatorTest {
     }
 
     @Test
-    void notEqualsWithNullColumnFormatsWithNull() {
-        // When column is null, operators produce SQL with "null" string (no exception).
-        String result = Operator.NOT_EQUALS.format(null, "?");
-        assertEquals("null <> ?", result);
+    void notEqualsWithNullColumnThrows() {
+        assertThrows(IllegalArgumentException.class, () -> Operator.NOT_EQUALS.format(null, "?"));
     }
 
     @Test
-    void likeWithNullColumnFormatsWithNull() {
-        String result = Operator.LIKE.format(null, "?");
-        assertEquals("null LIKE ?", result);
+    void likeWithNullColumnThrows() {
+        assertThrows(IllegalArgumentException.class, () -> Operator.LIKE.format(null, "?"));
     }
 
     @Test
-    void notLikeWithNullColumnFormatsWithNull() {
-        String result = Operator.NOT_LIKE.format(null, "?");
-        assertEquals("null NOT LIKE ?", result);
+    void notLikeWithNullColumnThrows() {
+        assertThrows(IllegalArgumentException.class, () -> Operator.NOT_LIKE.format(null, "?"));
     }
 
     @Test
-    void greaterThanWithNullColumnFormatsWithNull() {
-        String result = Operator.GREATER_THAN.format(null, "?");
-        assertEquals("null > ?", result);
+    void greaterThanWithNullColumnThrows() {
+        assertThrows(IllegalArgumentException.class, () -> Operator.GREATER_THAN.format(null, "?"));
     }
 
     @Test
-    void greaterThanOrEqualWithNullColumnFormatsWithNull() {
-        String result = Operator.GREATER_THAN_OR_EQUAL.format(null, "?");
-        assertEquals("null >= ?", result);
+    void greaterThanOrEqualWithNullColumnThrows() {
+        assertThrows(IllegalArgumentException.class, () -> Operator.GREATER_THAN_OR_EQUAL.format(null, "?"));
     }
 
     @Test
-    void lessThanWithNullColumnFormatsWithNull() {
-        String result = Operator.LESS_THAN.format(null, "?");
-        assertEquals("null < ?", result);
+    void lessThanWithNullColumnThrows() {
+        assertThrows(IllegalArgumentException.class, () -> Operator.LESS_THAN.format(null, "?"));
     }
 
     @Test
-    void lessThanOrEqualWithNullColumnFormatsWithNull() {
-        String result = Operator.LESS_THAN_OR_EQUAL.format(null, "?");
-        assertEquals("null <= ?", result);
+    void lessThanOrEqualWithNullColumnThrows() {
+        assertThrows(IllegalArgumentException.class, () -> Operator.LESS_THAN_OR_EQUAL.format(null, "?"));
     }
 
     @Test
-    void betweenWithNullColumnFormatsWithNull() {
-        String result = Operator.BETWEEN.format(null, "?", "?");
-        assertEquals("null BETWEEN ? AND ?", result);
+    void betweenWithNullColumnThrows() {
+        assertThrows(IllegalArgumentException.class, () -> Operator.BETWEEN.format(null, "?", "?"));
     }
 
     @Test
-    void isTrueWithNullColumnFormatsWithNull() {
-        String result = Operator.IS_TRUE.format(null);
-        assertEquals("null IS TRUE", result);
+    void isTrueWithNullColumnThrows() {
+        assertThrows(IllegalArgumentException.class, () -> Operator.IS_TRUE.format(null));
     }
 
     @Test
-    void isFalseWithNullColumnFormatsWithNull() {
-        String result = Operator.IS_FALSE.format(null);
-        assertEquals("null IS FALSE", result);
+    void isFalseWithNullColumnThrows() {
+        assertThrows(IllegalArgumentException.class, () -> Operator.IS_FALSE.format(null));
     }
 
     @Test
-    void isNullWithNullColumnFormatsWithNull() {
-        String result = Operator.IS_NULL.format(null);
-        assertEquals("null IS NULL", result);
+    void isNullWithNullColumnThrows() {
+        assertThrows(IllegalArgumentException.class, () -> Operator.IS_NULL.format(null));
     }
 
     @Test
-    void isNotNullWithNullColumnFormatsWithNull() {
-        String result = Operator.IS_NOT_NULL.format(null);
-        assertEquals("null IS NOT NULL", result);
+    void isNotNullWithNullColumnThrows() {
+        assertThrows(IllegalArgumentException.class, () -> Operator.IS_NOT_NULL.format(null));
     }
 
     @Test
-    void inWithNullColumnFormatsWithNull() {
-        String result = Operator.IN.format(null, "?");
-        assertEquals("null IN (?)", result);
+    void inWithNullColumnThrows() {
+        assertThrows(IllegalArgumentException.class, () -> Operator.IN.format(null, "?"));
     }
 
     @Test
-    void notInWithNullColumnFormatsWithNull() {
-        String result = Operator.NOT_IN.format(null, "?");
-        assertEquals("null NOT IN (?)", result);
+    void inWithNullColumnAndZeroPlaceholdersFormatsWithoutColumn() {
+        // The zero-placeholder form renders a constant expression and does not reference the column.
+        String result = Operator.IN.format(null);
+        assertEquals("1 <> 1", result);
+    }
+
+    @Test
+    void notInWithNullColumnThrows() {
+        assertThrows(IllegalArgumentException.class, () -> Operator.NOT_IN.format(null, "?"));
     }
 }

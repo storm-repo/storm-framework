@@ -22,7 +22,7 @@ import java.lang.annotation.Retention;
 import java.lang.annotation.Target;
 
 /**
- * Specifies the schema name for the table or view.
+ * Specifies the name of the database table or view, and optionally its schema.
  */
 @Target(TYPE)
 @Retention(RUNTIME)

@@ -33,8 +33,10 @@ import st.orm.Ref;
  * expressions. Each method returns a {@link PredicateBuilder} that can be further composed using
  * {@code and()} and {@code or()} combinators.</p>
  *
- * <p>Methods named {@code where} are type-safe and restrict metamodel paths to the root table's entity graph.
- * Methods named {@code whereAny} accept metamodel paths from any table, including manually added joins.</p>
+ * <p>The {@code where} methods are type-safe and restrict metamodel paths to the root table's entity graph.
+ * Predicates for other tables, including manually added joins, can be combined using the
+ * {@link PredicateBuilder#andAny} and {@link PredicateBuilder#orAny} combinators or expressed as custom string
+ * template expressions.</p>
  *
  * <h2>Example</h2>
  * <pre>{@code

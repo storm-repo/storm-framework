@@ -25,29 +25,28 @@ import st.orm.template.TemplateString.Companion.raw
 /**
  * A builder for constructing the WHERE clause of a query, providing type-safe predicate construction.
  *
- * The `WhereBuilder` is passed to the lambda argument of [QueryBuilder.where] and offers methods for matching by
- * primary key, record, ref, metamodel path, or custom template string expressions. Each method returns a
- * [PredicateBuilder] that can be further composed using `and()` and `or()` combinators.
+ * The `WhereBuilder` is the receiver of the lambda passed to [QueryBuilder.whereBuilder] and offers methods for
+ * matching by primary key, record, ref, metamodel path, or custom template string expressions. Each method returns
+ * a [PredicateBuilder] that can be further composed using `and()` and `or()` combinators.
  *
- * Methods named `where` are type-safe and restrict metamodel paths to the root table's entity graph.
- * Methods named `whereAny` accept metamodel paths from any table, including manually added joins.
+ * The `where` methods are type-safe and restrict metamodel paths to the root table's entity graph. Predicates for
+ * other tables, including manually added joins, can be combined using the [PredicateBuilder.andAny] and
+ * [PredicateBuilder.orAny] combinators or expressed as custom template strings.
  *
  * ## Example
  * ```kotlin
  * val users = userRepository
  *     .select()
- *     .where { predicate ->
- *         predicate
- *             .where(User_.active eq true)
- *             .and(predicate.where(User_.address.city.name eq "Sunnyvale"))
+ *     .whereBuilder {
+ *         (User_.active eq true) and (User_.address.city.name eq "Sunnyvale")
  *     }
- *     .getResultList()
+ *     .resultList
  * ```
  *
  * @param T the type of the table being queried.
  * @param R the type of the result.
  * @param ID the type of the primary key.
- * @see QueryBuilder.where
+ * @see QueryBuilder.whereBuilder
  * @see PredicateBuilder
  */
 @SqlDsl

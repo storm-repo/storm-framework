@@ -48,7 +48,7 @@ import kotlin.reflect.KClass
  *     .where(User_.address.city.name eq "Sunnyvale")
  *     .orderBy(User_.email)
  *     .limit(10)
- *     .getResultList()
+ *     .resultList
  * ```
  *
  * ## Example: Join with reified type arguments
@@ -56,7 +56,7 @@ import kotlin.reflect.KClass
  * val users = userRepository
  *     .select()
  *     .innerJoin<Order>().on<User>()
- *     .getResultList()
+ *     .resultList
  * ```
  *
  * ## Example: Delete with WHERE clause

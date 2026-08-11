@@ -31,13 +31,12 @@ import st.orm.Data
  * ```kotlin
  * val users = userRepository
  *     .select()
- *     .where { predicate ->
- *         predicate
- *             .where(User_.active eq true)
- *             .and(predicate.where(User_.email.isNotNull()))
- *             .or(predicate.where(User_.role eq "admin"))
+ *     .whereBuilder {
+ *         (User_.active eq true)
+ *             .and(User_.email.isNotNull())
+ *             .or(User_.role eq "admin")
  *     }
- *     .getResultList()
+ *     .resultList
  * ```
  *
  * @param T the type of the table being queried.

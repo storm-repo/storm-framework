@@ -885,7 +885,7 @@ class TemplateProcessor {
                 case Iterable<?> it when template.expandCollection() -> mapArgs(it, template.inlineParameters());
                 case Object[] ignore -> throw new UncheckedSqlTemplateException(new SqlTemplateException("Array parameters are not supported in SQL templates. Use a List instead of an array to pass multiple values."));
                 case Iterable<?> ignore ->
-                        throw new UncheckedSqlTemplateException(new SqlTemplateException("Collection parameters are not supported at this position in the SQL template. Use individual parameters, or pass collections inside a WHERE ... IN clause using the whereAny/whereAll builder methods."));
+                        throw new UncheckedSqlTemplateException(new SqlTemplateException("Collection parameters are not supported at this position in the SQL template. Use individual parameters, or pass the collection to a query builder method such as whereId(ids) or where(path, IN, values), which renders a WHERE ... IN clause."));
                 case null, default -> {
                     if (template.inlineParameters()) {
                         yield toLiteral(value);
@@ -1200,7 +1200,7 @@ class TemplateProcessor {
                 case Iterable<?> it when template.expandCollection() -> bindArgs(it, template.inlineParameters());
                 case Object[] ignore -> throw new UncheckedSqlTemplateException(new SqlTemplateException("Array parameters are not supported in SQL templates. Use a List instead of an array to pass multiple values."));
                 case Iterable<?> ignore ->
-                        throw new UncheckedSqlTemplateException(new SqlTemplateException("Collection parameters are not supported at this position in the SQL template. Use individual parameters, or pass collections inside a WHERE ... IN clause using the whereAny/whereAll builder methods."));
+                        throw new UncheckedSqlTemplateException(new SqlTemplateException("Collection parameters are not supported at this position in the SQL template. Use individual parameters, or pass the collection to a query builder method such as whereId(ids) or where(path, IN, values), which renders a WHERE ... IN clause."));
                 case null, default -> {
                     if (!template.inlineParameters()) {
                         parameters.add(new PositionalParameter(parameters.size() + 1, value));
