@@ -130,6 +130,7 @@ public final class MetamodelProcessor extends AbstractProcessor {
 
     private Elements elementUtils;
     private Types typeUtils;
+    private boolean jspecifyAvailable;
 
     public MetamodelProcessor() {
         this.generatedMetamodelClasses = new HashSet<>();
@@ -148,6 +149,31 @@ public final class MetamodelProcessor extends AbstractProcessor {
         super.init(processingEnv);
         this.elementUtils = processingEnv.getElementUtils();
         this.typeUtils = processingEnv.getTypeUtils();
+        this.jspecifyAvailable = elementUtils.getTypeElement("org.jspecify.annotations.Nullable") != null;
+    }
+
+    /**
+     * Renders a boxed type name as a nullable return type. When JSpecify is on the compilation class path the
+     * last simple name carries a fully qualified type-use {@code @Nullable} (a type-use annotation may not
+     * precede a package qualifier); otherwise the name is returned untouched, so generated code never
+     * references a library the class path does not have.
+     */
+    private String nullableReturnType(String typeName) {
+        if (!jspecifyAvailable) {
+            return typeName;
+        }
+        String annotation = "@org.jspecify.annotations.Nullable ";
+        int generic = typeName.indexOf('<');
+        String raw = generic < 0 ? typeName : typeName.substring(0, generic);
+        int bracket = raw.indexOf("[]");
+        if (bracket >= 0) {
+            return typeName.substring(0, bracket) + " " + annotation + typeName.substring(bracket);
+        }
+        int dot = raw.lastIndexOf('.');
+        if (dot < 0) {
+            return annotation + typeName;
+        }
+        return typeName.substring(0, dot + 1) + annotation + typeName.substring(dot + 1);
     }
 
     private static boolean isNestedRecord(TypeMirror typeMirror) {
@@ -1377,7 +1403,7 @@ public final class MetamodelProcessor extends AbstractProcessor {
                 builder.append("        this.").append(fieldName).append(" = new ").append(baseClass).append("<T, ")
                         .append(fieldTypeName).append(", ").append(valueTypeName).append(">(")
                         .append(constructorArgs).append(") {\n")
-                        .append("            @Override public ").append(valueTypeName).append(" getValue(T record) {\n")
+                        .append("            @Override public ").append(nullableReturnType(valueTypeName)).append(" getValue(T record) {\n")
                         .append("                ").append(recordName).append(" r = ").append(metaClassName).append(".this.getValue(record);\n")
                         .append("                if (r == null) return null;\n")
                         .append("                return ").append(accOnOwner).append(";\n")
@@ -1651,7 +1677,7 @@ public final class MetamodelProcessor extends AbstractProcessor {
                         navFields + "\n" +
                         "    private final java.util.function.Function<T, " + refType + "> getter;\n\n" +
                         "    /**\n     * Returns the reference the record holds, or {@code null} when the foreign key is null.\n     */\n" +
-                        "    @Override\n    public " + refType + " getValue(T record) {\n        return getter.apply(record);\n    }\n\n" +
+                        "    @Override\n    public " + nullableReturnType(refType) + " getValue(T record) {\n        return getter.apply(record);\n    }\n\n" +
                         "    @Override\n    public boolean isIdentical(T a, T b) {\n        return getter.apply(a) == getter.apply(b);\n    }\n\n" +
                         "    @Override\n    public boolean isSame(T a, T b) {\n        return java.util.Objects.equals(getter.apply(a), getter.apply(b));\n    }\n\n" +
                         "    public " + metaClassName + "(String path, String field, boolean inline, Metamodel<T, ?> parent, java.util.function.Function<T, " + refType + "> getter) {\n" +
@@ -1761,7 +1787,7 @@ public final class MetamodelProcessor extends AbstractProcessor {
                     classFields + "\n" +
                             "    private final java.util.function.Function<T, " + recordName + "> getter;\n\n" +
                             "    @Override\n" +
-                            "    public " + recordName + " getValue(T record) {\n" +
+                            "    public " + nullableReturnType(recordName) + " getValue(T record) {\n" +
                             "        return getter.apply(record);\n" +
                             "    }\n\n" +
                             "    @Override\n" +
@@ -2159,7 +2185,7 @@ public final class MetamodelProcessor extends AbstractProcessor {
                 initFields.append("        this.").append(fieldName).append(" = new ").append(baseClass).append("<T, ")
                         .append(fieldTypeName).append(", ").append(valueTypeName).append(">(")
                         .append(constructorArgs).append(") {\n")
-                        .append("            @Override public ").append(valueTypeName).append(" getValue(T record) {\n")
+                        .append("            @Override public ").append(nullableReturnType(valueTypeName)).append(" getValue(T record) {\n")
                         .append("                ").append(typeName).append(" r = ").append(metaClassName).append(".this.getValue(record);\n")
                         .append("                if (r == null) return null;\n")
                         .append("                return ").append(accessExpr).append(";\n")
@@ -2255,7 +2281,7 @@ public final class MetamodelProcessor extends AbstractProcessor {
                     classFields + "\n" +
                             "    private final java.util.function.Function<T, " + typeName + "> getter;\n\n" +
                             "    @Override\n" +
-                            "    public " + typeName + " getValue(T record) {\n" +
+                            "    public " + nullableReturnType(typeName) + " getValue(T record) {\n" +
                             "        return getter.apply(record);\n" +
                             "    }\n\n" +
                             "    @Override\n" +

@@ -152,6 +152,51 @@ class MetamodelProcessorTest {
     }
 
     @Test
+    void annotatesGeneratedNullableReturnsWhenJspecifyIsOnTheClassPath() throws Exception {
+        Compilation compilation = compile("Owner.java", """
+                import st.orm.Entity;
+                import st.orm.FK;
+                import st.orm.PK;
+                import st.orm.Ref;
+
+                public record Owner(@PK Integer id, @FK Ref<City> city) implements Entity<Integer> {}
+
+                record City(@PK Integer id, String name) implements Entity<Integer> {}
+                """);
+        assertTrue(compilation.success(), compilation.errors());
+        String refMetamodel = compilation.generatedSource("CityRefMetamodel.java");
+        assertTrue(refMetamodel.contains("st.orm.@org.jspecify.annotations.Nullable Ref<City> getValue(T record)"),
+                "getValue returns null when the foreign key is null; with JSpecify available the generated"
+                        + " override must say so:\n" + refMetamodel);
+        String ownerMetamodel = compilation.generatedSource("OwnerMetamodel.java");
+        assertTrue(ownerMetamodel.contains("@org.jspecify.annotations.Nullable Integer getValue(T record)"),
+                "field metamodel getValue overrides return null when the owner chain is null:\n" + ownerMetamodel);
+        assertTrue(Files.exists(compilation.classes().resolve("OwnerMetamodel.class")),
+                "expected the annotated generated metamodels to compile");
+    }
+
+    @Test
+    void generatedCodeCompilesWithoutJspecifyOnTheClassPath() throws Exception {
+        Compilation compilation = compile("Owner.java", """
+                import st.orm.Entity;
+                import st.orm.FK;
+                import st.orm.PK;
+                import st.orm.Ref;
+
+                public record Owner(@PK Integer id, @FK Ref<City> city) implements Entity<Integer> {}
+
+                record City(@PK Integer id, String name) implements Entity<Integer> {}
+                """,
+                compiledFoundationClasses().toString(), null);
+        assertTrue(compilation.success(), compilation.errors());
+        String ownerMetamodel = compilation.generatedSource("OwnerMetamodel.java");
+        assertFalse(ownerMetamodel.contains("jspecify"),
+                "without JSpecify on the class path generated code must not reference it:\n" + ownerMetamodel);
+        assertTrue(Files.exists(compilation.classes().resolve("OwnerMetamodel.class")),
+                "generated metamodels must compile against foundation bytecode with no annotation library present");
+    }
+
+    @Test
     void unwrapsRefFieldCarryingTypeUseNullable() throws Exception {
         Compilation compilation = compile("Owner.java", """
                 import org.jspecify.annotations.Nullable;
@@ -315,23 +360,31 @@ class MetamodelProcessorTest {
     }
 
     private Compilation compile(String fileName, String source) throws IOException, URISyntaxException {
-        Path fixtureDir = Files.createDirectories(tempDir.resolve("fixtures"));
         Path sourcePath = Files.createDirectories(tempDir.resolve("sourcepath"));
+        copyFoundationSources(sourcePath);
+        return compile(fileName, source,
+                jarOf(jakarta.annotation.Nonnull.class) + java.io.File.pathSeparator
+                        + jarOf(org.jspecify.annotations.Nullable.class),
+                sourcePath);
+    }
+
+    private Compilation compile(String fileName, String source, String classPath, Path sourcePath)
+            throws IOException, URISyntaxException {
+        Path fixtureDir = Files.createDirectories(tempDir.resolve("fixtures"));
         Path generatedSources = Files.createDirectories(tempDir.resolve("generated"));
         Path classes = Files.createDirectories(tempDir.resolve("classes"));
-        copyFoundationSources(sourcePath);
         Path fixture = fixtureDir.resolve(fileName);
         Files.writeString(fixture, source);
         JavaCompiler compiler = ToolProvider.getSystemJavaCompiler();
         DiagnosticCollector<JavaFileObject> diagnostics = new DiagnosticCollector<>();
         try (StandardJavaFileManager fileManager = compiler.getStandardFileManager(diagnostics, null, StandardCharsets.UTF_8)) {
-            List<String> options = List.of(
+            List<String> options = new java.util.ArrayList<>(List.of(
                     "-d", classes.toString(),
                     "-s", generatedSources.toString(),
-                    "-sourcepath", sourcePath.toString(),
-                    "-implicit:class",
-                    "-classpath", jarOf(jakarta.annotation.Nonnull.class) + java.io.File.pathSeparator
-                            + jarOf(org.jspecify.annotations.Nullable.class));
+                    "-classpath", classPath));
+            if (sourcePath != null) {
+                options.addAll(List.of("-sourcepath", sourcePath.toString(), "-implicit:class"));
+            }
             JavaCompiler.CompilationTask task = compiler.getTask(null, fileManager, diagnostics, options, null,
                     fileManager.getJavaFileObjectsFromPaths(List.of(fixture)));
             task.setProcessors(List.of(new MetamodelProcessor()));
@@ -365,6 +418,31 @@ class MetamodelProcessorTest {
                 }
             }
         }
+    }
+
+    /**
+     * Compiles the storm-foundation sources to bytecode, standing in for the storm-foundation jar: its
+     * JSpecify annotations are class-file references a consumer's class path does not have to resolve.
+     */
+    private Path compiledFoundationClasses() throws IOException, URISyntaxException {
+        Path foundationSourceCopy = Files.createDirectories(tempDir.resolve("foundation-sources"));
+        copyFoundationSources(foundationSourceCopy);
+        Path foundationClasses = Files.createDirectories(tempDir.resolve("foundation-classes"));
+        JavaCompiler compiler = ToolProvider.getSystemJavaCompiler();
+        DiagnosticCollector<JavaFileObject> diagnostics = new DiagnosticCollector<>();
+        try (StandardJavaFileManager fileManager = compiler.getStandardFileManager(diagnostics, null, StandardCharsets.UTF_8)) {
+            List<Path> sources;
+            try (Stream<Path> tree = Files.walk(foundationSourceCopy)) {
+                sources = tree.filter(path -> path.toString().endsWith(".java")).toList();
+            }
+            List<String> options = List.of(
+                    "-d", foundationClasses.toString(),
+                    "-classpath", jarOf(org.jspecify.annotations.Nullable.class));
+            boolean success = compiler.getTask(null, fileManager, diagnostics, options, null,
+                    fileManager.getJavaFileObjectsFromPaths(sources)).call();
+            assertTrue(success, "foundation sources failed to compile:\n" + diagnostics.getDiagnostics());
+        }
+        return foundationClasses;
     }
 
     private static Path foundationSources() {
