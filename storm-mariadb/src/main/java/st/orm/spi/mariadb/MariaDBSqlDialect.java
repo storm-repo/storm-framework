@@ -118,6 +118,21 @@ public class MariaDBSqlDialect extends MySQLSqlDialect {
     }
 
     /**
+     * Returns the strategy for discovering sequences in the database schema.
+     *
+     * <p>MariaDB supports sequences (since 10.3) but exposes them as {@code INFORMATION_SCHEMA.TABLES} rows with
+     * {@code TABLE_TYPE = 'SEQUENCE'} rather than through the {@code INFORMATION_SCHEMA.SEQUENCES} view, which only
+     * exists since MariaDB 11.5.</p>
+     *
+     * @return {@link SequenceDiscoveryStrategy#INFORMATION_SCHEMA_TABLES}.
+     * @since 1.14
+     */
+    @Override
+    public SequenceDiscoveryStrategy sequenceDiscoveryStrategy() {
+        return SequenceDiscoveryStrategy.INFORMATION_SCHEMA_TABLES;
+    }
+
+    /**
      * MariaDB supports {@code INSERT ... RETURNING} (since 10.5), so batch {@code insertAndFetchIds} reads the keys
      * from a multi-row {@code VALUES ... RETURNING} result set.
      *

@@ -496,17 +496,20 @@ public final class SchemaValidator {
                                 .formatted(qualifiedTableName, entityPkColumns, dbPkColumns)));
             }
         }
-        // 6. Sequence existence.
-        for (Column column : model.declaredColumns()) {
-            if (isIgnored(column, ignoredComponents)) {
-                continue;
-            }
-            if (column.generation() == GenerationStrategy.SEQUENCE) {
-                String sequenceName = column.sequence();
-                if (!sequenceName.isEmpty() && !schema.sequenceExists(sequenceName)) {
-                    errors.add(new SchemaValidationError(type, ErrorKind.SEQUENCE_NOT_FOUND,
-                            "Sequence '%s' not found in database (referenced by column '%s' in table '%s')."
-                                    .formatted(sequenceName, column.name(), qualifiedTableName)));
+        // 6. Sequence existence. Only validated when sequences were actually discovered: a dialect that cannot
+        // enumerate sequences leaves them unknown, and unknown must not be reported as missing.
+        if (schema.sequencesDiscovered()) {
+            for (Column column : model.declaredColumns()) {
+                if (isIgnored(column, ignoredComponents)) {
+                    continue;
+                }
+                if (column.generation() == GenerationStrategy.SEQUENCE) {
+                    String sequenceName = column.sequence();
+                    if (!sequenceName.isEmpty() && !schema.sequenceExists(sequenceName)) {
+                        errors.add(new SchemaValidationError(type, ErrorKind.SEQUENCE_NOT_FOUND,
+                                "Sequence '%s' not found in database (referenced by column '%s' in table '%s')."
+                                        .formatted(sequenceName, column.name(), qualifiedTableName)));
+                    }
                 }
             }
         }

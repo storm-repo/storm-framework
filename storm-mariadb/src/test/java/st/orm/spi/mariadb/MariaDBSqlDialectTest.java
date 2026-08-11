@@ -125,6 +125,13 @@ class MariaDBSqlDialectTest {
         assertThrows(PersistenceException.class, () -> mysqlDialect.sequenceNextVal("test_seq"));
     }
 
+    @Test
+    void sequenceDiscoveryStrategyShouldReturnInformationSchemaTables() {
+        assertEquals(
+                st.orm.core.template.SqlDialect.SequenceDiscoveryStrategy.INFORMATION_SCHEMA_TABLES,
+                dialect.sequenceDiscoveryStrategy());
+    }
+
     // Provider filter
 
     @Test

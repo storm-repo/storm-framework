@@ -439,6 +439,8 @@ public interface SqlDialect {
     enum SequenceDiscoveryStrategy {
         /** Use {@code INFORMATION_SCHEMA.SEQUENCES}. */
         INFORMATION_SCHEMA,
+        /** Use {@code INFORMATION_SCHEMA.TABLES} rows with {@code TABLE_TYPE = 'SEQUENCE'}. */
+        INFORMATION_SCHEMA_TABLES,
         /** Use {@code ALL_SEQUENCES} dictionary view. */
         ALL_SEQUENCES,
         /** Sequences are not discoverable; skip sequence validation. */
