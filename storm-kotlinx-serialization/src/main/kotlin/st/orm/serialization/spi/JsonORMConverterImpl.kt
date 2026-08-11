@@ -34,7 +34,6 @@ import java.util.concurrent.ConcurrentHashMap
 import kotlin.reflect.KClass
 import kotlin.reflect.KType
 import kotlin.reflect.full.createInstance
-import kotlin.reflect.jvm.jvmErasure
 import kotlinx.serialization.json.Json as JsonMapper
 
 internal class JsonORMConverterImpl(
@@ -45,13 +44,10 @@ internal class JsonORMConverterImpl(
 
     companion object {
         private val REFLECTION: ORMReflection = Providers.getORMReflection()
-        private val JSON_CACHE = ConcurrentHashMap<CacheKey, JsonMapper>()
-        private val REF_FACTORY = ThreadLocal<RefFactory?>()
 
-        private data class CacheKey(
-            val sealedBase: Class<*>?,
-            val json: Json,
-        )
+        // The mapper depends only on the Json flags, so the cache holds at most one entry per flag combination.
+        private val JSON_CACHE = ConcurrentHashMap<Json, JsonMapper>()
+        private val REF_FACTORY = ThreadLocal<RefFactory?>()
 
         private fun buildJson(json: Json): JsonMapper = JsonMapper {
             serializersModule = StormSerializersModule { REF_FACTORY.get() }
@@ -156,10 +152,7 @@ internal class JsonORMConverterImpl(
     private val serializer: KSerializer<Any?>
 
     init {
-        val sealedBase = kType.jvmErasure.java.takeIf { it.isSealed }
-        this.json = JSON_CACHE.computeIfAbsent(CacheKey(sealedBase, json)) { key ->
-            buildJson(key.json)
-        }
+        this.json = JSON_CACHE.computeIfAbsent(json) { buildJson(it) }
         this.serializer = try {
             createSerializer(this@JsonORMConverterImpl.json, field, kType)
         } catch (e: SerializationException) {

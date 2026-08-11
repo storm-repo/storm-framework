@@ -20,6 +20,8 @@ import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import com.fasterxml.jackson.databind.annotation.JsonSerialize;
 import jakarta.annotation.Nonnull;
 import jakarta.annotation.Nullable;
+import java.util.List;
+import java.util.Map;
 import javax.sql.DataSource;
 import lombok.Builder;
 import org.junit.jupiter.api.Test;
@@ -322,5 +324,129 @@ public class JsonORMConverterImplTest {
         var ownerRef = result.snapshot().owner();
         assertTrue(ownerRef.isFetchable());
         assertEquals("Betty", ownerRef.fetch().firstName());
+    }
+
+    // Two @Json fields of different types sharing one custom serializer class.
+
+    public static class TypeNameMarkerSerializer extends JsonSerializer<Object> {
+        @Override
+        public void serialize(Object value, JsonGenerator gen, SerializerProvider serializers)
+                throws java.io.IOException {
+            gen.writeString("marker:" + value.getClass().getSimpleName());
+        }
+    }
+
+    public record Phone(String number) {}
+
+    @Builder(toBuilder = true)
+    @DbTable("owner")
+    public record OwnerWithSharedSerializer(
+            @PK Integer id,
+            @Nonnull String firstName,
+            @Nonnull String lastName,
+            @Nonnull @Json @JsonSerialize(using = TypeNameMarkerSerializer.class) Address address,
+            @Nonnull @Json @JsonSerialize(using = TypeNameMarkerSerializer.class) Phone telephone
+    ) implements Entity<Integer> {}
+
+    public record RawOwnerRow(String address, String telephone) {}
+
+    @Test
+    public void fieldsOfDifferentTypesSharingSerializerClassShouldEachUseTheSerializer() {
+        // Both fields use the same serializer class but have different types, so each field needs a mapper with
+        // the serializer registered for its own type.
+        var orm = of(dataSource);
+        var repository = orm.entity(OwnerWithSharedSerializer.class);
+        var owner = OwnerWithSharedSerializer.builder()
+                .firstName("Shared")
+                .lastName("Serializer")
+                .address(new Address("1 Way", "Town"))
+                .telephone(new Phone("555"))
+                .build();
+        repository.insert(owner);
+        var row = orm.query("SELECT address, telephone FROM owner WHERE first_name = 'Shared'")
+                .getSingleResult(RawOwnerRow.class);
+        assertEquals("\"marker:Address\"", row.address());
+        assertEquals("\"marker:Phone\"", row.telephone());
+    }
+
+    // Sealed element type inside a container.
+
+    @Builder(toBuilder = true)
+    @DbTable("owner")
+    public record OwnerWithPolymorphicPersonList(
+            @PK Integer id,
+            @Nonnull @Json List<PolymorphicPerson> address,
+            @Nullable String telephone
+    ) implements Entity<Integer> {}
+
+    @Test
+    public void polymorphicJsonListShouldResolveSubtypesViaDiscriminator() {
+        // The sealed interface appears as the List element type; its permitted subtypes are registered from the
+        // generic type, not just the raw List type.
+        var orm = of(dataSource);
+        var query = orm.query("""
+                SELECT id,
+                       '[{"@type":"PersonA","firstName":"Jane","lastName":"Doe"},{"@type":"PersonB","firstName":"John","lastName":"Doe"}]' AS address,
+                       telephone
+                FROM owner WHERE id = 1""");
+        var result = query.getSingleResult(OwnerWithPolymorphicPersonList.class);
+        assertEquals(2, result.address().size());
+        assertTrue(result.address().get(0) instanceof PersonA);
+        assertTrue(result.address().get(1) instanceof PersonB);
+    }
+
+    @Test
+    public void polymorphicJsonListShouldRoundTripThroughDatabase() {
+        var orm = of(dataSource);
+        var repository = orm.entity(OwnerWithPolymorphicPersonList.class);
+        var owner = OwnerWithPolymorphicPersonList.builder()
+                .address(List.of(new PersonA("Jane", "Doe"), new PersonB("John", "Doe")))
+                .telephone("555")
+                .build();
+        var inserted = repository.insertAndFetch(owner);
+        assertEquals(List.of(new PersonA("Jane", "Doe"), new PersonB("John", "Doe")), inserted.address());
+    }
+
+    @Builder(toBuilder = true)
+    @DbTable("owner")
+    public record OwnerWithPolymorphicAddress(
+            @PK Integer id,
+            @Nonnull @Json PolymorphicPerson address,
+            @Nullable String telephone
+    ) implements Entity<Integer> {}
+
+    @Test
+    public void polymorphicJsonFieldShouldRoundTripThroughDatabase() {
+        var orm = of(dataSource);
+        var repository = orm.entity(OwnerWithPolymorphicAddress.class);
+        var owner = OwnerWithPolymorphicAddress.builder()
+                .address(new PersonB("Jane", "Doe"))
+                .telephone("555")
+                .build();
+        var inserted = repository.insertAndFetch(owner);
+        assertEquals(new PersonB("Jane", "Doe"), inserted.address());
+    }
+
+    @Builder(toBuilder = true)
+    @DbTable("owner")
+    public record OwnerWithPolymorphicPersonMap(
+            @PK Integer id,
+            @Nonnull @Json Map<String, PolymorphicPerson> address,
+            @Nullable String telephone
+    ) implements Entity<Integer> {}
+
+    @Test
+    public void polymorphicJsonMapValuesShouldRoundTripThroughDatabase() {
+        var orm = of(dataSource);
+        var repository = orm.entity(OwnerWithPolymorphicPersonMap.class);
+        var persons = Map.of(
+                "primary", (PolymorphicPerson) new PersonA("Jane", "Doe"),
+                "secondary", new PersonB("John", "Doe"));
+        var owner = OwnerWithPolymorphicPersonMap.builder()
+                .address(persons)
+                .telephone("555")
+                .build();
+        var inserted = repository.insertAndFetch(owner);
+        assertEquals(persons, inserted.address());
     }
 }
