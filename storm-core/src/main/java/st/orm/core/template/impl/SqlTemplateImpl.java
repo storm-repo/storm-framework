@@ -16,7 +16,6 @@
 package st.orm.core.template.impl;
 
 import static java.util.Objects.requireNonNull;
-import static st.orm.StormConfig.ANSI_ESCAPING;
 import static st.orm.StormConfig.TEMPLATE_CACHE_SIZE;
 import static st.orm.core.spi.Providers.getSqlDialect;
 import static st.orm.core.spi.StormConfigHelper.*;
@@ -29,7 +28,6 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 import java.util.function.Function;
 import java.util.function.Supplier;
 import org.slf4j.Logger;
@@ -66,11 +64,6 @@ public final class SqlTemplateImpl implements SqlTemplate {
         static final SegmentedLruCache<Object, SegmentedLruCache<Object, TemplateProcessor>> INSTANCE =
                 new SegmentedLruCache<>(64);
     }
-
-    /**
-     * Config keys that affect the shape of generated SQL and must therefore be part of the template cache key.
-     */
-    private static final Set<String> TEMPLATE_SHAPE_KEYS = Set.of(ANSI_ESCAPING);
 
     record ElementNode(@Nonnull Element element, boolean synthetic) {}
 
@@ -161,7 +154,7 @@ public final class SqlTemplateImpl implements SqlTemplate {
 
     private static Map<String, String> configCacheKey(@Nonnull StormConfig config) {
         var map = new HashMap<String, String>();
-        for (String key : TEMPLATE_SHAPE_KEYS) {
+        for (String key : StormConfig.sqlShapingKeys()) {
             String value = config.getProperty(key);
             map.put(key, value != null ? value : "");
         }

@@ -17,7 +17,14 @@ package st.orm;
 
 import jakarta.annotation.Nonnull;
 import jakarta.annotation.Nullable;
+import java.lang.annotation.ElementType;
+import java.lang.annotation.Retention;
+import java.lang.annotation.RetentionPolicy;
+import java.lang.annotation.Target;
+import java.lang.reflect.Field;
+import java.util.HashSet;
 import java.util.Map;
+import java.util.Set;
 
 /**
  * Immutable, untyped configuration for the Storm ORM framework.
@@ -45,6 +52,15 @@ import java.util.Map;
  */
 public final class StormConfig {
 
+    /**
+     * Marks a property key whose value affects the SQL generated for a template. Caches of generated SQL must
+     * segment by the values of the marked keys; {@link #sqlShapingKeys()} exposes them, derived from these
+     * declarations, so a key declared as SQL-shaping participates in cache segmentation without further registration.
+     */
+    @Retention(RetentionPolicy.RUNTIME)
+    @Target(ElementType.FIELD)
+    private @interface SqlShaping {}
+
     /** Default update mode for entities without {@code @DynamicUpdate}. Values: ENTITY, FIELD, OFF. */
     public static final String UPDATE_DEFAULT_MODE = "storm.update.default_mode";
     /** Default dirty check strategy. Values: INSTANCE, VALUE. */
@@ -56,6 +72,7 @@ public final class StormConfig {
     /** Maximum number of compiled templates to cache. */
     public static final String TEMPLATE_CACHE_SIZE = "storm.template_cache.size";
     /** Whether to use ANSI escaping for identifiers. */
+    @SqlShaping
     public static final String ANSI_ESCAPING = "storm.ansi_escaping";
     /** Record validation mode. Values: fail, warn, none. */
     public static final String VALIDATION_RECORD_MODE = "storm.validation.record_mode";
@@ -71,6 +88,8 @@ public final class StormConfig {
     public static final String SQL_LOG_LINE_WIDTH = "storm.sql_log.line_width";
     /** Comma-separated package prefixes or source file names skipped in SQL log call-site attribution. */
     public static final String SQL_LOG_CALL_SITE_SKIP = "storm.sql_log.call_site_skip";
+
+    private static final Set<String> SQL_SHAPING_KEYS = sqlShapingKeysFromDeclarations();
 
     private static final StormConfig DEFAULTS = new StormConfig(Map.of());
 
@@ -129,5 +148,35 @@ public final class StormConfig {
     @Nonnull
     public static StormConfig defaults() {
         return DEFAULTS;
+    }
+
+    /**
+     * Returns the keys of the properties that affect the shape of generated SQL.
+     *
+     * <p>Two configurations that differ in any of these keys can generate different SQL for the same template, so
+     * caches of generated SQL must include the values of these keys in their cache keys. The set is derived from the
+     * key declarations in this class.</p>
+     *
+     * @return the SQL-shaping property keys; never {@code null}.
+     * @since 1.14
+     */
+    @Nonnull
+    public static Set<String> sqlShapingKeys() {
+        return SQL_SHAPING_KEYS;
+    }
+
+    @Nonnull
+    private static Set<String> sqlShapingKeysFromDeclarations() {
+        var keys = new HashSet<String>();
+        for (Field field : StormConfig.class.getDeclaredFields()) {
+            if (field.isAnnotationPresent(SqlShaping.class)) {
+                try {
+                    keys.add((String) field.get(null));
+                } catch (IllegalAccessException e) {
+                    throw new IllegalStateException("Failed to read SQL-shaping key %s.".formatted(field.getName()), e);
+                }
+            }
+        }
+        return Set.copyOf(keys);
     }
 }
