@@ -20,6 +20,8 @@ import st.orm.Entity
 import st.orm.PK
 import st.orm.Projection
 import st.orm.Ref
+import st.orm.serialization.model.VetSpecialty
+import st.orm.serialization.model.VetSpecialtyPK
 
 /**
  * Unit tests for [RefSerializer] and [StormSerializersModule] covering edge cases
@@ -143,6 +145,37 @@ class RefSerializerTest {
         loaded.shouldBeInstanceOf<SimpleProjection>()
         loaded.id shouldBe 3
         loaded.name shouldBe "proj"
+    }
+
+    // Compound PK refs (plain object without @entity/@projection)
+
+    @Serializable
+    data class CompoundPkRefHolder(@Contextual val ref: Ref<VetSpecialty>?)
+
+    @Test
+    fun `serialize unloaded compound pk ref produces pk object`() {
+        val ref = Ref.of(VetSpecialty::class.java, VetSpecialtyPK(1, 2))
+        val holder = CompoundPkRefHolder(ref = ref)
+        val json = jsonMapper.encodeToString(holder)
+        json shouldBe """{"ref":{"vetId":1,"specialtyId":2}}"""
+    }
+
+    @Test
+    fun `deserialize compound pk object into unloaded ref`() {
+        val holder = jsonMapper.decodeFromString<CompoundPkRefHolder>(
+            """{"ref":{"vetId":1,"specialtyId":2}}""",
+        )
+        holder.ref.shouldNotBeNull()
+        holder.ref!!.id() shouldBe VetSpecialtyPK(1, 2)
+    }
+
+    @Test
+    fun `compound pk ref round-trips through serialization`() {
+        val holder = CompoundPkRefHolder(ref = Ref.of(VetSpecialty::class.java, VetSpecialtyPK(3, 4)))
+        val json = jsonMapper.encodeToString(holder)
+        val decoded = jsonMapper.decodeFromString<CompoundPkRefHolder>(json)
+        decoded.ref.shouldNotBeNull()
+        decoded.ref!!.id() shouldBe VetSpecialtyPK(3, 4)
     }
 
     // Deserialization error paths in deserializeObject

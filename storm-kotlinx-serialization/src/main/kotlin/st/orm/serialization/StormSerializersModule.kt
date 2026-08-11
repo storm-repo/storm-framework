@@ -191,9 +191,17 @@ public class RefSerializer<T : Data>(
             val data = json.decodeFromJsonElement(targetSerializer, payload)
             createLoadedRef(data, id)
         }
-        else -> throw SerializationException(
-            "Ref object must contain $ENTITY_FIELD or $PROJECTION_FIELD",
-        )
+        else -> {
+            val pkType = PkTypeResolver.resolve(targetClass)
+            if (pkType == null || !PkTypeResolver.isRecord(pkType)) {
+                throw SerializationException(
+                    "Ref object must contain $ENTITY_FIELD or $PROJECTION_FIELD",
+                )
+            }
+            // A plain object is the inline record of a compound PK; unloaded refs serialize compound PKs this way.
+            val id = checkNotNull(decodeId(json, obj, targetClass))
+            createRef(targetClass as Class<Data>, id) as Ref<T>
+        }
     }
 
     @Suppress("UNCHECKED_CAST")
@@ -285,6 +293,12 @@ private object PkTypeResolver {
         }
         return if (cached == NO_PK) null else cached
     }
+
+    /**
+     * Returns whether the given PK type is itself a record type (Java record or Kotlin data class), i.e. a
+     * compound PK.
+     */
+    fun isRecord(type: Class<*>): Boolean = reflection.findRecordType(type).isPresent
 }
 
 /**

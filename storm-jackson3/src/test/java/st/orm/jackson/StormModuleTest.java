@@ -18,6 +18,8 @@ import st.orm.PK;
 import st.orm.Projection;
 import st.orm.Ref;
 import st.orm.core.spi.RefFactory;
+import st.orm.jackson.model.VetSpecialty;
+import st.orm.jackson.model.VetSpecialtyPK;
 import tools.jackson.databind.DatabindException;
 import tools.jackson.databind.json.JsonMapper;
 
@@ -219,6 +221,42 @@ class StormModuleTest {
         assertNotNull(restored.projection());
         assertTrue(restored.projection().isLoaded());
         assertEquals(projection, restored.projection().fetch());
+    }
+
+    // Tests for compound PK refs (plain object without @entity/@projection)
+
+    public record CompoundPkRefHolder(@Nullable Ref<VetSpecialty> entity) {}
+
+    @org.junit.jupiter.api.Test
+    void serializeUnloadedCompoundPkRefToPkObject() throws Exception {
+        var mapper = JsonMapper.builder()
+                .addModule(new StormModule())
+                .build();
+        var holder = new CompoundPkRefHolder(Ref.of(VetSpecialty.class, new VetSpecialtyPK(1, 2)));
+        var json = mapper.writeValueAsString(holder);
+        assertEquals("{\"entity\":{\"vetId\":1,\"specialtyId\":2}}", json);
+    }
+
+    @org.junit.jupiter.api.Test
+    void deserializeCompoundPkObjectToUnloadedRef() throws Exception {
+        var mapper = JsonMapper.builder()
+                .addModule(new StormModule())
+                .build();
+        String json = "{\"entity\":{\"vetId\":1,\"specialtyId\":2}}";
+        var holder = mapper.readValue(json, CompoundPkRefHolder.class);
+        assertNotNull(holder.entity());
+        assertEquals(new VetSpecialtyPK(1, 2), holder.entity().id());
+    }
+
+    @org.junit.jupiter.api.Test
+    void roundTripCompoundPkRefShouldPreserveId() throws Exception {
+        var mapper = JsonMapper.builder()
+                .addModule(new StormModule())
+                .build();
+        var original = new CompoundPkRefHolder(Ref.of(VetSpecialty.class, new VetSpecialtyPK(3, 4)));
+        var json = mapper.writeValueAsString(original);
+        var restored = mapper.readValue(json, CompoundPkRefHolder.class);
+        assertEquals(original, restored);
     }
 
     // Tests for Data record without @PK (fallback deserialization paths)

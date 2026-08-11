@@ -163,7 +163,8 @@ public class StormModule extends SimpleModule {
      * <ul>
      *   <li>Entity (loaded): {@code {"@entity": {...}}}</li>
      *   <li>Projection (loaded): {@code {"@id": ..., "@projection": {...}}}</li>
-     *   <li>Unloaded: raw id value (e.g., {@code 42} or {@code "abc"})</li>
+     *   <li>Unloaded: raw id value (e.g., {@code 42} or {@code "abc"}), or the PK record as a plain object for
+     *       compound PKs (e.g., {@code {"vetId":1,"specialtyId":2}})</li>
      * </ul>
      */
     private static class RefSerializer extends StdSerializer<Ref<?>> {
@@ -224,11 +225,13 @@ public class StormModule extends SimpleModule {
     /**
      * Deserializer for Ref instances.
      *
-     * <p>Handles three input formats:
+     * <p>Handles four input formats:
      * <ul>
      *   <li>{@code {"@entity": {...}}} - Entity, uses {@code Ref.of()}</li>
      *   <li>{@code {"@id": ..., "@projection": {...}}} - Projection with id, uses {@code Ref.of()}</li>
      *   <li>Raw id value (e.g., {@code 42}) - uses RefFactory if available, otherwise {@code Ref.of()}</li>
+     *   <li>Plain object without {@code @entity}/{@code @projection} (e.g., {@code {"vetId":1,"specialtyId":2}}) -
+     *       compound PK, uses RefFactory if available, otherwise {@code Ref.of()}</li>
      * </ul>
      *
      * <p>Also supports {@code null} values (e.g. nullable elements in {@code List<Ref<T>>}).
@@ -308,6 +311,11 @@ public class StormModule extends SimpleModule {
                 JsonNode projectionNode = node.get(PROJECTION_FIELD);
                 Data projection = ctx.readTreeAsValue(projectionNode, targetType);
                 return createLoadedRefWithId(parser, targetClass, projection, id);
+            } else if (pkType != null && REFLECTION.findRecordType(pkType).isPresent()) {
+                // A plain object is the inline record of a compound PK; unloaded refs serialize compound PKs
+                // this way.
+                Object id = deserializeIdFromNode(node, ctx);
+                return createRefFromId(targetClass, id);
             } else {
                 throw DatabindException.from(parser, "Ref object must contain @entity or @projection field");
             }
