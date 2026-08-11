@@ -263,6 +263,31 @@ public class QueryBuilderPredicateIntegrationTest {
         assertEquals(2, visits.size());
     }
 
+    // PredicateBuilder.and / or - predicates across entities on a widened builder
+
+    @Test
+    public void testPredicateBuilderAndAcrossEntitiesAfterJoin() {
+        var orm = ORMTemplate.of(dataSource);
+        List<Pet> pets = orm.selectFrom(Pet.class)
+                .innerJoin(Owner.class).on(Pet.class)
+                .where(predicate -> predicate.where(Pet_.name, EQUALS, "Leo")
+                        .and(predicate.where(Owner_.lastName, EQUALS, "Davis")))
+                .getResultList();
+        assertEquals(1, pets.size());
+    }
+
+    @Test
+    public void testPredicateBuilderOrAcrossEntitiesAfterJoin() {
+        // Pets named Leo (Betty Davis's pet) or owned by a Davis: Leo and Harold Davis's Iggy.
+        var orm = ORMTemplate.of(dataSource);
+        List<Pet> pets = orm.selectFrom(Pet.class)
+                .innerJoin(Owner.class).on(Pet.class)
+                .where(predicate -> predicate.where(Pet_.name, EQUALS, "Leo")
+                        .or(predicate.where(Owner_.lastName, EQUALS, "Davis")))
+                .getResultList();
+        assertEquals(2, pets.size());
+    }
+
     // QueryBuilder.having with raw template
 
     @Test

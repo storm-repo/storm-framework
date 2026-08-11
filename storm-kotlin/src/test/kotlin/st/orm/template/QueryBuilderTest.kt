@@ -1278,6 +1278,19 @@ open class QueryBuilderTest(
     }
 
     @Test
+    fun `or should combine predicates across entities after a join`() {
+        // Pets named Leo (Betty Davis's pet) or owned by a Davis: Leo and Harold Davis's Iggy.
+        val petNamePath = metamodel<Pet, String>(orm.entity(Pet::class).model, "name")
+        val ownerLastNamePath = metamodel<Owner, String>(orm.entity(Owner::class).model, "last_name")
+        val pets = orm.entity(Pet::class).select()
+            .innerJoin(Owner::class).on(Pet::class)
+            .whereBuilder {
+                (petNamePath eq "Leo") or (ownerLastNamePath eq "Davis")
+            }.resultList
+        pets shouldHaveSize 2
+    }
+
+    @Test
     fun `predicate and with TemplateBuilder should combine conditions`() {
         val repo = orm.entity(City::class)
         val namePath = metamodel<City, String>(repo.model, "name")

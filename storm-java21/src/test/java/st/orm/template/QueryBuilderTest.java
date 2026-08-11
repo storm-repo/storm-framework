@@ -710,6 +710,29 @@ public class QueryBuilderTest {
         assertEquals(1, cities.size());
     }
 
+    // PredicateBuilder - and / or across entities on a widened builder
+
+    @Test
+    public void testPredicateAndAcrossEntitiesAfterJoin() {
+        List<Pet> pets = orm.entity(Pet.class).select()
+                .innerJoin(Owner.class).on(Pet.class)
+                .where(wb -> wb.where(Pet_.name, EQUALS, "Leo")
+                        .and(wb.where(Owner_.lastName, EQUALS, "Davis")))
+                .getResultList();
+        assertEquals(1, pets.size());
+    }
+
+    @Test
+    public void testPredicateOrAcrossEntitiesAfterJoin() {
+        // Pets named Leo (Betty Davis's pet) or owned by a Davis: Leo and Harold Davis's Iggy.
+        List<Pet> pets = orm.entity(Pet.class).select()
+                .innerJoin(Owner.class).on(Pet.class)
+                .where(wb -> wb.where(Pet_.name, EQUALS, "Leo")
+                        .or(wb.where(Owner_.lastName, EQUALS, "Davis")))
+                .getResultList();
+        assertEquals(2, pets.size());
+    }
+
     @Test
     public void testPredicateAndTemplate() {
         List<City> cities = orm.entity(City.class).select()
