@@ -280,6 +280,7 @@ class DatabaseSchemaTest {
         try (Connection connection = getConnection()) {
             DatabaseSchema schema = DatabaseSchema.read(connection);
 
+            assertTrue(schema.sequencesDiscovered());
             assertTrue(schema.sequenceExists("test_seq"));
             assertTrue(schema.sequenceExists("TEST_SEQ")); // case-insensitive
             assertFalse(schema.sequenceExists("nonexistent_seq"));
@@ -343,6 +344,7 @@ class DatabaseSchemaTest {
                     ConstraintDiscoveryStrategy.INFORMATION_SCHEMA);
 
             // With NONE strategy, sequences should not be discovered
+            assertFalse(schema.sequencesDiscovered());
             assertFalse(schema.sequenceExists("my_seq"));
         }
     }

@@ -128,6 +128,13 @@ public class MariaDBSchemaValidatorTest {
     // Sequence entities
 
     @DbTable("vet")
+    public record SequenceExistsEntity(
+            @PK(generation = SEQUENCE, sequence = "pet_id_seq") Integer id,
+            String firstName,
+            String lastName
+    ) implements Entity<Integer> {}
+
+    @DbTable("vet")
     public record SequenceNotFoundEntity(
             @PK(generation = SEQUENCE, sequence = "nonexistent_seq") Integer id,
             String firstName,
@@ -189,6 +196,15 @@ public class MariaDBSchemaValidatorTest {
         assertFalse(errors.isEmpty());
         assertTrue(errors.stream().anyMatch(
                 error -> error.kind() == ErrorKind.PRIMARY_KEY_MISMATCH));
+    }
+
+    @Test
+    public void testSequenceExists() {
+        var validator = SchemaValidator.of(dataSource);
+        var errors = validator.validate(List.of(SequenceExistsEntity.class));
+        assertFalse(errors.stream().anyMatch(
+                error -> error.kind() == ErrorKind.SEQUENCE_NOT_FOUND),
+                "Expected no SEQUENCE_NOT_FOUND when pet_id_seq exists.");
     }
 
     @Test

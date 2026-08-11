@@ -138,6 +138,7 @@ public final class DatabaseSchema {
     private final SortedMap<String, List<DbUniqueKey>> uniqueKeysByTable;
     private final SortedMap<String, List<DbForeignKey>> foreignKeysByTable;
     private final SortedMap<String, Boolean> sequences;
+    private final boolean sequencesDiscovered;
     private final Map<ConstraintKind, SortedSet<String>> discoveredByKind;
 
     private DatabaseSchema(
@@ -146,6 +147,7 @@ public final class DatabaseSchema {
             @Nonnull SortedMap<String, List<DbUniqueKey>> uniqueKeysByTable,
             @Nonnull SortedMap<String, List<DbForeignKey>> foreignKeysByTable,
             @Nonnull SortedMap<String, Boolean> sequences,
+            boolean sequencesDiscovered,
             @Nonnull Map<ConstraintKind, SortedSet<String>> discoveredByKind
     ) {
         this.columnsByTable = columnsByTable;
@@ -153,6 +155,7 @@ public final class DatabaseSchema {
         this.uniqueKeysByTable = uniqueKeysByTable;
         this.foreignKeysByTable = foreignKeysByTable;
         this.sequences = sequences;
+        this.sequencesDiscovered = sequencesDiscovered;
         this.discoveredByKind = discoveredByKind;
     }
 
@@ -268,9 +271,9 @@ public final class DatabaseSchema {
                 primaryKeysByTable, uniqueKeysByTable, foreignKeysByTable, constraintDiscoveryStrategy,
                 discoveredByKind);
         // Discover sequences using the dialect-provided strategy.
-        readSequences(connection, catalog, schemaPattern, sequences, sequenceDiscoveryStrategy);
+        boolean sequencesDiscovered = readSequences(connection, catalog, schemaPattern, sequences, sequenceDiscoveryStrategy);
         return new DatabaseSchema(columnsByTable, primaryKeysByTable, uniqueKeysByTable, foreignKeysByTable, sequences,
-                discoveredByKind);
+                sequencesDiscovered, discoveredByKind);
     }
 
     // ------------------------------------------------------------------------------------------------------------------
@@ -679,26 +682,28 @@ public final class DatabaseSchema {
     /**
      * Reads sequences using the specified discovery strategy.
      *
-     * <p>If the selected strategy fails, sequence validation is silently skipped.</p>
+     * @return {@code true} if sequences were actually read, {@code false} if the strategy is
+     *         {@link SequenceDiscoveryStrategy#NONE} or the read failed, leaving the sequences unknown.
      */
-    private static void readSequences(
+    private static boolean readSequences(
             @Nonnull Connection connection,
             @Nullable String catalog,
             @Nullable String schemaPattern,
             @Nonnull SortedMap<String, Boolean> sequences,
             @Nonnull SequenceDiscoveryStrategy strategy
     ) {
-        switch (strategy) {
+        return switch (strategy) {
             case INFORMATION_SCHEMA -> readSequencesFromInformationSchema(connection, catalog, schemaPattern, sequences);
+            case INFORMATION_SCHEMA_TABLES -> readSequencesFromInformationSchemaTables(connection, catalog, schemaPattern, sequences);
             case ALL_SEQUENCES -> readSequencesFromAllSequences(connection, schemaPattern, sequences);
-            case NONE -> { }
-        }
+            case NONE -> false;
+        };
     }
 
     /**
      * Attempts to read sequences from INFORMATION_SCHEMA.SEQUENCES.
      */
-    private static void readSequencesFromInformationSchema(
+    private static boolean readSequencesFromInformationSchema(
             @Nonnull Connection connection,
             @Nullable String catalog,
             @Nullable String schemaPattern,
@@ -715,15 +720,51 @@ public final class DatabaseSchema {
                     sequences.put(resultSet.getString("SEQUENCE_NAME"), Boolean.TRUE);
                 }
             }
+            return true;
         } catch (SQLException ignored) {
             // INFORMATION_SCHEMA.SEQUENCES not available; sequence validation will be skipped.
+            return false;
+        }
+    }
+
+    /**
+     * Attempts to read sequences from INFORMATION_SCHEMA.TABLES rows with TABLE_TYPE = 'SEQUENCE'.
+     *
+     * <p>MariaDB exposes sequences as a table type rather than through a dedicated view. The
+     * {@code INFORMATION_SCHEMA.SEQUENCES} view only exists since MariaDB 11.5 and keys
+     * {@code SEQUENCE_CATALOG} to {@code 'def'}, so the {@code TABLES} view is the only source that works across
+     * all versions that support sequences.</p>
+     */
+    private static boolean readSequencesFromInformationSchemaTables(
+            @Nonnull Connection connection,
+            @Nullable String catalog,
+            @Nullable String schemaPattern,
+            @Nonnull SortedMap<String, Boolean> sequences
+    ) {
+        // For databases that use catalogs as schemas, the catalog value represents the database name and maps to
+        // TABLE_SCHEMA in INFORMATION_SCHEMA views (not TABLE_CATALOG).
+        String effectiveSchema = schemaPattern != null ? schemaPattern : catalog;
+        try {
+            StringBuilder sql = new StringBuilder("SELECT TABLE_NAME FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_TYPE = 'SEQUENCE'");
+            List<String> parameters = new ArrayList<>();
+            appendFilter(sql, true, "TABLE_SCHEMA", effectiveSchema, parameters);
+            try (var statement = prepareSchemaQuery(connection, sql.toString(), parameters);
+                 var resultSet = statement.executeQuery()) {
+                while (resultSet.next()) {
+                    sequences.put(resultSet.getString("TABLE_NAME"), Boolean.TRUE);
+                }
+            }
+            return true;
+        } catch (SQLException ignored) {
+            // INFORMATION_SCHEMA.TABLES not available; sequence validation will be skipped.
+            return false;
         }
     }
 
     /**
      * Attempts to read sequences from Oracle's ALL_SEQUENCES dictionary view.
      */
-    private static void readSequencesFromAllSequences(
+    private static boolean readSequencesFromAllSequences(
             @Nonnull Connection connection,
             @Nullable String schemaPattern,
             @Nonnull SortedMap<String, Boolean> sequences
@@ -738,8 +779,10 @@ public final class DatabaseSchema {
                     sequences.put(resultSet.getString("SEQUENCE_NAME"), Boolean.TRUE);
                 }
             }
+            return true;
         } catch (SQLException ignored) {
             // ALL_SEQUENCES not available; sequence validation will be skipped.
+            return false;
         }
     }
 
@@ -834,5 +877,19 @@ public final class DatabaseSchema {
      */
     public boolean sequenceExists(@Nonnull String sequenceName) {
         return sequences.containsKey(sequenceName);
+    }
+
+    /**
+     * Returns whether sequences were actually read from the database.
+     *
+     * <p>A discovery strategy that is {@link SequenceDiscoveryStrategy#NONE} or that fails leaves the sequence map
+     * empty, which reads exactly like a schema without sequences. Callers that would otherwise report a sequence as
+     * missing must check this first, so a database that cannot answer the query is reported as unknown rather than
+     * as wrong.</p>
+     *
+     * @return {@code true} if the read succeeded, {@code false} if the sequences are unknown.
+     */
+    public boolean sequencesDiscovered() {
+        return sequencesDiscovered;
     }
 }

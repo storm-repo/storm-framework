@@ -26,21 +26,24 @@ import javax.sql.DataSource;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.jdbc.datasource.SimpleDriverDataSource;
+import st.orm.Data;
 import st.orm.DbTable;
 import st.orm.Entity;
 import st.orm.FK;
+import st.orm.GenerationStrategy;
 import st.orm.PK;
 import st.orm.StormConfig;
 import st.orm.core.spi.DefaultSqlDialect;
 import st.orm.core.template.SqlDialect;
 import st.orm.core.template.SqlDialect.ConstraintDiscoveryStrategy;
+import st.orm.core.template.SqlDialect.SequenceDiscoveryStrategy;
 import st.orm.core.template.impl.SchemaValidationError.ErrorKind;
 
 /**
- * Tests that constraint validation reports what the database actually said, and stays silent about what it could
- * not be asked.
+ * Tests that constraint and sequence validation report what the database actually said, and stay silent about what
+ * it could not be asked.
  *
- * <p>A constraint discovery query that the database does not understand leaves the constraints unknown, which is
+ * <p>A discovery query that the database does not understand leaves the constraints or sequences unknown, which is
  * not the same as the database having none. Reporting the latter turns a dialect that does not fit the database
  * into a schema that looks broken.</p>
  */
@@ -55,6 +58,11 @@ class SchemaValidatorConstraintDiscoveryTest {
 
     @DbTable("child")
     record Child(@PK Integer id, @FK Parent parent) implements Entity<Integer> {}
+
+    @DbTable("parent")
+    record SequencedParent(
+            @PK(generation = GenerationStrategy.SEQUENCE, sequence = "missing_seq") Integer id
+    ) implements Entity<Integer> {}
 
     /**
      * The default dialect, reading constraints the way a database that does not match it would be read. This is what
@@ -73,6 +81,22 @@ class SchemaValidatorConstraintDiscoveryTest {
         }
     }
 
+    /**
+     * The default dialect with sequence discovery disabled, the way a dialect for a database that cannot enumerate
+     * its sequences reads the schema.
+     */
+    private static final class NoSequenceDiscoveryDialect extends DefaultSqlDialect {
+
+        NoSequenceDiscoveryDialect(@Nonnull StormConfig config) {
+            super(config);
+        }
+
+        @Override
+        public SequenceDiscoveryStrategy sequenceDiscoveryStrategy() {
+            return SequenceDiscoveryStrategy.NONE;
+        }
+    }
+
     @BeforeEach
     void setUp() throws SQLException {
         dataSource = new SimpleDriverDataSource(new org.h2.Driver(),
@@ -86,8 +110,12 @@ class SchemaValidatorConstraintDiscoveryTest {
     }
 
     private List<SchemaValidationError> validateWith(@Nonnull SqlDialect dialect) {
-        return SchemaValidator.of(dataSource, ModelBuilder.newInstance(), dialect)
-                .validate(List.of(Parent.class, Child.class));
+        return validateWith(dialect, List.of(Parent.class, Child.class));
+    }
+
+    private List<SchemaValidationError> validateWith(@Nonnull SqlDialect dialect,
+                                                     @Nonnull List<Class<? extends Data>> types) {
+        return SchemaValidator.of(dataSource, ModelBuilder.newInstance(), dialect).validate(types);
     }
 
     @Test
@@ -105,6 +133,26 @@ class SchemaValidatorConstraintDiscoveryTest {
         // the reader looking for a constraint that exists.
         assertTrue(errors.stream().noneMatch(error -> error.kind() == ErrorKind.FOREIGN_KEY_MISSING),
                 "Foreign keys must not be reported as missing when they could not be read, got: " + errors);
+    }
+
+    @Test
+    void sequenceIsReportedMissingWhenDiscoveryRan() {
+        List<SchemaValidationError> errors = validateWith(new DefaultSqlDialect(StormConfig.defaults()),
+                List.of(SequencedParent.class));
+
+        // The database was asked and answered: it has no such sequence.
+        assertTrue(errors.stream().anyMatch(error -> error.kind() == ErrorKind.SEQUENCE_NOT_FOUND),
+                "Expected SEQUENCE_NOT_FOUND for a sequence the database does not have, got: " + errors);
+    }
+
+    @Test
+    void sequenceIsNotReportedMissingWhenItCannotBeDiscovered() {
+        List<SchemaValidationError> errors = validateWith(new NoSequenceDiscoveryDialect(StormConfig.defaults()),
+                List.of(SequencedParent.class));
+
+        // The database was never asked; the sequences are unknown, not absent.
+        assertTrue(errors.stream().noneMatch(error -> error.kind() == ErrorKind.SEQUENCE_NOT_FOUND),
+                "Sequences must not be reported as missing when they could not be read, got: " + errors);
     }
 
     @Test
