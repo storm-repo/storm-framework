@@ -55,6 +55,50 @@ public class JavaPathFunctionalTest {
     }
 
     @Test
+    public void wiresTheProcessorIntoEverySourceSet() throws Exception {
+        var output = runDump("""
+                plugins {
+                    java
+                    id("st.orm")
+                }
+                sourceSets.create("integration")
+                """);
+        assertTrue(output.contains("DEP annotationProcessor st.orm:storm-metamodel-processor:"));
+        assertTrue(output.contains("DEP testAnnotationProcessor st.orm:storm-metamodel-processor:"),
+                "Entities declared in test sources need the processor too:\n" + output);
+        assertTrue(output.contains("DEP integrationAnnotationProcessor st.orm:storm-metamodel-processor:"),
+                "Custom source sets need the processor too:\n" + output);
+    }
+
+    @Test
+    public void javadocGetsThePreviewFlag() throws Exception {
+        var output = runDump("""
+                plugins {
+                    java
+                    id("st.orm")
+                }
+                """);
+        assertTrue(output.contains("JAVADOC javadoc source=21 preview=true"),
+                "Javadoc embeds javac, which rejects storm-java21's preview class files without the flag:\n"
+                        + output);
+    }
+
+    @Test
+    public void javadocKeepsAUserConfiguredSourceLevel() throws Exception {
+        var output = runDump("""
+                plugins {
+                    java
+                    id("st.orm")
+                }
+                tasks.withType(Javadoc::class) {
+                    options.source = "20"
+                }
+                """);
+        assertTrue(output.contains("JAVADOC javadoc source=20 preview=true"),
+                "An explicitly configured source level must not be overwritten:\n" + output);
+    }
+
+    @Test
     public void javaPreviewCanBeDisabled() throws Exception {
         var output = runDump("""
                 plugins {
@@ -66,6 +110,8 @@ public class JavaPathFunctionalTest {
                 }
                 """);
         assertFalse(output.contains("--enable-preview"));
+        assertTrue(output.contains("JAVADOC javadoc source=null preview=false"),
+                "Opting out must leave the javadoc options alone:\n" + output);
         assertTrue(output.contains("DEP implementation st.orm:storm-java21:"));
     }
 

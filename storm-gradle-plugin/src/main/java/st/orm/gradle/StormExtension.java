@@ -38,9 +38,11 @@ public abstract class StormExtension {
     }
 
     /**
-     * Whether to wire the metamodel processor: {@code storm-metamodel-ksp} on the {@code ksp} configuration
-     * for Kotlin projects, {@code storm-metamodel-processor} on {@code annotationProcessor} for Java
-     * projects. Default {@code true}.
+     * Whether to wire the metamodel processor: {@code storm-metamodel-ksp} on every source set's KSP
+     * configuration ({@code ksp}, {@code kspTest}, ...) for Kotlin projects,
+     * {@code storm-metamodel-processor} on every source set's processor configuration
+     * ({@code annotationProcessor}, {@code testAnnotationProcessor}, ...) for Java projects, so entities
+     * declared in test and custom source sets get a metamodel too. Default {@code true}.
      *
      * @return whether the metamodel processor is wired.
      */
@@ -63,10 +65,10 @@ public abstract class StormExtension {
     public abstract Property<String> getCompilerPluginVariant();
 
     /**
-     * Whether to add {@code --enable-preview} to Java compilation, tests, and execution, required by
-     * storm-java21's String Templates on JDK 21. Java projects only. Default {@code true}.
+     * Whether to add {@code --enable-preview} to Java compilation, tests, execution, and javadoc generation,
+     * required by storm-java21's String Templates on JDK 21. Java projects only. Default {@code true}.
      *
-     * @return whether preview features are enabled for Java compilation, tests, and execution.
+     * @return whether preview features are enabled for Java compilation, tests, execution, and javadoc.
      */
     public abstract Property<Boolean> getJavaPreview();
 }

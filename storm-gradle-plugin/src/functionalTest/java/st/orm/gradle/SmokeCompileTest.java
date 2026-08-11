@@ -26,8 +26,9 @@ import org.junit.jupiter.api.io.TempDir;
 
 /**
  * Compiles real Kotlin and Java projects against the locally installed Storm snapshot artifacts and asserts
- * the generated metamodel exists. Both builds run with {@code --configuration-cache} and run twice, so the
- * full task graph (KSP respectively the annotation processor and the preview-flag argument providers) is
+ * the generated metamodel exists, for entities in main and test sources, and runs real javadoc against the
+ * preview class files. The two main-source builds run with {@code --configuration-cache} and run twice, so
+ * the full task graph (KSP respectively the annotation processor and the preview-flag argument providers) is
  * proven to serialize and be reusable. Requires a prior {@code mvn install -DskipTests} of the reactor;
  * gated behind {@code -Dstorm.smoke=true}.
  */
@@ -124,6 +125,138 @@ public class SmokeCompileTest {
         }
         var second = runner().build();
         assertTrue(second.getOutput().contains("Reusing configuration cache."), second.getOutput());
+    }
+
+    @Test
+    @EnabledIfSystemProperty(named = "storm.smoke", matches = "true")
+    public void generatesTheMetamodelForKotlinTestSourceEntities() throws Exception {
+        Files.writeString(projectDir.resolve("settings.gradle.kts"), FunctionalTestSupport.SETTINGS);
+        Files.writeString(projectDir.resolve("build.gradle.kts"), """
+                plugins {
+                    id("org.jetbrains.kotlin.jvm") version "2.4.0"
+                    id("com.google.devtools.ksp") version "2.3.10"
+                    id("st.orm")
+                }
+                repositories {
+                    mavenLocal()
+                    mavenCentral()
+                }
+                kotlin {
+                    jvmToolchain(21)
+                }
+                """);
+        var sourceDir = projectDir.resolve("src/test/kotlin/demo");
+        Files.createDirectories(sourceDir);
+        Files.writeString(sourceDir.resolve("City.kt"), """
+                package demo
+
+                import st.orm.Entity
+                import st.orm.PK
+
+                data class City(
+                    @PK val id: Int = 0,
+                    val name: String,
+                ) : Entity<Int>
+                """);
+        var result = GradleRunner.create()
+                .withProjectDir(projectDir.toFile())
+                .withPluginClasspath()
+                .withArguments("testClasses")
+                .build();
+        assertTrue(result.getOutput().contains("BUILD SUCCESSFUL"), result.getOutput());
+        try (var generated = Files.walk(projectDir.resolve("build/generated/ksp/test"))) {
+            assertTrue(generated.anyMatch(path -> path.getFileName().toString().startsWith("City_")),
+                    "Expected a generated City_ metamodel under build/generated/ksp/test.");
+        }
+    }
+
+    @Test
+    @EnabledIfSystemProperty(named = "storm.smoke", matches = "true")
+    public void generatesTheMetamodelForJavaTestSourceEntities() throws Exception {
+        Files.writeString(projectDir.resolve("settings.gradle.kts"), FunctionalTestSupport.SETTINGS);
+        Files.writeString(projectDir.resolve("build.gradle.kts"), """
+                plugins {
+                    java
+                    id("st.orm")
+                }
+                repositories {
+                    mavenLocal()
+                    mavenCentral()
+                }
+                java {
+                    toolchain {
+                        languageVersion = JavaLanguageVersion.of(21)
+                    }
+                }
+                """);
+        var sourceDir = projectDir.resolve("src/test/java/demo");
+        Files.createDirectories(sourceDir);
+        Files.writeString(sourceDir.resolve("City.java"), """
+                package demo;
+
+                import st.orm.Entity;
+                import st.orm.PK;
+
+                public record City(@PK Integer id, String name) implements Entity<Integer> {
+                }
+                """);
+        var result = GradleRunner.create()
+                .withProjectDir(projectDir.toFile())
+                .withPluginClasspath()
+                .withArguments("testClasses")
+                .build();
+        assertTrue(result.getOutput().contains("BUILD SUCCESSFUL"), result.getOutput());
+        try (var generated = Files.walk(projectDir.resolve("build/generated/sources/annotationProcessor"))) {
+            assertTrue(generated.anyMatch(path -> path.getFileName().toString().startsWith("City_")),
+                    "Expected a generated City_ metamodel under build/generated/sources/annotationProcessor.");
+        }
+    }
+
+    /**
+     * Runs real javadoc against a source whose signature references storm-java21's ORMTemplate: javadoc
+     * embeds the javac front end, which rejects the preview class files unless the plugin passes
+     * {@code --enable-preview} to the javadoc tool as well.
+     */
+    @Test
+    @EnabledIfSystemProperty(named = "storm.smoke", matches = "true")
+    public void javadocRunsAgainstThePreviewClassFiles() throws Exception {
+        Files.writeString(projectDir.resolve("settings.gradle.kts"), FunctionalTestSupport.SETTINGS);
+        Files.writeString(projectDir.resolve("build.gradle.kts"), """
+                plugins {
+                    java
+                    id("st.orm")
+                }
+                repositories {
+                    mavenLocal()
+                    mavenCentral()
+                }
+                java {
+                    toolchain {
+                        languageVersion = JavaLanguageVersion.of(21)
+                    }
+                }
+                """);
+        var sourceDir = projectDir.resolve("src/main/java/demo");
+        Files.createDirectories(sourceDir);
+        Files.writeString(sourceDir.resolve("CityService.java"), """
+                package demo;
+
+                import st.orm.template.ORMTemplate;
+
+                /**
+                 * References storm-java21's preview class files in its signature.
+                 */
+                public record CityService(ORMTemplate orm) {
+                }
+                """);
+        var result = GradleRunner.create()
+                .withProjectDir(projectDir.toFile())
+                .withPluginClasspath()
+                .withArguments("javadoc")
+                .build();
+        assertTrue(result.getOutput().contains("BUILD SUCCESSFUL"), result.getOutput());
+        assertTrue(Files.exists(projectDir.resolve("build/docs/javadoc/index.html")),
+                "Expected generated javadoc output.");
     }
 
     /**

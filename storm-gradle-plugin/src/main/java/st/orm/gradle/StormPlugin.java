@@ -20,20 +20,25 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import org.gradle.api.GradleException;
 import org.gradle.api.Plugin;
 import org.gradle.api.Project;
+import org.gradle.api.plugins.JavaPluginExtension;
 import org.gradle.api.provider.Provider;
 import org.gradle.api.tasks.JavaExec;
+import org.gradle.api.tasks.SourceSet;
 import org.gradle.api.tasks.compile.JavaCompile;
+import org.gradle.api.tasks.javadoc.Javadoc;
 import org.gradle.api.tasks.testing.Test;
+import org.gradle.external.javadoc.CoreJavadocOptions;
 
 /**
  * Applies Storm ORM to a Kotlin or Java project.
  *
  * <p>The plugin imports the Storm BOM and adds the core dependencies for the detected language path: Kotlin
  * projects (the {@code org.jetbrains.kotlin.jvm} plugin is applied) get {@code storm-kotlin}, the metamodel
- * processor on the {@code ksp} configuration, and the Storm compiler-plugin variant matching the project's
- * Kotlin version; Java projects get {@code storm-java21}, the annotation processor, and the
- * {@code --enable-preview} flags its String Templates require on JDK 21. All Storm coordinates use the
- * plugin's own version: the plugin and the artifacts are released together.</p>
+ * processor on every source set's KSP configuration ({@code ksp}, {@code kspTest}, and so on), and the Storm
+ * compiler-plugin variant matching the project's Kotlin version; Java projects get {@code storm-java21}, the
+ * annotation processor on every source set's processor configuration, and the {@code --enable-preview} flags
+ * its String Templates require on JDK 21. All Storm coordinates use the plugin's own version: the plugin and
+ * the artifacts are released together.</p>
  *
  * <p>The plugin has no compile-time dependency on the Kotlin Gradle plugin or KSP: it reacts to plugin ids
  * and wires dependencies by configuration name. KSP itself is applied by the user (its version is paired to
@@ -71,11 +76,16 @@ public class StormPlugin implements Plugin<Project> {
             });
             configure(project, "runtimeOnly", dependencies ->
                     dependencies.add(project.getDependencies().create("st.orm:storm-core:" + version)));
-            configure(project, "annotationProcessor", dependencies -> {
-                if (!kotlin.get() && extension.getMetamodel().get()) {
-                    dependencies.add(project.getDependencies().create("st.orm:storm-metamodel-processor:" + version));
-                }
-            });
+            // Annotation-processor configurations never extend each other, so every source set (test and
+            // custom ones alike) gets the processor on its own configuration; entities declared in test
+            // sources get a metamodel too.
+            project.getExtensions().getByType(JavaPluginExtension.class).getSourceSets().configureEach(sourceSet ->
+                    configure(project, sourceSet.getAnnotationProcessorConfigurationName(), dependencies -> {
+                        if (!kotlin.get() && extension.getMetamodel().get()) {
+                            dependencies.add(project.getDependencies()
+                                    .create("st.orm:storm-metamodel-processor:" + version));
+                        }
+                    }));
             Provider<Boolean> previewEnabled = extension.getJavaPreview().map(enabled -> enabled && !kotlin.get());
             var previewArgs = new PreviewArgs(previewEnabled);
             project.getTasks().withType(JavaCompile.class).configureEach(task ->
@@ -91,7 +101,7 @@ public class StormPlugin implements Plugin<Project> {
                     return;
                 }
                 var toolchain = evaluated.getExtensions()
-                        .getByType(org.gradle.api.plugins.JavaPluginExtension.class)
+                        .getByType(JavaPluginExtension.class)
                         .getToolchain()
                         .getLanguageVersion();
                 if (toolchain.isPresent() && toolchain.get().asInt() != 21) {
@@ -103,25 +113,40 @@ public class StormPlugin implements Plugin<Project> {
                             or opt out of the preview setup with storm { javaPreview.set(false) }.""")
                             .formatted(toolchain.get().asInt()));
                 }
+                // Javadoc embeds the javac front end, which rejects storm-java21's preview class files
+                // unless --enable-preview is set; the flag itself requires an explicit source level.
+                evaluated.getTasks().withType(Javadoc.class).configureEach(task -> {
+                    if (task.getOptions() instanceof CoreJavadocOptions options) {
+                        options.addBooleanOption("-enable-preview", true);
+                        if (options.getSource() == null) {
+                            options.setSource("21");
+                        }
+                    }
+                });
             });
         });
+        // KSP configurations never extend each other either, so each source set's configuration (main's is
+        // named plain "ksp") is wired on its own.
         pluginManager.withPlugin(KSP_PLUGIN_ID, applied ->
-                project.getConfigurations()
-                        .matching(configuration -> configuration.getName().equals("ksp"))
-                        .configureEach(configuration -> {
-                            // KSP decides whether to run from the configuration's dependency list without
-                            // triggering Gradle's lazy dependency callbacks, so the processor must be added
-                            // eagerly; the metamodel opt-out is honored once the build script has been
-                            // evaluated.
-                            var metamodelProcessor = project.getDependencies()
-                                    .create("st.orm:storm-metamodel-ksp:" + version);
-                            configuration.getDependencies().add(metamodelProcessor);
-                            project.afterEvaluate(evaluated -> {
-                                if (!extension.getMetamodel().get()) {
-                                    configuration.getDependencies().remove(metamodelProcessor);
-                                }
-                            });
-                        }));
+                pluginManager.withPlugin("java", javaApplied ->
+                        project.getExtensions().getByType(JavaPluginExtension.class).getSourceSets()
+                                .configureEach(sourceSet -> project.getConfigurations()
+                                        .matching(configuration ->
+                                                configuration.getName().equals(kspConfigurationName(sourceSet)))
+                                        .configureEach(configuration -> {
+                                            // KSP decides whether to run from the configuration's dependency
+                                            // list without triggering Gradle's lazy dependency callbacks, so
+                                            // the processor must be added eagerly; the metamodel opt-out is
+                                            // honored once the build script has been evaluated.
+                                            var metamodelProcessor = project.getDependencies()
+                                                    .create("st.orm:storm-metamodel-ksp:" + version);
+                                            configuration.getDependencies().add(metamodelProcessor);
+                                            project.afterEvaluate(evaluated -> {
+                                                if (!extension.getMetamodel().get()) {
+                                                    configuration.getDependencies().remove(metamodelProcessor);
+                                                }
+                                            });
+                                        }))));
         pluginManager.withPlugin(KOTLIN_JVM_PLUGIN_ID, applied ->
                 configure(project, "kotlinCompilerPluginClasspath", dependencies -> {
                     if (extension.getCompilerPlugin().get()) {
@@ -144,6 +169,18 @@ public class StormPlugin implements Plugin<Project> {
                         .formatted(KotlinVariants.kspFor(detectKotlinVersion(evaluated))));
             }
         });
+    }
+
+    /**
+     * Returns the name of the KSP processor configuration for the source set: {@code ksp} for {@code main},
+     * {@code ksp<SourceSetName>} otherwise ({@code kspTest}, {@code kspIntegration}, ...). KSP creates one
+     * per Kotlin compilation, and the Kotlin JVM plugin creates a compilation per source set.
+     */
+    private static String kspConfigurationName(SourceSet sourceSet) {
+        var name = sourceSet.getName();
+        return SourceSet.MAIN_SOURCE_SET_NAME.equals(name)
+                ? "ksp"
+                : "ksp" + Character.toUpperCase(name.charAt(0)) + name.substring(1);
     }
 
     /**
