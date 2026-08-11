@@ -10,8 +10,10 @@ import org.springframework.test.context.ContextConfiguration
 import org.springframework.test.context.jdbc.Sql
 import org.springframework.test.context.junit.jupiter.SpringExtension
 import st.orm.Data
+import st.orm.JoinType
 import st.orm.Metamodel
 import st.orm.Operator.*
+import st.orm.Ref
 import st.orm.repository.entity
 import st.orm.repository.removeAll
 import st.orm.repository.select
@@ -19,6 +21,7 @@ import st.orm.template.model.City
 import st.orm.template.model.Owner
 import st.orm.template.model.OwnerView
 import st.orm.template.model.Pet
+import st.orm.template.model.PetType
 import st.orm.template.model.Visit
 
 @ExtendWith(SpringExtension::class)
@@ -209,6 +212,98 @@ open class SqlDslTest(
             }.resultList
         }
         exception.message!! shouldContain "Visit is not part of this query rooted at City"
+    }
+
+    // Clause vocabulary parity with the chained builder (#397).
+
+    @Test
+    fun `select entities with whereId in the block`() {
+        val cities = orm.entity(City::class).select {
+            whereId(listOf(1, 3))
+        }.resultList
+        cities.map { it.id }.toSet() shouldBe setOf(1, 3)
+    }
+
+    @Test
+    fun `select entities with whereRef in the block`() {
+        val ref1: Ref<City> = Ref.of(City::class.java, 1)
+        val ref3: Ref<City> = Ref.of(City::class.java, 3)
+        val cities = orm.entity(City::class).select {
+            whereRef(listOf(ref1, ref3))
+        }.resultList
+        cities.map { it.id }.toSet() shouldBe setOf(1, 3)
+    }
+
+    @Test
+    fun `select entity with forLock template in the block`() {
+        val city = orm.entity(City::class).select {
+            where(1)
+            forLock { "FOR UPDATE" }
+        }.singleResult
+        city.id shouldBe 1
+    }
+
+    @Test
+    fun `select entities with aliased class join in the block`() {
+        // data.sql: 12 of 13 pets have an owner.
+        val pets = orm.entity<Pet>().select {
+            join(JoinType.inner(), Owner::class, "o", Pet::class)
+        }.resultList
+        pets shouldHaveSize 12
+    }
+
+    @Test
+    fun `select entities with aliased class join and template ON in the block`() {
+        val pets = orm.entity<Pet>().select {
+            join(JoinType.inner(), Owner::class, "o") { "o.id = ${t(Templates.alias(Pet::class))}.owner_id" }
+        }.resultList
+        pets shouldHaveSize 12
+    }
+
+    @Test
+    fun `select entities with class join and template ON in the block`() {
+        // City ids are 1-6, pet type ids are 0-5: the matching ids are 1-5.
+        val count = orm.entity(City::class).select {
+            innerJoin<PetType> { "${t(Templates.alias(PetType::class))}.id = ${t(Templates.alias(City::class))}.id" }
+        }.resultCount
+        count shouldBe 5L
+    }
+
+    @Test
+    fun `select entities with template join in the block`() {
+        // City ids are 1-6, pet type ids are 0-5: the matching ids are 1-5.
+        val count = orm.entity(City::class).select {
+            innerJoin({ "pet_type" }, "pt") { "pt.id = ${t(Templates.alias(City::class))}.id" }
+        }.resultCount
+        count shouldBe 5L
+    }
+
+    @Test
+    fun `select entities with JoinType template join in the block`() {
+        // A left join keeps all six cities whether or not a pet type id matches.
+        val count = orm.entity(City::class).select {
+            join(JoinType.left(), { "pet_type" }, "pt") { "pt.id = ${t(Templates.alias(City::class))}.id" }
+        }.resultCount
+        count shouldBe 6L
+    }
+
+    @Test
+    fun `select entities with subquery join in the block`() {
+        // A self-join through the subquery matches every city exactly once.
+        val subquery = orm.entity(City::class).select()
+        val count = orm.entity(City::class).select {
+            join(JoinType.inner(), subquery, "sub") { "sub.id = ${t(Templates.alias(City::class))}.id" }
+        }.resultCount
+        count shouldBe 6L
+    }
+
+    @Test
+    fun `select entities with template cross join in the block`() {
+        // 6 cities times 6 pet types is 36 rows.
+        val count = orm.entity(City::class).select {
+            crossJoin { "pet_type" }
+        }.resultCount
+        count shouldBe 36L
     }
 
     @Test
