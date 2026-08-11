@@ -36,9 +36,10 @@ import st.orm.core.spi.TransactionScope;
  * or both. Spans nest under the current trace context, so with context propagation in place (for example the
  * OpenTelemetry agent) Storm queries appear under the active request span.</p>
  *
- * <p>Naming and key values come from the {@link StormQueryObservationConvention} by default; supply a custom
- * {@link ObservationConvention} to override. Extra low-cardinality key values, such as the database name in a
- * multi-database setup, are appended to every observation.</p>
+ * <p>Naming and key values come from the {@link StormQueryObservationConvention} and
+ * {@link StormTransactionObservationConvention} by default; supply a custom {@link ObservationConvention} to
+ * override either. Extra low-cardinality key values, such as the database name in a multi-database setup, are
+ * appended to every observation.</p>
  *
  * @since 1.13
  */
@@ -46,10 +47,11 @@ public class MicrometerQueryObserver implements QueryObserver {
 
     private final ObservationRegistry observationRegistry;
     private final ObservationConvention<StormQueryObservationContext> convention;
+    private final ObservationConvention<StormTransactionObservationContext> transactionConvention;
     private final KeyValues extraLowCardinalityKeyValues;
 
     /**
-     * Creates an observer reporting to the given registry with the default convention.
+     * Creates an observer reporting to the given registry with the default conventions.
      *
      * @param observationRegistry the registry to report observations to.
      */
@@ -58,7 +60,7 @@ public class MicrometerQueryObserver implements QueryObserver {
     }
 
     /**
-     * Creates an observer reporting to the given registry with the default convention and extra low-cardinality
+     * Creates an observer reporting to the given registry with the default conventions and extra low-cardinality
      * key values appended to every observation.
      *
      * @param observationRegistry the registry to report observations to.
@@ -71,18 +73,38 @@ public class MicrometerQueryObserver implements QueryObserver {
     }
 
     /**
-     * Creates an observer reporting to the given registry with a custom convention.
+     * Creates an observer reporting to the given registry with a custom query convention.
      *
      * @param observationRegistry the registry to report observations to.
-     * @param convention the convention that names the observations and derives their key values.
-     * @param extraLowCardinalityKeyValues extra key values, exposed to the convention via
+     * @param convention the convention that names the query observations and derives their key values.
+     * @param extraLowCardinalityKeyValues extra key values, exposed to the conventions via
      *                                     {@link StormQueryObservationContext#extraLowCardinalityKeyValues()}.
      */
     public MicrometerQueryObserver(@Nonnull ObservationRegistry observationRegistry,
                                    @Nonnull ObservationConvention<StormQueryObservationContext> convention,
                                    @Nonnull KeyValues extraLowCardinalityKeyValues) {
+        this(observationRegistry, convention, new StormTransactionObservationConvention(), extraLowCardinalityKeyValues);
+    }
+
+    /**
+     * Creates an observer reporting to the given registry with custom query and transaction conventions.
+     *
+     * @param observationRegistry the registry to report observations to.
+     * @param convention the convention that names the query observations and derives their key values.
+     * @param transactionConvention the convention that names the transaction observations and derives their key
+     *                              values.
+     * @param extraLowCardinalityKeyValues extra key values, exposed to the conventions via
+     *                                     {@link StormQueryObservationContext#extraLowCardinalityKeyValues()} and
+     *                                     {@link StormTransactionObservationContext#extraLowCardinalityKeyValues()}.
+     * @since 1.14
+     */
+    public MicrometerQueryObserver(@Nonnull ObservationRegistry observationRegistry,
+                                   @Nonnull ObservationConvention<StormQueryObservationContext> convention,
+                                   @Nonnull ObservationConvention<StormTransactionObservationContext> transactionConvention,
+                                   @Nonnull KeyValues extraLowCardinalityKeyValues) {
         this.observationRegistry = requireNonNull(observationRegistry, "observationRegistry");
         this.convention = requireNonNull(convention, "convention");
+        this.transactionConvention = requireNonNull(transactionConvention, "transactionConvention");
         this.extraLowCardinalityKeyValues = requireNonNull(extraLowCardinalityKeyValues, "extraLowCardinalityKeyValues");
     }
 
@@ -91,26 +113,20 @@ public class MicrometerQueryObserver implements QueryObserver {
         if (observationRegistry.isNoop()) {
             return TransactionObservation.NOOP;
         }
-        var observation = createNotStarted("storm.transaction", observationRegistry)
-                .contextualName("transaction")
-                .lowCardinalityKeyValue("storm.tx.propagation",
-                        options.propagation() != null ? options.propagation().name() : "REQUIRED")
-                .lowCardinalityKeyValue("storm.tx.read_only",
-                        String.valueOf(Boolean.TRUE.equals(options.readOnly())));
-        for (var keyValue : extraLowCardinalityKeyValues) {
-            observation = observation.lowCardinalityKeyValue(keyValue.getKey(), keyValue.getValue());
-        }
-        var started = observation.start();
+        var observationContext = new StormTransactionObservationContext(options, extraLowCardinalityKeyValues);
+        var observation = createNotStarted(transactionConvention, () -> observationContext, observationRegistry)
+                .start();
         return new TransactionObservation() {
             @Override
             public void error(@Nonnull Throwable throwable) {
-                started.error(throwable);
+                observation.error(throwable);
             }
 
             @Override
             public void close(boolean rolledBack) {
-                started.lowCardinalityKeyValue("storm.tx.outcome", rolledBack ? "rolled_back" : "committed");
-                started.stop();
+                // Set before stop: the convention's key values are collected when the observation stops.
+                observationContext.setRolledBack(rolledBack);
+                observation.stop();
             }
         };
     }

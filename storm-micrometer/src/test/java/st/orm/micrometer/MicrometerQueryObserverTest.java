@@ -15,7 +15,9 @@
  */
 package st.orm.micrometer;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static st.orm.core.template.TemplateString.raw;
 
@@ -23,6 +25,8 @@ import io.micrometer.common.KeyValues;
 import io.micrometer.observation.tck.TestObservationRegistry;
 import io.micrometer.observation.tck.TestObservationRegistryAssert;
 import java.sql.SQLException;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Optional;
 import java.util.OptionalInt;
 import org.junit.jupiter.api.Test;
@@ -49,7 +53,12 @@ public class MicrometerQueryObserverTest {
     private record FakeQueryContext(SqlOperation operation,
                                     Class<? extends Data> type,
                                     ExecutionKind kind,
-                                    String sql) implements QueryContext {
+                                    String sql,
+                                    long shapeId) implements QueryContext {
+        FakeQueryContext(SqlOperation operation, Class<? extends Data> type, ExecutionKind kind, String sql) {
+            this(operation, type, kind, sql, 0L);
+        }
+
         @Override
         public Optional<Class<? extends Data>> dataType() {
             return Optional.ofNullable(type);
@@ -80,9 +89,23 @@ public class MicrometerQueryObserverTest {
                 .hasLowCardinalityKeyValue("storm.operation", "SELECT")
                 .hasLowCardinalityKeyValue("storm.execution", "QUERY")
                 .hasLowCardinalityKeyValue("storm.data_type", "TestPet")
+                .hasLowCardinalityKeyValue("storm.shape", "none")
                 .hasHighCardinalityKeyValue("db.statement", "SELECT id FROM test_pet")
                 .hasBeenStarted()
                 .hasBeenStopped();
+    }
+
+    @Test
+    public void shapeIdentityIsTaggedWhenKnown() {
+        var registry = TestObservationRegistry.create();
+        var observer = new MicrometerQueryObserver(registry);
+        observer.onExecute(new FakeQueryContext(
+                SqlOperation.SELECT, TestPet.class, QueryContext.ExecutionKind.QUERY,
+                "SELECT id FROM test_pet WHERE id IN (?, ?)", 0xCAFEL)).close();
+        TestObservationRegistryAssert.assertThat(registry)
+                .hasObservationWithNameEqualTo("storm.query")
+                .that()
+                .hasLowCardinalityKeyValue("storm.shape", "cafe");
     }
 
     @Test
@@ -134,6 +157,31 @@ public class MicrometerQueryObserverTest {
                 .hasLowCardinalityKeyValue("storm.data_type", "City")
                 .hasBeenStarted()
                 .hasBeenStopped();
+    }
+
+    @Test
+    public void statementsOfOneTemplateShareTheShapeIdentity() throws SQLException {
+        var dataSource = new SimpleDataSource("jdbc:h2:mem:micrometerShape-" + System.nanoTime() + ";DB_CLOSE_DELAY=-1");
+        try (var connection = dataSource.getConnection(); var statement = connection.createStatement()) {
+            statement.execute("CREATE TABLE city (id INTEGER AUTO_INCREMENT PRIMARY KEY, name VARCHAR(255))");
+            statement.execute("INSERT INTO city (name) VALUES ('Sun Prairie'), ('Madison')");
+        }
+        var registry = TestObservationRegistry.create();
+        var orm = ORMTemplate.builder(dataSource)
+                .queryObserver(new MicrometerQueryObserver(registry))
+                .build();
+        // Different placeholder counts, one template: the shape groups them where the text would split them.
+        orm.entity(City.class).findAllById(List.of(1));
+        orm.entity(City.class).findAllById(List.of(1, 2));
+        var shapes = new ArrayList<String>();
+        TestObservationRegistryAssert.assertThat(registry)
+                .hasHandledContextsThatSatisfy(handled -> handled.stream()
+                        .filter(context -> "storm.query".equals(context.getName()))
+                        .map(context -> context.getLowCardinalityKeyValue("storm.shape"))
+                        .forEach(keyValue -> shapes.add(keyValue != null ? keyValue.getValue() : null)));
+        assertEquals(2, shapes.size());
+        assertNotEquals("none", shapes.get(0));
+        assertEquals(shapes.get(0), shapes.get(1));
     }
 
     @Test

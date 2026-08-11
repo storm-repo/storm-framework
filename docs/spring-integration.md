@@ -621,7 +621,7 @@ The starters ship with Storm's Micrometer binding. When an `ObservationRegistry`
 
 A generic DataSource proxy can only time statements. Storm knows the entity and operation behind every statement it generates, so the observations carry meaningful tags:
 
-- **Low-cardinality key values** (become metric tags): the SQL operation (`SELECT`, `INSERT`, ...), the execution kind (query, update, batch), the entity or projection type, and the statement origin.
+- **Low-cardinality key values** (become metric tags): the SQL operation (`SELECT`, `INSERT`, ...), the execution kind (query, update, batch), the entity or projection type, the statement origin, and the statement's shape identity (`storm.shape`), which groups executions of one query template whatever their parameters expand to.
 - **High-cardinality key values** (visible to trace handlers only): the SQL statement with parameter placeholders. Parameter values are never reported.
 
 `storm.origin` separates statements your code asked for (`DIRECT`) from statements that resolved a reference (`FETCH`). A reference the query did not resolve is selected as its foreign key column and resolved on demand, one statement per reference, and such a statement is shaped exactly like a primary key lookup you could have written yourself. Tagging it `FETCH` makes what resolving references costs a quantity you can chart and alert on rather than a share of all lookups; naming the reference in the query's fetch plan is what drives the rate back to zero. Resolutions served by the transaction's entity cache issue no statement at all, so the rate counts distinct cache misses, not `fetch()` call sites.
@@ -636,7 +636,7 @@ storm:
     semantic-conventions: otel
 ```
 
-Customization follows the usual back-off rules: contribute an `ObservationConvention<StormQueryObservationContext>` bean to override the naming and key values (it wins over the property), define your own `QueryObserver` bean to replace the binding entirely, or disable the observation at the registry level with `management.observations.enable.storm.query=false`.
+Customization follows the usual back-off rules: contribute an `ObservationConvention<StormQueryObservationContext>` bean to override the naming and key values of the query observations (it wins over the property) and an `ObservationConvention<StormTransactionObservationContext>` bean for those of the transaction observations, define your own `QueryObserver` bean to replace the binding entirely, or disable the observations at the registry level with `management.observations.enable.storm.query=false` and `management.observations.enable.storm.transaction=false`.
 
 For development and per-call diagnosis, `storm.sql-log.enabled=true` reports what each unit of work cost the database as one summary (statements, database time against total time, concurrency, and the statement that carried the weight) with thresholds that turn it into a production guardrail. Every way work enters the application is a boundary: HTTP requests through a servlet filter, and `@Scheduled` tasks and message listeners through a proxy around the entry-point method, so a worker without a web layer reports the same way. See [SQL Logging](sql-logging.md#per-call-summaries).
 

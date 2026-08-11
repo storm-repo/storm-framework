@@ -727,7 +727,7 @@ install(Storm) {
 ```
  What each observation produces depends on the handlers attached to the registry: timing metrics, tracing spans, or both. Storm spans nest under the current trace context, so with context propagation in place (for example the OpenTelemetry agent, or micrometer-tracing with a `TracingObservationHandler`) queries appear under the active request span.
 
-Physical transactions report as `storm.transaction` observations with their duration, outcome (`committed` or `rolled_back`), propagation, and read-only flag; joined blocks are not double-counted. Query observations are named `storm.query` and carry the following key values:
+Physical transactions report as `storm.transaction` observations with their duration, outcome (`committed` or `rolled_back`), propagation, and read-only flag; joined blocks are not double-counted. An `ObservationConvention<StormTransactionObservationContext>` registered in the dependency container overrides their naming and key values, just as an `ObservationConvention<StormQueryObservationContext>` overrides those of the query observations. Query observations are named `storm.query` and carry the following key values:
 
 | Key | Cardinality | Value |
 |-----|-------------|-------|
@@ -735,6 +735,7 @@ Physical transactions report as `storm.transaction` observations with their dura
 | `storm.execution` | low | How the statement executed: `QUERY`, `UPDATE`, or `BATCH`. |
 | `storm.data_type` | low | Simple name of the entity or projection type the statement operates on, or `none` for raw queries. |
 | `storm.origin` | low | What caused the statement: `DIRECT`, or `FETCH` for a statement resolving a reference. |
+| `storm.shape` | low | Identity of the statement's shape: statements generated from one template share it whatever their parameters expand to, so grouping by shape treats them as one statement where the text would split them. `none` when unknown. |
 | `storm.database` | low | The database name; `primary` for the primary database. |
 | `db.statement` | high | The SQL statement. Available to trace handlers as a span attribute; never a metric tag. |
 

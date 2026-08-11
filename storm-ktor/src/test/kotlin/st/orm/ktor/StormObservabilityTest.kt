@@ -128,6 +128,82 @@ class StormObservabilityTest {
     }
 
     @Test
+    fun `transactions are observed through the automatic binding`() {
+        val observationRegistry = TestObservationRegistry.create()
+        val dataSource = createTestDataSource("storm-observed-tx", "/schema.sql")
+        try {
+            testApplication {
+                application {
+                    dependencies {
+                        provide<ObservationRegistry> { observationRegistry }
+                    }
+                    install(Storm) {
+                        this.dataSource = dataSource
+                    }
+                    routing {
+                        transactional {
+                            get("/pets") {
+                                call.respondText(repository<PetRepository>().findAll().size.toString())
+                            }
+                        }
+                    }
+                }
+                client.get("/pets").status shouldBe HttpStatusCode.OK
+                TestObservationRegistryAssert.assertThat(observationRegistry)
+                    .hasObservationWithNameEqualTo("storm.transaction")
+                    .that()
+                    .hasLowCardinalityKeyValue("storm.tx.outcome", "committed")
+                    .hasLowCardinalityKeyValue("storm.database", "primary")
+                    .hasBeenStarted()
+                    .hasBeenStopped()
+            }
+        } finally {
+            dataSource.close()
+        }
+    }
+
+    @Test
+    fun `a transaction convention from the dependency container overrides the transaction observations`() {
+        val observationRegistry = TestObservationRegistry.create()
+        val dataSource = createTestDataSource("storm-observed-tx-convention", "/schema.sql")
+        try {
+            testApplication {
+                application {
+                    dependencies {
+                        provide<ObservationRegistry> { observationRegistry }
+                        provide<io.micrometer.observation.ObservationConvention<st.orm.micrometer.StormTransactionObservationContext>> {
+                            object : st.orm.micrometer.StormTransactionObservationConvention() {
+                                override fun getName(): String = "db.tx"
+                            }
+                        }
+                    }
+                    install(Storm) {
+                        this.dataSource = dataSource
+                    }
+                    routing {
+                        transactional {
+                            get("/pets") {
+                                call.respondText(repository<PetRepository>().findAll().size.toString())
+                            }
+                        }
+                    }
+                }
+                client.get("/pets").status shouldBe HttpStatusCode.OK
+                TestObservationRegistryAssert.assertThat(observationRegistry)
+                    .hasObservationWithNameEqualTo("db.tx")
+                    .that()
+                    .hasLowCardinalityKeyValue("storm.tx.outcome", "committed")
+                    .hasLowCardinalityKeyValue("storm.database", "primary")
+                // The query convention is untouched: queries keep their default name.
+                TestObservationRegistryAssert.assertThat(observationRegistry)
+                    .hasObservationWithNameEqualTo("storm.query")
+            }
+        } finally {
+            dataSource.close()
+        }
+    }
+
+    @Test
     fun `named database observations carry the database name`() {
         val observationRegistry = TestObservationRegistry.create()
         val clinicDataSource = createTestDataSource("storm-observed-clinic", "/schema.sql")

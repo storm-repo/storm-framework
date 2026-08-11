@@ -15,6 +15,7 @@
  */
 package st.orm.spring.boot;
 
+import io.micrometer.common.KeyValues;
 import io.micrometer.observation.ObservationConvention;
 import io.micrometer.observation.ObservationRegistry;
 import javax.sql.DataSource;
@@ -30,6 +31,9 @@ import st.orm.core.spi.QueryObserver;
 import st.orm.micrometer.MicrometerQueryObserver;
 import st.orm.micrometer.OtelDatabaseObservationConvention;
 import st.orm.micrometer.StormQueryObservationContext;
+import st.orm.micrometer.StormQueryObservationConvention;
+import st.orm.micrometer.StormTransactionObservationContext;
+import st.orm.micrometer.StormTransactionObservationConvention;
 
 /**
  * Auto-configuration that reports Storm query executions as Micrometer Observations when an
@@ -38,10 +42,12 @@ import st.orm.micrometer.StormQueryObservationContext;
  * <p>Each query executed by the auto-configured {@code ORMTemplate} is observed under the name
  * {@code storm.query}, with low-cardinality key values for the operation, execution kind and data type,
  * and the SQL statement as a high-cardinality value for trace handlers; parameter values are never
- * reported. Contribute an {@link ObservationConvention} bean for {@link StormQueryObservationContext} to
- * override the naming and key values, define your own {@link QueryObserver} bean to replace the binding,
- * or disable the observation at the registry level with
- * {@code management.observations.enable.storm.query=false}.</p>
+ * reported. Physical transactions are observed under the name {@code storm.transaction}. Contribute an
+ * {@link ObservationConvention} bean for {@link StormQueryObservationContext} or
+ * {@link StormTransactionObservationContext} to override the naming and key values, define your own
+ * {@link QueryObserver} bean to replace the binding, or disable the observations at the registry level with
+ * {@code management.observations.enable.storm.query=false} and
+ * {@code management.observations.enable.storm.transaction=false}.</p>
  *
  * <p>The ordering hints reference the observation auto-configuration by name for both its Spring Boot 3
  * and Spring Boot 4 locations; name-based hints are ignored when the class is not on the classpath.</p>
@@ -61,25 +67,35 @@ import st.orm.micrometer.StormQueryObservationContext;
 public class StormObservationAutoConfiguration {
 
     /**
-     * Provides the query observer that reports query executions to the application's observation registry.
+     * Provides the query observer that reports query executions and transactions to the application's
+     * observation registry.
      *
-     * <p>A custom {@link ObservationConvention} bean for {@link StormQueryObservationContext}, when present,
-     * overrides the default naming and key values.</p>
+     * <p>A custom {@link ObservationConvention} bean for {@link StormQueryObservationContext} or
+     * {@link StormTransactionObservationContext}, when present, overrides the default naming and key values of
+     * the query and transaction observations respectively.</p>
      */
     @Bean
     @ConditionalOnMissingBean(QueryObserver.class)
     public QueryObserver stormQueryObserver(
             ObservationRegistry observationRegistry,
             ObjectProvider<ObservationConvention<StormQueryObservationContext>> convention,
+            ObjectProvider<ObservationConvention<StormTransactionObservationContext>> transactionConvention,
             StormProperties properties,
             ObjectProvider<DataSource> dataSource) {
         ObservationConvention<StormQueryObservationContext> customConvention = convention.getIfAvailable();
         if (customConvention == null) {
             customConvention = conventionFor(properties, dataSource);
         }
-        return customConvention != null
-                ? new MicrometerQueryObserver(observationRegistry, customConvention, io.micrometer.common.KeyValues.empty())
-                : new MicrometerQueryObserver(observationRegistry);
+        ObservationConvention<StormTransactionObservationContext> customTransactionConvention =
+                transactionConvention.getIfAvailable();
+        if (customConvention == null && customTransactionConvention == null) {
+            return new MicrometerQueryObserver(observationRegistry);
+        }
+        return new MicrometerQueryObserver(
+                observationRegistry,
+                customConvention != null ? customConvention : new StormQueryObservationConvention(),
+                customTransactionConvention != null ? customTransactionConvention : new StormTransactionObservationConvention(),
+                KeyValues.empty());
     }
 
     private static ObservationConvention<StormQueryObservationContext> conventionFor(

@@ -566,6 +566,28 @@ class StormAutoConfigurationTest {
     }
 
     @Test
+    void transactionConventionBeanOverridesTransactionObservations() {
+        // An ObservationConvention bean for StormTransactionObservationContext renames and re-tags the
+        // transaction observations, without touching the query observations.
+        contextRunner
+                .withPropertyValues(
+                        "spring.datasource.url=jdbc:h2:mem:txConventionTest;DB_CLOSE_DELAY=-1",
+                        "spring.datasource.driver-class-name=org.h2.Driver"
+                )
+                .withUserConfiguration(TestObservationRegistryConfig.class, TransactionConventionConfig.class)
+                .run(context -> {
+                    var observer = context.getBean(st.orm.core.spi.QueryObserver.class);
+                    observer.onTransaction(new st.orm.core.spi.TransactionScope.Options(null, null, null, null, false))
+                            .close(false);
+                    var registry = context.getBean(io.micrometer.observation.tck.TestObservationRegistry.class);
+                    io.micrometer.observation.tck.TestObservationRegistryAssert.assertThat(registry)
+                            .hasObservationWithNameEqualTo("db.tx")
+                            .that()
+                            .hasLowCardinalityKeyValue("storm.tx.outcome", "committed");
+                });
+    }
+
+    @Test
     void unknownSemanticConventionsValueFailsFast() {
         contextRunner
                 .withPropertyValues(
@@ -628,6 +650,19 @@ class StormAutoConfigurationTest {
         @Bean
         public io.micrometer.observation.tck.TestObservationRegistry observationRegistry() {
             return io.micrometer.observation.tck.TestObservationRegistry.create();
+        }
+    }
+
+    @Configuration
+    static class TransactionConventionConfig {
+        @Bean
+        public io.micrometer.observation.ObservationConvention<st.orm.micrometer.StormTransactionObservationContext> stormTransactionConvention() {
+            return new st.orm.micrometer.StormTransactionObservationConvention() {
+                @Override
+                public String getName() {
+                    return "db.tx";
+                }
+            };
         }
     }
 
