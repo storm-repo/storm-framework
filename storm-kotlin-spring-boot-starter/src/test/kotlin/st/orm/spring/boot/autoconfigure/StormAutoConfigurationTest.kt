@@ -18,12 +18,14 @@ package st.orm.spring.boot.autoconfigure
 import io.kotest.matchers.collections.shouldBeEmpty
 import io.kotest.matchers.shouldBe
 import io.kotest.matchers.shouldNotBe
+import io.kotest.matchers.string.shouldContain
 import io.kotest.matchers.types.shouldBeInstanceOf
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.extension.ExtendWith
 import org.springframework.boot.autoconfigure.AutoConfigurations
 import org.springframework.boot.autoconfigure.jdbc.DataSourceAutoConfiguration
 import org.springframework.boot.autoconfigure.jdbc.DataSourceTransactionManagerAutoConfiguration
+import org.springframework.boot.context.properties.source.InvalidConfigurationPropertyValueException
 import org.springframework.boot.test.context.runner.ApplicationContextRunner
 import org.springframework.boot.test.system.CapturedOutput
 import org.springframework.boot.test.system.OutputCaptureExtension
@@ -338,6 +340,23 @@ class StormAutoConfigurationTest {
             .run { context ->
                 context.getBean(ORMTemplate::class.java) shouldNotBe null
                 output.out.contains("Storm schema validation passed (mode=fail).") shouldBe true
+            }
+    }
+
+    @Test
+    fun `schema validation unknown mode fails context startup`() {
+        // A typo in the mode must fail startup instead of silently skipping schema validation.
+        contextRunner
+            .withPropertyValues(
+                "spring.datasource.url=jdbc:h2:mem:schemaUnknownTest;DB_CLOSE_DELAY=-1",
+                "spring.datasource.driver-class-name=org.h2.Driver",
+                "storm.validation.schema-mode=fial",
+            )
+            .run { context ->
+                val failure = context.startupFailure.shouldBeInstanceOf<InvalidConfigurationPropertyValueException>()
+                failure.message shouldContain "storm.validation.schema-mode"
+                failure.message shouldContain "'fial'"
+                failure.message shouldContain "Valid values are: none, warn, fail."
             }
     }
 

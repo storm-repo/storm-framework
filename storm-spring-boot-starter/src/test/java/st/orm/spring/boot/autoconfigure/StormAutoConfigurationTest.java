@@ -22,6 +22,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.springframework.boot.autoconfigure.AutoConfigurations;
 import org.springframework.boot.autoconfigure.jdbc.DataSourceAutoConfiguration;
+import org.springframework.boot.context.properties.source.InvalidConfigurationPropertyValueException;
 import org.springframework.boot.test.context.runner.ApplicationContextRunner;
 import org.springframework.boot.test.system.CapturedOutput;
 import org.springframework.boot.test.system.OutputCaptureExtension;
@@ -281,6 +282,25 @@ class StormAutoConfigurationTest {
                 )
                 .run(context -> {
                     assertThat(context).hasSingleBean(ORMTemplate.class);
+                });
+    }
+
+    @Test
+    void schemaValidationUnknownModeShouldFailContextStartup() {
+        // A typo in the mode must fail startup instead of silently skipping schema validation.
+        contextRunner
+                .withPropertyValues(
+                        "spring.datasource.url=jdbc:h2:mem:schemaUnknownTest;DB_CLOSE_DELAY=-1",
+                        "spring.datasource.driver-class-name=org.h2.Driver",
+                        "storm.validation.schema-mode=fial"
+                )
+                .run(context -> {
+                    assertThat(context).hasFailed();
+                    assertThat(context.getStartupFailure())
+                            .isInstanceOf(InvalidConfigurationPropertyValueException.class)
+                            .hasMessageContaining("storm.validation.schema-mode")
+                            .hasMessageContaining("'fial'")
+                            .hasMessageContaining("Valid values are: none, warn, fail.");
                 });
     }
 

@@ -78,7 +78,8 @@ public class StormDatabaseConfig internal constructor(internal val name: String)
     public var sqlCommenter: st.orm.core.spi.SqlCommenter? = null
 
     /**
-     * Schema validation mode for this database: `"none"`, `"warn"`, or `"fail"`.
+     * Schema validation mode for this database: `"none"`, `"warn"`, or `"fail"`. Any other value aborts
+     * installation.
      *
      * When not set, the mode is read from the HOCON configuration under
      * `storm.databases.<name>.validation.schemaMode` (or `schema_mode`), defaulting to `"fail"`. Validation covers
