@@ -11,7 +11,7 @@ module storm.spring {
     requires spring.context;
     requires spring.beans;
     requires spring.boot;
-    requires jakarta.annotation;
+    requires static org.jspecify;
     requires spring.core;
     requires spring.aop;
     requires static spring.web;

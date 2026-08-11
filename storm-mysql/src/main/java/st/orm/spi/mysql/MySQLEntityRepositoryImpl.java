@@ -22,8 +22,6 @@ import static st.orm.core.template.SqlInterceptor.intercept;
 import static st.orm.core.template.TemplateString.raw;
 import static st.orm.core.template.impl.StringTemplates.flatten;
 
-import jakarta.annotation.Nonnull;
-import jakarta.annotation.Nullable;
 import java.math.BigInteger;
 import java.sql.Timestamp;
 import java.time.Instant;
@@ -34,6 +32,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.stream.IntStream;
+import org.jspecify.annotations.Nullable;
 import st.orm.Entity;
 import st.orm.NoResultException;
 import st.orm.NonUniqueResultException;
@@ -53,11 +52,11 @@ import st.orm.core.template.TemplateString;
 public class MySQLEntityRepositoryImpl<E extends Entity<ID>, ID>
         extends EntityRepositoryImpl<E, ID> {
 
-    public MySQLEntityRepositoryImpl(@Nonnull ORMTemplate ormTemplate, @Nonnull Model<E, ID> model) {
+    public MySQLEntityRepositoryImpl(ORMTemplate ormTemplate, Model<E, ID> model) {
         super(ormTemplate, model);
     }
 
-    private String getVersionString(@Nonnull Column column) {
+    private String getVersionString(Column column) {
         String columnName = column.qualifiedName(ormTemplate.dialect());
         String updateExpression = switch (column.type()) {
             case Class<?> c when Integer.TYPE.isAssignableFrom(c)
@@ -75,7 +74,7 @@ public class MySQLEntityRepositoryImpl<E extends Entity<ID>, ID>
         return "%s = %s".formatted(columnName, updateExpression);
     }
 
-    protected TemplateString onDuplicateKey(@Nonnull AtomicBoolean versionAware) {
+    protected TemplateString onDuplicateKey(AtomicBoolean versionAware) {
         var dialect = ormTemplate.dialect();
         var values = new ArrayList<String>();
         var duplicates = new HashSet<>();   // CompoundPks may also have their columns included as stand-alone fields. Only include them once.
@@ -111,7 +110,7 @@ public class MySQLEntityRepositoryImpl<E extends Entity<ID>, ID>
     }
 
     @Override
-    protected void doUpsert(@Nonnull E entity) {
+    protected void doUpsert(E entity) {
         validateUpsert(entity);
         entityCache().ifPresent(cache -> {
             if (model.isDefaultPrimaryKey(entity.id())) {
@@ -132,7 +131,7 @@ public class MySQLEntityRepositoryImpl<E extends Entity<ID>, ID>
     }
 
     @Override
-    protected ID doUpsertAndFetchId(@Nonnull E entity) {
+    protected ID doUpsertAndFetchId(E entity) {
         if (generationStrategy == SEQUENCE) {
             throw new PersistenceException("MySQL does not support sequence-based generation.");
         }
@@ -166,7 +165,7 @@ public class MySQLEntityRepositoryImpl<E extends Entity<ID>, ID>
     }
 
     @Override
-    public List<ID> upsertAndFetchIds(@Nonnull Iterable<E> entities) {
+    public List<ID> upsertAndFetchIds(Iterable<E> entities) {
         if (generationStrategy == SEQUENCE) {
             throw new PersistenceException("MySQL does not support sequence-based generation.");
         }
@@ -185,7 +184,7 @@ public class MySQLEntityRepositoryImpl<E extends Entity<ID>, ID>
     }
 
     @Override
-    protected void doUpsertBatch(@Nonnull List<E> batch, @Nonnull PreparedQuery query,
+    protected void doUpsertBatch(List<E> batch, PreparedQuery query,
                                  @Nullable EntityCache<E, ID> cache) {
         if (batch.isEmpty()) {
             return;
@@ -207,7 +206,7 @@ public class MySQLEntityRepositoryImpl<E extends Entity<ID>, ID>
     }
 
     @Override
-    protected List<ID> doUpsertAndFetchIdsBatch(@Nonnull List<E> batch, @Nonnull PreparedQuery query,
+    protected List<ID> doUpsertAndFetchIdsBatch(List<E> batch, PreparedQuery query,
                                                 @Nullable EntityCache<E, ID> cache) {
         if (batch.isEmpty()) {
             return List.of();
@@ -235,7 +234,7 @@ public class MySQLEntityRepositoryImpl<E extends Entity<ID>, ID>
     }
 
     @Override
-    public ID insertAndFetchId(@Nonnull E entity) {
+    public ID insertAndFetchId(E entity) {
         if (generationStrategy != SEQUENCE) {
             return super.insertAndFetchId(entity);
         }
@@ -243,7 +242,7 @@ public class MySQLEntityRepositoryImpl<E extends Entity<ID>, ID>
     }
 
     @Override
-    public List<ID> insertAndFetchIds(@Nonnull Iterable<E> entities) {
+    public List<ID> insertAndFetchIds(Iterable<E> entities) {
         if (generationStrategy != SEQUENCE) {
             return super.insertAndFetchIds(entities);
         }

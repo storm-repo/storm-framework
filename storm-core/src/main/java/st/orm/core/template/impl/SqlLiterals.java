@@ -15,12 +15,11 @@
  */
 package st.orm.core.template.impl;
 
-import jakarta.annotation.Nonnull;
-import jakarta.annotation.Nullable;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import org.jspecify.annotations.Nullable;
 import st.orm.core.template.SqlTemplate.NamedParameter;
 import st.orm.core.template.SqlTemplate.Parameter;
 import st.orm.core.template.SqlTemplate.PositionalParameter;
@@ -78,7 +77,7 @@ final class SqlLiterals {
      * @param parameters the parameters bound to the statement.
      * @return the statement with literals in place of placeholders.
      */
-    static String inline(@Nonnull String statement, @Nonnull List<Parameter> parameters) {
+    static String inline(String statement, List<Parameter> parameters) {
         Map<String, String> named = new HashMap<>();
         List<String> positional = new ArrayList<>();
         for (var parameter : parameters) {
@@ -128,7 +127,7 @@ final class SqlLiterals {
         return rendered.toString();
     }
 
-    private static char charAt(@Nonnull String value, int index) {
+    private static char charAt(String value, int index) {
         return index >= 0 && index < value.length() ? value.charAt(index) : '\0';
     }
 

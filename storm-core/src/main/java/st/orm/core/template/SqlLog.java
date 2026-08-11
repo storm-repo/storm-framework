@@ -18,8 +18,6 @@ package st.orm.core.template;
 import static java.util.Comparator.comparingLong;
 import static java.util.Objects.requireNonNull;
 
-import jakarta.annotation.Nonnull;
-import jakarta.annotation.Nullable;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -29,6 +27,7 @@ import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
+import org.jspecify.annotations.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import st.orm.Data;
@@ -97,7 +96,7 @@ public final class SqlLog {
      *
      * @param summary the summary to report.
      */
-    public static void report(@Nonnull Summary summary) {
+    public static void report(Summary summary) {
         if (summary.statementCount() == 0) {
             return;
         }
@@ -112,10 +111,10 @@ public final class SqlLog {
      * @param origin what caused it to execute.
      * @param statement the statement text, with placeholders.
      */
-    public record Statement(@Nonnull SqlOperation operation,
+    public record Statement(SqlOperation operation,
                             Class<? extends Data> dataType,
-                            @Nonnull StatementOrigin origin,
-                            @Nonnull String statement,
+                            StatementOrigin origin,
+                            String statement,
                             long startNanos,
                             long endNanos,
                             long shapeId,
@@ -132,8 +131,8 @@ public final class SqlLog {
     /**
      * What a call cost the database.
      */
-    public record Summary(@Nonnull String name,
-                          @Nonnull List<Statement> statements,
+    public record Summary(String name,
+                          List<Statement> statements,
                           int recorded,
                           int cacheHits,
                           long durationNanos) {
@@ -162,7 +161,7 @@ public final class SqlLog {
          * @param origin the origin to count.
          * @return the matching statement count, over the recorded statements.
          */
-        public int count(@Nonnull StatementOrigin origin) {
+        public int count(StatementOrigin origin) {
             return (int) statements.stream().filter(s -> s.origin() == origin).count();
         }
 
@@ -340,8 +339,8 @@ public final class SqlLog {
      *                  {@link HydrationShapes} form, or {@code null} when shapes are off, the statement is not a
      *                  SELECT, or it has no record type.
      */
-    public record StatementLine(@Nonnull String statement,
-                                @Nonnull String dataType,
+    public record StatementLine(String statement,
+                                String dataType,
                                 boolean fetch,
                                 int executions,
                                 int variants,
@@ -389,9 +388,9 @@ public final class SqlLog {
      * @return the action's result.
      * @throws Exception whatever the action throws.
      */
-    public static <T> T recordThrowing(@Nonnull String name,
-                                       @Nonnull Callable<T> action,
-                                       @Nonnull Consumer<Summary> onSummary) throws Exception {
+    public static <T> T recordThrowing(String name,
+                                       Callable<T> action,
+                                       Consumer<Summary> onSummary) throws Exception {
         return recordThrowing(name, DEFAULT_LIMIT, action, onSummary);
     }
 
@@ -406,10 +405,10 @@ public final class SqlLog {
      * @return the action's result.
      * @throws Exception whatever the action throws.
      */
-    public static <T> T recordThrowing(@Nonnull String name,
+    public static <T> T recordThrowing(String name,
                                        int limit,
-                                       @Nonnull Callable<T> action,
-                                       @Nonnull Consumer<Summary> onSummary) throws Exception {
+                                       Callable<T> action,
+                                       Consumer<Summary> onSummary) throws Exception {
         return recordThrowing(name, limit, false, action, onSummary);
     }
 
@@ -426,11 +425,11 @@ public final class SqlLog {
      * @return the action's result.
      * @throws Exception whatever the action throws.
      */
-    public static <T> T recordThrowing(@Nonnull String name,
+    public static <T> T recordThrowing(String name,
                                        int limit,
                                        boolean callSites,
-                                       @Nonnull Callable<T> action,
-                                       @Nonnull Consumer<Summary> onSummary) throws Exception {
+                                       Callable<T> action,
+                                       Consumer<Summary> onSummary) throws Exception {
         requireNonNull(name, "name");
         requireNonNull(action, "action");
         requireNonNull(onSummary, "onSummary");
@@ -455,9 +454,9 @@ public final class SqlLog {
      * @param <T> the result type.
      * @return the action's result.
      */
-    public static <T> T record(@Nonnull String name,
-                               @Nonnull Supplier<T> action,
-                               @Nonnull Consumer<Summary> onSummary) {
+    public static <T> T record(String name,
+                               Supplier<T> action,
+                               Consumer<Summary> onSummary) {
         return record(name, DEFAULT_LIMIT, action, onSummary);
     }
 
@@ -474,10 +473,10 @@ public final class SqlLog {
      * @param <T> the result type.
      * @return the action's result.
      */
-    public static <T> T record(@Nonnull String name,
+    public static <T> T record(String name,
                                int limit,
-                               @Nonnull Supplier<T> action,
-                               @Nonnull Consumer<Summary> onSummary) {
+                               Supplier<T> action,
+                               Consumer<Summary> onSummary) {
         try {
             return recordThrowing(name, limit, action::get, onSummary);
         } catch (RuntimeException e) {
@@ -504,7 +503,7 @@ public final class SqlLog {
      * @param name what the scope covers, used to label the summary.
      * @return the open scope.
      */
-    public static Scope open(@Nonnull String name) {
+    public static Scope open(String name) {
         return open(name, DEFAULT_LIMIT);
     }
 
@@ -515,7 +514,7 @@ public final class SqlLog {
      * @param limit the number of statements to record; the summary counts the rest regardless.
      * @return the open scope.
      */
-    public static Scope open(@Nonnull String name, int limit) {
+    public static Scope open(String name, int limit) {
         return open(name, limit, false);
     }
 
@@ -528,7 +527,7 @@ public final class SqlLog {
      * @param callSites whether to record call sites.
      * @return the open scope.
      */
-    public static Scope open(@Nonnull String name, int limit, boolean callSites) {
+    public static Scope open(String name, int limit, boolean callSites) {
         return new Scope(requireNonNull(name, "name"), limit, callSites);
     }
 
@@ -609,7 +608,7 @@ public final class SqlLog {
      * @param durationNanos how long the scope was open.
      * @return the summary.
      */
-    public static Summary summary(@Nonnull String name, @Nonnull Recorder recorder, long durationNanos) {
+    public static Summary summary(String name, Recorder recorder, long durationNanos) {
         return new Summary(name, List.copyOf(recorder.statements), recorder.recorded.get(),
                 recorder.cacheHits.get(), durationNanos);
     }
@@ -630,7 +629,7 @@ public final class SqlLog {
         }
 
         @Override
-        public Handle onExecute(@Nonnull QueryContext context, @Nonnull List<Parameter> parameters) {
+        public Handle onExecute(QueryContext context, List<Parameter> parameters) {
             if (recorded.incrementAndGet() > limit) {
                 return Handle.NOOP;
             }
@@ -651,7 +650,7 @@ public final class SqlLog {
         }
 
         @Override
-        public void onCacheHit(@Nonnull Class<? extends Data> dataType, int count) {
+        public void onCacheHit(Class<? extends Data> dataType, int count) {
             cacheHits.addAndGet(count);
         }
     }

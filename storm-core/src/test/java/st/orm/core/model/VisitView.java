@@ -15,11 +15,10 @@
  */
 package st.orm.core.model;
 
-import jakarta.annotation.Nonnull;
-import jakarta.annotation.Nullable;
 import java.time.Instant;
 import java.time.LocalDate;
 import lombok.Builder;
+import org.jspecify.annotations.Nullable;
 import st.orm.FK;
 import st.orm.Projection;
 import st.orm.Version;
@@ -29,8 +28,8 @@ import st.orm.Version;
  */
 @Builder(toBuilder = true)
 public record VisitView(
-        @Nonnull LocalDate visitDate,
+        LocalDate visitDate,
         @Nullable String description,
-        @Nonnull @FK PetView pet,
+        @FK PetView pet,
         @Version Instant timestamp
 ) implements Projection<Void> {}    // Not exposing the primary key of the underlying visit table.

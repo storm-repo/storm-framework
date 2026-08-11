@@ -15,7 +15,6 @@
  */
 package st.orm.core.model;
 
-import jakarta.annotation.Nonnull;
 import st.orm.DbTable;
 import st.orm.PK;
 import st.orm.Projection;
@@ -27,5 +26,5 @@ import st.orm.Projection;
 @DbTable("pet")
 public record PetSummary(
         @PK Integer id,
-        @Nonnull String name
+        String name
 ) implements Projection<Integer> {}

@@ -15,7 +15,6 @@
  */
 package st.orm.core.template.impl;
 
-import jakarta.annotation.Nonnull;
 import st.orm.Element;
 import st.orm.core.template.impl.Elements.Alias;
 import st.orm.core.template.impl.Elements.BindVar;
@@ -59,7 +58,7 @@ class ElementRouter {
     private static final UnsafeProcessor UNSAFE_PROCESSOR = new UnsafeProcessor();
     private static final CacheableProcessor CACHEABLE_PROCESSOR = new CacheableProcessor();
 
-    static ElementProcessor<Element> getElementProcessor(@Nonnull Element element) {
+    static ElementProcessor<Element> getElementProcessor(Element element) {
         //noinspection unchecked
         return (ElementProcessor<Element>) (Object) switch (element) {
             case Wrapped ignore -> throw new IllegalStateException("Wrapped element cannot be processed directly.");

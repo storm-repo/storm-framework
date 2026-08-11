@@ -7,7 +7,6 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-import jakarta.annotation.Nonnull;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Stream;
@@ -287,13 +286,13 @@ public class EntityRepositoryValidationIntegrationTest {
         List<String> log = new ArrayList<>();
         var orm = ORMTemplate.of(dataSource).withEntityCallback(new EntityCallback<City>() {
             @Override
-            public City beforeInsert(@Nonnull City entity) {
+            public City beforeInsert(City entity) {
                 log.add("beforeInsert:" + entity.name());
                 return entity;
             }
 
             @Override
-            public void afterInsert(@Nonnull City entity) {
+            public void afterInsert(City entity) {
                 log.add("afterInsert:" + entity.name());
             }
         });
@@ -311,12 +310,12 @@ public class EntityRepositoryValidationIntegrationTest {
         List<String> afterLog = new ArrayList<>();
         var orm = ORMTemplate.of(dataSource).withEntityCallback(new EntityCallback<City>() {
             @Override
-            public void beforeRemove(@Nonnull City entity) {
+            public void beforeRemove(City entity) {
                 beforeLog.add(entity.name());
             }
 
             @Override
-            public void afterRemove(@Nonnull City entity) {
+            public void afterRemove(City entity) {
                 afterLog.add(entity.name());
             }
         });
@@ -338,7 +337,7 @@ public class EntityRepositoryValidationIntegrationTest {
         List<String> beforeLog = new ArrayList<>();
         var orm = ORMTemplate.of(dataSource).withEntityCallback(new EntityCallback<City>() {
             @Override
-            public City beforeInsert(@Nonnull City entity) {
+            public City beforeInsert(City entity) {
                 beforeLog.add(entity.name());
                 return entity.toBuilder().name(entity.name().toUpperCase()).build();
             }
@@ -363,13 +362,13 @@ public class EntityRepositoryValidationIntegrationTest {
         List<String> afterLog = new ArrayList<>();
         var orm = ORMTemplate.of(dataSource).withEntityCallback(new EntityCallback<City>() {
             @Override
-            public City beforeUpdate(@Nonnull City entity) {
+            public City beforeUpdate(City entity) {
                 beforeLog.add(entity.name());
                 return entity;
             }
 
             @Override
-            public void afterUpdate(@Nonnull City entity) {
+            public void afterUpdate(City entity) {
                 afterLog.add(entity.name());
             }
         });
@@ -694,7 +693,7 @@ public class EntityRepositoryValidationIntegrationTest {
         List<String> log = new ArrayList<>();
         var orm = ORMTemplate.of(dataSource).withEntityCallback(new CityCallback() {
             @Override
-            public City beforeInsert(@Nonnull City entity) {
+            public City beforeInsert(City entity) {
                 log.add(entity.name());
                 return entity;
             }
@@ -716,7 +715,7 @@ public class EntityRepositoryValidationIntegrationTest {
         List<String> log = new ArrayList<>();
         var orm = ORMTemplate.of(dataSource).withEntityCallback(new AbstractCityCallback() {
             @Override
-            public City beforeInsert(@Nonnull City entity) {
+            public City beforeInsert(City entity) {
                 log.add(entity.name());
                 return entity;
             }
@@ -734,7 +733,7 @@ public class EntityRepositoryValidationIntegrationTest {
         List<String> log = new ArrayList<>();
         var orm = ORMTemplate.of(dataSource).withEntityCallback(new EntityCallback<Owner>() {
             @Override
-            public Owner beforeInsert(@Nonnull Owner entity) {
+            public Owner beforeInsert(Owner entity) {
                 log.add("should-not-trigger");
                 return entity;
             }
@@ -844,7 +843,7 @@ public class EntityRepositoryValidationIntegrationTest {
         List<String> log = new ArrayList<>();
         var orm = ORMTemplate.of(dataSource).withEntityCallback(new ParameterizedCityCallback<String>() {
             @Override
-            public City beforeInsert(@Nonnull City entity) {
+            public City beforeInsert(City entity) {
                 log.add(entity.name());
                 return entity;
             }

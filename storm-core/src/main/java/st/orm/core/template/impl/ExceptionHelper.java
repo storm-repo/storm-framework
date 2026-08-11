@@ -15,10 +15,9 @@
  */
 package st.orm.core.template.impl;
 
-import jakarta.annotation.Nonnull;
-import jakarta.annotation.Nullable;
 import java.util.Optional;
 import java.util.function.Function;
+import org.jspecify.annotations.Nullable;
 import st.orm.Data;
 import st.orm.PersistenceException;
 import st.orm.core.spi.ExceptionContext;
@@ -56,8 +55,8 @@ public final class ExceptionHelper {
      */
     public static Function<Throwable, RuntimeException> getExceptionTransformer(
             @Nullable Sql sql,
-            @Nonnull ExceptionMapper exceptionMapper,
-            @Nonnull TransactionTemplateProvider transactionTemplateProvider) {
+            ExceptionMapper exceptionMapper,
+            TransactionTemplateProvider transactionTemplateProvider) {
         return e -> {
             String transactionDescription = currentTransactionDescription(transactionTemplateProvider);
             if (sql != null) {
@@ -84,7 +83,7 @@ public final class ExceptionHelper {
         };
     }
 
-    private static String buildSqlDetail(@Nonnull Sql sql, @Nullable String transactionDescription) {
+    private static String buildSqlDetail(Sql sql, @Nullable String transactionDescription) {
         String detail = String.format("SQL:%n%s", sql.statement());
         if (transactionDescription != null) {
             detail = detail + String.format("%nTransaction: %s", transactionDescription);
@@ -97,7 +96,7 @@ public final class ExceptionHelper {
      * {@code null} when no transaction is active or the description cannot be determined.
      */
     private static @Nullable String currentTransactionDescription(
-            @Nonnull TransactionTemplateProvider transactionTemplateProvider) {
+            TransactionTemplateProvider transactionTemplateProvider) {
         try {
             return Optional.ofNullable(TransactionScope.peekContext(transactionTemplateProvider))
                     .flatMap(TransactionContext::describe)
@@ -108,7 +107,7 @@ public final class ExceptionHelper {
         }
     }
 
-    private record ExceptionContextImpl(@Nonnull SqlOperation operation,
+    private record ExceptionContextImpl(SqlOperation operation,
                                         @Nullable String statementText,
                                         @Nullable Class<? extends Data> affectedType,
                                         @Nullable String description) implements ExceptionContext {

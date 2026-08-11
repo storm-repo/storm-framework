@@ -21,8 +21,6 @@ import static java.util.Optional.ofNullable;
 import static st.orm.core.template.impl.LazySupplier.lazy;
 import static st.orm.core.template.impl.ObjectMapperFactory.getObjectMapper;
 
-import jakarta.annotation.Nonnull;
-import jakarta.annotation.Nullable;
 import java.math.BigDecimal;
 import java.nio.ByteBuffer;
 import java.sql.PreparedStatement;
@@ -50,6 +48,7 @@ import java.util.function.Function;
 import java.util.function.Supplier;
 import java.util.stream.Stream;
 import java.util.stream.StreamSupport;
+import org.jspecify.annotations.Nullable;
 import st.orm.Data;
 import st.orm.Entity;
 import st.orm.NoResultException;
@@ -77,17 +76,17 @@ class QueryImpl implements Query {
     /**
      * The template-scoped services and statement metadata shared by a query and the prepared queries derived from it.
      */
-    record Environment(@Nonnull RefFactory refFactory,
-                       @Nonnull TransactionTemplateProvider transactionTemplateProvider,
-                       @Nonnull QueryObserver queryObserver,
-                       @Nonnull Function<Throwable, RuntimeException> exceptionTransformer,
-                       @Nonnull SqlOperation operation,
+    record Environment(RefFactory refFactory,
+                       TransactionTemplateProvider transactionTemplateProvider,
+                       QueryObserver queryObserver,
+                       Function<Throwable, RuntimeException> exceptionTransformer,
+                       SqlOperation operation,
                        @Nullable Class<? extends Data> dataType,
-                       @Nonnull FetchPlan fetchPlan,
+                       FetchPlan fetchPlan,
                        @Nullable String statementText,
-                       @Nonnull StatementOrigin origin,
+                       StatementOrigin origin,
                        long shapeId,
-                       @Nonnull List<Parameter> parameters) {
+                       List<Parameter> parameters) {
 
         /**
          * Returns the references to resolve while mapping rows into the given type.
@@ -96,7 +95,7 @@ class QueryImpl implements Query {
          * reads the rows back as that type. Reading the same statement as anything else, a primary key for a ref
          * stream in particular, consumes the columns by that type's own shape.</p>
          */
-        FetchPlan fetchPlanFor(@Nonnull Class<?> type) {
+        FetchPlan fetchPlanFor(Class<?> type) {
             return dataType == type ? fetchPlan : FetchPlan.NONE;
         }
     }
@@ -114,8 +113,8 @@ class QueryImpl implements Query {
     private final boolean streamingRequiresTransaction;
     private final Function<Throwable, RuntimeException> exceptionTransformer;
 
-    QueryImpl(@Nonnull Environment environment,
-              @Nonnull Function<Boolean, PreparedStatement> statement,
+    QueryImpl(Environment environment,
+              Function<Boolean, PreparedStatement> statement,
               @Nullable BindVarsHandle bindVarsHandle,
               @Nullable Class<? extends Data> affectedType,
               boolean versionAware,
@@ -189,7 +188,7 @@ class QueryImpl implements Query {
         return statement.apply(unsafe);
     }
 
-    private void applyFetchSize(@Nonnull PreparedStatement statement) throws SQLException {
+    private void applyFetchSize(PreparedStatement statement) throws SQLException {
         if (defaultFetchSize != 0) {
             statement.setFetchSize(defaultFetchSize);
         }
@@ -205,7 +204,7 @@ class QueryImpl implements Query {
      * @param statement the prepared statement whose connection to configure.
      * @return a cleanup action that restores auto-commit, or {@code null} if no configuration was needed.
      */
-    private @Nullable Runnable configureStreamingTransaction(@Nonnull PreparedStatement statement) {
+    private @Nullable Runnable configureStreamingTransaction(PreparedStatement statement) {
         if (streamingRequiresTransaction && defaultFetchSize != 0) {
             try {
                 var connection = statement.getConnection();
@@ -234,7 +233,7 @@ class QueryImpl implements Query {
     /**
      * Notifies the query observer of a starting execution. Observer failures never affect query execution.
      */
-    private Observation observe(@Nonnull ExecutionKind kind) {
+    private Observation observe(ExecutionKind kind) {
         try {
             var queryObserver = environment.queryObserver();
             var operators = SqlInterceptorManager.localOperators();
@@ -263,8 +262,8 @@ class QueryImpl implements Query {
      * close when it completes, or {@code null} when no scope listens.
      */
     static StatementListener.Handle[] listen(SqlInterceptorManager.Operator[] operators,
-                                                     @Nonnull QueryContext context,
-                                                     @Nonnull List<Parameter> parameters) {
+                                                     QueryContext context,
+                                                     List<Parameter> parameters) {
         if (operators == null) {
             return null;
         }
@@ -302,7 +301,7 @@ class QueryImpl implements Query {
         private long rows;
         private boolean exact = true;
 
-        ListenedObservation(@Nonnull Observation delegate, @Nonnull StatementListener.Handle[] handles) {
+        ListenedObservation(Observation delegate, StatementListener.Handle[] handles) {
             this.delegate = delegate;
             this.handles = handles;
         }
@@ -334,7 +333,7 @@ class QueryImpl implements Query {
         }
 
         @Override
-        public void error(@Nonnull Throwable throwable) {
+        public void error(Throwable throwable) {
             delegate.error(throwable);
         }
 
@@ -352,8 +351,8 @@ class QueryImpl implements Query {
     }
 
     /** Wraps the spliterator to count the rows the stream produces; installed only when a scope listens. */
-    static <T> Spliterator<T> counting(@Nonnull Spliterator<T> spliterator,
-                                               @Nonnull ListenedObservation observation) {
+    static <T> Spliterator<T> counting(Spliterator<T> spliterator,
+                                               ListenedObservation observation) {
         return new Spliterators.AbstractSpliterator<>(spliterator.estimateSize(), spliterator.characteristics()) {
             @Override
             public boolean tryAdvance(Consumer<? super T> action) {
@@ -368,7 +367,7 @@ class QueryImpl implements Query {
         };
     }
 
-    private static void observationError(@Nonnull Observation observation, @Nonnull Throwable throwable) {
+    private static void observationError(Observation observation, Throwable throwable) {
         try {
             observation.error(throwable);
         } catch (Throwable ignore) {
@@ -376,7 +375,7 @@ class QueryImpl implements Query {
         }
     }
 
-    private static void closeObservation(@Nonnull Observation observation) {
+    private static void closeObservation(Observation observation) {
         try {
             observation.close();
         } catch (Throwable ignore) {
@@ -470,7 +469,7 @@ class QueryImpl implements Query {
      *                              connectivity.
      */
     @Override
-    public <T> Stream<T> getResultStream(@Nonnull Class<T> type) {
+    public <T> Stream<T> getResultStream(Class<T> type) {
         var observation = observe(ExecutionKind.QUERY);
         boolean handedOff = false;
         PreparedStatement statement = null;
@@ -532,7 +531,7 @@ class QueryImpl implements Query {
      * @since 1.3
      */
     @Override
-    public <T extends Data> Stream<Ref<T>> getRefStream(@Nonnull Class<T> type, @Nonnull Class<?> pkType) {
+    public <T extends Data> Stream<Ref<T>> getRefStream(Class<T> type, Class<?> pkType) {
         var interner = new WeakInterner();
         return getResultStream(pkType)
                 .map(pk -> {
@@ -561,7 +560,7 @@ class QueryImpl implements Query {
      *
      * @throws NonUniqueResultException if the query returns more than one row.
      */
-    private <T> SingleRow<T> readSingleRow(@Nonnull Class<T> type) {
+    private <T> SingleRow<T> readSingleRow(Class<T> type) {
         var observation = observe(ExecutionKind.QUERY);
         try {
             PreparedStatement statement = getStatement();
@@ -611,7 +610,7 @@ class QueryImpl implements Query {
     }
 
     @Override
-    public <T> T getSingleResult(@Nonnull Class<T> type) {
+    public <T> T getSingleResult(Class<T> type) {
         if (streamOnlyFetchSize && defaultFetchSize != 0) {
             return withoutFetchSize().getSingleResult(type);
         }
@@ -634,7 +633,7 @@ class QueryImpl implements Query {
     }
 
     @Override
-    public <T> Optional<T> getOptionalResult(@Nonnull Class<T> type) {
+    public <T> Optional<T> getOptionalResult(Class<T> type) {
         if (streamOnlyFetchSize && defaultFetchSize != 0) {
             return withoutFetchSize().getOptionalResult(type);
         }
@@ -657,14 +656,14 @@ class QueryImpl implements Query {
     }
 
     @Override
-    public <T> List<T> getResultList(@Nonnull Class<T> type) {
+    public <T> List<T> getResultList(Class<T> type) {
         return streamOnlyFetchSize && defaultFetchSize != 0
                 ? withoutFetchSize().getResultList(type)
                 : Query.super.getResultList(type);
     }
 
     @Override
-    public <T extends Data> List<Ref<T>> getRefList(@Nonnull Class<T> type, @Nonnull Class<?> pkType) {
+    public <T extends Data> List<Ref<T>> getRefList(Class<T> type, Class<?> pkType) {
         return streamOnlyFetchSize && defaultFetchSize != 0
                 ? withoutFetchSize().getRefList(type, pkType)
                 : Query.super.getRefList(type, pkType);
@@ -677,11 +676,11 @@ class QueryImpl implements Query {
                 : Query.super.getResultCount();
     }
 
-    protected void close(@Nonnull ResultSet resultSet, @Nonnull PreparedStatement statement) {
+    protected void close(ResultSet resultSet, PreparedStatement statement) {
         close(resultSet, statement, null);
     }
 
-    protected void close(@Nonnull ResultSet resultSet, @Nonnull PreparedStatement statement,
+    protected void close(ResultSet resultSet, PreparedStatement statement,
                           @Nullable Runnable streamingCleanup) {
         try {
             try {
@@ -830,10 +829,10 @@ class QueryImpl implements Query {
      * {@code tryAdvance} returning {@code false}, which allows individual row values to be {@code null} without
      * prematurely terminating the stream.
      */
-    private Spliterator<Object[]> rawRowSpliterator(@Nonnull ResultSet resultSet, int columnCount) {
+    private Spliterator<Object[]> rawRowSpliterator(ResultSet resultSet, int columnCount) {
         return new Spliterators.AbstractSpliterator<>(Long.MAX_VALUE, Spliterator.ORDERED) {
             @Override
-            public boolean tryAdvance(@Nonnull Consumer<? super Object[]> action) {
+            public boolean tryAdvance(Consumer<? super Object[]> action) {
                 try {
                     if (!resultSet.next()) {
                         return false;
@@ -858,7 +857,7 @@ class QueryImpl implements Query {
      * returning {@code false}, which allows the mapper to legitimately return {@code null} (e.g. a value-type
      * pass-through for a column whose value is SQL NULL) without prematurely terminating the stream.
      */
-    protected <T> Spliterator<T> rowSpliterator(@Nonnull ResultSet resultSet, int columnCount, @Nonnull ObjectMapper<T> mapper) {
+    protected <T> Spliterator<T> rowSpliterator(ResultSet resultSet, int columnCount, ObjectMapper<T> mapper) {
         Class<?>[] types;
         try {
             types = mapper.getParameterTypes();
@@ -875,7 +874,7 @@ class QueryImpl implements Query {
         }
         return new Spliterators.AbstractSpliterator<>(Long.MAX_VALUE, Spliterator.ORDERED) {
             @Override
-            public boolean tryAdvance(@Nonnull Consumer<? super T> action) {
+            public boolean tryAdvance(Consumer<? super T> action) {
                 try {
                     if (!resultSet.next()) {
                         return false;
@@ -908,7 +907,7 @@ class QueryImpl implements Query {
      */
     @FunctionalInterface
     private interface ColumnReader {
-        Object read(@Nonnull ResultSet rs, int columnIndex, @Nonnull Supplier<Calendar> calendarSupplier)
+        Object read(ResultSet rs, int columnIndex, Supplier<Calendar> calendarSupplier)
                 throws SQLException;
     }
 
@@ -919,7 +918,7 @@ class QueryImpl implements Query {
      */
     private static final ClassValue<ColumnReader> COLUMN_READERS = new ClassValue<>() {
         @Override
-        protected ColumnReader computeValue(@Nonnull Class<?> type) {
+        protected ColumnReader computeValue(Class<?> type) {
             return buildColumnReader(type);
         }
     };
@@ -928,7 +927,7 @@ class QueryImpl implements Query {
      * Resolves the column reader for the given target type, computing it at most once per type for the lifetime of
      * the VM.
      */
-    private static ColumnReader columnReaderFor(@Nonnull Class<?> targetType) {
+    private static ColumnReader columnReaderFor(Class<?> targetType) {
         return COLUMN_READERS.get(targetType);
     }
 
@@ -937,7 +936,7 @@ class QueryImpl implements Query {
      * {@link ResultSet#wasNull()} so that a SQL NULL maps to {@code null} rather than the getter's zero value;
      * reference-returning getters already yield {@code null} for SQL NULL, so no {@code wasNull} probe is needed.
      */
-    private static ColumnReader buildColumnReader(@Nonnull Class<?> targetType) {
+    private static ColumnReader buildColumnReader(Class<?> targetType) {
         return switch (targetType) {
             // Ordered most-common-first. Resolution is paid once per column per query, so this mainly trims the
             // setup path, but keeping the frequent types (identifiers, names, flags) at the front is free.
@@ -1032,11 +1031,11 @@ class QueryImpl implements Query {
     /**
      * Describes a statement execution for the query observer.
      */
-    record QueryContextImpl(@Nonnull SqlOperation operation,
+    record QueryContextImpl(SqlOperation operation,
                                     @Nullable Class<? extends Data> type,
-                                    @Nonnull ExecutionKind kind,
+                                    ExecutionKind kind,
                                     @Nullable String statementText,
-                                    @Nonnull StatementOrigin origin,
+                                    StatementOrigin origin,
                                     long shapeId) implements QueryContext {
         @Override
         public Optional<Class<? extends Data>> dataType() {

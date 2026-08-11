@@ -15,8 +15,6 @@
  */
 package st.orm;
 
-import jakarta.annotation.Nonnull;
-import jakarta.annotation.Nullable;
 import java.lang.annotation.ElementType;
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
@@ -25,6 +23,7 @@ import java.lang.reflect.Field;
 import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
+import org.jspecify.annotations.Nullable;
 
 /**
  * Immutable, untyped configuration for the Storm ORM framework.
@@ -95,7 +94,7 @@ public final class StormConfig {
 
     private final Map<String, String> properties;
 
-    private StormConfig(@Nonnull Map<String, String> properties) {
+    private StormConfig(Map<String, String> properties) {
         this.properties = Map.copyOf(properties);
     }
 
@@ -109,7 +108,7 @@ public final class StormConfig {
      * @return the property value, or {@code null} if not set.
      */
     @Nullable
-    public String getProperty(@Nonnull String key) {
+    public String getProperty(String key) {
         String value = properties.get(key);
         return value != null ? value : System.getProperty(key);
     }
@@ -121,8 +120,7 @@ public final class StormConfig {
      * @param defaultValue the default value to return if the property is not set.
      * @return the property value, or {@code defaultValue} if not set.
      */
-    @Nonnull
-    public String getProperty(@Nonnull String key, @Nonnull String defaultValue) {
+    public String getProperty(String key, String defaultValue) {
         String value = getProperty(key);
         return value != null ? value : defaultValue;
     }
@@ -133,8 +131,7 @@ public final class StormConfig {
      * @param properties the configuration properties; must not be {@code null}.
      * @return a new immutable configuration.
      */
-    @Nonnull
-    public static StormConfig of(@Nonnull Map<String, String> properties) {
+    public static StormConfig of(Map<String, String> properties) {
         return new StormConfig(properties);
     }
 
@@ -145,7 +142,6 @@ public final class StormConfig {
      *
      * @return the default configuration; never {@code null}.
      */
-    @Nonnull
     public static StormConfig defaults() {
         return DEFAULTS;
     }
@@ -160,12 +156,10 @@ public final class StormConfig {
      * @return the SQL-shaping property keys; never {@code null}.
      * @since 1.14
      */
-    @Nonnull
     public static Set<String> sqlShapingKeys() {
         return SQL_SHAPING_KEYS;
     }
 
-    @Nonnull
     private static Set<String> sqlShapingKeysFromDeclarations() {
         var keys = new HashSet<String>();
         for (Field field : StormConfig.class.getDeclaredFields()) {

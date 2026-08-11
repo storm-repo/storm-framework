@@ -17,7 +17,6 @@ package st.orm.core.template.impl;
 
 import static st.orm.core.template.impl.RecordReflection.getTableName;
 
-import jakarta.annotation.Nonnull;
 import st.orm.core.template.SqlTemplateException;
 import st.orm.core.template.impl.Elements.Table;
 
@@ -37,7 +36,7 @@ final class TableProcessor implements ElementProcessor<Table> {
      * @return an immutable key for caching, or {@code null} if the element (or its compilation) cannot be cached.
      */
     @Override
-    public Object getCompilationKey(@Nonnull Table table) {
+    public Object getCompilationKey(Table table) {
         return table;
     }
 
@@ -53,7 +52,7 @@ final class TableProcessor implements ElementProcessor<Table> {
      * @throws SqlTemplateException if compilation fails.
      */
     @Override
-    public CompiledElement compile(@Nonnull Table table, @Nonnull TemplateCompiler compiler) throws SqlTemplateException {
+    public CompiledElement compile(Table table, TemplateCompiler compiler) throws SqlTemplateException {
         TableName tableName = getTableName(table.table(), compiler.template().tableNameResolver());
         String alias = table.alias();
         var dialectTemplate = compiler.dialectTemplate();
@@ -75,6 +74,6 @@ final class TableProcessor implements ElementProcessor<Table> {
      * @param bindHint the bind hint for the element, providing additional context for binding.
      */
     @Override
-    public void bind(@Nonnull Table table, @Nonnull TemplateBinder binder, @Nonnull BindHint bindHint) {
+    public void bind(Table table, TemplateBinder binder, BindHint bindHint) {
     }
 }

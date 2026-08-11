@@ -152,6 +152,28 @@ class MetamodelProcessorTest {
     }
 
     @Test
+    void unwrapsRefFieldCarryingTypeUseNullable() throws Exception {
+        Compilation compilation = compile("Owner.java", """
+                import org.jspecify.annotations.Nullable;
+                import st.orm.Entity;
+                import st.orm.FK;
+                import st.orm.PK;
+                import st.orm.Ref;
+
+                public record Owner(@PK Integer id, @Nullable @FK Ref<City> previousCity)
+                        implements Entity<Integer> {}
+
+                record City(@PK Integer id, String name) implements Entity<Integer> {}
+                """);
+        assertTrue(compilation.success(), compilation.errors());
+        String ownerMetamodel = compilation.generatedSource("OwnerMetamodel.java");
+        assertTrue(ownerMetamodel.contains("CityRefMetamodel<T> previousCity"),
+                "a type-use @Nullable renders inside the Ref type's name and must not defeat the unwrap:\n" + ownerMetamodel);
+        assertTrue(Files.exists(compilation.classes().resolve("OwnerMetamodel.class")),
+                "expected the generated metamodels to compile");
+    }
+
+    @Test
     void generatesNullableChainVariantForSealedInterfaces() throws Exception {
         Compilation compilation = compile("Shipment.java", """
                 import st.orm.Data;
@@ -308,7 +330,8 @@ class MetamodelProcessorTest {
                     "-s", generatedSources.toString(),
                     "-sourcepath", sourcePath.toString(),
                     "-implicit:class",
-                    "-classpath", jarOf(jakarta.annotation.Nonnull.class));
+                    "-classpath", jarOf(jakarta.annotation.Nonnull.class) + java.io.File.pathSeparator
+                            + jarOf(org.jspecify.annotations.Nullable.class));
             JavaCompiler.CompilationTask task = compiler.getTask(null, fileManager, diagnostics, options, null,
                     fileManager.getJavaFileObjectsFromPaths(List.of(fixture)));
             task.setProcessors(List.of(new MetamodelProcessor()));

@@ -15,10 +15,9 @@
  */
 package st.orm.core.template;
 
-import jakarta.annotation.Nonnull;
-import jakarta.annotation.Nullable;
 import java.util.List;
 import java.util.Optional;
+import org.jspecify.annotations.Nullable;
 import st.orm.Data;
 import st.orm.core.template.SqlTemplate.BindVariables;
 import st.orm.core.template.SqlTemplate.Parameter;
@@ -42,7 +41,7 @@ public interface Sql {
      * @param operation the SQL operation that classifies the kind of SQL statement.
      * @return a new instance of the SQL statement with the given operation.
      */
-    Sql operation(@Nonnull SqlOperation operation);
+    Sql operation(SqlOperation operation);
 
     /**
      * The generated SQL with all parameters replaced by '?' or named ':name' placeholders.
@@ -55,7 +54,7 @@ public interface Sql {
      * @param statement the new SQL statement.
      * @return a new instance of the SQL statement with the given statement.
      */
-    Sql statement(@Nonnull String statement);
+    Sql statement(String statement);
 
     /**
      * The parameters that were used to generate the SQL.
@@ -68,7 +67,7 @@ public interface Sql {
      * @param parameters the new parameters.
      * @return a new instance of the SQL statement with the given parameters.
      */
-    Sql parameters(@Nonnull List<Parameter> parameters);
+    Sql parameters(List<Parameter> parameters);
 
     /**
      * A bind variables object that can be used to add bind variables to a batch, if available.
@@ -98,7 +97,7 @@ public interface Sql {
      * @return a new instance of the SQL statement with the given generated keys
      * @since 1.2
      */
-    Sql generatedKeys(@Nonnull List<String> generatedKeys);
+    Sql generatedKeys(List<String> generatedKeys);
 
     /**
      * Returns {@code true} if the statement is version aware, {@code false} otherwise.
@@ -186,7 +185,7 @@ public interface Sql {
      * @return a new instance of the SQL statement with the given origin.
      * @since 1.13
      */
-    Sql origin(@Nonnull StatementOrigin origin);
+    Sql origin(StatementOrigin origin);
 
     /**
      * Returns the identity of the statement's shape: the template it was generated from, before values were

@@ -18,7 +18,6 @@ package st.orm.repository.impl;
 import static java.util.Objects.requireNonNull;
 import static st.orm.template.impl.StringTemplates.convert;
 
-import jakarta.annotation.Nonnull;
 import java.util.List;
 import java.util.Optional;
 import java.util.stream.Stream;
@@ -43,7 +42,7 @@ import st.orm.template.impl.QueryBuilderImpl;
 public final class EntityRepositoryImpl<E extends Entity<ID>, ID> implements EntityRepository<E, ID> {
     private final st.orm.core.repository.EntityRepository<E, ID> core;
 
-    public EntityRepositoryImpl(@Nonnull st.orm.core.repository.EntityRepository<E, ID> core) {
+    public EntityRepositoryImpl(st.orm.core.repository.EntityRepository<E, ID> core) {
         this.core = requireNonNull(core);
     }
 
@@ -53,17 +52,17 @@ public final class EntityRepositoryImpl<E extends Entity<ID>, ID> implements Ent
     }
 
     @Override
-    public Ref<E> ref(@Nonnull ID id) {
+    public Ref<E> ref(ID id) {
         return core.ref(id);
     }
 
     @Override
-    public Ref<E> ref(@Nonnull E entity) {
+    public Ref<E> ref(E entity) {
         return core.ref(entity);
     }
 
     @Override
-    public Ref<E> unload(@Nonnull E entity) {
+    public Ref<E> unload(E entity) {
         return core.unload(entity);
     }
 
@@ -78,7 +77,7 @@ public final class EntityRepositoryImpl<E extends Entity<ID>, ID> implements Ent
     }
 
     @Override
-    public <R> QueryBuilder<E, R, ID> select(@Nonnull Class<R> selectType) {
+    public <R> QueryBuilder<E, R, ID> select(Class<R> selectType) {
         return new QueryBuilderImpl<>(core.select(selectType));
     }
 
@@ -88,12 +87,12 @@ public final class EntityRepositoryImpl<E extends Entity<ID>, ID> implements Ent
     }
 
     @Override
-    public <R> QueryBuilder<E, R, ID> select(@Nonnull Class<R> selectType, @Nonnull StringTemplate template) {
+    public <R> QueryBuilder<E, R, ID> select(Class<R> selectType, StringTemplate template) {
         return new QueryBuilderImpl<>(core.select(selectType, convert(template)));
     }
 
     @Override
-    public <R extends Data> QueryBuilder<E, Ref<R>, ID> selectRef(@Nonnull Class<R> refType) {
+    public <R extends Data> QueryBuilder<E, Ref<R>, ID> selectRef(Class<R> refType) {
         return new QueryBuilderImpl<>(core.selectRef(refType));
     }
 
@@ -113,72 +112,72 @@ public final class EntityRepositoryImpl<E extends Entity<ID>, ID> implements Ent
     }
 
     @Override
-    public boolean existsById(@Nonnull ID id) {
+    public boolean existsById(ID id) {
         return core.existsById(id);
     }
 
     @Override
-    public boolean existsByRef(@Nonnull Ref<E> ref) {
+    public boolean existsByRef(Ref<E> ref) {
         return core.existsByRef(ref);
     }
 
     @Override
-    public void insert(@Nonnull E entity) {
+    public void insert(E entity) {
         core.insert(entity);
     }
 
     @Override
-    public void insert(@Nonnull E entity, boolean ignoreAutoGenerate) {
+    public void insert(E entity, boolean ignoreAutoGenerate) {
         core.insert(entity, ignoreAutoGenerate);
     }
 
     @Override
-    public ID insertAndFetchId(@Nonnull E entity) {
+    public ID insertAndFetchId(E entity) {
         return core.insertAndFetchId(entity);
     }
 
     @Override
-    public E insertAndFetch(@Nonnull E entity) {
+    public E insertAndFetch(E entity) {
         return core.insertAndFetch(entity);
     }
 
     @Override
-    public void update(@Nonnull E entity) {
+    public void update(E entity) {
         core.update(entity);
     }
 
     @Override
-    public E updateAndFetch(@Nonnull E entity) {
+    public E updateAndFetch(E entity) {
         return core.updateAndFetch(entity);
     }
 
     @Override
-    public void upsert(@Nonnull E entity) {
+    public void upsert(E entity) {
         core.upsert(entity);
     }
 
     @Override
-    public ID upsertAndFetchId(@Nonnull E entity) {
+    public ID upsertAndFetchId(E entity) {
         return core.upsertAndFetchId(entity);
     }
 
     @Override
-    public E upsertAndFetch(@Nonnull E entity) {
+    public E upsertAndFetch(E entity) {
         return core.upsertAndFetch(entity);
     }
 
     @Override
-    public void remove(@Nonnull E entity) {
+    public void remove(E entity) {
         core.remove(entity);
     }
 
     @Override
-    public void removeById(@Nonnull ID id) {
+    public void removeById(ID id) {
         core.removeById(id);
     }
 
     @Override
-    public void removeByRef(@Nonnull Ref<E> ref) {
+    public void removeByRef(Ref<E> ref) {
         core.removeByRef(ref);
     }
 
@@ -188,42 +187,42 @@ public final class EntityRepositoryImpl<E extends Entity<ID>, ID> implements Ent
     }
 
     @Override
-    public Optional<E> findById(@Nonnull ID id) {
+    public Optional<E> findById(ID id) {
         return core.findById(id);
     }
 
     @Override
-    public Optional<E> findByRef(@Nonnull Ref<E> ref) {
+    public Optional<E> findByRef(Ref<E> ref) {
         return core.findByRef(ref);
     }
 
     @Override
-    public E getById(@Nonnull ID id) {
+    public E getById(ID id) {
         return core.getById(id);
     }
 
     @Override
-    public E getByRef(@Nonnull Ref<E> ref) {
+    public E getByRef(Ref<E> ref) {
         return core.getByRef(ref);
     }
 
     @Override
-    public <V> Optional<E> findBy(@Nonnull Metamodel.Key<E, V> key, @Nonnull V value) {
+    public <V> Optional<E> findBy(Metamodel.Key<E, V> key, V value) {
         return core.findBy(key, value);
     }
 
     @Override
-    public <V> E getBy(@Nonnull Metamodel.Key<E, V> key, @Nonnull V value) {
+    public <V> E getBy(Metamodel.Key<E, V> key, V value) {
         return core.getBy(key, value);
     }
 
     @Override
-    public <V extends Data> Optional<E> findByRef(@Nonnull Metamodel.Key<E, V> key, @Nonnull Ref<V> value) {
+    public <V extends Data> Optional<E> findByRef(Metamodel.Key<E, V> key, Ref<V> value) {
         return core.findByRef(key, value);
     }
 
     @Override
-    public <V extends Data> E getByRef(@Nonnull Metamodel.Key<E, V> key, @Nonnull Ref<V> value) {
+    public <V extends Data> E getByRef(Metamodel.Key<E, V> key, Ref<V> value) {
         return core.getByRef(key, value);
     }
 
@@ -235,7 +234,7 @@ public final class EntityRepositoryImpl<E extends Entity<ID>, ID> implements Ent
     }
 
     @Override
-    public Page<E> page(@Nonnull Pageable pageable) {
+    public Page<E> page(Pageable pageable) {
         return core.page(pageable);
     }
 
@@ -245,12 +244,12 @@ public final class EntityRepositoryImpl<E extends Entity<ID>, ID> implements Ent
     }
 
     @Override
-    public Page<Ref<E>> pageRef(@Nonnull Pageable pageable) {
+    public Page<Ref<E>> pageRef(Pageable pageable) {
         return core.pageRef(pageable);
     }
 
     @Override
-    public Window<E> scroll(@Nonnull Scrollable<E> scrollable) {
+    public Window<E> scroll(Scrollable<E> scrollable) {
         return select().scroll(scrollable);
     }
 
@@ -265,147 +264,147 @@ public final class EntityRepositoryImpl<E extends Entity<ID>, ID> implements Ent
     }
 
     @Override
-    public List<E> findAllById(@Nonnull Iterable<ID> ids) {
+    public List<E> findAllById(Iterable<ID> ids) {
         return core.findAllById(ids);
     }
 
     @Override
-    public List<E> findAllByRef(@Nonnull Iterable<Ref<E>> refs) {
+    public List<E> findAllByRef(Iterable<Ref<E>> refs) {
         return core.findAllByRef(refs);
     }
 
     @Override
-    public void insert(@Nonnull Iterable<E> entities) {
+    public void insert(Iterable<E> entities) {
         core.insert(entities);
     }
 
     @Override
-    public void insert(@Nonnull Iterable<E> entities, boolean ignoreAutoGenerate) {
+    public void insert(Iterable<E> entities, boolean ignoreAutoGenerate) {
         core.insert(entities, ignoreAutoGenerate);
     }
 
     @Override
-    public List<ID> insertAndFetchIds(@Nonnull Iterable<E> entities) {
+    public List<ID> insertAndFetchIds(Iterable<E> entities) {
         return core.insertAndFetchIds(entities);
     }
 
     @Override
-    public List<E> insertAndFetch(@Nonnull Iterable<E> entities) {
+    public List<E> insertAndFetch(Iterable<E> entities) {
         return core.insertAndFetch(entities);
     }
 
     @Override
-    public void update(@Nonnull Iterable<E> entities) {
+    public void update(Iterable<E> entities) {
         core.update(entities);
     }
 
     @Override
-    public List<E> updateAndFetch(@Nonnull Iterable<E> entities) {
+    public List<E> updateAndFetch(Iterable<E> entities) {
         return core.updateAndFetch(entities);
     }
 
     @Override
-    public void upsert(@Nonnull Iterable<E> entities) {
+    public void upsert(Iterable<E> entities) {
         core.upsert(entities);
     }
 
     @Override
-    public List<ID> upsertAndFetchIds(@Nonnull Iterable<E> entities) {
+    public List<ID> upsertAndFetchIds(Iterable<E> entities) {
         return core.upsertAndFetchIds(entities);
     }
 
     @Override
-    public List<E> upsertAndFetch(@Nonnull Iterable<E> entities) {
+    public List<E> upsertAndFetch(Iterable<E> entities) {
         return core.upsertAndFetch(entities);
     }
 
     @Override
-    public void remove(@Nonnull Iterable<E> entities) {
+    public void remove(Iterable<E> entities) {
         core.remove(entities);
     }
 
     @Override
-    public void removeByRef(@Nonnull Iterable<Ref<E>> refs) {
+    public void removeByRef(Iterable<Ref<E>> refs) {
         core.removeByRef(refs);
     }
 
     @Override
-    public long countById(@Nonnull Stream<ID> ids) {
+    public long countById(Stream<ID> ids) {
         return core.countById(ids);
     }
 
     @Override
-    public long countById(@Nonnull Stream<ID> ids, int chunkSize) {
+    public long countById(Stream<ID> ids, int chunkSize) {
         return core.countById(ids, chunkSize);
     }
 
     @Override
-    public long countByRef(@Nonnull Stream<Ref<E>> refs) {
+    public long countByRef(Stream<Ref<E>> refs) {
         return core.countByRef(refs);
     }
 
     @Override
-    public long countByRef(@Nonnull Stream<Ref<E>> refs, int chunkSize) {
+    public long countByRef(Stream<Ref<E>> refs, int chunkSize) {
         return core.countByRef(refs, chunkSize);
     }
 
     @Override
-    public void insert(@Nonnull Stream<E> entities) {
+    public void insert(Stream<E> entities) {
         core.insert(entities);
     }
 
     @Override
-    public void insert(@Nonnull Stream<E> entities, boolean ignoreAutoGenerate) {
+    public void insert(Stream<E> entities, boolean ignoreAutoGenerate) {
         core.insert(entities, ignoreAutoGenerate);
     }
 
     @Override
-    public void insert(@Nonnull Stream<E> entities, int batchSize) {
+    public void insert(Stream<E> entities, int batchSize) {
         core.insert(entities, batchSize);
     }
 
     @Override
-    public void insert(@Nonnull Stream<E> entities, int batchSize, boolean ignoreAutoGenerate) {
+    public void insert(Stream<E> entities, int batchSize, boolean ignoreAutoGenerate) {
         core.insert(entities, batchSize, ignoreAutoGenerate);
     }
 
     @Override
-    public void update(@Nonnull Stream<E> entities) {
+    public void update(Stream<E> entities) {
         core.update(entities);
     }
 
     @Override
-    public void update(@Nonnull Stream<E> entities, int batchSize) {
+    public void update(Stream<E> entities, int batchSize) {
         core.update(entities, batchSize);
     }
 
     @Override
-    public void upsert(@Nonnull Stream<E> entities) {
+    public void upsert(Stream<E> entities) {
         core.upsert(entities);
     }
 
     @Override
-    public void upsert(@Nonnull Stream<E> entities, int batchSize) {
+    public void upsert(Stream<E> entities, int batchSize) {
         core.upsert(entities, batchSize);
     }
 
     @Override
-    public void remove(@Nonnull Stream<E> entities) {
+    public void remove(Stream<E> entities) {
         core.remove(entities);
     }
 
     @Override
-    public void remove(@Nonnull Stream<E> entities, int batchSize) {
+    public void remove(Stream<E> entities, int batchSize) {
         core.remove(entities, batchSize);
     }
 
     @Override
-    public void removeByRef(@Nonnull Stream<Ref<E>> refs) {
+    public void removeByRef(Stream<Ref<E>> refs) {
         core.removeByRef(refs);
     }
 
     @Override
-    public void removeByRef(@Nonnull Stream<Ref<E>> refs, int batchSize) {
+    public void removeByRef(Stream<Ref<E>> refs, int batchSize) {
         core.removeByRef(refs, batchSize);
     }
 

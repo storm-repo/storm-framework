@@ -18,7 +18,6 @@ package st.orm.core.template.impl;
 import static java.lang.Long.toHexString;
 import static java.lang.System.identityHashCode;
 
-import jakarta.annotation.Nonnull;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.function.Function;
@@ -84,7 +83,7 @@ final class BindVarsImpl implements BindVars, BindVariables {
      * @since 1.2
      */
     @Override
-    public void setRecordListener(@Nonnull RecordListener listener) {
+    public void setRecordListener(RecordListener listener) {
         if (recordListener != null) {
             throw new PersistenceException("Record listener already set.");
         }
@@ -97,7 +96,7 @@ final class BindVarsImpl implements BindVars, BindVariables {
      * @param listener the listener to be notified of batch events.
      */
     @Override
-    public void setBatchListener(@Nonnull BatchListener listener) {
+    public void setBatchListener(BatchListener listener) {
         if (batchListener != null) {
             throw new PersistenceException("Record listener already set.");
         }
@@ -113,7 +112,7 @@ final class BindVarsImpl implements BindVars, BindVariables {
      *
      * @param parameterExtractor the function that extracts positional parameters from a record.
      */
-    void addParameterExtractor(@Nonnull Function<Data, List<PositionalParameter>> parameterExtractor) {
+    void addParameterExtractor(Function<Data, List<PositionalParameter>> parameterExtractor) {
         parameterExtractors.add(parameterExtractor);
     }
 
@@ -125,7 +124,7 @@ final class BindVarsImpl implements BindVars, BindVariables {
      *
      * @param idParameterExtractor the function that extracts positional parameters from a primary key value.
      */
-    void addValueParameterExtractor(@Nonnull Function<Object, List<PositionalParameter>> idParameterExtractor) {
+    void addValueParameterExtractor(Function<Object, List<PositionalParameter>> idParameterExtractor) {
         valueParameterExtractors.add(idParameterExtractor);
     }
 

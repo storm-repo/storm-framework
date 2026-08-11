@@ -15,13 +15,12 @@
  */
 package st.orm.core.template;
 
-import jakarta.annotation.Nonnull;
-import jakarta.annotation.Nullable;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Optional;
 import java.util.SequencedMap;
 import java.util.function.BiConsumer;
+import org.jspecify.annotations.Nullable;
 import st.orm.Data;
 import st.orm.Metamodel;
 import st.orm.mapping.RecordType;
@@ -58,7 +57,7 @@ public interface Model<E extends Data, ID> {
      * @param dialect the SQL dialect used for quoting.
      * @return the qualified table or view name.
      */
-    String qualifiedName(@Nonnull SqlDialect dialect);
+    String qualifiedName(SqlDialect dialect);
 
     /**
      * Returns the Java type of the entity or projection.
@@ -143,7 +142,7 @@ public interface Model<E extends Data, ID> {
      * @throws SqlTemplateException if the metamodel is invalid or not present.
      * @since 1.7
      */
-    List<Column> getColumns(@Nonnull Metamodel<?, ?> metamodel) throws SqlTemplateException;
+    List<Column> getColumns(Metamodel<?, ?> metamodel) throws SqlTemplateException;
 
     /**
      * Resolves a single column for the given metamodel.
@@ -153,7 +152,7 @@ public interface Model<E extends Data, ID> {
      * @throws SqlTemplateException if zero or multiple columns are resolved.
      * @since 1.7
      */
-    default Column getSingleColumn(@Nonnull Metamodel<?, ?> metamodel) throws SqlTemplateException {
+    default Column getSingleColumn(Metamodel<?, ?> metamodel) throws SqlTemplateException {
         var columns = getColumns(metamodel);
         if (columns.size() != 1) {
             throw new SqlTemplateException("Expected exactly one column for metamodel: %s.%s.%s"
@@ -176,9 +175,9 @@ public interface Model<E extends Data, ID> {
      * @throws SqlTemplateException if extraction fails.
      * @since 1.8
      */
-    void forEachValue(@Nonnull List<Column> columns,
-                      @Nonnull E record,
-                      @Nonnull BiConsumer<Column, Object> consumer)
+    void forEachValue(List<Column> columns,
+                      E record,
+                      BiConsumer<Column, Object> consumer)
             throws SqlTemplateException;
 
     /**
@@ -193,8 +192,8 @@ public interface Model<E extends Data, ID> {
      * @throws SqlTemplateException if extraction fails.
      * @since 1.8
      */
-    default SequencedMap<Column, Object> values(@Nonnull List<Column> columns,
-                                                @Nonnull E record)
+    default SequencedMap<Column, Object> values(List<Column> columns,
+                                                E record)
             throws SqlTemplateException {
         var values = new LinkedHashMap<Column, Object>();
         forEachValue(columns, record, values::put);
@@ -211,7 +210,7 @@ public interface Model<E extends Data, ID> {
      * @throws SqlTemplateException if extraction fails.
      * @since 1.8
      */
-    default SequencedMap<Column, Object> values(@Nonnull E record) throws SqlTemplateException {
+    default SequencedMap<Column, Object> values(E record) throws SqlTemplateException {
         return values(columns(), record);
     }
 
@@ -225,7 +224,7 @@ public interface Model<E extends Data, ID> {
      * @throws SqlTemplateException if extraction fails.
      * @since 1.8
      */
-    default SequencedMap<Column, Object> declaredValues(@Nonnull E record)
+    default SequencedMap<Column, Object> declaredValues(E record)
             throws SqlTemplateException {
         return values(declaredColumns(), record);
     }
@@ -242,7 +241,7 @@ public interface Model<E extends Data, ID> {
      * @throws SqlTemplateException if extraction fails.
      * @since 1.10
      */
-    void validateForeignKeys(@Nonnull List<Column> columns, @Nonnull E record) throws SqlTemplateException;
+    void validateForeignKeys(List<Column> columns, E record) throws SqlTemplateException;
 
     /**
      * Finds a unique metamodel referring to the given entity type.
@@ -251,7 +250,7 @@ public interface Model<E extends Data, ID> {
      * @return the matching metamodel, or empty if not found or ambiguous.
      * @since 1.8
      */
-    Optional<Metamodel<E, ?>> findMetamodel(@Nonnull Class<? extends Data> type);
+    Optional<Metamodel<E, ?>> findMetamodel(Class<? extends Data> type);
 
     /**
      * Extracts values for a given metamodel and object.
@@ -268,9 +267,9 @@ public interface Model<E extends Data, ID> {
      * @throws SqlTemplateException if extraction fails.
      * @since 1.8
      */
-    void forEachValue(@Nonnull Metamodel<E, ?> metamodel,
-                      @Nonnull Object object,
-                      @Nonnull BiConsumer<Column, Object> consumer)
+    void forEachValue(Metamodel<E, ?> metamodel,
+                      Object object,
+                      BiConsumer<Column, Object> consumer)
             throws SqlTemplateException;
 
 }

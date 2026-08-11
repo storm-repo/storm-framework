@@ -15,7 +15,6 @@
  */
 package st.orm.core.spi;
 
-import jakarta.annotation.Nonnull;
 import st.orm.StormConfig;
 import st.orm.core.spi.Orderable.AfterAny;
 import st.orm.core.template.SqlDialect;
@@ -24,7 +23,7 @@ import st.orm.core.template.SqlDialect;
 public class DefaultSqlDialectProviderImpl implements SqlDialectProvider {
 
     @Override
-    public SqlDialect getSqlDialect(@Nonnull StormConfig config) {
+    public SqlDialect getSqlDialect(StormConfig config) {
         return new DefaultSqlDialect(config);
     }
 }

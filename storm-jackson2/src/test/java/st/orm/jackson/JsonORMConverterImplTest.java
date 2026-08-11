@@ -18,12 +18,11 @@ import com.fasterxml.jackson.databind.JsonSerializer;
 import com.fasterxml.jackson.databind.SerializerProvider;
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import com.fasterxml.jackson.databind.annotation.JsonSerialize;
-import jakarta.annotation.Nonnull;
-import jakarta.annotation.Nullable;
 import java.util.List;
 import java.util.Map;
 import javax.sql.DataSource;
 import lombok.Builder;
+import org.jspecify.annotations.Nullable;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -82,9 +81,9 @@ public class JsonORMConverterImplTest {
     @DbTable("owner")
     public record OwnerWithCustomSerializers(
             @PK Integer id,
-            @Nonnull String firstName,
-            @Nonnull String lastName,
-            @Nonnull @Json
+            String firstName,
+            String lastName,
+            @Json
             @JsonSerialize(using = AddressSerializer.class)
             @JsonDeserialize(using = AddressDeserializer.class)
             Address address,
@@ -146,8 +145,8 @@ public class JsonORMConverterImplTest {
     @DbTable("owner")
     public record OwnerWithPolymorphicPerson(
             @PK Integer id,
-            @Nonnull @Json PolymorphicPerson person,
-            @Nonnull @Json Address address,
+            @Json PolymorphicPerson person,
+            @Json Address address,
             @Nullable String telephone
     ) implements Entity<Integer> {}
 
@@ -177,8 +176,8 @@ public class JsonORMConverterImplTest {
     @DbTable("owner")
     public record OwnerWithNamedPolymorphicPerson(
             @PK Integer id,
-            @Nonnull @Json NamedPerson person,
-            @Nonnull @Json Address address,
+            @Json NamedPerson person,
+            @Json Address address,
             @Nullable String telephone
     ) implements Entity<Integer> {}
 
@@ -198,8 +197,8 @@ public class JsonORMConverterImplTest {
     @DbTable("owner")
     public record OwnerWithNullableAddress(
             @PK Integer id,
-            @Nonnull String firstName,
-            @Nonnull String lastName,
+            String firstName,
+            String lastName,
             @Nullable @Json Address address,
             @Nullable String telephone
     ) implements Entity<Integer> {}
@@ -236,7 +235,7 @@ public class JsonORMConverterImplTest {
     @DbTable("owner")
     public record OwnerWithFailOnUnknown(
             @PK Integer id,
-            @Nonnull @Json(failOnUnknown = true) Address address,
+            @Json(failOnUnknown = true) Address address,
             @Nullable String telephone
     ) implements Entity<Integer> {}
 
@@ -269,7 +268,7 @@ public class JsonORMConverterImplTest {
     @DbTable("owner")
     public record OwnerWithFailOnMissing(
             @PK Integer id,
-            @Nonnull @Json(failOnMissing = true) Address address,
+            @Json(failOnMissing = true) Address address,
             @Nullable String telephone
     ) implements Entity<Integer> {}
 
@@ -308,7 +307,7 @@ public class JsonORMConverterImplTest {
     @DbTable("owner")
     public record OwnerWithSnapshot(
             @PK Integer id,
-            @Nonnull @Json OwnerSnapshot snapshot,
+            @Json OwnerSnapshot snapshot,
             @Nullable String telephone
     ) implements Entity<Integer> {}
 
@@ -342,10 +341,10 @@ public class JsonORMConverterImplTest {
     @DbTable("owner")
     public record OwnerWithSharedSerializer(
             @PK Integer id,
-            @Nonnull String firstName,
-            @Nonnull String lastName,
-            @Nonnull @Json @JsonSerialize(using = TypeNameMarkerSerializer.class) Address address,
-            @Nonnull @Json @JsonSerialize(using = TypeNameMarkerSerializer.class) Phone telephone
+            String firstName,
+            String lastName,
+            @Json @JsonSerialize(using = TypeNameMarkerSerializer.class) Address address,
+            @Json @JsonSerialize(using = TypeNameMarkerSerializer.class) Phone telephone
     ) implements Entity<Integer> {}
 
     public record RawOwnerRow(String address, String telephone) {}
@@ -375,7 +374,7 @@ public class JsonORMConverterImplTest {
     @DbTable("owner")
     public record OwnerWithPolymorphicPersonList(
             @PK Integer id,
-            @Nonnull @Json List<PolymorphicPerson> address,
+            @Json List<PolymorphicPerson> address,
             @Nullable String telephone
     ) implements Entity<Integer> {}
 
@@ -411,7 +410,7 @@ public class JsonORMConverterImplTest {
     @DbTable("owner")
     public record OwnerWithPolymorphicAddress(
             @PK Integer id,
-            @Nonnull @Json PolymorphicPerson address,
+            @Json PolymorphicPerson address,
             @Nullable String telephone
     ) implements Entity<Integer> {}
 
@@ -431,7 +430,7 @@ public class JsonORMConverterImplTest {
     @DbTable("owner")
     public record OwnerWithPolymorphicPersonMap(
             @PK Integer id,
-            @Nonnull @Json Map<String, PolymorphicPerson> address,
+            @Json Map<String, PolymorphicPerson> address,
             @Nullable String telephone
     ) implements Entity<Integer> {}
 

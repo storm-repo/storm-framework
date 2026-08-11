@@ -18,7 +18,6 @@ package st.orm.core.spi;
 import static java.lang.System.identityHashCode;
 import static java.util.Objects.requireNonNull;
 
-import jakarta.annotation.Nonnull;
 import java.lang.ref.Reference;
 import java.lang.ref.ReferenceQueue;
 import java.lang.ref.SoftReference;
@@ -49,13 +48,13 @@ final class ClassLoaderCache<V> {
         private final int hash;
 
         /** Creates a lookup key that is not registered with a reference queue. */
-        LoaderKey(@Nonnull ClassLoader loader) {
+        LoaderKey(ClassLoader loader) {
             super(loader);
             this.hash = identityHashCode(loader);
         }
 
         /** Creates a key for insertion, registered with the queue for cleanup when the loader is collected. */
-        LoaderKey(@Nonnull ClassLoader loader, @Nonnull ReferenceQueue<ClassLoader> queue) {
+        LoaderKey(ClassLoader loader, ReferenceQueue<ClassLoader> queue) {
             super(loader, queue);
             this.hash = identityHashCode(loader);
         }
@@ -88,7 +87,7 @@ final class ClassLoaderCache<V> {
      * @param compute the function that computes the value; must not return {@code null}.
      * @return the cached or computed value.
      */
-    V computeIfAbsent(@Nonnull ClassLoader loader, @Nonnull Function<? super ClassLoader, ? extends V> compute) {
+    V computeIfAbsent(ClassLoader loader, Function<? super ClassLoader, ? extends V> compute) {
         drainQueue();
         var reference = map.get(new LoaderKey(loader));
         V value = reference == null ? null : reference.get();

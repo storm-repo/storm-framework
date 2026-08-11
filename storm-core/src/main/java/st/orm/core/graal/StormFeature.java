@@ -15,7 +15,6 @@
  */
 package st.orm.core.graal;
 
-import jakarta.annotation.Nonnull;
 import org.graalvm.nativeimage.hosted.Feature;
 import org.graalvm.nativeimage.hosted.RuntimeProxyCreation;
 import org.graalvm.nativeimage.hosted.RuntimeReflection;
@@ -47,7 +46,7 @@ public final class StormFeature implements Feature {
     }
 
     @Override
-    public void beforeAnalysis(@Nonnull BeforeAnalysisAccess access) {
+    public void beforeAnalysis(BeforeAnalysisAccess access) {
         if (!TypeDiscovery.isIndexAvailable()) {
             System.err.println("Storm: no type index found for the application's entities on the image "
                     + "classpath (META-INF/storm/st.orm.Data.idx). Entities will not be registered for "
@@ -84,7 +83,7 @@ public final class StormFeature implements Feature {
                 dataTypes, converterTypes, repositoryTypes);
     }
 
-    private static void registerDataType(@Nonnull BeforeAnalysisAccess access, @Nonnull Class<?> type) {
+    private static void registerDataType(BeforeAnalysisAccess access, Class<?> type) {
         RuntimeReflection.register(type);
         RuntimeReflection.register(type.getDeclaredConstructors());
         RuntimeReflection.register(type.getMethods());
@@ -98,7 +97,7 @@ public final class StormFeature implements Feature {
         registerCompanion(access, type.getName() + "$Companion");
     }
 
-    private static void registerCompanion(@Nonnull BeforeAnalysisAccess access, @Nonnull String className) {
+    private static void registerCompanion(BeforeAnalysisAccess access, String className) {
         Class<?> companion = access.findClassByName(className);
         if (companion == null) {
             return;
@@ -109,7 +108,7 @@ public final class StormFeature implements Feature {
         RuntimeReflection.register(companion.getFields());
     }
 
-    private static void registerMetamodel(@Nonnull BeforeAnalysisAccess access, @Nonnull String className) {
+    private static void registerMetamodel(BeforeAnalysisAccess access, String className) {
         Class<?> metamodel = access.findClassByName(className);
         if (metamodel == null) {
             return;

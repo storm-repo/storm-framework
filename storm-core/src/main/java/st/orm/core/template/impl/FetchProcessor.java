@@ -15,7 +15,6 @@
  */
 package st.orm.core.template.impl;
 
-import jakarta.annotation.Nonnull;
 import st.orm.core.template.impl.Elements.Fetch;
 
 /**
@@ -40,7 +39,7 @@ final class FetchProcessor implements ElementProcessor<Fetch> {
      * @return an immutable key for caching, or {@code null} if the element (or its compilation) cannot be cached.
      */
     @Override
-    public Object getCompilationKey(@Nonnull Fetch fetch) {
+    public Object getCompilationKey(Fetch fetch) {
         return fetch;
     }
 
@@ -52,7 +51,7 @@ final class FetchProcessor implements ElementProcessor<Fetch> {
      * @return the compiled result for this element.
      */
     @Override
-    public CompiledElement compile(@Nonnull Fetch fetch, @Nonnull TemplateCompiler compiler) {
+    public CompiledElement compile(Fetch fetch, TemplateCompiler compiler) {
         return new CompiledElement("");
     }
 
@@ -64,6 +63,6 @@ final class FetchProcessor implements ElementProcessor<Fetch> {
      * @param bindHint the bind hint for the element, providing additional context for binding.
      */
     @Override
-    public void bind(@Nonnull Fetch fetch, @Nonnull TemplateBinder binder, @Nonnull BindHint bindHint) {
+    public void bind(Fetch fetch, TemplateBinder binder, BindHint bindHint) {
     }
 }

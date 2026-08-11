@@ -15,7 +15,6 @@
  */
 package st.orm.core.spi;
 
-import jakarta.annotation.Nonnull;
 import st.orm.core.template.SqlDialect;
 
 /**
@@ -39,5 +38,5 @@ public interface Name {
      * @param dialect the SQL dialect.
      * @return the qualified name of the database object.
      */
-    String qualified(@Nonnull SqlDialect dialect);
+    String qualified(SqlDialect dialect);
 }

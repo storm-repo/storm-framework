@@ -15,8 +15,6 @@
  */
 package st.orm.core.template.impl;
 
-import jakarta.annotation.Nonnull;
-import jakarta.annotation.Nullable;
 import java.sql.Connection;
 import java.sql.DatabaseMetaData;
 import java.sql.PreparedStatement;
@@ -33,6 +31,7 @@ import java.util.SortedMap;
 import java.util.SortedSet;
 import java.util.TreeMap;
 import java.util.TreeSet;
+import org.jspecify.annotations.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import st.orm.core.template.SqlDialect.ConstraintDiscoveryStrategy;
@@ -63,10 +62,10 @@ public final class DatabaseSchema {
      * @param hasDefault    whether the column has a default value defined.
      */
     public record DbColumn(
-            @Nonnull String tableName,
-            @Nonnull String columnName,
+            String tableName,
+            String columnName,
             int dataType,
-            @Nonnull String typeName,
+            String typeName,
             int columnSize,
             boolean nullable,
             boolean autoIncrement,
@@ -81,8 +80,8 @@ public final class DatabaseSchema {
      * @param keySeq     the sequence number within the primary key (1-based).
      */
     public record DbPrimaryKey(
-            @Nonnull String tableName,
-            @Nonnull String columnName,
+            String tableName,
+            String columnName,
             int keySeq
     ) {}
 
@@ -95,9 +94,9 @@ public final class DatabaseSchema {
      * @param ordinalPosition the ordinal position of the column within the index (1-based).
      */
     public record DbUniqueKey(
-            @Nonnull String tableName,
-            @Nonnull String indexName,
-            @Nonnull String columnName,
+            String tableName,
+            String indexName,
+            String columnName,
             int ordinalPosition
     ) {}
 
@@ -110,10 +109,10 @@ public final class DatabaseSchema {
      * @param pkColumnName the referenced (primary key) column name.
      */
     public record DbForeignKey(
-            @Nonnull String fkTableName,
-            @Nonnull String fkColumnName,
-            @Nonnull String pkTableName,
-            @Nonnull String pkColumnName
+            String fkTableName,
+            String fkColumnName,
+            String pkTableName,
+            String pkColumnName
     ) {}
 
     /**
@@ -142,13 +141,13 @@ public final class DatabaseSchema {
     private final Map<ConstraintKind, SortedSet<String>> discoveredByKind;
 
     private DatabaseSchema(
-            @Nonnull SortedMap<String, List<DbColumn>> columnsByTable,
-            @Nonnull SortedMap<String, List<DbPrimaryKey>> primaryKeysByTable,
-            @Nonnull SortedMap<String, List<DbUniqueKey>> uniqueKeysByTable,
-            @Nonnull SortedMap<String, List<DbForeignKey>> foreignKeysByTable,
-            @Nonnull SortedMap<String, Boolean> sequences,
+            SortedMap<String, List<DbColumn>> columnsByTable,
+            SortedMap<String, List<DbPrimaryKey>> primaryKeysByTable,
+            SortedMap<String, List<DbUniqueKey>> uniqueKeysByTable,
+            SortedMap<String, List<DbForeignKey>> foreignKeysByTable,
+            SortedMap<String, Boolean> sequences,
             boolean sequencesDiscovered,
-            @Nonnull Map<ConstraintKind, SortedSet<String>> discoveredByKind
+            Map<ConstraintKind, SortedSet<String>> discoveredByKind
     ) {
         this.columnsByTable = columnsByTable;
         this.primaryKeysByTable = primaryKeysByTable;
@@ -174,7 +173,7 @@ public final class DatabaseSchema {
      * @param kind the constraint kind to check.
      * @return {@code true} if the read succeeded, {@code false} if it failed and the constraints are unknown.
      */
-    public boolean isDiscovered(@Nonnull String tableName, @Nonnull ConstraintKind kind) {
+    public boolean isDiscovered(String tableName, ConstraintKind kind) {
         return discoveredByKind.getOrDefault(kind, EMPTY_TABLES).contains(tableName);
     }
 
@@ -182,9 +181,9 @@ public final class DatabaseSchema {
 
     /** Records that the given kind was read successfully for the given tables. */
     private static void discovered(
-            @Nonnull Map<ConstraintKind, SortedSet<String>> discoveredByKind,
-            @Nonnull ConstraintKind kind,
-            @Nonnull Collection<String> tableNames
+            Map<ConstraintKind, SortedSet<String>> discoveredByKind,
+            ConstraintKind kind,
+            Collection<String> tableNames
     ) {
         discoveredByKind.computeIfAbsent(kind, k -> new TreeSet<>(String.CASE_INSENSITIVE_ORDER))
                 .addAll(tableNames);
@@ -197,7 +196,7 @@ public final class DatabaseSchema {
      * @return the database schema.
      * @throws SQLException if a database access error occurs.
      */
-    public static DatabaseSchema read(@Nonnull Connection connection) throws SQLException {
+    public static DatabaseSchema read(Connection connection) throws SQLException {
         return read(connection, connection.getCatalog(), connection.getSchema(),
                 SequenceDiscoveryStrategy.INFORMATION_SCHEMA, ConstraintDiscoveryStrategy.INFORMATION_SCHEMA);
     }
@@ -214,11 +213,11 @@ public final class DatabaseSchema {
      * @throws SQLException if a database access error occurs.
      */
     public static DatabaseSchema read(
-            @Nonnull Connection connection,
+            Connection connection,
             @Nullable String catalog,
             @Nullable String schemaPattern,
-            @Nonnull SequenceDiscoveryStrategy sequenceDiscoveryStrategy,
-            @Nonnull ConstraintDiscoveryStrategy constraintDiscoveryStrategy
+            SequenceDiscoveryStrategy sequenceDiscoveryStrategy,
+            ConstraintDiscoveryStrategy constraintDiscoveryStrategy
     ) throws SQLException {
         DatabaseMetaData metadata = connection.getMetaData();
         // Normalize the schema pattern to match the database's identifier casing convention.
@@ -284,16 +283,16 @@ public final class DatabaseSchema {
      * Dispatches constraint discovery to the appropriate strategy.
      */
     private static void readConstraints(
-            @Nonnull Connection connection,
-            @Nonnull DatabaseMetaData metadata,
+            Connection connection,
+            DatabaseMetaData metadata,
             @Nullable String catalog,
             @Nullable String schemaPattern,
-            @Nonnull SortedMap<String, List<DbColumn>> columnsByTable,
-            @Nonnull SortedMap<String, List<DbPrimaryKey>> primaryKeysByTable,
-            @Nonnull SortedMap<String, List<DbUniqueKey>> uniqueKeysByTable,
-            @Nonnull SortedMap<String, List<DbForeignKey>> foreignKeysByTable,
-            @Nonnull ConstraintDiscoveryStrategy strategy,
-            @Nonnull Map<ConstraintKind, SortedSet<String>> discovered
+            SortedMap<String, List<DbColumn>> columnsByTable,
+            SortedMap<String, List<DbPrimaryKey>> primaryKeysByTable,
+            SortedMap<String, List<DbUniqueKey>> uniqueKeysByTable,
+            SortedMap<String, List<DbForeignKey>> foreignKeysByTable,
+            ConstraintDiscoveryStrategy strategy,
+            Map<ConstraintKind, SortedSet<String>> discovered
     ) throws SQLException {
         switch (strategy) {
             case JDBC_METADATA -> readConstraintsFromJdbcMetadata(
@@ -318,14 +317,14 @@ public final class DatabaseSchema {
      * in the schema.</p>
      */
     private static void readConstraintsFromJdbcMetadata(
-            @Nonnull DatabaseMetaData metadata,
+            DatabaseMetaData metadata,
             @Nullable String catalog,
             @Nullable String schemaPattern,
-            @Nonnull SortedMap<String, List<DbColumn>> columnsByTable,
-            @Nonnull SortedMap<String, List<DbPrimaryKey>> primaryKeysByTable,
-            @Nonnull SortedMap<String, List<DbUniqueKey>> uniqueKeysByTable,
-            @Nonnull SortedMap<String, List<DbForeignKey>> foreignKeysByTable,
-            @Nonnull Map<ConstraintKind, SortedSet<String>> discovered
+            SortedMap<String, List<DbColumn>> columnsByTable,
+            SortedMap<String, List<DbPrimaryKey>> primaryKeysByTable,
+            SortedMap<String, List<DbUniqueKey>> uniqueKeysByTable,
+            SortedMap<String, List<DbForeignKey>> foreignKeysByTable,
+            Map<ConstraintKind, SortedSet<String>> discovered
     ) throws SQLException {
         for (String tableName : new ArrayList<>(columnsByTable.keySet())) {
             try (ResultSet primaryKeys = metadata.getPrimaryKeys(catalog, schemaPattern, tableName)) {
@@ -391,11 +390,11 @@ public final class DatabaseSchema {
      * @return {@code true} if a condition was appended.
      */
     private static boolean appendFilter(
-            @Nonnull StringBuilder sql,
+            StringBuilder sql,
             boolean hasCondition,
-            @Nonnull String column,
+            String column,
             @Nullable String value,
-            @Nonnull List<String> parameters
+            List<String> parameters
     ) {
         if (value == null || value.isEmpty()) {
             return hasCondition;
@@ -411,9 +410,9 @@ public final class DatabaseSchema {
      * Prepares the given metadata query and binds the collected filter values as parameters.
      */
     private static PreparedStatement prepareSchemaQuery(
-            @Nonnull Connection connection,
-            @Nonnull String sql,
-            @Nonnull List<String> parameters
+            Connection connection,
+            String sql,
+            List<String> parameters
     ) throws SQLException {
         var statement = connection.prepareStatement(sql);
         try {
@@ -432,13 +431,13 @@ public final class DatabaseSchema {
      * {@code KEY_COLUMN_USAGE}. This helper is shared by both {@code INFORMATION_SCHEMA} strategies.
      */
     private static void readPrimaryAndUniqueKeysFromInformationSchema(
-            @Nonnull Connection connection,
+            Connection connection,
             @Nullable String catalog,
             @Nullable String schemaPattern,
-            @Nonnull SortedMap<String, List<DbColumn>> columnsByTable,
-            @Nonnull SortedMap<String, List<DbPrimaryKey>> primaryKeysByTable,
-            @Nonnull SortedMap<String, List<DbUniqueKey>> uniqueKeysByTable,
-            @Nonnull Map<ConstraintKind, SortedSet<String>> discovered
+            SortedMap<String, List<DbColumn>> columnsByTable,
+            SortedMap<String, List<DbPrimaryKey>> primaryKeysByTable,
+            SortedMap<String, List<DbUniqueKey>> uniqueKeysByTable,
+            Map<ConstraintKind, SortedSet<String>> discovered
     ) {
         try {
             StringBuilder sql = new StringBuilder("""
@@ -487,14 +486,14 @@ public final class DatabaseSchema {
      * {@code POSITION_IN_UNIQUE_CONSTRAINT}.
      */
     private static void readConstraintsFromInformationSchema(
-            @Nonnull Connection connection,
+            Connection connection,
             @Nullable String catalog,
             @Nullable String schemaPattern,
-            @Nonnull SortedMap<String, List<DbColumn>> columnsByTable,
-            @Nonnull SortedMap<String, List<DbPrimaryKey>> primaryKeysByTable,
-            @Nonnull SortedMap<String, List<DbUniqueKey>> uniqueKeysByTable,
-            @Nonnull SortedMap<String, List<DbForeignKey>> foreignKeysByTable,
-            @Nonnull Map<ConstraintKind, SortedSet<String>> discovered
+            SortedMap<String, List<DbColumn>> columnsByTable,
+            SortedMap<String, List<DbPrimaryKey>> primaryKeysByTable,
+            SortedMap<String, List<DbUniqueKey>> uniqueKeysByTable,
+            SortedMap<String, List<DbForeignKey>> foreignKeysByTable,
+            Map<ConstraintKind, SortedSet<String>> discovered
     ) {
         readPrimaryAndUniqueKeysFromInformationSchema(
                 connection, catalog, schemaPattern, columnsByTable, primaryKeysByTable, uniqueKeysByTable, discovered);
@@ -542,14 +541,14 @@ public final class DatabaseSchema {
      * {@code REFERENCED_COLUMN_NAME} columns in {@code KEY_COLUMN_USAGE} for foreign key discovery.
      */
     private static void readConstraintsFromInformationSchemaReferencing(
-            @Nonnull Connection connection,
+            Connection connection,
             @Nullable String catalog,
             @Nullable String schemaPattern,
-            @Nonnull SortedMap<String, List<DbColumn>> columnsByTable,
-            @Nonnull SortedMap<String, List<DbPrimaryKey>> primaryKeysByTable,
-            @Nonnull SortedMap<String, List<DbUniqueKey>> uniqueKeysByTable,
-            @Nonnull SortedMap<String, List<DbForeignKey>> foreignKeysByTable,
-            @Nonnull Map<ConstraintKind, SortedSet<String>> discovered
+            SortedMap<String, List<DbColumn>> columnsByTable,
+            SortedMap<String, List<DbPrimaryKey>> primaryKeysByTable,
+            SortedMap<String, List<DbUniqueKey>> uniqueKeysByTable,
+            SortedMap<String, List<DbForeignKey>> foreignKeysByTable,
+            Map<ConstraintKind, SortedSet<String>> discovered
     ) {
         // For databases that use catalogs as schemas, the catalog value represents the database name and maps to
         // TABLE_SCHEMA in INFORMATION_SCHEMA views (not TABLE_CATALOG).
@@ -589,13 +588,13 @@ public final class DatabaseSchema {
      * Reads constraints using {@code ALL_CONSTRAINTS} and {@code ALL_CONS_COLUMNS} dictionary views.
      */
     private static void readConstraintsFromAllConstraints(
-            @Nonnull Connection connection,
+            Connection connection,
             @Nullable String schemaPattern,
-            @Nonnull SortedMap<String, List<DbColumn>> columnsByTable,
-            @Nonnull SortedMap<String, List<DbPrimaryKey>> primaryKeysByTable,
-            @Nonnull SortedMap<String, List<DbUniqueKey>> uniqueKeysByTable,
-            @Nonnull SortedMap<String, List<DbForeignKey>> foreignKeysByTable,
-            @Nonnull Map<ConstraintKind, SortedSet<String>> discovered
+            SortedMap<String, List<DbColumn>> columnsByTable,
+            SortedMap<String, List<DbPrimaryKey>> primaryKeysByTable,
+            SortedMap<String, List<DbUniqueKey>> uniqueKeysByTable,
+            SortedMap<String, List<DbForeignKey>> foreignKeysByTable,
+            Map<ConstraintKind, SortedSet<String>> discovered
     ) {
         // Primary keys and unique constraints.
         try {
@@ -686,11 +685,11 @@ public final class DatabaseSchema {
      *         {@link SequenceDiscoveryStrategy#NONE} or the read failed, leaving the sequences unknown.
      */
     private static boolean readSequences(
-            @Nonnull Connection connection,
+            Connection connection,
             @Nullable String catalog,
             @Nullable String schemaPattern,
-            @Nonnull SortedMap<String, Boolean> sequences,
-            @Nonnull SequenceDiscoveryStrategy strategy
+            SortedMap<String, Boolean> sequences,
+            SequenceDiscoveryStrategy strategy
     ) {
         return switch (strategy) {
             case INFORMATION_SCHEMA -> readSequencesFromInformationSchema(connection, catalog, schemaPattern, sequences);
@@ -704,10 +703,10 @@ public final class DatabaseSchema {
      * Attempts to read sequences from INFORMATION_SCHEMA.SEQUENCES.
      */
     private static boolean readSequencesFromInformationSchema(
-            @Nonnull Connection connection,
+            Connection connection,
             @Nullable String catalog,
             @Nullable String schemaPattern,
-            @Nonnull SortedMap<String, Boolean> sequences
+            SortedMap<String, Boolean> sequences
     ) {
         try {
             StringBuilder sql = new StringBuilder("SELECT SEQUENCE_NAME FROM INFORMATION_SCHEMA.SEQUENCES");
@@ -736,10 +735,10 @@ public final class DatabaseSchema {
      * all versions that support sequences.</p>
      */
     private static boolean readSequencesFromInformationSchemaTables(
-            @Nonnull Connection connection,
+            Connection connection,
             @Nullable String catalog,
             @Nullable String schemaPattern,
-            @Nonnull SortedMap<String, Boolean> sequences
+            SortedMap<String, Boolean> sequences
     ) {
         // For databases that use catalogs as schemas, the catalog value represents the database name and maps to
         // TABLE_SCHEMA in INFORMATION_SCHEMA views (not TABLE_CATALOG).
@@ -765,9 +764,9 @@ public final class DatabaseSchema {
      * Attempts to read sequences from Oracle's ALL_SEQUENCES dictionary view.
      */
     private static boolean readSequencesFromAllSequences(
-            @Nonnull Connection connection,
+            Connection connection,
             @Nullable String schemaPattern,
-            @Nonnull SortedMap<String, Boolean> sequences
+            SortedMap<String, Boolean> sequences
     ) {
         try {
             StringBuilder sql = new StringBuilder("SELECT SEQUENCE_NAME FROM ALL_SEQUENCES");
@@ -792,7 +791,7 @@ public final class DatabaseSchema {
      * @param tableName the table name (case-insensitive).
      * @return {@code true} if the table exists.
      */
-    public boolean tableExists(@Nonnull String tableName) {
+    public boolean tableExists(String tableName) {
         return columnsByTable.containsKey(tableName);
     }
 
@@ -803,7 +802,7 @@ public final class DatabaseSchema {
      * @param columnName the column name (case-insensitive).
      * @return the column metadata, or empty if not found.
      */
-    public Optional<DbColumn> getColumn(@Nonnull String tableName, @Nonnull String columnName) {
+    public Optional<DbColumn> getColumn(String tableName, String columnName) {
         List<DbColumn> columns = columnsByTable.get(tableName);
         if (columns == null) {
             return Optional.empty();
@@ -819,7 +818,7 @@ public final class DatabaseSchema {
      * @param tableName the table name (case-insensitive).
      * @return the columns, or an empty list if the table is not found.
      */
-    public List<DbColumn> getColumns(@Nonnull String tableName) {
+    public List<DbColumn> getColumns(String tableName) {
         List<DbColumn> columns = columnsByTable.get(tableName);
         if (columns == null) {
             return List.of();
@@ -833,7 +832,7 @@ public final class DatabaseSchema {
      * @param tableName the table name (case-insensitive).
      * @return the primary key columns, or an empty list if none found.
      */
-    public List<DbPrimaryKey> getPrimaryKeys(@Nonnull String tableName) {
+    public List<DbPrimaryKey> getPrimaryKeys(String tableName) {
         List<DbPrimaryKey> primaryKeys = primaryKeysByTable.get(tableName);
         if (primaryKeys == null) {
             return List.of();
@@ -847,7 +846,7 @@ public final class DatabaseSchema {
      * @param tableName the table name (case-insensitive).
      * @return the unique key columns, or an empty list if none found.
      */
-    public List<DbUniqueKey> getUniqueKeys(@Nonnull String tableName) {
+    public List<DbUniqueKey> getUniqueKeys(String tableName) {
         List<DbUniqueKey> uniqueKeys = uniqueKeysByTable.get(tableName);
         if (uniqueKeys == null) {
             return List.of();
@@ -861,7 +860,7 @@ public final class DatabaseSchema {
      * @param tableName the table name (case-insensitive).
      * @return the foreign key constraints, or an empty list if none found.
      */
-    public List<DbForeignKey> getForeignKeys(@Nonnull String tableName) {
+    public List<DbForeignKey> getForeignKeys(String tableName) {
         List<DbForeignKey> foreignKeys = foreignKeysByTable.get(tableName);
         if (foreignKeys == null) {
             return List.of();
@@ -875,7 +874,7 @@ public final class DatabaseSchema {
      * @param sequenceName the sequence name (case-insensitive).
      * @return {@code true} if the sequence exists.
      */
-    public boolean sequenceExists(@Nonnull String sequenceName) {
+    public boolean sequenceExists(String sequenceName) {
         return sequences.containsKey(sequenceName);
     }
 

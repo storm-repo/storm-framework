@@ -6,12 +6,11 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static st.orm.core.template.SqlInterceptor.observe;
 
-import jakarta.annotation.Nonnull;
-import jakarta.annotation.Nullable;
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.concurrent.atomic.AtomicBoolean;
 import javax.sql.DataSource;
+import org.jspecify.annotations.Nullable;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -43,9 +42,9 @@ public class QueryPlanIntegrationTest {
     @DbTable("visit")
     public record PlanVisit(
             @PK Integer id,
-            @Nonnull LocalDate visitDate,
+            LocalDate visitDate,
             @Nullable String description,
-            @Nonnull @FK Pet pet
+            @FK Pet pet
     ) implements Entity<Integer> {}
 
     private ORMTemplate orm() {

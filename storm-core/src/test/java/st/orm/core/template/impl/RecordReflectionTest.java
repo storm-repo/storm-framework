@@ -6,10 +6,9 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-import jakarta.annotation.Nonnull;
-import jakarta.annotation.Nullable;
 import java.util.List;
 import java.util.Optional;
+import org.jspecify.annotations.Nullable;
 import org.junit.jupiter.api.Test;
 import st.orm.Data;
 import st.orm.DbColumn;
@@ -38,12 +37,12 @@ class RecordReflectionTest {
 
     public record SimpleEntity(
             @PK Integer id,
-            @Nonnull String name
+            String name
     ) implements Entity<Integer> {}
 
     public record EntityWithVersion(
             @PK Integer id,
-            @Nonnull String name,
+            String name,
             @Version int version
     ) implements Entity<Integer> {}
 
@@ -52,12 +51,12 @@ class RecordReflectionTest {
     public record EntityWithInline(
             @PK Integer id,
             @Inline InlineAddress address,
-            @Nonnull String name
+            String name
     ) implements Entity<Integer> {}
 
     public record ReferencedEntity(
             @PK Integer id,
-            @Nonnull String name
+            String name
     ) implements Entity<Integer> {}
 
     public record EntityWithFk(
@@ -74,19 +73,19 @@ class RecordReflectionTest {
 
     public record EntityWithCompoundPk(
             @PK CompoundPk id,
-            @Nonnull String name
+            String name
     ) implements Entity<CompoundPk> {}
 
     @DbTable("custom_table")
     public record CustomTableEntity(
             @PK Integer id,
-            @Nonnull String name
+            String name
     ) implements Entity<Integer> {}
 
     @DbTable(value = "annotated_table", schema = "my_schema")
     public record SchemaTableEntity(
             @PK Integer id,
-            @Nonnull String name
+            String name
     ) implements Entity<Integer> {}
 
     public record EntityWithDbColumn(
@@ -96,7 +95,7 @@ class RecordReflectionTest {
 
     public record EntityWithFkPk(
             @PK @FK ReferencedEntity ref,
-            @Nonnull String extra
+            String extra
     ) implements Entity<Integer> {}
 
     public record NoVersionEntity(
@@ -496,7 +495,7 @@ class RecordReflectionTest {
     public record EntityWithNestedVersion(
             @PK Integer id,
             @Inline VersionedInline nested,
-            @Nonnull String name
+            String name
     ) implements Entity<Integer> {}
 
     // Sealed entity: getFkFields returns empty (L200)
@@ -1203,7 +1202,7 @@ class RecordReflectionTest {
 
     public record EntityWithVersionAndFk(
             @PK Integer id,
-            @Nonnull @FK ReferencedEntity ref,
+            @FK ReferencedEntity ref,
             @Version int version
     ) implements Entity<Integer> {}
 

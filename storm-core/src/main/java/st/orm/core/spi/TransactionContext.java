@@ -15,9 +15,8 @@
  */
 package st.orm.core.spi;
 
-import jakarta.annotation.Nonnull;
-import jakarta.annotation.Nullable;
 import java.util.Optional;
+import org.jspecify.annotations.Nullable;
 import st.orm.Entity;
 
 /**
@@ -75,9 +74,8 @@ public interface TransactionContext {
      * @return the entity cache; never {@code null}.
      * @since 1.9
      */
-    @Nonnull
-    EntityCache<? extends Entity<?>, ?> entityCache(@Nonnull Class<? extends Entity<?>> entityType,
-                                                    @Nonnull CacheRetention retention);
+    EntityCache<? extends Entity<?>, ?> entityCache(Class<? extends Entity<?>> entityType,
+                                                    CacheRetention retention);
 
     /**
      * Returns an existing transaction-local cache for entities of the given type.
@@ -87,8 +85,7 @@ public interface TransactionContext {
      * @throws IllegalStateException if no cache exists for the given entity type.
      * @since 1.9
      */
-    @Nonnull
-    EntityCache<? extends Entity<?>, ?> getEntityCache(@Nonnull Class<? extends Entity<?>> entityType);
+    EntityCache<? extends Entity<?>, ?> getEntityCache(Class<? extends Entity<?>> entityType);
 
     /**
      * Returns an existing transaction-local cache for entities of the given type, or {@code null} if none exists.
@@ -98,7 +95,7 @@ public interface TransactionContext {
      * @since 1.9
      */
     @Nullable
-    EntityCache<? extends Entity<?>, ?> findEntityCache(@Nonnull Class<? extends Entity<?>> entityType);
+    EntityCache<? extends Entity<?>, ?> findEntityCache(Class<? extends Entity<?>> entityType);
 
     /**
      * Clears all entity caches associated with this transaction context.
@@ -141,5 +138,5 @@ public interface TransactionContext {
      * @return the decorator.
      * @param <T> the resource type.
      */
-    <T> Decorator<T> getDecorator(@Nonnull Class<T> resourceType);
+    <T> Decorator<T> getDecorator(Class<T> resourceType);
 }

@@ -18,7 +18,6 @@ package st.orm.core.template.impl;
 import static java.util.Objects.requireNonNull;
 import static java.util.Optional.ofNullable;
 
-import jakarta.annotation.Nonnull;
 import java.util.Optional;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Supplier;
@@ -38,7 +37,7 @@ public final class LazySupplier<T> implements Supplier<T> {
      * @return a supplier which lazy initializes the value.
      * @param <T> the type of results supplied by this supplier.
      */
-    public static <T> Supplier<T> lazy(@Nonnull Supplier<T> supplier) {
+    public static <T> Supplier<T> lazy(Supplier<T> supplier) {
         return new LazySupplier<>(supplier);
     }
 
@@ -50,7 +49,7 @@ public final class LazySupplier<T> implements Supplier<T> {
      *
      * @param supplier the supplier that provides the value.
      */
-    public LazySupplier(@Nonnull Supplier<T> supplier) {
+    public LazySupplier(Supplier<T> supplier) {
         this.supplier = requireNonNull(supplier);
         this.reference = new AtomicReference<>();
     }
@@ -61,7 +60,7 @@ public final class LazySupplier<T> implements Supplier<T> {
      *
      * @param initialValue the pre-loaded value.
      */
-    public LazySupplier(@Nonnull T initialValue) {
+    public LazySupplier(T initialValue) {
         this.supplier = null;
         this.reference = new AtomicReference<>(requireNonNull(initialValue));
     }

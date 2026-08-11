@@ -15,7 +15,6 @@
  */
 package st.orm.core.template.impl;
 
-import jakarta.annotation.Nonnull;
 import java.util.List;
 import java.util.function.Function;
 import st.orm.core.template.TemplateString;
@@ -37,7 +36,7 @@ final class SubqueryProcessor implements ElementProcessor<Subquery> {
      * @param keyGenerator a function that generates compilation keys for sub-templates.
      * @return an immutable key for caching, or {@code null} if the element or its compilation cannot be cached.
      */
-    public Object getCompilationKey(@Nonnull Subquery subquery, @Nonnull Function<TemplateString, Object> keyGenerator) {
+    public Object getCompilationKey(Subquery subquery, Function<TemplateString, Object> keyGenerator) {
         var key = keyGenerator.apply(subquery.template());
         return key == null ? null : List.of(key, subquery.correlate());
     }
@@ -53,7 +52,7 @@ final class SubqueryProcessor implements ElementProcessor<Subquery> {
      * @return the compiled result for this element.
      */
     @Override
-    public CompiledElement compile(@Nonnull Subquery subquery, @Nonnull TemplateCompiler compiler) {
+    public CompiledElement compile(Subquery subquery, TemplateCompiler compiler) {
         return new CompiledElement(compiler.compile(subquery.template(), subquery.correlate()));
     }
 
@@ -69,7 +68,7 @@ final class SubqueryProcessor implements ElementProcessor<Subquery> {
      * @param bindHint the bind hint for the element, providing additional context for binding.
      */
     @Override
-    public void bind(@Nonnull Subquery subquery, @Nonnull TemplateBinder binder, @Nonnull BindHint bindHint) {
+    public void bind(Subquery subquery, TemplateBinder binder, BindHint bindHint) {
         binder.bind(subquery.template(), subquery.correlate());
     }
 }

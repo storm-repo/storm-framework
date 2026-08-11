@@ -17,7 +17,6 @@ package st.orm.core.template.impl;
 
 import static java.util.Optional.empty;
 
-import jakarta.annotation.Nonnull;
 import java.util.Optional;
 import st.orm.PersistenceException;
 
@@ -37,7 +36,7 @@ final class PrimitiveMapper {
      * @return a factory for creating instances of the specified type.
      * @param <T> the type of the instance to create.
      */
-    static <T> Optional<ObjectMapper<T>> getFactory(int columnCount, @Nonnull Class<T> type) {
+    static <T> Optional<ObjectMapper<T>> getFactory(int columnCount, Class<T> type) {
         if (!type.isPrimitive()) {
             throw new PersistenceException("Type must be an primitive: %s.".formatted(type.getName()));
         }
@@ -50,7 +49,7 @@ final class PrimitiveMapper {
 
                 @SuppressWarnings("unchecked")
                 @Override
-                public T newInstance(@Nonnull Object[] args) {
+                public T newInstance(Object[] args) {
                     if (args[0] instanceof Number number) {
                         if (type == int.class) {
                             return (T) Integer.valueOf(number.intValue());

@@ -17,7 +17,6 @@ package st.orm.core.template.impl;
 
 import static java.util.Objects.requireNonNull;
 
-import jakarta.annotation.Nonnull;
 import java.util.Collection;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -37,7 +36,7 @@ import java.util.Set;
  * @param paths the prefix-closed field paths, relative to the record the plan applies to.
  * @since 1.13
  */
-record FetchPlan(@Nonnull Set<String> paths) {
+record FetchPlan(Set<String> paths) {
 
     /** The plan of a query that resolves no reference: every reference is selected as its foreign key column. */
     static final FetchPlan NONE = new FetchPlan(Set.of());
@@ -52,7 +51,7 @@ record FetchPlan(@Nonnull Set<String> paths) {
      * @param paths the field paths to resolve, each relative to the record the plan applies to.
      * @return the prefix-closed plan.
      */
-    static FetchPlan of(@Nonnull Collection<String> paths) {
+    static FetchPlan of(Collection<String> paths) {
         requireNonNull(paths, "paths");
         if (paths.isEmpty()) {
             return NONE;
@@ -84,7 +83,7 @@ record FetchPlan(@Nonnull Set<String> paths) {
      * @param field the field name, relative to the record the plan applies to.
      * @return {@code true} if the query resolves the reference held by that field.
      */
-    boolean fetches(@Nonnull String field) {
+    boolean fetches(String field) {
         return paths.contains(field);
     }
 
@@ -94,7 +93,7 @@ record FetchPlan(@Nonnull Set<String> paths) {
      * @param field the field name, relative to the record the plan applies to.
      * @return the plan for the nested record, empty when nothing below the field is resolved.
      */
-    FetchPlan descend(@Nonnull String field) {
+    FetchPlan descend(String field) {
         if (paths.isEmpty()) {
             return NONE;
         }

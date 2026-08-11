@@ -15,10 +15,9 @@
  */
 package st.orm.core.template.impl;
 
-import jakarta.annotation.Nonnull;
-import jakarta.annotation.Nullable;
 import java.util.List;
 import java.util.Optional;
+import org.jspecify.annotations.Nullable;
 import st.orm.BindVars;
 import st.orm.Data;
 import st.orm.Element;
@@ -52,7 +51,7 @@ interface TemplateBinder {
      * @return the resolved model for the record's runtime type.
      * @throws SqlTemplateException if the model cannot be resolved.
      */
-    default <T extends Data, ID> Model<T, ID> getModel(@Nonnull T record) throws SqlTemplateException {
+    default <T extends Data, ID> Model<T, ID> getModel(T record) throws SqlTemplateException {
         //noinspection unchecked
         return getModel((Class<T>) record.getClass());
     }
@@ -65,7 +64,7 @@ interface TemplateBinder {
      * @param <ID> the identifier type.
      * @return the model for the given type.
      */
-    <T extends Data, ID> Model<T, ID> getModel(@Nonnull Class<T> type);
+    <T extends Data, ID> Model<T, ID> getModel(Class<T> type);
 
     /**
      * Returns the query model, throwing if none is present.
@@ -105,7 +104,7 @@ interface TemplateBinder {
      * @param name  the parameter name.
      * @param value the parameter value.
      */
-    void bindParameter(@Nonnull String name, @Nullable Object value);
+    void bindParameter(String name, @Nullable Object value);
 
     /**
      * Binds a nested template using attached binding semantics.
@@ -115,7 +114,7 @@ interface TemplateBinder {
      * @param template  the nested template to bind.
      * @param correlate whether correlation rules apply to the nested template.
      */
-    void bind(@Nonnull TemplateString template, boolean correlate);
+    void bind(TemplateString template, boolean correlate);
 
     /**
      * Binds an element using detached binding semantics.
@@ -125,7 +124,7 @@ interface TemplateBinder {
      *
      * @param element the element to bind.
      */
-    void bind(@Nonnull Element element);
+    void bind(Element element);
 
     /**
      * Produces positional parameters for a single {@link BindVars} segment during binding.
@@ -178,5 +177,5 @@ interface TemplateBinder {
      * @param vars the bind variables to set.
      * @return the parameter position at which the bind vars are set.
      */
-    ParameterFactory setBindVars(@Nonnull BindVars vars);
+    ParameterFactory setBindVars(BindVars vars);
 }

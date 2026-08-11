@@ -15,8 +15,6 @@
  */
 package st.orm.mapping;
 
-import jakarta.annotation.Nonnull;
-import jakarta.annotation.Nullable;
 import java.lang.annotation.Annotation;
 import java.lang.annotation.Repeatable;
 import java.lang.reflect.Array;
@@ -24,6 +22,7 @@ import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.util.ArrayList;
 import java.util.List;
+import org.jspecify.annotations.Nullable;
 import st.orm.PersistenceException;
 
 /**
@@ -52,8 +51,8 @@ final class Annotations {
      * @param annotationType the type of annotation to look for
      * @return {@code true} if at least one annotation of the specified type is present
      */
-    public static boolean isAnnotationPresent(@Nonnull List<Annotation> annotations,
-                                              @Nonnull Class<? extends Annotation> annotationType) {
+    public static boolean isAnnotationPresent(List<Annotation> annotations,
+                                              Class<? extends Annotation> annotationType) {
         return getAnnotation(annotations, annotationType) != null;
     }
 
@@ -71,8 +70,8 @@ final class Annotations {
      * @return the annotation if exactly one instance is present, otherwise {@code null}
      */
     @Nullable
-    public static <A extends Annotation> A getAnnotation(@Nonnull List<Annotation> annotations,
-                                                         @Nonnull Class<A> annotationType) {
+    public static <A extends Annotation> A getAnnotation(List<Annotation> annotations,
+                                                         Class<A> annotationType) {
         A[] all = getAnnotations(annotations, annotationType);
         return all.length != 1 ? null : all[0];
     }
@@ -95,8 +94,8 @@ final class Annotations {
      * @param annotationType the type of annotation to retrieve
      * @return an array of all matching annotations, or an empty array if none are found
      */
-    public static <A extends Annotation> A[] getAnnotations(@Nonnull List<Annotation> annotations,
-                                                            @Nonnull Class<A> annotationType) {
+    public static <A extends Annotation> A[] getAnnotations(List<Annotation> annotations,
+                                                            Class<A> annotationType) {
         List<A> result = new ArrayList<>();
         // Direct annotations.
         for (Annotation annotation : annotations) {
@@ -133,10 +132,10 @@ final class Annotations {
      * @throws PersistenceException if the container does not have a {@code value()} method or
      *         if reflection fails
      */
-    private static <A extends Annotation> void extractFromContainer(@Nonnull Annotation container,
-                                                                    @Nonnull Class<? extends Annotation> containerType,
-                                                                    @Nonnull Class<A> annotationType,
-                                                                    @Nonnull List<A> into) {
+    private static <A extends Annotation> void extractFromContainer(Annotation container,
+                                                                    Class<? extends Annotation> containerType,
+                                                                    Class<A> annotationType,
+                                                                    List<A> into) {
         try {
             Method valueMethod = containerType.getMethod("value");
             Object value = valueMethod.invoke(container);

@@ -19,11 +19,10 @@ import static java.lang.Thread.currentThread;
 import static java.util.Optional.ofNullable;
 import static java.util.ServiceLoader.load;
 
-import jakarta.annotation.Nonnull;
-import jakarta.annotation.Nullable;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.ServiceLoader;
+import org.jspecify.annotations.Nullable;
 import st.orm.mapping.Instantiator;
 
 /**
@@ -56,15 +55,15 @@ public final class Instantiators {
      */
     @Nullable
     @SuppressWarnings("unchecked")
-    public static <T> Instantiator<T> find(@Nonnull Class<T> type) {
+    public static <T> Instantiator<T> find(Class<T> type) {
         ClassLoader classLoader = ofNullable(currentThread().getContextClassLoader())
-                .orElseGet(() -> Instantiators.class.getClassLoader());
+                .orElseGet(Instantiators.class::getClassLoader);
         return (Instantiator<T>) INSTANTIATOR_CACHE
                 .computeIfAbsent(classLoader, Instantiators::loadInstantiators)
                 .get(type);
     }
 
-    private static Map<Class<?>, Instantiator<?>> loadInstantiators(@Nonnull ClassLoader classLoader) {
+    private static Map<Class<?>, Instantiator<?>> loadInstantiators(ClassLoader classLoader) {
         Map<Class<?>, Instantiator<?>> instantiators = new HashMap<>();
         for (Instantiator<?> instantiator : load(Instantiator.class, classLoader)) {
             instantiators.put(instantiator.type(), instantiator);

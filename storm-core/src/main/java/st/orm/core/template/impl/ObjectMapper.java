@@ -15,8 +15,7 @@
  */
 package st.orm.core.template.impl;
 
-import jakarta.annotation.Nonnull;
-import jakarta.annotation.Nullable;
+import org.jspecify.annotations.Nullable;
 import st.orm.core.template.SqlTemplateException;
 
 /**
@@ -52,5 +51,5 @@ public interface ObjectMapper<T> {
      * @return a new instance of the type.
      * @throws SqlTemplateException if the instance could not be created.
      */
-    T newInstance(@Nonnull Object[] args) throws SqlTemplateException;
+    T newInstance(Object[] args) throws SqlTemplateException;
 }

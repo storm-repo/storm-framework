@@ -15,7 +15,6 @@
  */
 package st.orm.spi.oracle;
 
-import jakarta.annotation.Nonnull;
 import java.util.function.Predicate;
 import st.orm.StormConfig;
 import st.orm.core.spi.Provider;
@@ -28,7 +27,7 @@ import st.orm.core.template.SqlDialect;
 public class OracleSqlDialectProviderImpl implements SqlDialectProvider {
 
     @Override
-    public boolean supports(@Nonnull String databaseProductName) {
+    public boolean supports(String databaseProductName) {
         return "Oracle".equalsIgnoreCase(databaseProductName);
     }
 
@@ -38,7 +37,7 @@ public class OracleSqlDialectProviderImpl implements SqlDialectProvider {
     }
 
     @Override
-    public SqlDialect getSqlDialect(@Nonnull StormConfig config) {
+    public SqlDialect getSqlDialect(StormConfig config) {
         return new OracleSqlDialect(config);
     }
 }

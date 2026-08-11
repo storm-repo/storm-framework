@@ -17,7 +17,6 @@ package st.orm.core.template.impl;
 
 import static java.util.Comparator.comparing;
 
-import jakarta.annotation.Nonnull;
 import java.lang.ref.Cleaner;
 import java.lang.ref.Cleaner.Cleanable;
 import java.lang.reflect.InvocationTargetException;
@@ -39,11 +38,11 @@ final class MonitoredResource {
     private static final Logger LOGGER = LoggerFactory.getLogger("st.orm.resource");
     private static final Cleaner CLEANER = Cleaner.create();
 
-    static <T extends AutoCloseable> T wrap(@Nonnull T resource) {
+    static <T extends AutoCloseable> T wrap(T resource) {
         return wrap(resource, new AtomicInteger());
     }
 
-    private static <T extends AutoCloseable> T wrap(@Nonnull T resource, AtomicInteger openCount) {
+    private static <T extends AutoCloseable> T wrap(T resource, AtomicInteger openCount) {
         // Capturing the creation stack trace is expensive; only do so when debug logging is enabled.
         Exception createStackTrace = LOGGER.isDebugEnabled() ? new Exception("Create stack trace") : null;
         openCount.getAndIncrement();
@@ -103,7 +102,7 @@ final class MonitoredResource {
      */
     private static final ClassValue<Class<?>[]> INTERFACES = new ClassValue<>() {
         @Override
-        protected Class<?>[] computeValue(@Nonnull Class<?> clazz) {
+        protected Class<?>[] computeValue(Class<?> clazz) {
             Set<Class<?>> allInterfaces = new HashSet<>();
             Class<?> current = clazz;
             while (current != null) {

@@ -23,14 +23,13 @@ import static st.orm.UpdateMode.FIELD;
 import static st.orm.UpdateMode.OFF;
 import static st.orm.core.spi.StormConfigHelper.*;
 
-import jakarta.annotation.Nonnull;
-import jakarta.annotation.Nullable;
 import java.util.BitSet;
 import java.util.HashSet;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
+import org.jspecify.annotations.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import st.orm.Data;
@@ -119,7 +118,7 @@ public final class DirtySupport<E extends Entity<ID>, ID> {
     private final DirtyCheck defaultDirtyCheck;
     private final int maxShapes;
 
-    DirtySupport(@Nonnull Model<E, ID> model, @Nonnull StormConfig config) {
+    DirtySupport(Model<E, ID> model, StormConfig config) {
         this.model = model;
         this.defaultUpdateMode = getEnum(config, UPDATE_DEFAULT_MODE, UpdateMode.class, UpdateMode.ENTITY);
         this.defaultDirtyCheck = getEnum(config, UPDATE_DIRTY_CHECK, DirtyCheck.class, DirtyCheck.INSTANCE);
@@ -142,7 +141,7 @@ public final class DirtySupport<E extends Entity<ID>, ID> {
      * @param config the Storm configuration to use for the default update mode.
      * @return the effective update mode for the given record type.
      */
-    public static UpdateMode getUpdateMode(@Nonnull RecordType recordType, @Nonnull StormConfig config) {
+    public static UpdateMode getUpdateMode(RecordType recordType, StormConfig config) {
         DynamicUpdate dynamicUpdate = recordType.getAnnotation(DynamicUpdate.class);
         if (dynamicUpdate != null) {
             return dynamicUpdate.value();
@@ -162,7 +161,7 @@ public final class DirtySupport<E extends Entity<ID>, ID> {
      * @param recordType the entity record type.
      * @return the effective update mode for the given record type.
      */
-    public UpdateMode getUpdateMode(@Nonnull RecordType recordType) {
+    public UpdateMode getUpdateMode(RecordType recordType) {
         DynamicUpdate dynamicUpdate = recordType.getAnnotation(DynamicUpdate.class);
         return dynamicUpdate == null ? defaultUpdateMode : dynamicUpdate.value();
     }
@@ -182,7 +181,7 @@ public final class DirtySupport<E extends Entity<ID>, ID> {
      * @param recordType the entity record type.
      * @return the effective dirty check strategy for the given record type.
      */
-    public DirtyCheck getDirtyCheck(@Nonnull RecordType recordType) {
+    public DirtyCheck getDirtyCheck(RecordType recordType) {
         DynamicUpdate dynamicUpdate = recordType.getAnnotation(DynamicUpdate.class);
         if (dynamicUpdate == null) {
             return defaultDirtyCheck;
@@ -206,7 +205,7 @@ public final class DirtySupport<E extends Entity<ID>, ID> {
         return maxShapes;
     }
 
-    private boolean fieldsEqual(@Nonnull Metamodel<Data, ?> metamodel, E a, E b) {
+    private boolean fieldsEqual(Metamodel<Data, ?> metamodel, E a, E b) {
         return switch (dirtyCheck) {
             case INSTANCE -> metamodel.isIdentical(a, b);
             case VALUE -> metamodel.isSame(a, b);
@@ -243,7 +242,7 @@ public final class DirtySupport<E extends Entity<ID>, ID> {
      * @param cache the entity cache holding the previously observed state
      * @return an optional describing the dirty state, or an empty optional if no fields are dirty
      */
-    Optional<Set<Metamodel<?, ?>>> getDirty(@Nonnull E entity,
+    Optional<Set<Metamodel<?, ?>>> getDirty(E entity,
                                             @Nullable EntityCache<E, ID> cache) {
         if (updateMode == OFF) {
             // Update mode is OFF, treat all fields as dirty.

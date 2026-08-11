@@ -15,7 +15,6 @@
  */
 package st.orm.core.template.impl;
 
-import jakarta.annotation.Nonnull;
 import java.util.Collection;
 import java.util.List;
 import java.util.function.Function;
@@ -49,8 +48,8 @@ final class CacheableProcessor implements ElementProcessor<Cacheable> {
      */
     @Override
     public Object getCompilationKey(
-            @Nonnull Cacheable cacheable,
-            @Nonnull Function<TemplateString, Object> keyGenerator
+            Cacheable cacheable,
+            Function<TemplateString, Object> keyGenerator
     ) throws SqlTemplateException {
         return key(cacheable, keyGenerator, false);
     }
@@ -61,15 +60,15 @@ final class CacheableProcessor implements ElementProcessor<Cacheable> {
      */
     @Override
     public Object getShapeKey(
-            @Nonnull Cacheable cacheable,
-            @Nonnull Function<TemplateString, Object> keyGenerator
+            Cacheable cacheable,
+            Function<TemplateString, Object> keyGenerator
     ) throws SqlTemplateException {
         return key(cacheable, keyGenerator, true);
     }
 
     private Object key(
-            @Nonnull Cacheable cacheable,
-            @Nonnull Function<TemplateString, Object> keyGenerator,
+            Cacheable cacheable,
+            Function<TemplateString, Object> keyGenerator,
             boolean ignoreArity
     ) throws SqlTemplateException {
         return switch(cacheable.expression()) {
@@ -96,7 +95,7 @@ final class CacheableProcessor implements ElementProcessor<Cacheable> {
      * @return the shape of the object.
      * @throws SqlTemplateException if the shape cannot be determined.
      */
-    private static Object getObjectShape(@Nonnull Object object, boolean ignoreArity)
+    private static Object getObjectShape(Object object, boolean ignoreArity)
             throws SqlTemplateException {
         return switch (object) {
             case Collection<?> c -> {
@@ -138,7 +137,7 @@ final class CacheableProcessor implements ElementProcessor<Cacheable> {
      * @return the shape of the object.
      * @throws SqlTemplateException if the shape cannot be determined.
      */
-    private static Class<?> getTypeShape(@Nonnull Object object) throws SqlTemplateException {
+    private static Class<?> getTypeShape(Object object) throws SqlTemplateException {
         return switch (object) {
             case null -> throw new SqlTemplateException("Null value not allowed as a direct parameter in a WHERE clause. To check for NULL, use the IS_NULL operator instead (e.g., where(field, IS_NULL)).");
             case Ref<?> ref -> ref.type();
@@ -158,7 +157,7 @@ final class CacheableProcessor implements ElementProcessor<Cacheable> {
      * @return the compiled result for this element.
      */
     @Override
-    public CompiledElement compile(@Nonnull Cacheable cacheable, @Nonnull TemplateCompiler compiler)
+    public CompiledElement compile(Cacheable cacheable, TemplateCompiler compiler)
             throws SqlTemplateException {
         return new CompiledElement(
                 compiler.getQueryModel().compileExpression(cacheable.expression(), compiler),
@@ -177,7 +176,7 @@ final class CacheableProcessor implements ElementProcessor<Cacheable> {
      * @param bindHint the bind hint for the element, providing additional context for binding.
      */
     @Override
-    public void bind(@Nonnull Cacheable cacheable, @Nonnull TemplateBinder binder, @Nonnull BindHint bindHint) {
+    public void bind(Cacheable cacheable, TemplateBinder binder, BindHint bindHint) {
         binder.getQueryModel().bindExpression(cacheable.expression(), binder);
     }
 }

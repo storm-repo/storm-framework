@@ -15,7 +15,6 @@
  */
 package st.orm.template.impl;
 
-import jakarta.annotation.Nonnull;
 import java.util.stream.Stream;
 import st.orm.Data;
 import st.orm.template.PreparedQuery;
@@ -24,18 +23,18 @@ import st.orm.template.PreparedQuery;
 public class PreparedQueryImpl extends QueryImpl implements PreparedQuery {
     private final st.orm.core.template.PreparedQuery core;
 
-    public PreparedQueryImpl(@Nonnull st.orm.core.template.PreparedQuery core) {
+    public PreparedQueryImpl(st.orm.core.template.PreparedQuery core) {
         super(core);
         this.core = core;
     }
 
     @Override
-    public void addBatch(@Nonnull Data record) {
+    public void addBatch(Data record) {
         core.addBatch(record);
     }
 
     @Override
-    public <ID> Stream<ID> getGeneratedKeys(@Nonnull Class<ID> type) {
+    public <ID> Stream<ID> getGeneratedKeys(Class<ID> type) {
         return core.getGeneratedKeys(type);
     }
 

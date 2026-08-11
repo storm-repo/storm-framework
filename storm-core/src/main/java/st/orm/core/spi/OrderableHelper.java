@@ -21,7 +21,6 @@ import static java.util.stream.Collectors.groupingBy;
 import static java.util.stream.Collectors.joining;
 import static java.util.stream.Collectors.toList;
 
-import jakarta.annotation.Nonnull;
 import java.util.ArrayList;
 import java.util.Deque;
 import java.util.HashMap;
@@ -53,7 +52,7 @@ final class OrderableHelper {
      * @param <T>        Type of orderable.
      * @return Sorted stream of orderables.
      */
-    static <T extends Orderable<?>> Stream<T> sort(@Nonnull Stream<T> orderables) {
+    static <T extends Orderable<?>> Stream<T> sort(Stream<T> orderables) {
         return sort(orderables.toList()).stream();
     }
 
@@ -64,7 +63,7 @@ final class OrderableHelper {
      * @param <T>        Type of orderable.
      * @return Sorted list of orderables.
      */
-    static <T extends Orderable<?>> List<T> sort(@Nonnull List<T> orderables) {
+    static <T extends Orderable<?>> List<T> sort(List<T> orderables) {
         if (orderables.size() <= 1) {
             return orderables;  // A list of zero or one elements is already sorted; skip the graph and topological sort.
         }
@@ -82,7 +81,7 @@ final class OrderableHelper {
      * @param classes List of classes to build the dependency graph.
      * @return Dependency graph.
      */
-    private static Map<Class<?>, Node> buildClassDependencyGraph(@Nonnull List<Class<?>> classes) {
+    private static Map<Class<?>, Node> buildClassDependencyGraph(List<Class<?>> classes) {
         Map<Class<?>, Node> graph = new HashMap<>();
         for (Class<?> cls : classes) {
             graph.put(cls, new Node(cls));
@@ -113,7 +112,7 @@ final class OrderableHelper {
      * @param graph Dependency graph.
      * @return Ordered list of classes.
      */
-    private static List<Class<?>> topologicalSort(@Nonnull Map<Class<?>, Node> graph) {
+    private static List<Class<?>> topologicalSort(Map<Class<?>, Node> graph) {
         List<Class<?>> result = new ArrayList<>();
         Set<Class<?>> visited = new HashSet<>();
         Set<Class<?>> visiting = new HashSet<>();
@@ -161,11 +160,11 @@ final class OrderableHelper {
      * @param result    Result list to append to.
      * @param path      Current path in the graph.
      */
-    private static void visitNode(@Nonnull Node node,
-                                  @Nonnull Set<Class<?>> visited,
-                                  @Nonnull Set<Class<?>> visiting,
-                                  @Nonnull List<Class<?>> result,
-                                  @Nonnull Deque<Node> path) {
+    private static void visitNode(Node node,
+                                  Set<Class<?>> visited,
+                                  Set<Class<?>> visiting,
+                                  List<Class<?>> result,
+                                  Deque<Node> path) {
         if (visiting.contains(node.getValue())) {
             Deque<Class<?>> cycleList = new LinkedList<>();
             Iterator<Node> reversePath = new LinkedList<>(path).descendingIterator();
@@ -208,7 +207,7 @@ final class OrderableHelper {
          *
          * @param value Value of the node.
          */
-        Node(@Nonnull Class<?> value) {
+        Node(Class<?> value) {
             this.value = value;
             this.dependencies = new ArrayList<>();
         }

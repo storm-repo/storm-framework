@@ -6,7 +6,6 @@ import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static st.orm.core.template.TemplateString.raw;
 
-import jakarta.annotation.Nullable;
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.LocalDate;
@@ -16,6 +15,7 @@ import java.time.OffsetDateTime;
 import java.time.ZonedDateTime;
 import java.util.List;
 import javax.sql.DataSource;
+import org.jspecify.annotations.Nullable;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -259,7 +259,7 @@ public class QueryImplTypeMappingIntegrationTest {
 
     // java.util.Date type mapping via record
 
-    record JavaUtilDateResult(@Nullable java.util.Date value) {}
+    record JavaUtilDateResult(java.util.@Nullable Date value) {}
 
     @Test
     public void testJavaUtilDateTypeMapping() {

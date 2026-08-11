@@ -15,7 +15,6 @@
  */
 package st.orm.template;
 
-import jakarta.annotation.Nonnull;
 import st.orm.Transaction;
 
 /**
@@ -36,5 +35,5 @@ public interface TransactionBlock<R, E extends Exception> {
      * @param transaction the handle to the transaction the block runs in.
      * @return the result of the block.
      */
-    R execute(@Nonnull Transaction transaction) throws E;
+    R execute(Transaction transaction) throws E;
 }

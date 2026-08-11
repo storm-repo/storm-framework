@@ -15,7 +15,6 @@
  */
 package st.orm.template.impl;
 
-import jakarta.annotation.Nonnull;
 import st.orm.core.template.TemplateString;
 
 public final class StringTemplates {
@@ -24,11 +23,11 @@ public final class StringTemplates {
         // Prevent instantiation.
     }
 
-    public static StringTemplate convert(@Nonnull TemplateString template) {
+    public static StringTemplate convert(TemplateString template) {
         return StringTemplate.of(template.fragments(), template.values());
     }
 
-    public static TemplateString convert(@Nonnull StringTemplate template) {
+    public static TemplateString convert(StringTemplate template) {
         return TemplateString.of(template.fragments(), template.values());
     }
 }

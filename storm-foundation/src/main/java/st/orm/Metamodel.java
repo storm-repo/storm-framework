@@ -17,7 +17,6 @@ package st.orm;
 
 import static java.util.Objects.requireNonNull;
 
-import jakarta.annotation.Nonnull;
 import java.util.List;
 
 /**
@@ -74,7 +73,7 @@ public interface Metamodel<T extends Data, E> extends Navigable<T, E> {
      * @return a new metamodel for the given record type.
      * @param <T> the root table type.
      */
-    static <T extends Data> Metamodel<T, T> root(@Nonnull Class<T> table) {
+    static <T extends Data> Metamodel<T, T> root(Class<T> table) {
         return MetamodelHelper.root(table);
     }
 
@@ -91,7 +90,7 @@ public interface Metamodel<T extends Data, E> extends Navigable<T, E> {
      * @param <E> the record component type of the designated component.
      * @throws PersistenceException if the metamodel cannot be created for the root rootTable and path.
      */
-    static <T extends Data, E> Metamodel<T, E> of(@Nonnull Class<T> rootTable, @Nonnull String path) {
+    static <T extends Data, E> Metamodel<T, E> of(Class<T> rootTable, String path) {
         return MetamodelHelper.of(rootTable, path);
     }
 
@@ -119,7 +118,7 @@ public interface Metamodel<T extends Data, E> extends Navigable<T, E> {
      * @return the extracted value, or {@code null} if the value cannot be resolved.
      * @since 1.7
      */
-    Object getValue(@Nonnull T record);
+    Object getValue(T record);
 
     /**
      * Checks whether the value extracted from {@code a} is identical to the value extracted from {@code b}.
@@ -144,7 +143,7 @@ public interface Metamodel<T extends Data, E> extends Navigable<T, E> {
      * @return {@code true} if both extracted values are the same object instance.
      * @since 1.7
      */
-    boolean isIdentical(@Nonnull T a, @Nonnull T b);
+    boolean isIdentical(T a, T b);
 
     /**
      * Checks whether the value extracted from {@code a} is the same as the value extracted from {@code b}.
@@ -171,7 +170,7 @@ public interface Metamodel<T extends Data, E> extends Navigable<T, E> {
      * @return {@code true} if both extracted values are equal by value.
      * @since 1.7
      */
-    boolean isSame(@Nonnull T a, @Nonnull T b);
+    boolean isSame(T a, T b);
 
     /**
      * Marker interface for metamodel fields that correspond to columns known to be unique. Metamodel fields generated
@@ -231,7 +230,7 @@ public interface Metamodel<T extends Data, E> extends Navigable<T, E> {
      * @param <E> the field type.
      * @since 1.9
      */
-    static <T extends Data, E> Key<T, E> key(@Nonnull Metamodel<T, E> metamodel) {
+    static <T extends Data, E> Key<T, E> key(Metamodel<T, E> metamodel) {
         requireNonNull(metamodel, "metamodel");
         if (metamodel instanceof Key<T, E> key) {
             return key;
@@ -249,7 +248,7 @@ public interface Metamodel<T extends Data, E> extends Navigable<T, E> {
      * @param <T> the root table type.
      * @param <E> the field type.
      */
-    record KeyDelegate<T extends Data, E>(@Nonnull Metamodel<T, E> delegate) implements Key<T, E> {
+    record KeyDelegate<T extends Data, E>(Metamodel<T, E> delegate) implements Key<T, E> {
 
         public KeyDelegate {
             requireNonNull(delegate, "delegate");
@@ -262,9 +261,9 @@ public interface Metamodel<T extends Data, E> extends Navigable<T, E> {
         @Override public String path()                               { return delegate.path(); }
         @Override public Class<E> fieldType()                        { return delegate.fieldType(); }
         @Override public String field()                              { return delegate.field(); }
-        @Override public Object getValue(@Nonnull T record)          { return delegate.getValue(record); }
-        @Override public boolean isIdentical(@Nonnull T a, @Nonnull T b) { return delegate.isIdentical(a, b); }
-        @Override public boolean isSame(@Nonnull T a, @Nonnull T b)  { return delegate.isSame(a, b); }
+        @Override public Object getValue(T record)          { return delegate.getValue(record); }
+        @Override public boolean isIdentical(T a, T b) { return delegate.isIdentical(a, b); }
+        @Override public boolean isSame(T a, T b)  { return delegate.isSame(a, b); }
         @Override public List<Metamodel<T, ?>> flatten()             { return delegate.flatten(); }
 
         /**

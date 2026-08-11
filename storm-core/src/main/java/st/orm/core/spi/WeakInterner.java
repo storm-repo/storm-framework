@@ -17,7 +17,6 @@ package st.orm.core.spi;
 
 import static java.util.Objects.requireNonNull;
 
-import jakarta.annotation.Nonnull;
 import java.lang.ref.ReferenceQueue;
 import java.lang.ref.WeakReference;
 import java.util.HashMap;
@@ -84,7 +83,7 @@ public final class WeakInterner {
      * @return the canonical instance of the object.
      * @throws NullPointerException if {@code object} is {@code null}.
      */
-    public <T> T intern(@Nonnull T object) {
+    public <T> T intern(T object) {
         requireNonNull(object, "Cannot intern null object.");
         if (object instanceof Entity<?> entity) {
             //noinspection unchecked
@@ -104,7 +103,7 @@ public final class WeakInterner {
      * @param <E> the entity type.
      * @return the cached entity, or {@code null} if not found or already garbage collected.
      */
-    public <E extends Entity<?>> E get(@Nonnull Class<E> entityType, @Nonnull Object pk) {
+    public <E extends Entity<?>> E get(Class<E> entityType, Object pk) {
         if (entityMap == null) {
             return null;
         }
@@ -134,7 +133,7 @@ public final class WeakInterner {
      * @param <E> the entity type.
      * @return the canonical instance for the entity's primary key.
      */
-    private <E extends Entity<?>> E internEntity(@Nonnull E entity) {
+    private <E extends Entity<?>> E internEntity(E entity) {
         if (entityMap == null) {
             entityMap = new HashMap<>();
             queue = new ReferenceQueue<>();
@@ -166,7 +165,7 @@ public final class WeakInterner {
      * @return the canonical instance.
      * @throws IllegalArgumentException if an equivalent object of a different class is already interned.
      */
-    private <T> T internObject(@Nonnull T object) {
+    private <T> T internObject(T object) {
         if (map == null) {
             map = new WeakHashMap<>();
         }

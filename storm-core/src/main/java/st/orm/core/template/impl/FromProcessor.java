@@ -17,7 +17,6 @@ package st.orm.core.template.impl;
 
 import static st.orm.core.template.impl.RecordReflection.getTableName;
 
-import jakarta.annotation.Nonnull;
 import java.util.List;
 import java.util.function.Function;
 import st.orm.core.template.SqlTemplateException;
@@ -43,7 +42,7 @@ final class FromProcessor implements ElementProcessor<From> {
      * @return an immutable key for caching, or {@code null} if the element or its compilation cannot be cached.
      */
     @Override
-    public Object getCompilationKey(@Nonnull From from, @Nonnull Function<TemplateString, Object> keyGenerator) {
+    public Object getCompilationKey(From from, Function<TemplateString, Object> keyGenerator) {
         if (from.source() instanceof TemplateSource(var template)) {
             var key = keyGenerator.apply(template);
             return key == null ? null : List.of(key, from.alias(), from.autoJoin());
@@ -62,7 +61,7 @@ final class FromProcessor implements ElementProcessor<From> {
      * @return the compiled result for this element.
      * @throws SqlTemplateException if compilation fails.
      */
-    public CompiledElement compile(@Nonnull From from, @Nonnull TemplateCompiler compiler) throws SqlTemplateException {
+    public CompiledElement compile(From from, TemplateCompiler compiler) throws SqlTemplateException {
         if (from.source() instanceof TableSource(var table)) {
             // Observability fallback for statements without a select list, such as count queries; a preceding
             // select element takes precedence because the first recorded data type wins.
@@ -89,7 +88,7 @@ final class FromProcessor implements ElementProcessor<From> {
      * @param bindHint the bind hint for the element, providing additional context for binding.
      */
     @Override
-    public void bind(@Nonnull From from, @Nonnull TemplateBinder binder, @Nonnull BindHint bindHint) {
+    public void bind(From from, TemplateBinder binder, BindHint bindHint) {
         if (from instanceof From(TemplateSource ts, String s, boolean b)) {
             binder.bind(ts.template(), false);
         }

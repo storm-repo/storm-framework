@@ -15,7 +15,6 @@
  */
 package st.orm.core.template.impl;
 
-import jakarta.annotation.Nonnull;
 import java.util.List;
 import st.orm.Data;
 import st.orm.core.spi.QueryContext;
@@ -44,7 +43,7 @@ public interface StatementListener {
      * @param parameters the values bound to the statement; never {@code null}.
      * @return the handle closed when the execution completes; never {@code null}.
      */
-    Handle onExecute(@Nonnull QueryContext context, @Nonnull List<Parameter> parameters);
+    Handle onExecute(QueryContext context, List<Parameter> parameters);
 
     /**
      * Returns whether this listener attributes executions to call sites, which is what lets an integration
@@ -64,7 +63,7 @@ public interface StatementListener {
      * @param dataType the entity type the cache served.
      * @param count how many reads the cache served; at least one.
      */
-    default void onCacheHit(@Nonnull Class<? extends Data> dataType, int count) {
+    default void onCacheHit(Class<? extends Data> dataType, int count) {
     }
 
     /**

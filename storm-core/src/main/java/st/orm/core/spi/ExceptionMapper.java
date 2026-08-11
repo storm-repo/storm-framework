@@ -15,7 +15,6 @@
  */
 package st.orm.core.spi;
 
-import jakarta.annotation.Nonnull;
 import st.orm.PersistenceException;
 
 /**
@@ -43,7 +42,7 @@ public interface ExceptionMapper {
      * @param context the execution context of the failure; never {@code null}.
      * @return the exception to throw; never {@code null}.
      */
-    RuntimeException map(@Nonnull Throwable cause, @Nonnull ExceptionContext context);
+    RuntimeException map(Throwable cause, ExceptionContext context);
 
     /**
      * Returns the default exception mapper.

@@ -19,7 +19,6 @@ import static java.lang.System.identityHashCode;
 import static java.lang.reflect.Proxy.newProxyInstance;
 import static java.util.Optional.empty;
 
-import jakarta.annotation.Nonnull;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.lang.reflect.ParameterizedType;
@@ -51,12 +50,12 @@ public final class ORMTemplateImpl extends QueryTemplateImpl implements ORMTempl
     }
 
     @Override
-    public ORMTemplate withEntityCallback(@Nonnull EntityCallback<?> callback) {
+    public ORMTemplate withEntityCallback(EntityCallback<?> callback) {
         return new ORMTemplateImpl(core.withEntityCallback(callback));
     }
 
     @Override
-    public ORMTemplate withEntityCallbacks(@Nonnull List<EntityCallback<?>> callbacks) {
+    public ORMTemplate withEntityCallbacks(List<EntityCallback<?>> callbacks) {
         return new ORMTemplateImpl(core.withEntityCallbacks(callbacks));
     }
 
@@ -66,12 +65,12 @@ public final class ORMTemplateImpl extends QueryTemplateImpl implements ORMTempl
     }
 
     @Override
-    public List<String> validateSchema(@Nonnull Predicate<Class<? extends Data>> filter) {
+    public List<String> validateSchema(Predicate<Class<? extends Data>> filter) {
         return core.validateSchema(filter);
     }
 
     @Override
-    public List<String> validateSchema(@Nonnull Iterable<Class<? extends Data>> types) {
+    public List<String> validateSchema(Iterable<Class<? extends Data>> types) {
         return core.validateSchema(types);
     }
 
@@ -81,12 +80,12 @@ public final class ORMTemplateImpl extends QueryTemplateImpl implements ORMTempl
     }
 
     @Override
-    public void validateSchemaOrThrow(@Nonnull Predicate<Class<? extends Data>> filter) {
+    public void validateSchemaOrThrow(Predicate<Class<? extends Data>> filter) {
         core.validateSchemaOrThrow(filter);
     }
 
     @Override
-    public void validateSchemaOrThrow(@Nonnull Iterable<Class<? extends Data>> types) {
+    public void validateSchemaOrThrow(Iterable<Class<? extends Data>> types) {
         core.validateSchemaOrThrow(types);
     }
 
@@ -104,7 +103,7 @@ public final class ORMTemplateImpl extends QueryTemplateImpl implements ORMTempl
      * @return the repository for the given entity type.
      */
     @Override
-    public <T extends Entity<ID>, ID> EntityRepository<T, ID> entity(@Nonnull Class<T> type) {
+    public <T extends Entity<ID>, ID> EntityRepository<T, ID> entity(Class<T> type) {
         return new EntityRepositoryImpl<>(core.entity(type));
     }
 
@@ -117,7 +116,7 @@ public final class ORMTemplateImpl extends QueryTemplateImpl implements ORMTempl
      * @return the repository for the given projection type.
      */
     @Override
-    public <T extends Projection<ID>, ID> ProjectionRepository<T, ID> projection(@Nonnull Class<T> type) {
+    public <T extends Projection<ID>, ID> ProjectionRepository<T, ID> projection(Class<T> type) {
         return new ProjectionRepositoryImpl<>(core.projection(type));
     }
 
@@ -129,7 +128,7 @@ public final class ORMTemplateImpl extends QueryTemplateImpl implements ORMTempl
      * @return a proxy for the repository of the given type.
      */
     @Override
-    public <R extends Repository> R repository(@Nonnull Class<R> type) {
+    public <R extends Repository> R repository(Class<R> type) {
         var entityRepository = EntityRepository.class.isAssignableFrom(type)
                 ? createEntityRepository(type).orElse(null)
                 : null;
@@ -193,7 +192,7 @@ public final class ORMTemplateImpl extends QueryTemplateImpl implements ORMTempl
     }
 
     @SuppressWarnings("unchecked")
-    private <T extends Entity<ID>, ID> Optional<EntityRepository<T, ID>> createEntityRepository(@Nonnull Class<?> type) {
+    private <T extends Entity<ID>, ID> Optional<EntityRepository<T, ID>> createEntityRepository(Class<?> type) {
         if (EntityRepository.class.isAssignableFrom(type)) {
             Class<?> entityClass = null;
             // Attempt to find the generic interface that directly extends Repository.
@@ -220,7 +219,7 @@ public final class ORMTemplateImpl extends QueryTemplateImpl implements ORMTempl
     }
 
     @SuppressWarnings("unchecked")
-    private <T extends Projection<ID>, ID> Optional<ProjectionRepository<T, ID>> createProjectionRepository(@Nonnull Class<?> type) {
+    private <T extends Projection<ID>, ID> Optional<ProjectionRepository<T, ID>> createProjectionRepository(Class<?> type) {
         if (ProjectionRepository.class.isAssignableFrom(type)) {
             Class<?> projectionClass = null;
             // Attempt to find the generic interface that directly extends Repository.

@@ -15,7 +15,6 @@
  */
 package st.orm.core.template.impl;
 
-import jakarta.annotation.Nonnull;
 import java.util.ArrayList;
 import java.util.List;
 import st.orm.core.template.TemplateString;
@@ -36,14 +35,14 @@ public final class StringTemplates {
      * @param template the template to flatten.
      * @return the flattened template.
      */
-    public static TemplateString flatten(@Nonnull TemplateString template) {
+    public static TemplateString flatten(TemplateString template) {
         FlattenResult result = flattenTemplate(template);
         return TemplateString.of(result.fragments, result.values);
     }
 
     private record FlattenResult(List<String> fragments, List<Object> values) {}
 
-    private static FlattenResult flattenTemplate(@Nonnull TemplateString template) {
+    private static FlattenResult flattenTemplate(TemplateString template) {
         List<String> tmplFragments = template.fragments();
         List<Object> tmplValues = template.values();
         if (tmplValues.stream().noneMatch(v -> v instanceof TemplateString)) {

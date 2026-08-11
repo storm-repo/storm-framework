@@ -21,7 +21,6 @@ import static st.orm.core.template.SqlInterceptor.intercept;
 import static st.orm.core.template.TemplateString.raw;
 import static st.orm.core.template.impl.StringTemplates.flatten;
 
-import jakarta.annotation.Nonnull;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -44,12 +43,12 @@ import st.orm.spi.mysql.MySQLEntityRepositoryImpl;
 public class MariaDBEntityRepositoryImpl<E extends Entity<ID>, ID>
         extends MySQLEntityRepositoryImpl<E, ID> {
 
-    public MariaDBEntityRepositoryImpl(@Nonnull ORMTemplate ormTemplate, @Nonnull Model<E, ID> model) {
+    public MariaDBEntityRepositoryImpl(ORMTemplate ormTemplate, Model<E, ID> model) {
         super(ormTemplate, model);
     }
 
     @Override
-    public ID insertAndFetchId(@Nonnull E entity) {
+    public ID insertAndFetchId(E entity) {
         if (generationStrategy != SEQUENCE) {
             return super.insertAndFetchId(entity);
         }
@@ -74,7 +73,7 @@ public class MariaDBEntityRepositoryImpl<E extends Entity<ID>, ID>
      * {@code super} (which routes through the core multi-row {@code RETURNING} path).
      */
     @Override
-    public List<ID> insertAndFetchIds(@Nonnull Iterable<E> entities) {
+    public List<ID> insertAndFetchIds(Iterable<E> entities) {
         if (generationStrategy != SEQUENCE) {
             return super.insertAndFetchIds(entities);
         }
@@ -96,7 +95,7 @@ public class MariaDBEntityRepositoryImpl<E extends Entity<ID>, ID>
     }
 
     @Override
-    protected ID doUpsertAndFetchId(@Nonnull E entity) {
+    protected ID doUpsertAndFetchId(E entity) {
         if (generationStrategy != SEQUENCE) {
             return super.doUpsertAndFetchId(entity);
         }
@@ -132,14 +131,14 @@ public class MariaDBEntityRepositoryImpl<E extends Entity<ID>, ID>
     private static final class SeqUpsertKey implements SeqPartitionKey {
         private static final SeqUpsertKey INSTANCE = new SeqUpsertKey();
     }
-    private record SeqUpdateKey(@Nonnull Set<Metamodel<?, ?>> fields) implements SeqPartitionKey {
+    private record SeqUpdateKey(Set<Metamodel<?, ?>> fields) implements SeqPartitionKey {
         SeqUpdateKey() {
             this(Set.of());
         }
     }
 
     @Override
-    public List<ID> upsertAndFetchIds(@Nonnull Iterable<E> entities) {
+    public List<ID> upsertAndFetchIds(Iterable<E> entities) {
         if (generationStrategy != SEQUENCE) {
             return super.upsertAndFetchIds(entities);
         }
@@ -195,7 +194,7 @@ public class MariaDBEntityRepositoryImpl<E extends Entity<ID>, ID>
         }
     }
 
-    private Query getUpsertQuery(@Nonnull Iterable<E> entities) {
+    private Query getUpsertQuery(Iterable<E> entities) {
         var versionAware = new AtomicBoolean();
         assert primaryKeyColumns.size() == 1;
         var primaryKeyColumn = primaryKeyColumns.getFirst();

@@ -15,11 +15,10 @@
  */
 package st.orm.core.template.impl;
 
-import jakarta.annotation.Nonnull;
-import jakarta.annotation.Nullable;
 import java.util.List;
 import java.util.SequencedMap;
 import java.util.function.Function;
+import org.jspecify.annotations.Nullable;
 import st.orm.Operator;
 import st.orm.core.template.SqlDialect;
 import st.orm.core.template.SqlTemplateException;
@@ -61,12 +60,12 @@ final class ColumnComparison {
      * @return the rendered comparison.
      * @throws SqlTemplateException if the dialect cannot render the comparison.
      */
-    static String render(@Nonnull Operator operator,
+    static String render(Operator operator,
                          @Nullable String singleColumn,
-                         @Nonnull List<String> singleColumnPlaceholders,
-                         @Nonnull List<SequencedMap<String, Object>> rows,
-                         @Nonnull Function<Object, String> parameterFunction,
-                         @Nonnull SqlDialect dialect) throws SqlTemplateException {
+                         List<String> singleColumnPlaceholders,
+                         List<SequencedMap<String, Object>> rows,
+                         Function<Object, String> parameterFunction,
+                         SqlDialect dialect) throws SqlTemplateException {
         if (rows.isEmpty()) {
             // The value-based path supplies its single column and already rendered placeholders directly.
             return operator.format(singleColumn, singleColumnPlaceholders.toArray(new String[0]));

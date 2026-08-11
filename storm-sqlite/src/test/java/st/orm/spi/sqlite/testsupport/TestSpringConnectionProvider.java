@@ -15,10 +15,9 @@
  */
 package st.orm.spi.sqlite.testsupport;
 
-import jakarta.annotation.Nonnull;
-import jakarta.annotation.Nullable;
 import java.sql.Connection;
 import javax.sql.DataSource;
+import org.jspecify.annotations.Nullable;
 import org.springframework.jdbc.datasource.DataSourceUtils;
 import st.orm.PersistenceException;
 import st.orm.core.spi.ConnectionProvider;
@@ -33,7 +32,7 @@ import st.orm.core.spi.TransactionContext;
 public class TestSpringConnectionProvider implements ConnectionProvider {
 
     @Override
-    public Connection getConnection(@Nonnull DataSource dataSource, @Nullable TransactionContext context) {
+    public Connection getConnection(DataSource dataSource, @Nullable TransactionContext context) {
         try {
             return DataSourceUtils.getConnection(dataSource);
         } catch (Exception e) {
@@ -42,7 +41,7 @@ public class TestSpringConnectionProvider implements ConnectionProvider {
     }
 
     @Override
-    public void releaseConnection(@Nonnull Connection connection, @Nonnull DataSource dataSource, @Nullable TransactionContext context) {
+    public void releaseConnection(Connection connection, DataSource dataSource, @Nullable TransactionContext context) {
         DataSourceUtils.releaseConnection(connection, dataSource);
     }
 }

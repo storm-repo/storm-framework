@@ -18,12 +18,11 @@ package st.orm.core.testsupport;
 import static java.util.Optional.empty;
 import static java.util.Optional.of;
 
-import jakarta.annotation.Nonnull;
-import jakarta.annotation.Nullable;
 import java.sql.Connection;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
+import org.jspecify.annotations.Nullable;
 import org.springframework.transaction.support.TransactionSynchronization;
 import org.springframework.transaction.support.TransactionSynchronizationManager;
 import st.orm.Entity;
@@ -55,12 +54,12 @@ public class TestSpringTransactionTemplateProvider implements TransactionTemplat
     public TransactionTemplate getTransactionTemplate() {
         return new TransactionTemplate() {
             @Override
-            public TransactionTemplate propagation(@Nonnull st.orm.TransactionPropagation propagation) {
+            public TransactionTemplate propagation(st.orm.TransactionPropagation propagation) {
                 throw new UnsupportedOperationException("Transaction template not supported.");
             }
 
             @Override
-            public TransactionTemplate isolation(@Nonnull st.orm.TransactionIsolation isolation) {
+            public TransactionTemplate isolation(st.orm.TransactionIsolation isolation) {
                 throw new UnsupportedOperationException("Transaction template not supported.");
             }
 
@@ -123,13 +122,13 @@ public class TestSpringTransactionTemplateProvider implements TransactionTemplat
         }
 
         @Override
-        public EntityCache<? extends Entity<?>, ?> entityCache(@Nonnull Class<? extends Entity<?>> entityType,
-                                                               @Nonnull CacheRetention retention) {
+        public EntityCache<? extends Entity<?>, ?> entityCache(Class<? extends Entity<?>> entityType,
+                                                               CacheRetention retention) {
             return caches.computeIfAbsent(entityType, ignore -> new EntityCacheImpl<>(retention));
         }
 
         @Override
-        public EntityCache<? extends Entity<?>, ?> getEntityCache(@Nonnull Class<? extends Entity<?>> entityType) {
+        public EntityCache<? extends Entity<?>, ?> getEntityCache(Class<? extends Entity<?>> entityType) {
             var cache = caches.get(entityType);
             if (cache == null) {
                 throw new IllegalStateException("No entity cache exists for " + entityType.getName() + ".");
@@ -138,7 +137,7 @@ public class TestSpringTransactionTemplateProvider implements TransactionTemplat
         }
 
         @Override
-        public EntityCache<? extends Entity<?>, ?> findEntityCache(@Nonnull Class<? extends Entity<?>> entityType) {
+        public EntityCache<? extends Entity<?>, ?> findEntityCache(Class<? extends Entity<?>> entityType) {
             return caches.get(entityType);
         }
 
@@ -151,7 +150,7 @@ public class TestSpringTransactionTemplateProvider implements TransactionTemplat
 
         @Override
         @SuppressWarnings("unchecked")
-        public <T> Decorator<T> getDecorator(@Nonnull Class<T> resourceType) {
+        public <T> Decorator<T> getDecorator(Class<T> resourceType) {
             return (Decorator<T>) noopDecorator;
         }
     }

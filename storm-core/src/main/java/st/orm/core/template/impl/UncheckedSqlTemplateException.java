@@ -17,7 +17,6 @@ package st.orm.core.template.impl;
 
 import static java.util.Objects.requireNonNull;
 
-import jakarta.annotation.Nonnull;
 import st.orm.core.template.SqlTemplateException;
 
 /**
@@ -40,7 +39,7 @@ final class UncheckedSqlTemplateException extends RuntimeException {
      *
      * @param e the checked exception to wrap
      */
-    public UncheckedSqlTemplateException(@Nonnull SqlTemplateException e) {
+    public UncheckedSqlTemplateException(SqlTemplateException e) {
         super(requireNonNull(e));
         this.cause = e;
     }

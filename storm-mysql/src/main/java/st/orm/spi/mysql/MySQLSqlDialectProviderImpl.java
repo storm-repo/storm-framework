@@ -16,7 +16,6 @@
 package st.orm.spi.mysql;
 
 
-import jakarta.annotation.Nonnull;
 import java.util.function.Predicate;
 import st.orm.StormConfig;
 import st.orm.core.spi.Provider;
@@ -29,7 +28,7 @@ import st.orm.core.template.SqlDialect;
 public class MySQLSqlDialectProviderImpl implements SqlDialectProvider {
 
     @Override
-    public boolean supports(@Nonnull String databaseProductName) {
+    public boolean supports(String databaseProductName) {
         return "MySQL".equalsIgnoreCase(databaseProductName);
     }
 
@@ -39,7 +38,7 @@ public class MySQLSqlDialectProviderImpl implements SqlDialectProvider {
     }
 
     @Override
-    public SqlDialect getSqlDialect(@Nonnull StormConfig config) {
+    public SqlDialect getSqlDialect(StormConfig config) {
         return new MySQLSqlDialect(config);
     }
 }

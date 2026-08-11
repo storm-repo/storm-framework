@@ -24,8 +24,6 @@ import static st.orm.core.spi.Providers.selectFrom;
 import static st.orm.core.spi.Providers.selectRefFrom;
 import static st.orm.core.template.TemplateString.wrap;
 
-import jakarta.annotation.Nonnull;
-import jakarta.annotation.Nullable;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Optional;
@@ -35,6 +33,7 @@ import java.util.function.Function;
 import java.util.function.Supplier;
 import java.util.stream.Stream;
 import java.util.stream.StreamSupport;
+import org.jspecify.annotations.Nullable;
 import st.orm.Data;
 import st.orm.Metamodel;
 import st.orm.NoResultException;
@@ -77,7 +76,7 @@ abstract class BaseRepositoryImpl<E extends Data, ID> implements Repository {
      */
     private volatile boolean plansSupported = true;
 
-    public BaseRepositoryImpl(@Nonnull ORMTemplate ormTemplate, @Nonnull Model<E, ID> model) {
+    public BaseRepositoryImpl(ORMTemplate ormTemplate, Model<E, ID> model) {
         this.ormTemplate = requireNonNull(ormTemplate);
         this.model = requireNonNull(model);
         this.compoundPrimaryKey = model.getPrimaryKeyMetamodel()
@@ -94,7 +93,7 @@ abstract class BaseRepositoryImpl<E extends Data, ID> implements Repository {
         return plansSupported && !SqlInterceptorManager.hasLocalCustomizers();
     }
 
-    protected final @Nullable QueryPlan createPlanQuietly(@Nonnull Supplier<QueryPlan> factory) {
+    protected final @Nullable QueryPlan createPlanQuietly(Supplier<QueryPlan> factory) {
         try {
             return factory.get();
         } catch (PersistenceException e) {
@@ -130,7 +129,7 @@ abstract class BaseRepositoryImpl<E extends Data, ID> implements Repository {
      * @return a stream representing the elements of the iterable collection.
      * @param <X> the type of elements in the iterable collection.
      */
-    protected static <X> Stream<X> toStream(@Nonnull Iterable<X> iterable) {
+    protected static <X> Stream<X> toStream(Iterable<X> iterable) {
         return StreamSupport.stream(spliteratorUnknownSize(iterable.iterator(), ORDERED), false);
     }
 
@@ -164,7 +163,7 @@ abstract class BaseRepositoryImpl<E extends Data, ID> implements Repository {
      * @return a ref entity instance containing only the primary key.
      * @since 1.3
      */
-    public Ref<E> ref(@Nonnull ID id) {
+    public Ref<E> ref(ID id) {
         return ormTemplate.ref(model.type(), id);
     }
 
@@ -193,7 +192,7 @@ abstract class BaseRepositoryImpl<E extends Data, ID> implements Repository {
      * @return a new query builder for the custom {@code selectType}.
      * @param <R> the result type of the query.
      */
-    public <R> QueryBuilder<E, R, ID> select(@Nonnull Class<R> selectType) {
+    public <R> QueryBuilder<E, R, ID> select(Class<R> selectType) {
         return select(selectType, wrap(selectType));
     }
     /**
@@ -219,7 +218,7 @@ abstract class BaseRepositoryImpl<E extends Data, ID> implements Repository {
      * @return a new query builder for the custom {@code selectType}.
      * @param <R> the result type of the query.
      */
-    public <R> QueryBuilder<E, R, ID> select(@Nonnull Class<R> selectType, @Nonnull TemplateString template) {
+    public <R> QueryBuilder<E, R, ID> select(Class<R> selectType, TemplateString template) {
         return selectFrom(ormTemplate, model().type(), selectType, template, false, () -> model);
     }
 
@@ -236,7 +235,7 @@ abstract class BaseRepositoryImpl<E extends Data, ID> implements Repository {
      * @return a new query builder for selecting refs to entities.
      * @since 1.3
      */
-    public <R extends Data> QueryBuilder<E, Ref<R>, ID> selectRef(@Nonnull Class<R> refType) {
+    public <R extends Data> QueryBuilder<E, Ref<R>, ID> selectRef(Class<R> refType) {
         var pkType = ormTemplate.model(refType, true).primaryKeyType();
         return selectRefFrom(ormTemplate, model.type(), refType, pkType, () -> model);
     }
@@ -283,7 +282,7 @@ abstract class BaseRepositoryImpl<E extends Data, ID> implements Repository {
      * @return true if an entity with the specified primary key exists, false otherwise.
      * @throws PersistenceException if there is an underlying database issue during the count operation.
      */
-    public boolean existsById(@Nonnull ID id) {
+    public boolean existsById(ID id) {
         return countById(Stream.of(id)) > 0;
     }
 
@@ -298,7 +297,7 @@ abstract class BaseRepositoryImpl<E extends Data, ID> implements Repository {
      * @return true if an entity with the specified primary key exists, false otherwise.
      * @throws PersistenceException if there is an underlying database issue during the count operation.
      */
-    public boolean existsByRef(@Nonnull Ref<E> ref) {
+    public boolean existsByRef(Ref<E> ref) {
         return countByRef(Stream.of(ref)) > 0;
     }
 
@@ -315,7 +314,7 @@ abstract class BaseRepositoryImpl<E extends Data, ID> implements Repository {
      * @throws PersistenceException if the retrieval operation fails due to underlying database issues, such as
      *                              connectivity problems or query execution errors.
      */
-    public Optional<E> findById(@Nonnull ID id) {
+    public Optional<E> findById(ID id) {
         var query = findByIdQuery(id);
         if (query != null) {
             return query.getOptionalResult(model.type());
@@ -334,7 +333,7 @@ abstract class BaseRepositoryImpl<E extends Data, ID> implements Repository {
      * @throws PersistenceException if the retrieval operation fails due to underlying database issues, such as
      *                              connectivity problems or query execution errors.
      */
-    public Optional<E> findByRef(@Nonnull Ref<E> ref) {
+    public Optional<E> findByRef(Ref<E> ref) {
         //noinspection unchecked
         var query = findByIdQuery((ID) ref.id());
         if (query != null) {
@@ -356,7 +355,7 @@ abstract class BaseRepositoryImpl<E extends Data, ID> implements Repository {
      * @throws PersistenceException if the retrieval operation fails due to underlying database issues, such as
      *                              connectivity problems or query execution errors.
      */
-    public E getById(@Nonnull ID id) {
+    public E getById(ID id) {
         var query = findByIdQuery(id);
         if (query != null) {
             return query.getSingleResult(model.type());
@@ -368,7 +367,7 @@ abstract class BaseRepositoryImpl<E extends Data, ID> implements Repository {
      * Returns a query that selects the entity graph by primary key, served from a cached plan, or {@code null} when
      * plans are unavailable; see {@link #usePlans()} for the guards.
      */
-    private @Nullable Query findByIdQuery(@Nonnull ID id) {
+    private @Nullable Query findByIdQuery(ID id) {
         if (usePlans()) {
             var plan = findByIdPlan;
             if (plan == null) {
@@ -402,7 +401,7 @@ abstract class BaseRepositoryImpl<E extends Data, ID> implements Repository {
      * @throws PersistenceException if the retrieval operation fails due to underlying database issues, such as
      *                              connectivity problems or query execution errors.
      */
-    public E getByRef(@Nonnull Ref<E> ref) {
+    public E getByRef(Ref<E> ref) {
         //noinspection unchecked
         var query = findByIdQuery((ID) ref.id());
         if (query != null) {
@@ -422,7 +421,7 @@ abstract class BaseRepositoryImpl<E extends Data, ID> implements Repository {
      * @param <V> the type of the key field.
      * @throws PersistenceException if the retrieval operation fails due to underlying database issues.
      */
-    public <V> Optional<E> findBy(@Nonnull Metamodel.Key<E, V> key, @Nonnull V value) {
+    public <V> Optional<E> findBy(Metamodel.Key<E, V> key, V value) {
         var query = findByKeyQuery(key, value);
         if (query != null) {
             return query.getOptionalResult(model.type());
@@ -440,7 +439,7 @@ abstract class BaseRepositoryImpl<E extends Data, ID> implements Repository {
      * @throws NoResultException if no entity is found matching the given key value.
      * @throws PersistenceException if the retrieval operation fails due to underlying database issues.
      */
-    public <V> E getBy(@Nonnull Metamodel.Key<E, V> key, @Nonnull V value) {
+    public <V> E getBy(Metamodel.Key<E, V> key, V value) {
         var query = findByKeyQuery(key, value);
         if (query != null) {
             return query.getSingleResult(model.type());
@@ -452,7 +451,7 @@ abstract class BaseRepositoryImpl<E extends Data, ID> implements Repository {
      * Returns a query that selects the entity graph by the given unique key, served from a cached plan, or
      * {@code null} when plans are unavailable; see {@link #usePlans()} for the guards.
      */
-    private @Nullable Query findByKeyQuery(@Nonnull Metamodel<E, ?> key, @Nonnull Object value) {
+    private @Nullable Query findByKeyQuery(Metamodel<E, ?> key, Object value) {
         if (usePlans()) {
             var plan = findByKeyPlans.get(key);
             if (plan == null) {
@@ -486,7 +485,7 @@ abstract class BaseRepositoryImpl<E extends Data, ID> implements Repository {
      * @param <V> the type of the referenced entity.
      * @throws PersistenceException if the retrieval operation fails due to underlying database issues.
      */
-    public <V extends Data> Optional<E> findByRef(@Nonnull Metamodel.Key<E, V> key, @Nonnull Ref<V> value) {
+    public <V extends Data> Optional<E> findByRef(Metamodel.Key<E, V> key, Ref<V> value) {
         return select().where(key, value).getOptionalResult();
     }
 
@@ -500,7 +499,7 @@ abstract class BaseRepositoryImpl<E extends Data, ID> implements Repository {
      * @throws NoResultException if no entity is found matching the given ref value.
      * @throws PersistenceException if the retrieval operation fails due to underlying database issues.
      */
-    public <V extends Data> E getByRef(@Nonnull Metamodel.Key<E, V> key, @Nonnull Ref<V> value) {
+    public <V extends Data> E getByRef(Metamodel.Key<E, V> key, Ref<V> value) {
         return select().where(key, value).getSingleResult();
     }
 
@@ -566,7 +565,7 @@ abstract class BaseRepositoryImpl<E extends Data, ID> implements Repository {
      * @throws PersistenceException if the selection operation fails due to database issues, such as connectivity
      *         problems or invalid input parameters.
      */
-    public List<E> findAllById(@Nonnull Iterable<ID> ids) {
+    public List<E> findAllById(Iterable<ID> ids) {
         try (var stream = selectByIdMaterialized(toStream(ids))) {
             return stream.toList();
         }
@@ -589,7 +588,7 @@ abstract class BaseRepositoryImpl<E extends Data, ID> implements Repository {
      * @throws PersistenceException if the selection operation fails due to database issues, such as connectivity
      *         problems or invalid input parameters.
      */
-    public List<E> findAllByRef(@Nonnull Iterable<Ref<E>> refs) {
+    public List<E> findAllByRef(Iterable<Ref<E>> refs) {
         try (var stream = selectByRefMaterialized(toStream(refs))) {
             return stream.toList();
         }
@@ -606,7 +605,7 @@ abstract class BaseRepositoryImpl<E extends Data, ID> implements Repository {
      * @param ids a stream of entity IDs to retrieve from the repository.
      * @return a stream of entities, materialized one batch at a time.
      */
-    protected Stream<E> selectByIdMaterialized(@Nonnull Stream<ID> ids) {
+    protected Stream<E> selectByIdMaterialized(Stream<ID> ids) {
         return chunked(ids, getDefaultChunkSize(), batch -> select().whereId(batch).getResultList().stream());
     }
 
@@ -618,7 +617,7 @@ abstract class BaseRepositoryImpl<E extends Data, ID> implements Repository {
      * @param refs a stream of refs to retrieve from the repository.
      * @return a stream of entities, materialized one batch at a time.
      */
-    protected Stream<E> selectByRefMaterialized(@Nonnull Stream<Ref<E>> refs) {
+    protected Stream<E> selectByRefMaterialized(Stream<Ref<E>> refs) {
         return chunked(refs, getDefaultChunkSize(), batch -> select().whereRef(batch).getResultList().stream());
     }
 
@@ -649,7 +648,7 @@ abstract class BaseRepositoryImpl<E extends Data, ID> implements Repository {
      * @throws PersistenceException if the selection operation fails due to underlying database issues, such as
      *                              connectivity.
      */
-    public Stream<E> selectById(@Nonnull Stream<ID> ids) {
+    public Stream<E> selectById(Stream<ID> ids) {
         return selectById(ids, getDefaultChunkSize());
     }
 
@@ -678,7 +677,7 @@ abstract class BaseRepositoryImpl<E extends Data, ID> implements Repository {
      * @throws PersistenceException if the selection operation fails due to underlying database issues, such as
      *                              connectivity.
      */
-    public Stream<E> selectByRef(@Nonnull Stream<Ref<E>> refs) {
+    public Stream<E> selectByRef(Stream<Ref<E>> refs) {
         return selectByRef(refs, getDefaultChunkSize());
     }
 
@@ -710,7 +709,7 @@ abstract class BaseRepositoryImpl<E extends Data, ID> implements Repository {
      * @throws PersistenceException if the selection operation fails due to underlying database issues, such as
      *                              connectivity.
      */
-    public Stream<E> selectById(@Nonnull Stream<ID> ids, int chunkSize) {
+    public Stream<E> selectById(Stream<ID> ids, int chunkSize) {
         return chunked(ids, chunkSize, batch -> select().whereId(batch).getResultStream()); // Stream returned by getResultStream is closed by the batch operation.
     }
 
@@ -742,7 +741,7 @@ abstract class BaseRepositoryImpl<E extends Data, ID> implements Repository {
      * @throws PersistenceException if the selection operation fails due to underlying database issues, such as
      *                              connectivity.
      */
-    public Stream<E> selectByRef(@Nonnull Stream<Ref<E>> refs, int chunkSize) {
+    public Stream<E> selectByRef(Stream<Ref<E>> refs, int chunkSize) {
         return chunked(refs, chunkSize, batch -> select().whereRef(batch).getResultStream()); // Stream returned by getResultStream is closed by the batch operation.
     }
 
@@ -757,7 +756,7 @@ abstract class BaseRepositoryImpl<E extends Data, ID> implements Repository {
      * @return the total count of entities matching the provided IDs.
      * @throws PersistenceException if there is an error during the counting operation, such as connectivity issues.
      */
-    public long countById(@Nonnull Stream<ID> ids) {
+    public long countById(Stream<ID> ids) {
         return countById(ids, getDefaultChunkSize());
     }
 
@@ -775,7 +774,7 @@ abstract class BaseRepositoryImpl<E extends Data, ID> implements Repository {
      * @return the total count of entities matching the provided IDs.
      * @throws PersistenceException if there is an error during the counting operation, such as connectivity issues.
      */
-    public long countById(@Nonnull Stream<ID> ids, int chunkSize) {
+    public long countById(Stream<ID> ids, int chunkSize) {
         return chunked(ids, chunkSize)
                 .mapToLong(slice -> selectCount()
                         .whereId(slice)
@@ -794,7 +793,7 @@ abstract class BaseRepositoryImpl<E extends Data, ID> implements Repository {
      * @return the total count of entities matching the provided IDs.
      * @throws PersistenceException if there is an error during the counting operation, such as connectivity issues.
      */
-    public long countByRef(@Nonnull Stream<Ref<E>> refs) {
+    public long countByRef(Stream<Ref<E>> refs) {
         return countByRef(refs, getDefaultChunkSize());
     }
 
@@ -812,7 +811,7 @@ abstract class BaseRepositoryImpl<E extends Data, ID> implements Repository {
      * @return the total count of entities matching the provided IDs.
      * @throws PersistenceException if there is an error during the counting operation, such as connectivity issues.
      */
-    public long countByRef(@Nonnull Stream<Ref<E>> refs, int chunkSize) {
+    public long countByRef(Stream<Ref<E>> refs, int chunkSize) {
         return chunked(refs, chunkSize)
                 .mapToLong(slice -> selectCount()
                         .whereRef(slice)
@@ -830,9 +829,9 @@ abstract class BaseRepositoryImpl<E extends Data, ID> implements Repository {
      * @param <X> the type of elements in the stream.
      * @param <Y> the type of elements in the result stream.
      */
-    protected static <X, Y> Stream<Y> chunked(@Nonnull Stream<X> stream,
+    protected static <X, Y> Stream<Y> chunked(Stream<X> stream,
                                               int batchSize,
-                                              @Nonnull Function<List<X>, Stream<Y>> function) {
+                                              Function<List<X>, Stream<Y>> function) {
         return chunked(stream, batchSize)
                 .flatMap(function); // Note that the flatMap operation closes the stream passed to it.
     }
@@ -852,7 +851,7 @@ abstract class BaseRepositoryImpl<E extends Data, ID> implements Repository {
      * {@code Integer.MAX_VALUE}, only one slice will be returned.
      * @return a stream of slices, where each slice contains up to {@code size} elements from the original stream.
      */
-    protected static <X> Stream<List<X>> chunked(@Nonnull Stream<X> stream, int size) {
+    protected static <X> Stream<List<X>> chunked(Stream<X> stream, int size) {
         if (size == MAX_VALUE) {
             return Stream.of(stream.toList());
         }

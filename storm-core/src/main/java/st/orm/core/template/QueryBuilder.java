@@ -23,8 +23,6 @@ import static st.orm.Operator.LESS_THAN;
 import static st.orm.ResolveScope.CASCADE;
 import static st.orm.core.template.TemplateString.wrap;
 
-import jakarta.annotation.Nonnull;
-import jakarta.annotation.Nullable;
 import java.util.AbstractList;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -36,6 +34,7 @@ import java.util.RandomAccess;
 import java.util.SequencedMap;
 import java.util.function.Function;
 import java.util.stream.Stream;
+import org.jspecify.annotations.Nullable;
 import st.orm.Data;
 import st.orm.Entity;
 import st.orm.JoinType;
@@ -85,7 +84,7 @@ public abstract class QueryBuilder<T extends Data, R, ID> {
      * @throws PersistenceException if the pk type is not valid.
      * @since 1.14
      */
-    public abstract <X> QueryBuilder<T, R, X> typedId(@Nonnull Class<X> pkType);
+    public abstract <X> QueryBuilder<T, R, X> typedId(Class<X> pkType);
 
     /**
      * Returns a query builder rooted at the specified type, narrowing a builder whose root was relaxed by a join.
@@ -100,7 +99,7 @@ public abstract class QueryBuilder<T extends Data, R, ID> {
      * @throws PersistenceException if {@code rootType} is not the type this query selects from.
      * @since 1.14
      */
-    public abstract <X extends Data> QueryBuilder<X, R, ID> narrow(@Nonnull Class<X> rootType);
+    public abstract <X extends Data> QueryBuilder<X, R, ID> narrow(Class<X> rootType);
 
     /**
      * Widens the query as a join does, without joining: from here on, every clause accepts paths from any entity in
@@ -169,7 +168,7 @@ public abstract class QueryBuilder<T extends Data, R, ID> {
      * @since 1.13
      */
     @SafeVarargs
-    public final QueryBuilder<T, R, ID> fetch(@Nonnull Navigable<T, ? extends Data>... path) {
+    public final QueryBuilder<T, R, ID> fetch(Navigable<T, ? extends Data>... path) {
         return fetch(List.of(path));
     }
 
@@ -186,7 +185,7 @@ public abstract class QueryBuilder<T extends Data, R, ID> {
      * @see #fetch(Navigable[])
      * @since 1.13
      */
-    public abstract QueryBuilder<T, R, ID> fetch(@Nonnull List<? extends Navigable<T, ? extends Data>> paths);
+    public abstract QueryBuilder<T, R, ID> fetch(List<? extends Navigable<T, ? extends Data>> paths);
 
     /**
      * Adds a cross join to the query.
@@ -194,7 +193,7 @@ public abstract class QueryBuilder<T extends Data, R, ID> {
      * @param relation the relation to join.
      * @return the query builder.
      */
-    public abstract QueryBuilder<Data, R, ID> crossJoin(@Nonnull Class<? extends Data> relation);
+    public abstract QueryBuilder<Data, R, ID> crossJoin(Class<? extends Data> relation);
 
     /**
      * Adds an inner join to the query.
@@ -202,7 +201,7 @@ public abstract class QueryBuilder<T extends Data, R, ID> {
      * @param relation the relation to join.
      * @return the query builder.
      */
-    public abstract TypedJoinBuilder<T, R, ID> innerJoin(@Nonnull Class<? extends Data> relation);
+    public abstract TypedJoinBuilder<T, R, ID> innerJoin(Class<? extends Data> relation);
 
     /**
      * Adds a left join to the query.
@@ -210,7 +209,7 @@ public abstract class QueryBuilder<T extends Data, R, ID> {
      * @param relation the relation to join.
      * @return the query builder.
      */
-    public abstract TypedJoinBuilder<T, R, ID> leftJoin(@Nonnull Class<? extends Data> relation);
+    public abstract TypedJoinBuilder<T, R, ID> leftJoin(Class<? extends Data> relation);
 
     /**
      * Adds a right join to the query.
@@ -218,7 +217,7 @@ public abstract class QueryBuilder<T extends Data, R, ID> {
      * @param relation the relation to join.
      * @return the query builder.
      */
-    public abstract TypedJoinBuilder<T, R, ID> rightJoin(@Nonnull Class<? extends Data> relation);
+    public abstract TypedJoinBuilder<T, R, ID> rightJoin(Class<? extends Data> relation);
 
     /**
      * Adds a join of the specified type to the query.
@@ -228,7 +227,7 @@ public abstract class QueryBuilder<T extends Data, R, ID> {
      * @param alias the alias to use for the joined relation.
      * @return the query builder.
      */
-    public abstract TypedJoinBuilder<T, R, ID> join(@Nonnull JoinType type, @Nonnull Class<? extends Data> relation, @Nonnull String alias);
+    public abstract TypedJoinBuilder<T, R, ID> join(JoinType type, Class<? extends Data> relation, String alias);
 
     /**
      * Adds a cross join to the query.
@@ -236,7 +235,7 @@ public abstract class QueryBuilder<T extends Data, R, ID> {
      * @param template the condition to join.
      * @return the query builder.
      */
-    public abstract QueryBuilder<Data, R, ID> crossJoin(@Nonnull TemplateString template);
+    public abstract QueryBuilder<Data, R, ID> crossJoin(TemplateString template);
 
     /**
      * Adds an inner join to the query.
@@ -245,7 +244,7 @@ public abstract class QueryBuilder<T extends Data, R, ID> {
      * @param alias the alias to use for the joined relation.
      * @return the query builder.
      */
-    public abstract JoinBuilder<T, R, ID> innerJoin(@Nonnull TemplateString template, @Nonnull String alias);
+    public abstract JoinBuilder<T, R, ID> innerJoin(TemplateString template, String alias);
 
     /**
      * Adds a left join to the query.
@@ -254,7 +253,7 @@ public abstract class QueryBuilder<T extends Data, R, ID> {
      * @param alias the alias to use for the joined relation.
      * @return the query builder.
      */
-    public abstract JoinBuilder<T, R, ID> leftJoin(@Nonnull TemplateString template, @Nonnull String alias);
+    public abstract JoinBuilder<T, R, ID> leftJoin(TemplateString template, String alias);
 
     /**
      * Adds a right join to the query.
@@ -263,7 +262,7 @@ public abstract class QueryBuilder<T extends Data, R, ID> {
      * @param alias the alias to use for the joined relation.
      * @return the query builder.
      */
-    public abstract JoinBuilder<T, R, ID> rightJoin(@Nonnull TemplateString template, @Nonnull String alias);
+    public abstract JoinBuilder<T, R, ID> rightJoin(TemplateString template, String alias);
 
     /**
      * Adds a join of the specified type to the query using a template.
@@ -273,7 +272,7 @@ public abstract class QueryBuilder<T extends Data, R, ID> {
      * @param alias the alias to use for the joined relation.
      * @return the query builder.
      */
-    public abstract JoinBuilder<T, R, ID> join(@Nonnull JoinType type, @Nonnull TemplateString template, @Nonnull String alias);
+    public abstract JoinBuilder<T, R, ID> join(JoinType type, TemplateString template, String alias);
 
     /**
      * Adds a join of the specified type to the query using a subquery.
@@ -283,7 +282,7 @@ public abstract class QueryBuilder<T extends Data, R, ID> {
      * @param alias the alias to use for the joined relation.
      * @return the query builder.
      */
-    public abstract JoinBuilder<T, R, ID> join(@Nonnull JoinType type, @Nonnull QueryBuilder<?, ?, ?> subquery, @Nonnull String alias);
+    public abstract JoinBuilder<T, R, ID> join(JoinType type, QueryBuilder<?, ?, ?> subquery, String alias);
 
     /**
      * Adds a WHERE clause that matches the specified primary key of the table.
@@ -291,7 +290,7 @@ public abstract class QueryBuilder<T extends Data, R, ID> {
      * @param id the id to match.
      * @return the query builder.
      */
-    public final QueryBuilder<T, R, ID> where(@Nonnull ID id) {
+    public final QueryBuilder<T, R, ID> where(ID id) {
         return where(predicate -> predicate.whereId(id));
     }
 
@@ -302,7 +301,7 @@ public abstract class QueryBuilder<T extends Data, R, ID> {
      * @return the query builder.
      * @since 1.3
      */
-    public final QueryBuilder<T, R, ID> where(@Nonnull Ref<T> ref) {
+    public final QueryBuilder<T, R, ID> where(Ref<T> ref) {
         return where(predicate -> predicate.whereRef(ref));
     }
 
@@ -312,7 +311,7 @@ public abstract class QueryBuilder<T extends Data, R, ID> {
      * @param record the record to match.
      * @return the query builder.
      */
-    public final QueryBuilder<T, R, ID> where(@Nonnull T record) {
+    public final QueryBuilder<T, R, ID> where(T record) {
         return where(predicate -> predicate.where(record));
     }
 
@@ -323,7 +322,7 @@ public abstract class QueryBuilder<T extends Data, R, ID> {
      * @return the query builder.
      * @since 1.2
      */
-    public final QueryBuilder<T, R, ID> whereId(@Nonnull Iterable<? extends ID> it) {
+    public final QueryBuilder<T, R, ID> whereId(Iterable<? extends ID> it) {
         return where(predicate -> predicate.whereId(it));
     }
 
@@ -334,7 +333,7 @@ public abstract class QueryBuilder<T extends Data, R, ID> {
      * @return the query builder.
      * @since 1.3
      */
-    public final QueryBuilder<T, R, ID> whereRef(@Nonnull Iterable<? extends Ref<T>> it) {
+    public final QueryBuilder<T, R, ID> whereRef(Iterable<? extends Ref<T>> it) {
         return where(predicate -> predicate.whereRef(it));
     }
 
@@ -346,12 +345,12 @@ public abstract class QueryBuilder<T extends Data, R, ID> {
      * @param record the records to match.
      * @return the predicate builder.
      */
-    public final <V extends Data> QueryBuilder<T, R, ID> where(@Nonnull Navigable<? extends T, V> path, @Nonnull V record) {
+    public final <V extends Data> QueryBuilder<T, R, ID> where(Navigable<? extends T, V> path, V record) {
         return where(path.asMetamodel(), EQUALS, record);
     }
 
     @SuppressWarnings("unchecked")
-    private static <T extends Data> Metamodel<?, ?>[] asMetamodels(@Nonnull Navigable<? extends T, ?>[] paths) {
+    private static <T extends Data> Metamodel<?, ?>[] asMetamodels(Navigable<? extends T, ?>[] paths) {
         Metamodel<?, ?>[] result = new Metamodel[paths.length];
         for (int i = 0; i < paths.length; i++) {
             result[i] = paths[i].asMetamodel();
@@ -368,7 +367,7 @@ public abstract class QueryBuilder<T extends Data, R, ID> {
      * @return the predicate builder.
      * @since 1.3
      */
-    public final <V extends Data> QueryBuilder<T, R, ID> where(@Nonnull Navigable<? extends T, V> path, @Nonnull Ref<V> ref) {
+    public final <V extends Data> QueryBuilder<T, R, ID> where(Navigable<? extends T, V> path, Ref<V> ref) {
         Metamodel<? extends T, V> metamodel = path.asMetamodel();
         return where(predicate -> predicate.where(metamodel, ref));
     }
@@ -381,7 +380,7 @@ public abstract class QueryBuilder<T extends Data, R, ID> {
      * @param it the records to match.
      * @return the predicate builder.
      */
-    public final <V extends Data> QueryBuilder<T, R, ID> where(@Nonnull Navigable<? extends T, V> path, @Nonnull Iterable<V> it) {
+    public final <V extends Data> QueryBuilder<T, R, ID> where(Navigable<? extends T, V> path, Iterable<V> it) {
         return where(path.asMetamodel(), IN, it);
     }
 
@@ -394,7 +393,7 @@ public abstract class QueryBuilder<T extends Data, R, ID> {
      * @return the predicate builder.
      * @since 1.3
      */
-    public final <V extends Data> QueryBuilder<T, R, ID> whereRef(@Nonnull Navigable<? extends T, V> path, @Nonnull Iterable<? extends Ref<V>> it) {
+    public final <V extends Data> QueryBuilder<T, R, ID> whereRef(Navigable<? extends T, V> path, Iterable<? extends Ref<V>> it) {
         Metamodel<? extends T, V> metamodel = path.asMetamodel();
         return where(predicate -> predicate.whereRef(metamodel, it));
     }
@@ -405,7 +404,7 @@ public abstract class QueryBuilder<T extends Data, R, ID> {
      * @param it the records to match.
      * @return the query builder.
      */
-    public final QueryBuilder<T, R, ID> where(@Nonnull Iterable<? extends T> it) {
+    public final QueryBuilder<T, R, ID> where(Iterable<? extends T> it) {
         return where(predicate -> predicate.where(it));
     }
 
@@ -420,9 +419,9 @@ public abstract class QueryBuilder<T extends Data, R, ID> {
      * @param <V> the type of the object that the metamodel represents.
      * @since 1.2
      */
-    public final <V> QueryBuilder<T, R, ID> where(@Nonnull Navigable<? extends T, V> path,
-                                                  @Nonnull Operator operator,
-                                                  @Nonnull Iterable<? extends V> it) {
+    public final <V> QueryBuilder<T, R, ID> where(Navigable<? extends T, V> path,
+                                                  Operator operator,
+                                                  Iterable<? extends V> it) {
         Metamodel<? extends T, V> metamodel = path.asMetamodel();
         return where(predicate -> predicate.where(metamodel, operator, it));
     }
@@ -439,9 +438,9 @@ public abstract class QueryBuilder<T extends Data, R, ID> {
      * @since 1.2
      */
     @SafeVarargs
-    public final <V> QueryBuilder<T, R, ID> where(@Nonnull Navigable<? extends T, V> path,
-                                                  @Nonnull Operator operator,
-                                                  @Nonnull V... o) {
+    public final <V> QueryBuilder<T, R, ID> where(Navigable<? extends T, V> path,
+                                                  Operator operator,
+                                                  V... o) {
         Metamodel<? extends T, V> metamodel = path.asMetamodel();
         return where(predicate -> predicate.where(metamodel, operator, o));
     }
@@ -452,7 +451,7 @@ public abstract class QueryBuilder<T extends Data, R, ID> {
      * @param template the expression.
      * @return the query builder.
      */
-    public final QueryBuilder<T, R, ID> where(@Nonnull TemplateString template) {
+    public final QueryBuilder<T, R, ID> where(TemplateString template) {
         return where(it -> it.where(template));
     }
 
@@ -462,7 +461,7 @@ public abstract class QueryBuilder<T extends Data, R, ID> {
      * @param predicate the predicate to add.
      * @return the query builder.
      */
-    public abstract QueryBuilder<T, R, ID> where(@Nonnull Function<WhereBuilder<T, R, ID>, PredicateBuilder<T, ?, ?>> predicate);
+    public abstract QueryBuilder<T, R, ID> where(Function<WhereBuilder<T, R, ID>, PredicateBuilder<T, ?, ?>> predicate);
 
     /**
      * Returns the factory this query builds its subqueries with.
@@ -486,7 +485,7 @@ public abstract class QueryBuilder<T extends Data, R, ID> {
      * @return the query builder.
      * @since 1.13
      */
-    public final QueryBuilder<T, R, ID> whereExists(@Nonnull QueryBuilder<?, ?, ?> subquery) {
+    public final QueryBuilder<T, R, ID> whereExists(QueryBuilder<?, ?, ?> subquery) {
         return where(predicate -> predicate.exists(subquery));
     }
 
@@ -497,7 +496,7 @@ public abstract class QueryBuilder<T extends Data, R, ID> {
      * @return the query builder.
      * @since 1.13
      */
-    public final QueryBuilder<T, R, ID> whereNotExists(@Nonnull QueryBuilder<?, ?, ?> subquery) {
+    public final QueryBuilder<T, R, ID> whereNotExists(QueryBuilder<?, ?, ?> subquery) {
         return where(predicate -> predicate.notExists(subquery));
     }
 
@@ -514,7 +513,7 @@ public abstract class QueryBuilder<T extends Data, R, ID> {
      * @since 1.2
      */
     @SafeVarargs
-    public final QueryBuilder<T, R, ID> groupBy(@Nonnull Navigable<? extends T, ?>... path) {
+    public final QueryBuilder<T, R, ID> groupBy(Navigable<? extends T, ?>... path) {
         // We can safely invoke groupByAny as the underlying logic is identical. The main purpose of having these
         // separate methods is to provide (more) type safety when using metamodels that are guaranteed to be present in
         // the table graph. Navigation-only nodes reached beyond a reference are accepted here: they name a column, and
@@ -536,7 +535,7 @@ public abstract class QueryBuilder<T extends Data, R, ID> {
      * @return the query builder.
      * @since 1.2
      */
-    public abstract QueryBuilder<T, R, ID> groupBy(@Nonnull TemplateString template);
+    public abstract QueryBuilder<T, R, ID> groupBy(TemplateString template);
 
     /**
      * Adds a HAVING clause to the query using the specified expression.
@@ -549,9 +548,9 @@ public abstract class QueryBuilder<T extends Data, R, ID> {
      * @since 1.2
      */
     @SafeVarargs
-    public final <V> QueryBuilder<T, R, ID> having(@Nonnull Navigable<? extends T, V> path,
-                                                   @Nonnull Operator operator,
-                                                   @Nonnull V... o) {
+    public final <V> QueryBuilder<T, R, ID> having(Navigable<? extends T, V> path,
+                                                   Operator operator,
+                                                   V... o) {
         return having(wrap(new ObjectExpression(path.asMetamodel(), operator, o)));
     }
 
@@ -563,7 +562,7 @@ public abstract class QueryBuilder<T extends Data, R, ID> {
      * @return the query builder.
      * @since 1.2
      */
-    public abstract QueryBuilder<T, R, ID> having(@Nonnull TemplateString template);
+    public abstract QueryBuilder<T, R, ID> having(TemplateString template);
 
     /**
      * Adds a HAVING clause to the query for the specified predicate. Multiple calls to this method are combined using
@@ -577,7 +576,7 @@ public abstract class QueryBuilder<T extends Data, R, ID> {
      * @return the query builder.
      * @since 1.13
      */
-    public abstract QueryBuilder<T, R, ID> having(@Nonnull PredicateBuilder<? extends T, ?, ?> predicate);
+    public abstract QueryBuilder<T, R, ID> having(PredicateBuilder<? extends T, ?, ?> predicate);
 
     /**
      * Adds a HAVING clause that keeps the groups for which the specified subquery returns at least one row.
@@ -586,7 +585,7 @@ public abstract class QueryBuilder<T extends Data, R, ID> {
      * @return the query builder.
      * @since 1.13
      */
-    public final QueryBuilder<T, R, ID> havingExists(@Nonnull QueryBuilder<?, ?, ?> subquery) {
+    public final QueryBuilder<T, R, ID> havingExists(QueryBuilder<?, ?, ?> subquery) {
         return having(TemplateString.raw("EXISTS (\0)", subquery));
     }
 
@@ -597,7 +596,7 @@ public abstract class QueryBuilder<T extends Data, R, ID> {
      * @return the query builder.
      * @since 1.13
      */
-    public final QueryBuilder<T, R, ID> havingNotExists(@Nonnull QueryBuilder<?, ?, ?> subquery) {
+    public final QueryBuilder<T, R, ID> havingNotExists(QueryBuilder<?, ?, ?> subquery) {
         return having(TemplateString.raw("NOT EXISTS (\0)", subquery));
     }
 
@@ -609,7 +608,7 @@ public abstract class QueryBuilder<T extends Data, R, ID> {
      * @since 1.2
      */
     @SafeVarargs
-    public final QueryBuilder<T, R, ID> orderBy(@Nonnull Navigable<? extends T, ?>... path) {
+    public final QueryBuilder<T, R, ID> orderBy(Navigable<? extends T, ?>... path) {
         // We can safely invoke orderByAny as the underlying logic is identical. The main purpose of having these
         // separate methods is to provide (more) type safety when using metamodels that are guaranteed to be present in
         // the table graph.
@@ -630,7 +629,7 @@ public abstract class QueryBuilder<T extends Data, R, ID> {
      * @return the query builder.
      * @since 1.2
      */
-    public final QueryBuilder<T, R, ID> orderByDescending(@Nonnull Navigable<? extends T, ?> path) {
+    public final QueryBuilder<T, R, ID> orderByDescending(Navigable<? extends T, ?> path) {
         return orderBy(TemplateString.wrap(new Columns(path.asMetamodel(), CASCADE, true)));
     }
 
@@ -643,7 +642,7 @@ public abstract class QueryBuilder<T extends Data, R, ID> {
      * @since 1.9
      */
     @SafeVarargs
-    public final QueryBuilder<T, R, ID> orderByDescending(@Nonnull Navigable<? extends T, ?>... path) {
+    public final QueryBuilder<T, R, ID> orderByDescending(Navigable<? extends T, ?>... path) {
         if (path.length == 0) {
             throw new PersistenceException("At least one path must be provided for ORDER BY clause.");
         }
@@ -661,7 +660,7 @@ public abstract class QueryBuilder<T extends Data, R, ID> {
      * @return the query builder.
      * @since 1.9
      */
-    public final QueryBuilder<T, R, ID> orderByDescending(@Nonnull TemplateString template) {
+    public final QueryBuilder<T, R, ID> orderByDescending(TemplateString template) {
         return orderBy(TemplateString.combine(template, TemplateString.of(" DESC")));
     }
 
@@ -673,7 +672,7 @@ public abstract class QueryBuilder<T extends Data, R, ID> {
      * @return the query builder.
      * @since 1.2
      */
-    public abstract QueryBuilder<T, R, ID> orderBy(@Nonnull TemplateString template);
+    public abstract QueryBuilder<T, R, ID> orderBy(TemplateString template);
 
     /**
      * Returns {@code true} if any ORDER BY columns have been added to this query builder.
@@ -735,7 +734,7 @@ public abstract class QueryBuilder<T extends Data, R, ID> {
      * @throws PersistenceException if the lock mode is not supported for the current query.
      * @since 1.2
      */
-    public abstract QueryBuilder<T, R, ID> forLock(@Nonnull TemplateString template);
+    public abstract QueryBuilder<T, R, ID> forLock(TemplateString template);
 
     //
     // Finalization.
@@ -816,7 +815,7 @@ public abstract class QueryBuilder<T extends Data, R, ID> {
      * @throws PersistenceException if the pageable has sort orders and the query builder has explicit orderBy calls.
      * @since 1.10
      */
-    public final Page<R> page(@Nonnull Pageable pageable) {
+    public final Page<R> page(Pageable pageable) {
         List<R> content = pageContent(pageable);
         long totalCount;
         if (content.size() < pageable.pageSize() && (pageable.offset() == 0 || !content.isEmpty())) {
@@ -847,14 +846,14 @@ public abstract class QueryBuilder<T extends Data, R, ID> {
      * @throws PersistenceException if the pageable has sort orders and the query builder has explicit orderBy calls.
      * @since 1.10
      */
-    public final Page<R> page(@Nonnull Pageable pageable, long totalCount) {
+    public final Page<R> page(Pageable pageable, long totalCount) {
         return new Page<>(pageContent(pageable), totalCount, pageable);
     }
 
     /**
      * Fetches the content for the requested page, applying the pageable's sort orders and offset/limit window.
      */
-    private List<R> pageContent(@Nonnull Pageable pageable) {
+    private List<R> pageContent(Pageable pageable) {
         // Forbid combining explicit orderBy with Pageable sort orders for consistency with scroll, which also
         // manages ORDER BY internally and forbids explicit orderBy calls.
         if (hasOrderBy() && !pageable.orders().isEmpty()) {
@@ -909,7 +908,7 @@ public abstract class QueryBuilder<T extends Data, R, ID> {
      * @since 1.11
      */
     @SuppressWarnings("unchecked")
-    private Window<R> toWindow(@Nonnull Window<R> raw, @Nonnull Metamodel.Key<T, ?> key,
+    private Window<R> toWindow(Window<R> raw, Metamodel.Key<T, ?> key,
                                @Nullable Metamodel<T, ?> sort, int size, boolean forward, boolean hasCursor) {
         if (raw.content().isEmpty()) {
             return raw;
@@ -949,12 +948,12 @@ public abstract class QueryBuilder<T extends Data, R, ID> {
      * @param <E> the type of the key.
      * @throws PersistenceException if the key is nullable.
      */
-    private static <T extends Data, E> void validateKeyNotNullable(@Nonnull Metamodel.Key<T, E> key) {
+    private static <T extends Data, E> void validateKeyNotNullable(Metamodel.Key<T, E> key) {
         if (key.isNullable()) {
             throw new PersistenceException(
                     ("Scrolling requires a non-nullable unique key, but '%s' allows NULL values. "
                     + "SQL comparisons with NULL silently exclude rows from the result set. "
-                    + "Either make the field non-nullable (@Nonnull or a primitive type), or set "
+                    + "Either make the field non-nullable (or a primitive type), or set "
                     + "@UK(nullsDistinct = false) if the database constraint prevents duplicate NULLs.")
                     .formatted(key.fieldPath()));
         }
@@ -969,7 +968,7 @@ public abstract class QueryBuilder<T extends Data, R, ID> {
      * @since 1.11
      */
     @SuppressWarnings("unchecked")
-    public final Window<R> scroll(@Nonnull Scrollable<T> scrollable) {
+    public final Window<R> scroll(Scrollable<T> scrollable) {
         var key = (Metamodel.Key<T, Object>) scrollable.key();
         int size = scrollable.size();
         boolean forward = scrollable.isForward();
@@ -1118,7 +1117,7 @@ public abstract class QueryBuilder<T extends Data, R, ID> {
      *                              resolves to null for a result.
      * @since 1.13
      */
-    public final <V extends Data> SequencedMap<V, List<R>> getResultGroupedBy(@Nonnull TypedMetamodel<T, V, V> path) {
+    public final <V extends Data> SequencedMap<V, List<R>> getResultGroupedBy(TypedMetamodel<T, V, V> path) {
         requireNonNull(path, "path");
         try (var stream = getMaterializedResultStream()) {
             // Duplicate records within a result set share the same instance (query-scoped interning), so the identity
@@ -1203,7 +1202,7 @@ public abstract class QueryBuilder<T extends Data, R, ID> {
      *                              not reference an entity or ref, or if the path resolves to null for a result.
      * @since 1.13
      */
-    public final <V extends Data> SequencedMap<Ref<V>, List<R>> getResultGroupedByRef(@Nonnull Metamodel<T, V> path) {
+    public final <V extends Data> SequencedMap<Ref<V>, List<R>> getResultGroupedByRef(Metamodel<T, V> path) {
         requireNonNull(path, "path");
         try (var stream = getMaterializedResultStream()) {
             // Refs hash and compare by primary key, so the grouping map is cheap without an identity-based fast path.

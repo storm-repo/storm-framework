@@ -15,7 +15,6 @@
  */
 package st.orm.core.spi;
 
-import jakarta.annotation.Nonnull;
 import st.orm.Projection;
 import st.orm.core.repository.ProjectionRepository;
 import st.orm.core.template.Model;
@@ -27,6 +26,6 @@ import st.orm.core.template.ORMTemplate;
 public interface ProjectionRepositoryProvider extends Provider {
 
     <ID, P extends Projection<ID>> ProjectionRepository<P, ID> getProjectionRepository(
-            @Nonnull ORMTemplate ormTemplate,
-            @Nonnull Model<P, ID> model);
+            ORMTemplate ormTemplate,
+            Model<P, ID> model);
 }

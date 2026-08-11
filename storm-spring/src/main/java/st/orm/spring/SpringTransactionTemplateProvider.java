@@ -18,8 +18,6 @@ package st.orm.spring;
 import static java.util.Optional.empty;
 import static java.util.Optional.of;
 
-import jakarta.annotation.Nonnull;
-import jakarta.annotation.Nullable;
 import java.sql.Connection;
 import java.util.HashMap;
 import java.util.List;
@@ -27,6 +25,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
+import org.jspecify.annotations.Nullable;
 import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.support.DefaultTransactionDefinition;
 import org.springframework.transaction.support.TransactionSynchronization;
@@ -89,7 +88,7 @@ public class SpringTransactionTemplateProvider implements TransactionTemplatePro
      *
      * @param transactionManagers supplies the transaction managers of the owning application context.
      */
-    public SpringTransactionTemplateProvider(@Nonnull Supplier<List<PlatformTransactionManager>> transactionManagers) {
+    public SpringTransactionTemplateProvider(Supplier<List<PlatformTransactionManager>> transactionManagers) {
         this.transactionManagers = transactionManagers;
     }
 
@@ -98,7 +97,7 @@ public class SpringTransactionTemplateProvider implements TransactionTemplatePro
      *
      * @param transactionManagers the transaction managers of the owning application context.
      */
-    public SpringTransactionTemplateProvider(@Nonnull List<PlatformTransactionManager> transactionManagers) {
+    public SpringTransactionTemplateProvider(List<PlatformTransactionManager> transactionManagers) {
         this(() -> transactionManagers);
     }
 
@@ -108,7 +107,7 @@ public class SpringTransactionTemplateProvider implements TransactionTemplatePro
             private final DefaultTransactionDefinition definition = new DefaultTransactionDefinition();
 
             @Override
-            public TransactionTemplate propagation(@Nonnull TransactionPropagation propagation) {
+            public TransactionTemplate propagation(TransactionPropagation propagation) {
                 definition.setPropagationBehavior(switch (propagation) {
                     case REQUIRED -> DefaultTransactionDefinition.PROPAGATION_REQUIRED;
                     case SUPPORTS -> DefaultTransactionDefinition.PROPAGATION_SUPPORTS;
@@ -122,7 +121,7 @@ public class SpringTransactionTemplateProvider implements TransactionTemplatePro
             }
 
             @Override
-            public TransactionTemplate isolation(@Nonnull TransactionIsolation isolation) {
+            public TransactionTemplate isolation(TransactionIsolation isolation) {
                 definition.setIsolationLevel(isolation.jdbcLevel());
                 return this;
             }
@@ -190,7 +189,7 @@ public class SpringTransactionTemplateProvider implements TransactionTemplatePro
                     }
 
                     @Override
-                    public void deferCompletion(@Nonnull Consumer<Boolean> callback) {
+                    public void deferCompletion(Consumer<Boolean> callback) {
                         // The Spring-managed transaction this handle joined owns the commit; the callback fires
                         // on its outcome, as a synchronization on the physical transaction.
                         TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
@@ -255,8 +254,8 @@ public class SpringTransactionTemplateProvider implements TransactionTemplatePro
         }
 
         @Override
-        public EntityCache<? extends Entity<?>, ?> entityCache(@Nonnull Class<? extends Entity<?>> entityType,
-                                                               @Nonnull CacheRetention retention) {
+        public EntityCache<? extends Entity<?>, ?> entityCache(Class<? extends Entity<?>> entityType,
+                                                               CacheRetention retention) {
             // The context is bound once per physical Spring transaction, which gives correct cache scoping for
             // REQUIRED and REQUIRES_NEW. NESTED savepoint rollbacks are not observable through Spring's hooks, so no
             // cache splitting is attempted for savepoints.
@@ -264,7 +263,7 @@ public class SpringTransactionTemplateProvider implements TransactionTemplatePro
         }
 
         @Override
-        public EntityCache<? extends Entity<?>, ?> getEntityCache(@Nonnull Class<? extends Entity<?>> entityType) {
+        public EntityCache<? extends Entity<?>, ?> getEntityCache(Class<? extends Entity<?>> entityType) {
             var cache = caches.get(entityType);
             if (cache == null) {
                 throw new IllegalStateException("No entity cache exists for " + entityType.getName() + ".");
@@ -273,7 +272,7 @@ public class SpringTransactionTemplateProvider implements TransactionTemplatePro
         }
 
         @Override
-        public EntityCache<? extends Entity<?>, ?> findEntityCache(@Nonnull Class<? extends Entity<?>> entityType) {
+        public EntityCache<? extends Entity<?>, ?> findEntityCache(Class<? extends Entity<?>> entityType) {
             return caches.get(entityType);
         }
 
@@ -286,7 +285,7 @@ public class SpringTransactionTemplateProvider implements TransactionTemplatePro
 
         @Override
         @SuppressWarnings("unchecked")
-        public <T> Decorator<T> getDecorator(@Nonnull Class<T> resourceType) {
+        public <T> Decorator<T> getDecorator(Class<T> resourceType) {
             return (Decorator<T>) noopDecorator;
         }
     }

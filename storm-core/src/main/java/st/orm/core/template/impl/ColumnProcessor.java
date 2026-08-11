@@ -15,7 +15,6 @@
  */
 package st.orm.core.template.impl;
 
-import jakarta.annotation.Nonnull;
 import st.orm.core.template.SqlTemplateException;
 import st.orm.core.template.impl.Elements.Column;
 
@@ -35,7 +34,7 @@ final class ColumnProcessor implements ElementProcessor<Column> {
      * @return an immutable key for caching, or {@code null} if the element (or its compilation) cannot be cached.
      */
     @Override
-    public Object getCompilationKey(@Nonnull Column column) {
+    public Object getCompilationKey(Column column) {
         return column;
     }
 
@@ -51,7 +50,7 @@ final class ColumnProcessor implements ElementProcessor<Column> {
      * @throws SqlTemplateException if compilation fails.
      */
     @Override
-    public CompiledElement compile(@Nonnull Column column, @Nonnull TemplateCompiler compiler)
+    public CompiledElement compile(Column column, TemplateCompiler compiler)
             throws SqlTemplateException {
         var metamodel = MetamodelFactory.canonical(column.field());
         var model = compiler.getModel(metamodel.tableType());
@@ -76,6 +75,6 @@ final class ColumnProcessor implements ElementProcessor<Column> {
      * @param bindHint the bind hint for the element, providing additional context for binding.
      */
     @Override
-    public void bind(@Nonnull Column column, @Nonnull TemplateBinder binder, @Nonnull BindHint bindHint) {
+    public void bind(Column column, TemplateBinder binder, BindHint bindHint) {
     }
 }

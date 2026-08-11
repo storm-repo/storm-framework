@@ -17,10 +17,10 @@ package st.orm.jackson;
 
 import static st.orm.core.spi.Providers.getORMReflection;
 
-import jakarta.annotation.Nullable;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Supplier;
+import org.jspecify.annotations.Nullable;
 import st.orm.Data;
 import st.orm.Entity;
 import st.orm.PK;

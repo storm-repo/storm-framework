@@ -15,7 +15,6 @@
  */
 package st.orm.mapping;
 
-import jakarta.annotation.Nonnull;
 
 /**
  * Resolves the column name for a record component.
@@ -43,7 +42,7 @@ public interface ColumnNameResolver {
      * @param resolver the column name resolver to wrap.
      * @return the column name resolver.
      */
-    static ColumnNameResolver toUpperCase(@Nonnull ColumnNameResolver resolver) {
+    static ColumnNameResolver toUpperCase(ColumnNameResolver resolver) {
         return component -> resolver.resolveColumnName(component).toUpperCase();
     }
 
@@ -53,5 +52,5 @@ public interface ColumnNameResolver {
      * @param field the record field
      * @return the column name.
      */
-    String resolveColumnName(@Nonnull RecordField field);
+    String resolveColumnName(RecordField field);
 }

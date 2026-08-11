@@ -18,7 +18,6 @@ package st.orm.template.impl;
 import static java.util.Objects.requireNonNull;
 import static st.orm.template.impl.StringTemplates.convert;
 
-import jakarta.annotation.Nonnull;
 import st.orm.BindVars;
 import st.orm.Data;
 import st.orm.PersistenceException;
@@ -33,7 +32,7 @@ import st.orm.template.QueryTemplate;
 public class QueryTemplateImpl implements QueryTemplate {
     private final st.orm.core.template.QueryTemplate core;
 
-    public QueryTemplateImpl(@Nonnull st.orm.core.template.QueryTemplate core) {
+    public QueryTemplateImpl(st.orm.core.template.QueryTemplate core) {
         this.core = requireNonNull(core, "core");
     }
 
@@ -48,59 +47,59 @@ public class QueryTemplateImpl implements QueryTemplate {
     }
 
     @Override
-    public <T extends Data, ID> Ref<T> ref(@Nonnull Class<T> type, @Nonnull ID id) {
+    public <T extends Data, ID> Ref<T> ref(Class<T> type, ID id) {
         return core.ref(type, id);
     }
 
     @Override
-    public <T extends Data, ID> Ref<T> ref(@Nonnull T record, @Nonnull ID id) {
+    public <T extends Data, ID> Ref<T> ref(T record, ID id) {
         return core.ref(record, id);
     }
 
     @Override
-    public <T extends Data, ID> Model<T, ID> model(@Nonnull Class<T> type) {
+    public <T extends Data, ID> Model<T, ID> model(Class<T> type) {
         //noinspection unchecked
         return new ModelImpl<>((st.orm.core.template.impl.ModelImpl<T, ID>) core.model(type));
     }
 
     @Override
-    public <T extends Data, ID> Model<T, ID> model(@Nonnull Class<T> type, boolean requirePrimaryKey) {
+    public <T extends Data, ID> Model<T, ID> model(Class<T> type, boolean requirePrimaryKey) {
         //noinspection unchecked
         return new ModelImpl<>((st.orm.core.template.impl.ModelImpl<T, ID>) core.model(type, requirePrimaryKey));
     }
 
     @Override
-    public <T extends Data, R> QueryBuilder<T, R, Object> selectFrom(@Nonnull Class<T> fromType, @Nonnull Class<R> selectType, @Nonnull StringTemplate template) {
+    public <T extends Data, R> QueryBuilder<T, R, Object> selectFrom(Class<T> fromType, Class<R> selectType, StringTemplate template) {
         return new QueryBuilderImpl<>(core.selectFrom(fromType, selectType, convert(template)));
     }
 
     @Override
-    public <T extends Data> QueryBuilder<T, ?, ?> deleteFrom(@Nonnull Class<T> fromType) {
+    public <T extends Data> QueryBuilder<T, ?, ?> deleteFrom(Class<T> fromType) {
         return new QueryBuilderImpl<>(core.deleteFrom(fromType));
     }
 
     @Override
-    public Query query(@Nonnull String query) {
+    public Query query(String query) {
         return new QueryImpl(core.query(query));
     }
 
     @Override
-    public Query query(@Nonnull StringTemplate template) throws PersistenceException {
+    public Query query(StringTemplate template) throws PersistenceException {
         return new QueryImpl(core.query(convert(template)));
     }
 
     @Override
-    public <T extends Data> QueryBuilder<T, ?, ?> subquery(@Nonnull Class<T> fromType) {
+    public <T extends Data> QueryBuilder<T, ?, ?> subquery(Class<T> fromType) {
         return new QueryBuilderImpl<>(core.subquery(fromType));
     }
 
     @Override
-    public <T extends Data, R extends Data> QueryBuilder<T, ?, ?> subquery(@Nonnull Class<T> fromType, @Nonnull Class<R> selectType) {
+    public <T extends Data, R extends Data> QueryBuilder<T, ?, ?> subquery(Class<T> fromType, Class<R> selectType) {
         return new QueryBuilderImpl<>(core.subquery(fromType, selectType));
     }
 
     @Override
-    public <T extends Data> QueryBuilder<T, ?, ?> subquery(@Nonnull Class<T> fromType, @Nonnull StringTemplate template) {
+    public <T extends Data> QueryBuilder<T, ?, ?> subquery(Class<T> fromType, StringTemplate template) {
         return new QueryBuilderImpl<>(core.subquery(fromType, convert(template)));
     }
 }

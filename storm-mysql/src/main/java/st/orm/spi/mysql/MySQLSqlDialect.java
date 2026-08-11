@@ -17,7 +17,6 @@ package st.orm.spi.mysql;
 
 import static java.util.stream.Collectors.toSet;
 
-import jakarta.annotation.Nonnull;
 import java.util.Set;
 import java.util.regex.Pattern;
 import java.util.stream.Stream;
@@ -32,7 +31,7 @@ public class MySQLSqlDialect extends DefaultSqlDialect implements SqlDialect {
     public MySQLSqlDialect() {
     }
 
-    public MySQLSqlDialect(@Nonnull StormConfig config) {
+    public MySQLSqlDialect(StormConfig config) {
         super(config);
     }
 
@@ -104,7 +103,7 @@ public class MySQLSqlDialect extends DefaultSqlDialect implements SqlDialect {
      * @since 1.2
      */
     @Override
-    public boolean isKeyword(@Nonnull String name) {
+    public boolean isKeyword(String name) {
         return MYSQL_KEYWORDS.contains(name.toUpperCase());
     }
 
@@ -115,7 +114,7 @@ public class MySQLSqlDialect extends DefaultSqlDialect implements SqlDialect {
      * @return the escaped identifier
      */
     @Override
-    public String escape(@Nonnull String name) {
+    public String escape(String name) {
         return "`%s`".formatted(name.replace("`", "``"));
     }
 
@@ -189,7 +188,7 @@ public class MySQLSqlDialect extends DefaultSqlDialect implements SqlDialect {
      * @since 1.13
      */
     @Override
-    protected boolean rendersTupleComparison(@Nonnull Operator operator, int rowCount) {
+    protected boolean rendersTupleComparison(Operator operator, int rowCount) {
         return isMultiRowEquality(operator, rowCount);
     }
 

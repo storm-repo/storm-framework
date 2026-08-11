@@ -7,10 +7,9 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static st.orm.core.template.ORMTemplate.of;
 
-import jakarta.annotation.Nonnull;
-import jakarta.annotation.Nullable;
 import javax.sql.DataSource;
 import lombok.Builder;
+import org.jspecify.annotations.Nullable;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -37,9 +36,9 @@ public class JsonORMConverterTest {
     @DbTable("owner")
     public record OwnerWithFailOnUnknown(
             @PK Integer id,
-            @Nonnull String firstName,
-            @Nonnull String lastName,
-            @Nonnull @Json(failOnUnknown = true) Address address,
+            String firstName,
+            String lastName,
+            @Json(failOnUnknown = true) Address address,
             @Nullable String telephone
     ) implements Entity<Integer> {}
 
@@ -47,9 +46,9 @@ public class JsonORMConverterTest {
     @DbTable("owner")
     public record OwnerWithFailOnMissing(
             @PK Integer id,
-            @Nonnull String firstName,
-            @Nonnull String lastName,
-            @Nonnull @Json(failOnMissing = true) Address address,
+            String firstName,
+            String lastName,
+            @Json(failOnMissing = true) Address address,
             @Nullable String telephone
     ) implements Entity<Integer> {}
 
@@ -57,9 +56,9 @@ public class JsonORMConverterTest {
     @DbTable("owner")
     public record OwnerWithBothFailOptions(
             @PK Integer id,
-            @Nonnull String firstName,
-            @Nonnull String lastName,
-            @Nonnull @Json(failOnUnknown = true, failOnMissing = true) Address address,
+            String firstName,
+            String lastName,
+            @Json(failOnUnknown = true, failOnMissing = true) Address address,
             @Nullable String telephone
     ) implements Entity<Integer> {}
 
@@ -67,8 +66,8 @@ public class JsonORMConverterTest {
     @DbTable("owner")
     public record OwnerWithNullableAddress(
             @PK Integer id,
-            @Nonnull String firstName,
-            @Nonnull String lastName,
+            String firstName,
+            String lastName,
             @Nullable @Json Address address,
             @Nullable String telephone
     ) implements Entity<Integer> {}

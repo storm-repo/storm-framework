@@ -17,7 +17,6 @@ package st.orm.core.template.impl;
 
 import static java.util.Objects.requireNonNull;
 
-import jakarta.annotation.Nonnull;
 import st.orm.core.spi.Name;
 import st.orm.core.template.SqlDialect;
 import st.orm.core.template.TemplateString;
@@ -32,7 +31,7 @@ final class SqlDialectTemplate {
 
     private final SqlDialect dialect;
 
-    public SqlDialectTemplate(@Nonnull SqlDialect dialect) {
+    public SqlDialectTemplate(SqlDialect dialect) {
         this.dialect = requireNonNull(dialect);
     }
 
@@ -43,7 +42,7 @@ final class SqlDialectTemplate {
      * @param values   the values to substitute in the template.
      * @return the processed SQL string.
      */
-    public String process(@Nonnull String template, @Nonnull Object... values) {
+    public String process(String template, Object... values) {
         return process(TemplateString.raw(template, values));
     }
 
@@ -53,7 +52,7 @@ final class SqlDialectTemplate {
      * @param template the template string to process.
      * @return the processed SQL string.
      */
-    public String process(@Nonnull TemplateString template) {
+    public String process(TemplateString template) {
         StringBuilder builder = new StringBuilder();
         int valuesSize = template.values().size();
         for (int i = 0; i < valuesSize; i++) {

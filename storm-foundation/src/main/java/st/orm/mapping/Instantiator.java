@@ -15,8 +15,7 @@
  */
 package st.orm.mapping;
 
-import jakarta.annotation.Nonnull;
-import jakarta.annotation.Nullable;
+import org.jspecify.annotations.Nullable;
 
 /**
  * Constructs record instances without reflection.
@@ -51,7 +50,7 @@ public interface Instantiator<T> {
      * @param args the canonical constructor arguments, in declaration order.
      * @return the constructed instance.
      */
-    T instantiate(@Nonnull Object[] args);
+    T instantiate(Object[] args);
 
     /**
      * Deconstructs the given instance into its canonical constructor arguments, in declaration order.
@@ -69,7 +68,7 @@ public interface Instantiator<T> {
      * @since 1.13
      */
     @Nullable
-    default Object[] deconstruct(@Nonnull T instance) {
+    default Object[] deconstruct(T instance) {
         return null;
     }
 }

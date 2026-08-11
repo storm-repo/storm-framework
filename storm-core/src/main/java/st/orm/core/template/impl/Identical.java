@@ -15,7 +15,6 @@
  */
 package st.orm.core.template.impl;
 
-import jakarta.annotation.Nonnull;
 
 /**
  * Identity comparison on an extracted field value.
@@ -31,5 +30,5 @@ public interface Identical<T> {
     /**
      * Returns {@code true} if and only if the value extracted from {@code a} and {@code b} is the same object instance.
      */
-    boolean isIdentical(@Nonnull T a, @Nonnull T b) throws Throwable;
+    boolean isIdentical(T a, T b) throws Throwable;
 }

@@ -17,7 +17,6 @@ package st.orm.mapping;
 
 import static java.util.Objects.requireNonNull;
 
-import jakarta.annotation.Nonnull;
 import java.lang.annotation.Annotation;
 import java.lang.reflect.Method;
 import java.lang.reflect.Type;
@@ -42,14 +41,14 @@ import st.orm.PersistenceException;
  * @param annotations all annotations present on this field.
  * @since 1.7
  */
-public record RecordField(@Nonnull Class<?> declaringType,
-                          @Nonnull String name,
-                          @Nonnull Class<?> type,
-                          @Nonnull Type genericType,
+public record RecordField(Class<?> declaringType,
+                          String name,
+                          Class<?> type,
+                          Type genericType,
                           boolean nullable,
                           boolean mutable,
-                          @Nonnull Method method,
-                          @Nonnull List<Annotation> annotations) {
+                          Method method,
+                          List<Annotation> annotations) {
     public RecordField {
         requireNonNull(declaringType, "declaringType must not be null");
         requireNonNull(name, "name must not be null");
@@ -91,7 +90,7 @@ public record RecordField(@Nonnull Class<?> declaringType,
      * @param annotationType the annotation type to look for
      * @return {@code true} if at least one annotation of the specified type is present
      */
-    public boolean isAnnotationPresent(@Nonnull Class<? extends Annotation> annotationType) {
+    public boolean isAnnotationPresent(Class<? extends Annotation> annotationType) {
         return Annotations.isAnnotationPresent(annotations, annotationType);
     }
 
@@ -105,7 +104,7 @@ public record RecordField(@Nonnull Class<?> declaringType,
      * @param annotationType the annotation type to retrieve
      * @return an array of all matching annotations, or an empty array if none are found
      */
-    public <A extends Annotation> A[] getAnnotations(@Nonnull Class<A> annotationType) {
+    public <A extends Annotation> A[] getAnnotations(Class<A> annotationType) {
         return Annotations.getAnnotations(annotations, annotationType);
     }
 
@@ -121,7 +120,7 @@ public record RecordField(@Nonnull Class<?> declaringType,
      * @param annotationType the annotation type to retrieve
      * @return the annotation if exactly one instance is present, otherwise {@code null}
      */
-    public <A extends Annotation> A getAnnotation(@Nonnull Class<A> annotationType) {
+    public <A extends Annotation> A getAnnotation(Class<A> annotationType) {
         return Annotations.getAnnotation(annotations, annotationType);
     }
 }

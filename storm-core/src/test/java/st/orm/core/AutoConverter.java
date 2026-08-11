@@ -1,14 +1,14 @@
 package st.orm.core;
 
-import jakarta.annotation.Nullable;
 import java.time.LocalDate;
+import org.jspecify.annotations.Nullable;
 import st.orm.Converter;
 import st.orm.DefaultConverter;
 
 @DefaultConverter
 public class AutoConverter implements Converter<LocalDate, RepositoryPreparedStatementIntegrationTest.AutoDate> {
     @Override
-    public LocalDate toDatabase(@Nullable RepositoryPreparedStatementIntegrationTest.AutoDate value) {
+    public LocalDate toDatabase(RepositoryPreparedStatementIntegrationTest.@Nullable AutoDate value) {
         return value == null ? null : LocalDate.parse(value.value());
     }
 

@@ -17,8 +17,7 @@ package st.orm;
 
 import static java.util.Objects.requireNonNull;
 
-import jakarta.annotation.Nonnull;
-import jakarta.annotation.Nullable;
+import org.jspecify.annotations.Nullable;
 
 /**
  * Detached {@link Ref} implementation.
@@ -30,7 +29,7 @@ final class DetachedRef<T extends Data, ID> extends AbstractRef<T> {
     private final Class<T> type;
     private final ID pk;
 
-    public DetachedRef(@Nonnull Class<T> type, @Nonnull ID pk) {
+    public DetachedRef(Class<T> type, ID pk) {
         this.type = requireNonNull(type, "type");
         this.pk = requireNonNull(pk, "pk");
     }

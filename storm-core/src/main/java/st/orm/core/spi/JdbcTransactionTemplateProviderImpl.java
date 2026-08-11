@@ -15,8 +15,7 @@
  */
 package st.orm.core.spi;
 
-import jakarta.annotation.Nonnull;
-import jakarta.annotation.Nullable;
+import org.jspecify.annotations.Nullable;
 import st.orm.PersistenceException;
 import st.orm.TransactionIsolation;
 import st.orm.TransactionPropagation;
@@ -43,13 +42,13 @@ public final class JdbcTransactionTemplateProviderImpl implements TransactionTem
             private boolean readOnly = false;
 
             @Override
-            public TransactionTemplate propagation(@Nonnull TransactionPropagation propagation) {
+            public TransactionTemplate propagation(TransactionPropagation propagation) {
                 this.propagation = propagation;
                 return this;
             }
 
             @Override
-            public TransactionTemplate isolation(@Nonnull TransactionIsolation isolation) {
+            public TransactionTemplate isolation(TransactionIsolation isolation) {
                 this.isolation = isolation;
                 return this;
             }

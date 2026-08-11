@@ -15,7 +15,6 @@
  */
 package st.orm.core.spi;
 
-import jakarta.annotation.Nonnull;
 import st.orm.Entity;
 import st.orm.core.repository.EntityRepository;
 import st.orm.core.template.Model;
@@ -26,6 +25,6 @@ import st.orm.core.template.ORMTemplate;
  */
 public interface EntityRepositoryProvider extends Provider {
 
-    <ID, E extends Entity<ID>> EntityRepository<E, ID> getEntityRepository(@Nonnull ORMTemplate ormTemplate,
-                                                                           @Nonnull Model<E, ID> model);
+    <ID, E extends Entity<ID>> EntityRepository<E, ID> getEntityRepository(ORMTemplate ormTemplate,
+                                                                           Model<E, ID> model);
 }

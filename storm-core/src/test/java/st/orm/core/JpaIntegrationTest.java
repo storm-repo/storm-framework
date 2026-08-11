@@ -6,7 +6,6 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static st.orm.core.template.JpaTemplate.ORM;
 import static st.orm.core.template.TemplateString.raw;
 
-import jakarta.annotation.Nonnull;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.PersistenceContext;
 import jakarta.persistence.PersistenceException;
@@ -148,7 +147,7 @@ public class JpaIntegrationTest {
     public void testSelectPetTypedWithLocalRecordAndNonnullEnumNull() {
         // JPA does not support wildcard (*) column expansion for Owner; throws PersistenceException.
         assertThrows(PersistenceException.class, () -> {
-            record Pet(int id, String name, LocalDate birthDate, @Nonnull PetTypeEnum type, Owner owner) {}
+            record Pet(int id, String name, LocalDate birthDate, PetTypeEnum type, Owner owner) {}
             try (var query = ORM(entityManager).query("""
                     SELECT p.id, p.name, p.birth_date, NULL pet_type, o.*
                     FROM pet p

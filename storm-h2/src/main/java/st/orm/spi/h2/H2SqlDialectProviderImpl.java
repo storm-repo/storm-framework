@@ -15,7 +15,6 @@
  */
 package st.orm.spi.h2;
 
-import jakarta.annotation.Nonnull;
 import java.util.function.Predicate;
 import st.orm.StormConfig;
 import st.orm.core.spi.Provider;
@@ -28,7 +27,7 @@ import st.orm.core.template.SqlDialect;
 public class H2SqlDialectProviderImpl implements SqlDialectProvider {
 
     @Override
-    public boolean supports(@Nonnull String databaseProductName) {
+    public boolean supports(String databaseProductName) {
         return "H2".equalsIgnoreCase(databaseProductName);
     }
 
@@ -38,7 +37,7 @@ public class H2SqlDialectProviderImpl implements SqlDialectProvider {
     }
 
     @Override
-    public SqlDialect getSqlDialect(@Nonnull StormConfig config) {
+    public SqlDialect getSqlDialect(StormConfig config) {
         return new H2SqlDialect(config);
     }
 }

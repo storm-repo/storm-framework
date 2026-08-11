@@ -189,7 +189,7 @@ class SpringTransactionBridgeTest {
         // block joins the Storm-managed transaction the insert runs in, so the callback fires on its outcome.
         ORMTemplate withCallback = orm.withEntityCallback(new st.orm.EntityCallback<Visit>() {
             @Override
-            public void afterInsert(@jakarta.annotation.Nonnull Visit entity) {
+            public void afterInsert(Visit entity) {
                 transaction(tx -> {
                     tx.onCommit(() -> events.add("inserted " + entity.description()));
                     return null;
@@ -219,7 +219,7 @@ class SpringTransactionBridgeTest {
         // The block runs no query, so the detected Spring transaction is what its onCommit waits for.
         ORMTemplate withCallback = orm.withEntityCallback(new st.orm.EntityCallback<Visit>() {
             @Override
-            public void afterInsert(@jakarta.annotation.Nonnull Visit entity) {
+            public void afterInsert(Visit entity) {
                 transaction(tx -> {
                     tx.onCommit(() -> events.add("inserted " + entity.description()));
                     return null;

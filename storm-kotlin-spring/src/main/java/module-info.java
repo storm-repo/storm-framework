@@ -9,7 +9,6 @@ module storm.kotlin.spring {
     requires kotlin.reflect;
     requires kotlin.stdlib;
     requires kotlinx.coroutines.core;
-    requires jakarta.annotation;
     requires spring.core;
     requires spring.aop;
     requires org.slf4j;

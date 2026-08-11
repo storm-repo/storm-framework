@@ -15,7 +15,6 @@
  */
 package st.orm.core.template.impl;
 
-import jakarta.annotation.Nonnull;
 import st.orm.core.template.SqlTemplateException;
 import st.orm.core.template.impl.Elements.Update;
 
@@ -35,7 +34,7 @@ final class UpdateProcessor implements ElementProcessor<Update> {
      * @return an immutable key for caching, or {@code null} if the element (or its compilation) cannot be cached.
      */
     @Override
-    public Object getCompilationKey(@Nonnull Update update) {
+    public Object getCompilationKey(Update update) {
         return update;
     }
 
@@ -51,7 +50,7 @@ final class UpdateProcessor implements ElementProcessor<Update> {
      * @throws SqlTemplateException if compilation fails.
      */
     @Override
-    public CompiledElement compile(@Nonnull Update update, @Nonnull TemplateCompiler compiler)
+    public CompiledElement compile(Update update, TemplateCompiler compiler)
             throws SqlTemplateException{
         var queryModel = compiler.getQueryModel();
         assert queryModel.getTable().type() == update.table();
@@ -72,6 +71,6 @@ final class UpdateProcessor implements ElementProcessor<Update> {
      * @param binder the binder used to bind runtime values.
      */
     @Override
-    public void bind(@Nonnull Update update, @Nonnull TemplateBinder binder, @Nonnull BindHint bindHint) {
+    public void bind(Update update, TemplateBinder binder, BindHint bindHint) {
     }
 }

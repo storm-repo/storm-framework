@@ -15,7 +15,6 @@
  */
 package st.orm.core.template;
 
-import jakarta.annotation.Nonnull;
 import java.util.List;
 import java.util.Optional;
 import java.util.stream.Stream;
@@ -130,7 +129,7 @@ public interface Query {
      * @throws NonUniqueResultException if more than one result.
      * @throws PersistenceException if the query fails.
      */
-    default <T> T getSingleResult(@Nonnull Class<T> type) {
+    default <T> T getSingleResult(Class<T> type) {
         return singleResult(getResultStream(type));
     }
 
@@ -144,7 +143,7 @@ public interface Query {
      * @throws NonUniqueResultException if more than one result.
      * @throws PersistenceException if the query fails.
      */
-    default <T> Optional<T> getOptionalResult(@Nonnull Class<T> type) {
+    default <T> Optional<T> getOptionalResult(Class<T> type) {
         return optionalResult(getResultStream(type));
     }
 
@@ -173,7 +172,7 @@ public interface Query {
      * @return the result list.
      * @throws PersistenceException if the query fails.
      */
-    default <T> List<T> getResultList(@Nonnull Class<T> type) {
+    default <T> List<T> getResultList(Class<T> type) {
         try (var stream = getResultStream(type)) {
             return stream.toList();
         }
@@ -191,7 +190,7 @@ public interface Query {
      * @throws PersistenceException if the query fails.
      * @since 1.3
      */
-    default <T extends Data> List<Ref<T>> getRefList(@Nonnull Class<T> type, @Nonnull Class<?> pkType) {
+    default <T extends Data> List<Ref<T>> getRefList(Class<T> type, Class<?> pkType) {
         try (var stream = getRefStream(type, pkType)) {
             return stream.toList();
         }
@@ -237,7 +236,7 @@ public interface Query {
      * @throws PersistenceException if the query operation fails due to underlying database issues, such as
      *                              connectivity.
      */
-    <T> Stream<T> getResultStream(@Nonnull Class<T> type);
+    <T> Stream<T> getResultStream(Class<T> type);
 
     /**
      * Execute a SELECT query and return the resulting rows as a stream of ref instances.
@@ -256,7 +255,7 @@ public interface Query {
      * @throws PersistenceException if the query fails.
      * @since 1.3
      */
-    <T extends Data> Stream<Ref<T>> getRefStream(@Nonnull Class<T> type, @Nonnull Class<?> pkType);
+    <T extends Data> Stream<Ref<T>> getRefStream(Class<T> type, Class<?> pkType);
 
     /**
      * Returns true if the query is version aware, false otherwise.
@@ -292,7 +291,7 @@ public interface Query {
      * @throws NoResultException if there is no result.
      * @throws NonUniqueResultException if more than one result.
      */
-    private <T> T singleResult(@Nonnull Stream<T> stream) {
+    private <T> T singleResult(Stream<T> stream) {
         try (stream) {
             var iterator = stream.iterator();
             if (!iterator.hasNext()) {
@@ -318,7 +317,7 @@ public interface Query {
      * @throws NonUniqueResultException if more than one result.
      * @throws PersistenceException if the single row's value is null.
      */
-    private <T> Optional<T> optionalResult(@Nonnull Stream<T> stream) {
+    private <T> Optional<T> optionalResult(Stream<T> stream) {
         try (stream) {
             var iterator = stream.iterator();
             if (!iterator.hasNext()) {

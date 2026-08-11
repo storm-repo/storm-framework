@@ -15,7 +15,6 @@
  */
 package st.orm.spring;
 
-import jakarta.annotation.Nonnull;
 import java.util.List;
 import java.util.function.Supplier;
 import javax.sql.DataSource;
@@ -49,8 +48,8 @@ public final class SpringOrmTemplate {
      * @param dataSource the data source backing the template.
      * @param transactionManagers supplies the transaction managers of the owning application context.
      */
-    public static ORMTemplate of(@Nonnull DataSource dataSource,
-                                 @Nonnull Supplier<List<PlatformTransactionManager>> transactionManagers) {
+    public static ORMTemplate of(DataSource dataSource,
+                                 Supplier<List<PlatformTransactionManager>> transactionManagers) {
         return of(dataSource, StormConfig.defaults(), List.of(), transactionManagers);
     }
 
@@ -62,10 +61,10 @@ public final class SpringOrmTemplate {
      * @param entityCallbacks the entity callbacks to apply.
      * @param transactionManagers supplies the transaction managers of the owning application context.
      */
-    public static ORMTemplate of(@Nonnull DataSource dataSource,
-                                 @Nonnull StormConfig config,
-                                 @Nonnull List<EntityCallback<?>> entityCallbacks,
-                                 @Nonnull Supplier<List<PlatformTransactionManager>> transactionManagers) {
+    public static ORMTemplate of(DataSource dataSource,
+                                 StormConfig config,
+                                 List<EntityCallback<?>> entityCallbacks,
+                                 Supplier<List<PlatformTransactionManager>> transactionManagers) {
         return ORMTemplate.builder(dataSource)
                 .config(config)
                 .connectionProvider(new SpringConnectionProvider())

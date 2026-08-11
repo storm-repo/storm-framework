@@ -1,6 +1,6 @@
 package st.orm.core.model.crosspackage;
 
-import jakarta.annotation.Nullable;
+import org.jspecify.annotations.Nullable;
 
 /**
  * An inline record declared outside the package of the entity that embeds it, so the generated metamodels refer to it

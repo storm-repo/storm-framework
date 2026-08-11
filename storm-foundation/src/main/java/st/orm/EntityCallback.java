@@ -15,7 +15,6 @@
  */
 package st.orm;
 
-import jakarta.annotation.Nonnull;
 
 /**
  * Typed callback interface for entity lifecycle events.
@@ -76,7 +75,7 @@ public interface EntityCallback<E extends Entity<?>> {
      * @param entity the entity about to be inserted; never {@code null}.
      * @return the entity to insert; never {@code null}.
      */
-    default E beforeInsert(@Nonnull E entity) {
+    default E beforeInsert(E entity) {
         return entity;
     }
 
@@ -92,7 +91,7 @@ public interface EntityCallback<E extends Entity<?>> {
      * @param entity the entity about to be updated; never {@code null}.
      * @return the entity to update; never {@code null}.
      */
-    default E beforeUpdate(@Nonnull E entity) {
+    default E beforeUpdate(E entity) {
         return entity;
     }
 
@@ -107,7 +106,7 @@ public interface EntityCallback<E extends Entity<?>> {
      *
      * @param entity the entity that was inserted; never {@code null}.
      */
-    default void afterInsert(@Nonnull E entity) {}
+    default void afterInsert(E entity) {}
 
     /**
      * Called after an entity has been successfully updated in the database.
@@ -120,7 +119,7 @@ public interface EntityCallback<E extends Entity<?>> {
      *
      * @param entity the entity that was updated; never {@code null}.
      */
-    default void afterUpdate(@Nonnull E entity) {}
+    default void afterUpdate(E entity) {}
 
     /**
      * Called before an entity is upserted via a SQL-level upsert statement (e.g., {@code INSERT ... ON CONFLICT},
@@ -136,7 +135,7 @@ public interface EntityCallback<E extends Entity<?>> {
      * @param entity the entity about to be upserted; never {@code null}.
      * @return the entity to upsert; never {@code null}.
      */
-    default E beforeUpsert(@Nonnull E entity) {
+    default E beforeUpsert(E entity) {
         return beforeInsert(entity);
     }
 
@@ -155,7 +154,7 @@ public interface EntityCallback<E extends Entity<?>> {
      *
      * @param entity the entity that was upserted; never {@code null}.
      */
-    default void afterUpsert(@Nonnull E entity) {
+    default void afterUpsert(E entity) {
         afterInsert(entity);
     }
 
@@ -170,7 +169,7 @@ public interface EntityCallback<E extends Entity<?>> {
      *
      * @param entity the entity about to be removed; never {@code null}.
      */
-    default void beforeRemove(@Nonnull E entity) {}
+    default void beforeRemove(E entity) {}
 
     /**
      * Called after an entity has been successfully removed from the database.
@@ -179,5 +178,5 @@ public interface EntityCallback<E extends Entity<?>> {
      *
      * @param entity the entity that was removed; never {@code null}.
      */
-    default void afterRemove(@Nonnull E entity) {}
+    default void afterRemove(E entity) {}
 }

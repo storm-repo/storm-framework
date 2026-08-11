@@ -15,7 +15,6 @@
  */
 package st.orm.core.spi;
 
-import jakarta.annotation.Nonnull;
 
 /**
  * A serialized JSON value produced by a JSON converter.
@@ -28,7 +27,7 @@ import jakarta.annotation.Nonnull;
  * @param value the serialized JSON text.
  * @since 1.12
  */
-public record JsonString(@Nonnull String value) {
+public record JsonString(String value) {
 
     /**
      * Returns the raw JSON text, so the value renders correctly when inlined as a SQL string literal.

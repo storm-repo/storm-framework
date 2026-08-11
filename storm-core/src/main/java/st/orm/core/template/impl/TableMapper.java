@@ -15,12 +15,11 @@
  */
 package st.orm.core.template.impl;
 
-import jakarta.annotation.Nonnull;
-import jakarta.annotation.Nullable;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import org.jspecify.annotations.Nullable;
 import st.orm.Data;
 import st.orm.mapping.RecordField;
 
@@ -29,9 +28,9 @@ import st.orm.mapping.RecordField;
  */
 final class TableMapper {
     record Mapping(
-            @Nonnull Class<? extends Data> source,
-            @Nonnull String alias,
-            @Nonnull RecordField field,
+            Class<? extends Data> source,
+            String alias,
+            RecordField field,
             boolean primaryKey,
             @Nullable Class<? extends Data> rootTable,
             @Nullable String pkPath
@@ -43,33 +42,33 @@ final class TableMapper {
         this.mappings = new HashMap<>();
     }
 
-    public boolean isUnique(@Nonnull Class<? extends Data> table) {
+    public boolean isUnique(Class<? extends Data> table) {
         return mappings.getOrDefault(table, List.of()).size() < 2;
     }
 
     public void mapPrimaryKey(
-            @Nonnull Class<? extends Data> source,
-            @Nonnull Class<? extends Data> target,
-            @Nonnull String alias,
-            @Nonnull RecordField field,
-            @Nonnull Class<? extends Data> rootTable,
+            Class<? extends Data> source,
+            Class<? extends Data> target,
+            String alias,
+            RecordField field,
+            Class<? extends Data> rootTable,
             @Nullable String path) {
         mappings.computeIfAbsent(target, ignore -> new ArrayList<>())
                 .add(new Mapping(source, alias, field, true, rootTable, getPath(field, path)));
     }
 
     public void mapForeignKey(
-            @Nonnull Class<? extends Data> source,
-            @Nonnull Class<? extends Data> target,
-            @Nonnull String alias,
-            @Nonnull RecordField field,
-            @Nonnull Class<? extends Data> rootTable,
+            Class<? extends Data> source,
+            Class<? extends Data> target,
+            String alias,
+            RecordField field,
+            Class<? extends Data> rootTable,
             @Nullable String path) {
         mappings.computeIfAbsent(target, ignore -> new ArrayList<>())
                 .add(new Mapping(source, alias, field, false, rootTable, getPath(field, path)));
     }
 
-    private static String getPath(@Nonnull RecordField field, @Nullable String path) {
+    private static String getPath(RecordField field, @Nullable String path) {
         if (path == null) {
             return null;
         }

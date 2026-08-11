@@ -18,7 +18,6 @@ package st.orm.core.template.impl;
 import static java.util.Objects.requireNonNull;
 import static st.orm.core.template.impl.SqlInterceptorManager.intercept;
 
-import jakarta.annotation.Nonnull;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.function.Function;
@@ -45,10 +44,10 @@ final class QueryPlanImpl implements QueryPlan {
     private final List<Function<Object, List<PositionalParameter>>> valueParameterExtractors;
     private final Function<Sql, Query> queryFactory;
 
-    QueryPlanImpl(@Nonnull Sql sql,
-                  @Nonnull List<Function<Data, List<PositionalParameter>>> parameterExtractors,
-                  @Nonnull List<Function<Object, List<PositionalParameter>>> valueParameterExtractors,
-                  @Nonnull Function<Sql, Query> queryFactory) {
+    QueryPlanImpl(Sql sql,
+                  List<Function<Data, List<PositionalParameter>>> parameterExtractors,
+                  List<Function<Object, List<PositionalParameter>>> valueParameterExtractors,
+                  Function<Sql, Query> queryFactory) {
         this.sql = requireNonNull(sql, "sql");
         this.parameterExtractors = List.copyOf(parameterExtractors);
         this.valueParameterExtractors = List.copyOf(valueParameterExtractors);
@@ -56,7 +55,7 @@ final class QueryPlanImpl implements QueryPlan {
     }
 
     @Override
-    public Query bind(@Nonnull Data record) {
+    public Query bind(Data record) {
         requireNonNull(record, "record");
         if (parameterExtractors.isEmpty()) {
             throw new PersistenceException("Cannot bind a record against a constant plan: the plan's template has no bind variables. Use query() instead.");
@@ -75,7 +74,7 @@ final class QueryPlanImpl implements QueryPlan {
     }
 
     @Override
-    public Query bindValue(@Nonnull Object value) {
+    public Query bindValue(Object value) {
         requireNonNull(value, "value");
         if (parameterExtractors.isEmpty()) {
             throw new PersistenceException("Cannot bind a value against a constant plan: the plan's template has no bind variables. Use query() instead.");

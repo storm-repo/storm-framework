@@ -3,7 +3,6 @@ package st.orm.core;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-import jakarta.annotation.Nonnull;
 import java.util.ArrayList;
 import java.util.List;
 import javax.sql.DataSource;
@@ -30,7 +29,7 @@ public class EntityCallbackIntegrationTest {
     public void testBeforeInsertTransformsEntity() {
         var orm = ORMTemplate.of(dataSource).withEntityCallback(new EntityCallback<City>() {
             @Override
-            public City beforeInsert(@Nonnull City entity) {
+            public City beforeInsert(City entity) {
                 return entity.toBuilder().name(entity.name().toUpperCase()).build();
             }
         });
@@ -46,7 +45,7 @@ public class EntityCallbackIntegrationTest {
         List<String> log = new ArrayList<>();
         var orm = ORMTemplate.of(dataSource).withEntityCallback(new EntityCallback<City>() {
             @Override
-            public void afterInsert(@Nonnull City entity) {
+            public void afterInsert(City entity) {
                 log.add("inserted:" + entity.name());
             }
         });
@@ -59,7 +58,7 @@ public class EntityCallbackIntegrationTest {
     public void testBeforeUpdateTransformsEntity() {
         var orm = ORMTemplate.of(dataSource).withEntityCallback(new EntityCallback<City>() {
             @Override
-            public City beforeUpdate(@Nonnull City entity) {
+            public City beforeUpdate(City entity) {
                 return entity.toBuilder().name(entity.name().toUpperCase()).build();
             }
         });
@@ -75,7 +74,7 @@ public class EntityCallbackIntegrationTest {
         List<String> log = new ArrayList<>();
         var orm = ORMTemplate.of(dataSource).withEntityCallback(new EntityCallback<City>() {
             @Override
-            public void afterUpdate(@Nonnull City entity) {
+            public void afterUpdate(City entity) {
                 log.add("updated:" + entity.name());
             }
         });
@@ -89,7 +88,7 @@ public class EntityCallbackIntegrationTest {
         List<String> log = new ArrayList<>();
         var orm = ORMTemplate.of(dataSource).withEntityCallback(new EntityCallback<City>() {
             @Override
-            public void beforeRemove(@Nonnull City entity) {
+            public void beforeRemove(City entity) {
                 log.add("before:" + entity.name());
             }
         });
@@ -104,7 +103,7 @@ public class EntityCallbackIntegrationTest {
         List<String> log = new ArrayList<>();
         var orm = ORMTemplate.of(dataSource).withEntityCallback(new EntityCallback<City>() {
             @Override
-            public void afterRemove(@Nonnull City entity) {
+            public void afterRemove(City entity) {
                 log.add("after:" + entity.name());
             }
         });
@@ -120,13 +119,13 @@ public class EntityCallbackIntegrationTest {
         List<String> afterLog = new ArrayList<>();
         var orm = ORMTemplate.of(dataSource).withEntityCallback(new EntityCallback<City>() {
             @Override
-            public City beforeInsert(@Nonnull City entity) {
+            public City beforeInsert(City entity) {
                 beforeLog.add(entity.name());
                 return entity.toBuilder().name(entity.name().toUpperCase()).build();
             }
 
             @Override
-            public void afterInsert(@Nonnull City entity) {
+            public void afterInsert(City entity) {
                 afterLog.add(entity.name());
             }
         });
@@ -150,13 +149,13 @@ public class EntityCallbackIntegrationTest {
         List<String> log = new ArrayList<>();
         var orm = ORMTemplate.of(dataSource).withEntityCallback(new EntityCallback<City>() {
             @Override
-            public City beforeInsert(@Nonnull City entity) {
+            public City beforeInsert(City entity) {
                 log.add("before:" + entity.name());
                 return entity.toBuilder().name(entity.name() + " [modified]").build();
             }
 
             @Override
-            public void afterInsert(@Nonnull City entity) {
+            public void afterInsert(City entity) {
                 log.add("after:" + entity.name());
             }
         });

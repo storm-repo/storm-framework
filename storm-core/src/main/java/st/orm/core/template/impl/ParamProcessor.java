@@ -15,8 +15,7 @@
  */
 package st.orm.core.template.impl;
 
-import jakarta.annotation.Nonnull;
-import jakarta.annotation.Nullable;
+import org.jspecify.annotations.Nullable;
 import st.orm.Data;
 import st.orm.Ref;
 import st.orm.core.spi.ORMReflection;
@@ -42,7 +41,7 @@ final class ParamProcessor implements ElementProcessor<Param> {
      * @return an immutable key for caching, or {@code null} if the element (or its compilation) cannot be cached.
      */
     @Override
-    public Object getCompilationKey(@Nonnull Param param) {
+    public Object getCompilationKey(Param param) {
         return new Param(param.name(), null);
     }
 
@@ -58,7 +57,7 @@ final class ParamProcessor implements ElementProcessor<Param> {
      * @throws SqlTemplateException if compilation fails.
      */
     @Override
-    public CompiledElement compile(@Nonnull Param param, @Nonnull TemplateCompiler compiler)
+    public CompiledElement compile(Param param, TemplateCompiler compiler)
             throws SqlTemplateException {
         Object value = resolveParamValue(param.dbValue());
         if (param.name() != null) {
@@ -79,7 +78,7 @@ final class ParamProcessor implements ElementProcessor<Param> {
      * @param bindHint the bind hint for the element, providing additional context for binding.
      */
     @Override
-    public void bind(@Nonnull Param param, @Nonnull TemplateBinder binder, @Nonnull BindHint bindHint) throws SqlTemplateException {
+    public void bind(Param param, TemplateBinder binder, BindHint bindHint) throws SqlTemplateException {
         Object value = resolveParamValue(param.dbValue());
         if (param.name() != null) {
             binder.bindParameter(param.name(), value);

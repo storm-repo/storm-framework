@@ -21,7 +21,6 @@ import static java.util.Objects.requireNonNull;
 import io.micrometer.common.KeyValues;
 import io.micrometer.observation.ObservationConvention;
 import io.micrometer.observation.ObservationRegistry;
-import jakarta.annotation.Nonnull;
 import st.orm.core.spi.QueryContext;
 import st.orm.core.spi.QueryObserver;
 import st.orm.core.spi.TransactionScope;
@@ -55,7 +54,7 @@ public class MicrometerQueryObserver implements QueryObserver {
      *
      * @param observationRegistry the registry to report observations to.
      */
-    public MicrometerQueryObserver(@Nonnull ObservationRegistry observationRegistry) {
+    public MicrometerQueryObserver(ObservationRegistry observationRegistry) {
         this(observationRegistry, KeyValues.empty());
     }
 
@@ -67,8 +66,8 @@ public class MicrometerQueryObserver implements QueryObserver {
      * @param extraLowCardinalityKeyValues extra key values, such as {@code storm.database} in a multi-database
      *                                     setup.
      */
-    public MicrometerQueryObserver(@Nonnull ObservationRegistry observationRegistry,
-                                   @Nonnull KeyValues extraLowCardinalityKeyValues) {
+    public MicrometerQueryObserver(ObservationRegistry observationRegistry,
+                                   KeyValues extraLowCardinalityKeyValues) {
         this(observationRegistry, new StormQueryObservationConvention(), extraLowCardinalityKeyValues);
     }
 
@@ -80,9 +79,9 @@ public class MicrometerQueryObserver implements QueryObserver {
      * @param extraLowCardinalityKeyValues extra key values, exposed to the conventions via
      *                                     {@link StormQueryObservationContext#extraLowCardinalityKeyValues()}.
      */
-    public MicrometerQueryObserver(@Nonnull ObservationRegistry observationRegistry,
-                                   @Nonnull ObservationConvention<StormQueryObservationContext> convention,
-                                   @Nonnull KeyValues extraLowCardinalityKeyValues) {
+    public MicrometerQueryObserver(ObservationRegistry observationRegistry,
+                                   ObservationConvention<StormQueryObservationContext> convention,
+                                   KeyValues extraLowCardinalityKeyValues) {
         this(observationRegistry, convention, new StormTransactionObservationConvention(), extraLowCardinalityKeyValues);
     }
 
@@ -98,10 +97,10 @@ public class MicrometerQueryObserver implements QueryObserver {
      *                                     {@link StormTransactionObservationContext#extraLowCardinalityKeyValues()}.
      * @since 1.14
      */
-    public MicrometerQueryObserver(@Nonnull ObservationRegistry observationRegistry,
-                                   @Nonnull ObservationConvention<StormQueryObservationContext> convention,
-                                   @Nonnull ObservationConvention<StormTransactionObservationContext> transactionConvention,
-                                   @Nonnull KeyValues extraLowCardinalityKeyValues) {
+    public MicrometerQueryObserver(ObservationRegistry observationRegistry,
+                                   ObservationConvention<StormQueryObservationContext> convention,
+                                   ObservationConvention<StormTransactionObservationContext> transactionConvention,
+                                   KeyValues extraLowCardinalityKeyValues) {
         this.observationRegistry = requireNonNull(observationRegistry, "observationRegistry");
         this.convention = requireNonNull(convention, "convention");
         this.transactionConvention = requireNonNull(transactionConvention, "transactionConvention");
@@ -109,7 +108,7 @@ public class MicrometerQueryObserver implements QueryObserver {
     }
 
     @Override
-    public TransactionObservation onTransaction(@Nonnull TransactionScope.Options options) {
+    public TransactionObservation onTransaction(TransactionScope.Options options) {
         if (observationRegistry.isNoop()) {
             return TransactionObservation.NOOP;
         }
@@ -118,7 +117,7 @@ public class MicrometerQueryObserver implements QueryObserver {
                 .start();
         return new TransactionObservation() {
             @Override
-            public void error(@Nonnull Throwable throwable) {
+            public void error(Throwable throwable) {
                 observation.error(throwable);
             }
 
@@ -132,7 +131,7 @@ public class MicrometerQueryObserver implements QueryObserver {
     }
 
     @Override
-    public Observation onExecute(@Nonnull QueryContext context) {
+    public Observation onExecute(QueryContext context) {
         if (observationRegistry.isNoop()) {
             // Nothing handles the observation, so skip building the context it would have carried.
             return Observation.NOOP;
@@ -142,7 +141,7 @@ public class MicrometerQueryObserver implements QueryObserver {
                 .start();
         return new Observation() {
             @Override
-            public void error(@Nonnull Throwable throwable) {
+            public void error(Throwable throwable) {
                 observation.error(throwable);
             }
 

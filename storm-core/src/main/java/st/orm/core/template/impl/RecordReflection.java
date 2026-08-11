@@ -19,8 +19,6 @@ import static java.util.Optional.empty;
 import static java.util.function.Predicate.not;
 import static st.orm.core.spi.Providers.getORMConverter;
 
-import jakarta.annotation.Nonnull;
-import jakarta.annotation.Nullable;
 import java.lang.annotation.Annotation;
 import java.lang.reflect.ParameterizedType;
 import java.lang.reflect.Type;
@@ -35,6 +33,7 @@ import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 import java.util.stream.Stream;
+import org.jspecify.annotations.Nullable;
 import st.orm.Data;
 import st.orm.DbColumn;
 import st.orm.DbColumns;
@@ -76,7 +75,7 @@ final class RecordReflection {
      * @param type the type to check.
      * @return {@code true} if the specified type is a record type, {@code false} otherwise.
      */
-    public static boolean isRecord(@Nonnull Class<?> type) {
+    public static boolean isRecord(Class<?> type) {
         return REFLECTION.findRecordType(type).isPresent();
     }
 
@@ -87,7 +86,7 @@ final class RecordReflection {
      * @return the record type for the specified type.
      * @throws PersistenceException if the specified type is not a record type.
      */
-    public static RecordType getRecordType(@Nonnull Class<?> type) {
+    public static RecordType getRecordType(Class<?> type) {
         return REFLECTION.getRecordType(type);
     }
 
@@ -99,15 +98,15 @@ final class RecordReflection {
      * @return the record components for the specified record type.
      * @throws PersistenceException if the record type is not a record.
      */
-    public static List<RecordField> getRecordFields(@Nonnull Class<?> recordType) {
+    public static List<RecordField> getRecordFields(Class<?> recordType) {
         return REFLECTION.getRecordType(recordType).fields();
     }
 
     /**
      * Looks up the record field in the given table, taking the {@code field} path into account.
      */
-    public static RecordField getRecordField(@Nonnull Class<?> table,
-                                             @Nonnull String path) throws SqlTemplateException {
+    public static RecordField getRecordField(Class<?> table,
+                                             String path) throws SqlTemplateException {
         if (path.isEmpty()) {
             throw new SqlTemplateException("Empty component path specified.");
         }
@@ -159,7 +158,7 @@ final class RecordReflection {
      * @param table the table to obtain the primary key field for.
      * @return the primary key field for the specified table.
      */
-    public static Optional<RecordField> findPkField(@Nonnull Class<?> table) {
+    public static Optional<RecordField> findPkField(Class<?> table) {
         // For sealed entity interfaces, delegate to the first permitted subclass.
         if (table.isSealed() && isSealedEntity(table)) {
             Class<?>[] permitted = table.getPermittedSubclasses();
@@ -197,7 +196,7 @@ final class RecordReflection {
      *
      * @param path the accessor path from the declaring table's key to the terminal field.
      */
-    record KeyLeaf(@Nonnull List<RecordField> path) {
+    record KeyLeaf(List<RecordField> path) {
         RecordField field() {
             return path.getLast();
         }
@@ -211,7 +210,7 @@ final class RecordReflection {
      * @return the terminal fields of the key with their accessor paths.
      * @throws SqlTemplateException if the key chain is circular or a referenced entity lacks a primary key.
      */
-    static List<KeyLeaf> getPkLeaves(@Nonnull Class<?> table) throws SqlTemplateException {
+    static List<KeyLeaf> getPkLeaves(Class<?> table) throws SqlTemplateException {
         var leaves = new ArrayList<KeyLeaf>();
         flattenPk(table, new ArrayList<>(), new HashSet<>(), leaves);
         return leaves;
@@ -223,7 +222,7 @@ final class RecordReflection {
      * instead of the target's key columns.
      */
     @Nullable
-    static List<KeyLeaf> getFkLeaves(@Nonnull RecordField field) throws SqlTemplateException {
+    static List<KeyLeaf> getFkLeaves(RecordField field) throws SqlTemplateException {
         Class<?> target = getFkTargetType(field);
         if (isPolymorphicData(target)) {
             return null;
@@ -235,7 +234,7 @@ final class RecordReflection {
      * Resolves the entity type a foreign key field refers to, unwrapping {@link Ref} fields and selecting the
      * first permitted subclass for sealed entity hierarchies.
      */
-    static Class<?> getFkTargetType(@Nonnull RecordField field) throws SqlTemplateException {
+    static Class<?> getFkTargetType(RecordField field) throws SqlTemplateException {
         Class<?> fkType = Ref.class.isAssignableFrom(field.type())
                 ? getRefDataType(field)
                 : field.type();
@@ -248,10 +247,10 @@ final class RecordReflection {
         return fkType;
     }
 
-    private static void flattenPk(@Nonnull Class<?> table,
-                                  @Nonnull List<RecordField> path,
-                                  @Nonnull Set<Class<?>> visited,
-                                  @Nonnull List<KeyLeaf> leaves) throws SqlTemplateException {
+    private static void flattenPk(Class<?> table,
+                                  List<RecordField> path,
+                                  Set<Class<?>> visited,
+                                  List<KeyLeaf> leaves) throws SqlTemplateException {
         if (!visited.add(table)) {
             throw new SqlTemplateException(
                     "Circular key chain detected at %s. A primary key must not reference itself through its foreign keys."
@@ -265,10 +264,10 @@ final class RecordReflection {
         visited.remove(table);
     }
 
-    private static void flattenKeyField(@Nonnull RecordField field,
-                                        @Nonnull List<RecordField> path,
-                                        @Nonnull Set<Class<?>> visited,
-                                        @Nonnull List<KeyLeaf> leaves) throws SqlTemplateException {
+    private static void flattenKeyField(RecordField field,
+                                        List<RecordField> path,
+                                        Set<Class<?>> visited,
+                                        List<KeyLeaf> leaves) throws SqlTemplateException {
         if (field.isAnnotationPresent(FK.class)) {
             flattenPk(getFkTargetType(field), path, visited, leaves);
             return;
@@ -286,7 +285,7 @@ final class RecordReflection {
     }
 
     @SuppressWarnings("unchecked")
-    static Stream<RecordField> getFkFields(@Nonnull Class<?> table) {
+    static Stream<RecordField> getFkFields(Class<?> table) {
         if (table.isSealed()) {
             return Stream.empty();  // Sealed interfaces have no own FK fields.
         }
@@ -309,7 +308,7 @@ final class RecordReflection {
      * @param table the table to obtain the version field for.
      * @return optional with the field that specified the Version annotation, or an empty if none found.
      */
-    static Optional<RecordField> getVersionField(@Nonnull Class<?> table) {
+    static Optional<RecordField> getVersionField(Class<?> table) {
         if (table.isSealed()) {
             return Optional.empty();  // Sealed interfaces have no own version fields.
         }
@@ -329,7 +328,7 @@ final class RecordReflection {
         return Optional.empty();
     }
 
-    static GenerationStrategy getGenerationStrategy(@Nonnull RecordField field) {
+    static GenerationStrategy getGenerationStrategy(RecordField field) {
         PK pk = field.getAnnotation(PK.class);
         if (pk != null) {
             if (!REFLECTION.findRecordType(field.type()).isPresent() && !field.isAnnotationPresent(FK.class)) {
@@ -339,7 +338,7 @@ final class RecordReflection {
         return GenerationStrategy.NONE;
     }
 
-    static String getSequence(@Nonnull RecordField field) {
+    static String getSequence(RecordField field) {
         PK pk = field.getAnnotation(PK.class);
         if (pk != null) {
             return pk.sequence();
@@ -347,8 +346,8 @@ final class RecordReflection {
         return "";
     }
 
-    static boolean isTypePresent(@Nonnull Class<?> source,
-                                 @Nonnull Class<?> target) throws SqlTemplateException {
+    static boolean isTypePresent(Class<?> source,
+                                 Class<?> target) throws SqlTemplateException {
         if (target.equals(source)) {
             return true;
         }
@@ -358,8 +357,8 @@ final class RecordReflection {
         return findRecordField(getRecordFields(source), target).isPresent();
     }
 
-    static Optional<RecordField> findRecordField(@Nonnull List<RecordField> fields,
-                                                 @Nonnull Class<?> table) throws SqlTemplateException {
+    static Optional<RecordField> findRecordField(List<RecordField> fields,
+                                                 Class<?> table) throws SqlTemplateException {
         return findRecordFields(fields, table).stream().findFirst();
     }
 
@@ -371,8 +370,8 @@ final class RecordReflection {
      * @param table the type the fields are matched against.
      * @return the matching fields; empty when none match.
      */
-    static List<RecordField> findRecordFields(@Nonnull List<RecordField> fields,
-                                              @Nonnull Class<?> table) throws SqlTemplateException {
+    static List<RecordField> findRecordFields(List<RecordField> fields,
+                                              Class<?> table) throws SqlTemplateException {
         var matches = new ArrayList<RecordField>();
         for (var field : fields) {
             if (field.type() == table
@@ -391,7 +390,7 @@ final class RecordReflection {
      * @param type the type to check.
      * @return {@code true} if the type is a table-based join candidate, {@code false} otherwise.
      */
-    static boolean isTableJoinCandidate(@Nonnull Class<? extends Data> type) {
+    static boolean isTableJoinCandidate(Class<? extends Data> type) {
         if (findPkField(type).isEmpty()) {
             return false;
         }
@@ -412,9 +411,9 @@ final class RecordReflection {
      * @param tableNameResolver the resolver used to derive table names.
      * @return the matching fields; empty when none match.
      */
-    static List<RecordField> findRecordFieldsByTable(@Nonnull List<RecordField> fields,
-                                                     @Nonnull Class<? extends Data> table,
-                                                     @Nonnull TableNameResolver tableNameResolver) throws SqlTemplateException {
+    static List<RecordField> findRecordFieldsByTable(List<RecordField> fields,
+                                                     Class<? extends Data> table,
+                                                     TableNameResolver tableNameResolver) throws SqlTemplateException {
         var tableName = getTableName(table, tableNameResolver);
         var matches = new ArrayList<RecordField>();
         for (var field : fields) {
@@ -436,13 +435,13 @@ final class RecordReflection {
      */
     private static final ClassValue<ConcurrentMap<String, Class<?>>> REF_PK_TYPE_CACHE = new ClassValue<>() {
         @Override
-        protected ConcurrentMap<String, Class<?>> computeValue(@Nonnull Class<?> type) {
+        protected ConcurrentMap<String, Class<?>> computeValue(Class<?> type) {
             return new ConcurrentHashMap<>();
         }
     };
 
     @SuppressWarnings("unchecked")
-    static Class<?> getRefPkType(@Nonnull RecordField field) throws SqlTemplateException {
+    static Class<?> getRefPkType(RecordField field) throws SqlTemplateException {
         try {
             return REF_PK_TYPE_CACHE.get(field.declaringType()).computeIfAbsent(field.name(), ignore -> {
                 try {
@@ -481,13 +480,13 @@ final class RecordReflection {
     /** Ref data types per declaring record class, keyed by field name; entries die with the declaring class. */
     private static final ClassValue<ConcurrentMap<String, Class<? extends Data>>> REF_RECORD_TYPE_CACHE = new ClassValue<>() {
         @Override
-        protected ConcurrentMap<String, Class<? extends Data>> computeValue(@Nonnull Class<?> type) {
+        protected ConcurrentMap<String, Class<? extends Data>> computeValue(Class<?> type) {
             return new ConcurrentHashMap<>();
         }
     };
 
     @SuppressWarnings("unchecked")
-    static Class<? extends Data> getRefDataType(@Nonnull RecordField field) throws SqlTemplateException {
+    static Class<? extends Data> getRefDataType(RecordField field) throws SqlTemplateException {
         try {
             return REF_RECORD_TYPE_CACHE.get(field.declaringType()).computeIfAbsent(field.name(), ignore -> {
                 try {
@@ -530,8 +529,8 @@ final class RecordReflection {
      * @param tableNameResolver the table name resolver.
      * @return the table name for the specified record type.
      */
-    static TableName getTableName(@Nonnull Class<? extends Data> table,
-                                  @Nonnull TableNameResolver tableNameResolver) throws SqlTemplateException {
+    static TableName getTableName(Class<? extends Data> table,
+                                  TableNameResolver tableNameResolver) throws SqlTemplateException {
         // For sealed entity interfaces, resolve table name from the @DbTable annotation on the
         // interface itself, or fall back to camelCase-to-snake_case conversion (sealed interfaces
         // aren't records and don't have a RecordType).
@@ -592,7 +591,7 @@ final class RecordReflection {
      * @return a stream of lists containing the column value and/or name.
      * @throws IllegalArgumentException if the name is different from the value.
      */
-    private static Optional<String> combine(@Nonnull String value, @Nonnull String name) {
+    private static Optional<String> combine(String value, String name) {
         if (!value.isEmpty()) {
             if (!name.isEmpty() && !name.equals(value)) {
                 throw new IllegalArgumentException("Column name '%s' cannot be different from the column value '%s'.".formatted(name, value));
@@ -629,8 +628,8 @@ final class RecordReflection {
      * @param columnNameResolver the column name resolver.
      * @return the column name for the specified record field.
      */
-    static ColumnName getColumnName(@Nonnull RecordField field,
-                                    @Nonnull ColumnNameResolver columnNameResolver) throws SqlTemplateException {
+    static ColumnName getColumnName(RecordField field,
+                                    ColumnNameResolver columnNameResolver) throws SqlTemplateException {
         List<ColumnName> names = getColumnNames(field, COLUMN_ANNOTATIONS);
         if (names.size() == 1) {
             return names.getFirst();
@@ -650,8 +649,8 @@ final class RecordReflection {
      * @return the column name(s) for the specified record component.
      * @throws SqlTemplateException if zero, or multiple names are found for the component.
      */
-    private static List<ColumnName> getColumnNames(@Nonnull RecordField field,
-                                                   @Nonnull List<Class<? extends Annotation>> annotationTypes)
+    private static List<ColumnName> getColumnNames(RecordField field,
+                                                   List<Class<? extends Annotation>> annotationTypes)
             throws SqlTemplateException {
         try {
             var columNameLists = annotationTypes.stream()
@@ -680,7 +679,7 @@ final class RecordReflection {
      * @return the column name(s) for as specified by the {@code annotation}.
      * @throws IllegalArgumentException if the annotation is invalid.
      */
-    private static Stream<List<ColumnName>> getColumnNames(@Nonnull Annotation annotation) {
+    private static Stream<List<ColumnName>> getColumnNames(Annotation annotation) {
         return switch (annotation) {
             case PK pk -> combine(pk.value(), pk.name()).map(ColumnName::new).stream().map(name -> List.of(name));
             case FK fk -> combine(fk.value(), fk.name()).map(ColumnName::new).stream().map(name -> List.of(name));
@@ -698,9 +697,9 @@ final class RecordReflection {
      * @param field the record field to obtain the primary key column name(s) for.
      * @return the column name for the specified record component(s).
      */
-    static List<ColumnName> getPrimaryKeys(@Nonnull RecordField field,
-                                           @Nonnull ForeignKeyResolver foreignKeyResolver,
-                                           @Nonnull ColumnNameResolver columnNameResolver) throws SqlTemplateException {
+    static List<ColumnName> getPrimaryKeys(RecordField field,
+                                           ForeignKeyResolver foreignKeyResolver,
+                                           ColumnNameResolver columnNameResolver) throws SqlTemplateException {
         var columnNames = getColumnNames(field, PK_COLUMN_ANNOTATIONS);
         if (!columnNames.isEmpty()) {
             return columnNames;
@@ -742,9 +741,9 @@ final class RecordReflection {
      * @return the column name for the specified record component(s).
      */
     @SuppressWarnings("unchecked")
-    static List<ColumnName> getForeignKeys(@Nonnull RecordField field,
-                                           @Nonnull ForeignKeyResolver foreignKeyResolver,
-                                           @Nonnull ColumnNameResolver columnNameResolver) throws SqlTemplateException {
+    static List<ColumnName> getForeignKeys(RecordField field,
+                                           ForeignKeyResolver foreignKeyResolver,
+                                           ColumnNameResolver columnNameResolver) throws SqlTemplateException {
         var columnNames = getColumnNames(field, FK_COLUMN_ANNOTATIONS);
         if (!columnNames.isEmpty()) {
             return columnNames;
@@ -813,7 +812,7 @@ final class RecordReflection {
      */
     private static final ClassValue<Optional<SealedPattern>> SEALED_PATTERN_CACHE = new ClassValue<>() {
         @Override
-        protected Optional<SealedPattern> computeValue(@Nonnull Class<?> t) {
+        protected Optional<SealedPattern> computeValue(Class<?> t) {
             if (!t.isSealed()) {
                 return Optional.empty();
             }
@@ -857,14 +856,14 @@ final class RecordReflection {
      * @param type the type to inspect.
      * @return an Optional containing the detected SealedPattern, or empty if the type is not a sealed hierarchy.
      */
-    static Optional<SealedPattern> detectSealedPattern(@Nonnull Class<?> type) {
+    static Optional<SealedPattern> detectSealedPattern(Class<?> type) {
         return SEALED_PATTERN_CACHE.get(type);
     }
 
     /**
      * Returns true if the given type is a sealed entity (Single-Table or Joined pattern).
      */
-    static boolean isSealedEntity(@Nonnull Class<?> type) {
+    static boolean isSealedEntity(Class<?> type) {
         return detectSealedPattern(type)
                 .map(p -> p == SealedPattern.SINGLE_TABLE || p == SealedPattern.JOINED)
                 .orElse(false);
@@ -873,7 +872,7 @@ final class RecordReflection {
     /**
      * Returns true if the given type uses single-table inheritance.
      */
-    static boolean isSingleTableEntity(@Nonnull Class<?> type) {
+    static boolean isSingleTableEntity(Class<?> type) {
         return detectSealedPattern(type)
                 .map(p -> p == SealedPattern.SINGLE_TABLE)
                 .orElse(false);
@@ -882,7 +881,7 @@ final class RecordReflection {
     /**
      * Returns true if the given type uses joined table inheritance.
      */
-    static boolean isJoinedEntity(@Nonnull Class<?> type) {
+    static boolean isJoinedEntity(Class<?> type) {
         return detectSealedPattern(type)
                 .map(p -> p == SealedPattern.JOINED)
                 .orElse(false);
@@ -891,7 +890,7 @@ final class RecordReflection {
     /**
      * Returns true if the given type is a polymorphic Data interface (Polymorphic FK).
      */
-    static boolean isPolymorphicData(@Nonnull Class<?> type) {
+    static boolean isPolymorphicData(Class<?> type) {
         return detectSealedPattern(type)
                 .map(p -> p == SealedPattern.POLYMORPHIC_FK)
                 .orElse(false);
@@ -907,7 +906,7 @@ final class RecordReflection {
      * @param sealedType the sealed type to check.
      * @return {@code true} if the type has a discriminator column.
      */
-    static boolean hasDiscriminator(@Nonnull Class<?> sealedType) {
+    static boolean hasDiscriminator(Class<?> sealedType) {
         var pattern = detectSealedPattern(sealedType).orElse(null);
         if (pattern == SealedPattern.SINGLE_TABLE) {
             return true;
@@ -930,7 +929,7 @@ final class RecordReflection {
      * @return the discriminator column name.
      * @throws SqlTemplateException if a SINGLE_TABLE entity lacks {@code @Discriminator}.
      */
-    static String getDiscriminatorColumn(@Nonnull Class<?> sealedType) throws SqlTemplateException {
+    static String getDiscriminatorColumn(Class<?> sealedType) throws SqlTemplateException {
         Discriminator discriminator = sealedType.getAnnotation(Discriminator.class);
         if (discriminator == null) {
             // For JOINED without @Discriminator, return default internal key.
@@ -953,7 +952,7 @@ final class RecordReflection {
      * @param field the FK field targeting a sealed Data type.
      * @return the discriminator column name.
      */
-    static String getPolymorphicDiscriminatorColumn(@Nonnull RecordField field) {
+    static String getPolymorphicDiscriminatorColumn(RecordField field) {
         Discriminator discriminator = field.getAnnotation(Discriminator.class);
         if (discriminator != null && !discriminator.column().isEmpty()) {
             return discriminator.column();
@@ -964,7 +963,7 @@ final class RecordReflection {
     /**
      * Converts a camelCase name to snake_case. Matches the default name resolver behavior.
      */
-    private static String camelCaseToSnakeCase(@Nonnull String name) {
+    private static String camelCaseToSnakeCase(String name) {
         StringBuilder sb = new StringBuilder();
         sb.append(Character.toLowerCase(name.charAt(0)));
         for (int i = 1; i < name.length(); i++) {
@@ -992,7 +991,7 @@ final class RecordReflection {
      * @param sealedType the sealed interface.
      * @return the discriminator type.
      */
-    static DiscriminatorType getDiscriminatorType(@Nonnull Class<?> sealedType) {
+    static DiscriminatorType getDiscriminatorType(Class<?> sealedType) {
         Discriminator discriminator = sealedType.getAnnotation(Discriminator.class);
         if (discriminator != null) {
             return discriminator.type();
@@ -1006,7 +1005,7 @@ final class RecordReflection {
      * @param sealedType the sealed interface.
      * @return {@code String.class}, {@code Integer.class}, or {@code Character.class}.
      */
-    static Class<?> getDiscriminatorColumnJavaType(@Nonnull Class<?> sealedType) {
+    static Class<?> getDiscriminatorColumnJavaType(Class<?> sealedType) {
         return switch (getDiscriminatorType(sealedType)) {
             case STRING -> String.class;
             case INTEGER -> Integer.class;
@@ -1024,7 +1023,7 @@ final class RecordReflection {
      * @param sealedType the sealed interface.
      * @return the discriminator value.
      */
-    static Object getDiscriminatorValue(@Nonnull Class<?> concreteType, @Nonnull Class<?> sealedType) {
+    static Object getDiscriminatorValue(Class<?> concreteType, Class<?> sealedType) {
         Discriminator discriminator = concreteType.getAnnotation(Discriminator.class);
         String rawValue;
         if (discriminator != null && !discriminator.value().isEmpty()) {
@@ -1054,7 +1053,7 @@ final class RecordReflection {
     /**
      * Converts a raw string discriminator value to the appropriate Java type based on the discriminator type.
      */
-    private static Object convertDiscriminatorValue(@Nonnull String rawValue, @Nonnull DiscriminatorType type) {
+    private static Object convertDiscriminatorValue(String rawValue, DiscriminatorType type) {
         return switch (type) {
             case STRING -> rawValue;
             case INTEGER -> Integer.parseInt(rawValue);
@@ -1067,7 +1066,7 @@ final class RecordReflection {
      */
     private static final ClassValue<Map<Object, Class<?>>> DISCRIMINATOR_MAP_CACHE = new ClassValue<>() {
         @Override
-        protected Map<Object, Class<?>> computeValue(@Nonnull Class<?> t) {
+        protected Map<Object, Class<?>> computeValue(Class<?> t) {
             Map<Object, Class<?>> m = new ConcurrentHashMap<>();
             Class<?>[] permitted = t.getPermittedSubclasses();
             if (permitted != null) {
@@ -1088,8 +1087,8 @@ final class RecordReflection {
      * @return the concrete subtype class.
      * @throws SqlTemplateException if the discriminator value does not match any permitted subtype.
      */
-    static Class<?> resolveConcreteType(@Nonnull Class<?> sealedType,
-                                        @Nonnull Object discriminatorValue) throws SqlTemplateException {
+    static Class<?> resolveConcreteType(Class<?> sealedType,
+                                        Object discriminatorValue) throws SqlTemplateException {
         Map<Object, Class<?>> map = DISCRIMINATOR_MAP_CACHE.get(sealedType);
         Class<?> resolved = map.get(discriminatorValue);
         if (resolved == null) {
@@ -1107,7 +1106,7 @@ final class RecordReflection {
      * @param discriminatorType the discriminator type of the sealed hierarchy.
      * @return the normalized value (String, Integer, or Character).
      */
-    static Object normalizeDiscriminatorValue(@Nonnull Object raw, @Nonnull DiscriminatorType discriminatorType) {
+    static Object normalizeDiscriminatorValue(Object raw, DiscriminatorType discriminatorType) {
         return switch (discriminatorType) {
             case STRING -> raw.toString();
             case INTEGER -> raw instanceof Number number ? number.intValue() : Integer.parseInt(raw.toString());
@@ -1126,7 +1125,7 @@ final class RecordReflection {
      * @param sealedType the sealed entity interface.
      * @return the list of field names that belong to the base table.
      */
-    static List<String> getBaseFieldNames(@Nonnull Class<?> sealedType) {
+    static List<String> getBaseFieldNames(Class<?> sealedType) {
         Class<?>[] permitted = sealedType.getPermittedSubclasses();
         if (permitted == null || permitted.length == 0) {
             return List.of();
@@ -1165,8 +1164,8 @@ final class RecordReflection {
      * @param sealedType the sealed entity interface.
      * @return the list of extension field names.
      */
-    static List<String> getExtensionFieldNames(@Nonnull Class<?> concreteType,
-                                               @Nonnull Class<?> sealedType) {
+    static List<String> getExtensionFieldNames(Class<?> concreteType,
+                                               Class<?> sealedType) {
         List<String> baseFields = getBaseFieldNames(sealedType);
         RecordType type = REFLECTION.getRecordType(concreteType);
         List<String> extensionFields = new ArrayList<>();
@@ -1184,7 +1183,7 @@ final class RecordReflection {
      * @param sealedType the sealed interface to validate.
      * @return an error message, or empty string if valid.
      */
-    static String validateSealedHierarchy(@Nonnull Class<?> sealedType) {
+    static String validateSealedHierarchy(Class<?> sealedType) {
         Optional<SealedPattern> patternOpt = detectSealedPattern(sealedType);
         if (patternOpt.isEmpty()) {
             return "";
@@ -1356,7 +1355,7 @@ final class RecordReflection {
      * @param type the type to inspect.
      * @return an Optional containing the joined sealed parent, or empty if the type is not a joined subtype.
      */
-    static Optional<Class<?>> findJoinedSealedParent(@Nonnull Class<?> type) {
+    static Optional<Class<?>> findJoinedSealedParent(Class<?> type) {
         if (type.isSealed() || type.isInterface()) {
             return Optional.empty();
         }
@@ -1370,10 +1369,10 @@ final class RecordReflection {
 
     // ---- End sealed type hierarchy support ----
 
-    static void mapForeignKeys(@Nonnull TableMapper tableMapper,
-                               @Nonnull String alias,
-                               @Nonnull Class<? extends Data> rootTable,
-                               @Nonnull Class<? extends Data> table,
+    static void mapForeignKeys(TableMapper tableMapper,
+                               String alias,
+                               Class<? extends Data> rootTable,
+                               Class<? extends Data> table,
                                @Nullable String path)
             throws SqlTemplateException {
         if (table.isSealed() && isSealedEntity(table)) {

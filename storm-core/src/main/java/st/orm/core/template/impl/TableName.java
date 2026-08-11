@@ -17,11 +17,10 @@ package st.orm.core.template.impl;
 
 import static java.util.Objects.requireNonNull;
 
-import jakarta.annotation.Nonnull;
 import st.orm.core.spi.Name;
 import st.orm.core.template.SqlDialect;
 
-public record TableName(@Nonnull String table, @Nonnull String schema, boolean escape) implements Name {
+public record TableName(String table, String schema, boolean escape) implements Name {
     public TableName {
         requireNonNull(table, "table");
         requireNonNull(schema, "schema");
@@ -36,7 +35,7 @@ public record TableName(@Nonnull String table, @Nonnull String schema, boolean e
     }
 
     @Override
-    public String qualified(@Nonnull SqlDialect dialect) {
+    public String qualified(SqlDialect dialect) {
         String schema = this.schema.isEmpty()
                 ? ""
                 : escape

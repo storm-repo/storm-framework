@@ -19,7 +19,6 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-import jakarta.annotation.Nonnull;
 import java.sql.SQLException;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -82,7 +81,7 @@ class MySQLDialectResolutionTest {
     /**
      * An H2 database, which the MySQL dialect provider does not claim.
      */
-    private static DataSource h2(@Nonnull String childTable) throws SQLException {
+    private static DataSource h2(String childTable) throws SQLException {
         var dataSource = new SimpleDriverDataSource(new org.h2.Driver(),
                 "jdbc:h2:mem:mysql_dialect_resolution_" + DB_COUNTER.incrementAndGet() + ";DB_CLOSE_DELAY=-1");
         try (var connection = dataSource.getConnection();

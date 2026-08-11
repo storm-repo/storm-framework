@@ -15,7 +15,6 @@
  */
 package st.orm.core.template;
 
-import jakarta.annotation.Nonnull;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.SQLException;
@@ -40,7 +39,7 @@ public interface PreparedStatementTemplate extends TemplateDecorator {
      * @param dataSource the data source.
      * @return the prepared statement template.
      */
-    static PreparedStatementTemplate of(@Nonnull DataSource dataSource) {
+    static PreparedStatementTemplate of(DataSource dataSource) {
         return new PreparedStatementTemplateImpl(dataSource);
     }
 
@@ -52,7 +51,7 @@ public interface PreparedStatementTemplate extends TemplateDecorator {
      * @param connection the connection.
      * @return the prepared statement template.
      */
-    static PreparedStatementTemplate of(@Nonnull Connection connection) {
+    static PreparedStatementTemplate of(Connection connection) {
         return new PreparedStatementTemplateImpl(connection);
     }
 
@@ -62,7 +61,7 @@ public interface PreparedStatementTemplate extends TemplateDecorator {
      * @param dataSource the data source.
      * @return the ORM template.
      */
-    static ORMTemplate ORM(@Nonnull DataSource dataSource) {
+    static ORMTemplate ORM(DataSource dataSource) {
         return new PreparedStatementTemplateImpl(dataSource).toORM();
     }
 
@@ -74,7 +73,7 @@ public interface PreparedStatementTemplate extends TemplateDecorator {
      * @param connection the connection.
      * @return the ORM template.
      */
-    static ORMTemplate ORM(@Nonnull Connection connection) {
+    static ORMTemplate ORM(Connection connection) {
         return new PreparedStatementTemplateImpl(connection).toORM();
     }
 
@@ -85,7 +84,7 @@ public interface PreparedStatementTemplate extends TemplateDecorator {
      * @return a new prepared statement template.
      */
     @Override
-    PreparedStatementTemplate withTableNameResolver(@Nonnull TableNameResolver tableNameResolver);
+    PreparedStatementTemplate withTableNameResolver(TableNameResolver tableNameResolver);
 
     /**
      * Returns a new prepared statement template with the specified column name resolver.
@@ -94,7 +93,7 @@ public interface PreparedStatementTemplate extends TemplateDecorator {
      * @return a new prepared statement template.
      */
     @Override
-    PreparedStatementTemplate withColumnNameResolver(@Nonnull ColumnNameResolver columnNameResolver);
+    PreparedStatementTemplate withColumnNameResolver(ColumnNameResolver columnNameResolver);
 
     /**
      * Returns a new prepared statement template with the specified foreign key resolver.
@@ -103,7 +102,7 @@ public interface PreparedStatementTemplate extends TemplateDecorator {
      * @return a new prepared statement template.
      */
     @Override
-    PreparedStatementTemplate withForeignKeyResolver(@Nonnull ForeignKeyResolver foreignKeyResolver);
+    PreparedStatementTemplate withForeignKeyResolver(ForeignKeyResolver foreignKeyResolver);
 
     /**
      * Returns a new prepared statement template with the specified table alias resolver.
@@ -111,7 +110,7 @@ public interface PreparedStatementTemplate extends TemplateDecorator {
      * @param tableAliasResolver the table alias resolver.
      * @return a new prepared statement template.
      */
-    PreparedStatementTemplate withTableAliasResolver(@Nonnull TableAliasResolver tableAliasResolver);
+    PreparedStatementTemplate withTableAliasResolver(TableAliasResolver tableAliasResolver);
 
     /**
      * Returns a new prepared statement template with the specified provider filter.
@@ -119,7 +118,7 @@ public interface PreparedStatementTemplate extends TemplateDecorator {
      * @param providerFilter the provider filter.
      * @return a new prepared statement template.
      */
-    PreparedStatementTemplate withProviderFilter(@Nonnull Predicate<Provider> providerFilter);
+    PreparedStatementTemplate withProviderFilter(Predicate<Provider> providerFilter);
 
     /**
      * Returns an ORM template that is backed by this prepared statement template.
@@ -141,5 +140,5 @@ public interface PreparedStatementTemplate extends TemplateDecorator {
      * @param template the query template.
      * @return the query.
      */
-    PreparedStatement query(@Nonnull TemplateString template) throws SQLException;
+    PreparedStatement query(TemplateString template) throws SQLException;
 }

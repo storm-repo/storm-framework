@@ -15,8 +15,7 @@
  */
 package st.orm.core.spi;
 
-import jakarta.annotation.Nonnull;
-import jakarta.annotation.Nullable;
+import org.jspecify.annotations.Nullable;
 
 
 /**
@@ -34,5 +33,5 @@ public interface TransactionCallback<T> {
      * @return a result object, or null.
      */
     @Nullable
-    T doInTransaction(@Nonnull TransactionStatus status);
+    T doInTransaction(TransactionStatus status);
 }

@@ -15,8 +15,6 @@
  */
 package st.orm.core.repository.impl;
 
-import jakarta.annotation.Nonnull;
-import jakarta.annotation.Nullable;
 import java.lang.reflect.ParameterizedType;
 import java.lang.reflect.Type;
 import java.util.ArrayList;
@@ -24,6 +22,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.function.Function;
 import java.util.function.Supplier;
+import org.jspecify.annotations.Nullable;
 import st.orm.Entity;
 import st.orm.EntityCallback;
 
@@ -70,14 +69,14 @@ final class CallbackSupport<E extends Entity<ID>, ID> {
      * An "after" callback that has been collected rather than fired, holding the entity as sent to the database, the
      * primary key the database assigned if one was retrieved, and the repository that owns the callbacks.
      */
-    private record Deferred(@Nonnull CallbackSupport<?, ?> support,
-                            @Nonnull Entity<?> entity,
+    private record Deferred(CallbackSupport<?, ?> support,
+                            Entity<?> entity,
                             @Nullable Object generatedPrimaryKey,
-                            @Nonnull After type) {}
+                            After type) {}
 
     private final List<EntityCallback<E>> callbacks;
 
-    CallbackSupport(@Nonnull List<EntityCallback<?>> callbacks, @Nonnull Class<E> entityType) {
+    CallbackSupport(List<EntityCallback<?>> callbacks, Class<E> entityType) {
         this.callbacks = resolve(callbacks, entityType);
     }
 
@@ -88,7 +87,7 @@ final class CallbackSupport<E extends Entity<ID>, ID> {
      * @param write the write to perform.
      * @return the result of the write.
      */
-    static <R> R withoutObservedKeys(@Nonnull Supplier<R> write) {
+    static <R> R withoutObservedKeys(Supplier<R> write) {
         if (WITHHOLD_KEYS.get()) {
             return write.get();
         }
@@ -130,7 +129,7 @@ final class CallbackSupport<E extends Entity<ID>, ID> {
     }
 
     /** Applies each callback in registration order, chaining the entity each one returns. */
-    private E transform(E entity, @Nonnull Transformer<E> transformer) {
+    private E transform(E entity, Transformer<E> transformer) {
         if (!isActive()) {
             return entity;
         }
@@ -146,7 +145,7 @@ final class CallbackSupport<E extends Entity<ID>, ID> {
     }
 
     /** Invokes each callback in registration order without altering the entity. */
-    private void observe(E entity, @Nonnull Observer<E> observer) {
+    private void observe(E entity, Observer<E> observer) {
         if (!isActive()) {
             return;
         }
@@ -162,12 +161,12 @@ final class CallbackSupport<E extends Entity<ID>, ID> {
 
     @FunctionalInterface
     private interface Transformer<E extends Entity<?>> {
-        E apply(@Nonnull EntityCallback<E> callback, @Nonnull E entity);
+        E apply(EntityCallback<E> callback, E entity);
     }
 
     @FunctionalInterface
     private interface Observer<E extends Entity<?>> {
-        void accept(@Nonnull EntityCallback<E> callback, @Nonnull E entity);
+        void accept(EntityCallback<E> callback, E entity);
     }
 
     //
@@ -188,7 +187,7 @@ final class CallbackSupport<E extends Entity<ID>, ID> {
      * Fires the after-insert callbacks for a batch, pairing each entity with the primary key the database assigned.
      * The keys are reported in insertion order, which is the contract the batch insert paths already rely on.
      */
-    void afterInsert(@Nonnull List<E> entities, @Nonnull List<ID> generatedPrimaryKeys) {
+    void afterInsert(List<E> entities, List<ID> generatedPrimaryKeys) {
         fireBatch(entities, generatedPrimaryKeys, After.INSERT);
     }
 
@@ -207,11 +206,11 @@ final class CallbackSupport<E extends Entity<ID>, ID> {
     }
 
     /** Fires the after-upsert callbacks for a batch, pairing each entity with its assigned primary key. */
-    void afterUpsert(@Nonnull List<E> entities, @Nonnull List<ID> generatedPrimaryKeys) {
+    void afterUpsert(List<E> entities, List<ID> generatedPrimaryKeys) {
         fireBatch(entities, generatedPrimaryKeys, After.UPSERT);
     }
 
-    private void fireBatch(@Nonnull List<E> entities, @Nonnull List<ID> generatedPrimaryKeys, @Nonnull After type) {
+    private void fireBatch(List<E> entities, List<ID> generatedPrimaryKeys, After type) {
         if (!isActive()) {
             return;
         }
@@ -221,7 +220,7 @@ final class CallbackSupport<E extends Entity<ID>, ID> {
     }
 
     /** Dispatches an "after" callback, or collects it when a {@code *AndFetch} call is in flight. */
-    private void fire(@Nonnull E entity, @Nullable ID generatedPrimaryKey, @Nonnull After type) {
+    private void fire(E entity, @Nullable ID generatedPrimaryKey, After type) {
         if (!isActive()) {
             return;
         }
@@ -237,7 +236,7 @@ final class CallbackSupport<E extends Entity<ID>, ID> {
     }
 
     /** Invokes the "after" callbacks of the given type in registration order, guarding against re-entrancy. */
-    private void invoke(@Nonnull E entity, @Nonnull After type) {
+    private void invoke(E entity, After type) {
         ACTIVE.set(Boolean.TRUE);
         try {
             for (var callback : callbacks) {
@@ -258,7 +257,7 @@ final class CallbackSupport<E extends Entity<ID>, ID> {
      * key was not generated, are returned unchanged.
      */
     @SuppressWarnings("unchecked")
-    private E withPrimaryKey(@Nonnull E entity, @Nullable ID generatedPrimaryKey) {
+    private E withPrimaryKey(E entity, @Nullable ID generatedPrimaryKey) {
         if (generatedPrimaryKey == null || generatedPrimaryKey.equals(entity.id())) {
             return entity;
         }
@@ -284,7 +283,7 @@ final class CallbackSupport<E extends Entity<ID>, ID> {
      * @param write the write, returning the rows it read back.
      * @return the rows the write read back.
      */
-    List<E> fetchAndFire(@Nonnull Supplier<List<E>> write) {
+    List<E> fetchAndFire(Supplier<List<E>> write) {
         if (!isActive()) {
             return write.get();
         }
@@ -304,7 +303,7 @@ final class CallbackSupport<E extends Entity<ID>, ID> {
      * @param rows the rows the write read back, extracted from its result.
      * @return the result of the write.
      */
-    static <R> R fetchAndFire(@Nonnull Supplier<R> write, @Nonnull Function<R, List<? extends Entity<?>>> rows) {
+    static <R> R fetchAndFire(Supplier<R> write, Function<R, List<? extends Entity<?>>> rows) {
         var previous = DEFERRED.get();
         var deferred = new ArrayList<Deferred>();
         R result;
@@ -332,9 +331,9 @@ final class CallbackSupport<E extends Entity<ID>, ID> {
     }
 
     /** Identifies a reported row, so entities of different types that share a primary key stay distinct. */
-    private record TypeIdKey(@Nonnull Class<?> type, @Nullable Object id) {}
+    private record TypeIdKey(Class<?> type, @Nullable Object id) {}
 
-    private static void replay(@Nonnull List<Deferred> deferred, @Nonnull List<? extends Entity<?>> fetched) {
+    private static void replay(List<Deferred> deferred, List<? extends Entity<?>> fetched) {
         if (deferred.isEmpty()) {
             return;
         }
@@ -348,7 +347,7 @@ final class CallbackSupport<E extends Entity<ID>, ID> {
     }
 
     @SuppressWarnings("unchecked")
-    private void replayOne(@Nonnull Deferred entry, @Nonnull HashMap<TypeIdKey, Entity<?>> byTypeAndKey) {
+    private void replayOne(Deferred entry, HashMap<TypeIdKey, Entity<?>> byTypeAndKey) {
         E sent = withPrimaryKey((E) entry.entity(), (ID) entry.generatedPrimaryKey());
         Entity<?> row = byTypeAndKey.get(new TypeIdKey(sent.getClass(), sent.id()));
         invoke(row == null ? sent : (E) row, entry.type());
@@ -364,7 +363,7 @@ final class CallbackSupport<E extends Entity<ID>, ID> {
      */
     @SuppressWarnings("unchecked")
     private static <E extends Entity<ID>, ID> List<EntityCallback<E>> resolve(
-            @Nonnull List<EntityCallback<?>> callbacks, @Nonnull Class<E> entityType) {
+            List<EntityCallback<?>> callbacks, Class<E> entityType) {
         var result = new ArrayList<EntityCallback<E>>();
         for (var callback : callbacks) {
             Class<?> callbackType = resolveEntityType(callback.getClass());
@@ -379,7 +378,7 @@ final class CallbackSupport<E extends Entity<ID>, ID> {
      * Resolves the entity type parameter {@code E} from a concrete {@link EntityCallback} class by inspecting its
      * generic interface hierarchy.
      */
-    private static Class<?> resolveEntityType(@Nonnull Class<?> clazz) {
+    private static Class<?> resolveEntityType(Class<?> clazz) {
         for (Type iface : clazz.getGenericInterfaces()) {
             if (iface instanceof ParameterizedType pt) {
                 if (pt.getRawType() == EntityCallback.class) {
@@ -405,7 +404,7 @@ final class CallbackSupport<E extends Entity<ID>, ID> {
         return Entity.class;
     }
 
-    private static Class<?> extractClass(@Nonnull Type type) {
+    private static Class<?> extractClass(Type type) {
         if (type instanceof Class<?> cls) {
             return cls;
         }

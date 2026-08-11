@@ -36,13 +36,12 @@ import static st.orm.core.template.impl.RecordReflection.isRecord;
 import static st.orm.core.template.impl.RecordReflection.isSealedEntity;
 import static st.orm.core.template.impl.RecordValidation.validateDataType;
 
-import jakarta.annotation.Nonnull;
-import jakarta.annotation.Nullable;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.atomic.AtomicInteger;
+import org.jspecify.annotations.Nullable;
 import st.orm.Data;
 import st.orm.DbColumn;
 import st.orm.FK;
@@ -74,7 +73,7 @@ final class ModelFactory {
      */
     private static final ClassValue<ConcurrentMap<FetchPlan, Model<?, ?>>> MODEL_CACHE = new ClassValue<>() {
         @Override
-        protected ConcurrentMap<FetchPlan, Model<?, ?>> computeValue(@Nonnull Class<?> type) {
+        protected ConcurrentMap<FetchPlan, Model<?, ?>> computeValue(Class<?> type) {
             return new ConcurrentHashMap<>();
         }
     };
@@ -82,11 +81,11 @@ final class ModelFactory {
     private ModelFactory() {
     }
 
-    static <T extends Data, ID> Model<T, ID> getModel(@Nonnull ModelBuilderImpl builder, @Nonnull Class<T> type, boolean requirePrimaryKey) throws SqlTemplateException {
+    static <T extends Data, ID> Model<T, ID> getModel(ModelBuilderImpl builder, Class<T> type, boolean requirePrimaryKey) throws SqlTemplateException {
         return getModel(builder, type, requirePrimaryKey, FetchPlan.NONE);
     }
 
-    static <T extends Data, ID> Model<T, ID> getModel(@Nonnull ModelBuilderImpl builder, @Nonnull Class<T> type, boolean requirePrimaryKey, @Nonnull FetchPlan fetchPlan) throws SqlTemplateException {
+    static <T extends Data, ID> Model<T, ID> getModel(ModelBuilderImpl builder, Class<T> type, boolean requirePrimaryKey, FetchPlan fetchPlan) throws SqlTemplateException {
         try {
             validateDataType(type, requirePrimaryKey);
             //noinspection unchecked
@@ -102,7 +101,7 @@ final class ModelFactory {
         }
     }
 
-    private static <T extends Data, ID> Model<T, ID> createModel(@Nonnull ModelBuilder builder, @Nonnull Class<T> type, boolean requirePrimaryKey, @Nonnull FetchPlan fetchPlan) throws SqlTemplateException {
+    private static <T extends Data, ID> Model<T, ID> createModel(ModelBuilder builder, Class<T> type, boolean requirePrimaryKey, FetchPlan fetchPlan) throws SqlTemplateException {
         validateDataType(type, requirePrimaryKey);
         // Handle sealed entity types (single-table and joined).
         if (type.isSealed() && isSealedEntity(type)) {
@@ -142,8 +141,8 @@ final class ModelFactory {
      * PK generation is overridden to NONE (the PK value is provided from the base table INSERT,
      * not auto-generated).</p>
      */
-    private static List<Column> adjustColumnsForJoinedSubtype(@Nonnull List<Column> columns,
-                                                               @Nonnull Class<?> sealedParent) {
+    private static List<Column> adjustColumnsForJoinedSubtype(List<Column> columns,
+                                                               Class<?> sealedParent) {
         List<String> baseFieldNames = getBaseFieldNames(sealedParent);
         List<Column> adjusted = new ArrayList<>(columns.size());
         for (Column col : columns) {
@@ -202,8 +201,8 @@ final class ModelFactory {
      * to concrete subtype records via discriminator-based dispatch.</p>
      */
     @SuppressWarnings("unchecked")
-    private static <T extends Data, ID> Model<T, ID> createSealedModel(@Nonnull ModelBuilder builder,
-                                                                        @Nonnull Class<T> sealedType) throws SqlTemplateException {
+    private static <T extends Data, ID> Model<T, ID> createSealedModel(ModelBuilder builder,
+                                                                        Class<T> sealedType) throws SqlTemplateException {
         Class<?>[] permitted = sealedType.getPermittedSubclasses();
         if (permitted == null || permitted.length == 0) {
             throw new SqlTemplateException("Sealed type %s has no permitted subclasses.".formatted(sealedType.getSimpleName()));
@@ -345,7 +344,7 @@ final class ModelFactory {
 
     record ColumnSpec(boolean primaryKey,
                       boolean foreignKey,
-                      @Nonnull GenerationStrategy foreignKeyGeneration,
+                      GenerationStrategy foreignKeyGeneration,
                       boolean nullable,
                       boolean insertable,
                       boolean updatable,
@@ -361,18 +360,18 @@ final class ModelFactory {
         static PkContext none() {
             return NONE;
         }
-        static PkContext start(@Nonnull RecordField pkField) {
+        static PkContext start(RecordField pkField) {
             return new PkContext(true, getGenerationStrategy(pkField), getSequence(pkField));
         }
     }
 
-    private static void createColumns(@Nonnull BuildContext ctx,
-                                      @Nonnull Metamodel<?, ?> parentMetamodel,
-                                      @Nonnull RecordField field,
+    private static void createColumns(BuildContext ctx,
+                                      Metamodel<?, ?> parentMetamodel,
+                                      RecordField field,
                                       boolean parentNullable,
                                       @Nullable Persist inheritedPersist,
-                                      @Nonnull KeyScope inheritedKeyScope,
-                                      @Nonnull PkContext inheritedPkContext,
+                                      KeyScope inheritedKeyScope,
+                                      PkContext inheritedPkContext,
                                       @Nullable Metamodel<Data, ?> keyMetamodel,
                                       boolean expandingRelation) {
         try {
@@ -484,11 +483,11 @@ final class ModelFactory {
         }
     }
 
-    private static void expandForeignRelation(@Nonnull BuildContext ctx,
-                                              @Nonnull Metamodel<Data, ?> foreignMetamodel,
-                                              @Nonnull RecordField foreignField,
+    private static void expandForeignRelation(BuildContext ctx,
+                                              Metamodel<Data, ?> foreignMetamodel,
+                                              RecordField foreignField,
                                               boolean nullableDueToJoin,
-                                              @Nonnull Class<?> relationType) {
+                                              Class<?> relationType) {
         if (!Data.class.isAssignableFrom(relationType)) {
             return;
         }
@@ -500,12 +499,12 @@ final class ModelFactory {
         }
     }
 
-    private static ColumnSpec buildSpec(@Nonnull RecordField field,
+    private static ColumnSpec buildSpec(RecordField field,
                                         boolean effectivePrimaryKey,
                                         boolean foreignKey,
                                         boolean parentNullable,
                                         @Nullable Persist inheritedPersist,
-                                        @Nonnull PkContext pkContext) throws SqlTemplateException {
+                                        PkContext pkContext) throws SqlTemplateException {
         boolean nullable = parentNullable || field.nullable();
         Persist persist = field.getAnnotation(Persist.class);
         Persist effectivePersist = persist != null ? persist : inheritedPersist;
@@ -529,15 +528,15 @@ final class ModelFactory {
         return new ColumnSpec(effectivePrimaryKey, foreignKey, fkGeneration, nullable, insertable, updatable, version, ref, dataType, generation, sequence);
     }
 
-    private static void emitColumns(@Nonnull BuildContext ctx,
-                                    @Nonnull RecordField field,
-                                    @Nonnull Metamodel<Data, ?> metamodel,
+    private static void emitColumns(BuildContext ctx,
+                                    RecordField field,
+                                    Metamodel<Data, ?> metamodel,
                                     @Nullable Metamodel<Data, ?> secondaryMetamodel,
-                                    @Nonnull ColumnSpec spec,
-                                    @Nonnull KeyScope keyScope,
-                                    @Nonnull List<? extends Name> names,
-                                    @Nonnull List<Class<?>> types,
-                                    @Nonnull List<Class<?>> persistedTypes) throws SqlTemplateException {
+                                    ColumnSpec spec,
+                                    KeyScope keyScope,
+                                    List<? extends Name> names,
+                                    List<Class<?>> types,
+                                    List<Class<?>> persistedTypes) throws SqlTemplateException {
         if (names.size() != types.size() || names.size() != persistedTypes.size()) {
             throw new SqlTemplateException("Column count does not match type count.");
         }

@@ -44,7 +44,7 @@ import java.lang.annotation.Target;
  * <p>When a nullable field is annotated with {@code @UK} and {@code nullsDistinct} is {@code true} (the
  * default), the metamodel processor emits a compile-time warning, and {@code scroll} methods throw a
  * {@link PersistenceException} at runtime. To suppress the warning and enable keyset pagination, either make
- * the field non-nullable (use a primitive type or add {@code @Nonnull}), or set
+ * the field non-nullable (remove the {@code @Nullable} annotation or use a primitive type), or set
  * {@code @UK(nullsDistinct = false)} to indicate that the database constraint prevents duplicate NULLs.</p>
  *
  * <p>Usage example (Java):
@@ -108,8 +108,8 @@ public @interface UK {
      * {@code NULLS NOT DISTINCT}, or SQL Server which allows only one NULL by default). This tells Storm that
      * the nullable field is safe for keyset pagination.</p>
      *
-     * <p>This attribute has no effect on fields that are already non-nullable (primitives, {@code @PK}, or fields
-     * annotated with {@code @Nonnull}).</p>
+     * <p>This attribute has no effect on fields that are already non-nullable (primitives, {@code @PK}, or any
+     * field not marked {@code @Nullable}).</p>
      *
      * @return {@code true} if NULLs are distinct (SQL standard), {@code false} if the database prevents
      *         duplicate NULLs.

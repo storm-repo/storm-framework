@@ -17,7 +17,6 @@ package st.orm.core.template.impl;
 
 import static java.util.stream.Collectors.joining;
 
-import jakarta.annotation.Nonnull;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import st.orm.Data;
@@ -55,7 +54,7 @@ final class SqlStatementLogger {
      */
     private static final ClassValue<Logger> TYPE_LOGGERS = new ClassValue<>() {
         @Override
-        protected Logger computeValue(@Nonnull Class<?> type) {
+        protected Logger computeValue(Class<?> type) {
             return LoggerFactory.getLogger("%s.%s".formatted(ROOT_NAME, type.getSimpleName()));
         }
     };
@@ -68,7 +67,7 @@ final class SqlStatementLogger {
      *
      * @param sql the statement about to execute.
      */
-    static void log(@Nonnull Sql sql) {
+    static void log(Sql sql) {
         Logger logger = loggerFor(sql.dataType().orElse(null));
         if (!logger.isDebugEnabled()) {
             return;
@@ -99,7 +98,7 @@ final class SqlStatementLogger {
     /**
      * Describes the statement for the log line: what it does, to what, and what caused it.
      */
-    private static String describe(@Nonnull Sql sql) {
+    private static String describe(Sql sql) {
         String description = sql.dataType()
                 .map(type -> "%s %s".formatted(sql.operation().name(), type.getSimpleName()))
                 .orElseGet(() -> sql.operation().name());
@@ -109,7 +108,7 @@ final class SqlStatementLogger {
         return description;
     }
 
-    private static String indent(@Nonnull String statement) {
+    private static String indent(String statement) {
         return statement.lines()
                 .map(line -> "\t" + line)
                 .collect(joining(System.lineSeparator()));

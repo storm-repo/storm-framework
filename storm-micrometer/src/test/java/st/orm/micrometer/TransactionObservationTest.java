@@ -20,7 +20,6 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import io.micrometer.common.KeyValues;
 import io.micrometer.observation.tck.TestObservationRegistry;
 import io.micrometer.observation.tck.TestObservationRegistryAssert;
-import jakarta.annotation.Nonnull;
 import java.util.List;
 import org.junit.jupiter.api.Test;
 import st.orm.TransactionPropagation;
@@ -148,7 +147,7 @@ public class TransactionObservationTest {
             }
 
             @Override
-            public KeyValues getLowCardinalityKeyValues(@Nonnull StormTransactionObservationContext context) {
+            public KeyValues getLowCardinalityKeyValues(StormTransactionObservationContext context) {
                 return super.getLowCardinalityKeyValues(context).and("db.system.name", "h2database");
             }
         };

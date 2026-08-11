@@ -17,7 +17,6 @@ package st.orm;
 
 import static java.util.List.copyOf;
 
-import jakarta.annotation.Nonnull;
 import java.util.List;
 
 /**
@@ -35,7 +34,7 @@ import java.util.List;
  * @param <R> the type of the results.
  * @since 1.10
  */
-public record Page<R>(@Nonnull List<R> content, long totalCount, @Nonnull Pageable pageable) implements Slice<R> {
+public record Page<R>(List<R> content, long totalCount, Pageable pageable) implements Slice<R> {
     public Page {
         content = copyOf(content);
         if (totalCount < 0) {
@@ -51,7 +50,7 @@ public record Page<R>(@Nonnull List<R> content, long totalCount, @Nonnull Pageab
      * @param pageNumber the zero-based index of this page.
      * @param pageSize the maximum number of elements per page.
      */
-    public Page(@Nonnull List<R> content, long totalCount, int pageNumber, int pageSize) {
+    public Page(List<R> content, long totalCount, int pageNumber, int pageSize) {
         this(content, totalCount, Pageable.of(pageNumber, pageSize));
     }
 

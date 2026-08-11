@@ -18,7 +18,6 @@ package st.orm.micrometer;
 import io.micrometer.common.KeyValues;
 import io.micrometer.observation.Observation;
 import io.micrometer.observation.ObservationConvention;
-import jakarta.annotation.Nonnull;
 
 /**
  * Default {@link ObservationConvention} for Storm transaction observations.
@@ -47,7 +46,7 @@ public class StormTransactionObservationConvention implements ObservationConvent
     public static final String OBSERVATION_NAME = "storm.transaction";
 
     @Override
-    public boolean supportsContext(@Nonnull Observation.Context context) {
+    public boolean supportsContext(Observation.Context context) {
         return context instanceof StormTransactionObservationContext;
     }
 
@@ -57,12 +56,12 @@ public class StormTransactionObservationConvention implements ObservationConvent
     }
 
     @Override
-    public String getContextualName(@Nonnull StormTransactionObservationContext context) {
+    public String getContextualName(StormTransactionObservationContext context) {
         return "transaction";
     }
 
     @Override
-    public KeyValues getLowCardinalityKeyValues(@Nonnull StormTransactionObservationContext context) {
+    public KeyValues getLowCardinalityKeyValues(StormTransactionObservationContext context) {
         var options = context.options();
         var rolledBack = context.rolledBack();
         return KeyValues.of(

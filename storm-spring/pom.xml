@@ -99,6 +99,11 @@
     </build>
     <dependencies>
         <dependency>
+            <groupId>org.jspecify</groupId>
+            <artifactId>jspecify</artifactId>
+            <optional>true</optional>
+        </dependency>
+        <dependency>
             <groupId>st.orm</groupId>
             <artifactId>storm-java21</artifactId>
             <version>${project.version}</version>

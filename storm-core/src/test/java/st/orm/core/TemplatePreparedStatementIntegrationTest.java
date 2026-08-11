@@ -24,8 +24,6 @@ import static st.orm.core.template.Templates.update;
 import static st.orm.core.template.Templates.values;
 import static st.orm.core.template.Templates.where;
 
-import jakarta.annotation.Nonnull;
-import jakarta.annotation.Nullable;
 import java.time.LocalDate;
 import java.time.ZoneId;
 import java.time.ZonedDateTime;
@@ -38,6 +36,7 @@ import java.util.Set;
 import java.util.TimeZone;
 import javax.sql.DataSource;
 import lombok.Builder;
+import org.jspecify.annotations.Nullable;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -271,15 +270,15 @@ public class TemplatePreparedStatementIntegrationTest {
     @DbTable("pet")
     public record PetWithRefNonNullViolation(
             @PK Integer id,
-            @Nonnull String name,
-            @Nonnull @Persist(updatable = false) LocalDate birthDate,
-            @Nonnull @FK @Persist(updatable = false) @DbColumn("type_id") PetType petType,
-            @Nonnull @FK Ref<Owner> owner
+            String name,
+            @Persist(updatable = false) LocalDate birthDate,
+            @FK @Persist(updatable = false) @DbColumn("type_id") PetType petType,
+            @FK Ref<Owner> owner
     ) implements Entity<Integer> {}
 
     @Test
     public void testSelectRefNullViolation() {
-        // Pet 13 (Sly) has NULL owner_id. PetWithRefNonNullViolation declares @Nonnull Ref<Owner>,
+        // Pet 13 (Sly) has NULL owner_id. PetWithRefNonNullViolation declares Ref<Owner>,
         // so mapping Sly should throw SqlTemplateException for the null violation.
         var e = assertThrows(PersistenceException.class, () -> {
             try (var query = ORMTemplate.of(dataSource).query(raw("""
@@ -717,7 +716,7 @@ public class TemplatePreparedStatementIntegrationTest {
     public record VetSpecialtyRefPk(
             // PK does not reflect the database, but suffices for the test case.
             @PK(generation = NONE) @FK @DbColumn("vet_id") Ref<Vet> id,
-            @Nonnull @FK Specialty specialty) implements Entity<Ref<Vet>> {
+            @FK Specialty specialty) implements Entity<Ref<Vet>> {
     }
 
     @Test
@@ -929,9 +928,9 @@ public class TemplatePreparedStatementIntegrationTest {
     @DbTable("pet")
     public record PetWithUpdatable(
             @PK Integer id,
-            @Nonnull String name,
-            @Nonnull @Persist(updatable = false) LocalDate birthDate,
-            @Nonnull @FK @Persist @DbColumn("type_id") PetType petType,
+            String name,
+            @Persist(updatable = false) LocalDate birthDate,
+            @FK @Persist @DbColumn("type_id") PetType petType,
             @Nullable @FK Owner owner
     ) implements Data {}
 
@@ -1015,9 +1014,9 @@ public class TemplatePreparedStatementIntegrationTest {
     @DbTable("pet")
     public record PetWithoutPersist(
             @PK Integer id,
-            @Nonnull String name,
-            @Nonnull @Persist(updatable = false) LocalDate birthDate,
-            @Nonnull @FK @DbColumn("type_id") PetType petType,
+            String name,
+            @Persist(updatable = false) LocalDate birthDate,
+            @FK @DbColumn("type_id") PetType petType,
             @Nullable @FK Owner owner
     ) implements Data {}
 

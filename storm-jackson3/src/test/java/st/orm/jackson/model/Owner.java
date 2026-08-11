@@ -15,9 +15,8 @@
  */
 package st.orm.jackson.model;
 
-import jakarta.annotation.Nonnull;
-import jakarta.annotation.Nullable;
 import lombok.Builder;
+import org.jspecify.annotations.Nullable;
 import st.orm.Entity;
 import st.orm.Json;
 import st.orm.PK;
@@ -29,9 +28,9 @@ import st.orm.PK;
 @Builder(toBuilder = true)
 public record Owner(
         @PK Integer id,
-        @Nonnull String firstName,
-        @Nonnull String lastName,
-        @Nonnull @Json Address address,
+        String firstName,
+        String lastName,
+        @Json Address address,
         @Nullable String telephone
 ) implements Entity<Integer> {
 }

@@ -4,7 +4,6 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-import jakarta.annotation.Nonnull;
 import java.util.ArrayList;
 import java.util.List;
 import javax.sql.DataSource;
@@ -88,14 +87,14 @@ public class EntityRepositoryUpsertIntegrationTest {
         var orm = ORMTemplate.of(dataSource)
                 .withEntityCallback(new EntityCallback<City>() {
                     @Override
-                    public City beforeInsert(@Nonnull City entity) {
+                    public City beforeInsert(City entity) {
                         log1.add("cb1:" + entity.name());
                         return entity;
                     }
                 })
                 .withEntityCallback(new EntityCallback<City>() {
                     @Override
-                    public City beforeInsert(@Nonnull City entity) {
+                    public City beforeInsert(City entity) {
                         log2.add("cb2:" + entity.name());
                         return entity;
                     }

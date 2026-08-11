@@ -17,8 +17,7 @@ package st.orm;
 
 import static java.util.Objects.requireNonNull;
 
-import jakarta.annotation.Nonnull;
-import jakarta.annotation.Nullable;
+import org.jspecify.annotations.Nullable;
 
 /**
  * Ref records are used to represent reference to records, allowing them to be fetched from the database. This can be
@@ -57,7 +56,7 @@ public interface Ref<T extends Data> {
      * @param <ID> the type of the primary key.
      * @return a detached ref instance for the given type and primary key.
      */
-    static <T extends Data, ID> Ref<T> of(@Nonnull Class<T> type, @Nonnull ID pk) {
+    static <T extends Data, ID> Ref<T> of(Class<T> type, ID pk) {
         return new DetachedRef<>(type, pk);
     }
 
@@ -75,11 +74,11 @@ public interface Ref<T extends Data> {
      * @param <E> the type of the entity, which must extend {@link Record} and implement {@link Entity}.
      * @return a fully loaded ref instance for the provided entity.
      */
-    static <E extends Entity<?>> Ref<E> of(@Nonnull E entity) {
+    static <E extends Entity<?>> Ref<E> of(E entity) {
         class DetachedEntity<TE extends Entity<?>> extends AbstractRef<TE> {
             private final TE entity;
 
-            DetachedEntity(@Nonnull TE entity) {
+            DetachedEntity(TE entity) {
                 requireNonNull(entity, "Entity cannot be null.");
                 this.entity = entity;
             }
@@ -127,7 +126,7 @@ public interface Ref<T extends Data> {
      * @param <ID> the type of the primary key.
      * @return a fully loaded ref instance for the provided projection.
      */
-    static <P extends Projection<ID>, ID> Ref<P> of(@Nonnull P projection, @Nonnull ID id) {
+    static <P extends Projection<ID>, ID> Ref<P> of(P projection, ID id) {
         class DetachedProjection<TE extends Projection<TID>, TID> extends AbstractRef<TE> {
             private final TID id;
             private final TE projection;
@@ -179,7 +178,7 @@ public interface Ref<T extends Data> {
      * @param <ID> the id type.
      * @param <E> the entity type.
      */
-    static <ID, E extends Entity<ID>> ID entityId(@Nonnull Ref<E> ref) {
+    static <ID, E extends Entity<ID>> ID entityId(Ref<E> ref) {
         //noinspection unchecked
         return (ID) ref.id();
     }
@@ -192,7 +191,7 @@ public interface Ref<T extends Data> {
      * @param <ID> the id type.
      * @param <P> the projection type.
      */
-    static <ID, P extends Projection<ID>> ID projectionId(@Nonnull Ref<P> ref) {
+    static <ID, P extends Projection<ID>> ID projectionId(Ref<P> ref) {
         //noinspection unchecked
         return (ID) ref.id();
     }

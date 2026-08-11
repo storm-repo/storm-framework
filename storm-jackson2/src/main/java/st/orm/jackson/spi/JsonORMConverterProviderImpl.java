@@ -18,7 +18,6 @@ package st.orm.jackson.spi;
 import static java.util.Optional.empty;
 
 import com.fasterxml.jackson.core.type.TypeReference;
-import jakarta.annotation.Nonnull;
 import java.lang.reflect.Type;
 import java.util.Optional;
 import st.orm.Json;
@@ -40,7 +39,7 @@ public class JsonORMConverterProviderImpl implements ORMConverterProvider {
      * @return an Optional containing the ORMConverter if available, or empty if not supported.
      */
     @Override
-    public Optional<ORMConverter> getConverter(@Nonnull RecordField field) {
+    public Optional<ORMConverter> getConverter(RecordField field) {
         Json json = field.getAnnotation(Json.class);
         if (json == null) {
             return empty();

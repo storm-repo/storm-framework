@@ -15,12 +15,11 @@
  */
 package st.orm.template;
 
-import jakarta.annotation.Nonnull;
-import jakarta.annotation.Nullable;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.SequencedMap;
 import java.util.function.BiConsumer;
+import org.jspecify.annotations.Nullable;
 import st.orm.Data;
 import st.orm.core.template.SqlTemplateException;
 
@@ -125,9 +124,9 @@ public interface Model<E extends Data, ID> {
      * @throws SqlTemplateException if extraction fails.
      * @since 1.8
      */
-    void forEachValue(@Nonnull List<Column> columns,
-                      @Nonnull E record,
-                      @Nonnull BiConsumer<Column, Object> consumer)
+    void forEachValue(List<Column> columns,
+                      E record,
+                      BiConsumer<Column, Object> consumer)
             throws SqlTemplateException;
 
     /**
@@ -142,8 +141,8 @@ public interface Model<E extends Data, ID> {
      * @throws SqlTemplateException if extraction fails.
      * @since 1.8
      */
-    default SequencedMap<Column, Object> values(@Nonnull List<Column> columns,
-                                                @Nonnull E record)
+    default SequencedMap<Column, Object> values(List<Column> columns,
+                                                E record)
             throws SqlTemplateException {
         var values = new LinkedHashMap<Column, Object>();
         forEachValue(columns, record, values::put);
@@ -160,7 +159,7 @@ public interface Model<E extends Data, ID> {
      * @throws SqlTemplateException if extraction fails.
      * @since 1.8
      */
-    default SequencedMap<Column, Object> values(@Nonnull E record) throws SqlTemplateException {
+    default SequencedMap<Column, Object> values(E record) throws SqlTemplateException {
         return values(columns(), record);
     }
 }

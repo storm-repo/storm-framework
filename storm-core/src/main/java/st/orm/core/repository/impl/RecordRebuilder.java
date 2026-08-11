@@ -15,9 +15,8 @@
  */
 package st.orm.core.repository.impl;
 
-import jakarta.annotation.Nonnull;
-import jakarta.annotation.Nullable;
 import java.util.List;
+import org.jspecify.annotations.Nullable;
 import st.orm.PK;
 import st.orm.core.spi.Instantiators;
 import st.orm.core.spi.ORMReflection;
@@ -47,8 +46,8 @@ final class RecordRebuilder {
      * the generated metamodel instantiator when one is registered, so rebuilds construct through generated code
      * rather than reflection.
      */
-    private record RebuildType(@Nonnull RecordType recordType, @Nullable Instantiator<?> instantiator) {
-        Object newInstance(@Nonnull Object[] args) {
+    private record RebuildType(RecordType recordType, @Nullable Instantiator<?> instantiator) {
+        Object newInstance(Object[] args) {
             return instantiator != null ? instantiator.instantiate(args) : recordType.newInstance(args);
         }
 
@@ -57,7 +56,7 @@ final class RecordRebuilder {
          * metamodel registered one, so rebuilds run as generated code on both sides of the round trip.
          */
         @SuppressWarnings("unchecked")
-        Object[] deconstruct(@Nonnull Object record) {
+        Object[] deconstruct(Object record) {
             if (instantiator != null) {
                 Object[] args = ((Instantiator<Object>) instantiator).deconstruct(record);
                 if (args != null) {
@@ -75,7 +74,7 @@ final class RecordRebuilder {
 
     private static final ClassValue<RebuildType> REBUILD_TYPES = new ClassValue<>() {
         @Override
-        protected RebuildType computeValue(@Nonnull Class<?> type) {
+        protected RebuildType computeValue(Class<?> type) {
             RecordType recordType = REFLECTION.getRecordType(type);
             recordType.constructor().trySetAccessible();
             return new RebuildType(recordType, Instantiators.find(type));
@@ -84,7 +83,7 @@ final class RecordRebuilder {
 
     private static final ClassValue<Integer> PRIMARY_KEY_INDEXES = new ClassValue<>() {
         @Override
-        protected Integer computeValue(@Nonnull Class<?> type) {
+        protected Integer computeValue(Class<?> type) {
             // Recognizing the type is delegated to the reflection provider, so Kotlin data classes resolve on the
             // same terms as Java records.
             return REFLECTION.findRecordType(type)
@@ -108,7 +107,7 @@ final class RecordRebuilder {
      * <p>Resolved against the concrete type of an instance rather than the modelled entity type: a joined sealed
      * hierarchy models a base type that is not itself a record, while every instance is.</p>
      */
-    static int primaryKeyIndex(@Nonnull Class<?> type) {
+    static int primaryKeyIndex(Class<?> type) {
         return PRIMARY_KEY_INDEXES.get(type);
     }
 
@@ -118,18 +117,18 @@ final class RecordRebuilder {
      * <p>Intermediate components along the path must be non-null: paths are only walked where a value was resolved
      * through the same path, and records are immutable.</p>
      */
-    static Object withComponent(@Nonnull Object record, @Nonnull int[] path, @Nullable Object newValue) {
+    static Object withComponent(Object record, int[] path, @Nullable Object newValue) {
         return replace(record, path, 0, newValue);
     }
 
     /** Rebuilds the record with the component at the given index replaced. */
-    static Object withComponent(@Nonnull Object record, int index, @Nullable Object newValue) {
+    static Object withComponent(Object record, int index, @Nullable Object newValue) {
         return replace(record, new int[] {index}, 0, newValue);
     }
 
     /** Replaces the component at {@code path[depth]}, descending into the nested record while the path continues. */
-    private static Object replace(@Nonnull Object record,
-                                  @Nonnull int[] path,
+    private static Object replace(Object record,
+                                  int[] path,
                                   int depth,
                                   @Nullable Object newValue) {
         RebuildType rebuildType = REBUILD_TYPES.get(record.getClass());

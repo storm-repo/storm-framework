@@ -50,8 +50,6 @@ import static st.orm.core.template.impl.SqlParser.getSqlOperation;
 import static st.orm.core.template.impl.SqlParser.removeComments;
 import static st.orm.core.template.impl.SqlParser.startsWithKeyword;
 
-import jakarta.annotation.Nonnull;
-import jakarta.annotation.Nullable;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.LinkedHashSet;
@@ -60,6 +58,7 @@ import java.util.ListIterator;
 import java.util.Set;
 import java.util.stream.Stream;
 import java.util.stream.StreamSupport;
+import org.jspecify.annotations.Nullable;
 import st.orm.BindVars;
 import st.orm.Data;
 import st.orm.DefaultJoinType;
@@ -150,7 +149,7 @@ class TemplatePreparation {
      * @param template     the template to prepare.
      * @param modelBuilder the model builder used for resolving record and table metadata.
      */
-    TemplatePreparation(@Nonnull SqlTemplate template, @Nonnull ModelBuilder modelBuilder) {
+    TemplatePreparation(SqlTemplate template, ModelBuilder modelBuilder) {
         this.template = template;
         this.modelBuilder = modelBuilder;
         this.dialectTemplate = new SqlDialectTemplate(template.dialect());
@@ -167,7 +166,7 @@ class TemplatePreparation {
      * @param elements   resolved elements corresponding to template values.
      * @param operation  the SQL operation inferred from the template.
      */
-    record BindingContext(@Nonnull List<String> fragments, @Nonnull List<Element> elements, @Nonnull SqlOperation operation) { }
+    record BindingContext(List<String> fragments, List<Element> elements, SqlOperation operation) { }
 
     /**
      * Compilation context produced by {@link #prepare(BindingContext)}.
@@ -179,7 +178,7 @@ class TemplatePreparation {
      * @param elements   post-processed elements, possibly containing {@link Wrapped} nodes to inject joins.
      * @param operation  the SQL operation inferred from the template.
      */
-    record CompilationContext(@Nonnull List<String> fragments, @Nonnull List<Element> elements, @Nonnull SqlOperation operation) { }
+    record CompilationContext(List<String> fragments, List<Element> elements, SqlOperation operation) { }
 
     /**
      * Prepared template consisting of a processor and its compilation context.
@@ -190,7 +189,7 @@ class TemplatePreparation {
      * @param processor the processor responsible for compilation and binding.
      * @param context   the compilation context to compile.
      */
-    record PreparedTemplate(@Nonnull TemplateProcessor processor, @Nonnull CompilationContext context) { }
+    record PreparedTemplate(TemplateProcessor processor, CompilationContext context) { }
 
     /**
      * Preprocesses a template string into fragments and resolved elements.
@@ -202,7 +201,7 @@ class TemplatePreparation {
      * @return the binding context.
      * @throws SqlTemplateException if a value cannot be resolved in the given context.
      */
-    BindingContext preprocess(@Nonnull TemplateString templateString) throws SqlTemplateException {
+    BindingContext preprocess(TemplateString templateString) throws SqlTemplateException {
         var fragments = templateString.fragments();
         var values = templateString.values();
         var operation = getSqlOperation(templateString, template.dialect());
@@ -218,7 +217,7 @@ class TemplatePreparation {
      * @return the prepared template.
      * @throws SqlTemplateException if preparation fails.
      */
-    PreparedTemplate prepare(@Nonnull BindingContext bindingContext) throws SqlTemplateException {
+    PreparedTemplate prepare(BindingContext bindingContext) throws SqlTemplateException {
         return prepare(bindingContext, null, false);
     }
 
@@ -235,7 +234,7 @@ class TemplatePreparation {
      * @throws SqlTemplateException if preparation fails.
      */
     PreparedTemplate prepare(
-            @Nonnull BindingContext bindingContext,
+            BindingContext bindingContext,
             @Nullable TemplateProcessor parentProcessor,
             boolean correlate
     ) throws SqlTemplateException {
@@ -275,9 +274,9 @@ class TemplatePreparation {
      * @throws SqlTemplateException if the bind vars value is not valid in the given context.
      */
     private Element resolveBindVarsElement(
-            @Nonnull SqlOperation operation,
-            @Nonnull String previousFragment,
-            @Nonnull BindVars bindVars
+            SqlOperation operation,
+            String previousFragment,
+            BindVars bindVars
     ) throws SqlTemplateException {
         String previous = removeComments(previousFragment, template.dialect()).stripTrailing().toUpperCase();
         return switch (operation) {
@@ -321,8 +320,8 @@ class TemplatePreparation {
      * @throws SqlTemplateException if the object is invalid in the given context.
      */
     private Element resolveObjectElement(
-            @Nonnull SqlOperation operation,
-            @Nonnull String previousFragment,
+            SqlOperation operation,
+            String previousFragment,
             @Nullable Object o
     ) throws SqlTemplateException {
         String previous = removeComments(previousFragment, template.dialect()).stripTrailing().toUpperCase();
@@ -382,9 +381,9 @@ class TemplatePreparation {
      * @throws SqlTemplateException if the array is invalid in the given context.
      */
     private Element resolveArrayElement(
-            @Nonnull SqlOperation operation,
-            @Nonnull String previousFragment,
-            @Nonnull Object[] array
+            SqlOperation operation,
+            String previousFragment,
+            Object[] array
     ) throws SqlTemplateException {
         return resolveIterableElement(operation, previousFragment, List.of(array));
     }
@@ -403,9 +402,9 @@ class TemplatePreparation {
      */
     @SuppressWarnings("unchecked")
     private Element resolveIterableElement(
-            @Nonnull SqlOperation operation,
-            @Nonnull String previousFragment,
-            @Nonnull Iterable<?> iterable
+            SqlOperation operation,
+            String previousFragment,
+            Iterable<?> iterable
     ) throws SqlTemplateException {
         String previous = removeComments(previousFragment, template.dialect()).stripTrailing().toUpperCase();
         return switch (operation) {
@@ -445,11 +444,11 @@ class TemplatePreparation {
      * @throws SqlTemplateException if the type cannot be used in the given context.
      */
     private Element resolveTypeElement(
-            @Nonnull SqlOperation operation,
+            SqlOperation operation,
             @Nullable Element first,
-            @Nonnull String previousFragment,
-            @Nonnull String nextFragment,
-            @Nonnull Class<? extends Data> recordType
+            String previousFragment,
+            String nextFragment,
+            Class<? extends Data> recordType
     ) throws SqlTemplateException {
         if (nextFragment.startsWith(".")) {
             return new Alias(recordType, CASCADE);
@@ -509,9 +508,9 @@ class TemplatePreparation {
      * @throws SqlTemplateException if a value cannot be resolved or violates statement rules.
      */
     List<Element> resolveElements(
-            @Nonnull SqlOperation sqlOperation,
-            @Nonnull List<?> values,
-            @Nonnull List<String> fragments
+            SqlOperation sqlOperation,
+            List<?> values,
+            List<String> fragments
     ) throws SqlTemplateException {
         List<Element> resolvedValues = new ArrayList<>();
         Element first = null;
@@ -604,10 +603,10 @@ class TemplatePreparation {
      * @throws SqlTemplateException if post-processing fails.
      */
     private List<Element> postProcessElements(
-            @Nonnull SqlOperation sqlOperation,
-            @Nonnull List<Element> elements,
-            @Nonnull AliasMapper aliasMapper,
-            @Nonnull TableMapper tableMapper
+            SqlOperation sqlOperation,
+            List<Element> elements,
+            AliasMapper aliasMapper,
+            TableMapper tableMapper
     ) throws SqlTemplateException {
         var mutableElements = new ArrayList<>(elements);
         switch (sqlOperation) {
@@ -632,9 +631,9 @@ class TemplatePreparation {
      * @throws SqlTemplateException if processing fails.
      */
     private void postProcessSelect(
-            @Nonnull List<Element> mutableElements,
-            @Nonnull AliasMapper aliasMapper,
-            @Nonnull TableMapper tableMapper
+            List<Element> mutableElements,
+            AliasMapper aliasMapper,
+            TableMapper tableMapper
     ) throws SqlTemplateException {
         final From from = mutableElements.stream()
                 .filter(From.class::isInstance)
@@ -681,11 +680,11 @@ class TemplatePreparation {
      * @throws SqlTemplateException if processing fails.
      */
     private void addJoins(
-            @Nonnull Class<? extends Data> fromTable,
-            @Nonnull List<Element> mutableElements,
-            @Nonnull From from,
-            @Nonnull AliasMapper aliasMapper,
-            @Nonnull TableMapper tableMapper
+            Class<? extends Data> fromTable,
+            List<Element> mutableElements,
+            From from,
+            AliasMapper aliasMapper,
+            TableMapper tableMapper
     ) throws SqlTemplateException {
         List<Join> customJoins = new ArrayList<>();
         for (ListIterator<Element> it = mutableElements.listIterator(); it.hasNext(); ) {
@@ -763,7 +762,7 @@ class TemplatePreparation {
      * @param joins the joins in declaration order.
      * @return the ordered joins.
      */
-    private static List<Join> orderJoins(@Nonnull List<Join> joins) {
+    private static List<Join> orderJoins(List<Join> joins) {
         List<Join> ordered = new ArrayList<>(joins.size());
         List<Join> deferred = new ArrayList<>(joins.size());
         Set<String> deferredAliases = new HashSet<>();
@@ -799,13 +798,13 @@ class TemplatePreparation {
      * @throws SqlTemplateException if auto-join derivation fails.
      */
     private void addAutoJoins(
-            @Nonnull Class<? extends Data> table,
-            @Nonnull Class<? extends Data> rootTable,
-            @Nonnull List<Join> customJoins,
-            @Nonnull AliasMapper aliasMapper,
-            @Nonnull TableMapper tableMapper,
-            @Nonnull List<Join> joins,
-            @Nonnull ReferencedPaths referenced,
+            Class<? extends Data> table,
+            Class<? extends Data> rootTable,
+            List<Join> customJoins,
+            AliasMapper aliasMapper,
+            TableMapper tableMapper,
+            List<Join> joins,
+            ReferencedPaths referenced,
             boolean demandOnly
     ) throws SqlTemplateException {
         // Sealed entity interfaces are not records and don't have FK fields that need auto-joining.
@@ -841,9 +840,9 @@ class TemplatePreparation {
      */
     @SuppressWarnings("unchecked")
     private void addJoinedExtensionJoins(
-            @Nonnull Class<? extends Data> sealedType,
-            @Nonnull AliasMapper aliasMapper,
-            @Nonnull List<Join> joins
+            Class<? extends Data> sealedType,
+            AliasMapper aliasMapper,
+            List<Join> joins
     ) throws SqlTemplateException {
         Class<?>[] permitted = sealedType.getPermittedSubclasses();
         if (permitted == null || permitted.length == 0) {
@@ -901,16 +900,16 @@ class TemplatePreparation {
      * @throws SqlTemplateException if derivation fails.
      */
     private void addAutoJoins(
-            @Nonnull RecordType type,
-            @Nonnull Class<? extends Data> table,
-            @Nonnull Class<? extends Data> rootTable,
-            @Nonnull List<RecordField> path,
-            @Nonnull AliasMapper aliasMapper,
-            @Nonnull TableMapper tableMapper,
-            @Nonnull List<Join> joins,
+            RecordType type,
+            Class<? extends Data> table,
+            Class<? extends Data> rootTable,
+            List<RecordField> path,
+            AliasMapper aliasMapper,
+            TableMapper tableMapper,
+            List<Join> joins,
             @Nullable String fkName,
             boolean outerJoin,
-            @Nonnull ReferencedPaths referenced,
+            ReferencedPaths referenced,
             boolean beyondRef
     ) throws SqlTemplateException {
         for (var field : type.fields()) {
@@ -1019,17 +1018,17 @@ class TemplatePreparation {
      * @return the alias generated for the joined table.
      */
     private String addForeignKeyJoin(
-            @Nonnull Class<? extends Data> table,
-            @Nonnull Class<? extends Data> rootTable,
-            @Nonnull RecordField field,
-            @Nonnull RecordType fieldType,
-            @Nonnull String fromAlias,
-            @Nonnull String fkPath,
-            @Nonnull String pkPath,
+            Class<? extends Data> table,
+            Class<? extends Data> rootTable,
+            RecordField field,
+            RecordType fieldType,
+            String fromAlias,
+            String fkPath,
+            String pkPath,
             boolean effectiveOuterJoin,
-            @Nonnull AliasMapper aliasMapper,
-            @Nonnull TableMapper tableMapper,
-            @Nonnull List<Join> joins
+            AliasMapper aliasMapper,
+            TableMapper tableMapper,
+            List<Join> joins
     ) throws SqlTemplateException {
         String alias = aliasMapper.generateAlias(fieldType.requireDataType(), pkPath, table, fromAlias, template.dialect());
         tableMapper.mapForeignKey(table, fieldType.requireDataType(), fromAlias, field, rootTable, fkPath);
@@ -1069,7 +1068,7 @@ class TemplatePreparation {
      * element (a filter, join, order-by, group-by, or selected column) navigates through it and therefore needs its
      * join to be present. Paths use record field names, matching those registered during join derivation.
      */
-    private static boolean isReferencedBeyond(@Nonnull Set<String> referencedTablePaths, @Nonnull String pkPath) {
+    private static boolean isReferencedBeyond(Set<String> referencedTablePaths, String pkPath) {
         if (pkPath.isEmpty()) {
             return false;
         }
@@ -1090,7 +1089,7 @@ class TemplatePreparation {
      * @param joined   every path whose table the query needs, hydrated paths included.
      * @param hydrated the paths whose table is materialized as a record.
      */
-    private record ReferencedPaths(@Nonnull Set<String> joined, @Nonnull Set<String> hydrated) { }
+    private record ReferencedPaths(Set<String> joined, Set<String> hydrated) { }
 
     /**
      * Collects the table paths, relative to the FROM {@code rootTable}, that the query's elements reference beyond the
@@ -1104,9 +1103,9 @@ class TemplatePreparation {
      * join derivation: without the type form, a table beyond a reference has no join and no alias to resolve
      * against.</p>
      */
-    private ReferencedPaths collectReferencedTablePaths(@Nonnull Class<? extends Data> rootTable,
-                                                        @Nonnull List<Element> elements,
-                                                        @Nonnull List<Join> customJoins) throws SqlTemplateException {
+    private ReferencedPaths collectReferencedTablePaths(Class<? extends Data> rootTable,
+                                                        List<Element> elements,
+                                                        List<Join> customJoins) throws SqlTemplateException {
         Set<String> paths = new HashSet<>();
         Set<Class<? extends Data>> tables = new LinkedHashSet<>();
         Set<Class<? extends Data>> hydratedTables = new LinkedHashSet<>();
@@ -1143,12 +1142,12 @@ class TemplatePreparation {
         return new ReferencedPaths(paths, hydrated);
     }
 
-    private void collectReferencedTablePaths(@Nonnull Class<? extends Data> rootTable,
-                                             @Nonnull Element element,
-                                             @Nonnull Set<String> paths,
-                                             @Nonnull Set<Class<? extends Data>> tables,
-                                             @Nonnull Set<Class<? extends Data>> hydratedTables,
-                                             @Nonnull Set<String> hydratedPaths) {
+    private void collectReferencedTablePaths(Class<? extends Data> rootTable,
+                                             Element element,
+                                             Set<String> paths,
+                                             Set<Class<? extends Data>> tables,
+                                             Set<Class<? extends Data>> hydratedTables,
+                                             Set<String> hydratedPaths) {
         switch (element) {
             case Column column -> addReferencedTablePath(rootTable, MetamodelFactory.canonical(column.field()), paths);
             case Columns columns -> addReferencedTablePath(rootTable, MetamodelFactory.canonical(columns.field()), paths);
@@ -1184,12 +1183,12 @@ class TemplatePreparation {
         }
     }
 
-    private void collectReferencedTablePaths(@Nonnull Class<? extends Data> rootTable,
-                                             @Nonnull Expression expression,
-                                             @Nonnull Set<String> paths,
-                                             @Nonnull Set<Class<? extends Data>> tables,
-                                             @Nonnull Set<Class<? extends Data>> hydratedTables,
-                                             @Nonnull Set<String> hydratedPaths) {
+    private void collectReferencedTablePaths(Class<? extends Data> rootTable,
+                                             Expression expression,
+                                             Set<String> paths,
+                                             Set<Class<? extends Data>> tables,
+                                             Set<Class<? extends Data>> hydratedTables,
+                                             Set<String> hydratedPaths) {
         switch (expression) {
             case Elements.ObjectExpression objectExpression -> {
                 if (objectExpression.metamodel() != null) {
@@ -1201,12 +1200,12 @@ class TemplatePreparation {
         }
     }
 
-    private void collectReferencedTablePaths(@Nonnull Class<? extends Data> rootTable,
-                                             @Nonnull TemplateString template,
-                                             @Nonnull Set<String> paths,
-                                             @Nonnull Set<Class<? extends Data>> tables,
-                                             @Nonnull Set<Class<? extends Data>> hydratedTables,
-                                             @Nonnull Set<String> hydratedPaths) {
+    private void collectReferencedTablePaths(Class<? extends Data> rootTable,
+                                             TemplateString template,
+                                             Set<String> paths,
+                                             Set<Class<? extends Data>> tables,
+                                             Set<Class<? extends Data>> hydratedTables,
+                                             Set<String> hydratedPaths) {
         for (var value : template.values()) {
             switch (value) {
                 case Metamodel<?, ?> metamodel -> addReferencedTablePath(rootTable, metamodel, paths);
@@ -1235,9 +1234,9 @@ class TemplatePreparation {
      * means. Alias resolution reports the ambiguity, and a derived join that ends up unreferenced is pruned by
      * {@link JoinProcessor}.</p>
      */
-    private void addReferencedTypePaths(@Nonnull Class<? extends Data> rootTable,
-                                        @Nonnull Class<? extends Data> table,
-                                        @Nonnull Set<String> paths) throws SqlTemplateException {
+    private void addReferencedTypePaths(Class<? extends Data> rootTable,
+                                        Class<? extends Data> table,
+                                        Set<String> paths) throws SqlTemplateException {
         if (table == rootTable || isSealedEntity(rootTable)) {
             return;
         }
@@ -1248,11 +1247,11 @@ class TemplatePreparation {
         addReferencedTypePaths(getRecordType(rootTable), table, List.of(), visited, paths);
     }
 
-    private void addReferencedTypePaths(@Nonnull RecordType type,
-                                        @Nonnull Class<? extends Data> table,
-                                        @Nonnull List<RecordField> path,
-                                        @Nonnull Set<Class<? extends Data>> visited,
-                                        @Nonnull Set<String> paths) throws SqlTemplateException {
+    private void addReferencedTypePaths(RecordType type,
+                                        Class<? extends Data> table,
+                                        List<RecordField> path,
+                                        Set<Class<? extends Data>> visited,
+                                        Set<String> paths) throws SqlTemplateException {
         for (var field : type.fields()) {
             var list = new ArrayList<>(path);
             list.add(field);
@@ -1286,9 +1285,9 @@ class TemplatePreparation {
      * Records the table path of a metamodel that is rooted at {@code rootTable}. The table path is the path up to the
      * table holding the referenced column; the demand-driven join gate expands it to every foreign key it crosses.
      */
-    private void addReferencedTablePath(@Nonnull Class<? extends Data> rootTable,
-                                        @Nonnull Metamodel<?, ?> metamodel,
-                                        @Nonnull Set<String> paths) {
+    private void addReferencedTablePath(Class<? extends Data> rootTable,
+                                        Metamodel<?, ?> metamodel,
+                                        Set<String> paths) {
         if (metamodel.root() != rootTable) {
             return;
         }
@@ -1303,7 +1302,7 @@ class TemplatePreparation {
      * navigation-only node (one that navigates beyond a {@link Ref}) is rebuilt into a resolvable metamodel for its
      * path so it can be selected or filtered. The rebuilt metamodel is query-only and cannot extract a value.
      */
-    private static <T extends Data> Metamodel<T, ?> toColumnMetamodel(@Nonnull Navigable<T, ?> navigable) {
+    private static <T extends Data> Metamodel<T, ?> toColumnMetamodel(Navigable<T, ?> navigable) {
         return navigable instanceof Metamodel<T, ?> metamodel
                 ? metamodel
                 : Metamodel.of(navigable.root(), navigable.fieldPath());
@@ -1324,10 +1323,10 @@ class TemplatePreparation {
      */
     @SuppressWarnings("DuplicatedCode")
     private TemplateTarget getTemplateTarget(
-            @Nonnull String fromAlias,
-            @Nonnull String toAlias,
-            @Nonnull RecordField fromField,
-            @Nonnull RecordField toField
+            String fromAlias,
+            String toAlias,
+            RecordField fromField,
+            RecordField toField
     ) throws SqlTemplateException {
         var foreignKeys = getForeignKeys(fromField, template.foreignKeyResolver(), template.columnNameResolver());
         var primaryKeys = getPrimaryKeys(toField, template.foreignKeyResolver(), template.columnNameResolver());
@@ -1351,7 +1350,7 @@ class TemplatePreparation {
      * @param aliasMapper the alias mapper used for registration.
      * @throws SqlTemplateException if alias registration fails.
      */
-    private void addTableAliases(@Nonnull List<Element> elements, @Nonnull AliasMapper aliasMapper) throws SqlTemplateException {
+    private void addTableAliases(List<Element> elements, AliasMapper aliasMapper) throws SqlTemplateException {
         for (Element element : elements) {
             if (element instanceof Table(var table, var alias)) {
                 aliasMapper.setAlias(table, alias, null);
@@ -1365,7 +1364,7 @@ class TemplatePreparation {
      * @param fields the record field path.
      * @return the dot-separated path string.
      */
-    static String toPathString(@Nonnull List<RecordField> fields) {
+    static String toPathString(List<RecordField> fields) {
         return fields.stream().map(RecordField::name).collect(joining("."));
     }
 
@@ -1381,9 +1380,9 @@ class TemplatePreparation {
      * @throws SqlTemplateException if processing fails.
      */
     private void postProcessUpdate(
-            @Nonnull List<Element> mutableElements,
-            @Nonnull AliasMapper aliasMapper,
-            @Nonnull TableMapper tableMapper
+            List<Element> mutableElements,
+            AliasMapper aliasMapper,
+            TableMapper tableMapper
     ) throws SqlTemplateException {
         final Update update = mutableElements.stream()
                 .filter(Update.class::isInstance)
@@ -1419,9 +1418,9 @@ class TemplatePreparation {
      * @throws SqlTemplateException if processing fails.
      */
     private void postProcessDelete(
-            @Nonnull List<Element> mutableElements,
-            @Nonnull AliasMapper aliasMapper,
-            @Nonnull TableMapper tableMapper
+            List<Element> mutableElements,
+            AliasMapper aliasMapper,
+            TableMapper tableMapper
     ) throws SqlTemplateException {
         final Delete delete = mutableElements.stream()
                 .filter(Delete.class::isInstance)
@@ -1484,9 +1483,9 @@ class TemplatePreparation {
      * @throws SqlTemplateException if processing fails.
      */
     private void postProcessUndefined(
-            @Nonnull List<Element> mutableElements,
-            @Nonnull AliasMapper aliasMapper,
-            @Nonnull TableMapper tableMapper
+            List<Element> mutableElements,
+            AliasMapper aliasMapper,
+            TableMapper tableMapper
     ) throws SqlTemplateException {
         postProcessSelect(mutableElements, aliasMapper, tableMapper);
     }

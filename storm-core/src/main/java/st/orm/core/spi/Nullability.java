@@ -15,12 +15,11 @@
  */
 package st.orm.core.spi;
 
-import jakarta.annotation.Nonnull;
-import jakarta.annotation.Nullable;
 import java.lang.annotation.Annotation;
 import java.lang.reflect.AnnotatedElement;
 import java.lang.reflect.AnnotatedType;
 import java.lang.reflect.Executable;
+import org.jspecify.annotations.Nullable;
 
 /**
  * Resolves the nullability of record components and constructor parameters under Storm's null-marked-by-default
@@ -62,7 +61,7 @@ public final class Nullability {
 
     @Nullable
     @SuppressWarnings("unchecked")
-    private static Class<? extends Annotation> load(@Nonnull String name) {
+    private static Class<? extends Annotation> load(String name) {
         try {
             return (Class<? extends Annotation>) Class.forName(name);
         } catch (ClassNotFoundException e) {
@@ -82,10 +81,10 @@ public final class Nullability {
      * @param declaringClass the class declaring the record component or constructor.
      * @return {@code true} if the type use is non-null.
      */
-    public static boolean isNonNull(@Nonnull AnnotatedElement declaration,
-                                    @Nonnull AnnotatedType annotatedType,
+    public static boolean isNonNull(AnnotatedElement declaration,
+                                    AnnotatedType annotatedType,
                                     @Nullable Executable executable,
-                                    @Nonnull Class<?> declaringClass) {
+                                    Class<?> declaringClass) {
         // Explicit annotations always win, nullable before non-null.
         if (isPresent(declaration, JAVAX_NULLABLE) || isPresent(declaration, JAKARTA_NULLABLE)
                 || isPresent(annotatedType, JSPECIFY_NULLABLE)) {
@@ -106,7 +105,7 @@ public final class Nullability {
     /**
      * Resolves the nearest {@code @NullUnmarked} / {@code @NullMarked} marker for the given declaration site.
      */
-    private static boolean isNullUnmarked(@Nullable Executable executable, @Nonnull Class<?> declaringClass) {
+    private static boolean isNullUnmarked(@Nullable Executable executable, Class<?> declaringClass) {
         if (NULL_UNMARKED == null) {
             return false; // JSpecify is not on the class path; there is no way to opt out of the default.
         }
@@ -134,7 +133,7 @@ public final class Nullability {
     }
 
     @Nullable
-    private static Boolean marker(@Nonnull AnnotatedElement element) {
+    private static Boolean marker(AnnotatedElement element) {
         if (element.isAnnotationPresent(NULL_UNMARKED)) {
             return Boolean.TRUE;
         }
@@ -144,7 +143,7 @@ public final class Nullability {
         return null;
     }
 
-    private static boolean isPresent(@Nonnull AnnotatedElement element,
+    private static boolean isPresent(AnnotatedElement element,
                                      @Nullable Class<? extends Annotation> annotation) {
         return annotation != null && element.isAnnotationPresent(annotation);
     }

@@ -15,8 +15,7 @@
  */
 package st.orm;
 
-import jakarta.annotation.Nonnull;
-import jakarta.annotation.Nullable;
+import org.jspecify.annotations.Nullable;
 
 /**
  * Represents a comparison operator in a SQL query.
@@ -122,7 +121,7 @@ public interface Operator {
      */
     String format(@Nullable String column, String... placeholders);
 
-    private static String format(@Nonnull String name, int requiredSize, int actualSize, @Nonnull String operator) {
+    private static String format(String name, int requiredSize, int actualSize, String operator) {
         if (requiredSize != actualSize) {
             throw new IllegalArgumentException("%s operator requires %s value(s). Found %s value(s).".formatted(name, requiredSize, actualSize));
         }

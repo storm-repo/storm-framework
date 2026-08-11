@@ -17,10 +17,9 @@ package st.orm.core.spi;
 
 import static java.util.Optional.ofNullable;
 
-import jakarta.annotation.Nonnull;
-import jakarta.annotation.Nullable;
 import java.util.Optional;
 import java.util.function.Consumer;
+import org.jspecify.annotations.Nullable;
 import st.orm.PersistenceException;
 import st.orm.TransactionIsolation;
 import st.orm.TransactionPropagation;
@@ -43,7 +42,7 @@ public interface TransactionTemplate {
      * @param propagation the propagation.
      * @return this transaction template instance.
      */
-    TransactionTemplate propagation(@Nonnull TransactionPropagation propagation);
+    TransactionTemplate propagation(TransactionPropagation propagation);
 
     /**
      * Set the isolation level, such as REPEATABLE_READ, READ_COMMITTED, READ_UNCOMMITTED and SERIALIZABLE.
@@ -52,7 +51,7 @@ public interface TransactionTemplate {
      * @param isolation the isolation level.
      * @return this transaction template instance.
      */
-    TransactionTemplate isolation(@Nonnull TransactionIsolation isolation);
+    TransactionTemplate isolation(TransactionIsolation isolation);
 
     /**
      * Set whether to optimize as read-only transaction. Default is "false".
@@ -166,7 +165,7 @@ public interface TransactionTemplate {
          * back.
          * @since 1.13
          */
-        default void deferCompletion(@Nonnull Consumer<Boolean> callback) {
+        default void deferCompletion(Consumer<Boolean> callback) {
             throw new UnsupportedOperationException("This transaction handle does not defer completion.");
         }
 

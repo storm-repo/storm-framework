@@ -2,10 +2,9 @@ package st.orm.core.template;
 
 import static java.util.Arrays.asList;
 
-import jakarta.annotation.Nonnull;
-import jakarta.annotation.Nullable;
 import java.util.ArrayList;
 import java.util.List;
+import org.jspecify.annotations.Nullable;
 
 /**
  * Provides support for Java-style string templates without preview features.
@@ -25,7 +24,7 @@ public interface TemplateBuilder {
      * @param builder your template-building lambda; call {@code context.interpolate(x)} to register parameters.
      * @return a {@link TemplateString} with fragments and values.
      */
-    static TemplateString create(@Nonnull TemplateBuilder builder) {
+    static TemplateString create(TemplateBuilder builder) {
         List<Object> values = new ArrayList<>();
         String raw = builder.interpolate(o -> {
             values.add(o);
@@ -44,7 +43,7 @@ public interface TemplateBuilder {
      * @param values   parameters to inject.
      * @return a {@link TemplateString} with fragments and values.
      */
-    static TemplateString create(@Nonnull String template, @Nonnull Object... values) {
+    static TemplateString create(String template, Object... values) {
         return new TemplateString(parseFragments(template), asList(values));
     }
 
@@ -79,5 +78,5 @@ public interface TemplateBuilder {
      * @param context callback used within your lambda to interpolate values.
      * @return intermediary string containing zero or more '\0' delimiters.
      */
-    String interpolate(@Nonnull Context context);
+    String interpolate(Context context);
 }

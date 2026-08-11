@@ -15,7 +15,6 @@
  */
 package st.orm.core.repository;
 
-import jakarta.annotation.Nonnull;
 import java.util.List;
 import java.util.Optional;
 import java.util.stream.Stream;
@@ -69,7 +68,7 @@ public interface ProjectionRepository<P extends Projection<ID>, ID> extends Repo
      * @param id the primary key of the projection.
      * @return a ref projection instance.
      */
-    Ref<P> ref(@Nonnull ID id);
+    Ref<P> ref(ID id);
 
     /**
      * Creates a new ref projection instance with the specified projection.
@@ -77,7 +76,7 @@ public interface ProjectionRepository<P extends Projection<ID>, ID> extends Repo
      * @param projection the projection.
      * @return a ref projection instance.
      */
-    Ref<P> ref(@Nonnull P projection, @Nonnull ID id);
+    Ref<P> ref(P projection, ID id);
 
     // Query builder methods.
 
@@ -102,7 +101,7 @@ public interface ProjectionRepository<P extends Projection<ID>, ID> extends Repo
      * @return a new query builder for the custom {@code selectType}.
      * @param <R> the result type of the query.
      */
-    <R> QueryBuilder<P, R, ID> select(@Nonnull Class<R> selectType);
+    <R> QueryBuilder<P, R, ID> select(Class<R> selectType);
 
     /**
      * Creates a new query builder for selecting refs to projections of the type managed by this repository.
@@ -125,7 +124,7 @@ public interface ProjectionRepository<P extends Projection<ID>, ID> extends Repo
      * @return a new query builder for the custom {@code selectType}.
      * @param <R> the result type of the query.
      */
-    <R> QueryBuilder<P, R, ID> select(@Nonnull Class<R> selectType, @Nonnull TemplateString template);
+    <R> QueryBuilder<P, R, ID> select(Class<R> selectType, TemplateString template);
 
     /**
      * Creates a new query builder for selecting refs to projections of the type managed by this repository.
@@ -139,7 +138,7 @@ public interface ProjectionRepository<P extends Projection<ID>, ID> extends Repo
      * @return a new query builder for selecting refs to projections.
      * @since 1.3
      */
-    <R extends Data> QueryBuilder<P, Ref<R>, ID> selectRef(@Nonnull Class<R> refType);
+    <R extends Data> QueryBuilder<P, Ref<R>, ID> selectRef(Class<R> refType);
 
     // Base methods.
 
@@ -171,7 +170,7 @@ public interface ProjectionRepository<P extends Projection<ID>, ID> extends Repo
      * @return true if a projection with the specified primary key exists, false otherwise.
      * @throws PersistenceException if there is an underlying database issue during the count operation.
      */
-    boolean existsById(@Nonnull ID id);
+    boolean existsById(ID id);
 
     /**
      * Checks if a projection with the specified primary key exists in the database.
@@ -184,7 +183,7 @@ public interface ProjectionRepository<P extends Projection<ID>, ID> extends Repo
      * @return true if a projection with the specified primary key exists, false otherwise.
      * @throws PersistenceException if there is an underlying database issue during the count operation.
      */
-    boolean existsByRef(@Nonnull Ref<P> ref);
+    boolean existsByRef(Ref<P> ref);
 
     // Singular findBy methods.
 
@@ -199,7 +198,7 @@ public interface ProjectionRepository<P extends Projection<ID>, ID> extends Repo
      * @throws PersistenceException if the retrieval operation fails due to underlying database issues, such as
      *                              connectivity problems or query execution errors.
      */
-    Optional<P> findById(@Nonnull ID id);
+    Optional<P> findById(ID id);
 
     /**
      * Retrieves a projection based on its primary key.
@@ -212,7 +211,7 @@ public interface ProjectionRepository<P extends Projection<ID>, ID> extends Repo
      * @throws PersistenceException if the retrieval operation fails due to underlying database issues, such as
      *                              connectivity problems or query execution errors.
      */
-    Optional<P> findByRef(@Nonnull Ref<P> ref);
+    Optional<P> findByRef(Ref<P> ref);
 
     /**
      * Retrieves a projection based on its primary key.
@@ -227,7 +226,7 @@ public interface ProjectionRepository<P extends Projection<ID>, ID> extends Repo
      * @throws PersistenceException if the retrieval operation fails due to underlying database issues, such as
      *                              connectivity problems or query execution errors.
      */
-    P getById(@Nonnull ID id);
+    P getById(ID id);
 
     /**
      * Retrieves a projection based on its primary key.
@@ -242,7 +241,7 @@ public interface ProjectionRepository<P extends Projection<ID>, ID> extends Repo
      * @throws PersistenceException if the retrieval operation fails due to underlying database issues, such as
      *                              connectivity problems or query execution errors.
      */
-    P getByRef(@Nonnull Ref<P> ref);
+    P getByRef(Ref<P> ref);
 
     // Singular findBy / getBy methods for unique keys.
 
@@ -256,7 +255,7 @@ public interface ProjectionRepository<P extends Projection<ID>, ID> extends Repo
      * @throws PersistenceException if the retrieval operation fails due to underlying database issues.
      * @since 1.9
      */
-    <V> Optional<P> findBy(@Nonnull Metamodel.Key<P, V> key, @Nonnull V value);
+    <V> Optional<P> findBy(Metamodel.Key<P, V> key, V value);
 
     /**
      * Retrieves a projection by the value of a unique key field.
@@ -269,7 +268,7 @@ public interface ProjectionRepository<P extends Projection<ID>, ID> extends Repo
      * @throws PersistenceException if the retrieval operation fails due to underlying database issues.
      * @since 1.9
      */
-    <V> P getBy(@Nonnull Metamodel.Key<P, V> key, @Nonnull V value);
+    <V> P getBy(Metamodel.Key<P, V> key, V value);
 
     /**
      * Retrieves a projection by the ref value of a unique key field that references another entity.
@@ -281,7 +280,7 @@ public interface ProjectionRepository<P extends Projection<ID>, ID> extends Repo
      * @throws PersistenceException if the retrieval operation fails due to underlying database issues.
      * @since 1.9
      */
-    <V extends Data> Optional<P> findByRef(@Nonnull Metamodel.Key<P, V> key, @Nonnull Ref<V> value);
+    <V extends Data> Optional<P> findByRef(Metamodel.Key<P, V> key, Ref<V> value);
 
     /**
      * Retrieves a projection by the ref value of a unique key field that references another entity.
@@ -294,7 +293,7 @@ public interface ProjectionRepository<P extends Projection<ID>, ID> extends Repo
      * @throws PersistenceException if the retrieval operation fails due to underlying database issues.
      * @since 1.9
      */
-    <V extends Data> P getByRef(@Nonnull Metamodel.Key<P, V> key, @Nonnull Ref<V> value);
+    <V extends Data> P getByRef(Metamodel.Key<P, V> key, Ref<V> value);
 
     /**
      * Returns a page of projections using offset-based pagination.
@@ -328,7 +327,7 @@ public interface ProjectionRepository<P extends Projection<ID>, ID> extends Repo
      * @return a page containing the results and pagination metadata.
      * @since 1.10
      */
-    default Page<P> page(@Nonnull Pageable pageable) {
+    default Page<P> page(Pageable pageable) {
         return select().page(pageable);
     }
 
@@ -357,7 +356,7 @@ public interface ProjectionRepository<P extends Projection<ID>, ID> extends Repo
      * @return a page containing the ref results and pagination metadata.
      * @since 1.10
      */
-    default Page<Ref<P>> pageRef(@Nonnull Pageable pageable) {
+    default Page<Ref<P>> pageRef(Pageable pageable) {
         return selectRef().page(pageable);
     }
 
@@ -372,7 +371,7 @@ public interface ProjectionRepository<P extends Projection<ID>, ID> extends Repo
      * @throws PersistenceException if the query fails due to underlying database issues.
      * @since 1.11
      */
-    default Window<P> scroll(@Nonnull Scrollable<P> scrollable) {
+    default Window<P> scroll(Scrollable<P> scrollable) {
         return select().scroll(scrollable);
     }
 
@@ -426,7 +425,7 @@ public interface ProjectionRepository<P extends Projection<ID>, ID> extends Repo
      * @throws PersistenceException if the selection operation fails due to database issues, such as connectivity
      *         problems or invalid input parameters.
      */
-    List<P> findAllById(@Nonnull Iterable<ID> ids);
+    List<P> findAllById(Iterable<ID> ids);
 
     /**
      * Retrieves a list of projections based on their primary keys.
@@ -445,7 +444,7 @@ public interface ProjectionRepository<P extends Projection<ID>, ID> extends Repo
      * @throws PersistenceException if the selection operation fails due to database issues, such as connectivity
      *         problems or invalid input parameters.
      */
-    List<P> findAllByRef(@Nonnull Iterable<Ref<P>> refs);
+    List<P> findAllByRef(Iterable<Ref<P>> refs);
 
     // Stream based methods.
 
@@ -474,7 +473,7 @@ public interface ProjectionRepository<P extends Projection<ID>, ID> extends Repo
      * @throws PersistenceException if the selection operation fails due to underlying database issues, such as
      *                              connectivity.
      */
-    Stream<P> selectById(@Nonnull Stream<ID> ids);
+    Stream<P> selectById(Stream<ID> ids);
 
     /**
      * Retrieves a stream of projections based on their primary keys.
@@ -501,7 +500,7 @@ public interface ProjectionRepository<P extends Projection<ID>, ID> extends Repo
      * @throws PersistenceException if the selection operation fails due to underlying database issues, such as
      *                              connectivity.
      */
-    Stream<P> selectByRef(@Nonnull Stream<Ref<P>> refs);
+    Stream<P> selectByRef(Stream<Ref<P>> refs);
 
     /**
      * Retrieves a stream of projections based on their primary keys.
@@ -531,7 +530,7 @@ public interface ProjectionRepository<P extends Projection<ID>, ID> extends Repo
      * @throws PersistenceException if the selection operation fails due to underlying database issues, such as
      *                              connectivity.
      */
-    Stream<P> selectById(@Nonnull Stream<ID> ids, int chunkSize);
+    Stream<P> selectById(Stream<ID> ids, int chunkSize);
 
     /**
      * Retrieves a stream of projections based on their primary keys.
@@ -561,7 +560,7 @@ public interface ProjectionRepository<P extends Projection<ID>, ID> extends Repo
      * @throws PersistenceException if the selection operation fails due to underlying database issues, such as
      *                              connectivity.
      */
-    Stream<P> selectByRef(@Nonnull Stream<Ref<P>> refs, int chunkSize);
+    Stream<P> selectByRef(Stream<Ref<P>> refs, int chunkSize);
 
     /**
      * Counts the number of projections identified by the provided stream of IDs using the default batch size.
@@ -574,7 +573,7 @@ public interface ProjectionRepository<P extends Projection<ID>, ID> extends Repo
      * @return the total count of projections matching the provided IDs.
      * @throws PersistenceException if there is an error during the counting operation, such as connectivity issues.
      */
-    long countById(@Nonnull Stream<ID> ids);
+    long countById(Stream<ID> ids);
 
     /**
      * Counts the number of projections identified by the provided stream of IDs, with the counting process divided into
@@ -590,7 +589,7 @@ public interface ProjectionRepository<P extends Projection<ID>, ID> extends Repo
      * @return the total count of projections matching the provided IDs.
      * @throws PersistenceException if there is an error during the counting operation, such as connectivity issues.
      */
-    long countById(@Nonnull Stream<ID> ids, int chunkSize);
+    long countById(Stream<ID> ids, int chunkSize);
 
     /**
      * Counts the number of projections identified by the provided stream of refs using the default batch size.
@@ -603,7 +602,7 @@ public interface ProjectionRepository<P extends Projection<ID>, ID> extends Repo
      * @return the total count of projections matching the provided IDs.
      * @throws PersistenceException if there is an error during the counting operation, such as connectivity issues.
      */
-    long countByRef(@Nonnull Stream<Ref<P>> refs);
+    long countByRef(Stream<Ref<P>> refs);
 
     /**
      * Counts the number of projections identified by the provided stream of refs, with the counting process divided into
@@ -619,5 +618,5 @@ public interface ProjectionRepository<P extends Projection<ID>, ID> extends Repo
      * @return the total count of projections matching the provided IDs.
      * @throws PersistenceException if there is an error during the counting operation, such as connectivity issues.
      */
-    long countByRef(@Nonnull Stream<Ref<P>> refs, int chunkSize);
+    long countByRef(Stream<Ref<P>> refs, int chunkSize);
 }

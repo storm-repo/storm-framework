@@ -19,8 +19,6 @@ import static java.lang.Integer.MAX_VALUE;
 import static java.util.Objects.requireNonNull;
 import static java.util.Spliterators.spliteratorUnknownSize;
 
-import jakarta.annotation.Nonnull;
-import jakarta.annotation.Nullable;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Deque;
@@ -30,6 +28,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.function.Function;
 import java.util.stream.Stream;
+import org.jspecify.annotations.Nullable;
 
 /**
  * Helper class for working with streams.
@@ -55,7 +54,7 @@ public final class StreamSupport {
      * {@code Integer.MAX_VALUE}, only one slice will be returned.
      * @return a stream of slices, where each slice contains up to {@code size} elements from the original stream.
      */
-    public static <X> Stream<List<X>> chunked(@Nonnull Stream<X> stream, int size) {
+    public static <X> Stream<List<X>> chunked(Stream<X> stream, int size) {
         if (size <= 0) throw new IllegalArgumentException("size must be > 0");
         if (size == MAX_VALUE) {
             return Stream.of(stream.toList());
@@ -122,9 +121,9 @@ public final class StreamSupport {
      * @since 1.7
      */
     public static <K, V> Stream<Partition<K, V>> partitioned(
-            @Nonnull Stream<V> stream,
+            Stream<V> stream,
             int size,
-            @Nonnull Function<V, K> partitionFunction
+            Function<V, K> partitionFunction
     ) {
         return partitioned(stream, size, partitionFunction, MAX_VALUE, null);
     }
@@ -164,9 +163,9 @@ public final class StreamSupport {
      * @since 1.7
      */
     public static <V, K> Stream<Partition<K, V>> partitioned(
-            @Nonnull Stream<V> stream,
+            Stream<V> stream,
             int size,
-            @Nonnull Function<V, K> partitionFunction,
+            Function<V, K> partitionFunction,
             int maxPartitions,
             @Nullable K overflowKey
     ) {

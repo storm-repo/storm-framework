@@ -15,8 +15,7 @@
  */
 package st.orm.spring;
 
-import jakarta.annotation.Nonnull;
-import jakarta.annotation.Nullable;
+import org.jspecify.annotations.Nullable;
 import st.orm.repository.Repository;
 import st.orm.template.ORMTemplate;
 
@@ -27,12 +26,12 @@ import st.orm.template.ORMTemplate;
  */
 public class RepositoryFactoryBean<R extends Repository> extends AbstractRepositoryFactoryBean<R> {
 
-    public RepositoryFactoryBean(@Nonnull Class<R> repositoryType, @Nullable String ormTemplateBeanName) {
+    public RepositoryFactoryBean(Class<R> repositoryType, @Nullable String ormTemplateBeanName) {
         super(repositoryType, ormTemplateBeanName);
     }
 
     @Override
-    protected R createRepository(@Nonnull Class<R> repositoryType) {
+    protected R createRepository(Class<R> repositoryType) {
         return getOrmTemplate(ORMTemplate.class).repository(repositoryType);
     }
 }

@@ -37,8 +37,6 @@ import static st.orm.core.template.Templates.column;
 import static st.orm.core.template.Templates.select;
 import static st.orm.core.template.Templates.where;
 
-import jakarta.annotation.Nonnull;
-import jakarta.annotation.Nullable;
 import java.sql.SQLIntegrityConstraintViolationException;
 import java.time.Instant;
 import java.time.LocalDate;
@@ -49,6 +47,7 @@ import javax.sql.DataSource;
 import lombok.Builder;
 import lombok.NonNull;
 import org.h2.jdbc.JdbcSQLSyntaxErrorException;
+import org.jspecify.annotations.Nullable;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -299,12 +298,12 @@ public class RepositoryPreparedStatementIntegrationTest {
                 }
 
                 @Override
-                public boolean isIdentical(@NonNull Visit a, @Nonnull Visit b) {
+                public boolean isIdentical(@NonNull Visit a, Visit b) {
                     throw new UnsupportedOperationException();
                 }
 
                 @Override
-                public boolean isSame(@NonNull Visit a, @Nonnull Visit b) {
+                public boolean isSame(@NonNull Visit a, Visit b) {
                     throw new UnsupportedOperationException();
                 }
             };
@@ -547,9 +546,9 @@ public class RepositoryPreparedStatementIntegrationTest {
     @DbTable("visit")
     public record VisitWithDefaultConverter(
             @PK Integer id,
-            @Nonnull AutoDate visitDate,
+            AutoDate visitDate,
             @Nullable String description,
-            @Nonnull @FK Ref<Pet> pet
+            @FK Ref<Pet> pet
     ) implements Entity<Integer> {
     }
 
@@ -557,9 +556,9 @@ public class RepositoryPreparedStatementIntegrationTest {
     @DbTable("visit")
     public record VisitWithDisabledConverter(
             @PK Integer id,
-            @Nonnull @Convert(disableConversion = true) AutoDate visitDate,
+            @Convert(disableConversion = true) AutoDate visitDate,
             @Nullable String description,
-            @Nonnull @FK Ref<Pet> pet
+            @FK Ref<Pet> pet
     ) implements Entity<Integer> {
     }
 
@@ -567,9 +566,9 @@ public class RepositoryPreparedStatementIntegrationTest {
     @DbTable("visit")
     public record VisitWithCustomConverter(
             @PK Integer id,
-            @Nonnull @Convert(converter = CustomConverter.class) CustomDate visitDate,
+            @Convert(converter = CustomConverter.class) CustomDate visitDate,
             @Nullable String description,
-            @Nonnull @FK Ref<Pet> pet
+            @FK Ref<Pet> pet
     ) implements Entity<Integer> {
     }
 
@@ -577,9 +576,9 @@ public class RepositoryPreparedStatementIntegrationTest {
     @DbTable("visit")
     public record VisitWithoutConverter(
             @PK Integer id,
-            @Nonnull CustomDate visitDate,
+            CustomDate visitDate,
             @Nullable String description,
-            @Nonnull @FK Ref<Pet> pet
+            @FK Ref<Pet> pet
     ) implements Entity<Integer> {
     }
 
@@ -615,9 +614,9 @@ public class RepositoryPreparedStatementIntegrationTest {
     @DbTable("visit")
     public record VisitWithNonnullPetRef(
             @PK Integer id,
-            @Nonnull LocalDate visitDate,
+            LocalDate visitDate,
             @Nullable String description,
-            @Nonnull @FK Ref<Pet> pet
+            @FK Ref<Pet> pet
     ) implements Entity<Integer> {
     }
 
@@ -646,7 +645,7 @@ public class RepositoryPreparedStatementIntegrationTest {
     @DbTable("visit")
     public record VisitWithNullablePetRef(
             @PK Integer id,
-            @Nonnull LocalDate visitDate,
+            LocalDate visitDate,
             @Nullable String description,
             @Nullable @FK Ref<Pet> pet,
             @Version Instant timestamp
@@ -742,7 +741,7 @@ public class RepositoryPreparedStatementIntegrationTest {
         record OwnerWrapper(@Nullable @FK Owner owner) {}
         record Pet(
                 @PK Integer id,
-                @Nonnull OwnerWrapper owner
+                OwnerWrapper owner
         ) implements Entity<Integer> {}
         record Wrapper(Pet pet) implements Data {}
         var wrapper = ORMTemplate.of(dataSource)
@@ -862,9 +861,9 @@ public class RepositoryPreparedStatementIntegrationTest {
     @DbTable("owner")
     public record OwnerRecursion(
             @PK Integer id,
-            @Nonnull String firstName,
-            @Nonnull String lastName,
-            @Nonnull Address address,
+            String firstName,
+            String lastName,
+            Address address,
             @Nullable String telephone,
             @FK PetOwnerRecursion pet   // Recursive reference; We can test this even though the column does not exist.
     ) implements Entity<Integer> {
@@ -873,9 +872,9 @@ public class RepositoryPreparedStatementIntegrationTest {
     @DbTable("pet")
     public record PetOwnerRecursion(
             @PK Integer id,
-            @Nonnull String name,
-            @Nonnull LocalDate birthDate,
-            @Nonnull @FK @DbColumn("type_id") PetType petType,
+            String name,
+            LocalDate birthDate,
+            @FK @DbColumn("type_id") PetType petType,
             @FK OwnerRecursion owner
     ) implements Entity<Integer> {
     }
@@ -1623,9 +1622,9 @@ public class RepositoryPreparedStatementIntegrationTest {
     @DbTable("pet")
     public record PetWithEnum(
             @PK Integer id,
-            @Nonnull String name,
-            @Nonnull LocalDate birthDate,
-            @Nonnull @DbEnum(ORDINAL) @DbColumn("type_id") PetTypeEnum type,
+            String name,
+            LocalDate birthDate,
+            @DbEnum(ORDINAL) @DbColumn("type_id") PetTypeEnum type,
             @Nullable @FK Owner owner
     ) implements Entity<Integer> {}
 
@@ -1645,8 +1644,8 @@ public class RepositoryPreparedStatementIntegrationTest {
     @DbTable("pet")
     public record PetWithIntEnum(
             @PK Integer id,
-            @Nonnull String name,
-            @Nonnull LocalDate birthDate,
+            String name,
+            LocalDate birthDate,
             @DbColumn("type_id") int type,
             @Nullable @FK Owner owner
     ) implements Entity<Integer> {}
@@ -2054,9 +2053,9 @@ public class RepositoryPreparedStatementIntegrationTest {
     @DbTable("visit")
     public record VisitWithDbColumns(
             @PK Integer id,
-            @Nonnull LocalDate visitDate,
+            LocalDate visitDate,
             @Nullable String description,
-            @Nonnull @FK Pet pet,
+            @FK Pet pet,
             @Nullable @FK @DbColumn(name = "test1") @DbColumn(name = "test2") VetSpecialty vetSpecialty,
             @Version Instant timestamp
     ) implements Entity<Integer> {
@@ -2085,10 +2084,10 @@ public class RepositoryPreparedStatementIntegrationTest {
 
     @DbTable("vet_specialty")
     public record VetSpecialtyDbColumns(
-            @Nonnull @PK(generation = NONE) @DbColumn(name = "test1") @DbColumn(name = "test2") VetSpecialtyPK id,// Implicitly @Inlined
-            @Nonnull @Persist(insertable = false) @FK("test3") Vet vet,
-            @Nonnull @Persist(insertable = false) @FK("test4") Specialty specialty) implements Entity<VetSpecialtyPK> {
-        public VetSpecialtyDbColumns(@Nonnull VetSpecialtyPK pk) {
+            @PK(generation = NONE) @DbColumn(name = "test1") @DbColumn(name = "test2") VetSpecialtyPK id,// Implicitly @Inlined
+            @Persist(insertable = false) @FK("test3") Vet vet,
+            @Persist(insertable = false) @FK("test4") Specialty specialty) implements Entity<VetSpecialtyPK> {
+        public VetSpecialtyDbColumns(VetSpecialtyPK pk) {
             //noinspection DataFlowIssue
             this(pk, null, null);
         }
@@ -2096,9 +2095,9 @@ public class RepositoryPreparedStatementIntegrationTest {
     @DbTable("visit")
     public record VisitWithNestedDbColumns(
             @PK Integer id,
-            @Nonnull LocalDate visitDate,
+            LocalDate visitDate,
             @Nullable String description,
-            @Nonnull @FK Pet pet,
+            @FK Pet pet,
             @Nullable @FK VetSpecialtyDbColumns vetSpecialty,
             @Version Instant timestamp
     ) implements Entity<Integer> {
@@ -2773,8 +2772,8 @@ public class RepositoryPreparedStatementIntegrationTest {
     @DbTable("pet")
     record PetWithPersistInline(
             @PK Integer id,
-            @Nonnull String name,
-            @Nonnull LocalDate birthDate,
+            String name,
+            LocalDate birthDate,
             int typeId,
             int ownerId,
             int cityId,
@@ -2822,8 +2821,8 @@ public class RepositoryPreparedStatementIntegrationTest {
     @DbTable("pet")
     record PetWithNestedPersistOverride(
             @PK Integer id,
-            @Nonnull String name,
-            @Nonnull LocalDate birthDate,
+            String name,
+            LocalDate birthDate,
             int typeId,
             int ownerId,
             @Persist(insertable = false, updatable = false) OuterInline nested

@@ -15,7 +15,6 @@
  */
 package st.orm.spring;
 
-import jakarta.annotation.Nonnull;
 import java.lang.annotation.Annotation;
 import java.util.Arrays;
 import java.util.List;
@@ -102,12 +101,12 @@ public abstract class AbstractRepositoryBeanFactoryPostProcessor
     protected abstract Class<? extends AbstractRepositoryFactoryBean<?>> getRepositoryFactoryBeanClass();
 
     @Override
-    public void setResourceLoader(@Nonnull ResourceLoader resourceLoader) {
+    public void setResourceLoader(ResourceLoader resourceLoader) {
         this.resourceLoader = resourceLoader;
     }
 
     @Override
-    public void postProcessBeanFactory(@Nonnull ConfigurableListableBeanFactory beanFactory) {
+    public void postProcessBeanFactory(ConfigurableListableBeanFactory beanFactory) {
         if (AotDetector.useGeneratedArtifacts()) {
             // The repository bean definitions registered by this post-processor were turned into generated
             // code during AOT processing; scanning again would re-register them over the generated ones.
@@ -233,27 +232,27 @@ public abstract class AbstractRepositoryBeanFactoryPostProcessor
         }
 
         @Override
-        public boolean isRequired(@Nonnull DependencyDescriptor descriptor) {
+        public boolean isRequired(DependencyDescriptor descriptor) {
             return delegate.isRequired(descriptor);
         }
 
         @Override
-        public boolean hasQualifier(@Nonnull DependencyDescriptor descriptor) {
+        public boolean hasQualifier(DependencyDescriptor descriptor) {
             return delegate.hasQualifier(descriptor);
         }
 
         @Override
-        public Object getSuggestedValue(@Nonnull DependencyDescriptor descriptor) {
+        public Object getSuggestedValue(DependencyDescriptor descriptor) {
             return delegate.getSuggestedValue(descriptor);
         }
 
         @Override
-        public Object getLazyResolutionProxyIfNecessary(@Nonnull DependencyDescriptor descriptor, String beanName) {
+        public Object getLazyResolutionProxyIfNecessary(DependencyDescriptor descriptor, String beanName) {
             return delegate.getLazyResolutionProxyIfNecessary(descriptor, beanName);
         }
 
         @Override
-        public Class<?> getLazyResolutionProxyClass(@Nonnull DependencyDescriptor descriptor, String beanName) {
+        public Class<?> getLazyResolutionProxyClass(DependencyDescriptor descriptor, String beanName) {
             return delegate.getLazyResolutionProxyClass(descriptor, beanName);
         }
 
@@ -263,7 +262,7 @@ public abstract class AbstractRepositoryBeanFactoryPostProcessor
         }
 
         @Override
-        public boolean isAutowireCandidate(@Nonnull BeanDefinitionHolder holder, @Nonnull DependencyDescriptor descriptor) {
+        public boolean isAutowireCandidate(BeanDefinitionHolder holder, DependencyDescriptor descriptor) {
             if (delegate.isAutowireCandidate(holder, descriptor)) {
                 return true;
             }

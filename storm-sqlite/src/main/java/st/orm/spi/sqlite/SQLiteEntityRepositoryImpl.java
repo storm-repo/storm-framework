@@ -23,8 +23,6 @@ import static st.orm.core.template.TemplateString.raw;
 import static st.orm.core.template.Templates.table;
 import static st.orm.core.template.impl.StringTemplates.flatten;
 
-import jakarta.annotation.Nonnull;
-import jakarta.annotation.Nullable;
 import java.math.BigInteger;
 import java.sql.Timestamp;
 import java.time.Instant;
@@ -33,6 +31,7 @@ import java.util.Date;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.stream.IntStream;
+import org.jspecify.annotations.Nullable;
 import st.orm.Data;
 import st.orm.Entity;
 import st.orm.NoResultException;
@@ -57,11 +56,11 @@ import st.orm.core.template.impl.JoinedEntityHelper;
 public class SQLiteEntityRepositoryImpl<E extends Entity<ID>, ID>
         extends EntityRepositoryImpl<E, ID> {
 
-    public SQLiteEntityRepositoryImpl(@Nonnull ORMTemplate ormTemplate, @Nonnull Model<E, ID> model) {
+    public SQLiteEntityRepositoryImpl(ORMTemplate ormTemplate, Model<E, ID> model) {
         super(ormTemplate, model);
     }
 
-    private TemplateString getVersionString(@Nonnull Class<? extends Data> type, @Nonnull Column column) {
+    private TemplateString getVersionString(Class<? extends Data> type, Column column) {
         TemplateString columnName = TemplateString.of(column.qualifiedName(ormTemplate.dialect()));
         TemplateString updateExpression = switch (column.type()) {
             case Class<?> c when Integer.TYPE.isAssignableFrom(c)
@@ -89,7 +88,7 @@ public class SQLiteEntityRepositoryImpl<E extends Entity<ID>, ID>
      * @param versionAware a flag that will be set if a version column is encountered.
      * @return the conflict clause as a TemplateString.
      */
-    private TemplateString onConflictClause(@Nonnull AtomicBoolean versionAware) {
+    private TemplateString onConflictClause(AtomicBoolean versionAware) {
         var dialect = ormTemplate.dialect();
         String conflictTarget = model.declaredColumns().stream()
                 .filter(Column::primaryKey)
@@ -113,7 +112,7 @@ public class SQLiteEntityRepositoryImpl<E extends Entity<ID>, ID>
     }
 
     @Override
-    protected void doUpsert(@Nonnull E entity) {
+    protected void doUpsert(E entity) {
         validateUpsert(entity);
         entityCache().ifPresent(cache -> {
             if (!model.isDefaultPrimaryKey(entity.id())) {
@@ -130,7 +129,7 @@ public class SQLiteEntityRepositoryImpl<E extends Entity<ID>, ID>
     }
 
     @Override
-    protected ID doUpsertAndFetchId(@Nonnull E entity) {
+    protected ID doUpsertAndFetchId(E entity) {
         validateUpsert(entity);
         entityCache().ifPresent(cache -> {
             if (!model.isDefaultPrimaryKey(entity.id())) {
@@ -167,7 +166,7 @@ public class SQLiteEntityRepositoryImpl<E extends Entity<ID>, ID>
     }
 
     @Override
-    protected void doUpsertBatch(@Nonnull List<E> batch, @Nonnull PreparedQuery query,
+    protected void doUpsertBatch(List<E> batch, PreparedQuery query,
                                  @Nullable EntityCache<E, ID> cache) {
         if (batch.isEmpty()) {
             return;
@@ -185,7 +184,7 @@ public class SQLiteEntityRepositoryImpl<E extends Entity<ID>, ID>
     }
 
     @Override
-    protected List<ID> doUpsertAndFetchIdsBatch(@Nonnull List<E> batch, @Nonnull PreparedQuery query,
+    protected List<ID> doUpsertAndFetchIdsBatch(List<E> batch, PreparedQuery query,
                                                 @Nullable EntityCache<E, ID> cache) {
         if (batch.isEmpty()) {
             return List.of();
@@ -218,7 +217,7 @@ public class SQLiteEntityRepositoryImpl<E extends Entity<ID>, ID>
      * {@link JoinedEntityHelper#insertExtensionTables} logic.</p>
      */
     @Override
-    protected List<ID> insertJoinedBatch(@Nonnull List<E> entities) {
+    protected List<ID> insertJoinedBatch(List<E> entities) {
         if (generationStrategy == NONE) {
             return super.insertJoinedBatch(entities);
         }
@@ -240,7 +239,7 @@ public class SQLiteEntityRepositoryImpl<E extends Entity<ID>, ID>
     }
 
     @Override
-    public ID insertAndFetchId(@Nonnull E entity) {
+    public ID insertAndFetchId(E entity) {
         // SQLite does not support sequences.
         return super.insertAndFetchId(entity);
     }

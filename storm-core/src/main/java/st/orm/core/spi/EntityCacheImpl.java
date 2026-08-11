@@ -17,7 +17,6 @@ package st.orm.core.spi;
 
 import static java.util.Objects.requireNonNull;
 
-import jakarta.annotation.Nonnull;
 import java.lang.ref.Reference;
 import java.lang.ref.ReferenceQueue;
 import java.lang.ref.SoftReference;
@@ -77,7 +76,7 @@ public final class EntityCacheImpl<E extends Entity<ID>, ID> implements EntityCa
      *
      * @param retention the cache retention strategy to use.
      */
-    public EntityCacheImpl(@Nonnull CacheRetention retention) {
+    public EntityCacheImpl(CacheRetention retention) {
         this.retention = retention;
     }
 
@@ -107,7 +106,7 @@ public final class EntityCacheImpl<E extends Entity<ID>, ID> implements EntityCa
      * {@link Optional#empty()} otherwise.
      */
     @Override
-    public Optional<E> get(@Nonnull ID pk) {
+    public Optional<E> get(ID pk) {
         Object key = RowIdentity.normalize(requireNonNull(pk));
         PkReference<E> ref = map.get(key);
         if (ref == null) {
@@ -143,7 +142,7 @@ public final class EntityCacheImpl<E extends Entity<ID>, ID> implements EntityCa
      * @return the canonical cached instance for the entity's primary key.
      */
     @Override
-    public E intern(@Nonnull E entity) {
+    public E intern(E entity) {
         drainQueue();
         Object key = RowIdentity.normalize(entity.id());
         PkReference<E> existingRef = map.get(key);
@@ -181,7 +180,7 @@ public final class EntityCacheImpl<E extends Entity<ID>, ID> implements EntityCa
      * @param pk the primary key to remove; must not be {@code null}.
      */
     @Override
-    public void remove(@Nonnull ID pk) {
+    public void remove(ID pk) {
         map.remove(RowIdentity.normalize(requireNonNull(pk)));
         metrics.recordRemoval();
     }

@@ -15,7 +15,6 @@
  */
 package st.orm.core.spi;
 
-import jakarta.annotation.Nonnull;
 import st.orm.StormConfig;
 import st.orm.core.template.SqlDialect;
 
@@ -27,7 +26,7 @@ import st.orm.core.template.SqlDialect;
 public class FetchSizeSqlDialectProviderImpl implements SqlDialectProvider {
 
     @Override
-    public SqlDialect getSqlDialect(@Nonnull StormConfig config) {
+    public SqlDialect getSqlDialect(StormConfig config) {
         return new DefaultSqlDialect(config) {
             @Override
             public String name() {

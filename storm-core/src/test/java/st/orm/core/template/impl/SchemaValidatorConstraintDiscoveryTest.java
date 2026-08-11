@@ -18,7 +18,6 @@ package st.orm.core.template.impl;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-import jakarta.annotation.Nonnull;
 import java.sql.SQLException;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -71,7 +70,7 @@ class SchemaValidatorConstraintDiscoveryTest {
      */
     private static final class MismatchedDialect extends DefaultSqlDialect {
 
-        MismatchedDialect(@Nonnull StormConfig config) {
+        MismatchedDialect(StormConfig config) {
             super(config);
         }
 
@@ -87,7 +86,7 @@ class SchemaValidatorConstraintDiscoveryTest {
      */
     private static final class NoSequenceDiscoveryDialect extends DefaultSqlDialect {
 
-        NoSequenceDiscoveryDialect(@Nonnull StormConfig config) {
+        NoSequenceDiscoveryDialect(StormConfig config) {
             super(config);
         }
 
@@ -109,12 +108,12 @@ class SchemaValidatorConstraintDiscoveryTest {
         }
     }
 
-    private List<SchemaValidationError> validateWith(@Nonnull SqlDialect dialect) {
+    private List<SchemaValidationError> validateWith(SqlDialect dialect) {
         return validateWith(dialect, List.of(Parent.class, Child.class));
     }
 
-    private List<SchemaValidationError> validateWith(@Nonnull SqlDialect dialect,
-                                                     @Nonnull List<Class<? extends Data>> types) {
+    private List<SchemaValidationError> validateWith(SqlDialect dialect,
+                                                     List<Class<? extends Data>> types) {
         return SchemaValidator.of(dataSource, ModelBuilder.newInstance(), dialect).validate(types);
     }
 

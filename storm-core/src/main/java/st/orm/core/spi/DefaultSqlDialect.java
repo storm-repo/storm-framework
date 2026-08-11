@@ -24,7 +24,6 @@ import static st.orm.Operator.NOT_IN;
 import static st.orm.StormConfig.ANSI_ESCAPING;
 import static st.orm.core.spi.StormConfigHelper.getBoolean;
 
-import jakarta.annotation.Nonnull;
 import java.util.ArrayList;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -46,7 +45,7 @@ public class DefaultSqlDialect implements SqlDialect {
         this(StormConfig.defaults());
     }
 
-    public DefaultSqlDialect(@Nonnull StormConfig config) {
+    public DefaultSqlDialect(StormConfig config) {
         this.ansiEscaping = getBoolean(config, ANSI_ESCAPING, false);
     }
 
@@ -151,7 +150,7 @@ public class DefaultSqlDialect implements SqlDialect {
      * @since 1.2
      */
     @Override
-    public boolean isKeyword(@Nonnull String name) {
+    public boolean isKeyword(String name) {
         return ANSI_KEYWORDS.contains(name.toUpperCase());
     }
 
@@ -162,7 +161,7 @@ public class DefaultSqlDialect implements SqlDialect {
      * @return the escaped identifier
      */
     @Override
-    public String escape(@Nonnull String name) {
+    public String escape(String name) {
         if (ansiEscaping) {
             // Escape identifier for ANSI SQL by wrapping it in double quotes and doubling any embedded double quotes.
             return "\"" + name.replace("\"", "\"\"") + "\"";
@@ -245,8 +244,8 @@ public class DefaultSqlDialect implements SqlDialect {
      * @since 1.2
      */
     @Override
-    public String multiValueIn(@Nonnull List<SequencedMap<String, Object>> values,
-                               @Nonnull Function<Object, String> parameterFunction) throws SqlTemplateException {
+    public String multiValueIn(List<SequencedMap<String, Object>> values,
+                               Function<Object, String> parameterFunction) throws SqlTemplateException {
         boolean wrapRows = values.size() > 1;
         List<String> args = new ArrayList<>();
         for (var valueMap : values) {
@@ -274,9 +273,9 @@ public class DefaultSqlDialect implements SqlDialect {
      * @since 1.13
      */
     @Override
-    public String multiColumnExpression(@Nonnull Operator operator,
-                                        @Nonnull List<SequencedMap<String, Object>> values,
-                                        @Nonnull Function<Object, String> parameterFunction)
+    public String multiColumnExpression(Operator operator,
+                                        List<SequencedMap<String, Object>> values,
+                                        Function<Object, String> parameterFunction)
             throws SqlTemplateException {
         if (rendersTupleComparison(operator, values.size())) {
             return tupleExpression(operator, values, parameterFunction);
@@ -315,7 +314,7 @@ public class DefaultSqlDialect implements SqlDialect {
      * @return {@code true} to render a row value tuple, {@code false} to render the {@code AND} expansion.
      * @since 1.13
      */
-    protected boolean rendersTupleComparison(@Nonnull Operator operator, int rowCount) {
+    protected boolean rendersTupleComparison(Operator operator, int rowCount) {
         return false;
     }
 
@@ -331,7 +330,7 @@ public class DefaultSqlDialect implements SqlDialect {
      * @return {@code true} if the operator is of the equality family and the comparison spans multiple rows.
      * @since 1.13
      */
-    protected final boolean isMultiRowEquality(@Nonnull Operator operator, int rowCount) {
+    protected final boolean isMultiRowEquality(Operator operator, int rowCount) {
         return (operator == EQUALS || operator == NOT_EQUALS || operator == IN || operator == NOT_IN)
                 && rowCount > 1;
     }
@@ -352,9 +351,9 @@ public class DefaultSqlDialect implements SqlDialect {
      * @return the tuple expression SQL fragment.
      * @since 1.9
      */
-    protected String tupleExpression(@Nonnull Operator operator,
-                                      @Nonnull List<SequencedMap<String, Object>> values,
-                                      @Nonnull Function<Object, String> parameterFunction) {
+    protected String tupleExpression(Operator operator,
+                                      List<SequencedMap<String, Object>> values,
+                                      Function<Object, String> parameterFunction) {
         Set<String> columns = new LinkedHashSet<>(values.getFirst().keySet());
         String columnTuple = "(%s)".formatted(String.join(", ", columns));
         String[] valueTuples = values.stream()

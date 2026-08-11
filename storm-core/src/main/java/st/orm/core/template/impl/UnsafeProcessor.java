@@ -15,7 +15,6 @@
  */
 package st.orm.core.template.impl;
 
-import jakarta.annotation.Nonnull;
 import st.orm.core.template.impl.Elements.Unsafe;
 
 /**
@@ -37,7 +36,7 @@ final class UnsafeProcessor implements ElementProcessor<Unsafe> {
      * @return an immutable key for caching, or {@code null} if the element (or its compilation) cannot be cached.
      */
     @Override
-    public Object getCompilationKey(@Nonnull Unsafe unsafe) {
+    public Object getCompilationKey(Unsafe unsafe) {
         return unsafe;
     }
 
@@ -52,7 +51,7 @@ final class UnsafeProcessor implements ElementProcessor<Unsafe> {
      * @return the compiled result for this element.
      */
     @Override
-    public CompiledElement compile(@Nonnull Unsafe unsafe, @Nonnull TemplateCompiler compiler) {
+    public CompiledElement compile(Unsafe unsafe, TemplateCompiler compiler) {
         return new CompiledElement(unsafe.sql());
     }
 
@@ -68,6 +67,6 @@ final class UnsafeProcessor implements ElementProcessor<Unsafe> {
      * @param bindHint the bind hint for the element, providing additional context for binding.
      */
     @Override
-    public void bind(@Nonnull Unsafe unsafe, @Nonnull TemplateBinder binder, @Nonnull BindHint bindHint) {
+    public void bind(Unsafe unsafe, TemplateBinder binder, BindHint bindHint) {
     }
 }

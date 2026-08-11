@@ -15,8 +15,7 @@
  */
 package st.orm.core.template.impl;
 
-import jakarta.annotation.Nonnull;
-import jakarta.annotation.Nullable;
+import org.jspecify.annotations.Nullable;
 
 /**
  * Represents a reference to a column qualified by a table alias, with optional SQL expression override.
@@ -35,13 +34,13 @@ import jakarta.annotation.Nullable;
  * @param expression optional SQL expression that overrides the default alias.name rendering.
  * @since 1.7
  */
-public record ColumnExpression(@Nonnull Class<?> type, @Nonnull String name, @Nonnull String alias, int index,
+public record ColumnExpression(Class<?> type, String name, String alias, int index,
                                 @Nullable String expression) {
 
     /**
      * Convenience constructor without expression (delegates with null expression).
      */
-    public ColumnExpression(@Nonnull Class<?> type, @Nonnull String name, @Nonnull String alias, int index) {
+    public ColumnExpression(Class<?> type, String name, String alias, int index) {
         this(type, name, alias, index, null);
     }
 

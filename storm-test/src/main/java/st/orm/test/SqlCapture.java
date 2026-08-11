@@ -15,7 +15,6 @@
  */
 package st.orm.test;
 
-import jakarta.annotation.Nonnull;
 import java.time.Duration;
 import java.util.List;
 import java.util.Queue;
@@ -53,7 +52,7 @@ public final class SqlCapture {
     /** Records each execution as it completes, so the capture carries the execution's duration. */
     private final StatementListener listener = new StatementListener() {
         @Override
-        public Handle onExecute(@Nonnull QueryContext context, @Nonnull List<Parameter> parameters) {
+        public Handle onExecute(QueryContext context, List<Parameter> parameters) {
             Operation op = switch (context.operation()) {
                 case SELECT -> Operation.SELECT;
                 case INSERT -> Operation.INSERT;

@@ -17,7 +17,6 @@ package st.orm.template;
 
 import static java.lang.StringTemplate.RAW;
 
-import jakarta.annotation.Nonnull;
 import st.orm.BindVars;
 import st.orm.Data;
 import st.orm.Ref;
@@ -91,7 +90,7 @@ public interface QueryTemplate extends SubqueryTemplate {
      * @param <ID> primary key type.
      * @since 1.3
      */
-    <T extends Data, ID> Ref<T> ref(@Nonnull Class<T> type, @Nonnull ID id);
+    <T extends Data, ID> Ref<T> ref(Class<T> type, ID id);
 
     /**
      * Creates a ref instance for the specified record {@code type} and {@code id}. This method can be used to generate
@@ -104,7 +103,7 @@ public interface QueryTemplate extends SubqueryTemplate {
      * @param <ID> primary key type.
      * @since 1.3
      */
-    <T extends Data, ID> Ref<T> ref(@Nonnull T record, @Nonnull ID id);
+    <T extends Data, ID> Ref<T> ref(T record, ID id);
 
     /**
      * Get the model for the specified record {@code type}. The model provides information about the type's database
@@ -115,7 +114,7 @@ public interface QueryTemplate extends SubqueryTemplate {
      * @param <T> table type.
      * @param <ID> primary key type.
      */
-    default <T extends Data, ID> Model<T, ID> model(@Nonnull Class<T> type) {
+    default <T extends Data, ID> Model<T, ID> model(Class<T> type) {
         return model(type, false);
     }
 
@@ -130,7 +129,7 @@ public interface QueryTemplate extends SubqueryTemplate {
      * @param <ID> primary key type.
      * @since 1.3
      */
-    <T extends Data, ID> Model<T, ID> model(@Nonnull Class<T> type, boolean requirePrimaryKey);
+    <T extends Data, ID> Model<T, ID> model(Class<T> type, boolean requirePrimaryKey);
 
     /**
      * Creates a query builder for the specified table.
@@ -139,7 +138,7 @@ public interface QueryTemplate extends SubqueryTemplate {
      * @return the query builder.
      * @param <T> the table type to select from.
      */
-    default <T extends Data> QueryBuilder<T, T, ?> selectFrom(@Nonnull Class<T> fromType) {
+    default <T extends Data> QueryBuilder<T, T, ?> selectFrom(Class<T> fromType) {
         return selectFrom(fromType, fromType);
     }
 
@@ -152,8 +151,8 @@ public interface QueryTemplate extends SubqueryTemplate {
      * @param <T> the table type to select from.
      * @param <R> the result type.
      */
-    default <T extends Data, R> QueryBuilder<T, R, ?> selectFrom(@Nonnull Class<T> fromType,
-                                                                 @Nonnull Class<R> selectType) {
+    default <T extends Data, R> QueryBuilder<T, R, ?> selectFrom(Class<T> fromType,
+                                                                 Class<R> selectType) {
         return selectFrom(fromType, selectType, RAW."\{selectType}");
     }
 
@@ -167,9 +166,9 @@ public interface QueryTemplate extends SubqueryTemplate {
      * @param <T> the table type to select from.
      * @param <R> the result type.
      */
-    <T extends Data, R> QueryBuilder<T, R, ?> selectFrom(@Nonnull Class<T> fromType,
-                                                         @Nonnull Class<R> selectType,
-                                                         @Nonnull StringTemplate template);
+    <T extends Data, R> QueryBuilder<T, R, ?> selectFrom(Class<T> fromType,
+                                                         Class<R> selectType,
+                                                         StringTemplate template);
 
     /**
      * Creates a query builder for the specified table to delete from.
@@ -178,7 +177,7 @@ public interface QueryTemplate extends SubqueryTemplate {
      * @return the query builder.
      * @param <T> the table type to delete from.
      */
-    <T extends Data> QueryBuilder<T, ?, ?> deleteFrom(@Nonnull Class<T> fromType);
+    <T extends Data> QueryBuilder<T, ?, ?> deleteFrom(Class<T> fromType);
 
     /**
      * Creates a query for the specified {@code query} string.
@@ -186,7 +185,7 @@ public interface QueryTemplate extends SubqueryTemplate {
      * @param query the query.
      * @return the query.
      */
-    Query query(@Nonnull String query);
+    Query query(String query);
 
     /**
      * Creates a query for the specified query {@code template}.
@@ -194,5 +193,5 @@ public interface QueryTemplate extends SubqueryTemplate {
      * @param template the query template.
      * @return the query.
      */
-    Query query(@Nonnull StringTemplate template);
+    Query query(StringTemplate template);
 }

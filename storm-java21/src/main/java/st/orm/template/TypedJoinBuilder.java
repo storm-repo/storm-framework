@@ -15,7 +15,6 @@
  */
 package st.orm.template;
 
-import jakarta.annotation.Nonnull;
 import st.orm.Data;
 
 /**
@@ -49,5 +48,5 @@ public interface TypedJoinBuilder<T extends Data, R, ID> extends JoinBuilder<T, 
      * @param relation the relation to join on.
      * @return the query builder.
      */
-    QueryBuilder<Data, R, ID> on(@Nonnull Class<? extends Data> relation);
+    QueryBuilder<Data, R, ID> on(Class<? extends Data> relation);
 }

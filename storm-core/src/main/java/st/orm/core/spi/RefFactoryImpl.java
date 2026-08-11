@@ -17,9 +17,8 @@ package st.orm.core.spi;
 
 import static java.util.Objects.requireNonNull;
 
-import jakarta.annotation.Nonnull;
-import jakarta.annotation.Nullable;
 import java.util.function.Predicate;
+import org.jspecify.annotations.Nullable;
 import st.orm.Data;
 import st.orm.Entity;
 import st.orm.Ref;
@@ -48,13 +47,13 @@ public final class RefFactoryImpl implements RefFactory {
      */
     private Class<?> ownRowIdentityPkClass;
 
-    public RefFactoryImpl(@Nonnull QueryFactory factory,
-                          @Nonnull ModelBuilder modelBuilder,
+    public RefFactoryImpl(QueryFactory factory,
+                          ModelBuilder modelBuilder,
                           @Nullable Predicate<? super Provider> providerFilter) {
         this(new ORMTemplateImpl(factory, modelBuilder, providerFilter));
     }
 
-    public RefFactoryImpl(@Nonnull QueryTemplate template) {
+    public RefFactoryImpl(QueryTemplate template) {
         this.template = requireNonNull(template, "template");
     }
 
@@ -96,7 +95,7 @@ public final class RefFactoryImpl implements RefFactory {
      */
     @SuppressWarnings("unchecked")
     @Override
-    public <T extends Data, ID> Ref<T> create(@Nonnull Class<T> type, @Nonnull ID pk) {
+    public <T extends Data, ID> Ref<T> create(Class<T> type, ID pk) {
         var supplier = new LazySupplier<>(() -> {
             // Cache-first lookup for entities.
             if (Entity.class.isAssignableFrom(type)) {
@@ -133,7 +132,7 @@ public final class RefFactoryImpl implements RefFactory {
      */
     @SuppressWarnings("unchecked")
     @Override
-    public <T extends Data, ID> Ref<T> create(@Nonnull T record, @Nonnull ID pk) {
+    public <T extends Data, ID> Ref<T> create(T record, ID pk) {
         var type = (Class<T>) record.getClass();
         var supplier = new LazySupplier<>(record);
         return create(supplier, type, pk);
@@ -149,7 +148,7 @@ public final class RefFactoryImpl implements RefFactory {
      * @param <T> record type.
      * @param <ID> primary key type.
      */
-    private <T extends Data, ID> Ref<T> create(@Nonnull LazySupplier<T> supplier, @Nonnull Class<T> type, @Nonnull ID pk) {
+    private <T extends Data, ID> Ref<T> create(LazySupplier<T> supplier, Class<T> type, ID pk) {
         return isOwnRowIdentity(pk)
                 ? new ScalarRefImpl<>(supplier, type, pk)
                 : new RefImpl<>(supplier, type, pk);
@@ -159,7 +158,7 @@ public final class RefFactoryImpl implements RefFactory {
      * Returns whether the pk class is its own row identity, selecting the ref implementation that carries no
      * identity or hash cache.
      */
-    private boolean isOwnRowIdentity(@Nonnull Object pk) {
+    private boolean isOwnRowIdentity(Object pk) {
         Class<?> pkClass = pk.getClass();
         if (pkClass == ownRowIdentityPkClass) {
             return true;

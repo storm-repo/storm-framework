@@ -15,8 +15,7 @@
  */
 package st.orm.template;
 
-import jakarta.annotation.Nonnull;
-import jakarta.annotation.Nullable;
+import org.jspecify.annotations.Nullable;
 
 /**
  * Records the statements a call executes, so a unit of work can be judged by what it cost the database.
@@ -69,7 +68,7 @@ public final class SqlLog {
      * @param name what the scope covers, used to label the summary.
      * @return the open scope.
      */
-    public static Scope open(@Nonnull String name) {
+    public static Scope open(String name) {
         return new Scope(st.orm.core.template.SqlLog.reporting()
                 ? st.orm.core.template.SqlLog.open(name)
                 : null);
@@ -82,7 +81,7 @@ public final class SqlLog {
      * @param limit the number of statements to record; the summary counts the rest regardless.
      * @return the open scope.
      */
-    public static Scope open(@Nonnull String name, int limit) {
+    public static Scope open(String name, int limit) {
         return new Scope(st.orm.core.template.SqlLog.reporting()
                 ? st.orm.core.template.SqlLog.open(name, limit)
                 : null);
@@ -97,7 +96,7 @@ public final class SqlLog {
      * @param callSites whether to record call sites.
      * @return the open scope.
      */
-    public static Scope open(@Nonnull String name, int limit, boolean callSites) {
+    public static Scope open(String name, int limit, boolean callSites) {
         return new Scope(st.orm.core.template.SqlLog.reporting()
                 ? st.orm.core.template.SqlLog.open(name, limit, callSites)
                 : null);
@@ -109,9 +108,9 @@ public final class SqlLog {
     public static final class Scope implements AutoCloseable {
 
         /** The recording scope, or {@code null} when the summary would reach nothing. */
-        private final @Nullable st.orm.core.template.SqlLog.Scope scope;
+        private final st.orm.core.template.SqlLog.@Nullable Scope scope;
 
-        private Scope(@Nullable st.orm.core.template.SqlLog.Scope scope) {
+        private Scope(st.orm.core.template.SqlLog.@Nullable Scope scope) {
             this.scope = scope;
         }
 

@@ -1,7 +1,6 @@
 package st.orm.core.model;
 
-import jakarta.annotation.Nonnull;
-import jakarta.annotation.Nullable;
+import org.jspecify.annotations.Nullable;
 import st.orm.DbColumn;
 import st.orm.DbTable;
 import st.orm.Entity;
@@ -17,9 +16,9 @@ import st.orm.Version;
 @DbTable("owner")
 public record OwnerCityRef(
         @PK Integer id,
-        @Nonnull String firstName,
-        @Nonnull String lastName,
-        @Nonnull String address,
+        String firstName,
+        String lastName,
+        String address,
         @Nullable @FK @DbColumn("city_id") Ref<City> city,
         @Nullable String telephone,
         @Version int version

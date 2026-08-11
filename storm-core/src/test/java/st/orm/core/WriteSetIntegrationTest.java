@@ -6,7 +6,6 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-import jakarta.annotation.Nonnull;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
@@ -427,8 +426,8 @@ public class WriteSetIntegrationTest {
     @DbTable("vet_badge")
     public record VetBadge(
             @PK Integer id,
-            @Nonnull String label,
-            @Nonnull @FK @Persist(insertable = false, updatable = false) Vet vet
+            String label,
+            @FK @Persist(insertable = false, updatable = false) Vet vet
     ) implements Entity<Integer> {}
 
     @Test

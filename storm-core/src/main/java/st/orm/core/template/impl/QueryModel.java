@@ -15,7 +15,6 @@
  */
 package st.orm.core.template.impl;
 
-import jakarta.annotation.Nonnull;
 import java.util.List;
 import st.orm.Data;
 import st.orm.SelectMode;
@@ -54,7 +53,7 @@ interface QueryModel {
      * @param mode the selection mode that controls which columns are returned.
      * @return the list of column expressions for the root table.
      */
-    List<ColumnExpression> getColumns(@Nonnull SelectMode mode);
+    List<ColumnExpression> getColumns(SelectMode mode);
 
     /**
      * Returns the columns to be selected for the specified table type, according to the given selection mode.
@@ -66,7 +65,7 @@ interface QueryModel {
      * @param mode  the selection mode that controls which columns are included.
      * @return the list of column expressions for the specified table type.
      */
-    List<ColumnExpression> getColumns(@Nonnull Class<? extends Data> table, @Nonnull SelectMode mode);
+    List<ColumnExpression> getColumns(Class<? extends Data> table, SelectMode mode);
 
     /**
      * Returns the columns to be selected for the specified table type, with the references the plan resolves selected
@@ -78,8 +77,8 @@ interface QueryModel {
      * @return the list of column expressions for the specified table type.
      * @since 1.13
      */
-    List<ColumnExpression> getColumns(@Nonnull Class<? extends Data> table, @Nonnull SelectMode mode,
-                                      @Nonnull FetchPlan fetchPlan);
+    List<ColumnExpression> getColumns(Class<? extends Data> table, SelectMode mode,
+                                      FetchPlan fetchPlan);
 
     /**
      * Compiles the given expression into its SQL representation.
@@ -91,7 +90,7 @@ interface QueryModel {
      * @param compiler   the compiler responsible for producing SQL fragments.
      * @return the compiled SQL fragment representing the expression.
      */
-    String compileExpression(@Nonnull Expression expression, @Nonnull TemplateCompiler compiler);
+    String compileExpression(Expression expression, TemplateCompiler compiler);
 
     /**
      * Binds all parameters required by the given expression to the provided binder.
@@ -102,7 +101,7 @@ interface QueryModel {
      * @param expression the expression whose parameters should be bound.
      * @param binder     the binder responsible for collecting parameter values.
      */
-    void bindExpression(@Nonnull Expression expression, @Nonnull TemplateBinder binder);
+    void bindExpression(Expression expression, TemplateBinder binder);
 
     /**
      * Converts the specified column into a {@link ColumnExpression} using the current alias resolution rules.
@@ -113,5 +112,5 @@ interface QueryModel {
      * @param column the column to convert.
      * @return the column expression with alias and optional SQL expression override.
      */
-    ColumnExpression toColumnExpression(@Nonnull Column column);
+    ColumnExpression toColumnExpression(Column column);
 }

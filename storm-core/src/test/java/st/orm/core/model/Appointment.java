@@ -1,6 +1,5 @@
 package st.orm.core.model;
 
-import jakarta.annotation.Nonnull;
 import java.time.LocalDateTime;
 import st.orm.Entity;
 import st.orm.PK;
@@ -11,6 +10,6 @@ import st.orm.PK;
  */
 public record Appointment(
         @PK Integer id,
-        @Nonnull String description,
-        @Nonnull LocalDateTime scheduledAt
+        String description,
+        LocalDateTime scheduledAt
 ) implements Entity<Integer> {}

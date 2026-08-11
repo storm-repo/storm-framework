@@ -25,12 +25,11 @@ import static st.orm.Operator.IN;
 import static st.orm.core.template.TemplateString.combine;
 import static st.orm.core.template.TemplateString.wrap;
 
-import jakarta.annotation.Nonnull;
-import jakarta.annotation.Nullable;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.function.Function;
 import java.util.function.Supplier;
+import org.jspecify.annotations.Nullable;
 import st.orm.Data;
 import st.orm.JoinType;
 import st.orm.Metamodel;
@@ -75,14 +74,14 @@ abstract class QueryBuilderImpl<T extends Data, R, ID> extends QueryBuilder<T, R
     protected final List<TemplateString> orderBy;
     protected final Supplier<Model<T, ID>> modelSupplier;
 
-    protected QueryBuilderImpl(@Nonnull QueryTemplate queryTemplate,
-                               @Nonnull Class<T> fromType,
-                               @Nonnull List<Join> join,
-                               @Nonnull List<Where> where,
-                               @Nonnull List<TemplateString> groupBy,
-                               @Nonnull List<TemplateString> having,
-                               @Nonnull List<TemplateString> orderBy,
-                               @Nonnull Supplier<Model<T, ID>> modelSupplier) {
+    protected QueryBuilderImpl(QueryTemplate queryTemplate,
+                               Class<T> fromType,
+                               List<Join> join,
+                               List<Where> where,
+                               List<TemplateString> groupBy,
+                               List<TemplateString> having,
+                               List<TemplateString> orderBy,
+                               Supplier<Model<T, ID>> modelSupplier) {
         this.queryTemplate = queryTemplate;
         this.fromType = fromType;
         this.join = List.copyOf(join);
@@ -114,7 +113,7 @@ abstract class QueryBuilderImpl<T extends Data, R, ID> extends QueryBuilder<T, R
      * @since 1.14
      */
     @Override
-    public <X> QueryBuilder<T, R, X> typedId(@Nonnull Class<X> pkType) {
+    public <X> QueryBuilder<T, R, X> typedId(Class<X> pkType) {
         requireNonNull(pkType, "pkType");
         Model<T, ID> model = modelSupplier.get();
         if (model.primaryKeyType() != pkType) {
@@ -133,7 +132,7 @@ abstract class QueryBuilderImpl<T extends Data, R, ID> extends QueryBuilder<T, R
      */
     @Override
     @SuppressWarnings("unchecked")
-    public <X extends Data> QueryBuilder<X, R, ID> narrow(@Nonnull Class<X> rootType) {
+    public <X extends Data> QueryBuilder<X, R, ID> narrow(Class<X> rootType) {
         requireNonNull(rootType, "rootType");
         if (fromType != rootType) {
             throw new PersistenceException("Root type mismatch: expected %s, got %s.".formatted(fromType.getName(), rootType.getName()));
@@ -162,13 +161,13 @@ abstract class QueryBuilderImpl<T extends Data, R, ID> extends QueryBuilder<T, R
      * @param where the list of where clauses.
      * @return a new query builder.
      */
-    abstract QueryBuilder<T, R, ID> copyWith(@Nonnull QueryTemplate queryTemplate,
-                                             @Nonnull Class<T> fromType,
-                                             @Nonnull List<Join> join,
-                                             @Nonnull List<Where> where,
-                                             @Nonnull List<TemplateString> groupBy,
-                                             @Nonnull List<TemplateString> having,
-                                             @Nonnull List<TemplateString> orderBy);
+    abstract QueryBuilder<T, R, ID> copyWith(QueryTemplate queryTemplate,
+                                             Class<T> fromType,
+                                             List<Join> join,
+                                             List<Where> where,
+                                             List<TemplateString> groupBy,
+                                             List<TemplateString> having,
+                                             List<TemplateString> orderBy);
 
     /**
      * Returns true to indicate that the query supports joins, false otherwise.
@@ -182,7 +181,7 @@ abstract class QueryBuilderImpl<T extends Data, R, ID> extends QueryBuilder<T, R
      * statement that selects rows can do.
      */
     @Override
-    public QueryBuilder<T, R, ID> fetch(@Nonnull List<? extends Navigable<T, ? extends Data>> paths) {
+    public QueryBuilder<T, R, ID> fetch(List<? extends Navigable<T, ? extends Data>> paths) {
         throw new PersistenceException("Cannot resolve references for this query: only a select carries the referenced record back into the row that holds the reference.");
     }
 
@@ -193,7 +192,7 @@ abstract class QueryBuilderImpl<T extends Data, R, ID> extends QueryBuilder<T, R
      * @return a new query builder.
      */
     @SuppressWarnings("unchecked")
-    private QueryBuilder<Data, R, ID> addJoin(@Nonnull Join join) {
+    private QueryBuilder<Data, R, ID> addJoin(Join join) {
         List<Join> copy = new ArrayList<>(this.join);
         copy.add(join);
         return (QueryBuilder<Data, R, ID>) copyWith(queryTemplate, fromType, copy, where, groupBy, having, orderBy);
@@ -216,7 +215,7 @@ abstract class QueryBuilderImpl<T extends Data, R, ID> extends QueryBuilder<T, R
      * @param where the where clause to add.
      * @return a new query builder.
      */
-    private QueryBuilder<T, R, ID> addWhere(@Nonnull Where where) {
+    private QueryBuilder<T, R, ID> addWhere(Where where) {
         List<Where> copy = new ArrayList<>(this.where);
         copy.add(where);
         return copyWith(queryTemplate, fromType, join, copy, groupBy, having, orderBy);
@@ -230,7 +229,7 @@ abstract class QueryBuilderImpl<T extends Data, R, ID> extends QueryBuilder<T, R
      * @return the query builder.
      * @since 1.2
      */
-    public QueryBuilder<T, R, ID> orderBy(@Nonnull TemplateString template) {
+    public QueryBuilder<T, R, ID> orderBy(TemplateString template) {
         List<TemplateString> copy = new ArrayList<>(orderBy);
         copy.add(template);
         return copyWith(queryTemplate, fromType, join, where, groupBy, having, copy);
@@ -244,7 +243,7 @@ abstract class QueryBuilderImpl<T extends Data, R, ID> extends QueryBuilder<T, R
      * @return the query builder.
      * @since 1.2
      */
-    public QueryBuilder<T, R, ID> groupBy(@Nonnull TemplateString template) {
+    public QueryBuilder<T, R, ID> groupBy(TemplateString template) {
         List<TemplateString> copy = new ArrayList<>(groupBy);
         copy.add(template);
         return copyWith(queryTemplate, fromType, join, where, copy, having, orderBy);
@@ -258,7 +257,7 @@ abstract class QueryBuilderImpl<T extends Data, R, ID> extends QueryBuilder<T, R
      * @return the query builder.
      * @since 1.2
      */
-    public QueryBuilder<T, R, ID> having(@Nonnull TemplateString template) {
+    public QueryBuilder<T, R, ID> having(TemplateString template) {
         List<TemplateString> copy = new ArrayList<>(having);
         copy.add(template);
         return copyWith(queryTemplate, fromType, join, where, groupBy, copy, orderBy);
@@ -281,7 +280,7 @@ abstract class QueryBuilderImpl<T extends Data, R, ID> extends QueryBuilder<T, R
      * @return the query builder.
      */
     @Override
-    public QueryBuilder<Data, R, ID> crossJoin(@Nonnull Class<? extends Data> relation) {
+    public QueryBuilder<Data, R, ID> crossJoin(Class<? extends Data> relation) {
         return join(cross(), relation, "").on(TemplateString.EMPTY);
     }
 
@@ -292,7 +291,7 @@ abstract class QueryBuilderImpl<T extends Data, R, ID> extends QueryBuilder<T, R
      * @return the query builder.
      */
     @Override
-    public TypedJoinBuilder<T, R, ID> innerJoin(@Nonnull Class<? extends Data> relation) {
+    public TypedJoinBuilder<T, R, ID> innerJoin(Class<? extends Data> relation) {
         return join(inner(), relation, "");
     }
 
@@ -303,7 +302,7 @@ abstract class QueryBuilderImpl<T extends Data, R, ID> extends QueryBuilder<T, R
      * @return the query builder.
      */
     @Override
-    public TypedJoinBuilder<T, R, ID> leftJoin(@Nonnull Class<? extends Data> relation) {
+    public TypedJoinBuilder<T, R, ID> leftJoin(Class<? extends Data> relation) {
         return join(left(), relation, "");
     }
 
@@ -314,7 +313,7 @@ abstract class QueryBuilderImpl<T extends Data, R, ID> extends QueryBuilder<T, R
      * @return the query builder.
      */
     @Override
-    public TypedJoinBuilder<T, R, ID> rightJoin(@Nonnull Class<? extends Data> relation) {
+    public TypedJoinBuilder<T, R, ID> rightJoin(Class<? extends Data> relation) {
         return join(right(), relation, "");
     }
 
@@ -327,7 +326,7 @@ abstract class QueryBuilderImpl<T extends Data, R, ID> extends QueryBuilder<T, R
      * @return the query builder.
      */
     @Override
-    public JoinBuilder<T, R, ID> join(@Nonnull JoinType type, @Nonnull TemplateString template, @Nonnull String alias) {
+    public JoinBuilder<T, R, ID> join(JoinType type, TemplateString template, String alias) {
         requireNonNull(type, "type");
         requireNonNull(type, "template");
         requireNonNull(alias, "alias");
@@ -343,7 +342,7 @@ abstract class QueryBuilderImpl<T extends Data, R, ID> extends QueryBuilder<T, R
      * @return the query builder.
      */
     @Override
-    public JoinBuilder<T, R, ID> join(@Nonnull JoinType type, @Nonnull QueryBuilder<?, ?, ?> subquery, @Nonnull String alias) {
+    public JoinBuilder<T, R, ID> join(JoinType type, QueryBuilder<?, ?, ?> subquery, String alias) {
         requireNonNull(type, "type");
         requireNonNull(type, "subquery");
         requireNonNull(alias, "alias");
@@ -357,7 +356,7 @@ abstract class QueryBuilderImpl<T extends Data, R, ID> extends QueryBuilder<T, R
      * @return the query builder.
      */
     @Override
-    public QueryBuilder<Data, R, ID> crossJoin(@Nonnull TemplateString template) {
+    public QueryBuilder<Data, R, ID> crossJoin(TemplateString template) {
         return join(cross(), template, "").on(TemplateString.EMPTY);
     }
 
@@ -369,7 +368,7 @@ abstract class QueryBuilderImpl<T extends Data, R, ID> extends QueryBuilder<T, R
      * @return the query builder.
      */
     @Override
-    public JoinBuilder<T, R, ID> innerJoin(@Nonnull TemplateString template, @Nonnull String alias) {
+    public JoinBuilder<T, R, ID> innerJoin(TemplateString template, String alias) {
         return join(inner(), template, alias);
     }
 
@@ -381,7 +380,7 @@ abstract class QueryBuilderImpl<T extends Data, R, ID> extends QueryBuilder<T, R
      * @return the query builder.
      */
     @Override
-    public JoinBuilder<T, R, ID> leftJoin(@Nonnull TemplateString template, @Nonnull String alias) {
+    public JoinBuilder<T, R, ID> leftJoin(TemplateString template, String alias) {
         return join(left(), template, alias);
     }
 
@@ -393,7 +392,7 @@ abstract class QueryBuilderImpl<T extends Data, R, ID> extends QueryBuilder<T, R
      * @return the query builder.
      */
     @Override
-    public JoinBuilder<T, R, ID> rightJoin(@Nonnull TemplateString template, @Nonnull String alias) {
+    public JoinBuilder<T, R, ID> rightJoin(TemplateString template, String alias) {
         return join(right(), template, alias);
     }
 
@@ -406,7 +405,7 @@ abstract class QueryBuilderImpl<T extends Data, R, ID> extends QueryBuilder<T, R
      * @return the query builder.
      */
     @Override
-    public TypedJoinBuilder<T, R, ID> join(@Nonnull JoinType type, @Nonnull Class<? extends Data> relation, @Nonnull String alias) {
+    public TypedJoinBuilder<T, R, ID> join(JoinType type, Class<? extends Data> relation, String alias) {
         if (!supportsJoin()) {
             throw new UnsupportedOperationException("Joins are not supported in this query.");
         }
@@ -415,12 +414,12 @@ abstract class QueryBuilderImpl<T extends Data, R, ID> extends QueryBuilder<T, R
         requireNonNull(alias, "alias");
         return new TypedJoinBuilder<>() {
             @Override
-            public QueryBuilder<Data, R, ID> on(@Nonnull Class<? extends Data> onRelation) {
+            public QueryBuilder<Data, R, ID> on(Class<? extends Data> onRelation) {
                 return addJoin(new Join(new TableSource(relation), alias, new TableTarget(onRelation), type, false));
             }
 
             @Override
-            public QueryBuilder<Data, R, ID> on(@Nonnull TemplateString onTemplate) {
+            public QueryBuilder<Data, R, ID> on(TemplateString onTemplate) {
                 return addJoin(new Join(new TableSource(relation), alias, new TemplateTarget(onTemplate), type, false));
             }
         };
@@ -436,40 +435,40 @@ abstract class QueryBuilderImpl<T extends Data, R, ID> extends QueryBuilder<T, R
         private final List<TemplateString> templates = new ArrayList<>();
         private final boolean safe;
 
-        PredicateBuilderImpl(@Nonnull TemplateString template) {
+        PredicateBuilderImpl(TemplateString template) {
             this(template, true);
         }
 
-        PredicateBuilderImpl(@Nonnull TemplateString template, boolean safe) {
+        PredicateBuilderImpl(TemplateString template, boolean safe) {
             templates.add(requireNonNull(template, "template"));
             this.safe = safe;
         }
 
         @Override
-        public PredicateBuilder<TX, RX, IDX> and(@Nonnull PredicateBuilder<? extends TX, ?, ?> predicate) {
+        public PredicateBuilder<TX, RX, IDX> and(PredicateBuilder<? extends TX, ?, ?> predicate) {
             add(RAW_AND, predicate);
             return this;
         }
 
         @Override
-        public PredicateBuilder<TX, RX, IDX> and(@Nonnull TemplateString template) {
+        public PredicateBuilder<TX, RX, IDX> and(TemplateString template) {
             add(RAW_AND, combine(RAW_OPEN, template, RAW_CLOSE));   // Always wrap a template in parentheses as we don't know if it's a single expression or a complex one.
             return this;
         }
 
         @Override
-        public PredicateBuilder<TX, RX, IDX> or(@Nonnull PredicateBuilder<? extends TX, ?, ?> predicate) {
+        public PredicateBuilder<TX, RX, IDX> or(PredicateBuilder<? extends TX, ?, ?> predicate) {
             add(RAW_OR, predicate);
             return this;
         }
 
         @Override
-        public PredicateBuilder<TX, RX, IDX> or(@Nonnull TemplateString template) {
+        public PredicateBuilder<TX, RX, IDX> or(TemplateString template) {
             add(RAW_OR, combine(RAW_OPEN, template, RAW_CLOSE));
             return this;
         }
 
-        private void add(@Nonnull TemplateString operator, @Nonnull PredicateBuilder<?, ?, ?> predicate) {
+        private void add(TemplateString operator, PredicateBuilder<?, ?, ?> predicate) {
             var list = ((PredicateBuilderImpl<?, ?, ?>) predicate).templates;
             assert !list.isEmpty();
             if (list.size() > 1 || !((PredicateBuilderImpl<?, ?, ?>) predicate).safe) {
@@ -483,7 +482,7 @@ abstract class QueryBuilderImpl<T extends Data, R, ID> extends QueryBuilder<T, R
             }
         }
 
-        private void add(@Nonnull TemplateString operator, @Nonnull TemplateString template) {
+        private void add(TemplateString operator, TemplateString template) {
             if (templates.size() == 1 && !safe) {
                 // Wrap the first template in parentheses if it's the only one.
                 templates.addFirst(RAW_OPEN);
@@ -505,22 +504,22 @@ abstract class QueryBuilderImpl<T extends Data, R, ID> extends QueryBuilder<T, R
     static class WhereBuilderImpl<TX extends Data, RX, IDX> extends WhereBuilder<TX, RX, IDX> {
         private final QueryBuilderImpl<TX, RX, IDX> queryBuilder;
 
-        WhereBuilderImpl(@Nonnull QueryBuilderImpl<TX, RX, IDX> queryBuilder) {
+        WhereBuilderImpl(QueryBuilderImpl<TX, RX, IDX> queryBuilder) {
             this.queryBuilder = queryBuilder;
         }
 
         @Override
-        public <F extends Data> QueryBuilder<F, ?, ?> subquery(@Nonnull Class<F> fromType, @Nonnull TemplateString template) {
+        public <F extends Data> QueryBuilder<F, ?, ?> subquery(Class<F> fromType, TemplateString template) {
             return queryBuilder.queryTemplate.subquery(fromType, template);
         }
 
         @Override
-        public PredicateBuilder<TX, RX, IDX> exists(@Nonnull QueryBuilder<?, ?, ?> subquery) {
+        public PredicateBuilder<TX, RX, IDX> exists(QueryBuilder<?, ?, ?> subquery) {
             return new PredicateBuilderImpl<>(TemplateString.raw("EXISTS (\0)", subquery));
         }
 
         @Override
-        public PredicateBuilder<TX, RX, IDX> notExists(@Nonnull QueryBuilder<?, ?, ?> subquery) {
+        public PredicateBuilder<TX, RX, IDX> notExists(QueryBuilder<?, ?, ?> subquery) {
             return new PredicateBuilderImpl<>(TemplateString.raw("NOT EXISTS (\0)", subquery));
         }
 
@@ -536,61 +535,61 @@ abstract class QueryBuilderImpl<T extends Data, R, ID> extends QueryBuilder<T, R
         }
 
         @Override
-        public PredicateBuilder<TX, RX, IDX> whereId(@Nonnull IDX id) {
+        public PredicateBuilder<TX, RX, IDX> whereId(IDX id) {
             // whereId targets the root primary key by contract, so pin its metamodel.
             return new PredicateBuilderImpl<>(wrap(new ObjectExpression(primaryKeyMetamodel(), EQUALS, id)));
         }
 
         @Override
-        public PredicateBuilder<TX, RX, IDX> whereRef(@Nonnull Ref<TX> ref) {
+        public PredicateBuilder<TX, RX, IDX> whereRef(Ref<TX> ref) {
             // A ref to the root entity resolves to its primary key, so pin the primary-key metamodel.
             return new PredicateBuilderImpl<>(wrap(new ObjectExpression(primaryKeyMetamodel(), EQUALS, ref)));
         }
 
         @Override
-        public PredicateBuilder<TX, RX, IDX> where(@Nonnull TX record) {
+        public PredicateBuilder<TX, RX, IDX> where(TX record) {
             return new PredicateBuilderImpl<>(wrap(new ObjectExpression(EQUALS, record)));
         }
 
         @Override
-        public PredicateBuilder<TX, RX, IDX> whereId(@Nonnull Iterable<? extends IDX> it) {
+        public PredicateBuilder<TX, RX, IDX> whereId(Iterable<? extends IDX> it) {
             // whereId targets the root primary key by contract, so pin its metamodel.
             return new PredicateBuilderImpl<>(wrap(new ObjectExpression(primaryKeyMetamodel(), IN, it)));
         }
 
         @Override
-        public PredicateBuilder<TX, RX, IDX> whereRef(@Nonnull Iterable<? extends Ref<TX>> it) {
+        public PredicateBuilder<TX, RX, IDX> whereRef(Iterable<? extends Ref<TX>> it) {
             // Refs to the root entity resolve to its primary key, so pin the primary-key metamodel.
             return new PredicateBuilderImpl<>(wrap(new ObjectExpression(primaryKeyMetamodel(), IN, it)));
         }
 
         @Override
-        public PredicateBuilder<TX, RX, IDX> where(@Nonnull Iterable<? extends TX> it) {
+        public PredicateBuilder<TX, RX, IDX> where(Iterable<? extends TX> it) {
             return new PredicateBuilderImpl<>(wrap(new ObjectExpression(IN, it)));
         }
 
         @Override
-        public <V extends Data> PredicateBuilder<TX, RX, IDX> where(@Nonnull Navigable<? extends TX, V> path, @Nonnull Ref<V> ref) {
+        public <V extends Data> PredicateBuilder<TX, RX, IDX> where(Navigable<? extends TX, V> path, Ref<V> ref) {
             return new PredicateBuilderImpl<>(wrap(new ObjectExpression(path.asMetamodel(), EQUALS, ref)));
         }
 
         @Override
-        public <V extends Data> PredicateBuilder<TX, RX, IDX> whereRef(@Nonnull Navigable<? extends TX, V> path, @Nonnull Iterable<? extends Ref<V>> it) {
+        public <V extends Data> PredicateBuilder<TX, RX, IDX> whereRef(Navigable<? extends TX, V> path, Iterable<? extends Ref<V>> it) {
             return new PredicateBuilderImpl<>(wrap(new ObjectExpression(path.asMetamodel(), IN, it)));
         }
 
         @Override
-        public <V> PredicateBuilder<TX, RX, IDX> where(@Nonnull Navigable<? extends TX, V> path, @Nonnull Operator operator, @Nonnull Iterable<? extends V> it) {
+        public <V> PredicateBuilder<TX, RX, IDX> where(Navigable<? extends TX, V> path, Operator operator, Iterable<? extends V> it) {
             return new PredicateBuilderImpl<>(wrap(new ObjectExpression(path.asMetamodel(), operator, it)));
         }
 
         @Override
-        public PredicateBuilder<TX, RX, IDX> where(@Nonnull TemplateString template) {
+        public PredicateBuilder<TX, RX, IDX> where(TemplateString template) {
             return new PredicateBuilderImpl<>(template, false);
         }
 
         @Override
-        protected <V> PredicateBuilder<TX, RX, IDX> whereImpl(@Nonnull Navigable<?, V> path, @Nonnull Operator operator, @Nonnull V[] o) {
+        protected <V> PredicateBuilder<TX, RX, IDX> whereImpl(Navigable<?, V> path, Operator operator, V[] o) {
             try {
                 try {
                     return PredicateBuilderFactory.createWithId(path.asMetamodel(), operator, List.of(o));
@@ -602,14 +601,14 @@ abstract class QueryBuilderImpl<T extends Data, R, ID> extends QueryBuilder<T, R
             }
         }
 
-        private Object unwrap(@Nonnull TemplateString template) {
+        private Object unwrap(TemplateString template) {
             if (template.fragments().equals(List.of("", ""))) {
                 return template.values().getFirst();
             }
             return null;
         }
 
-        private QueryBuilder<TX, RX, IDX> build(@Nonnull TemplateString template) {
+        private QueryBuilder<TX, RX, IDX> build(TemplateString template) {
             Where where;
             if (unwrap(template) instanceof Expression expression) {
                 where = new Where(expression, null);
@@ -627,7 +626,7 @@ abstract class QueryBuilderImpl<T extends Data, R, ID> extends QueryBuilder<T, R
      * @return the query builder.
      */
     @Override
-    public QueryBuilder<T, R, ID> where(@Nonnull Function<WhereBuilder<T, R, ID>, PredicateBuilder<T, ?, ?>> predicate) {
+    public QueryBuilder<T, R, ID> where(Function<WhereBuilder<T, R, ID>, PredicateBuilder<T, ?, ?>> predicate) {
         requireNonNull(predicate, "predicate");
         var whereBuilder = new WhereBuilderImpl<>(this);
         return whereBuilder.build(((PredicateBuilderImpl<T, ?, ?>) predicate.apply(whereBuilder)).asTemplate());
@@ -641,7 +640,7 @@ abstract class QueryBuilderImpl<T extends Data, R, ID> extends QueryBuilder<T, R
      * @since 1.13
      */
     @Override
-    public QueryBuilder<T, R, ID> having(@Nonnull PredicateBuilder<? extends T, ?, ?> predicate) {
+    public QueryBuilder<T, R, ID> having(PredicateBuilder<? extends T, ?, ?> predicate) {
         return addHaving(predicate);
     }
 
@@ -649,7 +648,7 @@ abstract class QueryBuilderImpl<T extends Data, R, ID> extends QueryBuilder<T, R
      * Appends the predicate to the HAVING clause, which carries its conditions as templates rather than as
      * {@code Where} elements.
      */
-    private QueryBuilder<T, R, ID> addHaving(@Nonnull PredicateBuilder<?, ?, ?> predicate) {
+    private QueryBuilder<T, R, ID> addHaving(PredicateBuilder<?, ?, ?> predicate) {
         requireNonNull(predicate, "predicate");
         return having(((PredicateBuilderImpl<?, ?, ?>) predicate).asTemplate());
     }

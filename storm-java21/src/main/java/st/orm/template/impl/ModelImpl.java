@@ -15,10 +15,9 @@
  */
 package st.orm.template.impl;
 
-import jakarta.annotation.Nonnull;
-import jakarta.annotation.Nullable;
 import java.util.List;
 import java.util.function.BiConsumer;
+import org.jspecify.annotations.Nullable;
 import st.orm.Data;
 import st.orm.core.template.SqlTemplateException;
 import st.orm.template.Column;
@@ -149,7 +148,7 @@ public class ModelImpl<E extends Data, ID> implements Model<E, ID> {
      * @since 1.8
      */
     @Override
-    public void forEachValue(@Nonnull List<Column> columns, @Nonnull E record, @Nonnull BiConsumer<Column, Object> consumer) throws SqlTemplateException {
+    public void forEachValue(List<Column> columns, E record, BiConsumer<Column, Object> consumer) throws SqlTemplateException {
         core.forEachValue(columns.stream().map(it -> ((ColumnImpl) it).core()).toList(),
                 record,
                 (column, value) -> consumer.accept(new ColumnImpl(column), value));

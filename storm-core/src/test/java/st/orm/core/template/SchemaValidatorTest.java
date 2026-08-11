@@ -21,8 +21,6 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-import jakarta.annotation.Nonnull;
-import jakarta.annotation.Nullable;
 import java.io.PrintWriter;
 import java.sql.Connection;
 import java.sql.DriverManager;
@@ -33,6 +31,7 @@ import java.util.List;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.logging.Logger;
 import javax.sql.DataSource;
+import org.jspecify.annotations.Nullable;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import st.orm.Data;
@@ -65,44 +64,44 @@ class SchemaValidatorTest {
 
     public record ValidCity(
             @PK Integer id,
-            @Nonnull String name
+            String name
     ) implements Entity<Integer> {}
 
     public record MissingTableEntity(
             @PK Integer id,
-            @Nonnull String value
+            String value
     ) implements Entity<Integer> {}
 
     public record MissingColumnEntity(
             @PK Integer id,
-            @Nonnull String name,
-            @Nonnull String nonExistentColumn
+            String name,
+            String nonExistentColumn
     ) implements Entity<Integer> {}
 
     public record TypeMismatchEntity(
             @PK Integer id,
-            @Nonnull LocalDate name  // name is VARCHAR in DB, but LocalDate in entity
+            LocalDate name  // name is VARCHAR in DB, but LocalDate in entity
     ) implements Entity<Integer> {}
 
     public record TypeNarrowingEntity(
             @PK Integer id,
-            @Nonnull Integer score  // score is FLOAT in DB, but Integer in entity
+            Integer score  // score is FLOAT in DB, but Integer in entity
     ) implements Entity<Integer> {}
 
     public record NullabilityMismatchEntity(
             @PK Integer id,
-            @Nonnull String name,      // non-nullable in entity
-            @Nonnull String description // non-nullable in entity, but nullable in DB
+            String name,      // non-nullable in entity
+            String description // non-nullable in entity, but nullable in DB
     ) implements Entity<Integer> {}
 
     public record PrimaryKeyMismatchEntity(
             @PK Integer id,
-            @Nonnull String name
+            String name
     ) implements Entity<Integer> {}
 
     public record SequenceEntity(
             @PK(generation = GenerationStrategy.SEQUENCE, sequence = "nonexistent_seq") Integer id,
-            @Nonnull String name
+            String name
     ) implements Entity<Integer> {}
 
     public record InlinedAddress(
@@ -112,129 +111,129 @@ class SchemaValidatorTest {
 
     public record EntityWithInline(
             @PK Integer id,
-            @Nonnull String name,
-            @Nonnull InlinedAddress address
+            String name,
+            InlinedAddress address
     ) implements Entity<Integer> {}
 
     public record ForeignKeyRef(
             @PK Integer id,
-            @Nonnull String name
+            String name
     ) implements Entity<Integer> {}
 
     public record EntityWithFk(
             @PK Integer id,
-            @Nonnull String name,
+            String name,
             @Nullable @FK Ref<ForeignKeyRef> foreignKeyRef
     ) implements Entity<Integer> {}
 
     @DbTable(schema = "custom_schema")
     public record SchemaEntity(
             @PK Integer id,
-            @Nonnull String name
+            String name
     ) implements Entity<Integer> {}
 
     @DbTable(schema = "missing_schema")
     public record MissingSchemaEntity(
             @PK Integer id,
-            @Nonnull String name
+            String name
     ) implements Entity<Integer> {}
 
     @DbIgnore
     public record IgnoredEntity(
             @PK Integer id,
-            @Nonnull String name
+            String name
     ) implements Entity<Integer> {}
 
     public record FieldIgnoredEntity(
             @PK Integer id,
-            @Nonnull String name,
-            @DbIgnore @Nonnull LocalDate description  // type mismatch, but ignored
+            String name,
+            @DbIgnore LocalDate description  // type mismatch, but ignored
     ) implements Entity<Integer> {}
 
     // Constraint flag test entities
 
     public record PrimaryKeyMissingEntity(
             @PK Integer id,
-            @Nonnull String name
+            String name
     ) implements Entity<Integer> {}
 
     public record PrimaryKeyMissingNoConstraintEntity(
             @PK(constraint = false) Integer id,
-            @Nonnull String name
+            String name
     ) implements Entity<Integer> {}
 
     public record ForeignKeyMismatchTarget(
             @PK Integer id,
-            @Nonnull String name
+            String name
     ) implements Entity<Integer> {}
 
     public record WrongForeignKeyTarget(
             @PK Integer id,
-            @Nonnull String label
+            String label
     ) implements Entity<Integer> {}
 
     public record ForeignKeyMismatchEntity(
             @PK Integer id,
-            @Nonnull String name,
+            String name,
             @Nullable @FK Ref<ForeignKeyMismatchTarget> foreignKeyMismatchTarget
     ) implements Entity<Integer> {}
 
     public record ForeignKeyNoConstraintEntity(
             @PK Integer id,
-            @Nonnull String name,
+            String name,
             @Nullable @FK(constraint = false) Ref<ForeignKeyTarget> foreignKeyTarget
     ) implements Entity<Integer> {}
 
     public record ForeignKeyMismatchNoConstraintEntity(
             @PK Integer id,
-            @Nonnull String name,
+            String name,
             @Nullable @FK(constraint = false) Ref<ForeignKeyMismatchTarget> foreignKeyMismatchTarget
     ) implements Entity<Integer> {}
 
     public record UniqueKeyNoConstraintEntity(
             @PK Integer id,
-            @UK(constraint = false) @Nonnull String email,
-            @Nonnull String name
+            @UK(constraint = false) String email,
+            String name
     ) implements Entity<Integer> {}
 
     // UK/FK validation test entities
 
     public record UniqueKeyEntity(
             @PK Integer id,
-            @UK @Nonnull String email,
-            @Nonnull String name
+            @UK String email,
+            String name
     ) implements Entity<Integer> {}
 
-    public record CompoundUniqueKeyFields(int userId, @Nonnull String email) {}
+    public record CompoundUniqueKeyFields(int userId, String email) {}
 
     public record CompoundUniqueKeyEntity(
             @PK Integer id,
-            @Nonnull String name,
+            String name,
             int userId,
-            @Nonnull String email,
-            @UK @Persist(insertable = false, updatable = false) @Nonnull CompoundUniqueKeyFields uniqueKey
+            String email,
+            @UK @Persist(insertable = false, updatable = false) CompoundUniqueKeyFields uniqueKey
     ) implements Entity<Integer> {}
 
     public record ForeignKeyTarget(
             @PK Integer id,
-            @Nonnull String name
+            String name
     ) implements Entity<Integer> {}
 
     public record ForeignKeySourceEntity(
             @PK Integer id,
-            @Nonnull String name,
+            String name,
             @Nullable @FK Ref<ForeignKeyTarget> foreignKeyTarget
     ) implements Entity<Integer> {}
 
     public record UniqueKeyIgnoredEntity(
             @PK Integer id,
-            @Nonnull String name,
-            @DbIgnore @UK @Nonnull String email
+            String name,
+            @DbIgnore @UK String email
     ) implements Entity<Integer> {}
 
     public record ForeignKeyIgnoredEntity(
             @PK Integer id,
-            @Nonnull String name,
+            String name,
             @DbIgnore @Nullable @FK Ref<ForeignKeyTarget> foreignKeyTarget
     ) implements Entity<Integer> {}
 
@@ -652,12 +651,12 @@ class SchemaValidatorTest {
 
     // Polymorphic FK: sealed Data interface with independent entity subtypes in separate tables.
     sealed interface Commentable extends Data permits CommentablePost, CommentablePhoto {}
-    record CommentablePost(@PK Integer id, @Nonnull String title) implements Commentable, Entity<Integer> {}
-    record CommentablePhoto(@PK Integer id, @Nonnull String url) implements Commentable, Entity<Integer> {}
+    record CommentablePost(@PK Integer id, String title) implements Commentable, Entity<Integer> {}
+    record CommentablePhoto(@PK Integer id, String url) implements Commentable, Entity<Integer> {}
 
     public record EntityWithPolymorphicFk(
             @PK Integer id,
-            @Nonnull String name,
+            String name,
             @Nullable @FK Ref<Commentable> commentable
     ) implements Entity<Integer> {}
 
@@ -846,13 +845,13 @@ class SchemaValidatorTest {
     @DbTable("nonexistent_table")
     public record MissingEntity(
             @PK Integer id,
-            @Nonnull String name
+            String name
     ) implements Entity<Integer> {}
 
     @ProjectionQuery("SELECT id, name FROM valid_city")
     public record ProjectionQueryType(
             @PK Integer id,
-            @Nonnull String name
+            String name
     ) implements st.orm.Projection<Integer> {}
 
     @Test

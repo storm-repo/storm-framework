@@ -17,7 +17,6 @@ package st.orm.core.template.impl;
 
 import static java.util.Optional.empty;
 
-import jakarta.annotation.Nonnull;
 import java.util.Arrays;
 import java.util.Optional;
 import st.orm.PersistenceException;
@@ -39,7 +38,7 @@ final class EnumMapper {
      * @return a factory for creating instances of the specified type.
      * @param <T> the type of the instance to create.
      */
-    static <T> Optional<ObjectMapper<T>> getFactory(int columnCount, @Nonnull Class<T> type) {
+    static <T> Optional<ObjectMapper<T>> getFactory(int columnCount, Class<T> type) {
         if (!type.isEnum()) {
             throw new PersistenceException("Type must be an enum: %s.".formatted(type.getName()));
         }
@@ -52,7 +51,7 @@ final class EnumMapper {
 
                 @SuppressWarnings("unchecked")
                 @Override
-                public T newInstance(@Nonnull Object[] args) throws SqlTemplateException {
+                public T newInstance(Object[] args) throws SqlTemplateException {
                     Object arg = args[0];
                     if (arg == null) {
                         return null;
@@ -70,7 +69,7 @@ final class EnumMapper {
         return empty();
     }
 
-    private static Enum<?> getEnumFromName(@Nonnull Class<?> enumType, @Nonnull String name)
+    private static Enum<?> getEnumFromName(Class<?> enumType, String name)
             throws SqlTemplateException {
         try {
             //noinspection unchecked,rawtypes
@@ -80,7 +79,7 @@ final class EnumMapper {
         }
     }
 
-    private static Enum<?> getEnumFromOrdinal(@Nonnull Class<?> enumType, @Nonnull Integer ordinal)
+    private static Enum<?> getEnumFromOrdinal(Class<?> enumType, Integer ordinal)
             throws SqlTemplateException {
         Enum<?>[] enumConstants = (Enum<?>[]) enumType.getEnumConstants();
         if (ordinal >= 0 && ordinal < enumConstants.length) {

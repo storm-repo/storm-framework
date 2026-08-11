@@ -24,8 +24,6 @@ import static st.orm.core.template.impl.RecordReflection.getRefDataType;
 import static st.orm.core.template.impl.RecordReflection.isRecord;
 import static st.orm.core.template.impl.RecordReflection.isSealedEntity;
 
-import jakarta.annotation.Nonnull;
-import jakarta.annotation.Nullable;
 import java.lang.invoke.MethodHandle;
 import java.lang.invoke.MethodHandles;
 import java.lang.reflect.Method;
@@ -34,6 +32,7 @@ import java.util.List;
 import java.util.Objects;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
+import org.jspecify.annotations.Nullable;
 import st.orm.AbstractKeyMetamodel;
 import st.orm.AbstractMetamodel;
 import st.orm.Data;
@@ -64,7 +63,7 @@ public final class MetamodelFactory {
     private static final ClassValue<Metamodel<?, ?>> ROOT_METAMODEL_CACHE = new ClassValue<>() {
         @Override
         @SuppressWarnings("unchecked")
-        protected Metamodel<?, ?> computeValue(@Nonnull Class<?> table) {
+        protected Metamodel<?, ?> computeValue(Class<?> table) {
             return getRootModel((Class<? extends Data>) table);
         }
     };
@@ -72,7 +71,7 @@ public final class MetamodelFactory {
     /** Metamodels per root table, keyed by path; entries die with the root table. */
     private static final ClassValue<ConcurrentMap<String, Metamodel<?, ?>>> METAMODEL_CACHE = new ClassValue<>() {
         @Override
-        protected ConcurrentMap<String, Metamodel<?, ?>> computeValue(@Nonnull Class<?> table) {
+        protected ConcurrentMap<String, Metamodel<?, ?>> computeValue(Class<?> table) {
             return new ConcurrentHashMap<>();
         }
     };
@@ -80,7 +79,7 @@ public final class MetamodelFactory {
     /**
      * Creates a new metamodel for the given record type.
      */
-    public static <T extends Data> Metamodel<T, T> root(@Nonnull Class<T> table) {
+    public static <T extends Data> Metamodel<T, T> root(Class<T> table) {
         //noinspection unchecked
         return (Metamodel<T, T>) ROOT_METAMODEL_CACHE.get(table);
     }
@@ -88,7 +87,7 @@ public final class MetamodelFactory {
     /**
      * Creates a new metamodel for the given record type.
      */
-    private static <T extends Data> Metamodel<T, T> getRootModel(@Nonnull Class<T> table) {
+    private static <T extends Data> Metamodel<T, T> getRootModel(Class<T> table) {
         Same<T> wrapped = null;
         if (Data.class.isAssignableFrom(table)) {
             var pkField = findPkField(table).orElse(null);
@@ -101,17 +100,17 @@ public final class MetamodelFactory {
         Same<T> same = wrapped == null ? Objects::equals : wrapped;
         return new AbstractMetamodel<>(table) {
             @Override
-            public T getValue(@Nonnull T record) {
+            public T getValue(T record) {
                 return record;
             }
 
             @Override
-            public boolean isIdentical(@Nonnull T a, @Nullable T b) {
+            public boolean isIdentical(T a, @Nullable T b) {
                 return a == b;
             }
 
             @Override
-            public boolean isSame(@Nonnull T a, @Nullable T b) {
+            public boolean isSame(T a, @Nullable T b) {
                 try {
                     return same.isSame(a, b);
                 } catch (PersistenceException e) {
@@ -126,7 +125,7 @@ public final class MetamodelFactory {
     /**
      * Creates a new metamodel for the given root table and path.
      */
-    public static <T extends Data, E> Metamodel<T, E> of(@Nonnull Class<T> rootTable, @Nonnull String path) {
+    public static <T extends Data, E> Metamodel<T, E> of(Class<T> rootTable, String path) {
         //noinspection unchecked
         return (Metamodel<T, E>) METAMODEL_CACHE.get(rootTable)
                 .computeIfAbsent(path, ignore -> getModel(rootTable, path));
@@ -141,7 +140,7 @@ public final class MetamodelFactory {
      * returned unchanged, and so is any metamodel whose path cannot be inspected reflectively.
      */
     @SuppressWarnings({"unchecked", "rawtypes"})
-    public static Metamodel<?, ?> canonical(@Nonnull Metamodel<?, ?> metamodel) {
+    public static Metamodel<?, ?> canonical(Metamodel<?, ?> metamodel) {
         try {
             Class<? extends Data> rootTable = metamodel.root();
             String foreignKeyPath = primaryKeyThroughForeignKeyPath(fieldResolutionClass(rootTable), metamodel.fieldPath());
@@ -159,7 +158,7 @@ public final class MetamodelFactory {
      * returns a singleton list containing the metamodel. If it is an inline record, it recursively expands all nested
      * inline records and returns the individual column metamodels.
      */
-    public static <T extends Data> List<Metamodel<T, ?>> flatten(@Nonnull Navigable<T, ?> metamodel) {
+    public static <T extends Data> List<Metamodel<T, ?>> flatten(Navigable<T, ?> metamodel) {
         if (!metamodel.isInline()) {
             if (metamodel instanceof Metamodel<T, ?> full) {
                 return List.of(full);
@@ -188,7 +187,7 @@ public final class MetamodelFactory {
      * <p>This backs {@link Metamodel#key(Metamodel)} delegates, which wrap metamodels that do not carry the key
      * marker themselves.</p>
      */
-    public static boolean isNullable(@Nonnull Metamodel<?, ?> metamodel) {
+    public static boolean isNullable(Metamodel<?, ?> metamodel) {
         if (metamodel instanceof Metamodel.Key<?, ?> key) {
             return key.isNullable();
         }
@@ -231,7 +230,7 @@ public final class MetamodelFactory {
      * pattern used by {@code findPkField()}.
      */
     @SuppressWarnings("unchecked")
-    private static Class<? extends Data> fieldResolutionClass(@Nonnull Class<? extends Data> rootTable) {
+    private static Class<? extends Data> fieldResolutionClass(Class<? extends Data> rootTable) {
         if (rootTable.isSealed() && isSealedEntity(rootTable)) {
             Class<?>[] permitted = rootTable.getPermittedSubclasses();
             if (permitted != null && permitted.length > 0) {
@@ -248,8 +247,8 @@ public final class MetamodelFactory {
      * whose primary key the folded field names.
      */
     @Nullable
-    private static String primaryKeyThroughForeignKeyPath(@Nonnull Class<? extends Data> fieldResolutionClass,
-                                                          @Nonnull String path) {
+    private static String primaryKeyThroughForeignKeyPath(Class<? extends Data> fieldResolutionClass,
+                                                          String path) {
         if (path.isEmpty()) return null;
         try {
             StringBuilder effectiveField = new StringBuilder(getRecordField(fieldResolutionClass, path).name());
@@ -278,7 +277,7 @@ public final class MetamodelFactory {
     /**
      * Returns whether {@code fieldName} names the primary key of {@code table}.
      */
-    private static boolean isPrimaryKeyName(@Nonnull Class<?> table, @Nonnull String fieldName) {
+    private static boolean isPrimaryKeyName(Class<?> table, String fieldName) {
         try {
             return findPkField(table).map(pk -> pk.name().equals(fieldName)).orElse(false);
         } catch (RuntimeException e) {
@@ -290,7 +289,7 @@ public final class MetamodelFactory {
      * Creates a new metamodel for the given root table and path.
      */
     @SuppressWarnings({"unchecked", "rawtypes"})
-    private static <T extends Data, E> Metamodel<T, E> getModel(@Nonnull Class<T> rootTable, @Nonnull String path) {
+    private static <T extends Data, E> Metamodel<T, E> getModel(Class<T> rootTable, String path) {
         Metamodel<T, ?> generated = lookupGeneratedMetamodel(rootTable, path);
         if (generated != null) {
             return (Metamodel<T, E>) generated;
@@ -444,8 +443,8 @@ public final class MetamodelFactory {
     @Nullable
     @SuppressWarnings("unchecked")
     private static <T extends Data> Metamodel<T, ?> lookupGeneratedMetamodel(
-            @Nonnull Class<T> rootTable,
-            @Nonnull String path
+            Class<T> rootTable,
+            String path
     ) {
         try {
             Metamodel<T, ?> current = (Metamodel<T, ?>) Class.forName(
@@ -461,7 +460,7 @@ public final class MetamodelFactory {
         }
     }
 
-    private static Object readSegment(@Nonnull Object instance, @Nonnull String name) throws Exception {
+    private static Object readSegment(Object instance, String name) throws Exception {
         Class<?> c = instance.getClass();
         // Public field (Java style, or Kotlin @JvmField).
         try {
@@ -491,8 +490,8 @@ public final class MetamodelFactory {
         return idx == -1 ? "" : p.substring(0, idx);
     }
 
-    private static String getTablePath(@Nonnull Class<? extends Data> rootTable,
-                                       @Nonnull String path) {
+    private static String getTablePath(Class<? extends Data> rootTable,
+                                       String path) {
         if (path.isEmpty()) {
             return "";
         }
@@ -521,8 +520,8 @@ public final class MetamodelFactory {
      * Resolves the Data type at the end of {@code fullPath} (unwraps Ref<T>).
      */
     @SuppressWarnings("unchecked")
-    private static Class<? extends Data> resolveDataTypeAtPath(@Nonnull Class<? extends Data> rootTable,
-                                                               @Nonnull String fullPath) {
+    private static Class<? extends Data> resolveDataTypeAtPath(Class<? extends Data> rootTable,
+                                                               String fullPath) {
         try {
             RecordField f = getRecordField(rootTable, fullPath);
             if (Ref.class.isAssignableFrom(f.type())) {
@@ -546,7 +545,7 @@ public final class MetamodelFactory {
         return upper + property.substring(1);
     }
 
-    private static Method findAccessor(@Nonnull Class<?> type, @Nonnull String property) throws NoSuchMethodException {
+    private static Method findAccessor(Class<?> type, String property) throws NoSuchMethodException {
         String name = capitalize(property);
         try {
             // Kotlin style: getId().
@@ -569,7 +568,7 @@ public final class MetamodelFactory {
      * - This matches metamodel getValue() semantics where parents in the hierarchy may be nullable.
      * </p>
      */
-    private static MethodHandle buildGetterHandle(@Nonnull Class<?> rootType, @Nullable String fullPath) {
+    private static MethodHandle buildGetterHandle(Class<?> rootType, @Nullable String fullPath) {
         try {
             if (fullPath == null || fullPath.isEmpty()) {
                 return MethodHandles.identity(rootType);
@@ -607,7 +606,7 @@ public final class MetamodelFactory {
      * beyond a Ref boundary. The referenced entity is not loaded in memory, so its columns cannot be read from a
      * record; the metamodel remains usable for query construction (filter, join, order, select).
      */
-    private static MethodHandle refBoundaryHandle(@Nonnull Class<?> rootType, @Nonnull String fullPath) {
+    private static MethodHandle refBoundaryHandle(Class<?> rootType, String fullPath) {
         MethodHandle thrower = MethodHandles.throwException(Object.class, UnsupportedOperationException.class);
         MethodHandle withException = MethodHandles.insertArguments(thrower, 0,
                 new UnsupportedOperationException(
@@ -628,7 +627,7 @@ public final class MetamodelFactory {
      *   the null-guard when S is a reference type. For primitive S, the best we can do is call next.
      * </p>
      */
-    private static MethodHandle nullSafeFilterReturnValue(@Nonnull MethodHandle prev, @Nonnull MethodHandle next) throws Throwable {
+    private static MethodHandle nullSafeFilterReturnValue(MethodHandle prev, MethodHandle next) throws Throwable {
         Class<?> rType = prev.type().returnType();
         Class<?> sType = next.type().returnType();
         // If prev can never return null (primitive), normal composition is fine.
@@ -667,7 +666,7 @@ public final class MetamodelFactory {
         return base.unreflect(m);
     }
 
-    private static boolean getNullsDistinct(@Nonnull RecordField field) {
+    private static boolean getNullsDistinct(RecordField field) {
         UK uk = field.getAnnotation(UK.class);
         if (uk != null) return uk.nullsDistinct();
         if (field.isAnnotationPresent(PK.class)) {
@@ -686,14 +685,14 @@ public final class MetamodelFactory {
         private final Identical<T> identical;
         private final Same<T> same;
 
-        SimpleKeyMetamodel(@Nonnull Class<T> root,
-                           @Nonnull String path,
-                           @Nonnull Class<E> fieldType,
-                           @Nonnull String field,
+        SimpleKeyMetamodel(Class<T> root,
+                           String path,
+                           Class<E> fieldType,
+                           String field,
                            boolean inline,
                            boolean isColumn,
-                           @Nonnull Metamodel<T, ? extends Data> table,
-                           @Nonnull MethodHandle handle,
+                           Metamodel<T, ? extends Data> table,
+                           MethodHandle handle,
                            boolean nullable) {
             super(fieldType, path, field, inline, null, isColumn, nullable);
             this.root = root;
@@ -730,7 +729,7 @@ public final class MetamodelFactory {
         }
 
         @Override
-        public Object getValue(@Nonnull T record) {
+        public Object getValue(T record) {
             try {
                 return handle.invoke(record);
             } catch (RuntimeException e) {
@@ -741,7 +740,7 @@ public final class MetamodelFactory {
         }
 
         @Override
-        public boolean isIdentical(@Nonnull T a, @Nonnull T b) {
+        public boolean isIdentical(T a, T b) {
             try {
                 return identical.isIdentical(a, b);
             } catch (RuntimeException e) {
@@ -752,7 +751,7 @@ public final class MetamodelFactory {
         }
 
         @Override
-        public boolean isSame(@Nonnull T a, @Nonnull T b) {
+        public boolean isSame(T a, T b) {
             try {
                 return same.isSame(a, b);
             } catch (RuntimeException e) {
@@ -790,14 +789,14 @@ public final class MetamodelFactory {
         private final Identical<T> identical;
         private final Same<T> same;
 
-        SimpleMetamodel(@Nonnull Class<T> root,
-                        @Nonnull String path,
-                        @Nonnull Class<E> fieldType,
-                        @Nonnull String field,
+        SimpleMetamodel(Class<T> root,
+                        String path,
+                        Class<E> fieldType,
+                        String field,
                         boolean inline,
                         boolean isColumn,
-                        @Nonnull Metamodel<T, ? extends Data> table,
-                        @Nonnull MethodHandle handle) {
+                        Metamodel<T, ? extends Data> table,
+                        MethodHandle handle) {
             super(fieldType, path, field, inline, null, isColumn);
             this.root = root;
             this.table = table;
@@ -831,7 +830,7 @@ public final class MetamodelFactory {
         }
 
         @Override
-        public Object getValue(@Nonnull T record) {
+        public Object getValue(T record) {
             try {
                 return handle.invoke(record);
             } catch (RuntimeException e) {
@@ -842,7 +841,7 @@ public final class MetamodelFactory {
         }
 
         @Override
-        public boolean isIdentical(@Nonnull T a, @Nonnull T b) {
+        public boolean isIdentical(T a, T b) {
             try {
                 return identical.isIdentical(a, b);
             } catch (RuntimeException e) {
@@ -853,7 +852,7 @@ public final class MetamodelFactory {
         }
 
         @Override
-        public boolean isSame(@Nonnull T a, @Nonnull T b) {
+        public boolean isSame(T a, T b) {
             try {
                 return same.isSame(a, b);
             } catch (RuntimeException e) {

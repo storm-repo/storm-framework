@@ -18,7 +18,6 @@ package st.orm.repository.impl;
 import static java.util.Objects.requireNonNull;
 import static st.orm.template.impl.StringTemplates.convert;
 
-import jakarta.annotation.Nonnull;
 import java.util.List;
 import java.util.Optional;
 import java.util.stream.Stream;
@@ -43,7 +42,7 @@ import st.orm.template.impl.QueryBuilderImpl;
 public final class ProjectionRepositoryImpl<P extends Projection<ID>, ID> implements ProjectionRepository<P, ID> {
     private final st.orm.core.repository.ProjectionRepository<P, ID> core;
 
-    public ProjectionRepositoryImpl(@Nonnull st.orm.core.repository.ProjectionRepository<P, ID> core) {
+    public ProjectionRepositoryImpl(st.orm.core.repository.ProjectionRepository<P, ID> core) {
         this.core = requireNonNull(core);
     }
 
@@ -53,12 +52,12 @@ public final class ProjectionRepositoryImpl<P extends Projection<ID>, ID> implem
     }
 
     @Override
-    public Ref<P> ref(@Nonnull ID id) {
+    public Ref<P> ref(ID id) {
         return core.ref(id);
     }
 
     @Override
-    public Ref<P> ref(@Nonnull P projection, @Nonnull ID id) {
+    public Ref<P> ref(P projection, ID id) {
         return core.ref(projection, id);
     }
 
@@ -73,7 +72,7 @@ public final class ProjectionRepositoryImpl<P extends Projection<ID>, ID> implem
     }
 
     @Override
-    public <R> QueryBuilder<P, R, ID> select(@Nonnull Class<R> selectType) {
+    public <R> QueryBuilder<P, R, ID> select(Class<R> selectType) {
         return new QueryBuilderImpl<>(core.select(selectType));
     }
 
@@ -83,12 +82,12 @@ public final class ProjectionRepositoryImpl<P extends Projection<ID>, ID> implem
     }
 
     @Override
-    public <R> QueryBuilder<P, R, ID> select(@Nonnull Class<R> selectType, @Nonnull StringTemplate template) {
+    public <R> QueryBuilder<P, R, ID> select(Class<R> selectType, StringTemplate template) {
         return new QueryBuilderImpl<>(core.select(selectType, convert(template)));
     }
 
     @Override
-    public <R extends Data> QueryBuilder<P, Ref<R>, ID> selectRef(@Nonnull Class<R> refType) {
+    public <R extends Data> QueryBuilder<P, Ref<R>, ID> selectRef(Class<R> refType) {
         return new QueryBuilderImpl<>(core.selectRef(refType));
     }
 
@@ -103,12 +102,12 @@ public final class ProjectionRepositoryImpl<P extends Projection<ID>, ID> implem
     }
 
     @Override
-    public boolean existsById(@Nonnull ID id) {
+    public boolean existsById(ID id) {
         return core.existsById(id);
     }
 
     @Override
-    public boolean existsByRef(@Nonnull Ref<P> ref) {
+    public boolean existsByRef(Ref<P> ref) {
         return core.existsByRef(ref);
     }
 
@@ -120,7 +119,7 @@ public final class ProjectionRepositoryImpl<P extends Projection<ID>, ID> implem
     }
 
     @Override
-    public Page<P> page(@Nonnull Pageable pageable) {
+    public Page<P> page(Pageable pageable) {
         return core.page(pageable);
     }
 
@@ -130,54 +129,54 @@ public final class ProjectionRepositoryImpl<P extends Projection<ID>, ID> implem
     }
 
     @Override
-    public Page<Ref<P>> pageRef(@Nonnull Pageable pageable) {
+    public Page<Ref<P>> pageRef(Pageable pageable) {
         return core.pageRef(pageable);
     }
 
     // Window methods.
 
     @Override
-    public Window<P> scroll(@Nonnull Scrollable<P> scrollable) {
+    public Window<P> scroll(Scrollable<P> scrollable) {
         return select().scroll(scrollable);
     }
 
     @Override
-    public Optional<P> findById(@Nonnull ID id) {
+    public Optional<P> findById(ID id) {
         return core.findById(id);
     }
 
     @Override
-    public Optional<P> findByRef(@Nonnull Ref<P> ref) {
+    public Optional<P> findByRef(Ref<P> ref) {
         return core.findByRef(ref);
     }
 
     @Override
-    public P getById(@Nonnull ID id) {
+    public P getById(ID id) {
         return core.getById(id);
     }
 
     @Override
-    public P getByRef(@Nonnull Ref<P> ref) {
+    public P getByRef(Ref<P> ref) {
         return core.getByRef(ref);
     }
 
     @Override
-    public <V> Optional<P> findBy(@Nonnull Metamodel.Key<P, V> key, @Nonnull V value) {
+    public <V> Optional<P> findBy(Metamodel.Key<P, V> key, V value) {
         return core.findBy(key, value);
     }
 
     @Override
-    public <V> P getBy(@Nonnull Metamodel.Key<P, V> key, @Nonnull V value) {
+    public <V> P getBy(Metamodel.Key<P, V> key, V value) {
         return core.getBy(key, value);
     }
 
     @Override
-    public <V extends Data> Optional<P> findByRef(@Nonnull Metamodel.Key<P, V> key, @Nonnull Ref<V> value) {
+    public <V extends Data> Optional<P> findByRef(Metamodel.Key<P, V> key, Ref<V> value) {
         return core.findByRef(key, value);
     }
 
     @Override
-    public <V extends Data> P getByRef(@Nonnull Metamodel.Key<P, V> key, @Nonnull Ref<V> value) {
+    public <V extends Data> P getByRef(Metamodel.Key<P, V> key, Ref<V> value) {
         return core.getByRef(key, value);
     }
 
@@ -192,52 +191,52 @@ public final class ProjectionRepositoryImpl<P extends Projection<ID>, ID> implem
     }
 
     @Override
-    public List<P> findAllById(@Nonnull Iterable<ID> ids) {
+    public List<P> findAllById(Iterable<ID> ids) {
         return core.findAllById(ids);
     }
 
     @Override
-    public List<P> findAllByRef(@Nonnull Iterable<Ref<P>> refs) {
+    public List<P> findAllByRef(Iterable<Ref<P>> refs) {
         return core.findAllByRef(refs);
     }
 
     @Override
-    public Stream<P> selectById(@Nonnull Stream<ID> ids) {
+    public Stream<P> selectById(Stream<ID> ids) {
         return core.selectById(ids);
     }
 
     @Override
-    public Stream<P> selectByRef(@Nonnull Stream<Ref<P>> refs) {
+    public Stream<P> selectByRef(Stream<Ref<P>> refs) {
         return core.selectByRef(refs);
     }
 
     @Override
-    public Stream<P> selectById(@Nonnull Stream<ID> ids, int batchSize) {
+    public Stream<P> selectById(Stream<ID> ids, int batchSize) {
         return core.selectById(ids, batchSize);
     }
 
     @Override
-    public Stream<P> selectByRef(@Nonnull Stream<Ref<P>> refs, int batchSize) {
+    public Stream<P> selectByRef(Stream<Ref<P>> refs, int batchSize) {
         return core.selectByRef(refs, batchSize);
     }
 
     @Override
-    public long countById(@Nonnull Stream<ID> ids) {
+    public long countById(Stream<ID> ids) {
         return core.countById(ids);
     }
 
     @Override
-    public long countById(@Nonnull Stream<ID> ids, int batchSize) {
+    public long countById(Stream<ID> ids, int batchSize) {
         return core.countById(ids, batchSize);
     }
 
     @Override
-    public long countByRef(@Nonnull Stream<Ref<P>> refs) {
+    public long countByRef(Stream<Ref<P>> refs) {
         return core.countByRef(refs);
     }
 
     @Override
-    public long countByRef(@Nonnull Stream<Ref<P>> refs, int batchSize) {
+    public long countByRef(Stream<Ref<P>> refs, int batchSize) {
         return core.countByRef(refs, batchSize);
     }
 

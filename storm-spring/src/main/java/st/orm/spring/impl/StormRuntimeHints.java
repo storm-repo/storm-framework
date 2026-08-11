@@ -17,8 +17,6 @@ package st.orm.spring.impl;
 
 import static java.nio.charset.StandardCharsets.UTF_8;
 
-import jakarta.annotation.Nonnull;
-import jakarta.annotation.Nullable;
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
@@ -29,6 +27,7 @@ import java.util.Enumeration;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Set;
+import org.jspecify.annotations.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.aop.SpringProxy;
@@ -88,7 +87,7 @@ public class StormRuntimeHints implements RuntimeHintsRegistrar {
     private static final String REPOSITORY_INDEX = INDEX_DIRECTORY + "st.orm.repository.Repository.idx";
 
     @Override
-    public void registerHints(@Nonnull RuntimeHints hints, @Nullable ClassLoader classLoader) {
+    public void registerHints(RuntimeHints hints, @Nullable ClassLoader classLoader) {
         ClassLoader loader = classLoader == null ? StormRuntimeHints.class.getClassLoader() : classLoader;
         if (!hasDataIndex(loader)) {
             LOGGER.warn("No Storm type index found for the application's entities on the classpath "
@@ -129,7 +128,7 @@ public class StormRuntimeHints implements RuntimeHintsRegistrar {
         }
     }
 
-    private static void registerDataType(@Nonnull RuntimeHints hints, @Nonnull String typeName) {
+    private static void registerDataType(RuntimeHints hints, String typeName) {
         // The declared fields include the static Companion instance, which kotlinx.serialization
         // reads reflectively when it resolves a serializer at runtime.
         hints.reflection().registerType(TypeReference.of(typeName),
@@ -152,7 +151,7 @@ public class StormRuntimeHints implements RuntimeHintsRegistrar {
                 MemberCategory.INVOKE_PUBLIC_METHODS);
     }
 
-    private static boolean hasDataIndex(@Nonnull ClassLoader loader) {
+    private static boolean hasDataIndex(ClassLoader loader) {
         // The Data index is the reliable marker for the metamodel processor having run on application
         // code: every Storm application declares Data types, while the framework jars themselves only
         // ship repository index entries.
@@ -163,7 +162,7 @@ public class StormRuntimeHints implements RuntimeHintsRegistrar {
         }
     }
 
-    private static List<String> readIndex(@Nonnull ClassLoader loader, @Nonnull String resourceName) {
+    private static List<String> readIndex(ClassLoader loader, String resourceName) {
         Set<String> typeNames = new LinkedHashSet<>();
         try {
             Enumeration<URL> resources = loader.getResources(resourceName);

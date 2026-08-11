@@ -17,10 +17,9 @@ package st.orm;
 
 import static java.util.Optional.ofNullable;
 
-import jakarta.annotation.Nonnull;
-import jakarta.annotation.Nullable;
 import java.util.Objects;
 import java.util.Optional;
+import org.jspecify.annotations.Nullable;
 
 /**
  * Implementation that is used by the generated models.
@@ -39,26 +38,26 @@ public abstract class AbstractMetamodel<T extends Data, E, V> implements TypedMe
     private final Metamodel<T, ?> parent;
     private final boolean isColumn;
 
-    public AbstractMetamodel(@Nonnull Class<E> fieldType) {
+    public AbstractMetamodel(Class<E> fieldType) {
         this(fieldType, "", "", false, null, false);
     }
 
-    public AbstractMetamodel(@Nonnull Class<E> fieldType,
-                             @Nonnull String path) {
+    public AbstractMetamodel(Class<E> fieldType,
+                             String path) {
         this(fieldType, path, "", false, null, true);
     }
 
-    public AbstractMetamodel(@Nonnull Class<E> fieldType,
-                             @Nonnull String path,
-                             @Nonnull String field,
+    public AbstractMetamodel(Class<E> fieldType,
+                             String path,
+                             String field,
                              boolean inline,
                              @Nullable Metamodel<T, ?> parent) {
         this(fieldType, path, field, inline, parent, !inline && !field.isEmpty());
     }
 
-    protected AbstractMetamodel(@Nonnull Class<E> fieldType,
-                                @Nonnull String path,
-                                @Nonnull String field,
+    protected AbstractMetamodel(Class<E> fieldType,
+                                String path,
+                                String field,
                                 boolean inline,
                                 @Nullable Metamodel<T, ?> parent,
                                 boolean isColumn) {

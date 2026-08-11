@@ -15,7 +15,6 @@
  */
 package st.orm;
 
-import jakarta.annotation.Nonnull;
 
 /**
  * A {@link Metamodel} that also carries the declared component type of the field it represents.
@@ -43,5 +42,5 @@ public interface TypedMetamodel<T extends Data, E, V> extends Metamodel<T, E> {
      * @since 1.13
      */
     @Override
-    V getValue(@Nonnull T record);
+    V getValue(T record);
 }

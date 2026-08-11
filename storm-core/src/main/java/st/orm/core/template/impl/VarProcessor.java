@@ -15,7 +15,6 @@
  */
 package st.orm.core.template.impl;
 
-import jakarta.annotation.Nonnull;
 import st.orm.core.template.SqlTemplateException;
 import st.orm.core.template.impl.Elements.BindVar;
 
@@ -40,7 +39,7 @@ final class VarProcessor implements ElementProcessor<BindVar> {
      * @return an immutable key for caching, or {@code null} if the element (or its compilation) cannot be cached.
      */
     @Override
-    public Object getCompilationKey(@Nonnull BindVar bindVar) {
+    public Object getCompilationKey(BindVar bindVar) {
         // Always cache.
         return CACHE_KEY;
     }
@@ -57,7 +56,7 @@ final class VarProcessor implements ElementProcessor<BindVar> {
      * @throws SqlTemplateException if compilation fails.
      */
     @Override
-    public CompiledElement compile(@Nonnull BindVar bindVar, @Nonnull TemplateCompiler compiler)
+    public CompiledElement compile(BindVar bindVar, TemplateCompiler compiler)
             throws SqlTemplateException {
         if (bindVar.bindVars() instanceof BindVarsImpl) {
             compiler.mapBindVars(1);
@@ -78,7 +77,7 @@ final class VarProcessor implements ElementProcessor<BindVar> {
      * @param bindHint the bind hint for the element, providing additional context for binding.
      */
     @Override
-    public void bind(@Nonnull BindVar bindVar, @Nonnull TemplateBinder binder, @Nonnull BindHint bindHint) {
+    public void bind(BindVar bindVar, TemplateBinder binder, BindHint bindHint) {
         if (bindVar.bindVars() instanceof BindVarsImpl vars) {
             var parameterFactory = binder.setBindVars(vars);
             vars.addParameterExtractor(record -> {

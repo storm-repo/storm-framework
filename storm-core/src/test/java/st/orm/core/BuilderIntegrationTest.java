@@ -11,7 +11,6 @@ import static st.orm.ResolveScope.OUTER;
 import static st.orm.core.template.TemplateString.raw;
 import static st.orm.core.template.Templates.alias;
 
-import jakarta.annotation.Nonnull;
 import javax.sql.DataSource;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -85,8 +84,8 @@ public class BuilderIntegrationTest {
         // Two foreign keys reference the pet table: the join is ambiguous
         // and must fail with a message naming the candidate fields.
         record PetPair(@PK Integer id,
-                       @Nonnull @FK Pet first,
-                       @Nonnull @FK Pet second) implements Entity<Integer> {}
+                       @FK Pet first,
+                       @FK Pet second) implements Entity<Integer> {}
         var exception = assertThrows(PersistenceException.class, () -> ORMTemplate.of(dataSource)
                 .projection(PetSummary.class)
                 .select()
@@ -102,8 +101,8 @@ public class BuilderIntegrationTest {
         // Exact-type matches are ambiguous too: two foreign keys reference the Pet
         // entity, so the join must fail rather than silently pick the first field.
         record PetPair(@PK Integer id,
-                       @Nonnull @FK Pet first,
-                       @Nonnull @FK Pet second) implements Entity<Integer> {}
+                       @FK Pet first,
+                       @FK Pet second) implements Entity<Integer> {}
         var exception = assertThrows(PersistenceException.class, () -> ORMTemplate.of(dataSource)
                 .selectFrom(Pet.class)
                 .innerJoin(PetPair.class).on(Pet.class)
@@ -118,7 +117,7 @@ public class BuilderIntegrationTest {
         // A second entity mapping the pet table: Visit's foreign key references the
         // Pet entity, but the join resolves by table match.
         @DbTable("pet")
-        record PetLite(@PK Integer id, @Nonnull String name) implements Entity<Integer> {}
+        record PetLite(@PK Integer id, String name) implements Entity<Integer> {}
         var list = ORMTemplate.of(dataSource)
                 .selectFrom(Visit.class)
                 .innerJoin(PetLite.class).on(Visit.class)
@@ -131,7 +130,7 @@ public class BuilderIntegrationTest {
         // A plain Data record mapping the pet table qualifies as a table-based join
         // target: it is table-backed and has a primary key.
         @DbTable("pet")
-        record PetView(@PK Integer id, @Nonnull String name) implements Data {}
+        record PetView(@PK Integer id, String name) implements Data {}
         var list = ORMTemplate.of(dataSource)
                 .selectFrom(Visit.class)
                 .innerJoin(PetView.class).on(Visit.class)
@@ -144,7 +143,7 @@ public class BuilderIntegrationTest {
         // A record without a primary key exposes no key column to join on: it must
         // not silently match by table.
         @DbTable("pet")
-        record PetName(@Nonnull String name) implements Data {}
+        record PetName(String name) implements Data {}
         var exception = assertThrows(PersistenceException.class, () -> ORMTemplate.of(dataSource)
                 .selectFrom(Visit.class)
                 .innerJoin(PetName.class).on(Visit.class)

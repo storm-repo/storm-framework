@@ -15,7 +15,6 @@
  */
 package st.orm.core.spi;
 
-import jakarta.annotation.Nonnull;
 
 /**
  * A cursor codec registration entry, binding a tag, Java type, and codec together.
@@ -26,7 +25,7 @@ import jakarta.annotation.Nonnull;
  * @param <T> the Java type.
  * @since 1.11
  */
-public record CursorCodecEntry<T>(int tag, @Nonnull Class<T> type, @Nonnull CursorCodec<T> codec) {
+public record CursorCodecEntry<T>(int tag, Class<T> type, CursorCodec<T> codec) {
     public CursorCodecEntry {
         if (tag < 0 || tag > 255) {
             throw new IllegalArgumentException("Tag must be in range [0, 255], got: " + tag + ".");

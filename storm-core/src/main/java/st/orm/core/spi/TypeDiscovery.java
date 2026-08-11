@@ -15,7 +15,6 @@
  */
 package st.orm.core.spi;
 
-import jakarta.annotation.Nonnull;
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
@@ -115,14 +114,14 @@ public final class TypeDiscovery {
      * @return the transitive application-domain component types, excluding the given type itself.
      * @since 1.13
      */
-    public static List<Class<?>> getComponentTypes(@Nonnull Class<?> type) {
+    public static List<Class<?>> getComponentTypes(Class<?> type) {
         Set<Class<?>> components = new LinkedHashSet<>();
         collectComponents(type, components);
         components.remove(type);
         return List.copyOf(components);
     }
 
-    private static void collectComponents(@Nonnull Class<?> type, @Nonnull Set<Class<?>> visited) {
+    private static void collectComponents(Class<?> type, Set<Class<?>> visited) {
         if (!visited.add(type)) {
             return;
         }
@@ -138,7 +137,7 @@ public final class TypeDiscovery {
      * class itself, and the type arguments of parameterized types such as {@code List<Photo>}, whose
      * elements are introspected during serialization even though the raw type is a platform type.
      */
-    private static void collectFromType(@Nonnull Type genericType, @Nonnull Set<Class<?>> visited) {
+    private static void collectFromType(Type genericType, Set<Class<?>> visited) {
         if (genericType instanceof Class<?> cls) {
             if (isApplicationType(cls)) {
                 collectComponents(cls, visited);
@@ -163,7 +162,7 @@ public final class TypeDiscovery {
      * parameters, such as {@code Ref}, are interfaces without constructors, so including them is
      * harmless and keeps the filter from accidentally excluding application packages.
      */
-    private static boolean isApplicationType(@Nonnull Class<?> type) {
+    private static boolean isApplicationType(Class<?> type) {
         if (type.isPrimitive() || type.isArray()) {
             return false;
         }
@@ -175,7 +174,7 @@ public final class TypeDiscovery {
     }
 
     @SuppressWarnings("SameParameterValue")
-    private static List<Class<?>> loadClasses(@Nonnull String typeFqName) {
+    private static List<Class<?>> loadClasses(String typeFqName) {
         ClassLoader classLoader = Thread.currentThread().getContextClassLoader();
         if (classLoader == null) {
             classLoader = TypeDiscovery.class.getClassLoader();
@@ -196,7 +195,7 @@ public final class TypeDiscovery {
         return result;
     }
 
-    private static <T> List<Class<? extends T>> loadTypes(@Nonnull String typeFqName, @Nonnull Class<T> expectedType) {
+    private static <T> List<Class<? extends T>> loadTypes(String typeFqName, Class<T> expectedType) {
         ClassLoader classLoader = Thread.currentThread().getContextClassLoader();
         if (classLoader == null) {
             classLoader = TypeDiscovery.class.getClassLoader();
@@ -222,7 +221,7 @@ public final class TypeDiscovery {
         return result;
     }
 
-    private static List<String> loadResourceLines(@Nonnull ClassLoader classLoader, @Nonnull String resourceName) {
+    private static List<String> loadResourceLines(ClassLoader classLoader, String resourceName) {
         try {
             Enumeration<URL> resources = classLoader.getResources(resourceName);
             if (!resources.hasMoreElements()) {

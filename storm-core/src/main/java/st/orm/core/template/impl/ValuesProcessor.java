@@ -15,7 +15,6 @@
  */
 package st.orm.core.template.impl;
 
-import jakarta.annotation.Nonnull;
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
@@ -27,7 +26,7 @@ import st.orm.core.template.SqlTemplateException;
 import st.orm.core.template.impl.Elements.Values;
 
 final class ValuesProcessor implements ElementProcessor<Values> {
-    record ValuesBindHint(@Nonnull List<Column> columns) implements BindHint {}
+    record ValuesBindHint(List<Column> columns) implements BindHint {}
 
     private static final List<Data> EMPTY_DATA = List.of();
 
@@ -45,7 +44,7 @@ final class ValuesProcessor implements ElementProcessor<Values> {
      * @return an immutable key for caching, or {@code null} if the element (or its compilation) cannot be cached.
      */
     @Override
-    public Object getCompilationKey(@Nonnull Values values) {
+    public Object getCompilationKey(Values values) {
         if (values.records() != null) {
             if (hasAtMostOneElement(values.records())) {
                 // Only cache when record-count is 1.
@@ -68,7 +67,7 @@ final class ValuesProcessor implements ElementProcessor<Values> {
      * @throws SqlTemplateException if compilation fails.
      */
     @Override
-    public CompiledElement compile(@Nonnull Values values, @Nonnull TemplateCompiler compiler) throws SqlTemplateException {
+    public CompiledElement compile(Values values, TemplateCompiler compiler) throws SqlTemplateException {
         if (values.records() != null) {
             return compileValues(values, compiler);
         }
@@ -90,7 +89,7 @@ final class ValuesProcessor implements ElementProcessor<Values> {
      * @param bindHint the bind hint for the element, providing additional context for binding.
      */
     @Override
-    public void bind(@Nonnull Values values, @Nonnull TemplateBinder binder, @Nonnull BindHint bindHint) throws SqlTemplateException {
+    public void bind(Values values, TemplateBinder binder, BindHint bindHint) throws SqlTemplateException {
         if (bindHint instanceof ValuesBindHint(List<Column> columns)) {
             var queryModel = binder.getQueryModel();
             var table = queryModel.getTable();
@@ -151,7 +150,7 @@ final class ValuesProcessor implements ElementProcessor<Values> {
         return !it.hasNext(); // True if exactly 1.
     }
 
-    private CompiledElement compileValues(@Nonnull Values values, @Nonnull TemplateCompiler compiler) throws SqlTemplateException {
+    private CompiledElement compileValues(Values values, TemplateCompiler compiler) throws SqlTemplateException {
         assert values.records() != null;
         var queryModel = compiler.getQueryModel();
         var table = queryModel.getTable();
@@ -172,7 +171,7 @@ final class ValuesProcessor implements ElementProcessor<Values> {
         return new CompiledElement(String.join(", ", rows), new ValuesBindHint(columns));
     }
 
-    private CompiledElement compileValuesBindVars(@Nonnull Values values, @Nonnull TemplateCompiler compiler)
+    private CompiledElement compileValuesBindVars(Values values, TemplateCompiler compiler)
             throws SqlTemplateException {
         assert values.bindVars() != null;
         if (values.bindVars() instanceof BindVarsImpl) {
@@ -193,7 +192,7 @@ final class ValuesProcessor implements ElementProcessor<Values> {
         throw new SqlTemplateException("Unsupported BindVars type in VALUES clause. Expected a standard BindVars implementation.");
     }
 
-    private static List<Column> insertableColumns(@Nonnull Model<Data, ?> model) {
+    private static List<Column> insertableColumns(Model<Data, ?> model) {
         return model.declaredColumns().stream().filter(Column::insertable).toList();
     }
 
@@ -209,8 +208,8 @@ final class ValuesProcessor implements ElementProcessor<Values> {
      * @param parameterSql renders the parameter fragment for a bound column.
      * @return the rendered row, parenthesized.
      */
-    private String renderRow(@Nonnull List<Column> columns, boolean ignoreAutoGenerate,
-                             @Nonnull TemplateCompiler compiler, @Nonnull Function<Column, String> parameterSql) {
+    private String renderRow(List<Column> columns, boolean ignoreAutoGenerate,
+                             TemplateCompiler compiler, Function<Column, String> parameterSql) {
         List<String> placeholders = new ArrayList<>();
         for (var column : columns) {
             switch (column.generation()) {

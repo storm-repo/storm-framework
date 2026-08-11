@@ -15,9 +15,8 @@
  */
 package st.orm.core.template;
 
-import jakarta.annotation.Nonnull;
-import jakarta.annotation.Nullable;
 import java.util.List;
+import org.jspecify.annotations.Nullable;
 import st.orm.BindVars;
 import st.orm.StormConfig;
 import st.orm.core.template.impl.BindVarsHandle;
@@ -63,7 +62,7 @@ public interface SqlTemplate extends TemplateDecorator {
      * @param name the name of the parameter.
      * @param dbValue the database value of the parameter.
      */
-    record NamedParameter(@Nonnull String name, @Nullable Object dbValue) implements Parameter {}
+    record NamedParameter(String name, @Nullable Object dbValue) implements Parameter {}
 
     /**
      * Represents a positional parameter that can be used in an SQL query.
@@ -98,7 +97,7 @@ public interface SqlTemplate extends TemplateDecorator {
          *
          * @param listener the listener to be notified of batch events.
          */
-        void setBatchListener(@Nonnull BatchListener listener);
+        void setBatchListener(BatchListener listener);
     }
 
     /**
@@ -113,7 +112,7 @@ public interface SqlTemplate extends TemplateDecorator {
          * @param record the record that is being processed.
          * @since 1.2
          */
-        void onRecord(@Nonnull Record record);
+        void onRecord(Record record);
     }
 
     /**
@@ -132,7 +131,7 @@ public interface SqlTemplate extends TemplateDecorator {
          *
          * @param parameters the list of positional parameters in this batch.
          */
-        void onBatch(@Nonnull List<PositionalParameter> parameters);
+        void onBatch(List<PositionalParameter> parameters);
     }
 
     /**
@@ -219,7 +218,7 @@ public interface SqlTemplate extends TemplateDecorator {
      * @return a new SQL template.
      */
     @Override
-    SqlTemplate withTableNameResolver(@Nonnull TableNameResolver resolver);
+    SqlTemplate withTableNameResolver(TableNameResolver resolver);
 
     /**
      * Returns the table name resolver used by this template.
@@ -234,7 +233,7 @@ public interface SqlTemplate extends TemplateDecorator {
      * @param resolver the table alias resolver.
      * @return a new SQL template.
      */
-    SqlTemplate withTableAliasResolver(@Nonnull TableAliasResolver resolver);
+    SqlTemplate withTableAliasResolver(TableAliasResolver resolver);
 
     /**
      * Returns the table alias resolver used by this template.
@@ -250,7 +249,7 @@ public interface SqlTemplate extends TemplateDecorator {
      * @return a new SQL template.
      */
     @Override
-    SqlTemplate withColumnNameResolver(@Nonnull ColumnNameResolver resolver);
+    SqlTemplate withColumnNameResolver(ColumnNameResolver resolver);
 
     /**
      * Returns the column name resolver used by this template.
@@ -266,7 +265,7 @@ public interface SqlTemplate extends TemplateDecorator {
      * @return a new SQL template.
      */
     @Override
-    SqlTemplate withForeignKeyResolver(@Nonnull ForeignKeyResolver resolver);
+    SqlTemplate withForeignKeyResolver(ForeignKeyResolver resolver);
 
     /**
      * Returns the foreign key resolver used by this template.
@@ -281,7 +280,7 @@ public interface SqlTemplate extends TemplateDecorator {
      * @param dialect the SQL dialect to use.
      * @return a new SQL template.
      */
-    SqlTemplate withDialect(@Nonnull SqlDialect dialect);
+    SqlTemplate withDialect(SqlDialect dialect);
 
     /**
      * Returns the SQL dialect used by this template.
@@ -304,7 +303,7 @@ public interface SqlTemplate extends TemplateDecorator {
      * @return a new SQL template.
      * @since 1.9
      */
-    SqlTemplate withConfig(@Nonnull StormConfig config);
+    SqlTemplate withConfig(StormConfig config);
 
     /**
      * Processes the specified {@code template} and returns the resulting SQL and parameters.
@@ -313,5 +312,5 @@ public interface SqlTemplate extends TemplateDecorator {
      * @return the resulting SQL and parameters.
      * @throws SqlTemplateException if an error occurs while processing the input.
      */
-    Sql process(@Nonnull TemplateString template) throws SqlTemplateException;
+    Sql process(TemplateString template) throws SqlTemplateException;
 }

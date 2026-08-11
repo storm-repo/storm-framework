@@ -29,8 +29,6 @@ import static org.springframework.transaction.TransactionDefinition.PROPAGATION_
 import static org.springframework.transaction.TransactionDefinition.PROPAGATION_REQUIRES_NEW;
 import static org.springframework.transaction.TransactionDefinition.PROPAGATION_SUPPORTS;
 
-import jakarta.annotation.Nonnull;
-import jakarta.annotation.Nullable;
 import java.sql.PreparedStatement;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -40,6 +38,7 @@ import java.util.Optional;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
 import javax.sql.DataSource;
+import org.jspecify.annotations.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.orm.jpa.JpaTransactionManager;
@@ -111,7 +110,7 @@ public final class SpringTransactionContext implements TransactionContext {
 
     private final List<TransactionState> stack = new ArrayList<>();
 
-    public SpringTransactionContext(@Nonnull Supplier<List<PlatformTransactionManager>> transactionManagers) {
+    public SpringTransactionContext(Supplier<List<PlatformTransactionManager>> transactionManagers) {
         this.transactionManagers = transactionManagers;
     }
 
@@ -236,7 +235,7 @@ public final class SpringTransactionContext implements TransactionContext {
      * Ensures a Spring TransactionStatus exists for the frames in range using the given data source, applying
      * any pending rollback flags immediately.
      */
-    private void ensureStartedInRange(int startIndex, int endIndex, @Nonnull DataSource dataSource) {
+    private void ensureStartedInRange(int startIndex, int endIndex, DataSource dataSource) {
         for (int index = startIndex; index <= endIndex; index++) {
             var state = stack.get(index);
             if (state.dataSource == null) {
@@ -270,15 +269,15 @@ public final class SpringTransactionContext implements TransactionContext {
 
     @SuppressWarnings("unchecked")
     @Override
-    public EntityCache<? extends Entity<?>, ?> entityCache(@Nonnull Class<? extends Entity<?>> entityType,
-                                                           @Nonnull CacheRetention retention) {
+    public EntityCache<? extends Entity<?>, ?> entityCache(Class<? extends Entity<?>> entityType,
+                                                           CacheRetention retention) {
         return (EntityCache<? extends Entity<?>, ?>) currentState().entityCacheMap
                 .computeIfAbsent(entityType, ignore -> new EntityCacheImpl<>(retention));
     }
 
     @SuppressWarnings("unchecked")
     @Override
-    public EntityCache<? extends Entity<?>, ?> getEntityCache(@Nonnull Class<? extends Entity<?>> entityType) {
+    public EntityCache<? extends Entity<?>, ?> getEntityCache(Class<? extends Entity<?>> entityType) {
         var cache = (EntityCache<? extends Entity<?>, ?>) currentState().entityCacheMap.get(entityType);
         if (cache == null) {
             throw new IllegalStateException("No entity cache exists for " + entityType.getName() + ".");
@@ -289,7 +288,7 @@ public final class SpringTransactionContext implements TransactionContext {
     @SuppressWarnings("unchecked")
     @Nullable
     @Override
-    public EntityCache<? extends Entity<?>, ?> findEntityCache(@Nonnull Class<? extends Entity<?>> entityType) {
+    public EntityCache<? extends Entity<?>, ?> findEntityCache(Class<? extends Entity<?>> entityType) {
         return (EntityCache<? extends Entity<?>, ?>) currentState().entityCacheMap.get(entityType);
     }
 
@@ -303,7 +302,7 @@ public final class SpringTransactionContext implements TransactionContext {
 
     @SuppressWarnings("unchecked")
     @Override
-    public <T> Decorator<T> getDecorator(@Nonnull Class<T> resourceType) {
+    public <T> Decorator<T> getDecorator(Class<T> resourceType) {
         if (resourceType != PreparedStatement.class) {
             return resource -> resource; // No-op.
         }
@@ -337,7 +336,7 @@ public final class SpringTransactionContext implements TransactionContext {
      * <p>The physical Spring transaction starts lazily, when the first data source touches this context via
      * {@link #useDataSource(DataSource)}. The frame is finished with {@link #complete(boolean)}.</p>
      */
-    public void begin(@Nonnull TransactionDefinition definition) {
+    public void begin(TransactionDefinition definition) {
         var state = new TransactionState();
         state.transactionDefinition = definition;
         state.timeoutSeconds = definition.getTimeout() > 0 ? definition.getTimeout() : null;
@@ -375,7 +374,7 @@ public final class SpringTransactionContext implements TransactionContext {
     /**
      * Called by the ConnectionProvider before obtaining a JDBC connection.
      */
-    public void useDataSource(@Nonnull DataSource dataSource) {
+    public void useDataSource(DataSource dataSource) {
         int index = stack.size() - 1;
         if (index < 0) {
             throw new IllegalStateException("No transaction active.");
@@ -422,7 +421,7 @@ public final class SpringTransactionContext implements TransactionContext {
      * which manager completes Storm-initiated transactions, so it must be made by configuration rather than by
      * list order.</p>
      */
-    private PlatformTransactionManager resolveTransactionManager(@Nonnull DataSource dataSource) {
+    private PlatformTransactionManager resolveTransactionManager(DataSource dataSource) {
         var candidates = transactionManagers.get().stream()
                 .filter(manager -> managesDataSource(manager, dataSource))
                 .toList();
@@ -446,8 +445,8 @@ public final class SpringTransactionContext implements TransactionContext {
             "org.springframework.orm.jpa.JpaTransactionManager",
             SpringTransactionContext.class.getClassLoader());
 
-    private static boolean managesDataSource(@Nonnull PlatformTransactionManager manager,
-                                             @Nonnull DataSource dataSource) {
+    private static boolean managesDataSource(PlatformTransactionManager manager,
+                                             DataSource dataSource) {
         if (JPA_PRESENT && JpaSupport.isJpaTransactionManager(manager)) {
             return JpaSupport.managesDataSource(manager, dataSource);
         }
@@ -458,7 +457,7 @@ public final class SpringTransactionContext implements TransactionContext {
     }
 
     @Nullable
-    private static Object resourceFactoryOrNull(@Nonnull ResourceTransactionManager manager) {
+    private static Object resourceFactoryOrNull(ResourceTransactionManager manager) {
         try {
             return manager.getResourceFactory();
         } catch (IllegalStateException e) {
@@ -471,12 +470,12 @@ public final class SpringTransactionContext implements TransactionContext {
      * Touches spring-orm types; only loaded when spring-orm is on the class path.
      */
     private static final class JpaSupport {
-        static boolean isJpaTransactionManager(@Nonnull PlatformTransactionManager manager) {
+        static boolean isJpaTransactionManager(PlatformTransactionManager manager) {
             return manager instanceof JpaTransactionManager;
         }
 
-        static boolean managesDataSource(@Nonnull PlatformTransactionManager manager,
-                                         @Nonnull DataSource dataSource) {
+        static boolean managesDataSource(PlatformTransactionManager manager,
+                                         DataSource dataSource) {
             return manager instanceof JpaTransactionManager jpaManager && jpaManager.getDataSource() == dataSource;
         }
     }
@@ -489,7 +488,7 @@ public final class SpringTransactionContext implements TransactionContext {
      * entity-cache sharing policy: REQUIRED/SUPPORTS/MANDATORY/NESTED share the outer cache;
      * REQUIRES_NEW/NOT_SUPPORTED/NEVER use their own.</p>
      */
-    private void startTransactionIfNecessary(@Nonnull TransactionState state, @Nonnull DataSource dataSource, int level) {
+    private void startTransactionIfNecessary(TransactionState state, DataSource dataSource, int level) {
         var definition = state.transactionDefinition;
         if (definition == null) {
             throw new IllegalStateException("TransactionDefinition must not be null.");

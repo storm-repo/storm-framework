@@ -22,7 +22,6 @@ import static st.orm.Operator.GREATER_THAN_OR_EQUAL;
 import static st.orm.Operator.LESS_THAN;
 import static st.orm.Operator.LESS_THAN_OR_EQUAL;
 
-import jakarta.annotation.Nonnull;
 import java.sql.PreparedStatement;
 import java.sql.SQLException;
 import java.sql.Types;
@@ -41,7 +40,7 @@ public class PostgreSQLSqlDialect extends DefaultSqlDialect implements SqlDialec
     public PostgreSQLSqlDialect() {
     }
 
-    public PostgreSQLSqlDialect(@Nonnull StormConfig config) {
+    public PostgreSQLSqlDialect(StormConfig config) {
         super(config);
     }
 
@@ -98,7 +97,7 @@ public class PostgreSQLSqlDialect extends DefaultSqlDialect implements SqlDialec
      * @since 1.2
      */
     @Override
-    public boolean isKeyword(@Nonnull String name) {
+    public boolean isKeyword(String name) {
         return POSTGRESQL_KEYWORDS.contains(name.toUpperCase());
     }
 
@@ -109,7 +108,7 @@ public class PostgreSQLSqlDialect extends DefaultSqlDialect implements SqlDialec
      * @return the escaped identifier
      */
     @Override
-    public String escape(@Nonnull String name) {
+    public String escape(String name) {
         return "\"%s\"".formatted(name.replace("\"", "\"\""));
     }
 
@@ -184,7 +183,7 @@ public class PostgreSQLSqlDialect extends DefaultSqlDialect implements SqlDialec
      * @since 1.13
      */
     @Override
-    protected boolean rendersTupleComparison(@Nonnull Operator operator, int rowCount) {
+    protected boolean rendersTupleComparison(Operator operator, int rowCount) {
         return isMultiRowEquality(operator, rowCount)
                 || operator == GREATER_THAN || operator == GREATER_THAN_OR_EQUAL
                 || operator == LESS_THAN || operator == LESS_THAN_OR_EQUAL
@@ -301,8 +300,8 @@ public class PostgreSQLSqlDialect extends DefaultSqlDialect implements SqlDialec
      * @since 1.9
      */
     @Override
-    public void setParameter(@Nonnull PreparedStatement preparedStatement, int index,
-                             @Nonnull UUID uuid) throws SQLException {
+    public void setParameter(PreparedStatement preparedStatement, int index,
+                             UUID uuid) throws SQLException {
         preparedStatement.setObject(index, uuid);
     }
 
@@ -320,8 +319,8 @@ public class PostgreSQLSqlDialect extends DefaultSqlDialect implements SqlDialec
      * @since 1.12
      */
     @Override
-    public void setParameter(@Nonnull PreparedStatement preparedStatement, int index,
-                             @Nonnull JsonString json) throws SQLException {
+    public void setParameter(PreparedStatement preparedStatement, int index,
+                             JsonString json) throws SQLException {
         preparedStatement.setObject(index, json.value(), Types.OTHER);
     }
 

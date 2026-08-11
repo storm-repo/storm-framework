@@ -15,12 +15,11 @@
  */
 package st.orm.core.template.impl;
 
-import jakarta.annotation.Nonnull;
-import jakarta.annotation.Nullable;
 import java.lang.reflect.Constructor;
 import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.List;
+import org.jspecify.annotations.Nullable;
 import st.orm.Entity;
 import st.orm.StormConfig;
 import st.orm.core.spi.CacheRetention;
@@ -69,7 +68,7 @@ final class ColumnSkipper {
                       int pkOffset,
                       int pkColumnCount,
                       @Nullable Constructor<?> pkConstructor,
-                      @Nonnull Class<? extends Entity<?>> entityType,
+                      Class<? extends Entity<?>> entityType,
                       boolean topLevel) {}
 
     /**
@@ -110,8 +109,8 @@ final class ColumnSkipper {
      * @param topLevelCache the entity cache for the top-level record, or null if not applicable.
      * @param topLevelCacheReadEnabled whether cache reads are enabled for the top-level record.
      */
-    ColumnSkipper(@Nonnull List<SkipRegion> regions,
-                  @Nonnull WeakInterner interner,
+    ColumnSkipper(List<SkipRegion> regions,
+                  WeakInterner interner,
                   @Nullable TransactionContext context,
                   @Nullable EntityCache<Entity<?>, ?> topLevelCache,
                   boolean topLevelCacheReadEnabled) {
@@ -132,7 +131,7 @@ final class ColumnSkipper {
      * @throws SQLException if a database access error occurs.
      * @throws SqlTemplateException if a composite primary key cannot be constructed.
      */
-    void readRow(@Nonnull Object[] args, @Nonnull ColumnReader reader) throws SQLException, SqlTemplateException {
+    void readRow(Object[] args, ColumnReader reader) throws SQLException, SqlTemplateException {
         pinned.clear();
         boolean cacheReadEnabled = context != null && context.isRepeatableRead();
         int i = 0;
@@ -167,7 +166,7 @@ final class ColumnSkipper {
      * @return the primary key value, or {@code null} if any key column is null or the key cannot be constructed.
      */
     @Nullable
-    private Object extractPk(@Nonnull Object[] args, @Nonnull SkipRegion region) throws SqlTemplateException {
+    private Object extractPk(Object[] args, SkipRegion region) throws SqlTemplateException {
         if (region.pkColumnCount() == 1) {
             return args[region.pkOffset()];
         }
@@ -194,7 +193,7 @@ final class ColumnSkipper {
      * @param cacheReadEnabled whether transaction-scoped cache reads are enabled for this row.
      * @return {@code true} if the entity is cached and decoding the region's remaining columns can be skipped.
      */
-    private boolean isCached(@Nonnull SkipRegion region, @Nonnull Object pk, boolean cacheReadEnabled) {
+    private boolean isCached(SkipRegion region, Object pk, boolean cacheReadEnabled) {
         if (region.topLevel()) {
             // Top-level records are never interned; only the entity cache applies.
             if (topLevelCache == null || !topLevelCacheReadEnabled) {

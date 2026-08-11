@@ -15,10 +15,9 @@
  */
 package st.orm.spring;
 
-import jakarta.annotation.Nonnull;
-import jakarta.annotation.Nullable;
 import java.sql.SQLException;
 import javax.sql.DataSource;
+import org.jspecify.annotations.Nullable;
 import org.springframework.dao.DataAccessException;
 import org.springframework.jdbc.UncategorizedSQLException;
 import org.springframework.jdbc.support.SQLErrorCodeSQLExceptionTranslator;
@@ -63,12 +62,12 @@ public class SpringExceptionMapper implements ExceptionMapper {
      *
      * @param dataSource the data source used to determine the database product for error-code translation.
      */
-    public SpringExceptionMapper(@Nonnull DataSource dataSource) {
+    public SpringExceptionMapper(DataSource dataSource) {
         this.translator = new SQLErrorCodeSQLExceptionTranslator(dataSource);
     }
 
     @Override
-    public RuntimeException map(@Nonnull Throwable cause, @Nonnull ExceptionContext context) {
+    public RuntimeException map(Throwable cause, ExceptionContext context) {
         SQLException sqlException = findSqlException(cause);
         if (sqlException == null) {
             return cause instanceof PersistenceException persistenceException
@@ -93,7 +92,7 @@ public class SpringExceptionMapper implements ExceptionMapper {
         return translated;
     }
 
-    private static @Nullable SQLException findSqlException(@Nonnull Throwable cause) {
+    private static @Nullable SQLException findSqlException(Throwable cause) {
         for (Throwable current = cause; current != null; current = current.getCause()) {
             if (current instanceof SQLException sqlException) {
                 return sqlException;

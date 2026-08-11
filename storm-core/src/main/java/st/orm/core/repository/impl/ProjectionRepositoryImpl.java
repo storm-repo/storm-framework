@@ -15,7 +15,6 @@
  */
 package st.orm.core.repository.impl;
 
-import jakarta.annotation.Nonnull;
 import st.orm.Projection;
 import st.orm.Ref;
 import st.orm.core.repository.ProjectionRepository;
@@ -32,8 +31,8 @@ public final class ProjectionRepositoryImpl<P extends Projection<ID>, ID>
         extends BaseRepositoryImpl<P, ID>
         implements ProjectionRepository<P, ID> {
 
-    public ProjectionRepositoryImpl(@Nonnull ORMTemplate ormTemplate,
-                                    @Nonnull Model<P, ID> model) {
+    public ProjectionRepositoryImpl(ORMTemplate ormTemplate,
+                                    Model<P, ID> model) {
         super(ormTemplate, model);
     }
 
@@ -44,7 +43,7 @@ public final class ProjectionRepositoryImpl<P extends Projection<ID>, ID>
      * @return a ref projection instance.
      */
     @Override
-    public Ref<P> ref(@Nonnull P projection, @Nonnull ID id) {
+    public Ref<P> ref(P projection, ID id) {
         return ormTemplate.ref(projection, id);
     }
 }

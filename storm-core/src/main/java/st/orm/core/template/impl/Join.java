@@ -17,8 +17,7 @@ package st.orm.core.template.impl;
 
 import static java.util.Objects.requireNonNull;
 
-import jakarta.annotation.Nonnull;
-import jakarta.annotation.Nullable;
+import org.jspecify.annotations.Nullable;
 import st.orm.Element;
 import st.orm.JoinType;
 import st.orm.core.template.impl.Elements.Source;
@@ -36,11 +35,11 @@ import st.orm.core.template.impl.Elements.TemplateTarget;
  * @param autoJoin whether the join must be automatically generated.
  */
 record Join(
-        @Nonnull Source source,
-        @Nonnull String sourceAlias,
-        @Nonnull Target target,
+        Source source,
+        String sourceAlias,
+        Target target,
         @Nullable String targetAlias,
-        @Nonnull JoinType type,
+        JoinType type,
         boolean autoJoin
 ) implements Element {
     Join {
@@ -54,10 +53,10 @@ record Join(
     }
 
     Join (
-            @Nonnull Source source,
-            @Nonnull String sourceAlias,
-            @Nonnull Target target,
-            @Nonnull JoinType type,
+            Source source,
+            String sourceAlias,
+            Target target,
+            JoinType type,
             boolean autoJoin
     ) {
         this(source, sourceAlias, target, null, type, autoJoin);

@@ -15,7 +15,6 @@
  */
 package st.orm.spring.boot.test;
 
-import jakarta.annotation.Nonnull;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -49,15 +48,15 @@ public final class DataStormTypeExcludeFilter extends TypeExcludeFilter {
     private final List<TypeFilter> includeFilters;
     private final List<TypeFilter> excludeFilters;
 
-    DataStormTypeExcludeFilter(@Nonnull DataStormTest annotation) {
+    DataStormTypeExcludeFilter(DataStormTest annotation) {
         this.annotation = annotation;
         this.includeFilters = createFilters(annotation.includeFilters());
         this.excludeFilters = createFilters(annotation.excludeFilters());
     }
 
     @Override
-    public boolean match(@Nonnull MetadataReader metadataReader,
-                         @Nonnull MetadataReaderFactory metadataReaderFactory) throws IOException {
+    public boolean match(MetadataReader metadataReader,
+                         MetadataReaderFactory metadataReaderFactory) throws IOException {
         for (TypeFilter exclude : excludeFilters) {
             if (exclude.match(metadataReader, metadataReaderFactory)) {
                 return true;

@@ -19,7 +19,6 @@ import static java.util.Optional.empty;
 import static st.orm.core.template.impl.RecordReflection.getTableName;
 import static st.orm.core.template.impl.RecordValidation.validateDataType;
 
-import jakarta.annotation.Nonnull;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
@@ -57,7 +56,7 @@ final class QueryModelFactory {
      * @param template the template context used for dialect and table name resolution
      * @param modelBuilder the builder used by the created query model to resolve metamodel information
      */
-    QueryModelFactory(@Nonnull SqlTemplate template, @Nonnull ModelBuilder modelBuilder) {
+    QueryModelFactory(SqlTemplate template, ModelBuilder modelBuilder) {
         this.template = template;
         this.modelBuilder = modelBuilder;
     }
@@ -79,9 +78,9 @@ final class QueryModelFactory {
      * @throws SqlTemplateException if the statement is invalid for model creation
      * @since 1.8
      */
-    Optional<QueryModel> getQueryModel(@Nonnull List<Element> elements,
-                                       @Nonnull TableMapper tableMapper,
-                                       @Nonnull AliasMapper aliasMapper) throws SqlTemplateException{
+    Optional<QueryModel> getQueryModel(List<Element> elements,
+                                       TableMapper tableMapper,
+                                       AliasMapper aliasMapper) throws SqlTemplateException{
         var mutableElements = new ArrayList<>(elements);
         elements = List.copyOf(mutableElements);
         var primaryTable = getPrimaryTable(elements, aliasMapper).orElse(null);
@@ -105,8 +104,8 @@ final class QueryModelFactory {
      * @return the primary table for the sql statement.
      * @throws SqlTemplateException if no primary table is found or if multiple primary tables are found.
      */
-    private Optional<PrimaryTable> getPrimaryTable(@Nonnull List<Element> elements,
-                                                   @Nonnull AliasMapper aliasMapper) throws SqlTemplateException {
+    private Optional<PrimaryTable> getPrimaryTable(List<Element> elements,
+                                                   AliasMapper aliasMapper) throws SqlTemplateException {
         assert elements.stream().noneMatch(Wrapped.class::isInstance);
         PrimaryTable primaryTable = elements.stream()
                 .filter(From.class::isInstance)

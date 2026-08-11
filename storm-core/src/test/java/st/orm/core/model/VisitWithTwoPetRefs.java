@@ -1,9 +1,8 @@
 package st.orm.core.model;
 
-import jakarta.annotation.Nonnull;
-import jakarta.annotation.Nullable;
 import java.time.LocalDate;
 import lombok.Builder;
+import org.jspecify.annotations.Nullable;
 import st.orm.DbColumn;
 import st.orm.DbTable;
 import st.orm.Entity;
@@ -15,7 +14,7 @@ import st.orm.Ref;
 @DbTable("visit")
 public record VisitWithTwoPetRefs(
         @PK Integer id,
-        @Nonnull LocalDate visitDate,
+        LocalDate visitDate,
         @Nullable String description,
         @Nullable @FK @DbColumn("pet_id") Ref<PetOwnerRef> pet1,
         @Nullable @FK @DbColumn("pet_id") Ref<PetOwnerRef> pet2

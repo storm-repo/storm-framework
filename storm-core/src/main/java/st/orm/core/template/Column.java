@@ -15,7 +15,6 @@
  */
 package st.orm.core.template;
 
-import jakarta.annotation.Nonnull;
 import st.orm.Data;
 import st.orm.GenerationStrategy;
 import st.orm.Metamodel;
@@ -44,7 +43,7 @@ public interface Column {
      * @param dialect the SQL dialect.
      * @return the qualified column name.
      */
-    String qualifiedName(@Nonnull SqlDialect dialect);
+    String qualifiedName(SqlDialect dialect);
 
     /**
      * Gets the type of the column.

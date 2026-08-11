@@ -15,9 +15,8 @@
  */
 package st.orm.core.spi;
 
-import jakarta.annotation.Nonnull;
-import jakarta.annotation.Nullable;
 import java.util.List;
+import org.jspecify.annotations.Nullable;
 import st.orm.core.template.SqlTemplateException;
 import st.orm.mapping.RecordField;
 
@@ -38,7 +37,7 @@ public interface ORMConverter {
          * @return the name of the column.
          * @throws SqlTemplateException if an error occurs while resolving the name.
          */
-        Name getName(@Nonnull RecordField field) throws SqlTemplateException;
+        Name getName(RecordField field) throws SqlTemplateException;
     }
 
     /**
@@ -66,7 +65,7 @@ public interface ORMConverter {
      *
      * @return a list of column names.
      */
-    List<Name> getColumns(@Nonnull NameResolver nameResolver) throws SqlTemplateException;
+    List<Name> getColumns(NameResolver nameResolver) throws SqlTemplateException;
 
     /**
      * Converts the given record to a list of values that can be used in the SQL template.
@@ -86,5 +85,5 @@ public interface ORMConverter {
      * @param refFactory the factory for creating references to entities.
      * @throws SqlTemplateException if an error occurs during conversion.
      */
-    Object fromDatabase(@Nonnull Object[] values, @Nonnull RefFactory refFactory) throws SqlTemplateException;
+    Object fromDatabase(Object[] values, RefFactory refFactory) throws SqlTemplateException;
 }

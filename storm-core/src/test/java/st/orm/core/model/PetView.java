@@ -15,10 +15,9 @@
  */
 package st.orm.core.model;
 
-import jakarta.annotation.Nonnull;
-import jakarta.annotation.Nullable;
 import java.time.LocalDate;
 import lombok.Builder;
+import org.jspecify.annotations.Nullable;
 import st.orm.FK;
 import st.orm.PK;
 import st.orm.Persist;
@@ -32,8 +31,8 @@ import st.orm.ProjectionQuery;
 @ProjectionQuery("SELECT * FROM pet")
 public record PetView(
         @PK Integer id,
-        @Nonnull String name,
-        @Nonnull @Persist(updatable = false) LocalDate birthDate,
-        @Nonnull @FK @Persist(updatable = false) PetType type,
+        String name,
+        @Persist(updatable = false) LocalDate birthDate,
+        @FK @Persist(updatable = false) PetType type,
         @Nullable @FK Owner owner
 ) implements Projection<Integer> {}

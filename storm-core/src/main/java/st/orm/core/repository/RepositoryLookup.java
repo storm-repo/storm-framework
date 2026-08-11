@@ -15,7 +15,6 @@
  */
 package st.orm.core.repository;
 
-import jakarta.annotation.Nonnull;
 import st.orm.Entity;
 import st.orm.Projection;
 import st.orm.WriteSet;
@@ -58,7 +57,7 @@ public interface RepositoryLookup {
      * @param <ID> the type of the entity's primary key.
      * @return the repository for the given entity type.
      */
-    <T extends Entity<ID>, ID> EntityRepository<T, ID> entity(@Nonnull Class<T> type);
+    <T extends Entity<ID>, ID> EntityRepository<T, ID> entity(Class<T> type);
 
     /**
      * Returns the repository for the given projection type.
@@ -68,7 +67,7 @@ public interface RepositoryLookup {
      * @param <ID> the type of the projection's primary key, or Void if the projection specifies no primary key.
      * @return the repository for the given projection type.
      */
-    <T extends Projection<ID>, ID> ProjectionRepository<T, ID> projection(@Nonnull Class<T> type);
+    <T extends Projection<ID>, ID> ProjectionRepository<T, ID> projection(Class<T> type);
 
     /**
      * Returns a proxy for the repository of the given type.
@@ -77,7 +76,7 @@ public interface RepositoryLookup {
      * @param <R> the repository type.
      * @return a proxy for the repository of the given type.
      */
-    <R extends Repository> R repository(@Nonnull Class<R> type);
+    <R extends Repository> R repository(Class<R> type);
 
     /**
      * Returns dependency-aware write operations over mixed-type sets of entities.

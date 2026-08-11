@@ -15,11 +15,10 @@
  */
 package st.orm.core.model;
 
-import jakarta.annotation.Nonnull;
-import jakarta.annotation.Nullable;
 import java.time.Instant;
 import java.time.LocalDate;
 import lombok.Builder;
+import org.jspecify.annotations.Nullable;
 import st.orm.DbTable;
 import st.orm.Entity;
 import st.orm.FK;
@@ -33,9 +32,9 @@ import st.orm.Version;
 @DbTable("visit")
 public record VisitWithCompoundFK(
         @PK Integer id,
-        @Nonnull LocalDate visitDate,
+        LocalDate visitDate,
         @Nullable String description,
-        @Nonnull @FK Pet pet,
+        @FK Pet pet,
         @Nullable @FK VetSpecialty vetSpecialty,
         @Version Instant timestamp
 ) implements Entity<Integer> {

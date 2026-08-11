@@ -15,7 +15,6 @@
  */
 package st.orm.core.spi;
 
-import jakarta.annotation.Nonnull;
 import java.util.List;
 
 /**
@@ -55,6 +54,5 @@ public interface CursorCodecProvider {
      *
      * @return codec entries (must not be null or contain null elements).
      */
-    @Nonnull
     List<CursorCodecEntry<?>> codecs();
 }

@@ -17,7 +17,6 @@ package st.orm.mapping;
 
 import static java.util.Objects.requireNonNull;
 
-import jakarta.annotation.Nonnull;
 import java.lang.annotation.Annotation;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.InvocationTargetException;
@@ -38,10 +37,10 @@ import st.orm.PersistenceException;
  * @param fields metadata for all record components, in declaration order.
  * @since 1.7
  */
-public record RecordType(@Nonnull Class<?> type,
-                         @Nonnull Constructor<?> constructor,
-                         @Nonnull List<Annotation> annotations,
-                         @Nonnull List<RecordField> fields) {
+public record RecordType(Class<?> type,
+                         Constructor<?> constructor,
+                         List<Annotation> annotations,
+                         List<RecordField> fields) {
     public RecordType {
         requireNonNull(type, "type must not be null");
         requireNonNull(constructor, "constructor must not be null");
@@ -82,7 +81,7 @@ public record RecordType(@Nonnull Class<?> type,
      * @param annotationType the annotation type to look for
      * @return {@code true} if at least one annotation of the specified type is present
      */
-    public boolean isAnnotationPresent(@Nonnull Class<? extends Annotation> annotationType) {
+    public boolean isAnnotationPresent(Class<? extends Annotation> annotationType) {
         return Annotations.isAnnotationPresent(annotations, annotationType);
     }
 
@@ -96,7 +95,7 @@ public record RecordType(@Nonnull Class<?> type,
      * @param annotationType the annotation type to retrieve
      * @return an array of all matching annotations, or an empty array if none are found
      */
-    public <A extends Annotation> A[] getAnnotations(@Nonnull Class<A> annotationType) {
+    public <A extends Annotation> A[] getAnnotations(Class<A> annotationType) {
         return Annotations.getAnnotations(annotations, annotationType);
     }
 
@@ -112,7 +111,7 @@ public record RecordType(@Nonnull Class<?> type,
      * @param annotationType the annotation type to retrieve
      * @return the annotation if exactly one instance is present, otherwise {@code null}
      */
-    public <A extends Annotation> A getAnnotation(@Nonnull Class<A> annotationType) {
+    public <A extends Annotation> A getAnnotation(Class<A> annotationType) {
         return Annotations.getAnnotation(annotations, annotationType);
     }
 
@@ -128,7 +127,7 @@ public record RecordType(@Nonnull Class<?> type,
      * @throws PersistenceException if instantiation fails, if the number of arguments is incorrect,
      *         if argument types don't match, or if the constructor throws an exception
      */
-    public Object newInstance(@Nonnull Object[] args) {
+    public Object newInstance(Object[] args) {
         try {
             try {
                 // Constructor is expected to be accessible.

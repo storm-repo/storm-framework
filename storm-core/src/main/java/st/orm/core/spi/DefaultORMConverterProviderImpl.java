@@ -19,7 +19,6 @@ import static java.lang.reflect.Modifier.isAbstract;
 import static java.lang.reflect.Modifier.isStatic;
 import static java.util.Objects.requireNonNull;
 
-import jakarta.annotation.Nonnull;
 import java.lang.reflect.ParameterizedType;
 import java.lang.reflect.Type;
 import java.util.ArrayList;
@@ -88,7 +87,7 @@ public class DefaultORMConverterProviderImpl implements ORMConverterProvider {
         return List.copyOf(result);
     }
 
-    private static Converter<?, ?> instantiateConverter(@Nonnull Class<?> converterClass) {
+    private static Converter<?, ?> instantiateConverter(Class<?> converterClass) {
         try {
             return (Converter<?, ?>) converterClass.getDeclaredConstructor().newInstance();
         } catch (ReflectiveOperationException e) {
@@ -99,7 +98,7 @@ public class DefaultORMConverterProviderImpl implements ORMConverterProvider {
     /**
      * Resolve the generic &lt;D, E&gt; types of a Converter&lt;D, E&gt; implementation class.
      */
-    private static ConverterTypes resolveConverterTypes(@Nonnull Class<?> converterClass) {
+    private static ConverterTypes resolveConverterTypes(Class<?> converterClass) {
         // Check all directly implemented interfaces.
         for (Type type : converterClass.getGenericInterfaces()) {
             if (!(type instanceof ParameterizedType pt)) {
@@ -135,7 +134,7 @@ public class DefaultORMConverterProviderImpl implements ORMConverterProvider {
      * @return an Optional containing the ORMConverter if available, or empty if not supported.
      */
     @Override
-    public Optional<ORMConverter> getConverter(@Nonnull RecordField field) {
+    public Optional<ORMConverter> getConverter(RecordField field) {
         requireNonNull(field, "component");
         Convert convert = field.getAnnotation(Convert.class);
         if (convert != null) {
@@ -153,7 +152,7 @@ public class DefaultORMConverterProviderImpl implements ORMConverterProvider {
         return resolveDefaultConverter(field);
     }
 
-    private Optional<ORMConverter> resolveDefaultConverter(@Nonnull RecordField field) {
+    private Optional<ORMConverter> resolveDefaultConverter(RecordField field) {
         ConverterEntry match = null;
         for (ConverterEntry entry : DEFAULT_CONVERTERS) {
             // A converter's entity type must be assignable from the record component type.
@@ -182,8 +181,8 @@ public class DefaultORMConverterProviderImpl implements ORMConverterProvider {
         return Optional.of(ormConverter);
     }
 
-    private ORMConverter createExplicitConverter(@Nonnull RecordField field,
-                                                 @Nonnull Class<?> converterClass) {
+    private ORMConverter createExplicitConverter(RecordField field,
+                                                 Class<?> converterClass) {
         if (!Converter.class.isAssignableFrom(converterClass)) {
             throw new PersistenceException(
                     "@Convert on " + field.type().getName() + "." +

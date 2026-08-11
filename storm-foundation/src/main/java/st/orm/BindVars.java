@@ -15,7 +15,6 @@
  */
 package st.orm;
 
-import jakarta.annotation.Nonnull;
 
 /**
  * Marker interface used within an SQL template to indicate where bind variables (parameters) should be injected.
@@ -37,7 +36,7 @@ public interface BindVars {
          * @param record the record that is being processed.
          * @since 1.2
          */
-        void onRecord(@Nonnull Data record);
+        void onRecord(Data record);
     }
 
     /**
@@ -48,5 +47,5 @@ public interface BindVars {
      * @param listener the consumer to invoke for each bind variable.
      * @since 1.2
      */
-    void setRecordListener(@Nonnull RecordListener listener);
+    void setRecordListener(RecordListener listener);
 }

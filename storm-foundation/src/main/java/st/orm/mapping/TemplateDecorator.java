@@ -15,7 +15,6 @@
  */
 package st.orm.mapping;
 
-import jakarta.annotation.Nonnull;
 
 /**
  * Decorator used for integrations with applications and frameworks.
@@ -30,7 +29,7 @@ public interface TemplateDecorator {
      * @param tableNameResolver the table name resolver.
      * @return a new prepared statement template.
      */
-    TemplateDecorator withTableNameResolver(@Nonnull TableNameResolver tableNameResolver);
+    TemplateDecorator withTableNameResolver(TableNameResolver tableNameResolver);
 
     /**
      * Returns a new prepared statement template with the specified column name resolver.
@@ -38,7 +37,7 @@ public interface TemplateDecorator {
      * @param columnNameResolver the column name resolver.
      * @return a new prepared statement template.
      */
-    TemplateDecorator withColumnNameResolver(@Nonnull ColumnNameResolver columnNameResolver);
+    TemplateDecorator withColumnNameResolver(ColumnNameResolver columnNameResolver);
 
     /**
      * Returns a new prepared statement template with the specified foreign key resolver.
@@ -46,5 +45,5 @@ public interface TemplateDecorator {
      * @param foreignKeyResolver the foreign key resolver.
      * @return a new prepared statement template.
      */
-    TemplateDecorator withForeignKeyResolver(@Nonnull ForeignKeyResolver foreignKeyResolver);
+    TemplateDecorator withForeignKeyResolver(ForeignKeyResolver foreignKeyResolver);
 }

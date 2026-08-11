@@ -17,7 +17,6 @@ package st.orm.core.template.impl;
 
 import static java.util.Optional.empty;
 
-import jakarta.annotation.Nonnull;
 import java.math.BigDecimal;
 import java.nio.ByteBuffer;
 import java.sql.Time;
@@ -63,7 +62,7 @@ final class ValueMapper {
     /**
      * Returns true if the specified type is a leaf value type handled by this mapper.
      */
-    static boolean isValueType(@Nonnull Class<?> type) {
+    static boolean isValueType(Class<?> type) {
         return VALUE_TYPES.contains(type);
     }
 
@@ -74,7 +73,7 @@ final class ValueMapper {
      * @param type the leaf value type to map to.
      * @return an {@link ObjectMapper} that returns the single column value as-is, or empty.
      */
-    static <T> Optional<ObjectMapper<T>> getFactory(int columnCount, @Nonnull Class<T> type) {
+    static <T> Optional<ObjectMapper<T>> getFactory(int columnCount, Class<T> type) {
         if (columnCount != 1 || !isValueType(type)) {
             return empty();
         }
@@ -86,7 +85,7 @@ final class ValueMapper {
 
             @SuppressWarnings("unchecked")
             @Override
-            public T newInstance(@Nonnull Object[] args) {
+            public T newInstance(Object[] args) {
                 return (T) args[0];
             }
         });
