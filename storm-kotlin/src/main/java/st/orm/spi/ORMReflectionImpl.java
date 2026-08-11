@@ -22,8 +22,6 @@ import static java.util.Optional.empty;
 import static java.util.Optional.ofNullable;
 import static java.util.stream.Collectors.toList;
 
-import jakarta.annotation.Nonnull;
-import jakarta.annotation.Nullable;
 import java.lang.annotation.Annotation;
 import java.lang.invoke.MethodHandle;
 import java.lang.invoke.MethodHandles;
@@ -53,6 +51,7 @@ import kotlin.reflect.KType;
 import kotlin.reflect.KVisibility;
 import kotlin.reflect.full.KClasses;
 import kotlin.reflect.jvm.ReflectJvmMapping;
+import org.jspecify.annotations.Nullable;
 import st.orm.Data;
 import st.orm.PK;
 import st.orm.PersistenceException;
@@ -85,7 +84,7 @@ public class ORMReflectionImpl implements ORMReflection {
     }
 
     @Override
-    public Object getId(@Nonnull Data data) {
+    public Object getId(Data data) {
         return PK_FIELD_CACHE.computeIfAbsent(data.getClass(), ignore ->
                         getRecordType(data.getClass()).fields().stream()
                                 .filter(field -> field.isAnnotationPresent(PK.class))
@@ -96,12 +95,12 @@ public class ORMReflectionImpl implements ORMReflection {
     }
 
     @Override
-    public Object getRecordValue(@Nonnull Object record, int index) {
+    public Object getRecordValue(Object record, int index) {
         return invoke(getRecordType(record.getClass()).fields().get(index), record);
     }
 
     @Override
-    public Optional<RecordType> findRecordType(@Nonnull Class<?> type) {
+    public Optional<RecordType> findRecordType(Class<?> type) {
         return TYPE_CACHE.computeIfAbsent(type, ignore -> {
             if (isKotlinDataClass(type)) {
                 KClass<?> kClass = JvmClassMappingKt.getKotlinClass(type);
@@ -161,7 +160,7 @@ public class ORMReflectionImpl implements ORMReflection {
         });
     }
 
-    private KProperty1<?, ?> findVarProperty(@Nonnull KClass<?> kClass) {
+    private KProperty1<?, ?> findVarProperty(KClass<?> kClass) {
         for (KProperty1<?, ?> prop : KClasses.getMemberProperties(kClass)) {
             if (prop instanceof KMutableProperty1<?, ?>) {
                 return prop;
@@ -263,7 +262,7 @@ public class ORMReflectionImpl implements ORMReflection {
         return asList(constructor.getParameters()[index].getAnnotations());
     }
 
-    private Optional<Constructor<?>> findCanonicalConstructor(@Nonnull Class<?> type) {
+    private Optional<Constructor<?>> findCanonicalConstructor(Class<?> type) {
         return CONSTRUCTOR_CACHE.computeIfAbsent(type, ignore -> {
             if (!isKotlinDataClass(type)) {
                 return empty();
@@ -304,7 +303,7 @@ public class ORMReflectionImpl implements ORMReflection {
     }
 
     @Override
-    public Class<?> getType(@Nonnull Object clazz) {
+    public Class<?> getType(Object clazz) {
         if (defaultReflection.isSupportedType(clazz)) {
             return defaultReflection.getType(clazz);
         }
@@ -321,13 +320,13 @@ public class ORMReflectionImpl implements ORMReflection {
     }
 
     @Override
-    public Class<? extends Data> getDataType(@Nonnull Object clazz) {
+    public Class<? extends Data> getDataType(Object clazz) {
         Class<?> o = getType(clazz);
         return toData(o);
     }
 
     @Override
-    public boolean isSupportedType(@Nonnull Object clazz) {
+    public boolean isSupportedType(Object clazz) {
         return defaultReflection.isSupportedType(clazz) || clazz instanceof KClass;
     }
 
@@ -337,14 +336,14 @@ public class ORMReflectionImpl implements ORMReflection {
     }
 
     @Override
-    public <T> List<Class<? extends T>> getPermittedSubclasses(@Nonnull Class<T> sealedClass) {
+    public <T> List<Class<? extends T>> getPermittedSubclasses(Class<T> sealedClass) {
         return JvmClassMappingKt.getKotlinClass(sealedClass).getSealedSubclasses().stream()
                 .map(JvmClassMappingKt::getJavaClass)
                 .collect(toList());
     }
 
     @Override
-    public boolean isDefaultMethod(@Nonnull Method method) {
+    public boolean isDefaultMethod(Method method) {
         if (defaultReflection.isDefaultMethod(method)) {
             return true;
         }
@@ -353,15 +352,15 @@ public class ORMReflectionImpl implements ORMReflection {
     }
 
     @Override
-    public Object invoke(@Nonnull RecordField field, @Nonnull Object record) {
+    public Object invoke(RecordField field, Object record) {
         return defaultReflection.invoke(field, record);
     }
 
-    record MethodCacheKey(@Nonnull List<Class<?>> interfaces, @Nonnull Method method) {}
+    record MethodCacheKey(List<Class<?>> interfaces, Method method) {}
     private static final ConcurrentMap<MethodCacheKey, MethodHandle> METHOD_HANDLE_CACHE = new ConcurrentHashMap<>();
 
     @Override
-    public Object execute(@Nonnull Object proxy, @Nonnull Method method, @Nonnull Object... args) throws Throwable {
+    public Object execute(Object proxy, Method method, Object... args) throws Throwable {
         if (defaultReflection.isDefaultMethod(method)) {
             return defaultReflection.execute(proxy, method, args);
         }
@@ -378,7 +377,7 @@ public class ORMReflectionImpl implements ORMReflection {
         return methodHandle.bindTo(proxy).invokeWithArguments(args);
     }
 
-    private MethodHandle findKotlinDefault(@Nonnull List<Class<?>> interfaces, @Nonnull Method method) throws Throwable {
+    private MethodHandle findKotlinDefault(List<Class<?>> interfaces, Method method) throws Throwable {
         if (interfaces.size() != 1) {
             throw new IllegalArgumentException("Single interface expected for proxy.");
         }
@@ -404,10 +403,10 @@ public class ORMReflectionImpl implements ORMReflection {
                 .orElseThrow(() -> new NoSuchMethodError("No Kotlin DefaultImpls for %s.".formatted(method)));
     }
 
-    private MethodHandle scanMethods(@Nonnull Method[] candidates,
-                                     @Nonnull Class<?> iface,
-                                     @Nonnull Method method,
-                                     @Nonnull MethodHandles.Lookup lookup) {
+    private MethodHandle scanMethods(Method[] candidates,
+                                     Class<?> iface,
+                                     Method method,
+                                     MethodHandles.Lookup lookup) {
         Class<?>[] originalParams = method.getParameterTypes();
         int needed = originalParams.length + 1;
         for (Method m : candidates) {

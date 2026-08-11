@@ -19,7 +19,6 @@ import static java.lang.StringTemplate.RAW;
 import static st.orm.Operator.EQUALS;
 import static st.orm.Operator.IN;
 
-import jakarta.annotation.Nonnull;
 import st.orm.Data;
 import st.orm.Navigable;
 import st.orm.Operator;
@@ -80,7 +79,7 @@ public abstract class WhereBuilder<T extends Data, R, ID> implements SubqueryTem
      * @param subquery the subquery to check for existence.
      * @return the updated {@link PredicateBuilder} with the EXISTS condition applied.
      */
-    public abstract PredicateBuilder<T, R, ID> exists(@Nonnull QueryBuilder<?, ?, ?> subquery);
+    public abstract PredicateBuilder<T, R, ID> exists(QueryBuilder<?, ?, ?> subquery);
 
     /**
      * Adds an <code>NOT EXISTS</code> condition to the WHERE clause using the specified subquery.
@@ -93,7 +92,7 @@ public abstract class WhereBuilder<T extends Data, R, ID> implements SubqueryTem
      * @param subquery the subquery to check for existence.
      * @return the updated {@link PredicateBuilder} with the NOT EXISTS condition applied.
      */
-    public abstract PredicateBuilder<T, R, ID> notExists(@Nonnull QueryBuilder<?, ?, ?> subquery);
+    public abstract PredicateBuilder<T, R, ID> notExists(QueryBuilder<?, ?, ?> subquery);
 
     /**
      * Adds a condition to the WHERE clause that matches the specified primary key of the table.
@@ -101,7 +100,7 @@ public abstract class WhereBuilder<T extends Data, R, ID> implements SubqueryTem
      * @param id the id to match.
      * @return the predicate builder.
      */
-    public abstract PredicateBuilder<T, R, ID> whereId(@Nonnull ID id);
+    public abstract PredicateBuilder<T, R, ID> whereId(ID id);
 
     /**
      * Adds a condition to the WHERE clause that matches the specified primary key of the table, expressed by a ref.
@@ -110,7 +109,7 @@ public abstract class WhereBuilder<T extends Data, R, ID> implements SubqueryTem
      * @return the predicate builder.
      * @since 1.3
      */
-    public abstract PredicateBuilder<T, R, ID> whereRef(@Nonnull Ref<T> ref);
+    public abstract PredicateBuilder<T, R, ID> whereRef(Ref<T> ref);
 
     /**
      * Adds a condition to the WHERE clause that matches the specified record.
@@ -118,7 +117,7 @@ public abstract class WhereBuilder<T extends Data, R, ID> implements SubqueryTem
      * @param record the record to match.
      * @return the predicate builder.
      */
-    public abstract PredicateBuilder<T, R, ID> where(@Nonnull T record);
+    public abstract PredicateBuilder<T, R, ID> where(T record);
 
     /**
      * Adds a condition to the WHERE clause that matches the specified primary keys of the table.
@@ -127,7 +126,7 @@ public abstract class WhereBuilder<T extends Data, R, ID> implements SubqueryTem
      * @return the predicate builder.
      * @since 1.2
      */
-    public abstract PredicateBuilder<T, R, ID> whereId(@Nonnull Iterable<? extends ID> it);
+    public abstract PredicateBuilder<T, R, ID> whereId(Iterable<? extends ID> it);
 
     /**
      * Adds a condition to the WHERE clause that matches the specified primary keys of the table, expressed by a ref.
@@ -136,7 +135,7 @@ public abstract class WhereBuilder<T extends Data, R, ID> implements SubqueryTem
      * @return the predicate builder.
      * @since 1.3
      */
-    public abstract PredicateBuilder<T, R, ID> whereRef(@Nonnull Iterable<? extends Ref<T>> it);
+    public abstract PredicateBuilder<T, R, ID> whereRef(Iterable<? extends Ref<T>> it);
 
     /**
      * Adds a condition to the WHERE clause that matches the specified records.
@@ -144,7 +143,7 @@ public abstract class WhereBuilder<T extends Data, R, ID> implements SubqueryTem
      * @param it the records to match.
      * @return the predicate builder.
      */
-    public abstract PredicateBuilder<T, R, ID> where(@Nonnull Iterable<? extends T> it);
+    public abstract PredicateBuilder<T, R, ID> where(Iterable<? extends T> it);
 
     /**
      * Adds a condition to the WHERE clause that matches the specified record. The record can represent any of
@@ -154,7 +153,7 @@ public abstract class WhereBuilder<T extends Data, R, ID> implements SubqueryTem
      * @param record the records to match.
      * @return the predicate builder.
      */
-    public final <V extends Data> PredicateBuilder<T, R, ID> where(@Nonnull Navigable<? extends T, V> path, @Nonnull V record) {
+    public final <V extends Data> PredicateBuilder<T, R, ID> where(Navigable<? extends T, V> path, V record) {
         return where(path, EQUALS, record);
     }
 
@@ -167,7 +166,7 @@ public abstract class WhereBuilder<T extends Data, R, ID> implements SubqueryTem
      * @return the predicate builder.
      * @since 1.3
      */
-    public abstract <V extends Data> PredicateBuilder<T, R, ID> where(@Nonnull Navigable<? extends T, V> path, @Nonnull Ref<V> ref);
+    public abstract <V extends Data> PredicateBuilder<T, R, ID> where(Navigable<? extends T, V> path, Ref<V> ref);
 
     /**
      * Adds a condition to the WHERE clause that matches the specified refs. The refs can represent any of
@@ -178,7 +177,7 @@ public abstract class WhereBuilder<T extends Data, R, ID> implements SubqueryTem
      * @return the predicate builder.
      * @since 1.3
      */
-    public abstract <V extends Data> PredicateBuilder<T, R, ID> whereRef(@Nonnull Navigable<? extends T, V> path, @Nonnull Iterable<? extends Ref<V>> it);
+    public abstract <V extends Data> PredicateBuilder<T, R, ID> whereRef(Navigable<? extends T, V> path, Iterable<? extends Ref<V>> it);
 
     /**
      * Adds a condition to the WHERE clause that matches the specified records. The records can represent any of
@@ -188,7 +187,7 @@ public abstract class WhereBuilder<T extends Data, R, ID> implements SubqueryTem
      * @param it   the records to match.
      * @return the predicate builder.
      */
-    public final <V extends Data> PredicateBuilder<T, R, ID> where(@Nonnull Navigable<? extends T, V> path, @Nonnull Iterable<V> it) {
+    public final <V extends Data> PredicateBuilder<T, R, ID> where(Navigable<? extends T, V> path, Iterable<V> it) {
         return where(path, IN, it);
     }
 
@@ -204,9 +203,9 @@ public abstract class WhereBuilder<T extends Data, R, ID> implements SubqueryTem
      * @return the query builder.
      * @since 1.2
      */
-    public abstract <V> PredicateBuilder<T, R, ID> where(@Nonnull Navigable<? extends T, V> path,
-                                                         @Nonnull Operator operator,
-                                                         @Nonnull Iterable<? extends V> it);
+    public abstract <V> PredicateBuilder<T, R, ID> where(Navigable<? extends T, V> path,
+                                                         Operator operator,
+                                                         Iterable<? extends V> it);
 
     /**
      * Adds a condition to the WHERE clause that matches the specified objects at the specified path in the table
@@ -221,9 +220,9 @@ public abstract class WhereBuilder<T extends Data, R, ID> implements SubqueryTem
      * @since 1.2
      */
     @SafeVarargs
-    public final <V> PredicateBuilder<T, R, ID> where(@Nonnull Navigable<? extends T, V> path,
-                                                      @Nonnull Operator operator,
-                                                      @Nonnull V... o) {
+    public final <V> PredicateBuilder<T, R, ID> where(Navigable<? extends T, V> path,
+                                                      Operator operator,
+                                                      V... o) {
         return whereImpl(path, operator, o);
     }
 
@@ -233,7 +232,7 @@ public abstract class WhereBuilder<T extends Data, R, ID> implements SubqueryTem
      * @param template the expression to add.
      * @return the predicate builder.
      */
-    public abstract PredicateBuilder<T, R, ID> where(@Nonnull StringTemplate template);
+    public abstract PredicateBuilder<T, R, ID> where(StringTemplate template);
 
     /**
      * Adds a condition to the WHERE clause that matches the specified objects at the specified path in the table
@@ -247,7 +246,7 @@ public abstract class WhereBuilder<T extends Data, R, ID> implements SubqueryTem
      * @return the query builder.
      * @since 1.2
      */
-    protected abstract <V> PredicateBuilder<T, R, ID> whereImpl(@Nonnull Navigable<? extends T, V> path,
-                                                                @Nonnull Operator operator,
-                                                                @Nonnull V[] o);
+    protected abstract <V> PredicateBuilder<T, R, ID> whereImpl(Navigable<? extends T, V> path,
+                                                                Operator operator,
+                                                                V[] o);
 }

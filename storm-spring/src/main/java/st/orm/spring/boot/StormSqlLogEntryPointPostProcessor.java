@@ -15,8 +15,6 @@
  */
 package st.orm.spring.boot;
 
-import jakarta.annotation.Nonnull;
-import jakarta.annotation.Nullable;
 import java.lang.annotation.Annotation;
 import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
@@ -26,6 +24,7 @@ import java.util.List;
 import java.util.Set;
 import org.aopalliance.intercept.MethodInterceptor;
 import org.aopalliance.intercept.MethodInvocation;
+import org.jspecify.annotations.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.aop.framework.Advised;
@@ -76,7 +75,7 @@ public class StormSqlLogEntryPointPostProcessor implements BeanPostProcessor, Or
      * @param statementThreshold number of statements above which an invocation is reported, or {@code null}.
      * @param durationThreshold invocation duration above which an invocation is reported, or {@code null}.
      */
-    public StormSqlLogEntryPointPostProcessor(@Nonnull Set<String> entryPointAnnotations,
+    public StormSqlLogEntryPointPostProcessor(Set<String> entryPointAnnotations,
                                                 int limit,
                                                 boolean callSites,
                                                 @Nullable Integer statementThreshold,
@@ -98,7 +97,7 @@ public class StormSqlLogEntryPointPostProcessor implements BeanPostProcessor, Or
     }
 
     @Override
-    public Object postProcessAfterInitialization(@Nonnull Object bean, @Nonnull String beanName) {
+    public Object postProcessAfterInitialization(Object bean, String beanName) {
         if (entryPointAnnotations.isEmpty()) {
             return bean;
         }
@@ -138,7 +137,7 @@ public class StormSqlLogEntryPointPostProcessor implements BeanPostProcessor, Or
         return proxyFactory.getProxy(targetClass.getClassLoader());
     }
 
-    private boolean isEntryPoint(@Nonnull Method method) {
+    private boolean isEntryPoint(Method method) {
         for (Annotation annotation : method.getDeclaredAnnotations()) {
             if (entryPointAnnotations.contains(annotation.annotationType().getName())) {
                 return true;
@@ -150,7 +149,7 @@ public class StormSqlLogEntryPointPostProcessor implements BeanPostProcessor, Or
     /** Routes only the entry points through the interceptor; every other method of the bean stays untouched. */
     private final class EntryPointPointcut extends StaticMethodMatcherPointcut {
         @Override
-        public boolean matches(@Nonnull Method method, @Nonnull Class<?> targetClass) {
+        public boolean matches(Method method, Class<?> targetClass) {
             return isEntryPoint(AopUtils.getMostSpecificMethod(method, targetClass));
         }
     }
@@ -159,12 +158,12 @@ public class StormSqlLogEntryPointPostProcessor implements BeanPostProcessor, Or
     private final class EntryPointInterceptor implements MethodInterceptor {
         private final Class<?> targetClass;
 
-        private EntryPointInterceptor(@Nonnull Class<?> targetClass) {
+        private EntryPointInterceptor(Class<?> targetClass) {
             this.targetClass = targetClass;
         }
 
         @Override
-        public Object invoke(@Nonnull MethodInvocation invocation) throws Throwable {
+        public Object invoke(MethodInvocation invocation) throws Throwable {
             boolean thresholded = statementThreshold != null || durationThreshold != null;
             if (!SqlLogReporting.consumes(LOGGER, thresholded)) {
                 // Nothing consumes the summary, so do not open a scope to build one.

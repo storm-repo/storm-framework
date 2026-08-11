@@ -9,13 +9,12 @@ import static st.orm.UpdateMode.FIELD;
 import static st.orm.UpdateMode.OFF;
 import static st.orm.core.template.SqlInterceptor.observe;
 
-import jakarta.annotation.Nonnull;
-import jakarta.annotation.Nullable;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.util.concurrent.atomic.AtomicReference;
 import javax.sql.DataSource;
 import lombok.Builder;
+import org.jspecify.annotations.Nullable;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -46,9 +45,9 @@ public class DynamicUpdateIntegrationTest {
     @DbTable("visit")
     public record VisitOffDefault(
             @PK Integer id,
-            @Nonnull LocalDate visitDate,
+            LocalDate visitDate,
             @Nullable String description,
-            @Nonnull @FK Pet pet,
+            @FK Pet pet,
             @Version Instant timestamp
     ) implements Entity<Integer> {}
 
@@ -57,9 +56,9 @@ public class DynamicUpdateIntegrationTest {
     @DbTable("visit")
     public record VisitOffValue(
             @PK Integer id,
-            @Nonnull LocalDate visitDate,
+            LocalDate visitDate,
             @Nullable String description,
-            @Nonnull @FK Pet pet,
+            @FK Pet pet,
             @Version Instant timestamp
     ) implements Entity<Integer> {}
 
@@ -68,9 +67,9 @@ public class DynamicUpdateIntegrationTest {
     @DbTable("visit")
     public record VisitEntityDefault(
             @PK Integer id,
-            @Nonnull LocalDate visitDate,
+            LocalDate visitDate,
             @Nullable String description,
-            @Nonnull @FK Pet pet,
+            @FK Pet pet,
             @Version Instant timestamp
     ) implements Entity<Integer> {}
 
@@ -79,9 +78,9 @@ public class DynamicUpdateIntegrationTest {
     @DbTable("visit")
     public record VisitEntityValue(
             @PK Integer id,
-            @Nonnull LocalDate visitDate,
+            LocalDate visitDate,
             @Nullable String description,
-            @Nonnull @FK Pet pet,
+            @FK Pet pet,
             @Version Instant timestamp
     ) implements Entity<Integer> {}
 
@@ -90,9 +89,9 @@ public class DynamicUpdateIntegrationTest {
     @DbTable("visit")
     public record VisitFieldDefault(
             @PK Integer id,
-            @Nonnull LocalDate visitDate,
+            LocalDate visitDate,
             @Nullable String description,
-            @Nonnull @FK Pet pet,
+            @FK Pet pet,
             @Version Instant timestamp
     ) implements Entity<Integer> {}
 
@@ -101,9 +100,9 @@ public class DynamicUpdateIntegrationTest {
     @DbTable("visit")
     public record VisitFieldValue(
             @PK Integer id,
-            @Nonnull LocalDate visitDate,
+            LocalDate visitDate,
             @Nullable String description,
-            @Nonnull @FK Pet pet,
+            @FK Pet pet,
             @Version Instant timestamp
     ) implements Entity<Integer> {}
 

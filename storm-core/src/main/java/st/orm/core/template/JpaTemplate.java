@@ -15,7 +15,6 @@
  */
 package st.orm.core.template;
 
-import jakarta.annotation.Nonnull;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.Query;
 import java.util.function.Predicate;
@@ -40,7 +39,7 @@ public interface JpaTemplate extends TemplateDecorator {
      * @param entityManager the entity manager.
      * @return the JPA template.
      */
-    static JpaTemplate of(@Nonnull EntityManager entityManager) {
+    static JpaTemplate of(EntityManager entityManager) {
         return new JpaTemplateImpl(entityManager);
     }
 
@@ -51,7 +50,7 @@ public interface JpaTemplate extends TemplateDecorator {
      * @param config the Storm configuration to apply.
      * @return the JPA template.
      */
-    static JpaTemplate of(@Nonnull EntityManager entityManager, @Nonnull StormConfig config) {
+    static JpaTemplate of(EntityManager entityManager, StormConfig config) {
         return new JpaTemplateImpl(entityManager, config);
     }
 
@@ -61,7 +60,7 @@ public interface JpaTemplate extends TemplateDecorator {
      * @param entityManager the entity manager.
      * @return the ORM template.
      */
-    static ORMTemplate ORM(@Nonnull EntityManager entityManager) {
+    static ORMTemplate ORM(EntityManager entityManager) {
         return new JpaTemplateImpl(entityManager).toORM();
     }
 
@@ -72,8 +71,8 @@ public interface JpaTemplate extends TemplateDecorator {
      * @param decorator a function that transforms the {@link TemplateDecorator} to customize template processing.
      * @return the ORM template.
      */
-    static ORMTemplate ORM(@Nonnull EntityManager entityManager,
-                           @Nonnull UnaryOperator<TemplateDecorator> decorator) {
+    static ORMTemplate ORM(EntityManager entityManager,
+                           UnaryOperator<TemplateDecorator> decorator) {
         var template = new JpaTemplateImpl(entityManager);
         var decorated = decorator.apply(template);
         if (!(decorated instanceof JpaTemplateImpl)) {
@@ -89,7 +88,7 @@ public interface JpaTemplate extends TemplateDecorator {
      * @param config the Storm configuration to apply.
      * @return the ORM template.
      */
-    static ORMTemplate ORM(@Nonnull EntityManager entityManager, @Nonnull StormConfig config) {
+    static ORMTemplate ORM(EntityManager entityManager, StormConfig config) {
         return new JpaTemplateImpl(entityManager, config).toORM();
     }
 
@@ -102,8 +101,8 @@ public interface JpaTemplate extends TemplateDecorator {
      * @param decorator a function that transforms the {@link TemplateDecorator} to customize template processing.
      * @return the ORM template.
      */
-    static ORMTemplate ORM(@Nonnull EntityManager entityManager, @Nonnull StormConfig config,
-                           @Nonnull UnaryOperator<TemplateDecorator> decorator) {
+    static ORMTemplate ORM(EntityManager entityManager, StormConfig config,
+                           UnaryOperator<TemplateDecorator> decorator) {
         var template = new JpaTemplateImpl(entityManager, config);
         var decorated = decorator.apply(template);
         if (!(decorated instanceof JpaTemplateImpl)) {
@@ -124,7 +123,7 @@ public interface JpaTemplate extends TemplateDecorator {
      * @return a new JPA template.
      */
     @Override
-    JpaTemplate withTableNameResolver(@Nonnull TableNameResolver tableNameResolver);
+    JpaTemplate withTableNameResolver(TableNameResolver tableNameResolver);
 
     /**
      * Returns a new JPA template with the specified column name resolver.
@@ -133,7 +132,7 @@ public interface JpaTemplate extends TemplateDecorator {
      * @return a new JPA template.
      */
     @Override
-    JpaTemplate withColumnNameResolver(@Nonnull ColumnNameResolver columnNameResolver);
+    JpaTemplate withColumnNameResolver(ColumnNameResolver columnNameResolver);
 
     /**
      * Returns a new JPA template with the specified foreign key resolver.
@@ -142,7 +141,7 @@ public interface JpaTemplate extends TemplateDecorator {
      * @return a new JPA template.
      */
     @Override
-    JpaTemplate withForeignKeyResolver(@Nonnull ForeignKeyResolver foreignKeyResolver);
+    JpaTemplate withForeignKeyResolver(ForeignKeyResolver foreignKeyResolver);
 
     /**
      * Returns a new JPA template with the specified table alias resolver.
@@ -150,7 +149,7 @@ public interface JpaTemplate extends TemplateDecorator {
      * @param tableAliasResolver the table alias resolver.
      * @return a new JPA template.
      */
-    JpaTemplate withTableAliasResolver(@Nonnull TableAliasResolver tableAliasResolver);
+    JpaTemplate withTableAliasResolver(TableAliasResolver tableAliasResolver);
 
     /**
      * Returns a new JPA template with the specified provider filter.
@@ -158,7 +157,7 @@ public interface JpaTemplate extends TemplateDecorator {
      * @param providerFilter the provider filter.
      * @return a new JPA template.
      */
-    JpaTemplate withProviderFilter(@Nonnull Predicate<Provider> providerFilter);
+    JpaTemplate withProviderFilter(Predicate<Provider> providerFilter);
 
     /**
      * Creates a query for the specified query {@code template}.
@@ -166,5 +165,5 @@ public interface JpaTemplate extends TemplateDecorator {
      * @param template the query template.
      * @return the query.
      */
-    Query query(@Nonnull TemplateString template);
+    Query query(TemplateString template);
 }

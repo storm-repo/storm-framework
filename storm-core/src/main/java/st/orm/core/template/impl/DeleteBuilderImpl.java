@@ -19,7 +19,6 @@ import static st.orm.core.template.TemplateString.wrap;
 import static st.orm.core.template.Templates.from;
 import static st.orm.core.template.Templates.subquery;
 
-import jakarta.annotation.Nonnull;
 import java.util.List;
 import java.util.function.Supplier;
 import java.util.stream.Stream;
@@ -44,18 +43,18 @@ public class DeleteBuilderImpl<T extends Data, ID> extends QueryBuilderImpl<T, O
 
     private final boolean unsafe;
 
-    public DeleteBuilderImpl(@Nonnull QueryTemplate queryTemplate, @Nonnull Class<T> fromType, @Nonnull Supplier<Model<T, ID>> modelSupplier) {
+    public DeleteBuilderImpl(QueryTemplate queryTemplate, Class<T> fromType, Supplier<Model<T, ID>> modelSupplier) {
         this(queryTemplate, fromType, List.of(), List.of(), List.of(), List.of(), List.of(), modelSupplier, false);
     }
 
-    private DeleteBuilderImpl(@Nonnull QueryTemplate queryTemplate,
-                              @Nonnull Class<T> fromType,
-                              @Nonnull List<Join> join,
-                              @Nonnull List<Where> where,
-                              @Nonnull List<TemplateString> groupBy,
-                              @Nonnull List<TemplateString> having,
-                              @Nonnull List<TemplateString> orderBy,
-                              @Nonnull Supplier<Model<T, ID>> modelSupplier,
+    private DeleteBuilderImpl(QueryTemplate queryTemplate,
+                              Class<T> fromType,
+                              List<Join> join,
+                              List<Where> where,
+                              List<TemplateString> groupBy,
+                              List<TemplateString> having,
+                              List<TemplateString> orderBy,
+                              Supplier<Model<T, ID>> modelSupplier,
                               boolean unsafe) {
         super(queryTemplate, fromType, join, where, groupBy, having, orderBy, modelSupplier);
         this.unsafe = unsafe;
@@ -85,13 +84,13 @@ public class DeleteBuilderImpl<T extends Data, ID> extends QueryBuilderImpl<T, O
      * @return a new query builder.
      */
     @Override
-    QueryBuilder<T, Object, ID> copyWith(@Nonnull QueryTemplate queryTemplate,
-                                         @Nonnull Class<T> fromType,
-                                         @Nonnull List<Join> join,
-                                         @Nonnull List<Where> where,
-                                         @Nonnull List<TemplateString> groupBy,
-                                         @Nonnull List<TemplateString> having,
-                                         @Nonnull List<TemplateString> orderBy) {
+    QueryBuilder<T, Object, ID> copyWith(QueryTemplate queryTemplate,
+                                         Class<T> fromType,
+                                         List<Join> join,
+                                         List<Where> where,
+                                         List<TemplateString> groupBy,
+                                         List<TemplateString> having,
+                                         List<TemplateString> orderBy) {
         return new DeleteBuilderImpl<>(queryTemplate, fromType, join, where, groupBy, having, orderBy, modelSupplier, unsafe);
     }
 
@@ -171,7 +170,7 @@ public class DeleteBuilderImpl<T extends Data, ID> extends QueryBuilderImpl<T, O
      * @throws PersistenceException if the lock mode is not supported for the current query.
      */
     @Override
-    public QueryBuilder<T, Object, ID> forLock(@Nonnull TemplateString template) {
+    public QueryBuilder<T, Object, ID> forLock(TemplateString template) {
         throw new PersistenceException("Cannot use FOR LOCK in a DELETE query.");
     }
 
@@ -255,12 +254,12 @@ public class DeleteBuilderImpl<T extends Data, ID> extends QueryBuilderImpl<T, O
         // applies it to every query it produces.
         return new QueryPlan() {
             @Override
-            public Query bind(@Nonnull Data record) {
+            public Query bind(Data record) {
                 return plan.bind(record).unsafe();
             }
 
             @Override
-            public Query bindValue(@Nonnull Object id) {
+            public Query bindValue(Object id) {
                 return plan.bindValue(id).unsafe();
             }
 

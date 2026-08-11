@@ -17,7 +17,6 @@ package st.orm.mapping;
 
 import static java.lang.Character.toLowerCase;
 
-import jakarta.annotation.Nonnull;
 
 /**
  * Helper class for name resolution.
@@ -36,7 +35,7 @@ final class NameResolver {
      * @param name the name to convert.
      * @return the converted name.
      */
-    static String camelCaseToSnakeCase(@Nonnull String name) {
+    static String camelCaseToSnakeCase(String name) {
         StringBuilder columnName = new StringBuilder();
         columnName.append(toLowerCase(name.charAt(0)));
         for (int i = 1; i < name.length(); i++) {

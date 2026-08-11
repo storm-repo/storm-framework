@@ -6,13 +6,12 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static st.orm.GenerationStrategy.SEQUENCE;
 
-import jakarta.annotation.Nonnull;
-import jakarta.annotation.Nullable;
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
 import javax.sql.DataSource;
 import lombok.Builder;
+import org.jspecify.annotations.Nullable;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -44,8 +43,8 @@ public class H2WriteSetTest {
     @Builder(toBuilder = true)
     public record Owner(
             @PK Integer id,
-            @Nonnull String firstName,
-            @Nonnull String lastName,
+            String firstName,
+            String lastName,
             @Nullable String telephone,
             @Version int version
     ) implements Entity<Integer> {}
@@ -53,16 +52,16 @@ public class H2WriteSetTest {
     @Builder(toBuilder = true)
     public record PetType(
             @PK Integer id,
-            @Nonnull String name
+            String name
     ) implements Entity<Integer> {}
 
     @Builder(toBuilder = true)
     @DbTable("pet")
     public record Pet(
             @PK(generation = SEQUENCE, sequence = "pet_id_seq") Integer id,
-            @Nonnull String name,
-            @Nonnull LocalDate birthDate,
-            @Nonnull @FK PetType type,
+            String name,
+            LocalDate birthDate,
+            @FK PetType type,
             @Nullable @FK Owner owner
     ) implements Entity<Integer> {}
 

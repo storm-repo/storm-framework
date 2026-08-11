@@ -15,7 +15,6 @@
  */
 package st.orm.core.spi;
 
-import jakarta.annotation.Nonnull;
 import java.util.function.Consumer;
 
 /**
@@ -36,14 +35,14 @@ public interface TransactionCallbacks {
      *
      * @param callback the callback to invoke after commit.
      */
-    void addOnCommit(@Nonnull Runnable callback);
+    void addOnCommit(Runnable callback);
 
     /**
      * Registers a callback invoked after the physical transaction rolls back.
      *
      * @param callback the callback to invoke after rollback.
      */
-    void addOnRollback(@Nonnull Runnable callback);
+    void addOnRollback(Runnable callback);
 
     /**
      * Registers a callback invoked after the physical transaction completes, receiving {@code true} when the
@@ -54,5 +53,5 @@ public interface TransactionCallbacks {
      *
      * @param callback the callback to invoke after completion.
      */
-    void addOnCompletion(@Nonnull Consumer<Boolean> callback);
+    void addOnCompletion(Consumer<Boolean> callback);
 }

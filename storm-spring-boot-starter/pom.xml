@@ -105,6 +105,11 @@
     </build>
     <dependencies>
         <dependency>
+            <groupId>org.jspecify</groupId>
+            <artifactId>jspecify</artifactId>
+            <optional>true</optional>
+        </dependency>
+        <dependency>
             <groupId>st.orm</groupId>
             <artifactId>storm-spring</artifactId>
             <version>${project.version}</version>

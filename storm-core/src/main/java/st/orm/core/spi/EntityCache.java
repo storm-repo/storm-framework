@@ -15,7 +15,6 @@
  */
 package st.orm.core.spi;
 
-import jakarta.annotation.Nonnull;
 import java.util.Optional;
 import st.orm.Entity;
 
@@ -67,7 +66,7 @@ public interface EntityCache<E extends Entity<ID>, ID> {
      * @return an {@link Optional} containing the cached entity if present and still available, or
      * {@link Optional#empty()} otherwise.
      */
-    Optional<E> get(@Nonnull ID pk);
+    Optional<E> get(ID pk);
 
     /**
      * Returns a canonical instance for the given entity within this cache.
@@ -82,14 +81,14 @@ public interface EntityCache<E extends Entity<ID>, ID> {
      * @param entity the entity to intern.
      * @return the canonical cached instance for the entity's primary key.
      */
-    E intern(@Nonnull E entity);
+    E intern(E entity);
 
     /**
      * Removes the cached entry for the given primary key, if present.
      *
      * @param pk the primary key to remove; must not be {@code null}.
      */
-    void remove(@Nonnull ID pk);
+    void remove(ID pk);
 
     /**
      * Clears all cached mappings.

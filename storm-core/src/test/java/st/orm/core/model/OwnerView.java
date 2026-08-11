@@ -15,9 +15,8 @@
  */
 package st.orm.core.model;
 
-import jakarta.annotation.Nonnull;
-import jakarta.annotation.Nullable;
 import lombok.Builder;
+import org.jspecify.annotations.Nullable;
 import st.orm.PK;
 import st.orm.Projection;
 import st.orm.Version;
@@ -30,9 +29,9 @@ import st.orm.Version;
 @Builder(toBuilder = true)
 public record OwnerView(
         @PK Integer id,
-        @Nonnull String firstName,
-        @Nonnull String lastName,
-        @Nonnull Address address,
+        String firstName,
+        String lastName,
+        Address address,
         @Nullable String telephone,
         @Version int version
 ) implements Person, Projection<Integer> {

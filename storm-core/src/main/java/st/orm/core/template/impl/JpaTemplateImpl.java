@@ -22,8 +22,6 @@ import static st.orm.core.template.SqlTemplate.JPA;
 import static st.orm.core.template.impl.LazySupplier.lazy;
 import static st.orm.core.template.impl.RecordValidation.validate;
 
-import jakarta.annotation.Nonnull;
-import jakarta.annotation.Nullable;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.PersistenceException;
 import java.util.List;
@@ -33,6 +31,7 @@ import java.util.function.Supplier;
 import java.util.stream.Stream;
 import java.util.stream.StreamSupport;
 import javax.sql.DataSource;
+import org.jspecify.annotations.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import st.orm.BindVars;
@@ -77,7 +76,7 @@ public final class JpaTemplateImpl implements JpaTemplate, QueryFactory {
 
     @FunctionalInterface
     private interface TemplateProcessor {
-        jakarta.persistence.Query process(@Nonnull Sql sql, @Nullable Class<?> resultClass, boolean unsafe);
+        jakarta.persistence.Query process(Sql sql, @Nullable Class<?> resultClass, boolean unsafe);
     }
 
     private final TemplateProcessor templateProcessor;
@@ -101,11 +100,11 @@ public final class JpaTemplateImpl implements JpaTemplate, QueryFactory {
      */
     private final Supplier<SqlDialect> dialect;
 
-    public JpaTemplateImpl(@Nonnull EntityManager entityManager) {
+    public JpaTemplateImpl(EntityManager entityManager) {
         this(entityManager, StormConfig.defaults());
     }
 
-    public JpaTemplateImpl(@Nonnull EntityManager entityManager, @Nonnull StormConfig config) {
+    public JpaTemplateImpl(EntityManager entityManager, StormConfig config) {
         validate(config);
         templateProcessor = (sql, resultClass, unsafe) -> {
             if (!unsafe) {
@@ -138,7 +137,7 @@ public final class JpaTemplateImpl implements JpaTemplate, QueryFactory {
      * template is being built, leaves the database unknown, and the dialect then comes from the classpath, resolved
      * on first use.</p>
      */
-    private static Supplier<SqlDialect> resolveDialect(@Nonnull EntityManager entityManager, @Nonnull StormConfig config) {
+    private static Supplier<SqlDialect> resolveDialect(EntityManager entityManager, StormConfig config) {
         DataSource dataSource = dataSourceOf(entityManager);
         if (dataSource == null) {
             return lazy(() -> Providers.getSqlDialect(config));
@@ -156,7 +155,7 @@ public final class JpaTemplateImpl implements JpaTemplate, QueryFactory {
      * without one. Both the Jakarta Persistence property names and their Java Persistence predecessors are
      * consulted, since providers carry the legacy names forward.
      */
-    private static @Nullable DataSource dataSourceOf(@Nonnull EntityManager entityManager) {
+    private static @Nullable DataSource dataSourceOf(EntityManager entityManager) {
         Map<String, Object> properties;
         try {
             properties = entityManager.getEntityManagerFactory().getProperties();
@@ -172,12 +171,12 @@ public final class JpaTemplateImpl implements JpaTemplate, QueryFactory {
         return null;
     }
 
-    private JpaTemplateImpl(@Nonnull TemplateProcessor templateProcessor,
-                            @Nonnull ModelBuilder modelBuilder,
-                            @Nonnull TableAliasResolver tableAliasResolver,
+    private JpaTemplateImpl(TemplateProcessor templateProcessor,
+                            ModelBuilder modelBuilder,
+                            TableAliasResolver tableAliasResolver,
                             @Nullable Predicate<Provider> providerFilter,
-                            @Nonnull StormConfig config,
-                            @Nonnull Supplier<SqlDialect> dialect) {
+                            StormConfig config,
+                            Supplier<SqlDialect> dialect) {
         this.dialect = dialect;
         this.templateProcessor = templateProcessor;
         this.modelBuilder = modelBuilder;
@@ -200,7 +199,7 @@ public final class JpaTemplateImpl implements JpaTemplate, QueryFactory {
                 providerFilter != null ? Providers.getSqlDialect(providerFilter, config) : dialect.get());
     }
 
-    private void setParameters(@Nonnull jakarta.persistence.Query query, @Nonnull List<SqlTemplate.Parameter> parameters) {
+    private void setParameters(jakarta.persistence.Query query, List<SqlTemplate.Parameter> parameters) {
         for (var parameter : parameters) {
             var dbValue = parameter.dbValue();
             switch (parameter) {
@@ -235,7 +234,7 @@ public final class JpaTemplateImpl implements JpaTemplate, QueryFactory {
      * @return the query.
      */
     @Override
-    public jakarta.persistence.Query query(@Nonnull TemplateString template) {
+    public jakarta.persistence.Query query(TemplateString template) {
         try {
             var sql = sqlTemplate().process(template);
             return templateProcessor.process(sql, null, true);  // We allow unsafe queries in direct JPA mode.
@@ -244,7 +243,7 @@ public final class JpaTemplateImpl implements JpaTemplate, QueryFactory {
         }
     }
 
-    private jakarta.persistence.Query query(@Nonnull TemplateString template, @Nonnull Class<?> resultClass) {
+    private jakarta.persistence.Query query(TemplateString template, Class<?> resultClass) {
         try {
             var sql = sqlTemplate().process(template);
             return templateProcessor.process(sql, resultClass, true);  // We allow unsafe queries in direct JPA mode.
@@ -280,7 +279,7 @@ public final class JpaTemplateImpl implements JpaTemplate, QueryFactory {
     }
 
     @Override
-    public Query create(@Nonnull TemplateString template) {
+    public Query create(TemplateString template) {
         return new JpaPreparedQuery(template);
     }
 
@@ -332,7 +331,7 @@ public final class JpaTemplateImpl implements JpaTemplate, QueryFactory {
      * @return a new JPA template.
      */
     @Override
-    public JpaTemplate withTableAliasResolver(@Nonnull TableAliasResolver tableAliasResolver) {
+    public JpaTemplate withTableAliasResolver(TableAliasResolver tableAliasResolver) {
         return new JpaTemplateImpl(templateProcessor, modelBuilder, tableAliasResolver, providerFilter, config, dialect);
     }
 
@@ -350,7 +349,7 @@ public final class JpaTemplateImpl implements JpaTemplate, QueryFactory {
     private class JpaPreparedQuery implements PreparedQuery {
         private final TemplateString template;
 
-        public JpaPreparedQuery(@Nonnull TemplateString template) {
+        public JpaPreparedQuery(TemplateString template) {
             this.template = template;
         }
 
@@ -374,9 +373,9 @@ public final class JpaTemplateImpl implements JpaTemplate, QueryFactory {
          * executions exactly like the JDBC path.
          */
         @SuppressWarnings("unchecked")
-        private QueryImpl.ListenedObservation listen(@Nonnull Sql sql,
+        private QueryImpl.ListenedObservation listen(Sql sql,
                                                      @Nullable Class<?> resultClass,
-                                                     @Nonnull ExecutionKind kind) {
+                                                     ExecutionKind kind) {
             try {
                 var operators = SqlInterceptorManager.localOperators();
                 if (operators == null) {
@@ -399,8 +398,8 @@ public final class JpaTemplateImpl implements JpaTemplate, QueryFactory {
         }
 
         /** Counts the rows the stream produces into the observation, closing it with the stream. */
-        private static <T> Stream<T> counted(@Nonnull Stream<T> stream,
-                                             @Nonnull QueryImpl.ListenedObservation listened) {
+        private static <T> Stream<T> counted(Stream<T> stream,
+                                             QueryImpl.ListenedObservation listened) {
             return StreamSupport.stream(QueryImpl.counting(stream.spliterator(), listened), false)
                     .onClose(stream::close)
                     .onClose(listened::close);
@@ -440,7 +439,7 @@ public final class JpaTemplateImpl implements JpaTemplate, QueryFactory {
 
         @SuppressWarnings("unchecked")
         @Override
-        public <T> Stream<T> getResultStream(@Nonnull Class<T> type) {
+        public <T> Stream<T> getResultStream(Class<T> type) {
             var processed = process(type);
             var listened = listen(processed.sql(), type, ExecutionKind.QUERY);
             Stream<T> stream = processed.query().getResultStream();
@@ -448,7 +447,7 @@ public final class JpaTemplateImpl implements JpaTemplate, QueryFactory {
         }
 
         @Override
-        public <T extends Data> Stream<Ref<T>> getRefStream(@Nonnull Class<T> type, @Nonnull Class<?> pkType) {
+        public <T extends Data> Stream<Ref<T>> getRefStream(Class<T> type, Class<?> pkType) {
             var interner = new WeakInterner();
             return getResultStream(pkType)
                     .map(pk -> pk == null ? null : interner.intern(refFactory.create(type, pk)));
@@ -489,7 +488,7 @@ public final class JpaTemplateImpl implements JpaTemplate, QueryFactory {
         }
 
         @Override
-        public void addBatch(@Nonnull Data record) {
+        public void addBatch(Data record) {
             throw new UnsupportedOperationException("Not supported by JPA.");
         }
 
@@ -499,7 +498,7 @@ public final class JpaTemplateImpl implements JpaTemplate, QueryFactory {
         }
 
         @Override
-        public <ID> Stream<ID> getGeneratedKeys(@Nonnull Class<ID> type) {
+        public <ID> Stream<ID> getGeneratedKeys(Class<ID> type) {
             throw new UnsupportedOperationException("Not supported by JPA.");
         }
 

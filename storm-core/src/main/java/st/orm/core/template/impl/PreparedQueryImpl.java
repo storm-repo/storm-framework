@@ -17,13 +17,12 @@ package st.orm.core.template.impl;
 
 import static st.orm.core.template.impl.ObjectMapperFactory.getObjectMapper;
 
-import jakarta.annotation.Nonnull;
-import jakarta.annotation.Nullable;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.stream.Stream;
 import java.util.stream.StreamSupport;
+import org.jspecify.annotations.Nullable;
 import st.orm.Data;
 import st.orm.PersistenceException;
 import st.orm.core.spi.RefFactory;
@@ -38,8 +37,8 @@ final class PreparedQueryImpl extends QueryImpl implements PreparedQuery {
     private final PreparedStatement statement;
     private final BindVarsHandle bindVarsHandle;
 
-    public PreparedQueryImpl(@Nonnull Environment environment,
-                             @Nonnull PreparedStatement statement,
+    public PreparedQueryImpl(Environment environment,
+                             PreparedStatement statement,
                              @Nullable BindVarsHandle bindVarsHandle,
                              @Nullable Class<? extends Data> affectedType,
                              boolean versionAware,
@@ -66,7 +65,7 @@ final class PreparedQueryImpl extends QueryImpl implements PreparedQuery {
      * {@code BatchVars}.
      */
     @Override
-    public void addBatch(@Nonnull Data record) {
+    public void addBatch(Data record) {
         if (bindVarsHandle == null) {
             throw new PersistenceException("No bind vars specified for prepared query.");
         }
@@ -90,7 +89,7 @@ final class PreparedQueryImpl extends QueryImpl implements PreparedQuery {
      * @throws PersistenceException if the statement fails
      */
     @Override
-    public <ID> Stream<ID> getGeneratedKeys(@Nonnull Class<ID> type) {
+    public <ID> Stream<ID> getGeneratedKeys(Class<ID> type) {
         try {
             ResultSet resultSet = statement.getGeneratedKeys();
             boolean close = true;

@@ -15,14 +15,13 @@
  */
 package st.orm.core.spi;
 
-import jakarta.annotation.Nonnull;
-import jakarta.annotation.Nullable;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
+import org.jspecify.annotations.Nullable;
 import st.orm.Entity;
 import st.orm.Ref;
 import st.orm.mapping.RecordField;
@@ -61,7 +60,7 @@ public final class RowIdentity {
     /** Decided once per class: whether values of this class can carry non-key state that normalization must strip. */
     private static final ClassValue<Boolean> NORMALIZATION_REQUIRED = new ClassValue<>() {
         @Override
-        protected Boolean computeValue(@Nonnull Class<?> type) {
+        protected Boolean computeValue(Class<?> type) {
             return requiresNormalization(type, new HashSet<>());
         }
     };
@@ -126,7 +125,7 @@ public final class RowIdentity {
      * @param other the ref to compare against.
      * @return {@code true} if both describe the same database row.
      */
-    public static boolean refEquals(@Nullable Class<?> type, @Nullable Object rowId, @Nonnull Ref<?> other) {
+    public static boolean refEquals(@Nullable Class<?> type, @Nullable Object rowId, Ref<?> other) {
         return Objects.equals(type, other.type()) && Objects.equals(rowId, normalize(other.id()));
     }
 

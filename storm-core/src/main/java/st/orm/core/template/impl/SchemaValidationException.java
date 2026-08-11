@@ -15,7 +15,6 @@
  */
 package st.orm.core.template.impl;
 
-import jakarta.annotation.Nonnull;
 import java.util.List;
 import java.util.stream.Collectors;
 import st.orm.PersistenceException;
@@ -34,7 +33,7 @@ public class SchemaValidationException extends PersistenceException {
      *
      * @param errors the validation errors (must not be empty).
      */
-    public SchemaValidationException(@Nonnull List<SchemaValidationError> errors) {
+    public SchemaValidationException(List<SchemaValidationError> errors) {
         super(formatMessage(errors));
         this.errors = List.copyOf(errors);
     }
@@ -48,7 +47,7 @@ public class SchemaValidationException extends PersistenceException {
         return errors;
     }
 
-    private static String formatMessage(@Nonnull List<SchemaValidationError> errors) {
+    private static String formatMessage(List<SchemaValidationError> errors) {
         return "Schema validation failed with %d error(s):\n".formatted(errors.size())
                 + errors.stream()
                         .map(error -> "  - " + error.toString())

@@ -5,5 +5,5 @@ module storm.micrometer {
     requires micrometer.observation;
     requires static micrometer.tracing;
     requires micrometer.commons;
-    requires jakarta.annotation;
+    requires static org.jspecify;
 }

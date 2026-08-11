@@ -17,7 +17,6 @@ package st.orm.core.template.impl;
 
 import static java.util.stream.Collectors.joining;
 
-import jakarta.annotation.Nonnull;
 import java.util.ArrayList;
 import java.util.Objects;
 import st.orm.core.template.Column;
@@ -40,7 +39,7 @@ final class InsertProcessor implements ElementProcessor<Insert> {
      * @return an immutable key for caching, or {@code null} if the element (or its compilation) cannot be cached.
      */
     @Override
-    public Object getCompilationKey(@Nonnull Insert insert) {
+    public Object getCompilationKey(Insert insert) {
         return insert;
     }
 
@@ -56,7 +55,7 @@ final class InsertProcessor implements ElementProcessor<Insert> {
      * @throws SqlTemplateException if compilation fails.
      */
     @Override
-    public CompiledElement compile(@Nonnull Insert insert, @Nonnull TemplateCompiler compiler) throws SqlTemplateException {
+    public CompiledElement compile(Insert insert, TemplateCompiler compiler) throws SqlTemplateException {
         var queryModel = compiler.getQueryModel();
         assert queryModel.getTable().type() == insert.table();
         var model = compiler.getModel(insert.table());
@@ -109,6 +108,6 @@ final class InsertProcessor implements ElementProcessor<Insert> {
      * @param bindHint the bind hint for the element, providing additional context for binding.
      */
     @Override
-    public void bind(@Nonnull Insert insert, @Nonnull TemplateBinder binder, @Nonnull BindHint bindHint) {
+    public void bind(Insert insert, TemplateBinder binder, BindHint bindHint) {
     }
 }

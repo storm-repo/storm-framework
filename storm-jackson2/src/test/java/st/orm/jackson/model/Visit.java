@@ -15,10 +15,9 @@
  */
 package st.orm.jackson.model;
 
-import jakarta.annotation.Nonnull;
-import jakarta.annotation.Nullable;
 import java.time.LocalDate;
 import lombok.Builder;
+import org.jspecify.annotations.Nullable;
 import st.orm.DbColumn;
 import st.orm.Entity;
 import st.orm.FK;
@@ -30,9 +29,9 @@ import st.orm.PK;
 @Builder(toBuilder = true)
 public record Visit(
         @PK Integer id,
-        @Nonnull LocalDate visitDate,
+        LocalDate visitDate,
         @Nullable String description,
-        @Nonnull @FK @DbColumn("pet_id") Pet pet
+        @FK @DbColumn("pet_id") Pet pet
 ) implements Entity<Integer> {
     public Visit(LocalDate visitDate, String description, Pet pet) {
         this(0, visitDate, description, pet);

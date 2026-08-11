@@ -3,10 +3,9 @@ package st.orm.core;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 
-import jakarta.annotation.Nonnull;
-import jakarta.annotation.Nullable;
 import javax.sql.DataSource;
 import lombok.Builder;
+import org.jspecify.annotations.Nullable;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -48,7 +47,7 @@ public class EmbeddedConverterIntegrationTest {
     /**
      * Domain value type stored in the {@code address} column. A converter maps it to/from the database {@code String}.
      */
-    public record Street(@Nonnull String value) {}
+    public record Street(String value) {}
 
     public static class StreetConverter implements Converter<String, Street> {
         @Override
@@ -67,8 +66,8 @@ public class EmbeddedConverterIntegrationTest {
      */
     @Builder(toBuilder = true)
     public record AddressWithConverter(
-            @Nonnull @Convert(converter = StreetConverter.class) @DbColumn("address") Street street,
-            @Nonnull @FK City city
+            @Convert(converter = StreetConverter.class) @DbColumn("address") Street street,
+            @FK City city
     ) {}
 
     /**
@@ -80,9 +79,9 @@ public class EmbeddedConverterIntegrationTest {
     @DbTable("owner")
     public record OwnerWithEmbeddedConverter(
             @PK Integer id,
-            @Nonnull String firstName,
-            @Nonnull String lastName,
-            @Nonnull @Inline AddressWithConverter address,
+            String firstName,
+            String lastName,
+            @Inline AddressWithConverter address,
             @Nullable String telephone,
             @Version int version
     ) implements Entity<Integer> {}

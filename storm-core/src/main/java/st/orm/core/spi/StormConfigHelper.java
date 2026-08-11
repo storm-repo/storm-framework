@@ -15,7 +15,6 @@
  */
 package st.orm.core.spi;
 
-import jakarta.annotation.Nonnull;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import st.orm.StormConfig;
@@ -36,7 +35,7 @@ public final class StormConfigHelper {
     /**
      * Returns the integer value of the property, or the default if missing or unparseable.
      */
-    public static int getInt(@Nonnull StormConfig config, @Nonnull String key, int defaultValue) {
+    public static int getInt(StormConfig config, String key, int defaultValue) {
         String value = config.getProperty(key);
         if (value == null) {
             return defaultValue;
@@ -52,7 +51,7 @@ public final class StormConfigHelper {
     /**
      * Returns the boolean value of the property, or the default if missing.
      */
-    public static boolean getBoolean(@Nonnull StormConfig config, @Nonnull String key, boolean defaultValue) {
+    public static boolean getBoolean(StormConfig config, String key, boolean defaultValue) {
         String value = config.getProperty(key);
         if (value == null) {
             return defaultValue;
@@ -63,12 +62,11 @@ public final class StormConfigHelper {
     /**
      * Returns the enum value of the property, or the default if missing or unrecognized.
      */
-    @Nonnull
     public static <E extends Enum<E>> E getEnum(
-            @Nonnull StormConfig config,
-            @Nonnull String key,
-            @Nonnull Class<E> enumType,
-            @Nonnull E defaultValue) {
+            StormConfig config,
+            String key,
+            Class<E> enumType,
+            E defaultValue) {
         String value = config.getProperty(key);
         if (value == null) {
             return defaultValue;

@@ -17,7 +17,6 @@ package st.orm.test;
 
 import static java.util.Objects.requireNonNull;
 
-import jakarta.annotation.Nonnull;
 import java.time.Duration;
 import java.util.List;
 
@@ -35,19 +34,19 @@ import java.util.List;
  * @since 1.9
  */
 public record CapturedSql(
-        @Nonnull Operation operation,
-        @Nonnull String statement,
-        @Nonnull List<Object> parameters,
-        @Nonnull Origin origin,
-        @Nonnull Duration duration,
+        Operation operation,
+        String statement,
+        List<Object> parameters,
+        Origin origin,
+        Duration duration,
         long rows,
         boolean exactRows) {
 
-    public CapturedSql(@Nonnull Operation operation,
-                       @Nonnull String statement,
-                       @Nonnull List<Object> parameters,
-                       @Nonnull Origin origin,
-                       @Nonnull Duration duration,
+    public CapturedSql(Operation operation,
+                       String statement,
+                       List<Object> parameters,
+                       Origin origin,
+                       Duration duration,
                        long rows,
                        boolean exactRows) {
         this.operation = requireNonNull(operation, "operation");

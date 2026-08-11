@@ -15,7 +15,6 @@
  */
 package st.orm.core.template;
 
-import jakarta.annotation.Nonnull;
 import java.util.concurrent.Callable;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
@@ -38,7 +37,7 @@ public interface SqlInterceptor {
      *
      * @param observer the observer to call for each SQL statement.
      */
-    static void registerGlobalObserver(@Nonnull Consumer<Sql> observer) {
+    static void registerGlobalObserver(Consumer<Sql> observer) {
         SqlInterceptorManager.registerGlobalObserver(observer);
     }
 
@@ -47,7 +46,7 @@ public interface SqlInterceptor {
      *
      * @param interceptor the interceptor to call for each SQL statement.
      */
-    static void registerGlobalInterceptor(@Nonnull UnaryOperator<Sql> interceptor) {
+    static void registerGlobalInterceptor(UnaryOperator<Sql> interceptor) {
         SqlInterceptorManager.registerGlobalInterceptor(interceptor);
     }
 
@@ -56,7 +55,7 @@ public interface SqlInterceptor {
      *
      * @param observer the observer to unregister.
      */
-    static void unregisterGlobalObserver(@Nonnull Consumer<Sql> observer) {
+    static void unregisterGlobalObserver(Consumer<Sql> observer) {
         SqlInterceptorManager.unregisterGlobalObserver(observer);
     }
 
@@ -65,7 +64,7 @@ public interface SqlInterceptor {
      *
      * @param interceptor the interceptor to unregister.
      */
-    static void unregisterGlobalInterceptor(@Nonnull UnaryOperator<Sql> interceptor) {
+    static void unregisterGlobalInterceptor(UnaryOperator<Sql> interceptor) {
         SqlInterceptorManager.unregisterGlobalObserver(interceptor);
     }
 
@@ -77,7 +76,7 @@ public interface SqlInterceptor {
      * @param observer the consumer invoked for each SQL statement.
      * @param runnable the action to execute.
      */
-    static void observe(@Nonnull Consumer<Sql> observer, @Nonnull Runnable runnable) {
+    static void observe(Consumer<Sql> observer, Runnable runnable) {
         SqlInterceptorManager.intercept(observer).run(runnable);
     }
 
@@ -91,7 +90,7 @@ public interface SqlInterceptor {
      * @param <T> the type of the supplied result.
      * @return the result of the supplied action.
      */
-    static <T> T observe(@Nonnull Consumer<Sql> observer, @Nonnull Supplier<T> supplier) {
+    static <T> T observe(Consumer<Sql> observer, Supplier<T> supplier) {
         return SqlInterceptorManager.intercept(observer).get(supplier);
     }
 
@@ -107,7 +106,7 @@ public interface SqlInterceptor {
      * @return the result of the callable action.
      * @throws Exception if the callable action throws an exception.
      */
-    static <T> T observeThrowing(@Nonnull Consumer<Sql> observer, @Nonnull Callable<T> callable) throws Exception {
+    static <T> T observeThrowing(Consumer<Sql> observer, Callable<T> callable) throws Exception {
         return SqlInterceptorManager.intercept(observer).call(callable);
     }
 
@@ -121,9 +120,9 @@ public interface SqlInterceptor {
      * @param runnable the action to execute.
      * @since 1.3
      */
-    static void observe(@Nonnull UnaryOperator<SqlTemplate> customizer,
-                        @Nonnull Consumer<Sql> observer,
-                        @Nonnull Runnable runnable) {
+    static void observe(UnaryOperator<SqlTemplate> customizer,
+                        Consumer<Sql> observer,
+                        Runnable runnable) {
         SqlInterceptorManager.intercept(customizer, observer).run(runnable);
     }
 
@@ -139,9 +138,9 @@ public interface SqlInterceptor {
      * @return the result of the supplied action.
      * @since 1.3
      */
-    static <T> T observe(@Nonnull UnaryOperator<SqlTemplate> customizer,
-                         @Nonnull Consumer<Sql> observer,
-                         @Nonnull Supplier<T> supplier) {
+    static <T> T observe(UnaryOperator<SqlTemplate> customizer,
+                         Consumer<Sql> observer,
+                         Supplier<T> supplier) {
         return SqlInterceptorManager.intercept(customizer, observer).get(supplier);
     }
 
@@ -159,9 +158,9 @@ public interface SqlInterceptor {
      * @throws Exception if the callable action throws an exception.
      * @since 1.3
      */
-    static <T> T observeThrowing(@Nonnull UnaryOperator<SqlTemplate> customizer,
-                                 @Nonnull Consumer<Sql> observer,
-                                 @Nonnull Callable<T> callable) throws Exception {
+    static <T> T observeThrowing(UnaryOperator<SqlTemplate> customizer,
+                                 Consumer<Sql> observer,
+                                 Callable<T> callable) throws Exception {
         return SqlInterceptorManager.intercept(customizer, observer).call(callable);
     }
 
@@ -173,7 +172,7 @@ public interface SqlInterceptor {
      * @param interceptor the operator applied to each SQL statement.
      * @param runnable the action to execute.
      */
-    static void intercept(@Nonnull UnaryOperator<Sql> interceptor, @Nonnull Runnable runnable) {
+    static void intercept(UnaryOperator<Sql> interceptor, Runnable runnable) {
         SqlInterceptorManager.intercept(interceptor).run(runnable);
     }
 
@@ -187,7 +186,7 @@ public interface SqlInterceptor {
      * @param <T> the type of the supplied result.
      * @return the result of the supplied action.
      */
-    static <T> T intercept(@Nonnull UnaryOperator<Sql> interceptor, @Nonnull Supplier<T> supplier) {
+    static <T> T intercept(UnaryOperator<Sql> interceptor, Supplier<T> supplier) {
         return SqlInterceptorManager.intercept(interceptor).get(supplier);
     }
 
@@ -203,7 +202,7 @@ public interface SqlInterceptor {
      * @return the result of the callable action.
      * @throws Exception if the callable action throws an exception.
      */
-    static <T> T interceptThrowing(@Nonnull UnaryOperator<Sql> interceptor, @Nonnull Callable<T> callable) throws Exception {
+    static <T> T interceptThrowing(UnaryOperator<Sql> interceptor, Callable<T> callable) throws Exception {
         return SqlInterceptorManager.intercept(interceptor).call(callable);
     }
 
@@ -217,9 +216,9 @@ public interface SqlInterceptor {
      * @param runnable the action to execute.
      * @since 1.3
      */
-    static void intercept(@Nonnull UnaryOperator<SqlTemplate> customizer,
-                          @Nonnull UnaryOperator<Sql> interceptor,
-                          @Nonnull Runnable runnable) {
+    static void intercept(UnaryOperator<SqlTemplate> customizer,
+                          UnaryOperator<Sql> interceptor,
+                          Runnable runnable) {
         SqlInterceptorManager.intercept(customizer, interceptor).run(runnable);
     }
 
@@ -235,9 +234,9 @@ public interface SqlInterceptor {
      * @return the result of the supplied action.
      * @since 1.3
      */
-    static <T> T intercept(@Nonnull UnaryOperator<SqlTemplate> customizer,
-                           @Nonnull UnaryOperator<Sql> interceptor,
-                           @Nonnull Supplier<T> supplier) {
+    static <T> T intercept(UnaryOperator<SqlTemplate> customizer,
+                           UnaryOperator<Sql> interceptor,
+                           Supplier<T> supplier) {
         return SqlInterceptorManager.intercept(customizer, interceptor).get(supplier);
     }
 
@@ -255,9 +254,9 @@ public interface SqlInterceptor {
      * @throws Exception if the callable action throws an exception.
      * @since 1.3
      */
-    static <T> T interceptThrowing(@Nonnull UnaryOperator<SqlTemplate> customizer,
-                                   @Nonnull UnaryOperator<Sql> interceptor,
-                                   @Nonnull Callable<T> callable) throws Exception {
+    static <T> T interceptThrowing(UnaryOperator<SqlTemplate> customizer,
+                                   UnaryOperator<Sql> interceptor,
+                                   Callable<T> callable) throws Exception {
         return SqlInterceptorManager.intercept(customizer, interceptor).call(callable);
     }
 }

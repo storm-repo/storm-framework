@@ -15,7 +15,6 @@
  */
 package st.orm.core.template.impl;
 
-import jakarta.annotation.Nonnull;
 import st.orm.Metamodel;
 import st.orm.core.template.impl.Elements.Alias;
 
@@ -35,7 +34,7 @@ final class AliasProcessor implements ElementProcessor<Alias> {
      * @return an immutable key for caching, or {@code null} if the element (or its compilation) cannot be cached.
      */
     @Override
-    public Object getCompilationKey(@Nonnull Alias alias) {
+    public Object getCompilationKey(Alias alias) {
         return alias;
     }
 
@@ -50,7 +49,7 @@ final class AliasProcessor implements ElementProcessor<Alias> {
      * @return the compiled result for this element.
      */
     @Override
-    public CompiledElement compile(@Nonnull Alias alias, @Nonnull TemplateCompiler compiler) {
+    public CompiledElement compile(Alias alias, TemplateCompiler compiler) {
         return new CompiledElement(compiler.getAlias(Metamodel.root(alias.table()), alias.scope()));
     }
 
@@ -66,6 +65,6 @@ final class AliasProcessor implements ElementProcessor<Alias> {
      * @param bindHint the bind hint for the element, providing additional context for binding.
      */
     @Override
-    public void bind(@Nonnull Alias alias, @Nonnull TemplateBinder binder, @Nonnull BindHint bindHint) {
+    public void bind(Alias alias, TemplateBinder binder, BindHint bindHint) {
     }
 }

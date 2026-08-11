@@ -15,7 +15,6 @@
  */
 package st.orm.spi.mariadb;
 
-import jakarta.annotation.Nonnull;
 import st.orm.Entity;
 import st.orm.core.repository.EntityRepository;
 import st.orm.core.spi.EntityRepositoryProvider;
@@ -32,8 +31,8 @@ public class MariaDBEntityRepositoryProviderImpl implements EntityRepositoryProv
 
     @Override
     public <ID, E extends Entity<ID>> EntityRepository<E, ID> getEntityRepository(
-            @Nonnull ORMTemplate ormTemplate,
-            @Nonnull Model<E, ID> model) {
+            ORMTemplate ormTemplate,
+            Model<E, ID> model) {
         return new MariaDBEntityRepositoryImpl<>(ormTemplate, model);
     }
 }

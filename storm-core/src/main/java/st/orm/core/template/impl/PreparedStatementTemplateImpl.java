@@ -22,8 +22,6 @@ import static st.orm.core.template.impl.ExceptionHelper.getExceptionTransformer;
 import static st.orm.core.template.impl.LazySupplier.lazy;
 import static st.orm.core.template.impl.RecordValidation.validate;
 
-import jakarta.annotation.Nonnull;
-import jakarta.annotation.Nullable;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Proxy;
 import java.math.BigDecimal;
@@ -50,6 +48,7 @@ import java.util.function.Function;
 import java.util.function.Predicate;
 import java.util.function.Supplier;
 import javax.sql.DataSource;
+import org.jspecify.annotations.Nullable;
 import st.orm.BindVars;
 import st.orm.PersistenceException;
 import st.orm.StormConfig;
@@ -89,7 +88,7 @@ public final class PreparedStatementTemplateImpl implements PreparedStatementTem
 
     @FunctionalInterface
     private interface TemplateProcessor {
-        PreparedStatement process(@Nonnull Sql sql,
+        PreparedStatement process(Sql sql,
                                   boolean unsafe) throws SQLException;
     }
 
@@ -98,9 +97,9 @@ public final class PreparedStatementTemplateImpl implements PreparedStatementTem
      * templates that are backed by a single connection rather than a data source.
      */
     record IntegrationStrategies(@Nullable ConnectionProvider connectionProvider,
-                                 @Nonnull TransactionTemplateProvider transactionTemplateProvider,
-                                 @Nonnull ExceptionMapper exceptionMapper,
-                                 @Nonnull QueryObserver queryObserver,
+                                 TransactionTemplateProvider transactionTemplateProvider,
+                                 ExceptionMapper exceptionMapper,
+                                 QueryObserver queryObserver,
                                  @Nullable SqlCommenter sqlCommenter) {
     }
 
@@ -112,7 +111,7 @@ public final class PreparedStatementTemplateImpl implements PreparedStatementTem
      * URL-encode them instead). The content is padded with spaces, which keeps MySQL and MariaDB from
      * interpreting leading {@code !} or {@code +} as an executable comment or optimizer hint.
      */
-    private static String applySqlCommenter(@Nullable SqlCommenter sqlCommenter, @Nonnull String statement) {
+    private static String applySqlCommenter(@Nullable SqlCommenter sqlCommenter, String statement) {
         if (sqlCommenter == null) {
             return statement;
         }
@@ -143,11 +142,11 @@ public final class PreparedStatementTemplateImpl implements PreparedStatementTem
     private final StormConfig config;
     private final SqlDialect dialect;
 
-    public PreparedStatementTemplateImpl(@Nonnull DataSource dataSource) {
+    public PreparedStatementTemplateImpl(DataSource dataSource) {
         this(dataSource, StormConfig.defaults());
     }
 
-    public PreparedStatementTemplateImpl(@Nonnull DataSource dataSource, @Nonnull StormConfig config) {
+    public PreparedStatementTemplateImpl(DataSource dataSource, StormConfig config) {
         this(dataSource, config, null, null, null, null);
     }
 
@@ -159,8 +158,8 @@ public final class PreparedStatementTemplateImpl implements PreparedStatementTem
      *
      * @since 1.13
      */
-    public PreparedStatementTemplateImpl(@Nonnull DataSource dataSource,
-                                         @Nonnull StormConfig config,
+    public PreparedStatementTemplateImpl(DataSource dataSource,
+                                         StormConfig config,
                                          @Nullable ConnectionProvider connectionProvider,
                                          @Nullable TransactionTemplateProvider transactionTemplateProvider,
                                          @Nullable ExceptionMapper exceptionMapper,
@@ -175,8 +174,8 @@ public final class PreparedStatementTemplateImpl implements PreparedStatementTem
      *
      * @since 1.13
      */
-    public PreparedStatementTemplateImpl(@Nonnull DataSource dataSource,
-                                         @Nonnull StormConfig config,
+    public PreparedStatementTemplateImpl(DataSource dataSource,
+                                         StormConfig config,
                                          @Nullable ConnectionProvider connectionProvider,
                                          @Nullable TransactionTemplateProvider transactionTemplateProvider,
                                          @Nullable ExceptionMapper exceptionMapper,
@@ -191,26 +190,26 @@ public final class PreparedStatementTemplateImpl implements PreparedStatementTem
                 dataSource, config);
     }
 
-    private PreparedStatementTemplateImpl(@Nonnull IntegrationStrategies strategies,
-                                          @Nonnull DataSource dataSource,
-                                          @Nonnull StormConfig config) {
+    private PreparedStatementTemplateImpl(IntegrationStrategies strategies,
+                                          DataSource dataSource,
+                                          StormConfig config) {
         this(strategies, dataSource, config,
                 Providers.getSqlDialectProvider(Providers.getDatabaseProductName(dataSource)));
     }
 
-    private PreparedStatementTemplateImpl(@Nonnull IntegrationStrategies strategies,
-                                          @Nonnull DataSource dataSource,
-                                          @Nonnull StormConfig config,
+    private PreparedStatementTemplateImpl(IntegrationStrategies strategies,
+                                          DataSource dataSource,
+                                          StormConfig config,
                                           @Nullable SqlDialectProvider matchedProvider) {
         this(strategies, dataSource, config, matchedProvider,
                 matchedProvider != null ? matchedProvider.getSqlDialect(config) : getSqlDialect(config));
     }
 
-    private PreparedStatementTemplateImpl(@Nonnull IntegrationStrategies strategies,
-                                          @Nonnull DataSource dataSource,
-                                          @Nonnull StormConfig config,
+    private PreparedStatementTemplateImpl(IntegrationStrategies strategies,
+                                          DataSource dataSource,
+                                          StormConfig config,
                                           @Nullable SqlDialectProvider matchedProvider,
-                                          @Nonnull SqlDialect dialect) {
+                                          SqlDialect dialect) {
         this(createDataSourceProcessor(dataSource, strategies, dialect),
                 dataSource,
                 ModelBuilder.newInstance(), TableAliasResolver.DEFAULT,
@@ -218,11 +217,11 @@ public final class PreparedStatementTemplateImpl implements PreparedStatementTem
                 strategies, config, dialect);
     }
 
-    public PreparedStatementTemplateImpl(@Nonnull Connection connection) {
+    public PreparedStatementTemplateImpl(Connection connection) {
         this(connection, StormConfig.defaults());
     }
 
-    public PreparedStatementTemplateImpl(@Nonnull Connection connection, @Nonnull StormConfig config) {
+    public PreparedStatementTemplateImpl(Connection connection, StormConfig config) {
         this(connection, config, null, null, null);
     }
 
@@ -235,8 +234,8 @@ public final class PreparedStatementTemplateImpl implements PreparedStatementTem
      *
      * @since 1.13
      */
-    public PreparedStatementTemplateImpl(@Nonnull Connection connection,
-                                         @Nonnull StormConfig config,
+    public PreparedStatementTemplateImpl(Connection connection,
+                                         StormConfig config,
                                          @Nullable TransactionTemplateProvider transactionTemplateProvider,
                                          @Nullable ExceptionMapper exceptionMapper,
                                          @Nullable QueryObserver queryObserver) {
@@ -249,8 +248,8 @@ public final class PreparedStatementTemplateImpl implements PreparedStatementTem
      *
      * @since 1.13
      */
-    public PreparedStatementTemplateImpl(@Nonnull Connection connection,
-                                         @Nonnull StormConfig config,
+    public PreparedStatementTemplateImpl(Connection connection,
+                                         StormConfig config,
                                          @Nullable TransactionTemplateProvider transactionTemplateProvider,
                                          @Nullable ExceptionMapper exceptionMapper,
                                          @Nullable QueryObserver queryObserver,
@@ -264,26 +263,26 @@ public final class PreparedStatementTemplateImpl implements PreparedStatementTem
                 connection, config);
     }
 
-    private PreparedStatementTemplateImpl(@Nonnull IntegrationStrategies strategies,
-                                          @Nonnull Connection connection,
-                                          @Nonnull StormConfig config) {
+    private PreparedStatementTemplateImpl(IntegrationStrategies strategies,
+                                          Connection connection,
+                                          StormConfig config) {
         this(strategies, connection, config,
                 Providers.getSqlDialectProvider(Providers.getDatabaseProductName(connection)));
     }
 
-    private PreparedStatementTemplateImpl(@Nonnull IntegrationStrategies strategies,
-                                          @Nonnull Connection connection,
-                                          @Nonnull StormConfig config,
+    private PreparedStatementTemplateImpl(IntegrationStrategies strategies,
+                                          Connection connection,
+                                          StormConfig config,
                                           @Nullable SqlDialectProvider matchedProvider) {
         this(strategies, connection, config, matchedProvider,
                 matchedProvider != null ? matchedProvider.getSqlDialect(config) : getSqlDialect(config));
     }
 
-    private PreparedStatementTemplateImpl(@Nonnull IntegrationStrategies strategies,
-                                          @Nonnull Connection connection,
-                                          @Nonnull StormConfig config,
+    private PreparedStatementTemplateImpl(IntegrationStrategies strategies,
+                                          Connection connection,
+                                          StormConfig config,
                                           @Nullable SqlDialectProvider matchedProvider,
-                                          @Nonnull SqlDialect dialect) {
+                                          SqlDialect dialect) {
         this(createConnectionProcessor(connection, strategies, dialect),
                 null,
                 ModelBuilder.newInstance(), TableAliasResolver.DEFAULT,
@@ -291,14 +290,14 @@ public final class PreparedStatementTemplateImpl implements PreparedStatementTem
                 strategies, config, dialect);
     }
 
-    private PreparedStatementTemplateImpl(@Nonnull TemplateProcessor templateProcessor,
+    private PreparedStatementTemplateImpl(TemplateProcessor templateProcessor,
                                           @Nullable DataSource dataSource,
-                                          @Nonnull ModelBuilder modelBuilder,
-                                          @Nonnull TableAliasResolver tableAliasResolver,
+                                          ModelBuilder modelBuilder,
+                                          TableAliasResolver tableAliasResolver,
                                           @Nullable Predicate<Provider> providerFilter,
-                                          @Nonnull IntegrationStrategies strategies,
-                                          @Nonnull StormConfig config,
-                                          @Nonnull SqlDialect dialect) {
+                                          IntegrationStrategies strategies,
+                                          StormConfig config,
+                                          SqlDialect dialect) {
         validate(config);
         this.dialect = dialect;
         this.templateProcessor = templateProcessor;
@@ -312,9 +311,9 @@ public final class PreparedStatementTemplateImpl implements PreparedStatementTem
         this.sqlTemplate = createSqlTemplate();
     }
 
-    private static TemplateProcessor createDataSourceProcessor(@Nonnull DataSource dataSource,
-                                                                @Nonnull IntegrationStrategies strategies,
-                                                                @Nonnull SqlDialect dialect) {
+    private static TemplateProcessor createDataSourceProcessor(DataSource dataSource,
+                                                                IntegrationStrategies strategies,
+                                                                SqlDialect dialect) {
         var connectionProvider = strategies.connectionProvider();
         assert connectionProvider != null;
         var transactionTemplateProvider = strategies.transactionTemplateProvider();
@@ -372,9 +371,9 @@ public final class PreparedStatementTemplateImpl implements PreparedStatementTem
         };
     }
 
-    private static TemplateProcessor createConnectionProcessor(@Nonnull Connection connection,
-                                                                @Nonnull IntegrationStrategies strategies,
-                                                                @Nonnull SqlDialect dialect) {
+    private static TemplateProcessor createConnectionProcessor(Connection connection,
+                                                                IntegrationStrategies strategies,
+                                                                SqlDialect dialect) {
         var transactionTemplateProvider = strategies.transactionTemplateProvider();
         return (sql, unsafe) -> {
             if (!unsafe) {
@@ -478,7 +477,7 @@ public final class PreparedStatementTemplateImpl implements PreparedStatementTem
      * @return a new prepared statement template.
      */
     @Override
-    public PreparedStatementTemplate withTableAliasResolver(@Nonnull TableAliasResolver tableAliasResolver) {
+    public PreparedStatementTemplate withTableAliasResolver(TableAliasResolver tableAliasResolver) {
         return new PreparedStatementTemplateImpl(templateProcessor, dataSource, modelBuilder, tableAliasResolver, providerFilter, strategies, config, dialect);
     }
 
@@ -503,10 +502,10 @@ public final class PreparedStatementTemplateImpl implements PreparedStatementTem
         return sqlTemplate().createBindVars();
     }
 
-    private static BatchListener getBatchListener(@Nonnull PreparedStatement preparedStatement,
-                                                   @Nonnull List<Parameter> parameters,
-                                                   @Nonnull SqlDialect dialect,
-                                                   @Nonnull Function<Throwable, RuntimeException> exceptionTransformer) {
+    private static BatchListener getBatchListener(PreparedStatement preparedStatement,
+                                                   List<Parameter> parameters,
+                                                   SqlDialect dialect,
+                                                   Function<Throwable, RuntimeException> exceptionTransformer) {
         var calendarSupplier = lazy(() -> Calendar.getInstance(TimeZone.getTimeZone(ZoneOffset.UTC)));
         return batchParameters -> {
             try {
@@ -519,17 +518,17 @@ public final class PreparedStatementTemplateImpl implements PreparedStatementTem
         };
     }
 
-    private static void setParameters(@Nonnull PreparedStatement preparedStatement,
-                                      @Nonnull List<? extends Parameter> parameters,
-                                      @Nonnull SqlDialect dialect) throws SQLException {
+    private static void setParameters(PreparedStatement preparedStatement,
+                                      List<? extends Parameter> parameters,
+                                      SqlDialect dialect) throws SQLException {
         var calendarSupplier = lazy(() -> Calendar.getInstance(TimeZone.getTimeZone(ZoneOffset.UTC)));
         setParameters(preparedStatement, parameters, calendarSupplier, dialect);
     }
 
-    private static void setParameters(@Nonnull PreparedStatement preparedStatement,
-                                      @Nonnull List<? extends Parameter> parameters,
-                                      @Nonnull Supplier<Calendar> calendarSupplier,
-                                      @Nonnull SqlDialect dialect) throws SQLException {
+    private static void setParameters(PreparedStatement preparedStatement,
+                                      List<? extends Parameter> parameters,
+                                      Supplier<Calendar> calendarSupplier,
+                                      SqlDialect dialect) throws SQLException {
         for (var parameter : parameters) {
             switch (parameter) {
                 case PositionalParameter p -> {
@@ -649,9 +648,9 @@ public final class PreparedStatementTemplateImpl implements PreparedStatementTem
      * @param connection the connection to close when the PreparedStatement is closed.
      * @return a proxy for the PreparedStatement that closes the connection when the PreparedStatement is closed.
      */
-    private static PreparedStatement createProxy(@Nonnull PreparedStatement statement, @Nonnull Connection connection,
-                                                 @Nonnull DataSource dataSource, @Nullable TransactionContext context,
-                                                 @Nonnull ConnectionProvider connectionProvider) {
+    private static PreparedStatement createProxy(PreparedStatement statement, Connection connection,
+                                                 DataSource dataSource, @Nullable TransactionContext context,
+                                                 ConnectionProvider connectionProvider) {
         return (PreparedStatement) Proxy.newProxyInstance(
                 PreparedStatement.class.getClassLoader(),
                 new Class<?>[] { PreparedStatement.class },
@@ -683,7 +682,7 @@ public final class PreparedStatementTemplateImpl implements PreparedStatementTem
      * @throws PersistenceException if the template is invalid.
      */
     @Override
-    public Query create(@Nonnull TemplateString template) {
+    public Query create(TemplateString template) {
         try {
             var customizedTemplate = sqlTemplate();
             var sql = customizedTemplate.process(template);
@@ -709,7 +708,7 @@ public final class PreparedStatementTemplateImpl implements PreparedStatementTem
      * @throws PersistenceException if the template is invalid or carries fixed parameter values.
      */
     @Override
-    public QueryPlan plan(@Nonnull TemplateString template) {
+    public QueryPlan plan(TemplateString template) {
         try {
             var customizedTemplate = sqlTemplate();
             // The stored statement must not bake in Sql interceptor rewrites: binding applies the interceptor
@@ -738,7 +737,7 @@ public final class PreparedStatementTemplateImpl implements PreparedStatementTem
         }
     }
 
-    private Query createQuery(@Nonnull Sql sql, @Nonnull SqlDialect dialect) {
+    private Query createQuery(Sql sql, SqlDialect dialect) {
         var bindVariables = sql.bindVariables().orElse(null);
         var environment = new QueryImpl.Environment(
                 refFactory,
@@ -768,7 +767,7 @@ public final class PreparedStatementTemplateImpl implements PreparedStatementTem
      * @return the query.
      */
     @Override
-    public PreparedStatement query(@Nonnull TemplateString template) throws SQLException {
+    public PreparedStatement query(TemplateString template) throws SQLException {
         var sql = sqlTemplate().process(template);
         return templateProcessor.process(sql, true);    // We allow unsafe queries in direct JDBC mode.
     }

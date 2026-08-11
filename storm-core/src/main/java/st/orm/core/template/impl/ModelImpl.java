@@ -32,8 +32,6 @@ import static st.orm.core.template.impl.RecordReflection.isPolymorphicData;
 import static st.orm.core.template.impl.RecordReflection.isRecord;
 import static st.orm.core.template.impl.RecordReflection.isSealedEntity;
 
-import jakarta.annotation.Nonnull;
-import jakarta.annotation.Nullable;
 import java.sql.Date;
 import java.sql.Time;
 import java.sql.Timestamp;
@@ -50,6 +48,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.function.BiConsumer;
+import org.jspecify.annotations.Nullable;
 import st.orm.Data;
 import st.orm.DbEnum;
 import st.orm.FK;
@@ -96,7 +95,7 @@ public final class ModelImpl<E extends Data, ID> implements Model<E, ID> {
      */
     private static final ClassValue<Map<String, Integer>> FIELD_INDEX_CACHE = new ClassValue<>() {
         @Override
-        protected Map<String, Integer> computeValue(@Nonnull Class<?> type) {
+        protected Map<String, Integer> computeValue(Class<?> type) {
             RecordType concreteRecordType = REFLECTION.getRecordType(type);
             var concreteFields = concreteRecordType.fields();
             Map<String, Integer> map = HashMap.newHashMap(concreteFields.size());
@@ -160,10 +159,10 @@ public final class ModelImpl<E extends Data, ID> implements Model<E, ID> {
      */
     private final Map<Integer, Metamodel<Data, ?>> converterParents;
 
-    public ModelImpl(@Nonnull RecordType recordType,
-                     @Nonnull TableName tableName,
-                     @Nonnull List<RecordField> fields,
-                     @Nonnull List<Column> columns) throws SqlTemplateException {
+    public ModelImpl(RecordType recordType,
+                     TableName tableName,
+                     List<RecordField> fields,
+                     List<Column> columns) throws SqlTemplateException {
         this(recordType, null, tableName, fields, columns);
     }
 
@@ -180,11 +179,11 @@ public final class ModelImpl<E extends Data, ID> implements Model<E, ID> {
      * @param fields the record fields aligned with columns.
      * @param columns the column metadata.
      */
-    public ModelImpl(@Nonnull RecordType recordType,
+    public ModelImpl(RecordType recordType,
                      @Nullable Class<E> typeOverride,
-                     @Nonnull TableName tableName,
-                     @Nonnull List<RecordField> fields,
-                     @Nonnull List<Column> columns) throws SqlTemplateException {
+                     TableName tableName,
+                     List<RecordField> fields,
+                     List<Column> columns) throws SqlTemplateException {
         assert fields.size() == columns.size() : "Columns and fields must have the same size";
         this.recordType = requireNonNull(recordType, "recordType");
         this.typeOverride = typeOverride;
@@ -256,8 +255,8 @@ public final class ModelImpl<E extends Data, ID> implements Model<E, ID> {
         return map.isEmpty() ? Map.of() : Map.copyOf(map);
     }
 
-    private static RecordField[][] initKeyPaths(@Nonnull List<RecordField> fields,
-                                                @Nonnull List<Column> columns) throws SqlTemplateException {
+    private static RecordField[][] initKeyPaths(List<RecordField> fields,
+                                                List<Column> columns) throws SqlTemplateException {
         var paths = new RecordField[columns.size()][];
         Map<RecordField, Integer> columnsByField = new HashMap<>();
         for (int i = 0; i < columns.size(); i++) {
@@ -297,8 +296,8 @@ public final class ModelImpl<E extends Data, ID> implements Model<E, ID> {
      */
     @Nullable
     private Object extractKeyValue(@Nullable Object value,
-                                   @Nonnull RecordField[] path,
-                                   @Nonnull Column column) throws SqlTemplateException {
+                                   RecordField[] path,
+                                   Column column) throws SqlTemplateException {
         if (value == null) {
             return null;
         }
@@ -344,7 +343,7 @@ public final class ModelImpl<E extends Data, ID> implements Model<E, ID> {
         return Map.copyOf(parents);
     }
 
-    private static RecordField initPrimaryKeyField(@Nonnull RecordType recordType) {
+    private static RecordField initPrimaryKeyField(RecordType recordType) {
         for (var field : recordType.fields()) {
             if (field.isAnnotationPresent(PK.class)) {
                 return field;
@@ -354,7 +353,7 @@ public final class ModelImpl<E extends Data, ID> implements Model<E, ID> {
     }
 
     @SuppressWarnings("unchecked")
-    private static <E extends Data, ID> Metamodel<E, ID> initPrimaryKeyMetamodel(@Nonnull List<Column> declaredColumns) {
+    private static <E extends Data, ID> Metamodel<E, ID> initPrimaryKeyMetamodel(List<Column> declaredColumns) {
         var metamodels = declaredColumns.stream()
                 .filter(Column::primaryKey)
                 .map(Column::metamodel)
@@ -366,7 +365,7 @@ public final class ModelImpl<E extends Data, ID> implements Model<E, ID> {
         return (Metamodel<E, ID>) metamodels.iterator().next();
     }
 
-    private static List<Column> initDeclaredColumns(@Nonnull List<Column> columns) {
+    private static List<Column> initDeclaredColumns(List<Column> columns) {
         List<Column> declared = new ArrayList<>();
         for (var column : columns) {
             if (column.metamodel().path().isEmpty()) {
@@ -378,8 +377,8 @@ public final class ModelImpl<E extends Data, ID> implements Model<E, ID> {
 
     @SuppressWarnings("unchecked")
     private static <E extends Data> Map<Class<? extends Data>, List<Metamodel<E, ?>>> initMappedMetamodels(
-            @Nonnull List<RecordField> fields,
-            @Nonnull List<Column> columns
+            List<RecordField> fields,
+            List<Column> columns
     ) throws SqlTemplateException {
         Map<Class<? extends Data>, List<Metamodel<E, ?>>> mapped = new HashMap<>();
         for (int i = 0; i < columns.size(); i++) {
@@ -400,7 +399,7 @@ public final class ModelImpl<E extends Data, ID> implements Model<E, ID> {
     }
 
     @Override
-    public Optional<Metamodel<E, ?>> findMetamodel(@Nonnull Class<? extends Data> type) {
+    public Optional<Metamodel<E, ?>> findMetamodel(Class<? extends Data> type) {
         if (recordType.type().equals(type)) {
             return Optional.ofNullable(primaryKeyMetamodel);
         }
@@ -422,7 +421,7 @@ public final class ModelImpl<E extends Data, ID> implements Model<E, ID> {
     }
 
     @Override
-    public String qualifiedName(@Nonnull SqlDialect dialect) {
+    public String qualifiedName(SqlDialect dialect) {
         return tableName.qualified(dialect);
     }
 
@@ -454,7 +453,7 @@ public final class ModelImpl<E extends Data, ID> implements Model<E, ID> {
     }
 
     @Override
-    public List<Column> getColumns(@Nonnull Metamodel<?, ?> metamodel) throws SqlTemplateException {
+    public List<Column> getColumns(Metamodel<?, ?> metamodel) throws SqlTemplateException {
         var columns = columnMap.get(metamodel.canonical());
         if (columns == null) {
             if (metamodel.isInline()) {
@@ -484,7 +483,7 @@ public final class ModelImpl<E extends Data, ID> implements Model<E, ID> {
      * fields. This method collects all declared columns whose metamodel field path starts with the inline
      * record's field path prefix.</p>
      */
-    private List<Column> getInlineColumns(@Nonnull Metamodel<?, ?> metamodel) throws SqlTemplateException {
+    private List<Column> getInlineColumns(Metamodel<?, ?> metamodel) throws SqlTemplateException {
         String prefix = metamodel.fieldPath() + ".";
         var inlineColumns = declaredColumns.stream()
                 .filter(column -> column.metamodel().fieldPath().startsWith(prefix))
@@ -496,9 +495,9 @@ public final class ModelImpl<E extends Data, ID> implements Model<E, ID> {
     }
 
     @Override
-    public void forEachValue(@Nonnull List<Column> columns,
-                             @Nonnull E record,
-                             @Nonnull BiConsumer<Column, Object> consumer) throws SqlTemplateException {
+    public void forEachValue(List<Column> columns,
+                             E record,
+                             BiConsumer<Column, Object> consumer) throws SqlTemplateException {
         requireNonNull(columns, "columns");
         requireNonNull(record, "record");
         requireNonNull(consumer, "consumer");
@@ -506,7 +505,7 @@ public final class ModelImpl<E extends Data, ID> implements Model<E, ID> {
     }
 
     @Override
-    public void validateForeignKeys(@Nonnull List<Column> columns, @Nonnull E record) throws SqlTemplateException {
+    public void validateForeignKeys(List<Column> columns, E record) throws SqlTemplateException {
         requireNonNull(columns, "columns");
         requireNonNull(record, "record");
         for (var column : columns) {
@@ -537,9 +536,9 @@ public final class ModelImpl<E extends Data, ID> implements Model<E, ID> {
     }
 
     @Override
-    public void forEachValue(@Nonnull Metamodel<E, ?> metamodel,
-                             @Nonnull Object object,
-                             @Nonnull BiConsumer<Column, Object> consumer) throws SqlTemplateException {
+    public void forEachValue(Metamodel<E, ?> metamodel,
+                             Object object,
+                             BiConsumer<Column, Object> consumer) throws SqlTemplateException {
         // For sealed entity models, columns originally share the same root metamodel, so
         // getColumns() could not distinguish between PK and non-PK columns. When a generated
         // metamodel is available (e.g., Animal_.name), its canonical form is registered via
@@ -606,10 +605,10 @@ public final class ModelImpl<E extends Data, ID> implements Model<E, ID> {
      * back to its corresponding record component using the column's field path relative to the inline record,
      * handling both plain fields and foreign key fields.</p>
      */
-    private void forEachInlineValue(@Nonnull Metamodel<E, ?> metamodel,
-                                    @Nonnull List<Column> columns,
-                                    @Nonnull Object object,
-                                    @Nonnull BiConsumer<Column, Object> consumer) throws SqlTemplateException {
+    private void forEachInlineValue(Metamodel<E, ?> metamodel,
+                                    List<Column> columns,
+                                    Object object,
+                                    BiConsumer<Column, Object> consumer) throws SqlTemplateException {
         RecordType inlineRecordType = REFLECTION.getRecordType(object.getClass());
         List<? extends RecordField> inlineFields = inlineRecordType.fields();
         // Build a field-name to component-index map for the inline record.
@@ -661,9 +660,9 @@ public final class ModelImpl<E extends Data, ID> implements Model<E, ID> {
      * <p>The input list may omit physical columns from a converter group. Missing columns are allowed.
      * The only structural requirement is that the input list is ordered by {@link Column#index()}.</p>
      */
-    private void forEachValueOrdered(@Nonnull List<Column> view,
-                                     @Nonnull E record,
-                                     @Nonnull BiConsumer<Column, Object> consumer)
+    private void forEachValueOrdered(List<Column> view,
+                                     E record,
+                                     BiConsumer<Column, Object> consumer)
             throws SqlTemplateException {
         if (discriminatorColumnIndex > 0) {
             forEachSealedEntityValue(view, record, consumer);
@@ -754,9 +753,9 @@ public final class ModelImpl<E extends Data, ID> implements Model<E, ID> {
      *   <li>Data columns absent from the concrete type (subtype-specific): emits NULL.</li>
      * </ul>
      */
-    private void forEachSealedEntityValue(@Nonnull List<Column> view,
-                                           @Nonnull E record,
-                                           @Nonnull BiConsumer<Column, Object> consumer)
+    private void forEachSealedEntityValue(List<Column> view,
+                                           E record,
+                                           BiConsumer<Column, Object> consumer)
             throws SqlTemplateException {
         assert typeOverride != null && typeOverride.isSealed();
         Class<?> concreteType = record.getClass();
@@ -792,7 +791,7 @@ public final class ModelImpl<E extends Data, ID> implements Model<E, ID> {
         }
     }
 
-    private Object getValue(@Nonnull Metamodel<Data, ?> metamodel, @Nonnull E record) throws SqlTemplateException {
+    private Object getValue(Metamodel<Data, ?> metamodel, E record) throws SqlTemplateException {
         try {
             return metamodel.getValue(record);
         } catch (ClassCastException e) {
@@ -818,7 +817,7 @@ public final class ModelImpl<E extends Data, ID> implements Model<E, ID> {
         return start;
     }
 
-    private Object map(@Nonnull Column column, @Nullable Object value) {
+    private Object map(Column column, @Nullable Object value) {
         return switch (value) {
             case Instant it -> Timestamp.from(it);
             case LocalDateTime it -> Timestamp.valueOf(it);
@@ -838,13 +837,11 @@ public final class ModelImpl<E extends Data, ID> implements Model<E, ID> {
     }
 
     @Override
-    @Nonnull
     public RecordType recordType() {
         return recordType;
     }
 
     @Override
-    @Nonnull
     public List<Column> columns() {
         return columns;
     }

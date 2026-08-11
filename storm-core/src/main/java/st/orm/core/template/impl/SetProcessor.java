@@ -15,7 +15,6 @@
  */
 package st.orm.core.template.impl;
 
-import jakarta.annotation.Nonnull;
 import java.math.BigInteger;
 import java.sql.Timestamp;
 import java.time.Instant;
@@ -35,7 +34,7 @@ import st.orm.core.template.SqlTemplateException;
 import st.orm.core.template.impl.Elements.Set;
 
 final class SetProcessor implements ElementProcessor<Set> {
-    record SetBindHint(@Nonnull List<Column> columns) implements BindHint {}
+    record SetBindHint(List<Column> columns) implements BindHint {}
 
     private static final Data EMPTY_DATA = new Data() {};
 
@@ -53,7 +52,7 @@ final class SetProcessor implements ElementProcessor<Set> {
      * @return an immutable key for caching, or {@code null} if the element (or its compilation) cannot be cached.
      */
     @Override
-    public Object getCompilationKey(@Nonnull Set set) {
+    public Object getCompilationKey(Set set) {
         if (set.record() != null) {
             return new Set(EMPTY_DATA, null, set.fields());
         }
@@ -72,7 +71,7 @@ final class SetProcessor implements ElementProcessor<Set> {
      * @throws SqlTemplateException if compilation fails.
      */
     @Override
-    public CompiledElement compile(@Nonnull Set set, @Nonnull TemplateCompiler compiler) throws SqlTemplateException {
+    public CompiledElement compile(Set set, TemplateCompiler compiler) throws SqlTemplateException {
         if (set.record() != null) {
             return compileSet(set.record(), set.fields(), compiler);
         }
@@ -94,7 +93,7 @@ final class SetProcessor implements ElementProcessor<Set> {
      * @param bindHint the bind hint for the element, providing additional context for binding.
      */
     @Override
-    public void bind(@Nonnull Set set, @Nonnull TemplateBinder binder, @Nonnull BindHint bindHint) throws SqlTemplateException {
+    public void bind(Set set, TemplateBinder binder, BindHint bindHint) throws SqlTemplateException {
         if (bindHint instanceof SetBindHint(List<Column> columns)) {
             if (set.record() != null) {
                 var queryModel = binder.getQueryModel();
@@ -132,7 +131,7 @@ final class SetProcessor implements ElementProcessor<Set> {
         }
     }
 
-    private List<Column> getColumns(@Nonnull Model<?, ?> model, @Nonnull Collection<Metamodel<?, ?>> fields) {
+    private List<Column> getColumns(Model<?, ?> model, Collection<Metamodel<?, ?>> fields) {
         return model.declaredColumns().stream()
                 .filter(column -> !column.primaryKey() && column.updatable()
                         && (fields.isEmpty() || fields.contains(column.metamodel())))
@@ -147,7 +146,7 @@ final class SetProcessor implements ElementProcessor<Set> {
      * @return the compiled SET clause.
      * @throws SqlTemplateException if the template does not comply to the specification.
      */
-    private CompiledElement compileSet(@Nonnull Data record, @Nonnull Collection<Metamodel<?, ?>> fields, @Nonnull TemplateCompiler compiler) throws SqlTemplateException {
+    private CompiledElement compileSet(Data record, Collection<Metamodel<?, ?>> fields, TemplateCompiler compiler) throws SqlTemplateException {
         var queryModel = compiler.getQueryModel();
         var table = queryModel.getTable();
         //noinspection unchecked
@@ -165,7 +164,7 @@ final class SetProcessor implements ElementProcessor<Set> {
      * @return the compiled SET clause.
      * @throws SqlTemplateException if the template does not comply to the specification.
      */
-    private CompiledElement compileSetBindVars(@Nonnull BindVars bindVars, @Nonnull Collection<Metamodel<?, ?>> fields, @Nonnull TemplateCompiler compiler) throws SqlTemplateException {
+    private CompiledElement compileSetBindVars(BindVars bindVars, Collection<Metamodel<?, ?>> fields, TemplateCompiler compiler) throws SqlTemplateException {
         if (bindVars instanceof BindVarsImpl) {
             var queryModel = compiler.getQueryModel();
             var table = queryModel.getTable();
@@ -190,9 +189,9 @@ final class SetProcessor implements ElementProcessor<Set> {
      * @param parameterSql renders the parameter fragment for a non-version column.
      * @return the compiled SET clause.
      */
-    private CompiledElement renderSet(@Nonnull List<Column> columns, @Nonnull String alias,
-                                      @Nonnull TemplateCompiler compiler,
-                                      @Nonnull Function<Column, String> parameterSql) {
+    private CompiledElement renderSet(List<Column> columns, String alias,
+                                      TemplateCompiler compiler,
+                                      Function<Column, String> parameterSql) {
         var dialect = compiler.dialect();
         String prefix = alias.isEmpty() ? "" : alias + ".";
         List<String> assignments = new ArrayList<>();
@@ -217,7 +216,7 @@ final class SetProcessor implements ElementProcessor<Set> {
      * @param dialect the SQL dialect.
      * @return the version string for the version column.
      */
-    private static String compileVersion(@Nonnull String columnName, @Nonnull Class<?> type, @Nonnull String alias, @Nonnull SqlDialect dialect) {
+    private static String compileVersion(String columnName, Class<?> type, String alias, SqlDialect dialect) {
         String a = alias.isEmpty() ? "" : alias + ".";
         String value = switch (type) {
             case Class<?> c when

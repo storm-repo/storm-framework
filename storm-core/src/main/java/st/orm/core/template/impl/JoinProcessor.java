@@ -28,9 +28,8 @@ import static st.orm.core.template.impl.RecordReflection.getTableName;
 import static st.orm.core.template.impl.RecordReflection.isTableJoinCandidate;
 import static st.orm.core.template.impl.RecordValidation.validateDataType;
 
-import jakarta.annotation.Nonnull;
-import jakarta.annotation.Nullable;
 import java.util.Optional;
+import org.jspecify.annotations.Nullable;
 import st.orm.Data;
 import st.orm.Metamodel;
 import st.orm.core.template.SqlTemplateException;
@@ -56,7 +55,7 @@ final class JoinProcessor implements ElementProcessor<Join> {
      * @return an immutable key for caching, or {@code null} if the element (or its compilation) cannot be cached.
      */
     @Override
-    public Object getCompilationKey(@Nonnull Join join) {
+    public Object getCompilationKey(Join join) {
         if (join.source() instanceof TemplateSource || join.target() instanceof TemplateTarget) {
             return null;
         }
@@ -75,7 +74,7 @@ final class JoinProcessor implements ElementProcessor<Join> {
      * @throws SqlTemplateException if compilation fails.
      */
     @Override
-    public CompiledElement compile(@Nonnull Join join, @Nonnull TemplateCompiler compiler)
+    public CompiledElement compile(Join join, TemplateCompiler compiler)
             throws SqlTemplateException{
         if (join.autoJoin() && join.source() instanceof TableSource(var table)) {
             // Prune the join if the table is not referenced in the template, for instance, in case of a SelectMode.DECLARED.
@@ -97,7 +96,7 @@ final class JoinProcessor implements ElementProcessor<Join> {
      * @param bindHint the bind hint for the element, providing additional context for binding.
      */
     @Override
-    public void bind(@Nonnull Join join, @Nonnull TemplateBinder binder, @Nonnull BindHint bindHint) {
+    public void bind(Join join, TemplateBinder binder, BindHint bindHint) {
         if (join.target() instanceof TemplateTarget(var template)) {
             binder.bind(template, true);
         }
@@ -106,7 +105,7 @@ final class JoinProcessor implements ElementProcessor<Join> {
         }
     }
 
-    private String compileJoin(@Nonnull Join join, @Nonnull TemplateCompiler compiler)
+    private String compileJoin(Join join, TemplateCompiler compiler)
             throws SqlTemplateException {
         String joinType = join.type().sql();
         String onClause = join.type().hasOnClause() ? switch (join.target()) {
@@ -131,12 +130,12 @@ final class JoinProcessor implements ElementProcessor<Join> {
     }
 
     private String compileJoinCondition(
-            @Nonnull Class<? extends Data> fromTable,
-            @Nonnull String alias,
-            @Nonnull Class<? extends Data> toTable,
+            Class<? extends Data> fromTable,
+            String alias,
+            Class<? extends Data> toTable,
             @Nullable String toAlias,
             @Nullable RecordField toField,
-            @Nonnull TemplateCompiler compiler
+            TemplateCompiler compiler
     ) throws SqlTemplateException {
         if (toField != null) {
             // Graph-derived joins carry the resolved foreign key field of the target table; no
@@ -186,8 +185,8 @@ final class JoinProcessor implements ElementProcessor<Join> {
      * explicitly.
      */
     private Optional<RecordField> findExactJoinField(
-            @Nonnull Class<? extends Data> fkSide,
-            @Nonnull Class<? extends Data> targetSide
+            Class<? extends Data> fkSide,
+            Class<? extends Data> targetSide
     ) throws SqlTemplateException {
         var matches = findRecordFields(getFkFields(fkSide).toList(), targetSide);
         if (matches.size() > 1) {
@@ -209,9 +208,9 @@ final class JoinProcessor implements ElementProcessor<Join> {
      * as the join is ambiguous and must be specified explicitly.
      */
     private Optional<RecordField> findTableJoinField(
-            @Nonnull Class<? extends Data> fkSide,
-            @Nonnull Class<? extends Data> tableSide,
-            @Nonnull TemplateCompiler compiler
+            Class<? extends Data> fkSide,
+            Class<? extends Data> tableSide,
+            TemplateCompiler compiler
     ) throws SqlTemplateException {
         if (!isTableJoinCandidate(tableSide)) {
             return empty();
@@ -231,13 +230,13 @@ final class JoinProcessor implements ElementProcessor<Join> {
 
     @SuppressWarnings("DuplicatedCode")
     private String compileJoinCondition(
-            @Nonnull Class<? extends Data> fromTable,
+            Class<? extends Data> fromTable,
             @Nullable String fromAlias,
-            @Nonnull Class<? extends Data> toTable,
+            Class<? extends Data> toTable,
             @Nullable String toAlias,
-            @Nonnull RecordField left,
-            @Nonnull RecordField right,
-            @Nonnull TemplateCompiler compiler
+            RecordField left,
+            RecordField right,
+            TemplateCompiler compiler
     ) throws SqlTemplateException {
         fromAlias = fromAlias == null ? compiler.getAlias(Metamodel.root(fromTable), INNER) : fromAlias;
         toAlias = toAlias == null ? compiler.getAlias(Metamodel.root(toTable), INNER) : toAlias;

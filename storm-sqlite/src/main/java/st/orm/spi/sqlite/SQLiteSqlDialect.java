@@ -17,7 +17,6 @@ package st.orm.spi.sqlite;
 
 import static java.util.stream.Collectors.toSet;
 
-import jakarta.annotation.Nonnull;
 import java.sql.PreparedStatement;
 import java.sql.SQLException;
 import java.sql.Timestamp;
@@ -37,7 +36,7 @@ public class SQLiteSqlDialect extends DefaultSqlDialect implements SqlDialect {
     public SQLiteSqlDialect() {
     }
 
-    public SQLiteSqlDialect(@Nonnull StormConfig config) {
+    public SQLiteSqlDialect(StormConfig config) {
         super(config);
     }
 
@@ -96,7 +95,7 @@ public class SQLiteSqlDialect extends DefaultSqlDialect implements SqlDialect {
      * @since 1.11
      */
     @Override
-    public boolean isKeyword(@Nonnull String name) {
+    public boolean isKeyword(String name) {
         return SQLITE_KEYWORDS.contains(name.toUpperCase());
     }
 
@@ -107,7 +106,7 @@ public class SQLiteSqlDialect extends DefaultSqlDialect implements SqlDialect {
      * @return the escaped identifier
      */
     @Override
-    public String escape(@Nonnull String name) {
+    public String escape(String name) {
         return "\"%s\"".formatted(name.replace("\"", "\"\""));
     }
 
@@ -263,8 +262,8 @@ public class SQLiteSqlDialect extends DefaultSqlDialect implements SqlDialect {
      * @since 1.11
      */
     @Override
-    public void setParameter(@Nonnull PreparedStatement preparedStatement, int index,
-                             @Nonnull Timestamp timestamp, @Nonnull Calendar calendar) throws SQLException {
+    public void setParameter(PreparedStatement preparedStatement, int index,
+                             Timestamp timestamp, Calendar calendar) throws SQLException {
         SimpleDateFormat format = new SimpleDateFormat(SQLITE_TIMESTAMP_FORMAT);
         format.setTimeZone(TimeZone.getTimeZone("UTC"));
         preparedStatement.setString(index, format.format(timestamp));

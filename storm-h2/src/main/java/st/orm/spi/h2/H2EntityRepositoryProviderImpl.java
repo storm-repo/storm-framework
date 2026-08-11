@@ -15,7 +15,6 @@
  */
 package st.orm.spi.h2;
 
-import jakarta.annotation.Nonnull;
 import st.orm.Entity;
 import st.orm.core.repository.EntityRepository;
 import st.orm.core.spi.EntityRepositoryProvider;
@@ -29,8 +28,8 @@ public class H2EntityRepositoryProviderImpl implements EntityRepositoryProvider 
 
     @Override
     public <ID, E extends Entity<ID>> EntityRepository<E, ID> getEntityRepository(
-            @Nonnull ORMTemplate ormTemplate,
-            @Nonnull Model<E, ID> model) {
+            ORMTemplate ormTemplate,
+            Model<E, ID> model) {
         return new H2EntityRepositoryImpl<>(ormTemplate, model);
     }
 }

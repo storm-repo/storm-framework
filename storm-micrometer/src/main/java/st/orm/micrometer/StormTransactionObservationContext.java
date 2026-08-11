@@ -19,8 +19,7 @@ import static java.util.Objects.requireNonNull;
 
 import io.micrometer.common.KeyValues;
 import io.micrometer.observation.Observation;
-import jakarta.annotation.Nonnull;
-import jakarta.annotation.Nullable;
+import org.jspecify.annotations.Nullable;
 import st.orm.core.spi.TransactionScope;
 
 /**
@@ -40,8 +39,8 @@ public class StormTransactionObservationContext extends Observation.Context {
     private final KeyValues extraLowCardinalityKeyValues;
     private @Nullable Boolean rolledBack;
 
-    public StormTransactionObservationContext(@Nonnull TransactionScope.Options options,
-                                              @Nonnull KeyValues extraLowCardinalityKeyValues) {
+    public StormTransactionObservationContext(TransactionScope.Options options,
+                                              KeyValues extraLowCardinalityKeyValues) {
         this.options = requireNonNull(options, "options");
         this.extraLowCardinalityKeyValues = requireNonNull(extraLowCardinalityKeyValues, "extraLowCardinalityKeyValues");
     }

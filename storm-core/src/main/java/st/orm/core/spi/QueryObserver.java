@@ -15,7 +15,6 @@
  */
 package st.orm.core.spi;
 
-import jakarta.annotation.Nonnull;
 
 /**
  * Observes query executions performed by an ORM template.
@@ -41,7 +40,7 @@ public interface QueryObserver {
      * @param context describes the statement execution; never {@code null}.
      * @return the observation tracking this execution; never {@code null}.
      */
-    Observation onExecute(@Nonnull QueryContext context);
+    Observation onExecute(QueryContext context);
 
     /**
      * Called when a physical transaction opens: an outermost transaction block, or a {@code REQUIRES_NEW}
@@ -53,7 +52,7 @@ public interface QueryObserver {
      * @return the observation tracking this transaction; never {@code null}.
      * @since 1.13
      */
-    default TransactionObservation onTransaction(@Nonnull TransactionScope.Options options) {
+    default TransactionObservation onTransaction(TransactionScope.Options options) {
         return TransactionObservation.NOOP;
     }
 
@@ -69,7 +68,7 @@ public interface QueryObserver {
          */
         TransactionObservation NOOP = new TransactionObservation() {
             @Override
-            public void error(@Nonnull Throwable throwable) {
+            public void error(Throwable throwable) {
                 // Ignore.
             }
 
@@ -86,7 +85,7 @@ public interface QueryObserver {
          *
          * @param throwable the failure.
          */
-        void error(@Nonnull Throwable throwable);
+        void error(Throwable throwable);
 
         /**
          * Signals that the observed transaction has completed.
@@ -110,7 +109,7 @@ public interface QueryObserver {
          */
         Observation NOOP = new Observation() {
             @Override
-            public void error(@Nonnull Throwable throwable) {
+            public void error(Throwable throwable) {
                 // Ignore.
             }
 
@@ -127,7 +126,7 @@ public interface QueryObserver {
          *
          * @param throwable the failure.
          */
-        void error(@Nonnull Throwable throwable);
+        void error(Throwable throwable);
 
         /**
          * Signals that the observed execution has completed.

@@ -6,10 +6,9 @@ import static st.orm.core.template.ORMTemplate.of;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
-import jakarta.annotation.Nonnull;
-import jakarta.annotation.Nullable;
 import java.time.LocalDate;
 import javax.sql.DataSource;
+import org.jspecify.annotations.Nullable;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -57,8 +56,8 @@ public class JsonIntegrationTest {
     @DbTable("owner")
     public record OwnerWithJsonPerson(
             @PK Integer id,
-            @Nonnull @Json Person person,
-            @Nonnull @Json Address address,
+            @Json Person person,
+            @Json Address address,
             @Nullable String telephone
     ) implements Entity<Integer> {
     }
@@ -98,9 +97,9 @@ public class JsonIntegrationTest {
     @DbTable("pet")
     public record PetWithRefOwner(
             @PK Integer id,
-            @Nonnull String name,
-            @Nonnull @Persist(updatable = false) LocalDate birthDate,
-            @Nonnull @FK @Persist(updatable = false) @DbColumn("type_id") PetType petType,
+            String name,
+            @Persist(updatable = false) LocalDate birthDate,
+            @FK @Persist(updatable = false) @DbColumn("type_id") PetType petType,
             @Nullable @FK Ref<Owner> owner
     ) implements Entity<Integer> {}
 
@@ -143,9 +142,9 @@ public class JsonIntegrationTest {
     @DbTable("owner")
     public record ProjectionOwner(
             @PK Integer id,
-            @Nonnull String firstName,
-            @Nonnull String lastName,
-            @Nonnull @Json Address address,
+            String firstName,
+            String lastName,
+            @Json Address address,
             @Nullable String telephone
     ) implements Projection<Integer> {
     }
@@ -153,9 +152,9 @@ public class JsonIntegrationTest {
     @DbTable("pet")
     public record PetWithProjectionRefOwner(
             @PK Integer id,
-            @Nonnull String name,
-            @Nonnull @Persist(updatable = false) LocalDate birthDate,
-            @Nonnull @FK @Persist(updatable = false) @DbColumn("type_id") PetType petType,
+            String name,
+            @Persist(updatable = false) LocalDate birthDate,
+            @FK @Persist(updatable = false) @DbColumn("type_id") PetType petType,
             @Nullable @FK Ref<ProjectionOwner> owner
     ) implements Entity<Integer> {}
 

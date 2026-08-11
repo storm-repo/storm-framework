@@ -19,14 +19,13 @@ import static st.orm.core.template.TemplateString.raw;
 import static st.orm.core.template.impl.RecordReflection.getExtensionFieldNames;
 import static st.orm.core.template.impl.RecordReflection.hasDiscriminator;
 
-import jakarta.annotation.Nonnull;
-import jakarta.annotation.Nullable;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.IntStream;
 import java.util.stream.Stream;
+import org.jspecify.annotations.Nullable;
 import st.orm.Data;
 import st.orm.Entity;
 import st.orm.PK;
@@ -76,9 +75,9 @@ public final class JoinedEntityHelper {
      * @throws PersistenceException if the insert fails.
      */
     public static <E extends Entity<ID>, ID> void insert(
-            @Nonnull QueryTemplate queryTemplate,
-            @Nonnull Model<E, ID> model,
-            @Nonnull E entity
+            QueryTemplate queryTemplate,
+            Model<E, ID> model,
+            E entity
     ) {
         try {
             insertJoined(queryTemplate, model, entity);
@@ -99,9 +98,9 @@ public final class JoinedEntityHelper {
      * @throws PersistenceException if the insert fails.
      */
     public static <E extends Entity<ID>, ID> ID insertAndFetchId(
-            @Nonnull QueryTemplate queryTemplate,
-            @Nonnull Model<E, ID> model,
-            @Nonnull E entity
+            QueryTemplate queryTemplate,
+            Model<E, ID> model,
+            E entity
     ) {
         try {
             return insertJoined(queryTemplate, model, entity);
@@ -121,9 +120,9 @@ public final class JoinedEntityHelper {
      * @throws PersistenceException if the update fails.
      */
     public static <E extends Entity<ID>, ID> void update(
-            @Nonnull QueryTemplate queryTemplate,
-            @Nonnull Model<E, ID> model,
-            @Nonnull E entity
+            QueryTemplate queryTemplate,
+            Model<E, ID> model,
+            E entity
     ) {
         try {
             updateJoined(queryTemplate, model, entity);
@@ -143,9 +142,9 @@ public final class JoinedEntityHelper {
      * @throws PersistenceException if the remove fails.
      */
     public static <E extends Entity<ID>, ID> void remove(
-            @Nonnull QueryTemplate queryTemplate,
-            @Nonnull Model<E, ID> model,
-            @Nonnull E entity
+            QueryTemplate queryTemplate,
+            Model<E, ID> model,
+            E entity
     ) {
         try {
             deleteJoined(queryTemplate, model, entity.getClass(), entity.id());
@@ -165,9 +164,9 @@ public final class JoinedEntityHelper {
      * @throws PersistenceException if the remove fails.
      */
     public static <E extends Entity<ID>, ID> void removeById(
-            @Nonnull QueryTemplate queryTemplate,
-            @Nonnull Model<E, ID> model,
-            @Nonnull ID id
+            QueryTemplate queryTemplate,
+            Model<E, ID> model,
+            ID id
     ) {
         try {
             deleteJoined(queryTemplate, model, null, id);
@@ -194,9 +193,9 @@ public final class JoinedEntityHelper {
      * @since 1.9
      */
     public static <E extends Entity<ID>, ID> List<ID> insertBatch(
-            @Nonnull QueryTemplate queryTemplate,
-            @Nonnull Model<E, ID> model,
-            @Nonnull List<E> entities
+            QueryTemplate queryTemplate,
+            Model<E, ID> model,
+            List<E> entities
     ) {
         if (entities.isEmpty()) {
             return List.of();
@@ -227,10 +226,10 @@ public final class JoinedEntityHelper {
      * @since 1.9
      */
     public static <E extends Entity<ID>, ID> void insertExtensionTables(
-            @Nonnull QueryTemplate queryTemplate,
-            @Nonnull Model<E, ID> model,
-            @Nonnull List<E> entities,
-            @Nonnull List<ID> ids
+            QueryTemplate queryTemplate,
+            Model<E, ID> model,
+            List<E> entities,
+            List<ID> ids
     ) {
         if (entities.isEmpty()) {
             return;
@@ -260,9 +259,9 @@ public final class JoinedEntityHelper {
      * @since 1.9
      */
     public static <E extends Entity<ID>, ID> void updateBatch(
-            @Nonnull QueryTemplate queryTemplate,
-            @Nonnull Model<E, ID> model,
-            @Nonnull List<E> entities
+            QueryTemplate queryTemplate,
+            Model<E, ID> model,
+            List<E> entities
     ) {
         if (entities.isEmpty()) {
             return;
@@ -289,9 +288,9 @@ public final class JoinedEntityHelper {
      * @since 1.9
      */
     public static <E extends Entity<ID>, ID> void removeBatch(
-            @Nonnull QueryTemplate queryTemplate,
-            @Nonnull Model<E, ID> model,
-            @Nonnull List<E> entities
+            QueryTemplate queryTemplate,
+            Model<E, ID> model,
+            List<E> entities
     ) {
         if (entities.isEmpty()) {
             return;
@@ -318,9 +317,9 @@ public final class JoinedEntityHelper {
      * @since 1.9
      */
     public static <E extends Entity<ID>, ID> void removeBatchByRef(
-            @Nonnull QueryTemplate queryTemplate,
-            @Nonnull Model<E, ID> model,
-            @Nonnull List<Ref<E>> refs
+            QueryTemplate queryTemplate,
+            Model<E, ID> model,
+            List<Ref<E>> refs
     ) {
         if (refs.isEmpty()) {
             return;
@@ -334,7 +333,7 @@ public final class JoinedEntityHelper {
 
     // ---- Internal implementation ----
 
-    private static boolean hasExtensionFields(@Nonnull Class<?> concreteType, @Nonnull Class<?> sealedType) {
+    private static boolean hasExtensionFields(Class<?> concreteType, Class<?> sealedType) {
         return !getExtensionFieldNames(concreteType, sealedType).isEmpty();
     }
 
@@ -345,10 +344,10 @@ public final class JoinedEntityHelper {
      * @return the total number of rows deleted across all extension tables.
      */
     private static <ID> int deleteOtherExtensionRows(
-            @Nonnull QueryTemplate queryTemplate,
-            @Nonnull Class<?> sealedType,
-            @Nonnull Class<?> currentConcreteType,
-            @Nonnull ID id
+            QueryTemplate queryTemplate,
+            Class<?> sealedType,
+            Class<?> currentConcreteType,
+            ID id
     ) throws SqlTemplateException {
         int totalDeleted = 0;
         List<? extends Class<?>> permitted = REFLECTION.getPermittedSubclasses(sealedType);
@@ -370,7 +369,7 @@ public final class JoinedEntityHelper {
     }
 
     @SuppressWarnings("unchecked")
-    private static <E> E reconstructWithPk(@Nonnull E entity, @Nonnull Object generatedPk) {
+    private static <E> E reconstructWithPk(E entity, Object generatedPk) {
         var recordType = REFLECTION.getRecordType(entity.getClass());
         var fields = recordType.fields();
         Object[] args = new Object[fields.size()];
@@ -389,9 +388,9 @@ public final class JoinedEntityHelper {
     }
 
     private static <E extends Entity<ID>, ID> ID insertJoined(
-            @Nonnull QueryTemplate queryTemplate,
-            @Nonnull Model<E, ID> model,
-            @Nonnull E entity
+            QueryTemplate queryTemplate,
+            Model<E, ID> model,
+            E entity
     ) throws SqlTemplateException {
         Class<E> sealedType = model.type();
         Class<? extends Data> concreteType = (Class<? extends Data>) entity.getClass();
@@ -440,9 +439,9 @@ public final class JoinedEntityHelper {
     }
 
     private static <E extends Entity<ID>, ID> void updateJoined(
-            @Nonnull QueryTemplate queryTemplate,
-            @Nonnull Model<E, ID> model,
-            @Nonnull E entity
+            QueryTemplate queryTemplate,
+            Model<E, ID> model,
+            E entity
     ) throws SqlTemplateException {
         Class<E> sealedType = model.type();
         Class<? extends Data> concreteType = (Class<? extends Data>) entity.getClass();
@@ -490,10 +489,10 @@ public final class JoinedEntityHelper {
     }
 
     private static <E extends Entity<ID>, ID> void deleteJoined(
-            @Nonnull QueryTemplate queryTemplate,
-            @Nonnull Model<E, ID> model,
+            QueryTemplate queryTemplate,
+            Model<E, ID> model,
             @Nullable Class<?> concreteTypeOrNull,
-            @Nonnull ID id
+            ID id
     ) throws SqlTemplateException {
         Class<E> sealedType = model.type();
         // Step 1: DELETE from extension table(s) first (FK constraint).
@@ -534,9 +533,9 @@ public final class JoinedEntityHelper {
     }
 
     private static <E extends Entity<ID>, ID> List<ID> insertJoinedBatch(
-            @Nonnull QueryTemplate queryTemplate,
-            @Nonnull Model<E, ID> model,
-            @Nonnull List<E> entities
+            QueryTemplate queryTemplate,
+            Model<E, ID> model,
+            List<E> entities
     ) throws SqlTemplateException {
         Class<E> sealedType = model.type();
         boolean autoGeneratedPrimaryKey = model.declaredColumns().stream()
@@ -569,10 +568,10 @@ public final class JoinedEntityHelper {
 
     @SuppressWarnings("unchecked")
     private static <E extends Entity<ID>, ID> void insertExtensionTablesBatch(
-            @Nonnull QueryTemplate queryTemplate,
-            @Nonnull Model<E, ID> model,
-            @Nonnull List<E> entities,
-            @Nonnull List<ID> ids,
+            QueryTemplate queryTemplate,
+            Model<E, ID> model,
+            List<E> entities,
+            List<ID> ids,
             boolean autoGeneratedPrimaryKey
     ) throws SqlTemplateException {
         Class<E> sealedType = model.type();
@@ -608,9 +607,9 @@ public final class JoinedEntityHelper {
 
     @SuppressWarnings("unchecked")
     private static <E extends Entity<ID>, ID> void updateJoinedBatch(
-            @Nonnull QueryTemplate queryTemplate,
-            @Nonnull Model<E, ID> model,
-            @Nonnull List<E> entities
+            QueryTemplate queryTemplate,
+            Model<E, ID> model,
+            List<E> entities
     ) throws SqlTemplateException {
         Class<E> sealedType = model.type();
         // Phase 1: Base table UPDATE.
@@ -694,9 +693,9 @@ public final class JoinedEntityHelper {
 
     @SuppressWarnings("unchecked")
     private static <E extends Entity<ID>, ID> void deleteJoinedBatch(
-            @Nonnull QueryTemplate queryTemplate,
-            @Nonnull Model<E, ID> model,
-            @Nonnull List<E> entities
+            QueryTemplate queryTemplate,
+            Model<E, ID> model,
+            List<E> entities
     ) throws SqlTemplateException {
         Class<E> sealedType = model.type();
         // Phase 1: DELETE from extension tables first (FK constraint).
@@ -736,9 +735,9 @@ public final class JoinedEntityHelper {
     }
 
     private static <E extends Entity<ID>, ID> void deleteJoinedBatchByRef(
-            @Nonnull QueryTemplate queryTemplate,
-            @Nonnull Model<E, ID> model,
-            @Nonnull List<Ref<E>> refs
+            QueryTemplate queryTemplate,
+            Model<E, ID> model,
+            List<Ref<E>> refs
     ) throws SqlTemplateException {
         Class<E> sealedType = model.type();
         List<? extends Class<?>> permitted = REFLECTION.getPermittedSubclasses(sealedType);

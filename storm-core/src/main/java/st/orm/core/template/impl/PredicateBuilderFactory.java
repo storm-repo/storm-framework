@@ -17,7 +17,6 @@ package st.orm.core.template.impl;
 
 import static st.orm.core.template.TemplateString.wrap;
 
-import jakarta.annotation.Nonnull;
 import st.orm.Data;
 import st.orm.Metamodel;
 import st.orm.Operator;
@@ -48,9 +47,9 @@ public interface PredicateBuilderFactory {
      * @return a new instance of {@link PredicateBuilder}
      */
     static <T extends Data, R, V> PredicateBuilder<T, R, ?> create(
-            @Nonnull Metamodel<?, V> path,
-            @Nonnull Operator operator,
-            @Nonnull Iterable<V> o) {
+            Metamodel<?, V> path,
+            Operator operator,
+            Iterable<V> o) {
         return new PredicateBuilderImpl<>(wrap(new ObjectExpression(path, operator, o)));
     }
 
@@ -66,9 +65,9 @@ public interface PredicateBuilderFactory {
      * @return a new instance of {@link PredicateBuilder}
      */
     static <T extends Data, R, V extends Data> PredicateBuilder<T, R, ?> createRef(
-            @Nonnull Metamodel<?, V> path,
-            @Nonnull Operator operator,
-            @Nonnull Iterable<Ref<V>> o) {
+            Metamodel<?, V> path,
+            Operator operator,
+            Iterable<Ref<V>> o) {
         return new PredicateBuilderImpl<>(wrap(new ObjectExpression(path, operator, o)));
     }
 
@@ -85,9 +84,9 @@ public interface PredicateBuilderFactory {
      * @return a new instance of {@link PredicateBuilder}
      */
     static <T extends Data, R, ID, V> PredicateBuilder<T, R, ID> createWithId(
-            @Nonnull Metamodel<?, V> path,
-            @Nonnull Operator operator,
-            @Nonnull Iterable<V> o) {
+            Metamodel<?, V> path,
+            Operator operator,
+            Iterable<V> o) {
         return new PredicateBuilderImpl<>(wrap(new ObjectExpression(path, operator, o)));
     }
     /**
@@ -103,9 +102,9 @@ public interface PredicateBuilderFactory {
      * @return a new instance of {@link PredicateBuilder}
      */
     static <T extends Data, R, ID, V extends Data> PredicateBuilder<T, R, ID> createRefWithId(
-            @Nonnull Metamodel<?, V> path,
-            @Nonnull Operator operator,
-            @Nonnull Iterable<Ref<V>> o) {
+            Metamodel<?, V> path,
+            Operator operator,
+            Iterable<Ref<V>> o) {
         return new PredicateBuilderImpl<>(wrap(new ObjectExpression(path, operator, o)));
     }
 }

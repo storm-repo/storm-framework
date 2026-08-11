@@ -15,7 +15,6 @@
  */
 package st.orm.core.template;
 
-import jakarta.annotation.Nonnull;
 import java.util.ArrayList;
 import java.util.List;
 import st.orm.core.template.impl.SegmentedLruCache;
@@ -41,7 +40,7 @@ final class TemplateFragments {
      * @param raw the raw string with '\0' delimiters and '\\0' escapes.
      * @return an immutable list of fragments between each NUL delimiter.
      */
-    static List<String> parse(@Nonnull String raw) {
+    static List<String> parse(String raw) {
         var cached = CACHE.get(raw);
         if (cached != null) {
             return cached;

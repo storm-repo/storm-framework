@@ -17,12 +17,11 @@ package st.orm.core.template.impl;
 
 import static java.util.Objects.requireNonNull;
 
-import jakarta.annotation.Nonnull;
 
 final class IdentityKey {
     private final Object ref;
 
-    IdentityKey(@Nonnull Object ref) {
+    IdentityKey(Object ref) {
         this.ref = requireNonNull(ref, "ref");
     }
 

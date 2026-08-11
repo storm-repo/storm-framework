@@ -26,8 +26,6 @@ import static st.orm.core.template.impl.RecordReflection.hasDiscriminator;
 import static st.orm.core.template.impl.RecordReflection.isJoinedEntity;
 import static st.orm.core.template.impl.RecordReflection.isSealedEntity;
 
-import jakarta.annotation.Nonnull;
-import jakarta.annotation.Nullable;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -35,6 +33,7 @@ import java.util.NoSuchElementException;
 import java.util.SequencedMap;
 import java.util.function.BiConsumer;
 import java.util.stream.Stream;
+import org.jspecify.annotations.Nullable;
 import st.orm.BindVars;
 import st.orm.Data;
 import st.orm.Discriminator.DiscriminatorType;
@@ -93,11 +92,11 @@ final class QueryModelImpl implements QueryModel {
      * @throws SqlTemplateException if the root model cannot be built.
      */
     QueryModelImpl(
-            @Nonnull SqlTemplate template,
-            @Nonnull ModelBuilder modelBuilder,
-            @Nonnull AliasedTable table,
-            @Nonnull TableMapper tableMapper,
-            @Nonnull AliasMapper aliasMapper) throws SqlTemplateException {
+            SqlTemplate template,
+            ModelBuilder modelBuilder,
+            AliasedTable table,
+            TableMapper tableMapper,
+            AliasMapper aliasMapper) throws SqlTemplateException {
         this.template = template;
         this.modelBuilder = modelBuilder;
         this.table = table;
@@ -129,7 +128,7 @@ final class QueryModelImpl implements QueryModel {
      * @return the list of column expressions for the root table.
      */
     @Override
-    public List<ColumnExpression> getColumns(@Nonnull SelectMode mode) {
+    public List<ColumnExpression> getColumns(SelectMode mode) {
         return getColumns(table.type(), mode);
     }
 
@@ -144,7 +143,7 @@ final class QueryModelImpl implements QueryModel {
      * @return the list of column expressions for the specified table type.
      */
     @Override
-    public List<ColumnExpression> getColumns(@Nonnull Class<? extends Data> table, @Nonnull SelectMode mode) {
+    public List<ColumnExpression> getColumns(Class<? extends Data> table, SelectMode mode) {
         return getColumns(table, mode, FetchPlan.NONE);
     }
 
@@ -163,8 +162,8 @@ final class QueryModelImpl implements QueryModel {
      * @since 1.13
      */
     @Override
-    public List<ColumnExpression> getColumns(@Nonnull Class<? extends Data> table, @Nonnull SelectMode mode,
-                                             @Nonnull FetchPlan fetchPlan) {
+    public List<ColumnExpression> getColumns(Class<? extends Data> table, SelectMode mode,
+                                             FetchPlan fetchPlan) {
         try {
             FetchPlan effectivePlan = mode == SelectMode.NESTED ? fetchPlan : FetchPlan.NONE;
             var m = effectivePlan.isEmpty() && model.type() == table
@@ -190,7 +189,7 @@ final class QueryModelImpl implements QueryModel {
      * @return the resolved metamodel.
      * @throws SqlTemplateException if the metamodel cannot be uniquely determined.
      */
-    private Metamodel<?, ?> getMetamodel(@Nonnull ObjectExpression objectExpression)
+    private Metamodel<?, ?> getMetamodel(ObjectExpression objectExpression)
             throws SqlTemplateException {
         Metamodel<?, ?> metamodel = objectExpression.metamodel();
         if (metamodel != null) {
@@ -247,7 +246,7 @@ final class QueryModelImpl implements QueryModel {
      * @return the compiled SQL fragment representing the expression.
      */
     @Override
-    public String compileExpression(@Nonnull Expression expression, @Nonnull TemplateCompiler compiler) {
+    public String compileExpression(Expression expression, TemplateCompiler compiler) {
         try {
             return switch (expression) {
                 case TemplateExpression it -> compileTemplateExpression(it.template(), compiler);
@@ -268,7 +267,7 @@ final class QueryModelImpl implements QueryModel {
      * @param binder     the binder responsible for collecting parameter values.
      */
     @Override
-    public void bindExpression(@Nonnull Expression expression, @Nonnull TemplateBinder binder) {
+    public void bindExpression(Expression expression, TemplateBinder binder) {
         try {
             switch (expression) {
                 case TemplateExpression it -> bindTemplateExpression(it.template(), binder);
@@ -290,7 +289,7 @@ final class QueryModelImpl implements QueryModel {
      * @return the compiled SQL fragment.
      * @throws SqlTemplateException if an unsupported value is encountered.
      */
-    private String compileTemplateExpression(@Nonnull TemplateString stringTemplate, @Nonnull TemplateCompiler compiler) throws SqlTemplateException{
+    private String compileTemplateExpression(TemplateString stringTemplate, TemplateCompiler compiler) throws SqlTemplateException{
         var fragments = stringTemplate.fragments();
         var values = stringTemplate.values();
         List<String> parts = new ArrayList<>();
@@ -324,7 +323,7 @@ final class QueryModelImpl implements QueryModel {
      * @param binder         the binder collecting parameter values.
      * @throws SqlTemplateException if an unsupported value is encountered.
      */
-    private void bindTemplateExpression(@Nonnull TemplateString stringTemplate, @Nonnull TemplateBinder binder) throws SqlTemplateException{
+    private void bindTemplateExpression(TemplateString stringTemplate, TemplateBinder binder) throws SqlTemplateException{
         for (var value : stringTemplate.values()) {
             Object resolved = resolveElements(value);
             switch (resolved) {
@@ -373,10 +372,10 @@ final class QueryModelImpl implements QueryModel {
      * @return the compiled SQL predicate.
      * @throws SqlTemplateException if the object cannot be mapped to columns or values.
      */
-    private String compileObjectExpression(@Nonnull Metamodel<?, ?> metamodel,
-                                           @Nonnull Operator operator,
-                                           @Nonnull Object object,
-                                           @Nonnull TemplateCompiler compiler) throws SqlTemplateException {
+    private String compileObjectExpression(Metamodel<?, ?> metamodel,
+                                           Operator operator,
+                                           Object object,
+                                           TemplateCompiler compiler) throws SqlTemplateException {
         //noinspection DuplicatedCode
         Model<Data, ?> model = getModel(metamodel);
         // A predicate column is looked up in the referenced table's model, which drops the path the reference was
@@ -487,10 +486,10 @@ final class QueryModelImpl implements QueryModel {
         }
     }
 
-    private void bindObjectExpression(@Nonnull Metamodel<?, ?> metamodel,
-                                      @Nonnull Operator operator,
-                                      @Nonnull Object object,
-                                      @Nonnull TemplateBinder binder) throws SqlTemplateException {
+    private void bindObjectExpression(Metamodel<?, ?> metamodel,
+                                      Operator operator,
+                                      Object object,
+                                      TemplateBinder binder) throws SqlTemplateException {
         var model = getModel(metamodel);
         List<SequencedMap<String, Object>> multiValues = null;
         var values = new ObjectExpressionValues();
@@ -525,7 +524,7 @@ final class QueryModelImpl implements QueryModel {
     }
 
     /** Returns the version column of the given model. */
-    private static Column versionColumn(@Nonnull Model<?, ?> model) {
+    private static Column versionColumn(Model<?, ?> model) {
         for (var column : model.declaredColumns()) {
             if (column.version()) {
                 return column;
@@ -544,9 +543,9 @@ final class QueryModelImpl implements QueryModel {
      * @param multiValues the column-to-value mappings to bind.
      * @param binder      the binder collecting parameter values.
      */
-    private void bindMultiValues(@Nonnull Operator operator,
-                                 @Nonnull List<SequencedMap<String, Object>> multiValues,
-                                 @Nonnull TemplateBinder binder) {
+    private void bindMultiValues(Operator operator,
+                                 List<SequencedMap<String, Object>> multiValues,
+                                 TemplateBinder binder) {
         try {
             template.dialect().multiColumnExpression(operator, multiValues, value -> {
                 binder.bindParameter(value);
@@ -564,7 +563,7 @@ final class QueryModelImpl implements QueryModel {
      * @param pkType the primary key type.
      * @return {@code true} if the value represents a primary key value.
      */
-    private boolean isPrimaryKeyValue(@Nonnull Object value, @Nullable Class<?> pkType) {
+    private boolean isPrimaryKeyValue(Object value, @Nullable Class<?> pkType) {
         if (pkType == null) {
             return false;
         }
@@ -581,7 +580,7 @@ final class QueryModelImpl implements QueryModel {
      * @param clazz the primitive class to test against.
      * @return {@code true} if the object is compatible with the primitive class, {@code false} otherwise.
      */
-    private static boolean isPrimitiveCompatible(@Nonnull Object o, @Nonnull Class<?> clazz) {
+    private static boolean isPrimitiveCompatible(Object o, Class<?> clazz) {
         if (clazz == int.class) return o instanceof Integer;
         if (clazz == long.class) return o instanceof Long;
         if (clazz == boolean.class) return o instanceof Boolean;
@@ -624,7 +623,7 @@ final class QueryModelImpl implements QueryModel {
      * navigation-only node (one that navigates beyond a {@link Ref}) is rebuilt into a resolvable metamodel for its
      * path so it can be selected or filtered. The rebuilt metamodel is query-only and cannot extract a value.
      */
-    private static <T extends Data> Metamodel<T, ?> toColumnMetamodel(@Nonnull Navigable<T, ?> navigable) {
+    private static <T extends Data> Metamodel<T, ?> toColumnMetamodel(Navigable<T, ?> navigable) {
         return navigable instanceof Metamodel<T, ?> metamodel
                 ? metamodel
                 : Metamodel.of(navigable.root(), navigable.fieldPath());
@@ -637,7 +636,7 @@ final class QueryModelImpl implements QueryModel {
      * @param <T>       the entity type.
      * @return the resolved model.
      */
-    private <T extends Data> Model<T, ?> getModel(@Nonnull Metamodel<?, ?> metamodel) {
+    private <T extends Data> Model<T, ?> getModel(Metamodel<?, ?> metamodel) {
         if (model.type() == metamodel.root() && !crossesReference(metamodel)) {
             //noinspection unchecked
             return (Model<T, ?>) model;
@@ -661,7 +660,7 @@ final class QueryModelImpl implements QueryModel {
      * referenced table's model rather than the root model, because selecting the root keeps the reference as its
      * foreign key column instead of expanding the referenced entity into the root's columns.
      */
-    private static boolean crossesReference(@Nonnull Metamodel<?, ?> metamodel) {
+    private static boolean crossesReference(Metamodel<?, ?> metamodel) {
         String path = metamodel.path();
         if (path.isEmpty()) {
             return false;
@@ -691,7 +690,7 @@ final class QueryModelImpl implements QueryModel {
      * @return the column expression with alias and optional SQL expression override.
      */
     @Override
-    public ColumnExpression toColumnExpression(@Nonnull Column column) {
+    public ColumnExpression toColumnExpression(Column column) {
         return toColumnExpression(column, null);
     }
 
@@ -704,7 +703,7 @@ final class QueryModelImpl implements QueryModel {
      * occurrence, which is the wrong one for a table joined to itself. Resolving at the path the reference was
      * navigated from selects the occurrence that the join was generated for.</p>
      */
-    private ColumnExpression toColumnExpression(@Nonnull Column column, @Nullable String crossingPath) {
+    private ColumnExpression toColumnExpression(Column column, @Nullable String crossingPath) {
         try {
             var metamodel = column.metamodel();
             String alias = crossingPath == null || crossingPath.isEmpty()
@@ -771,7 +770,7 @@ final class QueryModelImpl implements QueryModel {
      *
      * <p>Example output: {@code CASE WHEN jc.id IS NOT NULL THEN 'JoinedCat' WHEN jd.id IS NOT NULL THEN 'JoinedDog' END}</p>
      */
-    private String buildDiscriminatorCaseExpression(@Nonnull Class<?> sealedType) throws SqlTemplateException {
+    private String buildDiscriminatorCaseExpression(Class<?> sealedType) throws SqlTemplateException {
         Class<?>[] permitted = sealedType.getPermittedSubclasses();
         if (permitted == null || permitted.length == 0) {
             throw new SqlTemplateException("Sealed type %s has no permitted subclasses.".formatted(sealedType.getSimpleName()));
@@ -812,11 +811,11 @@ final class QueryModelImpl implements QueryModel {
      * @param column the column to qualify.
      * @return the fully qualified column name.
      */
-    private String toFullyQualifiedColumn(@Nonnull Column column) {
+    private String toFullyQualifiedColumn(Column column) {
         return toFullyQualifiedColumn(column, null);
     }
 
-    private String toFullyQualifiedColumn(@Nonnull Column column, @Nullable String crossingPath) {
+    private String toFullyQualifiedColumn(Column column, @Nullable String crossingPath) {
         return toColumnExpression(column, crossingPath).toSql();
     }
 }

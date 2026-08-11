@@ -1,6 +1,6 @@
 package st.orm.spring.boot.test.domain;
 
-import jakarta.annotation.Nullable;
+import org.jspecify.annotations.Nullable;
 import st.orm.Entity;
 import st.orm.PK;
 

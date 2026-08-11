@@ -23,8 +23,6 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static st.orm.core.template.TemplateString.raw;
 
-import jakarta.annotation.Nonnull;
-import jakarta.annotation.Nullable;
 import java.sql.Connection;
 import java.sql.SQLException;
 import java.util.ArrayList;
@@ -32,6 +30,7 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicInteger;
 import javax.sql.DataSource;
+import org.jspecify.annotations.Nullable;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 import st.orm.PersistenceException;
@@ -71,7 +70,7 @@ public class IntegrationStrategiesTest {
         final AtomicInteger released = new AtomicInteger();
 
         @Override
-        public Connection getConnection(@Nonnull DataSource dataSource, @Nullable TransactionContext context) {
+        public Connection getConnection(DataSource dataSource, @Nullable TransactionContext context) {
             acquired.incrementAndGet();
             try {
                 return dataSource.getConnection();
@@ -81,7 +80,7 @@ public class IntegrationStrategiesTest {
         }
 
         @Override
-        public void releaseConnection(@Nonnull Connection connection, @Nonnull DataSource dataSource,
+        public void releaseConnection(Connection connection, DataSource dataSource,
                                       @Nullable TransactionContext context) {
             released.incrementAndGet();
             try {
@@ -100,13 +99,13 @@ public class IntegrationStrategiesTest {
         final List<ObservedExecution> executions = new ArrayList<>();
 
         @Override
-        public Observation onExecute(@Nonnull QueryContext context) {
+        public Observation onExecute(QueryContext context) {
             var execution = new ObservedExecution(context.operation(), context.kind(),
                     context.statement().orElse(null), new ArrayList<>(), new AtomicInteger());
             executions.add(execution);
             return new Observation() {
                 @Override
-                public void error(@Nonnull Throwable throwable) {
+                public void error(Throwable throwable) {
                     execution.errors().add(throwable);
                 }
 
@@ -244,7 +243,7 @@ public class IntegrationStrategiesTest {
         var orm = ORMTemplate.builder(dataSource)
                 .queryObserver(context -> new Observation() {
                     @Override
-                    public void error(@Nonnull Throwable throwable) {
+                    public void error(Throwable throwable) {
                         throw new IllegalStateException("error signal blew up");
                     }
 

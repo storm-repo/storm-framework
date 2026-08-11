@@ -15,7 +15,6 @@
  */
 package st.orm.core.template;
 
-import jakarta.annotation.Nonnull;
 import st.orm.Data;
 
 /**
@@ -49,7 +48,7 @@ public interface QueryPlan {
      * @throws st.orm.PersistenceException if this plan is constant, or the record does not match the plan's bind
      *                                     variables.
      */
-    Query bind(@Nonnull Data record);
+    Query bind(Data record);
 
     /**
      * Binds the given value against the plan's statement and returns an executable query.
@@ -66,7 +65,7 @@ public interface QueryPlan {
      *                                     key based.
      * @since 1.13
      */
-    Query bindValue(@Nonnull Object value);
+    Query bindValue(Object value);
 
     /**
      * Returns an executable query for a constant plan.

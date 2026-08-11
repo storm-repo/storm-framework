@@ -17,7 +17,6 @@ package st.orm.core.template.impl;
 
 import static java.util.stream.Collectors.joining;
 
-import jakarta.annotation.Nonnull;
 import st.orm.core.template.impl.Elements.Select;
 
 final class SelectProcessor implements ElementProcessor<Select> {
@@ -36,7 +35,7 @@ final class SelectProcessor implements ElementProcessor<Select> {
      * @return an immutable key for caching, or {@code null} if the element (or its compilation) cannot be cached.
      */
     @Override
-    public Object getCompilationKey(@Nonnull Select select) {
+    public Object getCompilationKey(Select select) {
         return select;
     }
 
@@ -51,7 +50,7 @@ final class SelectProcessor implements ElementProcessor<Select> {
      * @return the compiled result for this element.
      */
     @Override
-    public CompiledElement compile(@Nonnull Select select, @Nonnull TemplateCompiler compiler) {
+    public CompiledElement compile(Select select, TemplateCompiler compiler) {
         compiler.setDataType(select.table());
         FetchPlan fetchPlan = compiler.getFetchPlan();
         // The closed plan is what shaped the select list, so that is the form the row mapper has to read back.
@@ -74,6 +73,6 @@ final class SelectProcessor implements ElementProcessor<Select> {
      * @param bindHint the bind hint for the element, providing additional context for binding.
      */
     @Override
-    public void bind(@Nonnull Select select, @Nonnull TemplateBinder binder, @Nonnull BindHint bindHint) {
+    public void bind(Select select, TemplateBinder binder, BindHint bindHint) {
     }
 }

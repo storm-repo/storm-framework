@@ -1,6 +1,5 @@
 package st.orm.core.model;
 
-import jakarta.annotation.Nonnull;
 import java.util.List;
 import st.orm.DbTable;
 import st.orm.Entity;
@@ -15,5 +14,5 @@ import st.orm.PK;
 @DbTable("city")
 public record Gallery(
         @PK Integer id,
-        @Nonnull @Json List<String> tags
+        @Json List<String> tags
 ) implements Entity<Integer> {}

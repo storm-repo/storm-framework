@@ -15,7 +15,6 @@
  */
 package st.orm.core.template;
 
-import jakarta.annotation.Nonnull;
 import java.util.stream.Stream;
 import st.orm.Data;
 import st.orm.PersistenceException;
@@ -33,7 +32,7 @@ public interface PreparedQuery extends Query, AutoCloseable {
      * @throws PersistenceException if adding the batch fails, for instance when query has not specified
      * {@code BatchVars}.
      */
-    void addBatch(@Nonnull Data record);
+    void addBatch(Data record);
 
     /**
      * Returns a stream of generated keys as the result of an insert statement. Returns an empty stream if the insert
@@ -51,7 +50,7 @@ public interface PreparedQuery extends Query, AutoCloseable {
      * generated.
      * @throws PersistenceException if the statement fails
      */
-    <ID> Stream<ID> getGeneratedKeys(@Nonnull Class<ID> type);
+    <ID> Stream<ID> getGeneratedKeys(Class<ID> type);
 
     /**
      * Close the resources associated with this query.

@@ -15,8 +15,7 @@
  */
 package st.orm.core.template.impl;
 
-import jakarta.annotation.Nonnull;
-import jakarta.annotation.Nullable;
+import org.jspecify.annotations.Nullable;
 import st.orm.Data;
 import st.orm.core.template.Model;
 import st.orm.core.template.SqlTemplateException;
@@ -85,7 +84,7 @@ record ModelBuilderImpl(
      * @throws SqlTemplateException if an error occurs while building the model.
      */
     @Override
-    public <T extends Data, ID> Model<T, ID> build(@Nonnull Class<T> type, boolean requirePrimaryKey)
+    public <T extends Data, ID> Model<T, ID> build(Class<T> type, boolean requirePrimaryKey)
             throws SqlTemplateException {
         return ModelFactory.getModel(this, type, requirePrimaryKey);
     }
@@ -102,8 +101,8 @@ record ModelBuilderImpl(
      * @since 1.13
      */
     @Override
-    public <T extends Data, ID> Model<T, ID> build(@Nonnull Class<T> type, boolean requirePrimaryKey,
-                                                   @Nonnull FetchPlan fetchPlan) throws SqlTemplateException {
+    public <T extends Data, ID> Model<T, ID> build(Class<T> type, boolean requirePrimaryKey,
+                                                   FetchPlan fetchPlan) throws SqlTemplateException {
         return ModelFactory.getModel(this, type, requirePrimaryKey, fetchPlan);
     }
 }

@@ -15,7 +15,6 @@
  */
 package st.orm.spring.impl;
 
-import jakarta.annotation.Nonnull;
 import java.util.LinkedHashSet;
 import java.util.Set;
 import org.springframework.beans.factory.support.BeanDefinitionBuilder;
@@ -44,8 +43,8 @@ public class StormRepositoriesRegistrar implements ImportBeanDefinitionRegistrar
     private static final String KOTLIN_ADAPTER = "st.orm.spring.kotlin.RepositoryBeanFactoryPostProcessor";
 
     @Override
-    public void registerBeanDefinitions(@Nonnull AnnotationMetadata importingClassMetadata,
-                                        @Nonnull BeanDefinitionRegistry registry) {
+    public void registerBeanDefinitions(AnnotationMetadata importingClassMetadata,
+                                        BeanDefinitionRegistry registry) {
         var attributes = AnnotationAttributes.fromMap(
                 importingClassMetadata.getAnnotationAttributes(EnableStormRepositories.class.getName()));
         if (attributes == null) {

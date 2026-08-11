@@ -15,7 +15,6 @@
  */
 package st.orm.spring.boot.test;
 
-import jakarta.annotation.Nonnull;
 import java.util.List;
 import java.util.Objects;
 import org.springframework.context.ConfigurableApplicationContext;
@@ -39,8 +38,8 @@ public class DataStormTestContextCustomizerFactory implements ContextCustomizerF
 
     @Override
     public ContextCustomizer createContextCustomizer(
-            @Nonnull Class<?> testClass,
-            @Nonnull List<ContextConfigurationAttributes> configAttributes) {
+            Class<?> testClass,
+            List<ContextConfigurationAttributes> configAttributes) {
         DataStormTest annotation = TestContextAnnotationUtils.findMergedAnnotation(testClass, DataStormTest.class);
         return annotation != null ? new DataStormTestContextCustomizer(annotation) : null;
     }
@@ -48,8 +47,8 @@ public class DataStormTestContextCustomizerFactory implements ContextCustomizerF
     private record DataStormTestContextCustomizer(DataStormTest annotation) implements ContextCustomizer {
 
         @Override
-        public void customizeContext(@Nonnull ConfigurableApplicationContext context,
-                                     @Nonnull MergedContextConfiguration mergedConfig) {
+        public void customizeContext(ConfigurableApplicationContext context,
+                                     MergedContextConfiguration mergedConfig) {
             context.getBeanFactory().registerSingleton(
                     "dataStormTypeExcludeFilter", new DataStormTypeExcludeFilter(annotation));
         }

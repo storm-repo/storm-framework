@@ -47,6 +47,11 @@
     </build>
     <dependencies>
         <dependency>
+            <groupId>org.jspecify</groupId>
+            <artifactId>jspecify</artifactId>
+            <optional>true</optional>
+        </dependency>
+        <dependency>
             <groupId>st.orm</groupId>
             <artifactId>storm-core</artifactId>
             <version>${project.version}</version>

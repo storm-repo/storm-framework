@@ -15,7 +15,6 @@
  */
 package st.orm.core.spi;
 
-import jakarta.annotation.Nonnull;
 import java.util.Optional;
 import st.orm.mapping.RecordField;
 
@@ -33,5 +32,5 @@ public interface ORMConverterProvider extends Provider {
      * @param field the record field for which to get the converter.
      * @return an Optional containing the ORMConverter if available, or empty if not supported..
      */
-    Optional<ORMConverter> getConverter(@Nonnull RecordField field);
+    Optional<ORMConverter> getConverter(RecordField field);
 }

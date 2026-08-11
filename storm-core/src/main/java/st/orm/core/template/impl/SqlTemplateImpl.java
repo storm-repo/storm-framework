@@ -22,14 +22,13 @@ import static st.orm.core.spi.StormConfigHelper.*;
 import static st.orm.core.template.impl.ElementRouter.getElementProcessor;
 import static st.orm.core.template.impl.SqlInterceptorManager.intercept;
 
-import jakarta.annotation.Nonnull;
-import jakarta.annotation.Nullable;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.function.Function;
 import java.util.function.Supplier;
+import org.jspecify.annotations.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import st.orm.BindVars;
@@ -65,9 +64,9 @@ public final class SqlTemplateImpl implements SqlTemplate {
                 new SegmentedLruCache<>(64);
     }
 
-    record ElementNode(@Nonnull Element element, boolean synthetic) {}
+    record ElementNode(Element element, boolean synthetic) {}
 
-    record Wrapped(@Nonnull List<ElementNode> elements) implements Element {
+    record Wrapped(List<ElementNode> elements) implements Element {
         public Wrapped {
             elements = List.copyOf(elements);
         }
@@ -112,9 +111,9 @@ public final class SqlTemplateImpl implements SqlTemplate {
                            boolean expandCollection,
                            boolean supportRecords,
                            boolean inlineParameters,
-                           @Nonnull ModelBuilder modelBuilder,
-                           @Nonnull TableAliasResolver tableAliasResolver,
-                           @Nonnull SqlDialect dialect) {
+                           ModelBuilder modelBuilder,
+                           TableAliasResolver tableAliasResolver,
+                           SqlDialect dialect) {
         this(positionalOnly, expandCollection, supportRecords, inlineParameters, modelBuilder, tableAliasResolver, requireNonNull(dialect), StormConfig.defaults());
     }
 
@@ -122,10 +121,10 @@ public final class SqlTemplateImpl implements SqlTemplate {
                     boolean expandCollection,
                     boolean supportRecords,
                     boolean inlineParameters,
-                    @Nonnull ModelBuilder modelBuilder,
-                    @Nonnull TableAliasResolver tableAliasResolver,
+                    ModelBuilder modelBuilder,
+                    TableAliasResolver tableAliasResolver,
                     @Nullable SqlDialect dialect,
-                    @Nonnull StormConfig config) {
+                    StormConfig config) {
         this.positionalOnly = positionalOnly;
         this.expandCollection = expandCollection;
         this.supportRecords = supportRecords;
@@ -152,7 +151,7 @@ public final class SqlTemplateImpl implements SqlTemplate {
         LOGGER.debug("Storm config: templateCacheSize={}", templateCacheSize);
     }
 
-    private static Map<String, String> configCacheKey(@Nonnull StormConfig config) {
+    private static Map<String, String> configCacheKey(StormConfig config) {
         var map = new HashMap<String, String>();
         for (String key : StormConfig.sqlShapingKeys()) {
             String value = config.getProperty(key);
@@ -209,7 +208,7 @@ public final class SqlTemplateImpl implements SqlTemplate {
      * @return a new SQL template.
      */
     @Override
-    public SqlTemplateImpl withTableNameResolver(@Nonnull TableNameResolver tableNameResolver) {
+    public SqlTemplateImpl withTableNameResolver(TableNameResolver tableNameResolver) {
         if (tableNameResolver == modelBuilder.tableNameResolver()) {
             return this;
         }
@@ -233,7 +232,7 @@ public final class SqlTemplateImpl implements SqlTemplate {
      * @return a new SQL template.
      */
     @Override
-    public SqlTemplateImpl withTableAliasResolver(@Nonnull TableAliasResolver tableAliasResolver) {
+    public SqlTemplateImpl withTableAliasResolver(TableAliasResolver tableAliasResolver) {
         if (tableAliasResolver == this.tableAliasResolver) {
             return this;
         }
@@ -257,7 +256,7 @@ public final class SqlTemplateImpl implements SqlTemplate {
      * @return a new SQL template.
      */
     @Override
-    public SqlTemplateImpl withColumnNameResolver(@Nonnull ColumnNameResolver columnNameResolver) {
+    public SqlTemplateImpl withColumnNameResolver(ColumnNameResolver columnNameResolver) {
         if (columnNameResolver == modelBuilder.columnNameResolver()) {
             return this;
         }
@@ -281,7 +280,7 @@ public final class SqlTemplateImpl implements SqlTemplate {
      * @return a new SQL template.
      */
     @Override
-    public SqlTemplateImpl withForeignKeyResolver(@Nonnull ForeignKeyResolver foreignKeyResolver) {
+    public SqlTemplateImpl withForeignKeyResolver(ForeignKeyResolver foreignKeyResolver) {
         if (foreignKeyResolver == modelBuilder.foreignKeyResolver()) {
             return this;
         }
@@ -305,7 +304,7 @@ public final class SqlTemplateImpl implements SqlTemplate {
      * @return a new SQL template.
      */
     @Override
-    public SqlTemplate withDialect(@Nonnull SqlDialect dialect) {
+    public SqlTemplate withDialect(SqlDialect dialect) {
         requireNonNull(dialect);
         if (dialect == this.explicitDialect || this.dialect.value().orElse(null) == dialect) {
             return this;
@@ -326,7 +325,7 @@ public final class SqlTemplateImpl implements SqlTemplate {
     }
 
     @Override
-    public SqlTemplate withConfig(@Nonnull StormConfig config) {
+    public SqlTemplate withConfig(StormConfig config) {
         if (config == this.config) {
             return this;
         }
@@ -404,7 +403,7 @@ public final class SqlTemplateImpl implements SqlTemplate {
      * @throws SqlTemplateException if an error occurs while processing the input.
      */
     @Override
-    public Sql process(@Nonnull TemplateString template) throws SqlTemplateException {
+    public Sql process(TemplateString template) throws SqlTemplateException {
         return process(template, true);
     }
 
@@ -420,7 +419,7 @@ public final class SqlTemplateImpl implements SqlTemplate {
      * @return the resulting SQL and parameters.
      * @throws SqlTemplateException if an error occurs while processing the input.
      */
-    Sql process(@Nonnull TemplateString template, boolean applyInterceptors) throws SqlTemplateException {
+    Sql process(TemplateString template, boolean applyInterceptors) throws SqlTemplateException {
         BindingContext bindingContext;
         Object compilationKey;
         TemplateProcessor processor;
@@ -474,7 +473,7 @@ public final class SqlTemplateImpl implements SqlTemplate {
      * Returns the shape key of the template: its compilation key with collection arity erased, so statements
      * that differ only in how far a collection expanded share it.
      */
-    private Object getShapeKey(@Nonnull BindingContext bindingContext) {
+    private Object getShapeKey(BindingContext bindingContext) {
         try {
             var fragments = bindingContext.fragments();
             var elements = bindingContext.elements();
@@ -511,7 +510,7 @@ public final class SqlTemplateImpl implements SqlTemplate {
         }
     }
 
-    private Object getCompilationKey(@Nonnull BindingContext bindingContext) {
+    private Object getCompilationKey(BindingContext bindingContext) {
         try {
             var fragments = bindingContext.fragments();
             var elements = bindingContext.elements();

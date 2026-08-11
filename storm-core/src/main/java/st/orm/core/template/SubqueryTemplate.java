@@ -19,7 +19,6 @@ import static st.orm.SelectMode.DECLARED;
 import static st.orm.core.template.TemplateString.wrap;
 import static st.orm.core.template.Templates.select;
 
-import jakarta.annotation.Nonnull;
 import st.orm.Data;
 
 /**
@@ -40,7 +39,7 @@ public interface SubqueryTemplate {
      * @param <T> the table type to select from.
      * @return the subquery builder.
      */
-    default <T extends Data> QueryBuilder<T, ?, ?> subquery(@Nonnull Class<T> fromType) {
+    default <T extends Data> QueryBuilder<T, ?, ?> subquery(Class<T> fromType) {
         return subquery(fromType, fromType);
     }
 
@@ -53,8 +52,8 @@ public interface SubqueryTemplate {
      * @param <T> the table type to select from.
      * @param <R> the result type.
      */
-    default <T extends Data, R extends Data> QueryBuilder<T, ?, ?> subquery(@Nonnull Class<T> fromType,
-                                                                            @Nonnull Class<R> selectType) {
+    default <T extends Data, R extends Data> QueryBuilder<T, ?, ?> subquery(Class<T> fromType,
+                                                                            Class<R> selectType) {
         return subquery(fromType, wrap(select(selectType, DECLARED)));
     }
 
@@ -66,6 +65,6 @@ public interface SubqueryTemplate {
      * @return the subquery builder.
      * @param <T> the table type to select from.
      */
-    <T extends Data> QueryBuilder<T, ?, ?> subquery(@Nonnull Class<T> fromType,
-                                                      @Nonnull TemplateString template);
+    <T extends Data> QueryBuilder<T, ?, ?> subquery(Class<T> fromType,
+                                                      TemplateString template);
 }

@@ -15,7 +15,6 @@
  */
 package st.orm.core.template.impl;
 
-import jakarta.annotation.Nonnull;
 import st.orm.Data;
 
 /**
@@ -32,4 +31,4 @@ import st.orm.Data;
  * @param alias the alias used to reference the table.
  * @since 1.7
  */
-public record AliasedTable(@Nonnull Class<? extends Data> type, @Nonnull String name, @Nonnull String alias) {}
+public record AliasedTable(Class<? extends Data> type, String name, String alias) {}

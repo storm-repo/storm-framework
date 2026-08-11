@@ -15,9 +15,8 @@
  */
 package st.orm.core.spi;
 
-import jakarta.annotation.Nonnull;
-import jakarta.annotation.Nullable;
 import java.util.function.Predicate;
+import org.jspecify.annotations.Nullable;
 import st.orm.StormConfig;
 import st.orm.core.template.SqlDialect;
 
@@ -41,7 +40,7 @@ public interface SqlDialectProvider extends Provider {
      * @return {@code true} if this provider supports the given database.
      * @since 1.11
      */
-    default boolean supports(@Nonnull String databaseProductName) {
+    default boolean supports(String databaseProductName) {
         return true;
     }
 
@@ -65,5 +64,5 @@ public interface SqlDialectProvider extends Provider {
      * @param config the Storm configuration to apply.
      * @return the SQL dialect.
      */
-    SqlDialect getSqlDialect(@Nonnull StormConfig config);
+    SqlDialect getSqlDialect(StormConfig config);
 }

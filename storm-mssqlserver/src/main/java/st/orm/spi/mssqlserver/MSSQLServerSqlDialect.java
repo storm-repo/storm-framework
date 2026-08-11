@@ -17,7 +17,6 @@ package st.orm.spi.mssqlserver;
 
 import static java.util.stream.Collectors.toSet;
 
-import jakarta.annotation.Nonnull;
 import java.util.Set;
 import java.util.regex.Pattern;
 import java.util.stream.Stream;
@@ -30,7 +29,7 @@ public class MSSQLServerSqlDialect extends DefaultSqlDialect implements SqlDiale
     public MSSQLServerSqlDialect() {
     }
 
-    public MSSQLServerSqlDialect(@Nonnull StormConfig config) {
+    public MSSQLServerSqlDialect(StormConfig config) {
         super(config);
     }
 
@@ -97,7 +96,7 @@ public class MSSQLServerSqlDialect extends DefaultSqlDialect implements SqlDiale
      * @since 1.2
      */
     @Override
-    public boolean isKeyword(@Nonnull String name) {
+    public boolean isKeyword(String name) {
         return MSSQL_RESERVED.contains(name.toUpperCase());
     }
 
@@ -108,7 +107,7 @@ public class MSSQLServerSqlDialect extends DefaultSqlDialect implements SqlDiale
      * @return the escaped identifier
      */
     @Override
-    public String escape(@Nonnull String name) {
+    public String escape(String name) {
         // Escape identifier for SQL Server by wrapping it in square brackets and doubling any closing brackets.
         return "[%s]".formatted(name.replace("]", "]]"));
     }

@@ -15,7 +15,7 @@
  */
 package st.orm;
 
-import jakarta.annotation.Nullable;
+import org.jspecify.annotations.Nullable;
 
 /**
  * Converts between an entity value type and a database column type.

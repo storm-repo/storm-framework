@@ -1,6 +1,6 @@
 package st.orm.core.model;
 
-import jakarta.annotation.Nullable;
+import org.jspecify.annotations.Nullable;
 
 /**
  * An inline record with nullable constituent fields (String, not @Nonnull, not primitive).

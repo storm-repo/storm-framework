@@ -25,7 +25,6 @@ import static st.orm.Operator.IS_NULL;
 import static st.orm.Operator.LESS_THAN;
 import static st.orm.Operator.LESS_THAN_OR_EQUAL;
 
-import jakarta.annotation.Nonnull;
 import java.sql.PreparedStatement;
 import java.sql.SQLException;
 import java.sql.Timestamp;
@@ -88,7 +87,7 @@ public interface SqlDialect {
      * @return {@code true} if the name is a keyword, {@code false} otherwise.
      * @since 1.2
      */
-    boolean isKeyword(@Nonnull String name);
+    boolean isKeyword(String name);
 
     /**
      * Escapes the given database identifier (e.g., table or column name) according to this SQL dialect.
@@ -96,7 +95,7 @@ public interface SqlDialect {
      * @param name the identifier to escape (must not be {@code null})
      * @return the escaped identifier
      */
-    String escape(@Nonnull String name);
+    String escape(String name);
 
     /**
      * Returns a safe identifier for the given name, possibly escaping it if it is a keyword or contains invalid
@@ -159,8 +158,8 @@ public interface SqlDialect {
      * @throws SqlTemplateException if the values are incompatible.
      * @since 1.2
      */
-    String multiValueIn(@Nonnull List<SequencedMap<String, Object>> values,
-                        @Nonnull Function<Object, String> parameterFunction)
+    String multiValueIn(List<SequencedMap<String, Object>> values,
+                        Function<Object, String> parameterFunction)
             throws SqlTemplateException;
 
     /**
@@ -188,9 +187,9 @@ public interface SqlDialect {
      * @throws SqlTemplateException if the operator is not supported for multi-column expressions.
      * @since 1.9
      */
-    default String multiColumnExpression(@Nonnull Operator operator,
-                                         @Nonnull List<SequencedMap<String, Object>> values,
-                                         @Nonnull Function<Object, String> parameterFunction)
+    default String multiColumnExpression(Operator operator,
+                                         List<SequencedMap<String, Object>> values,
+                                         Function<Object, String> parameterFunction)
             throws SqlTemplateException {
         if (operator == EQUALS || operator == Operator.IN) {
             return multiValueIn(values, parameterFunction);
@@ -249,9 +248,9 @@ public interface SqlDialect {
      * @param parameterFunction the function for binding parameters.
      * @return the lexicographic comparison SQL fragment.
      */
-    private static String lexicographicComparison(@Nonnull Operator operator,
-                                                  @Nonnull SequencedMap<String, Object> valueMap,
-                                                  @Nonnull Function<Object, String> parameterFunction) {
+    private static String lexicographicComparison(Operator operator,
+                                                  SequencedMap<String, Object> valueMap,
+                                                  Function<Object, String> parameterFunction) {
         // Determine the strict and non-strict variants of the operator.
         Operator strictOperator;
         boolean includeEqual;
@@ -378,8 +377,8 @@ public interface SqlDialect {
      * @throws SQLException if a database access error occurs.
      * @since 1.9
      */
-    default void setParameter(@Nonnull PreparedStatement preparedStatement, int index,
-                              @Nonnull UUID uuid) throws SQLException {
+    default void setParameter(PreparedStatement preparedStatement, int index,
+                              UUID uuid) throws SQLException {
         preparedStatement.setString(index, uuid.toString());
     }
 
@@ -398,8 +397,8 @@ public interface SqlDialect {
      * @throws SQLException if a database access error occurs.
      * @since 1.11
      */
-    default void setParameter(@Nonnull PreparedStatement preparedStatement, int index,
-                              @Nonnull Timestamp timestamp, @Nonnull Calendar calendar) throws SQLException {
+    default void setParameter(PreparedStatement preparedStatement, int index,
+                              Timestamp timestamp, Calendar calendar) throws SQLException {
         preparedStatement.setTimestamp(index, timestamp, calendar);
     }
 
@@ -417,8 +416,8 @@ public interface SqlDialect {
      * @throws SQLException if a database access error occurs.
      * @since 1.12
      */
-    default void setParameter(@Nonnull PreparedStatement preparedStatement, int index,
-                              @Nonnull JsonString json) throws SQLException {
+    default void setParameter(PreparedStatement preparedStatement, int index,
+                              JsonString json) throws SQLException {
         preparedStatement.setString(index, json.value());
     }
 

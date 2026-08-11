@@ -2,7 +2,6 @@ module storm.serialization {
     exports st.orm.serialization;
     requires storm.foundation;
     requires storm.core;
-    requires jakarta.annotation;
     requires java.sql;
     requires kotlin.reflect;
     requires kotlin.stdlib;

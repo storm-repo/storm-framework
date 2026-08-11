@@ -22,13 +22,12 @@ import static st.orm.core.template.TemplateString.wrap;
 import static st.orm.core.template.Templates.from;
 import static st.orm.core.template.Templates.select;
 
-import jakarta.annotation.Nonnull;
-import jakarta.annotation.Nullable;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 import java.util.function.Supplier;
 import java.util.stream.Stream;
+import org.jspecify.annotations.Nullable;
 import st.orm.Data;
 import st.orm.Navigable;
 import st.orm.PersistenceException;
@@ -62,42 +61,42 @@ public class SelectBuilderImpl<T extends Data, R, ID> extends QueryBuilderImpl<T
     private final Class<?> pkType;
     private final List<String> fetchPaths;
 
-    public SelectBuilderImpl(@Nonnull QueryTemplate queryTemplate,
-                             @Nonnull Class<T> fromType,
-                             @Nonnull Class<R> selectType,
-                             @Nonnull TemplateString selectTemplate,
+    public SelectBuilderImpl(QueryTemplate queryTemplate,
+                             Class<T> fromType,
+                             Class<R> selectType,
+                             TemplateString selectTemplate,
                              boolean subquery,
-                             @Nonnull Supplier<Model<T, ID>> modelSupplier) {
+                             Supplier<Model<T, ID>> modelSupplier) {
         this(queryTemplate, fromType, selectType, false, List.of(), List.of(), null, null, TemplateString.EMPTY, selectTemplate, List.of(), List.of(), List.of(), subquery, null, null, List.of(), modelSupplier);
     }
 
-    public SelectBuilderImpl(@Nonnull QueryTemplate queryTemplate,
-                             @Nonnull Class<T> fromType,
-                             @Nonnull Class<? extends Data> refType,
-                             @Nonnull Class<?> pkType,
-                             @Nonnull Supplier<Model<T, ID>> modelSupplier) {
+    public SelectBuilderImpl(QueryTemplate queryTemplate,
+                             Class<T> fromType,
+                             Class<? extends Data> refType,
+                             Class<?> pkType,
+                             Supplier<Model<T, ID>> modelSupplier) {
         //noinspection unchecked
         this(queryTemplate, fromType, (Class<R>) Ref.class, false, List.of(), List.of(), null, null, TemplateString.EMPTY, wrap(select(refType, PK)), List.of(), List.of(), List.of(), false, requireNonNull(refType), requireNonNull(pkType), List.of(), modelSupplier);
     }
 
-    private SelectBuilderImpl(@Nonnull QueryTemplate ormTemplate,
-                              @Nonnull Class<T> fromType,
-                              @Nonnull Class<R> selectType,
+    private SelectBuilderImpl(QueryTemplate ormTemplate,
+                              Class<T> fromType,
+                              Class<R> selectType,
                               boolean distinct,
-                              @Nonnull List<Join> join,
-                              @Nonnull List<Where> where,
+                              List<Join> join,
+                              List<Where> where,
                               @Nullable Integer limit,
                               @Nullable Integer offset,
-                              @Nonnull TemplateString forLock,
-                              @Nonnull TemplateString selectTemplate,
-                              @Nonnull List<TemplateString> groupBy,
-                              @Nonnull List<TemplateString> having,
-                              @Nonnull List<TemplateString> orderBy,
+                              TemplateString forLock,
+                              TemplateString selectTemplate,
+                              List<TemplateString> groupBy,
+                              List<TemplateString> having,
+                              List<TemplateString> orderBy,
                               boolean subquery,
                               @Nullable Class<? extends Data> refType,
                               @Nullable Class<?> pkType,
-                              @Nonnull List<String> fetchPaths,
-                              @Nonnull Supplier<Model<T, ID>> modelSupplier) {
+                              List<String> fetchPaths,
+                              Supplier<Model<T, ID>> modelSupplier) {
         super(ormTemplate, fromType, join, where, groupBy, having, orderBy, modelSupplier);
         this.forLock = forLock;
         this.selectType = selectType;
@@ -134,13 +133,13 @@ public class SelectBuilderImpl<T extends Data, R, ID> extends QueryBuilderImpl<T
      * @return a new query builder.
      */
     @Override
-    QueryBuilder<T, R, ID> copyWith(@Nonnull QueryTemplate queryTemplate,
-                                    @Nonnull Class<T> fromType,
-                                    @Nonnull List<Join> join,
-                                    @Nonnull List<Where> where,
-                                    @Nonnull List<TemplateString> groupBy,
-                                    @Nonnull List<TemplateString> having,
-                                    @Nonnull List<TemplateString> orderBy) {
+    QueryBuilder<T, R, ID> copyWith(QueryTemplate queryTemplate,
+                                    Class<T> fromType,
+                                    List<Join> join,
+                                    List<Where> where,
+                                    List<TemplateString> groupBy,
+                                    List<TemplateString> having,
+                                    List<TemplateString> orderBy) {
         return new SelectBuilderImpl<>(queryTemplate, fromType, selectType, distinct, join, where, limit, offset, forLock,
                 selectTemplate, groupBy, having, orderBy, subquery, refType, pkType, fetchPaths, modelSupplier);
     }
@@ -178,7 +177,7 @@ public class SelectBuilderImpl<T extends Data, R, ID> extends QueryBuilderImpl<T
      * @since 1.13
      */
     @Override
-    public QueryBuilder<T, R, ID> fetch(@Nonnull List<? extends Navigable<T, ? extends Data>> paths) {
+    public QueryBuilder<T, R, ID> fetch(List<? extends Navigable<T, ? extends Data>> paths) {
         if (subquery) {
             throw new PersistenceException("Cannot resolve references in a subquery: a subquery selects columns, not records.");
         }
@@ -214,7 +213,7 @@ public class SelectBuilderImpl<T extends Data, R, ID> extends QueryBuilderImpl<T
      * Returns whether the select clause is the plain nested select of the given type, the only shape in which a
      * reference occupies a position that can be expanded into the referenced table's columns.
      */
-    private boolean isNestedSelectOf(@Nonnull Class<?> type) {
+    private boolean isNestedSelectOf(Class<?> type) {
         if (!Data.class.isAssignableFrom(type)) {
             return false;
         }
@@ -240,7 +239,7 @@ public class SelectBuilderImpl<T extends Data, R, ID> extends QueryBuilderImpl<T
         return toTemplateString(selectClause, true);
     }
 
-    private TemplateString toTemplateString(@Nonnull TemplateString selectClause, boolean withOrderBy) {
+    private TemplateString toTemplateString(TemplateString selectClause, boolean withOrderBy) {
         TemplateString template = TemplateString.combine(TemplateString.of("SELECT %s".formatted(distinct ? "DISTINCT " : "")));
         if (queryTemplate.dialect().applyLimitAfterSelect()) {
             if (limit != null && offset == null) {
@@ -380,7 +379,7 @@ public class SelectBuilderImpl<T extends Data, R, ID> extends QueryBuilderImpl<T
      * @since 1.2
      */
     @Override
-    public QueryBuilder<T, R, ID> forLock(@Nonnull TemplateString template) {
+    public QueryBuilder<T, R, ID> forLock(TemplateString template) {
         return new SelectBuilderImpl<>(queryTemplate, fromType, selectType, distinct, join, where, limit, offset,
                 template, selectTemplate, groupBy, having, orderBy, subquery, refType, pkType, fetchPaths, modelSupplier);
     }
@@ -536,7 +535,7 @@ public class SelectBuilderImpl<T extends Data, R, ID> extends QueryBuilderImpl<T
         return getResultStream(build().withoutFetchSize());
     }
 
-    private Stream<R> getResultStream(@Nonnull Query query) {
+    private Stream<R> getResultStream(Query query) {
         if (refType != null) {
             assert pkType != null : "Primary key type must be specified for ref queries.";
             //noinspection unchecked

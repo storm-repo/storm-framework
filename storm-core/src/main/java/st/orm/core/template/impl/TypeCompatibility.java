@@ -15,7 +15,6 @@
  */
 package st.orm.core.template.impl;
 
-import jakarta.annotation.Nonnull;
 
 /**
  * Determines whether a Java type is compatible with a SQL column type.
@@ -47,7 +46,7 @@ public interface TypeCompatibility {
      * @param sqlTypeName the database-specific type name (e.g., "uuid", "jsonb").
      * @return the compatibility result.
      */
-    Compatibility check(@Nonnull Class<?> javaType, int sqlType, @Nonnull String sqlTypeName);
+    Compatibility check(Class<?> javaType, int sqlType, String sqlTypeName);
 
     /**
      * Returns the default type compatibility implementation.

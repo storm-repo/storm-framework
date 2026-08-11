@@ -20,8 +20,6 @@ import static st.orm.Operator.IN;
 import static st.orm.ResolveScope.CASCADE;
 import static st.orm.SelectMode.NESTED;
 
-import jakarta.annotation.Nonnull;
-import jakarta.annotation.Nullable;
 import java.sql.Connection;
 import java.util.Arrays;
 import java.util.Calendar;
@@ -30,6 +28,7 @@ import java.util.Date;
 import java.util.List;
 import java.util.function.Function;
 import javax.sql.DataSource;
+import org.jspecify.annotations.Nullable;
 import st.orm.BindVars;
 import st.orm.Data;
 import st.orm.Element;
@@ -217,7 +216,7 @@ public interface Templates {
      * include only the primary key fields.
      * @return an {@link Element} representing the SELECT clause for the specified table.
      */
-    static Element select(@Nonnull Class<? extends Data> table, @Nonnull SelectMode mode) {
+    static Element select(Class<? extends Data> table, SelectMode mode) {
         return new Select(table, mode);
     }
 
@@ -247,7 +246,7 @@ public interface Templates {
      * @param autoJoin if {@code true}, automatically join all foreign keys listed in the record.
      * @return an {@link Element} representing the FROM clause for the specified table.
      */
-    static Element from(@Nonnull Class<? extends Data> table, boolean autoJoin) {
+    static Element from(Class<? extends Data> table, boolean autoJoin) {
         return new From(table, autoJoin);
     }
 
@@ -270,7 +269,7 @@ public interface Templates {
      * @param autoJoin if {@code true}, automatically join all foreign keys listed in the record.
      * @return an {@link Element} representing the FROM clause for the specified table.
      */
-    static Element from(@Nonnull Class<? extends Data> table, @Nonnull String alias, boolean autoJoin) {
+    static Element from(Class<? extends Data> table, String alias, boolean autoJoin) {
         return new From(new TableSource(table), requireNonNull(alias, "alias"), autoJoin);
     }
 
@@ -293,7 +292,7 @@ public interface Templates {
      * @param alias the alias to assign to the frame clause in the query. The alias must not require escaping.
      * @return an {@link Element} representing the FROM clause with the specified template and alias.
      */
-    static Element from(@Nonnull TemplateString template, @Nonnull String alias) {
+    static Element from(TemplateString template, String alias) {
         return new From(new TemplateSource(template), requireNonNull(alias, "alias"), false);
     }
 
@@ -321,7 +320,7 @@ public interface Templates {
      * @param table the {@link Class} object representing the table record.
      * @return an {@link Element} representing the INSERT clause for the specified table.
      */
-    static Element insert(@Nonnull Class<? extends Data> table) {
+    static Element insert(Class<? extends Data> table) {
         return new Insert(table);
     }
     /**
@@ -351,7 +350,7 @@ public interface Templates {
      *                           key value (e.g., migrations, data exports).
      * @return an {@link Element} representing the INSERT clause for the specified table.
      */
-    static Element insert(@Nonnull Class<? extends Data> table, boolean ignoreAutoGenerate) {
+    static Element insert(Class<? extends Data> table, boolean ignoreAutoGenerate) {
         return new Insert(table, ignoreAutoGenerate);
     }
 
@@ -384,7 +383,7 @@ public interface Templates {
      *                           key value (e.g., migrations, data exports).
      * @return an {@link Element} representing the VALUES clause with the specified records.
      */
-    static Element values(@Nonnull Data r, boolean ignoreAutoGenerate) {
+    static Element values(Data r, boolean ignoreAutoGenerate) {
         return new Values(List.of(r), null, ignoreAutoGenerate);
     }
 
@@ -414,7 +413,7 @@ public interface Templates {
      * @param r one or more {@link Data} instances containing the values to be inserted.
      * @return an {@link Element} representing the VALUES clause with the specified records.
      */
-    static Element values(@Nonnull Data... r) {
+    static Element values(Data... r) {
         return new Values(Arrays.asList(r), null);
     }
 
@@ -444,7 +443,7 @@ public interface Templates {
      * @param records an {@link Iterable} of {@link Data} instances containing the values to be inserted.
      * @return an {@link Element} representing the VALUES clause with the specified records.
      */
-    static Element values(@Nonnull Iterable<? extends Data> records) {
+    static Element values(Iterable<? extends Data> records) {
         return new Values(records, null);
     }
 
@@ -477,7 +476,7 @@ public interface Templates {
      *                           key value (e.g., migrations, data exports).
      * @return an {@link Element} representing the VALUES clause with the specified records.
      */
-    static Element values(@Nonnull Iterable<? extends Data> records, boolean ignoreAutoGenerate) {
+    static Element values(Iterable<? extends Data> records, boolean ignoreAutoGenerate) {
         return new Values(records, null, ignoreAutoGenerate);
     }
 
@@ -512,7 +511,7 @@ public interface Templates {
      * @param bindVars the {@link BindVars} instance used for batch insertion.
      * @return an {@link Element} representing the VALUES clause utilizing the specified bind variables.
      */
-    static Element values(@Nonnull BindVars bindVars) {
+    static Element values(BindVars bindVars) {
         return new Values(null, requireNonNull(bindVars, "bindVars"));
     }
 
@@ -550,7 +549,7 @@ public interface Templates {
      *                           key value (e.g., migrations, data exports).
      * @return an {@link Element} representing the VALUES clause utilizing the specified bind variables.
      */
-    static Element values(@Nonnull BindVars bindVars, boolean ignoreAutoGenerate) {
+    static Element values(BindVars bindVars, boolean ignoreAutoGenerate) {
         return new Values(null, requireNonNull(bindVars, "bindVars"), ignoreAutoGenerate);
     }
 
@@ -580,7 +579,7 @@ public interface Templates {
      * @param table the {@link Class} object representing the table record.
      * @return an {@link Element} representing the UPDATE clause for the specified table.
      */
-    static Element update(@Nonnull Class<? extends Data> table) {
+    static Element update(Class<? extends Data> table) {
         return new Update(table);
     }
 
@@ -604,7 +603,7 @@ public interface Templates {
      * @param alias the alias to use for the table in the query. The alias must not require escaping.
      * @return an {@link Element} representing the UPDATE clause for the specified table with alias.
      */
-    static Element update(@Nonnull Class<? extends Data> table, @Nonnull String alias) {
+    static Element update(Class<? extends Data> table, String alias) {
         return new Update(table, alias);
     }
 
@@ -634,7 +633,7 @@ public interface Templates {
      * @param record the {@link Data} instance containing the values to be set.
      * @return an {@link Element} representing the SET clause with the specified record.
      */
-    static Element set(@Nonnull Data record) {
+    static Element set(Data record) {
         return new Set(requireNonNull(record, "record"), null, List.of());
     }
 
@@ -666,7 +665,7 @@ public interface Templates {
      * @return an {@link Element} representing the SET clause with the specified record.
      * @since 1.7
      */
-    static Element set(@Nonnull Data record, @Nonnull Collection<Metamodel<?, ?>> fields) {
+    static Element set(Data record, Collection<Metamodel<?, ?>> fields) {
         return new Set(requireNonNull(record, "record"), null, fields);
     }
 
@@ -703,7 +702,7 @@ public interface Templates {
      * @param bindVars the {@link BindVars} instance used for batch updates.
      * @return an {@link Element} representing the SET clause utilizing the specified bind variables.
      */
-    static Element set(@Nonnull BindVars bindVars) {
+    static Element set(BindVars bindVars) {
         return new Set(null, requireNonNull(bindVars, "bindVars"), List.of());
     }
 
@@ -742,7 +741,7 @@ public interface Templates {
      * @return an {@link Element} representing the SET clause utilizing the specified bind variables.
      * @since 1.7
      */
-    static Element set(@Nonnull BindVars bindVars, @Nonnull Collection<Metamodel<?, ?>> fields) {
+    static Element set(BindVars bindVars, Collection<Metamodel<?, ?>> fields) {
         return new Set(null, requireNonNull(bindVars, "bindVars"), fields);
     }
 
@@ -802,7 +801,7 @@ public interface Templates {
      * @param it an {@link Iterable} of values or records to match against the primary key(s) or foreign keys.
      * @return an {@link Element} representing the WHERE clause.
      */
-    static Element where(@Nonnull Iterable<?> it) {
+    static Element where(Iterable<?> it) {
         return new Where(new ObjectExpression(IN, it), null);
     }
 
@@ -860,7 +859,7 @@ public interface Templates {
      * @param o the value or record to match against the primary key or foreign key.
      * @return an {@link Element} representing the WHERE clause.
      */
-    static Element where(@Nonnull Object o) {
+    static Element where(Object o) {
         return new Where(new ObjectExpression(o), null);
     }
 
@@ -900,7 +899,7 @@ public interface Templates {
      * @param it an {@link Iterable} of values or records for the condition.
      * @return an {@link Element} representing the WHERE clause.
      */
-    static <V> Element where(@Nonnull Metamodel<?, V> path, @Nonnull Operator operator, @Nonnull Iterable<? extends V> it) {
+    static <V> Element where(Metamodel<?, V> path, Operator operator, Iterable<? extends V> it) {
         return new Where(new ObjectExpression(path, operator, it), null);
     }
 
@@ -930,7 +929,7 @@ public interface Templates {
      * @return an {@link Element} representing the WHERE clause.
      */
     @SafeVarargs
-    static <V> Element where(@Nonnull Metamodel<?, V> path, @Nonnull Operator operator, @Nonnull V... o) {
+    static <V> Element where(Metamodel<?, V> path, Operator operator, V... o) {
         return new Where(new ObjectExpression(path, operator, o), null);
     }
 
@@ -968,7 +967,7 @@ public interface Templates {
      * {@code null}.
      * @return an {@link Element} representing the WHERE clause utilizing the specified bind variables.
      */
-    static Element where(@Nonnull BindVars bindVars) {
+    static Element where(BindVars bindVars) {
         return new Where( null, requireNonNull(bindVars, "bindVars"));
     }
 
@@ -984,7 +983,7 @@ public interface Templates {
      * @return an {@link Element} representing the WHERE clause.
      * @since 1.13
      */
-    static Element where(@Nonnull Metamodel<?, ?> key, @Nonnull BindVars bindVars) {
+    static Element where(Metamodel<?, ?> key, BindVars bindVars) {
         return new Where(null, requireNonNull(bindVars, "bindVars"), requireNonNull(key, "key"));
     }
 
@@ -1020,7 +1019,7 @@ public interface Templates {
      * @param table the {@link Class} object representing the table record.
      * @return an {@link Element} representing the DELETE clause for the specified table.
      */
-    static Element delete(@Nonnull Class<? extends Data> table) {
+    static Element delete(Class<? extends Data> table) {
         return new Delete(table);
     }
 
@@ -1051,7 +1050,7 @@ public interface Templates {
      * @param alias the alias to use for the table in the query. The alias must not require escaping.
      * @return an {@link Element} representing the DELETE clause for the specified table with an alias.
      */
-    static Element delete(@Nonnull Class<? extends Data> table, @Nonnull String alias) {
+    static Element delete(Class<? extends Data> table, String alias) {
         return new Delete(table, alias);
     }
 
@@ -1092,7 +1091,7 @@ public interface Templates {
      * @param table the {@link Class} object representing the table record.
      * @return an {@link Element} representing the table.
      */
-    static Element table(@Nonnull Class<? extends Data> table) {
+    static Element table(Class<? extends Data> table) {
         return new Table(table);
     }
 
@@ -1117,7 +1116,7 @@ public interface Templates {
      * @param alias the alias to use for the table in the query. The alias must not require escaping.
      * @return an {@link Element} representing the table with an alias.
      */
-    static Element table(@Nonnull Class<? extends Data> table, @Nonnull String alias) {
+    static Element table(Class<? extends Data> table, String alias) {
         return new Table(table, alias);
     }
 
@@ -1151,7 +1150,7 @@ public interface Templates {
      * @param table the {@link Class} object representing the table record.
      * @return an {@link Element} representing the table's alias.
      */
-    static Element alias(@Nonnull Class<? extends Data> table) {
+    static Element alias(Class<? extends Data> table) {
         return new Alias(table, CASCADE);
     }
 
@@ -1187,7 +1186,7 @@ public interface Templates {
      *        aliases, LOCAL to include local aliases only, and OUTER to include outer aliases only.
      * @return an {@link Element} representing the table's alias.
      */
-    static Element alias(@Nonnull Class<? extends Data> table, @Nonnull ResolveScope scope) {
+    static Element alias(Class<? extends Data> table, ResolveScope scope) {
         return new Alias(table, scope);
     }
 
@@ -1211,7 +1210,7 @@ public interface Templates {
      * @return an {@link Element} representing the table's column with the specified path.
      * @since 1.2
      */
-    static Element column(@Nonnull Metamodel<?, ?> field) {
+    static Element column(Metamodel<?, ?> field) {
         return new Elements.Column(field, CASCADE);
     }
 
@@ -1237,7 +1236,7 @@ public interface Templates {
      * @return an {@link Element} representing the table's column with the specified path.
      * @since 1.2
      */
-    static Element column(@Nonnull Metamodel<?, ?> field, @Nonnull ResolveScope scope) {
+    static Element column(Metamodel<?, ?> field, ResolveScope scope) {
         return new Elements.Column(field, scope);
     }
 
@@ -1297,7 +1296,7 @@ public interface Templates {
      * @param value the value to be used as a parameter in the SQL query; may be {@code null}.
      * @return an {@link Element} representing the named parameter.
      */
-    static Element param(@Nonnull String name, @Nullable Object value) {
+    static Element param(String name, @Nullable Object value) {
         return new Param(requireNonNull(name, "name"), value);
     }
 
@@ -1321,7 +1320,7 @@ public interface Templates {
      * {@code null}.
      * @return an {@link Element} representing the parameter with a converter applied.
      */
-    static <P> Element param(@Nullable P value, @Nonnull Function<? super P, ?> converter) {
+    static <P> Element param(@Nullable P value, Function<? super P, ?> converter) {
         //noinspection unchecked
         return new Param(null, value, (Function<Object, ?>) requireNonNull(converter, "converter"));
     }
@@ -1347,7 +1346,7 @@ public interface Templates {
      * {@code null}.
      * @return an {@link Element} representing the named parameter with a converter applied.
      */
-    static <P> Element param(@Nonnull String name, @Nullable P value, @Nonnull Function<? super P, ?> converter) {
+    static <P> Element param(String name, @Nullable P value, Function<? super P, ?> converter) {
         //noinspection unchecked
         return new Param(name, value, (Function<Object, ?>) requireNonNull(converter, "converter"));
     }
@@ -1370,7 +1369,7 @@ public interface Templates {
      * @param temporalType the {@link TemporalType} specifying how the date should be handled; must not be {@code null}.
      * @return an {@link Element} representing the date parameter with the specified temporal type.
      */
-    static Element param(@Nonnull Date value, @Nonnull TemporalType temporalType) {
+    static Element param(Date value, TemporalType temporalType) {
         return param(value, v -> switch (temporalType) {
             case DATE -> new java.sql.Date(v.getTime());
             case TIME -> new java.sql.Time(v.getTime());
@@ -1397,7 +1396,7 @@ public interface Templates {
      * @param temporalType the {@link TemporalType} specifying how the date should be handled; must not be {@code null}.
      * @return an {@link Element} representing the named date parameter with the specified temporal type.
      */
-    static Element param(@Nonnull String name, @Nonnull Date value, @Nonnull TemporalType temporalType) {
+    static Element param(String name, Date value, TemporalType temporalType) {
         return param(name, value, v -> switch (temporalType) {
             case DATE -> new java.sql.Date(v.getTime());
             case TIME -> new java.sql.Time(v.getTime());
@@ -1424,7 +1423,7 @@ public interface Templates {
      * {@code null}.
      * @return an {@link Element} representing the calendar parameter with the specified temporal type.
      */
-    static Element param(@Nonnull Calendar value, @Nonnull TemporalType temporalType) {
+    static Element param(Calendar value, TemporalType temporalType) {
         return param(value, v -> switch (temporalType) {
             case DATE -> new java.sql.Date(v.getTimeInMillis());
             case TIME -> new java.sql.Time(v.getTimeInMillis());
@@ -1452,7 +1451,7 @@ public interface Templates {
      * {@code null}.
      * @return an {@link Element} representing the named calendar parameter with the specified temporal type.
      */
-    static Element param(@Nonnull String name, @Nonnull Calendar value, @Nonnull TemporalType temporalType) {
+    static Element param(String name, Calendar value, TemporalType temporalType) {
         return param(name, value, v -> switch (temporalType) {
             case DATE -> new java.sql.Date(v.getTimeInMillis());
             case TIME -> new java.sql.Time(v.getTimeInMillis());
@@ -1467,7 +1466,7 @@ public interface Templates {
      * @param extractor the function used to extract the value from the record for the bind variable.
      * @return a new {@link Element} representing the bind variable.
      */
-    static Element bindVar(@Nonnull BindVars bindVars, @Nonnull Function<Data, ?> extractor) {
+    static Element bindVar(BindVars bindVars, Function<Data, ?> extractor) {
         return new BindVar(bindVars, extractor);
     }
 
@@ -1480,7 +1479,7 @@ public interface Templates {
      *                  If {@code false}, the subquery is independent and does not access the outer query.
      * @return a new {@code Subquery} element based on the provided query builder and correlation flag.
      */
-    static Element subquery(@Nonnull QueryBuilder<?, ?, ?> builder, boolean correlate) {
+    static Element subquery(QueryBuilder<?, ?, ?> builder, boolean correlate) {
         return new Subquery(((Subqueryable) builder).getSubquery(), correlate);
     }
 
@@ -1493,7 +1492,7 @@ public interface Templates {
      *                  If {@code false}, the subquery is independent and does not access the outer query.
      * @return a new {@code Subquery} element based on the provided template and correlation flag.
      */
-    static Element subquery(@Nonnull TemplateString template, boolean correlate) {
+    static Element subquery(TemplateString template, boolean correlate) {
         return new Subquery(template, correlate);
     }
 
@@ -1517,7 +1516,7 @@ public interface Templates {
      * @param sql the raw SQL string to inject into the query.
      * @return an {@link Element} that represents the raw SQL code to be inserted into the query.
      */
-    static Element unsafe(@Nonnull String sql) {
+    static Element unsafe(String sql) {
         return new Unsafe(sql);
     }
 }

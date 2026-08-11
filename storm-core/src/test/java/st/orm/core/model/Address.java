@@ -1,7 +1,7 @@
 package st.orm.core.model;
 
-import jakarta.annotation.Nullable;
 import lombok.Builder;
+import org.jspecify.annotations.Nullable;
 import st.orm.FK;
 
 /**

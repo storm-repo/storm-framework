@@ -6,7 +6,6 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static st.orm.core.template.TemplateString.raw;
 
-import jakarta.annotation.Nonnull;
 import java.time.LocalDate;
 import javax.sql.DataSource;
 import org.junit.jupiter.api.Test;
@@ -137,9 +136,9 @@ public class PlainPreparedStatementIntegrationTest {
 
     @Test
     public void testSelectPetTypedWithLocalRecordAndEnumNullNonnull() {
-        // Selecting NULL for a @Nonnull enum field should throw PersistenceException (via SqlTemplateException),
+        // Selecting NULL for a enum field should throw PersistenceException (via SqlTemplateException),
         // because the framework detects the null violation before returning results.
-        record Pet(int id, String name, LocalDate birthDate, @Nonnull PetTypeEnum type) {}
+        record Pet(int id, String name, LocalDate birthDate, PetTypeEnum type) {}
         PersistenceException e = assertThrows(PersistenceException.class, () -> {
             var query = ORMTemplate.of(dataSource).query("""
                 SELECT p.id, p.name, p.birth_date, NULL pet_type
@@ -152,9 +151,9 @@ public class PlainPreparedStatementIntegrationTest {
 
     @Test
     public void testSelectPetTypedWithLocalRecordAndNonnullEnumNull() {
-        // Same as above but using stream access: NULL for @Nonnull enum should throw during streaming.
+        // Same as above but using stream access: NULL for enum should throw during streaming.
         assertThrows(PersistenceException.class, () -> {
-            record Pet(int id, String name, LocalDate birthDate, @Nonnull PetTypeEnum type) {}
+            record Pet(int id, String name, LocalDate birthDate, PetTypeEnum type) {}
             try (var query = ORMTemplate.of(dataSource).query("""
                 SELECT p.id, p.name, p.birth_date, NULL pet_type
                 FROM pet p
@@ -200,13 +199,13 @@ public class PlainPreparedStatementIntegrationTest {
     @Test
     public void testSelectPetWithoutOwner() {
         // LEFT OUTER JOIN with "1 <> 1" ensures owner columns are always NULL.
-        // Local Pet record defines owner as @Nonnull @FK, so mapping should throw PersistenceException.
+        // Local Pet record defines owner as @FK, so mapping should throw PersistenceException.
         record Pet(
             @PK Integer id,
-            @Nonnull String name,
-            @Nonnull @Persist(updatable = false) LocalDate birthDate,
-            @Nonnull @FK @Persist(updatable = false) PetType petType,
-            @Nonnull @FK Owner owner
+            String name,
+            @Persist(updatable = false) LocalDate birthDate,
+            @FK @Persist(updatable = false) PetType petType,
+            @FK Owner owner
         ) {}
         assertThrows(PersistenceException.class, () -> {
             try (var query = ORMTemplate.of(dataSource).query("""

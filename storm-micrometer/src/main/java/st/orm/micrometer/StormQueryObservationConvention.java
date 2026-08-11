@@ -18,7 +18,6 @@ package st.orm.micrometer;
 import io.micrometer.common.KeyValues;
 import io.micrometer.observation.Observation;
 import io.micrometer.observation.ObservationConvention;
-import jakarta.annotation.Nonnull;
 import java.util.Locale;
 
 /**
@@ -57,7 +56,7 @@ public class StormQueryObservationConvention implements ObservationConvention<St
     public static final String OBSERVATION_NAME = "storm.query";
 
     @Override
-    public boolean supportsContext(@Nonnull Observation.Context context) {
+    public boolean supportsContext(Observation.Context context) {
         return context instanceof StormQueryObservationContext;
     }
 
@@ -67,7 +66,7 @@ public class StormQueryObservationConvention implements ObservationConvention<St
     }
 
     @Override
-    public String getContextualName(@Nonnull StormQueryObservationContext context) {
+    public String getContextualName(StormQueryObservationContext context) {
         var queryContext = context.queryContext();
         var dataType = queryContext.dataType().map(Class::getSimpleName).orElse("query");
         // All lowercase: tracing handlers use the contextual name as the span name and rewrite capitalized
@@ -76,7 +75,7 @@ public class StormQueryObservationConvention implements ObservationConvention<St
     }
 
     @Override
-    public KeyValues getLowCardinalityKeyValues(@Nonnull StormQueryObservationContext context) {
+    public KeyValues getLowCardinalityKeyValues(StormQueryObservationContext context) {
         var queryContext = context.queryContext();
         var shapeId = queryContext.shapeId();
         return KeyValues.of(
@@ -89,7 +88,7 @@ public class StormQueryObservationConvention implements ObservationConvention<St
     }
 
     @Override
-    public KeyValues getHighCardinalityKeyValues(@Nonnull StormQueryObservationContext context) {
+    public KeyValues getHighCardinalityKeyValues(StormQueryObservationContext context) {
         return context.queryContext().statement()
                 .map(statement -> KeyValues.of("db.statement", statement))
                 .orElseGet(KeyValues::empty);

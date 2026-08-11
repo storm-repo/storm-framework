@@ -11,13 +11,12 @@ import static st.orm.core.template.TemplateString.raw;
 import static st.orm.core.template.Templates.alias;
 
 import com.fasterxml.jackson.annotation.JsonTypeInfo;
-import jakarta.annotation.Nonnull;
-import jakarta.annotation.Nullable;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import javax.sql.DataSource;
 import lombok.Builder;
+import org.jspecify.annotations.Nullable;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -116,8 +115,8 @@ public class JsonORMConverterIntegrationTest {
     @DbTable("owner")
     public record OwnerWithJsonPerson(
             @PK Integer id,
-            @Nonnull @Json Person person,
-            @Nonnull @Json Address address,
+            @Json Person person,
+            @Json Address address,
             @Nullable String telephone
     ) implements Entity<Integer> {
     }
@@ -136,9 +135,9 @@ public class JsonORMConverterIntegrationTest {
     @DbTable("owner")
     public record OwnerWithJsonMapAddress(
             @PK Integer id,
-            @Nonnull String firstName,
-            @Nonnull String lastName,
-            @Nonnull @Json Map<String, String> address,
+            String firstName,
+            String lastName,
+            @Json Map<String, String> address,
             @Nullable String telephone
     ) implements Entity<Integer> {
     }
@@ -157,9 +156,9 @@ public class JsonORMConverterIntegrationTest {
     @DbTable("owner")
     public record OwnerWithInlineJsonMapAddress(
             @PK Integer id,
-            @Nonnull String firstName,
-            @Nonnull String lastName,
-            @Nonnull @Inline @Json Map<String, String> address,
+            String firstName,
+            String lastName,
+            @Inline @Json Map<String, String> address,
             @Nullable String telephone
     ) implements Entity<Integer> {
     }
@@ -177,7 +176,7 @@ public class JsonORMConverterIntegrationTest {
         assertInstanceOf(SqlTemplateException.class, e.getCause());
     }
 
-    public record SpecialtiesByVet(@Nonnull Vet vet, @Nonnull @Json List<Specialty> specialties) {}
+    public record SpecialtiesByVet(Vet vet, @Json List<Specialty> specialties) {}
 
     @Test
     public void jsonArrayAggOfSpecialtyObjectsShouldGroupByVet() {
@@ -200,7 +199,7 @@ public class JsonORMConverterIntegrationTest {
         assertEquals(5, vets.stream().mapToLong(v -> v.specialties().size()).sum());
     }
 
-    record SpecialtyNamesByVet(@Nonnull Vet vet, @Nonnull @Json List<String> specialties) {}
+    record SpecialtyNamesByVet(Vet vet, @Json List<String> specialties) {}
 
     @Test
     public void jsonArrayAggOfSpecialtyNamesShouldGroupByVet() {
@@ -262,8 +261,8 @@ public class JsonORMConverterIntegrationTest {
     @DbTable("owner")
     public record OwnerWithPolymorphicPerson(
             @PK Integer id,
-            @Nonnull @Json PolymorphicPerson person,
-            @Nonnull @Json Address address,
+            @Json PolymorphicPerson person,
+            @Json Address address,
             @Nullable String telephone
     ) implements Entity<Integer> {
     }
@@ -295,8 +294,8 @@ public class JsonORMConverterIntegrationTest {
     @DbTable("owner")
     public record OwnerWithNamedPolymorphicPerson(
             @PK Integer id,
-            @Nonnull @Json NamedPerson person,
-            @Nonnull @Json Address address,
+            @Json NamedPerson person,
+            @Json Address address,
             @Nullable String telephone
     ) implements Entity<Integer> {}
 

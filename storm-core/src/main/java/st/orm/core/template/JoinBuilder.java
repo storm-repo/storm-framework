@@ -15,7 +15,6 @@
  */
 package st.orm.core.template;
 
-import jakarta.annotation.Nonnull;
 import st.orm.Data;
 
 /**
@@ -33,5 +32,5 @@ public interface JoinBuilder<T extends Data, R, ID> {
      * @param template the condition to join on.
      * @return the query builder.
      */
-    QueryBuilder<Data, R, ID> on(@Nonnull TemplateString template);
+    QueryBuilder<Data, R, ID> on(TemplateString template);
 }

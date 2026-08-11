@@ -8,7 +8,6 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import static st.orm.core.template.ORMTemplate.of;
 import static st.orm.core.template.TemplateString.raw;
 
-import jakarta.annotation.Nullable;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -19,6 +18,7 @@ import java.util.List;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import javax.sql.DataSource;
+import org.jspecify.annotations.Nullable;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -84,7 +84,7 @@ public class SqlTemplateAndQueryIntegrationTest {
         assertNull(result.value());
     }
 
-    record UtilDateResult(@Nullable java.util.Date value) {}
+    record UtilDateResult(java.util.@Nullable Date value) {}
 
     @Test
     public void readColumnValueWithNullUtilDateShouldReturnNull() {

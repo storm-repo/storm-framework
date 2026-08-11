@@ -5,8 +5,6 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static st.orm.core.template.SqlInterceptor.observe;
 
-import jakarta.annotation.Nonnull;
-import jakarta.annotation.Nullable;
 import java.math.BigInteger;
 import java.time.Instant;
 import java.time.LocalDate;
@@ -19,6 +17,7 @@ import java.util.List;
 import java.util.concurrent.atomic.AtomicReference;
 import javax.sql.DataSource;
 import lombok.Builder;
+import org.jspecify.annotations.Nullable;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -71,9 +70,9 @@ public class TemplateImplIntegrationTest {
     @DbTable("owner")
     public record OwnerWithBigIntegerVersion(
             @PK Integer id,
-            @Nonnull String firstName,
-            @Nonnull String lastName,
-            @Nonnull Address address,
+            String firstName,
+            String lastName,
+            Address address,
             @Nullable String telephone,
             @Version BigInteger version
     ) implements Entity<Integer> {}
@@ -110,9 +109,9 @@ public class TemplateImplIntegrationTest {
     @DbTable("owner")
     public record OwnerWithBoxedIntegerVersion(
             @PK Integer id,
-            @Nonnull String firstName,
-            @Nonnull String lastName,
-            @Nonnull Address address,
+            String firstName,
+            String lastName,
+            Address address,
             @Nullable String telephone,
             @Version Integer version
     ) implements Entity<Integer> {}
@@ -136,9 +135,9 @@ public class TemplateImplIntegrationTest {
     @DbTable("owner")
     public record OwnerWithBoxedLongVersion(
             @PK Integer id,
-            @Nonnull String firstName,
-            @Nonnull String lastName,
-            @Nonnull Address address,
+            String firstName,
+            String lastName,
+            Address address,
             @Nullable String telephone,
             @Version Long version
     ) implements Entity<Integer> {}
@@ -162,9 +161,9 @@ public class TemplateImplIntegrationTest {
     @DbTable("visit")
     public record VisitWithDateVersion(
             @PK Integer id,
-            @Nonnull LocalDate visitDate,
+            LocalDate visitDate,
             @Nullable String description,
-            @Nonnull @FK Pet pet,
+            @FK Pet pet,
             @Version @DbColumn("timestamp") Date timestamp
     ) implements Entity<Integer> {}
 
@@ -194,9 +193,9 @@ public class TemplateImplIntegrationTest {
     @DbTable("visit")
     public record VisitWithCalendarVersion(
             @PK Integer id,
-            @Nonnull LocalDate visitDate,
+            LocalDate visitDate,
             @Nullable String description,
-            @Nonnull @FK Pet pet,
+            @FK Pet pet,
             @Version @DbColumn("timestamp") Calendar timestamp
     ) implements Entity<Integer> {}
 
@@ -227,9 +226,9 @@ public class TemplateImplIntegrationTest {
     @DbTable("visit")
     public record VisitWithSqlTimestampVersion(
             @PK Integer id,
-            @Nonnull LocalDate visitDate,
+            LocalDate visitDate,
             @Nullable String description,
-            @Nonnull @FK Pet pet,
+            @FK Pet pet,
             @Version @DbColumn("timestamp") java.sql.Timestamp timestamp
     ) implements Entity<Integer> {}
 
@@ -260,9 +259,9 @@ public class TemplateImplIntegrationTest {
     @DbTable("visit")
     public record VisitWithOffsetDateTime(
             @PK Integer id,
-            @Nonnull LocalDate visitDate,
+            LocalDate visitDate,
             @Nullable String description,
-            @Nonnull @FK Pet pet,
+            @FK Pet pet,
             @DbColumn("timestamp") OffsetDateTime timestamp
     ) implements Entity<Integer> {}
 
@@ -287,9 +286,9 @@ public class TemplateImplIntegrationTest {
     @DbTable("visit")
     public record VisitWithLocalDateTime(
             @PK Integer id,
-            @Nonnull LocalDate visitDate,
+            LocalDate visitDate,
             @Nullable String description,
-            @Nonnull @FK Pet pet,
+            @FK Pet pet,
             @DbColumn("timestamp") LocalDateTime timestamp
     ) implements Entity<Integer> {}
 
@@ -314,9 +313,9 @@ public class TemplateImplIntegrationTest {
     @DbTable("visit")
     public record VisitWithCalendar(
             @PK Integer id,
-            @Nonnull LocalDate visitDate,
+            LocalDate visitDate,
             @Nullable String description,
-            @Nonnull @FK Pet pet,
+            @FK Pet pet,
             @DbColumn("timestamp") Calendar timestamp
     ) implements Entity<Integer> {}
 
@@ -343,9 +342,9 @@ public class TemplateImplIntegrationTest {
     @DbTable("visit")
     public record VisitWithUtilDate(
             @PK Integer id,
-            @Nonnull LocalDate visitDate,
+            LocalDate visitDate,
             @Nullable String description,
-            @Nonnull @FK Pet pet,
+            @FK Pet pet,
             @DbColumn("timestamp") Date timestamp
     ) implements Entity<Integer> {}
 
@@ -374,9 +373,9 @@ public class TemplateImplIntegrationTest {
     @DbTable("pet")
     public record PetWithOrdinalEnum(
             @PK Integer id,
-            @Nonnull String name,
-            @Nonnull LocalDate birthDate,
-            @Nonnull @DbEnum(EnumType.ORDINAL) @DbColumn("type_id") PetTypeEnum type,
+            String name,
+            LocalDate birthDate,
+            @DbEnum(EnumType.ORDINAL) @DbColumn("type_id") PetTypeEnum type,
             @Nullable @FK Owner owner
     ) implements Entity<Integer> {}
 
@@ -402,8 +401,8 @@ public class TemplateImplIntegrationTest {
     @DbTable("animal")
     public record AnimalWithNameEnum(
             @PK Integer id,
-            @Nonnull @DbColumn("dtype") String dtype,
-            @Nonnull String name,
+            @DbColumn("dtype") String dtype,
+            String name,
             @Nullable Boolean indoor,
             @Nullable Integer weight
     ) implements Entity<Integer> {}
@@ -554,8 +553,8 @@ public class TemplateImplIntegrationTest {
     @DbTable("owner")
     public record OwnerNullableAddress(
             @PK Integer id,
-            @Nonnull String firstName,
-            @Nonnull String lastName,
+            String firstName,
+            String lastName,
             @Nullable Address address,
             @Nullable String telephone,
             @Version int version

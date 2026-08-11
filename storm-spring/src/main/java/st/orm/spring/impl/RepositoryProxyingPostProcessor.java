@@ -15,8 +15,7 @@
  */
 package st.orm.spring.impl;
 
-import jakarta.annotation.Nonnull;
-import jakarta.annotation.Nullable;
+import org.jspecify.annotations.Nullable;
 import org.springframework.aop.framework.ProxyFactory;
 import org.springframework.beans.factory.config.BeanPostProcessor;
 import org.springframework.stereotype.Component;
@@ -49,7 +48,7 @@ public class RepositoryProxyingPostProcessor implements BeanPostProcessor {
     }
 
     @Override
-    public Object postProcessAfterInitialization(@Nonnull Object bean, @Nonnull String beanName) {
+    public Object postProcessAfterInitialization(Object bean, String beanName) {
         if (repositoryType != null && repositoryType.isInstance(bean)) {
             ProxyFactory factory = new ProxyFactory(bean);
             factory.setProxyTargetClass(true);

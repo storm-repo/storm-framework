@@ -15,7 +15,6 @@
  */
 package st.orm.core.template.impl;
 
-import jakarta.annotation.Nonnull;
 import st.orm.Data;
 import st.orm.GenerationStrategy;
 import st.orm.Metamodel;
@@ -45,15 +44,15 @@ import st.orm.core.template.SqlDialect;
  *                           foreign keys, or the component's own metamodel for compound key components.
  */
 public record ColumnImpl(
-        @Nonnull Name columnName,
+        Name columnName,
         int index,
-        @Nonnull Class<?> type,
-        @Nonnull Class<?> persistedType,
+        Class<?> type,
+        Class<?> persistedType,
         boolean primaryKey,
-        @Nonnull GenerationStrategy generation,
-        @Nonnull String sequence,
+        GenerationStrategy generation,
+        String sequence,
         boolean foreignKey,
-        @Nonnull GenerationStrategy foreignKeyGeneration,
+        GenerationStrategy foreignKeyGeneration,
         int keyIndex,
         boolean nullable,
         boolean insertable,
@@ -81,7 +80,7 @@ public record ColumnImpl(
      * @return the qualified column name.
      */
     @Override
-    public String qualifiedName(@Nonnull SqlDialect dialect) {
+    public String qualifiedName(SqlDialect dialect) {
         return columnName.qualified(dialect);
     }
 }

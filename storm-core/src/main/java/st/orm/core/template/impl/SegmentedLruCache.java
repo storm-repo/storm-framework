@@ -17,7 +17,6 @@ package st.orm.core.template.impl;
 
 import static java.util.Objects.requireNonNull;
 
-import jakarta.annotation.Nonnull;
 import java.util.LinkedHashMap;
 import java.util.function.Supplier;
 
@@ -94,7 +93,7 @@ public final class SegmentedLruCache<K, V> {
      * @return the cached value, or {@code null} if absent.
      * @throws NullPointerException if {@code key} is {@code null}.
      */
-    public V get(@Nonnull K key) {
+    public V get(K key) {
         return segmentFor(key).get(key);
     }
 
@@ -108,7 +107,7 @@ public final class SegmentedLruCache<K, V> {
      * @param value the value; must not be {@code null}.
      * @throws NullPointerException if {@code key} or {@code value} is {@code null}.
      */
-    public void put(@Nonnull K key, @Nonnull V value) {
+    public void put(K key, V value) {
         segmentFor(key).put(key, value);
     }
 
@@ -126,7 +125,7 @@ public final class SegmentedLruCache<K, V> {
      * @return the existing value if present, otherwise {@code null} (and {@code value} is stored)
      * @throws NullPointerException if {@code key} or {@code value} is {@code null}
      */
-    public V putIfAbsent(@Nonnull K key, @Nonnull V value) {
+    public V putIfAbsent(K key, V value) {
         return segmentFor(key).putIfAbsent(key, value);
     }
 
@@ -149,7 +148,7 @@ public final class SegmentedLruCache<K, V> {
      * @return the cached or computed value, or {@code null} if {@code supplier} returns {@code null}.
      * @throws NullPointerException if {@code key} or {@code supplier} is {@code null}.
      */
-    public V getOrCompute(@Nonnull K key, @Nonnull Supplier<? extends V> supplier) {
+    public V getOrCompute(K key, Supplier<? extends V> supplier) {
         V v = get(key);
         if (v != null) {
             return v;
@@ -196,11 +195,11 @@ public final class SegmentedLruCache<K, V> {
      * @return the removed value, or {@code null} if no mapping existed.
      * @throws NullPointerException if {@code key} is {@code null}.
      */
-    public V remove(@Nonnull K key) {
+    public V remove(K key) {
         return segmentFor(key).remove(key);
     }
 
-    private Segment<K, V> segmentFor(@Nonnull K key) {
+    private Segment<K, V> segmentFor(K key) {
         int h = spread(key.hashCode());
         return segments[h & segmentMask];
     }
@@ -266,14 +265,14 @@ public final class SegmentedLruCache<K, V> {
         /**
          * Returns the value mapped to {@code key}, updating recency on a hit.
          */
-        synchronized V get(@Nonnull K key) {
+        synchronized V get(K key) {
             return lru.get(key);
         }
 
         /**
          * Stores a mapping, overwriting any previous value, and then evicts if needed.
          */
-        synchronized void put(@Nonnull K key, @Nonnull V value) {
+        synchronized void put(K key, V value) {
             lru.put(key, requireNonNull(value));
             evictIfNeeded();
         }
@@ -283,7 +282,7 @@ public final class SegmentedLruCache<K, V> {
          *
          * @return the existing value if present, otherwise {@code null}.
          */
-        synchronized V putIfAbsent(@Nonnull K key, @Nonnull V value) {
+        synchronized V putIfAbsent(K key, V value) {
             V existing = lru.get(key); // Counts as access (recency).
             if (existing != null) {
                 return existing;
@@ -296,7 +295,7 @@ public final class SegmentedLruCache<K, V> {
         /**
          * Removes the mapping for {@code key} if present.
          */
-        synchronized V remove(@Nonnull K key) {
+        synchronized V remove(K key) {
             return lru.remove(key);
         }
 

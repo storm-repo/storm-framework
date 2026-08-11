@@ -21,12 +21,11 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import static st.orm.GenerationStrategy.NONE;
 import static st.orm.GenerationStrategy.SEQUENCE;
 
-import jakarta.annotation.Nonnull;
-import jakarta.annotation.Nullable;
 import java.time.Duration;
 import java.time.LocalDate;
 import java.util.List;
 import javax.sql.DataSource;
+import org.jspecify.annotations.Nullable;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -122,14 +121,14 @@ public class OracleSchemaValidatorTest {
     @DbTable("vet")
     public record TypeMismatchEntity(
             @PK Integer id,
-            @Nonnull LocalDate firstName
+            LocalDate firstName
     ) implements Entity<Integer> {}
 
     @DbTable("pet_type")
     public record NullabilityMismatchEntity(
             @PK Integer id,
             String name,
-            @Nonnull String description
+            String description
     ) implements Entity<Integer> {}
 
     @DbTable("vet_specialty")

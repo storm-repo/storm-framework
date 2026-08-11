@@ -17,7 +17,6 @@ package st.orm.core.template.impl;
 
 import static java.util.Objects.requireNonNull;
 
-import jakarta.annotation.Nonnull;
 import st.orm.BindVars;
 import st.orm.Data;
 import st.orm.PersistenceException;
@@ -41,8 +40,8 @@ class QueryTemplateImpl implements QueryTemplate {
     protected final ModelBuilder modelBuilder;
     private final RefFactory refFactory;
 
-    QueryTemplateImpl(@Nonnull QueryFactory queryFactory,
-                      @Nonnull ModelBuilder modelBuilder) {
+    QueryTemplateImpl(QueryFactory queryFactory,
+                      ModelBuilder modelBuilder) {
         this.queryFactory = requireNonNull(queryFactory);
         this.modelBuilder = requireNonNull(modelBuilder);
         this.refFactory = new RefFactoryImpl(this);
@@ -97,7 +96,7 @@ class QueryTemplateImpl implements QueryTemplate {
      * @since 1.3
      */
     @Override
-    public <E extends Data, ID> Ref<E> ref(@Nonnull Class<E> type, @Nonnull ID id) {
+    public <E extends Data, ID> Ref<E> ref(Class<E> type, ID id) {
         return refFactory.create(type, id);
     }
 
@@ -113,7 +112,7 @@ class QueryTemplateImpl implements QueryTemplate {
      * @since 1.3
      */
     @Override
-    public <E extends Data, ID> Ref<E> ref(@Nonnull E entity, @Nonnull ID id) {
+    public <E extends Data, ID> Ref<E> ref(E entity, ID id) {
         return refFactory.create(entity, id);
     }
 
@@ -129,7 +128,7 @@ class QueryTemplateImpl implements QueryTemplate {
      * @since 1.3
      */
     @Override
-    public <T extends Data, ID> Model<T, ID> model(@Nonnull Class<T> type, boolean requirePrimaryKey) {
+    public <T extends Data, ID> Model<T, ID> model(Class<T> type, boolean requirePrimaryKey) {
         try {
             return modelBuilder.build(type, requirePrimaryKey);
         } catch (SqlTemplateException e) {
@@ -148,7 +147,7 @@ class QueryTemplateImpl implements QueryTemplate {
      * @param <R> the result type.
      */
     @Override
-    public <T extends Data, R> QueryBuilder<T, R, ?> selectFrom(@Nonnull Class<T> fromType, @Nonnull Class<R> selectType, @Nonnull TemplateString template) {
+    public <T extends Data, R> QueryBuilder<T, R, ?> selectFrom(Class<T> fromType, Class<R> selectType, TemplateString template) {
         return Providers.selectFrom(this, fromType, selectType, template, false, modelBuilder.supplier(fromType, true));
     }
 
@@ -160,7 +159,7 @@ class QueryTemplateImpl implements QueryTemplate {
      * @param <T> the table type to delete from.
      */
     @Override
-    public <T extends Data> QueryBuilder<T, ?, ?> deleteFrom(@Nonnull Class<T> fromType) {
+    public <T extends Data> QueryBuilder<T, ?, ?> deleteFrom(Class<T> fromType) {
         return Providers.deleteFrom(this, fromType, modelBuilder.supplier(fromType, true));
     }
 
@@ -173,7 +172,7 @@ class QueryTemplateImpl implements QueryTemplate {
      * @param <T> the table type to select from.
      */
     @Override
-    public <T extends Data> QueryBuilder<T, ?, ?> subquery(@Nonnull Class<T> fromType, @Nonnull TemplateString template) {
+    public <T extends Data> QueryBuilder<T, ?, ?> subquery(Class<T> fromType, TemplateString template) {
         return Providers.selectFrom(this, fromType, Void.class, template, true, modelBuilder.supplier(fromType, true));
     }
 
@@ -184,7 +183,7 @@ class QueryTemplateImpl implements QueryTemplate {
      * @return the query.
      */
     @Override
-    public Query query(@Nonnull String query) {
+    public Query query(String query) {
         return queryFactory.create(TemplateString.of(query));
     }
 
@@ -195,7 +194,7 @@ class QueryTemplateImpl implements QueryTemplate {
      * @return the query.
      */
     @Override
-    public Query query(@Nonnull TemplateString template) {
+    public Query query(TemplateString template) {
         return queryFactory.create(template);
     }
 
@@ -209,7 +208,7 @@ class QueryTemplateImpl implements QueryTemplate {
      * @return a reusable plan for the template.
      */
     @Override
-    public QueryPlan plan(@Nonnull TemplateString template) {
+    public QueryPlan plan(TemplateString template) {
         return queryFactory.plan(template);
     }
 }

@@ -15,9 +15,8 @@
  */
 package st.orm.spring.boot;
 
-import jakarta.annotation.Nonnull;
-import jakarta.annotation.Nullable;
 import java.time.Duration;
+import org.jspecify.annotations.Nullable;
 import org.slf4j.Logger;
 import st.orm.core.template.SqlLog;
 
@@ -36,15 +35,15 @@ final class SqlLogReporting {
      * Returns whether a summary would reach the logger, so a caller can skip opening a scope whose summary
      * nothing consumes.
      */
-    static boolean consumes(@Nonnull Logger logger, boolean thresholded) {
+    static boolean consumes(Logger logger, boolean thresholded) {
         return thresholded ? logger.isWarnEnabled() : logger.isInfoEnabled();
     }
 
     /**
      * Reports the summary. A unit of work that touched no database says nothing worth a line.
      */
-    static void report(@Nonnull Logger logger,
-                       @Nonnull SqlLog.Summary summary,
+    static void report(Logger logger,
+                       SqlLog.Summary summary,
                        @Nullable Integer statementThreshold,
                        @Nullable Duration durationThreshold) {
         if (summary.statementCount() == 0) {

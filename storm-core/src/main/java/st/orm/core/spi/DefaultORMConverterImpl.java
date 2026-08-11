@@ -18,9 +18,8 @@ package st.orm.core.spi;
 import static java.util.Collections.singletonList;
 import static java.util.Objects.requireNonNull;
 
-import jakarta.annotation.Nonnull;
-import jakarta.annotation.Nullable;
 import java.util.List;
+import org.jspecify.annotations.Nullable;
 import st.orm.Converter;
 import st.orm.core.template.SqlTemplateException;
 import st.orm.mapping.RecordField;
@@ -44,9 +43,9 @@ public final class DefaultORMConverterImpl<D, E> implements ORMConverter {
      * @param converter the value converter (object to database).
      * @param databaseType the JDBC-facing / database column Java type (D).
      */
-    public DefaultORMConverterImpl(@Nonnull RecordField field,
-                                   @Nonnull Converter<D, E> converter,
-                                   @Nonnull Class<D> databaseType) {
+    public DefaultORMConverterImpl(RecordField field,
+                                   Converter<D, E> converter,
+                                   Class<D> databaseType) {
         this.field = requireNonNull(field, "field");
         this.converter = requireNonNull(converter, "converter");
         this.databaseType = requireNonNull(databaseType, "databaseType");
@@ -84,7 +83,7 @@ public final class DefaultORMConverterImpl<D, E> implements ORMConverter {
      * @return a list of column names.
      */
     @Override
-    public List<Name> getColumns(@Nonnull NameResolver nameResolver) throws SqlTemplateException {
+    public List<Name> getColumns(NameResolver nameResolver) throws SqlTemplateException {
         requireNonNull(nameResolver, "nameResolver");
         return List.of(nameResolver.getName(field));
     }
@@ -120,8 +119,8 @@ public final class DefaultORMConverterImpl<D, E> implements ORMConverter {
      * @throws SqlTemplateException if an error occurs during conversion.
      */
     @Override
-    public Object fromDatabase(@Nonnull Object[] values,
-                               @Nonnull RefFactory refFactory) throws SqlTemplateException {
+    public Object fromDatabase(Object[] values,
+                               RefFactory refFactory) throws SqlTemplateException {
         requireNonNull(values, "values");
         requireNonNull(refFactory, "refFactory");
         if (values.length == 0) {

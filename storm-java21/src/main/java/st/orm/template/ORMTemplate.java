@@ -15,7 +15,6 @@
  */
 package st.orm.template;
 
-import jakarta.annotation.Nonnull;
 import java.sql.Connection;
 import java.util.List;
 import java.util.function.Predicate;
@@ -76,7 +75,7 @@ public interface ORMTemplate extends QueryTemplate, RepositoryLookup {
      * @return a new {@code ORMTemplate} with the callback added.
      * @since 1.9
      */
-    ORMTemplate withEntityCallback(@Nonnull EntityCallback<?> callback);
+    ORMTemplate withEntityCallback(EntityCallback<?> callback);
 
     /**
      * Returns a new {@code ORMTemplate} with the specified entity callbacks added.
@@ -89,7 +88,7 @@ public interface ORMTemplate extends QueryTemplate, RepositoryLookup {
      * @return a new {@code ORMTemplate} with the callbacks added.
      * @since 1.9
      */
-    ORMTemplate withEntityCallbacks(@Nonnull List<EntityCallback<?>> callbacks);
+    ORMTemplate withEntityCallbacks(List<EntityCallback<?>> callbacks);
 
     /**
      * Validates all discovered entity and projection types against the database schema.
@@ -124,7 +123,7 @@ public interface ORMTemplate extends QueryTemplate, RepositoryLookup {
      * @throws st.orm.PersistenceException if the template does not support schema validation.
      * @since 1.11
      */
-    List<String> validateSchema(@Nonnull Predicate<Class<? extends Data>> filter);
+    List<String> validateSchema(Predicate<Class<? extends Data>> filter);
 
     /**
      * Validates the specified types against the database schema.
@@ -140,7 +139,7 @@ public interface ORMTemplate extends QueryTemplate, RepositoryLookup {
      * @throws st.orm.PersistenceException if the template does not support schema validation.
      * @since 1.9
      */
-    List<String> validateSchema(@Nonnull Iterable<Class<? extends Data>> types);
+    List<String> validateSchema(Iterable<Class<? extends Data>> types);
 
     /**
      * Validates all discovered types and throws if any errors are found.
@@ -167,7 +166,7 @@ public interface ORMTemplate extends QueryTemplate, RepositoryLookup {
      * @throws st.orm.PersistenceException if validation fails or the template does not support schema validation.
      * @since 1.11
      */
-    void validateSchemaOrThrow(@Nonnull Predicate<Class<? extends Data>> filter);
+    void validateSchemaOrThrow(Predicate<Class<? extends Data>> filter);
 
     /**
      * Validates the specified types and throws if any errors are found.
@@ -179,7 +178,7 @@ public interface ORMTemplate extends QueryTemplate, RepositoryLookup {
      * @throws st.orm.PersistenceException if validation fails or the template does not support schema validation.
      * @since 1.9
      */
-    void validateSchemaOrThrow(@Nonnull Iterable<Class<? extends Data>> types);
+    void validateSchemaOrThrow(Iterable<Class<? extends Data>> types);
 
     /**
      * Returns an {@link ORMTemplate} for use with JDBC.
@@ -201,7 +200,7 @@ public interface ORMTemplate extends QueryTemplate, RepositoryLookup {
      * @param dataSource the {@link DataSource} to use for database operations; must not be {@code null}.
      * @return an {@link ORMTemplate} configured for use with JDBC.
      */
-    static ORMTemplate of(@Nonnull DataSource dataSource) {
+    static ORMTemplate of(DataSource dataSource) {
         return new ORMTemplateImpl(st.orm.core.template.ORMTemplate.of(dataSource));
     }
 
@@ -228,7 +227,7 @@ public interface ORMTemplate extends QueryTemplate, RepositoryLookup {
      * @param connection the {@link Connection} to use for database operations; must not be {@code null}.
      * @return an {@link ORMTemplate} configured for use with JDBC.
      */
-    static ORMTemplate of(@Nonnull Connection connection) {
+    static ORMTemplate of(Connection connection) {
         return new ORMTemplateImpl(st.orm.core.template.ORMTemplate.of(connection));
     }
 
@@ -242,7 +241,7 @@ public interface ORMTemplate extends QueryTemplate, RepositoryLookup {
      * @param decorator a function that transforms the {@link TemplateDecorator} to customize template processing.
      * @return an {@link ORMTemplate} configured for use with JDBC.
      */
-    static ORMTemplate of(@Nonnull DataSource dataSource, @Nonnull UnaryOperator<TemplateDecorator> decorator) {
+    static ORMTemplate of(DataSource dataSource, UnaryOperator<TemplateDecorator> decorator) {
         return new ORMTemplateImpl(st.orm.core.template.ORMTemplate.of(dataSource, decorator));
     }
 
@@ -258,7 +257,7 @@ public interface ORMTemplate extends QueryTemplate, RepositoryLookup {
      * @param decorator a function that transforms the {@link TemplateDecorator} to customize template processing.
      * @return an {@link ORMTemplate} configured for use with JDBC.
      */
-    static ORMTemplate of(@Nonnull Connection connection, @Nonnull UnaryOperator<TemplateDecorator> decorator) {
+    static ORMTemplate of(Connection connection, UnaryOperator<TemplateDecorator> decorator) {
         return new ORMTemplateImpl(st.orm.core.template.ORMTemplate.of(connection, decorator));
     }
 
@@ -271,7 +270,7 @@ public interface ORMTemplate extends QueryTemplate, RepositoryLookup {
      * @param config the Storm configuration to apply; must not be {@code null}.
      * @return an {@link ORMTemplate} configured for use with JDBC.
      */
-    static ORMTemplate of(@Nonnull DataSource dataSource, @Nonnull StormConfig config) {
+    static ORMTemplate of(DataSource dataSource, StormConfig config) {
         return new ORMTemplateImpl(st.orm.core.template.ORMTemplate.of(dataSource, config));
     }
 
@@ -284,8 +283,8 @@ public interface ORMTemplate extends QueryTemplate, RepositoryLookup {
      * @param decorator a function that transforms the {@link TemplateDecorator} to customize template processing.
      * @return an {@link ORMTemplate} configured for use with JDBC.
      */
-    static ORMTemplate of(@Nonnull DataSource dataSource, @Nonnull StormConfig config,
-                          @Nonnull UnaryOperator<TemplateDecorator> decorator) {
+    static ORMTemplate of(DataSource dataSource, StormConfig config,
+                          UnaryOperator<TemplateDecorator> decorator) {
         return new ORMTemplateImpl(st.orm.core.template.ORMTemplate.of(dataSource, config, decorator));
     }
 
@@ -298,7 +297,7 @@ public interface ORMTemplate extends QueryTemplate, RepositoryLookup {
      * @param config the Storm configuration to apply; must not be {@code null}.
      * @return an {@link ORMTemplate} configured for use with JDBC.
      */
-    static ORMTemplate of(@Nonnull Connection connection, @Nonnull StormConfig config) {
+    static ORMTemplate of(Connection connection, StormConfig config) {
         return new ORMTemplateImpl(st.orm.core.template.ORMTemplate.of(connection, config));
     }
 
@@ -313,8 +312,8 @@ public interface ORMTemplate extends QueryTemplate, RepositoryLookup {
      * @param decorator a function that transforms the {@link TemplateDecorator} to customize template processing.
      * @return an {@link ORMTemplate} configured for use with JDBC.
      */
-    static ORMTemplate of(@Nonnull Connection connection, @Nonnull StormConfig config,
-                          @Nonnull UnaryOperator<TemplateDecorator> decorator) {
+    static ORMTemplate of(Connection connection, StormConfig config,
+                          UnaryOperator<TemplateDecorator> decorator) {
         return new ORMTemplateImpl(st.orm.core.template.ORMTemplate.of(connection, config, decorator));
     }
 
@@ -329,7 +328,7 @@ public interface ORMTemplate extends QueryTemplate, RepositoryLookup {
      * @return a builder for constructing the ORM template.
      * @since 1.13
      */
-    static Builder builder(@Nonnull DataSource dataSource) {
+    static Builder builder(DataSource dataSource) {
         return new Builder(st.orm.core.template.ORMTemplate.builder(dataSource));
     }
 
@@ -343,7 +342,7 @@ public interface ORMTemplate extends QueryTemplate, RepositoryLookup {
      * @return a builder for constructing the ORM template.
      * @since 1.13
      */
-    static Builder builder(@Nonnull Connection connection) {
+    static Builder builder(Connection connection) {
         return new Builder(st.orm.core.template.ORMTemplate.builder(connection));
     }
 
@@ -355,7 +354,7 @@ public interface ORMTemplate extends QueryTemplate, RepositoryLookup {
     final class Builder {
         private final st.orm.core.template.ORMTemplate.Builder core;
 
-        private Builder(@Nonnull st.orm.core.template.ORMTemplate.Builder core) {
+        private Builder(st.orm.core.template.ORMTemplate.Builder core) {
             this.core = core;
         }
 
@@ -365,7 +364,7 @@ public interface ORMTemplate extends QueryTemplate, RepositoryLookup {
          * @param config the Storm configuration; must not be {@code null}.
          * @return this builder.
          */
-        public Builder config(@Nonnull StormConfig config) {
+        public Builder config(StormConfig config) {
             core.config(config);
             return this;
         }
@@ -376,7 +375,7 @@ public interface ORMTemplate extends QueryTemplate, RepositoryLookup {
          * @param decorator the decorator function; must not be {@code null}.
          * @return this builder.
          */
-        public Builder decorator(@Nonnull UnaryOperator<TemplateDecorator> decorator) {
+        public Builder decorator(UnaryOperator<TemplateDecorator> decorator) {
             core.decorator(decorator);
             return this;
         }
@@ -389,7 +388,7 @@ public interface ORMTemplate extends QueryTemplate, RepositoryLookup {
          * @param connectionProvider the connection provider; must not be {@code null}.
          * @return this builder.
          */
-        public Builder connectionProvider(@Nonnull st.orm.core.spi.ConnectionProvider connectionProvider) {
+        public Builder connectionProvider(st.orm.core.spi.ConnectionProvider connectionProvider) {
             core.connectionProvider(connectionProvider);
             return this;
         }
@@ -403,7 +402,7 @@ public interface ORMTemplate extends QueryTemplate, RepositoryLookup {
          * @return this builder.
          */
         public Builder transactionTemplateProvider(
-                @Nonnull st.orm.core.spi.TransactionTemplateProvider transactionTemplateProvider) {
+                st.orm.core.spi.TransactionTemplateProvider transactionTemplateProvider) {
             core.transactionTemplateProvider(transactionTemplateProvider);
             return this;
         }
@@ -415,7 +414,7 @@ public interface ORMTemplate extends QueryTemplate, RepositoryLookup {
          * @param exceptionMapper the exception mapper; must not be {@code null}.
          * @return this builder.
          */
-        public Builder exceptionMapper(@Nonnull st.orm.core.spi.ExceptionMapper exceptionMapper) {
+        public Builder exceptionMapper(st.orm.core.spi.ExceptionMapper exceptionMapper) {
             core.exceptionMapper(exceptionMapper);
             return this;
         }
@@ -426,7 +425,7 @@ public interface ORMTemplate extends QueryTemplate, RepositoryLookup {
          * @param queryObserver the query observer; must not be {@code null}.
          * @return this builder.
          */
-        public Builder queryObserver(@Nonnull st.orm.core.spi.QueryObserver queryObserver) {
+        public Builder queryObserver(st.orm.core.spi.QueryObserver queryObserver) {
             core.queryObserver(queryObserver);
             return this;
         }
@@ -439,7 +438,7 @@ public interface ORMTemplate extends QueryTemplate, RepositoryLookup {
          * @return this builder.
          * @since 1.13
          */
-        public Builder sqlCommenter(@Nonnull st.orm.core.spi.SqlCommenter sqlCommenter) {
+        public Builder sqlCommenter(st.orm.core.spi.SqlCommenter sqlCommenter) {
             core.sqlCommenter(sqlCommenter);
             return this;
         }

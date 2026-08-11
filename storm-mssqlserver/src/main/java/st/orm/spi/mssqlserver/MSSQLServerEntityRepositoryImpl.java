@@ -25,7 +25,6 @@ import static st.orm.core.template.TemplateString.raw;
 import static st.orm.core.template.TemplateString.wrap;
 import static st.orm.core.template.impl.StringTemplates.flatten;
 
-import jakarta.annotation.Nonnull;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -54,7 +53,7 @@ import st.orm.core.template.impl.JoinedEntityHelper;
 public class MSSQLServerEntityRepositoryImpl<E extends Entity<ID>, ID>
         extends MergeEntityRepositoryImpl<E, ID> {
 
-    public MSSQLServerEntityRepositoryImpl(@Nonnull ORMTemplate ormTemplate, @Nonnull Model<E, ID> model) {
+    public MSSQLServerEntityRepositoryImpl(ORMTemplate ormTemplate, Model<E, ID> model) {
         super(ormTemplate, model);
     }
 
@@ -70,14 +69,14 @@ public class MSSQLServerEntityRepositoryImpl<E extends Entity<ID>, ID>
      * SQL Server increments the stored version rather than the incoming source value.
      */
     @Override
-    protected String versionIncrementExpression(@Nonnull String qualifiedName) {
+    protected String versionIncrementExpression(String qualifiedName) {
         return "t.%s + 1".formatted(qualifiedName);
     }
 
     /**
      * Builds a SELECT clause for the merge source based on entities.
      */
-    private TemplateString mergeSelect(@Nonnull Iterable<E> entities) {
+    private TemplateString mergeSelect(Iterable<E> entities) {
         assert generationStrategy == SEQUENCE;
         try {
             List<TemplateString> valuesTemplates = new ArrayList<>();
@@ -167,7 +166,7 @@ public class MSSQLServerEntityRepositoryImpl<E extends Entity<ID>, ID>
     private static final class SeqUpsertKey implements SeqPartitionKey {
         private static final SeqUpsertKey INSTANCE = new SeqUpsertKey();
     }
-    private record SeqUpdateKey(@Nonnull Set<Metamodel<?, ?>> fields) implements SeqPartitionKey {
+    private record SeqUpdateKey(Set<Metamodel<?, ?>> fields) implements SeqPartitionKey {
         SeqUpdateKey() {
             this(Set.of()); // All fields.
         }
@@ -183,7 +182,7 @@ public class MSSQLServerEntityRepositoryImpl<E extends Entity<ID>, ID>
      * the OUTPUT INSERTED clause on the MERGE statement.</p>
      */
     @Override
-    public List<ID> upsertAndFetchIds(@Nonnull Iterable<E> entities) {
+    public List<ID> upsertAndFetchIds(Iterable<E> entities) {
         if (generationStrategy != SEQUENCE) {
             return super.upsertAndFetchIds(entities);
         }
@@ -253,7 +252,7 @@ public class MSSQLServerEntityRepositoryImpl<E extends Entity<ID>, ID>
         }
     }
 
-    private Query getUpsertQuery(@Nonnull Iterable<E> entities) {
+    private Query getUpsertQuery(Iterable<E> entities) {
         var versionAware = new AtomicBoolean();
         assert primaryKeyColumns.size() == 1;
         var primaryKeyColumn = primaryKeyColumns.getFirst();
@@ -277,7 +276,7 @@ public class MSSQLServerEntityRepositoryImpl<E extends Entity<ID>, ID>
      * keys and works correctly on SQL Server.</p>
      */
     @Override
-    protected List<ID> insertJoinedBatch(@Nonnull List<E> entities) {
+    protected List<ID> insertJoinedBatch(List<E> entities) {
         if (generationStrategy == NONE) {
             return super.insertJoinedBatch(entities);
         }
@@ -299,7 +298,7 @@ public class MSSQLServerEntityRepositoryImpl<E extends Entity<ID>, ID>
     }
 
     @Override
-    public ID insertAndFetchId(@Nonnull E entity) {
+    public ID insertAndFetchId(E entity) {
         if (generationStrategy != SEQUENCE) {
             return super.insertAndFetchId(entity);
         }
@@ -319,7 +318,7 @@ public class MSSQLServerEntityRepositoryImpl<E extends Entity<ID>, ID>
     }
 
     @Override
-    public List<ID> insertAndFetchIds(@Nonnull Iterable<E> entities) {
+    public List<ID> insertAndFetchIds(Iterable<E> entities) {
         if (generationStrategy == NONE) {
             return super.insertAndFetchIds(entities);
         }

@@ -1,7 +1,6 @@
 package st.orm.core.model;
 
-import jakarta.annotation.Nonnull;
-import jakarta.annotation.Nullable;
+import org.jspecify.annotations.Nullable;
 import st.orm.Entity;
 import st.orm.FK;
 import st.orm.PK;
@@ -14,7 +13,7 @@ import st.orm.PK;
  */
 public record Country(
         @PK Integer id,
-        @Nonnull String name,
+        String name,
         @Nullable @FK CapitalCity capital,
         @Nullable @FK LargestCity largestCity
 ) implements Entity<Integer> {}

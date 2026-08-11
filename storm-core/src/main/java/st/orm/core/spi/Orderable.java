@@ -15,7 +15,6 @@
  */
 package st.orm.core.spi;
 
-import jakarta.annotation.Nonnull;
 import java.lang.annotation.ElementType;
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
@@ -84,7 +83,7 @@ public interface Orderable<T extends Orderable<T>> {
      * @param orderables the orderable instances to sort.
      * @return the sorted orderable instances.
      */
-    static <T extends Orderable<?>> List<T> sort(@Nonnull List<T> orderables) {
+    static <T extends Orderable<?>> List<T> sort(List<T> orderables) {
         return OrderableHelper.sort(orderables);
     }
 
@@ -96,7 +95,7 @@ public interface Orderable<T extends Orderable<T>> {
      * @param orderableStream the orderable instances to sort.
      * @return the sorted orderable instances.
      */
-    static <T extends Orderable<?>> Stream<T> sort(@Nonnull Stream<T> orderableStream) {
+    static <T extends Orderable<?>> Stream<T> sort(Stream<T> orderableStream) {
         return OrderableHelper.sort(orderableStream);
     }
 }

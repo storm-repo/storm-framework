@@ -22,8 +22,6 @@ import static tools.jackson.databind.DeserializationFeature.FAIL_ON_MISSING_CREA
 import static tools.jackson.databind.DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES;
 
 import com.fasterxml.jackson.annotation.JsonTypeName;
-import jakarta.annotation.Nonnull;
-import jakarta.annotation.Nullable;
 import java.lang.reflect.GenericArrayType;
 import java.lang.reflect.ParameterizedType;
 import java.lang.reflect.Type;
@@ -32,6 +30,7 @@ import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
+import org.jspecify.annotations.Nullable;
 import st.orm.Json;
 import st.orm.core.spi.JsonString;
 import st.orm.core.spi.Name;
@@ -68,16 +67,16 @@ public final class JsonORMConverterImpl implements ORMConverter {
     private final JsonMapper mapper;
     private final ObjectWriter writer;
 
-    record CacheKey(@Nonnull Json json,
-                    @Nonnull List<Class<?>> sealedTypes,
+    record CacheKey(Json json,
+                    List<Class<?>> sealedTypes,
                     @Nullable Class<?> targetType,
                     @Nullable Class<? extends ValueSerializer<?>> serializer,
                     @Nullable Class<? extends ValueDeserializer<?>> deserializer) {}
 
     @SuppressWarnings({"rawtypes", "unchecked"})
-    public JsonORMConverterImpl(@Nonnull RecordField field,
-                                @Nonnull TypeReference<?> typeReference,
-                                @Nonnull Json json) {
+    public JsonORMConverterImpl(RecordField field,
+                                TypeReference<?> typeReference,
+                                Json json) {
         this.field = requireNonNull(field, "field");
         this.typeReference = requireNonNull(typeReference, "typeReference");
         var sealedTypes = getSealedTypes(typeReference.getType());
@@ -142,7 +141,7 @@ public final class JsonORMConverterImpl implements ORMConverter {
         this.writer = mapper.writerFor(typeReference);
     }
 
-    private static Optional<Class<?>> getRawType(@Nonnull Type type) {
+    private static Optional<Class<?>> getRawType(Type type) {
         if (type instanceof ParameterizedType) {
             return Optional.of((Class<?>) ((ParameterizedType) type).getRawType());
         } else if (type instanceof Class<?>) {
@@ -156,13 +155,13 @@ public final class JsonORMConverterImpl implements ORMConverter {
      * Collects the sealed classes appearing anywhere in the field's generic type, so that permitted subtypes are
      * registered for container-typed fields such as {@code List<Shape>} as well as top-level sealed fields.
      */
-    private static List<Class<?>> getSealedTypes(@Nonnull Type type) {
+    private static List<Class<?>> getSealedTypes(Type type) {
         var sealedTypes = new LinkedHashSet<Class<?>>();
         collectSealedTypes(type, sealedTypes);
         return List.copyOf(sealedTypes);
     }
 
-    private static void collectSealedTypes(@Nonnull Type type, @Nonnull Set<Class<?>> sealedTypes) {
+    private static void collectSealedTypes(Type type, Set<Class<?>> sealedTypes) {
         if (type instanceof Class<?> clazz) {
             if (clazz.isSealed()) {
                 sealedTypes.add(clazz);
@@ -181,7 +180,7 @@ public final class JsonORMConverterImpl implements ORMConverter {
         }
     }
 
-    private static NamedType[] getPermittedSubtypes(@Nonnull Class<?> sealedClass) {
+    private static NamedType[] getPermittedSubtypes(Class<?> sealedClass) {
         return REFLECTION.getPermittedSubclasses(sealedClass).stream()
                 .map(subclass -> {
                     JsonTypeName typeNameAnnotation = subclass.getAnnotation(JsonTypeName.class);
@@ -202,7 +201,7 @@ public final class JsonORMConverterImpl implements ORMConverter {
     }
 
     @Override
-    public List<Name> getColumns(@Nonnull NameResolver nameResolver) throws SqlTemplateException {
+    public List<Name> getColumns(NameResolver nameResolver) throws SqlTemplateException {
         return List.of(nameResolver.getName(field));
     }
 
@@ -217,7 +216,7 @@ public final class JsonORMConverterImpl implements ORMConverter {
     }
 
     @Override
-    public Object fromDatabase(@Nonnull Object[] values, @Nonnull RefFactory refFactory) throws SqlTemplateException {
+    public Object fromDatabase(Object[] values, RefFactory refFactory) throws SqlTemplateException {
         Object value = values[0];
         if (value == null) {
             return null;

@@ -15,7 +15,6 @@
  */
 package st.orm.mapping;
 
-import jakarta.annotation.Nonnull;
 
 /**
  * Resolves the table name for a given record type.
@@ -43,7 +42,7 @@ public interface TableNameResolver {
      * @param resolver the table name resolver to wrap.
      * @return the table name resolver.
      */
-    static TableNameResolver toUpperCase(@Nonnull TableNameResolver resolver) {
+    static TableNameResolver toUpperCase(TableNameResolver resolver) {
         return type -> resolver.resolveTableName(type).toUpperCase();
     }
 
@@ -53,5 +52,5 @@ public interface TableNameResolver {
      * @param type the record type.
      * @return the table name.
      */
-    String resolveTableName(@Nonnull RecordType type);
+    String resolveTableName(RecordType type);
 }

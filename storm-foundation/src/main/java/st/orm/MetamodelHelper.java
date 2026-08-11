@@ -1,6 +1,5 @@
 package st.orm;
 
-import jakarta.annotation.Nonnull;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.util.List;
@@ -31,7 +30,7 @@ class MetamodelHelper {
     }
 
     @SuppressWarnings("unchecked")
-    static <T extends Data> Metamodel<T, T> root(@Nonnull Class<T> rootTable) {
+    static <T extends Data> Metamodel<T, T> root(Class<T> rootTable) {
         try {
             try {
                 return (Metamodel<T, T>) ROOT_METHOD.invoke(null, rootTable);
@@ -81,7 +80,7 @@ class MetamodelHelper {
         }
     }
 
-    static boolean isNullable(@Nonnull Metamodel<?, ?> metamodel) {
+    static boolean isNullable(Metamodel<?, ?> metamodel) {
         try {
             try {
                 return (Boolean) IS_NULLABLE_METHOD.invoke(null, metamodel);

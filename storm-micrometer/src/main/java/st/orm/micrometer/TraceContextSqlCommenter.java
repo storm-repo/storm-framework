@@ -20,9 +20,8 @@ import static java.util.Objects.requireNonNull;
 import io.micrometer.tracing.Span;
 import io.micrometer.tracing.TraceContext;
 import io.micrometer.tracing.Tracer;
-import jakarta.annotation.Nonnull;
-import jakarta.annotation.Nullable;
 import java.util.Optional;
+import org.jspecify.annotations.Nullable;
 import st.orm.core.spi.SqlCommenter;
 
 /**
@@ -61,7 +60,7 @@ public class TraceContextSqlCommenter implements SqlCommenter {
      *
      * @param tracer the tracer providing the current trace context.
      */
-    public TraceContextSqlCommenter(@Nonnull Tracer tracer) {
+    public TraceContextSqlCommenter(Tracer tracer) {
         this(tracer, false);
     }
 
@@ -75,7 +74,7 @@ public class TraceContextSqlCommenter implements SqlCommenter {
      * @param tracer the tracer providing the current trace context.
      * @param onlySampled whether to comment only when the current span is sampled.
      */
-    public TraceContextSqlCommenter(@Nonnull Tracer tracer, boolean onlySampled) {
+    public TraceContextSqlCommenter(Tracer tracer, boolean onlySampled) {
         this.tracer = requireNonNull(tracer, "tracer");
         this.onlySampled = onlySampled;
     }

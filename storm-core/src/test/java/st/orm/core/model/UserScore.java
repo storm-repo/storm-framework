@@ -1,6 +1,5 @@
 package st.orm.core.model;
 
-import jakarta.annotation.Nonnull;
 import java.time.LocalDate;
 import st.orm.Entity;
 import st.orm.FK;
@@ -12,7 +11,7 @@ import st.orm.PK;
  */
 public record UserScore(
         @PK Integer id,
-        @Nonnull @FK User user,
-        @Nonnull LocalDate scoreDate,
+        @FK User user,
+        LocalDate scoreDate,
         double score
 ) implements Entity<Integer> {}

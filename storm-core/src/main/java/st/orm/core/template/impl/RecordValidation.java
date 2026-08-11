@@ -24,7 +24,6 @@ import static st.orm.core.template.impl.RecordReflection.getRefDataType;
 import static st.orm.core.template.impl.RecordReflection.getRefPkType;
 import static st.orm.core.template.impl.RecordReflection.isRecord;
 
-import jakarta.annotation.Nonnull;
 import java.math.BigInteger;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -82,7 +81,7 @@ final class RecordValidation {
      */
     private static final ClassValue<ConcurrentMap<Boolean, String>> VALIDATE_RECORD_TYPE_CACHE = new ClassValue<>() {
         @Override
-        protected ConcurrentMap<Boolean, String> computeValue(@Nonnull Class<?> type) {
+        protected ConcurrentMap<Boolean, String> computeValue(Class<?> type) {
             return new ConcurrentHashMap<>();
         }
     };
@@ -93,7 +92,7 @@ final class RecordValidation {
         validate(StormConfig.defaults());
     }
 
-    static void validate(@Nonnull StormConfig config) {
+    static void validate(StormConfig config) {
         if (validationCompleted) {
             return;
         }
@@ -145,7 +144,7 @@ final class RecordValidation {
      * @param config the Storm configuration.
      * @return the resolved record validation mode: {@code "none"}, {@code "warn"}, or {@code "fail"}.
      */
-    private static String resolveRecordMode(@Nonnull StormConfig config) {
+    private static String resolveRecordMode(StormConfig config) {
         String recordMode = config.getProperty(VALIDATION_RECORD_MODE, null);
         if (recordMode != null) {
             return recordMode.trim();
@@ -161,7 +160,7 @@ final class RecordValidation {
      * @param type the type to check.
      * @return true if the type is a valid primary key type, false otherwise.
      */
-    private static boolean isValidPrimaryKeyType(@Nonnull Class<?> type) {
+    private static boolean isValidPrimaryKeyType(Class<?> type) {
         if (!(type == boolean.class || type == Boolean.class
                 || type == int.class || type == Integer.class
                 || type == long.class || type == Long.class
@@ -185,7 +184,7 @@ final class RecordValidation {
      * @param duplicates a set to track duplicate record types to ensure no cycles.
      * @return an empty string if the record type is valid, otherwise an error message.
      */
-    private static String validate(@Nonnull Class<? extends Data> dataType, boolean requirePrimaryKey, Set<Class<?>> duplicates) {
+    private static String validate(Class<? extends Data> dataType, boolean requirePrimaryKey, Set<Class<?>> duplicates) {
         if (!duplicates.add(dataType)) {
             return "";
         }
@@ -324,7 +323,7 @@ final class RecordValidation {
      * @param requirePrimaryKey true if a primary key is required, false otherwise.
      * @throws SqlTemplateException if the record type is invalid for ORM mapping.
      */
-    static void validateDataType(@Nonnull Class<? extends Data> dataType)
+    static void validateDataType(Class<? extends Data> dataType)
             throws SqlTemplateException {
         validateDataType(dataType, Entity.class.isAssignableFrom(dataType));
     }
@@ -338,7 +337,7 @@ final class RecordValidation {
      * @param requirePrimaryKey true if a primary key is required, false otherwise.
      * @throws SqlTemplateException if the record type is invalid for ORM mapping.
      */
-    static void validateDataType(@Nonnull Class<? extends Data> dataType, boolean requirePrimaryKey)
+    static void validateDataType(Class<? extends Data> dataType, boolean requirePrimaryKey)
             throws SqlTemplateException {
         if (!Data.class.isAssignableFrom(dataType)) {
             throw new IllegalArgumentException("Not a data type: %s".formatted(dataType.getSimpleName()));
@@ -356,7 +355,7 @@ final class RecordValidation {
      * to avoid {@link java.util.concurrent.ConcurrentHashMap#computeIfAbsent} recursive update issues.
      */
     @SuppressWarnings("unchecked")
-    private static String doValidateDataType(@Nonnull Class<? extends Data> dataType, boolean requirePrimaryKey) {
+    private static String doValidateDataType(Class<? extends Data> dataType, boolean requirePrimaryKey) {
         // Sealed entity interfaces (Single-Table/Joined) are valid even though they are not records.
         // Their subtypes are validated individually.
         if (dataType.isSealed() && RecordReflection.isSealedEntity(dataType)) {
@@ -397,7 +396,7 @@ final class RecordValidation {
      * @param dataType The root Data class to validate. Must not be null.
      * @throws SqlTemplateException if a cycle is detected in the Record graph.
      */
-    private static Optional<String> validateDataGraph(@Nonnull Class<? extends Data> dataType) {
+    private static Optional<String> validateDataGraph(Class<? extends Data> dataType) {
         // Initialize an empty set to keep track of the current traversal path.
         Set<RecordType> currentPath = new LinkedHashSet<>();
         // Start the recursive validation with the root record type.
@@ -414,8 +413,8 @@ final class RecordValidation {
      * @param currentPath The set of Record classes in the current traversal path.
      * @return an empty optional if the record graph is valid, otherwise an optional containing an error message.
      */
-    private static Optional<String> validateRecordGraph(@Nonnull RecordType recordType,
-                                                        @Nonnull Set<RecordType> currentPath) {
+    private static Optional<String> validateRecordGraph(RecordType recordType,
+                                                        Set<RecordType> currentPath) {
         // Check if the current record type is already in the path (cycle detected).
         if (currentPath.contains(recordType)) {
             String cycle = buildCyclePath(recordType, currentPath);
@@ -455,8 +454,8 @@ final class RecordValidation {
      * @param path        the current traversal path leading up to the cycle.
      * @return a string describing the cycle.
      */
-    private static String buildCyclePath(@Nonnull RecordType currentType,
-                                                  @Nonnull Set<RecordType> path) {
+    private static String buildCyclePath(RecordType currentType,
+                                                  Set<RecordType> path) {
         StringBuilder cyclePath = new StringBuilder();
         boolean inCycle = false;
         for (RecordType type : path) {
@@ -475,7 +474,7 @@ final class RecordValidation {
      * @param parameters the parameters to validate.
      * @throws SqlTemplateException if the parameters are invalid.
      */
-    static void validateParameters(@Nonnull List<Parameter> parameters, int expectedPositionalParameters) throws SqlTemplateException {
+    static void validateParameters(List<Parameter> parameters, int expectedPositionalParameters) throws SqlTemplateException {
         validatePositionalParameters(parameters, expectedPositionalParameters);
         validateNamedParameters(parameters);
     }
@@ -486,7 +485,7 @@ final class RecordValidation {
      * @param parameters the parameters to validate.
      * @throws SqlTemplateException if a positional parameter is missing or if there are gaps in the positions.
      */
-    private static void validatePositionalParameters(@Nonnull List<Parameter> parameters, int expectedPositionalParameters) throws SqlTemplateException {
+    private static void validatePositionalParameters(List<Parameter> parameters, int expectedPositionalParameters) throws SqlTemplateException {
         // Positions are small dense integers generated by the compiler (1..n), so a bit set suffices. Non-positive
         // positions cannot occur in compiled statements; they fall back to the boxed path for faithful error
         // reporting.
@@ -533,7 +532,7 @@ final class RecordValidation {
     }
 
     /** Fallback for non-positive positions, reporting errors from a fully sorted view of the positions. */
-    private static void validatePositionalParametersBoxed(@Nonnull List<Parameter> parameters, int expectedPositionalParameters) throws SqlTemplateException {
+    private static void validatePositionalParametersBoxed(List<Parameter> parameters, int expectedPositionalParameters) throws SqlTemplateException {
         SortedSet<Integer> positionSet = new TreeSet<>();
         for (Parameter param : parameters) {
             if (param instanceof PositionalParameter pp) {
@@ -595,7 +594,7 @@ final class RecordValidation {
      * @param path the field path to validate.
      * @throws PersistenceException if the path cannot be resolved as a reference.
      */
-    static void validateFetchPath(@Nonnull Class<? extends Data> rootType, @Nonnull String path) {
+    static void validateFetchPath(Class<? extends Data> rootType, String path) {
         if (path.isEmpty()) {
             throw new PersistenceException("Cannot resolve an empty path for %s.".formatted(rootType.getSimpleName()));
         }

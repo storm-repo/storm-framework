@@ -22,7 +22,6 @@ import static st.orm.Operator.GREATER_THAN_OR_EQUAL;
 import static st.orm.Operator.LESS_THAN;
 import static st.orm.Operator.LESS_THAN_OR_EQUAL;
 
-import jakarta.annotation.Nonnull;
 import java.util.Set;
 import java.util.regex.Pattern;
 import java.util.stream.Stream;
@@ -36,7 +35,7 @@ public class OracleSqlDialect extends DefaultSqlDialect implements SqlDialect {
     public OracleSqlDialect() {
     }
 
-    public OracleSqlDialect(@Nonnull StormConfig config) {
+    public OracleSqlDialect(StormConfig config) {
         super(config);
     }
 
@@ -105,12 +104,12 @@ public class OracleSqlDialect extends DefaultSqlDialect implements SqlDialect {
      * @since 1.2
      */
     @Override
-    public boolean isKeyword(@Nonnull String name) {
+    public boolean isKeyword(String name) {
         return ORACLE_RESERVED.contains(name.toUpperCase());
     }
 
     @Override
-    public String escape(@Nonnull String name) {
+    public String escape(String name) {
         return "\"%s\"".formatted(name.replace("\"", "\"\""));
     }
 
@@ -158,7 +157,7 @@ public class OracleSqlDialect extends DefaultSqlDialect implements SqlDialect {
      * @since 1.13
      */
     @Override
-    protected boolean rendersTupleComparison(@Nonnull Operator operator, int rowCount) {
+    protected boolean rendersTupleComparison(Operator operator, int rowCount) {
         return isMultiRowEquality(operator, rowCount)
                 || operator == GREATER_THAN || operator == GREATER_THAN_OR_EQUAL
                 || operator == LESS_THAN || operator == LESS_THAN_OR_EQUAL

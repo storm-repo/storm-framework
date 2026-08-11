@@ -17,7 +17,6 @@ package st.orm.core.template.impl;
 
 import static java.util.Objects.requireNonNull;
 
-import jakarta.annotation.Nonnull;
 import st.orm.core.template.SqlTemplateException;
 import st.orm.core.template.impl.BindHint.NoBindHint;
 
@@ -27,7 +26,7 @@ import st.orm.core.template.impl.BindHint.NoBindHint;
  *
  * @param compiler the SQL compiler.
  */
-record CompiledElement(@Nonnull SqlCompiler compiler, @Nonnull BindHint bindHint) implements SqlCompiler {
+record CompiledElement(SqlCompiler compiler, BindHint bindHint) implements SqlCompiler {
     CompiledElement {
         requireNonNull(compiler, "compiler");
     }
@@ -37,7 +36,7 @@ record CompiledElement(@Nonnull SqlCompiler compiler, @Nonnull BindHint bindHint
      *
      * @param compiler the SQL compiler.
      */
-    CompiledElement(@Nonnull SqlCompiler compiler) {
+    CompiledElement(SqlCompiler compiler) {
         this(compiler, NoBindHint.INSTANCE);
     }
 
@@ -46,7 +45,7 @@ record CompiledElement(@Nonnull SqlCompiler compiler, @Nonnull BindHint bindHint
      *
      * @param sql the pre-rendered SQL string.
      */
-    CompiledElement(@Nonnull String sql, @Nonnull BindHint bindHint) {
+    CompiledElement(String sql, BindHint bindHint) {
         this(() -> sql, bindHint);
     }
 
@@ -55,7 +54,7 @@ record CompiledElement(@Nonnull SqlCompiler compiler, @Nonnull BindHint bindHint
      *
      * @param sql the pre-rendered SQL string.
      */
-    CompiledElement(@Nonnull String sql) {
+    CompiledElement(String sql) {
         this(sql, NoBindHint.INSTANCE);
     }
 

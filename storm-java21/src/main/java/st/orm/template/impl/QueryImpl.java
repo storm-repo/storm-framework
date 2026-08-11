@@ -17,7 +17,6 @@ package st.orm.template.impl;
 
 import static java.util.Objects.requireNonNull;
 
-import jakarta.annotation.Nonnull;
 import java.util.List;
 import java.util.Optional;
 import java.util.stream.Stream;
@@ -30,7 +29,7 @@ import st.orm.template.Query;
 public class QueryImpl implements Query {
     private final st.orm.core.template.Query core;
 
-    public QueryImpl(@Nonnull st.orm.core.template.Query core) {
+    public QueryImpl(st.orm.core.template.Query core) {
         this.core = requireNonNull(core, "core");
     }
 
@@ -67,7 +66,7 @@ public class QueryImpl implements Query {
     }
 
     @Override
-    public <T> T getSingleResult(@Nonnull Class<T> type) {
+    public <T> T getSingleResult(Class<T> type) {
         return core.getSingleResult(type);
     }
 
@@ -77,7 +76,7 @@ public class QueryImpl implements Query {
     }
 
     @Override
-    public <T> Optional<T> getOptionalResult(@Nonnull Class<T> type) {
+    public <T> Optional<T> getOptionalResult(Class<T> type) {
         return core.getOptionalResult(type);
     }
 
@@ -87,12 +86,12 @@ public class QueryImpl implements Query {
     }
 
     @Override
-    public <T> List<T> getResultList(@Nonnull Class<T> type) {
+    public <T> List<T> getResultList(Class<T> type) {
         return core.getResultList(type);
     }
 
     @Override
-    public <T extends Data> List<Ref<T>> getRefList(@Nonnull Class<T> type, @Nonnull Class<?> pkType) {
+    public <T extends Data> List<Ref<T>> getRefList(Class<T> type, Class<?> pkType) {
         return core.getRefList(type, pkType);
     }
 
@@ -143,7 +142,7 @@ public class QueryImpl implements Query {
      *                              connectivity.
      */
     @Override
-    public <T> Stream<T> getResultStream(@Nonnull Class<T> type) {
+    public <T> Stream<T> getResultStream(Class<T> type) {
         return core.getResultStream(type);
     }
 
@@ -165,7 +164,7 @@ public class QueryImpl implements Query {
      * @since 1.3
      */
     @Override
-    public <T extends Data> Stream<Ref<T>> getRefStream(@Nonnull Class<T> type, @Nonnull Class<?> pkType) {
+    public <T extends Data> Stream<Ref<T>> getRefStream(Class<T> type, Class<?> pkType) {
         return core.getRefStream(type, pkType);
     }
 

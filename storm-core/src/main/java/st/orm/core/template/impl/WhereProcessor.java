@@ -18,7 +18,6 @@ package st.orm.core.template.impl;
 import static st.orm.Operator.EQUALS;
 import static st.orm.core.template.impl.ElementRouter.getElementProcessor;
 
-import jakarta.annotation.Nonnull;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.SequencedMap;
@@ -32,7 +31,7 @@ import st.orm.core.template.TemplateString;
 import st.orm.core.template.impl.Elements.Where;
 
 final class WhereProcessor implements ElementProcessor<Where> {
-    record WhereBindHint(@Nonnull List<Column> columns) implements BindHint {}
+    record WhereBindHint(List<Column> columns) implements BindHint {}
 
     /** Marker passed as the placeholder value; the dialect reads only column names and the parameter function. */
     private static final Object PLACEHOLDER = new Object();
@@ -52,7 +51,7 @@ final class WhereProcessor implements ElementProcessor<Where> {
      * @throws SqlTemplateException if the key generation fails.
      */
     @Override
-    public Object getCompilationKey(@Nonnull Where where, @Nonnull Function<TemplateString, Object> keyGenerator)
+    public Object getCompilationKey(Where where, Function<TemplateString, Object> keyGenerator)
             throws SqlTemplateException {
         if (where.expression() != null) {
             var cacheable = new Cacheable(where.expression());
@@ -69,7 +68,7 @@ final class WhereProcessor implements ElementProcessor<Where> {
      * erased through the delegation.
      */
     @Override
-    public Object getShapeKey(@Nonnull Where where, @Nonnull Function<TemplateString, Object> keyGenerator)
+    public Object getShapeKey(Where where, Function<TemplateString, Object> keyGenerator)
             throws SqlTemplateException {
         if (where.expression() != null) {
             var cacheable = new Cacheable(where.expression());
@@ -90,7 +89,7 @@ final class WhereProcessor implements ElementProcessor<Where> {
      * @throws SqlTemplateException if compilation fails.
      */
     @Override
-    public CompiledElement compile(@Nonnull Where where, @Nonnull TemplateCompiler compiler) throws SqlTemplateException {
+    public CompiledElement compile(Where where, TemplateCompiler compiler) throws SqlTemplateException {
         if (where.expression() != null) {
             return new CompiledElement(compiler.getQueryModel().compileExpression(where.expression(), compiler),
                     new WhereBindHint(List.of()));
@@ -112,7 +111,7 @@ final class WhereProcessor implements ElementProcessor<Where> {
      * @param binder the binder used to bind runtime values.
      */
     @Override
-    public void bind(@Nonnull Where where, @Nonnull TemplateBinder binder, @Nonnull BindHint bindHint) {
+    public void bind(Where where, TemplateBinder binder, BindHint bindHint) {
         if (bindHint instanceof WhereBindHint(var columns)) {
             if (where.expression() != null) {
                 assert columns.isEmpty();
@@ -167,7 +166,7 @@ final class WhereProcessor implements ElementProcessor<Where> {
         }
     }
 
-    private List<Column> getIdentifyingColumns(@Nonnull TemplateCompiler compiler)
+    private List<Column> getIdentifyingColumns(TemplateCompiler compiler)
             throws SqlTemplateException {
         var table = compiler.getQueryModel().getTable();
         var columns = compiler.getModel(table.type()).declaredColumns();
@@ -180,8 +179,8 @@ final class WhereProcessor implements ElementProcessor<Where> {
                 .toList();
     }
 
-    private CompiledElement compileWhereBindVars(@Nonnull Where where,
-                                                 @Nonnull TemplateCompiler compiler) throws SqlTemplateException {
+    private CompiledElement compileWhereBindVars(Where where,
+                                                 TemplateCompiler compiler) throws SqlTemplateException {
         if (where.bindVars() instanceof BindVarsImpl) {
             var queryModel = compiler.getQueryModel();
             var columns = where.bindVarsKey() != null
@@ -202,7 +201,7 @@ final class WhereProcessor implements ElementProcessor<Where> {
         throw new SqlTemplateException("Unsupported BindVars type in WHERE clause. Expected a standard BindVars implementation.");
     }
 
-    private List<Column> getKeyColumns(@Nonnull Metamodel<?, ?> key, @Nonnull TemplateCompiler compiler)
+    private List<Column> getKeyColumns(Metamodel<?, ?> key, TemplateCompiler compiler)
             throws SqlTemplateException {
         var table = compiler.getQueryModel().getTable();
         var columns = compiler.getModel(table.type()).getColumns(key);

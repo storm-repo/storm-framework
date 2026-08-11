@@ -22,14 +22,13 @@ import static st.orm.core.template.impl.ElementRouter.getElementProcessor;
 import static st.orm.core.template.impl.RecordValidation.validateParameters;
 import static st.orm.core.template.impl.SqlParser.hasWhereClause;
 
-import jakarta.annotation.Nonnull;
-import jakarta.annotation.Nullable;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.MissingFormatArgumentException;
 import java.util.Optional;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.LongSupplier;
+import org.jspecify.annotations.Nullable;
 import st.orm.BindVars;
 import st.orm.Data;
 import st.orm.Element;
@@ -232,12 +231,12 @@ class TemplateProcessor {
      * @param queryModel          optional query model for primary table operations.
      */
     TemplateProcessor(
-            @Nonnull SqlTemplate template,
-            @Nonnull TemplatePreparation templatePreparation,
-            @Nonnull SqlOperation operation,
-            @Nonnull ModelBuilder modelBuilder,
-            @Nonnull TableUse tableUse,
-            @Nonnull AliasMapper aliasMapper,
+            SqlTemplate template,
+            TemplatePreparation templatePreparation,
+            SqlOperation operation,
+            ModelBuilder modelBuilder,
+            TableUse tableUse,
+            AliasMapper aliasMapper,
             @Nullable QueryModel queryModel
     ) {
         this(template, templatePreparation, operation, modelBuilder, tableUse, aliasMapper, queryModel,
@@ -254,17 +253,17 @@ class TemplateProcessor {
      * tape and counters.</p>
      */
     private TemplateProcessor(
-            @Nonnull SqlTemplate template,
-            @Nonnull TemplatePreparation templatePreparation,
-            @Nonnull SqlOperation operation,
-            @Nonnull ModelBuilder modelBuilder,
-            @Nonnull TableUse tableUse,
-            @Nonnull AliasMapper aliasMapper,
+            SqlTemplate template,
+            TemplatePreparation templatePreparation,
+            SqlOperation operation,
+            ModelBuilder modelBuilder,
+            TableUse tableUse,
+            AliasMapper aliasMapper,
             @Nullable QueryModel queryModel,
-            @Nonnull SqlDialectTemplate dialectTemplate,
-            @Nonnull List<BindHint> bindHints,
-            @Nonnull AtomicInteger positionalParameterCount,
-            @Nonnull AtomicInteger nameIndex
+            SqlDialectTemplate dialectTemplate,
+            List<BindHint> bindHints,
+            AtomicInteger positionalParameterCount,
+            AtomicInteger nameIndex
     ) {
         this.template = template;
         this.templatePreparation = templatePreparation;
@@ -360,7 +359,7 @@ class TemplateProcessor {
             }
 
             @Override
-            protected void setGeneratedKeys(@Nonnull List<String> keys) {
+            protected void setGeneratedKeys(List<String> keys) {
                 TemplateProcessor.this.setGeneratedKeys(keys);
             }
         };
@@ -418,7 +417,7 @@ class TemplateProcessor {
      * @param keys the generated key column names.
      * @throws IllegalStateException if generated keys were already set.
      */
-    protected void setGeneratedKeys(@Nonnull List<String> keys) {
+    protected void setGeneratedKeys(List<String> keys) {
         checkState(false);
         if (generatedKeys != null) {
             throw new IllegalStateException("Generated keys already set.");
@@ -432,7 +431,7 @@ class TemplateProcessor {
      * @param sql the compiled SQL.
      * @throws IllegalStateException if SQL was already set.
      */
-    private void freeze(@Nonnull String sql) {
+    private void freeze(String sql) {
         checkState(false);
         this.sql = sql;
     }
@@ -448,7 +447,7 @@ class TemplateProcessor {
      * @return the compiled element wrapper.
      * @throws SqlTemplateException if compilation fails.
      */
-    private CompiledElement compile(@Nonnull Element element, boolean synthetic) throws SqlTemplateException {
+    private CompiledElement compile(Element element, boolean synthetic) throws SqlTemplateException {
         checkState(false);
         int hintIndex = bindHints.size();
         if (!synthetic) {
@@ -478,7 +477,7 @@ class TemplateProcessor {
      * @return the compiled SQL string.
      * @throws SqlTemplateException if compilation fails or formatting placeholders are invalid.
      */
-    String compile(@Nonnull CompilationContext context, boolean subquery) throws SqlTemplateException {
+    String compile(CompilationContext context, boolean subquery) throws SqlTemplateException {
         FetchPlan previousFetchPlan = activeFetchPlan;
         activeFetchPlan = scanFetchPlan(context.elements());
         try {
@@ -492,7 +491,7 @@ class TemplateProcessor {
      * Collects the fetch plan of the given elements: the union of every {@link Fetch} element's paths, including the
      * elements wrapped for fragment alignment. An element list without fetch elements yields the empty plan.
      */
-    private static FetchPlan scanFetchPlan(@Nonnull List<Element> elements) {
+    private static FetchPlan scanFetchPlan(List<Element> elements) {
         List<String> paths = null;
         for (Element element : elements) {
             if (element instanceof Wrapped(var wrapped)) {
@@ -510,7 +509,7 @@ class TemplateProcessor {
         return paths == null ? FetchPlan.NONE : FetchPlan.of(paths);
     }
 
-    private String compileElements(@Nonnull CompilationContext context, boolean subquery) throws SqlTemplateException {
+    private String compileElements(CompilationContext context, boolean subquery) throws SqlTemplateException {
         checkState(false);
         var fragments = context.fragments();
         var elements = context.elements();
@@ -583,7 +582,7 @@ class TemplateProcessor {
     /**
      * Returns the cached shape identity, or the given fallback computed by the caller on first demand.
      */
-    long shapeId(@Nonnull LongSupplier compute) {
+    long shapeId(LongSupplier compute) {
         long cached = shapeId;
         if (cached == Long.MIN_VALUE) {
             cached = compute.getAsLong();
@@ -605,7 +604,7 @@ class TemplateProcessor {
      * @throws SqlTemplateException if binding fails or parameter validation fails.
      * @throws IllegalStateException if called before {@link #compile(CompilationContext, boolean)}.
      */
-    Sql bind(@Nonnull BindingContext context, long shapeId) throws SqlTemplateException {
+    Sql bind(BindingContext context, long shapeId) throws SqlTemplateException {
         checkState(true);
         assert sql != null;
         var session = new BindingSession();
@@ -648,7 +647,7 @@ class TemplateProcessor {
      * @param operation the operation represented by the SQL.
      * @return an optional warning message when the statement is potentially unsafe.
      */
-    private Optional<String> checkSafety(@Nonnull String sql, @Nonnull SqlOperation operation) {
+    private Optional<String> checkSafety(String sql, SqlOperation operation) {
         return switch (operation) {
             case SELECT, INSERT, UNDEFINED -> empty();
             case UPDATE, DELETE -> {
@@ -721,7 +720,7 @@ class TemplateProcessor {
          * @throws UncheckedSqlTemplateException if model resolution fails.
          */
         @Override
-        public <T extends Data, ID> Model<T, ID> getModel(@Nonnull Class<T> type) {
+        public <T extends Data, ID> Model<T, ID> getModel(Class<T> type) {
             try {
                 return modelBuilder.build(type, false);
             } catch (SqlTemplateException e) {
@@ -760,7 +759,7 @@ class TemplateProcessor {
          * @return {@code true} if the alias is referenced.
          */
         @Override
-        public boolean isReferenced(@Nonnull Class<? extends Data> table, @Nonnull String alias) {
+        public boolean isReferenced(Class<? extends Data> table, String alias) {
             return tableUse.isReferenced(table, alias);
         }
 
@@ -773,7 +772,7 @@ class TemplateProcessor {
          * @throws UncheckedSqlTemplateException if alias resolution fails.
          */
         @Override
-        public String getAlias(@Nonnull Metamodel<?, ?> metamodel, @Nonnull ResolveScope scope) {
+        public String getAlias(Metamodel<?, ?> metamodel, ResolveScope scope) {
             try {
                 return aliasMapper.getAlias(metamodel, scope, template.dialect());
             } catch (SqlTemplateException e) {
@@ -790,7 +789,7 @@ class TemplateProcessor {
          * @throws UncheckedSqlTemplateException if alias allocation fails.
          */
         @Override
-        public String useAlias(@Nonnull Class<? extends Data> table, @Nonnull String alias) {
+        public String useAlias(Class<? extends Data> table, String alias) {
             try {
                 return aliasMapper.useAlias(table, alias);
             } catch (SqlTemplateException e) {
@@ -810,7 +809,7 @@ class TemplateProcessor {
          * @throws UncheckedSqlTemplateException if compilation fails.
          */
         @Override
-        public String compile(@Nonnull TemplateString templateString, boolean correlate) {
+        public String compile(TemplateString templateString, boolean correlate) {
             try {
                 var preparedTemplate = templatePreparation.preprocess(templateString);
                 var preparedProcessor = templatePreparation.prepare(preparedTemplate, TemplateProcessor.this, correlate);
@@ -828,7 +827,7 @@ class TemplateProcessor {
          * @throws UncheckedSqlTemplateException if compilation fails.
          */
         @Override
-        public String compile(@Nonnull Element element) {
+        public String compile(Element element) {
             try {
                 return getElementProcessor(element).compile(element, this).get();
             } catch (SqlTemplateException e) {
@@ -860,7 +859,7 @@ class TemplateProcessor {
          * @param generatedKeys the generated key column names.
          */
         @Override
-        public void setGeneratedKeys(@Nonnull List<String> generatedKeys) {
+        public void setGeneratedKeys(List<String> generatedKeys) {
             TemplateProcessor.this.setGeneratedKeys(generatedKeys);
         }
 
@@ -905,7 +904,7 @@ class TemplateProcessor {
          * @throws UncheckedSqlTemplateException if the template is configured for positional-only parameters.
          */
         @Override
-        public String mapParameter(@Nonnull String name, @Nullable Object value) {
+        public String mapParameter(String name, @Nullable Object value) {
             if (template.positionalOnly()) {
                 throw new UncheckedSqlTemplateException(new SqlTemplateException("Named parameters are not supported at this position in the SQL template. Use positional parameters instead."));
             }
@@ -929,7 +928,7 @@ class TemplateProcessor {
          * @param type the type affected by the operation.
          */
         @Override
-        public void setAffectedType(@Nonnull Class<? extends Data> type) {
+        public void setAffectedType(Class<? extends Data> type) {
             if (affectedType != null) {
                 throw new IllegalStateException("Affected type already set.");
             }
@@ -944,7 +943,7 @@ class TemplateProcessor {
          * @param type the entity or projection type the statement operates on.
          */
         @Override
-        public void setDataType(@Nonnull Class<? extends Data> type) {
+        public void setDataType(Class<? extends Data> type) {
             if (dataType == null) {
                 dataType = type;
             }
@@ -958,7 +957,7 @@ class TemplateProcessor {
          * @param paths the field paths of the resolved references, relative to the selected type.
          */
         @Override
-        public void setFetchPaths(@Nonnull List<String> paths) {
+        public void setFetchPaths(List<String> paths) {
             if (fetchPaths == null) {
                 fetchPaths = List.copyOf(paths);
             }
@@ -980,7 +979,7 @@ class TemplateProcessor {
          * @param inline   whether to inline each value as a literal.
          * @return a comma-separated list of placeholders or literals.
          */
-        private String mapArgs(@Nonnull Iterable<?> iterable, boolean inline) {
+        private String mapArgs(Iterable<?> iterable, boolean inline) {
             List<String> args = new ArrayList<>();
             for (var v : iterable) {
                 if (inline) {
@@ -1050,7 +1049,7 @@ class TemplateProcessor {
          * @param context the binding context.
          * @throws SqlTemplateException if binding fails.
          */
-        void bindElements(@Nonnull BindingContext context) throws SqlTemplateException {
+        void bindElements(BindingContext context) throws SqlTemplateException {
             for (Element element : context.elements()) {
                 if (element instanceof Wrapped(var wrapped)) {
                     for (var e : wrapped) {
@@ -1114,7 +1113,7 @@ class TemplateProcessor {
          * @param preparedTemplate the prepared nested template.
          * @throws SqlTemplateException if binding fails.
          */
-        private void bindPreparedAttached(@Nonnull PreparedTemplate preparedTemplate) throws SqlTemplateException {
+        private void bindPreparedAttached(PreparedTemplate preparedTemplate) throws SqlTemplateException {
             for (var element : preparedTemplate.context().elements()) {
                 if (element instanceof Wrapped(var wrapped)) {
                     for (var e : wrapped) {
@@ -1139,7 +1138,7 @@ class TemplateProcessor {
          * @return the model for the given type.
          */
         @Override
-        public <T extends Data, ID> Model<T, ID> getModel(@Nonnull Class<T> type) {
+        public <T extends Data, ID> Model<T, ID> getModel(Class<T> type) {
             try {
                 return modelBuilder.build(type, false);
             } catch (SqlTemplateException e) {
@@ -1216,7 +1215,7 @@ class TemplateProcessor {
          * @param value the parameter value.
          */
         @Override
-        public void bindParameter(@Nonnull String name, @Nullable Object value) {
+        public void bindParameter(String name, @Nullable Object value) {
             if (template.positionalOnly()) {
                 throw new UncheckedSqlTemplateException(new SqlTemplateException("Named parameters are not supported at this position in the SQL template. Use positional parameters instead."));
             }
@@ -1232,7 +1231,7 @@ class TemplateProcessor {
          * @param correlate      whether correlation rules apply to the nested template.
          */
         @Override
-        public void bind(@Nonnull TemplateString templateString, boolean correlate) {
+        public void bind(TemplateString templateString, boolean correlate) {
             try {
                 var context = templatePreparation.preprocess(templateString);
                 var preparedTemplate = templatePreparation.prepare(context, TemplateProcessor.this, correlate);
@@ -1251,7 +1250,7 @@ class TemplateProcessor {
          * @param element the element to bind.
          */
         @Override
-        public void bind(@Nonnull Element element) {
+        public void bind(Element element) {
             try {
                 getElementProcessor(element).bind(element, this, NoBindHint.INSTANCE);
             } catch (SqlTemplateException e) {
@@ -1270,7 +1269,7 @@ class TemplateProcessor {
          * @return a parameter factory for a single bind vars segment.
          */
         @Override
-        public ParameterFactory setBindVars(@Nonnull BindVars vars) {
+        public ParameterFactory setBindVars(BindVars vars) {
             var current = bindVariables;
             if (current != null && current != vars) {
                 throw new UncheckedSqlTemplateException(new SqlTemplateException("Multiple BindVars instances are not supported in a single template. Combine your bind variables into a single BindVars instance."));
@@ -1313,7 +1312,7 @@ class TemplateProcessor {
          * @param iterable the iterable to bind.
          * @param inline   whether values are inlined in SQL and therefore not bound as parameters.
          */
-        private void bindArgs(@Nonnull Iterable<?> iterable, boolean inline) {
+        private void bindArgs(Iterable<?> iterable, boolean inline) {
             for (var v : iterable) {
                 if (!inline) {
                     parameters.add(new PositionalParameter(parameters.size() + 1, v));

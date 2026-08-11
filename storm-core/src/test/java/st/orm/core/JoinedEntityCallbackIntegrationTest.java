@@ -6,7 +6,6 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-import jakarta.annotation.Nonnull;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
@@ -53,13 +52,13 @@ public class JoinedEntityCallbackIntegrationTest {
         List<String> log = new ArrayList<>();
         var orm = ORMTemplate.of(dataSource).withEntityCallback(new EntityCallback<JoinedAnimal>() {
             @Override
-            public JoinedAnimal beforeInsert(@Nonnull JoinedAnimal entity) {
+            public JoinedAnimal beforeInsert(JoinedAnimal entity) {
                 log.add("beforeInsert:" + entity.getClass().getSimpleName());
                 return entity;
             }
 
             @Override
-            public void afterInsert(@Nonnull JoinedAnimal entity) {
+            public void afterInsert(JoinedAnimal entity) {
                 log.add("afterInsert:" + entity.getClass().getSimpleName());
             }
         });
@@ -74,7 +73,7 @@ public class JoinedEntityCallbackIntegrationTest {
     public void testJoinedEntityInsertTransformViaCallback() {
         var orm = ORMTemplate.of(dataSource).withEntityCallback(new EntityCallback<JoinedAnimal>() {
             @Override
-            public JoinedAnimal beforeInsert(@Nonnull JoinedAnimal entity) {
+            public JoinedAnimal beforeInsert(JoinedAnimal entity) {
                 if (entity instanceof JoinedCat cat) {
                     return new JoinedCat(cat.id(), cat.name().toUpperCase(), cat.indoor());
                 }
@@ -96,13 +95,13 @@ public class JoinedEntityCallbackIntegrationTest {
         List<String> log = new ArrayList<>();
         var orm = ORMTemplate.of(dataSource).withEntityCallback(new EntityCallback<JoinedAnimal>() {
             @Override
-            public JoinedAnimal beforeInsert(@Nonnull JoinedAnimal entity) {
+            public JoinedAnimal beforeInsert(JoinedAnimal entity) {
                 log.add("beforeInsert");
                 return entity;
             }
 
             @Override
-            public void afterInsert(@Nonnull JoinedAnimal entity) {
+            public void afterInsert(JoinedAnimal entity) {
                 log.add("afterInsert");
             }
         });
@@ -124,13 +123,13 @@ public class JoinedEntityCallbackIntegrationTest {
         List<String> log = new ArrayList<>();
         var orm = ORMTemplate.of(dataSource).withEntityCallback(new EntityCallback<JoinedAnimal>() {
             @Override
-            public JoinedAnimal beforeUpdate(@Nonnull JoinedAnimal entity) {
+            public JoinedAnimal beforeUpdate(JoinedAnimal entity) {
                 log.add("beforeUpdate:" + entity.getClass().getSimpleName());
                 return entity;
             }
 
             @Override
-            public void afterUpdate(@Nonnull JoinedAnimal entity) {
+            public void afterUpdate(JoinedAnimal entity) {
                 log.add("afterUpdate:" + entity.getClass().getSimpleName());
             }
         });
@@ -145,13 +144,13 @@ public class JoinedEntityCallbackIntegrationTest {
         List<String> log = new ArrayList<>();
         var orm = ORMTemplate.of(dataSource).withEntityCallback(new EntityCallback<JoinedAnimal>() {
             @Override
-            public JoinedAnimal beforeUpdate(@Nonnull JoinedAnimal entity) {
+            public JoinedAnimal beforeUpdate(JoinedAnimal entity) {
                 log.add("beforeUpdate");
                 return entity;
             }
 
             @Override
-            public void afterUpdate(@Nonnull JoinedAnimal entity) {
+            public void afterUpdate(JoinedAnimal entity) {
                 log.add("afterUpdate");
             }
         });
@@ -171,12 +170,12 @@ public class JoinedEntityCallbackIntegrationTest {
         List<String> log = new ArrayList<>();
         var orm = ORMTemplate.of(dataSource).withEntityCallback(new EntityCallback<JoinedAnimal>() {
             @Override
-            public void beforeRemove(@Nonnull JoinedAnimal entity) {
+            public void beforeRemove(JoinedAnimal entity) {
                 log.add("beforeRemove");
             }
 
             @Override
-            public void afterRemove(@Nonnull JoinedAnimal entity) {
+            public void afterRemove(JoinedAnimal entity) {
                 log.add("afterRemove");
             }
         });
@@ -194,12 +193,12 @@ public class JoinedEntityCallbackIntegrationTest {
         List<String> log = new ArrayList<>();
         var orm = ORMTemplate.of(dataSource).withEntityCallback(new EntityCallback<JoinedAnimal>() {
             @Override
-            public void beforeRemove(@Nonnull JoinedAnimal entity) {
+            public void beforeRemove(JoinedAnimal entity) {
                 log.add("beforeRemove");
             }
 
             @Override
-            public void afterRemove(@Nonnull JoinedAnimal entity) {
+            public void afterRemove(JoinedAnimal entity) {
                 log.add("afterRemove");
             }
         });
@@ -363,13 +362,13 @@ public class JoinedEntityCallbackIntegrationTest {
         ORMTemplate baseOrm = ORMTemplate.of(dataSource);
         ORMTemplate orm = baseOrm.withEntityCallback(new EntityCallback<City>() {
             @Override
-            public City beforeInsert(@Nonnull City entity) {
+            public City beforeInsert(City entity) {
                 log.add("before:" + entity.name());
                 return entity;
             }
 
             @Override
-            public void afterInsert(@Nonnull City entity) {
+            public void afterInsert(City entity) {
                 log.add("after:" + entity.name());
                 // Attempt a re-entrant insert within afterInsert.
                 // Due to CALLBACK_ACTIVE guard, callbacks should NOT fire for this nested insert.
@@ -394,7 +393,7 @@ public class JoinedEntityCallbackIntegrationTest {
         var orm = ORMTemplate.of(dataSource)
                 .withEntityCallback(new EntityCallback<City>() {
                     @Override
-                    public City beforeInsert(@Nonnull City entity) {
+                    public City beforeInsert(City entity) {
                         log.add("cityCallback:" + entity.name());
                         return entity;
                     }
@@ -412,7 +411,7 @@ public class JoinedEntityCallbackIntegrationTest {
         var orm = ORMTemplate.of(dataSource)
                 .withEntityCallback(new EntityCallback<>() {
                     @Override
-                    public Entity beforeInsert(@Nonnull Entity entity) {
+                    public Entity beforeInsert(Entity entity) {
                         log.add("genericCallback");
                         return entity;
                     }
@@ -448,13 +447,13 @@ public class JoinedEntityCallbackIntegrationTest {
         List<String> log = new ArrayList<>();
         var orm = ORMTemplate.of(dataSource).withEntityCallback(new EntityCallback<JoinedAnimal>() {
             @Override
-            public JoinedAnimal beforeUpdate(@Nonnull JoinedAnimal entity) {
+            public JoinedAnimal beforeUpdate(JoinedAnimal entity) {
                 log.add("beforeUpdate");
                 return entity;
             }
 
             @Override
-            public void afterUpdate(@Nonnull JoinedAnimal entity) {
+            public void afterUpdate(JoinedAnimal entity) {
                 log.add("afterUpdate");
             }
         });
@@ -501,7 +500,7 @@ public class JoinedEntityCallbackIntegrationTest {
         List<String> log = new ArrayList<>();
         var orm = ORMTemplate.of(dataSource).withEntityCallback(new EntityCallback<JoinedAnimal>() {
             @Override
-            public void beforeRemove(@Nonnull JoinedAnimal entity) {
+            public void beforeRemove(JoinedAnimal entity) {
                 log.add("beforeRemove:" + entity.id());
             }
         });

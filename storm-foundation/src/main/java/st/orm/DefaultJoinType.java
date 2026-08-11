@@ -15,7 +15,6 @@
  */
 package st.orm;
 
-import jakarta.annotation.Nonnull;
 
 /**
  * Default implementation of the {@link JoinType} interface used to represent the default join types.
@@ -30,7 +29,7 @@ public enum DefaultJoinType implements JoinType {
     private final boolean on;
     private final boolean outer;
 
-    DefaultJoinType(@Nonnull String sql, boolean on, boolean outer) {
+    DefaultJoinType(String sql, boolean on, boolean outer) {
         this.sql = sql;
         this.on = on;
         this.outer = outer;

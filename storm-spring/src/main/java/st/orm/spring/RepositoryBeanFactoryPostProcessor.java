@@ -15,9 +15,8 @@
  */
 package st.orm.spring;
 
-import jakarta.annotation.Nonnull;
-import jakarta.annotation.Nullable;
 import java.util.Set;
+import org.jspecify.annotations.Nullable;
 import org.springframework.stereotype.Component;
 import st.orm.repository.EntityRepository;
 import st.orm.repository.ProjectionRepository;
@@ -52,9 +51,9 @@ public class RepositoryBeanFactoryPostProcessor extends AbstractRepositoryBeanFa
      * @param repositoryPrefix prefix for the registered repository bean names; empty for none.
      * @since 1.13
      */
-    public RepositoryBeanFactoryPostProcessor(@Nonnull String[] basePackages,
+    public RepositoryBeanFactoryPostProcessor(String[] basePackages,
                                               @Nullable String ormTemplateBeanName,
-                                              @Nonnull String repositoryPrefix) {
+                                              String repositoryPrefix) {
         this.basePackages = basePackages.clone();
         this.ormTemplateBeanName = ormTemplateBeanName;
         this.repositoryPrefix = repositoryPrefix;

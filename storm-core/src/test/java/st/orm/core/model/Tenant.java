@@ -15,7 +15,6 @@
  */
 package st.orm.core.model;
 
-import jakarta.annotation.Nonnull;
 import lombok.Builder;
 import st.orm.Entity;
 import st.orm.FK;
@@ -31,8 +30,8 @@ import st.orm.PK;
 @Builder(toBuilder = true)
 public record Tenant(
         @PK Integer id,
-        @Nonnull String name,
-        @Nonnull @FK Owner owner,
-        @Nonnull @FK City city
+        String name,
+        @FK Owner owner,
+        @FK City city
 ) implements Entity<Integer> {
 }

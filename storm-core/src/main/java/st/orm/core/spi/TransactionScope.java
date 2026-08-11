@@ -15,9 +15,8 @@
  */
 package st.orm.core.spi;
 
-import jakarta.annotation.Nonnull;
-import jakarta.annotation.Nullable;
 import java.util.function.Consumer;
+import org.jspecify.annotations.Nullable;
 import st.orm.PersistenceException;
 import st.orm.TransactionIsolation;
 import st.orm.TransactionPropagation;
@@ -101,7 +100,7 @@ public final class TransactionScope {
      * @param options the requested transaction options.
      * @return the newly opened scope.
      */
-    public static TransactionScope open(@Nonnull Options options) {
+    public static TransactionScope open(Options options) {
         var scope = new TransactionScope(options, CURRENT.get());
         CURRENT.set(scope);
         return scope;
@@ -117,7 +116,7 @@ public final class TransactionScope {
      * @param parent the parent scope, or {@code null} when this is an outermost scope.
      * @return the new scope.
      */
-    public static TransactionScope create(@Nonnull Options options, @Nullable TransactionScope parent) {
+    public static TransactionScope create(Options options, @Nullable TransactionScope parent) {
         return new TransactionScope(options, parent);
     }
 
@@ -131,7 +130,7 @@ public final class TransactionScope {
      * @return the transaction context to execute under, or {@code null} when no transaction is active.
      * @throws PersistenceException if the active scope is owned by a different provider.
      */
-    public static @Nullable TransactionContext resolveContext(@Nonnull TransactionTemplateProvider provider,
+    public static @Nullable TransactionContext resolveContext(TransactionTemplateProvider provider,
                                                                @Nullable QueryObserver queryObserver) {
         var scope = current();
         if (scope != null) {
@@ -144,7 +143,7 @@ public final class TransactionScope {
      * Resolves the transaction context without a query observer; physical transactions opened through this
      * path are not observed.
      */
-    public static @Nullable TransactionContext resolveContext(@Nonnull TransactionTemplateProvider provider) {
+    public static @Nullable TransactionContext resolveContext(TransactionTemplateProvider provider) {
         var scope = CURRENT.get();
         if (scope != null) {
             return scope.getOrMaterializeContext(provider);
@@ -162,7 +161,7 @@ public final class TransactionScope {
      * @param provider the transaction template provider of the executing template.
      * @return the active transaction context, or {@code null} when none is active for this provider.
      */
-    public static @Nullable TransactionContext peekContext(@Nonnull TransactionTemplateProvider provider) {
+    public static @Nullable TransactionContext peekContext(TransactionTemplateProvider provider) {
         var scope = CURRENT.get();
         if (scope != null) {
             for (var candidate = scope; candidate != null; candidate = candidate.parent) {
@@ -182,11 +181,11 @@ public final class TransactionScope {
 
     private volatile @Nullable TransactionTemplateProvider owner;
     private volatile @Nullable TransactionHandle handle;
-    private @Nullable QueryObserver.TransactionObservation observation;
+    private QueryObserver.@Nullable TransactionObservation observation;
     private boolean rollbackOnly;       // Buffered until materialization; guarded by this.
     private boolean rollbackInherited;  // Set when the mark came from a joined inner scope; guarded by this.
 
-    private TransactionScope(@Nonnull Options options, @Nullable TransactionScope parent) {
+    private TransactionScope(Options options, @Nullable TransactionScope parent) {
         this.options = options;
         this.parent = parent;
         this.deadlineNanos = options.timeoutSeconds() != null
@@ -256,7 +255,7 @@ public final class TransactionScope {
      * rolls back.
      * @since 1.13
      */
-    public void deferCompletion(@Nonnull Consumer<Boolean> callback) {
+    public void deferCompletion(Consumer<Boolean> callback) {
         var currentHandle = handle;
         if (currentHandle == null) {
             throw new IllegalStateException("Scope has not been materialized.");
@@ -283,7 +282,7 @@ public final class TransactionScope {
      * @return the transaction context of this scope.
      * @throws PersistenceException if this scope, or an outer scope it must join, is owned by a different provider.
      */
-    public synchronized TransactionContext getOrMaterializeContext(@Nonnull TransactionTemplateProvider provider) {
+    public synchronized TransactionContext getOrMaterializeContext(TransactionTemplateProvider provider) {
         return getOrMaterializeContext(provider, null);
     }
 
@@ -297,7 +296,7 @@ public final class TransactionScope {
      * @throws PersistenceException if this scope, or an outer scope it must join, is owned by a different provider.
      * @since 1.13
      */
-    public synchronized TransactionContext getOrMaterializeContext(@Nonnull TransactionTemplateProvider provider,
+    public synchronized TransactionContext getOrMaterializeContext(TransactionTemplateProvider provider,
                                                                    @Nullable QueryObserver queryObserver) {
         var existingHandle = handle;
         if (existingHandle != null) {
@@ -477,7 +476,7 @@ public final class TransactionScope {
         }
     }
 
-    private static void closeObservation(@Nullable QueryObserver.TransactionObservation observation,
+    private static void closeObservation(QueryObserver.@Nullable TransactionObservation observation,
                                          boolean rolledBack,
                                          @Nullable Throwable error) {
         if (observation == null) {
@@ -523,7 +522,7 @@ public final class TransactionScope {
                 || propagation == TransactionPropagation.MANDATORY;
     }
 
-    private static PersistenceException providerMismatch(@Nonnull TransactionTemplateProvider provider,
+    private static PersistenceException providerMismatch(TransactionTemplateProvider provider,
                                                          @Nullable TransactionTemplateProvider owner) {
         return new PersistenceException(("Transaction was started by %s, but the executing template is configured " +
                 "with %s. A transaction cannot span templates that use different transaction template providers; " +

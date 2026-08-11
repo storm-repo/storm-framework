@@ -18,7 +18,6 @@ package st.orm.micrometer;
 import static java.util.Objects.requireNonNull;
 
 import io.micrometer.common.KeyValues;
-import jakarta.annotation.Nonnull;
 import java.util.Locale;
 import java.util.Map;
 
@@ -72,7 +71,7 @@ public class OtelDatabaseObservationConvention extends StormQueryObservationConv
      * @param dbSystemName the {@code db.system.name} value, such as {@code mariadb} or {@code postgresql};
      *                     well-known values are defined by the OpenTelemetry database conventions.
      */
-    public OtelDatabaseObservationConvention(@Nonnull String dbSystemName) {
+    public OtelDatabaseObservationConvention(String dbSystemName) {
         this.dbSystemName = requireNonNull(dbSystemName, "dbSystemName");
     }
 
@@ -82,7 +81,7 @@ public class OtelDatabaseObservationConvention extends StormQueryObservationConv
      * @param jdbcUrl the JDBC URL of the data source, such as {@code jdbc:mariadb://localhost/db}.
      * @return the convention, reporting {@link #OTHER_SQL} when the URL names an unrecognized product.
      */
-    public static OtelDatabaseObservationConvention fromJdbcUrl(@Nonnull String jdbcUrl) {
+    public static OtelDatabaseObservationConvention fromJdbcUrl(String jdbcUrl) {
         String[] parts = jdbcUrl.split(":", 3);
         String subprotocol = parts.length > 1 ? parts[1].toLowerCase(Locale.ROOT) : "";
         return new OtelDatabaseObservationConvention(
@@ -90,14 +89,14 @@ public class OtelDatabaseObservationConvention extends StormQueryObservationConv
     }
 
     @Override
-    public KeyValues getLowCardinalityKeyValues(@Nonnull StormQueryObservationContext context) {
+    public KeyValues getLowCardinalityKeyValues(StormQueryObservationContext context) {
         return super.getLowCardinalityKeyValues(context).and(
                 "db.system.name", dbSystemName,
                 "db.operation.name", context.queryContext().operation().name());
     }
 
     @Override
-    public KeyValues getHighCardinalityKeyValues(@Nonnull StormQueryObservationContext context) {
+    public KeyValues getHighCardinalityKeyValues(StormQueryObservationContext context) {
         return context.queryContext().statement()
                 .map(statement -> super.getHighCardinalityKeyValues(context).and("db.query.text", statement))
                 .orElseGet(() -> super.getHighCardinalityKeyValues(context));

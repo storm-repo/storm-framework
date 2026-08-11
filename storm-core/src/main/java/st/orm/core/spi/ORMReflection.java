@@ -15,11 +15,10 @@
  */
 package st.orm.core.spi;
 
-import jakarta.annotation.Nonnull;
-import jakarta.annotation.Nullable;
 import java.lang.reflect.Method;
 import java.util.List;
 import java.util.Optional;
+import org.jspecify.annotations.Nullable;
 import st.orm.Data;
 import st.orm.PK;
 import st.orm.PersistenceException;
@@ -46,7 +45,7 @@ public interface ORMReflection {
      * @return the primary key value.
      * @throws PersistenceException if no {@code @PK}-annotated field is found.
      */
-    Object getId(@Nonnull Data data);
+    Object getId(Data data);
 
     /**
      * Returns the value of the record component at the specified index.
@@ -60,7 +59,7 @@ public interface ORMReflection {
      * @return the component value.
      * @throws PersistenceException if the type is not a recognized record type or the index is out of bounds.
      */
-    Object getRecordValue(@Nonnull Object record, int index);
+    Object getRecordValue(Object record, int index);
 
     /**
      * Returns an {@link Optional} containing the {@link RecordType} descriptor for the specified class if it is a
@@ -76,7 +75,7 @@ public interface ORMReflection {
      * @param type the class to inspect.
      * @return the record type descriptor, or empty if the class is not a recognized record type.
      */
-    Optional<RecordType> findRecordType(@Nonnull Class<?> type);
+    Optional<RecordType> findRecordType(Class<?> type);
 
     /**
      * Returns the {@link RecordType} descriptor for the specified class, throwing if the class is not a recognized
@@ -86,7 +85,7 @@ public interface ORMReflection {
      * @return the record type descriptor.
      * @throws PersistenceException if the class is not a recognized record type.
      */
-    default RecordType getRecordType(@Nonnull Class<?> type) {
+    default RecordType getRecordType(Class<?> type) {
         return findRecordType(type)
                 .orElseThrow(() -> new PersistenceException("Record type expected: %s.".formatted(type.getName())));
     }
@@ -100,7 +99,7 @@ public interface ORMReflection {
      * @param o the object to test.
      * @return {@code true} if this implementation can resolve the object to a Java class.
      */
-    boolean isSupportedType(@Nonnull Object o);
+    boolean isSupportedType(Object o);
 
     /**
      * Resolves a type reference to its corresponding Java {@link Class}.
@@ -113,7 +112,7 @@ public interface ORMReflection {
      * @return the resolved Java class.
      * @throws PersistenceException if the object is not a supported type reference or is not a {@link Data} type.
      */
-    Class<?> getType(@Nonnull Object o);
+    Class<?> getType(Object o);
 
     /**
      * Resolves a type reference to its corresponding Java {@link Class}, cast to {@code Class<? extends Data>}.
@@ -125,7 +124,7 @@ public interface ORMReflection {
      * @return the resolved Java class as a {@code Data} subtype.
      * @throws PersistenceException if the object is not a supported type reference or is not a {@link Data} type.
      */
-    Class<? extends Data> getDataType(@Nonnull Object o);
+    Class<? extends Data> getDataType(Object o);
 
     /**
      * Returns whether the specified object is a default value for its type.
@@ -148,7 +147,7 @@ public interface ORMReflection {
      * @param sealedClass the sealed class to get the permitted subclasses for.
      * @return a list of permitted subclasses of the specified sealed class.
      */
-    <T> List<Class<? extends T>> getPermittedSubclasses(@Nonnull Class<T> sealedClass);
+    <T> List<Class<? extends T>> getPermittedSubclasses(Class<T> sealedClass);
 
     /**
      * Returns whether the specified method is a default method that can be invoked through a proxy.
@@ -160,7 +159,7 @@ public interface ORMReflection {
      * @param method the method to test.
      * @return {@code true} if the method is a default method.
      */
-    boolean isDefaultMethod(@Nonnull Method method);
+    boolean isDefaultMethod(Method method);
 
     /**
      * Invokes the accessor for the specified {@link RecordField} on the given record instance and returns the result.
@@ -173,7 +172,7 @@ public interface ORMReflection {
      * @return the field value.
      * @throws PersistenceException if the invocation fails.
      */
-    Object invoke(@Nonnull RecordField field, @Nonnull Object record);
+    Object invoke(RecordField field, Object record);
 
     /**
      * Invokes a default or Kotlin-compiled default method on a proxy instance.
@@ -188,5 +187,5 @@ public interface ORMReflection {
      * @return the return value of the method.
      * @throws Throwable if the invocation fails.
      */
-    Object execute(@Nonnull Object proxy, @Nonnull Method method, @Nonnull Object... args) throws Throwable;
+    Object execute(Object proxy, Method method, Object... args) throws Throwable;
 }

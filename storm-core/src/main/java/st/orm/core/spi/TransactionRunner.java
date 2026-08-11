@@ -15,12 +15,11 @@
  */
 package st.orm.core.spi;
 
-import jakarta.annotation.Nonnull;
-import jakarta.annotation.Nullable;
 import java.sql.SQLTimeoutException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.function.Consumer;
+import org.jspecify.annotations.Nullable;
 import st.orm.Transaction;
 import st.orm.TransactionCallbackException;
 import st.orm.TransactionPropagation;
@@ -53,7 +52,7 @@ public final class TransactionRunner {
      */
     @FunctionalInterface
     public interface Block<R, E extends Exception> {
-        R execute(@Nonnull Transaction transaction) throws E;
+        R execute(Transaction transaction) throws E;
     }
 
     /**
@@ -81,8 +80,8 @@ public final class TransactionRunner {
      * @param <R> the result type.
      * @param <E> the checked exception type thrown by the block, if any.
      */
-    public static <R, E extends Exception> R execute(@Nonnull TransactionScope.Options options,
-                                                     @Nonnull Block<R, E> block) throws E {
+    public static <R, E extends Exception> R execute(TransactionScope.Options options,
+                                                     Block<R, E> block) throws E {
         var scope = TransactionScope.open(options);
         var parentCallbacks = CURRENT_CALLBACKS.get();
         if (isJoining(options.propagation()) && scope.parent() != null && parentCallbacks != null) {
@@ -173,7 +172,7 @@ public final class TransactionRunner {
      * frames raise this from the provider's commit path, this check covers marks that were propagated at the
      * scope level.</p>
      */
-    public static void afterSuccessfulCompletion(@Nonnull TransactionScope scope) {
+    public static void afterSuccessfulCompletion(TransactionScope scope) {
         if (!scope.isMaterialized() && scope.isDeadlineExpired()) {
             var propagation = scope.options().propagation();
             boolean joining = propagation == null
@@ -195,7 +194,7 @@ public final class TransactionRunner {
      * {@link TransactionTimedOutException} when the failure was caused by a statement timeout. Completion
      * failures are suppressed onto the original failure.
      */
-    public static Throwable completeAfterFailure(@Nonnull TransactionScope scope, @Nonnull Throwable e) {
+    public static Throwable completeAfterFailure(TransactionScope scope, Throwable e) {
         String description;
         try {
             var context = scope.materializedContext();
@@ -225,8 +224,8 @@ public final class TransactionRunner {
      * external transaction, which also receives the block's rollback-only demand, mirroring how a joined scope
      * marks its parent. Everything else fires here, since the block's own transaction has completed.</p>
      */
-    private static void complete(@Nonnull TransactionScope scope,
-                                 @Nonnull BlockingCallbacks callbacks,
+    private static void complete(TransactionScope scope,
+                                 BlockingCallbacks callbacks,
                                  boolean joinedExternal,
                                  boolean mayDeferToExternal,
                                  boolean markExternalRollbackOnly,
@@ -271,7 +270,7 @@ public final class TransactionRunner {
      * @return {@code true} if the block's callbacks may belong to an external transaction.
      * @since 1.13
      */
-    public static boolean mayDeferToExternal(@Nonnull TransactionScope scope) {
+    public static boolean mayDeferToExternal(TransactionScope scope) {
         return !scope.isMaterialized() && isJoining(scope.options().propagation());
     }
 
@@ -291,7 +290,7 @@ public final class TransactionRunner {
      * @return {@code true} if a rollback of the block must mark the surrounding external transaction.
      * @since 1.13
      */
-    public static boolean mayMarkExternalRollbackOnly(@Nonnull TransactionScope scope) {
+    public static boolean mayMarkExternalRollbackOnly(TransactionScope scope) {
         if (scope.isMaterialized()) {
             return false;
         }
@@ -341,8 +340,8 @@ public final class TransactionRunner {
         }
     }
 
-    private static Transaction scopeTransaction(@Nonnull TransactionScope scope,
-                                                @Nonnull TransactionCallbacks callbacks) {
+    private static Transaction scopeTransaction(TransactionScope scope,
+                                                TransactionCallbacks callbacks) {
         return new Transaction() {
             @Override
             public boolean isRollbackOnly() {
@@ -355,17 +354,17 @@ public final class TransactionRunner {
             }
 
             @Override
-            public void onCommit(@Nonnull Runnable callback) {
+            public void onCommit(Runnable callback) {
                 callbacks.addOnCommit(callback);
             }
 
             @Override
-            public void onRollback(@Nonnull Runnable callback) {
+            public void onRollback(Runnable callback) {
                 callbacks.addOnRollback(callback);
             }
 
             @Override
-            public void onCompletion(@Nonnull Consumer<Boolean> callback) {
+            public void onCompletion(Consumer<Boolean> callback) {
                 callbacks.addOnCompletion(callback);
             }
         };
@@ -395,17 +394,17 @@ public final class TransactionRunner {
         }
 
         @Override
-        public void addOnCommit(@Nonnull Runnable callback) {
+        public void addOnCommit(Runnable callback) {
             callbacks.add(new Entry(true, false, committed -> callback.run()));
         }
 
         @Override
-        public void addOnRollback(@Nonnull Runnable callback) {
+        public void addOnRollback(Runnable callback) {
             callbacks.add(new Entry(false, true, committed -> callback.run()));
         }
 
         @Override
-        public void addOnCompletion(@Nonnull Consumer<Boolean> callback) {
+        public void addOnCompletion(Consumer<Boolean> callback) {
             callbacks.add(new Entry(true, true, callback));
         }
 

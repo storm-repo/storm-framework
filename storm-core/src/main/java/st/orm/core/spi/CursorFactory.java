@@ -15,8 +15,6 @@
  */
 package st.orm.core.spi;
 
-import jakarta.annotation.Nonnull;
-import jakarta.annotation.Nullable;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.DataInputStream;
@@ -35,6 +33,7 @@ import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.ServiceLoader;
 import java.util.UUID;
+import org.jspecify.annotations.Nullable;
 
 /**
  * Factory for cursor serialization and deserialization. This class is called reflectively from
@@ -49,7 +48,7 @@ public final class CursorFactory {
 
     private static final byte TYPE_NULL = 0;
 
-    private record Entry(byte tag, @Nonnull Class<?> type, @Nonnull CursorCodec<?> codec) {}
+    private record Entry(byte tag, Class<?> type, CursorCodec<?> codec) {}
 
     private static final Map<Class<?>, Entry> BY_CLASS;
     private static final Map<Byte, Entry> BY_TAG;
@@ -61,80 +60,80 @@ public final class CursorFactory {
 
         // Built-in codecs (tags 1-63 reserved).
         register(byClass, byTag, (byte) 1, String.class, new CursorCodec<>() {
-            @Override public void write(@Nonnull DataOutputStream out, @Nonnull String v) throws IOException { writeString(out, v); }
-            @Override public String read(@Nonnull DataInputStream in) throws IOException { return readString(in); }
+            @Override public void write(DataOutputStream out, String v) throws IOException { writeString(out, v); }
+            @Override public String read(DataInputStream in) throws IOException { return readString(in); }
         });
         register(byClass, byTag, (byte) 2, Integer.class, new CursorCodec<>() {
-            @Override public void write(@Nonnull DataOutputStream out, @Nonnull Integer v) throws IOException { out.writeInt(v); }
-            @Override public Integer read(@Nonnull DataInputStream in) throws IOException { return in.readInt(); }
+            @Override public void write(DataOutputStream out, Integer v) throws IOException { out.writeInt(v); }
+            @Override public Integer read(DataInputStream in) throws IOException { return in.readInt(); }
         });
         register(byClass, byTag, (byte) 3, Long.class, new CursorCodec<>() {
-            @Override public void write(@Nonnull DataOutputStream out, @Nonnull Long v) throws IOException { out.writeLong(v); }
-            @Override public Long read(@Nonnull DataInputStream in) throws IOException { return in.readLong(); }
+            @Override public void write(DataOutputStream out, Long v) throws IOException { out.writeLong(v); }
+            @Override public Long read(DataInputStream in) throws IOException { return in.readLong(); }
         });
         register(byClass, byTag, (byte) 4, Boolean.class, new CursorCodec<>() {
-            @Override public void write(@Nonnull DataOutputStream out, @Nonnull Boolean v) throws IOException { out.writeBoolean(v); }
-            @Override public Boolean read(@Nonnull DataInputStream in) throws IOException { return in.readBoolean(); }
+            @Override public void write(DataOutputStream out, Boolean v) throws IOException { out.writeBoolean(v); }
+            @Override public Boolean read(DataInputStream in) throws IOException { return in.readBoolean(); }
         });
         register(byClass, byTag, (byte) 5, UUID.class, new CursorCodec<>() {
-            @Override public void write(@Nonnull DataOutputStream out, @Nonnull UUID v) throws IOException {
+            @Override public void write(DataOutputStream out, UUID v) throws IOException {
                 out.writeLong(v.getMostSignificantBits()); out.writeLong(v.getLeastSignificantBits());
             }
-            @Override public UUID read(@Nonnull DataInputStream in) throws IOException {
+            @Override public UUID read(DataInputStream in) throws IOException {
                 return new UUID(in.readLong(), in.readLong());
             }
         });
         register(byClass, byTag, (byte) 6, Instant.class, new CursorCodec<>() {
-            @Override public void write(@Nonnull DataOutputStream out, @Nonnull Instant v) throws IOException {
+            @Override public void write(DataOutputStream out, Instant v) throws IOException {
                 out.writeLong(v.getEpochSecond()); out.writeInt(v.getNano());
             }
-            @Override public Instant read(@Nonnull DataInputStream in) throws IOException {
+            @Override public Instant read(DataInputStream in) throws IOException {
                 return Instant.ofEpochSecond(in.readLong(), in.readInt());
             }
         });
         register(byClass, byTag, (byte) 7, LocalDate.class, new CursorCodec<>() {
-            @Override public void write(@Nonnull DataOutputStream out, @Nonnull LocalDate v) throws IOException {
+            @Override public void write(DataOutputStream out, LocalDate v) throws IOException {
                 out.writeInt(v.getYear()); out.writeByte(v.getMonthValue()); out.writeByte(v.getDayOfMonth());
             }
-            @Override public LocalDate read(@Nonnull DataInputStream in) throws IOException {
+            @Override public LocalDate read(DataInputStream in) throws IOException {
                 return LocalDate.of(in.readInt(), in.readUnsignedByte(), in.readUnsignedByte());
             }
         });
         register(byClass, byTag, (byte) 8, LocalDateTime.class, new CursorCodec<>() {
-            @Override public void write(@Nonnull DataOutputStream out, @Nonnull LocalDateTime v) throws IOException {
+            @Override public void write(DataOutputStream out, LocalDateTime v) throws IOException {
                 out.writeInt(v.getYear()); out.writeByte(v.getMonthValue()); out.writeByte(v.getDayOfMonth());
                 out.writeByte(v.getHour()); out.writeByte(v.getMinute()); out.writeByte(v.getSecond());
                 out.writeInt(v.getNano());
             }
-            @Override public LocalDateTime read(@Nonnull DataInputStream in) throws IOException {
+            @Override public LocalDateTime read(DataInputStream in) throws IOException {
                 return LocalDateTime.of(in.readInt(), in.readUnsignedByte(), in.readUnsignedByte(),
                         in.readUnsignedByte(), in.readUnsignedByte(), in.readUnsignedByte(), in.readInt());
             }
         });
         register(byClass, byTag, (byte) 9, BigDecimal.class, new CursorCodec<>() {
-            @Override public void write(@Nonnull DataOutputStream out, @Nonnull BigDecimal v) throws IOException {
+            @Override public void write(DataOutputStream out, BigDecimal v) throws IOException {
                 writeString(out, v.toPlainString());
             }
-            @Override public BigDecimal read(@Nonnull DataInputStream in) throws IOException {
+            @Override public BigDecimal read(DataInputStream in) throws IOException {
                 return new BigDecimal(readString(in));
             }
         });
         register(byClass, byTag, (byte) 10, Short.class, new CursorCodec<>() {
-            @Override public void write(@Nonnull DataOutputStream out, @Nonnull Short v) throws IOException { out.writeShort(v); }
-            @Override public Short read(@Nonnull DataInputStream in) throws IOException { return in.readShort(); }
+            @Override public void write(DataOutputStream out, Short v) throws IOException { out.writeShort(v); }
+            @Override public Short read(DataInputStream in) throws IOException { return in.readShort(); }
         });
         register(byClass, byTag, (byte) 11, Byte.class, new CursorCodec<>() {
-            @Override public void write(@Nonnull DataOutputStream out, @Nonnull Byte v) throws IOException { out.writeByte(v); }
-            @Override public Byte read(@Nonnull DataInputStream in) throws IOException { return in.readByte(); }
+            @Override public void write(DataOutputStream out, Byte v) throws IOException { out.writeByte(v); }
+            @Override public Byte read(DataInputStream in) throws IOException { return in.readByte(); }
         });
         register(byClass, byTag, (byte) 12, OffsetDateTime.class, new CursorCodec<>() {
-            @Override public void write(@Nonnull DataOutputStream out, @Nonnull OffsetDateTime v) throws IOException {
+            @Override public void write(DataOutputStream out, OffsetDateTime v) throws IOException {
                 LocalDateTime l = v.toLocalDateTime();
                 out.writeInt(l.getYear()); out.writeByte(l.getMonthValue()); out.writeByte(l.getDayOfMonth());
                 out.writeByte(l.getHour()); out.writeByte(l.getMinute()); out.writeByte(l.getSecond());
                 out.writeInt(l.getNano()); out.writeInt(v.getOffset().getTotalSeconds());
             }
-            @Override public OffsetDateTime read(@Nonnull DataInputStream in) throws IOException {
+            @Override public OffsetDateTime read(DataInputStream in) throws IOException {
                 return OffsetDateTime.of(LocalDateTime.of(in.readInt(), in.readUnsignedByte(), in.readUnsignedByte(),
                         in.readUnsignedByte(), in.readUnsignedByte(), in.readUnsignedByte(), in.readInt()),
                         ZoneOffset.ofTotalSeconds(in.readInt()));
@@ -205,7 +204,7 @@ public final class CursorFactory {
      * @param sortFieldType the expected sort field type (for validation), or null to skip.
      * @return Object[] {Boolean isForward, Integer size, Object keyCursor, Object sortCursor}.
      */
-    public static Object[] fromCursor(int metamodelFingerprint, @Nonnull String cursor,
+    public static Object[] fromCursor(int metamodelFingerprint, String cursor,
                                        @Nullable Class<?> keyFieldType, @Nullable Class<?> sortFieldType) {
         try (var byteStream = new ByteArrayInputStream(Base64.getUrlDecoder().decode(cursor));
              var dataStream = new DataInputStream(byteStream)) {
@@ -244,7 +243,7 @@ public final class CursorFactory {
         }
     }
 
-    private static void validateType(@Nonnull String label, @Nonnull Object value, @Nonnull Class<?> expectedType) {
+    private static void validateType(String label, Object value, Class<?> expectedType) {
         Class<?> boxed = box(expectedType);
         // Object.class means "accept any type" (used in tests or untyped metamodels).
         if (boxed != Object.class && !boxed.isInstance(value)) {
@@ -254,7 +253,7 @@ public final class CursorFactory {
         }
     }
 
-    private static Class<?> box(@Nonnull Class<?> type) {
+    private static Class<?> box(Class<?> type) {
         if (!type.isPrimitive()) return type;
         if (type == int.class) return Integer.class;
         if (type == long.class) return Long.class;
@@ -268,7 +267,7 @@ public final class CursorFactory {
     }
 
     @SuppressWarnings("unchecked")
-    private static void writeValue(@Nonnull DataOutputStream out, @Nullable Object value) throws IOException {
+    private static void writeValue(DataOutputStream out, @Nullable Object value) throws IOException {
         if (value == null) {
             out.writeByte(TYPE_NULL);
             return;
@@ -284,7 +283,7 @@ public final class CursorFactory {
     }
 
     @Nullable
-    private static Object readValue(@Nonnull DataInputStream in) throws IOException {
+    private static Object readValue(DataInputStream in) throws IOException {
         int tag = in.readUnsignedByte();
         if (tag == TYPE_NULL) {
             return null;
@@ -296,8 +295,8 @@ public final class CursorFactory {
         return entry.codec.read(in);
     }
 
-    private static <T> void register(@Nonnull Map<Class<?>, Entry> byClass, @Nonnull Map<Byte, Entry> byTag,
-                                      byte tag, @Nonnull Class<T> type, @Nonnull CursorCodec<T> codec) {
+    private static <T> void register(Map<Class<?>, Entry> byClass, Map<Byte, Entry> byTag,
+                                      byte tag, Class<T> type, CursorCodec<T> codec) {
         Entry entry = new Entry(tag, type, codec);
         byClass.put(type, entry);
         byTag.put(tag, entry);
@@ -310,7 +309,7 @@ public final class CursorFactory {
     }
 
     @SuppressWarnings("SameParameterValue")
-    private static int computeFingerprint(@Nonnull Map<Byte, Entry> byTag) {
+    private static int computeFingerprint(Map<Byte, Entry> byTag) {
         int hash = 0;
         boolean first = true;
         for (var entry : byTag.entrySet().stream().sorted(Map.Entry.comparingByKey()).toList()) {
@@ -331,13 +330,13 @@ public final class CursorFactory {
         return hash;
     }
 
-    static void writeString(@Nonnull DataOutputStream out, @Nonnull String value) throws IOException {
+    static void writeString(DataOutputStream out, String value) throws IOException {
         byte[] bytes = value.getBytes(StandardCharsets.UTF_8);
         out.writeInt(bytes.length);
         out.write(bytes);
     }
 
-    static String readString(@Nonnull DataInputStream in) throws IOException {
+    static String readString(DataInputStream in) throws IOException {
         int length = in.readInt();
         if (length < 0) {
             throw new IOException("Negative string length.");

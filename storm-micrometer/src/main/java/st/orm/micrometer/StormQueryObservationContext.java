@@ -19,7 +19,6 @@ import static java.util.Objects.requireNonNull;
 
 import io.micrometer.common.KeyValues;
 import io.micrometer.observation.Observation;
-import jakarta.annotation.Nonnull;
 import st.orm.core.spi.QueryContext;
 
 /**
@@ -37,8 +36,8 @@ public class StormQueryObservationContext extends Observation.Context {
     private final QueryContext queryContext;
     private final KeyValues extraLowCardinalityKeyValues;
 
-    public StormQueryObservationContext(@Nonnull QueryContext queryContext,
-                                        @Nonnull KeyValues extraLowCardinalityKeyValues) {
+    public StormQueryObservationContext(QueryContext queryContext,
+                                        KeyValues extraLowCardinalityKeyValues) {
         this.queryContext = requireNonNull(queryContext, "queryContext");
         this.extraLowCardinalityKeyValues = requireNonNull(extraLowCardinalityKeyValues, "extraLowCardinalityKeyValues");
     }

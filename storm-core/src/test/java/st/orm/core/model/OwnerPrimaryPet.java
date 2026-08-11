@@ -2,7 +2,6 @@ package st.orm.core.model;
 
 import static st.orm.GenerationStrategy.NONE;
 
-import jakarta.annotation.Nonnull;
 import lombok.Builder;
 import st.orm.Entity;
 import st.orm.FK;
@@ -18,6 +17,6 @@ import st.orm.PK;
  */
 @Builder(toBuilder = true)
 public record OwnerPrimaryPet(
-        @Nonnull @PK(generation = NONE) @FK("owner_id") Owner owner,
-        @Nonnull @FK("pet_id") Pet pet
+        @PK(generation = NONE) @FK("owner_id") Owner owner,
+        @FK("pet_id") Pet pet
 ) implements Entity<Owner> {}

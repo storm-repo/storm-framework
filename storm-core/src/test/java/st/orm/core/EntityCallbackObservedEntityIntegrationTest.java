@@ -5,7 +5,6 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-import jakarta.annotation.Nonnull;
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
@@ -40,10 +39,10 @@ public class EntityCallbackObservedEntityIntegrationTest {
     @Autowired
     private DataSource dataSource;
 
-    private ORMTemplate ormObserving(@Nonnull List<City> observed) {
+    private ORMTemplate ormObserving(List<City> observed) {
         return ORMTemplate.of(dataSource).withEntityCallback(new EntityCallback<City>() {
             @Override
-            public void afterInsert(@Nonnull City entity) {
+            public void afterInsert(City entity) {
                 observed.add(entity);
             }
         });
@@ -137,7 +136,7 @@ public class EntityCallbackObservedEntityIntegrationTest {
         List<Owner> observed = new ArrayList<>();
         var orm = ORMTemplate.of(dataSource).withEntityCallback(new EntityCallback<Owner>() {
             @Override
-            public void afterUpdate(@Nonnull Owner entity) {
+            public void afterUpdate(Owner entity) {
                 observed.add(entity);
             }
         });
@@ -154,7 +153,7 @@ public class EntityCallbackObservedEntityIntegrationTest {
         List<Owner> observed = new ArrayList<>();
         var orm = ORMTemplate.of(dataSource).withEntityCallback(new EntityCallback<Owner>() {
             @Override
-            public void afterUpdate(@Nonnull Owner entity) {
+            public void afterUpdate(Owner entity) {
                 observed.add(entity);
             }
         });
@@ -175,7 +174,7 @@ public class EntityCallbackObservedEntityIntegrationTest {
         List<Owner> observed = new ArrayList<>();
         var orm = ORMTemplate.of(dataSource).withEntityCallback(new EntityCallback<Owner>() {
             @Override
-            public void afterInsert(@Nonnull Owner entity) {
+            public void afterInsert(Owner entity) {
                 observed.add(entity);
             }
         });
@@ -198,7 +197,7 @@ public class EntityCallbackObservedEntityIntegrationTest {
         List<Owner> observed = new ArrayList<>();
         var orm = ORMTemplate.of(dataSource).withEntityCallback(new EntityCallback<Owner>() {
             @Override
-            public void afterUpdate(@Nonnull Owner entity) {
+            public void afterUpdate(Owner entity) {
                 observed.add(entity);
             }
         });
@@ -215,7 +214,7 @@ public class EntityCallbackObservedEntityIntegrationTest {
         List<Visit> observed = new ArrayList<>();
         var orm = ORMTemplate.of(dataSource).withEntityCallback(new EntityCallback<Visit>() {
             @Override
-            public void afterInsert(@Nonnull Visit entity) {
+            public void afterInsert(Visit entity) {
                 observed.add(entity);
             }
         });
@@ -236,7 +235,7 @@ public class EntityCallbackObservedEntityIntegrationTest {
         List<Owner> observed = new ArrayList<>();
         var orm = ORMTemplate.of(dataSource).withEntityCallback(new EntityCallback<Owner>() {
             @Override
-            public void afterInsert(@Nonnull Owner entity) {
+            public void afterInsert(Owner entity) {
                 observed.add(entity);
             }
         });
@@ -260,7 +259,7 @@ public class EntityCallbackObservedEntityIntegrationTest {
         List<Visit> observed = new ArrayList<>();
         var orm = ORMTemplate.of(dataSource).withEntityCallback(new EntityCallback<Visit>() {
             @Override
-            public void afterInsert(@Nonnull Visit entity) {
+            public void afterInsert(Visit entity) {
                 observed.add(entity);
             }
         });

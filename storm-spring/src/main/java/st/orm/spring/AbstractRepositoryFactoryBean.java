@@ -17,8 +17,7 @@ package st.orm.spring;
 
 import static java.util.Objects.requireNonNull;
 
-import jakarta.annotation.Nonnull;
-import jakarta.annotation.Nullable;
+import org.jspecify.annotations.Nullable;
 import org.springframework.beans.factory.BeanFactory;
 import org.springframework.beans.factory.BeanFactoryAware;
 import org.springframework.beans.factory.FactoryBean;
@@ -53,14 +52,14 @@ public abstract class AbstractRepositoryFactoryBean<R> implements FactoryBean<R>
      * @param ormTemplateBeanName the ORMTemplate bean the repository binds to, or {@code null} for the
      *                            primary template.
      */
-    protected AbstractRepositoryFactoryBean(@Nonnull Class<R> repositoryType,
+    protected AbstractRepositoryFactoryBean(Class<R> repositoryType,
                                             @Nullable String ormTemplateBeanName) {
         this.repositoryType = requireNonNull(repositoryType, "repositoryType");
         this.ormTemplateBeanName = ormTemplateBeanName;
     }
 
     @Override
-    public void setBeanFactory(@Nonnull BeanFactory beanFactory) {
+    public void setBeanFactory(BeanFactory beanFactory) {
         this.beanFactory = beanFactory;
     }
 
@@ -77,13 +76,13 @@ public abstract class AbstractRepositoryFactoryBean<R> implements FactoryBean<R>
     /**
      * Creates the repository proxy for the given interface through the stack's template API.
      */
-    protected abstract R createRepository(@Nonnull Class<R> repositoryType);
+    protected abstract R createRepository(Class<R> repositoryType);
 
     /**
      * Resolves the ORMTemplate the repository binds to: the configured bean name if one was given, the
      * primary template otherwise.
      */
-    protected final <T> T getOrmTemplate(@Nonnull Class<T> templateType) {
+    protected final <T> T getOrmTemplate(Class<T> templateType) {
         return ormTemplateBeanName != null
                 ? beanFactory.getBean(ormTemplateBeanName, templateType)
                 : beanFactory.getBean(templateType);

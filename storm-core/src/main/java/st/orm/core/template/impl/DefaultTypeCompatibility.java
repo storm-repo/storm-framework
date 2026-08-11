@@ -43,7 +43,6 @@ import static java.sql.Types.TINYINT;
 import static java.sql.Types.VARBINARY;
 import static java.sql.Types.VARCHAR;
 
-import jakarta.annotation.Nonnull;
 import java.math.BigDecimal;
 import java.math.BigInteger;
 import java.nio.ByteBuffer;
@@ -153,7 +152,7 @@ final class DefaultTypeCompatibility implements TypeCompatibility {
     }
 
     @Override
-    public Compatibility check(@Nonnull Class<?> javaType, int sqlType, @Nonnull String sqlTypeName) {
+    public Compatibility check(Class<?> javaType, int sqlType, String sqlTypeName) {
         // Enum types can be stored as character or integer columns.
         if (javaType.isEnum()) {
             return Set.of(CHAR, VARCHAR, NCHAR, NVARCHAR, TINYINT, SMALLINT, INTEGER).contains(sqlType)

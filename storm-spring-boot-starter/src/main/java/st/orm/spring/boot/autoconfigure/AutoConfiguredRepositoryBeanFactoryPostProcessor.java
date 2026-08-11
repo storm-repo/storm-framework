@@ -15,7 +15,6 @@
  */
 package st.orm.spring.boot.autoconfigure;
 
-import jakarta.annotation.Nonnull;
 import org.springframework.beans.factory.config.ConfigurableListableBeanFactory;
 import org.springframework.boot.autoconfigure.AutoConfigurationPackages;
 import st.orm.spring.RepositoryBeanFactoryPostProcessor;
@@ -37,7 +36,7 @@ public class AutoConfiguredRepositoryBeanFactoryPostProcessor extends Repository
      * @param beanFactory the bean factory to post-process.
      */
     @Override
-    public void postProcessBeanFactory(@Nonnull ConfigurableListableBeanFactory beanFactory) {
+    public void postProcessBeanFactory(ConfigurableListableBeanFactory beanFactory) {
         try {
             resolvedPackages = AutoConfigurationPackages.get(beanFactory).toArray(String[]::new);
         } catch (IllegalStateException e) {

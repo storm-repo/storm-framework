@@ -2,7 +2,6 @@ package st.orm.core.model;
 
 import static st.orm.GenerationStrategy.NONE;
 
-import jakarta.annotation.Nonnull;
 import st.orm.Entity;
 import st.orm.FK;
 import st.orm.PK;
@@ -13,6 +12,6 @@ import st.orm.PK;
  * requires more than the database key; operations on it must correlate by the key column instead.
  */
 public record AppointmentReport(
-        @Nonnull @PK(generation = NONE) @FK("appointment_id") Appointment appointment,
-        @Nonnull String report
+        @PK(generation = NONE) @FK("appointment_id") Appointment appointment,
+        String report
 ) implements Entity<Appointment> {}

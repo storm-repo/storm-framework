@@ -5,13 +5,12 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-import jakarta.annotation.Nonnull;
-import jakarta.annotation.Nullable;
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
 import javax.sql.DataSource;
 import lombok.Builder;
+import org.jspecify.annotations.Nullable;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -134,7 +133,7 @@ public class EntityRepositoryAdditionalIntegrationTest {
         List<String> callbackLog = new ArrayList<>();
         var orm = ORMTemplate.of(dataSource).withEntityCallback(new EntityCallback<City>() {
             @Override
-            public City beforeInsert(@Nonnull City entity) {
+            public City beforeInsert(City entity) {
                 callbackLog.add("beforeInsert:" + entity.name());
                 // Simulate a nested insert within the callback.
                 // The re-entrancy guard should prevent callbacks from firing again.
@@ -142,7 +141,7 @@ public class EntityRepositoryAdditionalIntegrationTest {
             }
 
             @Override
-            public void afterInsert(@Nonnull City entity) {
+            public void afterInsert(City entity) {
                 callbackLog.add("afterInsert:" + entity.name());
             }
         });
@@ -203,9 +202,9 @@ public class EntityRepositoryAdditionalIntegrationTest {
     @DbTable("owner")
     public record OwnerWithLongVersion(
             @PK Integer id,
-            @Nonnull String firstName,
-            @Nonnull String lastName,
-            @Nonnull Address address,
+            String firstName,
+            String lastName,
+            Address address,
             @Nullable String telephone,
             @Version long version
     ) implements Entity<Integer> {}
@@ -322,7 +321,7 @@ public class EntityRepositoryAdditionalIntegrationTest {
         // Register a callback for Entity (supertype of all entities).
         var orm = ORMTemplate.of(dataSource).withEntityCallback(new EntityCallback<>() {
             @Override
-            public Entity beforeInsert(@Nonnull Entity entity) {
+            public Entity beforeInsert(Entity entity) {
                 log.add("supertype:beforeInsert");
                 return entity;
             }
@@ -354,13 +353,13 @@ public class EntityRepositoryAdditionalIntegrationTest {
                 new EntityCallback<st.orm.core.model.polymorphic.JoinedAnimal>() {
                     @Override
                     public st.orm.core.model.polymorphic.JoinedAnimal beforeUpdate(
-                            @Nonnull st.orm.core.model.polymorphic.JoinedAnimal entity) {
+                            st.orm.core.model.polymorphic.JoinedAnimal entity) {
                         log.add("beforeUpdate");
                         return entity;
                     }
 
                     @Override
-                    public void afterUpdate(@Nonnull st.orm.core.model.polymorphic.JoinedAnimal entity) {
+                    public void afterUpdate(st.orm.core.model.polymorphic.JoinedAnimal entity) {
                         log.add("afterUpdate");
                     }
                 });

@@ -8,11 +8,10 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.fasterxml.jackson.databind.JsonMappingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import jakarta.annotation.Nonnull;
-import jakarta.annotation.Nullable;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import org.jspecify.annotations.Nullable;
 import org.junit.jupiter.api.Test;
 import st.orm.Data;
 import st.orm.Entity;
@@ -27,40 +26,40 @@ public class StormModuleTest {
 
     // Test entities and projections.
 
-    public record SimpleEntity(@PK Integer id, @Nonnull String name) implements Entity<Integer> {}
+    public record SimpleEntity(@PK Integer id, String name) implements Entity<Integer> {}
 
-    public record StringIdEntity(@PK String id, @Nonnull String name) implements Entity<String> {}
+    public record StringIdEntity(@PK String id, String name) implements Entity<String> {}
 
-    public record LongIdEntity(@PK Long id, @Nonnull String name) implements Entity<Long> {}
+    public record LongIdEntity(@PK Long id, String name) implements Entity<Long> {}
 
-    public record SimpleProjection(@PK Integer id, @Nonnull String label) implements Projection<Integer> {}
+    public record SimpleProjection(@PK Integer id, String label) implements Projection<Integer> {}
 
     // A Data record without @PK annotation - triggers null pkType fallback paths.
     public record NoPkData(String value) implements Data {}
 
     // Wrapper records with Ref fields.
 
-    public record EntityRefHolder(@Nonnull Ref<SimpleEntity> entity) {}
+    public record EntityRefHolder(Ref<SimpleEntity> entity) {}
 
-    public record StringIdRefHolder(@Nonnull Ref<StringIdEntity> entity) {}
+    public record StringIdRefHolder(Ref<StringIdEntity> entity) {}
 
-    public record LongIdRefHolder(@Nonnull Ref<LongIdEntity> entity) {}
+    public record LongIdRefHolder(Ref<LongIdEntity> entity) {}
 
     public record ProjectionRefHolder(@Nullable Ref<SimpleProjection> projection) {}
 
     public record NullableRefHolder(@Nullable Ref<SimpleEntity> entity) {}
 
-    public record RefListHolder(@Nonnull List<Ref<SimpleEntity>> entities) {}
+    public record RefListHolder(List<Ref<SimpleEntity>> entities) {}
 
-    public record RefSetHolder(@Nonnull Set<Ref<SimpleEntity>> entities) {}
+    public record RefSetHolder(Set<Ref<SimpleEntity>> entities) {}
 
-    public record RefMapHolder(@Nonnull Map<String, Ref<SimpleEntity>> entities) {}
+    public record RefMapHolder(Map<String, Ref<SimpleEntity>> entities) {}
 
     public record NoPkRefHolder(@Nullable Ref<NoPkData> data) {}
 
-    public record NoPkRefListHolder(@Nonnull List<Ref<NoPkData>> data) {}
+    public record NoPkRefListHolder(List<Ref<NoPkData>> data) {}
 
-    public record CompoundPkRefHolder(@Nonnull Ref<VetSpecialty> entity) {}
+    public record CompoundPkRefHolder(Ref<VetSpecialty> entity) {}
 
     // Tests for constructor variations.
 
@@ -79,12 +78,12 @@ public class StormModuleTest {
     public void constructorWithRefFactoryShouldUseFactoryForDeserialization() throws Exception {
         RefFactory factory = new RefFactory() {
             @Override
-            public <T extends Data, ID> Ref<T> create(@Nonnull Class<T> type, @Nonnull ID pk) {
+            public <T extends Data, ID> Ref<T> create(Class<T> type, ID pk) {
                 return Ref.of(type, pk);
             }
 
             @Override
-            public <T extends Data, ID> Ref<T> create(@Nonnull T record, @Nonnull ID pk) {
+            public <T extends Data, ID> Ref<T> create(T record, ID pk) {
                 return Ref.of(type(record), pk);
             }
 
@@ -106,12 +105,12 @@ public class StormModuleTest {
     public void constructorWithSupplierShouldUseSuppliedFactory() throws Exception {
         RefFactory factory = new RefFactory() {
             @Override
-            public <T extends Data, ID> Ref<T> create(@Nonnull Class<T> type, @Nonnull ID pk) {
+            public <T extends Data, ID> Ref<T> create(Class<T> type, ID pk) {
                 return Ref.of(type, pk);
             }
 
             @Override
-            public <T extends Data, ID> Ref<T> create(@Nonnull T record, @Nonnull ID pk) {
+            public <T extends Data, ID> Ref<T> create(T record, ID pk) {
                 return Ref.of(type(record), pk);
             }
 
@@ -757,9 +756,9 @@ public class StormModuleTest {
 
     // Test for Ref field with Double PK type.
 
-    public record DoubleIdEntity(@PK Double id, @Nonnull String name) implements Entity<Double> {}
+    public record DoubleIdEntity(@PK Double id, String name) implements Entity<Double> {}
 
-    public record DoubleIdRefHolder(@Nonnull Ref<DoubleIdEntity> entity) {}
+    public record DoubleIdRefHolder(Ref<DoubleIdEntity> entity) {}
 
     @Test
     public void doubleIdRefShouldRoundTrip() throws Exception {
@@ -819,7 +818,7 @@ public class StormModuleTest {
     @Test
     public void nonRefFieldShouldNotAffectSerialization() throws Exception {
         // This record has a non-Ref field. The StormModule should not interfere with it.
-        record NonRefHolder(@Nonnull String value) {}
+        record NonRefHolder(String value) {}
 
         ObjectMapper mapper = new ObjectMapper();
         mapper.registerModule(new StormModule());
@@ -844,7 +843,7 @@ public class StormModuleTest {
                 mapper.readValue(json, NoPkRefHolder.class));
     }
 
-    public record ProjectionRefListHolder(@Nonnull List<Ref<SimpleProjection>> projections) {}
+    public record ProjectionRefListHolder(List<Ref<SimpleProjection>> projections) {}
 
     @Test
     public void loadedProjectionRefInListShouldSerializeAndDeserialize() throws Exception {

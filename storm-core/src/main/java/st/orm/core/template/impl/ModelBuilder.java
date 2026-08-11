@@ -15,9 +15,8 @@
  */
 package st.orm.core.template.impl;
 
-import jakarta.annotation.Nonnull;
-import jakarta.annotation.Nullable;
 import java.util.function.Supplier;
+import org.jspecify.annotations.Nullable;
 import st.orm.Data;
 import st.orm.PersistenceException;
 import st.orm.core.template.Model;
@@ -90,7 +89,7 @@ public interface ModelBuilder {
      * @param <ID> the primary key type.
      * @throws SqlTemplateException if an error occurs while building the model.
      */
-    default <T extends Data, ID> Model<T, ID> build(@Nonnull T record, boolean requirePrimaryKey)
+    default <T extends Data, ID> Model<T, ID> build(T record, boolean requirePrimaryKey)
             throws SqlTemplateException {
         //noinspection unchecked
         return build((Class<T>) record.getClass(), requirePrimaryKey);
@@ -104,7 +103,7 @@ public interface ModelBuilder {
      * @param <ID> the primary key type.
      * @throws SqlTemplateException if an error occurs while building the model.
      */
-    <T extends Data, ID> Model<T, ID> build(@Nonnull Class<T> type, boolean requirePrimaryKey) throws SqlTemplateException;
+    <T extends Data, ID> Model<T, ID> build(Class<T> type, boolean requirePrimaryKey) throws SqlTemplateException;
 
     /**
      * Builds the model for the specified data type, expanding the references the plan resolves.
@@ -122,8 +121,8 @@ public interface ModelBuilder {
      * @throws SqlTemplateException if an error occurs while building the model.
      * @since 1.13
      */
-    <T extends Data, ID> Model<T, ID> build(@Nonnull Class<T> type, boolean requirePrimaryKey,
-                                            @Nonnull FetchPlan fetchPlan) throws SqlTemplateException;
+    <T extends Data, ID> Model<T, ID> build(Class<T> type, boolean requirePrimaryKey,
+                                            FetchPlan fetchPlan) throws SqlTemplateException;
 
     /**
      * Returns a supplier for the model.
@@ -134,7 +133,7 @@ public interface ModelBuilder {
      * @param <T> the record type.
      * @param <ID> the primary key type.
      */
-    default <T extends Data, ID> Supplier<Model<T, ID>> supplier(@Nonnull Class<T> type, boolean requirePrimaryKey) {
+    default <T extends Data, ID> Supplier<Model<T, ID>> supplier(Class<T> type, boolean requirePrimaryKey) {
         return () -> {
             try {
                 return build(type, requirePrimaryKey);

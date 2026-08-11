@@ -17,9 +17,8 @@ package st.orm;
 
 import static java.util.List.copyOf;
 
-import jakarta.annotation.Nonnull;
-import jakarta.annotation.Nullable;
 import java.util.List;
+import org.jspecify.annotations.Nullable;
 
 /**
  * Represents a window of query results from a scrolling operation with {@link Scrollable} navigation tokens.
@@ -51,7 +50,7 @@ import java.util.List;
  * @since 1.11
  */
 public record Window<R>(
-        @Nonnull List<R> content,
+        List<R> content,
         boolean hasNext,
         boolean hasPrevious,
         @Nullable Scrollable<?> nextScrollable,

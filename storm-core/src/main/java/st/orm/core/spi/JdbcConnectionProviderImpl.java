@@ -17,14 +17,13 @@ package st.orm.core.spi;
 
 import static java.lang.System.identityHashCode;
 
-import jakarta.annotation.Nonnull;
-import jakarta.annotation.Nullable;
 import java.lang.ref.ReferenceQueue;
 import java.lang.ref.WeakReference;
 import java.sql.Connection;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import javax.sql.DataSource;
+import org.jspecify.annotations.Nullable;
 import st.orm.PersistenceException;
 
 /**
@@ -39,7 +38,7 @@ import st.orm.PersistenceException;
 public final class JdbcConnectionProviderImpl implements ConnectionProvider {
 
     @Override
-    public Connection getConnection(@Nonnull DataSource dataSource, @Nullable TransactionContext context) {
+    public Connection getConnection(DataSource dataSource, @Nullable TransactionContext context) {
         if (context != null) {
             if (!(context instanceof JdbcTransactionContext jdbcContext)) {
                 throw new IllegalArgumentException("Transaction context must be of type JdbcTransactionContext.");
@@ -53,7 +52,7 @@ public final class JdbcConnectionProviderImpl implements ConnectionProvider {
     }
 
     @Override
-    public void releaseConnection(@Nonnull Connection connection, @Nonnull DataSource dataSource,
+    public void releaseConnection(Connection connection, DataSource dataSource,
                                   @Nullable TransactionContext context) {
         if (context != null) {
             if (!(context instanceof JdbcTransactionContext jdbcContext)) {
@@ -69,7 +68,7 @@ public final class JdbcConnectionProviderImpl implements ConnectionProvider {
         releaseRegularConnection(connection);
     }
 
-    private Connection getRegularConnection(@Nonnull DataSource dataSource) {
+    private Connection getRegularConnection(DataSource dataSource) {
         try {
             return dataSource.getConnection();
         } catch (Throwable t) {
@@ -77,7 +76,7 @@ public final class JdbcConnectionProviderImpl implements ConnectionProvider {
         }
     }
 
-    private void releaseRegularConnection(@Nonnull Connection connection) {
+    private void releaseRegularConnection(Connection connection) {
         try {
             connection.close();
         } catch (Throwable t) {
@@ -138,7 +137,7 @@ public final class JdbcConnectionProviderImpl implements ConnectionProvider {
             }
         }
 
-        public static void beforeAccess(@Nonnull Connection connection, @Nonnull TransactionContext context) {
+        public static void beforeAccess(Connection connection, TransactionContext context) {
             reap();
             var key = new ConnectionIdentity(connection, QUEUE);
             var owner = OWNERS.computeIfAbsent(key, ignore -> new Owner());
@@ -154,7 +153,7 @@ public final class JdbcConnectionProviderImpl implements ConnectionProvider {
             }
         }
 
-        public static void afterAccess(@Nonnull Connection connection, @Nonnull TransactionContext context) {
+        public static void afterAccess(Connection connection, TransactionContext context) {
             reap();
             var key = new ConnectionIdentity(connection, QUEUE);
             var owner = OWNERS.get(key);

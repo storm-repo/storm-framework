@@ -19,10 +19,9 @@ import static java.util.Objects.requireNonNull;
 import static st.orm.Operator.EQUALS;
 import static st.orm.SelectMode.NESTED;
 
-import jakarta.annotation.Nonnull;
-import jakarta.annotation.Nullable;
 import java.util.Collection;
 import java.util.function.Function;
+import org.jspecify.annotations.Nullable;
 import st.orm.BindVars;
 import st.orm.Data;
 import st.orm.Element;
@@ -57,12 +56,12 @@ public final class Elements {
      * carried by {@link Fetch} and read from the compiler, so the select element states only what a template author
      * means — which table, which column set.</p>
      */
-    public record Select(@Nonnull Class<? extends Data> table, @Nonnull SelectMode mode) implements Element {
+    public record Select(Class<? extends Data> table, SelectMode mode) implements Element {
         public Select {
             requireNonNull(table, "table");
             requireNonNull(mode, "mode");
         }
-        public Select(@Nonnull Class<? extends Data> table) {
+        public Select(Class<? extends Data> table) {
             this(table, NESTED);
         }
     }
@@ -78,7 +77,7 @@ public final class Elements {
      *
      * @since 1.13
      */
-    public record Fetch(@Nonnull Collection<String> paths) implements Element {
+    public record Fetch(Collection<String> paths) implements Element {
         public Fetch {
             requireNonNull(paths, "paths");
             paths = FetchPlan.of(paths).paths();
@@ -92,12 +91,12 @@ public final class Elements {
      * verbatim. {@code returningKeys} makes the statement hand back the generated keys, using the mechanism the
      * dialect provides.</p>
      */
-    public record Insert(@Nonnull Class<? extends Data> table, boolean ignoreAutoGenerate,
+    public record Insert(Class<? extends Data> table, boolean ignoreAutoGenerate,
                          boolean returningKeys) implements Element {
-        public Insert(@Nonnull Class<? extends Data> table) {
+        public Insert(Class<? extends Data> table) {
             this(table, false, false);
         }
-        public Insert(@Nonnull Class<? extends Data> table, boolean ignoreAutoGenerate) {
+        public Insert(Class<? extends Data> table, boolean ignoreAutoGenerate) {
             this(table, ignoreAutoGenerate, false);
         }
         public Insert {
@@ -121,12 +120,12 @@ public final class Elements {
     /**
      * Renders the UPDATE target: the table name under the given alias. An empty alias lets the template derive one.
      */
-    public record Update(@Nonnull Class<? extends Data> table, @Nonnull String alias) implements Element {
+    public record Update(Class<? extends Data> table, String alias) implements Element {
         public Update {
             requireNonNull(table, "table");
             requireNonNull(alias, "alias");
         }
-        public Update(@Nonnull Class<? extends Data> table) {
+        public Update(Class<? extends Data> table) {
             this(table, "");
         }
     }
@@ -136,7 +135,7 @@ public final class Elements {
      * bound through {@code bindVars} for batch execution. A non-empty {@code fields} restricts the assignments to
      * those columns (a partial update).
      */
-    public record Set(@Nullable Data record, @Nullable BindVars bindVars, @Nonnull Collection<Metamodel<?, ?>> fields) implements Element {
+    public record Set(@Nullable Data record, @Nullable BindVars bindVars, Collection<Metamodel<?, ?>> fields) implements Element {
         public Set {
             fields = java.util.Set.copyOf(fields);
         }
@@ -150,11 +149,11 @@ public final class Elements {
      * collection of values, a record, a reference, or a primary key; a multi-column path expands component-wise.
      * When the metamodel is {@code null}, the object is matched against the table's primary key.
      */
-    public record ObjectExpression(@Nullable Metamodel<?, ?> metamodel, @Nonnull Operator operator, @Nonnull Object object) implements Expression {
-        public ObjectExpression(@Nonnull Operator operator, @Nonnull Object object) {
+    public record ObjectExpression(@Nullable Metamodel<?, ?> metamodel, Operator operator, Object object) implements Expression {
+        public ObjectExpression(Operator operator, Object object) {
             this(null, operator, object);
         }
-        public ObjectExpression(@Nonnull Object object) {
+        public ObjectExpression(Object object) {
             this(null, EQUALS, object);
         }
         public ObjectExpression {
@@ -163,7 +162,7 @@ public final class Elements {
         }
     }
     /** A condition written as a template fragment, rendered with its interpolations in place. */
-    public record TemplateExpression(@Nonnull TemplateString template) implements Expression {}
+    public record TemplateExpression(TemplateString template) implements Expression {}
 
     /**
      * Renders a WHERE condition from the expression, or from {@code bindVars} placeholders for batch execution.
@@ -181,20 +180,20 @@ public final class Elements {
     /**
      * Renders the DELETE target: the table name under the given alias. An empty alias lets the template derive one.
      */
-    public record Delete(@Nonnull Class<? extends Data> table, @Nonnull String alias) implements Element {
+    public record Delete(Class<? extends Data> table, String alias) implements Element {
         public Delete {
             requireNonNull(table, "table");
             requireNonNull(alias, "alias");
         }
-        public Delete(@Nonnull Class<? extends Data> table) {
+        public Delete(Class<? extends Data> table) {
             this(table, "");
         }
     }
 
     /** What a FROM clause or join reads from: a mapped table, or a template such as a subquery. */
     public sealed interface Source {}
-    public record TableSource(@Nonnull Class<? extends Data> table) implements Source {}
-    public record TemplateSource(@Nonnull TemplateString template) implements Source {}
+    public record TableSource(Class<? extends Data> table) implements Source {}
+    public record TemplateSource(TemplateString template) implements Source {}
 
     /** What a join joins onto: a table whose join condition is derived, or a template supplying the ON clause. */
     public sealed interface Target {}
@@ -204,28 +203,28 @@ public final class Elements {
      * @param field the resolved foreign key field for graph-derived joins, or {@code null} when
      *              the field must be resolved from the table types.
      */
-    public record TableTarget(@Nonnull Class<? extends Data> table, @Nullable RecordField field) implements Target {
-        public TableTarget(@Nonnull Class<? extends Data> table) {
+    public record TableTarget(Class<? extends Data> table, @Nullable RecordField field) implements Target {
+        public TableTarget(Class<? extends Data> table) {
             this(table, null);
         }
     }
     /** An ON condition supplied as a template fragment. */
-    public record TemplateTarget(@Nonnull TemplateString template) implements Target {}
+    public record TemplateTarget(TemplateString template) implements Target {}
 
     /**
      * Renders the FROM clause: the source under the given alias (empty derives one). With {@code autoJoin}, the
      * root table's foreign key graph is expanded into derived joins, so the statement can select and reference the
      * related tables.
      */
-    public record From(@Nonnull Source source, @Nonnull String alias, boolean autoJoin) implements Element {
+    public record From(Source source, String alias, boolean autoJoin) implements Element {
         public From {
             requireNonNull(source, "source");
             requireNonNull(alias, "alias");
         }
-        public From(@Nonnull Class<? extends Data> table, boolean autoJoin) {
+        public From(Class<? extends Data> table, boolean autoJoin) {
             this(new TableSource(table), "", autoJoin);
         }
-        public From(@Nonnull TemplateString template) {
+        public From(TemplateString template) {
             this(new TemplateSource(template), "", false);
         }
     }
@@ -234,12 +233,12 @@ public final class Elements {
      * Renders the qualified table name, followed by the alias when one is given. Used to name a table verbatim
      * inside a template, for example in a custom join or correlation.
      */
-    public record Table(@Nonnull Class<? extends Data> table, @Nonnull String alias) implements Element {
+    public record Table(Class<? extends Data> table, String alias) implements Element {
         public Table {
             requireNonNull(table, "table");
             requireNonNull(alias, "alias");
         }
-        public Table(@Nonnull Class<? extends Data> table) {
+        public Table(Class<? extends Data> table) {
             this(table, "");
         }
     }
@@ -248,7 +247,7 @@ public final class Elements {
      * Renders the alias the table resolved to, looked up by type within the given scope. The scope selects where
      * the lookup may resolve: the current template, the enclosing template of a correlated subquery, or both.
      */
-    public record Alias(@Nonnull Class<? extends Data> table, @Nonnull ResolveScope scope) implements Element {
+    public record Alias(Class<? extends Data> table, ResolveScope scope) implements Element {
         public Alias {
             requireNonNull(table, "table");
             requireNonNull(scope, "scope");
@@ -263,7 +262,7 @@ public final class Elements {
      * <p>A path that resolves to more than one column is rejected: this placeholder may sit in arbitrary SQL, where
      * splicing in a column list would produce broken statements. List contexts use {@link Columns} instead.</p>
      */
-    public record Column(@Nonnull Metamodel<?, ?> field, @Nonnull ResolveScope scope) implements Element {
+    public record Column(Metamodel<?, ?> field, ResolveScope scope) implements Element {
         public Column {
             requireNonNull(field, "field");
             requireNonNull(scope, "scope");
@@ -282,7 +281,7 @@ public final class Elements {
      *
      * @since 1.13
      */
-    public record Columns(@Nonnull Metamodel<?, ?> field, @Nonnull ResolveScope scope, boolean descending) implements Element {
+    public record Columns(Metamodel<?, ?> field, ResolveScope scope, boolean descending) implements Element {
         public Columns {
             requireNonNull(field, "field");
             requireNonNull(scope, "scope");
@@ -294,7 +293,7 @@ public final class Elements {
      * database-ready value; conversions are applied when the element is created.
      */
     public record Param(@Nullable String name, @Nullable Object dbValue) implements Element {
-        public Param(@Nullable String name, @Nullable Object value, @Nonnull Function<Object, ?> converter) {
+        public Param(@Nullable String name, @Nullable Object value, Function<Object, ?> converter) {
             this(name, requireNonNull(converter, "converter").apply(value));
         }
 
@@ -308,7 +307,7 @@ public final class Elements {
      * One bind-variable slot in a batch template: the extractor reads the value from each record at execution time,
      * so the same compiled statement serves every record in the batch.
      */
-    public record BindVar(@Nonnull BindVars bindVars, @Nonnull Function<Data, ?> extractor) implements Element {
+    public record BindVar(BindVars bindVars, Function<Data, ?> extractor) implements Element {
         public BindVar {
             requireNonNull(bindVars, "bindVars");
             requireNonNull(extractor, "extractor");
@@ -319,10 +318,10 @@ public final class Elements {
      * Renders a nested template as a subquery. With {@code correlate}, the subquery may resolve aliases from the
      * enclosing template; without it, the subquery is self-contained.
      */
-    public record Subquery(@Nonnull TemplateString template, boolean correlate) implements Element {}
+    public record Subquery(TemplateString template, boolean correlate) implements Element {}
 
     /** Raw SQL rendered verbatim, bypassing the template's safety checks. */
-    public record Unsafe(@Nonnull String sql) implements Element {
+    public record Unsafe(String sql) implements Element {
         public Unsafe {
             requireNonNull(sql, "sql");
         }

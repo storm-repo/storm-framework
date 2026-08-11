@@ -15,7 +15,6 @@
  */
 package st.orm.core.template.impl;
 
-import jakarta.annotation.Nonnull;
 import java.util.ArrayDeque;
 import java.util.Deque;
 import java.util.HashMap;
@@ -40,12 +39,12 @@ class TableUse {
         this.precedingTables = new HashMap<>();
     }
 
-    public void addReferencedTable(@Nonnull Class<?> table, @Nonnull String alias) {
+    public void addReferencedTable(Class<?> table, String alias) {
         markAsReferencedWithAncestors(new TableAlias(table, alias));
     }
 
-    public void addAutoJoinTable(@Nonnull Class<? extends Data> joinTable, @Nonnull String joinAlias,
-                                 @Nonnull Class<? extends Data> precedingTable, @Nonnull String precedingAlias) {
+    public void addAutoJoinTable(Class<? extends Data> joinTable, String joinAlias,
+                                 Class<? extends Data> precedingTable, String precedingAlias) {
         var child  = new TableAlias(joinTable, joinAlias);
         var parent = new TableAlias(precedingTable, precedingAlias);
         precedingTables.computeIfAbsent(child, ignore -> new HashSet<>()).add(parent);
@@ -54,11 +53,11 @@ class TableUse {
         }
     }
 
-    public boolean isReferenced(@Nonnull Class<? extends Data> table, @Nonnull String alias) {
+    public boolean isReferenced(Class<? extends Data> table, String alias) {
         return referencedTables.contains(new TableAlias(table, alias));
     }
 
-    private void markAsReferencedWithAncestors(@Nonnull TableAlias start) {
+    private void markAsReferencedWithAncestors(TableAlias start) {
         Deque<TableAlias> stack = new ArrayDeque<>();
         Set<TableAlias> visited = new HashSet<>();
         stack.push(start);

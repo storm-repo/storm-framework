@@ -17,8 +17,7 @@ package st.orm.core.spi;
 
 import static java.util.Objects.requireNonNull;
 
-import jakarta.annotation.Nonnull;
-import jakarta.annotation.Nullable;
+import org.jspecify.annotations.Nullable;
 import st.orm.Data;
 import st.orm.Entity;
 import st.orm.Ref;
@@ -36,7 +35,7 @@ final class RefImpl<T extends Data, ID> extends AbstractRef<T> {
     private final Class<T> type;
     private final ID pk;
 
-    RefImpl(@Nonnull LazySupplier<T> supplier, @Nonnull Class<T> type, @Nonnull ID pk) {
+    RefImpl(LazySupplier<T> supplier, Class<T> type, ID pk) {
         this.supplier = requireNonNull(supplier, "supplier");
         this.type = requireNonNull(type, "type");
         this.pk = requireNonNull(pk, "pk");

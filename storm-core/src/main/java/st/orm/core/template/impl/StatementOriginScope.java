@@ -15,7 +15,6 @@
  */
 package st.orm.core.template.impl;
 
-import jakarta.annotation.Nonnull;
 import java.util.function.Supplier;
 import st.orm.core.template.StatementOrigin;
 
@@ -51,7 +50,7 @@ public final class StatementOriginScope {
      * @param <T> the resolved type.
      * @return the value the supplier produced.
      */
-    public static <T> T resolvingReference(@Nonnull Supplier<T> supplier) {
+    public static <T> T resolvingReference(Supplier<T> supplier) {
         int[] depth = FETCH_DEPTH.get();
         if (depth == null) {
             depth = new int[1];

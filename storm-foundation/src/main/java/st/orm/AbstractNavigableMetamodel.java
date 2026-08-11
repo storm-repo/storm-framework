@@ -17,10 +17,9 @@ package st.orm;
 
 import static java.util.Optional.ofNullable;
 
-import jakarta.annotation.Nonnull;
-import jakarta.annotation.Nullable;
 import java.util.Objects;
 import java.util.Optional;
+import org.jspecify.annotations.Nullable;
 
 /**
  * Base implementation for generated navigation-only metamodels — nodes that navigate the entity graph beyond a
@@ -43,17 +42,17 @@ public abstract class AbstractNavigableMetamodel<T extends Data, E> implements N
     private final boolean isColumn;
     private int hash;
 
-    public AbstractNavigableMetamodel(@Nonnull Class<E> fieldType,
-                                      @Nonnull String path,
-                                      @Nonnull String field,
+    public AbstractNavigableMetamodel(Class<E> fieldType,
+                                      String path,
+                                      String field,
                                       boolean inline,
                                       @Nullable Navigable<T, ?> parent) {
         this(fieldType, path, field, inline, parent, !inline && !field.isEmpty());
     }
 
-    protected AbstractNavigableMetamodel(@Nonnull Class<E> fieldType,
-                                         @Nonnull String path,
-                                         @Nonnull String field,
+    protected AbstractNavigableMetamodel(Class<E> fieldType,
+                                         String path,
+                                         String field,
                                          boolean inline,
                                          @Nullable Navigable<T, ?> parent,
                                          boolean isColumn) {

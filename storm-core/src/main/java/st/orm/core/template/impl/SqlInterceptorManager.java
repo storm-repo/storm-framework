@@ -17,7 +17,6 @@ package st.orm.core.template.impl;
 
 import static java.util.Collections.newSetFromMap;
 
-import jakarta.annotation.Nonnull;
 import java.util.IdentityHashMap;
 import java.util.Set;
 import java.util.concurrent.Callable;
@@ -61,9 +60,9 @@ public final class SqlInterceptorManager {
     }
 
     public interface Carrier {
-        void run(@Nonnull Runnable runnable);
-        <R> R call(@Nonnull Callable<? extends R> op) throws Exception;
-        <R> R get(@Nonnull Supplier<? extends R> op);
+        void run(Runnable runnable);
+        <R> R call(Callable<? extends R> op) throws Exception;
+        <R> R get(Supplier<? extends R> op);
     }
 
     private static class CarrierImpl implements Carrier {
@@ -74,7 +73,7 @@ public final class SqlInterceptorManager {
         }
 
         @Override
-        public void run(@Nonnull Runnable runnable) {
+        public void run(Runnable runnable) {
             Operator[] previous = install(operator);
             try {
                 runnable.run();
@@ -84,7 +83,7 @@ public final class SqlInterceptorManager {
         }
 
         @Override
-        public <R> R call(@Nonnull Callable<? extends R> op) throws Exception {
+        public <R> R call(Callable<? extends R> op) throws Exception {
             Operator[] previous = install(operator);
             try {
                 return op.call();
@@ -94,7 +93,7 @@ public final class SqlInterceptorManager {
         }
 
         @Override
-        public <R> R get(@Nonnull Supplier<? extends R> op) {
+        public <R> R get(Supplier<? extends R> op) {
             Operator[] previous = install(operator);
             try {
                 return op.get();
@@ -111,7 +110,7 @@ public final class SqlInterceptorManager {
      * under it, and restoring puts back exactly what was there. A snapshot is also what a coroutine context element
      * can carry, since it binds a value.</p>
      */
-    private static Operator[] install(@Nonnull Operator operator) {
+    private static Operator[] install(Operator operator) {
         Operator[] previous = LOCAL_OPERATORS.get();
         Operator[] installed;
         if (previous == null) {
@@ -227,7 +226,7 @@ public final class SqlInterceptorManager {
      *
      * @param interceptor the interceptor to call for each SQL statement.
      */
-    public static void registerGlobalInterceptor(@Nonnull UnaryOperator<Sql> interceptor) {
+    public static void registerGlobalInterceptor(UnaryOperator<Sql> interceptor) {
         LOCK.writeLock().lock();
         try {
             GLOBAL_OPERATORS.add(interceptor);
@@ -242,7 +241,7 @@ public final class SqlInterceptorManager {
      *
      * @param observer the observer to call for each SQL statement.
      */
-    public static void registerGlobalObserver(@Nonnull Consumer<Sql> observer) {
+    public static void registerGlobalObserver(Consumer<Sql> observer) {
         LOCK.writeLock().lock();
         try {
             GLOBAL_OPERATORS.add(observer);
@@ -257,7 +256,7 @@ public final class SqlInterceptorManager {
      *
      * @param observer the observer to unregister.
      */
-    public static void unregisterGlobalObserver(@Nonnull UnaryOperator<Sql> observer) {
+    public static void unregisterGlobalObserver(UnaryOperator<Sql> observer) {
         LOCK.writeLock().lock();
         try {
             GLOBAL_OPERATORS.remove(observer);
@@ -272,7 +271,7 @@ public final class SqlInterceptorManager {
      *
      * @param observer the observer to unregister.
      */
-    public static void unregisterGlobalObserver(@Nonnull Consumer<Sql> observer) {
+    public static void unregisterGlobalObserver(Consumer<Sql> observer) {
         LOCK.writeLock().lock();
         try {
             GLOBAL_OPERATORS.remove(observer);
@@ -293,7 +292,7 @@ public final class SqlInterceptorManager {
      * @param operator the operator to apply to each SQL statement.
      * @return a {@link Carrier} that binds the interceptor to the current thread's scoped context.
      */
-    public static Carrier intercept(@Nonnull UnaryOperator<Sql> operator) {
+    public static Carrier intercept(UnaryOperator<Sql> operator) {
         return new CarrierImpl(new Operator(operator));
     }
 
@@ -310,7 +309,7 @@ public final class SqlInterceptorManager {
      * @return a {@link Carrier} that binds the interceptor to the current thread's scoped context.
      * @since 1.3
      */
-    public static Carrier intercept(@Nonnull UnaryOperator<SqlTemplate> customizer, @Nonnull UnaryOperator<Sql> operator) {
+    public static Carrier intercept(UnaryOperator<SqlTemplate> customizer, UnaryOperator<Sql> operator) {
         return new CarrierImpl(new Operator(operator, customizer));
     }
 
@@ -333,7 +332,7 @@ public final class SqlInterceptorManager {
      * @return a {@link Carrier} that binds the listener to the current thread's scope.
      * @since 1.13
      */
-    public static Carrier listen(@Nonnull StatementListener listener) {
+    public static Carrier listen(StatementListener listener) {
         return new CarrierImpl(new Operator(sql -> sql, IDENTITY_CUSTOMIZER, listener));
     }
 
@@ -348,7 +347,7 @@ public final class SqlInterceptorManager {
      * @return the handle that detaches the listener.
      * @since 1.13
      */
-    public static AutoCloseable attach(@Nonnull StatementListener listener) {
+    public static AutoCloseable attach(StatementListener listener) {
         Operator[] previous = install(new Operator(sql -> sql, IDENTITY_CUSTOMIZER, listener));
         return () -> restore(previous);
     }
@@ -383,7 +382,7 @@ public final class SqlInterceptorManager {
      * @param count how many reads the cache served; zero notifies nothing.
      * @since 1.13
      */
-    public static void notifyCacheHits(@Nonnull Class<? extends st.orm.Data> dataType, int count) {
+    public static void notifyCacheHits(Class<? extends st.orm.Data> dataType, int count) {
         if (count <= 0) {
             return;
         }
@@ -403,7 +402,7 @@ public final class SqlInterceptorManager {
         }
     }
 
-    public static Carrier intercept(@Nonnull Consumer<Sql> observer) {
+    public static Carrier intercept(Consumer<Sql> observer) {
         return new CarrierImpl(new Operator(sql -> {
             observer.accept(sql);
             return sql;
@@ -422,7 +421,7 @@ public final class SqlInterceptorManager {
      * @return a {@link Carrier} that binds the interceptor to the current thread's scoped context.
      * @since 1.3
      */
-    public static Carrier intercept(@Nonnull UnaryOperator<SqlTemplate> customizer, @Nonnull Consumer<Sql> observer) {
+    public static Carrier intercept(UnaryOperator<SqlTemplate> customizer, Consumer<Sql> observer) {
         return new CarrierImpl(new Operator(sql -> {
             observer.accept(sql);
             return sql;
@@ -465,7 +464,7 @@ public final class SqlInterceptorManager {
      * @param template the SQL template to customize.
      * @return the customized SQL template, or the original template if no customizer is set.
      */
-    public static SqlTemplate customize(@Nonnull SqlTemplate template) {
+    public static SqlTemplate customize(SqlTemplate template) {
         Operator[] operators = localOperators();
         if (operators == null) {
             return template;
@@ -490,7 +489,7 @@ public final class SqlInterceptorManager {
      * @return the adjusted SQL statement.
      */
     @SuppressWarnings({"rawtypes", "unchecked"})
-    static Sql intercept(@Nonnull Sql sql) {
+    static Sql intercept(Sql sql) {
         var origin = StatementOriginScope.current();
         // Statements asked for directly already carry the default origin; leave them untouched.
         Sql adjusted = origin == StatementOrigin.DIRECT ? sql : sql.origin(origin);

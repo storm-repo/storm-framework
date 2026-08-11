@@ -17,8 +17,6 @@ package st.orm.core.template.impl;
 
 import static st.orm.core.template.impl.RecordReflection.isPolymorphicData;
 
-import jakarta.annotation.Nonnull;
-import jakarta.annotation.Nullable;
 import java.lang.reflect.ParameterizedType;
 import java.lang.reflect.Type;
 import java.sql.Connection;
@@ -36,6 +34,7 @@ import java.util.TreeSet;
 import java.util.function.Predicate;
 import java.util.stream.Collectors;
 import javax.sql.DataSource;
+import org.jspecify.annotations.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import st.orm.Data;
@@ -88,9 +87,9 @@ public final class SchemaValidator {
     private final @Nullable SqlDialect sqlDialect;
 
     private SchemaValidator(
-            @Nonnull DataSource dataSource,
-            @Nonnull ModelBuilder modelBuilder,
-            @Nonnull TypeCompatibility typeCompatibility,
+            DataSource dataSource,
+            ModelBuilder modelBuilder,
+            TypeCompatibility typeCompatibility,
             @Nullable SqlDialect sqlDialect
     ) {
         this.dataSource = dataSource;
@@ -105,7 +104,7 @@ public final class SchemaValidator {
      * @param dataSource the data source to validate against.
      * @return a new schema validator.
      */
-    public static SchemaValidator of(@Nonnull DataSource dataSource) {
+    public static SchemaValidator of(DataSource dataSource) {
         return new SchemaValidator(dataSource, ModelBuilder.newInstance(), TypeCompatibility.defaultCompatibility(),
                 null);
     }
@@ -117,7 +116,7 @@ public final class SchemaValidator {
      * @param modelBuilder the model builder to use for constructing entity models.
      * @return a new schema validator.
      */
-    public static SchemaValidator of(@Nonnull DataSource dataSource, @Nonnull ModelBuilder modelBuilder) {
+    public static SchemaValidator of(DataSource dataSource, ModelBuilder modelBuilder) {
         return new SchemaValidator(dataSource, modelBuilder, TypeCompatibility.defaultCompatibility(), null);
     }
 
@@ -129,8 +128,8 @@ public final class SchemaValidator {
      * @param sqlDialect   the SQL dialect to use for database-specific behavior.
      * @return a new schema validator.
      */
-    public static SchemaValidator of(@Nonnull DataSource dataSource, @Nonnull ModelBuilder modelBuilder,
-                                     @Nonnull SqlDialect sqlDialect) {
+    public static SchemaValidator of(DataSource dataSource, ModelBuilder modelBuilder,
+                                     SqlDialect sqlDialect) {
         return new SchemaValidator(dataSource, modelBuilder, TypeCompatibility.defaultCompatibility(), sqlDialect);
     }
 
@@ -149,7 +148,7 @@ public final class SchemaValidator {
      * @param types the types to validate.
      * @return the list of validation errors (empty if all types match the database schema).
      */
-    public List<SchemaValidationError> validate(@Nonnull Iterable<Class<? extends Data>> types) {
+    public List<SchemaValidationError> validate(Iterable<Class<? extends Data>> types) {
         List<SchemaValidationError> errors = new ArrayList<>();
         try (Connection connection = dataSource.getConnection()) {
             String defaultCatalog = connection.getCatalog();
@@ -191,7 +190,7 @@ public final class SchemaValidator {
      * @param types the types to validate.
      * @throws SchemaValidationException if one or more validation errors are detected.
      */
-    public void validateOrThrow(@Nonnull Iterable<Class<? extends Data>> types) throws SchemaValidationException {
+    public void validateOrThrow(Iterable<Class<? extends Data>> types) throws SchemaValidationException {
         List<SchemaValidationError> errors = validate(types);
         if (!errors.isEmpty()) {
             throw new SchemaValidationException(errors);
@@ -227,7 +226,7 @@ public final class SchemaValidator {
      * @return the list of error messages (empty on success).
      * @since 1.11
      */
-    public List<String> validateAndReport(@Nonnull Predicate<Class<? extends Data>> filter, boolean strict) {
+    public List<String> validateAndReport(Predicate<Class<? extends Data>> filter, boolean strict) {
         LOGGER.info("Validating Data types for schema compatibility.");
         List<Class<? extends Data>> types = TypeDiscovery.getDataTypes().stream()
                 .filter(filter)
@@ -245,7 +244,7 @@ public final class SchemaValidator {
      * @param strict whether to treat warnings as errors.
      * @return the list of error messages (empty on success).
      */
-    public List<String> validateAndReport(@Nonnull Iterable<Class<? extends Data>> types, boolean strict) {
+    public List<String> validateAndReport(Iterable<Class<? extends Data>> types, boolean strict) {
         LOGGER.info("Validating Data types for schema compatibility.");
         return reportErrors(validate(types), strict, countTypes(types));
     }
@@ -282,7 +281,7 @@ public final class SchemaValidator {
      * @throws st.orm.PersistenceException if one or more validation errors are detected after reporting.
      * @since 1.11
      */
-    public void validateReportAndThrow(@Nonnull Predicate<Class<? extends Data>> filter, boolean strict) {
+    public void validateReportAndThrow(Predicate<Class<? extends Data>> filter, boolean strict) {
         List<String> errors = validateAndReport(filter, strict);
         if (!errors.isEmpty()) {
             throw new st.orm.PersistenceException(formatErrors(errors));
@@ -290,7 +289,7 @@ public final class SchemaValidator {
     }
 
     private static List<String> reportErrors(
-            @Nonnull List<SchemaValidationError> validationErrors,
+            List<SchemaValidationError> validationErrors,
             boolean strict,
             int typeCount
     ) {
@@ -318,7 +317,7 @@ public final class SchemaValidator {
         return errors;
     }
 
-    private static int countTypes(@Nonnull Iterable<?> types) {
+    private static int countTypes(Iterable<?> types) {
         if (types instanceof Collection<?> collection) {
             return collection.size();
         }
@@ -329,7 +328,7 @@ public final class SchemaValidator {
         return count;
     }
 
-    static String formatErrors(@Nonnull List<String> errors) {
+    static String formatErrors(List<String> errors) {
         return "Schema validation failed with %d error(s):\n%s\nIf intentional, use @DbIgnore to exclude specific types or fields from validation.".formatted(
                 errors.size(),
                 String.join("\n", errors.stream().map(e -> "  - " + e).toList()));
@@ -343,12 +342,12 @@ public final class SchemaValidator {
      * the entity schema is passed as the catalog parameter instead of the schema pattern.</p>
      */
     private DatabaseSchema resolveSchema(
-            @Nonnull Connection connection,
-            @Nonnull SqlDialect dialect,
+            Connection connection,
+            SqlDialect dialect,
             @Nullable String defaultCatalog,
             @Nullable String defaultSchema,
-            @Nonnull String entitySchema,
-            @Nonnull SortedMap<String, DatabaseSchema> schemaCache
+            String entitySchema,
+            SortedMap<String, DatabaseSchema> schemaCache
     ) throws SQLException {
         // Use the entity's schema if specified, otherwise fall back to the connection's default schema.
         String schemaKey = entitySchema.isEmpty()
@@ -379,13 +378,13 @@ public final class SchemaValidator {
      * Validates a single type against the database schema.
      */
     private void validateType(
-            @Nonnull Class<? extends Data> type,
-            @Nonnull Connection connection,
-            @Nonnull SqlDialect dialect,
+            Class<? extends Data> type,
+            Connection connection,
+            SqlDialect dialect,
             @Nullable String defaultCatalog,
             @Nullable String defaultSchema,
-            @Nonnull SortedMap<String, DatabaseSchema> schemaCache,
-            @Nonnull List<SchemaValidationError> errors
+            SortedMap<String, DatabaseSchema> schemaCache,
+            List<SchemaValidationError> errors
     ) {
         // Skip sealed interfaces: their permitted subclasses will be validated individually,
         // and for single-table inheritance the sealed model's columns are the union of all subtypes.
@@ -537,13 +536,13 @@ public final class SchemaValidator {
      * since modeling them requires structural changes (inline records) that should be a deliberate choice.</p>
      */
     private void validateUniqueKeys(
-            @Nonnull Class<? extends Data> type,
-            @Nonnull Model<?, ?> model,
-            @Nonnull DatabaseSchema schema,
-            @Nonnull String tableName,
-            @Nonnull String qualifiedTableName,
-            @Nonnull Set<String> ignoredComponents,
-            @Nonnull List<SchemaValidationError> errors
+            Class<? extends Data> type,
+            Model<?, ?> model,
+            DatabaseSchema schema,
+            String tableName,
+            String qualifiedTableName,
+            Set<String> ignoredComponents,
+            List<SchemaValidationError> errors
     ) {
         if (!schema.isDiscovered(tableName, ConstraintKind.UNIQUE_KEY)) {
             // This table's unique keys could not be read, so nothing can be said about them.
@@ -590,13 +589,13 @@ public final class SchemaValidator {
      * Validates that {@code @FK}-annotated fields have a matching foreign key constraint in the database.
      */
     private void validateForeignKeys(
-            @Nonnull Class<? extends Data> type,
-            @Nonnull Model<?, ?> model,
-            @Nonnull DatabaseSchema schema,
-            @Nonnull String tableName,
-            @Nonnull String qualifiedTableName,
-            @Nonnull Set<String> ignoredComponents,
-            @Nonnull List<SchemaValidationError> errors
+            Class<? extends Data> type,
+            Model<?, ?> model,
+            DatabaseSchema schema,
+            String tableName,
+            String qualifiedTableName,
+            Set<String> ignoredComponents,
+            List<SchemaValidationError> errors
     ) {
         if (!schema.isDiscovered(tableName, ConstraintKind.FOREIGN_KEY)) {
             // This table's foreign keys could not be read, so nothing can be said about them.
@@ -699,12 +698,12 @@ public final class SchemaValidator {
      * @param mappedColumns the set of entity-mapped column names (case-insensitive), collected during column validation.
      */
     private void validateUnmappedColumns(
-            @Nonnull Class<? extends Data> type,
-            @Nonnull DatabaseSchema schema,
-            @Nonnull String tableName,
-            @Nonnull String qualifiedTableName,
-            @Nonnull Set<String> mappedColumns,
-            @Nonnull List<SchemaValidationError> errors
+            Class<? extends Data> type,
+            DatabaseSchema schema,
+            String tableName,
+            String qualifiedTableName,
+            Set<String> mappedColumns,
+            List<SchemaValidationError> errors
     ) {
         for (DbColumn dbColumn : schema.getColumns(tableName)) {
             if (mappedColumns.contains(dbColumn.columnName())) {
@@ -723,7 +722,7 @@ public final class SchemaValidator {
     /**
      * Returns the names of fields annotated with {@link DbIgnore}.
      */
-    private static Set<String> getIgnoredFields(@Nonnull Model<?, ?> model) {
+    private static Set<String> getIgnoredFields(Model<?, ?> model) {
         Set<String> ignored = new HashSet<>();
         for (RecordField field : model.recordType().fields()) {
             if (field.isAnnotationPresent(DbIgnore.class)) {
@@ -740,7 +739,7 @@ public final class SchemaValidator {
      * <p>For direct columns, the metamodel's field path matches the component name. For inline records, the field
      * path starts with the component name (e.g., "address.street" for the "address" component).</p>
      */
-    private static boolean isIgnored(@Nonnull Column column, @Nonnull Set<String> ignoredComponents) {
+    private static boolean isIgnored(Column column, Set<String> ignoredComponents) {
         if (ignoredComponents.isEmpty()) {
             return false;
         }

@@ -1,6 +1,6 @@
 package st.orm.core.model;
 
-import jakarta.annotation.Nullable;
+import org.jspecify.annotations.Nullable;
 import st.orm.DbTable;
 import st.orm.Entity;
 import st.orm.FK;

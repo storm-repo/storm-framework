@@ -17,7 +17,6 @@ package st.orm;
 
 import static java.util.List.copyOf;
 
-import jakarta.annotation.Nonnull;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -33,7 +32,7 @@ import java.util.List;
  * @param orders the sort orders to apply (may be empty).
  * @since 1.10
  */
-public record Pageable(int pageNumber, int pageSize, @Nonnull List<Order> orders) {
+public record Pageable(int pageNumber, int pageSize, List<Order> orders) {
 
     /**
      * Represents a sort order for a single metamodel field.
@@ -41,7 +40,7 @@ public record Pageable(int pageNumber, int pageSize, @Nonnull List<Order> orders
      * @param field the metamodel field to sort by.
      * @param descending {@code true} for descending order, {@code false} for ascending.
      */
-    public record Order(@Nonnull Metamodel<?, ?> field, boolean descending) {}
+    public record Order(Metamodel<?, ?> field, boolean descending) {}
 
     public Pageable {
         orders = copyOf(orders);
@@ -90,7 +89,7 @@ public record Pageable(int pageNumber, int pageSize, @Nonnull List<Order> orders
      * @param field the metamodel field to sort by.
      * @return a new pageable with the sort order added.
      */
-    public Pageable sortBy(@Nonnull Metamodel<?, ?> field) {
+    public Pageable sortBy(Metamodel<?, ?> field) {
         var newOrders = new ArrayList<>(orders);
         newOrders.add(new Order(field, false));
         return new Pageable(pageNumber, pageSize, newOrders);
@@ -102,7 +101,7 @@ public record Pageable(int pageNumber, int pageSize, @Nonnull List<Order> orders
      * @param field the metamodel field to sort by in descending order.
      * @return a new pageable with the sort order added.
      */
-    public Pageable sortByDescending(@Nonnull Metamodel<?, ?> field) {
+    public Pageable sortByDescending(Metamodel<?, ?> field) {
         var newOrders = new ArrayList<>(orders);
         newOrders.add(new Order(field, true));
         return new Pageable(pageNumber, pageSize, newOrders);

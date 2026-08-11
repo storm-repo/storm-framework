@@ -21,8 +21,6 @@ import static st.orm.core.template.impl.RecordReflection.isRecord;
 import static st.orm.core.template.impl.RecordReflection.isSealedEntity;
 import static st.orm.core.template.impl.RecordValidation.validateDataType;
 
-import jakarta.annotation.Nonnull;
-import jakarta.annotation.Nullable;
 import java.lang.annotation.Annotation;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.InvocationTargetException;
@@ -34,6 +32,7 @@ import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 import java.util.function.Supplier;
+import org.jspecify.annotations.Nullable;
 import st.orm.Data;
 import st.orm.PK;
 import st.orm.core.spi.Instantiators;
@@ -65,8 +64,8 @@ public final class ObjectMapperFactory {
      * @throws SqlTemplateException if the factory could not be created.
      */
     public static <T> Optional<ObjectMapper<T>> getObjectMapper(int columnCount,
-                                                                @Nonnull Class<T> type,
-                                                                @Nonnull RefFactory refFactory) throws SqlTemplateException {
+                                                                Class<T> type,
+                                                                RefFactory refFactory) throws SqlTemplateException {
         return getObjectMapper(columnCount, type, refFactory, FetchPlan.NONE);
     }
 
@@ -90,9 +89,9 @@ public final class ObjectMapperFactory {
      * @since 1.13
      */
     public static <T> Optional<ObjectMapper<T>> getObjectMapper(int columnCount,
-                                                                @Nonnull Class<T> type,
-                                                                @Nonnull RefFactory refFactory,
-                                                                @Nonnull Collection<String> fetchPaths) throws SqlTemplateException {
+                                                                Class<T> type,
+                                                                RefFactory refFactory,
+                                                                Collection<String> fetchPaths) throws SqlTemplateException {
         return getObjectMapper(columnCount, type, refFactory, FetchPlan.of(fetchPaths));
     }
 
@@ -110,9 +109,9 @@ public final class ObjectMapperFactory {
      * @since 1.13
      */
     static <T> Optional<ObjectMapper<T>> getObjectMapper(int columnCount,
-                                                         @Nonnull Class<T> type,
-                                                         @Nonnull RefFactory refFactory,
-                                                         @Nonnull FetchPlan fetchPlan) throws SqlTemplateException {
+                                                         Class<T> type,
+                                                         RefFactory refFactory,
+                                                         FetchPlan fetchPlan) throws SqlTemplateException {
         if (type.isPrimitive()) {
             return PrimitiveMapper.getFactory(columnCount, type);
         }
@@ -156,7 +155,7 @@ public final class ObjectMapperFactory {
      * @return a factory for creating instances using the specified constructor.
      * @param <T> the type of the instance to create.
      */
-    private static <T> ObjectMapper<T> wrapConstructor(@Nonnull Constructor<?> constructor) {
+    private static <T> ObjectMapper<T> wrapConstructor(Constructor<?> constructor) {
         // Replace StringBuilder with String in the constructor for max JDBC compatibility.
         Class<?>[] parameterTypes = constructor.getParameterTypes();
         BitSet stringBuilders = new BitSet(parameterTypes.length);
@@ -170,7 +169,7 @@ public final class ObjectMapperFactory {
             return new ObjectMapper<>() {
                 @Override public Class<?>[] getParameterTypes() { return parameterTypes; }
 
-                @SuppressWarnings("unchecked") @Override public T newInstance(@Nonnull Object[] args) throws SqlTemplateException {
+                @SuppressWarnings("unchecked") @Override public T newInstance(Object[] args) throws SqlTemplateException {
                     return construct((Constructor<T>) constructor, args);
                 }
             };
@@ -178,7 +177,7 @@ public final class ObjectMapperFactory {
         return new ObjectMapper<>() {
             @Override public Class<?>[] getParameterTypes() { return parameterTypes; }
 
-            @SuppressWarnings("unchecked") @Override public T newInstance(@Nonnull Object[] args) throws SqlTemplateException {
+            @SuppressWarnings("unchecked") @Override public T newInstance(Object[] args) throws SqlTemplateException {
                 for (int i = stringBuilders.nextSetBit(0); i >= 0; i = stringBuilders.nextSetBit(i + 1)) {
                     args[i] = new StringBuilder(args[i].toString());
                 }
@@ -196,7 +195,7 @@ public final class ObjectMapperFactory {
      * @param <T> the type of the instance to create.
      * @throws SqlTemplateException if the instance could not be created.
      */
-    private static <T> T construct(@Nonnull Constructor<T> constructor, @Nonnull Object[] args) throws SqlTemplateException {
+    private static <T> T construct(Constructor<T> constructor, Object[] args) throws SqlTemplateException {
         return construct(constructor, args, 0);
     }
 
@@ -210,7 +209,7 @@ public final class ObjectMapperFactory {
      * @param <T> the type of the instance to create.
      * @throws SqlTemplateException if the instance could not be created.
      */
-    static <T> T construct(@Nonnull Constructor<T> constructor, @Nonnull Object[] args, int offset) throws SqlTemplateException {
+    static <T> T construct(Constructor<T> constructor, Object[] args, int offset) throws SqlTemplateException {
         try {
             // Constructor metadata is precomputed and cached: per-invocation getParameterTypes/getParameters calls
             // clone their arrays, which is measurable on the row mapping hot path.
@@ -260,10 +259,10 @@ public final class ObjectMapperFactory {
      * @param primitive whether each parameter is a primitive type.
      * @param instantiator the generated instantiator for the constructor, or null to construct reflectively.
      */
-    private record ConstructorMeta(@Nonnull Constructor<?> constructor,
-                                   @Nonnull String[] parameterNames,
-                                   @Nonnull boolean[] nonNull,
-                                   @Nonnull boolean[] primitive,
+    private record ConstructorMeta(Constructor<?> constructor,
+                                   String[] parameterNames,
+                                   boolean[] nonNull,
+                                   boolean[] primitive,
                                    @Nullable Instantiator<?> instantiator) {}
 
     /**
@@ -272,12 +271,12 @@ public final class ObjectMapperFactory {
      */
     private static final ClassValue<ConcurrentMap<Constructor<?>, ConstructorMeta>> CONSTRUCTOR_META = new ClassValue<>() {
         @Override
-        protected ConcurrentMap<Constructor<?>, ConstructorMeta> computeValue(@Nonnull Class<?> type) {
+        protected ConcurrentMap<Constructor<?>, ConstructorMeta> computeValue(Class<?> type) {
             return new ConcurrentHashMap<>();
         }
     };
 
-    private static ConstructorMeta constructorMeta(@Nonnull Constructor<?> constructor) {
+    private static ConstructorMeta constructorMeta(Constructor<?> constructor) {
         Class<?>[] parameterTypes = constructor.getParameterTypes();
         Parameter[] parameters = constructor.getParameters();
         String[] parameterNames = new String[parameters.length];
@@ -302,7 +301,7 @@ public final class ObjectMapperFactory {
      * constructor.</p>
      */
     @Nullable
-    private static Instantiator<?> findInstantiator(@Nonnull Constructor<?> constructor) {
+    private static Instantiator<?> findInstantiator(Constructor<?> constructor) {
         Class<?> declaringClass = constructor.getDeclaringClass();
         Instantiator<?> instantiator = Instantiators.find(declaringClass);
         if (instantiator == null) {
@@ -335,7 +334,7 @@ public final class ObjectMapperFactory {
     /**
      * Returns {@code true} if the specified class is a Kotlin class (i.e. annotated with {@code kotlin.Metadata}).
      */
-    static boolean isKotlinClass(@Nonnull Class<?> clazz) {
+    static boolean isKotlinClass(Class<?> clazz) {
         return KOTLIN_METADATA != null && clazz.isAnnotationPresent(KOTLIN_METADATA);
     }
 
@@ -345,7 +344,7 @@ public final class ObjectMapperFactory {
      * @param clazz the declaring class of the field.
      * @return a hint string for Java ({@code @Nullable}) or Kotlin (nullable type syntax).
      */
-    static String nullableHint(@Nonnull Class<?> clazz) {
+    static String nullableHint(Class<?> clazz) {
         return isKotlinClass(clazz)
                 ? "make the property nullable (e.g., String?)"
                 : "annotate the field with @Nullable (org.jspecify.annotations or jakarta.annotation), or opt the class or package out of null-marked defaults with @NullUnmarked";
@@ -360,7 +359,7 @@ public final class ObjectMapperFactory {
      * @param parameter the parameter to check for a non-null characteristics.
      * @return true if the specified parameter is marked as non-null, false otherwise.
      */
-    static boolean isNonnull(@Nonnull Parameter parameter) {
+    static boolean isNonnull(Parameter parameter) {
         return parameter.isAnnotationPresent(PK.class)
                 || Nullability.isNonNull(parameter, parameter.getAnnotatedType(), parameter.getDeclaringExecutable(),
                         parameter.getDeclaringExecutable().getDeclaringClass());

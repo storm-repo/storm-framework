@@ -19,11 +19,10 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static st.orm.GenerationStrategy.NONE;
 
-import jakarta.annotation.Nonnull;
-import jakarta.annotation.Nullable;
 import java.util.Map;
 import javax.sql.DataSource;
 import lombok.Builder;
+import org.jspecify.annotations.Nullable;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -82,8 +81,8 @@ public class PostgreSQLJsonTest {
     @DbTable("user_profile")
     public record UserProfile(
             @PK Integer id,
-            @Nonnull String name,
-            @Nonnull @Json Map<String, String> attributes,
+            String name,
+            @Json Map<String, String> attributes,
             @Nullable @Json Map<String, String> address
     ) implements Entity<Integer> {}
 
@@ -91,7 +90,7 @@ public class PostgreSQLJsonTest {
     @DbTable("document")
     public record Document(
             @PK(generation = NONE) String key,
-            @Nonnull @Json Map<String, String> payload
+            @Json Map<String, String> payload
     ) implements Entity<String> {}
 
     @Test

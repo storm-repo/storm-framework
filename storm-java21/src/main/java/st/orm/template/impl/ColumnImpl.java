@@ -15,7 +15,6 @@
  */
 package st.orm.template.impl;
 
-import jakarta.annotation.Nonnull;
 import st.orm.Data;
 import st.orm.GenerationStrategy;
 import st.orm.Metamodel;
@@ -40,13 +39,13 @@ import st.orm.template.Column;
  * @param metamodel the metamodel for the column.
  */
 public record ColumnImpl(
-        @Nonnull st.orm.core.template.Column core,
+        st.orm.core.template.Column core,
         int index,
-        @Nonnull String name,
-        @Nonnull Class<?> type,
+        String name,
+        Class<?> type,
         boolean primaryKey,
-        @Nonnull GenerationStrategy generation,
-        @Nonnull String sequence,
+        GenerationStrategy generation,
+        String sequence,
         boolean foreignKey,
         boolean nullable,
         boolean insertable,
@@ -56,7 +55,7 @@ public record ColumnImpl(
         Metamodel<Data, ?> metamodel
 ) implements Column {
 
-    public ColumnImpl(@Nonnull st.orm.core.template.Column column) {
+    public ColumnImpl(st.orm.core.template.Column column) {
         this(
                 column,
                 column.index(),

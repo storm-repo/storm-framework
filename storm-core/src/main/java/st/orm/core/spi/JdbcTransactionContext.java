@@ -21,8 +21,6 @@ import static java.sql.Connection.TRANSACTION_READ_UNCOMMITTED;
 import static java.sql.Connection.TRANSACTION_REPEATABLE_READ;
 import static java.sql.Connection.TRANSACTION_SERIALIZABLE;
 
-import jakarta.annotation.Nonnull;
-import jakarta.annotation.Nullable;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.SQLException;
@@ -35,6 +33,7 @@ import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.locks.ReentrantLock;
 import javax.sql.DataSource;
+import org.jspecify.annotations.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import st.orm.Entity;
@@ -100,7 +99,7 @@ public final class JdbcTransactionContext implements TransactionContext {
         @Nullable Long deadlineNanos;
         Map<Class<?>, EntityCache<?, ?>> entityCacheMap = new HashMap<>();
 
-        TransactionState(@Nonnull TransactionPropagation propagation,
+        TransactionState(TransactionPropagation propagation,
                          @Nullable Integer isolationLevel,
                          @Nullable Integer timeoutSeconds,
                          @Nullable Boolean readOnly) {
@@ -181,7 +180,7 @@ public final class JdbcTransactionContext implements TransactionContext {
      * @return the JDBC connection.
      * @throws PersistenceException if the connection cannot be obtained.
      */
-    public Connection getConnection(@Nonnull DataSource dataSource) {
+    public Connection getConnection(DataSource dataSource) {
         useDataSource(dataSource);
         return currentState().connection;
     }
@@ -212,15 +211,15 @@ public final class JdbcTransactionContext implements TransactionContext {
 
     @SuppressWarnings("unchecked")
     @Override
-    public EntityCache<? extends Entity<?>, ?> entityCache(@Nonnull Class<? extends Entity<?>> entityType,
-                                                           @Nonnull CacheRetention retention) {
+    public EntityCache<? extends Entity<?>, ?> entityCache(Class<? extends Entity<?>> entityType,
+                                                           CacheRetention retention) {
         return (EntityCache<? extends Entity<?>, ?>) currentState().entityCacheMap
                 .computeIfAbsent(entityType, ignore -> new EntityCacheImpl<>(retention));
     }
 
     @SuppressWarnings("unchecked")
     @Override
-    public EntityCache<? extends Entity<?>, ?> getEntityCache(@Nonnull Class<? extends Entity<?>> entityType) {
+    public EntityCache<? extends Entity<?>, ?> getEntityCache(Class<? extends Entity<?>> entityType) {
         var cache = (EntityCache<? extends Entity<?>, ?>) currentState().entityCacheMap.get(entityType);
         if (cache == null) {
             throw new IllegalStateException("No entity cache exists for " + entityType.getName() + ".");
@@ -231,7 +230,7 @@ public final class JdbcTransactionContext implements TransactionContext {
     @SuppressWarnings("unchecked")
     @Nullable
     @Override
-    public EntityCache<? extends Entity<?>, ?> findEntityCache(@Nonnull Class<? extends Entity<?>> entityType) {
+    public EntityCache<? extends Entity<?>, ?> findEntityCache(Class<? extends Entity<?>> entityType) {
         return (EntityCache<? extends Entity<?>, ?>) currentState().entityCacheMap.get(entityType);
     }
 
@@ -245,7 +244,7 @@ public final class JdbcTransactionContext implements TransactionContext {
 
     @SuppressWarnings("unchecked")
     @Override
-    public <T> Decorator<T> getDecorator(@Nonnull Class<T> resourceType) {
+    public <T> Decorator<T> getDecorator(Class<T> resourceType) {
         if (resourceType != PreparedStatement.class) {
             return resource -> resource; // No-op.
         }
@@ -279,7 +278,7 @@ public final class JdbcTransactionContext implements TransactionContext {
      * <p>The physical connection is bound lazily, when the first data source touches this context via
      * {@code useDataSource}. The frame is finished with {@link #complete(boolean)}.</p>
      */
-    public void begin(@Nonnull TransactionPropagation propagation,
+    public void begin(TransactionPropagation propagation,
                @Nullable Integer isolation,
                @Nullable Integer timeoutSeconds,
                @Nullable Boolean readOnly) {
@@ -357,7 +356,7 @@ public final class JdbcTransactionContext implements TransactionContext {
         }
     }
 
-    private void useDataSource(@Nonnull DataSource dataSource) {
+    private void useDataSource(DataSource dataSource) {
         for (int i = 0; i < stack.size(); i++) {
             var state = stack.get(i);
             if (state.connection == null) {
@@ -421,9 +420,9 @@ public final class JdbcTransactionContext implements TransactionContext {
         }
     }
 
-    private void openNestedTransaction(@Nonnull TransactionState state,
-                                       @Nonnull TransactionState outer,
-                                       @Nonnull DataSource dataSource) {
+    private void openNestedTransaction(TransactionState state,
+                                       TransactionState outer,
+                                       DataSource dataSource) {
         if (outer.dataSource != dataSource) {
             throw new PersistenceException(
                     "Incompatible DataSource: expected " + outer.dataSource + ", got " + dataSource + ".");
@@ -571,7 +570,7 @@ public final class JdbcTransactionContext implements TransactionContext {
         }
     }
 
-    private void close(@Nonnull Connection connection, @Nonnull TransactionState state) throws SQLException {
+    private void close(Connection connection, TransactionState state) throws SQLException {
         if (state.originalIsolationLevel != null) {
             connection.setTransactionIsolation(state.originalIsolationLevel);
         }
@@ -592,7 +591,7 @@ public final class JdbcTransactionContext implements TransactionContext {
     /**
      * Opens a fresh JDBC connection for REQUIRED (when no outer) or REQUIRES_NEW.
      */
-    private void openNewTransaction(@Nonnull TransactionState state, @Nonnull DataSource dataSource) {
+    private void openNewTransaction(TransactionState state, DataSource dataSource) {
         // Lock the TransactionState so that only one thread can initialize its connection. Without this, two
         // threads could race to assign different connections (or tx modes) to the same state. Ensuring a
         // single, consistent connection instance lets downstream logic detect and fail fast on concurrent
@@ -644,7 +643,7 @@ public final class JdbcTransactionContext implements TransactionContext {
     /**
      * Opens a non-transactional connection (auto-commit).
      */
-    private void openConnection(@Nonnull TransactionState state, @Nonnull DataSource dataSource) {
+    private void openConnection(TransactionState state, DataSource dataSource) {
         // Lock the TransactionState so that only one thread can initialize its connection; see
         // openNewTransaction for the rationale.
         if (state.connection != null) {
@@ -675,7 +674,7 @@ public final class JdbcTransactionContext implements TransactionContext {
     /**
      * Suspends an outer transaction on this state.
      */
-    private void suspendTransaction(@Nonnull TransactionState state, @Nonnull TransactionState outer) {
+    private void suspendTransaction(TransactionState state, TransactionState outer) {
         LOGGER.debug("Suspending transaction ({}).", state.transactionId);
         state.suspendedConnection = outer.connection;
         state.suspendedDataSource = outer.dataSource;
@@ -686,7 +685,7 @@ public final class JdbcTransactionContext implements TransactionContext {
     /**
      * Joins an existing transaction.
      */
-    private void joinOuterTransaction(@Nonnull TransactionState state, @Nonnull TransactionState outer) {
+    private void joinOuterTransaction(TransactionState state, TransactionState outer) {
         LOGGER.debug("Joining transaction ({} -> {}).", state.transactionId, outer.transactionId);
         var connection = outer.connection;
         if (connection == null) {

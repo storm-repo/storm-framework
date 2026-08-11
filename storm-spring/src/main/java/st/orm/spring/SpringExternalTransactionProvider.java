@@ -20,11 +20,10 @@ import static java.util.Optional.empty;
 import static java.util.Optional.of;
 import static org.springframework.transaction.support.TransactionSynchronization.STATUS_COMMITTED;
 
-import jakarta.annotation.Nonnull;
-import jakarta.annotation.Nullable;
 import java.util.Optional;
 import java.util.function.Consumer;
 import java.util.stream.Stream;
+import org.jspecify.annotations.Nullable;
 import org.springframework.transaction.NoTransactionException;
 import org.springframework.transaction.interceptor.TransactionAspectSupport;
 import org.springframework.transaction.support.ResourceHolderSupport;
@@ -100,7 +99,7 @@ public class SpringExternalTransactionProvider implements ExternalTransactionPro
         }
 
         @Override
-        public void onCommit(@Nonnull Runnable callback) {
+        public void onCommit(Runnable callback) {
             requireNonNull(callback, "callback");
             register(committed -> {
                 if (committed) {
@@ -110,7 +109,7 @@ public class SpringExternalTransactionProvider implements ExternalTransactionPro
         }
 
         @Override
-        public void onRollback(@Nonnull Runnable callback) {
+        public void onRollback(Runnable callback) {
             requireNonNull(callback, "callback");
             register(committed -> {
                 if (!committed) {
@@ -120,7 +119,7 @@ public class SpringExternalTransactionProvider implements ExternalTransactionPro
         }
 
         @Override
-        public void onCompletion(@Nonnull Consumer<Boolean> callback) {
+        public void onCompletion(Consumer<Boolean> callback) {
             requireNonNull(callback, "callback");
             register(callback);
         }
@@ -130,7 +129,7 @@ public class SpringExternalTransactionProvider implements ExternalTransactionPro
          * in registration order and reports the outcome through {@code afterCompletion}, which matches the
          * ordering and outcome contract of the callbacks a Storm block collects.
          */
-        private void register(@Nonnull Consumer<Boolean> callback) {
+        private void register(Consumer<Boolean> callback) {
             TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
                 @Override
                 public void afterCompletion(int status) {
@@ -143,7 +142,7 @@ public class SpringExternalTransactionProvider implements ExternalTransactionPro
          * Returns the transaction status Spring's interceptor bound to this thread, or {@code null} when the
          * transaction was not driven through the interceptor, as with Spring's {@code TransactionTemplate}.
          */
-        private static @Nullable org.springframework.transaction.TransactionStatus aspectStatus() {
+        private static org.springframework.transaction.@Nullable TransactionStatus aspectStatus() {
             try {
                 return TransactionAspectSupport.currentTransactionStatus();
             } catch (NoTransactionException e) {

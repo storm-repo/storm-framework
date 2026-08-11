@@ -15,10 +15,9 @@
  */
 package st.orm.core.template.impl;
 
-import jakarta.annotation.Nonnull;
-import jakarta.annotation.Nullable;
 import java.util.List;
 import java.util.Optional;
+import org.jspecify.annotations.Nullable;
 import st.orm.BindVars;
 import st.orm.Data;
 import st.orm.Element;
@@ -77,7 +76,7 @@ interface TemplateCompiler {
      * @return the resolved model for the record's runtime type.
      * @throws SqlTemplateException if the model cannot be resolved.
      */
-    default <T extends Data, ID> Model<T, ID> getModel(@Nonnull T record) throws SqlTemplateException {
+    default <T extends Data, ID> Model<T, ID> getModel(T record) throws SqlTemplateException {
         //noinspection unchecked
         return getModel((Class<T>) record.getClass());
     }
@@ -91,7 +90,7 @@ interface TemplateCompiler {
      * @return the model for the given type.
      * @throws UncheckedSqlTemplateException if model resolution fails.
      */
-    <T extends Data, ID> Model<T, ID> getModel(@Nonnull Class<T> type);
+    <T extends Data, ID> Model<T, ID> getModel(Class<T> type);
 
     /**
      * Returns the query model, throwing if none is available.
@@ -119,7 +118,7 @@ interface TemplateCompiler {
      * @return the compiled SQL fragment.
      * @throws UncheckedSqlTemplateException if compilation fails.
      */
-    String compile(@Nonnull TemplateString template, boolean correlate);
+    String compile(TemplateString template, boolean correlate);
 
     /**
      * Compiles an element into its SQL representation.
@@ -128,7 +127,7 @@ interface TemplateCompiler {
      * @return the compiled SQL fragment.
      * @throws UncheckedSqlTemplateException if compilation fails.
      */
-    String compile(@Nonnull Element element);
+    String compile(Element element);
 
     /**
      * Checks whether a given table alias is referenced in the current compilation context.
@@ -137,7 +136,7 @@ interface TemplateCompiler {
      * @param alias the table alias.
      * @return {@code true} if the alias is referenced.
      */
-    boolean isReferenced(@Nonnull Class<? extends Data> table, @Nonnull String alias);
+    boolean isReferenced(Class<? extends Data> table, String alias);
 
     /**
      * Resolves the SQL alias for the given metamodel and resolve scope.
@@ -147,7 +146,7 @@ interface TemplateCompiler {
      * @return the resolved alias.
      * @throws UncheckedSqlTemplateException if alias resolution fails.
      */
-    String getAlias(@Nonnull Metamodel<?, ?> metamodel, @Nonnull ResolveScope scope);
+    String getAlias(Metamodel<?, ?> metamodel, ResolveScope scope);
 
     /**
      * Allocates or reuses an alias for the given table.
@@ -157,7 +156,7 @@ interface TemplateCompiler {
      * @return the actual alias used.
      * @throws UncheckedSqlTemplateException if alias allocation fails.
      */
-    String useAlias(@Nonnull Class<? extends Data> table, @Nonnull String alias);
+    String useAlias(Class<? extends Data> table, String alias);
 
     /**
      * Returns whether the current compilation is version-aware.
@@ -176,7 +175,7 @@ interface TemplateCompiler {
      *
      * @param generatedKeys the generated key column names.
      */
-    void setGeneratedKeys(@Nonnull List<String> generatedKeys);
+    void setGeneratedKeys(List<String> generatedKeys);
 
     /**
      * Maps a runtime value to a SQL parameter placeholder.
@@ -198,7 +197,7 @@ interface TemplateCompiler {
      * @return the named SQL parameter placeholder.
      * @throws UncheckedSqlTemplateException if the template is configured for positional-only parameters.
      */
-    String mapParameter(@Nonnull String name, @Nullable Object value);
+    String mapParameter(String name, @Nullable Object value);
 
     /**
      * Records a {@link BindVars} segment length.
@@ -214,7 +213,7 @@ interface TemplateCompiler {
      *
      * @param type the type affected by the operation.
      */
-    void setAffectedType(@Nonnull Class<? extends Data> type);
+    void setAffectedType(Class<? extends Data> type);
 
     /**
      * Records the primary entity or projection type of the statement for observability purposes.
@@ -225,7 +224,7 @@ interface TemplateCompiler {
      * @param type the entity or projection type the statement operates on.
      * @since 1.13
      */
-    void setDataType(@Nonnull Class<? extends Data> type);
+    void setDataType(Class<? extends Data> type);
 
     /**
      * Records the references the statement resolves as part of its select list.
@@ -237,7 +236,7 @@ interface TemplateCompiler {
      * @param fetchPaths the field paths of the resolved references, relative to the selected type.
      * @since 1.13
      */
-    void setFetchPaths(@Nonnull List<String> fetchPaths);
+    void setFetchPaths(List<String> fetchPaths);
 
     /**
      * Returns the fetch plan of the compilation in progress: the references the statement resolves as part of its

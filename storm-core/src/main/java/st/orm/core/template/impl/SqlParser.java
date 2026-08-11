@@ -22,7 +22,6 @@ import static st.orm.core.template.SqlOperation.SELECT;
 import static st.orm.core.template.SqlOperation.UNDEFINED;
 import static st.orm.core.template.SqlOperation.UPDATE;
 
-import jakarta.annotation.Nonnull;
 import java.util.List;
 import java.util.regex.Pattern;
 import st.orm.core.template.SqlDialect;
@@ -40,7 +39,7 @@ final class SqlParser {
     private SqlParser() {
     }
 
-    private static String getRawSql(@Nonnull TemplateString template) {
+    private static String getRawSql(TemplateString template) {
         StringBuilder sb = new StringBuilder();
         List<String> fragments = template.fragments();
         List<Object> values = template.values();
@@ -66,7 +65,7 @@ final class SqlParser {
      * @param sql the sql to inspect.
      * @return the SQL mode.
      */
-    private static SqlOperation getSqlOperation(@Nonnull String sql) {
+    private static SqlOperation getSqlOperation(String sql) {
         // Match a leading SQL keyword followed by a word boundary, mirroring the "^(?i:KEYWORD)\b" patterns without
         // evaluating a stream of regexes on every call.
         if (startsWithKeyword(sql, "SELECT")) return SELECT;
@@ -80,7 +79,7 @@ final class SqlParser {
      * Returns whether {@code sql} begins with {@code keyword} (case-insensitive) followed by a word boundary, matching
      * the semantics of the {@code ^(?i:keyword)\b} anchored pattern.
      */
-    static boolean startsWithKeyword(@Nonnull String sql, @Nonnull String keyword) {
+    static boolean startsWithKeyword(String sql, String keyword) {
         int length = keyword.length();
         if (sql.length() < length || !sql.regionMatches(true, 0, keyword, 0, length)) {
             return false;
@@ -93,7 +92,7 @@ final class SqlParser {
      * the semantics of the {@code \b(?i:keyword)$} anchored pattern. A bare {@code endsWith} would also match an
      * identifier that merely carries the keyword as a suffix, such as {@code nowhere} or {@code dataset}.
      */
-    static boolean endsWithKeyword(@Nonnull String sql, @Nonnull String keyword) {
+    static boolean endsWithKeyword(String sql, String keyword) {
         int offset = sql.length() - keyword.length();
         if (offset < 0 || !sql.regionMatches(true, offset, keyword, 0, keyword.length())) {
             return false;
@@ -115,7 +114,7 @@ final class SqlParser {
      * @param template the string template.
      * @return the SQL operation.
      */
-    static SqlOperation getSqlOperation(@Nonnull TemplateString template, @Nonnull SqlDialect dialect) {
+    static SqlOperation getSqlOperation(TemplateString template, SqlDialect dialect) {
         String rawSql = getRawSql(template);
         // Templates regularly start with a newline or indentation; stripping it lets them hit the keyword fast
         // path directly.
@@ -139,7 +138,7 @@ final class SqlParser {
      * belongs to a subquery and says nothing about the statement itself: an unqualified UPDATE or DELETE whose only
      * WHERE sits in a subquery still touches every row, which is exactly what the safety check exists to flag.
      */
-    static boolean hasWhereClause(@Nonnull String sql, @Nonnull SqlDialect dialect) {
+    static boolean hasWhereClause(String sql, SqlDialect dialect) {
         String cleared = clearStringLiterals(clearQuotedIdentifiers(removeComments(sql, dialect), dialect), dialect);
         int depth = 0;
         for (int i = 0; i < cleared.length(); i++) {
@@ -159,7 +158,7 @@ final class SqlParser {
         return false;
     }
 
-    private static String removeWithClause(@Nonnull String sql, @Nonnull SqlDialect dialect) {
+    private static String removeWithClause(String sql, SqlDialect dialect) {
         sql = clearStringLiterals(clearQuotedIdentifiers(sql, dialect), dialect);
         assert sql.trim().toUpperCase().startsWith("WITH");
         int depth = 0; // Depth of nested parentheses.
@@ -190,7 +189,7 @@ final class SqlParser {
         return sql;
     }
 
-    private static String replaceAll(@Nonnull String sql, @Nonnull Pattern pattern, @Nonnull String replacement) {
+    private static String replaceAll(String sql, Pattern pattern, String replacement) {
         return pattern.matcher(sql).replaceAll(replacement);
     }
 
@@ -198,7 +197,7 @@ final class SqlParser {
      * Returns whether {@code sql} contains any of the given marker characters. Used to skip regex passes on
      * fragments that cannot contain the construct being removed.
      */
-    private static boolean containsAny(@Nonnull String sql, char first, char second, char third) {
+    private static boolean containsAny(String sql, char first, char second, char third) {
         for (int i = 0, length = sql.length(); i < length; i++) {
             char c = sql.charAt(i);
             if (c == first || c == second || c == third) {
@@ -215,7 +214,7 @@ final class SqlParser {
      * @param dialect the SQL dialect.
      * @return the SQL string with comments removed.
      */
-    static String removeComments(@Nonnull String sql, @Nonnull SqlDialect dialect) {
+    static String removeComments(String sql, SqlDialect dialect) {
         // Every supported comment syntax starts with '-' (--), '/' (/*) or '#' (MySQL); skip the regex passes when
         // none of these characters appear at all.
         if (!containsAny(sql, '-', '/', '#')) {
@@ -237,7 +236,7 @@ final class SqlParser {
      * @param dialect the SQL dialect.
      * @return the modified SQL string.
      */
-    static String clearQuotedIdentifiers(@Nonnull String sql, @Nonnull SqlDialect dialect) {
+    static String clearQuotedIdentifiers(String sql, SqlDialect dialect) {
         // Every supported quoted-identifier syntax starts with '"', '`' (MySQL) or '[' (SQL Server); skip the regex
         // pass when none of these characters appear at all.
         if (!containsAny(sql, '"', '`', '[')) {
@@ -253,7 +252,7 @@ final class SqlParser {
      * @param dialect the SQL dialect.
      * @return the modified SQL string.
      */
-    static String clearStringLiterals(@Nonnull String sql, @Nonnull SqlDialect dialect) {
+    static String clearStringLiterals(String sql, SqlDialect dialect) {
         if (sql.indexOf('\'') < 0) {
             return sql;
         }

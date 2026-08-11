@@ -19,7 +19,6 @@ import static st.orm.core.template.SqlLog.HydrationShapes.FULL;
 import static st.orm.core.template.SqlLog.HydrationShapes.OFF;
 import static st.orm.core.template.SqlLog.HydrationShapes.SHORT;
 
-import jakarta.annotation.Nonnull;
 import jakarta.servlet.Filter;
 import java.util.Set;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
@@ -66,7 +65,7 @@ public class StormSqlLogAutoConfiguration {
     @Bean
     @ConditionalOnMissingBean(StormSqlLogEntryPointPostProcessor.class)
     static StormSqlLogEntryPointPostProcessor stormSqlLogEntryPointPostProcessor(
-            @Nonnull Environment environment) {
+            Environment environment) {
         var sqlLog = new Binder(
                 ConfigurationPropertySources.get(environment),
                 new PropertySourcesPlaceholdersResolver(environment),
@@ -81,7 +80,7 @@ public class StormSqlLogAutoConfiguration {
     }
 
     /** Applies the settings that shape how every summary renders, whichever boundary produced it. */
-    private static void applyDisplaySettings(@Nonnull StormProperties.SqlLog sqlLog) {
+    private static void applyDisplaySettings(StormProperties.SqlLog sqlLog) {
         if (!sqlLog.getCallSiteSkip().isEmpty()) {
             CallSiteCapture.ignoreCallSites(sqlLog.getCallSiteSkip().toArray(String[]::new));
         }
@@ -108,7 +107,7 @@ public class StormSqlLogAutoConfiguration {
          */
         @Bean
         @ConditionalOnMissingBean(StormSqlLogFilter.class)
-        StormSqlLogFilter stormSqlLogFilter(@Nonnull StormProperties properties) {
+        StormSqlLogFilter stormSqlLogFilter(StormProperties properties) {
             var sqlLog = properties.getSqlLog();
             return new StormSqlLogFilter(sqlLog.getLimit(),
                     sqlLog.isCallSites(),

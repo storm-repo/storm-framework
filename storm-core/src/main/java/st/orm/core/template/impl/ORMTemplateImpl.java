@@ -22,8 +22,6 @@ import static st.orm.core.spi.Providers.getEntityRepository;
 import static st.orm.core.spi.Providers.getProjectionRepository;
 import static st.orm.core.spi.StormConfigHelper.*;
 
-import jakarta.annotation.Nonnull;
-import jakarta.annotation.Nullable;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.lang.reflect.ParameterizedType;
@@ -35,6 +33,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 import java.util.function.Predicate;
 import javax.sql.DataSource;
+import org.jspecify.annotations.Nullable;
 import st.orm.Data;
 import st.orm.Entity;
 import st.orm.EntityCallback;
@@ -65,24 +64,24 @@ public final class ORMTemplateImpl extends QueryTemplateImpl implements ORMTempl
     private final List<EntityCallback<?>> entityCallbacks;
     private volatile WriteSet writeSet;
 
-    public ORMTemplateImpl(@Nonnull QueryFactory factory,
-                           @Nonnull ModelBuilder modelBuilder,
+    public ORMTemplateImpl(QueryFactory factory,
+                           ModelBuilder modelBuilder,
                            @Nullable Predicate<? super Provider> providerFilter) {
         this(factory, modelBuilder, providerFilter, StormConfig.defaults());
     }
 
-    public ORMTemplateImpl(@Nonnull QueryFactory factory,
-                           @Nonnull ModelBuilder modelBuilder,
+    public ORMTemplateImpl(QueryFactory factory,
+                           ModelBuilder modelBuilder,
                            @Nullable Predicate<? super Provider> providerFilter,
-                           @Nonnull StormConfig config) {
+                           StormConfig config) {
         this(factory, modelBuilder, providerFilter, config, List.of());
     }
 
-    public ORMTemplateImpl(@Nonnull QueryFactory factory,
-                           @Nonnull ModelBuilder modelBuilder,
+    public ORMTemplateImpl(QueryFactory factory,
+                           ModelBuilder modelBuilder,
                            @Nullable Predicate<? super Provider> providerFilter,
-                           @Nonnull StormConfig config,
-                           @Nonnull List<EntityCallback<?>> entityCallbacks) {
+                           StormConfig config,
+                           List<EntityCallback<?>> entityCallbacks) {
         super(factory, modelBuilder);
         this.providerFilter = providerFilter;
         this.config = config;
@@ -118,7 +117,7 @@ public final class ORMTemplateImpl extends QueryTemplateImpl implements ORMTempl
     }
 
     @Override
-    public ORMTemplate withEntityCallbacks(@Nonnull List<EntityCallback<?>> callbacks) {
+    public ORMTemplate withEntityCallbacks(List<EntityCallback<?>> callbacks) {
         if (callbacks.isEmpty()) {
             return this;
         }
@@ -133,12 +132,12 @@ public final class ORMTemplateImpl extends QueryTemplateImpl implements ORMTempl
     }
 
     @Override
-    public List<String> validateSchema(@Nonnull Predicate<Class<? extends Data>> filter) {
+    public List<String> validateSchema(Predicate<Class<? extends Data>> filter) {
         return createSchemaValidator().validateAndReport(filter, isStrictSchemaValidation());
     }
 
     @Override
-    public List<String> validateSchema(@Nonnull Iterable<Class<? extends Data>> types) {
+    public List<String> validateSchema(Iterable<Class<? extends Data>> types) {
         return createSchemaValidator().validateAndReport(types, isStrictSchemaValidation());
     }
 
@@ -148,12 +147,12 @@ public final class ORMTemplateImpl extends QueryTemplateImpl implements ORMTempl
     }
 
     @Override
-    public void validateSchemaOrThrow(@Nonnull Predicate<Class<? extends Data>> filter) {
+    public void validateSchemaOrThrow(Predicate<Class<? extends Data>> filter) {
         createSchemaValidator().validateReportAndThrow(filter, isStrictSchemaValidation());
     }
 
     @Override
-    public void validateSchemaOrThrow(@Nonnull Iterable<Class<? extends Data>> types) {
+    public void validateSchemaOrThrow(Iterable<Class<? extends Data>> types) {
         List<String> errors = createSchemaValidator().validateAndReport(types, isStrictSchemaValidation());
         if (!errors.isEmpty()) {
             throw new PersistenceException(SchemaValidator.formatErrors(errors));
@@ -189,7 +188,7 @@ public final class ORMTemplateImpl extends QueryTemplateImpl implements ORMTempl
      * @return the repository for the given entity type.
      */
     @Override
-    public <T extends Entity<ID>, ID> EntityRepository<T, ID> entity(@Nonnull Class<T> type) {
+    public <T extends Entity<ID>, ID> EntityRepository<T, ID> entity(Class<T> type) {
         //noinspection unchecked
         return (EntityRepository<T, ID>) entityRepositories.computeIfAbsent(type, t -> {
             try {
@@ -209,7 +208,7 @@ public final class ORMTemplateImpl extends QueryTemplateImpl implements ORMTempl
      * @return the repository for the given projection type.
      */
     @Override
-    public <T extends Projection<ID>, ID> ProjectionRepository<T, ID> projection(@Nonnull Class<T> type) {
+    public <T extends Projection<ID>, ID> ProjectionRepository<T, ID> projection(Class<T> type) {
         //noinspection unchecked
         return (ProjectionRepository<T, ID>) projectionRepositories.computeIfAbsent(type, t -> {
             try {
@@ -229,7 +228,7 @@ public final class ORMTemplateImpl extends QueryTemplateImpl implements ORMTempl
      */
     @SuppressWarnings("unchecked")
     @Override
-    public <R extends Repository> R repository(@Nonnull Class<R> type) {
+    public <R extends Repository> R repository(Class<R> type) {
         return (R) repositories.computeIfAbsent(type, t -> {
             EntityRepository<?, ?> entityRepository = createEntityRepository(type).orElse(null);
             ProjectionRepository<?, ?> projectionRepository = createProjectionRepository(type).orElse(null);
@@ -293,7 +292,7 @@ public final class ORMTemplateImpl extends QueryTemplateImpl implements ORMTempl
         }
     }
 
-    private <T extends Entity<ID>, ID> Optional<EntityRepository<T, ID>> createEntityRepository(@Nonnull Class<?> type) {
+    private <T extends Entity<ID>, ID> Optional<EntityRepository<T, ID>> createEntityRepository(Class<?> type) {
         if (!EntityRepository.class.isAssignableFrom(type)) {
             return Optional.empty();
         }
@@ -301,7 +300,7 @@ public final class ORMTemplateImpl extends QueryTemplateImpl implements ORMTempl
         return findGenericClass(type, EntityRepository.class, 0).map(cls -> entity((Class<T>) (Object) cls));
     }
 
-    private <T extends Projection<ID>, ID> Optional<ProjectionRepository<T, ID>> createProjectionRepository(@Nonnull Class<?> type) {
+    private <T extends Projection<ID>, ID> Optional<ProjectionRepository<T, ID>> createProjectionRepository(Class<?> type) {
         if (!ProjectionRepository.class.isAssignableFrom(type)) {
             return Optional.empty();
         }
@@ -320,8 +319,8 @@ public final class ORMTemplateImpl extends QueryTemplateImpl implements ORMTempl
     }
 
     @SuppressWarnings("SameParameterValue")
-    private static <T extends Entity<?>> Optional<Class<T>> findGenericClass(@Nonnull Class<?> clazz,
-                                                                                      @Nonnull Class<?> targetInterface,
+    private static <T extends Entity<?>> Optional<Class<T>> findGenericClass(Class<?> clazz,
+                                                                                      Class<?> targetInterface,
                                                                                       int typeArgumentIndex) {
         //noinspection unchecked
         return findGenericType(clazz, targetInterface, typeArgumentIndex)
@@ -330,8 +329,8 @@ public final class ORMTemplateImpl extends QueryTemplateImpl implements ORMTempl
     }
 
     @SuppressWarnings("ConstantValue")
-    public static Optional<Type> findGenericType(@Nonnull Class<?> clazz,
-                                                 @Nonnull Class<?> targetInterface,
+    public static Optional<Type> findGenericType(Class<?> clazz,
+                                                 Class<?> targetInterface,
                                                  int typeArgumentIndex) {
         // Inspect interfaces directly implemented by the class.
         for (Type genericInterface : clazz.getGenericInterfaces()) {

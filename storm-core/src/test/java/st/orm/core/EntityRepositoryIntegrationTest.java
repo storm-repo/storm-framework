@@ -9,14 +9,13 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import static st.orm.core.template.TemplateString.raw;
 import static st.orm.core.template.Templates.param;
 
-import jakarta.annotation.Nonnull;
-import jakarta.annotation.Nullable;
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
 import java.util.stream.Stream;
 import javax.sql.DataSource;
+import org.jspecify.annotations.Nullable;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -382,7 +381,7 @@ public class EntityRepositoryIntegrationTest {
         List<String> log = new ArrayList<>();
         var orm = ORMTemplate.of(dataSource).withEntityCallback(new EntityCallback<City>() {
             @Override
-            public City beforeUpsert(@Nonnull City entity) {
+            public City beforeUpsert(City entity) {
                 log.add("beforeUpsert:" + entity.name());
                 return entity.toBuilder().name(entity.name().toUpperCase()).build();
             }
@@ -400,7 +399,7 @@ public class EntityRepositoryIntegrationTest {
         List<String> updateLog = new ArrayList<>();
         var orm2 = ORMTemplate.of(dataSource).withEntityCallback(new EntityCallback<City>() {
             @Override
-            public City beforeUpdate(@Nonnull City entity) {
+            public City beforeUpdate(City entity) {
                 updateLog.add("beforeUpdate:" + entity.name());
                 return entity.toBuilder().name(entity.name().toUpperCase()).build();
             }
@@ -417,7 +416,7 @@ public class EntityRepositoryIntegrationTest {
         List<String> log = new ArrayList<>();
         var orm = ORMTemplate.of(dataSource).withEntityCallback(new EntityCallback<City>() {
             @Override
-            public void afterUpdate(@Nonnull City entity) {
+            public void afterUpdate(City entity) {
                 log.add("afterUpdate:" + entity.name());
             }
         });
@@ -874,7 +873,7 @@ public class EntityRepositoryIntegrationTest {
     @DbTable("api_key")
     public record ApiKey(
             @PK(generation = GenerationStrategy.NONE) UUID id,
-            @Nonnull String name,
+            String name,
             @Nullable UUID externalReference
     ) implements Entity<UUID> {}
 

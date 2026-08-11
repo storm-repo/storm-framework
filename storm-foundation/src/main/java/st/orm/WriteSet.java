@@ -15,7 +15,6 @@
  */
 package st.orm;
 
-import jakarta.annotation.Nonnull;
 import java.util.List;
 
 /**
@@ -113,7 +112,7 @@ public interface WriteSet {
      * @throws PersistenceException if the dependencies contain a cycle that cannot be ordered, if an unsaved entity
      * is referenced through a non-insertable foreign key component, or if the insert fails.
      */
-    void insert(@Nonnull Iterable<? extends Entity<?>> entities);
+    void insert(Iterable<? extends Entity<?>> entities);
 
     /**
      * Inserts the given entities and their discovered members; see {@link #insert(Iterable)}. An empty call is a
@@ -123,7 +122,7 @@ public interface WriteSet {
      * @throws PersistenceException if the dependencies contain a cycle that cannot be ordered, if an unsaved entity
      * is referenced through a non-insertable foreign key component, or if the insert fails.
      */
-    default void insert(@Nonnull Entity<?>... entities) {
+    default void insert(Entity<?>... entities) {
         insert(List.of(entities));
     }
 
@@ -139,8 +138,7 @@ public interface WriteSet {
      * @return the fetched entities in input order.
      * @throws PersistenceException if the insert fails.
      */
-    @Nonnull
-    List<Entity<?>> insertAndFetch(@Nonnull Iterable<? extends Entity<?>> entities);
+    List<Entity<?>> insertAndFetch(Iterable<? extends Entity<?>> entities);
 
     /**
      * Inserts like {@link #insertAndFetch(Iterable)} and returns the explicit members as they exist in the database
@@ -150,8 +148,7 @@ public interface WriteSet {
      * @return the fetched entities in input order.
      * @throws PersistenceException if the insert fails.
      */
-    @Nonnull
-    default List<Entity<?>> insertAndFetch(@Nonnull Entity<?>... entities) {
+    default List<Entity<?>> insertAndFetch(Entity<?>... entities) {
         return insertAndFetch(List.of(entities));
     }
 
@@ -171,8 +168,7 @@ public interface WriteSet {
      * @throws PersistenceException if the dependencies contain a cycle that cannot be ordered, if an unsaved entity
      * is referenced through a non-insertable foreign key component, or if the insert fails.
      */
-    @Nonnull
-    <ID> List<ID> insertAndFetchIds(@Nonnull Iterable<? extends Entity<ID>> entities);
+    <ID> List<ID> insertAndFetchIds(Iterable<? extends Entity<ID>> entities);
 
     /**
      * Inserts the given entity and its discovered members and returns its primary key; see
@@ -183,8 +179,7 @@ public interface WriteSet {
      * @throws PersistenceException if the dependencies contain a cycle that cannot be ordered, if an unsaved entity
      * is referenced through a non-insertable foreign key component, or if the insert fails.
      */
-    @Nonnull
-    default <ID> ID insertAndFetchId(@Nonnull Entity<ID> entity) {
+    default <ID> ID insertAndFetchId(Entity<ID> entity) {
         return insertAndFetchIds(List.of(entity)).getFirst();
     }
 
@@ -205,7 +200,7 @@ public interface WriteSet {
      * @param entities the entities to update; may span multiple entity types.
      * @throws PersistenceException if an explicit member or a referenced entity is unsaved, or if the update fails.
      */
-    void update(@Nonnull Iterable<? extends Entity<?>> entities);
+    void update(Iterable<? extends Entity<?>> entities);
 
     /**
      * Updates the given entities; see {@link #update(Iterable)}. An empty call is a no-op.
@@ -213,7 +208,7 @@ public interface WriteSet {
      * @param entities the entities to update; may span multiple entity types.
      * @throws PersistenceException if an explicit member or a referenced entity is unsaved, or if the update fails.
      */
-    default void update(@Nonnull Entity<?>... entities) {
+    default void update(Entity<?>... entities) {
         update(List.of(entities));
     }
 
@@ -225,8 +220,7 @@ public interface WriteSet {
      * @return the fetched entities in input order.
      * @throws PersistenceException if an explicit member or a referenced entity is unsaved, or if the update fails.
      */
-    @Nonnull
-    List<Entity<?>> updateAndFetch(@Nonnull Iterable<? extends Entity<?>> entities);
+    List<Entity<?>> updateAndFetch(Iterable<? extends Entity<?>> entities);
 
     /**
      * Updates like {@link #updateAndFetch(Iterable)} and returns the passed entities as they exist in the database
@@ -236,8 +230,7 @@ public interface WriteSet {
      * @return the fetched entities in input order.
      * @throws PersistenceException if an explicit member or a referenced entity is unsaved, or if the update fails.
      */
-    @Nonnull
-    default List<Entity<?>> updateAndFetch(@Nonnull Entity<?>... entities) {
+    default List<Entity<?>> updateAndFetch(Entity<?>... entities) {
         return updateAndFetch(List.of(entities));
     }
 
@@ -256,7 +249,7 @@ public interface WriteSet {
      * @throws PersistenceException if the dependencies contain a cycle that cannot be ordered, if an unsaved entity
      * is referenced through a non-insertable foreign key component, or if the upsert fails.
      */
-    void upsert(@Nonnull Iterable<? extends Entity<?>> entities);
+    void upsert(Iterable<? extends Entity<?>> entities);
 
     /**
      * Upserts the given entities and inserts their discovered members; see {@link #upsert(Iterable)}. An empty call
@@ -266,7 +259,7 @@ public interface WriteSet {
      * @throws PersistenceException if the dependencies contain a cycle that cannot be ordered, if an unsaved entity
      * is referenced through a non-insertable foreign key component, or if the upsert fails.
      */
-    default void upsert(@Nonnull Entity<?>... entities) {
+    default void upsert(Entity<?>... entities) {
         upsert(List.of(entities));
     }
 
@@ -278,8 +271,7 @@ public interface WriteSet {
      * @return the fetched entities in input order.
      * @throws PersistenceException if the upsert fails.
      */
-    @Nonnull
-    List<Entity<?>> upsertAndFetch(@Nonnull Iterable<? extends Entity<?>> entities);
+    List<Entity<?>> upsertAndFetch(Iterable<? extends Entity<?>> entities);
 
     /**
      * Upserts like {@link #upsertAndFetch(Iterable)} and returns the passed entities as they exist in the database
@@ -289,8 +281,7 @@ public interface WriteSet {
      * @return the fetched entities in input order.
      * @throws PersistenceException if the upsert fails.
      */
-    @Nonnull
-    default List<Entity<?>> upsertAndFetch(@Nonnull Entity<?>... entities) {
+    default List<Entity<?>> upsertAndFetch(Entity<?>... entities) {
         return upsertAndFetch(List.of(entities));
     }
 
@@ -310,8 +301,7 @@ public interface WriteSet {
      * @throws PersistenceException if the dependencies contain a cycle that cannot be ordered, if an unsaved entity
      * is referenced through a non-insertable foreign key component, or if the upsert fails.
      */
-    @Nonnull
-    <ID> List<ID> upsertAndFetchIds(@Nonnull Iterable<? extends Entity<ID>> entities);
+    <ID> List<ID> upsertAndFetchIds(Iterable<? extends Entity<ID>> entities);
 
     /**
      * Upserts the given entity and its discovered members and returns its primary key; see
@@ -322,8 +312,7 @@ public interface WriteSet {
      * @throws PersistenceException if the dependencies contain a cycle that cannot be ordered, if an unsaved entity
      * is referenced through a non-insertable foreign key component, or if the upsert fails.
      */
-    @Nonnull
-    default <ID> ID upsertAndFetchId(@Nonnull Entity<ID> entity) {
+    default <ID> ID upsertAndFetchId(Entity<ID> entity) {
         return upsertAndFetchIds(List.of(entity)).getFirst();
     }
 
@@ -338,7 +327,7 @@ public interface WriteSet {
      * @param entities the entities to remove; may span multiple entity types.
      * @throws PersistenceException if a passed entity is unsaved, or if the removal fails.
      */
-    void remove(@Nonnull Iterable<? extends Entity<?>> entities);
+    void remove(Iterable<? extends Entity<?>> entities);
 
     /**
      * Removes the given entities, children before parents; see {@link #remove(Iterable)}. An empty call is a no-op.
@@ -346,7 +335,7 @@ public interface WriteSet {
      * @param entities the entities to remove; may span multiple entity types.
      * @throws PersistenceException if a passed entity is unsaved, or if the removal fails.
      */
-    default void remove(@Nonnull Entity<?>... entities) {
+    default void remove(Entity<?>... entities) {
         remove(List.of(entities));
     }
 
@@ -360,7 +349,7 @@ public interface WriteSet {
      * @param entity the root entity to insert.
      * @throws PersistenceException if the insert fails.
      */
-    default void insert(@Nonnull Entity<?> entity) {
+    default void insert(Entity<?> entity) {
         insert(List.of(entity));
     }
 
@@ -375,8 +364,7 @@ public interface WriteSet {
      * @throws PersistenceException if the insert fails.
      */
     @SuppressWarnings("unchecked")
-    @Nonnull
-    default <E extends Entity<?>> E insertAndFetch(@Nonnull E entity) {
+    default <E extends Entity<?>> E insertAndFetch(E entity) {
         return (E) insertAndFetch(List.of(entity)).getFirst();
     }
 
@@ -386,7 +374,7 @@ public interface WriteSet {
      * @param entity the entity to update.
      * @throws PersistenceException if the entity is unsaved or the update fails.
      */
-    default void update(@Nonnull Entity<?> entity) {
+    default void update(Entity<?> entity) {
         update(List.of(entity));
     }
 
@@ -400,8 +388,7 @@ public interface WriteSet {
      * @throws PersistenceException if the entity is unsaved or the update fails.
      */
     @SuppressWarnings("unchecked")
-    @Nonnull
-    default <E extends Entity<?>> E updateAndFetch(@Nonnull E entity) {
+    default <E extends Entity<?>> E updateAndFetch(E entity) {
         return (E) updateAndFetch(List.of(entity)).getFirst();
     }
 
@@ -411,7 +398,7 @@ public interface WriteSet {
      * @param entity the root entity to upsert.
      * @throws PersistenceException if the upsert fails.
      */
-    default void upsert(@Nonnull Entity<?> entity) {
+    default void upsert(Entity<?> entity) {
         upsert(List.of(entity));
     }
 
@@ -425,8 +412,7 @@ public interface WriteSet {
      * @throws PersistenceException if the upsert fails.
      */
     @SuppressWarnings("unchecked")
-    @Nonnull
-    default <E extends Entity<?>> E upsertAndFetch(@Nonnull E entity) {
+    default <E extends Entity<?>> E upsertAndFetch(E entity) {
         return (E) upsertAndFetch(List.of(entity)).getFirst();
     }
 
@@ -436,7 +422,7 @@ public interface WriteSet {
      * @param entity the entity to remove.
      * @throws PersistenceException if the entity is unsaved or the removal fails.
      */
-    default void remove(@Nonnull Entity<?> entity) {
+    default void remove(Entity<?> entity) {
         remove(List.of(entity));
     }
 }

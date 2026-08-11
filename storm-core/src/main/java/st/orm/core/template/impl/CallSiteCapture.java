@@ -17,11 +17,10 @@ package st.orm.core.template.impl;
 
 import static java.util.Objects.requireNonNull;
 
-import jakarta.annotation.Nonnull;
-import jakarta.annotation.Nullable;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import org.jspecify.annotations.Nullable;
 import st.orm.StormConfig;
 
 /**
@@ -126,7 +125,7 @@ public final class CallSiteCapture {
         });
     }
 
-    private static String format(@Nonnull StackWalker.StackFrame frame) {
+    private static String format(StackWalker.StackFrame frame) {
         String file = frame.getFileName();
         return file != null
                 ? "%s:%d".formatted(file, frame.getLineNumber())
@@ -140,7 +139,7 @@ public final class CallSiteCapture {
      * regenerates a lambda under the caller's class, where a package prefix cannot see it, while the frame keeps
      * the declaring file's name.</p>
      */
-    private static boolean isDeclaredPlumbing(@Nonnull String className, @Nullable String fileName) {
+    private static boolean isDeclaredPlumbing(String className, @Nullable String fileName) {
         for (var entry : ignoredCallSitePrefixes) {
             if (entry.endsWith(".kt") || entry.endsWith(".java")) {
                 if (entry.equals(fileName)) {
@@ -177,7 +176,7 @@ public final class CallSiteCapture {
      * @param packagePrefixes the package prefixes or source file names to skip, such as {@code "com.acme.db"} or
      *                        {@code "DbExtensions.kt"}.
      */
-    public static void ignoreCallSites(@Nonnull String... packagePrefixes) {
+    public static void ignoreCallSites(String... packagePrefixes) {
         var merged = new ArrayList<>(List.of(ignoredCallSitePrefixes));
         for (var prefix : packagePrefixes) {
             merged.add(requireNonNull(prefix, "packagePrefix"));
@@ -185,7 +184,7 @@ public final class CallSiteCapture {
         ignoredCallSitePrefixes = merged.toArray(String[]::new);
     }
 
-    private static boolean isInfrastructure(@Nonnull String className) {
+    private static boolean isInfrastructure(String className) {
         if (className.startsWith("st.orm.")
                 || className.startsWith("java.")
                 || className.startsWith("jdk.")

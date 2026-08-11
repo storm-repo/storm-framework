@@ -17,9 +17,8 @@ package st.orm;
 
 import static java.util.Objects.requireNonNull;
 
-import jakarta.annotation.Nonnull;
-import jakarta.annotation.Nullable;
 import java.util.Objects;
+import org.jspecify.annotations.Nullable;
 
 /**
  * Represents a scroll request that captures the cursor state needed to fetch a window of results.
@@ -42,7 +41,7 @@ import java.util.Objects;
  * @since 1.11
  */
 public record Scrollable<T extends Data>(
-        @Nonnull Metamodel.Key<T, ?> key,
+        Metamodel.Key<T, ?> key,
         @Nullable Object keyCursor,
         @Nullable Metamodel<T, ?> sort,
         @Nullable Object sortCursor,
@@ -82,7 +81,7 @@ public record Scrollable<T extends Data>(
      * @param <E> the key field type.
      * @return a scrollable for the first page.
      */
-    public static <T extends Data, E> Scrollable<T> of(@Nonnull Metamodel.Key<T, E> key, int size) {
+    public static <T extends Data, E> Scrollable<T> of(Metamodel.Key<T, E> key, int size) {
         return new Scrollable<>(key, null, null, null, size, true);
     }
 
@@ -97,7 +96,7 @@ public record Scrollable<T extends Data>(
      * @return a scrollable starting after the cursor.
      */
     public static <T extends Data, E> Scrollable<T> of(
-            @Nonnull Metamodel.Key<T, E> key, @Nonnull E keyCursor, int size) {
+            Metamodel.Key<T, E> key, E keyCursor, int size) {
         return new Scrollable<>(key, keyCursor, null, null, size, true);
     }
 
@@ -113,7 +112,7 @@ public record Scrollable<T extends Data>(
      * @return a scrollable for the first page.
      */
     public static <T extends Data, E, S> Scrollable<T> of(
-            @Nonnull Metamodel.Key<T, E> key, @Nonnull Metamodel<T, S> sort, int size) {
+            Metamodel.Key<T, E> key, Metamodel<T, S> sort, int size) {
         requireNonNull(sort, "sort must not be null.");
         return new Scrollable<>(key, null, sort, null, size, true);
     }
@@ -133,8 +132,8 @@ public record Scrollable<T extends Data>(
      * @return a scrollable starting after the cursor values.
      */
     public static <T extends Data, E, S> Scrollable<T> of(
-            @Nonnull Metamodel.Key<T, E> key, @Nonnull E keyCursor,
-            @Nonnull Metamodel<T, S> sort, @Nonnull S sortCursor, int size) {
+            Metamodel.Key<T, E> key, E keyCursor,
+            Metamodel<T, S> sort, S sortCursor, int size) {
         requireNonNull(sort, "sort must not be null.");
         return new Scrollable<>(key, keyCursor, sort, sortCursor, size, true);
     }
@@ -232,7 +231,7 @@ public record Scrollable<T extends Data>(
      * @since 1.11
      */
     public static <T extends Data, E> Scrollable<T> fromCursor(
-            @Nonnull Metamodel.Key<T, E> key, @Nonnull String cursor) {
+            Metamodel.Key<T, E> key, String cursor) {
         return fromCursor(key, null, cursor);
     }
 
@@ -251,9 +250,9 @@ public record Scrollable<T extends Data>(
      * @since 1.11
      */
     public static <T extends Data, E, S> Scrollable<T> fromCursor(
-            @Nonnull Metamodel.Key<T, E> key,
+            Metamodel.Key<T, E> key,
             @Nullable Metamodel<T, S> sort,
-            @Nonnull String cursor) {
+            String cursor) {
         requireNonNull(key, "key must not be null.");
         requireNonNull(cursor, "cursor must not be null.");
         int metamodelFingerprint = metamodelFingerprint(key, sort);
@@ -287,7 +286,7 @@ public record Scrollable<T extends Data>(
     /**
      * Produces a stable metamodel fingerprint from the key and sort paths using the Metamodel API.
      */
-    private static int metamodelFingerprint(@Nonnull Metamodel.Key<?, ?> key, @Nullable Metamodel<?, ?> sort) {
+    private static int metamodelFingerprint(Metamodel.Key<?, ?> key, @Nullable Metamodel<?, ?> sort) {
         if (sort == null) {
             return key.fieldPath().hashCode();
         }

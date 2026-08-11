@@ -15,7 +15,6 @@
  */
 package st.orm;
 
-import jakarta.annotation.Nonnull;
 import java.util.List;
 
 /**
@@ -35,7 +34,6 @@ public interface Slice<R> {
      *
      * @return the results.
      */
-    @Nonnull
     List<R> content();
 
     /**

@@ -15,9 +15,8 @@
  */
 package st.orm.core.spi;
 
-import jakarta.annotation.Nonnull;
-import jakarta.annotation.Nullable;
 import javax.sql.DataSource;
+import org.jspecify.annotations.Nullable;
 import st.orm.BindVars;
 import st.orm.PersistenceException;
 import st.orm.core.template.Query;
@@ -57,7 +56,7 @@ public interface QueryFactory {
      * @return a query that can be executed.
      * @throws PersistenceException if the template is invalid.
      */
-    Query create(@Nonnull TemplateString template);
+    Query create(TemplateString template);
 
     /**
      * Compiles the specified query {@code template} into a reusable plan.
@@ -72,7 +71,7 @@ public interface QueryFactory {
      *                              fixed parameter values.
      * @since 1.13
      */
-    default QueryPlan plan(@Nonnull TemplateString template) {
+    default QueryPlan plan(TemplateString template) {
         throw new PersistenceException("Query plans are not supported by %s.".formatted(getClass().getSimpleName()));
     }
 

@@ -17,7 +17,6 @@ package st.orm.core.template.impl;
 
 import static java.util.Objects.requireNonNull;
 
-import jakarta.annotation.Nonnull;
 import java.lang.invoke.MethodHandle;
 import java.lang.invoke.MethodType;
 import java.util.Objects;
@@ -40,7 +39,7 @@ public final class EqualitySupport {
      *
      * <p>No boxing is performed for primitive return types.</p>
      */
-    public static <T> Same<T> compileIsSame(@Nonnull MethodHandle handle) {
+    public static <T> Same<T> compileIsSame(MethodHandle handle) {
         requireNonNull(handle, "handle");
         Class<?> r = handle.type().returnType();
         if (r == int.class) {
@@ -123,7 +122,7 @@ public final class EqualitySupport {
      *
      * <p>No boxing is performed.</p>
      */
-    public static <T> Identical<T> compileIsIdentical(@Nonnull MethodHandle handle) {
+    public static <T> Identical<T> compileIsIdentical(MethodHandle handle) {
         requireNonNull(handle, "handle");
         Class<?> r = handle.type().returnType();
         if (r.isPrimitive()) {

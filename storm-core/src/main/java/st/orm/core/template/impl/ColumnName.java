@@ -17,12 +17,11 @@ package st.orm.core.template.impl;
 
 import static java.util.Objects.requireNonNull;
 
-import jakarta.annotation.Nonnull;
 import st.orm.core.spi.Name;
 import st.orm.core.template.SqlDialect;
 
-public record ColumnName(@Nonnull String name, boolean escape) implements Name {
-    public ColumnName(@Nonnull String name) {
+public record ColumnName(String name, boolean escape) implements Name {
+    public ColumnName(String name) {
         this(name, false);
     }
     public ColumnName {
@@ -37,7 +36,7 @@ public record ColumnName(@Nonnull String name, boolean escape) implements Name {
      * @return the qualified name of the database object.
      */
     @Override
-    public String qualified(@Nonnull SqlDialect dialect) {
+    public String qualified(SqlDialect dialect) {
         return escape ? dialect.escape(name) : dialect.getSafeIdentifier(name);
     }
 }

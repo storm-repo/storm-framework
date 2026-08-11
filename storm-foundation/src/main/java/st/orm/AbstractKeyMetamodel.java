@@ -15,8 +15,7 @@
  */
 package st.orm;
 
-import jakarta.annotation.Nonnull;
-import jakarta.annotation.Nullable;
+import org.jspecify.annotations.Nullable;
 
 /**
  * Extension of {@link AbstractMetamodel} that implements {@link Metamodel.Key}, indicating that the field has a
@@ -35,29 +34,29 @@ public abstract class AbstractKeyMetamodel<T extends Data, E, V> extends Abstrac
 
     private final boolean nullable;
 
-    public AbstractKeyMetamodel(@Nonnull Class<E> fieldType) {
+    public AbstractKeyMetamodel(Class<E> fieldType) {
         super(fieldType);
         this.nullable = false;
     }
 
-    public AbstractKeyMetamodel(@Nonnull Class<E> fieldType,
-                                @Nonnull String path) {
+    public AbstractKeyMetamodel(Class<E> fieldType,
+                                String path) {
         super(fieldType, path);
         this.nullable = false;
     }
 
-    public AbstractKeyMetamodel(@Nonnull Class<E> fieldType,
-                                @Nonnull String path,
-                                @Nonnull String field,
+    public AbstractKeyMetamodel(Class<E> fieldType,
+                                String path,
+                                String field,
                                 boolean inline,
                                 @Nullable Metamodel<T, ?> parent) {
         super(fieldType, path, field, inline, parent);
         this.nullable = false;
     }
 
-    protected AbstractKeyMetamodel(@Nonnull Class<E> fieldType,
-                                   @Nonnull String path,
-                                   @Nonnull String field,
+    protected AbstractKeyMetamodel(Class<E> fieldType,
+                                   String path,
+                                   String field,
                                    boolean inline,
                                    @Nullable Metamodel<T, ?> parent,
                                    boolean isColumn) {
@@ -78,9 +77,9 @@ public abstract class AbstractKeyMetamodel<T extends Data, E, V> extends Abstrac
      * @param nullable whether this key allows duplicate NULLs (nullable with {@code nullsDistinct = true}).
      * @since 1.9
      */
-    public AbstractKeyMetamodel(@Nonnull Class<E> fieldType,
-                                @Nonnull String path,
-                                @Nonnull String field,
+    public AbstractKeyMetamodel(Class<E> fieldType,
+                                String path,
+                                String field,
                                 boolean inline,
                                 @Nullable Metamodel<T, ?> parent,
                                 boolean isColumn,

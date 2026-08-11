@@ -15,7 +15,6 @@
  */
 package st.orm.core.template.impl;
 
-import jakarta.annotation.Nonnull;
 
 /**
  * Value comparison on an extracted field value.
@@ -30,5 +29,5 @@ public interface Same<T> {
     /**
      * Returns {@code true} if and only if the value extracted from {@code a} and {@code b} is equal by value.
      */
-    boolean isSame(@Nonnull T a, @Nonnull T b) throws Throwable;
+    boolean isSame(T a, T b) throws Throwable;
 }

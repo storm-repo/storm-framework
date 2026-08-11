@@ -18,7 +18,6 @@ package st.orm.repository;
 import static st.orm.Operator.EQUALS;
 import static st.orm.Operator.IN;
 
-import jakarta.annotation.Nonnull;
 import java.util.List;
 import java.util.Optional;
 import java.util.stream.Stream;
@@ -190,7 +189,7 @@ public interface EntityRepository<E extends Entity<ID>, ID> extends Repository {
      * @return a ref entity instance containing only the primary key.
      * @since 1.3
      */
-    Ref<E> ref(@Nonnull ID id);
+    Ref<E> ref(ID id);
 
     /**
      * Creates a new ref entity instance for the specified entity.
@@ -204,7 +203,7 @@ public interface EntityRepository<E extends Entity<ID>, ID> extends Repository {
      * @return a ref entity instance containing the primary key of the provided entity.
      * @since 1.3
      */
-    Ref<E> ref(@Nonnull E entity);
+    Ref<E> ref(E entity);
 
     /**
      * Unloads the given entity from memory by converting it into a lightweight ref containing only its primary key.
@@ -222,7 +221,7 @@ public interface EntityRepository<E extends Entity<ID>, ID> extends Repository {
      * again when needed.
      * @since 1.3
      */
-    Ref<E> unload(@Nonnull E entity);
+    Ref<E> unload(E entity);
 
     // Query builder methods.
 
@@ -247,7 +246,7 @@ public interface EntityRepository<E extends Entity<ID>, ID> extends Repository {
      * @return a new query builder for the specialized {@code selectType}.
      * @param <R> the result type of the query.
      */
-    <R> QueryBuilder<E, R, ID> select(@Nonnull Class<R> selectType);
+    <R> QueryBuilder<E, R, ID> select(Class<R> selectType);
 
     /**
      * Creates a new query builder for selecting refs to entities of the type managed by this repository.
@@ -270,7 +269,7 @@ public interface EntityRepository<E extends Entity<ID>, ID> extends Repository {
      * @return a new query builder for the specialized {@code selectType}.
      * @param <R> the result type of the query.
      */
-    <R> QueryBuilder<E, R, ID> select(@Nonnull Class<R> selectType, @Nonnull StringTemplate template);
+    <R> QueryBuilder<E, R, ID> select(Class<R> selectType, StringTemplate template);
 
     /**
      * Creates a new query builder for selecting refs to entities of the type managed by this repository.
@@ -284,7 +283,7 @@ public interface EntityRepository<E extends Entity<ID>, ID> extends Repository {
      * @return a new query builder for selecting refs to entities.
      * @since 1.3
      */
-    <R extends Data> QueryBuilder<E, Ref<R>, ID> selectRef(@Nonnull Class<R> refType);
+    <R extends Data> QueryBuilder<E, Ref<R>, ID> selectRef(Class<R> refType);
 
     /**
      * Creates a new query builder for delete entities of the type managed by this repository.
@@ -323,7 +322,7 @@ public interface EntityRepository<E extends Entity<ID>, ID> extends Repository {
      * @return true if an entity with the specified primary key exists, false otherwise.
      * @throws PersistenceException if there is an underlying database issue during the count operation.
      */
-    boolean existsById(@Nonnull ID id);
+    boolean existsById(ID id);
 
     /**
      * Checks if an entity with the specified primary key exists in the database.
@@ -336,7 +335,7 @@ public interface EntityRepository<E extends Entity<ID>, ID> extends Repository {
      * @return true if an entity with the specified primary key exists, false otherwise.
      * @throws PersistenceException if there is an underlying database issue during the count operation.
      */
-    boolean existsByRef(@Nonnull Ref<E> ref);
+    boolean existsByRef(Ref<E> ref);
 
     /**
      * Inserts an entity into the database.
@@ -349,7 +348,7 @@ public interface EntityRepository<E extends Entity<ID>, ID> extends Repository {
      * @throws PersistenceException if the insert operation fails. This can happen due to a variety of reasons,
      *                              including database constraints violations, connectivity issues, or if the entity parameter is null.
      */
-    void insert(@Nonnull E entity);
+    void insert(E entity);
 
     /**
      * Inserts an entity into the database.
@@ -365,7 +364,7 @@ public interface EntityRepository<E extends Entity<ID>, ID> extends Repository {
      * @throws PersistenceException if the insert operation fails. This can happen due to a variety of reasons,
      *                              including database constraints violations, connectivity issues, or if the entity parameter is null.
      */
-    void insert(@Nonnull E entity, boolean ignoreAutoGenerate);
+    void insert(E entity, boolean ignoreAutoGenerate);
 
     /**
      * Inserts an entity into the database and returns its primary key.
@@ -379,7 +378,7 @@ public interface EntityRepository<E extends Entity<ID>, ID> extends Repository {
      * @throws PersistenceException if the insert operation fails for reasons such as database constraints violations,
      *                              connectivity issues, or if the entity parameter is null.
      */
-    ID insertAndFetchId(@Nonnull E entity);
+    ID insertAndFetchId(E entity);
 
     /**
      * Inserts a single entity into the database and returns the inserted entity with its current state.
@@ -396,7 +395,7 @@ public interface EntityRepository<E extends Entity<ID>, ID> extends Repository {
      * @throws PersistenceException if the insertion operation fails due to database issues, such as connectivity
      *                              problems, constraints violations, or invalid entity data.
      */
-    E insertAndFetch(@Nonnull E entity);
+    E insertAndFetch(E entity);
 
     /**
      * Updates a single entity in the database.
@@ -409,7 +408,7 @@ public interface EntityRepository<E extends Entity<ID>, ID> extends Repository {
      * @throws PersistenceException if the update operation fails due to database issues, such as connectivity
      *                              problems, constraints violations, or invalid entity data.
      */
-    void update(@Nonnull E entity);
+    void update(E entity);
 
     /**
      * Updates a single entity in the database and returns the updated entity with its current state.
@@ -426,7 +425,7 @@ public interface EntityRepository<E extends Entity<ID>, ID> extends Repository {
      * @throws PersistenceException if the update operation fails due to database issues, such as connectivity
      *                              problems, constraints violations, or invalid entity data.
      */
-    E updateAndFetch(@Nonnull E entity);
+    E updateAndFetch(E entity);
 
     /**
      * Inserts or updates a single entity in the database.
@@ -441,7 +440,7 @@ public interface EntityRepository<E extends Entity<ID>, ID> extends Repository {
      * @throws PersistenceException if the upsert operation fails due to database issues, such as connectivity
      *                              problems, constraints violations, or invalid entity data.
      */
-    void upsert(@Nonnull E entity);
+    void upsert(E entity);
 
     /**
      * Inserts or updates a single entity in the database and returns its ID.
@@ -457,7 +456,7 @@ public interface EntityRepository<E extends Entity<ID>, ID> extends Repository {
      * @throws PersistenceException if the upsert operation fails due to database issues, such as connectivity
      *                              problems, constraints violations, or invalid entity data.
      */
-    ID upsertAndFetchId(@Nonnull E entity);
+    ID upsertAndFetchId(E entity);
 
     /**
      * Inserts or updates a single entity in the database and returns the entity with its current state.
@@ -475,7 +474,7 @@ public interface EntityRepository<E extends Entity<ID>, ID> extends Repository {
      * @throws PersistenceException if the upsert operation fails due to database issues, such as connectivity
      *                              problems, constraints violations, or invalid entity data.
      */
-    E upsertAndFetch(@Nonnull E entity);
+    E upsertAndFetch(E entity);
 
     /**
      * Removes an entity from the database.
@@ -490,7 +489,7 @@ public interface EntityRepository<E extends Entity<ID>, ID> extends Repository {
      *                              being found in the database, violations of database constraints, connectivity
      *                              issues, or if the entity parameter is null.
      */
-    void remove(@Nonnull E entity);
+    void remove(E entity);
 
     /**
      * Removes an entity from the database based on its primary key.
@@ -502,7 +501,7 @@ public interface EntityRepository<E extends Entity<ID>, ID> extends Repository {
      * @throws PersistenceException if the removal operation fails due to violations of database constraints,
      *                              connectivity issues, or if the id parameter is null.
      */
-    void removeById(@Nonnull ID id);
+    void removeById(ID id);
 
     /**
      * Removes an entity from the database by its reference.
@@ -514,7 +513,7 @@ public interface EntityRepository<E extends Entity<ID>, ID> extends Repository {
      * @throws PersistenceException if the removal operation fails due to violations of database constraints,
      *                              connectivity issues, or if the ref parameter is null.
      */
-    void removeByRef(@Nonnull Ref<E> ref);
+    void removeByRef(Ref<E> ref);
 
     /**
      * Removes all entities from the database.
@@ -541,7 +540,7 @@ public interface EntityRepository<E extends Entity<ID>, ID> extends Repository {
      * @throws PersistenceException if the retrieval operation fails due to underlying database issues, such as
      *                              connectivity problems or query execution errors.
      */
-    Optional<E> findById(@Nonnull ID id);
+    Optional<E> findById(ID id);
 
     /**
      * Retrieves an entity based on its primary key, expressed by a ref.
@@ -554,7 +553,7 @@ public interface EntityRepository<E extends Entity<ID>, ID> extends Repository {
      * @throws PersistenceException if the retrieval operation fails due to underlying database issues, such as
      *                              connectivity problems or query execution errors.
      */
-    Optional<E> findByRef(@Nonnull Ref<E> ref);
+    Optional<E> findByRef(Ref<E> ref);
 
     /**
      * Retrieves an entity based on its primary key.
@@ -569,7 +568,7 @@ public interface EntityRepository<E extends Entity<ID>, ID> extends Repository {
      * @throws PersistenceException if the retrieval operation fails due to underlying database issues, such as
      *                              connectivity problems or query execution errors.
      */
-    E getById(@Nonnull ID id);
+    E getById(ID id);
 
     /**
      * Retrieves an entity based on its primary key, expressed by a ref.
@@ -584,7 +583,7 @@ public interface EntityRepository<E extends Entity<ID>, ID> extends Repository {
      * @throws PersistenceException if the retrieval operation fails due to underlying database issues, such as
      *                              connectivity problems or query execution errors.
      */
-    E getByRef(@Nonnull Ref<E> ref);
+    E getByRef(Ref<E> ref);
 
     // Singular findBy / getBy methods for unique keys.
 
@@ -598,7 +597,7 @@ public interface EntityRepository<E extends Entity<ID>, ID> extends Repository {
      * @throws PersistenceException if the retrieval operation fails due to underlying database issues.
      * @since 1.9
      */
-    <V> Optional<E> findBy(@Nonnull Metamodel.Key<E, V> key, @Nonnull V value);
+    <V> Optional<E> findBy(Metamodel.Key<E, V> key, V value);
 
     /**
      * Retrieves an entity by the value of a unique key field.
@@ -611,7 +610,7 @@ public interface EntityRepository<E extends Entity<ID>, ID> extends Repository {
      * @throws PersistenceException if the retrieval operation fails due to underlying database issues.
      * @since 1.9
      */
-    <V> E getBy(@Nonnull Metamodel.Key<E, V> key, @Nonnull V value);
+    <V> E getBy(Metamodel.Key<E, V> key, V value);
 
     /**
      * Retrieves an entity by the ref value of a unique key field that references another entity.
@@ -623,7 +622,7 @@ public interface EntityRepository<E extends Entity<ID>, ID> extends Repository {
      * @throws PersistenceException if the retrieval operation fails due to underlying database issues.
      * @since 1.9
      */
-    <V extends Data> Optional<E> findByRef(@Nonnull Metamodel.Key<E, V> key, @Nonnull Ref<V> value);
+    <V extends Data> Optional<E> findByRef(Metamodel.Key<E, V> key, Ref<V> value);
 
     /**
      * Retrieves an entity by the ref value of a unique key field that references another entity.
@@ -636,7 +635,7 @@ public interface EntityRepository<E extends Entity<ID>, ID> extends Repository {
      * @throws PersistenceException if the retrieval operation fails due to underlying database issues.
      * @since 1.9
      */
-    <V extends Data> E getByRef(@Nonnull Metamodel.Key<E, V> key, @Nonnull Ref<V> value);
+    <V extends Data> E getByRef(Metamodel.Key<E, V> key, Ref<V> value);
 
     // Field-based finder methods.
 
@@ -650,7 +649,7 @@ public interface EntityRepository<E extends Entity<ID>, ID> extends Repository {
      * @throws PersistenceException if the retrieval operation fails due to underlying database issues.
      * @since 1.12
      */
-    default <V> Optional<E> findBy(@Nonnull Metamodel<E, V> field, @Nonnull V value) {
+    default <V> Optional<E> findBy(Metamodel<E, V> field, V value) {
         return select().where(field, EQUALS, value).getOptionalResult();
     }
 
@@ -664,7 +663,7 @@ public interface EntityRepository<E extends Entity<ID>, ID> extends Repository {
      * @throws PersistenceException if the retrieval operation fails due to underlying database issues.
      * @since 1.12
      */
-    default <V extends Data> Optional<E> findBy(@Nonnull Metamodel<E, V> field, @Nonnull Ref<V> value) {
+    default <V extends Data> Optional<E> findBy(Metamodel<E, V> field, Ref<V> value) {
         return select().where(field, value).getOptionalResult();
     }
 
@@ -678,7 +677,7 @@ public interface EntityRepository<E extends Entity<ID>, ID> extends Repository {
      * @throws PersistenceException if the retrieval operation fails due to underlying database issues.
      * @since 1.12
      */
-    default <V> List<E> findAllBy(@Nonnull Metamodel<E, V> field, @Nonnull V value) {
+    default <V> List<E> findAllBy(Metamodel<E, V> field, V value) {
         return select().where(field, EQUALS, value).getResultList();
     }
 
@@ -692,7 +691,7 @@ public interface EntityRepository<E extends Entity<ID>, ID> extends Repository {
      * @throws PersistenceException if the retrieval operation fails due to underlying database issues.
      * @since 1.12
      */
-    default <V extends Data> List<E> findAllBy(@Nonnull Metamodel<E, V> field, @Nonnull Ref<V> value) {
+    default <V extends Data> List<E> findAllBy(Metamodel<E, V> field, Ref<V> value) {
         return select().where(field, value).getResultList();
     }
 
@@ -706,7 +705,7 @@ public interface EntityRepository<E extends Entity<ID>, ID> extends Repository {
      * @throws PersistenceException if the retrieval operation fails due to underlying database issues.
      * @since 1.12
      */
-    default <V> List<E> findAllBy(@Nonnull Metamodel<E, V> field, @Nonnull Iterable<? extends V> values) {
+    default <V> List<E> findAllBy(Metamodel<E, V> field, Iterable<? extends V> values) {
         return select().where(field, IN, values).getResultList();
     }
 
@@ -720,7 +719,7 @@ public interface EntityRepository<E extends Entity<ID>, ID> extends Repository {
      * @throws PersistenceException if the retrieval operation fails due to underlying database issues.
      * @since 1.12
      */
-    default <V extends Data> List<E> findAllByRef(@Nonnull Metamodel<E, V> field, @Nonnull Iterable<? extends Ref<V>> values) {
+    default <V extends Data> List<E> findAllByRef(Metamodel<E, V> field, Iterable<? extends Ref<V>> values) {
         return select().whereRef(field, values).getResultList();
     }
 
@@ -736,7 +735,7 @@ public interface EntityRepository<E extends Entity<ID>, ID> extends Repository {
      * @throws PersistenceException if the retrieval operation fails due to underlying database issues.
      * @since 1.12
      */
-    default <V> E getBy(@Nonnull Metamodel<E, V> field, @Nonnull V value) {
+    default <V> E getBy(Metamodel<E, V> field, V value) {
         return select().where(field, EQUALS, value).getSingleResult();
     }
 
@@ -752,7 +751,7 @@ public interface EntityRepository<E extends Entity<ID>, ID> extends Repository {
      * @throws PersistenceException if the retrieval operation fails due to underlying database issues.
      * @since 1.12
      */
-    default <V extends Data> E getBy(@Nonnull Metamodel<E, V> field, @Nonnull Ref<V> value) {
+    default <V extends Data> E getBy(Metamodel<E, V> field, Ref<V> value) {
         return select().where(field, value).getSingleResult();
     }
 
@@ -766,7 +765,7 @@ public interface EntityRepository<E extends Entity<ID>, ID> extends Repository {
      * @throws PersistenceException if the retrieval operation fails due to underlying database issues.
      * @since 1.12
      */
-    default <V> Optional<Ref<E>> findRefBy(@Nonnull Metamodel<E, V> field, @Nonnull V value) {
+    default <V> Optional<Ref<E>> findRefBy(Metamodel<E, V> field, V value) {
         return selectRef().where(field, EQUALS, value).getOptionalResult();
     }
 
@@ -780,7 +779,7 @@ public interface EntityRepository<E extends Entity<ID>, ID> extends Repository {
      * @throws PersistenceException if the retrieval operation fails due to underlying database issues.
      * @since 1.12
      */
-    default <V extends Data> Optional<Ref<E>> findRefBy(@Nonnull Metamodel<E, V> field, @Nonnull Ref<V> value) {
+    default <V extends Data> Optional<Ref<E>> findRefBy(Metamodel<E, V> field, Ref<V> value) {
         return selectRef().where(field, value).getOptionalResult();
     }
 
@@ -794,7 +793,7 @@ public interface EntityRepository<E extends Entity<ID>, ID> extends Repository {
      * @throws PersistenceException if the retrieval operation fails due to underlying database issues.
      * @since 1.12
      */
-    default <V> List<Ref<E>> findAllRefBy(@Nonnull Metamodel<E, V> field, @Nonnull V value) {
+    default <V> List<Ref<E>> findAllRefBy(Metamodel<E, V> field, V value) {
         return selectRef().where(field, EQUALS, value).getResultList();
     }
 
@@ -808,7 +807,7 @@ public interface EntityRepository<E extends Entity<ID>, ID> extends Repository {
      * @throws PersistenceException if the retrieval operation fails due to underlying database issues.
      * @since 1.12
      */
-    default <V extends Data> List<Ref<E>> findAllRefBy(@Nonnull Metamodel<E, V> field, @Nonnull Ref<V> value) {
+    default <V extends Data> List<Ref<E>> findAllRefBy(Metamodel<E, V> field, Ref<V> value) {
         return selectRef().where(field, value).getResultList();
     }
 
@@ -822,7 +821,7 @@ public interface EntityRepository<E extends Entity<ID>, ID> extends Repository {
      * @throws PersistenceException if the retrieval operation fails due to underlying database issues.
      * @since 1.12
      */
-    default <V> List<Ref<E>> findAllRefBy(@Nonnull Metamodel<E, V> field, @Nonnull Iterable<? extends V> values) {
+    default <V> List<Ref<E>> findAllRefBy(Metamodel<E, V> field, Iterable<? extends V> values) {
         return selectRef().where(field, IN, values).getResultList();
     }
 
@@ -836,7 +835,7 @@ public interface EntityRepository<E extends Entity<ID>, ID> extends Repository {
      * @throws PersistenceException if the retrieval operation fails due to underlying database issues.
      * @since 1.12
      */
-    default <V extends Data> List<Ref<E>> findAllRefByRef(@Nonnull Metamodel<E, V> field, @Nonnull Iterable<? extends Ref<V>> values) {
+    default <V extends Data> List<Ref<E>> findAllRefByRef(Metamodel<E, V> field, Iterable<? extends Ref<V>> values) {
         return selectRef().whereRef(field, values).getResultList();
     }
 
@@ -852,7 +851,7 @@ public interface EntityRepository<E extends Entity<ID>, ID> extends Repository {
      * @throws PersistenceException if the retrieval operation fails due to underlying database issues.
      * @since 1.12
      */
-    default <V> Ref<E> getRefBy(@Nonnull Metamodel<E, V> field, @Nonnull V value) {
+    default <V> Ref<E> getRefBy(Metamodel<E, V> field, V value) {
         return selectRef().where(field, EQUALS, value).getSingleResult();
     }
 
@@ -868,7 +867,7 @@ public interface EntityRepository<E extends Entity<ID>, ID> extends Repository {
      * @throws PersistenceException if the retrieval operation fails due to underlying database issues.
      * @since 1.12
      */
-    default <V extends Data> Ref<E> getRefBy(@Nonnull Metamodel<E, V> field, @Nonnull Ref<V> value) {
+    default <V extends Data> Ref<E> getRefBy(Metamodel<E, V> field, Ref<V> value) {
         return selectRef().where(field, value).getSingleResult();
     }
 
@@ -882,7 +881,7 @@ public interface EntityRepository<E extends Entity<ID>, ID> extends Repository {
      * @throws PersistenceException if the count operation fails due to underlying database issues.
      * @since 1.12
      */
-    default <V> long countBy(@Nonnull Metamodel<E, V> field, @Nonnull V value) {
+    default <V> long countBy(Metamodel<E, V> field, V value) {
         return selectCount().where(field, EQUALS, value).getSingleResult();
     }
 
@@ -896,7 +895,7 @@ public interface EntityRepository<E extends Entity<ID>, ID> extends Repository {
      * @throws PersistenceException if the count operation fails due to underlying database issues.
      * @since 1.12
      */
-    default <V extends Data> long countBy(@Nonnull Metamodel<E, V> field, @Nonnull Ref<V> value) {
+    default <V extends Data> long countBy(Metamodel<E, V> field, Ref<V> value) {
         return selectCount().where(field, value).getSingleResult();
     }
 
@@ -910,7 +909,7 @@ public interface EntityRepository<E extends Entity<ID>, ID> extends Repository {
      * @throws PersistenceException if the count operation fails due to underlying database issues.
      * @since 1.12
      */
-    default <V> boolean existsBy(@Nonnull Metamodel<E, V> field, @Nonnull V value) {
+    default <V> boolean existsBy(Metamodel<E, V> field, V value) {
         return countBy(field, value) > 0;
     }
 
@@ -924,7 +923,7 @@ public interface EntityRepository<E extends Entity<ID>, ID> extends Repository {
      * @throws PersistenceException if the count operation fails due to underlying database issues.
      * @since 1.12
      */
-    default <V extends Data> boolean existsBy(@Nonnull Metamodel<E, V> field, @Nonnull Ref<V> value) {
+    default <V extends Data> boolean existsBy(Metamodel<E, V> field, Ref<V> value) {
         return countBy(field, value) > 0;
     }
 
@@ -938,7 +937,7 @@ public interface EntityRepository<E extends Entity<ID>, ID> extends Repository {
      * @throws PersistenceException if the removal operation fails due to underlying database issues.
      * @since 1.12
      */
-    default <V> int removeAllBy(@Nonnull Metamodel<E, V> field, @Nonnull V value) {
+    default <V> int removeAllBy(Metamodel<E, V> field, V value) {
         return delete().where(field, EQUALS, value).executeUpdate();
     }
 
@@ -952,7 +951,7 @@ public interface EntityRepository<E extends Entity<ID>, ID> extends Repository {
      * @throws PersistenceException if the removal operation fails due to underlying database issues.
      * @since 1.12
      */
-    default <V extends Data> int removeAllBy(@Nonnull Metamodel<E, V> field, @Nonnull Ref<V> value) {
+    default <V extends Data> int removeAllBy(Metamodel<E, V> field, Ref<V> value) {
         return delete().where(field, value).executeUpdate();
     }
 
@@ -966,7 +965,7 @@ public interface EntityRepository<E extends Entity<ID>, ID> extends Repository {
      * @throws PersistenceException if the removal operation fails due to underlying database issues.
      * @since 1.12
      */
-    default <V> int removeAllBy(@Nonnull Metamodel<E, V> field, @Nonnull Iterable<? extends V> values) {
+    default <V> int removeAllBy(Metamodel<E, V> field, Iterable<? extends V> values) {
         return delete().where(field, IN, values).executeUpdate();
     }
 
@@ -980,7 +979,7 @@ public interface EntityRepository<E extends Entity<ID>, ID> extends Repository {
      * @throws PersistenceException if the removal operation fails due to underlying database issues.
      * @since 1.12
      */
-    default <V extends Data> int removeAllByRef(@Nonnull Metamodel<E, V> field, @Nonnull Iterable<? extends Ref<V>> values) {
+    default <V extends Data> int removeAllByRef(Metamodel<E, V> field, Iterable<? extends Ref<V>> values) {
         return delete().whereRef(field, values).executeUpdate();
     }
 
@@ -1016,7 +1015,7 @@ public interface EntityRepository<E extends Entity<ID>, ID> extends Repository {
      * @return a page containing the results and pagination metadata.
      * @since 1.10
      */
-    Page<E> page(@Nonnull Pageable pageable);
+    Page<E> page(Pageable pageable);
 
     /**
      * Returns a page of entity refs using offset-based pagination.
@@ -1041,7 +1040,7 @@ public interface EntityRepository<E extends Entity<ID>, ID> extends Repository {
      * @return a page containing the ref results and pagination metadata.
      * @since 1.10
      */
-    Page<Ref<E>> pageRef(@Nonnull Pageable pageable);
+    Page<Ref<E>> pageRef(Pageable pageable);
 
     /**
      * Executes a scroll request from a {@link Scrollable} token, typically obtained from
@@ -1051,7 +1050,7 @@ public interface EntityRepository<E extends Entity<ID>, ID> extends Repository {
      * @return a window containing the results and navigation tokens.
      * @since 1.11
      */
-    default Window<E> scroll(@Nonnull Scrollable<E> scrollable) {
+    default Window<E> scroll(Scrollable<E> scrollable) {
         return select().scroll(scrollable);
     }
 
@@ -1103,7 +1102,7 @@ public interface EntityRepository<E extends Entity<ID>, ID> extends Repository {
      * @throws PersistenceException if the selection operation fails due to database issues, such as connectivity
      *         problems or invalid input parameters.
      */
-    List<E> findAllById(@Nonnull Iterable<ID> ids);
+    List<E> findAllById(Iterable<ID> ids);
 
     /**
      * Retrieves a list of entities based on their primary keys.
@@ -1122,7 +1121,7 @@ public interface EntityRepository<E extends Entity<ID>, ID> extends Repository {
      * @throws PersistenceException if the selection operation fails due to database issues, such as connectivity
      *         problems or invalid input parameters.
      */
-    List<E> findAllByRef(@Nonnull Iterable<Ref<E>> refs);
+    List<E> findAllByRef(Iterable<Ref<E>> refs);
 
     /**
      * Inserts a collection of entities into the database in batches.
@@ -1136,7 +1135,7 @@ public interface EntityRepository<E extends Entity<ID>, ID> extends Repository {
      * @throws PersistenceException if the insertion operation fails due to database issues, such as connectivity
      *                              problems, constraints violations, or invalid entity data.
      */
-    void insert(@Nonnull Iterable<E> entities);
+    void insert(Iterable<E> entities);
 
     /**
      * Inserts a collection of entities into the database in batches.
@@ -1153,7 +1152,7 @@ public interface EntityRepository<E extends Entity<ID>, ID> extends Repository {
      * @throws PersistenceException if the insertion operation fails due to database issues, such as connectivity
      *                              problems, constraints violations, or invalid entity data.
      */
-    void insert(@Nonnull Iterable<E> entities, boolean ignoreAutoGenerate);
+    void insert(Iterable<E> entities, boolean ignoreAutoGenerate);
 
     /**
      * Inserts a collection of entities into the database in batches.
@@ -1172,7 +1171,7 @@ public interface EntityRepository<E extends Entity<ID>, ID> extends Repository {
      * @throws PersistenceException if the insertion operation fails due to database issues, such as connectivity
      *                              problems, constraints violations, or invalid entity data.
      */
-    List<ID> insertAndFetchIds(@Nonnull Iterable<E> entities);
+    List<ID> insertAndFetchIds(Iterable<E> entities);
 
     /**
      * Inserts a collection of entities into the database in batches.
@@ -1192,7 +1191,7 @@ public interface EntityRepository<E extends Entity<ID>, ID> extends Repository {
      * @throws PersistenceException if the insertion operation fails due to database issues, such as connectivity
      *                              problems, constraints violations, or invalid entity data.
      */
-    List<E> insertAndFetch(@Nonnull Iterable<E> entities);
+    List<E> insertAndFetch(Iterable<E> entities);
 
     /**
      * Updates a collection of entities in the database in batches.
@@ -1206,7 +1205,7 @@ public interface EntityRepository<E extends Entity<ID>, ID> extends Repository {
      * @throws PersistenceException if the update operation fails due to database issues, such as connectivity
      *                              problems, constraints violations, or invalid entity data.
      */
-    void update(@Nonnull Iterable<E> entities);
+    void update(Iterable<E> entities);
 
     /**
      * Updates a collection of entities in the database in batches and returns a list of the updated entities.
@@ -1223,7 +1222,7 @@ public interface EntityRepository<E extends Entity<ID>, ID> extends Repository {
      * @throws PersistenceException if the update operation fails due to database issues, such as connectivity problems,
      *                              constraints violations, or invalid entity data.
      */
-    List<E> updateAndFetch(@Nonnull Iterable<E> entities);
+    List<E> updateAndFetch(Iterable<E> entities);
 
     /**
      * Inserts or updates a collection of entities in the database in batches.
@@ -1238,7 +1237,7 @@ public interface EntityRepository<E extends Entity<ID>, ID> extends Repository {
      * @throws PersistenceException if the upsert operation fails due to database issues, such as connectivity problems,
      *                              constraints violations, or invalid entity data.
      */
-    void upsert(@Nonnull Iterable<E> entities);
+    void upsert(Iterable<E> entities);
 
     /**
      * Inserts or updates a collection of entities in the database in batches and returns a list of their IDs.
@@ -1256,7 +1255,7 @@ public interface EntityRepository<E extends Entity<ID>, ID> extends Repository {
      * @throws PersistenceException if the upsert operation fails due to database issues, such as connectivity problems,
      *                              constraints violations, or invalid entity data.
      */
-    List<ID> upsertAndFetchIds(@Nonnull Iterable<E> entities);
+    List<ID> upsertAndFetchIds(Iterable<E> entities);
 
     /**
      * Inserts or updates a collection of entities in the database in batches and returns a list of the upserted
@@ -1276,7 +1275,7 @@ public interface EntityRepository<E extends Entity<ID>, ID> extends Repository {
      * @throws PersistenceException if the upsert operation fails due to database issues, such as connectivity problems,
      *                              constraints violations, or invalid entity data.
      */
-    List<E> upsertAndFetch(@Nonnull Iterable<E> entities);
+    List<E> upsertAndFetch(Iterable<E> entities);
 
     /**
      * Removes a collection of entities from the database in batches.
@@ -1290,7 +1289,7 @@ public interface EntityRepository<E extends Entity<ID>, ID> extends Repository {
      * @throws PersistenceException if the removal operation fails due to database issues, such as connectivity problems
      *                              or constraints violations.
      */
-    void remove(@Nonnull Iterable<E> entities);
+    void remove(Iterable<E> entities);
 
     /**
      * Removes a collection of entities from the database in batches.
@@ -1304,7 +1303,7 @@ public interface EntityRepository<E extends Entity<ID>, ID> extends Repository {
      * @throws PersistenceException if the removal operation fails due to database issues, such as connectivity problems
      *                              or constraints violations.
      */
-    void removeByRef(@Nonnull Iterable<Ref<E>> refs);
+    void removeByRef(Iterable<Ref<E>> refs);
 
     // Stream based methods.
 
@@ -1331,7 +1330,7 @@ public interface EntityRepository<E extends Entity<ID>, ID> extends Repository {
      * @return the total count of entities matching the provided IDs.
      * @throws PersistenceException if there is an error during the counting operation, such as connectivity issues.
      */
-    long countById(@Nonnull Stream<ID> ids);
+    long countById(Stream<ID> ids);
 
     /**
      * Counts the number of entities identified by the provided stream of IDs, with the counting process divided into
@@ -1347,7 +1346,7 @@ public interface EntityRepository<E extends Entity<ID>, ID> extends Repository {
      * @return the total count of entities matching the provided IDs.
      * @throws PersistenceException if there is an error during the counting operation, such as connectivity issues.
      */
-    long countById(@Nonnull Stream<ID> ids, int chunkSize);
+    long countById(Stream<ID> ids, int chunkSize);
 
     /**
      * Counts the number of entities identified by the provided stream of refs using the default batch size.
@@ -1360,7 +1359,7 @@ public interface EntityRepository<E extends Entity<ID>, ID> extends Repository {
      * @return the total count of entities matching the provided IDs.
      * @throws PersistenceException if there is an error during the counting operation, such as connectivity issues.
      */
-    long countByRef(@Nonnull Stream<Ref<E>> refs);
+    long countByRef(Stream<Ref<E>> refs);
 
     /**
      * Counts the number of entities identified by the provided stream of refs, with the counting process divided into
@@ -1376,7 +1375,7 @@ public interface EntityRepository<E extends Entity<ID>, ID> extends Repository {
      * @return the total count of entities matching the provided IDs.
      * @throws PersistenceException if there is an error during the counting operation, such as connectivity issues.
      */
-    long countByRef(@Nonnull Stream<Ref<E>> refs, int chunkSize);
+    long countByRef(Stream<Ref<E>> refs, int chunkSize);
 
     /**
      * Inserts entities in a batch mode to optimize performance and reduce database load.
@@ -1389,7 +1388,7 @@ public interface EntityRepository<E extends Entity<ID>, ID> extends Repository {
      * @throws PersistenceException if the insert fails due to database constraints, connectivity issues, or if the
      *                              entities parameter is null.
      */
-    void insert(@Nonnull Stream<E> entities);
+    void insert(Stream<E> entities);
 
     /**
      * Inserts entities in a batch mode to optimize performance and reduce database load.
@@ -1405,7 +1404,7 @@ public interface EntityRepository<E extends Entity<ID>, ID> extends Repository {
      * @throws PersistenceException if the insert fails due to database constraints, connectivity issues, or if the
      *                              entities parameter is null.
      */
-    void insert(@Nonnull Stream<E> entities, boolean ignoreAutoGenerate);
+    void insert(Stream<E> entities, boolean ignoreAutoGenerate);
 
     /**
      * Inserts a stream of entities into the database, with the insertion process divided into batches of the specified
@@ -1422,7 +1421,7 @@ public interface EntityRepository<E extends Entity<ID>, ID> extends Repository {
      * @throws PersistenceException if there is an error during the insertion operation, such as a violation of database
      *                              constraints, connectivity issues, or if any entity in the stream is null.
      */
-    void insert(@Nonnull Stream<E> entities, int batchSize);
+    void insert(Stream<E> entities, int batchSize);
 
     /**
      * Inserts a stream of entities into the database, with the insertion process divided into batches of the specified
@@ -1442,7 +1441,7 @@ public interface EntityRepository<E extends Entity<ID>, ID> extends Repository {
      * @throws PersistenceException if there is an error during the insertion operation, such as a violation of database
      *                              constraints, connectivity issues, or if any entity in the stream is null.
      */
-    void insert(@Nonnull Stream<E> entities, int batchSize, boolean ignoreAutoGenerate);
+    void insert(Stream<E> entities, int batchSize, boolean ignoreAutoGenerate);
 
     /**
      * Updates a stream of entities in the database using the default batch size.
@@ -1456,7 +1455,7 @@ public interface EntityRepository<E extends Entity<ID>, ID> extends Repository {
      * @throws PersistenceException if there is an error during the update operation, such as a violation of database
      *                              constraints, connectivity issues, or if any entity in the stream is null.
      */
-    void update(@Nonnull Stream<E> entities);
+    void update(Stream<E> entities);
 
     /**
      * Updates a stream of entities in the database, with the update process divided into batches of the specified size.
@@ -1472,7 +1471,7 @@ public interface EntityRepository<E extends Entity<ID>, ID> extends Repository {
      * @throws PersistenceException if there is an error during the update operation, such as a violation of database
      *                              constraints, connectivity issues, or if any entity in the stream is null.
      */
-    void update(@Nonnull Stream<E> entities, int batchSize);
+    void update(Stream<E> entities, int batchSize);
 
     /**
      * Inserts or updates a stream of entities in the database in batches.
@@ -1487,7 +1486,7 @@ public interface EntityRepository<E extends Entity<ID>, ID> extends Repository {
      * @throws PersistenceException if the upsert operation fails due to database issues, such as connectivity
      *                              problems, constraints violations, or invalid entity data.
      */
-    void upsert(@Nonnull Stream<E> entities);
+    void upsert(Stream<E> entities);
 
     /**
      * Inserts or updates a stream of entities in the database in configurable batch sizes.
@@ -1505,7 +1504,7 @@ public interface EntityRepository<E extends Entity<ID>, ID> extends Repository {
      * @throws PersistenceException if the upsert operation fails due to database issues, such as connectivity
      *                              problems, constraints violations, or invalid entity data.
      */
-    void upsert(@Nonnull Stream<E> entities, int batchSize);
+    void upsert(Stream<E> entities, int batchSize);
 
     /**
      * Removes a stream of entities from the database in batches.
@@ -1513,7 +1512,7 @@ public interface EntityRepository<E extends Entity<ID>, ID> extends Repository {
      * @param entities a stream of entities to be removed.
      * @throws PersistenceException if the removal operation fails.
      */
-    void remove(@Nonnull Stream<E> entities);
+    void remove(Stream<E> entities);
 
     /**
      * Removes a stream of entities from the database in configurable batch sizes.
@@ -1522,7 +1521,7 @@ public interface EntityRepository<E extends Entity<ID>, ID> extends Repository {
      * @param batchSize the number of entities to process in each batch.
      * @throws PersistenceException if the removal operation fails.
      */
-    void remove(@Nonnull Stream<E> entities, int batchSize);
+    void remove(Stream<E> entities, int batchSize);
 
     /**
      * Removes a stream of entities from the database in batches.
@@ -1530,7 +1529,7 @@ public interface EntityRepository<E extends Entity<ID>, ID> extends Repository {
      * @param refs a stream of entities to be removed.
      * @throws PersistenceException if the removal operation fails.
      */
-    void removeByRef(@Nonnull Stream<Ref<E>> refs);
+    void removeByRef(Stream<Ref<E>> refs);
 
     /**
      * Removes a stream of entities from the database in configurable batch sizes.
@@ -1539,5 +1538,5 @@ public interface EntityRepository<E extends Entity<ID>, ID> extends Repository {
      * @param batchSize the number of entities to process in each batch.
      * @throws PersistenceException if the removal operation fails.
      */
-    void removeByRef(@Nonnull Stream<Ref<E>> refs, int batchSize);
+    void removeByRef(Stream<Ref<E>> refs, int batchSize);
 }

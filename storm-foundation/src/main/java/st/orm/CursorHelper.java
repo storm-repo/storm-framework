@@ -15,10 +15,9 @@
  */
 package st.orm;
 
-import jakarta.annotation.Nonnull;
-import jakarta.annotation.Nullable;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
+import org.jspecify.annotations.Nullable;
 
 /**
  * Bridge to cursor serialization implementation in storm-core. Mirrors the {@link MetamodelHelper} pattern:
@@ -72,7 +71,7 @@ class CursorHelper {
     /**
      * Deserializes a cursor string. Returns {isForward, size, keyCursor, sortCursor}.
      */
-    static Object[] fromCursor(int metamodelFingerprint, @Nonnull String cursor,
+    static Object[] fromCursor(int metamodelFingerprint, String cursor,
                                 @Nullable Class<?> keyFieldType, @Nullable Class<?> sortFieldType) {
         try {
             try {

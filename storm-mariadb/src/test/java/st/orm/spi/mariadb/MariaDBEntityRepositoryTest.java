@@ -13,8 +13,6 @@ import static st.orm.Operator.EQUALS;
 import static st.orm.Operator.GREATER_THAN_OR_EQUAL;
 import static st.orm.core.template.SqlInterceptor.observe;
 
-import jakarta.annotation.Nonnull;
-import jakarta.annotation.Nullable;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.util.Comparator;
@@ -23,6 +21,7 @@ import java.util.UUID;
 import java.util.concurrent.atomic.AtomicBoolean;
 import javax.sql.DataSource;
 import lombok.Builder;
+import org.jspecify.annotations.Nullable;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -90,9 +89,9 @@ public class MariaDBEntityRepositoryTest {
     @Builder(toBuilder = true)
     public record Owner(
             @PK Integer id,
-            @Nonnull String firstName,
-            @Nonnull String lastName,
-            @Nonnull Address address,
+            String firstName,
+            String lastName,
+            Address address,
             @Nullable String telephone,
             @Version int version
     ) implements Entity<Integer> {}
@@ -572,7 +571,7 @@ public class MariaDBEntityRepositoryTest {
     @Builder(toBuilder = true)
     public record PetType(
             @PK Integer id,
-            @Nonnull String name,
+            String name,
             @Nullable String description
     ) implements Entity<Integer> {}
 
@@ -601,7 +600,7 @@ public class MariaDBEntityRepositoryTest {
     @Builder(toBuilder = true)
     public record Specialty(
             @PK(generation = NONE) Integer id,
-            @Nonnull String name
+            String name
     ) implements Entity<Integer> {}
 
     @Test
@@ -704,10 +703,10 @@ public class MariaDBEntityRepositoryTest {
 
     @Builder(toBuilder = true)
     public record VetSpecialty(
-            @Nonnull @PK(generation = NONE) VetSpecialtyPK id,  // Implicitly @Inlined
-            @Nonnull @Persist(insertable = false, updatable = false) @FK Vet vet,
-            @Nonnull @Persist(insertable = false, updatable = false) @FK Specialty specialty) implements Entity<VetSpecialtyPK> {
-        public VetSpecialty(@Nonnull VetSpecialtyPK pk) {
+            @PK(generation = NONE) VetSpecialtyPK id,  // Implicitly @Inlined
+            @Persist(insertable = false, updatable = false) @FK Vet vet,
+            @Persist(insertable = false, updatable = false) @FK Specialty specialty) implements Entity<VetSpecialtyPK> {
+        public VetSpecialty(VetSpecialtyPK pk) {
             //noinspection DataFlowIssue
             this(pk, null, null);
         }
@@ -855,9 +854,9 @@ public class MariaDBEntityRepositoryTest {
     @DbTable("pet")
     public record Pet(
             @PK(generation = SEQUENCE, sequence = "pet_id_seq") Integer id,
-            @Nonnull String name,
-            @Nonnull LocalDate birthDate,
-            @Nonnull @FK PetType type,
+            String name,
+            LocalDate birthDate,
+            @FK PetType type,
             @Nullable @FK Owner owner
     ) implements Entity<Integer> {}
 
@@ -1410,9 +1409,9 @@ public class MariaDBEntityRepositoryTest {
     @DbTable("pet")
     public record PetSequenceEmpty(
             @PK(generation = SEQUENCE) Integer id,
-            @Nonnull String name,
-            @Nonnull LocalDate birthDate,
-            @Nonnull @FK PetType type,
+            String name,
+            LocalDate birthDate,
+            @FK PetType type,
             @Nullable @FK Owner owner
     ) implements Entity<Integer> {}
 
@@ -2058,7 +2057,7 @@ public class MariaDBEntityRepositoryTest {
     @DbTable("version_long_entity")
     public record VersionLongEntity(
             @PK Integer id,
-            @Nonnull String name,
+            String name,
             @Version long version
     ) implements Entity<Integer> {}
 
@@ -2066,7 +2065,7 @@ public class MariaDBEntityRepositoryTest {
     @DbTable("version_instant_entity")
     public record VersionInstantEntity(
             @PK Integer id,
-            @Nonnull String name,
+            String name,
             @Version @Nullable Instant version
     ) implements Entity<Integer> {}
 
@@ -2074,7 +2073,7 @@ public class MariaDBEntityRepositoryTest {
     @DbTable("non_autogen_entity")
     public record NonAutoGenEntity(
             @PK(generation = NONE) Integer id,
-            @Nonnull String name,
+            String name,
             @Version int version
     ) implements Entity<Integer> {}
 
@@ -2082,7 +2081,7 @@ public class MariaDBEntityRepositoryTest {
     @DbTable("seq_entity")
     public record SeqEntity(
             @PK(generation = SEQUENCE, sequence = "seq_entity_id_seq") Integer id,
-            @Nonnull String name,
+            String name,
             @Version int version
     ) implements Entity<Integer> {}
 
@@ -2267,7 +2266,7 @@ public class MariaDBEntityRepositoryTest {
     @DbTable("api_key")
     public record ApiKey(
             @PK(generation = NONE) UUID id,
-            @Nonnull String name,
+            String name,
             @Nullable UUID externalReference
     ) implements Entity<UUID> {}
 
@@ -2340,12 +2339,12 @@ public class MariaDBEntityRepositoryTest {
         var observed = new java.util.ArrayList<SeqEntity>();
         var orm = PreparedStatementTemplate.ORM(dataSource).withEntityCallback(new st.orm.EntityCallback<SeqEntity>() {
             @Override
-            public SeqEntity beforeInsert(@Nonnull SeqEntity entity) {
+            public SeqEntity beforeInsert(SeqEntity entity) {
                 return entity.toBuilder().name(entity.name().toUpperCase()).build();
             }
 
             @Override
-            public void afterInsert(@Nonnull SeqEntity entity) {
+            public void afterInsert(SeqEntity entity) {
                 observed.add(entity);
             }
         });
@@ -2362,12 +2361,12 @@ public class MariaDBEntityRepositoryTest {
         var observed = new java.util.ArrayList<SeqEntity>();
         var orm = PreparedStatementTemplate.ORM(dataSource).withEntityCallback(new st.orm.EntityCallback<SeqEntity>() {
             @Override
-            public SeqEntity beforeInsert(@Nonnull SeqEntity entity) {
+            public SeqEntity beforeInsert(SeqEntity entity) {
                 return entity.toBuilder().name(entity.name().toUpperCase()).build();
             }
 
             @Override
-            public void afterInsert(@Nonnull SeqEntity entity) {
+            public void afterInsert(SeqEntity entity) {
                 observed.add(entity);
             }
         });

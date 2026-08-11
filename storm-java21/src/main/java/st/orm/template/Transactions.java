@@ -17,7 +17,6 @@ package st.orm.template;
 
 import static java.util.Objects.requireNonNull;
 
-import jakarta.annotation.Nonnull;
 import java.util.concurrent.atomic.AtomicReference;
 import st.orm.TransactionOptions;
 import st.orm.TransactionPropagation;
@@ -97,7 +96,7 @@ public final class Transactions {
      * @param <E> the checked exception type thrown by the block, if any.
      * @throws st.orm.PersistenceException if transaction execution fails.
      */
-    public static <R, E extends Exception> R transaction(@Nonnull TransactionBlock<R, E> block) throws E {
+    public static <R, E extends Exception> R transaction(TransactionBlock<R, E> block) throws E {
         return transaction(TransactionOptions.defaults(), block);
     }
 
@@ -111,8 +110,8 @@ public final class Transactions {
      * @param <E> the checked exception type thrown by the block, if any.
      * @throws st.orm.PersistenceException if transaction execution fails.
      */
-    public static <R, E extends Exception> R transaction(@Nonnull TransactionPropagation propagation,
-                                                         @Nonnull TransactionBlock<R, E> block) throws E {
+    public static <R, E extends Exception> R transaction(TransactionPropagation propagation,
+                                                         TransactionBlock<R, E> block) throws E {
         return transaction(TransactionOptions.defaults().withPropagation(propagation), block);
     }
 
@@ -128,8 +127,8 @@ public final class Transactions {
      * @param <E> the checked exception type thrown by the block, if any.
      * @throws st.orm.PersistenceException if transaction execution fails.
      */
-    public static <R, E extends Exception> R transaction(@Nonnull TransactionOptions options,
-                                                         @Nonnull TransactionBlock<R, E> block) throws E {
+    public static <R, E extends Exception> R transaction(TransactionOptions options,
+                                                         TransactionBlock<R, E> block) throws E {
         requireNonNull(options, "options");
         requireNonNull(block, "block");
         var resolved = merge(options, currentDefaults());
@@ -151,7 +150,7 @@ public final class Transactions {
      *
      * @param options the global transaction options.
      */
-    public static void setGlobalTransactionOptions(@Nonnull TransactionOptions options) {
+    public static void setGlobalTransactionOptions(TransactionOptions options) {
         requireNonNull(options, "options");
         GLOBAL.set(merge(options, BASELINE));
     }
@@ -166,8 +165,8 @@ public final class Transactions {
      * @param <R> the result type.
      * @param <E> the checked exception type thrown by the block, if any.
      */
-    public static <R, E extends Exception> R withTransactionOptions(@Nonnull TransactionOptions options,
-                                                                    @Nonnull TransactionSupplier<R, E> block) throws E {
+    public static <R, E extends Exception> R withTransactionOptions(TransactionOptions options,
+                                                                    TransactionSupplier<R, E> block) throws E {
         requireNonNull(options, "options");
         requireNonNull(block, "block");
         var previous = LOCAL.get();
@@ -188,7 +187,7 @@ public final class Transactions {
         return local != null ? local : GLOBAL.get();
     }
 
-    private static TransactionOptions merge(@Nonnull TransactionOptions options, @Nonnull TransactionOptions defaults) {
+    private static TransactionOptions merge(TransactionOptions options, TransactionOptions defaults) {
         return new TransactionOptions(
                 options.propagation() != null ? options.propagation() : defaults.propagation(),
                 options.isolation() != null ? options.isolation() : defaults.isolation(),

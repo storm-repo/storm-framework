@@ -15,7 +15,6 @@
  */
 package st.orm.core.template.impl;
 
-import jakarta.annotation.Nonnull;
 
 /**
  * Describes a single mismatch between an entity definition and the database schema.
@@ -26,9 +25,9 @@ import jakarta.annotation.Nonnull;
  * @since 1.9
  */
 public record SchemaValidationError(
-        @Nonnull Class<?> entityType,
-        @Nonnull ErrorKind kind,
-        @Nonnull String message
+        Class<?> entityType,
+        ErrorKind kind,
+        String message
 ) {
 
     /**

@@ -19,10 +19,9 @@ import static java.util.List.copyOf;
 import static java.util.Objects.requireNonNull;
 import static java.util.Optional.ofNullable;
 
-import jakarta.annotation.Nonnull;
-import jakarta.annotation.Nullable;
 import java.util.List;
 import java.util.Optional;
+import org.jspecify.annotations.Nullable;
 import st.orm.Data;
 import st.orm.core.template.Sql;
 import st.orm.core.template.SqlOperation;
@@ -48,17 +47,17 @@ import st.orm.core.template.StatementOrigin;
  * @param shapeId       the identity of the statement's shape: the template it was generated from.
  */
 record SqlImpl(
-        @Nonnull SqlOperation operation,
-        @Nonnull String statement,
-        @Nonnull List<Parameter> parameters,
-        @Nonnull Optional<BindVariables> bindVariables,
-        @Nonnull List<String> generatedKeys,
-        @Nonnull Optional<Class<? extends Data>> affectedType,
-        @Nonnull Optional<Class<? extends Data>> dataType,
-        @Nonnull List<String> fetchPaths,
+        SqlOperation operation,
+        String statement,
+        List<Parameter> parameters,
+        Optional<BindVariables> bindVariables,
+        List<String> generatedKeys,
+        Optional<Class<? extends Data>> affectedType,
+        Optional<Class<? extends Data>> dataType,
+        List<String> fetchPaths,
         boolean versionAware,
-        @Nonnull Optional<String> unsafeWarning,
-        @Nonnull StatementOrigin origin,
+        Optional<String> unsafeWarning,
+        StatementOrigin origin,
         long shapeId
 ) implements Sql {
     public SqlImpl {
@@ -93,7 +92,7 @@ record SqlImpl(
      * @since 1.13
      */
     @Override
-    public Sql origin(@Nonnull StatementOrigin origin) {
+    public Sql origin(StatementOrigin origin) {
         return new SqlImpl(operation, statement, parameters, bindVariables, generatedKeys, affectedType, dataType, fetchPaths, versionAware, unsafeWarning, origin, shapeId);
     }
 
@@ -104,7 +103,7 @@ record SqlImpl(
      * @return a new instance of the SQL statement with the given operation.
      */
     @Override
-    public Sql operation(@Nonnull SqlOperation operation) {
+    public Sql operation(SqlOperation operation) {
         return new SqlImpl(operation, statement, parameters, bindVariables, generatedKeys, affectedType, dataType, fetchPaths, versionAware, unsafeWarning, origin, shapeId);
     }
 
@@ -115,7 +114,7 @@ record SqlImpl(
      * @return a new instance of the SQL statement with the given statement.
      */
     @Override
-    public Sql statement(@Nonnull String statement) {
+    public Sql statement(String statement) {
         return new SqlImpl(operation, statement, parameters, bindVariables, generatedKeys, affectedType, dataType, fetchPaths, versionAware, unsafeWarning, origin, shapeId);
     }
 
@@ -126,7 +125,7 @@ record SqlImpl(
      * @return a new instance of the SQL statement with the given parameters.
      */
     @Override
-    public Sql parameters(@Nonnull List<Parameter> parameters) {
+    public Sql parameters(List<Parameter> parameters) {
         return new SqlImpl(operation, statement, parameters, bindVariables, generatedKeys, affectedType, dataType, fetchPaths, versionAware, unsafeWarning, origin, shapeId);
     }
 
@@ -137,7 +136,7 @@ record SqlImpl(
      * @return a new instance of the SQL statement with the given bind variables
      */
     @Override
-    public Sql bindVariables(@Nullable SqlTemplate.BindVariables bindVariables) {
+    public Sql bindVariables(SqlTemplate.@Nullable BindVariables bindVariables) {
         return new SqlImpl(operation, statement, parameters, ofNullable(bindVariables), generatedKeys, affectedType, dataType, fetchPaths, versionAware, unsafeWarning, origin, shapeId);
     }
 
@@ -149,7 +148,7 @@ record SqlImpl(
      * @since 1.2
      */
     @Override
-    public Sql generatedKeys(@Nonnull List<String> generatedKeys) {
+    public Sql generatedKeys(List<String> generatedKeys) {
         return new SqlImpl(operation, statement, parameters, bindVariables, generatedKeys, affectedType, dataType, fetchPaths, versionAware, unsafeWarning, origin, shapeId);
     }
 

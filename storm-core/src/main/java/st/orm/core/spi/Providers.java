@@ -26,8 +26,6 @@ import static java.util.stream.Collectors.joining;
 import static java.util.stream.Collectors.toList;
 import static java.util.stream.StreamSupport.stream;
 
-import jakarta.annotation.Nonnull;
-import jakarta.annotation.Nullable;
 import java.lang.ref.Reference;
 import java.lang.ref.ReferenceQueue;
 import java.lang.ref.WeakReference;
@@ -44,6 +42,7 @@ import java.util.function.Predicate;
 import java.util.function.Supplier;
 import java.util.stream.Stream;
 import javax.sql.DataSource;
+import org.jspecify.annotations.Nullable;
 import st.orm.Data;
 import st.orm.Entity;
 import st.orm.PersistenceException;
@@ -125,7 +124,7 @@ public final class Providers {
      * @param <S> service type.
      * @return a list of all services loaded by the specified {@code loader}, in provider order.
      */
-    private static <S extends Provider> List<S> toUnmodifiableList(@Nonnull ServiceLoader<S> loader) {
+    private static <S extends Provider> List<S> toUnmodifiableList(ServiceLoader<S> loader) {
         return stream(loader.spliterator(), false)
                 .collect(collectingAndThen(toList(), list -> Collections.unmodifiableList(Orderable.sort(list))));
     }
@@ -137,7 +136,7 @@ public final class Providers {
      * @param <S> provider type.
      * @return a stream of enabled providers, in provider order.
      */
-    private static <S extends Provider> Stream<S> enabled(@Nonnull Supplier<List<S>> providers) {
+    private static <S extends Provider> Stream<S> enabled(Supplier<List<S>> providers) {
         return providers.get().stream().filter(Provider::isEnabled);
     }
 
@@ -149,7 +148,7 @@ public final class Providers {
      */
     private static final ClassValue<ConcurrentMap<String, Optional<ORMConverter>>> ORM_CONVERTERS = new ClassValue<>() {
         @Override
-        protected ConcurrentMap<String, Optional<ORMConverter>> computeValue(@Nonnull Class<?> type) {
+        protected ConcurrentMap<String, Optional<ORMConverter>> computeValue(Class<?> type) {
             return new ConcurrentHashMap<>();
         }
     };
@@ -161,7 +160,7 @@ public final class Providers {
                 .orElseThrow()));
     }
 
-    public static Optional<ORMConverter> getORMConverter(@Nonnull RecordField field) {
+    public static Optional<ORMConverter> getORMConverter(RecordField field) {
         return ORM_CONVERTERS.get(field.declaringType()).computeIfAbsent(field.name(), ignore ->
                 enabled(ORM_CONVERTER_PROVIDERS)
                         .map(p -> p.getConverter(field))
@@ -171,9 +170,9 @@ public final class Providers {
     }
 
     public static <ID, E extends Entity<ID>> EntityRepository<E, ID> getEntityRepository(
-            @Nonnull ORMTemplate ormTemplate,
-            @Nonnull Model<E, ID> model,
-            @Nonnull Predicate<? super EntityRepositoryProvider> filter) {
+            ORMTemplate ormTemplate,
+            Model<E, ID> model,
+            Predicate<? super EntityRepositoryProvider> filter) {
         return enabled(ENTITY_REPOSITORY_PROVIDERS)
                 .filter(filter)
                 .map(provider -> provider.getEntityRepository(ormTemplate, model))
@@ -182,9 +181,9 @@ public final class Providers {
     }
 
     public static <ID, P extends Projection<ID>> ProjectionRepository<P, ID> getProjectionRepository(
-            @Nonnull ORMTemplate ormTemplate,
-            @Nonnull Model<P, ID> model,
-            @Nonnull Predicate<? super ProjectionRepositoryProvider> filter) {
+            ORMTemplate ormTemplate,
+            Model<P, ID> model,
+            Predicate<? super ProjectionRepositoryProvider> filter) {
         return enabled(PROJECTION_REPOSITORY_PROVIDERS)
                 .filter(filter)
                 .map(provider -> provider.getProjectionRepository(ormTemplate, model))
@@ -206,28 +205,28 @@ public final class Providers {
     }
 
     public static <T extends Data, R, ID> QueryBuilder<T, R, ID> selectFrom(
-            @Nonnull QueryTemplate queryTemplate,
-            @Nonnull Class<T> fromType,
-            @Nonnull Class<R> selectType,
-            @Nonnull TemplateString template,
+            QueryTemplate queryTemplate,
+            Class<T> fromType,
+            Class<R> selectType,
+            TemplateString template,
             boolean subquery,
-            @Nonnull Supplier<Model<T, ID>> modelSupplier) {
+            Supplier<Model<T, ID>> modelSupplier) {
         return queryBuilderProvider().selectFrom(queryTemplate, fromType, selectType, template, subquery, modelSupplier);
     }
 
     public static <T extends Data, R extends Data, ID> QueryBuilder<T, Ref<R>, ID> selectRefFrom(
-            @Nonnull QueryTemplate queryTemplate,
-            @Nonnull Class<T> fromType,
-            @Nonnull Class<R> refType,
-            @Nonnull Class<?> pkType,
-            @Nonnull Supplier<Model<T, ID>> modelSupplier) {
+            QueryTemplate queryTemplate,
+            Class<T> fromType,
+            Class<R> refType,
+            Class<?> pkType,
+            Supplier<Model<T, ID>> modelSupplier) {
         return queryBuilderProvider().selectRefFrom(queryTemplate, fromType, refType, pkType, modelSupplier);
     }
 
     public static <T extends Data, ID> QueryBuilder<T, ?, ID> deleteFrom(
-            @Nonnull QueryTemplate queryTemplate,
-            @Nonnull Class<T> fromType,
-            @Nonnull Supplier<Model<T, ID>> modelSupplier) {
+            QueryTemplate queryTemplate,
+            Class<T> fromType,
+            Supplier<Model<T, ID>> modelSupplier) {
         return queryBuilderProvider().deleteFrom(queryTemplate, fromType, modelSupplier);
     }
 
@@ -244,19 +243,19 @@ public final class Providers {
      * @return the SQL dialect.
      * @throws PersistenceException if no dialect provider is found or the resolution is ambiguous.
      */
-    public static SqlDialect getSqlDialect(@Nonnull StormConfig config) {
+    public static SqlDialect getSqlDialect(StormConfig config) {
         return selectUnique(SQL_DIALECT_PROVIDERS, "SQL dialect provider",
                 "SqlTemplate.withDialect(...), or by binding the template to a DataSource or Connection so the " +
                         "dialect is derived from the database")
                 .getSqlDialect(config);
     }
 
-    public static SqlDialect getSqlDialect(@Nonnull Predicate<? super SqlDialectProvider> filter) {
+    public static SqlDialect getSqlDialect(Predicate<? super SqlDialectProvider> filter) {
         return getSqlDialect(filter, StormConfig.defaults());
     }
 
-    public static SqlDialect getSqlDialect(@Nonnull Predicate<? super SqlDialectProvider> filter,
-                                            @Nonnull StormConfig config) {
+    public static SqlDialect getSqlDialect(Predicate<? super SqlDialectProvider> filter,
+                                            StormConfig config) {
         return enabled(SQL_DIALECT_PROVIDERS)
                 .filter(filter)
                 .map(p -> p.getSqlDialect(config))
@@ -268,7 +267,7 @@ public final class Providers {
     private static final class DataSourceIdentity extends WeakReference<DataSource> {
         private final int hash;
 
-        DataSourceIdentity(@Nonnull DataSource dataSource, @Nonnull ReferenceQueue<DataSource> queue) {
+        DataSourceIdentity(DataSource dataSource, ReferenceQueue<DataSource> queue) {
             super(dataSource, queue);
             this.hash = identityHashCode(dataSource);
         }
@@ -303,7 +302,7 @@ public final class Providers {
      * @return the database product name.
      * @since 1.11
      */
-    public static String getDatabaseProductName(@Nonnull DataSource dataSource) {
+    public static String getDatabaseProductName(DataSource dataSource) {
         Reference<? extends DataSource> stale;
         while ((stale = DATA_SOURCE_QUEUE.poll()) != null) {
             if (stale instanceof DataSourceIdentity identity) {
@@ -326,7 +325,7 @@ public final class Providers {
      * @return the database product name.
      * @since 1.11
      */
-    public static String getDatabaseProductName(@Nonnull Connection connection) {
+    public static String getDatabaseProductName(Connection connection) {
         try {
             return connection.getMetaData().getDatabaseProductName();
         } catch (SQLException e) {
@@ -342,7 +341,7 @@ public final class Providers {
      * @return the matching dialect provider, or {@code null}.
      * @since 1.11
      */
-    public static @Nullable SqlDialectProvider getSqlDialectProvider(@Nonnull String databaseProductName) {
+    public static @Nullable SqlDialectProvider getSqlDialectProvider(String databaseProductName) {
         return enabled(SQL_DIALECT_PROVIDERS)
                 .filter(p -> p.supports(databaseProductName))
                 .findFirst()
@@ -358,7 +357,7 @@ public final class Providers {
      * @return the SQL dialect.
      * @since 1.11
      */
-    public static SqlDialect getSqlDialect(@Nonnull DataSource dataSource, @Nonnull StormConfig config) {
+    public static SqlDialect getSqlDialect(DataSource dataSource, StormConfig config) {
         String productName = getDatabaseProductName(dataSource);
         return enabled(SQL_DIALECT_PROVIDERS)
                 .filter(p -> p.supports(productName))
@@ -376,7 +375,7 @@ public final class Providers {
      * @return the SQL dialect.
      * @since 1.11
      */
-    public static SqlDialect getSqlDialect(@Nonnull Connection connection, @Nonnull StormConfig config) {
+    public static SqlDialect getSqlDialect(Connection connection, StormConfig config) {
         String productName = getDatabaseProductName(connection);
         return enabled(SQL_DIALECT_PROVIDERS)
                 .filter(p -> p.supports(productName))
@@ -437,9 +436,9 @@ public final class Providers {
      * <p>Fails fast when the two top-ranked candidates are unordered peers: silently picking one of several equally
      * eligible providers would make behavior dependent on classpath order.</p>
      */
-    private static <S extends Provider> S selectUnique(@Nonnull Supplier<List<S>> providers,
-                                                       @Nonnull String description,
-                                                       @Nonnull String remedy) {
+    private static <S extends Provider> S selectUnique(Supplier<List<S>> providers,
+                                                       String description,
+                                                       String remedy) {
         var sorted = enabled(providers).toList();
         if (sorted.isEmpty()) {
             throw new PersistenceException("No %s found on the classpath.".formatted(description));
@@ -457,7 +456,7 @@ public final class Providers {
     /**
      * Returns whether {@code first} is explicitly ordered before {@code second} by the {@link Orderable} annotations.
      */
-    private static boolean isOrderedBefore(@Nonnull Class<?> first, @Nonnull Class<?> second) {
+    private static boolean isOrderedBefore(Class<?> first, Class<?> second) {
         boolean firstBeforeAny = first.isAnnotationPresent(Orderable.BeforeAny.class);
         boolean secondBeforeAny = second.isAnnotationPresent(Orderable.BeforeAny.class);
         if (firstBeforeAny && !secondBeforeAny) {

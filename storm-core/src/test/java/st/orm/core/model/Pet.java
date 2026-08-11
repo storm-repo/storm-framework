@@ -15,10 +15,9 @@
  */
 package st.orm.core.model;
 
-import jakarta.annotation.Nonnull;
-import jakarta.annotation.Nullable;
 import java.time.LocalDate;
 import lombok.Builder;
+import org.jspecify.annotations.Nullable;
 import st.orm.Entity;
 import st.orm.FK;
 import st.orm.PK;
@@ -31,8 +30,8 @@ import st.orm.Ref;
 @Builder(toBuilder = true)
 public record Pet(
         @PK Integer id,
-        @Nonnull String name,
-        @Nonnull @Persist(updatable = false) LocalDate birthDate,
-        @Nonnull @FK @Persist(updatable = false) Ref<PetType> type,
+        String name,
+        @Persist(updatable = false) LocalDate birthDate,
+        @FK @Persist(updatable = false) Ref<PetType> type,
         @Nullable @FK Owner owner
 ) implements Entity<Integer> {}

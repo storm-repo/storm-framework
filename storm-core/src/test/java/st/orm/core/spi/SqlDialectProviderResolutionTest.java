@@ -23,7 +23,6 @@ import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-import jakarta.annotation.Nonnull;
 import java.io.IOException;
 import java.io.UncheckedIOException;
 import java.net.URL;
@@ -50,7 +49,7 @@ public class SqlDialectProviderResolutionTest {
     /** Dialect provider without ordering constraints; an unordered peer of {@link UnorderedProviderB}. */
     public static class UnorderedProviderA implements SqlDialectProvider {
         @Override
-        public SqlDialect getSqlDialect(@Nonnull StormConfig config) {
+        public SqlDialect getSqlDialect(StormConfig config) {
             return new DefaultSqlDialect(config);
         }
     }
@@ -58,7 +57,7 @@ public class SqlDialectProviderResolutionTest {
     /** Dialect provider without ordering constraints; an unordered peer of {@link UnorderedProviderA}. */
     public static class UnorderedProviderB implements SqlDialectProvider {
         @Override
-        public SqlDialect getSqlDialect(@Nonnull StormConfig config) {
+        public SqlDialect getSqlDialect(StormConfig config) {
             return new DefaultSqlDialect(config);
         }
     }
@@ -70,7 +69,7 @@ public class SqlDialectProviderResolutionTest {
 
         private final URL services;
 
-        ServiceSubstitutingClassLoader(@Nonnull ClassLoader parent, @Nonnull URL services) {
+        ServiceSubstitutingClassLoader(ClassLoader parent, URL services) {
             super(parent);
             this.services = services;
         }
@@ -84,7 +83,7 @@ public class SqlDialectProviderResolutionTest {
         }
     }
 
-    private void withDialectProviders(@Nonnull List<Class<?>> providers, @Nonnull Runnable runnable) {
+    private void withDialectProviders(List<Class<?>> providers, Runnable runnable) {
         URL services;
         try {
             Path file = tempDir.resolve("dialect-providers");

@@ -1,6 +1,5 @@
 package st.orm.core.template.impl;
 
-import jakarta.annotation.Nonnull;
 import java.util.function.Function;
 import st.orm.Element;
 import st.orm.core.template.SqlTemplateException;
@@ -38,7 +37,7 @@ interface ElementProcessor<E extends Element> {
      * @return an immutable key for caching, or {@code null} if the element (or its compilation) cannot be cached.
      * @throws SqlTemplateException if the key generation fails.
      */
-    default Object getCompilationKey(@Nonnull E element) throws SqlTemplateException {
+    default Object getCompilationKey(E element) throws SqlTemplateException {
         return null;
     }
 
@@ -58,8 +57,8 @@ interface ElementProcessor<E extends Element> {
      * @throws SqlTemplateException if the key generation fails.
      */
     default Object getCompilationKey(
-            @Nonnull E element,
-            @Nonnull Function<TemplateString, Object> keyGenerator
+            E element,
+            Function<TemplateString, Object> keyGenerator
     ) throws SqlTemplateException {
         return getCompilationKey(element);
     }
@@ -79,8 +78,8 @@ interface ElementProcessor<E extends Element> {
      * @since 1.13
      */
     default Object getShapeKey(
-            @Nonnull E element,
-            @Nonnull Function<TemplateString, Object> keyGenerator
+            E element,
+            Function<TemplateString, Object> keyGenerator
     ) throws SqlTemplateException {
         return getCompilationKey(element, keyGenerator);
     }
@@ -96,7 +95,7 @@ interface ElementProcessor<E extends Element> {
      * @return the compiled result for this element.
      * @throws SqlTemplateException if compilation fails.
      */
-    CompiledElement compile(@Nonnull E element, @Nonnull TemplateCompiler compiler) throws SqlTemplateException;
+    CompiledElement compile(E element, TemplateCompiler compiler) throws SqlTemplateException;
 
     /**
      * Performs post-processing after compilation, typically binding runtime values for the element.
@@ -110,5 +109,5 @@ interface ElementProcessor<E extends Element> {
      * @param bindHint the bind hint for the element, providing additional context for binding.
      * @throws SqlTemplateException if binding fails.
      */
-    void bind(@Nonnull E element, @Nonnull TemplateBinder binder, @Nonnull BindHint bindHint) throws SqlTemplateException;
+    void bind(E element, TemplateBinder binder, BindHint bindHint) throws SqlTemplateException;
 }

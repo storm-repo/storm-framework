@@ -21,11 +21,10 @@ import static java.util.concurrent.TimeUnit.NANOSECONDS;
 import static st.orm.core.spi.StormConfigHelper.getEnum;
 import static st.orm.core.spi.StormConfigHelper.getInt;
 
-import jakarta.annotation.Nonnull;
-import jakarta.annotation.Nullable;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
+import org.jspecify.annotations.Nullable;
 import st.orm.Data;
 import st.orm.Entity;
 import st.orm.Ref;
@@ -65,7 +64,7 @@ public final class SqlLogRenderer {
      *
      * @param shapes how shapes render.
      */
-    public static void hydrationShapes(@Nonnull HydrationShapes shapes) {
+    public static void hydrationShapes(HydrationShapes shapes) {
         hydrationShapes = requireNonNull(shapes, "shapes");
     }
 
@@ -96,7 +95,7 @@ public final class SqlLogRenderer {
      * @param summary the summary to render.
      * @return the rendered summary.
      */
-    public static String render(@Nonnull Summary summary) {
+    public static String render(Summary summary) {
         return render(summary.name(), summary.recorded(), summary.count(StatementOrigin.FETCH),
                 summary.cacheHits(), NANOSECONDS.toMillis(summary.databaseNanos()),
                 NANOSECONDS.toMillis(summary.databaseElapsedNanos()), summary.peakConcurrency(),
@@ -111,7 +110,7 @@ public final class SqlLogRenderer {
      * @param summary the summary to render.
      * @return the rendered summary, followed by the full statements.
      */
-    public static String renderDetailed(@Nonnull Summary summary) {
+    public static String renderDetailed(Summary summary) {
         var rendered = new StringBuilder(render(summary));
         var lines = summary.byStatement();
         if (!lines.isEmpty()) {
@@ -146,7 +145,7 @@ public final class SqlLogRenderer {
      * @param notRecorded how many statements ran past the recording limit.
      * @return the rendered summary.
      */
-    public static String render(@Nonnull String name,
+    public static String render(String name,
                                 int statementCount,
                                 int fetchCount,
                                 int cacheHits,
@@ -154,7 +153,7 @@ public final class SqlLogRenderer {
                                 long databaseElapsedMillis,
                                 int peakConcurrency,
                                 long totalMillis,
-                                @Nonnull List<StatementLine> byStatement,
+                                List<StatementLine> byStatement,
                                 int notRecorded) {
         var rendered = new StringBuilder("SQL (%s): %s".formatted(name, statements(statementCount)));
         if (fetchCount > 0) {
@@ -235,12 +234,12 @@ public final class SqlLogRenderer {
     }
 
     /** Returns the row-count column content: the count, marked {@code *} when it is a lower bound. */
-    private static String rowsLabel(@Nonnull StatementLine line) {
+    private static String rowsLabel(StatementLine line) {
         return line.exactRows() ? String.valueOf(line.rows()) : line.rows() + "*";
     }
 
     /** Returns the call-site column content for the line, empty when the scope recorded none. */
-    private static String siteLabel(@Nonnull StatementLine line) {
+    private static String siteLabel(StatementLine line) {
         if (line.callSite() == null) {
             return "";
         }
@@ -253,7 +252,7 @@ public final class SqlLogRenderer {
      * Returns the statement on one line, elided from the middle so a summary stays scannable: the head names the
      * operation and columns, the tail carries the FROM and WHERE clauses that identify what the statement does.
      */
-    private static String elide(@Nonnull String statement, int width) {
+    private static String elide(String statement, int width) {
         // A run of placeholders says nothing its length does not; collapsing it leaves the elision budget to
         // the clauses that identify the statement. Display only: the detailed rendering keeps the exact text.
         String flattened = flatten(statement).replaceAll("\\?(?:, \\?){3,}", "?, \u2026, ?");
@@ -272,7 +271,7 @@ public final class SqlLogRenderer {
      * Joining every break with a space reads that back as {@code WHERE id = ? ) ) x}, so a break between characters
      * that belong together closes up instead.</p>
      */
-    private static String flatten(@Nonnull String statement) {
+    private static String flatten(String statement) {
         var flattened = new StringBuilder();
         statement.lines()
                 .map(String::strip)
@@ -309,7 +308,7 @@ public final class SqlLogRenderer {
      * @return the rendered shape, or {@code null} when the row carries none.
      */
     @Nullable
-    public static String hydrationOf(@Nonnull SqlOperation operation, @Nullable Class<? extends Data> dataType) {
+    public static String hydrationOf(SqlOperation operation, @Nullable Class<? extends Data> dataType) {
         var shapes = hydrationShapes;
         if (shapes == HydrationShapes.OFF) {
             return null;
@@ -352,7 +351,7 @@ public final class SqlLogRenderer {
      *              {@code Pet(Owner(City))}.
      * @param graph the joined-entity tree, such as {@code Pet(PetType, Owner(City))}.
      */
-    private record Hydration(int joins, int columns, int depth, @Nonnull String graph) {
+    private record Hydration(int joins, int columns, int depth, String graph) {
     }
 
     /** Marks a type without a mapped record structure, for which no shape renders. */
@@ -360,7 +359,7 @@ public final class SqlLogRenderer {
 
     private static final ClassValue<Hydration> HYDRATION = new ClassValue<>() {
         @Override
-        protected Hydration computeValue(@Nonnull Class<?> type) {
+        protected Hydration computeValue(Class<?> type) {
             // The reflection provider recognizes the mapped structure of Java records and Kotlin data classes
             // alike, which is the same bridge the model itself is built over.
             if (Providers.getORMReflection().findRecordType(type).isEmpty()) {
@@ -377,10 +376,10 @@ public final class SqlLogRenderer {
      * The shape of one type level: its joins and columns, the entity levels below it, and its joined children
      * rendered as a list.
      */
-    private record Shape(int joins, int columns, int depth, @Nonnull String children) {
+    private record Shape(int joins, int columns, int depth, String children) {
     }
 
-    private static Shape shape(@Nonnull Class<?> type, @Nonnull Set<Class<?>> path) {
+    private static Shape shape(Class<?> type, Set<Class<?>> path) {
         if (!path.add(type)) {
             // A cycle recurses no further; the revisited entity contributes its foreign key column.
             return new Shape(0, 1, 0, "");

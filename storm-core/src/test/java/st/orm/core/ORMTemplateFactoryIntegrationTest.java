@@ -5,7 +5,6 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-import jakarta.annotation.Nonnull;
 import java.sql.Connection;
 import java.sql.SQLException;
 import java.util.Map;
@@ -171,7 +170,7 @@ public class ORMTemplateFactoryIntegrationTest {
     public void testWithEntityCallbackAddsCallback() {
         var callback = new EntityCallback<City>() {
             @Override
-            public City beforeInsert(@Nonnull City entity) {
+            public City beforeInsert(City entity) {
                 return entity;
             }
         };
@@ -183,13 +182,13 @@ public class ORMTemplateFactoryIntegrationTest {
     public void testWithMultipleEntityCallbacks() {
         var callback1 = new EntityCallback<City>() {
             @Override
-            public City beforeInsert(@Nonnull City entity) {
+            public City beforeInsert(City entity) {
                 return entity;
             }
         };
         var callback2 = new EntityCallback<City>() {
             @Override
-            public void afterInsert(@Nonnull City entity) {}
+            public void afterInsert(City entity) {}
         };
         var orm = ORMTemplate.of(dataSource)
                 .withEntityCallback(callback1)
@@ -201,7 +200,7 @@ public class ORMTemplateFactoryIntegrationTest {
     public void testWithEntityCallbackTemplateStillWorks() {
         var orm = ORMTemplate.of(dataSource).withEntityCallback(new EntityCallback<City>() {
             @Override
-            public City beforeInsert(@Nonnull City entity) {
+            public City beforeInsert(City entity) {
                 return entity.toBuilder().name(entity.name().toUpperCase()).build();
             }
         });
@@ -242,17 +241,17 @@ public class ORMTemplateFactoryIntegrationTest {
      */
     private static class StubTemplateDecorator implements TemplateDecorator {
         @Override
-        public TemplateDecorator withTableNameResolver(@Nonnull TableNameResolver tableNameResolver) {
+        public TemplateDecorator withTableNameResolver(TableNameResolver tableNameResolver) {
             return this;
         }
 
         @Override
-        public TemplateDecorator withColumnNameResolver(@Nonnull ColumnNameResolver columnNameResolver) {
+        public TemplateDecorator withColumnNameResolver(ColumnNameResolver columnNameResolver) {
             return this;
         }
 
         @Override
-        public TemplateDecorator withForeignKeyResolver(@Nonnull ForeignKeyResolver foreignKeyResolver) {
+        public TemplateDecorator withForeignKeyResolver(ForeignKeyResolver foreignKeyResolver) {
             return this;
         }
     }

@@ -36,8 +36,6 @@ import static st.orm.core.template.impl.RecordReflection.isRecord;
 import static st.orm.core.template.impl.RecordReflection.normalizeDiscriminatorValue;
 import static st.orm.core.template.impl.RecordReflection.resolveConcreteType;
 
-import jakarta.annotation.Nonnull;
-import jakarta.annotation.Nullable;
 import java.lang.reflect.Constructor;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -50,6 +48,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.regex.Pattern;
+import org.jspecify.annotations.Nullable;
 import st.orm.Data;
 import st.orm.DbEnum;
 import st.orm.Discriminator;
@@ -137,10 +136,10 @@ final class RecordMapper {
      * @throws SqlTemplateException if an error occurred while creating the factory.
      */
     static <T> Optional<ObjectMapper<T>> getFactory(int columnCount,
-                                                    @Nonnull RecordType type,
-                                                    @Nonnull RefFactory refFactory,
+                                                    RecordType type,
+                                                    RefFactory refFactory,
                                                     @Nullable TransactionContext transactionContext,
-                                                    @Nonnull FetchPlan fetchPlan) throws SqlTemplateException {
+                                                    FetchPlan fetchPlan) throws SqlTemplateException {
         // The compiled plan already holds the flat column count (its parameterTypes length), cached per type and
         // fetch plan. Reuse it instead of re-walking the record structure on every query, as getParameterCount would.
         if (compiledFor(type, refFactory, fetchPlan).parameterTypes().length == columnCount) {
@@ -163,8 +162,8 @@ final class RecordMapper {
      */
     @SuppressWarnings("unchecked")
     static <T> Optional<ObjectMapper<T>> getSealedFactory(int columnCount,
-                                                          @Nonnull Class<T> sealedType,
-                                                          @Nonnull RefFactory refFactory,
+                                                          Class<T> sealedType,
+                                                          RefFactory refFactory,
                                                           @Nullable TransactionContext transactionContext) throws SqlTemplateException {
         SealedCompiled sealedCompiled = sealedCompiledFor(sealedType, refFactory);
         if (sealedCompiled.totalColumnCount() != columnCount) {
@@ -187,7 +186,7 @@ final class RecordMapper {
             }
 
             @Override
-            public T newInstance(@Nonnull Object[] args) throws SqlTemplateException {
+            public T newInstance(Object[] args) throws SqlTemplateException {
                 // First column is always the discriminator.
                 Object discriminatorRaw = args[sealedCompiled.discriminatorOffset()];
                 if (discriminatorRaw == null) {
@@ -232,19 +231,19 @@ final class RecordMapper {
      * Holds compiled information for a sealed entity hierarchy.
      */
     private record SealedCompiled(
-            @Nonnull Class<?>[] parameterTypes,
+            Class<?>[] parameterTypes,
             int totalColumnCount,
             int discriminatorOffset,
             boolean joined,
-            @Nonnull Map<Object, SubtypeInfo> subtypeInfo
+            Map<Object, SubtypeInfo> subtypeInfo
     ) {}
 
     /**
      * Information about a single concrete subtype in a sealed hierarchy.
      */
     private record SubtypeInfo(
-            @Nonnull RecordType recordType,
-            @Nonnull Object discriminatorValue,
+            RecordType recordType,
+            Object discriminatorValue,
             int columnCount,
             int[] columnOffsets,  // Maps subtype column index -> union column index
             int[] extensionColumnIndices  // Subtype column indices that are extension-specific (not common)
@@ -258,7 +257,7 @@ final class RecordMapper {
      */
     private static final ClassValue<AtomicReference<SealedCompiled>> SEALED_COMPILED = new ClassValue<>() {
         @Override
-        protected AtomicReference<SealedCompiled> computeValue(@Nonnull Class<?> type) {
+        protected AtomicReference<SealedCompiled> computeValue(Class<?> type) {
             return new AtomicReference<>();
         }
     };
@@ -266,8 +265,8 @@ final class RecordMapper {
     /**
      * Returns the compiled sealed entity information, creating and caching it if necessary.
      */
-    private static SealedCompiled sealedCompiledFor(@Nonnull Class<?> sealedType,
-                                                     @Nonnull RefFactory refFactory) throws SqlTemplateException {
+    private static SealedCompiled sealedCompiledFor(Class<?> sealedType,
+                                                     RefFactory refFactory) throws SqlTemplateException {
         AtomicReference<SealedCompiled> holder = SEALED_COMPILED.get(sealedType);
         SealedCompiled compiled = holder.get();
         if (compiled == null) {
@@ -285,8 +284,8 @@ final class RecordMapper {
      * Compiles a plan for a sealed entity hierarchy. Determines the union of columns across all subtypes,
      * including the discriminator column.
      */
-    private static SealedCompiled compileSealedPlan(@Nonnull Class<?> sealedType,
-                                                     @Nonnull RefFactory refFactory) throws SqlTemplateException {
+    private static SealedCompiled compileSealedPlan(Class<?> sealedType,
+                                                     RefFactory refFactory) throws SqlTemplateException {
         Class<?>[] permittedArray = sealedType.getPermittedSubclasses();
         if (permittedArray == null) {
             throw new SqlTemplateException("Sealed type %s has no permitted subclasses.".formatted(sealedType.getSimpleName()));
@@ -381,10 +380,10 @@ final class RecordMapper {
      * @param parameterTypes the expanded JDBC column types (flattened from nested records).
      * @param skipRegions the column regions of nested entities eligible for skipping decode on cache hits.
      */
-    private record Compiled(@Nonnull ArgumentPlan plan,
-                            @Nonnull Class<?>[] parameterTypes,
-                            @Nonnull PkInfo pkInfo,
-                            @Nonnull List<ColumnSkipper.SkipRegion> skipRegions) {}
+    private record Compiled(ArgumentPlan plan,
+                            Class<?>[] parameterTypes,
+                            PkInfo pkInfo,
+                            List<ColumnSkipper.SkipRegion> skipRegions) {}
 
     /**
      * Compiled plans per record class, keyed by the references the statement resolves. A resolved reference
@@ -394,7 +393,7 @@ final class RecordMapper {
      */
     private static final ClassValue<ConcurrentMap<FetchPlan, Compiled>> COMPILED = new ClassValue<>() {
         @Override
-        protected ConcurrentMap<FetchPlan, Compiled> computeValue(@Nonnull Class<?> type) {
+        protected ConcurrentMap<FetchPlan, Compiled> computeValue(Class<?> type) {
             return new ConcurrentHashMap<>();
         }
     };
@@ -408,9 +407,9 @@ final class RecordMapper {
      * @return the compiled plan.
      * @throws SqlTemplateException if compilation fails.
      */
-    private static Compiled compiledFor(@Nonnull RecordType type,
-                                        @Nonnull RefFactory refFactory,
-                                        @Nonnull FetchPlan fetchPlan) throws SqlTemplateException {
+    private static Compiled compiledFor(RecordType type,
+                                        RefFactory refFactory,
+                                        FetchPlan fetchPlan) throws SqlTemplateException {
         try {
             return COMPILED.get(type.type()).computeIfAbsent(fetchPlan, t -> {
                 try {
@@ -439,7 +438,7 @@ final class RecordMapper {
      * @param type the record type to calculate the number of parameters for.
      * @return the number of parameters for the specified record type.
      */
-    private static int getParameterCount(@Nonnull RecordType type, @Nonnull FetchPlan fetchPlan) throws SqlTemplateException {
+    private static int getParameterCount(RecordType type, FetchPlan fetchPlan) throws SqlTemplateException {
         int count = 0;
         for (RecordField field : type.fields()) {
             var converter = getORMConverter(field);
@@ -471,10 +470,10 @@ final class RecordMapper {
      * @return a factory for creating instances using the specified constructor.
      * @param <T> the type of the instance to create.
      */
-    private static <T> ObjectMapper<T> wrapConstructor(@Nonnull RecordType type,
-                                                       @Nonnull RefFactory refFactory,
+    private static <T> ObjectMapper<T> wrapConstructor(RecordType type,
+                                                       RefFactory refFactory,
                                                        @Nullable TransactionContext transactionContext,
-                                                       @Nonnull FetchPlan fetchPlan) throws SqlTemplateException {
+                                                       FetchPlan fetchPlan) throws SqlTemplateException {
         return wrapConstructor(type, refFactory, transactionContext, new WeakInterner(), fetchPlan);
     }
 
@@ -483,24 +482,24 @@ final class RecordMapper {
      * entity within a transaction and caching is required.
      */
     @SuppressWarnings("unchecked")
-    private static EntityCache<Entity<?>, ?> resolveEntityCache(@Nonnull TransactionContext transactionContext,
-                                                                @Nonnull RecordType type) {
+    private static EntityCache<Entity<?>, ?> resolveEntityCache(TransactionContext transactionContext,
+                                                                RecordType type) {
         return (EntityCache<Entity<?>, ?>) transactionContext.entityCache(
                 (Class<? extends Entity<?>>) type.type(), CacheRetention.fromConfig(StormConfig.defaults()));
     }
 
-    private static <T> ObjectMapper<T> wrapConstructor(@Nonnull RecordType type,
-                                                       @Nonnull RefFactory refFactory,
+    private static <T> ObjectMapper<T> wrapConstructor(RecordType type,
+                                                       RefFactory refFactory,
                                                        @Nullable TransactionContext transactionContext,
-                                                       @Nonnull WeakInterner interner) throws SqlTemplateException {
+                                                       WeakInterner interner) throws SqlTemplateException {
         return wrapConstructor(type, refFactory, transactionContext, interner, FetchPlan.NONE);
     }
 
-    private static <T> ObjectMapper<T> wrapConstructor(@Nonnull RecordType type,
-                                                       @Nonnull RefFactory refFactory,
+    private static <T> ObjectMapper<T> wrapConstructor(RecordType type,
+                                                       RefFactory refFactory,
                                                        @Nullable TransactionContext transactionContext,
-                                                       @Nonnull WeakInterner interner,
-                                                       @Nonnull FetchPlan fetchPlan) throws SqlTemplateException {
+                                                       WeakInterner interner,
+                                                       FetchPlan fetchPlan) throws SqlTemplateException {
         Compiled compiled = compiledFor(type, refFactory, fetchPlan);
         boolean isEntity = Entity.class.isAssignableFrom(type.type());
         // Determine cache read/write policy.
@@ -530,7 +529,7 @@ final class RecordMapper {
 
             @SuppressWarnings("unchecked")
             @Override
-            public T newInstance(@Nonnull Object[] args) throws SqlTemplateException {
+            public T newInstance(Object[] args) throws SqlTemplateException {
                 // Early cache lookup optimization for top-level entities.
                 // If we can extract the PK early, check the cache before constructing nested objects.
                 // Only perform cache lookup if cache read is enabled (identity preservation).
@@ -568,7 +567,7 @@ final class RecordMapper {
              * @param pkInfo the PK offset and column count information.
              * @return the PK value, or null if any PK column is null or PK cannot be extracted.
              */
-            private Object extractPk(@Nonnull Object[] args, @Nonnull PkInfo pkInfo) throws SqlTemplateException {
+            private Object extractPk(Object[] args, PkInfo pkInfo) throws SqlTemplateException {
                 int pkStart = pkInfo.offset;
                 int pkColumnCount = pkInfo.columnCount;
                 if (pkColumnCount == 1) {
@@ -609,11 +608,11 @@ final class RecordMapper {
      * @return the column skipper, or {@code null} if no region is eligible.
      */
     @Nullable
-    private static ColumnSkipper createColumnSkipper(@Nonnull RecordType type,
-                                                     @Nonnull Compiled compiled,
+    private static ColumnSkipper createColumnSkipper(RecordType type,
+                                                     Compiled compiled,
                                                      boolean cacheReadEnabled,
                                                      @Nullable EntityCache<Entity<?>, ?> entityCache,
-                                                     @Nonnull WeakInterner interner,
+                                                     WeakInterner interner,
                                                      @Nullable TransactionContext transactionContext) {
         PkInfo pkInfo = compiled.pkInfo();
         boolean topLevel = entityCache != null && cacheReadEnabled && pkInfo.offset() >= 0
@@ -642,9 +641,9 @@ final class RecordMapper {
      * @return the expanded parameter types.
      * @throws SqlTemplateException if an error occurred while expanding the parameter types.
      */
-    private static Class<?>[] expandParameterTypes(@Nonnull RecordType type,
-                                                   @Nonnull RefFactory refFactory,
-                                                   @Nonnull FetchPlan fetchPlan) throws SqlTemplateException {
+    private static Class<?>[] expandParameterTypes(RecordType type,
+                                                   RefFactory refFactory,
+                                                   FetchPlan fetchPlan) throws SqlTemplateException {
         List<Class<?>> expandedTypes = new ArrayList<>();
         var fields = type.fields();
         var parameterTypes = type.constructor().getParameterTypes();
@@ -709,11 +708,11 @@ final class RecordMapper {
          * @return the result containing constructor args and updated offset.
          * @throws SqlTemplateException if adaptation fails due to null constraint violations.
          */
-        Result adapt(@Nonnull Object[] flatArgs,
+        Result adapt(Object[] flatArgs,
                      int offset,
                      boolean parentNullable,
-                     @Nonnull RefFactory refFactory,
-                     @Nonnull WeakInterner interner,
+                     RefFactory refFactory,
+                     WeakInterner interner,
                      @Nullable TransactionContext tx) throws SqlTemplateException;
 
         /**
@@ -722,7 +721,7 @@ final class RecordMapper {
          * @param constructorArgs the constructor arguments ready for record instantiation.
          * @param offset the updated offset into flatArgs after consuming this record's columns.
          */
-        record Result(@Nonnull Object[] constructorArgs, int offset) {}
+        record Result(Object[] constructorArgs, int offset) {}
     }
 
     /**
@@ -752,11 +751,11 @@ final class RecordMapper {
          * @return the processed value for this constructor parameter.
          * @throws SqlTemplateException if processing fails.
          */
-        Object apply(@Nonnull Object[] flatArgs,
-                     @Nonnull Offset offset,
+        Object apply(Object[] flatArgs,
+                     Offset offset,
                      boolean parentNullable,
-                     @Nonnull RefFactory refFactory,
-                     @Nonnull WeakInterner interner,
+                     RefFactory refFactory,
+                     WeakInterner interner,
                      @Nullable TransactionContext tx) throws SqlTemplateException;
 
         /**
@@ -781,7 +780,7 @@ final class RecordMapper {
         /** True when every step is a one-column pass-through, so the flat args line up with the constructor params. */
         private final boolean trivial;
 
-        private CompiledArgumentPlan(@Nonnull RecordType type, @Nonnull Step[] steps) {
+        private CompiledArgumentPlan(RecordType type, Step[] steps) {
             this.type = type;
             this.steps = steps;
             boolean allPlain = true;
@@ -795,11 +794,11 @@ final class RecordMapper {
         }
 
         @Override
-        public Result adapt(@Nonnull Object[] flatArgs,
+        public Result adapt(Object[] flatArgs,
                             int offset,
                             boolean parentNullable,
-                            @Nonnull RefFactory refFactory,
-                            @Nonnull WeakInterner interner,
+                            RefFactory refFactory,
+                            WeakInterner interner,
                             @Nullable TransactionContext tx) throws SqlTemplateException {
             if (trivial && offset == 0 && flatArgs.length == steps.length) {
                 // Every step is a one-column pass-through and the flat args already line up one-to-one with the
@@ -841,11 +840,11 @@ final class RecordMapper {
      */
     private static final class PlainStep implements Step {
         @Override
-        public Object apply(@Nonnull Object[] flatArgs,
-                            @Nonnull Offset offset,
+        public Object apply(Object[] flatArgs,
+                            Offset offset,
                             boolean parentNullable,
-                            @Nonnull RefFactory refFactory,
-                            @Nonnull WeakInterner interner,
+                            RefFactory refFactory,
+                            WeakInterner interner,
                             @Nullable TransactionContext context) {
             return flatArgs[offset.i++];
         }
@@ -867,11 +866,11 @@ final class RecordMapper {
         }
 
         @Override
-        public Object apply(@Nonnull Object[] flatArgs,
-                            @Nonnull Offset offset,
+        public Object apply(Object[] flatArgs,
+                            Offset offset,
                             boolean parentNullable,
-                            @Nonnull RefFactory refFactory,
-                            @Nonnull WeakInterner interner,
+                            RefFactory refFactory,
+                            WeakInterner interner,
                             @Nullable TransactionContext tx) throws SqlTemplateException {
             Object[] slice = new Object[paramCount];
             arraycopy(flatArgs, offset.i, slice, 0, paramCount);
@@ -886,7 +885,7 @@ final class RecordMapper {
          */
         @FunctionalInterface
         interface ConverterInvoker {
-            Object fromDatabase(@Nonnull Object[] args, @Nonnull RefFactory refFactory) throws SqlTemplateException;
+            Object fromDatabase(Object[] args, RefFactory refFactory) throws SqlTemplateException;
         }
     }
 
@@ -914,11 +913,11 @@ final class RecordMapper {
         }
 
         @Override
-        public Object apply(@Nonnull Object[] flatArgs,
-                            @Nonnull Offset offset,
+        public Object apply(Object[] flatArgs,
+                            Offset offset,
                             boolean parentNullable,
-                            @Nonnull RefFactory refFactory,
-                            @Nonnull WeakInterner interner,
+                            RefFactory refFactory,
+                            WeakInterner interner,
                             @Nullable TransactionContext context) throws SqlTemplateException {
             Object raw = flatArgs[offset.i++];
             Object v = switch (mapping) {
@@ -950,18 +949,18 @@ final class RecordMapper {
     private static final class RefStep implements Step {
         private final Class<? extends Data> dataType;
 
-        private RefStep(@Nonnull Class<?> dataType) {
+        private RefStep(Class<?> dataType) {
             @SuppressWarnings("unchecked")
             Class<? extends Data> dt = (Class<? extends Data>) dataType;
             this.dataType = dt;
         }
 
         @Override
-        public Object apply(@Nonnull Object[] flatArgs,
-                            @Nonnull Offset offset,
+        public Object apply(Object[] flatArgs,
+                            Offset offset,
                             boolean parentNullable,
-                            @Nonnull RefFactory refFactory,
-                            @Nonnull WeakInterner interner,
+                            RefFactory refFactory,
+                            WeakInterner interner,
                             @Nullable TransactionContext context) {
             Object pk = flatArgs[offset.i++];
             if (pk == null) {
@@ -982,17 +981,17 @@ final class RecordMapper {
         private final Class<?> sealedType;
         private final Discriminator.DiscriminatorType discriminatorType;
 
-        private PolymorphicRefStep(@Nonnull Class<?> sealedType) {
+        private PolymorphicRefStep(Class<?> sealedType) {
             this.sealedType = sealedType;
             this.discriminatorType = getDiscriminatorType(sealedType);
         }
 
         @Override
-        public Object apply(@Nonnull Object[] flatArgs,
-                            @Nonnull Offset offset,
+        public Object apply(Object[] flatArgs,
+                            Offset offset,
                             boolean parentNullable,
-                            @Nonnull RefFactory refFactory,
-                            @Nonnull WeakInterner interner,
+                            RefFactory refFactory,
+                            WeakInterner interner,
                             @Nullable TransactionContext context) throws SqlTemplateException {
             Object discriminatorRaw = flatArgs[offset.i++];
             Object pk = flatArgs[offset.i++];
@@ -1045,9 +1044,9 @@ final class RecordMapper {
         /** Constructor for composite PKs (null for simple single-column PKs). */
         private final Constructor<?> pkConstructor;
 
-        private RecordStep(@Nonnull RecordField field,
-                           @Nonnull RecordType subType,
-                           @Nonnull ArgumentPlan subPlan,
+        private RecordStep(RecordField field,
+                           RecordType subType,
+                           ArgumentPlan subPlan,
                            int pkFlatOffset,
                            int pkColumnCount,
                            int totalColumnCount,
@@ -1064,11 +1063,11 @@ final class RecordMapper {
         }
 
         @Override
-        public Object apply(@Nonnull Object[] flatArgs,
-                            @Nonnull Offset offset,
+        public Object apply(Object[] flatArgs,
+                            Offset offset,
                             boolean parentNullable,
-                            @Nonnull RefFactory refFactory,
-                            @Nonnull WeakInterner interner,
+                            RefFactory refFactory,
+                            WeakInterner interner,
                             @Nullable TransactionContext context) throws SqlTemplateException {
             boolean nullableHere = parentNullable || field.nullable();
             int start = offset.i;
@@ -1163,7 +1162,7 @@ final class RecordMapper {
          * @param pkStart the starting offset for PK columns.
          * @return the PK value, or null if any PK column is null or PK cannot be extracted.
          */
-        private Object extractPk(@Nonnull Object[] flatArgs, int pkStart) throws SqlTemplateException {
+        private Object extractPk(Object[] flatArgs, int pkStart) throws SqlTemplateException {
             if (pkColumnCount == 1) {
                 // Simple PK - just return the value.
                 return flatArgs[pkStart];
@@ -1204,7 +1203,7 @@ final class RecordMapper {
      * @return the compiled argument plan.
      * @throws SqlTemplateException if compilation fails.
      */
-    private static ArgumentPlan compilePlan(@Nonnull RecordType type, @Nonnull FetchPlan fetchPlan) throws SqlTemplateException {
+    private static ArgumentPlan compilePlan(RecordType type, FetchPlan fetchPlan) throws SqlTemplateException {
         Class<?>[] paramTypes = type.constructor().getParameterTypes();
         Step[] steps = new Step[paramTypes.length];
         for (int i = 0; i < paramTypes.length; i++) {
@@ -1250,9 +1249,9 @@ final class RecordMapper {
     /**
      * Builds the step that constructs the nested record held by the given field.
      */
-    private static RecordStep recordStep(@Nonnull RecordField field,
-                                         @Nonnull RecordType sub,
-                                         @Nonnull FetchPlan fetchPlan) throws SqlTemplateException {
+    private static RecordStep recordStep(RecordField field,
+                                         RecordType sub,
+                                         FetchPlan fetchPlan) throws SqlTemplateException {
         ArgumentPlan subPlan = compilePlan(sub, fetchPlan);
         // Calculate PK information for early cache lookup optimization.
         PkInfo pkInfo = calculatePkInfo(sub, fetchPlan);
@@ -1273,7 +1272,7 @@ final class RecordMapper {
      * @return the reader for the target's primary key.
      * @throws SqlTemplateException if the type declares no primary key.
      */
-    private static KeyReader keyReader(@Nonnull RecordType type, @Nonnull FetchPlan fetchPlan) throws SqlTemplateException {
+    private static KeyReader keyReader(RecordType type, FetchPlan fetchPlan) throws SqlTemplateException {
         RecordField pkField = findPkField(type.type()).orElseThrow(() -> new SqlTemplateException(
                 "Cannot resolve a reference to %s: the type declares no primary key.".formatted(type.type().getSimpleName())));
         int offset = 0;
@@ -1310,7 +1309,7 @@ final class RecordMapper {
     private record KeyReader(int offset, int columnCount, @Nullable Constructor<?> constructor) {
 
         @Nullable
-        Object read(@Nonnull Object[] flatArgs, int start) throws SqlTemplateException {
+        Object read(Object[] flatArgs, int start) throws SqlTemplateException {
             if (columnCount == 1) {
                 return flatArgs[start + offset];
             }
@@ -1339,20 +1338,20 @@ final class RecordMapper {
         private final Class<? extends Data> dataType;
         private final KeyReader keyReader;
 
-        private FetchedRefStep(@Nonnull RecordStep recordStep,
-                               @Nonnull Class<? extends Data> dataType,
-                               @Nonnull KeyReader keyReader) {
+        private FetchedRefStep(RecordStep recordStep,
+                               Class<? extends Data> dataType,
+                               KeyReader keyReader) {
             this.recordStep = recordStep;
             this.dataType = dataType;
             this.keyReader = keyReader;
         }
 
         @Override
-        public Object apply(@Nonnull Object[] flatArgs,
-                            @Nonnull Offset offset,
+        public Object apply(Object[] flatArgs,
+                            Offset offset,
                             boolean parentNullable,
-                            @Nonnull RefFactory refFactory,
-                            @Nonnull WeakInterner interner,
+                            RefFactory refFactory,
+                            WeakInterner interner,
                             @Nullable TransactionContext context) throws SqlTemplateException {
             int start = offset.i;
             Object record = recordStep.apply(flatArgs, offset, parentNullable, refFactory, interner, context);
@@ -1391,7 +1390,7 @@ final class RecordMapper {
      * @param type the record type to analyze.
      * @return PkInfo containing offset, column count, and constructor (for composite PKs).
      */
-    private static PkInfo calculatePkInfo(@Nonnull RecordType type, @Nonnull FetchPlan fetchPlan) throws SqlTemplateException {
+    private static PkInfo calculatePkInfo(RecordType type, FetchPlan fetchPlan) throws SqlTemplateException {
         // Only entities have PKs.
         if (!Entity.class.isAssignableFrom(type.type())) {
             return PkInfo.NONE;
@@ -1438,10 +1437,10 @@ final class RecordMapper {
      * @param base the absolute column offset at which the record type starts.
      * @param out the list to add the regions to.
      */
-    private static void collectSkipRegions(@Nonnull RecordType type,
+    private static void collectSkipRegions(RecordType type,
                                            int base,
-                                           @Nonnull List<ColumnSkipper.SkipRegion> out,
-                                           @Nonnull FetchPlan fetchPlan) throws SqlTemplateException {
+                                           List<ColumnSkipper.SkipRegion> out,
+                                           FetchPlan fetchPlan) throws SqlTemplateException {
         int cursor = base;
         for (RecordField field : type.fields()) {
             var converter = getORMConverter(field);
@@ -1488,7 +1487,7 @@ final class RecordMapper {
      * @return the number of columns the field consumes.
      * @throws SqlTemplateException if the field type cannot be analyzed.
      */
-    private static int getFieldColumnCount(@Nonnull RecordField field, @Nonnull FetchPlan fetchPlan) throws SqlTemplateException {
+    private static int getFieldColumnCount(RecordField field, FetchPlan fetchPlan) throws SqlTemplateException {
         var converter = getORMConverter(field);
         if (converter.isPresent()) {
             return converter.get().getParameterCount();

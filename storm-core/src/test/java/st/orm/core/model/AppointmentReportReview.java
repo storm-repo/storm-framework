@@ -1,6 +1,5 @@
 package st.orm.core.model;
 
-import jakarta.annotation.Nonnull;
 import st.orm.Entity;
 import st.orm.FK;
 import st.orm.PK;
@@ -10,6 +9,6 @@ import st.orm.PK;
  */
 public record AppointmentReportReview(
         @PK Integer id,
-        @Nonnull @FK("appointment_report_id") AppointmentReport appointmentReport,
-        @Nonnull String review
+        @FK("appointment_report_id") AppointmentReport appointmentReport,
+        String review
 ) implements Entity<Integer> {}

@@ -15,7 +15,6 @@
  */
 package st.orm.core.spi;
 
-import jakarta.annotation.Nonnull;
 import java.io.DataInputStream;
 import java.io.DataOutputStream;
 import java.io.IOException;
@@ -44,7 +43,7 @@ public interface CursorCodec<T> {
      * @param value the value to write (never null).
      * @throws IOException if an I/O error occurs.
      */
-    void write(@Nonnull DataOutputStream out, @Nonnull T value) throws IOException;
+    void write(DataOutputStream out, T value) throws IOException;
 
     /**
      * Reads a value from the input stream.
@@ -53,5 +52,5 @@ public interface CursorCodec<T> {
      * @return the deserialized value (never null).
      * @throws IOException if an I/O error occurs or the data is malformed.
      */
-    T read(@Nonnull DataInputStream in) throws IOException;
+    T read(DataInputStream in) throws IOException;
 }

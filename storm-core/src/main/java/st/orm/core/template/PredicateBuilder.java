@@ -15,7 +15,6 @@
  */
 package st.orm.core.template;
 
-import jakarta.annotation.Nonnull;
 import st.orm.Data;
 
 /**
@@ -37,7 +36,7 @@ public interface PredicateBuilder<T extends Data, R, ID> {
      * @param predicate the predicate to add.
      * @return the predicate builder.
      */
-    PredicateBuilder<T, R, ID> and(@Nonnull PredicateBuilder<? extends T, ?, ?> predicate);
+    PredicateBuilder<T, R, ID> and(PredicateBuilder<? extends T, ?, ?> predicate);
 
     /**
      * Adds a predicate to the WHERE clause using an AND condition.
@@ -48,7 +47,7 @@ public interface PredicateBuilder<T extends Data, R, ID> {
      * @param template the template string representing the predicate to add.
      * @return the predicate builder.
      */
-    PredicateBuilder<T, R, ID> and(@Nonnull TemplateString template);
+    PredicateBuilder<T, R, ID> and(TemplateString template);
 
     /**
      * Adds a predicate to the WHERE clause using an OR condition.
@@ -60,7 +59,7 @@ public interface PredicateBuilder<T extends Data, R, ID> {
      * @param predicate the predicate to add.
      * @return the predicate builder.
      */
-    PredicateBuilder<T, R, ID> or(@Nonnull PredicateBuilder<? extends T, ?, ?> predicate);
+    PredicateBuilder<T, R, ID> or(PredicateBuilder<? extends T, ?, ?> predicate);
 
     /**
      * Adds a predicate to the WHERE clause using an OR condition.
@@ -71,5 +70,5 @@ public interface PredicateBuilder<T extends Data, R, ID> {
      * @param template the template string representing the predicate to add.
      * @return the predicate builder.
      */
-    PredicateBuilder<T, R, ID> or(@Nonnull TemplateString template);
+    PredicateBuilder<T, R, ID> or(TemplateString template);
 }

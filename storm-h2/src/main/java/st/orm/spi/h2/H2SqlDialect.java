@@ -22,7 +22,6 @@ import static st.orm.Operator.GREATER_THAN_OR_EQUAL;
 import static st.orm.Operator.LESS_THAN;
 import static st.orm.Operator.LESS_THAN_OR_EQUAL;
 
-import jakarta.annotation.Nonnull;
 import java.sql.PreparedStatement;
 import java.sql.SQLException;
 import java.util.Set;
@@ -39,7 +38,7 @@ public class H2SqlDialect extends DefaultSqlDialect implements SqlDialect {
     public H2SqlDialect() {
     }
 
-    public H2SqlDialect(@Nonnull StormConfig config) {
+    public H2SqlDialect(StormConfig config) {
         super(config);
     }
 
@@ -97,7 +96,7 @@ public class H2SqlDialect extends DefaultSqlDialect implements SqlDialect {
      * @since 1.11
      */
     @Override
-    public boolean isKeyword(@Nonnull String name) {
+    public boolean isKeyword(String name) {
         return H2_KEYWORDS.contains(name.toUpperCase());
     }
 
@@ -108,7 +107,7 @@ public class H2SqlDialect extends DefaultSqlDialect implements SqlDialect {
      * @return the escaped identifier
      */
     @Override
-    public String escape(@Nonnull String name) {
+    public String escape(String name) {
         return "\"%s\"".formatted(name.replace("\"", "\"\""));
     }
 
@@ -177,7 +176,7 @@ public class H2SqlDialect extends DefaultSqlDialect implements SqlDialect {
      * @since 1.13
      */
     @Override
-    protected boolean rendersTupleComparison(@Nonnull Operator operator, int rowCount) {
+    protected boolean rendersTupleComparison(Operator operator, int rowCount) {
         return isMultiRowEquality(operator, rowCount)
                 || operator == GREATER_THAN || operator == GREATER_THAN_OR_EQUAL
                 || operator == LESS_THAN || operator == LESS_THAN_OR_EQUAL
@@ -251,8 +250,8 @@ public class H2SqlDialect extends DefaultSqlDialect implements SqlDialect {
      * @since 1.11
      */
     @Override
-    public void setParameter(@Nonnull PreparedStatement preparedStatement, int index,
-                             @Nonnull UUID uuid) throws SQLException {
+    public void setParameter(PreparedStatement preparedStatement, int index,
+                             UUID uuid) throws SQLException {
         preparedStatement.setObject(index, uuid);
     }
 
