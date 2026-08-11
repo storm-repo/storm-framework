@@ -17,7 +17,10 @@ package st.orm.micrometer;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
+import io.micrometer.common.KeyValues;
 import io.micrometer.observation.tck.TestObservationRegistry;
+import io.micrometer.observation.tck.TestObservationRegistryAssert;
+import jakarta.annotation.Nonnull;
 import java.util.List;
 import org.junit.jupiter.api.Test;
 import st.orm.TransactionPropagation;
@@ -26,7 +29,8 @@ import st.orm.core.template.ORMTemplate;
 
 /**
  * Tests for the {@code storm.transaction} observation: physical transactions are observed with their
- * outcome, joined blocks are not, and {@code REQUIRES_NEW} opens its own observation.
+ * outcome, joined blocks are not, {@code REQUIRES_NEW} opens its own observation, and the
+ * {@link StormTransactionObservationConvention} drives the naming and key values.
  */
 public class TransactionObservationTest {
 
@@ -116,6 +120,48 @@ public class TransactionObservationTest {
                 .sorted()
                 .toList();
         assertEquals(List.of("REQUIRED", "REQUIRES_NEW"), propagations);
+    }
+
+    @Test
+    public void extraKeyValuesAreAppendedToTransactionObservations() {
+        var registry = TestObservationRegistry.create();
+        var observer = new MicrometerQueryObserver(registry, KeyValues.of("storm.database", "vets"));
+        var observation = observer.onTransaction(options(null));
+        observation.close(false);
+        TestObservationRegistryAssert.assertThat(registry)
+                .hasObservationWithNameEqualTo("storm.transaction")
+                .that()
+                .hasContextualNameEqualTo("transaction")
+                .hasLowCardinalityKeyValue("storm.database", "vets")
+                .hasLowCardinalityKeyValue("storm.tx.outcome", "committed")
+                .hasBeenStarted()
+                .hasBeenStopped();
+    }
+
+    @Test
+    public void customTransactionConventionOverridesNamingAndKeyValues() {
+        var registry = TestObservationRegistry.create();
+        var transactionConvention = new StormTransactionObservationConvention() {
+            @Override
+            public String getName() {
+                return "db.tx";
+            }
+
+            @Override
+            public KeyValues getLowCardinalityKeyValues(@Nonnull StormTransactionObservationContext context) {
+                return super.getLowCardinalityKeyValues(context).and("db.system.name", "h2database");
+            }
+        };
+        var observer = new MicrometerQueryObserver(
+                registry, new StormQueryObservationConvention(), transactionConvention, KeyValues.empty());
+        var observation = observer.onTransaction(options(TransactionPropagation.REQUIRES_NEW));
+        observation.close(true);
+        TestObservationRegistryAssert.assertThat(registry)
+                .hasObservationWithNameEqualTo("db.tx")
+                .that()
+                .hasLowCardinalityKeyValue("db.system.name", "h2database")
+                .hasLowCardinalityKeyValue("storm.tx.propagation", "REQUIRES_NEW")
+                .hasLowCardinalityKeyValue("storm.tx.outcome", "rolled_back");
     }
 
     private static String keyValue(io.micrometer.observation.Observation.Context context, String key) {

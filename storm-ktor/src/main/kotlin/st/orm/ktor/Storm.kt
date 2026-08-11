@@ -37,6 +37,10 @@ import st.orm.core.spi.JdbcTransactionTemplateProviderImpl
 import st.orm.core.template.impl.CallSiteCapture
 import st.orm.core.template.impl.SqlLogRenderer
 import st.orm.micrometer.MicrometerQueryObserver
+import st.orm.micrometer.StormQueryObservationContext
+import st.orm.micrometer.StormQueryObservationConvention
+import st.orm.micrometer.StormTransactionObservationContext
+import st.orm.micrometer.StormTransactionObservationConvention
 import st.orm.template.InternalStormApi
 import st.orm.template.ORMTemplate
 import st.orm.template.recordSqlLog
@@ -323,7 +327,9 @@ public val Storm: ApplicationPlugin<StormPluginConfig> = createApplicationPlugin
  * registries such as Prometheus drop series whose tag keys differ.
  *
  * An `ObservationConvention<StormQueryObservationContext>` registered in the dependency container overrides
- * the naming and key values, mirroring the convention bean of the Spring Boot starters; register
+ * the naming and key values of the query observations, and an
+ * `ObservationConvention<StormTransactionObservationContext>` those of the transaction observations, mirroring
+ * the convention beans of the Spring Boot starters; register
  * [st.orm.micrometer.OtelDatabaseObservationConvention] to report the OpenTelemetry database semantic
  * conventions.
  */
@@ -334,10 +340,16 @@ private fun Application.bindQueryObservations(delegatingObservers: Map<String?, 
     }
     val observationRegistry = dependencies.getBlocking<ObservationRegistry>(registryKey)
     val convention = resolveObservationConvention()
+    val transactionConvention = resolveTransactionObservationConvention()
     for ((databaseName, observer) in delegatingObservers) {
         val extraKeyValues = KeyValues.of("storm.database", databaseName ?: "primary")
-        observer.delegate = if (convention != null) {
-            MicrometerQueryObserver(observationRegistry, convention, extraKeyValues)
+        observer.delegate = if (convention != null || transactionConvention != null) {
+            MicrometerQueryObserver(
+                observationRegistry,
+                convention ?: StormQueryObservationConvention(),
+                transactionConvention ?: StormTransactionObservationConvention(),
+                extraKeyValues,
+            )
         } else {
             MicrometerQueryObserver(observationRegistry, extraKeyValues)
         }
@@ -350,18 +362,35 @@ private fun Application.bindQueryObservations(delegatingObservers: Map<String?, 
  * parameterized type or under a plain [ObservationConvention].
  */
 @Suppress("UNCHECKED_CAST")
-private fun Application.resolveObservationConvention(): ObservationConvention<st.orm.micrometer.StormQueryObservationContext>? {
+private fun Application.resolveObservationConvention(): ObservationConvention<StormQueryObservationContext>? {
     val keys = listOf(
         DependencyKey(
             TypeInfo(
                 ObservationConvention::class,
-                typeOf<ObservationConvention<st.orm.micrometer.StormQueryObservationContext>>(),
+                typeOf<ObservationConvention<StormQueryObservationContext>>(),
             ),
         ),
         DependencyKey(TypeInfo(ObservationConvention::class, ObservationConvention::class.starProjectedType)),
     )
     val key = keys.firstOrNull { dependencies.contains(it) } ?: return null
-    return dependencies.getBlocking<ObservationConvention<st.orm.micrometer.StormQueryObservationContext>>(key)
+    return dependencies.getBlocking<ObservationConvention<StormQueryObservationContext>>(key)
+}
+
+/**
+ * Resolves a transaction observation convention from the dependency container, registered under the
+ * parameterized type. The plain [ObservationConvention] fallback belongs to the query convention.
+ */
+private fun Application.resolveTransactionObservationConvention(): ObservationConvention<StormTransactionObservationContext>? {
+    val key = DependencyKey(
+        TypeInfo(
+            ObservationConvention::class,
+            typeOf<ObservationConvention<StormTransactionObservationContext>>(),
+        ),
+    )
+    if (!dependencies.contains(key)) {
+        return null
+    }
+    return dependencies.getBlocking<ObservationConvention<StormTransactionObservationContext>>(key)
 }
 
 /**

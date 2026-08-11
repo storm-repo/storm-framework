@@ -35,6 +35,10 @@ import java.util.Locale;
  *   <li>{@code storm.data_type} — the simple name of the targeted entity or projection, or {@code none}</li>
  *   <li>{@code storm.origin} — {@code DIRECT}, or {@code FETCH} for a statement resolving a
  *   reference; the rate of the latter is what resolving references costs</li>
+ *   <li>{@code storm.shape} — the identity of the statement's shape, hex-encoded, or {@code none} when unknown.
+ *   Statements generated from one template share a shape whatever their parameters expand to, so grouping by
+ *   shape treats them as one statement where the text would split them. The cardinality is bounded by the number
+ *   of distinct query templates in the application</li>
  * </ul>
  *
  * <p>The SQL statement is exposed as the high-cardinality key value {@code db.statement}; tracing handlers turn it
@@ -74,11 +78,13 @@ public class StormQueryObservationConvention implements ObservationConvention<St
     @Override
     public KeyValues getLowCardinalityKeyValues(@Nonnull StormQueryObservationContext context) {
         var queryContext = context.queryContext();
+        var shapeId = queryContext.shapeId();
         return KeyValues.of(
                         "storm.operation", queryContext.operation().name(),
                         "storm.execution", queryContext.kind().name(),
                         "storm.data_type", queryContext.dataType().map(Class::getSimpleName).orElse("none"),
-                        "storm.origin", queryContext.origin().name())
+                        "storm.origin", queryContext.origin().name(),
+                        "storm.shape", shapeId != 0 ? Long.toHexString(shapeId) : "none")
                 .and(context.extraLowCardinalityKeyValues());
     }
 

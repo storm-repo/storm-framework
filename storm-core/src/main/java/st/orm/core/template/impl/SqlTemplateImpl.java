@@ -454,21 +454,18 @@ public final class SqlTemplateImpl implements SqlTemplate {
                 }
             }
             // The shape identifies the statement's structure with collection arity erased, so statements whose
-            // collection parameters expand to different placeholder counts share it. It exists solely for scopes,
-            // so it is derived only while one is open, and cached on the processor: every binding of one compiled
-            // template shares its shape.
-            long shapeId = 0L;
-            if (SqlInterceptorManager.hasActiveScopes()) {
-                shapeId = processor.shapeId(() -> {
-                    try {
-                        Object shapeKey = getShapeKey(bindingContext);
-                        return shapeKey == null ? 0L : shapeKey.hashCode();
-                    } catch (UncheckedSqlTemplateException e) {
-                        // A template whose shape cannot be derived groups by text instead.
-                        return 0L;
-                    }
-                });
-            }
+            // collection parameters expand to different placeholder counts share it. SQL log scopes group by it
+            // and query observers tag with it, so it is derived unconditionally, and cached on the processor:
+            // every binding of one compiled template shares its shape.
+            long shapeId = processor.shapeId(() -> {
+                try {
+                    Object shapeKey = getShapeKey(bindingContext);
+                    return shapeKey == null ? 0L : shapeKey.hashCode();
+                } catch (UncheckedSqlTemplateException e) {
+                    // A template whose shape cannot be derived groups by text instead.
+                    return 0L;
+                }
+            });
             Sql sql = processor.bind(bindingContext, shapeId);
             if (applyInterceptors) {
                 // Interception logs the statement, so a plan compiled here logs on execution rather than now.
