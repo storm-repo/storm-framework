@@ -368,9 +368,9 @@ internal class QueryBuilderImpl<T : Data, R, ID>(
 
         override fun where(template: TemplateString): PredicateBuilder<TX, RX, IDX> = PredicateBuilderImpl<TX, RX, IDX>(core.where((template as TemplateStringHolder).templateString))
 
-        override infix fun PredicateBuilder<out TX, *, *>.and(predicate: PredicateBuilder<out TX, *, *>): PredicateBuilder<TX, RX, IDX> = PredicateBuilderImpl((this as PredicateBuilderImpl<TX, RX, IDX>).core.and((predicate as PredicateBuilderImpl<*, *, *>).core))
+        override infix fun PredicateBuilder<out TX, *, *>.and(predicate: PredicateBuilder<out TX, *, *>): PredicateBuilder<TX, RX, IDX> = PredicateBuilderImpl((this as PredicateBuilderImpl<TX, RX, IDX>).core.and((predicate as PredicateBuilderImpl<TX, *, *>).core))
 
-        override infix fun PredicateBuilder<out TX, *, *>.or(predicate: PredicateBuilder<out TX, *, *>): PredicateBuilder<TX, RX, IDX> = PredicateBuilderImpl((this as PredicateBuilderImpl<TX, RX, IDX>).core.or((predicate as PredicateBuilderImpl<*, *, *>).core))
+        override infix fun PredicateBuilder<out TX, *, *>.or(predicate: PredicateBuilder<out TX, *, *>): PredicateBuilder<TX, RX, IDX> = PredicateBuilderImpl((this as PredicateBuilderImpl<TX, RX, IDX>).core.or((predicate as PredicateBuilderImpl<TX, *, *>).core))
     }
 
     /**

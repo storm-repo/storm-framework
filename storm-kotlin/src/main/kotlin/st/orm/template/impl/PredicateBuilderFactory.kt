@@ -102,8 +102,8 @@ internal fun <T : Data, R, ID, V : Data> createRefWithId(
  */
 internal fun <T : Data, R, ID> combineAnd(
     left: PredicateBuilder<T, R, ID>,
-    right: PredicateBuilder<*, *, *>,
-): PredicateBuilder<T, R, ID> = PredicateBuilderImpl((left as PredicateBuilderImpl<T, R, ID>).core.and((right as PredicateBuilderImpl<*, *, *>).core))
+    right: PredicateBuilder<out T, *, *>,
+): PredicateBuilder<T, R, ID> = PredicateBuilderImpl((left as PredicateBuilderImpl<T, R, ID>).core.and((right as PredicateBuilderImpl<T, *, *>).core))
 
 /**
  * Combines two predicates using an OR condition, keeping the left-hand predicate's root.
@@ -114,5 +114,5 @@ internal fun <T : Data, R, ID> combineAnd(
  */
 internal fun <T : Data, R, ID> combineOr(
     left: PredicateBuilder<T, R, ID>,
-    right: PredicateBuilder<*, *, *>,
-): PredicateBuilder<T, R, ID> = PredicateBuilderImpl((left as PredicateBuilderImpl<T, R, ID>).core.or((right as PredicateBuilderImpl<*, *, *>).core))
+    right: PredicateBuilder<out T, *, *>,
+): PredicateBuilder<T, R, ID> = PredicateBuilderImpl((left as PredicateBuilderImpl<T, R, ID>).core.or((right as PredicateBuilderImpl<T, *, *>).core))

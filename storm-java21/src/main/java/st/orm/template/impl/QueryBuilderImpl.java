@@ -462,7 +462,7 @@ public final class QueryBuilderImpl<T extends Data, R, ID> extends QueryBuilder<
 
         @Override
         public PredicateBuilder<TX, RX, IDX> and(@Nonnull PredicateBuilder<? extends TX, ?, ?> predicate) {
-            return new PredicateBuilderImpl<>(core.and(((PredicateBuilderImpl<?, ?, ?>) predicate).core));
+            return new PredicateBuilderImpl<>(core.and(((PredicateBuilderImpl<? extends TX, ?, ?>) predicate).core));
         }
 
         @Override
@@ -472,7 +472,7 @@ public final class QueryBuilderImpl<T extends Data, R, ID> extends QueryBuilder<
 
         @Override
         public PredicateBuilder<TX, RX, IDX> or(@Nonnull PredicateBuilder<? extends TX, ?, ?> predicate) {
-            return new PredicateBuilderImpl<>(core.or(((PredicateBuilderImpl<?, ?, ?>) predicate).core));
+            return new PredicateBuilderImpl<>(core.or(((PredicateBuilderImpl<? extends TX, ?, ?>) predicate).core));
         }
 
         @Override
