@@ -34,6 +34,28 @@
         <plugins>
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-enforcer-plugin</artifactId>
+                <executions>
+                    <execution>
+                        <id>ban-colliding-pair</id>
+                        <goals>
+                            <goal>enforce</goal>
+                        </goals>
+                        <configuration>
+                            <rules>
+                                <bannedDependencies>
+                                    <excludes>
+                                        <exclude>st.orm:storm-jackson2</exclude>
+                                    </excludes>
+                                    <message>storm-jackson3 and storm-jackson2 ship the same st.orm.jackson classes, one per Jackson major version; a classpath carries exactly one of the two. Exclude storm-jackson2 from the dependency that introduces it.</message>
+                                </bannedDependencies>
+                            </rules>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-surefire-plugin</artifactId>
                 <configuration>
                     <!-- Run tests on the classpath: the test suite registers a Spring-aware ConnectionProvider via

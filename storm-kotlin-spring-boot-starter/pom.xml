@@ -34,6 +34,34 @@
         <plugins>
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-enforcer-plugin</artifactId>
+                <executions>
+                    <execution>
+                        <id>ban-colliding-pair</id>
+                        <goals>
+                            <goal>enforce</goal>
+                        </goals>
+                        <configuration>
+                            <rules>
+                                <bannedDependencies>
+                                    <excludes>
+                                        <exclude>st.orm:storm-spring-boot-starter</exclude>
+                                    </excludes>
+                                    <message>storm-kotlin-spring-boot-starter and storm-spring-boot-starter ship the same st.orm.spring.boot.autoconfigure classes, one per language stack; an application uses exactly one of the two starters.</message>
+                                </bannedDependencies>
+                                <bannedDependencies>
+                                    <excludes>
+                                        <exclude>st.orm:storm-java21</exclude>
+                                    </excludes>
+                                    <message>storm-java21 ships the same st.orm.template and st.orm.repository classes as storm-kotlin; it reaches this starter only through storm-spring, whose storm-java21 dependency storm-kotlin-spring excludes. Exclude storm-java21 from the dependency that introduces it.</message>
+                                </bannedDependencies>
+                            </rules>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-compiler-plugin</artifactId>
                 <configuration>
                     <source>${java.version}</source>

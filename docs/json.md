@@ -41,7 +41,7 @@ implementation 'st.orm:storm-jackson2:@@STORM_VERSION@@'
 implementation 'st.orm:storm-jackson3:@@STORM_VERSION@@'
 ```
 
-The two modules are mutually exclusive on the classpath. Both provide the same public API (`st.orm.jackson` package), so switching between them requires only changing the Maven dependency.
+The two modules are mutually exclusive on the classpath, one of the four paired-module choices listed in [One Per Classpath](installation.md#one-per-classpath). Both provide the same public API (`st.orm.jackson` package), so switching between them requires only changing the Maven dependency.
 
 ### Kotlinx Serialization (Kotlin)
 

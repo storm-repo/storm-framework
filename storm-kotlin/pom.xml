@@ -34,6 +34,28 @@
         <plugins>
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-enforcer-plugin</artifactId>
+                <executions>
+                    <execution>
+                        <id>ban-colliding-pair</id>
+                        <goals>
+                            <goal>enforce</goal>
+                        </goals>
+                        <configuration>
+                            <rules>
+                                <bannedDependencies>
+                                    <excludes>
+                                        <exclude>st.orm:storm-java21</exclude>
+                                    </excludes>
+                                    <message>storm-kotlin and storm-java21 ship the same st.orm.template and st.orm.repository classes, one per language stack; a classpath carries exactly one of the two. Exclude storm-java21 from the dependency that introduces it.</message>
+                                </bannedDependencies>
+                            </rules>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-surefire-plugin</artifactId>
                 <configuration>
                     <useModulePath>true</useModulePath>

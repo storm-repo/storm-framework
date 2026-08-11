@@ -296,6 +296,21 @@ The Spring Boot starters include `storm-micrometer`; Ktor applications add it ex
 
 See [Testing](testing.md) and [Testing with @DataStormTest](spring-integration.md#testing-with-datastormtest).
 
+## One Per Classpath
+
+Four module pairs ship the same classes under the same fully qualified names, one half per language stack, Jackson major version, or annotation-processing toolchain. Every setup on this page selects exactly one half of each pair; this section states the rule once, because the failure mode is confusing when both halves land on one classpath through a transitive dependency. On the module path, the JVM refuses to start with a `LayerInstantiationException` for the duplicated package exports. On the plain classpath, whichever jar comes first wins, and the application fails at first use with a `ClassCastException` or `NoSuchMethodError` that points nowhere near the cause.
+
+| Pick one of | Shared classes | Choose by |
+|-------------|----------------|-----------|
+| `storm-java21` / `storm-kotlin` | `st.orm.template`, `st.orm.repository` | Project language |
+| `storm-spring-boot-starter` / `storm-kotlin-spring-boot-starter` | `st.orm.spring.boot.autoconfigure` | Project language |
+| `storm-jackson2` / `storm-jackson3` | `st.orm.jackson` | Jackson major version |
+| `storm-metamodel-processor` / `storm-metamodel-ksp` | `st.orm.metamodel` and the generated metamodel | Annotation processing toolchain: javac or KSP |
+
+A mixed Kotlin/Java application picks one language stack and stays on it; the Gradle plugin picks the Kotlin stack. The metamodel processors are the one pair that can coexist in a mixed build, because each lives on its own processor path (`annotationProcessor` and `ksp`) rather than on the application classpath.
+
+Storm's own artifacts never introduce a twin transitively: each half of each pair fails Storm's build when its dependency tree contains the other half. If both halves end up on your classpath, your own dependency declarations or a third-party library brought the second one; remove or exclude it.
+
 ## Module Overview
 
 The following diagram shows how Storm's modules relate to each other. You only need the modules relevant to your language and integration choices.

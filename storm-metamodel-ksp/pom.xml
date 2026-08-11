@@ -33,6 +33,28 @@
         <sourceDirectory>src/main/kotlin</sourceDirectory>
         <plugins>
             <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-enforcer-plugin</artifactId>
+                <executions>
+                    <execution>
+                        <id>ban-colliding-pair</id>
+                        <goals>
+                            <goal>enforce</goal>
+                        </goals>
+                        <configuration>
+                            <rules>
+                                <bannedDependencies>
+                                    <excludes>
+                                        <exclude>st.orm:storm-metamodel-processor</exclude>
+                                    </excludes>
+                                    <message>storm-metamodel-ksp and storm-metamodel-processor ship the same st.orm.metamodel classes and generate the same metamodel types, one per toolchain; a processor path carries exactly one of the two. Exclude storm-metamodel-processor from the dependency that introduces it.</message>
+                                </bannedDependencies>
+                            </rules>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
+            <plugin>
                 <groupId>org.jetbrains.kotlin</groupId>
                 <artifactId>kotlin-maven-plugin</artifactId>
                 <version>${kotlin.version}</version>

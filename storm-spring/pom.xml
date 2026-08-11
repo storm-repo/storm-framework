@@ -34,6 +34,28 @@
         <plugins>
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-enforcer-plugin</artifactId>
+                <executions>
+                    <execution>
+                        <id>ban-colliding-pair</id>
+                        <goals>
+                            <goal>enforce</goal>
+                        </goals>
+                        <configuration>
+                            <rules>
+                                <bannedDependencies>
+                                    <excludes>
+                                        <exclude>st.orm:storm-kotlin</exclude>
+                                    </excludes>
+                                    <message>storm-kotlin ships the same st.orm.template and st.orm.repository classes as storm-java21, which storm-spring carries; storm-spring's tree stays on the Java stack. Exclude storm-kotlin from the dependency that introduces it.</message>
+                                </bannedDependencies>
+                            </rules>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-compiler-plugin</artifactId>
                 <executions>
                     <execution>
