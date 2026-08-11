@@ -609,7 +609,12 @@ public final class JdbcTransactionContext implements TransactionContext {
             var connection = dataSource.getConnection();
             LOGGER.trace("Obtained connection {} ({}).", connection, state.transactionId);
             if (!connection.getAutoCommit()) {
-                throw new PersistenceException("Connection returned from DataSource must be in auto-commit mode.");
+                throw new PersistenceException("""
+                        Connection returned from DataSource must be in auto-commit mode, but arrived with \
+                        auto-commit disabled. Either the pool is configured for manual-commit connections, or the \
+                        connection carries an unfinished transaction. Configure the pool to hand out auto-commit \
+                        connections; Storm disables auto-commit for the duration of a transaction and re-enables it \
+                        before releasing the connection.""");
             }
             // Only read and change the connection settings when explicitly requested: reading the isolation
             // level can cost a round trip on some drivers, and close() restores (another round trip) only what

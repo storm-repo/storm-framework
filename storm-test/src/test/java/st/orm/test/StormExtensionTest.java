@@ -43,8 +43,8 @@ class StormExtensionTest {
              var stmt = conn.createStatement();
              var rs = stmt.executeQuery("SELECT COUNT(*) FROM item")) {
             assertTrue(rs.next());
-            // At least 3 rows from test-data.sql; may be more if insert tests run first.
-            assertTrue(rs.getInt(1) >= 3);
+            // Exactly the 3 rows from test-data.sql; per-test rollback undoes the writes of the insert tests.
+            assertEquals(3, rs.getInt(1));
         }
     }
 
@@ -106,7 +106,7 @@ class StormExtensionTest {
 
         @Test
         void ormTemplateShouldQueryEntitiesInNestedTests(ORMTemplate orm) {
-            assertTrue(orm.entity(Item.class).findAll().size() >= 3);
+            assertEquals(3, orm.entity(Item.class).findAll().size());
         }
     }
 }

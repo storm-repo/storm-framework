@@ -101,6 +101,7 @@ The annotation accepts the following attributes:
 | `url`      | `""`                            | JDBC URL. Defaults to an H2 in-memory database with a unique name derived from the class. Ignored when a static `dataSource()` factory method is present (see [DataSource Factory Method](#datasource-factory-method)). |
 | `username` | `"sa"`                          | Database username. Ignored when a static `dataSource()` factory method is present.        |
 | `password` | `""`                            | Database password. Ignored when a static `dataSource()` factory method is present.        |
+| `rollback` | `true`                          | Whether each test runs inside a transaction that is rolled back afterwards (see [Per-Test Rollback](#per-test-rollback)). |
 
 ### Parameter Injection
 
@@ -113,6 +114,29 @@ Test methods can declare parameters of the following types, and Storm will resol
 | Any type with a static `of(DataSource)` factory method | An instance created via that factory method. This covers `ORMTemplate` and custom types that follow the same pattern. |
 
 The factory method resolution also supports Kotlin companion objects. If a class has a `Companion` field with an `of(DataSource)` method, Storm will use it. This means `ORMTemplate` works seamlessly in both Kotlin and Java tests without any additional configuration.
+
+### Per-Test Rollback
+
+Each test runs inside a database transaction that is rolled back when the test completes. Tests never observe each other's writes: every test starts from exactly the state the scripts created, regardless of execution order, so count assertions can be exact instead of defensive.
+
+All connections handed out during a test share that transaction, whether obtained from the injected `DataSource` directly or through an `ORMTemplate` created from it. Storm's transaction API works as usual inside a test: transaction blocks are demarcated with savepoints, so a `transaction { }` block commits and rolls back normally within the test, while everything is still undone when the test completes. Lifecycle methods follow the scope they run in: `@BeforeEach` and `@AfterEach` methods run inside the test transaction, and setup done in a `@BeforeAll` method commits, like the scripts.
+
+Set `rollback = false` for tests that need real commit semantics:
+
+```java
+@StormTest(scripts = {"/schema.sql", "/data.sql"}, rollback = false)
+class TransactionBehaviorTest {
+    // ...
+}
+```
+
+Typical reasons to opt out:
+
+1. **Writes that must be visible to other connections or threads.** With rollback enabled, everything a test does shares a single database connection, so a test that coordinates multiple concurrent transactions needs real connections.
+2. **`REQUIRES_NEW` transactions whose independence is under test.** On the shared connection, an inner transaction nests in the test transaction instead of committing or locking independently.
+3. **DDL statements inside a test.** Most databases commit implicitly on DDL, which ends the test transaction. Schema scripts are unaffected: they run once per class, before any test transaction starts.
+
+With rollback disabled, writes persist across the tests of the class, so such tests must not depend on execution order or must clean up after themselves.
 
 ### Example: Full Test Class
 
@@ -168,7 +192,7 @@ class ItemRepositoryTest {
              var stmt = conn.createStatement();
              var rs = stmt.executeQuery("SELECT COUNT(*) FROM item")) {
             assertTrue(rs.next());
-            assertTrue(rs.getInt(1) >= 3);
+            assertEquals(3, rs.getInt(1));
         }
     }
 }
