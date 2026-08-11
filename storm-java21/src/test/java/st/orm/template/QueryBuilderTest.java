@@ -690,24 +690,47 @@ public class QueryBuilderTest {
         assertEquals(3L, result.stream().mapToLong(Long::longValue).sum());
     }
 
-    // PredicateBuilder - andAny / orAny
+    // PredicateBuilder - and / or with a second predicate
 
     @Test
-    public void testPredicateAndAny() {
+    public void testPredicateAndPredicate() {
         List<City> cities = orm.entity(City.class).select()
                 .where(wb -> wb.where(RAW."\{City.class}.id = \{1}")
-                        .andAny(wb.where(RAW."\{City.class}.name = \{"Sun Paririe"}")))
+                        .and(wb.where(RAW."\{City.class}.name = \{"Sun Paririe"}")))
                 .getResultList();
         assertEquals(1, cities.size());
     }
 
     @Test
-    public void testPredicateOrAny() {
+    public void testPredicateOrPredicate() {
         List<City> cities = orm.entity(City.class).select()
                 .where(wb -> wb.where(RAW."\{City.class}.id = \{999}")
-                        .orAny(wb.where(RAW."\{City.class}.name = \{"Madison"}")))
+                        .or(wb.where(RAW."\{City.class}.name = \{"Madison"}")))
                 .getResultList();
         assertEquals(1, cities.size());
+    }
+
+    // PredicateBuilder - and / or across entities on a widened builder
+
+    @Test
+    public void testPredicateAndAcrossEntitiesAfterJoin() {
+        List<Pet> pets = orm.entity(Pet.class).select()
+                .innerJoin(Owner.class).on(Pet.class)
+                .where(wb -> wb.where(Pet_.name, EQUALS, "Leo")
+                        .and(wb.where(Owner_.lastName, EQUALS, "Davis")))
+                .getResultList();
+        assertEquals(1, pets.size());
+    }
+
+    @Test
+    public void testPredicateOrAcrossEntitiesAfterJoin() {
+        // Pets named Leo (Betty Davis's pet) or owned by a Davis: Leo and Harold Davis's Iggy.
+        List<Pet> pets = orm.entity(Pet.class).select()
+                .innerJoin(Owner.class).on(Pet.class)
+                .where(wb -> wb.where(Pet_.name, EQUALS, "Leo")
+                        .or(wb.where(Owner_.lastName, EQUALS, "Davis")))
+                .getResultList();
+        assertEquals(2, pets.size());
     }
 
     @Test

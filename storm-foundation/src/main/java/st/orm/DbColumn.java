@@ -24,7 +24,7 @@ import java.lang.annotation.Retention;
 import java.lang.annotation.Target;
 
 /**
- * Specifies the name for the column, table or view.
+ * Specifies the name of the database column.
  */
 @Target({RECORD_COMPONENT, PARAMETER})
 @Retention(RUNTIME)

@@ -31,7 +31,7 @@ import kotlin.reflect.KClass
  * val users = userRepository
  *     .select()
  *     .innerJoin(Order::class).on(User::class)
- *     .getResultList()
+ *     .resultList
  * ```
  *
  * The same join can be expressed with reified type arguments:
@@ -39,7 +39,7 @@ import kotlin.reflect.KClass
  * val users = userRepository
  *     .select()
  *     .innerJoin<Order>().on<User>()
- *     .getResultList()
+ *     .resultList
  * ```
  *
  * @param T the type of the table being queried.

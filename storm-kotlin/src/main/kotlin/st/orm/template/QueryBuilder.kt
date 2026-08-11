@@ -25,6 +25,8 @@ import st.orm.core.template.impl.Elements.ObjectExpression
 import st.orm.template.TemplateString.Companion.combine
 import st.orm.template.TemplateString.Companion.raw
 import st.orm.template.TemplateString.Companion.wrap
+import st.orm.template.impl.combineAnd
+import st.orm.template.impl.combineOr
 import st.orm.template.impl.create
 import st.orm.template.impl.createRef
 import java.util.stream.Stream
@@ -48,7 +50,7 @@ import kotlin.reflect.KClass
  *     .where(User_.address.city.name eq "Sunnyvale")
  *     .orderBy(User_.email)
  *     .limit(10)
- *     .getResultList()
+ *     .resultList
  * ```
  *
  * ## Example: Join with reified type arguments
@@ -56,7 +58,7 @@ import kotlin.reflect.KClass
  * val users = userRepository
  *     .select()
  *     .innerJoin<Order>().on<User>()
- *     .getResultList()
+ *     .resultList
  * ```
  *
  * ## Example: Delete with WHERE clause
@@ -1368,6 +1370,28 @@ public fun <T : Data, V> Navigable<T, V>.isNull(): PredicateBuilder<T, T, *> = c
  * Infix functions to create a predicate to check if a field is not null.
  */
 public fun <T : Data, V> Navigable<T, V>.isNotNull(): PredicateBuilder<T, T, *> = create(this.asMetamodel(), IS_NOT_NULL, emptyList())
+
+/**
+ * Combines two predicates that share the same root using an AND condition.
+ *
+ * Inside a [WhereBuilder] scope, the scope's own `and` takes precedence and inherits the query root, so a widened
+ * query combines predicates across joined entities with the same syntax.
+ *
+ * @param predicate the predicate to add.
+ * @return the combined predicate builder.
+ */
+public infix fun <T : Data, R, ID> PredicateBuilder<T, R, ID>.and(predicate: PredicateBuilder<out T, *, *>): PredicateBuilder<T, R, ID> = combineAnd(this, predicate)
+
+/**
+ * Combines two predicates that share the same root using an OR condition.
+ *
+ * Inside a [WhereBuilder] scope, the scope's own `or` takes precedence and inherits the query root, so a widened
+ * query combines predicates across joined entities with the same syntax.
+ *
+ * @param predicate the predicate to add.
+ * @return the combined predicate builder.
+ */
+public infix fun <T : Data, R, ID> PredicateBuilder<T, R, ID>.or(predicate: PredicateBuilder<out T, *, *>): PredicateBuilder<T, R, ID> = combineOr(this, predicate)
 
 // Block-based query DSL
 

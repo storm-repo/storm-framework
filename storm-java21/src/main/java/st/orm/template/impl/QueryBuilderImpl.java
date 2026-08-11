@@ -461,13 +461,8 @@ public final class QueryBuilderImpl<T extends Data, R, ID> extends QueryBuilder<
         }
 
         @Override
-        public PredicateBuilder<TX, RX, IDX> and(@Nonnull PredicateBuilder<TX, ?, ?> predicate) {
-            return new PredicateBuilderImpl<>(core.and(((PredicateBuilderImpl<TX, ?, ?>) predicate).core));
-        }
-
-        @Override
-        public <TY extends Data, RY, IDY> PredicateBuilder<TY, RY, IDY> andAny(@Nonnull PredicateBuilder<TY, RY, IDY> predicate) {
-            return new PredicateBuilderImpl<>(core.andAny(((PredicateBuilderImpl<TY, RY, IDY>) predicate).core));
+        public PredicateBuilder<TX, RX, IDX> and(@Nonnull PredicateBuilder<? extends TX, ?, ?> predicate) {
+            return new PredicateBuilderImpl<>(core.and(((PredicateBuilderImpl<? extends TX, ?, ?>) predicate).core));
         }
 
         @Override
@@ -476,13 +471,8 @@ public final class QueryBuilderImpl<T extends Data, R, ID> extends QueryBuilder<
         }
 
         @Override
-        public PredicateBuilder<TX, RX, IDX> or(@Nonnull PredicateBuilder<TX, ?, ?> predicate) {
-            return new PredicateBuilderImpl<>(core.or(((PredicateBuilderImpl<TX, ?, ?>) predicate).core));
-        }
-
-        @Override
-        public <TY extends Data, RY, IDY> PredicateBuilder<TY, RY, IDY> orAny(@Nonnull PredicateBuilder<TY, RY, IDY> predicate) {
-            return new PredicateBuilderImpl<>(core.orAny(((PredicateBuilderImpl<TY, RY, IDY>) predicate).core));
+        public PredicateBuilder<TX, RX, IDX> or(@Nonnull PredicateBuilder<? extends TX, ?, ?> predicate) {
+            return new PredicateBuilderImpl<>(core.or(((PredicateBuilderImpl<? extends TX, ?, ?>) predicate).core));
         }
 
         @Override

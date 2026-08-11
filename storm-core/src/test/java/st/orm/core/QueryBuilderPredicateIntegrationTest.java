@@ -238,29 +238,54 @@ public class QueryBuilderPredicateIntegrationTest {
         assertTrue(cities.size() >= 1);
     }
 
-    // PredicateBuilder.andAny - AND with cross-type predicate
+    // PredicateBuilder.and - AND with a second predicate
 
     @Test
-    public void testPredicateBuilderAndAny() {
+    public void testPredicateBuilderAndPredicate() {
         var orm = ORMTemplate.of(dataSource);
         List<Visit> visits = orm.selectFrom(Visit.class)
                 .where(predicate -> predicate.where(Visit_.id, GREATER_THAN, 0)
-                        .andAny(predicate.where(Visit_.id, IN, List.of(1, 2, 3))))
+                        .and(predicate.where(Visit_.id, IN, List.of(1, 2, 3))))
                 .getResultList();
         assertEquals(3, visits.size());
     }
 
-    // PredicateBuilder.orAny - OR with cross-type predicate
+    // PredicateBuilder.or - OR with a second predicate
 
     @Test
-    public void testPredicateBuilderOrAny() {
+    public void testPredicateBuilderOrPredicate() {
         var orm = ORMTemplate.of(dataSource);
         List<Visit> visits = orm.selectFrom(Visit.class)
                 .typedId(Integer.class)
                 .where(predicate -> predicate.whereId(1)
-                        .orAny(predicate.whereId(2)))
+                        .or(predicate.whereId(2)))
                 .getResultList();
         assertEquals(2, visits.size());
+    }
+
+    // PredicateBuilder.and / or - predicates across entities on a widened builder
+
+    @Test
+    public void testPredicateBuilderAndAcrossEntitiesAfterJoin() {
+        var orm = ORMTemplate.of(dataSource);
+        List<Pet> pets = orm.selectFrom(Pet.class)
+                .innerJoin(Owner.class).on(Pet.class)
+                .where(predicate -> predicate.where(Pet_.name, EQUALS, "Leo")
+                        .and(predicate.where(Owner_.lastName, EQUALS, "Davis")))
+                .getResultList();
+        assertEquals(1, pets.size());
+    }
+
+    @Test
+    public void testPredicateBuilderOrAcrossEntitiesAfterJoin() {
+        // Pets named Leo (Betty Davis's pet) or owned by a Davis: Leo and Harold Davis's Iggy.
+        var orm = ORMTemplate.of(dataSource);
+        List<Pet> pets = orm.selectFrom(Pet.class)
+                .innerJoin(Owner.class).on(Pet.class)
+                .where(predicate -> predicate.where(Pet_.name, EQUALS, "Leo")
+                        .or(predicate.where(Owner_.lastName, EQUALS, "Davis")))
+                .getResultList();
+        assertEquals(2, pets.size());
     }
 
     // QueryBuilder.having with raw template

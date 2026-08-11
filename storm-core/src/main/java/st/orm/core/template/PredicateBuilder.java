@@ -31,23 +31,13 @@ public interface PredicateBuilder<T extends Data, R, ID> {
      * Adds a predicate to the WHERE clause using an AND condition.
      *
      * <p>This method combines the specified predicate with existing predicates using an AND operation, ensuring
-     * that all added conditions must be true.</p>
+     * that all added conditions must be true. The predicate inherits the query root: a join widens the root,
+     * admitting predicates that reference any entity in the query.</p>
      *
      * @param predicate the predicate to add.
      * @return the predicate builder.
      */
-    PredicateBuilder<T, R, ID> and(@Nonnull PredicateBuilder<T, ?, ?> predicate);
-
-    /**
-     * Adds a predicate to the WHERE clause using an AND condition.
-     *
-     * <p>This method combines the specified predicate with existing predicates using an AND operation, ensuring
-     * that all added conditions must be true.</p>
-     *
-     * @param predicate the predicate to add.
-     * @return the predicate builder.
-     */
-    <TX extends Data, RX, IDX> PredicateBuilder<TX, RX, IDX> andAny(@Nonnull PredicateBuilder<TX, RX, IDX> predicate);
+    PredicateBuilder<T, R, ID> and(@Nonnull PredicateBuilder<? extends T, ?, ?> predicate);
 
     /**
      * Adds a predicate to the WHERE clause using an AND condition.
@@ -64,23 +54,13 @@ public interface PredicateBuilder<T extends Data, R, ID> {
      * Adds a predicate to the WHERE clause using an OR condition.
      *
      * <p>This method combines the specified predicate with existing predicates using an OR operation, allowing any
-     * of the added conditions to be true.</p>
+     * of the added conditions to be true. The predicate inherits the query root: a join widens the root,
+     * admitting predicates that reference any entity in the query.</p>
      *
      * @param predicate the predicate to add.
      * @return the predicate builder.
      */
-    PredicateBuilder<T, R, ID> or(@Nonnull PredicateBuilder<T, ?, ?> predicate);
-
-    /**
-     * Adds a predicate to the WHERE clause using an OR condition.
-     *
-     * <p>This method combines the specified predicate with existing predicates using an OR operation, allowing any
-     * of the added conditions to be true.</p>
-     *
-     * @param predicate the predicate to add.
-     * @return the predicate builder.
-     */
-    <TX extends Data, RX, IDX> PredicateBuilder<TX, RX, IDX> orAny(@Nonnull PredicateBuilder<TX, RX, IDX> predicate);
+    PredicateBuilder<T, R, ID> or(@Nonnull PredicateBuilder<? extends T, ?, ?> predicate);
 
     /**
      * Adds a predicate to the WHERE clause using an OR condition.

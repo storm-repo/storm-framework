@@ -324,15 +324,7 @@ internal class QueryBuilderImpl<T : Data, R, ID>(
     internal class PredicateBuilderImpl<TX : Data, RX, IDX>(
         val core: st.orm.core.template.PredicateBuilder<TX, RX, IDX>,
     ) : PredicateBuilder<TX, RX, IDX> {
-        override infix fun and(predicate: PredicateBuilder<TX, *, *>): PredicateBuilder<TX, RX, IDX> = PredicateBuilderImpl<TX, RX, IDX>(core.and((predicate as PredicateBuilderImpl<TX, *, *>).core))
-
-        override fun <TY : Data, RY, IDY> andAny(predicate: PredicateBuilder<TY, RY, IDY>): PredicateBuilder<TY, RY, IDY> = PredicateBuilderImpl<TY, RY, IDY>(core.andAny((predicate as PredicateBuilderImpl<TY, RY, IDY>).core))
-
         override fun and(template: TemplateString): PredicateBuilder<TX, RX, IDX> = PredicateBuilderImpl<TX, RX, IDX>(core.and(template.unwrap))
-
-        override infix fun or(predicate: PredicateBuilder<TX, *, *>): PredicateBuilder<TX, RX, IDX> = PredicateBuilderImpl<TX, RX, IDX>(core.or((predicate as PredicateBuilderImpl<TX, *, *>).core))
-
-        override fun <TY : Data, RY, IDY> orAny(predicate: PredicateBuilder<TY, RY, IDY>): PredicateBuilder<TY, RY, IDY> = PredicateBuilderImpl<TY, RY, IDY>(core.orAny((predicate as PredicateBuilderImpl<TY, RY, IDY>).core))
 
         override fun or(template: TemplateString): PredicateBuilder<TX, RX, IDX> = PredicateBuilderImpl<TX, RX, IDX>(core.or(template.unwrap))
     }
@@ -375,6 +367,10 @@ internal class QueryBuilderImpl<T : Data, R, ID>(
         ): PredicateBuilder<TX, RX, IDX> = PredicateBuilderImpl<TX, RX, IDX>(core.where<V>(path.asMetamodel(), operator, it))
 
         override fun where(template: TemplateString): PredicateBuilder<TX, RX, IDX> = PredicateBuilderImpl<TX, RX, IDX>(core.where((template as TemplateStringHolder).templateString))
+
+        override infix fun PredicateBuilder<out TX, *, *>.and(predicate: PredicateBuilder<out TX, *, *>): PredicateBuilder<TX, RX, IDX> = PredicateBuilderImpl((this as PredicateBuilderImpl<TX, RX, IDX>).core.and((predicate as PredicateBuilderImpl<TX, *, *>).core))
+
+        override infix fun PredicateBuilder<out TX, *, *>.or(predicate: PredicateBuilder<out TX, *, *>): PredicateBuilder<TX, RX, IDX> = PredicateBuilderImpl((this as PredicateBuilderImpl<TX, RX, IDX>).core.or((predicate as PredicateBuilderImpl<TX, *, *>).core))
     }
 
     /**
