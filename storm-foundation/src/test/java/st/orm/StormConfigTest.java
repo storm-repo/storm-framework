@@ -3,6 +3,8 @@ package st.orm;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.Map;
 import org.junit.jupiter.api.Test;
@@ -43,5 +45,15 @@ class StormConfigTest {
     void getPropertyFallsBackToSystemProperty() {
         String javaVersion = StormConfig.defaults().getProperty("java.version");
         assertNotNull(javaVersion);
+    }
+
+    @Test
+    void sqlShapingKeysDerivedFromDeclarations() {
+        assertTrue(StormConfig.sqlShapingKeys().contains(StormConfig.ANSI_ESCAPING));
+    }
+
+    @Test
+    void sqlShapingKeysIsImmutable() {
+        assertThrows(UnsupportedOperationException.class, () -> StormConfig.sqlShapingKeys().add("key"));
     }
 }
