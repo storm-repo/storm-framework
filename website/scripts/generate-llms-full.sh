@@ -33,6 +33,8 @@ DOCS=(
   entity-design.md
   transactions.md
   spring-integration.md
+  ktor-integration.md
+  graalvm.md
   dialects.md
   testing.md
   # Advanced Topics - Entity Modeling
@@ -65,12 +67,42 @@ DOCS=(
   comparison.md
   faq.md
   migration-from-jpa.md
+  jpa-cascades-vs-write-sets.md
   glossary.md
   ai.md
+  ai-reference.md
+  database-and-mcp.md
   # API Reference
   api-kotlin.md
   api-java.md
 )
+
+# Drift guard: every listed file must exist and every documentation file must be listed, otherwise the build
+# fails. A warn-and-continue here silently narrows the generated file's coverage in both directions.
+for doc in "${DOCS[@]}"; do
+  if [ ! -f "$DOCS_DIR/$doc" ]; then
+    echo "Error: $doc is listed in generate-llms-full.sh but does not exist in $DOCS_DIR." >&2
+    exit 1
+  fi
+done
+drift=0
+for filepath in "$DOCS_DIR"/*.md; do
+  name="$(basename "$filepath")"
+  listed=0
+  for doc in "${DOCS[@]}"; do
+    if [ "$doc" = "$name" ]; then
+      listed=1
+      break
+    fi
+  done
+  if [ "$listed" -eq 0 ]; then
+    echo "Error: $name exists in $DOCS_DIR but is not listed in generate-llms-full.sh; add it in reading order." >&2
+    drift=1
+  fi
+done
+if [ "$drift" -ne 0 ]; then
+  exit 1
+fi
 
 strip_docusaurus() {
   # Strip YAML frontmatter only at the start of the file (line 1 must be ---).
@@ -127,11 +159,6 @@ echo "" >> "$OUTPUT"
 # Process each doc file.
 for doc in "${DOCS[@]}"; do
   filepath="$DOCS_DIR/$doc"
-  if [ ! -f "$filepath" ]; then
-    echo "Warning: $doc not found, skipping." >&2
-    continue
-  fi
-
   echo "========================================" >> "$OUTPUT"
   echo "## Source: $doc" >> "$OUTPUT"
   echo "========================================" >> "$OUTPUT"

@@ -68,6 +68,8 @@ const sidebars: SidebarsConfig = {
             'configuration',
             'sql-logging',
             'metrics',
+            'security',
+            'performance',
           ],
         },
       ],
@@ -76,6 +78,7 @@ const sidebars: SidebarsConfig = {
       type: 'category',
       label: 'Resources',
       items: [
+        'common-patterns',
         'comparison',
         'faq',
         'migration-from-jpa',

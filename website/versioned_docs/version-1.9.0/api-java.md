@@ -94,4 +94,4 @@ See [Metamodel](metamodel.md) for setup and usage.
 
 The aggregated Javadoc covers all Java modules in the Storm framework:
 
-[Browse the Javadoc](../api/java/index.html)
+[Browse the Javadoc](pathname:///api/java/index.html)

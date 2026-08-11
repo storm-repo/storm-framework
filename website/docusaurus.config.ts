@@ -25,7 +25,7 @@ const config: Config = {
   organizationName: 'storm-orm',
   projectName: 'storm-framework',
 
-  onBrokenLinks: 'warn',
+  onBrokenLinks: 'throw',
 
   // Exposed to client-side page components (e.g. the hand-built /quickstart
   // page) so install snippets can render the resolved release version. The
