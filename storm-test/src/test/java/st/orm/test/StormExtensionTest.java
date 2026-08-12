@@ -66,21 +66,21 @@ class StormExtensionTest {
 
     @Test
     void statementCaptureShouldRecordSelects(ORMTemplate orm, SqlCapture capture) {
-        capture.run(() -> orm.entity(Item.class).findAll());
+        capture.record(() -> orm.entity(Item.class).findAll());
         assertEquals(1, capture.count(Operation.SELECT));
         assertTrue(capture.count() >= 1);
     }
 
     @Test
     void statementCaptureShouldRecordInserts(ORMTemplate orm, SqlCapture capture) {
-        capture.run(() -> orm.entity(Item.class).insert(new Item(0, "Delta")));
+        capture.record(() -> orm.entity(Item.class).insert(new Item(0, "Delta")));
         assertEquals(1, capture.count(Operation.INSERT));
     }
 
     @Test
     void statementCaptureShouldAccumulateAndClear(ORMTemplate orm, SqlCapture capture) {
-        capture.run(() -> orm.entity(Item.class).findAll());
-        capture.run(() -> orm.entity(Item.class).findAll());
+        capture.record(() -> orm.entity(Item.class).findAll());
+        capture.record(() -> orm.entity(Item.class).findAll());
         assertEquals(2, capture.count(Operation.SELECT));
         capture.clear();
         assertEquals(0, capture.count());
@@ -88,7 +88,7 @@ class StormExtensionTest {
 
     @Test
     void capturedStatementShouldContainSqlAndParameters(ORMTemplate orm, SqlCapture capture) {
-        capture.run(() -> orm.entity(Item.class).findById(1));
+        capture.record(() -> orm.entity(Item.class).findById(1));
         var statements = capture.statements(Operation.SELECT);
         assertEquals(1, statements.size());
         var stmt = statements.getFirst();

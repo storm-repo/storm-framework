@@ -49,8 +49,8 @@ class StormExtensionAdditionalTest {
 
     @Test
     void statementCaptureStatementsShouldReturnFilteredStatements(ORMTemplate orm, SqlCapture capture) {
-        capture.run(() -> orm.entity(Item.class).findAll());
-        capture.run(() -> orm.entity(Item.class).insert(new Item(0, "Echo")));
+        capture.record(() -> orm.entity(Item.class).findAll());
+        capture.record(() -> orm.entity(Item.class).insert(new Item(0, "Echo")));
 
         var selects = capture.statements(CapturedSql.Operation.SELECT);
         var inserts = capture.statements(CapturedSql.Operation.INSERT);
@@ -62,7 +62,7 @@ class StormExtensionAdditionalTest {
 
     @Test
     void statementCaptureShouldReturnAllStatements(ORMTemplate orm, SqlCapture capture) {
-        capture.run(() -> orm.entity(Item.class).findAll());
+        capture.record(() -> orm.entity(Item.class).findAll());
         var allStatements = capture.statements();
         assertEquals(1, allStatements.size());
         assertNotNull(allStatements.getFirst().statement());
@@ -71,7 +71,7 @@ class StormExtensionAdditionalTest {
 
     @Test
     void statementCaptureShouldRecordUpdates(ORMTemplate orm, SqlCapture capture) {
-        capture.run(() -> orm.entity(Item.class).update(new Item(1, "Updated")));
+        capture.record(() -> orm.entity(Item.class).update(new Item(1, "Updated")));
         assertEquals(1, capture.count(CapturedSql.Operation.UPDATE));
         var updates = capture.statements(CapturedSql.Operation.UPDATE);
         assertEquals(1, updates.size());

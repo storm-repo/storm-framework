@@ -788,11 +788,13 @@ The `StormTestScope` provides three properties:
 |----------|------|-------------|
 | `stormDataSource` | `DataSource` | The H2 in-memory DataSource, pre-loaded with your SQL scripts |
 | `stormOrm` | `ORMTemplate` | A pre-configured ORM template backed by the test DataSource |
-| `stormSqlCapture` | `SqlCapture` | A capture instance for recording and inspecting generated SQL |
+| `stormSqlCapture` | `SqlCapture` | A capture recording the SQL the application executes while handling calls |
 
 ### SqlCapture
 
-Use `SqlCapture` to verify the SQL that Storm generates during a request. This is valuable for catching unintended query changes during refactoring and for ensuring complex operations produce the expected number of statements:
+Use `SqlCapture` to verify the SQL that Storm generates during a request. This is valuable for catching unintended query changes during refactoring and for ensuring complex operations produce the expected number of statements.
+
+The scope's capture is installed around every call the application handles, so a request's statements are captured wherever its handler runs, with no wrapping at the call site:
 
 ```kotlin
 @Test
@@ -804,15 +806,15 @@ fun `POST users generates single INSERT`() = testStormApplication(
         routing { userRoutes() }
     }
 
-    scope.stormSqlCapture.run {
-        client.post("/users") {
-            contentType(ContentType.Application.Json)
-            setBody("""{"email":"alice@test.com","name":"Alice"}""")
-        }
+    client.post("/users") {
+        contentType(ContentType.Application.Json)
+        setBody("""{"email":"alice@test.com","name":"Alice"}""")
     }
     assertEquals(1, scope.stormSqlCapture.count(Operation.INSERT))
 }
 ```
+
+Statements accumulate across requests; call `scope.stormSqlCapture.clear()` between requests to assert on one request at a time. Statements the test body executes directly against `scope.stormOrm`, such as seeding data, stay outside the capture, so they never distort a request's counts. To capture direct ORM work as well, wrap it in the suspending `recording` extension from `storm-kotlin-test`: `scope.stormSqlCapture.recording { ... }`.
 
 ### Combining with @StormTest
 

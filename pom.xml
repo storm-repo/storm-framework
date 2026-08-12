@@ -78,6 +78,7 @@
         <module>storm-spring-boot-test-autoconfigure</module>
         <module>storm-ktor</module>
         <module>storm-ktor-test</module>
+        <module>storm-kotlin-test</module>
     </modules>
     <dependencyManagement>
         <dependencies>

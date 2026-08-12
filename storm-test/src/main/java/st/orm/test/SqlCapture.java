@@ -33,11 +33,14 @@ import st.orm.test.CapturedSql.Origin;
  *
  * <p>Statements are recorded around execution, so each carries what caused it, its bound parameter values, and how
  * long it took, and a statement that is built but never run is not captured. Statements accumulate across multiple
- * {@link #run}, {@link #execute}, or {@link #executeThrowing} calls; use {@link #clear()} to reset between
+ * {@link #record}, {@link #execute}, or {@link #executeThrowing} calls; use {@link #clear()} to reset between
  * captures.</p>
  *
- * <p>The capture is bound to the calling thread and to the contexts Storm carries it into, such as a
- * {@code transaction} block; recording is safe from any thread the work reaches.</p>
+ * <p>The capture is bound to the thread that runs the action and to the contexts Storm carries it into, such as a
+ * {@code transaction} block; it does not follow work handed to another thread or coroutine outside those contexts.
+ * Recording itself is safe from any thread a carried context reaches. Kotlin coroutine code records through the
+ * suspending {@code recording} extension of the {@code storm-kotlin-test} module, which follows the coroutine across
+ * the threads it resumes on.</p>
  *
  * <p><strong>Testing only.</strong> Captured statements retain their bound parameter values, which may be
  * sensitive (credentials, personal data). This class lives in the test-scoped {@code storm-test} module; do
@@ -77,10 +80,27 @@ public final class SqlCapture {
     /**
      * Executes the given action while capturing all SQL statements it generates.
      *
+     * <p>Named {@code record} rather than {@code run} so a Kotlin caller can never silently resolve to the
+     * {@code kotlin.run} scope function, which would execute the action without capturing anything.</p>
+     *
      * @param action the action to execute.
+     * @since 1.14
      */
-    public void run(Runnable action) {
+    public void record(Runnable action) {
         SqlInterceptorManager.listen(listener).run(action);
+    }
+
+    /**
+     * Attaches the capture to the calling thread until the returned handle is closed, for brackets around code that
+     * a callable cannot wrap, such as a test lifecycle.
+     *
+     * <p>The handle must be closed on the thread that attached, which a try-with-resources block guarantees.</p>
+     *
+     * @return the handle that detaches the capture.
+     * @since 1.14
+     */
+    public AutoCloseable attach() {
+        return SqlInterceptorManager.attach(listener);
     }
 
     /**

@@ -24,7 +24,7 @@ class SqlCaptureTest {
     void captureDeleteOperationShouldRecordDeleteStatement(ORMTemplate orm, SqlCapture capture) {
         // Insert an item, then delete it while capturing to exercise the DELETE branch.
         Integer insertedId = orm.entity(Item.class).insertAndFetchId(new Item(0, "ToDelete"));
-        capture.run(() -> orm.entity(Item.class).remove(new Item(insertedId, "ToDelete")));
+        capture.record(() -> orm.entity(Item.class).remove(new Item(insertedId, "ToDelete")));
         assertEquals(1, capture.count(Operation.DELETE));
         var deleteStatements = capture.statements(Operation.DELETE);
         assertEquals(1, deleteStatements.size());
@@ -35,14 +35,14 @@ class SqlCaptureTest {
     void captureUndefinedOperationViaRawSql(ORMTemplate orm, SqlCapture capture) {
         // Execute raw SQL that does not start with SELECT/INSERT/UPDATE/DELETE
         // to exercise the UNDEFINED branch in the createObserver switch.
-        capture.run(() -> orm.query("SET @x = 1").executeUpdate());
+        capture.record(() -> orm.query("SET @x = 1").executeUpdate());
         var undefinedStatements = capture.statements(Operation.UNDEFINED);
         assertEquals(1, undefinedStatements.size());
     }
 
     @Test
     void capturedStatementParametersShouldContainBoundValues(ORMTemplate orm, SqlCapture capture) {
-        capture.run(() -> orm.entity(Item.class).findById(1));
+        capture.record(() -> orm.entity(Item.class).findById(1));
         var statements = capture.statements(Operation.SELECT);
         assertFalse(statements.isEmpty());
         assertNotNull(statements.getFirst().parameters());

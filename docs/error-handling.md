@@ -250,7 +250,7 @@ The `SqlCapture` class from `storm-test` records all SQL statements generated du
 
 ```java
 var capture = new SqlCapture();
-capture.run(() -> {
+capture.record(() -> {
     userRepository.findAll();
 });
 

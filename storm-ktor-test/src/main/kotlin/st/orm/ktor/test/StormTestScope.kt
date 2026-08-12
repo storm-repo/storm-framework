@@ -38,7 +38,10 @@ class StormTestScope internal constructor(
     val stormOrm: ORMTemplate,
 
     /**
-     * A fresh [SqlCapture] instance for verifying SQL statements executed during the test.
+     * A fresh [SqlCapture] for verifying the SQL the application executes. It is installed around every call the
+     * application handles, so a request's statements are captured wherever its handler runs; statements accumulate
+     * across requests, and [SqlCapture.clear] resets between them. Statements the test body executes directly
+     * against [stormOrm] stay outside the capture unless wrapped in the suspending `recording` extension.
      */
     val stormSqlCapture: SqlCapture,
 )

@@ -15,10 +15,12 @@
  */
 package st.orm.ktor.test
 
+import io.ktor.server.application.ApplicationCallPipeline
 import io.ktor.server.testing.ApplicationTestBuilder
 import io.ktor.server.testing.testApplication
 import st.orm.template.ORMTemplate
 import st.orm.test.SqlCapture
+import st.orm.test.kotlin.recording
 import java.sql.Connection
 import java.sql.DriverManager
 import javax.sql.DataSource
@@ -29,6 +31,12 @@ import javax.sql.DataSource
  * Creates an H2 in-memory database, executes optional SQL scripts, and provides a [StormTestScope] with
  * pre-configured [DataSource], [ORMTemplate], and [SqlCapture]. The scope also acts as an
  * [ApplicationTestBuilder] so you can configure routes, install plugins, and make test HTTP requests.
+ *
+ * The scope's [SqlCapture] is installed around every call the application handles, so the statements a request
+ * executes are captured wherever its handler runs, with no wrapping at the call site. Statements accumulate
+ * across requests; use [SqlCapture.clear] between requests to assert on one request at a time. Statements the
+ * test body executes directly against [StormTestScope.stormOrm] stay outside the capture unless wrapped in the
+ * suspending `recording` extension.
  *
  * Example usage:
  * ```kotlin
@@ -80,6 +88,13 @@ fun testStormApplication(
     val scope = StormTestScope(dataSource, ormTemplate, sqlCapture)
 
     testApplication {
+        application {
+            // The handler coroutines are not descendants of the test block, so the capture cannot be carried in
+            // from the call site; wrapping the pipeline is what makes the scope's capture observe every call.
+            intercept(ApplicationCallPipeline.Setup) {
+                sqlCapture.recording { proceed() }
+            }
+        }
         block(scope)
     }
 }
