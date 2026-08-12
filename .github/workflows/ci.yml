@@ -51,7 +51,7 @@ jobs:
         # Dependabot-triggered runs receive no repository secrets, so the token is empty there and the
         # upload fails; skip it, the build and tests still gate the PR.
         if: github.actor != 'dependabot[bot]' && (github.event_name == 'push' || github.event.pull_request.head.repo.full_name == github.repository)
-        uses: codecov/codecov-action@v5
+        uses: codecov/codecov-action@v7
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
           flags: unittests
