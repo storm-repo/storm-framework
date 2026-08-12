@@ -73,6 +73,40 @@ public class GroupByForeignKeyPathIntegrationTest {
     }
 
     /**
+     * The foreign key field and the key beyond it name the same relationship, so they resolve alike.
+     */
+    @Test
+    public void groupByTheForeignKeyFieldResolvesLikeTheKeyBeyondIt() {
+        var results = new ArrayList<OwnerPetCount>();
+        String sql = captureSql(() -> results.addAll(ORMTemplate.of(dataSource)
+                .selectFrom(Pet.class, OwnerPetCount.class, raw("\0, COUNT(*)", Owner.class))
+                .groupBy(Pet_.owner)
+                .getResultList()));
+        String groupBy = sql.substring(sql.toUpperCase().indexOf("GROUP BY"));
+        assertFalse(groupBy.contains("owner_id"),
+                "groupBy(Pet_.owner) must resolve like groupBy(Pet_.owner.id): " + sql);
+        assertTrue(groupBy.matches("(?i)GROUP BY \\w+\\.id\\b.*"),
+                "GROUP BY must name the referenced table's key: " + sql);
+        assertFalse(results.isEmpty());
+    }
+
+    /**
+     * The same spelling keeps naming the foreign key column when nothing selects the referenced table.
+     */
+    @Test
+    public void groupByTheForeignKeyFieldKeepsTheForeignKeyColumnWhenTheTableIsNotSelected() {
+        record OwnerIdCount(@Nullable Integer ownerId, int petCount) {}
+        var results = new ArrayList<OwnerIdCount>();
+        String sql = captureSql(() -> results.addAll(ORMTemplate.of(dataSource)
+                .selectFrom(Pet.class, OwnerIdCount.class, raw("\0, COUNT(*)", Pet_.owner))
+                .groupBy(Pet_.owner)
+                .getResultList()));
+        String groupBy = sql.substring(sql.toUpperCase().indexOf("GROUP BY"));
+        assertTrue(groupBy.contains("owner_id"), "GROUP BY should name the foreign key column: " + sql);
+        assertFalse(results.isEmpty());
+    }
+
+    /**
      * Nothing projects the referenced table, so the foreign key column is named and no join is paid for.
      */
     @Test

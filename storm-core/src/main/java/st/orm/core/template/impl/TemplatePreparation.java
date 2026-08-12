@@ -659,12 +659,17 @@ class TemplatePreparation {
      */
     private static Metamodel<?, ?> resolveColumnsField(Columns columns, @Nullable Class<? extends Data> selected)
             throws SqlTemplateException {
-        var field = columns.field();
-        var collapsed = MetamodelFactory.canonical(field);
-        if (columns.clause() != GROUP_BY || collapsed.equals(field) || selected == null) {
+        var collapsed = MetamodelFactory.canonical(columns.field());
+        if (columns.clause() != GROUP_BY || selected == null) {
             return collapsed;
         }
-        return isTypeSelected(selected, field.tableType()) ? field : collapsed;
+        // Asked of the relationship, not of how the path was written: groupBy(Pet_.owner) and
+        // groupBy(Pet_.owner.id) name the same thing and have to resolve to the same column.
+        var referencedKey = MetamodelFactory.referencedKey(collapsed);
+        if (referencedKey == null) {
+            return collapsed;
+        }
+        return isTypeSelected(selected, referencedKey.tableType()) ? referencedKey : collapsed;
     }
 
     /**
