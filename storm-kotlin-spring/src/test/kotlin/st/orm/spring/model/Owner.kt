@@ -9,7 +9,7 @@ import st.orm.Version
  *
  */
 @JvmRecord
-data class Owner(
+internal data class Owner(
     @PK val id: Int = 0,
     override val firstName: String,
     override val lastName: String,

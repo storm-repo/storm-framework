@@ -15,7 +15,7 @@ import java.time.LocalDate
  * entity-graph baseline to compare a resolved reference against.
  */
 @DbTable("pet")
-data class PetOwnerRef(
+internal data class PetOwnerRef(
     @PK val id: Int = 0,
     val name: String,
     @Persist(updatable = false) val birthDate: LocalDate,

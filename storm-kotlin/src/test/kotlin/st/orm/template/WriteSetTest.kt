@@ -31,7 +31,7 @@ import java.time.LocalDateTime
 @ExtendWith(SpringExtension::class)
 @ContextConfiguration(classes = [IntegrationConfig::class])
 @Sql("/data.sql")
-open class WriteSetTest(
+internal open class WriteSetTest(
     @Autowired val orm: ORMTemplate,
 ) {
 

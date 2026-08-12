@@ -9,25 +9,25 @@ import st.orm.Ref
 
 @Discriminator
 @DbTable("animal")
-sealed interface Animal : Entity<Int> {
+internal sealed interface Animal : Entity<Int> {
     val id: Int
     val name: String
 }
 
-data class Cat(
+internal data class Cat(
     @PK override val id: Int = 0,
     override val name: String,
     val indoor: Boolean,
 ) : Animal
 
-data class Dog(
+internal data class Dog(
     @PK override val id: Int = 0,
     override val name: String,
     val weight: Int,
 ) : Animal
 
 @DbTable("adoption")
-data class Adoption(
+internal data class Adoption(
     @PK val id: Int = 0,
     @FK val animal: Ref<Animal>,
 ) : Entity<Int>

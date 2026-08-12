@@ -28,7 +28,7 @@ import st.orm.spring.repository.VisitRepository
 @TestConstructor(autowireMode = ALL)
 @SpringBootTest
 @Sql("/data.sql")
-class RepositoryQualifierTest(
+internal class RepositoryQualifierTest(
     val applicationContext: ApplicationContext,
     @Qualifier("prefixed_") val prefixedVisitRepository: VisitRepository,
 ) {

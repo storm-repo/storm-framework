@@ -32,7 +32,7 @@ import kotlin.test.assertEquals
 @ExtendWith(SpringExtension::class)
 @ContextConfiguration(classes = [IntegrationConfig::class])
 @DataJpaTest(showSql = false)
-open class JsonORMConverterIntegrationTest(@Autowired val dataSource: DataSource) {
+internal open class JsonORMConverterIntegrationTest(@Autowired val dataSource: DataSource) {
 
     @Test
     fun `select owners should return all 10 distinct owners from test data`() {

@@ -21,7 +21,7 @@ import st.orm.template.model.*
 @ExtendWith(SpringExtension::class)
 @ContextConfiguration(classes = [IntegrationConfig::class])
 @Sql("/data.sql")
-open class PolymorphicTest(
+internal open class PolymorphicTest(
     @Autowired val orm: ORMTemplate,
 ) {
 

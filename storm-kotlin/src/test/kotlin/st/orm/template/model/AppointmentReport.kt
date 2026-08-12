@@ -10,7 +10,7 @@ import st.orm.PK
  * carries a column that does not round-trip bit-exact, operations on this entity must correlate by the key column
  * rather than by structural equality of the key entity.
  */
-data class AppointmentReport(
+internal data class AppointmentReport(
     @PK(generation = NONE) @FK("appointment_id") val appointment: Appointment,
     val report: String,
 ) : Entity<Appointment>

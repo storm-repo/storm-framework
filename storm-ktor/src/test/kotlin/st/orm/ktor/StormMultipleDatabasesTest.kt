@@ -25,7 +25,7 @@ import st.orm.template.ORMTemplate
  * The scenario follows the pet clinic domain: the clinic's own database holds the pets, while the vet registry
  * lives in a separate, named database.
  */
-class StormMultipleDatabasesTest {
+internal class StormMultipleDatabasesTest {
 
     private fun createTestDataSource(name: String, schemaResource: String): HikariDataSource {
         val config = HikariConfig().apply {

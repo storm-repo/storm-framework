@@ -30,7 +30,7 @@ import st.orm.template.*
 @ContextConfiguration(classes = [SpringIntegrationConfig::class])
 @SpringBootTest
 @Sql("/data.sql")
-open class SpringTransactionContextTest(
+internal open class SpringTransactionContextTest(
     @Autowired val orm: ORMTemplate,
 ) {
 

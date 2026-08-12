@@ -4,7 +4,7 @@ import st.orm.Entity
 import st.orm.PK
 
 @JvmRecord
-data class Visit(
+internal data class Visit(
     @PK val id: Int = 0,
     val description: String? = null,
 ) : Entity<Int>

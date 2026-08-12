@@ -4,7 +4,7 @@ import kotlinx.serialization.Serializable
 import st.orm.*
 
 @Serializable
-data class VetSpecialty(
+internal data class VetSpecialty(
     @PK(generation = GenerationStrategy.NONE) val id: VetSpecialtyPK, // Implicitly @Inlined
     @FK @Persist(insertable = false) val vet: Vet,
     @FK @Persist(insertable = false) val specialty: Specialty,

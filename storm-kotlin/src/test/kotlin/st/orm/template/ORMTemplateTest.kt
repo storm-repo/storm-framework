@@ -24,7 +24,7 @@ import javax.sql.DataSource
 @ExtendWith(SpringExtension::class)
 @ContextConfiguration(classes = [IntegrationConfig::class])
 @Sql("/data.sql")
-open class ORMTemplateTest(
+internal open class ORMTemplateTest(
     @Autowired val orm: ORMTemplate,
     @Autowired val dataSource: DataSource,
 ) {

@@ -37,7 +37,7 @@ import st.orm.core.template.SqlLog as CoreSqlLog
 @ExtendWith(SpringExtension::class)
 @ContextConfiguration(classes = [IntegrationConfig::class])
 @Sql("/data.sql")
-open class SqlLogTest(
+internal open class SqlLogTest(
     @Autowired val orm: ORMTemplate,
 ) {
 

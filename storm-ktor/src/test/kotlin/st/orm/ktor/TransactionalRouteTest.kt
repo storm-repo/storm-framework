@@ -29,7 +29,7 @@ import java.sql.SQLException
  * joining the outer transaction. Also verifies the StatusPages recipes documented in the Ktor integration
  * guide, exactly as written there.
  */
-class TransactionalRouteTest {
+internal class TransactionalRouteTest {
 
     private fun createTestDataSource(): HikariDataSource {
         val config = HikariConfig().apply {

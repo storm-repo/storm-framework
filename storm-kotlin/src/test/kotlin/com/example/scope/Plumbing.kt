@@ -19,6 +19,6 @@ suspend inline fun <T> throughDbLayer(crossinline block: suspend () -> T): T = p
  * A fan-out the way an application's database layer writes one: the work runs on another dispatcher, whose
  * stack starts at the dispatcher and goes straight into this file, with the caller nowhere on it.
  */
-suspend fun fetchAllOnDispatcher(orm: ORMTemplate): List<PetOwnerRef> = withContext(Dispatchers.Default + sqlLogContext()) {
+internal suspend fun fetchAllOnDispatcher(orm: ORMTemplate): List<PetOwnerRef> = withContext(Dispatchers.Default + sqlLogContext()) {
     orm.entity(PetOwnerRef::class).select().resultList
 }

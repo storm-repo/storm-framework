@@ -16,7 +16,7 @@ import st.orm.template.impl.VirtualThreadDispatcher
  * - System property handling
  * - shutdown()
  */
-class TransactionDispatchersTest {
+internal class TransactionDispatchersTest {
 
     @AfterEach
     fun restoreDefault() {

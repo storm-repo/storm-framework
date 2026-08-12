@@ -12,24 +12,24 @@ import st.orm.Ref
 @Discriminator
 @Polymorphic(JOINED)
 @DbTable("joined_animal")
-sealed interface JoinedAnimal : Entity<Int>
+internal sealed interface JoinedAnimal : Entity<Int>
 
 @DbTable("joined_cat")
-data class JoinedCat(
+internal data class JoinedCat(
     @PK val id: Int = 0,
     val name: String,
     val indoor: Boolean,
 ) : JoinedAnimal
 
 @DbTable("joined_dog")
-data class JoinedDog(
+internal data class JoinedDog(
     @PK val id: Int = 0,
     val name: String,
     val weight: Int,
 ) : JoinedAnimal
 
 @DbTable("joined_adoption")
-data class JoinedAdoption(
+internal data class JoinedAdoption(
     @PK val id: Int = 0,
     @FK val animal: Ref<JoinedAnimal>,
 ) : Entity<Int>

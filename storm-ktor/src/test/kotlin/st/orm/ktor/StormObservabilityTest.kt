@@ -30,7 +30,7 @@ import java.util.concurrent.atomic.AtomicInteger
  * named databases are tagged with `storm.database`, an explicit `queryObserver` wins over the automatic
  * binding, and without a registry queries run unobserved.
  */
-class StormObservabilityTest {
+internal class StormObservabilityTest {
 
     private fun createTestDataSource(name: String, schemaResource: String): HikariDataSource {
         val config = HikariConfig().apply {

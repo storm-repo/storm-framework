@@ -9,7 +9,7 @@ import st.orm.ktor.model.PetType
 import st.orm.template.ORMTemplate
 import st.orm.template.transaction
 
-class TransactionTest {
+internal class TransactionTest {
 
     private fun createTestDataSource(): HikariDataSource {
         val config = HikariConfig().apply {

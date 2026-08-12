@@ -27,7 +27,7 @@ import kotlin.test.assertFalse
 @ContextConfiguration(classes = [IntegrationConfig::class])
 @SpringBootTest
 @Sql("/data.sql")
-open class TransactionTest(
+internal open class TransactionTest(
     @Autowired val orm: ORMTemplate,
 ) {
 

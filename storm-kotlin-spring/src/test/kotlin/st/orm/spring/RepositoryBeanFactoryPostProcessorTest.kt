@@ -23,7 +23,7 @@ import st.orm.spring.kotlin.RepositoryBeanFactoryPostProcessor
 @TestConstructor(autowireMode = ALL)
 @SpringBootTest
 @Sql("/data.sql")
-class RepositoryBeanFactoryPostProcessorTest(
+internal class RepositoryBeanFactoryPostProcessorTest(
     val applicationContext: ApplicationContext,
 ) {
 

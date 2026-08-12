@@ -19,7 +19,7 @@ import st.orm.spring.boot.test.DataStormTest
  */
 @TestMethodOrder(OrderAnnotation::class)
 @DataStormTest
-class DataStormTestSliceTest(
+internal class DataStormTestSliceTest(
     @Autowired private val visitRepository: VisitRepository,
     @Autowired private val applicationContext: ApplicationContext,
 ) {

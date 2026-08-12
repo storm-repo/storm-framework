@@ -27,7 +27,7 @@ import st.orm.template.model.*
 @ExtendWith(SpringExtension::class)
 @ContextConfiguration(classes = [IntegrationConfig::class])
 @Sql("/data.sql")
-open class ProjectionRepositoryTest(
+internal open class ProjectionRepositoryTest(
     @Autowired val orm: ORMTemplate,
 ) {
     @Suppress("UNCHECKED_CAST")

@@ -27,7 +27,7 @@ import st.orm.serialization.model.VetSpecialtyPK
  * Unit tests for [RefSerializer] and [StormSerializersModule] covering edge cases
  * and error paths not exercised by the integration tests.
  */
-class RefSerializerTest {
+internal class RefSerializerTest {
 
     @Serializable
     data class SimpleEntity(

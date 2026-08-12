@@ -11,7 +11,7 @@ import st.orm.StormConfig.ENTITY_CACHE_RETENTION
 import st.orm.StormConfig.UPDATE_DEFAULT_MODE
 import st.orm.StormConfig.UPDATE_DIRTY_CHECK
 
-class StormConfigReaderTest {
+internal class StormConfigReaderTest {
 
     @Test
     fun `reads camelCase storm config from HOCON`() {

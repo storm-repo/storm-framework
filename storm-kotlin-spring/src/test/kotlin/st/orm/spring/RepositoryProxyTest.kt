@@ -35,7 +35,7 @@ import st.orm.template.ORMTemplate
 @TestConstructor(autowireMode = ALL)
 @SpringBootTest
 @Sql("/data.sql")
-class RepositoryProxyTest(
+internal class RepositoryProxyTest(
     val visitRepository: VisitRepository,
     val applicationContext: ApplicationContext,
 ) {

@@ -29,7 +29,7 @@ import st.orm.template.recordSqlLog
 @ExtendWith(SpringExtension::class)
 @ContextConfiguration(classes = [IntegrationConfig::class])
 @Sql("/data.sql")
-open class CallSitePlumbingTest(
+internal open class CallSitePlumbingTest(
     @Autowired val orm: ORMTemplate,
 ) {
 

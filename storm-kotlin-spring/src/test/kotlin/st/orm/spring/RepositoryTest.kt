@@ -19,7 +19,7 @@ import st.orm.spring.repository.VisitRepository
 @TestConstructor(autowireMode = ALL)
 @SpringBootTest
 @Sql("/data.sql")
-class RepositoryTest(
+internal class RepositoryTest(
     val visitRepository: VisitRepository,
     val ownerRepositoryTest: OwnerRepository?,
     val applicationContext: ApplicationContext,

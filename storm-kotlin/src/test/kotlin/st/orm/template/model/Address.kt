@@ -5,7 +5,7 @@ import st.orm.FK
 /**
  * Simple business object representing an address.
  */
-data class Address(
+internal data class Address(
     val address: String? = null,
     @FK val city: City? = null,
 )

@@ -15,7 +15,7 @@ import org.springframework.beans.factory.support.AutowireCandidateResolver
  * Unit tests for [AbstractRepositoryBeanFactoryPostProcessor.RepositoryAutowireCandidateResolver]
  * delegation methods that are not exercised through integration tests.
  */
-class RepositoryAutowireCandidateResolverTest {
+internal class RepositoryAutowireCandidateResolverTest {
 
     private val delegate = mock(AutowireCandidateResolver::class.java)
     private val resolver = AbstractRepositoryBeanFactoryPostProcessor.RepositoryAutowireCandidateResolver(delegate)

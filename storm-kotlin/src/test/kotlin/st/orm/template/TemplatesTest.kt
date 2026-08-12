@@ -25,7 +25,7 @@ import javax.sql.DataSource
 @ExtendWith(SpringExtension::class)
 @ContextConfiguration(classes = [IntegrationConfig::class])
 @Sql("/data.sql")
-open class TemplatesTest(
+internal open class TemplatesTest(
     @Autowired val orm: ORMTemplate,
     @Autowired val dataSource: DataSource,
 ) {
@@ -941,4 +941,4 @@ open class TemplatesTest(
 /**
  * Custom repository interface for testing ORMTemplateImpl proxy creation.
  */
-interface CityRepository : st.orm.repository.EntityRepository<City, Int>
+internal interface CityRepository : st.orm.repository.EntityRepository<City, Int>

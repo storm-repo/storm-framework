@@ -7,24 +7,24 @@ import st.orm.FK
 import st.orm.PK
 import st.orm.Ref
 
-sealed interface Commentable : Data
+internal sealed interface Commentable : Data
 
 @DbTable("post")
-data class Post(
+internal data class Post(
     @PK val id: Int = 0,
     val title: String,
 ) : Commentable,
     Entity<Int>
 
 @DbTable("photo")
-data class Photo(
+internal data class Photo(
     @PK val id: Int = 0,
     val url: String,
 ) : Commentable,
     Entity<Int>
 
 @DbTable("comment")
-data class Comment(
+internal data class Comment(
     @PK val id: Int = 0,
     val text: String,
     @FK val target: Ref<Commentable>,

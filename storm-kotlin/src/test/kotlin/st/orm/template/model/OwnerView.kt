@@ -6,7 +6,7 @@ import st.orm.Projection
 import st.orm.Version
 
 @DbTable("owner_view")
-data class OwnerView(
+internal data class OwnerView(
     @PK val id: Int = 0,
     val firstName: String,
     val lastName: String,

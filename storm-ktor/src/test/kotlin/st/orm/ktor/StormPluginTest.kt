@@ -17,7 +17,7 @@ import st.orm.ktor.model.PetType
 import st.orm.template.ORMTemplate
 import javax.sql.DataSource
 
-class StormPluginTest {
+internal class StormPluginTest {
 
     private fun createTestDataSource(): HikariDataSource {
         val config = HikariConfig().apply {

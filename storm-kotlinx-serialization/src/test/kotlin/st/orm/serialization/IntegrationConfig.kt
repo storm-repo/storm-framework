@@ -11,4 +11,4 @@ import org.springframework.transaction.annotation.EnableTransactionManagement
 @ComponentScan("st.orm.serialization")
 @EnableJpaRepositories
 @EnableTransactionManagement
-open class IntegrationConfig
+internal open class IntegrationConfig

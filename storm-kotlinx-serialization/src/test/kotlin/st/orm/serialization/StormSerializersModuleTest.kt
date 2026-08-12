@@ -25,7 +25,7 @@ import st.orm.Ref
  * - createRef with null id returning null
  * - Map of refs exercising Ref in various collection positions
  */
-class StormSerializersModuleTest {
+internal class StormSerializersModuleTest {
 
     @Serializable
     data class SimpleEntity(

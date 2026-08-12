@@ -28,7 +28,7 @@ import st.orm.Ref
  * - Line 121: RefSerializer non-JSON format assertion
  * - Lines 316-327: resolveTargetClass Strategy 1 patterns
  */
-class StormSerializersModuleGapTest {
+internal class StormSerializersModuleGapTest {
 
     @Serializable
     data class SimpleEntity(

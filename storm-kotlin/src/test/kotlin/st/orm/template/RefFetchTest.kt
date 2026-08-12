@@ -27,7 +27,7 @@ import st.orm.template.model.PetType
 @ExtendWith(SpringExtension::class)
 @ContextConfiguration(classes = [IntegrationConfig::class])
 @Sql("/data.sql")
-open class RefFetchTest(
+internal open class RefFetchTest(
     @Autowired val orm: ORMTemplate,
 ) {
 

@@ -29,7 +29,7 @@ import st.orm.template.*
 @ContextConfiguration(classes = [SpringIntegrationConfig::class])
 @SpringBootTest
 @Sql("/data.sql")
-open class TransactionPropagationTest(
+internal open class TransactionPropagationTest(
     @Autowired val orm: ORMTemplate,
 ) {
 

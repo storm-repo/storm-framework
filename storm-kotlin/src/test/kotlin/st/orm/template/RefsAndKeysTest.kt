@@ -20,7 +20,7 @@ import st.orm.template.model.*
 @ExtendWith(SpringExtension::class)
 @ContextConfiguration(classes = [IntegrationConfig::class])
 @Sql("/data.sql")
-open class RefsAndKeysTest(
+internal open class RefsAndKeysTest(
     @Autowired val orm: ORMTemplate,
 ) {
 
