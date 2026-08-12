@@ -39,7 +39,7 @@ public class MariaDBPolymorphicTest {
 
     @SuppressWarnings("resource")
     @Container
-    public static MariaDBContainer<?> mariadbContainer = new MariaDBContainer<>("mariadb:latest")
+    public static MariaDBContainer<?> mariadbContainer = new MariaDBContainer<>("mariadb:11.8")
             .withDatabaseName("test")
             .withUsername("test")
             .withPassword("test")

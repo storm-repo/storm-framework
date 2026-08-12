@@ -53,5 +53,11 @@ website/static/api/
 # prebuild step of every site build. Committing it only lets it drift.
 website/static/llms-full.txt
 
-# Working analysis doc — not for check-in
+### Maven ###
+# Machine-local heap tuning for the reactor. Maven reads it automatically, so a
+# contributor's setting would otherwise land in every build that shares the repo.
+.mvn/jvm.config
+
+# Working analysis docs — not for check-in
 ADOPTION_ANALYSIS.md
+ARTICLE_SCHEDULE.md

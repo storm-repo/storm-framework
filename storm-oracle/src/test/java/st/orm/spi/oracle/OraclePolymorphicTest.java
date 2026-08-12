@@ -40,7 +40,7 @@ public class OraclePolymorphicTest {
 
     @SuppressWarnings("resource")
     @Container
-    public static GenericContainer<?> oracleContainer = new GenericContainer<>("gvenzl/oracle-free:latest")
+    public static GenericContainer<?> oracleContainer = new GenericContainer<>("gvenzl/oracle-free:23")
             .withExposedPorts(1521)
             .withEnv("ORACLE_PASSWORD", "oracle")
             .withEnv("APP_USER", "test")

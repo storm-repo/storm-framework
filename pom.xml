@@ -251,6 +251,27 @@
                             </rules>
                         </configuration>
                     </execution>
+                    <execution>
+                        <id>require-kotlin-variant-match</id>
+                        <goals>
+                            <goal>enforce</goal>
+                        </goals>
+                        <configuration>
+                            <rules>
+                                <!-- kotlin.major.minor selects the storm-compiler-plugin variant that storm-kotlin
+                                     and storm-kotlinx-serialization compile against. It stays an explicit property
+                                     rather than a derived one, mirroring the Gradle plugin's compilerPluginVariant,
+                                     so a variant can be pinned forward for a Kotlin release the plugin predates.
+                                     Left to drift instead, the two modules silently compile against a plugin built
+                                     for another compiler generation, which surfaces far from its cause. Every
+                                     module that overrides kotlin.version therefore overrides this one too. -->
+                                <evaluateBeanshell>
+                                    <condition>"${kotlin.version}".startsWith("${kotlin.major.minor}.")</condition>
+                                    <message>kotlin.major.minor (${kotlin.major.minor}) does not match kotlin.version (${kotlin.version}): the storm-compiler-plugin-${kotlin.major.minor} variant targets another compiler generation. Set both properties together.</message>
+                                </evaluateBeanshell>
+                            </rules>
+                        </configuration>
+                    </execution>
                 </executions>
             </plugin>
             <plugin>

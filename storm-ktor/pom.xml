@@ -35,6 +35,7 @@
          it overrides the same versions) this does not force the newer toolchain onto any other module. -->
     <properties>
         <kotlin.version>2.3.10</kotlin.version>
+        <kotlin.major.minor>2.3</kotlin.major.minor>
         <kotlin.coroutines.version>1.10.2</kotlin.coroutines.version>
     </properties>
     <build>
