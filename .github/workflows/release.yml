@@ -92,6 +92,9 @@ jobs:
       - name: Set package version from tag
         run: |
           npm version ${{ steps.version.outputs.VERSION }} --no-git-tag-version --allow-same-version
+          # The stamp is anchored to this exact source line; without the guard, a refactor
+          # that renames it would silently publish a stale VERSION.
+          grep -q "^const VERSION = '" storm.mjs
           sed -i "s/const VERSION = '.*'/const VERSION = '${{ steps.version.outputs.VERSION }}'/" storm.mjs
         working-directory: storm-cli
 
