@@ -127,7 +127,7 @@ storm {
 }
 ```
 
-The Storm Ktor plugin reads these properties and builds a `StormConfig` that is passed to the `ORMTemplate` factory. HOCON supports environment variable substitution with `${?VAR_NAME}` syntax. See [Ktor Integration](ktor-integration.md#configuration) for details.
+The Storm Ktor plugin reads these properties and builds a `StormConfig` that is passed to the `ORMTemplate` factory. A named database reads the same keys under `storm.databases.<name>`, inheriting every key it does not set from the keys above. HOCON supports environment variable substitution with `${?VAR_NAME}` syntax. See [Ktor Integration](ktor-integration.md#configuration) for details.
 
 ---
 

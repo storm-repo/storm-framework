@@ -57,8 +57,12 @@ import st.orm.StormConfig.VALIDATION_STRICT
  *     }
  * }
  * ```
+ *
+ * A named database reads the same keys relative to its own prefix (`storm.databases.<name>`) and inherits the
+ * rest through [fallback], the primary database's effective configuration: a key set under the named prefix
+ * overrides, every other key resolves to what the primary uses.
  */
-internal fun readStormConfig(application: Application, prefix: String = "storm"): StormConfig {
+internal fun readStormConfig(application: Application, prefix: String = "storm", fallback: StormConfig? = null): StormConfig {
     val config = application.environment.config
     val properties = mutableMapOf<String, String>()
     val keys = listOf(
@@ -78,9 +82,11 @@ internal fun readStormConfig(application: Application, prefix: String = "storm")
         // own prefix, e.g. "storm.databases.analytics.update.default_mode". The prefix itself (which may contain
         // a user-chosen database name) is looked up verbatim; only the relative key gets the camelCase variant.
         val relativeKey = key.removePrefix("storm")
-        // Try camelCase (HOCON convention) first, then snake_case (Storm convention).
+        // Try camelCase (HOCON convention) first, then snake_case (Storm convention), then the fallback
+        // configuration a named database inherits from.
         val value = config.propertyOrNull(prefix + snakeToCamel(relativeKey))?.getString()
             ?: config.propertyOrNull(prefix + relativeKey)?.getString()
+            ?: fallback?.getProperty(key)
             ?: continue
         properties[key] = value
     }

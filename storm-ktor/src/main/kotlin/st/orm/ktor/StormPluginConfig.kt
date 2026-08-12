@@ -66,7 +66,7 @@ public class StormPluginConfig {
 
     /**
      * Optional [st.orm.core.spi.ExceptionMapper] that maps failures raised during query execution to the runtime
-     * exception thrown to the caller.
+     * exception thrown to the caller. Applies to every database unless a database block sets its own.
      *
      * @since 1.13
      */
@@ -74,7 +74,7 @@ public class StormPluginConfig {
 
     /**
      * Optional [st.orm.core.spi.QueryObserver] that is notified of query executions, for metrics and tracing
-     * bindings.
+     * bindings. Applies to every database unless a database block sets its own.
      *
      * @since 1.13
      */
@@ -83,7 +83,8 @@ public class StormPluginConfig {
     /**
      * Optional [st.orm.core.spi.SqlCommenter] that appends per-execution comment content to statements, such
      * as the current trace context ([st.orm.micrometer.TraceContextSqlCommenter]). Note that per-execution
-     * content defeats prepared statement caching; enable selectively.
+     * content defeats prepared statement caching; enable selectively. Applies to every database unless a
+     * database block sets its own.
      *
      * @since 1.13
      */
@@ -103,32 +104,48 @@ public class StormPluginConfig {
      * The summary logs under `st.orm.sql.perf` at INFO. Statements are recorded only while that logger is
      * enabled, so leaving this on costs nothing once the logger is turned down. Disabled by default.
      *
+     * Every `sqlLog*` option can come from the application configuration instead, under `storm.sqlLog`
+     * (or `storm.sql_log`), so the log can be switched on in production without a redeploy. A setting here
+     * overrides the configuration file; when neither sets an option, its default applies.
+     *
+     * ```
+     * storm.sqlLog {
+     *     enabled = true
+     *     threshold {
+     *         statements = 50
+     *         duration = 500ms
+     *     }
+     * }
+     * ```
+     *
      * For a narrower boundary than a request, open a scope directly with
      * [st.orm.template.sqlLog].
      *
      * @since 1.13
      */
-    public var sqlLog: Boolean = false
+    public var sqlLog: Boolean? = null
 
     /**
      * Number of statements a per-request scope records; the summary counts the rest regardless. Bounds what a
-     * single runaway call can retain and print.
+     * single runaway call can retain and print. Configuration key `storm.sqlLog.limit`; defaults to 200.
      *
      * @since 1.13
      */
-    public var sqlLogLimit: Int = 200
+    public var sqlLogLimit: Int? = null
 
     /**
      * Number of statements above which a call's summary is reported, at WARN. With any threshold set, only
      * calls that exceed one are reported, which is the guardrail form suited to production; without thresholds
-     * every call that touches the database is reported at INFO.
+     * every call that touches the database is reported at INFO. Configuration key
+     * `storm.sqlLog.threshold.statements`.
      *
      * @since 1.13
      */
     public var sqlLogStatementThreshold: Int? = null
 
     /**
-     * Call duration above which a call's summary is reported, at WARN.
+     * Call duration above which a call's summary is reported, at WARN. Configuration key
+     * `storm.sqlLog.threshold.duration`, as a duration such as `500ms`.
      *
      * @since 1.13
      */
@@ -137,24 +154,28 @@ public class StormPluginConfig {
     /**
      * Whether each execution is attributed to the application frame that caused it, shown per row as
      * `@ File.ext:line`. Costs a stack walk per execution while a scope records; suited to development.
-     * Defaults to false.
+     * Configuration key `storm.sqlLog.callSites`; defaults to false.
      *
      * @since 1.13
      */
-    public var sqlLogCallSites: Boolean = false
+    public var sqlLogCallSites: Boolean? = null
 
     /**
      * Packages whose frames are skipped when attributing an execution to a call site, so rows name the code
-     * that asked for the work rather than the application's own database plumbing.
+     * that asked for the work rather than the application's own database plumbing. Configuration key
+     * `storm.sqlLog.callSiteSkip`, a list or comma-separated string. Applied JVM-wide at installation, like
+     * the `storm.sql_log.call_site_skip` system property it complements; when unset, the system property's
+     * setting stays in effect.
      *
      * @since 1.13
      */
-    public var sqlLogCallSiteSkip: List<String> = emptyList()
+    public var sqlLogCallSiteSkip: List<String>? = null
 
     /**
      * Width a summary row aims for, such as 120 for narrow viewers or 240 for wide ones; the statement text
-     * elides to what the row's other columns leave. A display property of the deployment, applied once at
-     * installation.
+     * elides to what the row's other columns leave. A display property of the deployment, applied JVM-wide at
+     * installation. Configuration key `storm.sqlLog.lineWidth`; when unset, the `storm.sql_log.line_width`
+     * system property's setting stays in effect.
      *
      * @since 1.13
      */
@@ -164,11 +185,13 @@ public class StormPluginConfig {
      * How a read's summary row renders the declared hydration shape of its type: [HydrationShapes.OFF] (the
      * default), [HydrationShapes.SHORT] for the numeric form (`j2 c12 d3`: joins, columns, graph depth; flat
      * types show none), or [HydrationShapes.FULL] to name the joined-entity graph on every mapped read. Writes
-     * carry no shape.
+     * carry no shape. A display property of the deployment, applied JVM-wide at installation. Configuration
+     * key `storm.sqlLog.hydration`; when unset, the `storm.sql_log.hydration` system property's setting stays
+     * in effect.
      *
      * @since 1.13
      */
-    public var sqlLogHydration: HydrationShapes = HydrationShapes.OFF
+    public var sqlLogHydration: HydrationShapes? = null
 
     /**
      * Whether to expose the [st.orm.template.ORMTemplate] and the registered repositories through Ktor's
@@ -220,7 +243,8 @@ public class StormPluginConfig {
     }
 
     /**
-     * Entity callbacks for lifecycle hooks on insert, update, and delete operations.
+     * Entity callbacks for lifecycle hooks on insert, update, and delete operations. Applied to every
+     * database; callbacks declared in a database block apply to that database in addition.
      */
     public val entityCallbacks: MutableList<EntityCallback<*>> = mutableListOf()
 
@@ -237,8 +261,9 @@ public class StormPluginConfig {
      *
      * Auto-registration creates the repository proxies eagerly, so an invalid repository definition fails at
      * startup rather than at first request. Use [repositories] to narrow registration to specific packages, or
-     * set this to `false` to skip auto-registration entirely; repositories are then created lazily on first
-     * [repository] access, or explicitly via [stormRepositories].
+     * set this to `false` to skip auto-registration entirely, for the primary and named databases alike;
+     * repositories are then created lazily on first [repository] access, or explicitly via
+     * [stormRepositories]. The packages declared in a database block keep partitioning either way.
      *
      * @since 1.12
      */

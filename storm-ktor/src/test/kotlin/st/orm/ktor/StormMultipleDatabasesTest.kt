@@ -4,19 +4,27 @@ import com.zaxxer.hikari.HikariConfig
 import com.zaxxer.hikari.HikariDataSource
 import io.kotest.assertions.throwables.shouldThrow
 import io.kotest.matchers.collections.shouldNotBeEmpty
+import io.kotest.matchers.ints.shouldBeGreaterThan
 import io.kotest.matchers.shouldBe
 import io.kotest.matchers.shouldNotBe
 import io.kotest.matchers.string.shouldContain
 import io.kotest.matchers.types.shouldBeSameInstanceAs
+import io.ktor.server.application.Application
 import io.ktor.server.application.install
 import io.ktor.server.plugins.di.dependencies
 import io.ktor.server.testing.testApplication
 import kotlinx.coroutines.runBlocking
 import org.junit.jupiter.api.Test
+import st.orm.EntityCallback
+import st.orm.core.spi.ExceptionMapper
+import st.orm.core.spi.QueryContext
+import st.orm.core.spi.QueryObserver
 import st.orm.ktor.model.PetRepository
 import st.orm.ktor.vet.Vet
 import st.orm.ktor.vet.VetRepository
 import st.orm.template.ORMTemplate
+import java.util.concurrent.CopyOnWriteArrayList
+import java.util.concurrent.atomic.AtomicInteger
 
 /**
  * Verifies the named-database support of the [Storm] plugin: per-database templates and repositories, package
@@ -27,7 +35,7 @@ import st.orm.template.ORMTemplate
  */
 internal class StormMultipleDatabasesTest {
 
-    private fun createTestDataSource(name: String, schemaResource: String): HikariDataSource {
+    private fun createTestDataSource(name: String, schemaResource: String? = null): HikariDataSource {
         val config = HikariConfig().apply {
             jdbcUrl = "jdbc:h2:mem:$name-${System.nanoTime()};DB_CLOSE_DELAY=-1"
             driverClassName = "org.h2.Driver"
@@ -36,13 +44,15 @@ internal class StormMultipleDatabasesTest {
             maximumPoolSize = 2
         }
         val dataSource = HikariDataSource(config)
-        dataSource.connection.use { connection ->
-            connection.createStatement().use { statement ->
-                val sql = this::class.java.getResourceAsStream(schemaResource)!!.bufferedReader().readText()
-                for (line in sql.split(";")) {
-                    val trimmed = line.trim()
-                    if (trimmed.isNotEmpty()) {
-                        statement.execute(trimmed)
+        if (schemaResource != null) {
+            dataSource.connection.use { connection ->
+                connection.createStatement().use { statement ->
+                    val sql = this::class.java.getResourceAsStream(schemaResource)!!.bufferedReader().readText()
+                    for (line in sql.split(";")) {
+                        val trimmed = line.trim()
+                        if (trimmed.isNotEmpty()) {
+                            statement.execute(trimmed)
+                        }
                     }
                 }
             }
@@ -50,7 +60,13 @@ internal class StormMultipleDatabasesTest {
         return dataSource
     }
 
-    private fun withClinicAndVetsDatabases(block: io.ktor.server.application.Application.() -> Unit) {
+    private fun withClinicAndVetsDatabases(block: Application.() -> Unit) = withClinicAndVetsDatabases(configure = {}) { block() }
+
+    private fun withClinicAndVetsDatabases(
+        configure: StormPluginConfig.() -> Unit,
+        configureVets: StormDatabaseConfig.() -> Unit = {},
+        block: Application.(vetsDataSource: HikariDataSource) -> Unit,
+    ) {
         val clinicDataSource = createTestDataSource("storm-multi-clinic", "/schema.sql")
         val vetsDataSource = createTestDataSource("storm-multi-vets", "/schema-vets.sql")
         try {
@@ -58,14 +74,16 @@ internal class StormMultipleDatabasesTest {
                 application {
                     install(Storm) {
                         dataSource = clinicDataSource
+                        configure()
                         // The primary must not see the vet package; partitioning also keeps schema
                         // validation (mode "fail" by default) green for both databases.
                         database("vets") {
                             dataSource = vetsDataSource
                             repositories("st.orm.ktor.vet")
+                            configureVets()
                         }
                     }
-                    block()
+                    block(vetsDataSource)
                 }
             }
         } finally {
@@ -124,4 +142,133 @@ internal class StormMultipleDatabasesTest {
         exception.message!! shouldContain "No database named 'specialties'"
         exception.message!! shouldContain "vets"
     }
+
+    @Test
+    fun `an unclaimed repository type is not served by a named database`() = withClinicAndVetsDatabases {
+        val exception = shouldThrow<IllegalStateException> {
+            repository<PetRepository>("vets")
+        }
+        exception.message!! shouldContain "does not belong to database 'vets'"
+        exception.message!! shouldContain "'st.orm.ktor.vet'"
+        exception.message!! shouldContain "repository<PetRepository>()"
+        exception.message!! shouldContain "repositories(\"st.orm.ktor.model\")"
+    }
+
+    @Test
+    fun `autoRegisterRepositories false covers named databases`() {
+        withClinicAndVetsDatabases(configure = { autoRegisterRepositories = false }) {
+            val vetsRegistry = attributes[NamedRepositoryRegistriesKey].getValue("vets")
+            shouldThrow<IllegalStateException> {
+                vetsRegistry.get(VetRepository::class)
+            }.message!! shouldContain "not registered"
+            // The claimed type is still created lazily on first access.
+            repository<VetRepository>("vets").findAll().size shouldBe 2
+        }
+    }
+
+    @Test
+    fun `plugin-level entity callbacks apply to named databases`() {
+        val pluginCallback = RecordingVetCallback()
+        val databaseCallback = RecordingVetCallback()
+        withClinicAndVetsDatabases(
+            configure = { entityCallback(pluginCallback) },
+            configureVets = { entityCallback(databaseCallback) },
+        ) {
+            repository<VetRepository>("vets").insert(Vet(firstName = "Sharon", lastName = "Jenkins"))
+            // The database's own callbacks apply in addition to the inherited plugin-level ones.
+            pluginCallback.inserted.size shouldBe 1
+            databaseCallback.inserted.size shouldBe 1
+        }
+    }
+
+    @Test
+    fun `plugin-level query observer applies to named databases`() {
+        val pluginObserver = RecordingQueryObserver()
+        withClinicAndVetsDatabases(configure = { queryObserver = pluginObserver }) {
+            val before = pluginObserver.executions.get()
+            repository<VetRepository>("vets").findAll()
+            pluginObserver.executions.get() shouldBeGreaterThan before
+        }
+    }
+
+    @Test
+    fun `database-level query observer overrides the inherited one`() {
+        val pluginObserver = RecordingQueryObserver()
+        val databaseObserver = RecordingQueryObserver()
+        withClinicAndVetsDatabases(
+            configure = { queryObserver = pluginObserver },
+            configureVets = { queryObserver = databaseObserver },
+        ) {
+            val before = pluginObserver.executions.get()
+            repository<VetRepository>("vets").findAll()
+            databaseObserver.executions.get() shouldBeGreaterThan 0
+            pluginObserver.executions.get() shouldBe before
+        }
+    }
+
+    @Test
+    fun `plugin-level exception mapper applies to named databases`() {
+        withClinicAndVetsDatabases(
+            configure = { exceptionMapper = ExceptionMapper { cause, _ -> MarkedException(cause) } },
+        ) { vetsDataSource ->
+            vetsDataSource.connection.use { connection ->
+                connection.createStatement().use { it.execute("DROP TABLE vet") }
+            }
+            shouldThrow<MarkedException> {
+                repository<VetRepository>("vets").findAll()
+            }
+        }
+    }
+
+    @Test
+    fun `named databases inherit the plugin-level schema validation mode`() {
+        val clinicDataSource = createTestDataSource("storm-multi-clinic", "/schema.sql")
+        // No schema at all: with the inherited "warn" mode the mismatches log instead of aborting
+        // installation, which the previously hardwired "fail" default would have done.
+        val emptyVetsDataSource = createTestDataSource("storm-multi-vets-empty")
+        try {
+            testApplication {
+                application {
+                    install(Storm) {
+                        dataSource = clinicDataSource
+                        schemaValidation = "warn"
+                        database("vets") {
+                            dataSource = emptyVetsDataSource
+                            repositories("st.orm.ktor.vet")
+                        }
+                    }
+                    orm("vets") shouldNotBe null
+                }
+            }
+        } finally {
+            clinicDataSource.close()
+            emptyVetsDataSource.close()
+        }
+    }
 }
+
+/**
+ * Entity callback that records the vets it saw, for asserting which database's template it was applied to.
+ */
+private class RecordingVetCallback : EntityCallback<Vet> {
+    val inserted = CopyOnWriteArrayList<Vet>()
+
+    override fun beforeInsert(entity: Vet): Vet {
+        inserted += entity
+        return entity
+    }
+}
+
+/**
+ * Query observer that counts executions, for asserting which database's template it was installed on.
+ */
+private class RecordingQueryObserver : QueryObserver {
+    val executions = AtomicInteger()
+
+    override fun onExecute(context: QueryContext): QueryObserver.Observation {
+        executions.incrementAndGet()
+        return QueryObserver.noop().onExecute(context)
+    }
+}
+
+private class MarkedException(cause: Throwable) : RuntimeException(cause)
