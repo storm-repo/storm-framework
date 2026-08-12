@@ -170,6 +170,54 @@ public class SmokeCompileTest {
         }
     }
 
+    /**
+     * A capture whose action ends in a lookup that finds nothing is the ordinary case in a test, so the result
+     * type of {@code execute} and {@code executeThrowing} has to admit null. Strict JSpecify enforcement starts
+     * at Kotlin 2.1, which the reactor's own Kotlin 2.0 modules never exercise, and storm-test's own tests are
+     * written in Java, where a non-null type parameter compiles regardless; this is the surface that sees it.
+     */
+    @Test
+    @EnabledIfSystemProperty(named = "storm.smoke", matches = "true")
+    public void kotlinCapturesAnActionThatReturnsNoRow() throws Exception {
+        Files.writeString(projectDir.resolve("settings.gradle.kts"), FunctionalTestSupport.SETTINGS);
+        Files.writeString(projectDir.resolve("build.gradle.kts"), """
+                plugins {
+                    id("org.jetbrains.kotlin.jvm") version "2.4.0"
+                    id("com.google.devtools.ksp") version "2.3.10"
+                    id("st.orm")
+                }
+                repositories {
+                    mavenLocal()
+                    mavenCentral()
+                }
+                kotlin {
+                    jvmToolchain(21)
+                }
+                dependencies {
+                    testImplementation("st.orm:storm-test")
+                }
+                """);
+        var sourceDir = projectDir.resolve("src/test/kotlin/demo");
+        Files.createDirectories(sourceDir);
+        Files.writeString(sourceDir.resolve("Capture.kt"), """
+                package demo
+
+                import st.orm.test.SqlCapture
+
+                fun firstName(capture: SqlCapture, names: List<String>): String? =
+                    capture.execute { names.firstOrNull() }
+
+                fun firstNameOrThrow(capture: SqlCapture, names: List<String>): String? =
+                    capture.executeThrowing { names.firstOrNull() }
+                """);
+        var result = GradleRunner.create()
+                .withProjectDir(projectDir.toFile())
+                .withPluginClasspath()
+                .withArguments("testClasses")
+                .build();
+        assertTrue(result.getOutput().contains("BUILD SUCCESSFUL"), result.getOutput());
+    }
+
     @Test
     @EnabledIfSystemProperty(named = "storm.smoke", matches = "true")
     public void generatesTheMetamodelForJavaTestSourceEntities() throws Exception {
