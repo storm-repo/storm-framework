@@ -357,6 +357,22 @@ public interface ORMTemplate :
         public fun connectionProvider(connectionProvider: st.orm.core.spi.ConnectionProvider): Builder = apply { core.connectionProvider(connectionProvider) }
 
         /**
+         * Declares that the data source hands out connections with auto-commit disabled.
+         *
+         * The declared mode is verified in both directions: a declared template that receives an auto-commit
+         * connection fails fast naming the misdeclaration, exactly like an undeclared template that receives a
+         * manual-commit one. With the declaration in place, the transactional path performs no auto-commit flips
+         * and releases connections in their arrived state; non-transactional connections get auto-commit enabled
+         * while Storm uses them and restored before release, so each statement still commits.
+         *
+         * Cannot be combined with a custom [connectionProvider] and only valid for data source backed templates;
+         * [build] fails fast otherwise.
+         *
+         * @since 1.14
+         */
+        public fun manualCommitConnections(): Builder = apply { core.manualCommitConnections() }
+
+        /**
          * Sets the transaction template provider used by the template to participate in transactions.
          *
          * Templates that should share transactions must be configured with the *same provider instance*.
