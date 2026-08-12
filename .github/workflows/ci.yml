@@ -9,9 +9,16 @@ on:
 permissions:
   contents: read
 
+# Rapid pushes to a PR queue duplicate runs; supersede them. Runs on main keep
+# going so every merge commit gets its coverage upload.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
+
 jobs:
   build:
     runs-on: ubuntu-latest
+    timeout-minutes: 60
 
     steps:
       - name: Checkout repository
@@ -47,3 +54,20 @@ jobs:
           token: ${{ secrets.CODECOV_TOKEN }}
           flags: unittests
           fail_ci_if_error: true
+
+  # The CLI ships to users via npx but is plain JavaScript with no compile step,
+  # so at minimum its syntax must be checked before merge.
+  cli-check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Syntax-check the CLI
+        run: node --check storm-cli/storm.mjs

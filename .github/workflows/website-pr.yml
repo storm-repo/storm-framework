@@ -1,0 +1,41 @@
+name: Website PR Build
+
+# docs.yml deploys on push to main only, so a change that breaks the Docusaurus
+# build used to surface after merge. This build-only job catches it on the PR.
+on:
+  pull_request:
+    paths:
+      - 'website/**'
+      - 'docs/**'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: website/package-lock.json
+
+      - name: Install website dependencies
+        run: npm ci
+        working-directory: website
+
+      # Without the Javadoc/KDoc static trees that docs.yml generates; this job
+      # validates the Docusaurus compile and the link check, not /api content.
+      - name: Build Docusaurus
+        run: npm run build
+        working-directory: website

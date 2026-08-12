@@ -8,6 +8,7 @@ on:
 jobs:
   publish:
     runs-on: ubuntu-latest
+    timeout-minutes: 90
     permissions:
       contents: read   # Checkout only; deploy auth comes from Central/GPG secrets, not GITHUB_TOKEN.
 
@@ -66,6 +67,7 @@ jobs:
 
   publish-npm:
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     permissions:
       id-token: write   # Required for npm trusted publishing (OIDC).
       contents: read
@@ -102,6 +104,7 @@ jobs:
 
   publish-gradle-plugin:
     runs-on: ubuntu-latest
+    timeout-minutes: 45
     needs: publish            # The plugin references st.orm artifacts of the same version on Central.
     permissions:
       contents: read
@@ -134,6 +137,7 @@ jobs:
 
   version-docs:
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     needs: publish
     permissions:
       contents: write
@@ -189,6 +193,7 @@ jobs:
   # version they pin current so "Use this template" always starts on the release.
   sync-example-templates:
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     needs: publish-gradle-plugin
     # Pushes go through RELEASE_TOKEN, not the default GITHUB_TOKEN, so this job
     # needs no permissions on its own repository.
