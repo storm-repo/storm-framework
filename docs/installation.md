@@ -9,12 +9,13 @@ This page covers everything you need to add Storm to your project: prerequisites
 
 | Requirement | Version |
 |-------------|---------|
-| JDK | 21 or later |
+| JDK (Kotlin path) | 21 or later |
+| JDK (Java path) | 21 exactly; preview class files are version-locked |
 | Kotlin (if using Kotlin) | 2.0 or later |
 | Build tool | Maven 3.9+ or Gradle 8+ |
 | Database | Any JDBC-compatible database |
 
-Kotlin users do not need any preview flags. Java users must enable `--enable-preview` in their compiler configuration because the Java API uses String Templates (JEP 430).
+Kotlin users do not need any preview flags. Java users must enable `--enable-preview` on compilation, tests, and execution because the Java API uses String Templates (JEP 430), and must build and run on a JDK 21 toolchain: preview class files only load on the JDK that compiled them.
 
 ## Gradle Plugin (Recommended)
 
@@ -83,10 +84,28 @@ Storm provides a Bill of Materials (BOM) for centralized version management. Imp
 <Tabs groupId="language">
 <TabItem value="kotlin" label="Kotlin" default>
 
+**Gradle (Kotlin DSL):**
+
 ```kotlin
 dependencies {
     implementation(platform("st.orm:storm-bom:@@STORM_VERSION@@"))
 }
+```
+
+**Maven:**
+
+```xml
+<dependencyManagement>
+    <dependencies>
+        <dependency>
+            <groupId>st.orm</groupId>
+            <artifactId>storm-bom</artifactId>
+            <version>@@STORM_VERSION@@</version>
+            <type>pom</type>
+            <scope>import</scope>
+        </dependency>
+    </dependencies>
+</dependencyManagement>
 ```
 
 </TabItem>
@@ -124,9 +143,12 @@ dependencies {
 <Tabs groupId="language">
 <TabItem value="kotlin" label="Kotlin" default>
 
+**Gradle (Kotlin DSL):**
+
 ```kotlin
 plugins {
-    id("com.google.devtools.ksp") version "2.0.21-1.0.28"
+    kotlin("jvm") version "2.4.0"
+    id("com.google.devtools.ksp") version "2.3.10"
 }
 
 dependencies {
@@ -135,11 +157,49 @@ dependencies {
     implementation("st.orm:storm-kotlin")
     runtimeOnly("st.orm:storm-core")
     ksp("st.orm:storm-metamodel-ksp")
-    kotlinCompilerPluginClasspath("st.orm:storm-compiler-plugin-2.0")
+    kotlinCompilerPluginClasspath("st.orm:storm-compiler-plugin-2.4")
 }
 ```
 
-The `storm-metamodel-ksp` dependency generates type-safe metamodel classes (e.g., `User_`, `City_`) at compile time. See [Metamodel](metamodel.md) for details. The `storm-compiler-plugin` automatically wraps string interpolations inside SQL template lambdas, making queries injection-safe by default. The `2.0` suffix matches the Kotlin major.minor version used in your project (e.g., `storm-compiler-plugin-2.1` for Kotlin 2.1.x). See [String Templates](string-templates.md) for details.
+The `storm-metamodel-ksp` dependency generates type-safe metamodel classes (e.g., `User_`, `City_`) at compile time. See [Metamodel](metamodel.md) for details. The `storm-compiler-plugin` automatically wraps string interpolations inside SQL template lambdas, making queries injection-safe by default. The suffix matches the Kotlin major.minor version used in your project: `storm-compiler-plugin-2.4` for Kotlin 2.4.x, `storm-compiler-plugin-2.1` for Kotlin 2.1.x, and so on. See [String Templates](string-templates.md) for details.
+
+**Maven:**
+
+```xml
+<dependencies>
+    <dependency>
+        <groupId>st.orm</groupId>
+        <artifactId>storm-kotlin</artifactId>
+    </dependency>
+    <dependency>
+        <groupId>st.orm</groupId>
+        <artifactId>storm-core</artifactId>
+        <scope>runtime</scope>
+    </dependency>
+</dependencies>
+```
+
+Configure the Kotlin compiler with the Storm compiler plugin on its classpath; the plugin registers itself:
+
+```xml
+<plugin>
+    <groupId>org.jetbrains.kotlin</groupId>
+    <artifactId>kotlin-maven-plugin</artifactId>
+    <version>${kotlin.version}</version>
+    <configuration>
+        <jvmTarget>21</jvmTarget>
+    </configuration>
+    <dependencies>
+        <dependency>
+            <groupId>st.orm</groupId>
+            <artifactId>storm-compiler-plugin-2.4</artifactId>
+            <version>@@STORM_VERSION@@</version>
+        </dependency>
+    </dependencies>
+</plugin>
+```
+
+As in the Gradle setup, the compiler-plugin suffix follows your Kotlin major.minor version. Metamodel generation runs through KSP, which ships first-party build integration for Gradle only; Maven projects wire KSP through a community extension such as [kotlin-maven-symbol-processing](https://github.com/Dyescape/kotlin-maven-symbol-processing), with `st.orm:storm-metamodel-ksp` as the processor. The KClass-based query API works without generated metamodels.
 
 </TabItem>
 <TabItem value="java" label="Java">
@@ -196,6 +256,18 @@ Enable preview features for String Templates (JEP 430):
         <compilerArgs>
             <arg>--enable-preview</arg>
         </compilerArgs>
+    </configuration>
+</plugin>
+```
+
+Tests run in a forked JVM that needs the flag as well; without it, every test run fails at class load. Add it to surefire (and to failsafe, if you run integration tests):
+
+```xml
+<plugin>
+    <groupId>org.apache.maven.plugins</groupId>
+    <artifactId>maven-surefire-plugin</artifactId>
+    <configuration>
+        <argLine>--enable-preview</argLine>
     </configuration>
 </plugin>
 ```

@@ -47,11 +47,11 @@ The [Storm Gradle plugin](installation.md#gradle-plugin-recommended) configures 
 
 ```kotlin
 plugins {
-    id("com.google.devtools.ksp") version "2.0.21-1.0.28"
+    id("com.google.devtools.ksp") version "2.3.10"
 }
 
 dependencies {
-    ksp("st.orm:storm-metamodel-processor:@@STORM_VERSION@@")
+    ksp("st.orm:storm-metamodel-ksp:@@STORM_VERSION@@")
 }
 ```
 

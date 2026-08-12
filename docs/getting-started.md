@@ -1,6 +1,6 @@
 # Get Started
 
-Storm is a modern SQL Template and ORM framework for Kotlin 2.0+ and Java 21+. It uses immutable data classes and records instead of proxied entities, giving you predictable behavior, type-safe queries, and high performance.
+Storm is a modern SQL Template and ORM framework for Kotlin 2.0+ and Java 21. It uses immutable data classes and records instead of proxied entities, giving you predictable behavior, type-safe queries, and high performance.
 
 ## Choose Your Path
 

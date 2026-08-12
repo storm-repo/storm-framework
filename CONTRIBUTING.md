@@ -69,10 +69,10 @@ storm-framework/
 
 ## Code Formatting
 
-Storm uses [Spotless](https://github.com/diffplug/spotless) to enforce consistent code formatting across the project. Formatting is checked automatically in CI and can be enforced locally with a git pre-push hook.
+Storm uses [Spotless](https://github.com/diffplug/spotless) to enforce consistent code formatting across the project. Formatting is checked automatically in CI and can be enforced locally with a git pre-commit hook.
 
 - **Kotlin** is formatted with [ktlint](https://github.com/pinterest/ktlint) (Kotlin coding conventions)
-- **Java** is formatted with [Palantir Java Format](https://github.com/palantir/palantir-java-format) (4-space indentation)
+- **Java** is checked for import order, unused imports, trailing whitespace, and a final newline; beyond that, follow the formatting of the surrounding code (4-space indentation)
 
 ### Auto-fix formatting
 
@@ -86,9 +86,9 @@ mvn spotless:apply
 mvn spotless:check
 ```
 
-### Set up the pre-push hook
+### Set up the pre-commit hook
 
-To automatically check formatting before every push:
+To automatically check formatting before every commit:
 
 ```bash
 git config core.hooksPath .githooks

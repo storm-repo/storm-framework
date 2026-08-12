@@ -8,7 +8,7 @@ import TabItem from '@theme/TabItem';
 
 # Storm
 
-**Storm** is an ORM for Kotlin 2.0+ and Java 21+, built on a SQL template engine. It aims for simplicity, type safety, and predictable performance, through immutable models and metadata generated at compile time.
+**Storm** is an ORM for Kotlin 2.0+ and Java 21, built on a SQL template engine. It aims for simplicity, type safety, and predictable performance, through immutable models and metadata generated at compile time.
 
 **Key benefits:**
 
@@ -235,7 +235,7 @@ See [Database Dialects](dialects.md) for installation and configuration details.
 
 ## Requirements
 
-- Kotlin 2.0+ or Java 21+
+- Kotlin 2.0+ (JDK 21 or later), or Java on JDK 21 exactly (the Java API uses preview class files, which are version-locked)
 - Maven 3.9+ or Gradle 8+
 
 ## Glossary

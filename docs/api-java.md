@@ -20,7 +20,7 @@ The main Java API module. It provides the `ORMTemplate` entry point, repository 
 </dependency>
 ```
 
-**String Templates (Preview Feature):** The Java API uses JDK String Templates for SQL construction. String Templates are a preview feature in Java 21+, which means you must compile with `--enable-preview` and run with `--enable-preview`. The preview status means the syntax may change in future JDK releases, and Storm's Java API surface will adapt accordingly. The Kotlin API does not depend on any preview features and is fully stable.
+**String Templates (Preview Feature):** The Java API uses JDK String Templates for SQL construction. String Templates are a preview feature, which means you must compile and run with `--enable-preview`, on JDK 21 exactly: preview class files are version-locked to the JDK that compiled them. The preview status means the syntax may change in future JDK releases, and Storm's Java API surface will adapt accordingly. The Kotlin API does not depend on any preview features and is fully stable.
 
 To enable preview features in Maven:
 
