@@ -46,6 +46,7 @@ import static st.orm.core.template.impl.RecordReflection.isSealedEntity;
 import static st.orm.core.template.impl.RecordReflection.isTypePresent;
 import static st.orm.core.template.impl.RecordReflection.isTypeSelected;
 import static st.orm.core.template.impl.RecordReflection.mapForeignKeys;
+import static st.orm.core.template.impl.RecordReflection.selectedOccurrences;
 import static st.orm.core.template.impl.RecordValidation.validateDataType;
 import static st.orm.core.template.impl.SqlParser.endsWithKeyword;
 import static st.orm.core.template.impl.SqlParser.getSqlOperation;
@@ -647,6 +648,8 @@ class TemplatePreparation {
                 .map(Select::table)
                 .findFirst()
                 .orElse(null);
+        int lastGrouping = -1;
+        var grouped = new ArrayList<Metamodel<?, ?>>();
         for (int i = 0; i < mutableElements.size(); i++) {
             if (mutableElements.get(i) instanceof Columns columns) {
                 var resolved = new ArrayList<Metamodel<?, ?>>();
@@ -654,8 +657,109 @@ class TemplatePreparation {
                     resolved.add(resolveColumnsField(field, columns.clause(), selected));
                 }
                 mutableElements.set(i, new Columns(resolved, columns.scope(), columns.clause()));
+                if (columns.clause() == GROUP_BY) {
+                    lastGrouping = i;
+                    grouped.addAll(resolved);
+                }
             }
         }
+        if (lastGrouping >= 0 && selected != null) {
+            completeGrouping(mutableElements, lastGrouping, grouped, selected);
+        }
+    }
+
+    /**
+     * Adds the keys of the table occurrences the grouping determines but does not name.
+     *
+     * <p>A grouping states what one row stands for. Expressing that in SQL takes more columns than the caller wrote,
+     * because functional dependency is resolved syntactically and per table: grouping an owner's key determines that
+     * owner's city, since a foreign key is to-one, but no engine carries the dependency across the join. So every
+     * occurrence the select list carries below a grouped one contributes its key too.</p>
+     *
+     * <p>Adding these cannot change what the statement returns. Each is reached from a grouped occurrence by to-one
+     * edges alone, so it holds one value per group and splits nothing; it is the same grouping, spelled so an engine
+     * accepts it.</p>
+     */
+    private static void completeGrouping(List<Element> mutableElements,
+                                         int lastGrouping,
+                                         List<Metamodel<?, ?>> grouped,
+                                         Class<? extends Data> selected) throws SqlTemplateException {
+        var groupedPaths = new HashSet<String>();
+        for (var field : grouped) {
+            // Only an identity grouping determines anything: grouping a value says nothing about other tables.
+            String identity = MetamodelFactory.identityPath(field);
+            if (identity != null) {
+                groupedPaths.add(identity);
+            }
+        }
+        if (groupedPaths.isEmpty()) {
+            return;
+        }
+        var root = grouped.getFirst().root();
+        var prefix = selectedPathOf(root, selected);
+        if (prefix == null) {
+            return;
+        }
+        var completion = new ArrayList<Metamodel<?, ?>>();
+        for (var occurrence : selectedOccurrences(selected).entrySet()) {
+            String path = prefix.isEmpty() || occurrence.getKey().isEmpty()
+                    ? prefix + occurrence.getKey()
+                    : prefix + "." + occurrence.getKey();
+            if (isDetermined(path, groupedPaths) && !namesOccurrence(path, groupedPaths)) {
+                var key = keyOf(root, path);
+                if (key != null) {
+                    completion.add(key);
+                    groupedPaths.add(path);
+                }
+            }
+        }
+        if (!completion.isEmpty()) {
+            var columns = (Columns) mutableElements.get(lastGrouping);
+            var fields = new ArrayList<>(columns.fields());
+            fields.addAll(completion);
+            mutableElements.set(lastGrouping, new Columns(fields, columns.scope(), columns.clause()));
+        }
+    }
+
+    /** Returns whether a grouped occurrence determines the occurrence at the given path. */
+    private static boolean isDetermined(String path, Set<String> groupedPaths) {
+        for (String grouped : groupedPaths) {
+            if (path.equals(grouped) || (grouped.isEmpty() && !path.isEmpty()) || path.startsWith(grouped + ".")) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /** Returns whether the grouping already names the occurrence at the given path. */
+    private static boolean namesOccurrence(String path, Set<String> groupedPaths) {
+        return groupedPaths.contains(path);
+    }
+
+    /** Returns the path of the selected table within the query root's selected graph, or {@code null} if ambiguous. */
+    private static @Nullable String selectedPathOf(Class<? extends Data> root, Class<? extends Data> selected)
+            throws SqlTemplateException {
+        if (root == selected) {
+            return "";
+        }
+        String found = null;
+        for (var occurrence : selectedOccurrences(root).entrySet()) {
+            if (occurrence.getValue() == selected) {
+                if (found != null) {
+                    return null;    // The table occurs more than once; the grouping has to name the occurrences.
+                }
+                found = occurrence.getKey();
+            }
+        }
+        return found;
+    }
+
+    /** Returns the metamodel naming the key of the occurrence at the given path. */
+    private static @Nullable Metamodel<?, ?> keyOf(Class<? extends Data> root, String path) {
+        if (path.isEmpty()) {
+            return null;    // The root's own key is named by the caller; nothing to complete.
+        }
+        return MetamodelFactory.referencedKey(MetamodelFactory.of(root, path));
     }
 
     /**

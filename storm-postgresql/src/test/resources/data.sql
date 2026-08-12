@@ -1,3 +1,4 @@
+DROP TABLE IF EXISTS city CASCADE;
 DROP TABLE IF EXISTS owner CASCADE;
 DROP TABLE IF EXISTS pet CASCADE;
 DROP TABLE IF EXISTS pet_type CASCADE;
@@ -10,6 +11,11 @@ DROP TABLE IF EXISTS document CASCADE;
 DROP VIEW IF EXISTS owner_view;
 DROP VIEW IF EXISTS visit_view;
 
+CREATE TABLE city (
+    id serial PRIMARY KEY,
+    name varchar(255)
+);
+
 CREATE TABLE owner (
     id serial PRIMARY KEY,
     first_name varchar(255),
@@ -17,7 +23,8 @@ CREATE TABLE owner (
     address varchar(255),
     city varchar(255),
     telephone varchar(255),
-    version integer DEFAULT 0
+    version integer DEFAULT 0,
+    city_id integer
 );
 
 -- Native JSON columns for the @Json converter tests.

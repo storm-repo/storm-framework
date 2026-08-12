@@ -64,11 +64,17 @@ public class PostgreSQLGroupByForeignKeyPathTest {
     @Autowired
     private DataSource dataSource;
 
+    public record City(
+            @PK Integer id,
+            String name
+    ) implements Entity<Integer> {}
+
     public record Owner(
             @PK Integer id,
             String firstName,
             String lastName,
-            @Nullable String telephone
+            @Nullable String telephone,
+            @Nullable @FK City city
     ) implements Entity<Integer> {}
 
     public record Pet(
@@ -136,6 +142,26 @@ public class PostgreSQLGroupByForeignKeyPathTest {
                     "GROUP BY must name the column the SELECT projects: " + statement);
         }, () -> {
             var counts = orm.selectFrom(Pet.class, OwnerIdCount.class, raw("\0, COUNT(*)", OWNER_ID))
+                    .groupBy(OWNER_ID)
+                    .getResultList();
+            assertFalse(counts.isEmpty());
+        });
+    }
+
+    /**
+     * The selected graph spans two tables: grouping the owner determines the city, because a foreign key is to-one,
+     * but PostgreSQL resolves functional dependency per table and will not carry it across the join. The grouping
+     * has to name the city's key too, and naming it is the generator's job rather than the caller's.
+     */
+    @Test
+    public void groupingAnOwnerCoversTheCityItDetermines() {
+        var orm = ORMTemplate.of(dataSource);
+        observe(sql -> {
+            String groupBy = sql.statement().substring(sql.statement().toUpperCase().indexOf("GROUP BY"));
+            assertEquals(2, groupBy.split(",").length,
+                    "The grouping must carry the keys of both selected tables: " + sql.statement());
+        }, () -> {
+            var counts = orm.selectFrom(Pet.class, OwnerPetCount.class, raw("\0, COUNT(*)", Owner.class))
                     .groupBy(OWNER_ID)
                     .getResultList();
             assertFalse(counts.isEmpty());

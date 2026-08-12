@@ -27,10 +27,12 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.SequencedMap;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
@@ -475,6 +477,43 @@ final class RecordReflection {
      */
     static boolean isTypeSelected(Class<?> source, Class<?> target) throws SqlTemplateException {
         return isTypeSelected(source, target, new HashSet<>());
+    }
+
+    /**
+     * Returns every table occurrence a select of {@code source} contributes columns from, keyed by field path
+     * relative to {@code source}, with the empty path naming {@code source} itself.
+     *
+     * <p>Traversal follows the same graph as {@link #isTypeSelected(Class, Class)}: entity foreign keys and inline
+     * records, stopping at references. Every edge is to-one, so an occurrence is determined by any occurrence its
+     * path extends — one owner is one city — which is what lets a grouping cover more than the table it names.</p>
+     */
+    static SequencedMap<String, Class<? extends Data>> selectedOccurrences(Class<?> source)
+            throws SqlTemplateException {
+        var occurrences = new LinkedHashMap<String, Class<? extends Data>>();
+        collectSelectedOccurrences(source, "", occurrences);
+        return occurrences;
+    }
+
+    @SuppressWarnings("unchecked")
+    private static void collectSelectedOccurrences(Class<?> source, String path,
+                                                   Map<String, Class<? extends Data>> occurrences)
+            throws SqlTemplateException {
+        if (Data.class.isAssignableFrom(source)) {
+            occurrences.put(path, (Class<? extends Data>) source);
+        }
+        if (source.isSealed() || !isRecord(source)) {
+            return;
+        }
+        for (var field : getRecordFields(source)) {
+            if (Ref.class.isAssignableFrom(field.type()) || !isRecord(field.type())) {
+                continue;
+            }
+            if (getORMConverter(field).isPresent()) {
+                continue;
+            }
+            collectSelectedOccurrences(field.type(), path.isEmpty() ? field.name() : path + "." + field.name(),
+                    occurrences);
+        }
     }
 
     private static boolean isTypeSelected(Class<?> source, Class<?> target, Set<Class<?>> visited)

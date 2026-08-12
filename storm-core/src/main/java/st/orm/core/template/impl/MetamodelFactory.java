@@ -307,6 +307,36 @@ public final class MetamodelFactory {
     }
 
     /**
+     * Returns the path of the table occurrence the given path identifies, or {@code null} when it names a value
+     * rather than an identity.
+     *
+     * <p>A grouping states what one row stands for, and three spellings state the same thing: the to-one
+     * relationship ({@code Pet_.owner}), the key beyond it ({@code Pet_.owner.id}), and the query root's own key
+     * ({@code Pet_.id}), which identifies the occurrence at the empty path. Anything else names a value, and a
+     * grouping on it means one row per distinct value.</p>
+     */
+    public static @Nullable String identityPath(Metamodel<?, ?> metamodel) {
+        try {
+            if (referencedKey(metamodel) != null) {
+                return metamodel.fieldPath();
+            }
+            var canonical = canonical(metamodel);
+            if (!canonical.equals(metamodel)) {
+                return canonical.fieldPath();
+            }
+            String path = metamodel.fieldPath();
+            if (path.isEmpty()) {
+                return null;
+            }
+            String parent = stripLast(path);
+            // A key beyond a foreign key would have collapsed above, so the only identity left is the root's own.
+            return parent.isEmpty() && isPrimaryKeyName(metamodel.root(), path) ? "" : null;
+        } catch (RuntimeException e) {
+            return null;
+        }
+    }
+
+    /**
      * Returns whether {@code fieldName} names the primary key of {@code table}.
      */
     private static boolean isPrimaryKeyName(Class<?> table, String fieldName) {
