@@ -332,7 +332,11 @@
                         <configuration>
                             <publishingServerId>central</publishingServerId>
                             <autoPublish>true</autoPublish>
-                            <waitUntil>uploaded</waitUntil>
+                            <!-- The release workflow starts jobs that resolve these artifacts from
+                                 Central (the Gradle Plugin Portal build) as soon as the deploy
+                                 returns, so the deploy must block until Central has validated and
+                                 published the bundle, not merely received it. -->
+                            <waitUntil>published</waitUntil>
                         </configuration>
                     </plugin>
                 </plugins>

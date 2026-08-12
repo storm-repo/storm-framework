@@ -9,10 +9,13 @@ on:
 permissions:
   contents: read
 
-# Rapid pushes to a PR queue duplicate runs; supersede them. Runs on main keep
-# going so every merge commit gets its coverage upload.
+# Rapid pushes to a PR queue duplicate runs; supersede them. Runs on main are
+# keyed by commit instead of sharing a group: a shared group cancels the
+# previously queued run even with cancel-in-progress off, and every main commit
+# needs a completed run — for its coverage upload, and because the release
+# workflow refuses to publish a commit without a successful CI run.
 concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
+  group: ${{ github.workflow }}-${{ github.ref == 'refs/heads/main' && github.sha || github.ref }}
   cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
 
 jobs:
