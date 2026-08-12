@@ -20,6 +20,7 @@ import static st.orm.Operator.EQUALS;
 import static st.orm.SelectMode.NESTED;
 
 import java.util.Collection;
+import java.util.List;
 import java.util.function.Function;
 import org.jspecify.annotations.Nullable;
 import st.orm.BindVars;
@@ -279,15 +280,21 @@ public final class Elements {
      * foreign key expands to its foreign key column(s) on the referencing table without joining the referenced
      * table.</p>
      *
+     * <p>A single element carries every path the clause renders at that position, so a path the statement
+     * requires but the caller did not write can be added where the grouping is resolved.</p>
+     *
      * <p>{@code clause} states where the columns land and, for ORDER BY, in which direction. It carries the
      * direction rather than a separate flag because sort direction is meaningless in a GROUP BY, and because the
      * two clauses resolve a key reached through a foreign key differently: see {@link Clause#GROUP_BY}.</p>
      *
      * @since 1.13
      */
-    public record Columns(Metamodel<?, ?> field, ResolveScope scope, Clause clause) implements Element {
+    public record Columns(List<Metamodel<?, ?>> fields, ResolveScope scope, Clause clause) implements Element {
         public Columns {
-            requireNonNull(field, "field");
+            fields = List.copyOf(requireNonNull(fields, "fields"));
+            if (fields.isEmpty()) {
+                throw new IllegalArgumentException("Columns requires at least one path.");
+            }
             requireNonNull(scope, "scope");
             requireNonNull(clause, "clause");
         }

@@ -17,6 +17,7 @@ package st.orm.core.template.impl;
 
 import static java.util.stream.Collectors.joining;
 
+import st.orm.Metamodel;
 import st.orm.core.template.SqlTemplateException;
 import st.orm.core.template.impl.Elements.Columns;
 
@@ -62,7 +63,21 @@ final class ColumnsProcessor implements ElementProcessor<Columns> {
     @Override
     public CompiledElement compile(Columns columns, TemplateCompiler compiler)
             throws SqlTemplateException {
-        var metamodel = columns.field();
+        var sql = new StringBuilder();
+        for (var field : columns.fields()) {
+            if (!sql.isEmpty()) {
+                sql.append(", ");
+            }
+            sql.append(render(field, columns, compiler));
+        }
+        return new CompiledElement(sql.toString());
+    }
+
+    /**
+     * Renders one path: every column it resolves to, in model column order.
+     */
+    private static String render(Metamodel<?, ?> metamodel, Columns columns, TemplateCompiler compiler)
+            throws SqlTemplateException {
         var model = compiler.getModel(metamodel.tableType());
         String alias = compiler.findQueryModel()
                 .map(QueryModel::getTable)
@@ -76,10 +91,9 @@ final class ColumnsProcessor implements ElementProcessor<Columns> {
         }
         String prefix = alias.isEmpty() ? "" : alias + ".";
         String suffix = columns.clause().isDescending() ? " DESC" : "";
-        String sql = resolved.stream()
+        return resolved.stream()
                 .map(column -> prefix + column.qualifiedName(compiler.dialect()) + suffix)
                 .collect(joining(", "));
-        return new CompiledElement(sql);
     }
 
     /**

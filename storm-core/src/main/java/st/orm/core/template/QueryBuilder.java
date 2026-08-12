@@ -525,7 +525,7 @@ public abstract class QueryBuilder<T extends Data, R, ID> {
             throw new PersistenceException("At least one path must be provided for GROUP BY clause.");
         }
         List<TemplateString> templates = Stream.of(path)
-                .flatMap(path_ -> Stream.of(wrap(new Columns(path_.asMetamodel(), CASCADE, GROUP_BY)), TemplateString.of(", ")))
+                .flatMap(path_ -> Stream.of(wrap(new Columns(List.of(path_.asMetamodel()), CASCADE, GROUP_BY)), TemplateString.of(", ")))
                 .toList();
         return groupBy(TemplateString.combine(templates.subList(0, templates.size() - 1).toArray(new TemplateString[0])));
     }
@@ -619,7 +619,7 @@ public abstract class QueryBuilder<T extends Data, R, ID> {
             throw new PersistenceException("At least one path must be provided for ORDER BY clause.");
         }
         List<TemplateString> templates = Stream.of(path)
-                .flatMap(path_ -> Stream.of(wrap(new Columns(path_.asMetamodel(), CASCADE, ORDER_BY_ASCENDING)), TemplateString.of(", ")))
+                .flatMap(path_ -> Stream.of(wrap(new Columns(List.of(path_.asMetamodel()), CASCADE, ORDER_BY_ASCENDING)), TemplateString.of(", ")))
                 .toList();
         return orderBy(TemplateString.combine(templates.subList(0, templates.size() - 1).toArray(new TemplateString[0])));
     }
@@ -633,7 +633,7 @@ public abstract class QueryBuilder<T extends Data, R, ID> {
      * @since 1.2
      */
     public final QueryBuilder<T, R, ID> orderByDescending(Navigable<? extends T, ?> path) {
-        return orderBy(TemplateString.wrap(new Columns(path.asMetamodel(), CASCADE, ORDER_BY_DESCENDING)));
+        return orderBy(TemplateString.wrap(new Columns(List.of(path.asMetamodel()), CASCADE, ORDER_BY_DESCENDING)));
     }
 
     /**
@@ -650,7 +650,7 @@ public abstract class QueryBuilder<T extends Data, R, ID> {
             throw new PersistenceException("At least one path must be provided for ORDER BY clause.");
         }
         List<TemplateString> templates = Stream.of(path)
-                .<TemplateString>flatMap(path_ -> Stream.of(wrap(new Columns(path_.asMetamodel(), CASCADE, ORDER_BY_DESCENDING)), TemplateString.of(", ")))
+                .<TemplateString>flatMap(path_ -> Stream.of(wrap(new Columns(List.of(path_.asMetamodel()), CASCADE, ORDER_BY_DESCENDING)), TemplateString.of(", ")))
                 .toList();
         return orderBy(TemplateString.combine(templates.subList(0, templates.size() - 1).toArray(new TemplateString[0])));
     }
@@ -865,7 +865,7 @@ public abstract class QueryBuilder<T extends Data, R, ID> {
         QueryBuilder<T, R, ID> sorted = this;
         for (var order : pageable.orders()) {
             // The Pageable's sort field may be rooted anywhere in the query, so the column is named directly.
-            sorted = sorted.orderBy(wrap(new Columns(order.field(), CASCADE, order.descending() ? ORDER_BY_DESCENDING : ORDER_BY_ASCENDING)));
+            sorted = sorted.orderBy(wrap(new Columns(List.of(order.field()), CASCADE, order.descending() ? ORDER_BY_DESCENDING : ORDER_BY_ASCENDING)));
         }
         return sorted.offset((int) pageable.offset()).limit(pageable.pageSize()).getResultList();
     }

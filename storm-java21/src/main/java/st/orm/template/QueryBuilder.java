@@ -533,7 +533,7 @@ public abstract class QueryBuilder<T extends Data, R, ID> {
         }
         List<StringTemplate> templates = Stream.of(path)
                 .<StringTemplate>flatMap(navigable -> {
-                    Columns columns = new Columns(navigable.asMetamodel(), CASCADE, GROUP_BY);
+                    Columns columns = new Columns(List.of(navigable.asMetamodel()), CASCADE, GROUP_BY);
                     return Stream.of(RAW."\{columns}", RAW.", ");
                 })
                 .toList();
@@ -612,7 +612,7 @@ public abstract class QueryBuilder<T extends Data, R, ID> {
         }
         List<StringTemplate> templates = Stream.of(path)
                 .<StringTemplate>flatMap(navigable -> {
-                    Columns columns = new Columns(navigable.asMetamodel(), CASCADE, ORDER_BY_ASCENDING);
+                    Columns columns = new Columns(List.of(navigable.asMetamodel()), CASCADE, ORDER_BY_ASCENDING);
                     return Stream.of(RAW."\{columns}", RAW.", ");
                 })
                 .toList();
@@ -628,7 +628,7 @@ public abstract class QueryBuilder<T extends Data, R, ID> {
      * @since 1.2
      */
     public final QueryBuilder<T, R, ID> orderByDescending(Navigable<? extends T, ?> path) {
-        return orderBy(RAW."\{new Columns(path.asMetamodel(), CASCADE, ORDER_BY_DESCENDING)}");
+        return orderBy(RAW."\{new Columns(List.of(path.asMetamodel()), CASCADE, ORDER_BY_DESCENDING)}");
     }
 
     /**
@@ -646,7 +646,7 @@ public abstract class QueryBuilder<T extends Data, R, ID> {
         }
         List<StringTemplate> templates = Stream.of(path)
                 .<StringTemplate>flatMap(navigable -> {
-                    Columns columns = new Columns(navigable.asMetamodel(), CASCADE, ORDER_BY_DESCENDING);
+                    Columns columns = new Columns(List.of(navigable.asMetamodel()), CASCADE, ORDER_BY_DESCENDING);
                     return Stream.of(RAW."\{columns}", RAW.", ");
                 })
                 .toList();
@@ -849,7 +849,7 @@ public abstract class QueryBuilder<T extends Data, R, ID> {
         QueryBuilder<T, R, ID> sorted = this;
         for (var order : pageable.orders()) {
             // The Pageable's sort field may be rooted anywhere in the query, so the column is named directly.
-            sorted = sorted.orderBy(RAW."\{new Columns(order.field(), CASCADE, order.descending() ? ORDER_BY_DESCENDING : ORDER_BY_ASCENDING)}");
+            sorted = sorted.orderBy(RAW."\{new Columns(List.of(order.field()), CASCADE, order.descending() ? ORDER_BY_DESCENDING : ORDER_BY_ASCENDING)}");
         }
         return sorted.offset((int) pageable.offset()).limit(pageable.pageSize()).getResultList();
     }

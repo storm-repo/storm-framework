@@ -653,7 +653,7 @@ public abstract class QueryBuilder<T : Data, R, ID> {
         }
         val templates = buildList {
             path.forEachIndexed { index, navigable ->
-                add(wrap(Columns(navigable.asMetamodel(), CASCADE, GROUP_BY)))
+                add(wrap(Columns(listOf(navigable.asMetamodel()), CASCADE, GROUP_BY)))
                 if (index < path.lastIndex) {
                     add(raw(", "))
                 }
@@ -790,7 +790,7 @@ public abstract class QueryBuilder<T : Data, R, ID> {
         }
         val templates = buildList {
             path.forEachIndexed { index, navigable ->
-                add(wrap(Columns(navigable.asMetamodel(), CASCADE, ORDER_BY_ASCENDING)))
+                add(wrap(Columns(listOf(navigable.asMetamodel()), CASCADE, ORDER_BY_ASCENDING)))
                 if (index < path.lastIndex) {
                     add(raw(", "))
                 }
@@ -807,7 +807,7 @@ public abstract class QueryBuilder<T : Data, R, ID> {
      * @return the query builder.
      * @since 1.2
      */
-    public fun orderByDescending(path: Navigable<out T, *>): QueryBuilder<T, R, ID> = orderBy(wrap(Columns(path.asMetamodel(), CASCADE, ORDER_BY_DESCENDING)))
+    public fun orderByDescending(path: Navigable<out T, *>): QueryBuilder<T, R, ID> = orderBy(wrap(Columns(listOf(path.asMetamodel()), CASCADE, ORDER_BY_DESCENDING)))
 
     /**
      * Adds an ORDER BY clause to the query for the fields at the specified paths in the table graph. The results
@@ -823,7 +823,7 @@ public abstract class QueryBuilder<T : Data, R, ID> {
         }
         val templates = buildList {
             path.forEachIndexed { index, navigable ->
-                add(wrap(Columns(navigable.asMetamodel(), CASCADE, ORDER_BY_DESCENDING)))
+                add(wrap(Columns(listOf(navigable.asMetamodel()), CASCADE, ORDER_BY_DESCENDING)))
                 if (index < path.size - 1) {
                     add(raw(", "))
                 }
@@ -1049,7 +1049,7 @@ public abstract class QueryBuilder<T : Data, R, ID> {
         var sorted: QueryBuilder<T, R, ID> = this
         for (order in pageable.orders()) {
             // The Pageable's sort field may be rooted anywhere in the query, so the column is named directly.
-            sorted = sorted.orderBy(wrap(Columns(order.field(), CASCADE, if (order.descending()) ORDER_BY_DESCENDING else ORDER_BY_ASCENDING)))
+            sorted = sorted.orderBy(wrap(Columns(listOf(order.field()), CASCADE, if (order.descending()) ORDER_BY_DESCENDING else ORDER_BY_ASCENDING)))
         }
         return sorted.offset(pageable.offset().toInt()).limit(pageable.pageSize()).resultList
     }

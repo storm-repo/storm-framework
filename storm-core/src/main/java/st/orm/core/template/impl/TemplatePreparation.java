@@ -81,6 +81,7 @@ import st.orm.core.template.SqlTemplate;
 import st.orm.core.template.SqlTemplateException;
 import st.orm.core.template.TemplateString;
 import st.orm.core.template.impl.Elements.Alias;
+import st.orm.core.template.impl.Elements.Clause;
 import st.orm.core.template.impl.Elements.Column;
 import st.orm.core.template.impl.Elements.Columns;
 import st.orm.core.template.impl.Elements.Delete;
@@ -648,8 +649,11 @@ class TemplatePreparation {
                 .orElse(null);
         for (int i = 0; i < mutableElements.size(); i++) {
             if (mutableElements.get(i) instanceof Columns columns) {
-                mutableElements.set(i,
-                        new Columns(resolveColumnsField(columns, selected), columns.scope(), columns.clause()));
+                var resolved = new ArrayList<Metamodel<?, ?>>();
+                for (var field : columns.fields()) {
+                    resolved.add(resolveColumnsField(field, columns.clause(), selected));
+                }
+                mutableElements.set(i, new Columns(resolved, columns.scope(), columns.clause()));
             }
         }
     }
@@ -657,10 +661,11 @@ class TemplatePreparation {
     /**
      * Returns the metamodel the given element's columns are read from.
      */
-    private static Metamodel<?, ?> resolveColumnsField(Columns columns, @Nullable Class<? extends Data> selected)
+    private static Metamodel<?, ?> resolveColumnsField(Metamodel<?, ?> field, Clause clause,
+                                                      @Nullable Class<? extends Data> selected)
             throws SqlTemplateException {
-        var collapsed = MetamodelFactory.canonical(columns.field());
-        if (columns.clause() != GROUP_BY || selected == null) {
+        var collapsed = MetamodelFactory.canonical(field);
+        if (clause != GROUP_BY || selected == null) {
             return collapsed;
         }
         // Asked of the relationship, not of how the path was written: groupBy(Pet_.owner) and
@@ -1217,7 +1222,11 @@ class TemplatePreparation {
                                              Set<String> hydratedPaths) {
         switch (element) {
             case Column column -> addReferencedTablePath(rootTable, MetamodelFactory.canonical(column.field()), paths);
-            case Columns columns -> addReferencedTablePath(rootTable, MetamodelFactory.canonical(columns.field()), paths);
+            case Columns columns -> {
+                for (var field : columns.fields()) {
+                    addReferencedTablePath(rootTable, MetamodelFactory.canonical(field), paths);
+                }
+            }
             // A nested select materializes the table's record, so its own foreign keys are part of what is selected;
             // the other modes select columns of that table alone.
             case Select(var table, var mode) -> (mode == SelectMode.NESTED ? hydratedTables : tables).add(table);
