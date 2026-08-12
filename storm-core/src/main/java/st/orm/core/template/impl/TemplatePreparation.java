@@ -34,6 +34,7 @@ import static st.orm.core.template.Templates.table;
 import static st.orm.core.template.Templates.update;
 import static st.orm.core.template.Templates.values;
 import static st.orm.core.template.Templates.where;
+import static st.orm.core.template.impl.Elements.Clause.GROUP_BY;
 import static st.orm.core.template.impl.RecordReflection.findPkField;
 import static st.orm.core.template.impl.RecordReflection.getForeignKeys;
 import static st.orm.core.template.impl.RecordReflection.getPrimaryKeys;
@@ -43,6 +44,7 @@ import static st.orm.core.template.impl.RecordReflection.isJoinedEntity;
 import static st.orm.core.template.impl.RecordReflection.isRecord;
 import static st.orm.core.template.impl.RecordReflection.isSealedEntity;
 import static st.orm.core.template.impl.RecordReflection.isTypePresent;
+import static st.orm.core.template.impl.RecordReflection.isTypeSelected;
 import static st.orm.core.template.impl.RecordReflection.mapForeignKeys;
 import static st.orm.core.template.impl.RecordValidation.validateDataType;
 import static st.orm.core.template.impl.SqlParser.endsWithKeyword;
@@ -615,7 +617,54 @@ class TemplatePreparation {
             case DELETE -> postProcessDelete(mutableElements, aliasMapper, tableMapper);
             default -> postProcessUndefined(mutableElements, aliasMapper, tableMapper);
         }
+        resolveColumns(mutableElements);
         return mutableElements;
+    }
+
+    /**
+     * Resolves each {@link Columns} element to the metamodel its columns are read from.
+     *
+     * <p>A path naming the key of a table reached through a foreign key normally collapses to the foreign key field,
+     * so it resolves to the foreign key column on the referencing table and no join is needed. The two columns hold
+     * the same value, guaranteed by the constraint, so which is named is only ever a question of the statement the
+     * database accepts.</p>
+     *
+     * <p>Grouping is where it becomes one. Functional dependency is resolved syntactically and per table, so a
+     * statement has to group by the same column it selects: grouping the referencing table's foreign key column while
+     * selecting the referenced table's key leaves that key ungrouped, and grouping the referenced key while selecting
+     * the foreign key column leaves that column ungrouped. Either way a strict dialect rejects it. So a grouped path
+     * stays uncollapsed exactly when the select list carries the referenced table.</p>
+     *
+     * <p>This runs over the whole element list, where the select list is known and fixed, rather than while an
+     * individual element renders: the choice is a property of the statement, and asking for it during rendering
+     * would mean reading state that rendering itself mutates.</p>
+     */
+    private static void resolveColumns(List<Element> mutableElements) throws SqlTemplateException {
+        Class<? extends Data> selected = mutableElements.stream()
+                .filter(Select.class::isInstance)
+                .map(Select.class::cast)
+                .map(Select::table)
+                .findFirst()
+                .orElse(null);
+        for (int i = 0; i < mutableElements.size(); i++) {
+            if (mutableElements.get(i) instanceof Columns columns) {
+                mutableElements.set(i,
+                        new Columns(resolveColumnsField(columns, selected), columns.scope(), columns.clause()));
+            }
+        }
+    }
+
+    /**
+     * Returns the metamodel the given element's columns are read from.
+     */
+    private static Metamodel<?, ?> resolveColumnsField(Columns columns, @Nullable Class<? extends Data> selected)
+            throws SqlTemplateException {
+        var field = columns.field();
+        var collapsed = MetamodelFactory.canonical(field);
+        if (columns.clause() != GROUP_BY || collapsed.equals(field) || selected == null) {
+            return collapsed;
+        }
+        return isTypeSelected(selected, field.tableType()) ? field : collapsed;
     }
 
     /**

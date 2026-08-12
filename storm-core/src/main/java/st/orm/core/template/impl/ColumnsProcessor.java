@@ -62,7 +62,7 @@ final class ColumnsProcessor implements ElementProcessor<Columns> {
     @Override
     public CompiledElement compile(Columns columns, TemplateCompiler compiler)
             throws SqlTemplateException {
-        var metamodel = MetamodelFactory.canonical(columns.field());
+        var metamodel = columns.field();
         var model = compiler.getModel(metamodel.tableType());
         String alias = compiler.findQueryModel()
                 .map(QueryModel::getTable)
@@ -75,7 +75,7 @@ final class ColumnsProcessor implements ElementProcessor<Columns> {
                     .formatted(metamodel.fieldType(), metamodel.path(), metamodel.field()));
         }
         String prefix = alias.isEmpty() ? "" : alias + ".";
-        String suffix = columns.descending() ? " DESC" : "";
+        String suffix = columns.clause().isDescending() ? " DESC" : "";
         String sql = resolved.stream()
                 .map(column -> prefix + column.qualifiedName(compiler.dialect()) + suffix)
                 .collect(joining(", "));

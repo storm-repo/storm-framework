@@ -20,6 +20,9 @@ import kotlinx.coroutines.stream.consumeAsFlow
 import st.orm.*
 import st.orm.Operator.*
 import st.orm.ResolveScope.CASCADE
+import st.orm.core.template.impl.Elements.Clause.GROUP_BY
+import st.orm.core.template.impl.Elements.Clause.ORDER_BY_ASCENDING
+import st.orm.core.template.impl.Elements.Clause.ORDER_BY_DESCENDING
 import st.orm.core.template.impl.Elements.Columns
 import st.orm.core.template.impl.Elements.ObjectExpression
 import st.orm.template.TemplateString.Companion.combine
@@ -650,7 +653,7 @@ public abstract class QueryBuilder<T : Data, R, ID> {
         }
         val templates = buildList {
             path.forEachIndexed { index, navigable ->
-                add(wrap(Columns(navigable.asMetamodel(), CASCADE, false)))
+                add(wrap(Columns(navigable.asMetamodel(), CASCADE, GROUP_BY)))
                 if (index < path.lastIndex) {
                     add(raw(", "))
                 }
@@ -787,7 +790,7 @@ public abstract class QueryBuilder<T : Data, R, ID> {
         }
         val templates = buildList {
             path.forEachIndexed { index, navigable ->
-                add(wrap(Columns(navigable.asMetamodel(), CASCADE, false)))
+                add(wrap(Columns(navigable.asMetamodel(), CASCADE, ORDER_BY_ASCENDING)))
                 if (index < path.lastIndex) {
                     add(raw(", "))
                 }
@@ -804,7 +807,7 @@ public abstract class QueryBuilder<T : Data, R, ID> {
      * @return the query builder.
      * @since 1.2
      */
-    public fun orderByDescending(path: Navigable<out T, *>): QueryBuilder<T, R, ID> = orderBy(wrap(Columns(path.asMetamodel(), CASCADE, true)))
+    public fun orderByDescending(path: Navigable<out T, *>): QueryBuilder<T, R, ID> = orderBy(wrap(Columns(path.asMetamodel(), CASCADE, ORDER_BY_DESCENDING)))
 
     /**
      * Adds an ORDER BY clause to the query for the fields at the specified paths in the table graph. The results
@@ -820,7 +823,7 @@ public abstract class QueryBuilder<T : Data, R, ID> {
         }
         val templates = buildList {
             path.forEachIndexed { index, navigable ->
-                add(wrap(Columns(navigable.asMetamodel(), CASCADE, true)))
+                add(wrap(Columns(navigable.asMetamodel(), CASCADE, ORDER_BY_DESCENDING)))
                 if (index < path.size - 1) {
                     add(raw(", "))
                 }
@@ -1046,7 +1049,7 @@ public abstract class QueryBuilder<T : Data, R, ID> {
         var sorted: QueryBuilder<T, R, ID> = this
         for (order in pageable.orders()) {
             // The Pageable's sort field may be rooted anywhere in the query, so the column is named directly.
-            sorted = sorted.orderBy(wrap(Columns(order.field(), CASCADE, order.descending())))
+            sorted = sorted.orderBy(wrap(Columns(order.field(), CASCADE, if (order.descending()) ORDER_BY_DESCENDING else ORDER_BY_ASCENDING)))
         }
         return sorted.offset(pageable.offset().toInt()).limit(pageable.pageSize()).resultList
     }
