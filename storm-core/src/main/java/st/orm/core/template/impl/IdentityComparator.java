@@ -17,17 +17,18 @@ package st.orm.core.template.impl;
 
 
 /**
- * Value comparison on an extracted field value.
+ * Identity comparison on an extracted field value.
  *
- * <p>Implementations must not perform boxing or coercion for primitive-typed fields.</p>
+ * <p>Implementations must not perform boxing or coercion for primitive-typed fields. For primitive-typed fields,
+ * identity comparison is not defined and must be rejected at construction time.</p>
  *
  * @since 1.7
  */
 @FunctionalInterface
-public interface Same<T> {
+public interface IdentityComparator<T> {
 
     /**
-     * Returns {@code true} if and only if the value extracted from {@code a} and {@code b} is equal by value.
+     * Returns {@code true} if and only if the value extracted from {@code a} and {@code b} is the same object instance.
      */
-    boolean isSame(T a, T b) throws Throwable;
+    boolean isIdentical(T a, T b) throws Throwable;
 }

@@ -2310,7 +2310,9 @@ public class EntityRepositoryImpl<E extends Entity<ID>, ID>
         queries.forEach(query -> {
             try {
                 query.close();
-            } catch (Exception ignore) {}
+            } catch (Exception e) {
+                LOGGER.debug("Failed to close prepared query.", e);
+            }
         });
     }
 

@@ -35,7 +35,6 @@ import st.orm.core.template.StatementOrigin;
  *
  * @since 1.1
  */
-@SuppressWarnings("ALL")
 public final class SqlInterceptorManager {
 
     /** Shared identity customizer; lets callers recognize operators that do not customize the template. */
