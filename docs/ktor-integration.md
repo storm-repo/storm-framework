@@ -134,7 +134,7 @@ install(Storm) {
 | `autoRegisterRepositories` | `true` | Registers all repository interfaces from the compile-time type index during installation, so `repository<T>()` works without further setup. |
 | `repositories(...)` | All indexed | Narrows repository auto-registration to the given packages (including sub-packages). |
 
-When the application stops, the plugin automatically closes the DataSource if it is a HikariDataSource that the plugin created. If you provide your own DataSource, manage its lifecycle yourself.
+When the application stops, the plugin automatically closes the connection pools it created from configuration. If you provide your own DataSource, the plugin never closes it; manage its lifecycle yourself.
 
 ---
 

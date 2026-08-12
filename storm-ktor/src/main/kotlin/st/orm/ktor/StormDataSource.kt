@@ -69,10 +69,13 @@ internal fun createDataSourceFromConfig(application: Application, path: String =
 }
 
 /**
- * Closes the [DataSource] if it is a [HikariDataSource] (managed by the plugin).
+ * Closes a [DataSource] the plugin created from configuration.
+ *
+ * Ownership is decided at creation time: only pools the plugin built itself are closed at shutdown, never a
+ * user-supplied instance. The close goes through [AutoCloseable], which the created pool type implements; this
+ * keeps the shutdown path free of pool-implementation classes, which are provided scope and may be absent at
+ * runtime when every data source is user-supplied.
  */
-internal fun closeDataSourceIfManaged(dataSource: DataSource) {
-    if (dataSource is HikariDataSource) {
-        dataSource.close()
-    }
+internal fun closeOwnedDataSource(dataSource: DataSource) {
+    (dataSource as? AutoCloseable)?.close()
 }

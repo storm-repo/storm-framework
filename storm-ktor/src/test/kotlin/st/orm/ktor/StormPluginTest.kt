@@ -15,6 +15,7 @@ import io.ktor.server.testing.testApplication
 import org.junit.jupiter.api.Test
 import st.orm.ktor.model.PetType
 import st.orm.template.ORMTemplate
+import javax.sql.DataSource
 
 class StormPluginTest {
 
@@ -349,5 +350,49 @@ class StormPluginTest {
                 expected.message shouldBe "Storm plugin is not installed. Call install(Storm) in your application module."
             }
         }
+    }
+
+    @Test
+    fun `user-supplied data source is not closed at shutdown`() {
+        val dataSource = createTestDataSource()
+        initializeSchema(dataSource)
+        try {
+            testApplication {
+                application {
+                    install(Storm) {
+                        this.dataSource = dataSource
+                    }
+                }
+                startApplication()
+            }
+            dataSource.isClosed shouldBe false
+            // The pool must remain usable after the application stopped.
+            dataSource.connection.use { }
+        } finally {
+            dataSource.close()
+        }
+    }
+
+    @Test
+    fun `plugin-created data source is closed at shutdown`() {
+        lateinit var created: DataSource
+        testApplication {
+            environment {
+                config = MapApplicationConfig(
+                    "storm.datasource.jdbcUrl" to "jdbc:h2:mem:storm-owned-${System.nanoTime()};DB_CLOSE_DELAY=-1",
+                    "storm.datasource.driverClassName" to "org.h2.Driver",
+                    "storm.datasource.username" to "sa",
+                    "storm.datasource.password" to "",
+                )
+            }
+            application {
+                install(Storm) {
+                    schemaValidation = "none"
+                }
+                created = stormDataSource
+            }
+            startApplication()
+        }
+        (created as HikariDataSource).isClosed shouldBe true
     }
 }

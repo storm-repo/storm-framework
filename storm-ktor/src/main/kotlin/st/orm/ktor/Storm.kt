@@ -122,7 +122,11 @@ public val Storm: ApplicationPlugin<StormPluginConfig> = createApplicationPlugin
 
     // ---- Primary database ----
 
-    val dataSource = pluginConfig.dataSource ?: createDataSourceFromConfig(application)
+    // Ownership is decided at creation: only pools the plugin builds from configuration are closed at
+    // shutdown, never a user-supplied instance.
+    val ownedDataSources = mutableListOf<DataSource>()
+    val dataSource = pluginConfig.dataSource
+        ?: createDataSourceFromConfig(application).also { ownedDataSources += it }
     val stormConfig = pluginConfig.config ?: readStormConfig(application)
 
     // Run the migration hook (e.g., Flyway) before the ORM template is created and the schema is
@@ -170,6 +174,7 @@ public val Storm: ApplicationPlugin<StormPluginConfig> = createApplicationPlugin
         val name = databaseConfig.name
         val databaseDataSource = databaseConfig.dataSource
             ?: createDataSourceFromConfig(application, "storm.databases.$name.datasource")
+                .also { ownedDataSources += it }
         val databaseStormConfig = databaseConfig.config
             ?: readStormConfig(application, "storm.databases.$name")
         databaseConfig.migration?.invoke(databaseDataSource)
@@ -226,9 +231,16 @@ public val Storm: ApplicationPlugin<StormPluginConfig> = createApplicationPlugin
         // deferred that the container cancels at shutdown, logging a spurious "Exception during cleanup"
         // warning for the key and each of its covariant supertype keys. Resolving every provided key once
         // at startup completes those deferreds. The instances already exist, so this creates nothing.
+        // Resolution failures stay per key: this loop only suppresses shutdown noise, so a key nothing in
+        // the application ever resolves (an ambiguous covariant repository key, for example) must not abort
+        // startup, which is what an exception thrown through Events.raise would do.
         application.monitor.subscribe(ApplicationStarted) {
             for (providedKey in providedKeys) {
-                application.dependencies.getBlocking<Any?>(providedKey)
+                try {
+                    application.dependencies.getBlocking<Any?>(providedKey)
+                } catch (e: Throwable) {
+                    application.log.debug("Eager resolution of $providedKey failed; the key stays lazily resolvable.", e)
+                }
             }
         }
     }
@@ -315,10 +327,9 @@ public val Storm: ApplicationPlugin<StormPluginConfig> = createApplicationPlugin
         }
     }
 
-    // Register shutdown hook to close the DataSources that are managed HikariDataSources.
+    // Close the pools the plugin created; user-supplied data sources stay under the caller's control.
     application.monitor.subscribe(ApplicationStopped) {
-        closeDataSourceIfManaged(dataSource)
-        namedDataSources.values.forEach { closeDataSourceIfManaged(it) }
+        ownedDataSources.forEach { closeOwnedDataSource(it) }
     }
 }
 
