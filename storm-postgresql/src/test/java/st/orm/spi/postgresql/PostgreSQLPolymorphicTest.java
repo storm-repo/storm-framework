@@ -39,7 +39,7 @@ public class PostgreSQLPolymorphicTest {
 
     @SuppressWarnings("resource")
     @Container
-    public static PostgreSQLContainer<?> postgresContainer = new PostgreSQLContainer<>("postgres:latest")
+    public static PostgreSQLContainer<?> postgresContainer = new PostgreSQLContainer<>("postgres:17")
             .withDatabaseName("test")
             .withUsername("test")
             .withPassword("test")
