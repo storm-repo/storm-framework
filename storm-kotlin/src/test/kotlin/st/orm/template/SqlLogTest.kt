@@ -63,6 +63,14 @@ internal open class SqlLogTest(
     }
 
     @Test
+    fun `sqlLogBlocking returns the block's result outside coroutines`() {
+        val pets = sqlLogBlocking("load") {
+            orm.entity(PetOwnerRef::class).select().resultList
+        }
+        pets.shouldNotBeEmpty()
+    }
+
+    @Test
     fun `a scope records the statements of the block`(): Unit = runBlocking {
         val (pets, summary) = record("load") {
             orm.entity(PetOwnerRef::class).select().resultList

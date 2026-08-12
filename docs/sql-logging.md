@@ -196,6 +196,14 @@ val owners = sqlLog("importOwners") {
 
 The scope follows the coroutine, so it keeps recording across a suspension that resumes on another thread, and every coroutine launched inside it is covered. A scope opened by one coroutine is never observed by another.
 
+Kotlin code that runs outside coroutines, such as a Spring MVC controller, opens the same scope with `sqlLogBlocking`, mirroring how transactions ship as the `transaction` and `transactionBlocking` pair:
+
+```kotlin
+fun loadOwners(): List<OwnerView> = sqlLogBlocking("loadOwners") {
+    ownerService.loadAll()
+}
+```
+
 Code that builds its own coroutine from blocking code passes the scope along explicitly:
 
 ```kotlin

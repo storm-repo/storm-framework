@@ -9,9 +9,9 @@
         <version>${revision}</version>
         <relativePath>../pom.xml</relativePath>
     </parent>
-    <artifactId>storm-ktor-test</artifactId>
-    <name>Storm Ktor Test</name>
-    <description>Testing support for Storm with Ktor.</description>
+    <artifactId>storm-kotlin-test</artifactId>
+    <name>Storm Kotlin Test</name>
+    <description>Kotlin testing support for Storm, carrying SQL statement capture across coroutines.</description>
     <url>https://github.com/storm-orm/storm-framework</url>
     <licenses>
         <license>
@@ -30,11 +30,6 @@
         <developerConnection>scm:git:ssh://github.com/storm-orm/storm-framework.git</developerConnection>
         <url>https://github.com/storm-orm/storm-framework/</url>
     </scm>
-    <!-- Matches storm-ktor's toolchain (Ktor 3.4 / Kotlin 2.3 / coroutines 1.10); see storm-ktor/pom.xml. -->
-    <properties>
-        <kotlin.version>2.3.10</kotlin.version>
-        <kotlin.coroutines.version>1.10.2</kotlin.coroutines.version>
-    </properties>
     <build>
         <plugins>
             <plugin>
@@ -45,10 +40,7 @@
                     <argLine>
                         @{argLine}
                         --add-opens java.base/java.lang=ALL-UNNAMED
-                        -Dstorm.ansi_escaping=true
                     </argLine>
-                    <forkCount>1</forkCount>
-                    <reuseForks>false</reuseForks>
                 </configuration>
             </plugin>
             <plugin>
@@ -74,6 +66,11 @@
                             <sourceDirs>
                                 <sourceDir>${project.basedir}/src/main/kotlin</sourceDir>
                             </sourceDirs>
+                            <!-- Main sources only: a missing visibility modifier or return type on the public
+                                 API fails the build, so nothing ships public by accident. -->
+                            <args combine.children="append">
+                                <arg>-Xexplicit-api=strict</arg>
+                            </args>
                         </configuration>
                     </execution>
                     <execution>
@@ -157,42 +154,10 @@
             </plugin>
         </plugins>
     </build>
-    <!-- Pin every transitive Kotlin artifact to this module's 2.3 version so the 2.3 stdlib required by
-         kotlinx-coroutines 1.10 (via Ktor 3.4) wins over the 2.0 stdlib pulled in by storm-kotlin. See
-         storm-ktor/pom.xml for the full rationale. -->
-    <dependencyManagement>
-        <dependencies>
-            <dependency>
-                <groupId>org.jetbrains.kotlin</groupId>
-                <artifactId>kotlin-bom</artifactId>
-                <version>${kotlin.version}</version>
-                <type>pom</type>
-                <scope>import</scope>
-            </dependency>
-            <!-- Align every transitive Ktor artifact to this module's Ktor version; see storm-ktor/pom.xml. -->
-            <dependency>
-                <groupId>io.ktor</groupId>
-                <artifactId>ktor-bom</artifactId>
-                <version>${ktor.version}</version>
-                <type>pom</type>
-                <scope>import</scope>
-            </dependency>
-        </dependencies>
-    </dependencyManagement>
     <dependencies>
         <dependency>
             <groupId>st.orm</groupId>
             <artifactId>storm-kotlin</artifactId>
-            <version>${project.version}</version>
-        </dependency>
-        <dependency>
-            <groupId>org.jetbrains.kotlinx</groupId>
-            <artifactId>kotlinx-coroutines-core-jvm</artifactId>
-            <version>${kotlin.coroutines.version}</version>
-        </dependency>
-        <dependency>
-            <groupId>st.orm</groupId>
-            <artifactId>storm-ktor</artifactId>
             <version>${project.version}</version>
         </dependency>
         <dependency>
@@ -201,24 +166,9 @@
             <version>${project.version}</version>
         </dependency>
         <dependency>
-            <groupId>st.orm</groupId>
-            <artifactId>storm-kotlin-test</artifactId>
-            <version>${project.version}</version>
-        </dependency>
-        <dependency>
-            <groupId>st.orm</groupId>
-            <artifactId>storm-core</artifactId>
-            <version>${project.version}</version>
-            <scope>provided</scope>
-        </dependency>
-        <dependency>
-            <groupId>io.ktor</groupId>
-            <artifactId>ktor-server-test-host-jvm</artifactId>
-            <version>${ktor.version}</version>
-        </dependency>
-        <dependency>
-            <groupId>com.h2database</groupId>
-            <artifactId>h2</artifactId>
+            <groupId>org.jetbrains.kotlinx</groupId>
+            <artifactId>kotlinx-coroutines-core-jvm</artifactId>
+            <version>${kotlin.coroutines.version}</version>
         </dependency>
         <dependency>
             <groupId>jakarta.persistence</groupId>
@@ -232,15 +182,13 @@
         </dependency>
         <!-- Test -->
         <dependency>
-            <groupId>org.jetbrains.kotlin</groupId>
-            <artifactId>kotlin-stdlib-jdk8</artifactId>
-            <version>${kotlin.version}</version>
+            <groupId>org.junit.jupiter</groupId>
+            <artifactId>junit-jupiter-engine</artifactId>
             <scope>test</scope>
         </dependency>
         <dependency>
-            <groupId>org.jetbrains.kotlin</groupId>
-            <artifactId>kotlin-test</artifactId>
-            <version>${kotlin.version}</version>
+            <groupId>com.h2database</groupId>
+            <artifactId>h2</artifactId>
             <scope>test</scope>
         </dependency>
         <dependency>

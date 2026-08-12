@@ -281,31 +281,29 @@ public final class SqlInterceptorManager {
     }
 
     /**
-     * Create a new scoped interceptor that applies an operator to SQL statements processed by the current thread and
-     * any child threads.
+     * Creates a scoped interceptor that applies an operator to the SQL statements the carrier's action processes.
      *
-     * <p>This interceptor is scoped to the current thread context and propagates only to its child threads.
-     * It is isolated from sibling threads, meaning changes made to the interceptor set will not affect other threads
-     * that share the same parent scope.</p>
+     * <p>The scope covers the thread that runs the action, and only that thread: work handed to another thread does
+     * not pass through it unless an integration carries the scope there via {@link #holder()}. Scopes on different
+     * threads are isolated from one another.</p>
      *
      * @param operator the operator to apply to each SQL statement.
-     * @return a {@link Carrier} that binds the interceptor to the current thread's scoped context.
+     * @return a {@link Carrier} that binds the interceptor to the thread running its action.
      */
     public static Carrier intercept(UnaryOperator<Sql> operator) {
         return new CarrierImpl(new Operator(operator));
     }
 
     /**
-     * Create a new scoped interceptor that applies an operator to SQL statements processed by the current thread and
-     * any child threads.
+     * Creates a scoped interceptor that applies an operator to the SQL statements the carrier's action processes.
      *
-     * <p>This interceptor is scoped to the current thread context and propagates only to its child threads.
-     * It is isolated from sibling threads, meaning changes made to the interceptor set will not affect other threads
-     * that share the same parent scope.</p>
+     * <p>The scope covers the thread that runs the action, and only that thread: work handed to another thread does
+     * not pass through it unless an integration carries the scope there via {@link #holder()}. Scopes on different
+     * threads are isolated from one another.</p>
      *
      * @param customizer a function to customize the SQL template before use.
      * @param operator the operator to apply to each SQL statement.
-     * @return a {@link Carrier} that binds the interceptor to the current thread's scoped context.
+     * @return a {@link Carrier} that binds the interceptor to the thread running its action.
      * @since 1.3
      */
     public static Carrier intercept(UnaryOperator<SqlTemplate> customizer, UnaryOperator<Sql> operator) {
@@ -313,22 +311,14 @@ public final class SqlInterceptorManager {
     }
 
     /**
-     * Create a new scoped interceptor that applies an operator to SQL statements processed by the current thread and
-     * any child threads.
-     *
-     * <p>This interceptor is scoped to the current thread context and propagates only to its child threads.
-     * It is isolated from sibling threads, meaning changes made to the interceptor set will not affect other threads
-     * that share the same parent scope.</p>
-     *
-     * @param observer the observer to invoke with each SQL statement.
-     * @return a {@link Carrier} that binds the interceptor to the current thread's scoped context.
-     */
-    /**
      * Creates a scoped carrier for a listener notified around each statement execution, which is what a scope
      * needs: a statement carries no duration until it runs.
      *
+     * <p>The scope covers the thread that runs the action, and only that thread: work handed to another thread does
+     * not pass through it unless an integration carries the scope there via {@link #holder()}.</p>
+     *
      * @param listener the listener to notify around each execution.
-     * @return a {@link Carrier} that binds the listener to the current thread's scope.
+     * @return a {@link Carrier} that binds the listener to the thread running its action.
      * @since 1.13
      */
     public static Carrier listen(StatementListener listener) {
@@ -409,15 +399,15 @@ public final class SqlInterceptorManager {
     }
 
     /**
-     * Create a new scoped interceptor that applies an operator to SQL statements processed by the current thread and
-     * any child threads.
+     * Creates a scoped interceptor that invokes an observer with the SQL statements the carrier's action processes.
      *
-     * <p>This interceptor is scoped to the current thread context and propagates only to its child threads.
-     * It is isolated from sibling threads, meaning changes made to the interceptor set will not affect other threads
-     * that share the same parent scope.</p>
+     * <p>The scope covers the thread that runs the action, and only that thread: work handed to another thread does
+     * not pass through it unless an integration carries the scope there via {@link #holder()}. Scopes on different
+     * threads are isolated from one another.</p>
      *
+     * @param customizer a function to customize the SQL template before use.
      * @param observer the observer to invoke with each SQL statement.
-     * @return a {@link Carrier} that binds the interceptor to the current thread's scoped context.
+     * @return a {@link Carrier} that binds the interceptor to the thread running its action.
      * @since 1.3
      */
     public static Carrier intercept(UnaryOperator<SqlTemplate> customizer, Consumer<Sql> observer) {

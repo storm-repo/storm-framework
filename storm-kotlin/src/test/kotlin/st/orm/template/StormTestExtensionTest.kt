@@ -45,20 +45,20 @@ internal class StormTestExtensionTest {
 
     @Test
     fun `statement capture should record selects`(orm: ORMTemplate, capture: SqlCapture) {
-        capture.run { orm.entity(City::class).findAll() }
+        capture.record { orm.entity(City::class).findAll() }
         capture.count(Operation.SELECT) shouldBe 1
     }
 
     @Test
     fun `statement capture should record inserts`(orm: ORMTemplate, capture: SqlCapture) {
-        capture.run { orm.entity(City::class).insert(City(name = "TestCity")) }
+        capture.record { orm.entity(City::class).insert(City(name = "TestCity")) }
         capture.count(Operation.INSERT) shouldBe 1
     }
 
     @Test
     fun `statement capture should accumulate and clear`(orm: ORMTemplate, capture: SqlCapture) {
-        capture.run { orm.entity(City::class).findAll() }
-        capture.run { orm.entity(City::class).findAll() }
+        capture.record { orm.entity(City::class).findAll() }
+        capture.record { orm.entity(City::class).findAll() }
         capture.count(Operation.SELECT) shouldBe 2
         capture.clear()
         capture.count() shouldBe 0

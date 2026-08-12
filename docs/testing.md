@@ -315,7 +315,7 @@ When testing database code, knowing _what_ SQL is executed is often as important
 
 ### Basic Usage
 
-Wrap any Storm operation in a `run`, `execute`, or `executeThrowing` call to capture the SQL statements it generates:
+Wrap any Storm operation in a `record`, `execute`, or `executeThrowing` call to capture the SQL statements it generates:
 
 <Tabs groupId="language">
 <TabItem value="kotlin" label="Kotlin" default>
@@ -323,7 +323,7 @@ Wrap any Storm operation in a `run`, `execute`, or `executeThrowing` call to cap
 ```kotlin
 val capture = SqlCapture()
 
-capture.run { orm.entity<User>().findAll() }
+capture.record { orm.entity<User>().findAll() }
 
 capture.count(Operation.SELECT) shouldBe 1
 ```
@@ -334,7 +334,7 @@ capture.count(Operation.SELECT) shouldBe 1
 ```java
 var capture = new SqlCapture();
 
-capture.run(() -> orm.entity(User.class).findAll());
+capture.record(() -> orm.entity(User.class).findAll());
 
 assertEquals(1, capture.count(Operation.SELECT));
 ```
@@ -375,11 +375,35 @@ assertEquals(1, capture.count(Operation.SELECT));
 
 | Method              | Description                                                             |
 |---------------------|-------------------------------------------------------------------------|
-| `run(Runnable)`     | Captures SQL during the action. Returns nothing.                        |
+| `record(Runnable)`  | Captures SQL during the action. Returns nothing.                        |
 | `execute(Supplier)` | Captures SQL during the action. Returns the action's result.            |
 | `executeThrowing(Callable)` | Same as `execute`, but allows checked exceptions.               |
+| `attach()`          | Attaches until the returned handle is closed, for brackets a callable cannot wrap, such as a test lifecycle. |
 
-All three methods are scoped: only SQL statements generated within the block are recorded. Code running before or after the block, or on other threads, is not affected.
+These methods are scoped: only SQL statements generated within the block are recorded. Code running before or after the block is not affected. The capture binds to the thread that runs the action and to the contexts Storm carries it into, such as a `transaction { }` block; work handed to another thread outside those contexts falls outside the capture.
+
+### Capturing Across Coroutines (Kotlin)
+
+A capture opened by one of the blocking entry points stops recording at the first suspension that resumes on another thread. Kotlin coroutine code records through the suspending `recording` extension of the `storm-kotlin-test` module, which follows the coroutine across the threads it resumes on, and covers the coroutines launched within the block:
+
+```kotlin
+capture.recording {
+    users.insert(User(email = "alice@example.com"))
+    withContext(Dispatchers.IO) { users.findAll() }
+}
+capture.count(Operation.SELECT) shouldBe 1
+```
+
+```xml
+<dependency>
+    <groupId>st.orm</groupId>
+    <artifactId>storm-kotlin-test</artifactId>
+    <version>@@STORM_VERSION@@</version>
+    <scope>test</scope>
+</dependency>
+```
+
+The suspending entry point carries its own name: Kotlin resolves a call against a member on the lambda's shape alone, so a member named `record` would win the call and reject a suspending block rather than let it reach the extension. A suspending block inside `record { }` therefore fails to compile, pointing at `recording { }`; neither can silently resolve to the `kotlin.run` scope function the way the pre-1.14 `run` entry point could.
 
 ### Inspecting Captured Statements
 
@@ -434,11 +458,11 @@ Operation op = stmt.operation();         // SELECT, INSERT, UPDATE, DELETE, or U
 
 ### Accumulation and Clearing
 
-Statements accumulate across multiple `run`/`execute` calls on the same `SqlCapture` instance. This is useful when you want to measure the total SQL activity of a sequence of operations. Use `clear()` to reset between captures when you need to measure operations independently:
+Statements accumulate across multiple `record`/`execute` calls on the same `SqlCapture` instance. This is useful when you want to measure the total SQL activity of a sequence of operations. Use `clear()` to reset between captures when you need to measure operations independently:
 
 ```java
-capture.run(() -> orm.entity(User.class).findAll());
-capture.run(() -> orm.entity(User.class).findAll());
+capture.record(() -> orm.entity(User.class).findAll());
+capture.record(() -> orm.entity(User.class).findAll());
 assertEquals(2, capture.count(Operation.SELECT));
 
 capture.clear();
@@ -456,7 +480,7 @@ A count assertion is the simplest and most common use of `SqlCapture`. It protec
 @Test
 fun `bulk insert should use single statement`(orm: ORMTemplate, capture: SqlCapture) {
     val items = listOf(Item(name = "A"), Item(name = "B"), Item(name = "C"))
-    capture.run { orm.entity<Item>().insertAll(items) }
+    capture.record { orm.entity<Item>().insertAll(items) }
 
     capture.count(Operation.INSERT) shouldBe 1
 }
@@ -469,7 +493,7 @@ fun `bulk insert should use single statement`(orm: ORMTemplate, capture: SqlCapt
 @Test
 void bulkInsertShouldUseSingleStatement(ORMTemplate orm, SqlCapture capture) {
     var items = List.of(new Item(0, "A"), new Item(0, "B"), new Item(0, "C"));
-    capture.run(() -> orm.entity(Item.class).insertAll(items));
+    capture.record(() -> orm.entity(Item.class).insertAll(items));
 
     assertEquals(1, capture.count(Operation.INSERT));
 }
@@ -485,7 +509,7 @@ For finer-grained assertions, inspect the SQL text and bound parameters of indiv
 ```java
 @Test
 void findByIdShouldUseWhereClause(ORMTemplate orm, SqlCapture capture) {
-    capture.run(() -> orm.entity(User.class).findById(42));
+    capture.record(() -> orm.entity(User.class).findById(42));
 
     var stmts = capture.statements(Operation.SELECT);
     assertEquals(1, stmts.size());
@@ -501,7 +525,7 @@ When a service method should only read data, you can verify that no write operat
 ```java
 @Test
 void reportGenerationShouldBeReadOnly(ORMTemplate orm, SqlCapture capture) {
-    capture.run(() -> generateReport(orm));
+    capture.record(() -> generateReport(orm));
 
     assertEquals(0, capture.count(Operation.INSERT));
     assertEquals(0, capture.count(Operation.UPDATE));
@@ -521,7 +545,7 @@ class QueryCountTest {
 
     @Test
     void insertShouldGenerateOneStatement(ORMTemplate orm, SqlCapture capture) {
-        capture.run(() -> orm.entity(Item.class).insert(new Item(0, "Test")));
+        capture.record(() -> orm.entity(Item.class).insert(new Item(0, "Test")));
         assertEquals(1, capture.count(Operation.INSERT));
     }
 
@@ -537,7 +561,7 @@ class QueryCountTest {
 
 ## Ktor Testing
 
-The `storm-ktor-test` module provides a `testStormApplication` function that combines Storm's H2 setup with Ktor's `testApplication` builder. It creates an in-memory database, executes SQL scripts, and exposes a `StormTestScope` with `stormDataSource`, `stormOrm`, and `stormSqlCapture`.
+The `storm-ktor-test` module provides a `testStormApplication` function that combines Storm's H2 setup with Ktor's `testApplication` builder. It creates an in-memory database, executes SQL scripts, and exposes a `StormTestScope` with `stormDataSource`, `stormOrm`, and `stormSqlCapture`. The scope's capture is installed around every call the application handles, so a request's statements are captured wherever its handler runs, with no wrapping at the call site.
 
 ```kotlin
 @Test
@@ -584,5 +608,5 @@ See [Ktor Integration](ktor-integration.md#testing) for more details.
 2. **Use `SqlCapture` to verify query counts.** Asserting the number of statements an operation produces is an effective way to catch unintended query changes during refactoring.
 3. **Clear between captures** when a single test method needs to measure multiple operations independently.
 4. **Prefer `@StormTest` over manual setup.** It eliminates boilerplate and ensures consistent database lifecycle management across test classes.
-5. **`SqlCapture` binds to the calling thread and the contexts Storm carries it into.** Statements executed inside a `transaction { }` block or a coroutine given `sqlLogContext()` are captured wherever they run; work handed to a thread or coroutine without that context falls outside the capture. Recording itself is safe from any thread the work reaches.
+5. **`SqlCapture` binds to the thread that runs the action and the contexts Storm carries it into.** Statements executed inside a `transaction { }` block or a coroutine given `sqlLogContext()` are captured wherever they run; work handed to a thread or coroutine without that context falls outside the capture. Coroutine code records through the suspending `recording` extension of `storm-kotlin-test`, which follows the coroutine itself. Recording is safe from any thread the work reaches.
 6. **A resolution served from cache issues no statement.** Inside a transaction the entity cache answers repeat resolutions of the same record, so `count(FETCH)` counts distinct cache misses rather than `fetch()` call sites.
