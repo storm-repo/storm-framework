@@ -38,6 +38,19 @@ public class RepositoryRegistry internal constructor(
     private val repositories = ConcurrentHashMap<KClass<*>, Any>()
 
     /**
+     * The named database this registry belongs to, or `null` for the primary database's registry. A named
+     * database's registry serves only the types under [ownedPackages]; the primary serves everything no named
+     * database claims.
+     */
+    internal var databaseName: String? = null
+
+    /**
+     * The packages the registry's database declared with `repositories(...)`, empty for the primary database's
+     * registry.
+     */
+    internal var ownedPackages: List<String> = emptyList()
+
+    /**
      * Packages claimed by other, named databases (package name to database name). Types under these packages must
      * not be created against this registry's template; lookups fail fast pointing to the owning database.
      */
@@ -48,12 +61,33 @@ public class RepositoryRegistry internal constructor(
         return claimedPackages.entries.firstOrNull { (packageName, _) -> typeName.startsWith("$packageName.") }?.value
     }
 
-    private fun requireUnclaimed(type: KClass<*>) {
+    /**
+     * Verifies that this registry's database serves [type]: not a type claimed by another database, and for a
+     * named database's registry, a type under its declared packages. An unclaimed type belongs to the primary
+     * database, so a named lookup for one is a wiring error that fails fast naming the fix, rather than
+     * silently binding the type to the named database.
+     */
+    private fun requireServed(type: KClass<*>) {
         val owner = ownerOf(type)
         if (owner != null) {
             throw IllegalStateException(
                 "Repository ${type.simpleName} belongs to database '$owner'. " +
                     "Use repository<${type.simpleName}>(\"$owner\") or orm(\"$owner\") to access it.",
+            )
+        }
+        val name = databaseName ?: return
+        if (ownedPackages.none { type.java.name.startsWith("$it.") }) {
+            val declared = if (ownedPackages.isEmpty()) {
+                "declares no repository packages"
+            } else {
+                "declares the packages ${ownedPackages.joinToString(", ") { "'$it'" }}"
+            }
+            throw IllegalStateException(
+                "Repository ${type.simpleName} does not belong to database '$name', which $declared. " +
+                    "A type belongs to a named database through the packages declared with repositories(...) in " +
+                    "its database block; undeclared types belong to the primary database. " +
+                    "Use repository<${type.simpleName}>() for the primary database, or declare the type's " +
+                    "package inside database(\"$name\") { repositories(\"${type.java.packageName}\") }.",
             )
         }
     }
@@ -65,7 +99,7 @@ public class RepositoryRegistry internal constructor(
      * @return the created repository instance.
      */
     public fun <T : Repository> register(type: KClass<T>): T {
-        requireUnclaimed(type)
+        requireServed(type)
         val repository = ormTemplate.repository(type)
         repositories[type] = repository
         return repository
@@ -90,8 +124,9 @@ public class RepositoryRegistry internal constructor(
             val typeName = type.name
             if (packages.isNotEmpty() && packages.none { typeName.startsWith("$it.") }) continue
             // Skip types that belong to another, named database; they are registered against that database's
-            // template instead.
+            // template instead. A named database's registry additionally serves only its own packages.
             if (claimedPackages.keys.any { typeName.startsWith("$it.") }) continue
+            if (databaseName != null && ownedPackages.none { typeName.startsWith("$it.") }) continue
             val kotlinType = type.kotlin as KClass<out Repository>
             if (!repositories.containsKey(kotlinType)) {
                 val repository = ormTemplate.repository(kotlinType)
@@ -132,8 +167,9 @@ public class RepositoryRegistry internal constructor(
      * Retrieves a repository, creating and caching it on first access if it has not been registered.
      *
      * Repositories registered at startup (automatically from the compile-time type index, or explicitly via
-     * [register]) are returned from the cache. Unknown types are created lazily and cached for subsequent
-     * calls. Thread-safe.
+     * [register]) are returned from the cache. Unknown types the registry's database serves are created lazily
+     * and cached for subsequent calls; a type belonging to a different database fails fast naming the owning
+     * database. Thread-safe.
      *
      * @param type the repository interface to retrieve or create.
      * @return the cached or newly created repository instance.
@@ -141,7 +177,7 @@ public class RepositoryRegistry internal constructor(
      */
     @Suppress("UNCHECKED_CAST")
     public fun <T : Repository> getOrCreate(type: KClass<T>): T = repositories.computeIfAbsent(type) {
-        requireUnclaimed(type)
+        requireServed(type)
         ormTemplate.repository(type)
     } as T
 }

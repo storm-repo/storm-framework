@@ -93,7 +93,8 @@ import kotlin.reflect.typeOf
  * Additional databases declared with `database("name") { }` get their own template, repositories, schema
  * validation, and lifecycle, exposed under their name: `orm("name")`, `repository<T>("name")`, and named
  * dependency injection. The packages declared inside a database block partition repositories and schema
- * validation between the databases.
+ * validation between the databases. A named database inherits the plugin-level policy settings, per option,
+ * unless its block overrides them; see [StormDatabaseConfig] for the inheritance rule.
  *
  * @since 1.11
  */
@@ -167,6 +168,11 @@ public val Storm: ApplicationPlugin<StormPluginConfig> = createApplicationPlugin
 
     // ---- Named databases ----
 
+    // A named database inherits the plugin-level policy settings, per option, unless its block overrides them:
+    // the Storm configuration (per key), the exception mapper, query observer, SQL commenter, entity callbacks,
+    // schema validation mode, and the auto-registration switch. The connection and transaction template
+    // providers never inherit: a provider instance defines a database's transaction scope, so each database
+    // gets its own unless its block sets one.
     val namedTemplates = LinkedHashMap<String, ORMTemplate>()
     val namedDataSources = LinkedHashMap<String, DataSource>()
     val namedRegistries = LinkedHashMap<String, RepositoryRegistry>()
@@ -176,7 +182,7 @@ public val Storm: ApplicationPlugin<StormPluginConfig> = createApplicationPlugin
             ?: createDataSourceFromConfig(application, "storm.databases.$name.datasource")
                 .also { ownedDataSources += it }
         val databaseStormConfig = databaseConfig.config
-            ?: readStormConfig(application, "storm.databases.$name")
+            ?: readStormConfig(application, "storm.databases.$name", fallback = stormConfig)
         databaseConfig.migration?.invoke(databaseDataSource)
         val databaseBuilder = ORMTemplate.builder(databaseDataSource)
             .config(databaseStormConfig)
@@ -184,18 +190,22 @@ public val Storm: ApplicationPlugin<StormPluginConfig> = createApplicationPlugin
             .transactionTemplateProvider(
                 databaseConfig.transactionTemplateProvider ?: JdbcTransactionTemplateProviderImpl(),
             )
-        databaseConfig.exceptionMapper?.let { databaseBuilder.exceptionMapper(it) }
+        (databaseConfig.exceptionMapper ?: pluginConfig.exceptionMapper)?.let { databaseBuilder.exceptionMapper(it) }
         (databaseConfig.sqlCommenter ?: pluginConfig.sqlCommenter)?.let { databaseBuilder.sqlCommenter(it) }
         databaseBuilder.queryObserver(
-            databaseConfig.queryObserver ?: DelegatingQueryObserver().also { delegatingObservers[name] = it },
+            databaseConfig.queryObserver ?: pluginConfig.queryObserver
+                ?: DelegatingQueryObserver().also { delegatingObservers[name] = it },
         )
         var databaseTemplate = databaseBuilder.build()
-        if (databaseConfig.entityCallbacks.isNotEmpty()) {
-            databaseTemplate = databaseTemplate.withEntityCallbacks(databaseConfig.entityCallbacks)
+        val databaseCallbacks = pluginConfig.entityCallbacks + databaseConfig.entityCallbacks
+        if (databaseCallbacks.isNotEmpty()) {
+            databaseTemplate = databaseTemplate.withEntityCallbacks(databaseCallbacks)
         }
         val databaseRegistry = RepositoryRegistry(databaseTemplate, application)
+        databaseRegistry.databaseName = name
+        databaseRegistry.ownedPackages = databaseConfig.repositoryPackages.toList()
         databaseRegistry.claimedPackages = claimedPackages.filterValues { it != name }
-        if (databaseConfig.repositoryPackages.isNotEmpty()) {
+        if (pluginConfig.autoRegisterRepositories && databaseConfig.repositoryPackages.isNotEmpty()) {
             databaseRegistry.register(*databaseConfig.repositoryPackages.toTypedArray())
         }
         namedTemplates[name] = databaseTemplate
@@ -262,9 +272,14 @@ public val Storm: ApplicationPlugin<StormPluginConfig> = createApplicationPlugin
         val name = databaseConfig.name
         application.runSchemaValidation(
             template = namedTemplates.getValue(name),
+            // Per-database settings before inherited ones: the database's block, then its configuration keys,
+            // then the plugin-level mode the primary uses.
             configuredMode = databaseConfig.schemaValidation
                 ?: application.environment.config.propertyOrNull("storm.databases.$name.validation.schemaMode")?.getString()
                 ?: application.environment.config.propertyOrNull("storm.databases.$name.validation.schema_mode")?.getString()
+                ?: pluginConfig.schemaValidation
+                ?: application.environment.config.propertyOrNull("storm.validation.schemaMode")?.getString()
+                ?: application.environment.config.propertyOrNull("storm.validation.schema_mode")?.getString()
                 ?: "fail",
             property = "storm.databases.$name.validation.schemaMode",
             description = "database '$name'",
@@ -284,16 +299,21 @@ public val Storm: ApplicationPlugin<StormPluginConfig> = createApplicationPlugin
 
     // ---- Per-call SQL log ----
 
-    if (pluginConfig.sqlLog) {
-        val limit = pluginConfig.sqlLogLimit
-        val callSites = pluginConfig.sqlLogCallSites
-        if (pluginConfig.sqlLogCallSiteSkip.isNotEmpty()) {
-            CallSiteCapture.ignoreCallSites(*pluginConfig.sqlLogCallSiteSkip.toTypedArray())
+    // Each option resolves from the plugin configuration first, then the application configuration under
+    // storm.sqlLog, so the log can be switched on through the configuration file alone. The display settings
+    // (call-site skip, line width, hydration shapes) are JVM-wide by design and are only applied when actually
+    // configured, leaving the system-property defaults, or another application's settings, in effect otherwise.
+    val sqlLogSettings = resolveSqlLogSettings(application, pluginConfig)
+    if (sqlLogSettings.enabled) {
+        val limit = sqlLogSettings.limit
+        val callSites = sqlLogSettings.callSites
+        if (sqlLogSettings.callSiteSkip.isNotEmpty()) {
+            CallSiteCapture.ignoreCallSites(*sqlLogSettings.callSiteSkip.toTypedArray())
         }
-        pluginConfig.sqlLogLineWidth?.let { SqlLogRenderer.lineWidth(it) }
-        SqlLogRenderer.hydrationShapes(pluginConfig.sqlLogHydration)
-        val statementThreshold = pluginConfig.sqlLogStatementThreshold
-        val durationThreshold = pluginConfig.sqlLogDurationThreshold
+        sqlLogSettings.lineWidth?.let { SqlLogRenderer.lineWidth(it) }
+        sqlLogSettings.hydration?.let { SqlLogRenderer.hydrationShapes(it) }
+        val statementThreshold = sqlLogSettings.statementThreshold
+        val durationThreshold = sqlLogSettings.durationThreshold
         val thresholded = statementThreshold != null || durationThreshold != null
         val logger = LoggerFactory.getLogger("st.orm.sql.perf")
         // Intercepting surrounds the rest of the pipeline, so the scope covers everything the call does rather

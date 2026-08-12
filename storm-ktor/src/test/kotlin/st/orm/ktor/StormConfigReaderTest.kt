@@ -51,6 +51,37 @@ internal class StormConfigReaderTest {
     }
 
     @Test
+    fun `named database reads keys under its own prefix`() {
+        val config = readNamedConfigFromMap(
+            "storm.databases.analytics.update.defaultMode" to "FIELD",
+        )
+        config.getProperty(UPDATE_DEFAULT_MODE) shouldBe "FIELD"
+    }
+
+    @Test
+    fun `named database inherits keys its own prefix does not set`() {
+        val config = readNamedConfigFromMap(
+            "storm.update.defaultMode" to "FIELD",
+            "storm.entityCache.retention" to "light",
+            "storm.databases.analytics.entityCache.retention" to "default",
+        )
+        // Unset under the named prefix: inherited from the root.
+        config.getProperty(UPDATE_DEFAULT_MODE) shouldBe "FIELD"
+        // Set under the named prefix: overrides the root.
+        config.getProperty(ENTITY_CACHE_RETENTION) shouldBe "default"
+    }
+
+    @Test
+    fun `named database inherits from an explicit fallback config`() {
+        val config = readNamedConfigFromMap(
+            "storm.databases.analytics.entityCache.retention" to "light",
+            fallback = StormConfig.of(mapOf(UPDATE_DEFAULT_MODE to "ENTITY")),
+        )
+        config.getProperty(UPDATE_DEFAULT_MODE) shouldBe "ENTITY"
+        config.getProperty(ENTITY_CACHE_RETENTION) shouldBe "light"
+    }
+
+    @Test
     fun `plugin reads config from HOCON environment`() = testApplication {
         environment {
             config = MapApplicationConfig(
@@ -81,6 +112,26 @@ internal class StormConfigReaderTest {
                 }
                 application {
                     result = st.orm.ktor.readStormConfig(this)
+                }
+            }
+        }
+        return result!!
+    }
+
+    /**
+     * Helper that reads the configuration of the named database `analytics` the way the plugin does: the keys
+     * under its own prefix, inheriting the rest from the fallback, which defaults to the root configuration.
+     */
+    private fun readNamedConfigFromMap(vararg pairs: Pair<String, String>, fallback: StormConfig? = null): StormConfig {
+        var result: StormConfig? = null
+        kotlinx.coroutines.runBlocking {
+            io.ktor.server.testing.testApplication {
+                environment {
+                    config = MapApplicationConfig(*pairs)
+                }
+                application {
+                    val primary = fallback ?: st.orm.ktor.readStormConfig(this)
+                    result = st.orm.ktor.readStormConfig(this, "storm.databases.analytics", fallback = primary)
                 }
             }
         }

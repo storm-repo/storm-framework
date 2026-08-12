@@ -158,15 +158,21 @@ install(Storm) {
 }
 ```
 
+Every `sqlLog*` option can come from `application.conf` instead, under `storm.sqlLog` (or `storm.sql_log`), so the log can be switched on in production without a redeploy; a plugin setting overrides the configuration file per option.
+
 For production, thresholds turn the scope into a guardrail: only calls that exceed one are reported, at WARN.
 
-```kotlin
-install(Storm) {
-    sqlLog = true
-    sqlLogStatementThreshold = 50
-    sqlLogDurationThreshold = 500.milliseconds
+```hocon
+storm.sqlLog {
+    enabled = true
+    threshold {
+        statements = 50
+        duration = 500ms
+    }
 }
 ```
+
+The same thresholds in the plugin configuration are `sqlLogStatementThreshold = 50` and `sqlLogDurationThreshold = 500.milliseconds`.
 
 </TabItem>
 </Tabs>
