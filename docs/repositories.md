@@ -41,6 +41,37 @@ EntityRepository<User, Integer> userRepository = orm.entity(User.class);
 
 ---
 
+## Reading Method Names
+
+Repository method names follow a grammar, so you can mostly construct the name you need rather than searching for it:
+
+| Part | Meaning |
+|---|---|
+| `find` | yields nothing when there is no match: `null` in Kotlin, an empty `Optional` in Java |
+| `get` | throws when there is no match |
+| `findAll` | yields a list |
+| `Ref` before `By` | returns a `Ref` in place of the entity |
+| `Id` | selects on the primary key |
+
+A ref argument is an overload rather than a separate method. The same name takes a value or a ref, and the compiler picks by argument type:
+
+```kotlin
+users.findAllBy(User_.city, city)      // List<User>      selected by a City
+users.findAllBy(User_.city, cityRef)   // List<User>      selected by a Ref<City>
+users.findAllRefBy(User_.city, city)   // List<Ref<User>> selected by a City
+```
+
+The `ByRef` suffix marks the two cases where a distinct name is unavoidable. Selecting on a *collection* of refs erases to the same signature on the JVM as a collection of values, so the ref form needs its own name:
+
+```kotlin
+users.findAllBy(User_.city, cities)       // List<User> selected by City values
+users.findAllByRef(User_.city, cityRefs)  // List<User> selected by Ref<City> values
+```
+
+Selecting on the entity's own refs takes the suffix for the same reason, as in `findByRef(ref)`, `findAllByRef(refs)` and `removeByRef(ref)`.
+
+---
+
 ## Basic CRUD Operations
 
 <Tabs groupId="language">
