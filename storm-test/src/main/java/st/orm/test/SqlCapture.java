@@ -21,6 +21,7 @@ import java.util.Queue;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.function.Supplier;
+import org.jspecify.annotations.Nullable;
 import st.orm.core.spi.QueryContext;
 import st.orm.core.template.SqlTemplate.Parameter;
 import st.orm.core.template.impl.SqlInterceptorManager;
@@ -106,11 +107,14 @@ public final class SqlCapture {
     /**
      * Executes the given action while capturing all SQL statements it generates, returning its result.
      *
+     * <p>The result type admits null, so an action that ends in a lookup returning no row is captured the same way
+     * as one that returns a value.</p>
+     *
      * @param action the action to execute.
      * @param <T> the result type.
      * @return the result of the action.
      */
-    public <T> T execute(Supplier<T> action) {
+    public <T extends @Nullable Object> T execute(Supplier<T> action) {
         return SqlInterceptorManager.listen(listener).get(action);
     }
 
@@ -118,12 +122,15 @@ public final class SqlCapture {
      * Executes the given action while capturing all SQL statements it generates, returning its result and allowing
      * checked exceptions.
      *
+     * <p>The result type admits null, so an action that ends in a lookup returning no row is captured the same way
+     * as one that returns a value.</p>
+     *
      * @param action the action to execute.
      * @param <T> the result type.
      * @return the result of the action.
      * @throws Exception if the action throws an exception.
      */
-    public <T> T executeThrowing(Callable<T> action) throws Exception {
+    public <T extends @Nullable Object> T executeThrowing(Callable<T> action) throws Exception {
         return SqlInterceptorManager.listen(listener).call(action);
     }
 
