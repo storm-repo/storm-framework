@@ -20,6 +20,26 @@ import st.orm.core.template.ORMTemplate;
 
 /**
  * Base interface for all repositories.
+ *
+ * <h2>Method names</h2>
+ *
+ * <p>Repository method names follow a grammar, so a name is mostly constructed rather than looked up:</p>
+ *
+ * <ul>
+ *     <li>{@code find} yields an empty {@code Optional} when nothing matches, {@code get} throws, and
+ *     {@code findAll} yields a list.</li>
+ *     <li>{@code Ref} <em>before</em> {@code By} returns {@link st.orm.Ref} in place of the entity:
+ *     {@code findAllBy} gives {@code List<E>}, {@code findAllRefBy} gives {@code List<Ref<E>>}.</li>
+ *     <li>{@code Id} selects on the primary key.</li>
+ * </ul>
+ *
+ * <p>A ref argument is an overload rather than a separate method, so {@code findAllBy(field, value)} and
+ * {@code findAllBy(field, ref)} share one name and the compiler picks by argument type.</p>
+ *
+ * <p>The {@code ByRef} suffix marks the two cases where a distinct name is unavoidable. Selecting on a
+ * <em>collection</em> of refs erases to the same JVM signature as a collection of values, so the ref form is spelled
+ * {@code findAllByRef(field, refs)}. Selecting on the entity's own refs likewise takes the suffix, as in
+ * {@code findByRef(ref)} and {@code removeByRef(ref)}.</p>
  */
 public interface Repository {
 

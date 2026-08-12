@@ -24,6 +24,22 @@ import st.orm.template.ORMTemplate
  * Both [EntityRepository] and [ProjectionRepository] extend this interface. Custom repository
  * interfaces should extend one of those specialized interfaces rather than this one directly.
  *
+ * <h2>Method names</h2>
+ *
+ * Repository method names follow a grammar, so a name is mostly constructed rather than looked up:
+ *
+ * - `find` yields `null` when nothing matches, `get` throws, and `findAll` yields a list.
+ * - `Ref` **before** `By` returns [st.orm.Ref] in place of the entity: `findAllBy` gives `List<E>`, `findAllRefBy`
+ *   gives `List<Ref<E>>`.
+ * - `Id` selects on the primary key.
+ *
+ * A ref argument is an overload rather than a separate method, so `findAllBy(field, value)` and
+ * `findAllBy(field, ref)` share one name and the compiler picks by argument type.
+ *
+ * The `ByRef` suffix marks the two cases where a distinct name is unavoidable. Selecting on a *collection* of refs
+ * erases to the same JVM signature as a collection of values, so the ref form is spelled `findAllByRef(field, refs)`.
+ * Selecting on the entity's own refs likewise takes the suffix, as in `findByRef(ref)` and `removeByRef(ref)`.
+ *
  * @see EntityRepository
  * @see ProjectionRepository
  * @see ORMTemplate
