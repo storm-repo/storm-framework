@@ -261,28 +261,52 @@ jobs:
       # artifacts themselves are managed by the plugin's BOM, so only that
       # coordinate needs bumping. Toolchain versions (Kotlin, Ktor) track their
       # own upstreams and are left untouched. RELEASE_TOKEN must have write access
-      # to the storm-orm example repositories.
+      # to each storm-orm/storm-example-* repository listed below.
       - name: Bump the st.orm plugin version in each template
+        # The templates are a post-release convenience: by the time this job runs
+        # the release artifacts are already on Central, npm and the Plugin Portal,
+        # so a failed sync must not mark the release run red. Failures surface as
+        # warning annotations on the run and the step exits non-zero so the repos
+        # that still need a manual bump are visible in the job log.
+        continue-on-error: true
         env:
           GH_TOKEN: ${{ secrets.RELEASE_TOKEN }}
         run: |
           V="${{ steps.version.outputs.VERSION }}"
+          # Called from a conditional, so errexit is suppressed inside the body;
+          # every step chains an explicit `|| return 1` to keep a failure (a 403
+          # on push, a renamed build file) from being masked by later commands.
+          sync_repo() {
+            local repo="$1"
+            git clone --depth 1 "https://x-access-token:${GH_TOKEN}@github.com/storm-orm/${repo}.git" "$repo" || return 1
+            # Replace the whole quoted version so any -SNAPSHOT/-rc suffix is dropped
+            # and the template pins the exact release.
+            sed -i -E "s/(id\(\"st\.orm\"\) version \")[^\"]*(\")/\1${V}\2/g" "$repo/build.gradle.kts" || return 1
+            # Same guard as the README sync: a template whose plugin line drifts
+            # from the pattern would otherwise silently stay on the old release.
+            grep -q "id(\"st.orm\") version \"${V}\"" "$repo/build.gradle.kts" || return 1
+            git -C "$repo" config user.name "github-actions[bot]" || return 1
+            git -C "$repo" config user.email "github-actions[bot]@users.noreply.github.com" || return 1
+            if git -C "$repo" diff --quiet; then
+              echo "${repo}: already on ${V}"
+            else
+              git -C "$repo" commit -aqm "chore: bump Storm to ${V}" || return 1
+              git -C "$repo" push || return 1
+            fi
+          }
+          FAILED=()
           for repo in \
             storm-example-java-spring-boot-4 \
             storm-example-kotlin-spring-boot-4 \
             storm-example-kotlin-spring-boot-4-graalvm \
             storm-example-kotlin-ktor \
             storm-example-kotlin-ktor-graalvm; do
-            git clone --depth 1 "https://x-access-token:${GH_TOKEN}@github.com/storm-orm/${repo}.git" "$repo"
-            # Replace the whole quoted version so any -SNAPSHOT/-rc suffix is dropped
-            # and the template pins the exact release.
-            sed -i -E "s/(id\(\"st\.orm\"\) version \")[^\"]*(\")/\1${V}\2/g" "$repo/build.gradle.kts"
-            git -C "$repo" config user.name "github-actions[bot]"
-            git -C "$repo" config user.email "github-actions[bot]@users.noreply.github.com"
-            if git -C "$repo" diff --quiet; then
-              echo "${repo}: already on ${V}"
-            else
-              git -C "$repo" commit -aqm "chore: bump Storm to ${V}"
-              git -C "$repo" push
+            if ! sync_repo "$repo"; then
+              echo "::warning::Failed to sync ${repo} to ${V}. Bump build.gradle.kts there manually or re-run this job."
+              FAILED+=("$repo")
             fi
           done
+          if [ "${#FAILED[@]}" -gt 0 ]; then
+            echo "::warning::Release ${V} itself succeeded, but ${#FAILED[@]} example template(s) were not synced: ${FAILED[*]}"
+            exit 1
+          fi
