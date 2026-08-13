@@ -34,6 +34,7 @@ import static st.orm.core.template.Templates.table;
 import static st.orm.core.template.Templates.update;
 import static st.orm.core.template.Templates.values;
 import static st.orm.core.template.Templates.where;
+import static st.orm.core.template.impl.Elements.Clause.GROUP_BY;
 import static st.orm.core.template.impl.RecordReflection.findPkField;
 import static st.orm.core.template.impl.RecordReflection.getForeignKeys;
 import static st.orm.core.template.impl.RecordReflection.getPrimaryKeys;
@@ -43,7 +44,9 @@ import static st.orm.core.template.impl.RecordReflection.isJoinedEntity;
 import static st.orm.core.template.impl.RecordReflection.isRecord;
 import static st.orm.core.template.impl.RecordReflection.isSealedEntity;
 import static st.orm.core.template.impl.RecordReflection.isTypePresent;
+import static st.orm.core.template.impl.RecordReflection.isTypeSelected;
 import static st.orm.core.template.impl.RecordReflection.mapForeignKeys;
+import static st.orm.core.template.impl.RecordReflection.selectedOccurrences;
 import static st.orm.core.template.impl.RecordValidation.validateDataType;
 import static st.orm.core.template.impl.SqlParser.endsWithKeyword;
 import static st.orm.core.template.impl.SqlParser.getSqlOperation;
@@ -79,6 +82,7 @@ import st.orm.core.template.SqlTemplate;
 import st.orm.core.template.SqlTemplateException;
 import st.orm.core.template.TemplateString;
 import st.orm.core.template.impl.Elements.Alias;
+import st.orm.core.template.impl.Elements.Clause;
 import st.orm.core.template.impl.Elements.Column;
 import st.orm.core.template.impl.Elements.Columns;
 import st.orm.core.template.impl.Elements.Delete;
@@ -615,7 +619,196 @@ class TemplatePreparation {
             case DELETE -> postProcessDelete(mutableElements, aliasMapper, tableMapper);
             default -> postProcessUndefined(mutableElements, aliasMapper, tableMapper);
         }
+        resolveColumns(mutableElements);
         return mutableElements;
+    }
+
+    /**
+     * Resolves each {@link Columns} element to the metamodel its columns are read from.
+     *
+     * <p>A path naming the key of a table reached through a foreign key normally collapses to the foreign key field,
+     * so it resolves to the foreign key column on the referencing table and no join is needed. The two columns hold
+     * the same value, guaranteed by the constraint, so which is named is only ever a question of the statement the
+     * database accepts.</p>
+     *
+     * <p>Grouping is where it becomes one. Functional dependency is resolved syntactically and per table, so a
+     * statement has to group by the same column it selects: grouping the referencing table's foreign key column while
+     * selecting the referenced table's key leaves that key ungrouped, and grouping the referenced key while selecting
+     * the foreign key column leaves that column ungrouped. Either way a strict dialect rejects it. So a grouped path
+     * stays uncollapsed exactly when the select list carries the referenced table.</p>
+     *
+     * <p>This runs over the whole element list, where the select list is known and fixed, rather than while an
+     * individual element renders: the choice is a property of the statement, and asking for it during rendering
+     * would mean reading state that rendering itself mutates.</p>
+     */
+    private static void resolveColumns(List<Element> mutableElements) throws SqlTemplateException {
+        Class<? extends Data> selected = mutableElements.stream()
+                .filter(Select.class::isInstance)
+                .map(Select.class::cast)
+                .map(Select::table)
+                .findFirst()
+                .orElse(null);
+        int lastGrouping = -1;
+        var grouped = new ArrayList<Metamodel<?, ?>>();
+        for (int i = 0; i < mutableElements.size(); i++) {
+            if (mutableElements.get(i) instanceof Columns columns) {
+                var resolved = new ArrayList<Metamodel<?, ?>>();
+                for (var field : columns.fields()) {
+                    resolved.add(resolveColumnsField(field, columns.clause(), selected));
+                }
+                mutableElements.set(i, new Columns(resolved, columns.scope(), columns.clause()));
+                if (columns.clause() == GROUP_BY) {
+                    lastGrouping = i;
+                    grouped.addAll(resolved);
+                }
+            }
+        }
+        if (lastGrouping >= 0 && selected != null) {
+            completeGrouping(mutableElements, lastGrouping, grouped, selected);
+        }
+    }
+
+    /**
+     * Adds the keys of the table occurrences the grouping determines but does not name.
+     *
+     * <p>A grouping states what one row stands for. Expressing that in SQL takes more columns than the caller wrote,
+     * because functional dependency is resolved syntactically and per table: grouping an owner's key determines that
+     * owner's city, since a foreign key is to-one, but no engine carries the dependency across the join. So every
+     * occurrence the select list carries below a grouped one contributes its key too.</p>
+     *
+     * <p>Adding these cannot change what the statement returns. Each is reached from a grouped occurrence by to-one
+     * edges alone, so it holds one value per group and splits nothing; it is the same grouping, spelled so an engine
+     * accepts it.</p>
+     */
+    private static void completeGrouping(List<Element> mutableElements,
+                                         int lastGrouping,
+                                         List<Metamodel<?, ?>> grouped,
+                                         Class<? extends Data> selected) throws SqlTemplateException {
+        var groupedPaths = new HashSet<String>();
+        for (var field : grouped) {
+            // Only an identity grouping determines anything: grouping a value says nothing about other tables.
+            String identity = MetamodelFactory.identityPath(field);
+            if (identity != null) {
+                groupedPaths.add(identity);
+            }
+        }
+        if (groupedPaths.isEmpty()) {
+            return;
+        }
+        var root = grouped.getFirst().root();
+        var prefix = selectedPathOf(root, selected);
+        if (prefix == null) {
+            return;
+        }
+        var completion = new ArrayList<Metamodel<?, ?>>();
+        for (var occurrence : selectedOccurrences(selected).entrySet()) {
+            String path = prefix.isEmpty() || occurrence.getKey().isEmpty()
+                    ? prefix + occurrence.getKey()
+                    : prefix + "." + occurrence.getKey();
+            if (isDetermined(path, groupedPaths)) {
+                if (!namesOccurrence(path, groupedPaths)) {
+                    var key = keyOf(root, path);
+                    if (key != null) {
+                        completion.add(key);
+                        groupedPaths.add(path);
+                    }
+                }
+            } else if (!namesOccurrence(path, groupedPaths)
+                    && findPkField(occurrence.getValue()).isPresent()) {
+                // The select list carries this table and the grouping neither names it nor determines it, so the
+                // statement asks for columns that hold many values per group. Reported here rather than left to the
+                // database: the permissive products return an arbitrary row instead of refusing, and the model says
+                // enough to know the query has no answer whichever product runs it.
+                throw new SqlTemplateException(
+                        ("Grouping does not determine %s, whose columns the select list carries. Group by %s as well, "
+                                + "or select fewer columns. Grouped: %s.")
+                                .formatted(occurrence.getValue().getSimpleName(),
+                                        describePath(root, path),
+                                        describeGrouped(root, groupedPaths)));
+            }
+        }
+        if (!completion.isEmpty()) {
+            var columns = (Columns) mutableElements.get(lastGrouping);
+            var fields = new ArrayList<>(columns.fields());
+            fields.addAll(completion);
+            mutableElements.set(lastGrouping, new Columns(fields, columns.scope(), columns.clause()));
+        }
+    }
+
+    /** Renders a path the way a caller writes it, so the message names something they can paste back. */
+    private static String describePath(Class<? extends Data> root, String path) {
+        String metamodel = root.getSimpleName() + "_";
+        return path.isEmpty()
+                ? metamodel + "." + findPkField(root).map(RecordField::name).orElse("id")
+                : metamodel + "." + path;
+    }
+
+    /** Renders the grouped identities, so the message states what the grouping does determine. */
+    private static String describeGrouped(Class<? extends Data> root, Set<String> groupedPaths) {
+        return groupedPaths.stream()
+                .sorted()
+                .map(path -> describePath(root, path))
+                .collect(java.util.stream.Collectors.joining(", "));
+    }
+
+    /** Returns whether a grouped occurrence determines the occurrence at the given path. */
+    private static boolean isDetermined(String path, Set<String> groupedPaths) {
+        for (String grouped : groupedPaths) {
+            if (path.equals(grouped) || (grouped.isEmpty() && !path.isEmpty()) || path.startsWith(grouped + ".")) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /** Returns whether the grouping already names the occurrence at the given path. */
+    private static boolean namesOccurrence(String path, Set<String> groupedPaths) {
+        return groupedPaths.contains(path);
+    }
+
+    /** Returns the path of the selected table within the query root's selected graph, or {@code null} if ambiguous. */
+    private static @Nullable String selectedPathOf(Class<? extends Data> root, Class<? extends Data> selected)
+            throws SqlTemplateException {
+        if (root == selected) {
+            return "";
+        }
+        String found = null;
+        for (var occurrence : selectedOccurrences(root).entrySet()) {
+            if (occurrence.getValue() == selected) {
+                if (found != null) {
+                    return null;    // The table occurs more than once; the grouping has to name the occurrences.
+                }
+                found = occurrence.getKey();
+            }
+        }
+        return found;
+    }
+
+    /** Returns the metamodel naming the key of the occurrence at the given path. */
+    private static @Nullable Metamodel<?, ?> keyOf(Class<? extends Data> root, String path) {
+        if (path.isEmpty()) {
+            return null;    // The root's own key is named by the caller; nothing to complete.
+        }
+        return MetamodelFactory.referencedKey(MetamodelFactory.of(root, path));
+    }
+
+    /**
+     * Returns the metamodel the given element's columns are read from.
+     */
+    private static Metamodel<?, ?> resolveColumnsField(Metamodel<?, ?> field, Clause clause,
+                                                      @Nullable Class<? extends Data> selected)
+            throws SqlTemplateException {
+        var collapsed = MetamodelFactory.canonical(field);
+        if (clause != GROUP_BY || selected == null) {
+            return collapsed;
+        }
+        // Asked of the relationship, not of how the path was written: groupBy(Pet_.owner) and
+        // groupBy(Pet_.owner.id) name the same thing and have to resolve to the same column.
+        var referencedKey = MetamodelFactory.referencedKey(collapsed);
+        if (referencedKey == null) {
+            return collapsed;
+        }
+        return isTypeSelected(selected, referencedKey.tableType()) ? referencedKey : collapsed;
     }
 
     /**
@@ -1163,7 +1356,11 @@ class TemplatePreparation {
                                              Set<String> hydratedPaths) {
         switch (element) {
             case Column column -> addReferencedTablePath(rootTable, MetamodelFactory.canonical(column.field()), paths);
-            case Columns columns -> addReferencedTablePath(rootTable, MetamodelFactory.canonical(columns.field()), paths);
+            case Columns columns -> {
+                for (var field : columns.fields()) {
+                    addReferencedTablePath(rootTable, MetamodelFactory.canonical(field), paths);
+                }
+            }
             // A nested select materializes the table's record, so its own foreign keys are part of what is selected;
             // the other modes select columns of that table alone.
             case Select(var table, var mode) -> (mode == SelectMode.NESTED ? hydratedTables : tables).add(table);

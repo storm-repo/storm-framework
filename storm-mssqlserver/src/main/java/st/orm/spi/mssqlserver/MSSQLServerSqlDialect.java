@@ -17,11 +17,13 @@ package st.orm.spi.mssqlserver;
 
 import static java.util.stream.Collectors.toSet;
 
+import java.util.List;
 import java.util.Set;
 import java.util.regex.Pattern;
 import java.util.stream.Stream;
 import st.orm.StormConfig;
 import st.orm.core.spi.DefaultSqlDialect;
+import st.orm.core.template.Column;
 import st.orm.core.template.SqlDialect;
 
 public class MSSQLServerSqlDialect extends DefaultSqlDialect implements SqlDialect {
@@ -64,6 +66,18 @@ public class MSSQLServerSqlDialect extends DefaultSqlDialect implements SqlDiale
     public boolean supportsMultiValueTuples() {
         // SQL Server does not support multi-value tuple IN clauses.
         return false;
+    }
+
+    /**
+     * Returns the selected columns rather than the key alone.
+     *
+     * <p>SQL Server does not resolve functional dependency from a grouped key, so every non-aggregated column of the
+     * select list has to appear in the GROUP BY. The rows are the ones the key identifies either way; only the
+     * text differs.</p>
+     */
+    @Override
+    public List<Column> groupBy(List<Column> key, List<Column> selected) {
+        return selected;
     }
 
     private static final Pattern MSSQL_IDENTIFIER = Pattern.compile("^[_A-Za-z#][_A-Za-z0-9]*$");

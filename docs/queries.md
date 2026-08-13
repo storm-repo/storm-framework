@@ -341,7 +341,7 @@ val users = orm.entity<User>()
     .resultList
 ```
 
-When a path passed to `orderBy`, `orderByDescending`, or `groupBy` resolves to multiple columns, it expands to those columns in order, resolved exactly as a predicate on that path would be. An inline record (embedded component) expands into its component columns: if `User_.fullName` is an inline record with `lastName` and `firstName` fields, `orderBy(User_.fullName)` produces `ORDER BY last_name, first_name`. A foreign key expands to its foreign key column(s) on the referencing table, without joining the referenced table, so `groupBy(Visit_.pet)` produces `GROUP BY visit.pet_id` and a foreign key to a table with a compound primary key contributes every foreign key column once. With `orderByDescending`, `DESC` follows every expanded column.
+When a path passed to `orderBy`, `orderByDescending`, or `groupBy` resolves to multiple columns, it expands to those columns in order, resolved exactly as a predicate on that path would be. An inline record (embedded component) expands into its component columns: if `User_.fullName` is an inline record with `lastName` and `firstName` fields, `orderBy(User_.fullName)` produces `ORDER BY last_name, first_name`. A foreign key expands to its foreign key column(s) on the referencing table, without joining the referenced table, so `orderBy(Visit_.pet)` orders by `visit.pet_id` and a foreign key to a table with a compound primary key contributes every foreign key column once. Grouping states an identity rather than a column, so it resolves differently: see [Grouping by an entity](#grouping-by-an-entity). With `orderByDescending`, `DESC` follows every expanded column.
 
 For full control over the ORDER BY clause (for example, to use SQL expressions or database-specific syntax), use the template overload. Metamodel fields are resolved to their column names automatically.
 
@@ -448,6 +448,36 @@ List<CityCount> counts = orm.query(RAW."""
 
 </TabItem>
 </Tabs>
+
+### Grouping by an entity
+
+A grouping states what one row stands for. `groupBy` accepts the entity you want one row of, and Storm emits whichever columns express that on the database in hand:
+
+```kotlin
+.groupBy(Pet_.owner)      // one row per owner
+.groupBy(Pet_.owner.id)   // the same relationship, so the same grouping
+.groupBy(Pet_.id)         // one row per pet
+.groupBy(Pet_.name)       // one row per distinct name: a value, not an identity
+```
+
+The first three name an identity: the relationship, the key beyond it, and the query root's own key all say the same thing. The last names a value, and groups by that value literally.
+
+Selecting an entity selects the tables its foreign keys reach, so a grouping usually has to cover more than the table it names. Storm adds those keys, because every foreign key is to-one: one owner has one city, so grouping the owner already fixes the city, and naming its key cannot change a group. Grouping `Pet_.owner` on a query that selects `Owner` produces `GROUP BY owner.id, city.id`.
+
+How many columns an identity takes is the database's business, not yours. PostgreSQL, MySQL, SQLite and H2 resolve functional dependency from a grouped key and accept the key alone; SQL Server and Oracle require every selected column of that table, and Storm expands the grouping for them. The query you write is the same on all of them.
+
+A grouping that determines nothing is rejected when the query is built, on every database, rather than left to the ones that notice:
+
+```kotlin
+// One owner has many pets, so there is no single pet per group.
+orm.selectFrom(Pet::class, PetCount::class) { "${Pet::class}, COUNT(*)" }
+    .groupBy(Pet_.owner)
+// PersistenceException: Grouping does not determine Pet, whose columns the select list
+// carries. Group by Pet_.id as well, or select fewer columns. Grouped: Pet_.owner.
+```
+
+The permissive databases answer such a statement with an arbitrary row rather than an error, which is why Storm refuses it everywhere: the failure would otherwise appear only in production.
+
 
 ### Filtering Groups
 
@@ -783,7 +813,7 @@ Choose the simplest option that meets your needs. See [SQL Templates](sql-templa
 
 ## Compound Fields in Queries
 
-When an inline record (embedded component) is used in a query clause, Storm automatically expands it into its constituent columns. This applies to WHERE, ORDER BY, and GROUP BY clauses. A foreign key expands the same way, into its foreign key column(s) on the referencing table.
+When an inline record (embedded component) is used in a query clause, Storm automatically expands it into its constituent columns. This applies to WHERE, ORDER BY, and GROUP BY clauses. A foreign key expands the same way in WHERE and ORDER BY, into its foreign key column(s) on the referencing table; in GROUP BY it states an identity, described under [Grouping by an entity](#grouping-by-an-entity).
 
 ### WHERE Clauses
 

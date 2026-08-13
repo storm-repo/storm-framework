@@ -22,12 +22,14 @@ import static st.orm.Operator.GREATER_THAN_OR_EQUAL;
 import static st.orm.Operator.LESS_THAN;
 import static st.orm.Operator.LESS_THAN_OR_EQUAL;
 
+import java.util.List;
 import java.util.Set;
 import java.util.regex.Pattern;
 import java.util.stream.Stream;
 import st.orm.Operator;
 import st.orm.StormConfig;
 import st.orm.core.spi.DefaultSqlDialect;
+import st.orm.core.template.Column;
 import st.orm.core.template.SqlDialect;
 
 public class OracleSqlDialect extends DefaultSqlDialect implements SqlDialect {
@@ -74,6 +76,18 @@ public class OracleSqlDialect extends DefaultSqlDialect implements SqlDialect {
     public boolean supportsMultiValueTuples() {
         // Oracle supports multi-column IN (col1, col2) IN ((v1_1, v1_2), ...).
         return true;
+    }
+
+    /**
+     * Returns the selected columns rather than the key alone.
+     *
+     * <p>Oracle does not resolve functional dependency from a grouped key, so every non-aggregated column of the
+     * select list has to appear in the GROUP BY. The rows are the ones the key identifies either way; only the
+     * text differs.</p>
+     */
+    @Override
+    public List<Column> groupBy(List<Column> key, List<Column> selected) {
+        return selected;
     }
 
     private static final Pattern ORACLE_IDENTIFIER = Pattern.compile("^[A-Za-z][A-Za-z0-9_]*$");

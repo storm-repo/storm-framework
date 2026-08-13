@@ -20,6 +20,7 @@ import static st.orm.Operator.EQUALS;
 import static st.orm.SelectMode.NESTED;
 
 import java.util.Collection;
+import java.util.List;
 import java.util.function.Function;
 import org.jspecify.annotations.Nullable;
 import st.orm.BindVars;
@@ -277,14 +278,66 @@ public final class Elements {
      * with a compound primary key, or an inline record) expands to each of its columns. Resolution matches
      * predicate resolution: the columns are the ones the metamodel resolves to on the table that holds them, so a
      * foreign key expands to its foreign key column(s) on the referencing table without joining the referenced
-     * table. When {@code descending} is set, each column is followed by {@code DESC}.</p>
+     * table.</p>
+     *
+     * <p>A single element carries every path the clause renders at that position, so a path the statement
+     * requires but the caller did not write can be added where the grouping is resolved.</p>
+     *
+     * <p>{@code clause} states where the columns land and, for ORDER BY, in which direction. It carries the
+     * direction rather than a separate flag because sort direction is meaningless in a GROUP BY, and because the
+     * two clauses resolve a key reached through a foreign key differently: see {@link Clause#GROUP_BY}.</p>
      *
      * @since 1.13
      */
-    public record Columns(Metamodel<?, ?> field, ResolveScope scope, boolean descending) implements Element {
+    public record Columns(List<Metamodel<?, ?>> fields, ResolveScope scope, Clause clause) implements Element {
         public Columns {
-            requireNonNull(field, "field");
+            fields = List.copyOf(requireNonNull(fields, "fields"));
+            if (fields.isEmpty()) {
+                throw new IllegalArgumentException("Columns requires at least one path.");
+            }
             requireNonNull(scope, "scope");
+            requireNonNull(clause, "clause");
+        }
+    }
+
+    /**
+     * The clause a {@link Columns} element renders into, and for ORDER BY the sort direction.
+     *
+     * @since 1.14
+     */
+    public enum Clause {
+        /**
+         * GROUP BY. A path naming the primary key of a table reached through a foreign key resolves to the
+         * referenced table's own key column when that table is part of the query, instead of collapsing to the
+         * foreign key column on the referencing table.
+         *
+         * <p>The two columns hold the same value, guaranteed by the foreign key constraint, so which one is named
+         * is a matter of the statement the database will accept. Grouping is where that matters: functional
+         * dependency is resolved syntactically and per table, so a statement that projects the referenced table's
+         * columns while grouping by the referencing table's foreign key column is rejected by every dialect that
+         * enforces the rule, even though the grouping determines exactly one row. Naming the referenced table's key
+         * costs nothing, because a query that projects its columns has already joined it.</p>
+         */
+        GROUP_BY,
+
+        /**
+         * ORDER BY, ascending. Ordering places no requirement on which of two equal columns is named, so the
+         * foreign key column on the referencing table is used, sparing a join where the referenced table is not
+         * otherwise part of the query.
+         */
+        ORDER_BY_ASCENDING,
+
+        /**
+         * ORDER BY, descending: as {@link #ORDER_BY_ASCENDING}, with every expanded column followed by
+         * {@code DESC}.
+         */
+        ORDER_BY_DESCENDING;
+
+        /**
+         * Returns whether this clause sorts descending.
+         */
+        public boolean isDescending() {
+            return this == ORDER_BY_DESCENDING;
         }
     }
 

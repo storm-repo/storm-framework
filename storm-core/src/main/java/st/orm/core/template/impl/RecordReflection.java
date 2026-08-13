@@ -27,10 +27,12 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.SequencedMap;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
@@ -460,6 +462,80 @@ final class RecordReflection {
             return false;  // Sealed interfaces have no own fields; auto-join not applicable.
         }
         return findRecordField(getRecordFields(source), target).isPresent();
+    }
+
+    /**
+     * Returns whether a SELECT of {@code source} contributes columns of {@code target} to its select list.
+     *
+     * <p>The select list is the hydrated graph: an entity foreign key is joined and its columns selected, and an
+     * inline record contributes its component columns. A {@link Ref} foreign key contributes its own column only, so
+     * the table it refers to is not selected and traversal stops there. That also bounds the walk, because a cycle of
+     * foreign keys has to cross a reference to be loadable at all; the visited set guards a model that does not.</p>
+     *
+     * <p>This answers a different question than {@link #isTypePresent(Class, Class)}, which asks whether a table can
+     * be reached at all and so follows references too.</p>
+     */
+    static boolean isTypeSelected(Class<?> source, Class<?> target) throws SqlTemplateException {
+        return isTypeSelected(source, target, new HashSet<>());
+    }
+
+    /**
+     * Returns every table occurrence a select of {@code source} contributes columns from, keyed by field path
+     * relative to {@code source}, with the empty path naming {@code source} itself.
+     *
+     * <p>Traversal follows the same graph as {@link #isTypeSelected(Class, Class)}: entity foreign keys and inline
+     * records, stopping at references. Every edge is to-one, so an occurrence is determined by any occurrence its
+     * path extends — one owner is one city — which is what lets a grouping cover more than the table it names.</p>
+     */
+    static SequencedMap<String, Class<? extends Data>> selectedOccurrences(Class<?> source)
+            throws SqlTemplateException {
+        var occurrences = new LinkedHashMap<String, Class<? extends Data>>();
+        collectSelectedOccurrences(source, "", occurrences);
+        return occurrences;
+    }
+
+    @SuppressWarnings("unchecked")
+    private static void collectSelectedOccurrences(Class<?> source, String path,
+                                                   Map<String, Class<? extends Data>> occurrences)
+            throws SqlTemplateException {
+        if (Data.class.isAssignableFrom(source)) {
+            occurrences.put(path, (Class<? extends Data>) source);
+        }
+        if (source.isSealed() || !isRecord(source)) {
+            return;
+        }
+        for (var field : getRecordFields(source)) {
+            if (Ref.class.isAssignableFrom(field.type()) || !isRecord(field.type())) {
+                continue;
+            }
+            if (getORMConverter(field).isPresent()) {
+                continue;
+            }
+            collectSelectedOccurrences(field.type(), path.isEmpty() ? field.name() : path + "." + field.name(),
+                    occurrences);
+        }
+    }
+
+    private static boolean isTypeSelected(Class<?> source, Class<?> target, Set<Class<?>> visited)
+            throws SqlTemplateException {
+        if (target.equals(source)) {
+            return true;
+        }
+        if (source.isSealed() || !isRecord(source) || !visited.add(source)) {
+            return false;
+        }
+        for (var field : getRecordFields(source)) {
+            if (Ref.class.isAssignableFrom(field.type()) || !isRecord(field.type())) {
+                continue;
+            }
+            if (getORMConverter(field).isPresent()) {
+                continue;   // Converted to a single column, so it contributes no table of its own.
+            }
+            if (isTypeSelected(field.type(), target, visited)) {
+                return true;
+            }
+        }
+        return false;
     }
 
     static Optional<RecordField> findRecordField(List<RecordField> fields,

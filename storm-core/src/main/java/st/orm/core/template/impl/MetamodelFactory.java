@@ -275,6 +275,68 @@ public final class MetamodelFactory {
     }
 
     /**
+     * Returns the metamodel naming the key of the table the given path refers to, or {@code null} when the path is
+     * not a to-one foreign key.
+     *
+     * <p>This is the inverse of the collapse {@link #canonical(Metamodel)} performs, and it is stated on the
+     * relationship rather than on how the path was written: {@code Pet_.owner} and {@code Pet_.owner.id} name the
+     * same thing, the first directly and the second through a key that collapses onto it, so both answer with the
+     * referenced table's key. A reference answers too, since the table it refers to is joined once a query element
+     * reaches beyond it.</p>
+     */
+    @SuppressWarnings({"unchecked", "rawtypes"})
+    public static @Nullable Metamodel<?, ?> referencedKey(Metamodel<?, ?> metamodel) {
+        try {
+            String path = metamodel.fieldPath();
+            if (path.isEmpty()) {
+                return null;
+            }
+            Class<? extends Data> rootTable = metamodel.root();
+            RecordField field = getRecordField(fieldResolutionClass(rootTable), path);
+            Class<?> referencedType = Ref.class.isAssignableFrom(field.type())
+                    ? getRefDataType(field)
+                    : Data.class.isAssignableFrom(field.type()) ? field.type() : null;
+            if (referencedType == null) {
+                return null;
+            }
+            RecordField pk = findPkField(referencedType).orElse(null);
+            return pk == null ? null : of((Class) rootTable, path + "." + pk.name());
+        } catch (SqlTemplateException | RuntimeException e) {
+            return null;
+        }
+    }
+
+    /**
+     * Returns the path of the table occurrence the given path identifies, or {@code null} when it names a value
+     * rather than an identity.
+     *
+     * <p>A grouping states what one row stands for, and three spellings state the same thing: the to-one
+     * relationship ({@code Pet_.owner}), the key beyond it ({@code Pet_.owner.id}), and the query root's own key
+     * ({@code Pet_.id}), which identifies the occurrence at the empty path. Anything else names a value, and a
+     * grouping on it means one row per distinct value.</p>
+     */
+    public static @Nullable String identityPath(Metamodel<?, ?> metamodel) {
+        try {
+            if (referencedKey(metamodel) != null) {
+                return metamodel.fieldPath();
+            }
+            var canonical = canonical(metamodel);
+            if (!canonical.equals(metamodel)) {
+                return canonical.fieldPath();
+            }
+            String path = metamodel.fieldPath();
+            if (path.isEmpty()) {
+                return null;
+            }
+            String parent = stripLast(path);
+            // A key beyond a foreign key would have collapsed above, so the only identity left is the root's own.
+            return parent.isEmpty() && isPrimaryKeyName(metamodel.root(), path) ? "" : null;
+        } catch (RuntimeException e) {
+            return null;
+        }
+    }
+
+    /**
      * Returns whether {@code fieldName} names the primary key of {@code table}.
      */
     private static boolean isPrimaryKeyName(Class<?> table, String fieldName) {

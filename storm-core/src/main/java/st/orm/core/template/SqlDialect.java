@@ -73,6 +73,26 @@ public interface SqlDialect {
     boolean supportsMultiValueTuples();
 
     /**
+     * Returns the columns to emit in GROUP BY for an identity grouping: one row per row of a table.
+     *
+     * <p>The caller states the identity and the dialect states what it takes to express it here. Most products
+     * resolve functional dependency from a grouped key and accept the key alone, which is what this returns.
+     * A product that does not implement the relaxation overrides this and returns {@code selected}, because it
+     * requires every non-aggregated column of the select list to appear in the GROUP BY.</p>
+     *
+     * <p>Both column lists describe the same rows, so the choice never changes what the statement returns: the key
+     * identifies one row of the table and the selected columns are read from that row. Only the text differs.</p>
+     *
+     * @param key the columns identifying one row of the table.
+     * @param selected the columns of that table the select list carries.
+     * @return the columns to emit, in the order they should appear.
+     * @since 1.14
+     */
+    default List<Column> groupBy(List<Column> key, List<Column> selected) {
+        return key;
+    }
+
+    /**
      * Returns the pattern for valid identifiers.
      *
      * @return the pattern for valid identifiers.
