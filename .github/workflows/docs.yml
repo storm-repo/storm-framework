@@ -58,9 +58,12 @@ jobs:
           #   storm-java21     -> st.orm.repository, st.orm.template (ORMTemplate,
           #                       query builder, repositories)
           # Everything else is excluded on purpose:
-          #   - Kotlin modules (Ktor, compiler-plugin variants) have no module
-          #     descriptor and break aggregation ("named and unnamed modules");
+          #   - Kotlin modules (Ktor, kotlin-test, compiler-plugin variants) have no
+          #     module descriptor and break aggregation ("named and unnamed modules");
           #     they are published separately as KDoc under /api/kotlin.
+          # Modules are selected by exclusion, so a module added to the reactor is
+          # published unless it is listed here. An added module without a descriptor
+          # fails this step until it is.
           #   - storm-core is the internal engine (st.orm.core.*).
           #   - dialect SPIs, storm-test and storm-metamodel-processor are not
           #     part of the user-facing API; Spring/Jackson/Micrometer are integrations.
@@ -71,7 +74,7 @@ jobs:
             -Dmaven.javadoc.failOnError=false \
             -DadditionalJOption=--enable-preview \
             -Ddoclint=none \
-            -pl '!:storm-kotlin,!:storm-kotlin-spring,!:storm-kotlin-spring-boot-starter,!:storm-kotlinx-serialization,!:storm-metamodel-ksp,!:storm-spring-boot-starter,!:storm-spring-boot-test-autoconfigure,!:storm-jackson3,!:storm-micrometer,!:storm-ktor,!:storm-ktor-test,!:storm-compiler-plugin-2.0,!:storm-compiler-plugin-2.1,!:storm-compiler-plugin-2.2,!:storm-compiler-plugin-2.3,!:storm-compiler-plugin-2.4,!:storm-metamodel-processor,!:storm-core,!:storm-test,!:storm-jackson2,!:storm-oracle,!:storm-mssqlserver,!:storm-postgresql,!:storm-mysql,!:storm-mariadb,!:storm-sqlite,!:storm-h2,!:storm-spring'
+            -pl '!:storm-kotlin,!:storm-kotlin-spring,!:storm-kotlin-spring-boot-starter,!:storm-kotlinx-serialization,!:storm-metamodel-ksp,!:storm-spring-boot-starter,!:storm-spring-boot-test-autoconfigure,!:storm-jackson3,!:storm-micrometer,!:storm-ktor,!:storm-ktor-test,!:storm-kotlin-test,!:storm-compiler-plugin-2.0,!:storm-compiler-plugin-2.1,!:storm-compiler-plugin-2.2,!:storm-compiler-plugin-2.3,!:storm-compiler-plugin-2.4,!:storm-metamodel-processor,!:storm-core,!:storm-test,!:storm-jackson2,!:storm-oracle,!:storm-mssqlserver,!:storm-postgresql,!:storm-mysql,!:storm-mariadb,!:storm-sqlite,!:storm-h2,!:storm-spring'
 
       - name: Copy Javadoc to website/static/api/java
         run: |
