@@ -144,6 +144,44 @@ public class GroupByForeignKeyPathIntegrationTest {
     }
 
     /**
+     * A reference states a to-one relationship like an entity foreign key does, so grouping by one is the same
+     * identity and has to name the referenced table's key when the select list carries that table.
+     *
+     * <p>The key beyond a reference is rewritten onto the reference itself as the metamodel is built, so the path
+     * from the query root cannot express that key; the grouping has to reach it another way.</p>
+     */
+    @Test
+    public void groupByAReferenceFieldNamesTheReferencedKeyWhenTheTableIsSelected() {
+        var results = new ArrayList<PetVisitCount>();
+        String sql = captureSql(() -> results.addAll(ORMTemplate.of(dataSource)
+                .selectFrom(Visit.class, PetVisitCount.class, raw("\0, COUNT(*)", Pet.class))
+                .groupBy(Visit_.pet)
+                .getResultList()));
+        String groupBy = sql.substring(sql.toUpperCase().indexOf("GROUP BY"));
+        assertFalse(groupBy.contains("pet_id"),
+                "GROUP BY must name the pet's key, not the reference column, when Pet is selected: " + sql);
+        assertTrue(groupBy.matches("(?i)GROUP BY \\w+\\.id\\b.*"),
+                "GROUP BY must name the referenced table's key: " + sql);
+        assertEquals(8, results.size());
+    }
+
+    /**
+     * Nothing selects the referenced table, so the reference keeps naming its own column and stays unresolved.
+     */
+    @Test
+    public void groupByAReferenceFieldKeepsTheReferenceColumnWhenTheTableIsNotSelected() {
+        record PetIdCount(@Nullable Integer petId, int visitCount) {}
+        var results = new ArrayList<PetIdCount>();
+        String sql = captureSql(() -> results.addAll(ORMTemplate.of(dataSource)
+                .selectFrom(Visit.class, PetIdCount.class, raw("\0, COUNT(*)", Visit_.pet))
+                .groupBy(Visit_.pet)
+                .getResultList()));
+        String groupBy = sql.substring(sql.toUpperCase().indexOf("GROUP BY"));
+        assertTrue(groupBy.contains("pet_id"), "GROUP BY should name the reference column: " + sql);
+        assertFalse(results.isEmpty());
+    }
+
+    /**
      * ORDER BY places no requirement on which of the two equal columns is named, so it keeps the foreign key column.
      */
     @Test

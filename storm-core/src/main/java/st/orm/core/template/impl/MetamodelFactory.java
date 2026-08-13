@@ -300,7 +300,19 @@ public final class MetamodelFactory {
                 return null;
             }
             RecordField pk = findPkField(referencedType).orElse(null);
-            return pk == null ? null : of((Class) rootTable, path + "." + pk.name());
+            if (pk == null) {
+                return null;
+            }
+            String keyPath = path + "." + pk.name();
+            Metamodel<?, ?> key = of((Class) rootTable, keyPath);
+            if (key.fieldPath().equals(keyPath)) {
+                return key;
+            }
+            // A reference rewrites the key beyond it onto the reference itself as it is built, which is the
+            // equivalence this method exists to undo, so the path from the query root cannot express it. Rooting the
+            // metamodel at the referenced table names the same column: the table is joined once a query element
+            // reaches beyond the reference, and the key is resolved against that occurrence.
+            return of((Class) referencedType, pk.name());
         } catch (SqlTemplateException | RuntimeException e) {
             return null;
         }
