@@ -16,6 +16,7 @@
 package st.orm.core.template.impl;
 
 import static java.util.stream.Collectors.joining;
+import static st.orm.core.template.impl.Elements.Clause.GROUP_BY;
 
 import st.orm.Metamodel;
 import st.orm.core.template.SqlTemplateException;
@@ -88,6 +89,11 @@ final class ColumnsProcessor implements ElementProcessor<Columns> {
         if (resolved.isEmpty()) {
             throw new SqlTemplateException("No columns found for metamodel: %s.%s.%s"
                     .formatted(metamodel.fieldType(), metamodel.path(), metamodel.field()));
+        }
+        if (columns.clause() == GROUP_BY && MetamodelFactory.identityPath(metamodel) != null) {
+            // An identity grouping: the caller stated one row per row of this table, and the dialect states what it
+            // takes to express that. A value grouping is emitted as written, because it names the rows itself.
+            resolved = compiler.dialect().groupBy(resolved, model.declaredColumns());
         }
         String prefix = alias.isEmpty() ? "" : alias + ".";
         String suffix = columns.clause().isDescending() ? " DESC" : "";
