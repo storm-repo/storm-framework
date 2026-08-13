@@ -12,7 +12,7 @@ for the CLI, to [npm](https://www.npmjs.com/package/@storm-orm/cli)
 
 ## [1.14.0] - Unreleased
 
-A quality release: a smaller, more coherent API, and SQL that is correct on every dialect Storm supports rather than on the permissive ones. Breaking changes are accepted with no deprecation shims.
+A quality release: a smaller, more coherent API, and SQL that is correct on every dialect Storm supports rather than on the permissive ones.
 
 ### A join widens the query
 
