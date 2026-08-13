@@ -143,16 +143,38 @@ Without the Gradle plugin, import the BOM once and add the modules yourself. On 
 </dependencyManagement>
 ```
 
-**Gradle (Kotlin DSL):**
+**Gradle (Kotlin DSL), Kotlin:**
 
 ```kotlin
 dependencies {
     implementation(platform("st.orm:storm-bom:1.13.1"))
     implementation("st.orm:storm-kotlin")
     runtimeOnly("st.orm:storm-core")
+    ksp("st.orm:storm-metamodel-ksp")
     kotlinCompilerPluginClasspath("st.orm:storm-compiler-plugin-2.0")
 }
 ```
+
+**Gradle (Kotlin DSL), Java:**
+
+```kotlin
+dependencies {
+    implementation(platform("st.orm:storm-bom:1.13.1"))
+    implementation("st.orm:storm-java21")
+    runtimeOnly("st.orm:storm-core")
+    annotationProcessor("st.orm:storm-metamodel-processor")
+}
+
+tasks.withType<JavaCompile> {
+    options.compilerArgs.add("--enable-preview")
+}
+
+tasks.withType<Test> {
+    jvmArgs("--enable-preview")
+}
+```
+
+Both paths add the metamodel processor, which generates the `User_` and `City_` classes queries are written against, and the Java path sets the preview flags that Storm's string templates require. The Gradle plugin does all of that for you.
 
 With the BOM imported, add Storm modules without specifying versions.
 
