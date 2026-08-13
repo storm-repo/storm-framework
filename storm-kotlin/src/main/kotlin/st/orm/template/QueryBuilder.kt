@@ -98,18 +98,35 @@ import kotlin.reflect.KClass
  */
 public abstract class QueryBuilder<T : Data, R, ID> {
     /**
-     * Returns a typed query builder for the specified primary key type.
+     * Returns a query builder whose primary key type is [pkType], so the operations that take an id can be used.
+     *
+     * A builder that did not come from a typed entity lookup carries no primary key type. `selectFrom(...)` names the
+     * table but not its key, so the id is a star projection and [WhereBuilder.whereId] has nothing to match against.
+     * Stating the key type resolves it:
+     *
+     * ```kotlin
+     * val cities = orm.selectFrom<City>()
+     *     .typedId<Int>()
+     *     .whereBuilder { whereId(listOf(1, 3, 5)) }
+     *     .resultList
+     * ```
+     *
+     * The type is checked against the model, so a type that is not the table's key fails here rather than when the
+     * query runs. This types the key, while [narrow] types the root; the two are independent, and neither is undone
+     * by a join.
      *
      * @param pkType the primary key type.
      * @return the typed query builder.
-     * @param <X> the type of the primary key.
+     * @param X the type of the primary key.
      * @throws PersistenceException if the pk type is not valid.
      * @since 1.14
      */
     public abstract fun <X : Any> typedId(pkType: KClass<X>): QueryBuilder<T, R, X>
 
     /**
-     * Returns a typed query builder for the specified primary key type.
+     * Returns a query builder whose primary key type is [X], so the operations that take an id can be used.
+     *
+     * See [typedId] for when a builder has no primary key type and why stating it is checked.
      *
      * @param X the type of the primary key.
      * @return the typed query builder.

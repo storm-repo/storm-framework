@@ -112,7 +112,23 @@ import st.orm.core.template.impl.Elements.ObjectExpression;
 public abstract class QueryBuilder<T extends Data, R, ID> {
 
     /**
-     * Returns a typed query builder for the specified primary key type.
+     * Returns a query builder whose primary key type is {@code pkType}, so the operations that take an id can be
+     * used.
+     *
+     * <p>A builder that did not come from a typed entity lookup carries no primary key type. {@code selectFrom(...)}
+     * names the table but not its key, so the id is a wildcard and {@link WhereBuilder#whereId(Object)} has nothing to
+     * match against. Stating the key type resolves it:</p>
+     *
+     * <pre>{@code
+     * List<City> cities = orm.selectFrom(City.class)
+     *         .typedId(Integer.class)
+     *         .where(predicate -> predicate.whereId(List.of(1, 3, 5)))
+     *         .getResultList();
+     * }</pre>
+     *
+     * <p>The type is checked against the model, so a type that is not the table's key fails here rather than when the
+     * query runs. This types the key, while {@link #narrow(Class)} types the root; the two are independent, and
+     * neither is undone by a join.</p>
      *
      * @param pkType the primary key type.
      * @return the typed query builder.
