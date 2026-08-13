@@ -705,12 +705,26 @@ class TemplatePreparation {
             String path = prefix.isEmpty() || occurrence.getKey().isEmpty()
                     ? prefix + occurrence.getKey()
                     : prefix + "." + occurrence.getKey();
-            if (isDetermined(path, groupedPaths) && !namesOccurrence(path, groupedPaths)) {
-                var key = keyOf(root, path);
-                if (key != null) {
-                    completion.add(key);
-                    groupedPaths.add(path);
+            if (isDetermined(path, groupedPaths)) {
+                if (!namesOccurrence(path, groupedPaths)) {
+                    var key = keyOf(root, path);
+                    if (key != null) {
+                        completion.add(key);
+                        groupedPaths.add(path);
+                    }
                 }
+            } else if (!namesOccurrence(path, groupedPaths)
+                    && findPkField(occurrence.getValue()).isPresent()) {
+                // The select list carries this table and the grouping neither names it nor determines it, so the
+                // statement asks for columns that hold many values per group. Reported here rather than left to the
+                // database: the permissive products return an arbitrary row instead of refusing, and the model says
+                // enough to know the query has no answer whichever product runs it.
+                throw new SqlTemplateException(
+                        ("Grouping does not determine %s, whose columns the select list carries. Group by %s as well, "
+                                + "or select fewer columns. Grouped: %s.")
+                                .formatted(occurrence.getValue().getSimpleName(),
+                                        describePath(root, path),
+                                        describeGrouped(root, groupedPaths)));
             }
         }
         if (!completion.isEmpty()) {
@@ -719,6 +733,22 @@ class TemplatePreparation {
             fields.addAll(completion);
             mutableElements.set(lastGrouping, new Columns(fields, columns.scope(), columns.clause()));
         }
+    }
+
+    /** Renders a path the way a caller writes it, so the message names something they can paste back. */
+    private static String describePath(Class<? extends Data> root, String path) {
+        String metamodel = root.getSimpleName() + "_";
+        return path.isEmpty()
+                ? metamodel + "." + findPkField(root).map(RecordField::name).orElse("id")
+                : metamodel + "." + path;
+    }
+
+    /** Renders the grouped identities, so the message states what the grouping does determine. */
+    private static String describeGrouped(Class<? extends Data> root, Set<String> groupedPaths) {
+        return groupedPaths.stream()
+                .sorted()
+                .map(path -> describePath(root, path))
+                .collect(java.util.stream.Collectors.joining(", "));
     }
 
     /** Returns whether a grouped occurrence determines the occurrence at the given path. */

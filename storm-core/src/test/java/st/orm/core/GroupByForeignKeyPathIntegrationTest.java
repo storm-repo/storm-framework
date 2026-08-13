@@ -2,6 +2,7 @@ package st.orm.core;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static st.orm.core.template.TemplateString.raw;
 
@@ -15,6 +16,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.orm.jpa.DataJpaTest;
 import org.springframework.test.context.ContextConfiguration;
 import org.springframework.test.context.junit.jupiter.SpringExtension;
+import st.orm.PersistenceException;
 import st.orm.core.model.Owner;
 import st.orm.core.model.Pet;
 import st.orm.core.model.Pet_;
@@ -70,6 +72,23 @@ public class GroupByForeignKeyPathIntegrationTest {
         assertTrue(groupBy.matches("(?i)GROUP BY \\w+\\.id\\b.*"),
                 "GROUP BY must name the referenced table's key: " + sql);
         assertFalse(results.isEmpty());
+    }
+
+    /**
+     * One owner has many pets, so a grouping on the owner fixes no pet. The statement has no answer on any database:
+     * the strict products refuse it and the permissive ones return an arbitrary pet, so it is refused here instead.
+     */
+    @Test
+    public void groupingByAnOwnerWhileSelectingPetsIsRejected() {
+        record OwnerPets(Pet pet, int count) {}
+        var exception = assertThrows(PersistenceException.class, () -> ORMTemplate.of(dataSource)
+                .selectFrom(Pet.class, OwnerPets.class, raw("\0, COUNT(*)", Pet.class))
+                .groupBy(Pet_.owner)
+                .getResultList());
+        String message = exception.getMessage() + String.valueOf(exception.getCause());
+        assertTrue(message.contains("Grouping does not determine Pet"), message);
+        assertTrue(message.contains("Pet_.id"), "The message must name the path to add: " + message);
+        assertTrue(message.contains("Pet_.owner"), "The message must state what is grouped: " + message);
     }
 
     /**
