@@ -436,13 +436,13 @@ List<CityCount> counts = orm.entity(User.class)
 
 ### Aggregation (SQL Templates)
 
-For aggregation queries that involve multiple tables or CTEs, SQL Templates give you full control over the query structure while still mapping results to typed records.
+For aggregation queries that involve multiple tables or CTEs, SQL Templates give you full control over the query structure while still mapping results to typed records. A template renders the clause as written, so the grouping names every table the select list carries; see [Grouping in a template](#grouping-in-a-template).
 
 ```java
 List<CityCount> counts = orm.query(RAW."""
         SELECT \{City.class}, COUNT(*)
         FROM \{User.class}
-        GROUP BY \{User_.city}""")
+        GROUP BY \{City_.id}""")
     .getResultList(CityCount.class);
 ```
 
@@ -454,29 +454,56 @@ List<CityCount> counts = orm.query(RAW."""
 A grouping states what one row stands for. `groupBy` accepts the entity you want one row of, and Storm emits whichever columns express that on the database in hand:
 
 ```kotlin
-.groupBy(Pet_.owner)      // one row per owner
-.groupBy(Pet_.owner.id)   // the same relationship, so the same grouping
-.groupBy(Pet_.id)         // one row per pet
-.groupBy(Pet_.name)       // one row per distinct name: a value, not an identity
+.groupBy(User_.city)      // one row per city
+.groupBy(User_.city.id)   // the same relationship, so the same grouping
+.groupBy(User_.id)        // one row per user
+.groupBy(User_.name)      // one row per distinct name: a value, not an identity
 ```
 
-The first three name an identity: the relationship, the key beyond it, and the query root's own key all say the same thing. The last names a value, and groups by that value literally.
+The first three name an identity. The relationship, the key beyond it, and the query root's own key all say the same thing, and a reference says it too. The last names a value, and groups by that value literally.
 
-Selecting an entity selects the tables its foreign keys reach, so a grouping usually has to cover more than the table it names. Storm adds those keys, because every foreign key is to-one: one owner has one city, so grouping the owner already fixes the city, and naming its key cannot change a group. Grouping `Pet_.owner` on a query that selects `Owner` produces `GROUP BY owner.id, city.id`.
+Selecting an entity selects the tables its foreign keys reach, so when the selected entity has foreign keys of its own the grouping has to cover those tables too. Storm adds their keys. Every foreign key is to-one, so a grouped key already fixes them, and naming them cannot move a row into a different group.
 
-How many columns an identity takes is the database's business, not yours. PostgreSQL, MySQL, SQLite and H2 resolve functional dependency from a grouped key and accept the key alone; SQL Server and Oracle require every selected column of that table, and Storm expands the grouping for them. The query you write is the same on all of them.
+### One query, every dialect
 
-A grouping that determines nothing is rejected when the query is built, on every database, rather than left to the ones that notice:
+How many columns an identity takes is a property of the database, not of the query. The SQL standard lets a grouped key stand for the columns it determines, and products disagree on whether they implement it:
+
+| | GROUP BY emitted |
+| --- | --- |
+| PostgreSQL, MySQL, SQLite, H2 | the key |
+| SQL Server, Oracle | every selected column of that table |
+
+Storm generates the form each product accepts, from the same source:
 
 ```kotlin
-// One owner has many pets, so there is no single pet per group.
-orm.selectFrom(Pet::class, PetCount::class) { "${Pet::class}, COUNT(*)" }
-    .groupBy(Pet_.owner)
-// PersistenceException: Grouping does not determine Pet, whose columns the select list
-// carries. Group by Pet_.id as well, or select fewer columns. Grouped: Pet_.owner.
+orm.entity<User>()
+    .select<CityCount, _, _> { "${City::class}, COUNT(*)" }
+    .groupBy(User_.city)
 ```
 
-The permissive databases answer such a statement with an arbitrary row rather than an error, which is why Storm refuses it everywhere: the failure would otherwise appear only in production.
+```sql
+-- PostgreSQL, MySQL, SQLite, H2
+SELECT c.id, c.name, c.population, COUNT(*) FROM user u INNER JOIN city c ON u.city_id = c.id GROUP BY c.id
+
+-- SQL Server, Oracle
+... GROUP BY c.id, c.name, c.population
+```
+
+Writing the second form by hand is what portability used to cost: a column list that exists only for the strictest product, that has to be revisited whenever the entity gains a field, and that says nothing about intent. Stating the identity says what the query means once, and leaves the spelling to the dialect.
+
+### Grouping in a template
+
+A template is the SQL you wrote, so a metamodel interpolated into one resolves to its column and nothing is added:
+
+```java
+orm.query(RAW."""
+        SELECT \{City.class}, COUNT(*)
+        FROM \{User.class}
+        GROUP BY \{City_.id}""")
+    .getResultList(CityCount.class);
+```
+
+The grouping has to name every table the select list carries. Where the selected entity has foreign keys of its own, that means their keys as well: the builder adds them for you, a template does not, because it renders what it is given. Reach for the builder when the grouping should follow the entity, and for a template when you want the clause exactly as written.
 
 
 ### Filtering Groups
