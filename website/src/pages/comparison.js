@@ -65,7 +65,12 @@ const FRAMEWORKS = [
 ];
 
 function buildBody() {
+  // The matrix is six columns wide, so on a phone it has to scroll sideways
+  // rather than squeeze. The wrapper is the scroller and carries the card
+  // chrome; it is focusable and labelled, because a scrollable region a
+  // keyboard cannot reach is a region a keyboard user cannot read.
   const matrix = `
+<div class="cmp-scroll" tabindex="0" role="region" aria-label="Framework comparison matrix">
 <table class="cmp cmp-brand">
   <thead><tr>
     <th>Feature</th><th>Storm</th><th>JPA / Hibernate</th><th>jOOQ</th><th>Exposed</th><th>Ktorm</th>
@@ -85,7 +90,8 @@ function buildBody() {
     <tr><td>Languages</td><td>Kotlin + Java</td><td>Kotlin + Java</td><td>Kotlin + Java</td><td>Kotlin only</td><td>Kotlin only</td></tr>
     <tr><td>License</td><td>Apache 2.0</td><td>LGPL 2.1</td><td>Commercial for some DBs</td><td>Apache 2.0</td><td>Apache 2.0</td></tr>
   </tbody>
-</table>`;
+</table>
+</div>`;
 
   return `
 ${navHtml('comparison')}

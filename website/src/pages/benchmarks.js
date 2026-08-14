@@ -1528,7 +1528,7 @@ const BM_CSS = `
     opacity:0;transform:translateY(3px);pointer-events:none;transition:opacity .12s ease,transform .12s ease;
     box-shadow:0 6px 18px rgba(0,0,0,.45);z-index:6}
   .bm-val[data-range]:hover::after{opacity:1;transform:translateY(0)}
-  .bm-delta{font-family:var(--mono);font-size:11px;color:var(--faint);justify-self:end;white-space:nowrap}
+  .bm-delta{font-family:var(--mono);font-size:11px;color:var(--muted);justify-self:end;white-space:nowrap}
   .bm-row.win .bm-delta{background:linear-gradient(100deg,#fcd34d,#eda921 55%,#d98a26);-webkit-background-clip:text;background-clip:text;color:transparent;font-weight:600}
   .bm-note{margin:10px 0 0;color:var(--faint);font-size:12px}
   .bm-card:not(.bm-loc) .bm-note{font-size:10.5px}
@@ -1550,7 +1550,7 @@ const BM_CSS = `
   .bm-lc{border:1px solid var(--border);border-radius:14px;background:#050507;margin:22px 0 10px;padding:20px 20px 14px}
   .bm-lc-head{display:flex;justify-content:space-between;align-items:baseline;gap:16px;flex-wrap:wrap;margin-bottom:8px}
   .storm-tut .art .bm-lc h3{margin:0;font-size:14.5px;color:var(--body)}
-  .bm-lc-hint{font-family:var(--mono);font-size:11px;color:var(--faint)}
+  .bm-lc-hint{font-family:var(--mono);font-size:11px;color:var(--muted)}
   .bm-lc svg{display:block;width:100%;height:auto}
   .bm-lc-grid{stroke:#1c1c24;stroke-width:1}
   .bm-lc-baseline{stroke:#8a8c9a;stroke-width:1.3;stroke-dasharray:2 5;opacity:.8}
@@ -1581,7 +1581,7 @@ const BM_CSS = `
   .bm-lc-lg.storm .sw{background:linear-gradient(90deg,#a78bfa,#7dd3fc)}
   .bm-lc-lg.off{opacity:.35}
   .bm-lc-lg.off .sw{background:#33333d !important}
-  .bm-lc-note{font-family:var(--mono);font-size:10.5px;color:var(--faint);margin-left:auto}
+  .bm-lc-note{font-family:var(--mono);font-size:10.5px;color:var(--muted);margin-left:auto}
   .bm-row.win .bm-name{width:fit-content;background:linear-gradient(100deg,#fcd34d,#eda921 55%,#d98a26);-webkit-background-clip:text;background-clip:text;color:transparent;font-weight:600}
   .bm-row.win .bm-bar{background:linear-gradient(90deg,#fcd34d,#eda921 55%,#d98a26)}
   .bm-scroll{overflow-x:auto;margin:6px 0 26px}
@@ -1611,6 +1611,14 @@ const BM_CSS = `
   .bm-loc .bm-row{grid-template-columns:250px 1fr 90px;margin:9px 0}
   .bm-loc .bm-note{margin-top:16px}
   .bm-loc .bm-name{white-space:normal}
+  /* On a phone the fixed 250px label column plus the 90px value column and the
+     gaps exceed the content lane, and the value column is what spills: the page
+     picks up a horizontal scrollbar. Make the label column elastic and size the
+     value column to its content instead. */
+  @media(max-width:760px){
+    .bm-loc .bm-row{grid-template-columns:minmax(0,1fr) minmax(48px,.55fr) auto;gap:10px}
+    .bm-loc .bm-name{overflow-wrap:anywhere}
+  }
   .bm-tag{display:inline-block;font-style:normal;font-size:9.5px;line-height:1;padding:3px 7px;margin-left:6px;border:1px solid var(--border);border-radius:999px;color:var(--muted);white-space:nowrap;vertical-align:1px}
   .bm-limits{border:1px solid var(--border);border-left:3px solid var(--accent);border-radius:12px;background:var(--panel-2);padding:16px 20px;margin:8px 0 24px}
   .storm-tut .art .bm-limits h3{margin:0 0 6px;font-size:15px}

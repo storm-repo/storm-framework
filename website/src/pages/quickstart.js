@@ -9,6 +9,7 @@ import {
   wireSqlToggles,
   KOTLIN_VARIANTS,
   DATABASE_VARIANTS,
+  DISCORD,
   K, T, S, C, F, N, A, P, QK, QQ, QC,
 } from '../components/tutorial/tutorialTheme';
 
@@ -161,7 +162,7 @@ ${navHtml('')}
 
   <div class="cta">
     <a href="/tutorials/build-a-rest-api" class="btn primary">Build a real app →</a>
-    <p class="starline">Five minutes well spent? Give us a <a href="https://github.com/storm-orm/storm-framework" target="_blank" rel="noopener" class="grad star">Star on GitHub</a>.</p>
+    <p class="starline">Something not work, or not make sense? Tell us on <a href="${DISCORD}" target="_blank" rel="noopener" class="grad star">Discord</a>.</p>
   </div>
 </div>
 
