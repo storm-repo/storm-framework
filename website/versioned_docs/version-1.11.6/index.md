@@ -259,4 +259,4 @@ New to Storm's terminology? See the [Glossary](glossary.md) for definitions of k
 
 ## License
 
-Storm is released under the [Apache 2.0 License](https://github.com/storm-repo/storm-framework/blob/main/LICENSE).
+Storm is released under the [Apache 2.0 License](https://github.com/storm-orm/storm-framework/blob/main/LICENSE.txt).
