@@ -17,6 +17,8 @@ This page covers everything you need to add Storm to your project: prerequisites
 
 Kotlin users do not need any preview flags. Java users must enable `--enable-preview` on compilation, tests, and execution because the Java API uses String Templates (JEP 430), and must build and run on a JDK 21 toolchain: preview class files only load on the JDK that compiled them.
 
+The pin is a property of the platform rather than of Storm, and it is not permanent. When the JDK ships a stable successor to String Templates, the Java API drops both the preview flags and the version pin and stands alongside Kotlin as a first-class path. Only `storm-java21` depends on the preview feature; the core framework and the Kotlin API are unaffected. See [String Templates](string-templates.md#status) for the current state.
+
 ## Gradle Plugin (Recommended)
 
 The Storm Gradle plugin collapses the whole setup into one plugin application. It imports the BOM, adds the core dependencies for your language, wires the metamodel processor, selects the Kotlin compiler-plugin variant matching your Kotlin version, and configures the Java preview flags. Requires Gradle 8.5+.

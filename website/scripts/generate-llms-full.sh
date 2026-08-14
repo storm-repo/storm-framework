@@ -17,11 +17,13 @@ OUTPUT="$WEBSITE_DIR/static/llms-full.txt"
 # Documentation files in sidebar order.
 DOCS=(
   index.md
-  # Core Concepts
+  # Getting Started
   getting-started.md
   installation.md
   first-entity.md
   first-query.md
+  glossary.md
+  # Core Concepts
   entities.md
   projections.md
   relationships.md
@@ -68,7 +70,6 @@ DOCS=(
   faq.md
   migration-from-jpa.md
   jpa-cascades-vs-write-sets.md
-  glossary.md
   ai.md
   ai-reference.md
   database-and-mcp.md
