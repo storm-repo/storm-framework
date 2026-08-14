@@ -12,6 +12,16 @@ import Head from '@docusaurus/Head';
 const esc = (s) =>
   s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 
+// The canonical repository. Every "GitHub" affordance on the site points here;
+// the organization's repository list is a different destination and is only
+// linked where that breadth is the point (e.g. the example-project index).
+export const GH = 'https://github.com/storm-orm/storm-framework';
+
+// The community server. A permanent invite (no expiry, no use limit): Discord's
+// default invites lapse after seven days, and a dead invite in the footer of
+// every page would go unnoticed for a long time.
+export const DISCORD = 'https://discord.gg/SgQpcweUJD';
+
 // Token helpers for hand-highlighted code, same classes/colors as the landing
 // editor: K keyword, T type, S string, C comment, F function, N number,
 // A annotation, P plain, M muted.
@@ -288,17 +298,17 @@ export function TutorialPage({title, description, slug, body}) {
 
 export const navHtml = (active) => `
 <nav><div class="wrap nav">
-  <div class="brand"><a class="bhome" href="/"><img class="logo" src="/img/storm-light.png" alt="Storm" /><span>ST<b>/ORM</b></span></a><span class="tech-tag">Kotlin 2.0–2.4 · Apache 2.0</span></div>
-  <input type="checkbox" id="storm-nav-toggle" class="nav-toggle-cb" aria-hidden="true" />
-  <label for="storm-nav-toggle" class="nav-toggle" aria-label="Toggle navigation menu"><span></span><span></span><span></span></label>
+  <div class="brand"><a class="bhome" href="/"><img class="logo" src="/img/storm-light.png" alt="Storm" /><span>ST<b>/ORM</b></span></a><span class="tech-tag">Kotlin 2.0–2.4</span></div>
+  <input type="checkbox" id="storm-nav-toggle" class="nav-toggle-cb" aria-label="Toggle navigation menu" />
+  <label for="storm-nav-toggle" class="nav-toggle" aria-hidden="true"><span></span><span></span><span></span></label>
   <div class="nav-links">
     <a href="/tutorials/"${active === 'tutorials' ? ' class="on"' : ''}>Tutorials</a>
     <a href="/examples/"${active === 'examples' ? ' class="on"' : ''}>Examples</a>
     <a href="/comparison"${active === 'comparison' ? ' class="on"' : ''}>Comparison</a>
     <a href="/benchmarks"${active === 'benchmarks' ? ' class="on"' : ''}>Benchmarks</a>
     <a href="/blog/"${active === 'blog' ? ' class="on"' : ''}>Blog</a>
-    <a href="/docs/"${active === 'docs' ? ' class="on"' : ''}>Docs</a>
-    <a class="gh" href="https://github.com/orgs/storm-orm/repositories" target="_blank" rel="noopener">GitHub</a>
+    <a href="/docs/"${active === 'docs' ? ' class="on"' : ''}>Documentation</a>
+    <a class="gh" href="${GH}" target="_blank" rel="noopener">GitHub</a>
     <a href="/quickstart" class="btn primary" style="height:36px">Get started</a>
   </div>
 </div></nav>`;
@@ -329,7 +339,7 @@ export const heroArt = (page, {priority = false} = {}) => `
 export const FOOT_HTML = `
 <footer><div class="wrap foot">
   <div class="brand"><img class="logo" src="/img/storm-light.png" alt="Storm" /></div>
-  <div class="links"><a href="/">orm.st</a><a href="/tutorials/">Tutorials</a><a href="/examples/">Examples</a><a href="/comparison">Comparison</a><a href="/benchmarks">Benchmarks</a><a href="/blog/">Blog</a><a href="https://github.com/storm-orm/storm-framework" target="_blank" rel="noopener">GitHub</a><a href="https://central.sonatype.com/namespace/st.orm">Maven Central</a></div>
+  <div class="links"><a href="/">orm.st</a><a href="/quickstart">Quickstart</a><a href="/docs/">Documentation</a><a href="/tutorials/">Tutorials</a><a href="/examples/">Examples</a><a href="/comparison">Comparison</a><a href="/benchmarks">Benchmarks</a><a href="/blog/">Blog</a><a href="${GH}" target="_blank" rel="noopener">GitHub</a><a href="${DISCORD}" target="_blank" rel="noopener">Discord</a><a href="https://central.sonatype.com/namespace/st.orm">Maven Central</a></div>
 </div></footer>`;
 
 export const TUT_CSS = `
@@ -338,7 +348,7 @@ export const TUT_CSS = `
     --border:#20202a; --border-soft:#17171f;
     --text:#eaeaf0; --muted:#8a8a96; --faint:#565662; --body:#b7b8c2;
     --accent:#818cf8; --accent-2:#a78bfa; --green:#5eead4;
-    --kw:#c4b5fd; --type:#7dd3fc; --str:#86efac; --com:#5a616e; --fn:#f0abfc; --num:#fcd34d; --anno:#fbbf24; --plain:#cfd0d8;
+    --kw:#c4b5fd; --type:#7dd3fc; --str:#86efac; --com:#767e8f; --fn:#f0abfc; --num:#fcd34d; --anno:#fbbf24; --plain:#cfd0d8;
     --mono:"JetBrains Mono",ui-monospace,SFMono-Regular,Menlo,monospace;
     --sans:"Inter",system-ui,-apple-system,Segoe UI,Roboto,sans-serif;
   }
@@ -360,7 +370,13 @@ export const TUT_CSS = `
   .storm-tut .nav-links a:hover{color:var(--text)}
   .storm-tut .nav-links a.on{color:var(--text)}
   .storm-tut .nav-toggle{display:none}
+  /* Off entirely above the breakpoint, where the links are always visible and a
+     toggle would only add a dead tab stop. */
   .storm-tut .nav-toggle-cb{display:none}
+  /* One focus ring for every interactive control on the page. Keyboard-only
+     (:focus-visible), so it never fires on a mouse click. */
+  .storm-tut a:focus-visible,.storm-tut button:focus-visible,.storm-tut select:focus-visible,
+  .storm-tut .nav-toggle-cb:focus-visible + .nav-toggle{outline:2px solid var(--accent);outline-offset:3px;border-radius:6px}
   .storm-tut .btn{display:inline-flex;align-items:center;gap:8px;height:40px;padding:0 18px;border-radius:9px;font-size:14.5px;
     font-weight:550;border:1px solid var(--border);background:var(--panel);transition:.16s;cursor:pointer}
   .storm-tut .btn:hover{border-color:#34343d;transform:translateY(-1px)}
@@ -370,13 +386,13 @@ export const TUT_CSS = `
 
   /* article shell */
   .storm-tut .art{max-width:860px;margin:0 auto;padding:54px 24px 48px}
-  .storm-tut .crumbs{font-family:var(--mono);font-size:12px;color:var(--faint);letter-spacing:.04em}
-  .storm-tut .crumbs a:hover{color:var(--muted)}
+  .storm-tut .crumbs{font-family:var(--mono);font-size:12px;color:var(--muted);letter-spacing:.04em}
+  .storm-tut .crumbs a:hover{color:var(--text)}
   .storm-tut .crumbs .sep{margin:0 9px;color:#2c2c36}
   .storm-tut h1{font-size:clamp(34px,5vw,52px);line-height:1.05;letter-spacing:-.035em;font-weight:800;margin:18px 0 0}
   .storm-tut .dek{color:var(--muted);font-size:17.5px;line-height:1.66;margin:20px 0 0;max-width:700px}
   .storm-tut .meta{display:flex;gap:8px;margin-top:24px;flex-wrap:wrap}
-  .storm-tut .meta span{font-family:var(--mono);font-size:11.5px;color:var(--faint);border:1px solid var(--border-soft);border-radius:999px;padding:5px 13px}
+  .storm-tut .meta span{font-family:var(--mono);font-size:11.5px;color:var(--muted);border:1px solid var(--border-soft);border-radius:999px;padding:5px 13px}
   .storm-tut h2{font-size:25px;letter-spacing:-.02em;font-weight:700;margin:62px 0 0}
   .storm-tut h2 .hno{font-family:var(--mono);font-size:14px;font-weight:500;color:var(--accent);margin-right:12px}
   .storm-tut p{color:var(--body);font-size:15.5px;line-height:1.75;margin:16px 0 0}
@@ -464,6 +480,18 @@ export const TUT_CSS = `
      through. */
   .storm-tut table.cmp{width:100%;border-collapse:separate;border-spacing:0;margin:26px 0 0;font-size:14px;
     background:var(--panel-2);border:1px solid var(--border);border-radius:12px;overflow:hidden}
+  /* A wide matrix (the /comparison page's six columns) cannot shrink to a phone
+     and stay readable, and the overflow:hidden above — which is what rounds the
+     card's corners — clips the right-hand columns out of sight instead of
+     letting them scroll. Where a table is wrapped in .cmp-scroll the wrapper
+     takes the card chrome and does the scrolling, and the table keeps a legible
+     minimum width. Narrow .cmp tables (two or three columns, used in the
+     tutorials) are left alone: they fit, and wrapping them would add a
+     scrollbar for nothing. */
+  .storm-tut .cmp-scroll{margin:26px 0 0;border:1px solid var(--border);border-radius:12px;
+    background:var(--panel-2);overflow-x:auto;-webkit-overflow-scrolling:touch}
+  .storm-tut .cmp-scroll:focus-visible{outline:2px solid var(--accent);outline-offset:3px}
+  .storm-tut .cmp-scroll table.cmp{margin:0;border:0;border-radius:0;min-width:820px}
   .storm-tut .cmp th,.storm-tut .cmp td{border:0;text-align:left;padding:13px 16px;vertical-align:top;line-height:1.55}
   .storm-tut .cmp thead th{font-family:var(--mono);font-size:10.5px;letter-spacing:.1em;text-transform:uppercase;
     color:var(--muted);background:rgba(255,255,255,.022);border-bottom:1px solid var(--border);white-space:nowrap}
@@ -598,11 +626,16 @@ export const TUT_CSS = `
 
   .storm-tut footer{border-top:1px solid var(--border-soft);margin-top:70px;padding:36px 0;color:var(--faint);font-size:13.5px}
   .storm-tut .foot{display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:14px}
-  .storm-tut .foot .links{display:flex;gap:22px;font-family:var(--mono)}.storm-tut .foot a{color:var(--muted)}.storm-tut .foot a:hover{color:var(--text)}
+  .storm-tut .foot .links{display:flex;gap:22px;font-family:var(--mono);flex-wrap:wrap}.storm-tut .foot a{color:var(--muted)}.storm-tut .foot a:hover{color:var(--text)}
   @media(max-width:920px){.storm-tut .tech-tag{display:none}}
   /* Mobile: replace the row of links with a hamburger that drops down a full
      menu (CSS-only via a hidden checkbox, so no JS is needed on any page). */
   @media(max-width:760px){
+    /* The menu is CSS-only (a checkbox drives the drop-down), so the checkbox is
+       the control a keyboard reaches: clipped to 1px rather than display:none,
+       which would take it out of the tab order and leave the mobile menu
+       keyboard-unreachable. Clicks land on the label, which forwards them. */
+    .storm-tut .nav-toggle-cb{display:block;position:absolute;width:1px;height:1px;margin:0;padding:0;opacity:0;pointer-events:none}
     .storm-tut .nav-toggle{display:flex;flex-direction:column;justify-content:center;gap:5px;width:40px;height:38px;padding:9px 8px;cursor:pointer;border:1px solid var(--border);border-radius:9px;background:var(--panel)}
     .storm-tut .nav-toggle span{display:block;height:2px;width:100%;background:var(--text);border-radius:2px;transition:transform .2s,opacity .2s}
     .storm-tut .nav-toggle-cb:checked ~ .nav-toggle span:nth-child(1){transform:translateY(7px) rotate(45deg)}
