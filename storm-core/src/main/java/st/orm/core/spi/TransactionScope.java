@@ -512,14 +512,34 @@ public final class TransactionScope {
     }
 
     /**
-     * Returns whether this scope's propagation joins an outer transaction rather than starting an independent one.
+     * Returns whether this scope's propagation joins an outer transaction rather than starting an independent one:
+     * a joining propagation, inside a parent that runs in a transaction.
      */
     private boolean isJoining() {
         var propagation = options.propagation();
-        return propagation == null
+        boolean joiningPropagation = propagation == null
                 || propagation == TransactionPropagation.REQUIRED
                 || propagation == TransactionPropagation.SUPPORTS
                 || propagation == TransactionPropagation.MANDATORY;
+        return joiningPropagation && parent != null && parent.isTransactional();
+    }
+
+    /**
+     * Returns whether this scope runs in a transaction, by its propagation; {@code SUPPORTS} takes after its
+     * parent. Whether an outermost {@code SUPPORTS} scope joins an externally managed transaction is known only
+     * to the provider that materializes it, so it is assumed to: a rollback-only mark that travels one block too
+     * far is the safer error.
+     */
+    private boolean isTransactional() {
+        var propagation = options.propagation();
+        if (propagation == null) {
+            return true;
+        }
+        return switch (propagation) {
+            case REQUIRED, REQUIRES_NEW, NESTED, MANDATORY -> true;
+            case NOT_SUPPORTED, NEVER -> false;
+            case SUPPORTS -> parent == null || parent.isTransactional();
+        };
     }
 
     private static PersistenceException providerMismatch(TransactionTemplateProvider provider,

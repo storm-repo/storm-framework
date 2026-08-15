@@ -59,6 +59,16 @@ import st.orm.UnexpectedRollbackException;
  * connection, savepoint, and transaction attributes; nested transactions are supported through savepoints; the
  * physical connection is bound lazily, when the first data source touches this context.</p>
  *
+ * <p>What a frame joins, and which frames share a connection, follows from the frame structure alone, decided
+ * when the frame begins and independent of what is bound at the time. A frame is transactional by its
+ * propagation, with {@code SUPPORTS} taking after its enclosing frame, and a joining propagation joins the
+ * enclosing frame only when that frame is transactional. Frames that share a physical transaction, or the
+ * absence of one, form a range owned by the frame that opened it: {@code REQUIRES_NEW}, {@code NOT_SUPPORTED}
+ * and {@code NEVER} always open their own, and every propagation does when the enclosing frame is not
+ * transactional. Binding a data source binds the range the touching frame belongs to, bottom-up, and the data
+ * source is checked for consistency within that range only, so a boundary may switch to another data source
+ * and the frames beyond it stay unbound until their own first touch.</p>
+ *
  * @see TransactionPropagation for supported transaction propagation modes
  * @since 1.13
  */
@@ -80,6 +90,12 @@ public final class JdbcTransactionContext implements TransactionContext {
         final @Nullable Integer isolationLevel;
         final @Nullable Integer timeoutSeconds;
         final @Nullable Boolean readOnly;
+        // Position on the stack, the frame that owns this frame's physical transaction range (this frame when it
+        // opens its own connection), and whether the frame runs inside a transaction. All three follow from the
+        // frame structure and are fixed when the frame begins.
+        final int index;
+        final int ownerIndex;
+        final boolean transactional;
         final String transactionId = UUID.randomUUID().toString();
         // Guards lazy connection binding: two threads (e.g. a coroutine resumption racing a task) must not
         // assign different connections to the same state. A lock rather than synchronized, so JDBC calls do
@@ -94,20 +110,27 @@ public final class JdbcTransactionContext implements TransactionContext {
         @Nullable Savepoint savepoint;
         boolean rollbackOnly;
         boolean rollbackInherited;
-        @Nullable Connection suspendedConnection;
-        @Nullable DataSource suspendedDataSource;
-        boolean suspended;
         @Nullable Long deadlineNanos;
         Map<Class<?>, EntityCache<?, ?>> entityCacheMap = new HashMap<>();
 
         TransactionState(TransactionPropagation propagation,
                          @Nullable Integer isolationLevel,
                          @Nullable Integer timeoutSeconds,
-                         @Nullable Boolean readOnly) {
+                         @Nullable Boolean readOnly,
+                         int index,
+                         int ownerIndex,
+                         boolean transactional) {
             this.propagation = propagation;
             this.isolationLevel = isolationLevel;
             this.timeoutSeconds = timeoutSeconds;
             this.readOnly = readOnly;
+            this.index = index;
+            this.ownerIndex = ownerIndex;
+            this.transactional = transactional;
+        }
+
+        boolean ownsRange() {
+            return index == ownerIndex;
         }
 
         String timeoutDescription() {
@@ -300,12 +323,47 @@ public final class JdbcTransactionContext implements TransactionContext {
      *
      * <p>The physical connection is bound lazily, when the first data source touches this context via
      * {@code useDataSource}. The frame is finished with {@link #complete(boolean)}.</p>
+     *
+     * <p>Whether the frame runs inside a transaction, and which frame owns its physical transaction range, are
+     * decided here from the enclosing frame, so {@code MANDATORY} and {@code NEVER} are checked against the
+     * transaction the enclosing block declares rather than against whatever it has bound so far.</p>
+     *
+     * @throws PersistenceException if the propagation is {@code MANDATORY} and no enclosing transaction exists,
+     * or {@code NEVER} and one does.
      */
     public void begin(TransactionPropagation propagation,
                @Nullable Integer isolation,
                @Nullable Integer timeoutSeconds,
                @Nullable Boolean readOnly) {
-        var state = new TransactionState(propagation, isolation, timeoutSeconds, readOnly);
+        var enclosing = lastOrNull();
+        boolean enclosingTransactional = enclosing != null && enclosing.transactional;
+        int index = stack.size();
+        boolean transactional = switch (propagation) {
+            case REQUIRED, REQUIRES_NEW, NESTED -> true;
+            case MANDATORY -> {
+                if (!enclosingTransactional) {
+                    throw new PersistenceException("No existing transaction for MANDATORY propagation.");
+                }
+                yield true;
+            }
+            case NEVER -> {
+                if (enclosingTransactional) {
+                    throw new PersistenceException("Existing transaction found for NEVER propagation.");
+                }
+                yield false;
+            }
+            case SUPPORTS -> enclosingTransactional;
+            case NOT_SUPPORTED -> false;
+        };
+        int ownerIndex = switch (propagation) {
+            case REQUIRES_NEW, NOT_SUPPORTED, NEVER -> index;
+            // A joining propagation shares the enclosing frame's range when that frame is transactional; inside
+            // a non-transactional frame it opens its own, a transaction or a plain connection as its own
+            // transactionality says.
+            case REQUIRED, SUPPORTS, MANDATORY, NESTED -> enclosingTransactional ? enclosing.ownerIndex : index;
+        };
+        var state = new TransactionState(propagation, isolation, timeoutSeconds, readOnly, index, ownerIndex,
+                transactional);
         if (LOGGER.isDebugEnabled()) {
             LOGGER.debug("""
                     Starting transaction ({}):
@@ -354,91 +412,65 @@ public final class JdbcTransactionContext implements TransactionContext {
      * Marks the current transaction so that it will roll back on completion.
      */
     public void setRollbackOnly() {
-        int lastIndex = stack.size() - 1;
-        var currentState = stack.get(lastIndex);
+        var currentState = currentState();
         LOGGER.debug("Marking transaction for rollback ({}).", currentState.transactionId);
         currentState.rollbackOnly = true;
         currentState.rollbackInherited = false; // Reset inherited flag, if applicable.
         // Do NOT propagate from NESTED (savepoint) scopes and do NOT propagate from owners (outermost or
         // REQUIRES_NEW).
-        if (currentState.savepoint != null || currentState.ownsConnection) {
+        if (currentState.propagation == TransactionPropagation.NESTED || currentState.ownsRange()) {
             return;
         }
-        // Propagate to outer joined frames up to (and including) the owning frame, but stop at a savepoint
-        // boundary.
-        for (int i = lastIndex - 1; i >= 0; i--) {
+        markRangeRollbackOnly(currentState);
+    }
+
+    /**
+     * Marks the joined frames beneath the given frame rollback-only, up to and including the frame that owns
+     * the physical transaction, stopping at a NESTED boundary because a savepoint scope settles on its own.
+     */
+    private void markRangeRollbackOnly(TransactionState from) {
+        for (int i = from.index - 1; i >= from.ownerIndex; i--) {
             var state = stack.get(i);
-            if (state.savepoint != null) {
+            if (state.propagation == TransactionPropagation.NESTED) {
                 break; // Do not cross NESTED boundary.
             }
             state.rollbackOnly = true;
             state.rollbackInherited = true; // Indicates caller-triggered.
-            if (state.ownsConnection) {
-                break; // Stop at the owner (could be REQUIRES_NEW).
-            }
         }
     }
 
+    /**
+     * Binds the physical transaction range the current frame belongs to, from its owner up to the current frame,
+     * to the given data source. Frames beyond the owner belong to another range: they are neither bound nor
+     * consulted, so a boundary such as {@code REQUIRES_NEW} may run against a different data source than the
+     * block that encloses it, and an enclosing frame that has not been touched yet binds on its own first touch.
+     */
     private void useDataSource(DataSource dataSource, boolean manualCommitConnections) {
-        for (int i = 0; i < stack.size(); i++) {
+        var current = currentState();
+        for (int i = current.ownerIndex; i < stack.size(); i++) {
             var state = stack.get(i);
-            if (state.connection == null) {
-                var outer = i > 0 ? stack.get(i - 1) : null;
-                boolean outerBound = outer != null && outer.connection != null;
-                switch (state.propagation) {
-                    case REQUIRED -> {
-                        if (outerBound) {
-                            joinOuterTransaction(state, outer);
-                        } else {
-                            openNewTransaction(state, dataSource, manualCommitConnections);
-                        }
-                    }
-                    case SUPPORTS -> {
-                        if (outerBound) {
-                            joinOuterTransaction(state, outer);
-                        } else {
-                            openConnection(state, dataSource, manualCommitConnections); // Non-transactional.
-                        }
-                    }
-                    case MANDATORY -> {
-                        if (outerBound) {
-                            joinOuterTransaction(state, outer);
-                        } else {
-                            throw new PersistenceException("No existing transaction for MANDATORY propagation.");
-                        }
-                    }
-                    case REQUIRES_NEW -> {
-                        if (outerBound) {
-                            suspendTransaction(state, outer);
-                        }
-                        openNewTransaction(state, dataSource, manualCommitConnections);
-                    }
-                    case NOT_SUPPORTED -> {
-                        if (outerBound) {
-                            suspendTransaction(state, outer);
-                        }
-                        openConnection(state, dataSource, manualCommitConnections); // Non-transactional.
-                    }
-                    case NEVER -> {
-                        if (outerBound) {
-                            throw new PersistenceException("Existing transaction found for NEVER propagation.");
-                        }
-                        openConnection(state, dataSource, manualCommitConnections); // Non-transactional.
-                    }
-                    case NESTED -> {
-                        if (outerBound) {
-                            openNestedTransaction(state, outer, dataSource);
-                        } else {
-                            openNewTransaction(state, dataSource, manualCommitConnections);
-                        }
-                    }
-                }
-            } else {
-                // Already bound: sanity-check data source.
+            if (state.connection != null) {
+                // Already bound: the frames of one range share one connection, so they share one data source.
                 if (state.dataSource != dataSource) {
                     throw new PersistenceException(
                             "Incompatible DataSource: " + dataSource + " but already using " + state.dataSource + ".");
                 }
+                continue;
+            }
+            if (state.ownsRange()) {
+                if (state.transactional) {
+                    openNewTransaction(state, dataSource, manualCommitConnections);
+                } else {
+                    openConnection(state, dataSource, manualCommitConnections); // Non-transactional.
+                }
+                continue;
+            }
+            // A joined frame: the enclosing frame is in the same range and, walking bottom-up, bound by now.
+            var outer = stack.get(i - 1);
+            if (state.propagation == TransactionPropagation.NESTED) {
+                openNestedTransaction(state, outer, dataSource);
+            } else {
+                joinOuterTransaction(state, outer);
             }
         }
     }
@@ -562,23 +594,13 @@ public final class JdbcTransactionContext implements TransactionContext {
                         LOGGER.warn("Failed to close connection after rollback ({}).", state.transactionId, closeException);
                     }
                 }
-            } else {
-                // Joined REQUIRED or non-transactional scope (no connection):
+            } else if (!state.ownsRange()) {
+                // A joined frame, bound or not: its failure dooms the physical transaction it belongs to.
                 LOGGER.debug("Marking transaction for rollback ({}).", state.transactionId);
-                // Propagate to outer joined frames up to (and including) the owning frame, but stop at a
-                // savepoint boundary.
-                for (int i = stack.size() - 1; i >= 0; i--) {
-                    var outerState = stack.get(i);
-                    if (outerState.savepoint != null) {
-                        break; // Do not cross NESTED boundary.
-                    }
-                    outerState.rollbackOnly = true;
-                    outerState.rollbackInherited = true; // Indicates caller-triggered.
-                    if (outerState.ownsConnection) {
-                        break; // Stop at the owner (could be REQUIRES_NEW).
-                    }
-                }
+                markRangeRollbackOnly(state);
             }
+            // else: an owner that never bound a connection; nothing physical happened, and the frames beyond
+            // it belong to another range.
         } catch (SQLException e) {
             if (!suppressException) {
                 throw new PersistenceException("Rollback failed.", e);
@@ -764,17 +786,6 @@ public final class JdbcTransactionContext implements TransactionContext {
         } catch (SQLException e) {
             LOGGER.warn("Failed to close connection after failed open ({}).", transactionId, e);
         }
-    }
-
-    /**
-     * Suspends an outer transaction on this state.
-     */
-    private void suspendTransaction(TransactionState state, TransactionState outer) {
-        LOGGER.debug("Suspending transaction ({}).", state.transactionId);
-        state.suspendedConnection = outer.connection;
-        state.suspendedDataSource = outer.dataSource;
-        state.suspended = true;
-        // No deadline needed while suspended (no shared connection).
     }
 
     /**

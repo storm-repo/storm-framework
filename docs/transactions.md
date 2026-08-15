@@ -356,6 +356,13 @@ fun runBatchJob() {
 | `NOT_SUPPORTED` | Run without tx | Suspend outer, run without tx |
 | `NEVER` | Run without tx | **Error** |
 
+"Active Tx Exists" is a property of the enclosing block, not of what it has done so far. A block declares a
+transaction by its propagation: `REQUIRED`, `REQUIRES_NEW`, `NESTED` and `MANDATORY` blocks are transactional,
+`NOT_SUPPORTED` and `NEVER` blocks are not, and `SUPPORTS` is whatever its enclosing block is. So a `REQUIRED`
+block inside a `NOT_SUPPORTED` block starts a transaction of its own rather than sharing the connection the
+non-transactional block runs on, `MANDATORY` inside `NOT_SUPPORTED` fails, `NEVER` inside `NOT_SUPPORTED`
+runs, and `NEVER` inside a `REQUIRED` block fails whether or not that block has executed a statement yet.
+
 ### Isolation Levels
 
 Transactions running at the same time can interfere with each other. The SQL standard defines four isolation levels, each preventing a different set of concurrency anomalies.
@@ -1020,6 +1027,19 @@ withTransactionOptionsBlocking(isolation = SERIALIZABLE) {
 Since 1.13, a `transaction` or `transactionBlocking` block binds to the first `ORMTemplate` that executes inside it. Opening the block only records the requested options (propagation, isolation, timeout, read-only); the actual transaction is opened by that first template's transaction provider. This means the block automatically uses whatever transaction system the template is configured with, whether that is Storm's own JDBC transactions or a platform bridge such as Spring's transaction management. A block that never touches a template completes as a no-op; callbacks it registered and a rollback-only mark still settle against the transaction that surrounds it, whether that is an outer Storm block or a detected externally managed transaction (see [Mixed-Usage Caveats](#mixed-usage-caveats)).
 
 Templates that should share a transaction must use the same transaction provider instance. This is automatic for repositories of one application (the Spring Boot starter and the Ktor plugin configure one provider per application context or plugin installation). Mixing templates with *different* transaction providers inside one block fails fast with a descriptive error, since a single commit cannot span two transaction systems.
+
+The same holds one level down, for data sources. A physical transaction runs on one connection, so every block that shares it must use the same data source: a block that touches a second data source fails with `Incompatible DataSource`, and so does a joining block (`REQUIRED`, `SUPPORTS`, `MANDATORY`, `NESTED`) whose data source differs from the block it joins. A block that opens a physical transaction of its own, or runs without one, is a boundary: `REQUIRES_NEW` and `NOT_SUPPORTED` bind whichever data source they first touch, independently of the block that encloses them, which is how an audit entry goes to a second database from inside an order transaction:
+
+```kotlin
+transactionBlocking {
+    orders insert order                       // orders database
+    transactionBlocking(REQUIRES_NEW) {
+        auditLog insert AuditEntry(order.id)  // audit database, its own transaction
+    }
+}
+```
+
+Because binding is lazy, the order of the two does not matter: had the audit block come first, the enclosing block would still be unbound when it ran, and would bind to the orders database on its own first touch afterwards. A boundary never binds the block that encloses it. What the enclosing block declares still counts, though: a `NEVER` block inside a transactional block fails whether that block has started or not.
 
 ### Manual-Commit Connection Pools
 

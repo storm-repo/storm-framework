@@ -223,6 +223,84 @@ internal open class JdbcTransactionContextTest(
         }
     }
 
+    // Joining propagations inside a non-transactional frame: the enclosing frame has a connection, but no
+    // transaction, and the propagation must go by the transaction, not the connection.
+
+    @Test
+    fun `REQUIRED inside NOT_SUPPORTED opens its own transaction and rolls back independently`(): Unit = runBlocking {
+        transactionBlocking(NOT_SUPPORTED) {
+            orm.exists<Visit>().shouldBeTrue() // Binds the NOT_SUPPORTED frame to an auto-commit connection.
+            transactionBlocking {
+                orm.removeAll<Visit>()
+                setRollbackOnly()
+            }
+            // The inner block ran in a transaction of its own and rolled it back; the delete never committed.
+            orm.exists<Visit>().shouldBeTrue()
+        }
+        orm.exists<Visit>().shouldBeTrue()
+    }
+
+    @Test
+    fun `REQUIRED inside NEVER opens its own transaction and rolls back independently`(): Unit = runBlocking {
+        transactionBlocking(NEVER) {
+            orm.exists<Visit>().shouldBeTrue()
+            transactionBlocking {
+                orm.removeAll<Visit>()
+                setRollbackOnly()
+            }
+            orm.exists<Visit>().shouldBeTrue()
+        }
+        orm.exists<Visit>().shouldBeTrue()
+    }
+
+    @Test
+    fun `MANDATORY inside NOT_SUPPORTED should throw`(): Unit = runBlocking {
+        assertThrows<PersistenceException> {
+            transactionBlocking(NOT_SUPPORTED) {
+                orm.countAll<City>()
+                transactionBlocking(MANDATORY) {
+                    orm.countAll<City>()
+                }
+            }
+        }
+    }
+
+    @Test
+    fun `NEVER inside NOT_SUPPORTED should run`(): Unit = runBlocking {
+        transactionBlocking(NOT_SUPPORTED) {
+            orm.countAll<City>()
+            transactionBlocking(NEVER) {
+                orm.countAll<City>() shouldBe 6
+            }
+        }
+    }
+
+    @Test
+    fun `rollback-only in an untouched REQUIRED inside NOT_SUPPORTED does not doom the enclosing block`(): Unit = runBlocking {
+        // The inner block never executes a statement, so the mark travels through the scope layer alone. It
+        // must stop at the NOT_SUPPORTED block, which has no transaction to be marked.
+        transactionBlocking(NOT_SUPPORTED) {
+            orm.countAll<City>()
+            transactionBlocking {
+                setRollbackOnly()
+            }
+            orm.countAll<City>() shouldBe 6
+        }
+    }
+
+    @Test
+    fun `SUPPORTS inside NOT_SUPPORTED runs non-transactionally`(): Unit = runBlocking {
+        transactionBlocking(NOT_SUPPORTED) {
+            orm.countAll<City>()
+            transactionBlocking(SUPPORTS) {
+                orm.removeAll<Visit>()
+            }
+            // SUPPORTS takes after its enclosing frame: no transaction, so the delete is already committed.
+            orm.exists<Visit>().shouldBeFalse()
+        }
+        orm.exists<Visit>().shouldBeFalse()
+    }
+
     // Read-only transactions
 
     @Test
