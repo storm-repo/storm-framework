@@ -19,25 +19,67 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 
+import jakarta.transaction.Status;
+import jakarta.transaction.UserTransaction;
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.autoconfigure.AutoConfigurations;
 import org.springframework.boot.autoconfigure.jdbc.DataSourceAutoConfiguration;
 import org.springframework.boot.autoconfigure.jdbc.DataSourceTransactionManagerAutoConfiguration;
 import org.springframework.boot.autoconfigure.orm.jpa.HibernateJpaAutoConfiguration;
 import org.springframework.boot.test.context.runner.ApplicationContextRunner;
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Configuration;
 import org.springframework.jdbc.support.JdbcTransactionManager;
 import org.springframework.orm.jpa.JpaTransactionManager;
 import org.springframework.transaction.PlatformTransactionManager;
+import org.springframework.transaction.jta.JtaTransactionManager;
 import st.orm.core.spi.ConnectionProvider;
 import st.orm.core.spi.TransactionTemplateProvider;
 
 /**
  * Verifies that the transaction integration activates for every transaction manager a Spring Boot application
- * can end up with: the JDBC manager, and the JPA manager that replaces it when JPA is on the class path. The
- * Storm auto-configuration is listed first so the test relies on the declared ordering hints, not on the
- * listing order, to see the manager bean.
+ * can end up with: the JDBC manager, the JPA manager that replaces it when JPA is on the class path, and a
+ * JTA manager the application or a JTA starter defines, before which the JDBC manager backs off. The Storm
+ * auto-configuration is listed first so the test relies on the declared ordering hints, not on the listing
+ * order, to see the manager bean.
  */
 public class StormTransactionAutoConfigurationTest {
+
+    @Test
+    void activatesWithJtaTransactionManager() {
+        new ApplicationContextRunner()
+                .withConfiguration(AutoConfigurations.of(
+                        StormTransactionAutoConfiguration.class,
+                        DataSourceAutoConfiguration.class,
+                        DataSourceTransactionManagerAutoConfiguration.class))
+                .withUserConfiguration(JtaConfiguration.class)
+                .withPropertyValues("spring.datasource.url=jdbc:h2:mem:tx-autoconfig-jta;DB_CLOSE_DELAY=-1")
+                .run(context -> {
+                    // The JDBC manager backs off when a transaction manager bean exists, as it does in an
+                    // application on JTA, so the JTA manager is the only one Storm can resolve.
+                    assertInstanceOf(JtaTransactionManager.class, context.getBean(PlatformTransactionManager.class));
+                    assertEquals(1, context.getBeansOfType(ConnectionProvider.class).size());
+                    assertEquals(1, context.getBeansOfType(TransactionTemplateProvider.class).size());
+                });
+    }
+
+    @Configuration(proxyBeanMethods = false)
+    static class JtaConfiguration {
+        @Bean
+        JtaTransactionManager transactionManager() {
+            return new JtaTransactionManager(new NoOpUserTransaction());
+        }
+    }
+
+    /** Stands in for the {@code UserTransaction} an application server provides; the test never drives it. */
+    static final class NoOpUserTransaction implements UserTransaction {
+        @Override public void begin() {}
+        @Override public void commit() {}
+        @Override public void rollback() {}
+        @Override public void setRollbackOnly() {}
+        @Override public int getStatus() { return Status.STATUS_NO_TRANSACTION; }
+        @Override public void setTransactionTimeout(int seconds) {}
+    }
 
     @Test
     void activatesWithJdbcTransactionManager() {

@@ -1197,6 +1197,31 @@ class UserService(private val orm: ORMTemplate) {
 }
 ```
 
+#### Which Transaction Manager Runs the Block
+
+A Storm block resolves its manager from the data source it first touches. A manager owns the data source when
+it works on it directly, as `DataSourceTransactionManager` and `JdbcTransactionManager` do, or when it is a
+`JpaTransactionManager` whose entity manager factory is backed by it, which is what Spring Boot registers when
+JPA is on the classpath. Two managers owning the same data source is an error at the first query, naming both;
+define a `TransactionTemplateProvider` bean with the one that should complete Storm-initiated transactions.
+
+A `JtaTransactionManager` owns no single data source: a global transaction spans every resource enlisted in
+it. Storm uses it when no resource-bound manager claims the data source, so an application on JTA needs no
+extra configuration, and an application that configures both keeps the resource-bound manager for Storm's
+blocks. Three options are refused by a JTA manager unless it is configured for them, and Storm reports the
+refusal against the option you passed:
+
+- An explicit isolation level. JTA has no portable way to apply one; leave it at the default, or enable
+  `allowCustomIsolationLevels` on the manager.
+- `NESTED` propagation. Savepoints need a `jakarta.transaction.TransactionManager` on the Spring manager; use
+  `REQUIRES_NEW` for an independent transaction or `REQUIRED` to join.
+- `REQUIRES_NEW` and `NOT_SUPPORTED` inside an active transaction. Both suspend it, which needs that same
+  `jakarta.transaction.TransactionManager` for suspend and resume. A manager built from a `UserTransaction`
+  alone cannot; the JTA starters and application servers configure both.
+
+Statements inside `@Transactional` need none of this. The Spring connection provider acquires through
+`DataSourceUtils` and rides whichever manager opened the transaction, JTA included.
+
 ### Ktor Route Transactions
 
 In Ktor, the [`transactional { }` route DSL](ktor-integration.md#route-scoped-transactions) wraps a group of routes so that
