@@ -50,6 +50,7 @@ import org.springframework.transaction.TransactionStatus;
 import org.springframework.transaction.TransactionSuspensionNotSupportedException;
 import org.springframework.transaction.jta.JtaTransactionManager;
 import org.springframework.transaction.support.ResourceTransactionManager;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 import org.springframework.util.ClassUtils;
 import st.orm.Entity;
 import st.orm.PersistenceException;
@@ -69,6 +70,16 @@ import st.orm.core.spi.TransactionContext;
  * transaction starts lazily, when the first data source touches this context via
  * {@link #useDataSource(DataSource)}.</p>
  *
+ * <p>Which frames share a physical transaction follows from the frame structure alone, decided when the frame
+ * begins. A frame is transactional by its propagation, with {@code SUPPORTS} taking after its enclosing frame
+ * (for the outermost frame, after the Spring transaction active on the thread), and a joining propagation
+ * joins the enclosing frame only when that frame is transactional. Frames that share a physical transaction,
+ * or the absence of one, form a range owned by the frame that opened it: {@code REQUIRES_NEW},
+ * {@code NOT_SUPPORTED} and {@code NEVER} always open their own, and every propagation does when the
+ * enclosing frame is not transactional. Touching a data source starts the range the touching frame belongs
+ * to, bottom-up, and the data source is checked for consistency within that range only, so a boundary may
+ * switch to another data source and the frames beyond it stay unstarted until their own first touch.</p>
+ *
  * @since 1.13
  */
 public final class SpringTransactionContext implements TransactionContext {
@@ -82,10 +93,16 @@ public final class SpringTransactionContext implements TransactionContext {
      *
      * <p>Joined REQUIRED/SUPPORTS/MANDATORY frames share the same entity-cache map instance for identity
      * stability. NESTED shares the outer map too (same physical transaction); on nested rollback, the outer
-     * map is cleared. REQUIRES_NEW/NOT_SUPPORTED/NEVER keep their own map (separate physical transaction or
+     * map is cleared. A frame that owns its range keeps its own map (separate physical transaction or
      * non-transactional boundary).</p>
      */
     private static final class TransactionState {
+        // Position on the stack, the frame that owns this frame's physical transaction range (this frame when it
+        // starts its own Spring transaction), and whether the frame runs inside a transaction. All three follow
+        // from the frame structure and are fixed when the frame begins.
+        final int index;
+        final int ownerIndex;
+        final boolean transactional;
         @Nullable TransactionStatus transactionStatus;
         @Nullable PlatformTransactionManager transactionManager;
         @Nullable DataSource dataSource;
@@ -94,6 +111,16 @@ public final class SpringTransactionContext implements TransactionContext {
         @Nullable Integer timeoutSeconds;
         @Nullable Long deadlineNanos;
         Map<Class<?>, EntityCache<?, ?>> entityCacheMap = new HashMap<>();
+
+        TransactionState(int index, int ownerIndex, boolean transactional) {
+            this.index = index;
+            this.ownerIndex = ownerIndex;
+            this.transactional = transactional;
+        }
+
+        boolean ownsRange() {
+            return index == ownerIndex;
+        }
 
         String timeoutDescription() {
             return "isolation=" + isolationName(transactionDefinition == null ? null : transactionDefinition.getIsolationLevel())
@@ -185,33 +212,6 @@ public final class SpringTransactionContext implements TransactionContext {
     public Optional<String> describe() {
         var state = lastOrNull();
         return Optional.ofNullable(state == null ? null : state.timeoutDescription());
-    }
-
-    private static boolean isBoundary(@Nullable Integer propagation) {
-        if (propagation == null) {
-            return false;
-        }
-        return switch (propagation) {
-            case PROPAGATION_REQUIRES_NEW, PROPAGATION_NESTED, PROPAGATION_NOT_SUPPORTED, PROPAGATION_NEVER -> true;
-            default -> false;
-        };
-    }
-
-    /**
-     * Returns the index of the owner of the current physical transaction range for {@code stack[index]}:
-     * walks outward until just after a boundary (or to 0).
-     */
-    private int ownerIndexFor(int index) {
-        int i = index;
-        while (i > 0) {
-            var prev = stack.get(i - 1);
-            var definition = prev.transactionDefinition;
-            if (isBoundary(definition == null ? null : definition.getPropagationBehavior())) {
-                break;
-            }
-            i--;
-        }
-        return i;
     }
 
     /**
@@ -339,9 +339,47 @@ public final class SpringTransactionContext implements TransactionContext {
      *
      * <p>The physical Spring transaction starts lazily, when the first data source touches this context via
      * {@link #useDataSource(DataSource)}. The frame is finished with {@link #complete(boolean)}.</p>
+     *
+     * <p>Whether the frame runs inside a transaction, and which frame owns its physical transaction range, are
+     * decided here from the enclosing frame, so {@code MANDATORY} and {@code NEVER} are checked against the
+     * transaction the enclosing block declares rather than against whatever Spring has started so far. The
+     * outermost frame's enclosing transaction is the Spring transaction active on the thread, if any.</p>
+     *
+     * @throws PersistenceException if the propagation is {@code MANDATORY} and no enclosing transaction exists,
+     * or {@code NEVER} and one does.
      */
     public void begin(TransactionDefinition definition) {
-        var state = new TransactionState();
+        var enclosing = lastOrNull();
+        boolean enclosingTransactional = enclosing != null
+                ? enclosing.transactional
+                : TransactionSynchronizationManager.isActualTransactionActive();
+        int index = stack.size();
+        int propagation = definition.getPropagationBehavior();
+        boolean transactional = switch (propagation) {
+            case PROPAGATION_REQUIRED, PROPAGATION_REQUIRES_NEW, PROPAGATION_NESTED -> true;
+            case PROPAGATION_MANDATORY -> {
+                if (!enclosingTransactional) {
+                    throw new PersistenceException("No existing transaction for MANDATORY propagation.");
+                }
+                yield true;
+            }
+            case PROPAGATION_NEVER -> {
+                if (enclosingTransactional) {
+                    throw new PersistenceException("Existing transaction found for NEVER propagation.");
+                }
+                yield false;
+            }
+            case PROPAGATION_SUPPORTS -> enclosingTransactional;
+            case PROPAGATION_NOT_SUPPORTED -> false;
+            default -> throw new IllegalArgumentException("Unknown propagation behavior: " + propagation + ".");
+        };
+        int ownerIndex = switch (propagation) {
+            case PROPAGATION_REQUIRES_NEW, PROPAGATION_NOT_SUPPORTED, PROPAGATION_NEVER -> index;
+            // A joining propagation shares the enclosing frame's range when that frame is transactional; inside
+            // a non-transactional frame, or as the outermost frame, it opens its own.
+            default -> enclosing != null && enclosingTransactional ? enclosing.ownerIndex : index;
+        };
+        var state = new TransactionState(index, ownerIndex, transactional);
         state.transactionDefinition = definition;
         state.timeoutSeconds = definition.getTimeout() > 0 ? definition.getTimeout() : null;
         state.deadlineNanos = state.timeoutSeconds == null ? null : deadlineFromNow(state.timeoutSeconds);
@@ -377,19 +415,21 @@ public final class SpringTransactionContext implements TransactionContext {
 
     /**
      * Called by the ConnectionProvider before obtaining a JDBC connection.
+     *
+     * <p>Starts the physical transaction range the current frame belongs to, from its owner up to the current
+     * frame, on the given data source. Frames beyond the owner belong to another range: they are neither
+     * started nor consulted, so a boundary such as {@code REQUIRES_NEW} may run against a different data source
+     * than the block that encloses it, and an enclosing frame that has not been touched yet starts on its own
+     * first touch.</p>
      */
     public void useDataSource(DataSource dataSource) {
-        int index = stack.size() - 1;
-        if (index < 0) {
-            throw new IllegalStateException("No transaction active.");
-        }
-        int startIndex = ownerIndexFor(index);
-        var existingDataSource = findDataSourceInRange(startIndex, index);
+        var state = currentState();
+        var existingDataSource = findDataSourceInRange(state.ownerIndex, state.index);
         if (existingDataSource != null && existingDataSource != dataSource) {
             throw new IllegalStateException(
                     "Incompatible DataSource detected: " + dataSource + " but already using " + existingDataSource + ".");
         }
-        ensureStartedInRange(startIndex, index, dataSource);
+        ensureStartedInRange(state.ownerIndex, state.index, dataSource);
     }
 
     public boolean isRollbackOnly() {
@@ -398,17 +438,12 @@ public final class SpringTransactionContext implements TransactionContext {
     }
 
     public void setRollbackOnly() {
-        int index = stack.size() - 1;
-        if (index < 0) {
-            throw new IllegalStateException("No transaction active.");
-        }
-        int startIndex = ownerIndexFor(index);
-        var dataSource = findDataSourceInRange(startIndex, index);
+        var state = currentState();
+        var dataSource = findDataSourceInRange(state.ownerIndex, state.index);
         if (dataSource != null) {
             // Starts statuses and calls setRollbackOnly() where needed.
-            ensureStartedInRange(startIndex, index, dataSource);
+            ensureStartedInRange(state.ownerIndex, state.index, dataSource);
         }
-        var state = stack.get(index);
         state.rollbackOnly = true;
         if (state.transactionStatus != null) {
             state.transactionStatus.setRollbackOnly();
@@ -512,10 +547,12 @@ public final class SpringTransactionContext implements TransactionContext {
     /**
      * Starts a Spring TransactionStatus for the given state if not already started.
      *
-     * <p>For inner frames, the outer's manager is reused where appropriate; the transaction manager is still
-     * asked for a status using this frame's definition to honor propagation semantics. Also enforces the
-     * entity-cache sharing policy: REQUIRED/SUPPORTS/MANDATORY/NESTED share the outer cache;
-     * REQUIRES_NEW/NOT_SUPPORTED/NEVER use their own.</p>
+     * <p>A frame that owns its range resolves the manager for the data source it touches; a joined frame takes
+     * the manager and data source of the frame it joins, which is in the same range and, since ranges start
+     * bottom-up, started by now. The transaction manager is still asked for a status using this frame's
+     * definition to honor propagation semantics. Joined frames share the entity cache of the frame they join;
+     * an owner keeps its own. The deadline reconciles with the enclosing frame's, whether or not that frame is
+     * in the range: an inner block runs inside the outer block's wall clock either way.</p>
      */
     private void startTransactionIfNecessary(TransactionState state, DataSource dataSource, int level) {
         var definition = state.transactionDefinition;
@@ -529,42 +566,60 @@ public final class SpringTransactionContext implements TransactionContext {
             }
             return;
         }
-        if (level > 0) {
-            startTransactionIfNecessary(stack.get(level - 1), dataSource, level - 1);
-            var outer = stack.get(level - 1);
-            state.dataSource = outer.dataSource != null ? outer.dataSource : dataSource;
-            state.transactionManager = outer.transactionManager != null
-                    ? outer.transactionManager
-                    : resolveTransactionManager(dataSource);
-            // Cache sharing policy.
-            switch (definition.getPropagationBehavior()) {
-                case PROPAGATION_REQUIRED, PROPAGATION_SUPPORTS, PROPAGATION_MANDATORY, PROPAGATION_NESTED ->
-                        state.entityCacheMap = outer.entityCacheMap;
-                default -> {
-                    // REQUIRES_NEW / NOT_SUPPORTED / NEVER keep their own map.
-                }
-            }
-            // Reconcile deadlines: inner deadline = min(outer, requested).
-            Long requested = state.timeoutSeconds == null ? null : deadlineFromNow(state.timeoutSeconds);
-            if (outer.deadlineNanos == null && requested == null) {
-                state.deadlineNanos = null;
-            } else if (outer.deadlineNanos == null) {
-                state.deadlineNanos = requested;
-            } else if (requested == null) {
-                state.deadlineNanos = outer.deadlineNanos;
-            } else {
-                state.deadlineNanos = Math.min(outer.deadlineNanos, requested);
-            }
-        } else {
+        if (state.ownsRange()) {
             state.dataSource = dataSource;
             state.transactionManager = resolveTransactionManager(dataSource);
-            // Root: deadline already set in begin(); keep it.
+        } else {
+            var outer = stack.get(level - 1);
+            if (outer.transactionManager == null) {
+                throw new IllegalStateException("The joined transaction frame has not been started.");
+            }
+            state.dataSource = outer.dataSource != null ? outer.dataSource : dataSource;
+            state.transactionManager = outer.transactionManager;
+            state.entityCacheMap = outer.entityCacheMap;
         }
+        if (level > 0) {
+            // Reconcile deadlines: inner deadline = min(enclosing, requested).
+            Long enclosing = enclosingDeadline(level);
+            Long requested = state.timeoutSeconds == null ? null : deadlineFromNow(state.timeoutSeconds);
+            if (enclosing == null && requested == null) {
+                state.deadlineNanos = null;
+            } else if (enclosing == null) {
+                state.deadlineNanos = requested;
+            } else if (requested == null) {
+                state.deadlineNanos = enclosing;
+            } else {
+                state.deadlineNanos = Math.min(enclosing, requested);
+            }
+        }
+        // else: root, deadline already set in begin(); keep it.
         var transactionStatus = getTransaction(state.transactionManager, definition);
         state.transactionStatus = transactionStatus;
         if (state.rollbackOnly) {
             transactionStatus.setRollbackOnly();
         }
+    }
+
+    /**
+     * Returns the deadline the frames enclosing {@code level} impose, or {@code null} when none has one.
+     *
+     * <p>A started frame carries its reconciled deadline, so the walk stops there; frames that have not
+     * started yet, which happens when a boundary starts before the block that encloses it, contribute their own
+     * timeout each.</p>
+     */
+    @Nullable
+    private Long enclosingDeadline(int level) {
+        Long deadline = null;
+        for (int i = level - 1; i >= 0; i--) {
+            var enclosing = stack.get(i);
+            if (enclosing.deadlineNanos != null) {
+                deadline = deadline == null ? enclosing.deadlineNanos : Math.min(deadline, enclosing.deadlineNanos);
+            }
+            if (enclosing.transactionStatus != null) {
+                break;
+            }
+        }
+        return deadline;
     }
 
     /**

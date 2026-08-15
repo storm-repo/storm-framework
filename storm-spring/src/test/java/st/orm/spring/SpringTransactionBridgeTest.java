@@ -33,7 +33,6 @@ import org.springframework.boot.jdbc.DataSourceBuilder;
 import org.springframework.core.io.ClassPathResource;
 import org.springframework.jdbc.datasource.DataSourceTransactionManager;
 import org.springframework.jdbc.datasource.init.ResourceDatabasePopulator;
-import org.springframework.transaction.IllegalTransactionStateException;
 import st.orm.PersistenceException;
 import st.orm.repository.EntityRepository;
 import st.orm.spring.model.Pet;
@@ -123,12 +122,28 @@ class SpringTransactionBridgeTest {
 
     @Test
     void mandatoryWithoutEnclosingTransactionThrows() {
-        // MANDATORY is evaluated by Spring's transaction manager, which raises its own exception type.
-        assertThrows(IllegalTransactionStateException.class, () ->
+        // MANDATORY is checked against the enclosing block, or for the outermost block against the Spring
+        // transaction active on the thread, and fails the way it does under Storm's own transactions.
+        assertThrows(PersistenceException.class, () ->
                 transaction(MANDATORY, tx -> {
                     insertVisit("never");
                     return null;
                 }));
+    }
+
+    @Test
+    void mandatoryJoinsAnEnclosingSpringManagedTransaction() {
+        long before = visits.count();
+        var springTransaction = new org.springframework.transaction.support.TransactionTemplate(transactionManager);
+        springTransaction.executeWithoutResult(status -> {
+            // The outermost Storm block sees the Spring transaction the surrounding code opened.
+            transaction(MANDATORY, tx -> {
+                insertVisit("joined, discarded");
+                return null;
+            });
+            status.setRollbackOnly();
+        });
+        assertEquals(before, visits.count());
     }
 
     @Test
