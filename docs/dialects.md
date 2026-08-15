@@ -21,6 +21,56 @@ Storm works with any JDBC-compatible database using standard SQL. However, datab
 
 Add the dialect dependency for your database. Dialects are runtime-only dependencies: they do not affect your compile-time code or entity definitions. Your entity classes, repositories, and queries are written against Storm's core API, not against any specific dialect. This means you can switch databases by changing a single dependency without modifying application code.
 
+### Gradle (Kotlin DSL)
+
+```kotlin
+// Oracle
+runtimeOnly("st.orm:storm-oracle:@@STORM_VERSION@@")
+
+// MS SQL Server
+runtimeOnly("st.orm:storm-mssqlserver:@@STORM_VERSION@@")
+
+// PostgreSQL
+runtimeOnly("st.orm:storm-postgresql:@@STORM_VERSION@@")
+
+// MySQL
+runtimeOnly("st.orm:storm-mysql:@@STORM_VERSION@@")
+
+// MariaDB
+runtimeOnly("st.orm:storm-mariadb:@@STORM_VERSION@@")
+
+// SQLite
+runtimeOnly("st.orm:storm-sqlite:@@STORM_VERSION@@")
+
+// H2
+runtimeOnly("st.orm:storm-h2:@@STORM_VERSION@@")
+```
+
+### Gradle (Groovy DSL)
+
+```groovy
+// Oracle
+runtimeOnly 'st.orm:storm-oracle:@@STORM_VERSION@@'
+
+// MS SQL Server
+runtimeOnly 'st.orm:storm-mssqlserver:@@STORM_VERSION@@'
+
+// PostgreSQL
+runtimeOnly 'st.orm:storm-postgresql:@@STORM_VERSION@@'
+
+// MySQL
+runtimeOnly 'st.orm:storm-mysql:@@STORM_VERSION@@'
+
+// MariaDB
+runtimeOnly 'st.orm:storm-mariadb:@@STORM_VERSION@@'
+
+// SQLite
+runtimeOnly 'st.orm:storm-sqlite:@@STORM_VERSION@@'
+
+// H2
+runtimeOnly 'st.orm:storm-h2:@@STORM_VERSION@@'
+```
+
 ### Maven
 
 ```xml
@@ -79,56 +129,6 @@ Add the dialect dependency for your database. Dialects are runtime-only dependen
     <version>@@STORM_VERSION@@</version>
     <scope>runtime</scope>
 </dependency>
-```
-
-### Gradle (Groovy DSL)
-
-```groovy
-// Oracle
-runtimeOnly 'st.orm:storm-oracle:@@STORM_VERSION@@'
-
-// MS SQL Server
-runtimeOnly 'st.orm:storm-mssqlserver:@@STORM_VERSION@@'
-
-// PostgreSQL
-runtimeOnly 'st.orm:storm-postgresql:@@STORM_VERSION@@'
-
-// MySQL
-runtimeOnly 'st.orm:storm-mysql:@@STORM_VERSION@@'
-
-// MariaDB
-runtimeOnly 'st.orm:storm-mariadb:@@STORM_VERSION@@'
-
-// SQLite
-runtimeOnly 'st.orm:storm-sqlite:@@STORM_VERSION@@'
-
-// H2
-runtimeOnly 'st.orm:storm-h2:@@STORM_VERSION@@'
-```
-
-### Gradle (Kotlin DSL)
-
-```kotlin
-// Oracle
-runtimeOnly("st.orm:storm-oracle:@@STORM_VERSION@@")
-
-// MS SQL Server
-runtimeOnly("st.orm:storm-mssqlserver:@@STORM_VERSION@@")
-
-// PostgreSQL
-runtimeOnly("st.orm:storm-postgresql:@@STORM_VERSION@@")
-
-// MySQL
-runtimeOnly("st.orm:storm-mysql:@@STORM_VERSION@@")
-
-// MariaDB
-runtimeOnly("st.orm:storm-mariadb:@@STORM_VERSION@@")
-
-// SQLite
-runtimeOnly("st.orm:storm-sqlite:@@STORM_VERSION@@")
-
-// H2
-runtimeOnly("st.orm:storm-h2:@@STORM_VERSION@@")
 ```
 
 ## Automatic Detection

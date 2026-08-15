@@ -37,7 +37,7 @@ const CODE_REGISTER = [
   C('// Registration is explicit and immutable: a new template, callback applied\n'),
   K('val '), P('orm = dataSource.orm.'), F('withEntityCallback'), P('('), T('AuditCallback'), P('())\n\n'),
   C('// From here, every insert and update flows through the hooks\n'),
-  K('val '), P('article = orm '), K('insert '), T('Article'), P('(title = '), S('"Storm 1.11"'), P(')\n'),
+  K('val '), P('article = orm '), K('insert '), T('Article'), P('(title = '), S('"Immutable entities"'), P(')\n'),
   C('// article.createdAt and updatedAt are set'),
 ].join('');
 

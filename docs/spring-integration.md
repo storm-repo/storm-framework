@@ -33,6 +33,11 @@ implementation("st.orm:storm-kotlin-spring-boot-starter:@@STORM_VERSION@@")
 </TabItem>
 <TabItem value="java" label="Java">
 
+```kotlin
+// Gradle (Kotlin DSL)
+implementation("st.orm:storm-spring-boot-starter:@@STORM_VERSION@@")
+```
+
 ```xml
 <!-- Maven -->
 <dependency>
@@ -40,11 +45,6 @@ implementation("st.orm:storm-kotlin-spring-boot-starter:@@STORM_VERSION@@")
     <artifactId>storm-spring-boot-starter</artifactId>
     <version>@@STORM_VERSION@@</version>
 </dependency>
-```
-
-```kotlin
-// Gradle (Kotlin DSL)
-implementation("st.orm:storm-spring-boot-starter:@@STORM_VERSION@@")
 ```
 
 </TabItem>
@@ -74,6 +74,11 @@ implementation("st.orm:storm-kotlin-spring:@@STORM_VERSION@@")
 </TabItem>
 <TabItem value="java" label="Java">
 
+```kotlin
+// Gradle (Kotlin DSL)
+implementation("st.orm:storm-spring:@@STORM_VERSION@@")
+```
+
 ```xml
 <!-- Maven -->
 <dependency>
@@ -81,11 +86,6 @@ implementation("st.orm:storm-kotlin-spring:@@STORM_VERSION@@")
     <artifactId>storm-spring</artifactId>
     <version>@@STORM_VERSION@@</version>
 </dependency>
-```
-
-```kotlin
-// Gradle (Kotlin DSL)
-implementation("st.orm:storm-spring:@@STORM_VERSION@@")
 ```
 
 </TabItem>

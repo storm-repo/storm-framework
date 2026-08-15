@@ -15,7 +15,13 @@ Works with both Kotlin and Java projects. Two variants are available, matching t
 
 **Jackson 2** (requires Jackson 2.17+):
 
+```groovy
+// Gradle (Groovy DSL)
+implementation 'st.orm:storm-jackson2:@@STORM_VERSION@@'
+```
+
 ```xml
+<!-- Maven -->
 <dependency>
     <groupId>st.orm</groupId>
     <artifactId>storm-jackson2</artifactId>
@@ -23,13 +29,15 @@ Works with both Kotlin and Java projects. Two variants are available, matching t
 </dependency>
 ```
 
-```groovy
-implementation 'st.orm:storm-jackson2:@@STORM_VERSION@@'
-```
-
 **Jackson 3** (requires Jackson 3.0+):
 
+```groovy
+// Gradle (Groovy DSL)
+implementation 'st.orm:storm-jackson3:@@STORM_VERSION@@'
+```
+
 ```xml
+<!-- Maven -->
 <dependency>
     <groupId>st.orm</groupId>
     <artifactId>storm-jackson3</artifactId>
@@ -37,11 +45,7 @@ implementation 'st.orm:storm-jackson2:@@STORM_VERSION@@'
 </dependency>
 ```
 
-```groovy
-implementation 'st.orm:storm-jackson3:@@STORM_VERSION@@'
-```
-
-The two modules are mutually exclusive on the classpath, one of the four paired-module choices listed in [One Per Classpath](installation.md#one-per-classpath). Both provide the same public API (`st.orm.jackson` package), so switching between them requires only changing the Maven dependency.
+The two modules are mutually exclusive on the classpath, one of the four paired-module choices listed in [One Per Classpath](installation.md#one-per-classpath). Both provide the same public API (`st.orm.jackson` package), so switching between them requires only changing the dependency.
 
 ### Kotlinx Serialization (Kotlin)
 
