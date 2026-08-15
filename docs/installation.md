@@ -113,6 +113,14 @@ dependencies {
 </TabItem>
 <TabItem value="java" label="Java">
 
+**Gradle (Kotlin DSL):**
+
+```kotlin
+dependencies {
+    implementation(platform("st.orm:storm-bom:@@STORM_VERSION@@"))
+}
+```
+
 **Maven:**
 
 ```xml
@@ -127,14 +135,6 @@ dependencies {
         </dependency>
     </dependencies>
 </dependencyManagement>
-```
-
-**Gradle (Kotlin DSL):**
-
-```kotlin
-dependencies {
-    implementation(platform("st.orm:storm-bom:@@STORM_VERSION@@"))
-}
 ```
 
 </TabItem>

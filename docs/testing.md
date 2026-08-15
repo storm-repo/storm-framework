@@ -18,6 +18,12 @@ Spring Boot applications additionally have the [`@DataStormTest` slice](spring-i
 
 Add `storm-test` as a test dependency.
 
+**Gradle (Kotlin DSL):**
+
+```kotlin
+testImplementation("st.orm:storm-test")
+```
+
 **Maven:**
 
 ```xml
@@ -26,12 +32,6 @@ Add `storm-test` as a test dependency.
     <artifactId>storm-test</artifactId>
     <scope>test</scope>
 </dependency>
-```
-
-**Gradle (Kotlin DSL):**
-
-```kotlin
-testImplementation("st.orm:storm-test")
 ```
 
 The module uses H2 as its default in-memory database. To use H2, add it as a test dependency if it is not already present:

@@ -222,7 +222,16 @@ Only `storm-java21` depends on this preview feature. The core framework and the 
 Enable preview features in your Java compiler configuration:
 
 <Tabs groupId="build">
-<TabItem value="maven" label="Maven" default>
+<TabItem value="gradle" label="Gradle (Kotlin DSL)" default>
+
+```kotlin
+tasks.withType<JavaCompile> {
+    options.compilerArgs.add("--enable-preview")
+}
+```
+
+</TabItem>
+<TabItem value="maven" label="Maven">
 
 ```xml
 <plugin>
@@ -234,15 +243,6 @@ Enable preview features in your Java compiler configuration:
         </compilerArgs>
     </configuration>
 </plugin>
-```
-
-</TabItem>
-<TabItem value="gradle" label="Gradle (Kotlin DSL)">
-
-```kotlin
-tasks.withType<JavaCompile> {
-    options.compilerArgs.add("--enable-preview")
-}
 ```
 
 </TabItem>
