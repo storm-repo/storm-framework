@@ -213,6 +213,13 @@
             <scope>test</scope>
         </dependency>
         <dependency>
+            <!-- JtaTransactionManager carries jakarta.transaction types in its signature; declared so the JTA
+                 bridge test does not depend on it arriving through another test dependency. -->
+            <groupId>jakarta.transaction</groupId>
+            <artifactId>jakarta.transaction-api</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
             <groupId>com.h2database</groupId>
             <artifactId>h2</artifactId>
             <scope>test</scope>

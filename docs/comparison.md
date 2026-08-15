@@ -92,7 +92,7 @@ _Comparison reviewed against Hibernate ORM 7.4.5. Last reviewed: 2026-07-15._
 | **N+1 Problem** | Prevented by design; requires explicit opt-in | Common pitfall                           |
 | **Queries** | Type-safe DSL, SQL Templates | JPQL, Criteria API                       |
 | **Caching** | Transaction-scoped observation | First/second level cache                 |
-| **Transactions** | Programmatic + `@Transactional` (Spring) | `@Transactional`, JTA, container-managed |
+| **Transactions** | Programmatic + `@Transactional` (Spring); JTA through Spring's `JtaTransactionManager` | `@Transactional`, JTA, container-managed |
 | **Schema Validation** | Programmatic + Spring Boot | `ddl-auto=validate` |
 | **Learning Curve** | Gentle; SQL-like | Steep; many concepts                     |
 | **Magic** | What you see is what you get | Proxies, bytecode enhancement            |

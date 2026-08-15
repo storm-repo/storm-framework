@@ -42,9 +42,13 @@ import org.jspecify.annotations.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.orm.jpa.JpaTransactionManager;
+import org.springframework.transaction.InvalidIsolationLevelException;
+import org.springframework.transaction.NestedTransactionNotSupportedException;
 import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.TransactionDefinition;
 import org.springframework.transaction.TransactionStatus;
+import org.springframework.transaction.TransactionSuspensionNotSupportedException;
+import org.springframework.transaction.jta.JtaTransactionManager;
 import org.springframework.transaction.support.ResourceTransactionManager;
 import org.springframework.util.ClassUtils;
 import st.orm.Entity;
@@ -420,11 +424,22 @@ public final class SpringTransactionContext implements TransactionContext {
      * the class path. Resolution fails fast when several managers own the same data source: the choice decides
      * which manager completes Storm-initiated transactions, so it must be made by configuration rather than by
      * list order.</p>
+     *
+     * <p>A JTA transaction manager owns no single data source, since a global transaction spans every resource
+     * enlisted in it. It is therefore considered only when no resource-bound manager claims this data source,
+     * which leaves an application that configures both with the resource-bound manager and keeps the ambiguity
+     * check above meaningful for the case it was written for.</p>
      */
     private PlatformTransactionManager resolveTransactionManager(DataSource dataSource) {
-        var candidates = transactionManagers.get().stream()
+        var managers = transactionManagers.get();
+        var candidates = managers.stream()
                 .filter(manager -> managesDataSource(manager, dataSource))
                 .toList();
+        if (candidates.isEmpty() && JTA_PRESENT) {
+            candidates = managers.stream()
+                    .filter(JtaSupport::isJtaTransactionManager)
+                    .toList();
+        }
         if (candidates.size() > 1) {
             throw new IllegalStateException(
                     "Multiple TransactionManagers found for DataSource " + dataSource + ": "
@@ -443,6 +458,10 @@ public final class SpringTransactionContext implements TransactionContext {
 
     private static final boolean JPA_PRESENT = ClassUtils.isPresent(
             "org.springframework.orm.jpa.JpaTransactionManager",
+            SpringTransactionContext.class.getClassLoader());
+
+    private static final boolean JTA_PRESENT = ClassUtils.isPresent(
+            "jakarta.transaction.UserTransaction",
             SpringTransactionContext.class.getClassLoader());
 
     private static boolean managesDataSource(PlatformTransactionManager manager,
@@ -477,6 +496,16 @@ public final class SpringTransactionContext implements TransactionContext {
         static boolean managesDataSource(PlatformTransactionManager manager,
                                          DataSource dataSource) {
             return manager instanceof JpaTransactionManager jpaManager && jpaManager.getDataSource() == dataSource;
+        }
+    }
+
+    /**
+     * Touches {@code JtaTransactionManager}, which carries {@code jakarta.transaction} types in its signature;
+     * only loaded when the JTA API is on the class path.
+     */
+    private static final class JtaSupport {
+        static boolean isJtaTransactionManager(PlatformTransactionManager manager) {
+            return manager instanceof JtaTransactionManager;
         }
     }
 
@@ -531,10 +560,44 @@ public final class SpringTransactionContext implements TransactionContext {
             state.transactionManager = resolveTransactionManager(dataSource);
             // Root: deadline already set in begin(); keep it.
         }
-        var transactionStatus = state.transactionManager.getTransaction(definition);
+        var transactionStatus = getTransaction(state.transactionManager, definition);
         state.transactionStatus = transactionStatus;
         if (state.rollbackOnly) {
             transactionStatus.setRollbackOnly();
+        }
+    }
+
+    /**
+     * Asks the manager for a transaction status, translating the definition options a manager may refuse into
+     * errors that name the transaction option the caller passed rather than Spring's internal one.
+     *
+     * <p>A JTA manager refuses all three by default: a global transaction has no portable isolation level,
+     * nesting needs a {@code jakarta.transaction.TransactionManager} configured for savepoints, and suspending
+     * the surrounding transaction, which {@code REQUIRES_NEW} and {@code NOT_SUPPORTED} do, needs that same
+     * manager for suspend and resume. Whether a manager accepts them is a property of its configuration that
+     * it does not expose, so the option is offered and the refusal translated, rather than rejected up front
+     * against a setting Storm cannot read.</p>
+     */
+    private static TransactionStatus getTransaction(PlatformTransactionManager transactionManager,
+                                                    TransactionDefinition definition) {
+        try {
+            return transactionManager.getTransaction(definition);
+        } catch (InvalidIsolationLevelException e) {
+            throw new PersistenceException(
+                    "Transaction manager " + transactionManager.getClass().getName() + " does not support "
+                            + isolationName(definition.getIsolationLevel()) + " isolation. Leave the isolation "
+                            + "at its default, or configure the manager to allow custom isolation levels.", e);
+        } catch (NestedTransactionNotSupportedException e) {
+            throw new PersistenceException(
+                    "Transaction manager " + transactionManager.getClass().getName() + " does not support NESTED "
+                            + "propagation. Use REQUIRES_NEW for an independent transaction, or REQUIRED to join "
+                            + "the surrounding one.", e);
+        } catch (TransactionSuspensionNotSupportedException e) {
+            throw new PersistenceException(
+                    "Transaction manager " + transactionManager.getClass().getName() + " cannot suspend the "
+                            + "surrounding transaction, which " + propagationName(definition.getPropagationBehavior())
+                            + " propagation requires. Use REQUIRED to join it, or configure the manager for "
+                            + "suspend and resume.", e);
         }
     }
 
