@@ -57,6 +57,11 @@ jobs:
         uses: codecov/codecov-action@v7
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
+          # The aggregate report only: it holds every module's classes with the execution data of every
+          # module's tests, so code that storm-java21, storm-kotlin or a dialect module exercises in
+          # storm-core counts. The per-module reports would attribute none of that.
+          files: storm-coverage/target/site/jacoco-aggregate/jacoco.xml
+          disable_search: true
           flags: unittests
           fail_ci_if_error: true
 
