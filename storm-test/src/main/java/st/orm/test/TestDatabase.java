@@ -15,6 +15,8 @@
  */
 package st.orm.test;
 
+import org.jspecify.annotations.Nullable;
+
 /**
  * The databases a Storm test can run against.
  *
@@ -36,28 +38,28 @@ public enum TestDatabase {
     /**
      * H2 in memory. The default; no container is involved.
      */
-    H2(null, null, null, null, null, 0),
+    H2(null),
 
     /**
      * PostgreSQL, running from the {@code postgres} image through {@code org.testcontainers:postgresql}.
      */
-    POSTGRESQL("postgres:17",
+    POSTGRESQL(new Spec("postgres:17",
             "org.testcontainers:postgresql", "org.testcontainers.containers.PostgreSQLContainer",
-            "org.postgresql:postgresql", "org.postgresql.Driver", 5432),
+            "org.postgresql:postgresql", "org.postgresql.Driver", 5432)),
 
     /**
      * MySQL, running from the {@code mysql} image through {@code org.testcontainers:mysql}.
      */
-    MYSQL("mysql:8.4",
+    MYSQL(new Spec("mysql:8.4",
             "org.testcontainers:mysql", "org.testcontainers.containers.MySQLContainer",
-            "com.mysql:mysql-connector-j", "com.mysql.cj.jdbc.Driver", 3306),
+            "com.mysql:mysql-connector-j", "com.mysql.cj.jdbc.Driver", 3306)),
 
     /**
      * MariaDB, running from the {@code mariadb} image through {@code org.testcontainers:mariadb}.
      */
-    MARIADB("mariadb:11.8",
+    MARIADB(new Spec("mariadb:11.8",
             "org.testcontainers:mariadb", "org.testcontainers.containers.MariaDBContainer",
-            "org.mariadb.jdbc:mariadb-java-client", "org.mariadb.jdbc.Driver", 3306),
+            "org.mariadb.jdbc:mariadb-java-client", "org.mariadb.jdbc.Driver", 3306)),
 
     /**
      * Microsoft SQL Server, running from the {@code mcr.microsoft.com/mssql/server} image through
@@ -67,37 +69,33 @@ public enum TestDatabase {
      * {@code container-license-acceptance.txt} file on the test classpath that lists the image, including its tag,
      * on a line of its own; the container refuses to start without it, naming the file and the image.</p>
      */
-    MSSQL_SERVER("mcr.microsoft.com/mssql/server:2022-latest",
+    MSSQL_SERVER(new Spec("mcr.microsoft.com/mssql/server:2022-latest",
             "org.testcontainers:mssqlserver", "org.testcontainers.containers.MSSQLServerContainer",
-            "com.microsoft.sqlserver:mssql-jdbc", "com.microsoft.sqlserver.jdbc.SQLServerDriver", 1433),
+            "com.microsoft.sqlserver:mssql-jdbc", "com.microsoft.sqlserver.jdbc.SQLServerDriver", 1433)),
 
     /**
      * Oracle Database Free, running from the {@code gvenzl/oracle-free} image through
      * {@code org.testcontainers:oracle-free}.
      */
-    ORACLE("gvenzl/oracle-free:23-slim-faststart",
+    ORACLE(new Spec("gvenzl/oracle-free:23-slim-faststart",
             "org.testcontainers:oracle-free", "org.testcontainers.oracle.OracleContainer",
-            "com.oracle.database.jdbc:ojdbc11", "oracle.jdbc.OracleDriver", 1521);
+            "com.oracle.database.jdbc:ojdbc11", "oracle.jdbc.OracleDriver", 1521));
 
-    private final String defaultImage;
-    private final String testcontainersArtifact;
-    private final String containerClassName;
-    private final String driverArtifact;
-    private final String driverClassName;
-    private final int port;
+    /**
+     * How a container database is obtained: the image to run by default, the Testcontainers module and container
+     * class that run it, the JDBC driver that connects to it, and the port the database listens on.
+     */
+    private record Spec(String defaultImage,
+                        String testcontainersArtifact,
+                        String containerClassName,
+                        String driverArtifact,
+                        String driverClassName,
+                        int port) {}
 
-    TestDatabase(String defaultImage,
-                 String testcontainersArtifact,
-                 String containerClassName,
-                 String driverArtifact,
-                 String driverClassName,
-                 int port) {
-        this.defaultImage = defaultImage;
-        this.testcontainersArtifact = testcontainersArtifact;
-        this.containerClassName = containerClassName;
-        this.driverArtifact = driverArtifact;
-        this.driverClassName = driverClassName;
-        this.port = port;
+    private final @Nullable Spec spec;
+
+    TestDatabase(@Nullable Spec spec) {
+        this.spec = spec;
     }
 
     /**
@@ -105,7 +103,7 @@ public enum TestDatabase {
      * {@link #H2}.
      */
     public boolean isContainer() {
-        return defaultImage != null;
+        return spec != null;
     }
 
     /**
@@ -115,8 +113,7 @@ public enum TestDatabase {
      * @throws IllegalStateException for {@link #H2}, which does not run in a container.
      */
     public String defaultImage() {
-        requireContainer();
-        return defaultImage;
+        return spec().defaultImage();
     }
 
     /**
@@ -140,33 +137,34 @@ public enum TestDatabase {
      *                               module or the JDBC driver for this database is missing from the classpath.
      */
     public DatabaseContainer container(String image) {
-        requireContainer();
+        spec();
         return DatabaseContainer.of(this, image);
     }
 
     String testcontainersArtifact() {
-        return testcontainersArtifact;
+        return spec().testcontainersArtifact();
     }
 
     String containerClassName() {
-        return containerClassName;
+        return spec().containerClassName();
     }
 
     String driverArtifact() {
-        return driverArtifact;
+        return spec().driverArtifact();
     }
 
     String driverClassName() {
-        return driverClassName;
+        return spec().driverClassName();
     }
 
     int port() {
-        return port;
+        return spec().port();
     }
 
-    private void requireContainer() {
-        if (!isContainer()) {
+    private Spec spec() {
+        if (spec == null) {
             throw new IllegalStateException(name() + " runs in memory; it has no container.");
         }
+        return spec;
     }
 }

@@ -365,7 +365,7 @@ The Spring Boot starters include `storm-micrometer`; Ktor applications add it ex
 
 | Module | Provides |
 |--------|----------|
-| `storm-test` | `@StormTest` JUnit 5 extension and `SqlCapture`, framework-free |
+| `storm-test` | `@StormTest` JUnit 5 extension and `SqlCapture`, framework-free; runs on H2 or, with the database's Testcontainers module added, on PostgreSQL, MySQL, MariaDB, SQL Server or Oracle |
 | `storm-kotlin-test` | The suspending `recording` extension, carrying `SqlCapture` across coroutines (test scope) |
 | `storm-spring-boot-test-autoconfigure` | The `@DataStormTest` Spring Boot test slice (test scope) |
 

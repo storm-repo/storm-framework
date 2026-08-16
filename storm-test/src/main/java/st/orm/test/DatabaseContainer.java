@@ -26,6 +26,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.atomic.AtomicInteger;
 import javax.sql.DataSource;
+import org.jspecify.annotations.Nullable;
 
 /**
  * A database server running in a Testcontainers-managed Docker container, shared by all tests of the JVM that ask
@@ -55,7 +56,7 @@ public final class DatabaseContainer {
     private final TestDatabase database;
     private final String image;
     private final Object lock = new Object();
-    private Endpoint endpoint;
+    private @Nullable Endpoint endpoint;
 
     private DatabaseContainer(TestDatabase database, String image) {
         this.database = database;
@@ -135,6 +136,9 @@ public final class DatabaseContainer {
 
     private Endpoint endpoint() {
         synchronized (lock) {
+            if (endpoint == null) {
+                throw new IllegalStateException(this + " has not started.");
+            }
             return endpoint;
         }
     }

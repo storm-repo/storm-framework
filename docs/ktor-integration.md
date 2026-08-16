@@ -837,7 +837,7 @@ class UserRouteTest {
 }
 ```
 
-Both approaches use H2 in-memory databases by default. For testing against a real database (e.g., PostgreSQL with Testcontainers), provide a custom DataSource. See [Testing](testing.md) for the full testing guide.
+Both approaches use H2 in-memory databases by default. To run a `@StormTest` class against the database the application deploys on, set `database = TestDatabase.POSTGRESQL` (or the database you use) on the annotation; the injected `DataSource` then points at a Testcontainers-managed container, and the Ktor test needs no other change. `testStormApplication` takes `url`, `username` and `password` for the same purpose; a database provisioned through `TestDatabase.POSTGRESQL.container().createDatabase()` supplies all three. See [Testing](testing.md#testing-against-the-database-you-deploy-on) for the full testing guide.
 
 ---
 

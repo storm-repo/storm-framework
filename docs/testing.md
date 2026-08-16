@@ -238,7 +238,9 @@ class VisitRepositoryTest {
 </TabItem>
 </Tabs>
 
-Nothing else in the test changes: scripts, parameter injection, `SqlCapture` and per-test rollback all work as they do on H2. Storm resolves the dialect from the connection, so the dialect module of the database (`storm-postgresql` and so on) applies as it does in the application.
+Nothing else in the test changes: scripts, parameter injection, `SqlCapture` and per-test rollback all work as they do on H2. Storm resolves the dialect from the connection, so the dialect module of the database (`storm-postgresql` and so on) applies as it does in the application. The constants live in `st.orm.test.TestDatabase`; the Java example imports `POSTGRESQL` statically. Spring Boot applications have the same attribute on the [`@DataStormTest` slice](spring-integration.md#testing-with-datastormtest), and both annotations share their containers within a JVM.
+
+#### Dependencies
 
 Testcontainers is not a dependency of `storm-test`, so tests on H2 pull in nothing new. A test that names a container database needs the Testcontainers module for that database and its JDBC driver on the test classpath; when either is missing, the test fails with a message naming the artifact to add rather than a `NoClassDefFoundError`.
 
@@ -250,13 +252,36 @@ Testcontainers is not a dependency of `storm-test`, so tests on H2 pull in nothi
 | `MSSQL_SERVER` | `org.testcontainers:mssqlserver` | `com.microsoft.sqlserver:mssql-jdbc`       | `mcr.microsoft.com/mssql/server:2022-latest` |
 | `ORACLE`       | `org.testcontainers:oracle-free` | `com.oracle.database.jdbc:ojdbc11`         | `gvenzl/oracle-free:23-slim-faststart`       |
 
+For PostgreSQL, for example:
+
+**Gradle (Kotlin DSL):**
+
 ```kotlin
 testImplementation("st.orm:storm-test")
 testImplementation("org.testcontainers:postgresql")
 testRuntimeOnly("org.postgresql:postgresql")
 ```
 
-The default images are pinned to a version, never `latest`. To run on another version or another distribution of the database, name the image on the annotation; any image that is a distribution of the chosen database works, such as `pgvector/pgvector:pg17` for PostgreSQL:
+**Maven:**
+
+```xml
+<dependency>
+    <groupId>org.testcontainers</groupId>
+    <artifactId>postgresql</artifactId>
+    <scope>test</scope>
+</dependency>
+<dependency>
+    <groupId>org.postgresql</groupId>
+    <artifactId>postgresql</artifactId>
+    <scope>test</scope>
+</dependency>
+```
+
+Docker (or a compatible runtime Testcontainers can reach) must be available where the tests run.
+
+#### Choosing the Image
+
+The default images pin the major version of each database and follow its patch releases; none of them is `latest`, so a suite does not change what it runs against when a new major is published. To run on another version, or on another distribution of the database, name the image on the annotation. Any image that is a distribution of the chosen database works, such as `postgres:16`, a fully pinned `postgres:17.11`, or `pgvector/pgvector:pg17` for PostgreSQL:
 
 ```java
 @StormTest(database = POSTGRESQL, image = "postgres:16", scripts = {"/schema.sql", "/data.sql"})
@@ -265,11 +290,7 @@ class VisitRepositoryPostgres16Test {
 }
 ```
 
-The container is started once per JVM for a given database and image, on the first test class that asks for it, and shared by every test class of the run that asks for the same one; Testcontainers removes it when the JVM exits. Sharing is safe because no two classes share a database inside the container: each test class receives a freshly created database (a new catalog on PostgreSQL, MySQL, MariaDB and SQL Server, a new user with its own schema on Oracle), created before the scripts run and dropped when the class completes. Scripts therefore execute against an empty database exactly as they do on H2, without drop guards, and test classes never observe each other's tables or rows. Creating a database inside a running container takes a fraction of the time the container start takes, so the container cost is paid once per run rather than once per class.
-
-The `database` attribute is mutually exclusive with `url` and with a static `dataSource()` factory method (see below), which both point at a database of your own; combining them fails at startup with a message naming the conflict.
-
-Two notes on individual databases:
+Two databases need a word of their own:
 
 - **SQL Server** requires accepting Microsoft's license terms. Testcontainers reads the acceptance from a `container-license-acceptance.txt` file on the test classpath (`src/test/resources`) that lists the image, including its tag, on a line of its own; the container refuses to start without it, naming the file and the image:
   ```
@@ -277,7 +298,22 @@ Two notes on individual databases:
   ```
 - **Oracle** runs from the `gvenzl/oracle-free` image (Oracle Database Free 23). The test user receives the same grants the image gives its own application user, so a test is no more and no less privileged than a hand-written container setup.
 
-The container is available outside the annotation as well, through `TestDatabase.POSTGRESQL.container()`, which starts it on first use and returns the shared instance; `createDatabase()` on it provisions a database of your own that is dropped when closed. Spring Boot applications have the same attribute on the [`@DataStormTest` slice](spring-integration.md#testing-with-datastormtest).
+#### One Container per Run, One Database per Class
+
+The container is started once per JVM for a given database and image, on the first test class that asks for it, and shared by every test class of the run that asks for the same one; Testcontainers removes it when the JVM exits. Sharing is safe because no two classes share a database inside the container: each test class receives a freshly created database, created before its scripts run and dropped when the class completes. On PostgreSQL, MySQL, MariaDB and SQL Server that is a new catalog; on Oracle a new user with its own schema. Scripts therefore execute against an empty database exactly as they do on H2, without drop guards, and test classes never observe each other's tables or rows. Creating a database inside a running container takes a fraction of the time the container start takes, so the container cost is paid once per run rather than once per class.
+
+The `database` attribute is mutually exclusive with `url` and with a static `dataSource()` factory method (see below), which both point at a database of your own; combining them fails at startup with a message naming the conflict.
+
+#### Outside the Annotation
+
+The container is available directly as well, for setups the annotation does not cover, such as a `@BeforeAll` in another framework: `TestDatabase.POSTGRESQL.container()` starts it on first use and returns the shared `DatabaseContainer`, and `createDatabase()` on it provisions a database of your own, with `url()`, `username()`, `password()` and `dataSource()`, dropped when closed:
+
+```java
+try (var database = TestDatabase.POSTGRESQL.container().createDatabase()) {
+    ORMTemplate orm = ORMTemplate.of(database.dataSource());
+    // ...
+}
+```
 
 ### Pointing at Your Own Database
 
@@ -684,5 +720,6 @@ See [Ktor Integration](ktor-integration.md#testing) for more details.
 2. **Use `SqlCapture` to verify query counts.** Asserting the number of statements an operation produces is an effective way to catch unintended query changes during refactoring.
 3. **Clear between captures** when a single test method needs to measure multiple operations independently.
 4. **Prefer `@StormTest` over manual setup.** It eliminates boilerplate and ensures consistent database lifecycle management across test classes.
-5. **`SqlCapture` binds to the thread that runs the action and the contexts Storm carries it into.** Statements executed inside a `transaction { }` block or a coroutine given `sqlLogContext()` are captured wherever they run; work handed to a thread or coroutine without that context falls outside the capture. Coroutine code records through the suspending `recording` extension of `storm-kotlin-test`, which follows the coroutine itself. Recording is safe from any thread the work reaches.
-6. **A resolution served from cache issues no statement.** Inside a transaction the entity cache answers repeat resolutions of the same record, so `count(FETCH)` counts distinct cache misses rather than `fetch()` call sites.
+5. **Run the tests that touch dialect-specific behavior on the database you deploy on.** `database = POSTGRESQL` (or the database you use) costs one container start per run; upserts, sequences, identity handling and keyword escaping are exactly what H2 hides. Keep the bulk of the suite on H2 for speed and put the dialect-sensitive classes on the real database.
+6. **`SqlCapture` binds to the thread that runs the action and the contexts Storm carries it into.** Statements executed inside a `transaction { }` block or a coroutine given `sqlLogContext()` are captured wherever they run; work handed to a thread or coroutine without that context falls outside the capture. Coroutine code records through the suspending `recording` extension of `storm-kotlin-test`, which follows the coroutine itself. Recording is safe from any thread the work reaches.
+7. **A resolution served from cache issues no statement.** Inside a transaction the entity cache answers repeat resolutions of the same record, so `count(FETCH)` counts distinct cache misses rather than `fetch()` call sites.

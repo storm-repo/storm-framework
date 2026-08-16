@@ -34,6 +34,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.logging.Logger;
 import javax.sql.DataSource;
+import org.jspecify.annotations.Nullable;
 import org.junit.jupiter.api.extension.AfterEachCallback;
 import org.junit.jupiter.api.extension.BeforeAllCallback;
 import org.junit.jupiter.api.extension.BeforeEachCallback;
@@ -238,7 +239,7 @@ public class StormExtension implements BeforeAllCallback, BeforeEachCallback, Af
      * A static {@code dataSource()} factory method declared by a test class, or by the companion object of a Kotlin
      * test class, in which case {@code target} is the companion.
      */
-    private record DataSourceFactory(Method method, Object target) {
+    private record DataSourceFactory(Method method, @Nullable Object target) {
 
         DataSource create() throws Exception {
             return (DataSource) method.invoke(target);
@@ -254,7 +255,7 @@ public class StormExtension implements BeforeAllCallback, BeforeEachCallback, Af
      *
      * @return the factory method, or {@code null} if no such method exists.
      */
-    private static DataSourceFactory findDataSourceFactory(Class<?> testClass) throws Exception {
+    private static @Nullable DataSourceFactory findDataSourceFactory(Class<?> testClass) throws Exception {
         // Check for a Java static method, nearest declaration first.
         for (Class<?> type = testClass; type != null && type != Object.class; type = type.getSuperclass()) {
             try {
