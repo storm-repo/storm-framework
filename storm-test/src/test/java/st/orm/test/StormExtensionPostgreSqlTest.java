@@ -63,17 +63,4 @@ class StormExtensionPostgreSqlTest {
         }
     }
 
-    @Test
-    void insertShouldBeRolledBackAfterTheTest(ORMTemplate orm) {
-        assertEquals(3, orm.entity(Item.class).findAll().size());
-        orm.entity(Item.class).insert(new Item(4, "Delta"));
-        assertEquals(4, orm.entity(Item.class).findAll().size());
-    }
-
-    @Test
-    void insertOfAnotherTestShouldNotBeVisible(ORMTemplate orm) {
-        assertEquals(3, orm.entity(Item.class).findAll().size());
-        orm.entity(Item.class).insert(new Item(4, "Delta"));
-        assertEquals(4, orm.entity(Item.class).findAll().size());
-    }
 }

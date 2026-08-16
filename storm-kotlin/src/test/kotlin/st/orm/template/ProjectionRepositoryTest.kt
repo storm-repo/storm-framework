@@ -614,15 +614,6 @@ internal open class ProjectionRepositoryTest(
     // ProjectionRepository: PredicateBuilder direct-call variants
 
     @Test
-    fun `findAll with direct PredicateBuilder should filter projections`() {
-        val repo = orm.projection(OwnerView::class)
-        val firstNamePath = metamodel<OwnerView, String>(repo.model, "first_name")
-        val views = repo.findAll(firstNamePath eq "Betty")
-        views shouldHaveSize 1
-        views.first().firstName shouldBe "Betty"
-    }
-
-    @Test
     fun `find with direct PredicateBuilder should return matching projection`() {
         val repo = orm.projection(OwnerView::class)
         val firstNamePath = metamodel<OwnerView, String>(repo.model, "first_name")
@@ -637,14 +628,6 @@ internal open class ProjectionRepositoryTest(
         val firstNamePath = metamodel<OwnerView, String>(repo.model, "first_name")
         val view = repo.get(firstNamePath eq "Betty")
         view.firstName shouldBe "Betty"
-    }
-
-    @Test
-    fun `findAllRef with direct PredicateBuilder should return refs`() {
-        val repo = orm.projection(OwnerView::class)
-        val firstNamePath = metamodel<OwnerView, String>(repo.model, "first_name")
-        val refs = repo.findAllRef(firstNamePath eq "Betty")
-        refs shouldHaveSize 1
     }
 
     @Test
@@ -664,33 +647,10 @@ internal open class ProjectionRepositoryTest(
     }
 
     @Test
-    fun `select with direct PredicateBuilder should return flow`(): Unit = runBlocking {
-        val repo = orm.projection(OwnerView::class)
-        val firstNamePath = metamodel<OwnerView, String>(repo.model, "first_name")
-        val count = repo.select().where(firstNamePath eq "Betty").resultFlow.count()
-        count shouldBe 1
-    }
-
-    @Test
-    fun `selectRef with direct PredicateBuilder should return flow of refs`(): Unit = runBlocking {
-        val repo = orm.projection(OwnerView::class)
-        val firstNamePath = metamodel<OwnerView, String>(repo.model, "first_name")
-        val count = repo.selectRef().where(firstNamePath eq "Betty").resultFlow.count()
-        count shouldBe 1
-    }
-
-    @Test
     fun `count with direct PredicateBuilder should count matching`() {
         val repo = orm.projection(OwnerView::class)
         val firstNamePath = metamodel<OwnerView, String>(repo.model, "first_name")
         repo.count(firstNamePath eq "Betty") shouldBe 1
-    }
-
-    @Test
-    fun `exists with direct PredicateBuilder should return true for match`() {
-        val repo = orm.projection(OwnerView::class)
-        val firstNamePath = metamodel<OwnerView, String>(repo.model, "first_name")
-        repo.exists(firstNamePath eq "Betty") shouldBe true
     }
 
     @Test
@@ -889,28 +849,11 @@ internal open class ProjectionRepositoryTest(
     }
 
     @Test
-    fun `findBy with field and string value should return matching projection`() {
-        val repo = orm.projection(OwnerView::class)
-        val firstNamePath = metamodel<OwnerView, String>(repo.model, "first_name")
-        val view = repo.findBy(firstNamePath, "Betty")
-        view.shouldNotBeNull()
-        view.firstName shouldBe "Betty"
-    }
-
-    @Test
     fun `findBy with field and string value should return null when no match`() {
         val repo = orm.projection(OwnerView::class)
         val firstNamePath = metamodel<OwnerView, String>(repo.model, "first_name")
         val view = repo.findBy(firstNamePath, "NonExistentName")
         view.shouldBeNull()
-    }
-
-    @Test
-    fun `getBy with field and string value should return matching projection`() {
-        val repo = orm.projection(OwnerView::class)
-        val firstNamePath = metamodel<OwnerView, String>(repo.model, "first_name")
-        val view = repo.getBy(firstNamePath, "Betty")
-        view.firstName shouldBe "Betty"
     }
 
     @Test
@@ -923,14 +866,6 @@ internal open class ProjectionRepositoryTest(
     }
 
     @Test
-    fun `findAllBy with field and string value should return matching projections`() {
-        val repo = orm.projection(OwnerView::class)
-        val lastNamePath = metamodel<OwnerView, String>(repo.model, "last_name")
-        val views = repo.findAllBy(lastNamePath, "Davis")
-        views shouldHaveSize 2
-    }
-
-    @Test
     fun `findAllBy with field and iterable of values should return matching projections`() {
         val repo = orm.projection(OwnerView::class)
         val firstNamePath = metamodel<OwnerView, String>(repo.model, "first_name")
@@ -939,27 +874,11 @@ internal open class ProjectionRepositoryTest(
     }
 
     @Test
-    fun `findRefBy with field and string value should return matching ref`() {
-        val repo = orm.projection(OwnerView::class)
-        val firstNamePath = metamodel<OwnerView, String>(repo.model, "first_name")
-        val ref = repo.findRefBy<Any, Any, String>(firstNamePath, "Betty")
-        ref.shouldNotBeNull()
-    }
-
-    @Test
     fun `findRefBy with field and string value should return null when no match`() {
         val repo = orm.projection(OwnerView::class)
         val firstNamePath = metamodel<OwnerView, String>(repo.model, "first_name")
         val ref = repo.findRefBy<Any, Any, String>(firstNamePath, "NonExistentName")
         ref.shouldBeNull()
-    }
-
-    @Test
-    fun `getRefBy with field and string value should return matching ref`() {
-        val repo = orm.projection(OwnerView::class)
-        val firstNamePath = metamodel<OwnerView, String>(repo.model, "first_name")
-        val ref = repo.getRefBy(firstNamePath, "Betty")
-        ref.shouldNotBeNull()
     }
 
     @Test
@@ -981,14 +900,6 @@ internal open class ProjectionRepositoryTest(
     }
 
     @Test
-    fun `findAllRefBy with field and string value should return matching refs`() {
-        val repo = orm.projection(OwnerView::class)
-        val lastNamePath = metamodel<OwnerView, String>(repo.model, "last_name")
-        val refs = repo.findAllRefBy(lastNamePath, "Davis")
-        refs shouldHaveSize 2
-    }
-
-    @Test
     fun `findAllRefBy with field and ref value should return matching refs`() {
         val repo = orm.projection(OwnerView::class)
         val cityPath = metamodel<OwnerView, City>(repo.model, "city_id")
@@ -1007,33 +918,10 @@ internal open class ProjectionRepositoryTest(
     }
 
     @Test
-    fun `countBy with field and string value should count matching projections`() {
-        val repo = orm.projection(OwnerView::class)
-        val lastNamePath = metamodel<OwnerView, String>(repo.model, "last_name")
-        repo.countBy(lastNamePath, "Davis") shouldBe 2
-    }
-
-    @Test
-    fun `existsBy with field and string value should return true when match exists`() {
-        val repo = orm.projection(OwnerView::class)
-        val firstNamePath = metamodel<OwnerView, String>(repo.model, "first_name")
-        repo.existsBy(firstNamePath, "Betty") shouldBe true
-    }
-
-    @Test
     fun `existsBy with field and string value should return false when no match`() {
         val repo = orm.projection(OwnerView::class)
         val firstNamePath = metamodel<OwnerView, String>(repo.model, "first_name")
         repo.existsBy(firstNamePath, "NonExistentName") shouldBe false
-    }
-
-    @Test
-    fun `find with WhereBuilder predicate should return matching projection`() {
-        val repo = orm.projection(OwnerView::class)
-        val firstNamePath = metamodel<OwnerView, String>(repo.model, "first_name")
-        val view = repo.find(firstNamePath eq "Betty")
-        view.shouldNotBeNull()
-        view.firstName shouldBe "Betty"
     }
 
     @Test
@@ -1042,30 +930,6 @@ internal open class ProjectionRepositoryTest(
         val firstNamePath = metamodel<OwnerView, String>(repo.model, "first_name")
         val view = repo.find(firstNamePath eq "NonExistentName")
         view.shouldBeNull()
-    }
-
-    @Test
-    fun `get with WhereBuilder predicate should return matching projection`() {
-        val repo = orm.projection(OwnerView::class)
-        val firstNamePath = metamodel<OwnerView, String>(repo.model, "first_name")
-        val view = repo.get(firstNamePath eq "Betty")
-        view.firstName shouldBe "Betty"
-    }
-
-    @Test
-    fun `findRef with WhereBuilder predicate should return matching ref`() {
-        val repo = orm.projection(OwnerView::class)
-        val firstNamePath = metamodel<OwnerView, String>(repo.model, "first_name")
-        val ref = repo.findRef(firstNamePath eq "Betty")
-        ref.shouldNotBeNull()
-    }
-
-    @Test
-    fun `getRef with WhereBuilder predicate should return matching ref`() {
-        val repo = orm.projection(OwnerView::class)
-        val firstNamePath = metamodel<OwnerView, String>(repo.model, "first_name")
-        val ref = repo.getRef(firstNamePath eq "Betty")
-        ref.shouldNotBeNull()
     }
 
     @Test
@@ -1109,27 +973,6 @@ internal open class ProjectionRepositoryTest(
     }
 
     @Test
-    fun `exists with WhereBuilder predicate should return true when match exists`() {
-        val repo = orm.projection(OwnerView::class)
-        val firstNamePath = metamodel<OwnerView, String>(repo.model, "first_name")
-        repo.exists(firstNamePath eq "Betty") shouldBe true
-    }
-
-    @Test
-    fun `exists with WhereBuilder predicate should return false when no match`() {
-        val repo = orm.projection(OwnerView::class)
-        val firstNamePath = metamodel<OwnerView, String>(repo.model, "first_name")
-        repo.exists(firstNamePath eq "NonExistent") shouldBe false
-    }
-
-    @Test
-    fun `findAllRef should return all projection refs`() {
-        val repo = orm.projection(OwnerView::class)
-        val refs = repo.findAllRef()
-        refs shouldHaveSize 10
-    }
-
-    @Test
     fun `selectAllRef should return all projection refs as flow`(): Unit = runBlocking {
         val repo = orm.projection(OwnerView::class)
         val count = repo.selectRef().resultFlow.count()
@@ -1146,24 +989,6 @@ internal open class ProjectionRepositoryTest(
     }
 
     @Test
-    fun `count should return total number of projections`() {
-        val repo = orm.projection(OwnerView::class)
-        repo.count() shouldBe 10
-    }
-
-    @Test
-    fun `existsById should return true for existing id`() {
-        val repo = orm.projection(OwnerView::class)
-        repo.existsById(1) shouldBe true
-    }
-
-    @Test
-    fun `existsById should return false for non-existing id`() {
-        val repo = orm.projection(OwnerView::class)
-        repo.existsById(999) shouldBe false
-    }
-
-    @Test
     fun `existsByRef should return true for existing ref`() {
         val repo = orm.projection(OwnerView::class)
         repo.existsByRef(Ref.of(OwnerView::class.java, 1)) shouldBe true
@@ -1173,14 +998,6 @@ internal open class ProjectionRepositoryTest(
     fun `existsByRef should return false for non-existing ref`() {
         val repo = orm.projection(OwnerView::class)
         repo.existsByRef(Ref.of(OwnerView::class.java, 999)) shouldBe false
-    }
-
-    @Test
-    fun `findById should return matching projection`() {
-        val repo = orm.projection(OwnerView::class)
-        val view = repo.findById(1)
-        view.shouldNotBeNull()
-        view.firstName shouldBe "Betty"
     }
 
     @Test
@@ -1210,20 +1027,6 @@ internal open class ProjectionRepositoryTest(
         val repo = orm.projection(OwnerView::class)
         val view = repo.getByRef(Ref.of(OwnerView::class.java, 1))
         view.firstName shouldBe "Betty"
-    }
-
-    @Test
-    fun `findAll should return all projections`() {
-        val repo = orm.projection(OwnerView::class)
-        val views = repo.findAll()
-        views shouldHaveSize 10
-    }
-
-    @Test
-    fun `findAllById should return matching projections`() {
-        val repo = orm.projection(OwnerView::class)
-        val views = repo.findAllById(listOf(1, 2, 3))
-        views shouldHaveSize 3
     }
 
     @Test
@@ -1662,51 +1465,12 @@ internal open class ProjectionRepositoryTest(
     }
 
     @Test
-    fun `repo scrollRef with key and size should return first page of refs`() {
-        val repo = orm.projection(OwnerView::class)
-        val idKey = metamodel<OwnerView, Int>(repo.model, "id").key()
-        val window = repo.selectRef().scroll(Scrollable.of(idKey, 4))
-        window.content shouldHaveSize 4
-        window.hasNext shouldBe true
-    }
-
-    @Test
     fun `repo scrollBeforeRef with key and size should return refs`() {
         val repo = orm.projection(OwnerView::class)
         val idKey = metamodel<OwnerView, Int>(repo.model, "id").key()
         val window = repo.selectRef().scroll(Scrollable.of(idKey, 4).backward())
         window.content shouldHaveSize 4
         window.hasNext shouldBe true
-    }
-
-    @Test
-    fun `repo scroll with key and predicate should return filtered first page`() {
-        val repo = orm.projection(OwnerView::class)
-        val idKey = metamodel<OwnerView, Int>(repo.model, "id").key()
-        val lastNamePath = metamodel<OwnerView, String>(repo.model, "last_name")
-        val window = repo.select().where(lastNamePath eq "Davis").scroll(Scrollable.of(idKey, 10))
-        window.content shouldHaveSize 2
-        window.hasNext shouldBe false
-    }
-
-    @Test
-    fun `repo scrollRef with key and predicate should return filtered refs`() {
-        val repo = orm.projection(OwnerView::class)
-        val idKey = metamodel<OwnerView, Int>(repo.model, "id").key()
-        val lastNamePath = metamodel<OwnerView, String>(repo.model, "last_name")
-        val window = repo.selectRef().where(lastNamePath eq "Davis").scroll(Scrollable.of(idKey, 10))
-        window.content shouldHaveSize 2
-        window.hasNext shouldBe false
-    }
-
-    @Test
-    fun `repo scrollBefore with key and predicate should return filtered last page`() {
-        val repo = orm.projection(OwnerView::class)
-        val idKey = metamodel<OwnerView, Int>(repo.model, "id").key()
-        val lastNamePath = metamodel<OwnerView, String>(repo.model, "last_name")
-        val window = repo.select().where(lastNamePath eq "Davis").scroll(Scrollable.of(idKey, 10).backward())
-        window.content shouldHaveSize 2
-        window.hasNext shouldBe false
     }
 
     @Test

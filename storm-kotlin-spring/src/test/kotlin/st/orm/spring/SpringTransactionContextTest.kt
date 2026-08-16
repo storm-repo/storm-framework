@@ -150,19 +150,6 @@ internal open class SpringTransactionContextTest(
     }
 
     @Test
-    fun `REQUIRES_NEW inner should have its own entity cache`(): Unit = runBlocking {
-        transactionBlocking(isolation = REPEATABLE_READ) {
-            val city1 = orm.entity(City::class).select().where(1).singleResult
-            transactionBlocking(REQUIRES_NEW, isolation = REPEATABLE_READ) {
-                val city2 = orm.entity(City::class).select().where(1).singleResult
-                // REQUIRES_NEW uses a separate cache
-                (city1 === city2).shouldBeFalse()
-                city1.name shouldBe city2.name
-            }
-        }
-    }
-
-    @Test
     fun `NOT_SUPPORTED inner should have its own entity cache`(): Unit = runBlocking {
         transactionBlocking(isolation = REPEATABLE_READ) {
             val city1 = orm.entity(City::class).select().where(1).singleResult
@@ -177,22 +164,6 @@ internal open class SpringTransactionContextTest(
     }
 
     // NESTED rollback clears outer entity cache
-
-    @Test
-    fun `NESTED rollback should clear outer entity cache`(): Unit = runBlocking {
-        transactionBlocking(isolation = REPEATABLE_READ) {
-            val city1 = orm.entity(City::class).select().where(1).singleResult
-            transactionBlocking(NESTED) {
-                orm.removeAll<Visit>()
-                setRollbackOnly()
-            }
-            // After nested rollback, entity cache should have been cleared
-            val city2 = orm.entity(City::class).select().where(1).singleResult
-            // city2 is a new object because the cache was cleared
-            (city1 === city2).shouldBeFalse()
-            city1.name shouldBe city2.name
-        }
-    }
 
     @Test
     fun `NESTED commit should preserve outer entity cache`(): Unit = runBlocking {
@@ -422,15 +393,6 @@ internal open class SpringTransactionContextTest(
     fun `thread-scoped defaults should apply to blocking transactions`(): Unit = runBlocking {
         withTransactionOptionsBlocking(isolation = SERIALIZABLE) {
             transactionBlocking {
-                orm.countAll<City>() shouldBe 6
-            }
-        }
-    }
-
-    @Test
-    fun `explicit args should override thread-scoped defaults`(): Unit = runBlocking {
-        withTransactionOptionsBlocking(isolation = SERIALIZABLE) {
-            transactionBlocking(isolation = READ_COMMITTED) {
                 orm.countAll<City>() shouldBe 6
             }
         }

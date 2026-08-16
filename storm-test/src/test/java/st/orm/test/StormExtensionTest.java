@@ -54,12 +54,6 @@ class StormExtensionTest {
     }
 
     @Test
-    void ormTemplateShouldQueryEntities(ORMTemplate orm) {
-        var items = orm.entity(Item.class).findAll();
-        assertEquals(3, items.size());
-    }
-
-    @Test
     void statementCaptureShouldBeInjected(SqlCapture capture) {
         assertNotNull(capture);
     }

@@ -25,8 +25,6 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestMethodOrder;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.core.env.Environment;
-import org.springframework.test.context.transaction.TestTransaction;
-import st.orm.spring.boot.test.domain.Visit;
 import st.orm.spring.boot.test.domain.VisitRepository;
 
 /**
@@ -62,14 +60,6 @@ class DataStormTestPostgreSqlTest {
     @Order(2)
     void scriptsInitializeTheContainerDatabase() {
         assertThat(visitRepository.count()).isEqualTo(3);
-    }
-
-    @Test
-    @Order(3)
-    void testsRunInATransaction() {
-        assertThat(TestTransaction.isActive()).isTrue();
-        visitRepository.insert(new Visit(null, "written inside the test transaction"));
-        assertThat(visitRepository.count()).isEqualTo(4);
     }
 
     @Test

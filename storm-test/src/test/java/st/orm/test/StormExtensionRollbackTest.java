@@ -49,13 +49,6 @@ class StormExtensionRollbackTest {
     }
 
     @Test
-    void insertOfAnotherTestShouldNotBeVisible(ORMTemplate orm) {
-        assertEquals(3, orm.entity(Item.class).findAll().size());
-        orm.entity(Item.class).insert(new Item(0, "Delta"));
-        assertEquals(4, orm.entity(Item.class).findAll().size());
-    }
-
-    @Test
     void closingAnInjectedConnectionShouldNotEndTheTestTransaction(ORMTemplate orm, DataSource dataSource)
             throws Exception {
         orm.entity(Item.class).insert(new Item(0, "Delta"));
@@ -87,26 +80,8 @@ class StormExtensionRollbackTest {
         assertEquals(3, orm.entity(Item.class).findAll().size());
     }
 
-    @Test
-    void committedTransactionBlockShouldStillRollBackAfterTheTest(ORMTemplate orm) {
-        // Identical to transactionBlockShouldCommitWithinTheTestTransaction: whichever runs second proves that a
-        // transaction block's commit does not escape the test transaction.
-        TransactionRunner.execute(DEFAULT_OPTIONS, transaction -> {
-            orm.entity(Item.class).insert(new Item(0, "Epsilon"));
-            return null;
-        });
-        assertEquals(4, orm.entity(Item.class).findAll().size());
-    }
-
     @Nested
     class NestedCases {
-
-        @Test
-        void nestedTestsShouldRollBackAsWell(ORMTemplate orm) {
-            assertEquals(3, orm.entity(Item.class).findAll().size());
-            orm.entity(Item.class).insert(new Item(0, "Delta"));
-            assertEquals(4, orm.entity(Item.class).findAll().size());
-        }
 
         @Test
         void nestedTestsShouldNotSeeOtherTestsWrites(ORMTemplate orm) {

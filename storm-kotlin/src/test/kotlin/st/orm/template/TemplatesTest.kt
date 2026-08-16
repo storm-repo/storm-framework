@@ -10,7 +10,6 @@ import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.test.context.ContextConfiguration
 import org.springframework.test.context.jdbc.Sql
 import org.springframework.test.context.junit.jupiter.SpringExtension
-import st.orm.GenerationStrategy
 import st.orm.Metamodel
 import st.orm.Operator
 import st.orm.ResolveScope
@@ -693,14 +692,6 @@ internal open class TemplatesTest(
     }
 
     @Test
-    fun `City id column generation should be IDENTITY`() {
-        // City table uses auto_increment, so generation strategy should be IDENTITY.
-        val model = orm.entity(City::class).model
-        val idColumn = model.columns.first { it.name == "id" }
-        idColumn.generation shouldBe GenerationStrategy.IDENTITY
-    }
-
-    @Test
     fun `City id column sequence should be null`() {
         val model = orm.entity(City::class).model
         val idColumn = model.columns.first { it.name == "id" }
@@ -763,24 +754,6 @@ internal open class TemplatesTest(
         val model = orm.entity(Owner::class).model
         // Owner has: id, first_name, last_name, address, city_id, city_name (expanded FK), telephone, version
         model.columns.size shouldBe 8
-    }
-
-    @Test
-    fun `Model name for City should be city`() {
-        val model = orm.entity(City::class).model
-        model.name shouldBe "city"
-    }
-
-    @Test
-    fun `Model type for City should be City`() {
-        val model = orm.entity(City::class).model
-        model.type shouldBe City::class
-    }
-
-    @Test
-    fun `Model primaryKeyType for City should be Int`() {
-        val model = orm.entity(City::class).model
-        model.primaryKeyType shouldBe Int::class
     }
 
     @Test

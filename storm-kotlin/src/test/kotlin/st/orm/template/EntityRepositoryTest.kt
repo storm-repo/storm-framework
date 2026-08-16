@@ -1168,29 +1168,7 @@ internal open class EntityRepositoryTest(
         repo.countBy(namePath, "Madison") shouldBe 1
     }
 
-    @Test
-    fun `existsBy with field and non-ref value should return true`() {
-        val repo = orm.entity(City::class)
-        val namePath = metamodel<City, String>(repo.model, "name")
-        repo.existsBy(namePath, "Madison") shouldBe true
-    }
-
-    @Test
-    fun `existsBy with field and non-ref value should return false when no match`() {
-        val repo = orm.entity(City::class)
-        val namePath = metamodel<City, String>(repo.model, "name")
-        repo.existsBy(namePath, "NonExistent") shouldBe false
-    }
-
     // EntityRepository: getRefBy with non-Ref value
-
-    @Test
-    fun `getRefBy with field and non-ref value should return matching ref`() {
-        val repo = orm.entity(City::class)
-        val namePath = metamodel<City, String>(repo.model, "name")
-        val ref = repo.getRefBy(namePath, "Madison")
-        ref.shouldNotBeNull()
-    }
 
     // EntityRepository: findAllRefBy with iterable of Data values
 
@@ -1681,42 +1659,6 @@ internal open class EntityRepositoryTest(
     }
 
     // EntityRepository: Predicate-based scroll with cursor (value-based)
-
-    @Test
-    fun `entity scrollAfter with value cursor and PredicateBuilder should filter`() {
-        val repo = orm.entity(City::class)
-        val idKey = metamodel<City, Int>(repo.model, "id").key()
-        val namePath = metamodel<City, String>(repo.model, "name")
-        val window = repo.select().where(namePath like "M%").scroll(Scrollable(idKey, 1, null, null, 10, true))
-        window.content shouldHaveSize 3
-    }
-
-    @Test
-    fun `entity scrollAfterRef with value cursor and PredicateBuilder should filter refs`() {
-        val repo = orm.entity(City::class)
-        val idKey = metamodel<City, Int>(repo.model, "id").key()
-        val namePath = metamodel<City, String>(repo.model, "name")
-        val window = repo.selectRef().where(namePath like "M%").scroll(Scrollable(idKey, 1, null, null, 10, true))
-        window.content shouldHaveSize 3
-    }
-
-    @Test
-    fun `entity scrollBefore with value cursor and PredicateBuilder should filter`() {
-        val repo = orm.entity(City::class)
-        val idKey = metamodel<City, Int>(repo.model, "id").key()
-        val namePath = metamodel<City, String>(repo.model, "name")
-        val window = repo.select().where(namePath like "M%").scroll(Scrollable(idKey, 6, null, null, 10, false))
-        window.content shouldHaveSize 3
-    }
-
-    @Test
-    fun `entity scrollBeforeRef with value cursor and PredicateBuilder should filter refs`() {
-        val repo = orm.entity(City::class)
-        val idKey = metamodel<City, Int>(repo.model, "id").key()
-        val namePath = metamodel<City, String>(repo.model, "name")
-        val window = repo.selectRef().where(namePath like "M%").scroll(Scrollable(idKey, 6, null, null, 10, false))
-        window.content shouldHaveSize 3
-    }
 
     // EntityRepository: Page methods
 

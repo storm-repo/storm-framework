@@ -462,13 +462,6 @@ public class TemplatePreparationTest {
         assertDoesNotThrow(() -> TEMPLATE.process(raw("SELECT * FROM test_entity WHERE id IN (\0)", (Object) paramArray)));
     }
 
-    @Test
-    public void testArrayNotAfterWhereInSelectResolvesAsParam() {
-        // An Object array NOT after WHERE resolves as param.
-        Object[] paramArray = new Object[]{1, 2, 3};
-        assertDoesNotThrow(() -> TEMPLATE.process(raw("SELECT * FROM test_entity WHERE id IN (\0)", (Object) paramArray)));
-    }
-
     // ==================== DELETE type resolution variants ====================
 
     @Test

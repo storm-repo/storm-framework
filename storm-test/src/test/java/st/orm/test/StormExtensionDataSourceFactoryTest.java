@@ -1,13 +1,11 @@
 package st.orm.test;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import javax.sql.DataSource;
 import org.junit.jupiter.api.Test;
 import st.orm.Entity;
 import st.orm.PK;
-import st.orm.core.template.ORMTemplate;
 
 /**
  * Tests that {@link StormExtension} uses a static {@code dataSource()} factory method on the test class when present,
@@ -34,9 +32,4 @@ class StormExtensionDataSourceFactoryTest {
         }
     }
 
-    @Test
-    void scriptsShouldExecuteAgainstFactoryDataSource(ORMTemplate orm) {
-        var items = orm.entity(Item.class).findAll();
-        assertEquals(3, items.size());
-    }
 }

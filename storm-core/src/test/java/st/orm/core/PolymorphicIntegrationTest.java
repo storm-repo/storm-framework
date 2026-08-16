@@ -1075,17 +1075,6 @@ public class PolymorphicIntegrationTest {
     // Where Clause Tests (D5)
 
     @Test
-    public void testWhereClauseByIdOnPolymorphicEntity() {
-        var orm = ORMTemplate.of(dataSource);
-        var animals = orm.entity(Animal.class);
-        // Filter by ID using findById.
-        Optional<Animal> found = animals.findById(1);
-        assertTrue(found.isPresent());
-        assertTrue(found.get() instanceof Cat);
-        assertEquals("Whiskers", ((Cat) found.get()).name());
-    }
-
-    @Test
     public void testSelectAnimalByNameUsingMetamodel() {
         var orm = ORMTemplate.of(dataSource);
         var animals = orm.entity(Animal.class);

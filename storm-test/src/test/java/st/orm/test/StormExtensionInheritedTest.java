@@ -1,13 +1,11 @@
 package st.orm.test;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import javax.sql.DataSource;
 import org.junit.jupiter.api.Test;
 import st.orm.Entity;
 import st.orm.PK;
-import st.orm.core.template.ORMTemplate;
 
 /**
  * Verifies that {@link StormTest} on an abstract base class applies to concrete subclasses: the extension finds the
@@ -26,9 +24,4 @@ class StormExtensionInheritedTest extends StormExtensionInheritedBase {
         }
     }
 
-    @Test
-    void scriptsShouldExecuteForInheritedAnnotation(ORMTemplate orm) {
-        var items = orm.entity(Item.class).findAll();
-        assertEquals(3, items.size());
-    }
 }

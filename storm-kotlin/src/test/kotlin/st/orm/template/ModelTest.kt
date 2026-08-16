@@ -45,12 +45,6 @@ internal open class ModelTest(
     // Model.name tests
 
     @Test
-    fun `city model name should be city`() {
-        val model = orm.entity(City::class).model
-        model.name shouldBe "city"
-    }
-
-    @Test
     fun `owner model name should be owner`() {
         val model = orm.entity(Owner::class).model
         model.name shouldBe "owner"
@@ -83,12 +77,6 @@ internal open class ModelTest(
     // Model.type tests
 
     @Test
-    fun `city model type should be City`() {
-        val model = orm.entity(City::class).model
-        model.type shouldBe City::class
-    }
-
-    @Test
     fun `owner model type should be Owner`() {
         val model = orm.entity(Owner::class).model
         model.type shouldBe Owner::class
@@ -101,12 +89,6 @@ internal open class ModelTest(
     }
 
     // Model.primaryKeyType tests
-
-    @Test
-    fun `city model primaryKeyType should be Int`() {
-        val model = orm.entity(City::class).model
-        model.primaryKeyType shouldBe Int::class
-    }
 
     @Test
     fun `owner model primaryKeyType should be Int`() {

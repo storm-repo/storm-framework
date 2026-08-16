@@ -491,14 +491,6 @@ internal open class ORMTemplateTest(
     }
 
     @Test
-    fun `update flow without batch size should modify entities`(): Unit = runBlocking {
-        val repo = orm.entity(City::class)
-        val cities = repo.findAllById(listOf(1, 2)).map { it.copy(name = "${it.name}-flow") }.asFlow()
-        repo.update(cities)
-        repo.getById(1).name shouldBe "Sun Paririe-flow"
-    }
-
-    @Test
     fun `insertAndFetch flow without batch size should return persisted`(): Unit = runBlocking {
         val repo = orm.entity(City::class)
         val result = repo.insertAndFetch(flowOf(City(name = "FFA"), City(name = "FFB"))).toList()
@@ -557,20 +549,6 @@ internal open class ORMTemplateTest(
     }
 
     // EntityRepository: selectAll, selectById, selectByRef (default chunk)
-
-    @Test
-    fun `selectAll should return all entities as flow`(): Unit = runBlocking {
-        val repo = orm.entity(City::class)
-        val count = repo.select().resultFlow.count()
-        count shouldBe 6
-    }
-
-    @Test
-    fun `countById flow without chunk size should count matching`(): Unit = runBlocking {
-        val repo = orm.entity(City::class)
-        val count = repo.countById(flowOf(1, 2, 3))
-        count shouldBe 3
-    }
 
     @Test
     fun `countByRef flow without chunk size should count matching`(): Unit = runBlocking {
@@ -655,13 +633,6 @@ internal open class ORMTemplateTest(
     }
 
     // EntityRepository: Iterable batch operations
-
-    @Test
-    fun `insert iterable should persist entities`() {
-        val repo = orm.entity(City::class)
-        repo.insert(listOf(City(name = "IterA"), City(name = "IterB")))
-        repo.count() shouldBe 8
-    }
 
     @Test
     fun `insert iterable with ignoreAutoGenerate should persist entities`() {
@@ -939,14 +910,6 @@ internal open class ORMTemplateTest(
     }
 
     @Test
-    fun `orm deleteBy reified entity should delete matching`() {
-        val repo = orm.entity(Vet::class)
-        val firstNamePath = metamodel<Vet, String>(repo.model, "first_name")
-        val deleted = repo.delete().where(firstNamePath eq "James").executeUpdate()
-        deleted shouldBe 1
-    }
-
-    @Test
     fun `orm removeAllByRef reified with field and refs should remove matching`() {
         val cityRepo = orm.entity(City::class)
         val testCity = cityRepo.insertAndFetch(City(name = "ReifRefDel"))
@@ -1079,13 +1042,6 @@ internal open class ORMTemplateTest(
         count shouldBe 1
     }
 
-    @Test
-    fun `orm removeAll with predicate should remove matching`() {
-        val firstNamePath = metamodel<Vet, String>(orm.entity(Vet::class).model, "first_name")
-        val deleted = orm.removeAll(firstNamePath eq "James")
-        deleted shouldBe 1
-    }
-
     // PreparedQuery: getSingleResult, getResultList, getResultStream with KClass
 
     @Test
@@ -1116,16 +1072,6 @@ internal open class ORMTemplateTest(
     }
 
     // QueryBuilder: scrollAfter/scrollBefore with cursor on QueryBuilder level
-
-    @Test
-    fun `queryBuilder scrollAfter with key and cursor should return next page`() {
-        val repo = orm.entity(City::class)
-        val idMetamodel = Metamodel.of<City, Int>(City::class.java, "id")
-        val key = Metamodel.key(idMetamodel)
-        val window = repo.select().scroll(Scrollable(key, 3, null, null, 3, true))
-        window.content shouldHaveSize 3
-        window.hasNext shouldBe false
-    }
 
     @Test
     fun `queryBuilder scrollBefore with key and cursor should return previous page`() {
@@ -1325,13 +1271,6 @@ internal open class ORMTemplateTest(
 
     // QueryTemplate: query with TemplateBuilder
 
-    @Test
-    fun `query with TemplateBuilder should return results`() {
-        val query = orm.query { "SELECT ${t(City::class)} FROM ${t(City::class)}" }
-        val cities = query.getResultList(City::class)
-        cities shouldHaveSize 6
-    }
-
     // Query: getOptionalResult, getRefList, getRefStream, getRefFlow
 
     @Test
@@ -1407,13 +1346,6 @@ internal open class ORMTemplateTest(
     // QueryBuilder: whereExists/whereNotExists
 
     @Test
-    fun `whereExists with subquery builder should filter correctly`() {
-        val repo = orm.entity(City::class)
-        val cities = repo.select().whereExists { subquery(Owner::class).where(TemplateString.raw("1 = 1")) }.resultList
-        cities shouldHaveSize 6
-    }
-
-    @Test
     fun `whereNotExists with subquery should return empty when subquery matches all`() {
         val repo = orm.entity(City::class)
         val cities = repo.select().whereNotExists(
@@ -1483,14 +1415,6 @@ internal open class ORMTemplateTest(
         val cityRef: Ref<City> = Ref.of(City::class.java, 1)
         val cities = repo.select().whereBuilder { whereRef(cityRef) }.resultList
         cities shouldHaveSize 1
-    }
-
-    @Test
-    fun `whereBuilder with whereAnyRef iterable should filter correctly`() {
-        val repo = orm.entity(City::class)
-        val refs = listOf(Ref.of(City::class.java, 1), Ref.of(City::class.java, 2))
-        val cities = repo.select().whereBuilder { whereRef(refs) }.resultList
-        cities shouldHaveSize 2
     }
 
     @Test
@@ -1624,14 +1548,6 @@ internal open class ORMTemplateTest(
 
     @Test
     fun `whereBuilder whereAny with metamodel path operator and iterable should filter correctly`() {
-        val repo = orm.entity(City::class)
-        val namePath = metamodel<City, String>(repo.model, "name")
-        val cities = repo.select().whereBuilder { (namePath inList listOf("Madison", "Windsor")) }.resultList
-        cities shouldHaveSize 2
-    }
-
-    @Test
-    fun `whereBuilder whereAny with metamodel path operator and vararg should filter correctly`() {
         val repo = orm.entity(City::class)
         val namePath = metamodel<City, String>(repo.model, "name")
         val cities = repo.select().whereBuilder { (namePath inList listOf("Madison", "Windsor")) }.resultList

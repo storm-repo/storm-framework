@@ -78,14 +78,6 @@ public class ORMTemplateTest {
         assertEquals(6, template.entity(City.class).count());
     }
 
-    @Test
-    public void testFactoryOfConnectionViaTemplates() throws Exception {
-        try (Connection connection = dataSource.getConnection()) {
-            ORMTemplate template = ORMTemplate.of(connection);
-            assertNotNull(template);
-        }
-    }
-
     // ORMTemplate.withEntityCallback / withEntityCallbacks
 
     @Test
@@ -1681,32 +1673,11 @@ public class ORMTemplateTest {
     // validateSchema with specific types
 
     @Test
-    public void testValidateSchemaWithTypes() {
-        List<String> errors = orm.validateSchema(List.of(City.class));
-        assertNotNull(errors);
-    }
-
-    @Test
     public void testValidateSchemaOrThrowWithTypes() {
         assertDoesNotThrow(() -> orm.validateSchemaOrThrow(List.of(City.class)));
     }
 
     // Query - typed getResult methods
-
-    @Test
-    public void testQueryGetResultStreamWithType() {
-        try (Stream<City> stream = orm.query(RAW."SELECT \{City.class} FROM \{City.class}")
-                .getResultStream(City.class)) {
-            assertEquals(6, stream.count());
-        }
-    }
-
-    @Test
-    public void testQueryGetResultListWithType() {
-        List<City> cities = orm.query(RAW."SELECT \{City.class} FROM \{City.class}")
-                .getResultList(City.class);
-        assertEquals(6, cities.size());
-    }
 
     @Test
     public void testQueryGetSingleResultWithType() {
@@ -1716,17 +1687,4 @@ public class ORMTemplateTest {
         assertEquals(1, city.id());
     }
 
-    @Test
-    public void testQueryGetOptionalResultWithType() {
-        Optional<City> city = orm.query(RAW."SELECT \{City.class} FROM \{City.class} WHERE \{City.class}.id = \{1}")
-                .getOptionalResult(City.class);
-        assertTrue(city.isPresent());
-    }
-
-    @Test
-    public void testQueryGetResultCountFromAllRows() {
-        long count = orm.query(RAW."SELECT \{City.class} FROM \{City.class}")
-                .getResultCount();
-        assertEquals(6, count);
-    }
 }

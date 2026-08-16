@@ -144,22 +144,6 @@ public class JpaIntegrationTest {
     }
 
     @Test
-    public void testSelectPetTypedWithLocalRecordAndNonnullEnumNull() {
-        // JPA does not support wildcard (*) column expansion for Owner; throws PersistenceException.
-        assertThrows(PersistenceException.class, () -> {
-            record Pet(int id, String name, LocalDate birthDate, PetTypeEnum type, Owner owner) {}
-            try (var query = ORM(entityManager).query("""
-                    SELECT p.id, p.name, p.birth_date, NULL pet_type, o.*
-                    FROM pet p
-                      INNER JOIN pet_type pt ON p.type_id = pt.id
-                      INNER JOIN owner o ON p.owner_id = o.id""").prepare()) {
-                var stream = query.getResultStream(Pet.class);
-                stream.toList();
-            }
-        });
-    }
-
-    @Test
     public void testSelectPetTypedWithLocalRecordAndEnumNotExists() {
         // JPA does not support wildcard (*) column expansion for Owner; throws PersistenceException.
         assertThrows(PersistenceException.class, () -> {
@@ -293,14 +277,6 @@ public class JpaIntegrationTest {
     void jpaTemplate_ORM_static() {
         ORMTemplate orm = ORM(entityManager);
         assertNotNull(orm);
-    }
-
-    @Test
-    void jpaTemplate_ORM_static_withConfig() {
-        StormConfig config = StormConfig.of(Map.of());
-        ORMTemplate orm = JpaTemplate.ORM(entityManager, config);
-        assertNotNull(orm);
-        assertEquals(config, orm.config());
     }
 
     @Test

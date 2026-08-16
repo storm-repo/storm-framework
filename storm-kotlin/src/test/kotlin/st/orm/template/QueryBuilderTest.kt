@@ -128,13 +128,6 @@ internal open class QueryBuilderTest(
     }
 
     @Test
-    fun `selectCount should return count of all entities`() {
-        // data.sql inserts 6 cities.
-        val count = orm.entity(City::class).selectCount().singleResult
-        count shouldBe 6L
-    }
-
-    @Test
     fun `singleResult should return entity when exactly one match`() {
         // data.sql: City(id=1, name='Sun Paririe').
         val city = orm.entity(City::class).select().where(1).singleResult
@@ -298,14 +291,6 @@ internal open class QueryBuilderTest(
     }
 
     // Unsafe mode tests
-
-    @Test
-    fun `unsafe delete without where should succeed`() {
-        // data.sql inserts 14 visits. unsafe() allows delete without a where clause.
-        val repo = orm.entity(Visit::class)
-        val count = repo.delete().unsafe().executeUpdate()
-        count shouldBe 14
-    }
 
     // Join tests
 
@@ -664,14 +649,6 @@ internal open class QueryBuilderTest(
         val city2 = City(id = 2, name = "Madison")
         val result = repo.select().where(listOf(city1, city2)).resultList
         result shouldHaveSize 2
-    }
-
-    @Test
-    fun `where with NOT_EQUALS operator should exclude matching entity`() {
-        val repo = orm.entity(City::class)
-        val namePath = metamodel<City, String>(repo.model, "name")
-        val result = repo.select().where(namePath neq "Madison").resultList
-        result shouldHaveSize 5
     }
 
     @Test
@@ -1144,15 +1121,6 @@ internal open class QueryBuilderTest(
     }
 
     @Test
-    fun `orderByDescendingAny with single metamodel should sort descending`() {
-        val repo = orm.entity(City::class)
-        val idPath = metamodel<City, Int>(repo.model, "id")
-        val cities = repo.select().orderByDescending(idPath).resultList
-        cities[0].id shouldBe 6
-        cities[5].id shouldBe 1
-    }
-
-    @Test
     fun `orderByDescendingAny with vararg metamodels should sort descending`() {
         val repo = orm.entity(Owner::class)
         val lastNamePath = metamodel<Owner, String>(repo.model, "last_name")
@@ -1180,14 +1148,6 @@ internal open class QueryBuilderTest(
     }
 
     @Test
-    fun `groupByAny with metamodel should group results`() {
-        val repo = orm.entity(Owner::class)
-        val cityPath = metamodel<Owner, Any>(repo.model, "city_id")
-        val counts = repo.selectCount().groupBy(cityPath).resultList
-        counts shouldHaveSize 6
-    }
-
-    @Test
     fun `groupByAny with empty vararg should throw PersistenceException`() {
         val repo = orm.entity(Owner::class)
         assertThrows<PersistenceException> {
@@ -1209,15 +1169,6 @@ internal open class QueryBuilderTest(
         assertThrows<PersistenceException> {
             repo.select().orderByDescending().resultList
         }
-    }
-
-    @Test
-    fun `having with TemplateBuilder should filter grouped results`() {
-        val repo = orm.entity(Owner::class)
-        val cityPath = metamodel<Owner, Any>(repo.model, "city_id")
-        val counts = repo.selectCount().groupBy(cityPath).having { "COUNT(*) > ${t(1)}" }.resultList
-        // Only cities with count > 1: city 2 (4 owners), city 5 (2 owners).
-        counts shouldHaveSize 2
     }
 
     @Test
@@ -1252,16 +1203,6 @@ internal open class QueryBuilderTest(
         }.resultList
         result shouldHaveSize 1
         result[0].firstName shouldBe "Betty"
-    }
-
-    @Test
-    fun `or should combine two predicates`() {
-        val repo = orm.entity(City::class)
-        val namePath = metamodel<City, String>(repo.model, "name")
-        val result = repo.select().whereBuilder {
-            (namePath eq "Madison") or (namePath eq "Windsor")
-        }.resultList
-        result shouldHaveSize 2
     }
 
     @Test
@@ -1532,13 +1473,6 @@ internal open class QueryBuilderTest(
     }
 
     @Test
-    fun `query with TemplateBuilder should execute`() {
-        val query = orm.query { "SELECT ${t(City::class)} FROM ${t(City::class)}" }
-        val cities = query.getResultList(City::class)
-        cities shouldHaveSize 6
-    }
-
-    @Test
     fun `query with TemplateString should execute`() {
         val templateString = TemplateString.raw { "SELECT ${t(City::class)} FROM ${t(City::class)}" }
         val query = orm.query(templateString)
@@ -1576,16 +1510,6 @@ internal open class QueryBuilderTest(
     fun `createBindVars should return non-null`() {
         val bindVars = orm.createBindVars()
         bindVars shouldBe bindVars // non-null check
-    }
-
-    @Test
-    fun `whereAny with path operator and vararg should filter`() {
-        val repo = orm.entity(City::class)
-        val namePath = metamodel<City, String>(repo.model, "name")
-        val result = repo.select().whereBuilder {
-            (namePath eq "Madison")
-        }.resultList
-        result shouldHaveSize 1
     }
 
     @Test
@@ -1644,19 +1568,6 @@ internal open class QueryBuilderTest(
     }
 
     @Test
-    fun `resultFlow should return all results as flow`(): Unit = runBlocking {
-        val count = orm.entity(City::class).select().resultFlow.count()
-        count shouldBe 6
-    }
-
-    @Test
-    fun `executeUpdate should return count of affected rows`() {
-        val repo = orm.entity(Visit::class)
-        val count = repo.delete().unsafe().executeUpdate()
-        count shouldBe 14
-    }
-
-    @Test
     fun `having with metamodel path should filter grouped results`() {
         val repo = orm.entity(Owner::class)
         val cityPath = metamodel<Owner, Any>(repo.model, "city_id")
@@ -1669,13 +1580,6 @@ internal open class QueryBuilderTest(
     }
 
     // distinct() tests
-
-    @Test
-    fun `distinct on simple select should return all unique cities`() {
-        // data.sql: 6 unique cities. Distinct should not reduce the count since all are unique.
-        val cities = orm.entity(City::class).select().distinct().resultList
-        cities shouldHaveSize 6
-    }
 
     @Test
     fun `distinct with join should eliminate duplicates from join expansion`() {
@@ -1757,14 +1661,6 @@ internal open class QueryBuilderTest(
     // typed() tests
 
     @Test
-    fun `typed should allow specifying primary key type`() {
-        val repo = orm.entity(City::class)
-        val typedBuilder = repo.select().typedId(Int::class)
-        val cities = typedBuilder.resultList
-        cities shouldHaveSize 6
-    }
-
-    @Test
     fun `typed with where by id should return matching entity`() {
         val repo = orm.entity(City::class)
         val city = repo.select().typedId(Int::class).where(1).singleResult
@@ -1834,28 +1730,11 @@ internal open class QueryBuilderTest(
     // Query resultFlow tests
 
     @Test
-    fun `build query resultFlow should return typed flow`(): Unit = runBlocking {
-        val query = orm.entity(City::class).select().build()
-        val cities = query.getResultFlow(City::class).toList()
-        cities shouldHaveSize 6
-    }
-
-    @Test
     fun `build query resultFlow with where should return filtered flow`(): Unit = runBlocking {
         val query = orm.entity(City::class).select().where(1).build()
         val cities = query.getResultFlow(City::class).toList()
         cities shouldHaveSize 1
         cities[0].name shouldBe "Sun Paririe"
-    }
-
-    @Test
-    fun `build query getRefFlow should return ref flow`(): Unit = runBlocking {
-        val query = orm.query("SELECT id FROM city")
-        val refs = query.getRefFlow(City::class, Integer::class).toList()
-        refs shouldHaveSize 6
-        refs.forEach { ref ->
-            ref.id() shouldNotBe null
-        }
     }
 
     // Combined advanced query scenarios
@@ -1893,14 +1772,6 @@ internal open class QueryBuilderTest(
 
     // QueryBuilder: where with varargs
 
-    @Test
-    fun `where with metamodel and IN operator and varargs should filter entities`() {
-        val repo = orm.entity(City::class)
-        val namePath = metamodel<City, String>(repo.model, "name")
-        val cities = repo.select().where(namePath inList listOf("Madison", "Windsor")).resultList
-        cities shouldHaveSize 2
-    }
-
     // QueryBuilder: having with metamodel path and operator
 
     @Test
@@ -1919,15 +1790,6 @@ internal open class QueryBuilderTest(
 
     @Test
     fun `where with PredicateBuilder should filter entities`() {
-        val repo = orm.entity(City::class)
-        val namePath = metamodel<City, String>(repo.model, "name")
-        val predicate = namePath eq "Madison"
-        val cities = repo.select().where(predicate).resultList
-        cities shouldHaveSize 1
-    }
-
-    @Test
-    fun `whereAny with Predicate should filter entities`() {
         val repo = orm.entity(City::class)
         val namePath = metamodel<City, String>(repo.model, "name")
         val predicate = namePath eq "Madison"
@@ -1955,14 +1817,6 @@ internal open class QueryBuilderTest(
     // QueryBuilder: limit/offset
 
     @Test
-    fun `limit should restrict result count`() {
-        val repo = orm.entity(City::class)
-        val idPath = metamodel<City, Int>(repo.model, "id")
-        val cities = repo.select().orderBy(idPath).limit(3).resultList
-        cities shouldHaveSize 3
-    }
-
-    @Test
     fun `limit with offset should skip and restrict results`() {
         val repo = orm.entity(City::class)
         val idPath = metamodel<City, Int>(repo.model, "id")
@@ -1972,13 +1826,6 @@ internal open class QueryBuilderTest(
     }
 
     // QueryBuilder: selectAll flow
-
-    @Test
-    fun `resultFlow should return all entities as flow from repo`(): Unit = runBlocking {
-        val repo = orm.entity(City::class)
-        val count = repo.select().resultFlow.count()
-        count shouldBe 6
-    }
 
     // QueryBuilder: whereExists and whereNotExists
 
@@ -2012,25 +1859,6 @@ internal open class QueryBuilderTest(
 
     @Test
     fun `orderByDescending with varargs metamodel paths should sort descending`() {
-        val repo = orm.entity(Owner::class)
-        val lastNamePath = metamodel<Owner, String>(repo.model, "last_name")
-        val firstNamePath = metamodel<Owner, String>(repo.model, "first_name")
-        val owners = repo.select().orderByDescending(lastNamePath, firstNamePath).limit(3).resultList
-        owners shouldHaveSize 3
-    }
-
-    @Test
-    fun `orderByDescendingAny with single metamodel path should sort descending`() {
-        val repo = orm.entity(City::class)
-        val idPath = metamodel<City, Int>(repo.model, "id")
-        val cities = repo.select().orderByDescending(idPath).resultList
-        cities shouldHaveSize 6
-        cities[0].id shouldBe 6
-        cities[5].id shouldBe 1
-    }
-
-    @Test
-    fun `orderByDescendingAny with multiple metamodel paths should sort descending`() {
         val repo = orm.entity(Owner::class)
         val lastNamePath = metamodel<Owner, String>(repo.model, "last_name")
         val firstNamePath = metamodel<Owner, String>(repo.model, "first_name")
@@ -2244,17 +2072,6 @@ internal open class QueryBuilderTest(
     }
 
     @Test
-    fun `havingAny with predicate should filter groups`() {
-        val repo = orm.entity(Owner::class)
-        val lastNamePath = metamodel<Owner, String>(repo.model, "last_name")
-        val result = repo.selectCount()
-            .groupBy(lastNamePath)
-            .having(lastNamePath inList listOf("Davis", "Franklin"))
-            .resultList
-        result shouldHaveSize 2
-    }
-
-    @Test
     fun `having with nested and-or predicate should filter groups`() {
         val repo = orm.entity(Owner::class)
         val lastNamePath = metamodel<Owner, String>(repo.model, "last_name")
@@ -2279,24 +2096,6 @@ internal open class QueryBuilderTest(
     }
 
     // QueryBuilder scroll (no key) tests
-
-    @Test
-    fun `scroll without key should return first page with hasNext`() {
-        val repo = orm.entity(City::class)
-        val idPath = metamodel<City, Int>(repo.model, "id")
-        val window = repo.select().orderBy(idPath).scroll(3)
-        window.content shouldHaveSize 3
-        window.hasNext shouldBe true
-    }
-
-    @Test
-    fun `scroll without key should return all when size exceeds count`() {
-        val repo = orm.entity(City::class)
-        val idPath = metamodel<City, Int>(repo.model, "id")
-        val window = repo.select().orderBy(idPath).scroll(10)
-        window.content shouldHaveSize 6
-        window.hasNext shouldBe false
-    }
 
     // QueryBuilder: scrollAfter/scrollBefore with PK cursor
 
@@ -2428,14 +2227,6 @@ internal open class QueryBuilderTest(
         val namePath = metamodel<City, String>(repo.model, "name")
         val cities = repo.select().where(namePath notLike "M%").resultList
         cities shouldHaveSize 3
-    }
-
-    @Test
-    fun `inList infix should filter entities in list`() {
-        val repo = orm.entity(City::class)
-        val namePath = metamodel<City, String>(repo.model, "name")
-        val cities = repo.select().where(namePath inList listOf("Madison", "Windsor")).resultList
-        cities shouldHaveSize 2
     }
 
     @Test

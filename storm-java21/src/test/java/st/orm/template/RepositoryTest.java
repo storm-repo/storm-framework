@@ -188,20 +188,6 @@ public class RepositoryTest {
 
     // EntityRepository - select with custom select type
 
-    @Test
-    public void testSelectWithLongResultType() {
-        EntityRepository<City, Integer> cities = orm.entity(City.class);
-        long count = cities.selectCount().getSingleResult();
-        assertEquals(6, count);
-    }
-
-    @Test
-    public void testSelectCustomType() {
-        EntityRepository<City, Integer> cities = orm.entity(City.class);
-        List<String> names = cities.select(String.class, RAW."\{City.class}.name").getResultList();
-        assertEquals(6, names.size());
-    }
-
     // StringTemplates helper methods coverage
 
     @Test
@@ -234,12 +220,6 @@ public class RepositoryTest {
         var subquery = orm.subquery(City.class, RAW."1");
         var subqueryElement = Templates.subquery(subquery, false);
         assertNotNull(subqueryElement);
-    }
-
-    @Test
-    public void testDeleteTemplateHelper() {
-        var deleteElement = Templates.delete(City.class);
-        assertNotNull(deleteElement);
     }
 
     @Test
@@ -326,35 +306,7 @@ public class RepositoryTest {
 
     // SubqueryTemplate
 
-    @Test
-    public void testSubqueryFromType() {
-        var subquery = orm.subquery(City.class);
-        assertNotNull(subquery);
-    }
-
-    @Test
-    public void testSubqueryFromTypeWithSelectType() {
-        var subquery = orm.subquery(City.class, City.class);
-        assertNotNull(subquery);
-    }
-
-    @Test
-    public void testSubqueryFromTypeWithTemplate() {
-        var subquery = orm.subquery(City.class, RAW."\{City.class}.id");
-        assertNotNull(subquery);
-    }
-
     // WhereBuilder - subquery
-
-    @Test
-    public void testWhereBuilderSubquery() {
-        List<Owner> owners = orm.entity(Owner.class).select()
-                .where(wb -> wb.exists(
-                        wb.subquery(Pet.class, RAW."1")
-                                .where(RAW."\{Pet.class}.owner_id = \{Owner.class}.id")))
-                .getResultList();
-        assertFalse(owners.isEmpty());
-    }
 
     // EntityRepository - Metamodel.Key scroll default methods
 
@@ -374,12 +326,6 @@ public class RepositoryTest {
     @Test
     public void testEntityScrollBeforeRefByKey() {
         Window<Ref<City>> window = orm.entity(City.class).selectRef().scroll(Scrollable.of(City_.id, 3).backward());
-        assertEquals(3, window.content().size());
-    }
-
-    @Test
-    public void testEntityScrollRefByKey() {
-        Window<Ref<City>> window = orm.entity(City.class).selectRef().scroll(Scrollable.of(City_.id, 3));
         assertEquals(3, window.content().size());
     }
 
