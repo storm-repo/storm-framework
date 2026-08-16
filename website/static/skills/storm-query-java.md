@@ -536,6 +536,8 @@ class UserQueryTest {
 }
 ```
 
+H2 is the default and the fastest loop, but it is also the most permissive dialect: it accepts SQL the target database rejects, and its upsert path, sequence discovery, identity handling and JSON functions differ from the target's. When the query relies on dialect-specific SQL, or the project's database is known and Docker is available, run the same test on that database by adding `database = POSTGRESQL` (or `MYSQL`, `MARIADB`, `MSSQL_SERVER`, `ORACLE`, from `st.orm.test.TestDatabase`) to `@StormTest`. Nothing else in the test changes; the class needs the database's Testcontainers module and JDBC driver in test scope (see /storm-setup).
+
 Run the test. Show the user the captured SQL and explain how it aligns with the intended behavior. If a query produces unexpected SQL or the right approach is unclear, ask the user for feedback before changing the query.
 
 `SqlCapture` answers whether a query is correct. To find which query is expensive in a running application, raise the `st.orm.sql.perf` logger and read the per-call summary: it ranks statements by total time and shows which ones repeat, which resolve references on demand, and which hydrate more graph than they use. See the repository skill for how to act on each signal.

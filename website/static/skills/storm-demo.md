@@ -77,7 +77,7 @@ Use the database configured by the Storm CLI (check the MCP server connection se
 
 ## Step 3 & 4: Schema and Entities
 
-Use Flyway for schema management. Add the Flyway dependency. The migration goes in `src/main/resources/db/migration/V1__create_schema.sql`. The same SQL file should also be copied to `src/test/resources/schema.sql` for use by `@StormTest`.
+Use Flyway for schema management. Add the Flyway dependency. The migration goes in `src/main/resources/db/migration/V1__create_schema.sql`. The same SQL file should also be copied to `src/test/resources/schema.sql` for use by `@StormTest`. Run the `@StormTest` classes on the demo's own database rather than on H2, so the migration runs as written: set `database = TestDatabase.POSTGRESQL` (or the constant matching the configured database: `MYSQL`, `MARIADB`, `MSSQL_SERVER`, `ORACLE`) on every `@StormTest`, and add the database's Testcontainers module (`org.testcontainers:postgresql` and so on) plus its driver in test scope; Docker is available because Docker Compose runs the database. The container starts once per test run and each test class gets a fresh database inside it.
 
 The data model is based on the public IMDB TSV data files (https://datasets.imdbws.com/). Study the file formats (`title.basics.tsv.gz`, `name.basics.tsv.gz`, `title.principals.tsv.gz`, `title.ratings.tsv.gz`) and design tables that map naturally to the data. Also add tables for: tracking which movies the user has viewed (clicked) so recently viewed movies can be shown on the home page, and a watchlist table for saving movies to watch later.
 

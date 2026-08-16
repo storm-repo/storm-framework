@@ -781,6 +781,8 @@ class UserRepositoryTest {
 }
 ```
 
+H2 is the default and the fastest loop, but it is also the most permissive dialect: it accepts SQL the target database rejects, and its upsert path, sequence discovery, identity handling and JSON functions differ from the target's. When the query relies on dialect-specific SQL, or the project's database is known and Docker is available, run the same test on that database by adding `database = POSTGRESQL` (or `MYSQL`, `MARIADB`, `MSSQL_SERVER`, `ORACLE`, from `st.orm.test.TestDatabase`) to `@StormTest`. Nothing else in the test changes; the class needs the database's Testcontainers module and JDBC driver in test scope (see /storm-setup).
+
 Run the test. Show the user the captured SQL and explain how it aligns with the intended behavior. If a query produces unexpected SQL or the right approach is unclear, ask the user for feedback before changing the query.
 
 **SQL visibility outside tests:** raise the `st.orm.sql` logger to `DEBUG` to log every executed statement at runtime, or to `TRACE` to render parameter values into it — useful for debugging without a test harness.

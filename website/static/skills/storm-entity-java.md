@@ -173,6 +173,8 @@ class EntitySchemaTest {
 }
 ```
 
+Schema validation is only as faithful as the database it runs against: H2 maps types differently from the target database and accepts DDL the target rejects. When the schema is written for a specific database, or the project's database is known and Docker is available, validate on that database by adding `database = POSTGRESQL` (or `MYSQL`, `MARIADB`, `MSSQL_SERVER`, `ORACLE`, from `st.orm.test.TestDatabase`) to `@StormTest`; the schema script then runs as written in a Testcontainers-managed container. The class needs the database's Testcontainers module and JDBC driver in test scope (see /storm-setup).
+
 Run the test. Show the user the result and explain what it proves. If validation fails, explain the errors and fix the entities. If a validation result is ambiguous or involves a trade-off (e.g., a nullable column mapped to a non-null field intentionally), ask the user for guidance before changing anything.
 
 
