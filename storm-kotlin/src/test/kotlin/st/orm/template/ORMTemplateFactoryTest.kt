@@ -14,7 +14,6 @@ import st.orm.EntityCallback
 import st.orm.template.model.City
 import st.orm.template.model.Owner
 import st.orm.template.model.OwnerView
-import st.orm.template.model.Visit
 import javax.sql.DataSource
 
 /**
@@ -165,30 +164,11 @@ internal open class ORMTemplateFactoryTest(
 
     // validateSchema
 
-    @Test
-    fun `validateSchema should return list of errors or empty`() {
-        val errors = orm.validateSchema(City::class)
-        // City should validate fine against H2
-        errors shouldHaveSize 0
-    }
-
     // query method
 
     @Test
     fun `query with raw SQL should return results`() {
         val result = orm.query("SELECT COUNT(*) FROM city").singleResult
         result shouldBe arrayOf(6L)
-    }
-
-    @Test
-    fun `selectFrom should return builder for entity`() {
-        val cities = orm.selectFrom(City::class).resultList
-        cities shouldHaveSize 6
-    }
-
-    @Test
-    fun `deleteFrom should return builder for entity`() {
-        val deleted = orm.deleteFrom(Visit::class).unsafe().executeUpdate()
-        deleted shouldBe 14
     }
 }

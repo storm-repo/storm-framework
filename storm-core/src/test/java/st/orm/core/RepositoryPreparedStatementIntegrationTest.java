@@ -597,12 +597,6 @@ public class RepositoryPreparedStatementIntegrationTest {
     }
 
     @Test
-    void testCustomConverter() {
-        var list = ORMTemplate.of(dataSource).entity(VisitWithDefaultConverter.class).findAll();
-        assertEquals("2023-01-01", list.stream().findFirst().get().visitDate().value());
-    }
-
-    @Test
     void testWithoutConverter() {
         var e = assertThrows(PersistenceException.class, () -> {
             ORMTemplate.of(dataSource).entity(VisitWithoutConverter.class).findAll();

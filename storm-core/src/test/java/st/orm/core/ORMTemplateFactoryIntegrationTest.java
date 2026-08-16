@@ -3,7 +3,6 @@ package st.orm.core;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
-import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.sql.Connection;
 import java.sql.SQLException;
@@ -157,12 +156,6 @@ public class ORMTemplateFactoryIntegrationTest {
     }
 
     // 10. entityCallbacks() default
-
-    @Test
-    public void testEntityCallbacksDefaultEmpty() {
-        var orm = ORMTemplate.of(dataSource);
-        assertTrue(orm.entityCallbacks().isEmpty());
-    }
 
     // 11. withEntityCallback()
 

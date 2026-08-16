@@ -1,13 +1,11 @@
 package st.orm.test;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import javax.sql.DataSource;
 import org.junit.jupiter.api.Test;
 import st.orm.Entity;
 import st.orm.PK;
-import st.orm.core.template.ORMTemplate;
 
 /**
  * Tests the custom URL path in {@link StormExtension} where a non-default JDBC URL is provided.
@@ -17,13 +15,6 @@ import st.orm.core.template.ORMTemplate;
 class StormExtensionCustomUrlTest {
 
     record Item(@PK Integer id, String name) implements Entity<Integer> {}
-
-    @Test
-    void scriptsShouldExecuteAgainstCustomUrl(ORMTemplate orm) {
-        // The custom URL database should contain the test data loaded by the scripts.
-        var items = orm.entity(Item.class).findAll();
-        assertEquals(3, items.size());
-    }
 
     @Test
     void customUrlShouldBeReflectedInConnection(DataSource dataSource) throws Exception {

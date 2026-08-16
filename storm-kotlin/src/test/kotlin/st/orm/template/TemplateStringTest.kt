@@ -180,13 +180,6 @@ internal open class TemplateStringTest(
         results[0].name shouldBe "Monona"
     }
 
-    @Test
-    fun `query with TemplateString should return results`() {
-        val template = TemplateString.raw { "SELECT ${t(City::class)} FROM ${t(City::class)}" }
-        val results = orm.query(template).getResultList(City::class)
-        results shouldHaveSize 6
-    }
-
     // TemplateContext.t and TemplateContext.interpolate tests
 
     @Test

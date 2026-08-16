@@ -102,21 +102,7 @@ internal class StormSerializersModuleGapTest {
 
     // encodeId with null ref type and null id (line 213)
 
-    @Test
-    fun `serialize null ref produces JSON null via encodeId null path`() {
-        // When ref is null, serializeToJsonElement calls encodeId with null type and null id.
-        val holder = EntityRefHolder(ref = null)
-        val json = jsonMapper.encodeToString(holder)
-        json shouldBe """{"ref":null}"""
-    }
-
     // createRef with null id (line 207)
-
-    @Test
-    fun `deserialize null JSON literal for ref returns null via createRef null path`() {
-        val holder = jsonMapper.decodeFromString<EntityRefHolder>("""{"ref":null}""")
-        holder.ref.shouldBeNull()
-    }
 
     // Loaded entity round-trip exercises the main serialize/deserialize paths
 

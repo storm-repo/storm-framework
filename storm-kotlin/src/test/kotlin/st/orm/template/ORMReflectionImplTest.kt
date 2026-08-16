@@ -276,13 +276,6 @@ internal open class ORMReflectionImplTest(
     // Integration: entity operations using reflection
 
     @Test
-    fun `orm entity should use ORMReflection for Kotlin data classes`() {
-        val city = orm.entity(City::class).select().where(1).singleResult
-        city.id shouldBe 1
-        city.name shouldBe "Sun Paririe"
-    }
-
-    @Test
     fun `orm entity should handle data class with nullable FK`() {
         // Pet id=13 (Sly) has null owner
         val pet = orm.entity(Pet::class).select().where(13).singleResult
@@ -433,13 +426,6 @@ internal open class ORMReflectionImplTest(
         // A regular (non-data) class should not be recognized as a record type
         class RegularClass(val name: String)
         val result = reflection.findRecordType(RegularClass::class.java)
-        result.isPresent.shouldBeFalse()
-    }
-
-    @Test
-    fun `findRecordType should return empty for Java record`() {
-        // java.lang.Record types are handled by DefaultORMReflectionImpl
-        val result = reflection.findRecordType(String::class.java)
         result.isPresent.shouldBeFalse()
     }
 

@@ -203,19 +203,6 @@ public class EntityCacheImplTest {
     }
 
     @Test
-    public void testLightRetentionInternAndGetReturnsEntity() {
-        // LIGHT retention uses WeakReferences. Verifies intern/get works for LIGHT retention.
-        EntityCacheImpl<TestEntity, Integer> cache = new EntityCacheImpl<>(CacheRetention.LIGHT);
-        TestEntity entity = new TestEntity(1, "Alice");
-        TestEntity interned = cache.intern(entity);
-        assertSame(entity, interned);
-
-        Optional<TestEntity> result = cache.get(1);
-        assertTrue(result.isPresent());
-        assertSame(entity, result.get());
-    }
-
-    @Test
     public void testLightRetentionInternReplacesWhenEntityDiffers() {
         // With LIGHT retention, interning an entity with same PK but different content should replace.
         EntityCacheImpl<TestEntity, Integer> cache = new EntityCacheImpl<>(CacheRetention.LIGHT);

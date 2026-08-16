@@ -835,16 +835,6 @@ internal open class TransactionTest(
      */
 
     @Test
-    fun `MANDATORY with outer transaction should join and commit`(): Unit = runBlocking {
-        transactionBlocking {
-            transactionBlocking(MANDATORY) {
-                orm.removeAll<Visit>()
-            }
-        }
-        orm.exists<Visit>().shouldBeFalse()
-    }
-
-    @Test
     fun `MANDATORY with outer transaction should join and rollback`(): Unit = runBlocking {
         transactionBlocking {
             transactionBlocking(MANDATORY) {

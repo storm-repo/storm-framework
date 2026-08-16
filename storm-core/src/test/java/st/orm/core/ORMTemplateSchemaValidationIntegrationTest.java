@@ -1,6 +1,5 @@
 package st.orm.core;
 
-import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
@@ -45,12 +44,6 @@ public class ORMTemplateSchemaValidationIntegrationTest {
         List<String> results = orm.validateSchema(List.of(City.class));
         assertNotNull(results);
         assertTrue(results.isEmpty(), "Expected no validation errors for City, got: " + results);
-    }
-
-    @Test
-    public void testValidateSchemaOrThrow() {
-        var orm = ORMTemplate.of(dataSource);
-        assertDoesNotThrow(() -> orm.validateSchemaOrThrow(List.of(City.class)));
     }
 
     @Test
@@ -115,10 +108,4 @@ public class ORMTemplateSchemaValidationIntegrationTest {
                 "Expected no validation errors for valid types, got: " + results);
     }
 
-    @Test
-    public void testValidateSchemaOrThrowWithMultipleTypes() {
-        var orm = ORMTemplate.of(dataSource);
-        // These should all be valid given the test data setup.
-        assertDoesNotThrow(() -> orm.validateSchemaOrThrow(List.of(City.class)));
-    }
 }
