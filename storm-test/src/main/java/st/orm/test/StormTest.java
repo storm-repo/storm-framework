@@ -84,9 +84,10 @@ public @interface StormTest {
     /**
      * The database to run the tests on. Defaults to {@link TestDatabase#H2 H2} in memory.
      *
-     * <p>Every other database runs in a Docker container managed by Testcontainers, which must be on the test
-     * classpath together with the database's JDBC driver: {@code org.testcontainers:postgresql} and
-     * {@code org.postgresql:postgresql} for {@link TestDatabase#POSTGRESQL POSTGRESQL}, and so on. The container is
+     * <p>Every other database runs in a Docker container managed by Testcontainers 2, whose module for the database
+     * must be on the test classpath together with the database's JDBC driver:
+     * {@code org.testcontainers:testcontainers-postgresql} and {@code org.postgresql:postgresql} for
+     * {@link TestDatabase#POSTGRESQL POSTGRESQL}, and so on. The container is
      * started once per JVM for a given database and {@link #image()} and shared by all test classes that ask for it;
      * each class gets a fresh database inside the container, created before the {@link #scripts()} run and dropped
      * when the class completes, so classes never observe each other's tables or rows.</p>

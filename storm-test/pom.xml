@@ -30,6 +30,12 @@
         <developerConnection>scm:git:ssh://github.com/storm-orm/storm-framework.git</developerConnection>
         <url>https://github.com/storm-orm/storm-framework/</url>
     </scm>
+    <properties>
+        <!-- Testcontainers 2 renamed its modules (testcontainers-postgresql) and moved the container classes;
+             StormTest.database() resolves the Testcontainers 2 classes only. The Spring Boot 3 BOM the parent
+             imports manages Testcontainers 1, so the version is pinned here for the core artifacts it shares. -->
+        <testcontainers.version>2.0.5</testcontainers.version>
+    </properties>
     <build>
         <plugins>
             <plugin>
@@ -72,6 +78,25 @@
             </plugin>
         </plugins>
     </build>
+    <dependencyManagement>
+        <dependencies>
+            <dependency>
+                <groupId>org.testcontainers</groupId>
+                <artifactId>testcontainers</artifactId>
+                <version>${testcontainers.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>org.testcontainers</groupId>
+                <artifactId>testcontainers-jdbc</artifactId>
+                <version>${testcontainers.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>org.testcontainers</groupId>
+                <artifactId>testcontainers-database-commons</artifactId>
+                <version>${testcontainers.version}</version>
+            </dependency>
+        </dependencies>
+    </dependencyManagement>
     <dependencies>
         <dependency>
             <groupId>org.jspecify</groupId>
@@ -98,8 +123,8 @@
             <artifactId>h2</artifactId>
             <scope>provided</scope>
         </dependency>
-        <!-- Testcontainers, behind StormTest.database(): tests bring the module of the database they run on, and
-             tests on H2 bring nothing. -->
+        <!-- Testcontainers sits behind StormTest.database(): tests bring the module of the database they run on,
+             and tests on H2 bring nothing, so the module compiles against the core in provided scope. -->
         <dependency>
             <groupId>org.testcontainers</groupId>
             <artifactId>testcontainers</artifactId>
@@ -107,7 +132,7 @@
         </dependency>
         <dependency>
             <groupId>org.testcontainers</groupId>
-            <artifactId>jdbc</artifactId>
+            <artifactId>testcontainers-jdbc</artifactId>
             <scope>provided</scope>
         </dependency>
         <!-- Test -->
@@ -123,7 +148,32 @@
         </dependency>
         <dependency>
             <groupId>org.testcontainers</groupId>
-            <artifactId>postgresql</artifactId>
+            <artifactId>testcontainers-postgresql</artifactId>
+            <version>${testcontainers.version}</version>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.testcontainers</groupId>
+            <artifactId>testcontainers-mysql</artifactId>
+            <version>${testcontainers.version}</version>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.testcontainers</groupId>
+            <artifactId>testcontainers-mariadb</artifactId>
+            <version>${testcontainers.version}</version>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.testcontainers</groupId>
+            <artifactId>testcontainers-mssqlserver</artifactId>
+            <version>${testcontainers.version}</version>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.testcontainers</groupId>
+            <artifactId>testcontainers-oracle-free</artifactId>
+            <version>${testcontainers.version}</version>
             <scope>test</scope>
         </dependency>
         <dependency>
@@ -132,18 +182,8 @@
             <scope>test</scope>
         </dependency>
         <dependency>
-            <groupId>org.testcontainers</groupId>
-            <artifactId>mysql</artifactId>
-            <scope>test</scope>
-        </dependency>
-        <dependency>
             <groupId>com.mysql</groupId>
             <artifactId>mysql-connector-j</artifactId>
-            <scope>test</scope>
-        </dependency>
-        <dependency>
-            <groupId>org.testcontainers</groupId>
-            <artifactId>mariadb</artifactId>
             <scope>test</scope>
         </dependency>
         <dependency>
@@ -152,18 +192,8 @@
             <scope>test</scope>
         </dependency>
         <dependency>
-            <groupId>org.testcontainers</groupId>
-            <artifactId>mssqlserver</artifactId>
-            <scope>test</scope>
-        </dependency>
-        <dependency>
             <groupId>com.microsoft.sqlserver</groupId>
             <artifactId>mssql-jdbc</artifactId>
-            <scope>test</scope>
-        </dependency>
-        <dependency>
-            <groupId>org.testcontainers</groupId>
-            <artifactId>oracle-free</artifactId>
             <scope>test</scope>
         </dependency>
         <dependency>

@@ -32,28 +32,29 @@ final class JdbcContainers {
     }
 
     /**
-     * Starts a container of the given database from the given image and returns how to reach it.
+     * Starts a container of the given database from the given image, using the given container class, and returns
+     * how to reach it.
      */
-    static Endpoint start(TestDatabase database, String image) {
+    static Endpoint start(TestDatabase database, Class<?> containerClass, String image) {
         // Any distribution of the database is accepted, such as pgvector/pgvector for PostgreSQL; the container
         // class insists on an image it knows unless told the image stands in for its own.
         String defaultRepository = DockerImageName.parse(database.defaultImage()).getUnversionedPart();
         DockerImageName imageName = DockerImageName.parse(image).asCompatibleSubstituteFor(defaultRepository);
-        JdbcDatabaseContainer<?> container = newContainer(database, imageName);
+        JdbcDatabaseContainer<?> container = newContainer(database, containerClass, imageName);
         container.start();
         return new Endpoint(container.getHost(), container.getMappedPort(database.port()), container.getJdbcUrl(),
                 container.getUsername(), container.getPassword());
     }
 
     /**
-     * Instantiates the container class of the database through its {@code (DockerImageName)} constructor. Reflection
-     * keeps this method free of references to the individual container classes, so verifying it never loads a
-     * container module that is not on the classpath.
+     * Instantiates the container class through its {@code (DockerImageName)} constructor, which every container class
+     * declares. Reflection keeps this method free of references to the individual container classes, so verifying it
+     * never loads a container module that is not on the classpath.
      */
-    private static JdbcDatabaseContainer<?> newContainer(TestDatabase database, DockerImageName imageName) {
+    private static JdbcDatabaseContainer<?> newContainer(TestDatabase database,
+                                                         Class<?> containerClass,
+                                                         DockerImageName imageName) {
         try {
-            Class<?> containerClass = Class.forName(database.containerClassName(), true,
-                    JdbcContainers.class.getClassLoader());
             return (JdbcDatabaseContainer<?>) containerClass.getConstructor(DockerImageName.class)
                     .newInstance(imageName);
         } catch (InvocationTargetException e) {

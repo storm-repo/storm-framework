@@ -80,18 +80,18 @@ public final class DatabaseContainer {
             if (endpoint == null) {
                 // Both checks run before any Testcontainers type is touched, so a missing dependency surfaces as
                 // this message rather than as a NoClassDefFoundError from deep inside the container start.
-                requireClass(database.containerClassName(), "the Testcontainers module for " + database,
-                        database.testcontainersArtifact());
+                Class<?> containerClass = requireClass(database.containerClassName(),
+                        "the Testcontainers module for " + database, database.testcontainersArtifact());
                 requireClass(database.driverClassName(), "the JDBC driver for " + database, database.driverArtifact());
-                endpoint = JdbcContainers.start(database, image);
+                endpoint = JdbcContainers.start(database, containerClass, image);
             }
         }
         return this;
     }
 
-    private void requireClass(String className, String description, String artifact) {
+    private Class<?> requireClass(String className, String description, String artifact) {
         try {
-            Class.forName(className, false, DatabaseContainer.class.getClassLoader());
+            return Class.forName(className, false, DatabaseContainer.class.getClassLoader());
         } catch (ClassNotFoundException e) {
             throw new IllegalStateException("Running tests on " + database + " requires " + description
                     + " on the test classpath: add " + artifact + " in test scope.", e);
