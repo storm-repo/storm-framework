@@ -103,11 +103,10 @@ public @interface DataStormTest {
      * to the slice's regular rules: the embedded replacement, or the configured database with
      * {@code spring.test.database.replace=none}.
      *
-     * <p>Every other database runs in a Docker container managed by Testcontainers, whose module for the database
+     * <p>Every other database runs in a Docker container managed by Testcontainers 2, whose module for the database
      * must be on the test classpath together with the database's JDBC driver:
-     * {@code org.testcontainers:testcontainers-postgresql} (Testcontainers 2) or {@code org.testcontainers:postgresql}
-     * (Testcontainers 1) and {@code org.postgresql:postgresql} for {@link TestDatabase#POSTGRESQL POSTGRESQL}, and so
-     * on. The container is
+     * {@code org.testcontainers:testcontainers-postgresql} and {@code org.postgresql:postgresql} for
+     * {@link TestDatabase#POSTGRESQL POSTGRESQL}, and so on. The container is
      * started once per JVM for a given database and {@link #image()} and shared by all test classes that ask for it;
      * each Spring context gets a fresh database inside the container, dropped when the context closes. The slice
      * points {@code spring.datasource.url}, {@code spring.datasource.username} and {@code spring.datasource.password}

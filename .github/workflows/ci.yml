@@ -43,12 +43,6 @@ jobs:
       - name: Install Storm artifacts for the Gradle plugin smoke test
         run: mvn install -DskipTests -B
 
-      # The default build tests storm-test's container databases on Testcontainers 1, the generation the
-      # Spring Boot 3 BOM manages; this runs the same tests on Testcontainers 2, which Spring Boot 4 manages,
-      # since Storm resolves the container classes of either generation by name.
-      - name: Test storm-test on Testcontainers 2
-        run: mvn test -B -pl storm-test -Ptestcontainers-2
-
       - name: Set up Gradle
         uses: gradle/actions/setup-gradle@v6
 

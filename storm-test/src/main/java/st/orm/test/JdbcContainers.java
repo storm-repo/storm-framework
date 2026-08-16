@@ -47,9 +47,9 @@ final class JdbcContainers {
     }
 
     /**
-     * Instantiates the container class through its {@code (DockerImageName)} constructor, which every generation of
-     * every container class declares. Reflection keeps this method free of references to the individual container
-     * classes, so verifying it never loads a container module that is not on the classpath.
+     * Instantiates the container class through its {@code (DockerImageName)} constructor, which every container class
+     * declares. Reflection keeps this method free of references to the individual container classes, so verifying it
+     * never loads a container module that is not on the classpath.
      */
     private static JdbcDatabaseContainer<?> newContainer(TestDatabase database,
                                                          Class<?> containerClass,

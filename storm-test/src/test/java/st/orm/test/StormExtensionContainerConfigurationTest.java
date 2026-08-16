@@ -83,7 +83,6 @@ class StormExtensionContainerConfigurationTest {
             assertEquals(IllegalStateException.class, exception.getCause().getClass());
             String message = exception.getCause().getMessage();
             assertTrue(message.contains("org.testcontainers:testcontainers-postgresql"), message);
-            assertTrue(message.contains("org.testcontainers:postgresql"), message);
             assertTrue(message.contains("Testcontainers module for POSTGRESQL"), message);
         }
     }

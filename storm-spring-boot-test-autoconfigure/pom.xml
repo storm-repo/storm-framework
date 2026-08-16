@@ -30,6 +30,11 @@
         <developerConnection>scm:git:ssh://github.com/storm-orm/storm-framework.git</developerConnection>
         <url>https://github.com/storm-orm/storm-framework/</url>
     </scm>
+    <properties>
+        <!-- The Testcontainers 2 generation the database attribute resolves; the Spring Boot 3 BOM manages
+             Testcontainers 1 for the shared core artifact. -->
+        <testcontainers.version>2.0.5</testcontainers.version>
+    </properties>
     <build>
         <plugins>
             <plugin>
@@ -103,6 +108,15 @@
             </plugin>
         </plugins>
     </build>
+    <dependencyManagement>
+        <dependencies>
+            <dependency>
+                <groupId>org.testcontainers</groupId>
+                <artifactId>testcontainers</artifactId>
+                <version>${testcontainers.version}</version>
+            </dependency>
+        </dependencies>
+    </dependencyManagement>
     <dependencies>
         <dependency>
             <groupId>org.springframework.boot</groupId>
@@ -171,7 +185,8 @@
         </dependency>
         <dependency>
             <groupId>org.testcontainers</groupId>
-            <artifactId>postgresql</artifactId>
+            <artifactId>testcontainers-postgresql</artifactId>
+            <version>${testcontainers.version}</version>
             <scope>test</scope>
         </dependency>
         <dependency>
