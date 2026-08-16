@@ -68,6 +68,9 @@
                         --add-opens storm.java/st.orm.template.impl=ALL-UNNAMED
                         --add-opens storm.java/st.orm.template.model=ALL-UNNAMED
                         --add-opens storm.java/st.orm.template.model=storm.core
+                        <!-- Tests are patched into storm.java, which requires nothing of the logging backend;
+                             asserting on what a logger emitted reads the backend directly. -->
+                        --add-reads storm.java=org.slf4j,ch.qos.logback.classic,ch.qos.logback.core
                         -Dstorm.ansi_escaping=true
                     </argLine>
                 </configuration>

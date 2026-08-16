@@ -381,4 +381,229 @@ internal open class SqlDslTest(
         cities shouldHaveSize 6
         cities[0].name shouldBe "Windsor"
     }
+
+    // Clause vocabulary parity with the chained builder (#397): the WHERE forms.
+
+    @Test
+    fun `select entity with where record in the block`() {
+        val cities = orm.entity(City::class).select {
+            where(City(id = 3, name = "McFarland"))
+        }.resultList
+        cities.map { it.id } shouldBe listOf(3)
+    }
+
+    @Test
+    fun `select entity with where ref in the block`() {
+        val ref: Ref<City> = Ref.of(City::class.java, 3)
+        val cities = orm.entity(City::class).select {
+            where(ref)
+        }.resultList
+        cities.map { it.id } shouldBe listOf(3)
+    }
+
+    @Test
+    fun `select entities with where path operator and values in the block`() {
+        val namePath = metamodel<City, String>(orm.model(City::class), "name")
+        val cities = orm.entity(City::class).select {
+            where(namePath, IN, "Madison", "Monona")
+            orderBy(namePath)
+        }.resultList
+        cities.map { it.name } shouldBe listOf("Madison", "Monona")
+    }
+
+    @Test
+    fun `select entities with where path and record in the block`() {
+        // The record identifies the row by its key. data.sql: city 2 (Madison) has four owners.
+        val cityPath = metamodel<Owner, City>(orm.model(Owner::class), "city_id")
+        val owners = orm.entity(Owner::class).select {
+            where(cityPath, City(id = 2, name = "Madison"))
+        }.resultList
+        owners shouldHaveSize 4
+    }
+
+    @Test
+    fun `select entities with where path and ref in the block`() {
+        val cityPath = metamodel<Owner, City>(orm.model(Owner::class), "city_id")
+        val owners = orm.entity(Owner::class).select {
+            where(cityPath, Ref.of(City::class.java, 2))
+        }.resultList
+        owners shouldHaveSize 4
+    }
+
+    @Test
+    fun `select entities with where template in the block`() {
+        val cities = orm.entity(City::class).select {
+            where { "${t(Templates.alias(City::class))}.id > ${t(4)}" }
+        }.resultList
+        cities.map { it.id }.toSet() shouldBe setOf(5, 6)
+    }
+
+    @Test
+    fun `select entities with whereBuilder in the block`() {
+        val namePath = metamodel<City, String>(orm.model(City::class), "name")
+        val cities = orm.entity(City::class).select {
+            whereBuilder { (namePath eq "Madison") or (namePath eq "Monona") }
+            orderBy(namePath)
+        }.resultList
+        cities.map { it.name } shouldBe listOf("Madison", "Monona")
+    }
+
+    @Test
+    fun `select entities with whereExists in the block matches the chained form`() {
+        // Both forms of the block clause, the subquery argument and the lambda, produce the chained builder's rows.
+        val chained = orm.entity(Owner::class).select().whereExists { subquery(Pet::class) }.resultList
+        val viaSubquery = orm.entity(Owner::class).select {
+            whereExists(orm.subquery(Pet::class))
+        }.resultList
+        val viaLambda = orm.entity(Owner::class).select {
+            whereExists { subquery(Pet::class) }
+        }.resultList
+        chained shouldHaveSize 10
+        viaSubquery shouldBe chained
+        viaLambda shouldBe chained
+    }
+
+    @Test
+    fun `select entities with whereNotExists in the block matches the chained form`() {
+        // data.sql: every city has an owner, so no city survives NOT EXISTS.
+        val chained = orm.entity(City::class).select().whereNotExists { subquery(Owner::class) }.resultList
+        val viaSubquery = orm.entity(City::class).select {
+            whereNotExists(orm.subquery(Owner::class))
+        }.resultList
+        val viaLambda = orm.entity(City::class).select {
+            whereNotExists { subquery(Owner::class) }
+        }.resultList
+        chained shouldHaveSize 0
+        viaSubquery shouldBe chained
+        viaLambda shouldBe chained
+    }
+
+    // Clause vocabulary parity with the chained builder (#397): the join forms.
+
+    @Test
+    fun `select entities with class joins in the block`() {
+        // data.sql: 12 of 13 pets have an owner; a left join keeps the thirteenth.
+        orm.entity<Pet>().select { innerJoin(Owner::class, Pet::class) }.resultList shouldHaveSize 12
+        orm.entity<Pet>().select { leftJoin(Owner::class, Pet::class) }.resultList shouldHaveSize 13
+        // Every owner has a pet, so the right join yields the twelve owned pets.
+        orm.entity<Pet>().select { rightJoin(Owner::class, Pet::class) }.resultList shouldHaveSize 12
+        orm.entity<Pet>().select { rightJoin<Owner, Pet>() }.resultList shouldHaveSize 12
+    }
+
+    @Test
+    fun `select entities with class joins and template ON in the block`() {
+        // City ids are 1-6, pet type ids are 0-5: five ids match; a left join keeps all six cities.
+        val cityAlias = Templates.alias(City::class)
+        val petTypeAlias = Templates.alias(PetType::class)
+        orm.entity(City::class).select {
+            innerJoin(PetType::class) { "${t(petTypeAlias)}.id = ${t(cityAlias)}.id" }
+        }.resultCount shouldBe 5L
+        orm.entity(City::class).select {
+            leftJoin<PetType> { "${t(petTypeAlias)}.id = ${t(cityAlias)}.id" }
+        }.resultCount shouldBe 6L
+        orm.entity(City::class).select {
+            leftJoin(PetType::class) { "${t(petTypeAlias)}.id = ${t(cityAlias)}.id" }
+        }.resultCount shouldBe 6L
+        // A right join keeps every pet type, the six of them, whether or not a city id matches. City and PetType
+        // are unrelated, so each alias resolves to one table; a join onto an entity the root already references
+        // needs the path that pins it instead.
+        orm.entity(City::class).select {
+            rightJoin<PetType> { "${t(petTypeAlias)}.id = ${t(cityAlias)}.id" }
+        }.resultCount shouldBe 6L
+        orm.entity(City::class).select {
+            rightJoin(PetType::class) { "${t(petTypeAlias)}.id = ${t(cityAlias)}.id" }
+        }.resultCount shouldBe 6L
+    }
+
+    @Test
+    fun `select entities with class cross join in the block`() {
+        // 6 cities times 6 cities is 36 rows, in the reified and the KClass form alike.
+        orm.entity(City::class).select { crossJoin<City>() }.resultCount shouldBe 36L
+        orm.entity(City::class).select { crossJoin(City::class) }.resultCount shouldBe 36L
+    }
+
+    // Clause vocabulary parity with the chained builder (#397): grouping, ordering and the remaining modifiers.
+
+    @Test
+    fun `select entities with having path operator and values in the block`() {
+        val idPath = metamodel<City, Int>(orm.model(City::class), "id")
+        val namePath = metamodel<City, String>(orm.model(City::class), "name")
+        val cities = orm.entity(City::class).select {
+            groupBy(idPath, namePath)
+            having(namePath, IN, "Madison", "Monona")
+            orderBy(namePath)
+        }.resultList
+        cities.map { it.name } shouldBe listOf("Madison", "Monona")
+    }
+
+    @Test
+    fun `select entities with template groupBy having and orderBy in the block`() {
+        val cityAlias = Templates.alias(City::class)
+        val cities = orm.entity(City::class).select {
+            groupBy { "${t(cityAlias)}.id, ${t(cityAlias)}.name" }
+            having { "${t(cityAlias)}.id > ${t(4)}" }
+            orderBy { "${t(cityAlias)}.name DESC" }
+        }.resultList
+        cities.map { it.id } shouldBe listOf(6, 5)
+    }
+
+    @Test
+    fun `select entities with havingExists and havingNotExists in the block`() {
+        // The subquery correlates on the grouped city key: every city has an owner, so EXISTS keeps all six groups
+        // and NOT EXISTS keeps none, through the subquery argument and the lambda alike.
+        val idPath = metamodel<City, Int>(orm.model(City::class), "id")
+        val namePath = metamodel<City, String>(orm.model(City::class), "name")
+        orm.entity(City::class).select {
+            groupBy(idPath, namePath)
+            havingExists(orm.subquery(Owner::class))
+        }.resultList shouldHaveSize 6
+        orm.entity(City::class).select {
+            groupBy(idPath, namePath)
+            havingExists { subquery(Owner::class) }
+        }.resultList shouldHaveSize 6
+        orm.entity(City::class).select {
+            groupBy(idPath, namePath)
+            havingNotExists(orm.subquery(Owner::class))
+        }.resultList shouldHaveSize 0
+        orm.entity(City::class).select {
+            groupBy(idPath, namePath)
+            havingNotExists { subquery(Owner::class) }
+        }.resultList shouldHaveSize 0
+    }
+
+    @Test
+    fun `select entities with distinct in the block`() {
+        // Six distinct cities stay six; the modifier reaches the statement.
+        val cities = orm.entity(City::class).select { distinct() }.resultList
+        cities shouldHaveSize 6
+    }
+
+    @Test
+    fun `select entity with forUpdate in the block`() {
+        val city = orm.entity(City::class).select {
+            where(1)
+            forUpdate()
+        }.singleResult
+        city.id shouldBe 1
+    }
+
+    @Test
+    fun `select entity with forShare in the block reaches the statement`() {
+        // H2 rejects FOR SHARE, so the failure proves the modifier is part of the statement, as it does for the
+        // chained builder.
+        org.junit.jupiter.api.assertThrows<st.orm.PersistenceException> {
+            orm.entity(City::class).select {
+                where(1)
+                forShare()
+            }.singleResult
+        }
+    }
+
+    @Test
+    fun `delete entities with unsafe in the block`() {
+        // data.sql inserts 14 visits; a delete without a WHERE clause needs unsafe(), as in the chained builder.
+        val affected = orm.entity(Visit::class).delete { unsafe() }.executeUpdate()
+        affected shouldBe 14
+        orm.entity(Visit::class).count() shouldBe 0
+    }
 }

@@ -2641,4 +2641,16 @@ internal open class QueryBuilderTest(
         assertThrows<NoResultException> { none.singleResult }
         none.optionalResult shouldBe null
     }
+
+    // isTrue / isFalse predicates
+
+    @Test
+    fun `isTrue and isFalse should match boolean columns and skip nulls`() {
+        // data.sql: rollout is enabled, legacy is disabled, undecided leaves the column null. Neither predicate
+        // matches the null row, which is what separates them from comparing the column to a value.
+        val flags = orm.entity(FeatureFlag::class)
+        val enabledPath = metamodel<FeatureFlag, Boolean>(flags.model, "enabled")
+        flags.select().where(enabledPath.isTrue()).resultList.map { it.name } shouldBe listOf("rollout")
+        flags.select().where(enabledPath.isFalse()).resultList.map { it.name } shouldBe listOf("legacy")
+    }
 }

@@ -34,8 +34,11 @@ import org.springframework.aop.support.AopUtils;
 import org.springframework.boot.autoconfigure.AutoConfigurations;
 import org.springframework.boot.jdbc.DataSourceBuilder;
 import org.springframework.boot.test.context.runner.ApplicationContextRunner;
+import org.springframework.boot.test.context.runner.WebApplicationContextRunner;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.mock.web.MockHttpServletRequest;
+import org.springframework.mock.web.MockHttpServletResponse;
 import org.springframework.scheduling.annotation.Scheduled;
 import st.orm.core.template.ORMTemplate;
 
@@ -199,6 +202,26 @@ public class StormSqlLogAutoConfigurationTest {
                     assertFalse(context.containsBean("stormSqlLogEntryPointPostProcessor"));
                     assertFalse(AopUtils.isAopProxy(context.getBean(ReportJob.class)));
                 });
+    }
+
+    @Test
+    public void testAServletWebApplicationRegistersTheFilterFromTheProperties() {
+        new WebApplicationContextRunner()
+                .withConfiguration(AutoConfigurations.of(StormSqlLogAutoConfiguration.class))
+                .withUserConfiguration(JobConfiguration.class)
+                .withPropertyValues("storm.sql-log.enabled=true", "storm.sql-log.threshold.statements=5")
+                .run(context -> withScopeLogger(events -> {
+                    var filter = context.getBean("stormSqlLogFilter", StormSqlLogFilter.class);
+                    // The threshold from the properties reached the filter: a request below it says nothing,
+                    // although the logger would report it without a threshold.
+                    try {
+                        filter.doFilter(new MockHttpServletRequest("GET", "/reports"), new MockHttpServletResponse(),
+                                (request, response) -> context.getBean(ReportJob.class).plain());
+                    } catch (Exception e) {
+                        throw new AssertionError(e);
+                    }
+                    assertTrue(events.isEmpty());
+                }));
     }
 
     @Test

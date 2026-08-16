@@ -208,4 +208,43 @@ internal open class RefsAndKeysTest(
         owners shouldHaveSize 1
         owners[0].firstName shouldBe "Eduardo"
     }
+
+    // Ref predicates: the top-level eq/neq/inRefs/notInRefs forms and the record-list where.
+
+    @Test
+    fun `eq with Ref should filter entities by foreign key reference`() {
+        // data.sql: city 1 has one owner (Betty), the other nine live elsewhere.
+        val repo = orm.entity(Owner::class)
+        val cityPath = metamodel<Owner, City>(repo.model, "city_id")
+        val cityRef: Ref<City> = Ref.of(City::class.java, 1)
+        val inCity = repo.select().where(cityPath eq cityRef).resultList
+        inCity.map { it.firstName } shouldBe listOf("Betty")
+        val elsewhere = repo.select().where(cityPath neq cityRef).resultList
+        elsewhere shouldHaveSize 9
+        elsewhere.none { it.firstName == "Betty" } shouldBe true
+    }
+
+    @Test
+    fun `inRefs and notInRefs should partition entities by foreign key references`() {
+        // data.sql: city 1 has one owner and city 2 has four; the other five owners live in cities 3 to 6.
+        val repo = orm.entity(Owner::class)
+        val cityPath = metamodel<Owner, City>(repo.model, "city_id")
+        val cityRefs = listOf(Ref.of(City::class.java, 1), Ref.of(City::class.java, 2))
+        val inCities = repo.select().where(cityPath inRefs cityRefs).resultList
+        inCities shouldHaveSize 5
+        val outsideCities = repo.select().where(cityPath notInRefs cityRefs).resultList
+        outsideCities shouldHaveSize 5
+        (inCities.map { it.id } + outsideCities.map { it.id }).toSet() shouldBe repo.findAll().map { it.id }.toSet()
+    }
+
+    @Test
+    fun `where with path and records should match the records by their keys`() {
+        // The records identify rows by key; the names carried along play no part in the match.
+        val repo = orm.entity(Owner::class)
+        val cityPath = metamodel<Owner, City>(repo.model, "city_id")
+        val owners = repo.select()
+            .where(cityPath, listOf(City(id = 1, name = "unused"), City(id = 2, name = "unused")))
+            .resultList
+        owners shouldHaveSize 5
+    }
 }
