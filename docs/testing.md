@@ -244,21 +244,21 @@ Nothing else in the test changes: scripts, parameter injection, `SqlCapture` and
 
 Testcontainers is not a dependency of `storm-test`, so tests on H2 pull in nothing new. A test that names a container database needs the Testcontainers module for that database and its JDBC driver on the test classpath; when either is missing, the test fails with a message naming the artifact to add rather than a `NoClassDefFoundError`.
 
-| `database`     | Testcontainers module            | JDBC driver                                | Default image                                |
-|----------------|----------------------------------|--------------------------------------------|----------------------------------------------|
-| `POSTGRESQL`   | `org.testcontainers:postgresql`  | `org.postgresql:postgresql`                | `postgres:17`                                |
-| `MYSQL`        | `org.testcontainers:mysql`       | `com.mysql:mysql-connector-j`              | `mysql:8.4`                                  |
-| `MARIADB`      | `org.testcontainers:mariadb`     | `org.mariadb.jdbc:mariadb-java-client`     | `mariadb:11.8`                               |
-| `MSSQL_SERVER` | `org.testcontainers:mssqlserver` | `com.microsoft.sqlserver:mssql-jdbc`       | `mcr.microsoft.com/mssql/server:2022-latest` |
-| `ORACLE`       | `org.testcontainers:oracle-free` | `com.oracle.database.jdbc:ojdbc11`         | `gvenzl/oracle-free:23-slim-faststart`       |
+| `database`     | Testcontainers module (Testcontainers 2 / Testcontainers 1)                          | JDBC driver                            | Default image                                |
+|----------------|--------------------------------------------------------------------------------------|----------------------------------------|----------------------------------------------|
+| `POSTGRESQL`   | `org.testcontainers:testcontainers-postgresql` / `org.testcontainers:postgresql`     | `org.postgresql:postgresql`            | `postgres:17`                                |
+| `MYSQL`        | `org.testcontainers:testcontainers-mysql` / `org.testcontainers:mysql`               | `com.mysql:mysql-connector-j`          | `mysql:8.4`                                  |
+| `MARIADB`      | `org.testcontainers:testcontainers-mariadb` / `org.testcontainers:mariadb`           | `org.mariadb.jdbc:mariadb-java-client` | `mariadb:11.8`                               |
+| `MSSQL_SERVER` | `org.testcontainers:testcontainers-mssqlserver` / `org.testcontainers:mssqlserver`   | `com.microsoft.sqlserver:mssql-jdbc`   | `mcr.microsoft.com/mssql/server:2022-latest` |
+| `ORACLE`       | `org.testcontainers:testcontainers-oracle-free` / `org.testcontainers:oracle-free`   | `com.oracle.database.jdbc:ojdbc11`     | `gvenzl/oracle-free:23-slim-faststart`       |
 
-For PostgreSQL, for example:
+Both Testcontainers generations work; Storm picks up whichever is on the classpath. Testcontainers 2 renamed the modules with a `testcontainers-` prefix and is what the Spring Boot 4 BOM manages; Testcontainers 1 is what the Spring Boot 3 BOM manages. Without a BOM, add `org.testcontainers:testcontainers-bom` for the version. For PostgreSQL on Testcontainers 2, for example:
 
 **Gradle (Kotlin DSL):**
 
 ```kotlin
 testImplementation("st.orm:storm-test")
-testImplementation("org.testcontainers:postgresql")
+testImplementation("org.testcontainers:testcontainers-postgresql")
 testRuntimeOnly("org.postgresql:postgresql")
 ```
 
@@ -267,7 +267,7 @@ testRuntimeOnly("org.postgresql:postgresql")
 ```xml
 <dependency>
     <groupId>org.testcontainers</groupId>
-    <artifactId>postgresql</artifactId>
+    <artifactId>testcontainers-postgresql</artifactId>
     <scope>test</scope>
 </dependency>
 <dependency>

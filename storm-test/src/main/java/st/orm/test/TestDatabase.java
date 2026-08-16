@@ -15,6 +15,7 @@
  */
 package st.orm.test;
 
+import java.util.List;
 import org.jspecify.annotations.Nullable;
 
 /**
@@ -27,8 +28,8 @@ import org.jspecify.annotations.Nullable;
  * against an empty database exactly as they do on H2 and test classes never observe each other's tables or rows.</p>
  *
  * <p>Testcontainers is not a dependency of {@code storm-test}: a test that names a container database needs the
- * matching Testcontainers module and JDBC driver on its test classpath, and fails with a message naming both when
- * one is missing. Nothing changes for tests on H2.</p>
+ * matching Testcontainers module (Testcontainers 2 or 1; both generations are recognized) and JDBC driver on its test
+ * classpath, and fails with a message naming both when one is missing. Nothing changes for tests on H2.</p>
  *
  * @see StormTest#database()
  * @since 1.14
@@ -41,53 +42,67 @@ public enum TestDatabase {
     H2(null),
 
     /**
-     * PostgreSQL, running from the {@code postgres} image through {@code org.testcontainers:postgresql}.
+     * PostgreSQL, running from the {@code postgres} image through the Testcontainers PostgreSQL module
+     * ({@code org.testcontainers:testcontainers-postgresql} on Testcontainers 2, {@code org.testcontainers:postgresql}
+     * on Testcontainers 1).
      */
-    POSTGRESQL(new Spec("postgres:17",
-            "org.testcontainers:postgresql", "org.testcontainers.containers.PostgreSQLContainer",
+    POSTGRESQL(new Spec("postgres:17", "postgresql",
+            List.of("org.testcontainers.postgresql.PostgreSQLContainer",
+                    "org.testcontainers.containers.PostgreSQLContainer"),
             "org.postgresql:postgresql", "org.postgresql.Driver", 5432)),
 
     /**
-     * MySQL, running from the {@code mysql} image through {@code org.testcontainers:mysql}.
+     * MySQL, running from the {@code mysql} image through the Testcontainers MySQL module
+     * ({@code org.testcontainers:testcontainers-mysql} on Testcontainers 2, {@code org.testcontainers:mysql} on
+     * Testcontainers 1).
      */
-    MYSQL(new Spec("mysql:8.4",
-            "org.testcontainers:mysql", "org.testcontainers.containers.MySQLContainer",
+    MYSQL(new Spec("mysql:8.4", "mysql",
+            List.of("org.testcontainers.mysql.MySQLContainer",
+                    "org.testcontainers.containers.MySQLContainer"),
             "com.mysql:mysql-connector-j", "com.mysql.cj.jdbc.Driver", 3306)),
 
     /**
-     * MariaDB, running from the {@code mariadb} image through {@code org.testcontainers:mariadb}.
+     * MariaDB, running from the {@code mariadb} image through the Testcontainers MariaDB module
+     * ({@code org.testcontainers:testcontainers-mariadb} on Testcontainers 2, {@code org.testcontainers:mariadb} on
+     * Testcontainers 1).
      */
-    MARIADB(new Spec("mariadb:11.8",
-            "org.testcontainers:mariadb", "org.testcontainers.containers.MariaDBContainer",
+    MARIADB(new Spec("mariadb:11.8", "mariadb",
+            List.of("org.testcontainers.mariadb.MariaDBContainer",
+                    "org.testcontainers.containers.MariaDBContainer"),
             "org.mariadb.jdbc:mariadb-java-client", "org.mariadb.jdbc.Driver", 3306)),
 
     /**
-     * Microsoft SQL Server, running from the {@code mcr.microsoft.com/mssql/server} image through
-     * {@code org.testcontainers:mssqlserver}.
+     * Microsoft SQL Server, running from the {@code mcr.microsoft.com/mssql/server} image through the Testcontainers
+     * SQL Server module ({@code org.testcontainers:testcontainers-mssqlserver} on Testcontainers 2,
+     * {@code org.testcontainers:mssqlserver} on Testcontainers 1).
      *
      * <p>The image requires accepting Microsoft's license terms. Testcontainers reads the acceptance from a
      * {@code container-license-acceptance.txt} file on the test classpath that lists the image, including its tag,
      * on a line of its own; the container refuses to start without it, naming the file and the image.</p>
      */
-    MSSQL_SERVER(new Spec("mcr.microsoft.com/mssql/server:2022-latest",
-            "org.testcontainers:mssqlserver", "org.testcontainers.containers.MSSQLServerContainer",
+    MSSQL_SERVER(new Spec("mcr.microsoft.com/mssql/server:2022-latest", "mssqlserver",
+            List.of("org.testcontainers.mssqlserver.MSSQLServerContainer",
+                    "org.testcontainers.containers.MSSQLServerContainer"),
             "com.microsoft.sqlserver:mssql-jdbc", "com.microsoft.sqlserver.jdbc.SQLServerDriver", 1433)),
 
     /**
-     * Oracle Database Free, running from the {@code gvenzl/oracle-free} image through
-     * {@code org.testcontainers:oracle-free}.
+     * Oracle Database Free, running from the {@code gvenzl/oracle-free} image through the Testcontainers Oracle Free
+     * module ({@code org.testcontainers:testcontainers-oracle-free} on Testcontainers 2,
+     * {@code org.testcontainers:oracle-free} on Testcontainers 1).
      */
-    ORACLE(new Spec("gvenzl/oracle-free:23-slim-faststart",
-            "org.testcontainers:oracle-free", "org.testcontainers.oracle.OracleContainer",
+    ORACLE(new Spec("gvenzl/oracle-free:23-slim-faststart", "oracle-free",
+            List.of("org.testcontainers.oracle.OracleContainer"),
             "com.oracle.database.jdbc:ojdbc11", "oracle.jdbc.OracleDriver", 1521));
 
     /**
-     * How a container database is obtained: the image to run by default, the Testcontainers module and container
-     * class that run it, the JDBC driver that connects to it, and the port the database listens on.
+     * How a container database is obtained: the image to run by default, the Testcontainers module (by the suffix
+     * both artifact naming schemes share) and the container classes that run it (Testcontainers 2 first, then the
+     * Testcontainers 1 name it still ships as deprecated), the JDBC driver that connects to it, and the port the
+     * database listens on.
      */
     private record Spec(String defaultImage,
-                        String testcontainersArtifact,
-                        String containerClassName,
+                        String testcontainersModule,
+                        List<String> containerClassNames,
                         String driverArtifact,
                         String driverClassName,
                         int port) {}
@@ -141,12 +156,21 @@ public enum TestDatabase {
         return DatabaseContainer.of(this, image);
     }
 
-    String testcontainersArtifact() {
-        return spec().testcontainersArtifact();
+    /**
+     * The Testcontainers artifacts that provide the container class, in the order the container class names are
+     * tried: the Testcontainers 2 name ({@code testcontainers-postgresql}), then the Testcontainers 1 name
+     * ({@code postgresql}).
+     */
+    List<String> testcontainersArtifacts() {
+        String module = spec().testcontainersModule();
+        return List.of("org.testcontainers:testcontainers-" + module, "org.testcontainers:" + module);
     }
 
-    String containerClassName() {
-        return spec().containerClassName();
+    /**
+     * The container classes that run this database, most recent Testcontainers generation first.
+     */
+    List<String> containerClassNames() {
+        return spec().containerClassNames();
     }
 
     String driverArtifact() {

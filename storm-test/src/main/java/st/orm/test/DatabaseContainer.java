@@ -80,21 +80,39 @@ public final class DatabaseContainer {
             if (endpoint == null) {
                 // Both checks run before any Testcontainers type is touched, so a missing dependency surfaces as
                 // this message rather than as a NoClassDefFoundError from deep inside the container start.
-                requireClass(database.containerClassName(), "the Testcontainers module for " + database,
-                        database.testcontainersArtifact());
-                requireClass(database.driverClassName(), "the JDBC driver for " + database, database.driverArtifact());
-                endpoint = JdbcContainers.start(database, image);
+                Class<?> containerClass = findContainerClass();
+                requireDriver();
+                endpoint = JdbcContainers.start(database, containerClass, image);
             }
         }
         return this;
     }
 
-    private void requireClass(String className, String description, String artifact) {
+    /**
+     * Resolves the container class from the Testcontainers generation on the classpath: Testcontainers 2 moved the
+     * container classes into per-module packages and renamed the artifacts, and still ships the Testcontainers 1
+     * classes as deprecated, so the newer name is tried first.
+     */
+    private Class<?> findContainerClass() {
+        for (String className : database.containerClassNames()) {
+            try {
+                return Class.forName(className, false, DatabaseContainer.class.getClassLoader());
+            } catch (ClassNotFoundException ignored) {
+                // Try the next generation's name.
+            }
+        }
+        List<String> artifacts = database.testcontainersArtifacts();
+        throw new IllegalStateException("Running tests on " + database + " requires the Testcontainers module for "
+                + database + " on the test classpath: add " + artifacts.get(0) + " (Testcontainers 2) or "
+                + artifacts.get(1) + " (Testcontainers 1) in test scope.");
+    }
+
+    private void requireDriver() {
         try {
-            Class.forName(className, false, DatabaseContainer.class.getClassLoader());
+            Class.forName(database.driverClassName(), false, DatabaseContainer.class.getClassLoader());
         } catch (ClassNotFoundException e) {
-            throw new IllegalStateException("Running tests on " + database + " requires " + description
-                    + " on the test classpath: add " + artifact + " in test scope.", e);
+            throw new IllegalStateException("Running tests on " + database + " requires the JDBC driver for "
+                    + database + " on the test classpath: add " + database.driverArtifact() + " in test scope.", e);
         }
     }
 
