@@ -7,6 +7,7 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import java.time.LocalDate;
 import java.util.List;
 import java.util.Optional;
 import javax.sql.DataSource;
@@ -17,6 +18,8 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.test.context.ContextConfiguration;
 import org.springframework.test.context.jdbc.Sql;
 import org.springframework.test.context.junit.jupiter.SpringExtension;
+import st.orm.NoResultException;
+import st.orm.NonUniqueResultException;
 import st.orm.Page;
 import st.orm.Pageable;
 import st.orm.Ref;
@@ -24,12 +27,14 @@ import st.orm.Scrollable;
 import st.orm.Window;
 import st.orm.repository.EntityRepository;
 import st.orm.repository.ProjectionRepository;
+import st.orm.template.model.Address;
 import st.orm.template.model.City;
 import st.orm.template.model.City_;
 import st.orm.template.model.Owner;
 import st.orm.template.model.OwnerView;
 import st.orm.template.model.OwnerView_;
 import st.orm.template.model.Pet;
+import st.orm.template.model.PetType;
 import st.orm.template.model.Pet_;
 import st.orm.template.model.Visit;
 
@@ -920,5 +925,219 @@ public class RepositoryTest {
         assertFalse(views.isEmpty());
         assertTrue(views.stream().allMatch(view -> view.firstName().equals("George")));
         assertTrue(ownerViews.existsBy(OwnerView_.firstName, "George"));
+    }
+
+    // Field-based finder methods matching a referenced value (the Ref overloads on EntityRepository).
+
+    @Test
+    public void testFindByRefValue() {
+        // Owner 1 has exactly one pet (Leo), so the single-result finder resolves; owner 3 has two, so the same
+        // finder reports the ambiguity instead of picking one.
+        var pets = orm.entity(Pet.class);
+        Optional<Pet> pet = pets.findBy(Pet_.owner, Ref.of(Owner.class, 1));
+        assertTrue(pet.isPresent());
+        assertEquals("Leo", pet.get().name());
+        assertTrue(pets.findBy(Pet_.owner, Ref.of(Owner.class, 999)).isEmpty());
+        assertThrows(NonUniqueResultException.class, () -> pets.findBy(Pet_.owner, Ref.of(Owner.class, 3)));
+    }
+
+    @Test
+    public void testGetByRefValue() {
+        var pets = orm.entity(Pet.class);
+        Pet pet = pets.getBy(Pet_.owner, Ref.of(Owner.class, 1));
+        assertEquals("Leo", pet.name());
+        assertThrows(NoResultException.class, () -> pets.getBy(Pet_.owner, Ref.of(Owner.class, 999)));
+    }
+
+    @Test
+    public void testFindRefByRefValue() {
+        var pets = orm.entity(Pet.class);
+        Optional<Ref<Pet>> ref = pets.findRefBy(Pet_.owner, Ref.of(Owner.class, 1));
+        assertTrue(ref.isPresent());
+        assertEquals("Leo", ref.get().fetch().name());
+        assertTrue(pets.findRefBy(Pet_.owner, Ref.of(Owner.class, 999)).isEmpty());
+    }
+
+    @Test
+    public void testGetRefByRefValue() {
+        var pets = orm.entity(Pet.class);
+        Ref<Pet> ref = pets.getRefBy(Pet_.owner, Ref.of(Owner.class, 1));
+        assertEquals("Leo", ref.fetch().name());
+        assertThrows(NoResultException.class, () -> pets.getRefBy(Pet_.owner, Ref.of(Owner.class, 999)));
+    }
+
+    @Test
+    public void testFindAllRefByFieldMultipleValues() {
+        var cities = orm.entity(City.class);
+        List<Ref<City>> refs = cities.findAllRefBy(City_.name, List.of("Madison", "Monona"));
+        assertEquals(2, refs.size());
+        assertTrue(refs.stream().map(Ref::fetch).map(City::name).toList().containsAll(List.of("Madison", "Monona")));
+        assertTrue(cities.findAllRefBy(City_.name, List.of()).isEmpty());
+    }
+
+    @Test
+    public void testFindAllRefByRefField() {
+        // Owners 1 and 6 own one and two pets: three refs, and only refs to those pets.
+        var pets = orm.entity(Pet.class);
+        List<Ref<Pet>> refs = pets.findAllRefByRef(Pet_.owner, List.of(Ref.of(Owner.class, 1), Ref.of(Owner.class, 6)));
+        assertEquals(3, refs.size());
+        assertTrue(refs.stream().map(Ref::fetch).allMatch(pet -> List.of(1, 6).contains(pet.owner().id())));
+    }
+
+    @Test
+    public void testExistsByRefValue() {
+        var pets = orm.entity(Pet.class);
+        assertTrue(pets.existsBy(Pet_.owner, Ref.of(Owner.class, 1)));
+        assertFalse(pets.existsBy(Pet_.owner, Ref.of(Owner.class, 999)));
+    }
+
+    @Test
+    public void testRemoveAllByRefValue() {
+        var pets = orm.entity(Pet.class);
+        var owners = orm.entity(Owner.class);
+        City city = orm.entity(City.class).getById(1);
+        Owner owner = owners.insertAndFetch(new Owner(null, "Removable", "Owner", new Address("1 Main St.", city), null, 0));
+        // Pet type 1, not 0: an identity-generated key of 0 is the value Storm reads as "not yet persisted", so a
+        // reference to it is rejected before it reaches the database.
+        PetType petType = orm.entity(PetType.class).getById(1);
+        pets.insert(new Pet(null, "Removable", LocalDate.of(2024, 1, 1), petType, owner));
+        pets.insert(new Pet(null, "Removable Too", LocalDate.of(2024, 1, 2), petType, owner));
+        int removed = pets.removeAllBy(Pet_.owner, Ref.of(Owner.class, owner.id()));
+        assertEquals(2, removed);
+        assertFalse(pets.existsBy(Pet_.owner, Ref.of(Owner.class, owner.id())));
+        // Nothing left to remove; the count reports that rather than failing.
+        assertEquals(0, pets.removeAllBy(Pet_.owner, Ref.of(Owner.class, owner.id())));
+    }
+
+    @Test
+    public void testRemoveAllByFieldMultipleValues() {
+        var cities = orm.entity(City.class);
+        cities.insert(new City(null, "RemoveMultiA"));
+        cities.insert(new City(null, "RemoveMultiB"));
+        int removed = cities.removeAllBy(City_.name, List.of("RemoveMultiA", "RemoveMultiB", "RemoveMultiMissing"));
+        assertEquals(2, removed);
+        assertFalse(cities.existsBy(City_.name, "RemoveMultiA"));
+        assertFalse(cities.existsBy(City_.name, "RemoveMultiB"));
+    }
+
+    @Test
+    public void testRemoveAllByRefField() {
+        var pets = orm.entity(Pet.class);
+        var owners = orm.entity(Owner.class);
+        City city = orm.entity(City.class).getById(1);
+        PetType petType = orm.entity(PetType.class).getById(1);
+        Owner first = owners.insertAndFetch(new Owner(null, "First", "Removable", new Address("1 Main St.", city), null, 0));
+        Owner second = owners.insertAndFetch(new Owner(null, "Second", "Removable", new Address("2 Main St.", city), null, 0));
+        pets.insert(new Pet(null, "Of First", LocalDate.of(2024, 1, 1), petType, first));
+        pets.insert(new Pet(null, "Of Second", LocalDate.of(2024, 1, 2), petType, second));
+        int removed = pets.removeAllByRef(Pet_.owner, List.of(Ref.of(Owner.class, first.id()), Ref.of(Owner.class, second.id())));
+        assertEquals(2, removed);
+        assertFalse(pets.existsBy(Pet_.owner, Ref.of(Owner.class, first.id())));
+        assertFalse(pets.existsBy(Pet_.owner, Ref.of(Owner.class, second.id())));
+    }
+
+    // Field-based finder methods on ProjectionRepository; the owner view's address carries the city reference.
+
+    @Test
+    public void testProjectionFindByField() {
+        var ownerViews = orm.projection(OwnerView.class);
+        Optional<OwnerView> view = ownerViews.findBy(OwnerView_.lastName, "Franklin");
+        assertTrue(view.isPresent());
+        assertEquals("George", view.get().firstName());
+        assertTrue(ownerViews.findBy(OwnerView_.lastName, "Nobody").isEmpty());
+        // Two owners share the last name Davis; a single-result finder must not pick one silently.
+        assertThrows(NonUniqueResultException.class, () -> ownerViews.findBy(OwnerView_.lastName, "Davis"));
+    }
+
+    @Test
+    public void testProjectionFindByRefValue() {
+        // Sun Prairie (city 1) hosts owner 1 only; Madison (city 2) hosts four owners.
+        var ownerViews = orm.projection(OwnerView.class);
+        Optional<OwnerView> view = ownerViews.findBy(OwnerView_.address.city, Ref.of(City.class, 1));
+        assertTrue(view.isPresent());
+        assertEquals(1, view.get().id());
+        assertTrue(ownerViews.findBy(OwnerView_.address.city, Ref.of(City.class, 999)).isEmpty());
+        assertThrows(NonUniqueResultException.class,
+                () -> ownerViews.findBy(OwnerView_.address.city, Ref.of(City.class, 2)));
+    }
+
+    @Test
+    public void testProjectionGetByField() {
+        var ownerViews = orm.projection(OwnerView.class);
+        assertEquals("George", ownerViews.getBy(OwnerView_.lastName, "Franklin").firstName());
+        assertThrows(NoResultException.class, () -> ownerViews.getBy(OwnerView_.lastName, "Nobody"));
+        assertEquals(1, ownerViews.getBy(OwnerView_.address.city, Ref.of(City.class, 1)).id());
+        assertThrows(NoResultException.class, () -> ownerViews.getBy(OwnerView_.address.city, Ref.of(City.class, 999)));
+    }
+
+    @Test
+    public void testProjectionFindAllByRefValue() {
+        var ownerViews = orm.projection(OwnerView.class);
+        List<OwnerView> inMadison = ownerViews.findAllBy(OwnerView_.address.city, Ref.of(City.class, 2));
+        assertEquals(4, inMadison.size());
+        assertTrue(inMadison.stream().allMatch(view -> view.address().city().id() == 2));
+        assertTrue(ownerViews.findAllBy(OwnerView_.address.city, Ref.of(City.class, 999)).isEmpty());
+    }
+
+    @Test
+    public void testProjectionFindAllByFieldMultipleValues() {
+        var ownerViews = orm.projection(OwnerView.class);
+        List<OwnerView> views = ownerViews.findAllBy(OwnerView_.lastName, List.of("Franklin", "Davis"));
+        assertEquals(3, views.size());
+        assertTrue(ownerViews.findAllBy(OwnerView_.lastName, List.of()).isEmpty());
+    }
+
+    @Test
+    public void testProjectionFindAllByRefField() {
+        // Cities 1 and 6 host one owner each.
+        var ownerViews = orm.projection(OwnerView.class);
+        List<OwnerView> views = ownerViews.findAllByRef(OwnerView_.address.city,
+                List.of(Ref.of(City.class, 1), Ref.of(City.class, 6)));
+        assertEquals(2, views.size());
+        assertTrue(views.stream().allMatch(view -> List.of(1, 6).contains(view.address().city().id())));
+    }
+
+    @Test
+    public void testProjectionFindRefByField() {
+        var ownerViews = orm.projection(OwnerView.class);
+        Optional<Ref<OwnerView>> ref = ownerViews.findRefBy(OwnerView_.lastName, "Franklin");
+        assertTrue(ref.isPresent());
+        assertEquals("George", ref.get().fetch().firstName());
+        assertTrue(ownerViews.findRefBy(OwnerView_.lastName, "Nobody").isEmpty());
+        Optional<Ref<OwnerView>> byCity = ownerViews.findRefBy(OwnerView_.address.city, Ref.of(City.class, 1));
+        assertTrue(byCity.isPresent());
+        assertEquals(1, byCity.get().fetch().id());
+    }
+
+    @Test
+    public void testProjectionGetRefByField() {
+        var ownerViews = orm.projection(OwnerView.class);
+        assertEquals("George", ownerViews.getRefBy(OwnerView_.lastName, "Franklin").fetch().firstName());
+        assertThrows(NoResultException.class, () -> ownerViews.getRefBy(OwnerView_.lastName, "Nobody"));
+        assertEquals(1, ownerViews.getRefBy(OwnerView_.address.city, Ref.of(City.class, 1)).fetch().id());
+        assertThrows(NoResultException.class,
+                () -> ownerViews.getRefBy(OwnerView_.address.city, Ref.of(City.class, 999)));
+    }
+
+    @Test
+    public void testProjectionFindAllRefByField() {
+        var ownerViews = orm.projection(OwnerView.class);
+        assertEquals(2, ownerViews.findAllRefBy(OwnerView_.lastName, "Davis").size());
+        assertEquals(4, ownerViews.findAllRefBy(OwnerView_.address.city, Ref.of(City.class, 2)).size());
+        List<Ref<OwnerView>> byNames = ownerViews.findAllRefBy(OwnerView_.lastName, List.of("Franklin", "Davis"));
+        assertEquals(3, byNames.size());
+        List<Ref<OwnerView>> byCities = ownerViews.findAllRefByRef(OwnerView_.address.city,
+                List.of(Ref.of(City.class, 1), Ref.of(City.class, 6)));
+        assertEquals(2, byCities.size());
+        assertTrue(byCities.stream().map(Ref::fetch).allMatch(view -> List.of(1, 6).contains(view.address().city().id())));
+    }
+
+    @Test
+    public void testProjectionCountAndExistsByRefValue() {
+        var ownerViews = orm.projection(OwnerView.class);
+        assertEquals(4, ownerViews.countBy(OwnerView_.address.city, Ref.of(City.class, 2)));
+        assertEquals(0, ownerViews.countBy(OwnerView_.address.city, Ref.of(City.class, 999)));
+        assertTrue(ownerViews.existsBy(OwnerView_.address.city, Ref.of(City.class, 2)));
+        assertFalse(ownerViews.existsBy(OwnerView_.address.city, Ref.of(City.class, 999)));
     }
 }

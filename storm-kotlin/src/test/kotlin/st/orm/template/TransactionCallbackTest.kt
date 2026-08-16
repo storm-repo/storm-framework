@@ -17,6 +17,7 @@ import st.orm.TransactionPropagation.*
 import st.orm.repository.exists
 import st.orm.repository.removeAll
 import st.orm.template.model.Visit
+import java.util.function.Consumer
 
 @ExtendWith(SpringExtension::class)
 @ContextConfiguration(classes = [IntegrationConfig::class])
@@ -460,5 +461,56 @@ internal open class TransactionCallbackTest(
         transactionBlocking {
             onCommit { events += "commit" }
         }
+    }
+
+    // The language-neutral overloads inside a suspend block, and the suspend onCompletion inside a blocking block.
+
+    @Test
+    fun `Runnable and Consumer callbacks registered in a suspend transaction fire on commit`(): Unit = runBlocking {
+        val events = mutableListOf<String>()
+        transaction {
+            onCommit(Runnable { events += "commit" })
+            onRollback(Runnable { events += "rollback" })
+            onCompletion(Consumer { committed -> events += "completion:$committed" })
+        }
+        events shouldBe listOf("commit", "completion:true")
+    }
+
+    @Test
+    fun `Runnable and Consumer callbacks registered in a suspend transaction fire on rollback`(): Unit = runBlocking {
+        val events = mutableListOf<String>()
+        transaction {
+            onCommit(Runnable { events += "commit" })
+            onRollback(Runnable { events += "rollback" })
+            onCompletion(Consumer { committed -> events += "completion:$committed" })
+            setRollbackOnly()
+        }
+        events shouldBe listOf("rollback", "completion:false")
+    }
+
+    @Test
+    fun `isRollbackOnly reflects setRollbackOnly inside a suspend transaction`(): Unit = runBlocking {
+        val observed = mutableListOf<Boolean>()
+        transaction {
+            observed += isRollbackOnly()
+            setRollbackOnly()
+            observed += isRollbackOnly()
+        }
+        observed shouldBe listOf(false, true)
+    }
+
+    @Test
+    fun `suspend onCompletion reports the outcome of a blocking transaction`(): Unit = runBlocking {
+        var afterCommit: Boolean? = null
+        transactionBlocking {
+            onCompletion { committed -> afterCommit = committed }
+        }
+        afterCommit shouldBe true
+        var afterRollback: Boolean? = null
+        transactionBlocking {
+            onCompletion { committed -> afterRollback = committed }
+            setRollbackOnly()
+        }
+        afterRollback shouldBe false
     }
 }

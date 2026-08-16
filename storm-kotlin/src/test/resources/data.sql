@@ -198,3 +198,12 @@ INSERT INTO char_disc_animal (dtype, name, indoor) VALUES ('C', 'Whiskers', true
 INSERT INTO char_disc_animal (dtype, name, indoor) VALUES ('C', 'Luna', false);
 INSERT INTO char_disc_animal (dtype, name, weight) VALUES ('D', 'Rex', 30);
 INSERT INTO char_disc_animal (dtype, name, weight) VALUES ('D', 'Max', 15);
+
+-- A plain entity with a nullable boolean column, for the IS TRUE / IS FALSE predicates: neither matches the row
+-- that leaves the column null, which is what distinguishes them from an equality comparison.
+drop table if exists feature_flag CASCADE;
+create table feature_flag (id integer auto_increment, name varchar(255), enabled boolean, primary key (id));
+
+INSERT INTO feature_flag (name, enabled) VALUES ('rollout', true);
+INSERT INTO feature_flag (name, enabled) VALUES ('legacy', false);
+INSERT INTO feature_flag (name, enabled) VALUES ('undecided', null);

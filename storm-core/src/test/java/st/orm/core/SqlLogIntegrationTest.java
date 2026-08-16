@@ -4,12 +4,14 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static st.orm.Operator.EQUALS;
 import static st.orm.Operator.IN;
 
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.PersistenceContext;
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
@@ -33,6 +35,7 @@ import st.orm.core.template.JpaTemplate;
 import st.orm.core.template.ORMTemplate;
 import st.orm.core.template.SqlLog;
 import st.orm.core.template.StatementOrigin;
+import st.orm.core.template.impl.SqlInterceptorManager;
 import st.orm.core.template.impl.SqlLogRenderer;
 
 /**
@@ -98,6 +101,37 @@ public class SqlLogIntegrationTest {
         var summary = summaries.getFirst();
         assertEquals(1, summary.statementCount());
         assertEquals(0, summary.count(StatementOrigin.FETCH));
+    }
+
+    @Test
+    public void testACheckedExceptionPropagatesFromRecordThrowingAndIsStillSummarized() {
+        var orm = ORMTemplate.of(dataSource);
+        List<SqlLog.Summary> summaries = new ArrayList<>();
+        var thrown = assertThrows(IOException.class,
+                () -> SqlLog.recordThrowing("checked", () -> {
+                    orm.entity(City.class).getById(1);
+                    throw new IOException("disk full");
+                }, summaries::add));
+        assertEquals("disk full", thrown.getMessage());
+        // The default limit applies: the one statement executed before the failure is recorded, not merely counted.
+        assertEquals(1, summaries.getFirst().statementCount());
+        assertEquals(1, summaries.getFirst().statements().size());
+    }
+
+    @Test
+    public void testARecorderInstalledAsListenerObservesTheStatementsWithinItsLimit() {
+        var orm = ORMTemplate.of(dataSource);
+        // The recorder is the building block behind record and open: installed as a listener it counts every
+        // statement and keeps up to its limit; a summary built from it reports both figures.
+        var recorder = SqlLog.recorder(1);
+        SqlInterceptorManager.listen(recorder).run(() -> {
+            orm.entity(City.class).getById(1);
+            orm.entity(City.class).getById(2);
+        });
+        var summary = SqlLog.summary("recorded", recorder, 42L);
+        assertEquals("recorded", summary.name());
+        assertEquals(2, summary.statementCount());
+        assertEquals(1, summary.statements().size(), summary.statements().toString());
     }
 
     @Test
