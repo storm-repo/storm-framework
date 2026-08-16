@@ -42,12 +42,14 @@ Tips:
 - @Version: INTEGER or TIMESTAMP
 - `@Json` fields: use the correct JSON column type for the target database (see table above)
 - **H2 NUMERIC/DECIMAL precision:** Always specify precision and scale for NUMERIC/DECIMAL columns (e.g., `NUMERIC(4, 1)`, not `NUMERIC`). H2 defaults to scale 0, which silently truncates decimals — values like 8.7 become 9. This affects `@StormTest` with H2 and is difficult to diagnose.
+- **Target-database DDL:** A migration written for the target database (`JSONB`, `SERIAL`, `AUTO_INCREMENT`, `IDENTITY(1,1)`, sequences) may not run on H2 at all. Verify it on the target database instead: `@StormTest(database = POSTGRESQL, scripts = [...])` (or `MYSQL`, `MARIADB`, `MSSQL_SERVER`, `ORACLE`) runs the same test in a Testcontainers-managed container of that database, which also removes the H2 precision caveat. Requires the database's Testcontainers module and driver in test scope and Docker (see /storm-setup).
 
 After writing a migration, rebuild the project for metamodel regeneration.
 
 After generating or updating entities and migrations, offer to write a temporary `@StormTest` to verify that the entities and migration are consistent:
 ```kotlin
 // Leading "/" resolves scripts from the classpath root (src/test/resources/).
+// Add database = POSTGRESQL (or the project's database) to run the migration as written instead of on H2.
 @StormTest(scripts = ["/V1__create_users.sql"])
 class MigrationVerificationTest {
     @Test

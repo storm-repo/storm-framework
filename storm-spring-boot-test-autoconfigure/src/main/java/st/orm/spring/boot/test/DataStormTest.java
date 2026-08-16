@@ -28,6 +28,7 @@ import org.springframework.context.annotation.ComponentScan;
 import org.springframework.test.context.BootstrapWith;
 import org.springframework.test.context.junit.jupiter.SpringExtension;
 import org.springframework.transaction.annotation.Transactional;
+import st.orm.test.TestDatabase;
 
 /**
  * Annotation for a Storm test slice, the counterpart of annotations like {@code @DataJpaTest}.
@@ -47,6 +48,17 @@ import org.springframework.transaction.annotation.Transactional;
  * the replacement activates when the {@code spring-boot-jdbc-test-autoconfigure} artifact is present;
  * without it, point the slice at a database with the {@code properties} attribute. Each test method runs
  * in a transaction that is rolled back afterwards.</p>
+ *
+ * <p>{@link #database()} runs the slice on the database the application deploys on, in a
+ * Testcontainers-managed container shared by the test classes of the run, without any container wiring in
+ * the test class:</p>
+ *
+ * {@snippet lang = java:
+ * @DataStormTest(database = POSTGRESQL)
+ * class VisitRepositoryPostgresTest {
+ *     // the same test, running against PostgreSQL
+ * }
+ * }
 
  * <p>The slice is exclusion-based rather than annotation-composed where Spring Boot moved classes between
  * releases, so one artifact serves both Spring Boot 3 and Spring Boot 4 applications.</p>
@@ -85,6 +97,36 @@ public @interface DataStormTest {
      * Properties in {@code key=value} form to add to the Spring environment before the test runs.
      */
     String[] properties() default {};
+
+    /**
+     * The database to run the slice on. Defaults to {@link TestDatabase#H2 H2}, which leaves the {@code DataSource}
+     * to the slice's regular rules: the embedded replacement, or the configured database with
+     * {@code spring.test.database.replace=none}.
+     *
+     * <p>Every other database runs in a Docker container managed by Testcontainers, which must be on the test
+     * classpath together with the database's JDBC driver: {@code org.testcontainers:postgresql} and
+     * {@code org.postgresql:postgresql} for {@link TestDatabase#POSTGRESQL POSTGRESQL}, and so on. The container is
+     * started once per JVM for a given database and {@link #image()} and shared by all test classes that ask for it;
+     * each Spring context gets a fresh database inside the container, dropped when the context closes. The slice
+     * points {@code spring.datasource.url}, {@code spring.datasource.username} and {@code spring.datasource.password}
+     * at that database, sets {@code spring.test.database.replace=none} so no embedded database replaces it, and,
+     * unless the application configures {@code spring.sql.init.mode} itself, sets it to {@code always} so a
+     * {@code schema.sql} on the test classpath initializes the container database as it does the embedded one.
+     * Flyway and Liquibase run as usual.</p>
+     *
+     * @since 1.14
+     */
+    TestDatabase database() default TestDatabase.H2;
+
+    /**
+     * The Docker image to run {@link #database()} from, including its tag; for example {@code postgres:16} or
+     * {@code pgvector/pgvector:pg17} for {@link TestDatabase#POSTGRESQL POSTGRESQL}. Defaults to the database's
+     * {@linkplain TestDatabase#defaultImage() default image}, which is pinned to a version rather than
+     * {@code latest}. Only meaningful with a container database.
+     *
+     * @since 1.14
+     */
+    String image() default "";
 
     /**
      * A set of include filters applied to component scanning in combination with the slice's exclusion of

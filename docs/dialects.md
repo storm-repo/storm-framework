@@ -237,13 +237,16 @@ For basic testing without upsert support, H2 works without any dialect dependenc
 
 ## Integration Testing with Real Databases
 
-While H2 is excellent for fast unit tests, it does not support all database-specific features (JSONB, arrays, database-specific functions). For thorough testing, you should also run integration tests against your production database. Each dialect module includes a `docker-compose.yml` file that starts the corresponding database in a container, making integration testing straightforward. For example, to test with PostgreSQL:
+While H2 is excellent for fast unit tests, it does not support all database-specific features (JSONB, arrays, database-specific functions), and it accepts SQL the production database rejects. For thorough testing, you should also run integration tests against your production database. The `database` attribute of [`@StormTest`](testing.md#testing-against-the-database-you-deploy-on) and [`@DataStormTest`](spring-integration.md#testing-with-datastormtest) runs a test class on that database in a Testcontainers-managed container, started once per run and shared across test classes:
 
-```bash
-cd storm-postgresql
-docker-compose up -d
-mvn test -pl storm-postgresql
+```java
+@StormTest(database = POSTGRESQL, scripts = {"/schema.sql", "/data.sql"})
+class OwnerRepositoryTest {
+    // the same test, running against PostgreSQL with the storm-postgresql dialect
+}
 ```
+
+Storm's own dialect modules are tested the same way. Each of them also includes a `docker-compose.yml` file that starts the corresponding database, for working against a long-running local instance.
 
 ## Tips
 
@@ -251,7 +254,7 @@ mvn test -pl storm-postgresql
 2. **Use H2 or SQLite** for unit tests; add `storm-h2` or `storm-sqlite` for upsert support
 3. **Dialect is runtime-only**; it doesn't affect your compile-time code or entity definitions
 4. **One dialect per application**; Storm auto-detects the right dialect from your connection URL
-5. **Test with both**: Use H2/SQLite for fast unit tests and the production dialect for integration tests
+5. **Test with both**: Use H2/SQLite for fast unit tests and the production dialect for integration tests, through `@StormTest(database = ...)`
 
 ---
 

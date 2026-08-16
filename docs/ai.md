@@ -116,7 +116,7 @@ Beyond the data model, Storm provides dedicated tooling for AI-assisted workflow
 
 - **Skills** guide AI tools through specific tasks (entity creation, queries, repositories, migrations) with framework-aware conventions and rules.
 - **A locally running MCP server** gives AI tools access to your live database schema: table definitions, column types, constraints, and foreign keys. Optionally, the AI can also query individual records (read-only) when sample data would improve type decisions. The AI can inspect your actual database structure to generate entities that match, or validate entities it just created.
-- **Built-in verification** through `ORMTemplate.validateSchema()` and `SqlCapture` lets the AI validate its own work. After generating entities, the AI can validate them against the database. After writing queries, it can capture and inspect the actual SQL. Both checks run in an isolated in-memory database through `@StormTest`, so verification happens before anything touches production. For dialect-specific code, `@StormTest` supports a static `dataSource()` factory method on the test class, allowing integration with Testcontainers to test against the actual target database.
+- **Built-in verification** through `ORMTemplate.validateSchema()` and `SqlCapture` lets the AI validate its own work. After generating entities, the AI can validate them against the database. After writing queries, it can capture and inspect the actual SQL. Both checks run in an isolated in-memory database through `@StormTest`, so verification happens before anything touches production. For dialect-specific code, `@StormTest(database = POSTGRESQL)` runs the same test against the actual target database in a Testcontainers-managed container.
 
 ---
 
@@ -299,7 +299,7 @@ The workflow:
 3. **Fix (if needed).** If the test fails, the error messages tell the AI exactly what is wrong. It fixes the entities, queries, or migration and re-runs the test.
 4. **Clean up.** Once the test passes, the AI deletes the temporary test file (and any temporary SQL scripts it created). The verified code stays; the scaffolding goes.
 
-This works because `@StormTest` spins up an H2 in-memory database by default, executes the setup scripts, and tears everything down after the test. No external database, no persistent state, no side effects. When the code under test uses dialect-specific SQL, define a static `dataSource()` factory method on the test class to provide a Testcontainers-backed `DataSource` for the target database instead of H2.
+This works because `@StormTest` spins up an H2 in-memory database by default, executes the setup scripts, and tears everything down after the test. No external database, no persistent state, no side effects. When the code under test uses dialect-specific SQL, set `database = POSTGRESQL` (or `MYSQL`, `MARIADB`, `MSSQL_SERVER`, `ORACLE`) on the annotation to run the same test against the target database in a Testcontainers-managed container instead of H2.
 
 You can also ask the AI to keep the test as a permanent regression test. The choice is yours, and the AI should ask.
 

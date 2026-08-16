@@ -84,7 +84,7 @@ In Storm templates, `JSON_OBJECTAGG(\{Role.class})` with the entity class as sin
 | MS SQL Server | Manual via `FOR JSON` | Manual via `FOR JSON` |
 | H2 | Not supported | Not supported |
 
-H2 does not support JSON aggregation functions. Tests that use JSON aggregation need a real database or should verify only the generated SQL using `SqlCapture` without executing the query.
+H2 does not support JSON aggregation functions. Run tests that use JSON aggregation on the target database with `@StormTest(database = POSTGRESQL, ...)` (or `MYSQL`, `MARIADB`, `MSSQL_SERVER`, `ORACLE`; a Testcontainers-managed container, see /storm-setup), or verify only the generated SQL using `SqlCapture` without executing the query.
 
 ## Rules
 

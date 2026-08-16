@@ -668,7 +668,32 @@ class VisitRepositoryTest(
 }
 ```
 
-To run against a real database instead, disable the replacement with `spring.test.database.replace=none` and hand the slice a Testcontainers-managed database through `@ServiceConnection`:
+To run the same slice on the database the application deploys on, name it with the `database` attribute. The slice starts a Testcontainers-managed container of that database once per JVM, shared by every test class that asks for it, gives each Spring context a fresh database inside the container, and points `spring.datasource.*` at it. Nothing else changes; the same `schema.sql`, `data.sql`, Flyway or Liquibase setup that initializes the embedded database initializes the container database:
+
+```kotlin
+@DataStormTest(database = TestDatabase.POSTGRESQL)
+class VisitRepositoryPostgresTest(
+    @Autowired private val visitRepository: VisitRepository,
+) {
+
+    @Test
+    fun `finds all visits`() {
+        visitRepository.count() shouldBe 14
+    }
+}
+```
+
+The attribute is the one [`@StormTest`](testing.md#testing-against-the-database-you-deploy-on) has, with the same databases (`POSTGRESQL`, `MYSQL`, `MARIADB`, `MSSQL_SERVER`, `ORACLE` from `st.orm.test.TestDatabase`), the same pinned default images and `image` override, and the same dependency requirements: the Testcontainers module for the database and its JDBC driver on the test classpath, and for SQL Server the license acceptance file. Both annotations share their containers within a JVM.
+
+What the slice sets, and why:
+
+- `spring.datasource.url`, `spring.datasource.username` and `spring.datasource.password` point at the provisioned database, ahead of anything the application's configuration files say.
+- `spring.test.database.replace=none`, so neither Boot's embedded replacement nor the slice's own Boot 4 fallback swaps the container database out again.
+- `spring.sql.init.mode=always`, unless the application configures `spring.sql.init.mode` itself. Boot runs `schema.sql` and `data.sql` for embedded databases only; the container database is as disposable as the embedded one, so they run there too.
+
+The database is created when the context is created and dropped when it closes. Test classes with the same configuration share one context, and with it one database; classes that name a different database or image get a context and a database of their own.
+
+A container the slice does not manage, for example one configured beyond what the attribute offers, still works the way it did: disable the replacement with `spring.test.database.replace=none` and hand the slice the database through `@ServiceConnection`:
 
 ```kotlin
 @DataStormTest(properties = ["spring.test.database.replace=none"])

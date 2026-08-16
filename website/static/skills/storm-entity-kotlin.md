@@ -191,6 +191,8 @@ class EntitySchemaTest {
 }
 ```
 
+Keep the validation loop on H2: it answers in milliseconds and needs no Docker. Escalate to the target database only when the schema script uses DDL H2 rejects (`JSONB`, `SERIAL`, `IDENTITY(1,1)`, dialect-specific types), when the user asks for it, or as a final pass: adding `database = POSTGRESQL` (or `MYSQL`, `MARIADB`, `MSSQL_SERVER`, `ORACLE`, from `st.orm.test.TestDatabase`) to `@StormTest` runs the script as written in a Testcontainers-managed container of that database, at the cost of a container start per test run and a Docker requirement. The class needs the database's Testcontainers module and JDBC driver in test scope (see /storm-setup).
+
 Run the test. Show the user the result and explain what it proves. If validation fails, explain the errors and fix the entities. If a validation result is ambiguous or involves a trade-off (e.g., a nullable column mapped to a non-null field intentionally), ask the user for guidance before changing anything.
 
 

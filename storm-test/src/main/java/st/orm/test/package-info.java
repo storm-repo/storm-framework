@@ -14,7 +14,8 @@
  * limitations under the License.
  */
 /**
- * The {@code @StormTest} JUnit 5 extension.
+ * The {@code @StormTest} JUnit 5 extension, the databases it runs on ({@link st.orm.test.TestDatabase}), and
+ * SQL statement capture ({@link st.orm.test.SqlCapture}).
  *
  * <p>Null-marked: type uses are non-null unless annotated {@code @Nullable}.</p>
  */
