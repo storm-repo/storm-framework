@@ -121,7 +121,7 @@ Testing:
 - Key imports: `st.orm.test.StormTest`, `st.orm.test.SqlCapture`, `st.orm.test.CapturedSql.Operation`
 - `@StormTest` injects `ORMTemplate` and `SqlCapture` as test method parameters
 - Schema SQL files go in `src/test/resources/`
-- To run a `@StormTest` class on the database the project deploys on instead of H2, set `database = TestDatabase.POSTGRESQL` (or `MYSQL`, `MARIADB`, `MSSQL_SERVER`, `ORACLE`; `st.orm.test.TestDatabase`) on the annotation and add that database's Testcontainers module (`org.testcontainers:postgresql`, `mysql`, `mariadb`, `mssqlserver`, `oracle-free`) plus its JDBC driver in test scope. Docker must be available where the tests run. The container starts once per run and is shared by all test classes; each class gets a fresh database inside it, so scripts need no drop guards and nothing else in the test changes. The same attribute exists on `@DataStormTest`. Testcontainers versions come from the Spring Boot BOM; without one, add `platform("org.testcontainers:testcontainers-bom:1.21.3")`. SQL Server additionally needs `src/test/resources/container-license-acceptance.txt` with the line `mcr.microsoft.com/mssql/server:2022-latest`.
+- H2 is the right default for the verification loop (milliseconds, no Docker). Only when H2 cannot run the SQL or DDL involved, when the user asks, or as a final pass, run a `@StormTest` class on the database the project deploys on: set `database = TestDatabase.POSTGRESQL` (or `MYSQL`, `MARIADB`, `MSSQL_SERVER`, `ORACLE`; `st.orm.test.TestDatabase`) on the annotation and add that database's Testcontainers module (`org.testcontainers:postgresql`, `mysql`, `mariadb`, `mssqlserver`, `oracle-free`) plus its JDBC driver in test scope. Docker must be available where the tests run. The container starts once per run and is shared by all test classes; each class gets a fresh database inside it, so scripts need no drop guards and nothing else in the test changes. The same attribute exists on `@DataStormTest`. Testcontainers versions come from the Spring Boot BOM; without one, add `platform("org.testcontainers:testcontainers-bom:1.21.3")`. SQL Server additionally needs `src/test/resources/container-license-acceptance.txt` with the line `mcr.microsoft.com/mssql/server:2022-latest`.
 
 **Kotlin/Gradle test dependencies:** Use the JUnit BOM directly — avoid `kotlin("test")` which can cause dependency conflicts:
 ```kotlin
@@ -132,7 +132,7 @@ dependencies {
     testImplementation("st.orm:storm-test")
     testRuntimeOnly("st.orm:storm-h2")
     testRuntimeOnly("com.h2database:h2:2.3.232")  // not in Storm BOM — version required
-    // Only for @StormTest(database = POSTGRESQL): the container module and the driver
+    // Only when a class sets @StormTest(database = POSTGRESQL): the container module and the driver
     testImplementation(platform("org.testcontainers:testcontainers-bom:1.21.3"))
     testImplementation("org.testcontainers:postgresql")
     testRuntimeOnly("org.postgresql:postgresql:42.7.4")
