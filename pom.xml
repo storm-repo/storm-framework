@@ -79,6 +79,8 @@
         <module>storm-ktor</module>
         <module>storm-ktor-test</module>
         <module>storm-kotlin-test</module>
+        <!-- Last: aggregates the coverage of everything above. -->
+        <module>storm-coverage</module>
     </modules>
     <dependencyManagement>
         <dependencies>
