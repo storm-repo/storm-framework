@@ -668,7 +668,24 @@ class VisitRepositoryTest(
 }
 ```
 
-To run against a real database instead, disable the replacement with `spring.test.database.replace=none` and hand the slice a Testcontainers-managed database through `@ServiceConnection`:
+To run the same slice on the database the application deploys on, name it with the `database` attribute. The slice starts a Testcontainers-managed container of that database once per JVM, shared by every test class that asks for it, gives each Spring context a fresh database inside the container, and points `spring.datasource.*` at it. Nothing else changes; the same `schema.sql`, `data.sql`, Flyway or Liquibase setup that initializes the embedded database initializes the container database:
+
+```kotlin
+@DataStormTest(database = TestDatabase.POSTGRESQL)
+class VisitRepositoryPostgresTest(
+    @Autowired private val visitRepository: VisitRepository,
+) {
+
+    @Test
+    fun `finds all visits`() {
+        visitRepository.count() shouldBe 14
+    }
+}
+```
+
+The attribute is the one [`@StormTest`](testing.md#testing-against-the-database-you-deploy-on) has, with the same databases, default images, `image` override and dependency requirements: the Testcontainers module for the database and its JDBC driver on the test classpath, and for SQL Server the license acceptance file. Both annotations share the container within a JVM. Alongside `spring.datasource.url`, `username` and `password`, the slice sets `spring.test.database.replace=none`, so no embedded database replaces the container database, and, unless the application configures `spring.sql.init.mode` itself, `spring.sql.init.mode=always`, so `schema.sql` runs against the container database as it does against the embedded one. The database is created when the context is created and dropped when it closes, so test classes with the same configuration share one context and one database while classes with different configurations get their own.
+
+A container the slice does not manage, for example one configured beyond what the attribute offers, still works the way it did: disable the replacement with `spring.test.database.replace=none` and hand the slice the database through `@ServiceConnection`:
 
 ```kotlin
 @DataStormTest(properties = ["spring.test.database.replace=none"])

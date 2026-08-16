@@ -98,6 +98,8 @@ The annotation accepts the following attributes:
 | Attribute  | Default                         | Description                                                                               |
 |------------|---------------------------------|-------------------------------------------------------------------------------------------|
 | `scripts`  | `{}`                            | Classpath SQL scripts to execute before tests run. Executed once per test class.           |
+| `database` | `H2`                            | The database to run on. Every value other than `H2` runs the tests in a Testcontainers-managed container of that database (see [Testing Against the Database You Deploy On](#testing-against-the-database-you-deploy-on)). |
+| `image`    | `""`                            | The Docker image for `database`, including its tag. Defaults to a pinned version per database. |
 | `url`      | `""`                            | JDBC URL. Defaults to an H2 in-memory database with a unique name derived from the class. Ignored when a static `dataSource()` factory method is present (see [DataSource Factory Method](#datasource-factory-method)). |
 | `username` | `"sa"`                          | Database username. Ignored when a static `dataSource()` factory method is present.        |
 | `password` | `""`                            | Database password. Ignored when a static `dataSource()` factory method is present.        |
@@ -201,11 +203,85 @@ class ItemRepositoryTest {
 </TabItem>
 </Tabs>
 
-### Using a Custom Database
+### Testing Against the Database You Deploy On
 
-By default, `@StormTest` creates an H2 in-memory database. This works well for dialect-agnostic logic, but H2 has its own SQL dialect. If your schema scripts or queries use database-specific syntax (for example, PostgreSQL's `SERIAL` type, MySQL's `AUTO_INCREMENT`, or Oracle's sequence syntax), they will not run against H2. In these cases, you need to test against the actual target database.
+By default, `@StormTest` creates an H2 in-memory database. H2 is convenient, but it is also the most permissive dialect Storm supports: it accepts syntax the target database rejects and hides the differences that matter in production, such as upsert paths, sequence discovery, identity handling and keyword escaping. A green H2 suite is not evidence that the application works on PostgreSQL. The `database` attribute runs the same test on the database you deploy on, in a Docker container that [Testcontainers](https://testcontainers.com/) manages:
 
-To point `@StormTest` at a different database, specify a JDBC URL. Storm auto-detects the correct `SqlDialect` from the URL:
+<Tabs groupId="language">
+<TabItem value="kotlin" label="Kotlin" default>
+
+```kotlin
+@StormTest(database = TestDatabase.POSTGRESQL, scripts = ["/schema.sql", "/data.sql"])
+class VisitRepositoryTest {
+
+    @Test
+    fun `finds visits by pet`(orm: ORMTemplate) {
+        // running against a real PostgreSQL
+    }
+}
+```
+
+</TabItem>
+<TabItem value="java" label="Java">
+
+```java
+@StormTest(database = POSTGRESQL, scripts = {"/schema.sql", "/data.sql"})
+class VisitRepositoryTest {
+
+    @Test
+    void findsVisitsByPet(ORMTemplate orm) {
+        // running against a real PostgreSQL
+    }
+}
+```
+
+</TabItem>
+</Tabs>
+
+Nothing else in the test changes: scripts, parameter injection, `SqlCapture` and per-test rollback all work as they do on H2. Storm resolves the dialect from the connection, so the dialect module of the database (`storm-postgresql` and so on) applies as it does in the application.
+
+Testcontainers is not a dependency of `storm-test`, so tests on H2 pull in nothing new. A test that names a container database needs the Testcontainers module for that database and its JDBC driver on the test classpath; when either is missing, the test fails with a message naming the artifact to add rather than a `NoClassDefFoundError`.
+
+| `database`     | Testcontainers module            | JDBC driver                                | Default image                                |
+|----------------|----------------------------------|--------------------------------------------|----------------------------------------------|
+| `POSTGRESQL`   | `org.testcontainers:postgresql`  | `org.postgresql:postgresql`                | `postgres:17`                                |
+| `MYSQL`        | `org.testcontainers:mysql`       | `com.mysql:mysql-connector-j`              | `mysql:8.4`                                  |
+| `MARIADB`      | `org.testcontainers:mariadb`     | `org.mariadb.jdbc:mariadb-java-client`     | `mariadb:11.8`                               |
+| `MSSQL_SERVER` | `org.testcontainers:mssqlserver` | `com.microsoft.sqlserver:mssql-jdbc`       | `mcr.microsoft.com/mssql/server:2022-latest` |
+| `ORACLE`       | `org.testcontainers:oracle-free` | `com.oracle.database.jdbc:ojdbc11`         | `gvenzl/oracle-free:23-slim-faststart`       |
+
+```kotlin
+testImplementation("st.orm:storm-test")
+testImplementation("org.testcontainers:postgresql")
+testRuntimeOnly("org.postgresql:postgresql")
+```
+
+The default images are pinned to a version, never `latest`. To run on another version or another distribution of the database, name the image on the annotation; any image that is a distribution of the chosen database works, such as `pgvector/pgvector:pg17` for PostgreSQL:
+
+```java
+@StormTest(database = POSTGRESQL, image = "postgres:16", scripts = {"/schema.sql", "/data.sql"})
+class VisitRepositoryPostgres16Test {
+    // ...
+}
+```
+
+The container is started once per JVM for a given database and image, on the first test class that asks for it, and shared by every test class of the run that asks for the same one; Testcontainers removes it when the JVM exits. Sharing is safe because no two classes share a database inside the container: each test class receives a freshly created database (a new catalog on PostgreSQL, MySQL, MariaDB and SQL Server, a new user with its own schema on Oracle), created before the scripts run and dropped when the class completes. Scripts therefore execute against an empty database exactly as they do on H2, without drop guards, and test classes never observe each other's tables or rows. Creating a database inside a running container takes a fraction of the time the container start takes, so the container cost is paid once per run rather than once per class.
+
+The `database` attribute is mutually exclusive with `url` and with a static `dataSource()` factory method (see below), which both point at a database of your own; combining them fails at startup with a message naming the conflict.
+
+Two notes on individual databases:
+
+- **SQL Server** requires accepting Microsoft's license terms. Testcontainers reads the acceptance from a `container-license-acceptance.txt` file on the test classpath (`src/test/resources`) that lists the image, including its tag, on a line of its own; the container refuses to start without it, naming the file and the image:
+  ```
+  mcr.microsoft.com/mssql/server:2022-latest
+  ```
+- **Oracle** runs from the `gvenzl/oracle-free` image (Oracle Database Free 23). The test user receives the same grants the image gives its own application user, so a test is no more and no less privileged than a hand-written container setup.
+
+The container is available outside the annotation as well, through `TestDatabase.POSTGRESQL.container()`, which starts it on first use and returns the shared instance; `createDatabase()` on it provisions a database of your own that is dropped when closed. Spring Boot applications have the same attribute on the [`@DataStormTest` slice](spring-integration.md#testing-with-datastormtest).
+
+### Pointing at Your Own Database
+
+To run against a database you manage yourself, such as a shared development instance, specify its JDBC URL. Storm auto-detects the correct `SqlDialect` from the connection:
 
 ```java
 @StormTest(
@@ -219,11 +295,11 @@ class PostgresTest {
 }
 ```
 
-This requires a running database instance at the given URL. For local development you can start one manually (the dialect modules include `docker-compose.yml` files as a reference), but for automated and CI testing, [Testcontainers](https://testcontainers.com/) is the recommended approach. Testcontainers starts a disposable Docker container before the test and tears it down afterwards, so tests remain self-contained and reproducible.
+This requires a running database instance at the given URL, and the scripts run against it as they are on every class, so they need drop guards or a schema per class. For local development you can start one manually (the dialect modules include `docker-compose.yml` files as a reference); for automated and CI testing, prefer the `database` attribute.
 
 ### DataSource Factory Method
 
-Since `@StormTest` takes its URL as a compile-time annotation attribute, it cannot receive the dynamic URL that Testcontainers assigns at runtime. To solve this, define a static `dataSource()` method on the test class. When `StormExtension` finds this method, it uses the returned `DataSource` instead of creating one from the annotation's `url`, `username`, and `password` attributes. SQL scripts still execute against the returned `DataSource`, and all parameter injection (including `ORMTemplate`, `SqlCapture`, and `DataSource`) works as usual.
+To hand `@StormTest` a `DataSource` you construct yourself, for example a container you configure beyond what the `database` attribute offers, define a static `dataSource()` method on the test class. When `StormExtension` finds this method, it uses the returned `DataSource` instead of creating one from the annotation's `url`, `username`, and `password` attributes. SQL scripts still execute against the returned `DataSource`, and all parameter injection (including `ORMTemplate`, `SqlCapture`, and `DataSource`) works as usual.
 
 <Tabs groupId="language">
 <TabItem value="kotlin" label="Kotlin" default>
@@ -235,7 +311,7 @@ class PostgresTest {
 
     companion object {
         @Container
-        val postgres = PostgreSQLContainer("postgres:latest")
+        val postgres = PostgreSQLContainer("postgres:17")
             .withDatabaseName("test")
             .withUsername("test")
             .withPassword("test")
@@ -267,7 +343,7 @@ class PostgresTest {
 class PostgresTest {
 
     @Container
-    static PostgreSQLContainer<?> postgres = new PostgreSQLContainer<>("postgres:latest")
+    static PostgreSQLContainer<?> postgres = new PostgreSQLContainer<>("postgres:17")
             .withDatabaseName("test")
             .withUsername("test")
             .withPassword("test");

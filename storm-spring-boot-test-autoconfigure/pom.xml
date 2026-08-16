@@ -128,6 +128,13 @@
             <groupId>org.springframework</groupId>
             <artifactId>spring-tx</artifactId>
         </dependency>
+        <!-- The TestDatabase attribute of @DataStormTest and the container registry behind it, shared with
+             @StormTest so both annotations run on the same container within a JVM. -->
+        <dependency>
+            <groupId>st.orm</groupId>
+            <artifactId>storm-test</artifactId>
+            <version>${project.version}</version>
+        </dependency>
         <!-- Needed to compile the @DataStormTest annotation; consumers bring their own JUnit, so the
              dependency must not flow transitively and pin their version. -->
         <dependency>
@@ -160,6 +167,16 @@
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-testcontainers</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.testcontainers</groupId>
+            <artifactId>postgresql</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.postgresql</groupId>
+            <artifactId>postgresql</artifactId>
             <scope>test</scope>
         </dependency>
     </dependencies>

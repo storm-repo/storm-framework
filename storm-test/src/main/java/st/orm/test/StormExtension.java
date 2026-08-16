@@ -27,7 +27,6 @@ import java.lang.reflect.Modifier;
 import java.lang.reflect.Proxy;
 import java.nio.charset.StandardCharsets;
 import java.sql.Connection;
-import java.sql.DriverManager;
 import java.sql.SQLException;
 import java.sql.SQLFeatureNotSupportedException;
 import java.sql.Savepoint;
@@ -38,6 +37,7 @@ import javax.sql.DataSource;
 import org.junit.jupiter.api.extension.AfterEachCallback;
 import org.junit.jupiter.api.extension.BeforeAllCallback;
 import org.junit.jupiter.api.extension.BeforeEachCallback;
+import org.junit.jupiter.api.extension.ExtensionConfigurationException;
 import org.junit.jupiter.api.extension.ExtensionContext;
 import org.junit.jupiter.api.extension.ParameterContext;
 import org.junit.jupiter.api.extension.ParameterResolutionException;
@@ -56,11 +56,13 @@ import st.orm.core.template.impl.SchemaValidator;
  *         {@code of(DataSource)} method (e.g., {@code ORMTemplate})</li>
  * </ul>
  *
- * <p>By default, the extension creates an H2 in-memory database. To use a custom {@link DataSource} (for example, one
- * backed by a Testcontainers-managed database), define a static {@code dataSource()} method on the test class that
- * returns a {@link DataSource}. When present, this method takes precedence over the {@code url}, {@code username}, and
- * {@code password} attributes of {@link StormTest}. SQL scripts specified in {@link StormTest#scripts()} are still
- * executed against the returned {@link DataSource}.</p>
+ * <p>By default, the extension creates an H2 in-memory database. {@link StormTest#database()} runs the tests on a
+ * database in a Testcontainers-managed container instead, shared by the test classes of the run, with a fresh
+ * database inside it per test class. To use a custom {@link DataSource} of your own, define a static
+ * {@code dataSource()} method on the test class that returns a {@link DataSource}. When present, this method takes
+ * precedence over the {@code url}, {@code username}, and {@code password} attributes of {@link StormTest}. SQL
+ * scripts specified in {@link StormTest#scripts()} are executed against whichever database the class ends up
+ * with.</p>
  *
  * <p>Unless {@link StormTest#rollback()} is disabled, each test runs inside a database transaction that is rolled
  * back after the test: the {@link DataSource} injected into test methods (and used by types created from it, such as
@@ -82,9 +84,19 @@ public class StormExtension implements BeforeAllCallback, BeforeEachCallback, Af
         if (annotation == null) {
             return;
         }
-        DataSource dataSource = findDataSourceFactory(testClass);
-        if (dataSource == null) {
-            if (annotation.url().isEmpty()) {
+        DataSource dataSource;
+        if (annotation.database().isContainer()) {
+            dataSource = containerDataSource(context, testClass, annotation);
+        } else {
+            if (!annotation.image().isEmpty()) {
+                throw new ExtensionConfigurationException("@StormTest on " + testClass.getName()
+                        + " names image " + annotation.image() + " but no container database; set database to the "
+                        + "database the image runs.");
+            }
+            DataSourceFactory factory = findDataSourceFactory(testClass);
+            if (factory != null) {
+                dataSource = factory.create();
+            } else if (annotation.url().isEmpty()) {
                 // The nanoTime suffix keeps equally named test classes in different packages, and repeated runs of
                 // the same class within one JVM, from sharing a database.
                 String url = "jdbc:h2:mem:" + testClass.getSimpleName() + "-" + System.nanoTime()
@@ -106,6 +118,31 @@ public class StormExtension implements BeforeAllCallback, BeforeEachCallback, Af
             }
         }
         getStore(context).put(DataSource.class, dataSource);
+    }
+
+    /**
+     * Provisions a fresh database for the test class inside the shared container of the annotation's database and
+     * image, dropped when the class-level store closes.
+     */
+    private DataSource containerDataSource(ExtensionContext context, Class<?> testClass, StormTest annotation)
+            throws Exception {
+        if (!annotation.url().isEmpty()) {
+            throw new ExtensionConfigurationException("@StormTest on " + testClass.getName() + " sets both database "
+                    + annotation.database() + " and url " + annotation.url() + "; a container database has its own "
+                    + "URL.");
+        }
+        if (findDataSourceFactory(testClass) != null) {
+            throw new ExtensionConfigurationException("@StormTest on " + testClass.getName() + " sets database "
+                    + annotation.database() + " while the class declares a static dataSource() factory method; a "
+                    + "container database has its own DataSource.");
+        }
+        TestDatabase database = annotation.database();
+        DatabaseContainer container = annotation.image().isEmpty()
+                ? database.container()
+                : database.container(annotation.image());
+        DatabaseContainer.Database provisioned = container.createDatabase();
+        getStore(context).put(DatabaseDrop.class, new DatabaseDrop(provisioned));
+        return provisioned.dataSource();
     }
 
     @Override
@@ -198,15 +235,26 @@ public class StormExtension implements BeforeAllCallback, BeforeEachCallback, Af
     }
 
     /**
-     * Looks for a static {@code dataSource()} method on the test class or one of its superclasses. If found, invokes
-     * it and returns the result. This also checks for a Kotlin companion object with a {@code dataSource()} method.
+     * A static {@code dataSource()} factory method declared by a test class, or by the companion object of a Kotlin
+     * test class, in which case {@code target} is the companion.
+     */
+    private record DataSourceFactory(Method method, Object target) {
+
+        DataSource create() throws Exception {
+            return (DataSource) method.invoke(target);
+        }
+    }
+
+    /**
+     * Looks for a static {@code dataSource()} method on the test class or one of its superclasses. This also checks
+     * for a Kotlin companion object with a {@code dataSource()} method.
      *
      * <p>Superclasses are searched because {@link StormTest} is {@code @Inherited}: the annotation and the factory
      * method may both live on an abstract base class while the extension runs for the concrete subclass.</p>
      *
-     * @return the {@link DataSource} returned by the factory method, or {@code null} if no such method exists.
+     * @return the factory method, or {@code null} if no such method exists.
      */
-    private static DataSource findDataSourceFactory(Class<?> testClass) throws Exception {
+    private static DataSourceFactory findDataSourceFactory(Class<?> testClass) throws Exception {
         // Check for a Java static method, nearest declaration first.
         for (Class<?> type = testClass; type != null && type != Object.class; type = type.getSuperclass()) {
             try {
@@ -214,7 +262,7 @@ public class StormExtension implements BeforeAllCallback, BeforeEachCallback, Af
                 if (Modifier.isStatic(method.getModifiers())
                         && DataSource.class.isAssignableFrom(method.getReturnType())) {
                     method.setAccessible(true);
-                    return (DataSource) method.invoke(null);
+                    return new DataSourceFactory(method, null);
                 }
             } catch (NoSuchMethodException ignored) {
             }
@@ -225,7 +273,7 @@ public class StormExtension implements BeforeAllCallback, BeforeEachCallback, Af
             Object companionObject = companion.get(null);
             Method method = companionObject.getClass().getMethod("dataSource");
             if (DataSource.class.isAssignableFrom(method.getReturnType())) {
-                return (DataSource) method.invoke(companionObject);
+                return new DataSourceFactory(method, companionObject);
             }
         } catch (NoSuchFieldException | NoSuchMethodException ignored) {
         }
@@ -383,6 +431,19 @@ public class StormExtension implements BeforeAllCallback, BeforeEachCallback, Af
                  var stmt = conn.createStatement()) {
                 stmt.execute("SHUTDOWN");
             }
+        }
+    }
+
+    /**
+     * Drops the database provisioned for a test class inside a shared container when the class-level store closes,
+     * the container-database counterpart of {@link DatabaseShutdown}.
+     */
+    private record DatabaseDrop(DatabaseContainer.Database database)
+            implements ExtensionContext.Store.CloseableResource, AutoCloseable {
+
+        @Override
+        public void close() {
+            database.close();
         }
     }
 
@@ -605,64 +666,6 @@ public class StormExtension implements BeforeAllCallback, BeforeEachCallback, Af
             } catch (InvocationTargetException e) {
                 throw e.getCause();
             }
-        }
-    }
-
-    // --- Simple DataSource implementation ---
-
-    private static final class SimpleDataSource implements DataSource {
-
-        private final String url;
-        private final String username;
-        private final String password;
-
-        SimpleDataSource(String url, String username, String password) {
-            this.url = url;
-            this.username = username;
-            this.password = password;
-        }
-
-        @Override
-        public Connection getConnection() throws SQLException {
-            return DriverManager.getConnection(url, username, password);
-        }
-
-        @Override
-        public Connection getConnection(String username, String password) throws SQLException {
-            return DriverManager.getConnection(url, username, password);
-        }
-
-        @Override
-        public PrintWriter getLogWriter() {
-            return null;
-        }
-
-        @Override
-        public void setLogWriter(PrintWriter out) {
-        }
-
-        @Override
-        public void setLoginTimeout(int seconds) {
-        }
-
-        @Override
-        public int getLoginTimeout() {
-            return 0;
-        }
-
-        @Override
-        public Logger getParentLogger() throws SQLFeatureNotSupportedException {
-            throw new SQLFeatureNotSupportedException();
-        }
-
-        @Override
-        public <T> T unwrap(Class<T> iface) throws SQLException {
-            throw new SQLException("Not a wrapper.");
-        }
-
-        @Override
-        public boolean isWrapperFor(Class<?> iface) {
-            return false;
         }
     }
 }

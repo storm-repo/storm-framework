@@ -48,6 +48,19 @@ import org.junit.jupiter.api.extension.ExtendWith;
  * <p>Each test runs inside a database transaction that is rolled back afterwards, so tests never observe each
  * other's writes. Set {@link #rollback()} to {@code false} for tests that need their writes to commit.</p>
  *
+ * <p>Tests run on H2 by default. {@link #database()} runs them on the database the application deploys on instead,
+ * in a Testcontainers-managed container that all test classes of the run share:</p>
+ * <pre>{@code
+ * @StormTest(database = POSTGRESQL, scripts = {"/schema.sql", "/data.sql"})
+ * class VisitRepositoryTest {
+ *
+ *     @Test
+ *     void findsVisitsByPet(ORMTemplate orm) {
+ *         // running against PostgreSQL
+ *     }
+ * }
+ * }</pre>
+ *
  * @since 1.9
  */
 @Target(ElementType.TYPE)
@@ -67,6 +80,33 @@ public @interface StormTest {
      * </ul>
      */
     String[] scripts() default {};
+
+    /**
+     * The database to run the tests on. Defaults to {@link TestDatabase#H2 H2} in memory.
+     *
+     * <p>Every other database runs in a Docker container managed by Testcontainers, which must be on the test
+     * classpath together with the database's JDBC driver: {@code org.testcontainers:postgresql} and
+     * {@code org.postgresql:postgresql} for {@link TestDatabase#POSTGRESQL POSTGRESQL}, and so on. The container is
+     * started once per JVM for a given database and {@link #image()} and shared by all test classes that ask for it;
+     * each class gets a fresh database inside the container, created before the {@link #scripts()} run and dropped
+     * when the class completes, so classes never observe each other's tables or rows.</p>
+     *
+     * <p>Mutually exclusive with {@link #url()} and with a static {@code dataSource()} factory method on the test
+     * class, which both point at a database of the caller's own.</p>
+     *
+     * @since 1.14
+     */
+    TestDatabase database() default TestDatabase.H2;
+
+    /**
+     * The Docker image to run {@link #database()} from, including its tag; for example {@code postgres:16} or
+     * {@code pgvector/pgvector:pg17} for {@link TestDatabase#POSTGRESQL POSTGRESQL}. Defaults to the database's
+     * {@linkplain TestDatabase#defaultImage() default image}, which is pinned to a version rather than
+     * {@code latest}. Only meaningful with a container database.
+     *
+     * @since 1.14
+     */
+    String image() default "";
 
     /**
      * JDBC URL for the test database. Defaults to an H2 in-memory database with a unique name per test class.
