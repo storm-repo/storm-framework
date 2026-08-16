@@ -135,7 +135,7 @@ ${navHtml('tutorials')}
 <div class="cards">
   <a class="tcard" href="/tutorials/testing">
     <div class="tt">Testing your data layer with @StormTest<span class="arrow">→</span></div>
-    <div class="td">One annotation gives you an in-memory database, schema scripts, and injected parameters. Assert results and the SQL that produced them, then run the same tests against PostgreSQL with Testcontainers.</div>
+    <div class="td">One annotation gives you an in-memory database, schema scripts, and injected parameters. Assert results and the SQL that produced them, then run the same tests against PostgreSQL with one attribute.</div>
     <div class="tm"><span>The Storm way</span><span>4 min read</span><span>Kotlin</span></div>
   </a>
   <a class="tcard" href="/tutorials/streaming">

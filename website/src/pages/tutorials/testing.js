@@ -11,7 +11,7 @@ const TITLE = 'Testing Your Data Layer with @StormTest';
 const DESC =
   'One annotation gives you an in-memory database, schema scripts, and injected ' +
   'ORMTemplate and SqlCapture parameters. Assert results and the SQL that ' +
-  'produced them, then run the same tests against PostgreSQL with Testcontainers.';
+  'produced them, then run the same tests against PostgreSQL with one attribute.';
 
 const CODE_BASIC = [
   A('@StormTest'), P('(scripts = ['), S('"/schema.sql"'), P(', '), S('"/data.sql"'), P('])\n'),
@@ -35,20 +35,12 @@ const CODE_CAPTURE = [
 ].join('');
 
 const CODE_CONTAINERS = [
-  A('@StormTest'), P('(scripts = ['), S('"/schema-postgres.sql"'), P(', '), S('"/data.sql"'), P('])\n'),
-  A('@Testcontainers'), P('\n'),
+  A('@StormTest'), P('(database = '), T('TestDatabase'), P('.'), T('POSTGRESQL'), P(', scripts = ['), S('"/schema.sql"'), P(', '), S('"/data.sql"'), P('])\n'),
   K('class '), T('PostgresOwnerTest'), P(' {\n\n'),
-  P('    '), K('companion object'), P(' {\n'),
-  P('        '), A('@Container'), P('\n'),
-  P('        '), K('val '), P('postgres = '), T('PostgreSQLContainer'), P('('), S('"postgres:latest"'), P(')\n\n'),
-  P('        '), A('@JvmStatic'), P('\n'),
-  P('        '), K('fun '), F('dataSource'), P('(): '), T('DataSource'), P(' = '), T('PGSimpleDataSource'), P('().'), F('apply'), P(' {\n'),
-  P('            '), F('setUrl'), P('(postgres.jdbcUrl)\n'),
-  P('            user = postgres.username\n'),
-  P('            password = postgres.password\n'),
-  P('        }\n'),
-  P('    }\n\n'),
-  P('    '), C('// the same tests now run against real PostgreSQL\n'),
+  P('    '), A('@Test'), P('\n'),
+  P('    '), K('fun '), F('`finds owners by last name`'), P('(orm: '), T('ORMTemplate'), P(') {\n'),
+  P('        '), C('// the same test, now running against real PostgreSQL\n'),
+  P('    }\n'),
   P('}'),
 ].join('');
 
@@ -75,9 +67,9 @@ ${navHtml('tutorials')}
   <p>This turns performance properties into regression tests: "no N+1", "this service only reads", "the batch runs one statement" all become one-line assertions that fail the build when violated.</p>
 
   <h2><span class="hno">04</span>The same tests against PostgreSQL</h2>
-  <p>H2 keeps the loop fast, but dialect-specific behavior deserves the real database. <code>@StormTest</code> picks up a static <code>dataSource()</code> method, which is exactly the hook Testcontainers needs:</p>
+  <p>H2 keeps the loop fast, but it is also the most permissive dialect: it accepts SQL your production database rejects and hides upsert paths, sequences and identity handling. Dialect-specific behavior deserves the real database, and the <code>database</code> attribute puts a test class on it, in a Testcontainers-managed container that all test classes of the run share:</p>
   ${editor({file: 'PostgresOwnerTest.kt', tag: 'Kotlin · storm-test', code: CODE_CONTAINERS})}
-  <p>Scripts and parameter injection work unchanged, so the fast H2 suite and the thorough PostgreSQL suite share their test code.</p>
+  <p>Scripts, parameter injection and per-test rollback work unchanged, so the fast H2 suite and the thorough PostgreSQL suite share their test code. Each class gets a fresh database inside the shared container, so scripts run against an empty database exactly as on H2. Add <code>org.testcontainers:postgresql</code> and the driver to the test classpath; H2 tests need nothing new. The same attribute exists on the <code>@DataStormTest</code> Spring Boot slice.</p>
 
   <h2><span class="hno">05</span>Keep going</h2>
   <p>The reference documentation covers the mechanics in depth:</p>
