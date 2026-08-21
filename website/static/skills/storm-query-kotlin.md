@@ -469,13 +469,18 @@ val users = orm.entity<User>()
     .resultList
 ```
 
-Consecutive `where()` calls AND together (each clause parenthesized), so an AND of a root predicate and a joined-entity predicate is just two `where()` calls:
+Consecutive `where()` calls AND together (each clause parenthesized), and the infix `and`/`or` combinators root a combination at the operands' least common root, so a cross-entity AND works as two `where()` calls or as one compound clause on a widened builder; a narrow, join-less builder rejects the cross-root compound at the call site:
 
 ```kotlin
 users.select()
     .innerJoin<UserRole>().on<User>()     // the join widens the query
     .where(User_.active eq true)          // root field
     .where(UserRole_.role eq role)        // joined entity — same call
+    .resultList
+
+users.select()
+    .innerJoin<UserRole>().on<User>()
+    .where((User_.active eq true) and (UserRole_.role eq role))   // or as one compound clause
     .resultList
 ```
 
