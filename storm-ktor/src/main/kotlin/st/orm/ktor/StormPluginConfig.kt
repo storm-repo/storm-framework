@@ -90,6 +90,15 @@ public class StormPluginConfig {
     public var sqlCommenter: st.orm.core.spi.SqlCommenter? = null
 
     /**
+     * Optional composition applied to each database's template builder after the plugin has wired the
+     * integration, such as a table name resolver. Applies to every database unless a database block sets its
+     * own. Overriding an integration strategy here remains possible for templates that want custom behavior.
+     *
+     * @since 1.14
+     */
+    public var customize: (st.orm.template.ORMTemplate.Builder.() -> Unit)? = null
+
+    /**
      * Whether each call is wrapped in a SQL log whose summary is logged, reporting what one request cost the
      * database: how many statements it took, how long they took against how long the call took, and which
      * statement carried the weight.

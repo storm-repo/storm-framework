@@ -55,8 +55,8 @@ public class StormTransactionObservationContext extends Observation.Context {
     }
 
     /**
-     * Returns the additional low-cardinality key values configured on the observer, such as the database name of a
-     * multi-database setup.
+     * Returns the additional low-cardinality key values configured on the observer, such as
+     * {@code storm.database} naming the template the observation came from.
      *
      * @return the extra low-cardinality key values; never {@code null}.
      */

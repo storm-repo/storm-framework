@@ -594,6 +594,39 @@ This gives you:
 - Transaction integration between Spring and Storm
 - Repository auto-discovery and injection
 
+## Composing Your Own Templates
+
+The starter auto-configures one template for a single-candidate `DataSource`. An application that defines its
+own template beans, which backs that auto-configuration off, injects the starter's `OrmTemplateFactory`
+instead and composes each template through it. Every created template carries the same property-driven
+integration the auto-configured one does: the Spring-aware connection and transaction providers, SQL failure
+translation with the mapper created against the template's own data source, query and transaction
+observations with the semantic conventions resolved from the template's own data source, and the
+trace-context SQL commenter.
+
+```kotlin
+@Configuration
+class TemplateConfiguration {
+
+    @Bean
+    fun orderTemplate(factory: OrmTemplateFactory, @Qualifier("orders") dataSource: DataSource) =
+        factory.create(dataSource, "orders")
+
+    @Bean
+    fun billingTemplate(factory: OrmTemplateFactory, @Qualifier("billing") dataSource: DataSource) =
+        factory.create(dataSource, "billing") {
+            decorator { it.withTableNameResolver(TableNameResolver.toUpperCase(TableNameResolver.DEFAULT)) }
+        }
+}
+```
+
+The `database` argument names the template in observations: every observation carries it as the
+low-cardinality `storm.database` key value, so each template's queries chart under their own identity. The
+trailing block applies application-specific composition, such as a template decorator, after the integration
+is wired; overriding an integration strategy there remains possible for templates that want custom behavior.
+Outside Spring Boot, `springOrmTemplate` remains the plain-Spring composition, wiring the connection and
+transaction providers without the Boot property surface.
+
 ## Exception Translation
 
 Spring code is written against the `DataAccessException` hierarchy: retry setups key on `TransientDataAccessException` for deadlocks and lock timeouts, rollback rules and catch blocks reference the Spring types, and Spring's other data access integrations all translate consistently. With the starter, Storm participates in that convention out of the box: SQL failures raised by Storm repositories and templates surface as Spring exceptions, translated from vendor error codes for the application's database product, with `SQLException` subclass and SQL state translation as fallback.
@@ -613,7 +646,7 @@ Failures without a `SQLException` cause keep Storm's own semantics: `Persistence
 fun updateStudy(study: Study) = transactionBlocking { studyRepository.update(study) }
 ```
 
-Translation applies to the templates composed with it: the starter's auto-configured template, and templates created with `SpringOrmTemplate.of` (Java) or `springOrmTemplate` (Kotlin). Disable it with `storm.exception-translation.enabled=false`, define your own `ExceptionMapper` bean, or compose the template yourself with the builder and leave the mapper out.
+Translation applies to the templates composed with it: the starter's auto-configured template, the templates an `OrmTemplateFactory` creates, and templates created with `SpringOrmTemplate.of` (Java) or `springOrmTemplate` (Kotlin). Disable it with `storm.exception-translation.enabled=false`, define your own `ExceptionMapper` bean, or compose the template yourself with the builder and leave the mapper out.
 
 ## Observability
 

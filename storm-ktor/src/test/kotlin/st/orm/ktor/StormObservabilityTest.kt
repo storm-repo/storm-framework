@@ -298,4 +298,78 @@ internal class StormObservabilityTest {
             dataSource.close()
         }
     }
+
+    @Test
+    fun `the configured semantic conventions compose the observer from the database's own data source`() {
+        val observationRegistry = TestObservationRegistry.create()
+        val dataSource = createTestDataSource("storm-observed-configured-otel", "/schema.sql")
+        try {
+            testApplication {
+                environment {
+                    config = io.ktor.server.config.MapApplicationConfig(
+                        "storm.observations.semanticConventions" to "otel",
+                    )
+                }
+                application {
+                    dependencies {
+                        provide<ObservationRegistry> { observationRegistry }
+                    }
+                    install(Storm) {
+                        this.dataSource = dataSource
+                    }
+                    routing {
+                        get("/pets") {
+                            call.respondText(repository<PetRepository>().findAll().size.toString())
+                        }
+                    }
+                }
+                client.get("/pets").status shouldBe HttpStatusCode.OK
+                TestObservationRegistryAssert.assertThat(observationRegistry)
+                    .hasObservationWithNameEqualTo("storm.query")
+                    .that()
+                    .hasLowCardinalityKeyValue("db.system.name", "h2database")
+                    .hasLowCardinalityKeyValue("storm.database", "primary")
+            }
+        } finally {
+            dataSource.close()
+        }
+    }
+
+    @Test
+    fun `customize composes on top of the wired integration`() {
+        val observationRegistry = TestObservationRegistry.create()
+        val dataSource = createTestDataSource("storm-customized", "/schema.sql")
+        val observed = AtomicInteger()
+        try {
+            testApplication {
+                application {
+                    dependencies {
+                        provide<ObservationRegistry> { observationRegistry }
+                    }
+                    install(Storm) {
+                        this.dataSource = dataSource
+                        // Runs after the integration is wired, so an override set here wins over the
+                        // automatic observation binding.
+                        customize = {
+                            queryObserver(object : QueryObserver {
+                                override fun onExecute(context: st.orm.core.spi.QueryContext): QueryObserver.Observation {
+                                    observed.incrementAndGet()
+                                    return QueryObserver.Observation.NOOP
+                                }
+                            })
+                        }
+                    }
+                    routing {
+                        get("/pets") {
+                            call.respondText(repository<PetRepository>().findAll().size.toString())
+                        }
+                    }
+                }
+                client.get("/pets").status shouldBe HttpStatusCode.OK
+                observed.get() shouldBeGreaterThan 0
+            }
+        } finally {
+            dataSource.close()
+        }
+    }
 }

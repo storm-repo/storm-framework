@@ -424,6 +424,36 @@ internal class StormAutoConfigurationTest {
     }
 
     @Test
+    fun `template factory composes templates for the data sources of a multi-database application`() {
+        // With several DataSource beans the single auto-configured template backs off, while the factory
+        // composes one fully integrated template per data source.
+        contextRunner
+            .withUserConfiguration(MultiDataSourceConfig::class.java)
+            .run { context ->
+                context.getBeanNamesForType(ORMTemplate::class.java).toList().shouldBeEmpty()
+                val factory = context.getBean(OrmTemplateFactory::class.java)
+                var customized = false
+                val orders = factory.create(context.getBean("ordersDataSource", DataSource::class.java), "orders") {
+                    customized = true
+                }
+                val billing = factory.create(context.getBean("billingDataSource", DataSource::class.java), "billing")
+                customized shouldBe true
+                orders shouldNotBe null
+                billing shouldNotBe null
+                orders shouldNotBe billing
+            }
+    }
+
+    @Configuration
+    open class MultiDataSourceConfig {
+        @Bean
+        open fun ordersDataSource(): DataSource = org.springframework.jdbc.datasource.SimpleDriverDataSource(org.h2.Driver(), "jdbc:h2:mem:factoryOrdersKt;DB_CLOSE_DELAY=-1")
+
+        @Bean
+        open fun billingDataSource(): DataSource = org.springframework.jdbc.datasource.SimpleDriverDataSource(org.h2.Driver(), "jdbc:h2:mem:factoryBillingKt;DB_CLOSE_DELAY=-1")
+    }
+
+    @Test
     fun `query observer follows the observation registry`() {
         contextRunner
             .withPropertyValues(

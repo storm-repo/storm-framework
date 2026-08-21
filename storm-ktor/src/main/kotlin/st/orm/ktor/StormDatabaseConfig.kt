@@ -93,6 +93,14 @@ public class StormDatabaseConfig internal constructor(internal val name: String)
     public var sqlCommenter: st.orm.core.spi.SqlCommenter? = null
 
     /**
+     * Optional composition applied to this database's template builder after the plugin has wired the
+     * integration, such as a table name resolver; inherits the plugin-level composition when unset.
+     *
+     * @since 1.14
+     */
+    public var customize: (st.orm.template.ORMTemplate.Builder.() -> Unit)? = null
+
+    /**
      * Schema validation mode for this database: `"none"`, `"warn"`, or `"fail"`. Any other value aborts
      * installation.
      *

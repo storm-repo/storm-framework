@@ -125,6 +125,9 @@ storm {
         schemaMode = "fail"
         strict = false
     }
+    observations {
+        semanticConventions = "storm"    # "storm" or "otel"
+    }
 }
 ```
 
