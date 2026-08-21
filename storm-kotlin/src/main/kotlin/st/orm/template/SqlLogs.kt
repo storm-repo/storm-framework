@@ -90,8 +90,8 @@ public fun sqlLogContext(): CoroutineContext {
  * Cost when inactive is zero: a scope registers on the interceptor chain every statement already walks, so a
  * statement executed with no scope open reads a single counter and stops.
  *
- * How summaries render — hydration shapes, line width, call-site skips — is a property of the deployment,
- * configured rather than programmed: the `storm.sql_log.hydration`, `storm.sql_log.line_width` and
+ * How summaries render — line width, call-site skips — is a property of the deployment, configured rather
+ * than programmed: the `storm.sql_log.line_width` and
  * `storm.sql_log.call_site_skip` system properties on a plain JVM, or the corresponding keys of the Spring and
  * Ktor integrations.
  *

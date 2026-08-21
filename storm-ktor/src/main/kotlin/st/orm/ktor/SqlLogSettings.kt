@@ -16,7 +16,6 @@
 package st.orm.ktor
 
 import io.ktor.server.application.Application
-import st.orm.core.template.SqlLog.HydrationShapes
 import kotlin.time.Duration
 
 /**
@@ -26,8 +25,8 @@ import kotlin.time.Duration
  * log switchable through `application.conf` without a code change, mirroring the Spring starter's
  * `storm.sql-log.*` properties.
  *
- * [lineWidth] and [hydration] are `null` when neither the DSL nor the configuration sets them, so
- * installation leaves the JVM-wide display settings (the `storm.sql_log.*` system properties, or
+ * [lineWidth], [slowStatement] and [slowStatementLimit] are `null` when neither the DSL nor the configuration
+ * sets them, so installation leaves the JVM-wide settings (the `storm.sql_log.*` system properties, or
  * another application's configuration in the same JVM) untouched.
  */
 internal class SqlLogSettings(
@@ -35,10 +34,11 @@ internal class SqlLogSettings(
     val limit: Int,
     val statementThreshold: Int?,
     val durationThreshold: Duration?,
+    val slowStatement: Duration?,
+    val slowStatementLimit: Int?,
     val callSites: Boolean,
     val callSiteSkip: List<String>,
     val lineWidth: Int?,
-    val hydration: HydrationShapes?,
 )
 
 /**
@@ -53,12 +53,13 @@ internal fun resolveSqlLogSettings(application: Application, pluginConfig: Storm
         ?: intProperty(application, "threshold.statements"),
     durationThreshold = pluginConfig.sqlLogDurationThreshold
         ?: durationProperty(application, "threshold.duration"),
+    slowStatement = pluginConfig.sqlLogSlowStatement ?: durationProperty(application, "slowStatement"),
+    slowStatementLimit = pluginConfig.sqlLogSlowStatementLimit ?: intProperty(application, "slowStatementLimit"),
     callSites = pluginConfig.sqlLogCallSites ?: booleanProperty(application, "callSites") ?: false,
     callSiteSkip = pluginConfig.sqlLogCallSiteSkip
         ?: listProperty(application, "callSiteSkip")
         ?: emptyList(),
     lineWidth = pluginConfig.sqlLogLineWidth ?: intProperty(application, "lineWidth"),
-    hydration = pluginConfig.sqlLogHydration ?: hydrationProperty(application, "hydration"),
 )
 
 /**
@@ -92,12 +93,6 @@ private fun durationProperty(application: Application, relativeKey: String): Dur
         ?: throw IllegalStateException(
             "Invalid value '$value' for $key. The value must be a duration such as 500ms, 2s, or PT0.5S.",
         )
-}
-
-private fun hydrationProperty(application: Application, relativeKey: String): HydrationShapes? {
-    val (key, value) = stringProperty(application, relativeKey) ?: return null
-    return HydrationShapes.entries.firstOrNull { it.name.equals(value.trim(), ignoreCase = true) }
-        ?: throw IllegalStateException("Invalid value '$value' for $key. Valid values are: off, short, full.")
 }
 
 /**

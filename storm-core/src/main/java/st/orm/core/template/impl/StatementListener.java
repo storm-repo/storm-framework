@@ -76,6 +76,25 @@ public interface StatementListener {
         };
 
         /**
+         * Signals that the statement returned from the database: the execute call completed, with a result set
+         * opened, an update count reported, or a batch acknowledged. What the execution cost the database is the
+         * time up to this point; for a stream, what follows is fetch round trips interleaved with consumption.
+         * Invoked exactly once per handle, before {@link #close}, on the thread that executed the statement, so
+         * a listener that attributes executions can still see the caller on the stack. When the execute call
+         * itself fails, it is invoked immediately before the close that reports the failure.
+         */
+        default void executed() {
+        }
+
+        /**
+         * Signals that the execution failed. Invoked at most once per handle, before {@link #close}.
+         *
+         * @param throwable what the execution failed with.
+         */
+        default void error(Throwable throwable) {
+        }
+
+        /**
          * Signals that the execution has completed. Invoked exactly once per handle.
          *
          * @param rows the rows the execution produced or affected; a lower bound when not exact.

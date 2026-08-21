@@ -5,7 +5,6 @@ package st.orm.template
 import io.kotest.matchers.collections.shouldNotBeEmpty
 import io.kotest.matchers.ints.shouldBeGreaterThan
 import io.kotest.matchers.shouldBe
-import io.kotest.matchers.string.shouldContain
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
@@ -22,10 +21,8 @@ import org.springframework.test.context.junit.jupiter.SpringExtension
 import st.orm.Metamodel
 import st.orm.core.template.SqlLog.Summary
 import st.orm.core.template.StatementOrigin.FETCH
-import st.orm.core.template.impl.SqlLogRenderer
 import st.orm.template.model.Owner
 import st.orm.template.model.PetOwnerRef
-import st.orm.core.template.SqlLog as CoreSqlLog
 
 /**
  * Verifies that a scope follows the coroutine rather than the thread: it keeps recording across a suspension that
@@ -233,22 +230,5 @@ internal open class SqlLogTest(
         summary.statementCount() shouldBe executions
         summary.statements().size shouldBe limit
         summary.truncated() shouldBe true
-    }
-
-    @Test
-    fun `a hydration shape renders for a data class entity`(): Unit = runBlocking {
-        // The shape derives through the reflection provider, which recognizes Kotlin data classes; a JVM-record
-        // check would leave these rows bare.
-        SqlLogRenderer.hydrationShapes(CoreSqlLog.HydrationShapes.FULL)
-        try {
-            val (_, summary) = record("shape") {
-                orm.entity(PetOwnerRef::class).select().resultList
-            }
-            val rendered = summary.toString()
-            rendered shouldContain "joins="
-            rendered shouldContain "graph=PetOwnerRef"
-        } finally {
-            SqlLogRenderer.hydrationShapes(CoreSqlLog.HydrationShapes.OFF)
-        }
     }
 }

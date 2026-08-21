@@ -35,6 +35,7 @@ import org.slf4j.LoggerFactory
 import st.orm.core.spi.JdbcConnectionProviderImpl
 import st.orm.core.spi.JdbcTransactionTemplateProviderImpl
 import st.orm.core.template.impl.CallSiteCapture
+import st.orm.core.template.impl.SlowStatementLog
 import st.orm.core.template.impl.SqlLogRenderer
 import st.orm.micrometer.MicrometerQueryObserver
 import st.orm.micrometer.StormQueryObservationContext
@@ -48,6 +49,7 @@ import javax.sql.DataSource
 import kotlin.reflect.KClass
 import kotlin.reflect.full.starProjectedType
 import kotlin.reflect.typeOf
+import kotlin.time.toJavaDuration
 
 /**
  * Ktor plugin that configures Storm ORM for the application.
@@ -301,9 +303,12 @@ public val Storm: ApplicationPlugin<StormPluginConfig> = createApplicationPlugin
 
     // Each option resolves from the plugin configuration first, then the application configuration under
     // storm.sqlLog, so the log can be switched on through the configuration file alone. The display settings
-    // (call-site skip, line width, hydration shapes) are JVM-wide by design and are only applied when actually
-    // configured, leaving the system-property defaults, or another application's settings, in effect otherwise.
+    // (call-site skip, line width) are JVM-wide by design and are only applied when actually configured, leaving the system-property defaults, or another application's settings, in effect otherwise.
     val sqlLogSettings = resolveSqlLogSettings(application, pluginConfig)
+    // The slow statement log needs no request boundary: it reports each execution whose database time exceeds
+    // the threshold, wherever it runs, so it applies with or without the per-call summaries.
+    sqlLogSettings.slowStatement?.let { SlowStatementLog.threshold(it.toJavaDuration()) }
+    sqlLogSettings.slowStatementLimit?.let { SlowStatementLog.limit(it) }
     if (sqlLogSettings.enabled) {
         val limit = sqlLogSettings.limit
         val callSites = sqlLogSettings.callSites
@@ -311,7 +316,6 @@ public val Storm: ApplicationPlugin<StormPluginConfig> = createApplicationPlugin
             CallSiteCapture.ignoreCallSites(*sqlLogSettings.callSiteSkip.toTypedArray())
         }
         sqlLogSettings.lineWidth?.let { SqlLogRenderer.lineWidth(it) }
-        sqlLogSettings.hydration?.let { SqlLogRenderer.hydrationShapes(it) }
         val statementThreshold = sqlLogSettings.statementThreshold
         val durationThreshold = sqlLogSettings.durationThreshold
         val thresholded = statementThreshold != null || durationThreshold != null

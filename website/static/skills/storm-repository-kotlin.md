@@ -791,7 +791,7 @@ Run the test. Show the user the captured SQL and explain how it aligns with the 
 
 - A row with a high execution multiplier (`7x`) is one statement issued once per record. Storm hides no query, so the repetition is a loop in application code: batch it with `findAllById`, an `inList` predicate, or `resultGroupedBy` instead of a query per parent.
 - A row marked `fetch` is a reference resolved on demand. Naming it in the query's fetch plan (`select().fetch(path)`) folds the load into the parent statement, and `getOrThrow()` then reads it without querying.
-- A wide hydration shape (`j5 c60 d4` — joins, columns, graph depth; shown when `storm.sql-log.hydration` is set) says the read materializes more graph than it uses. Declare a `Ref` on the branches that read does not need, or use a projection.
+- A read that joins many tables and maps many columns for a call that uses few of them says the type materializes more graph than the read needs. Declare a `Ref` on the branches that read does not need, or use a projection.
 - Database time far below total time says the bottleneck is not the database, so stop optimizing queries.
 - `n from cache` counts reads the transaction's entity cache served without a statement, which is work already avoided rather than work to do.
 

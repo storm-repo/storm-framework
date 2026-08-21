@@ -41,6 +41,7 @@ import org.springframework.mock.web.MockHttpServletRequest;
 import org.springframework.mock.web.MockHttpServletResponse;
 import org.springframework.scheduling.annotation.Scheduled;
 import st.orm.core.template.ORMTemplate;
+import st.orm.core.template.impl.SlowStatementLog;
 
 /**
  * Verifies that the SQL log covers every way work enters the application: the servlet filter covers requests,
@@ -222,6 +223,75 @@ public class StormSqlLogAutoConfigurationTest {
                     }
                     assertTrue(events.isEmpty());
                 }));
+    }
+
+    @Test
+    public void testTheSlowStatementLogNeedsNoScope() {
+        // The slow log sees every execution on its own, so it applies whether or not the summaries are enabled.
+        try {
+            contextRunner
+                    .withUserConfiguration(JobConfiguration.class)
+                    .withPropertyValues("storm.sql-log.slow-statement=200ms")
+                    .run(context -> {
+                        assertTrue(SlowStatementLog.active());
+                        assertFalse(context.containsBean("stormSqlLogEntryPointPostProcessor"));
+                    });
+        } finally {
+            SlowStatementLog.threshold(null);
+        }
+    }
+
+    @Test
+    public void testASlowExecutionIsReportedInsideARequest() {
+        // Inside a request the summary and the slow line report side by side, each under its own logger.
+        SlowStatementLog.threshold(null);
+        try {
+            new WebApplicationContextRunner()
+                    .withConfiguration(AutoConfigurations.of(StormSqlLogAutoConfiguration.class))
+                    .withUserConfiguration(JobConfiguration.class)
+                    .withPropertyValues("storm.sql-log.enabled=true", "storm.sql-log.slow-statement=1ns")
+                    .run(context -> {
+                        assertTrue(SlowStatementLog.active());
+                        assertTrue(context.containsBean("stormSqlLogFilter"));
+                        var slowLogger = (ch.qos.logback.classic.Logger)
+                                org.slf4j.LoggerFactory.getLogger("st.orm.sql.slow");
+                        var appender = new ListAppender<ILoggingEvent>();
+                        appender.start();
+                        slowLogger.addAppender(appender);
+                        try {
+                            withScopeLogger(events -> {
+                                var filter = context.getBean(StormSqlLogFilter.class);
+                                var job = context.getBean(ReportJob.class);
+                                var request = new MockHttpServletRequest("GET", "/report");
+                                try {
+                                    filter.doFilter(request, new MockHttpServletResponse(),
+                                            (servletRequest, servletResponse) -> job.plain());
+                                } catch (Exception e) {
+                                    throw new RuntimeException(e);
+                                }
+                                assertEquals(1, events.size(), events.toString());
+                                assertTrue(events.getFirst().getFormattedMessage().startsWith("SQL (GET /report)"),
+                                        events.getFirst().getFormattedMessage());
+                            });
+                            assertEquals(1, appender.list.size(), appender.list.toString());
+                            assertTrue(appender.list.getFirst().getFormattedMessage().startsWith("SQL slow (SELECT)"),
+                                    appender.list.getFirst().getFormattedMessage());
+                        } finally {
+                            slowLogger.detachAppender(appender);
+                        }
+                    });
+        } finally {
+            SlowStatementLog.threshold(null);
+        }
+    }
+
+    @Test
+    public void testWithoutTheSlowStatementPropertyNoThresholdApplies() {
+        SlowStatementLog.threshold(null);
+        contextRunner
+                .withUserConfiguration(JobConfiguration.class)
+                .withPropertyValues("storm.sql-log.enabled=true")
+                .run(context -> assertFalse(SlowStatementLog.active()));
     }
 
     @Test

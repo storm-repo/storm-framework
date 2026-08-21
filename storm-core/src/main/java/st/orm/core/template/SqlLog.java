@@ -56,10 +56,9 @@ import st.orm.core.template.impl.StatementListener;
  * <p>A scope is bound to the thread that opened it, so it records the statements of a blocking call. Statements
  * issued after a suspension that resumed on another thread fall outside it.</p>
  *
- * <p>How summaries render — hydration shapes, line width, call-site skips — is a property of the deployment,
- * configured rather than programmed: the {@code storm.sql_log.hydration}, {@code storm.sql_log.line_width} and
- * {@code storm.sql_log.call_site_skip} system properties on a plain JVM, or the corresponding keys of the Spring
- * and Ktor integrations.</p>
+ * <p>How summaries render — line width, call-site skips — is a property of the deployment, configured rather
+ * than programmed: the {@code storm.sql_log.line_width} and {@code storm.sql_log.call_site_skip} system
+ * properties on a plain JVM, or the corresponding keys of the Spring and Ktor integrations.</p>
  *
  * @since 1.13
  */
@@ -106,25 +105,47 @@ public final class SqlLog {
     /**
      * A statement recorded by a scope.
      *
+     * <p>Three instants bound an execution. It starts when the statement is prepared, it is executed when the
+     * statement returns from the database (a result set opened, an update count reported, a batch acknowledged),
+     * and it ends when its observation closes: at once for an update or a single-row read, at the close of the
+     * stream for a streamed read. Database time is the first interval; for a stream, the second is fetch round
+     * trips interleaved with the application consuming rows, which is not the database's cost to carry.</p>
+     *
      * @param operation what the statement does.
      * @param dataType the entity or projection it targets, or {@code null} when it targets none.
      * @param origin what caused it to execute.
      * @param statement the statement text, with placeholders.
+     * @param startNanos when the execution started.
+     * @param executedNanos when the statement returned from the database.
+     * @param endNanos when the execution completed.
+     * @param shapeId the identity of the statement's shape, or {@code 0} when unknown.
+     * @param callSite the application frame the execution came from, or {@code null} when not recorded.
+     * @param rows the rows the execution produced or affected; a lower bound when not exact.
+     * @param exactRows whether that count is exact.
      */
     public record Statement(SqlOperation operation,
                             Class<? extends Data> dataType,
                             StatementOrigin origin,
                             String statement,
                             long startNanos,
+                            long executedNanos,
                             long endNanos,
                             long shapeId,
                             @Nullable String callSite,
                             long rows,
                             boolean exactRows) {
 
-        /** Returns how long the execution took. */
+        /** Returns the time the execution spent in the database: from prepare to the statement's return. */
         public long durationNanos() {
-            return endNanos - startNanos;
+            return executedNanos - startNanos;
+        }
+
+        /**
+         * Returns the time between the statement's return and the execution's completion: zero for an update or
+         * a single-row read, the consumption of the stream for a streamed read.
+         */
+        public long consumeNanos() {
+            return endNanos - executedNanos;
         }
     }
 
@@ -186,7 +207,8 @@ public final class SqlLog {
         }
 
         /**
-         * Returns the total time the executions took, which under concurrency exceeds the elapsed time.
+         * Returns the total time the executions spent in the database, which under concurrency exceeds the
+         * elapsed time.
          *
          * @return the summed statement duration, in nanoseconds.
          */
@@ -212,7 +234,7 @@ public final class SqlLog {
                     elapsed += closesAt - openedAt;
                     openedAt = interval.startNanos();
                 }
-                closesAt = Math.max(closesAt, interval.endNanos());
+                closesAt = Math.max(closesAt, interval.executedNanos());
             }
             return elapsed + (closesAt - openedAt);
         }
@@ -225,7 +247,7 @@ public final class SqlLog {
          */
         public int peakConcurrency() {
             long[] starts = statements.stream().mapToLong(Statement::startNanos).sorted().toArray();
-            long[] ends = statements.stream().mapToLong(Statement::endNanos).sorted().toArray();
+            long[] ends = statements.stream().mapToLong(Statement::executedNanos).sorted().toArray();
             int peak = 0;
             int inFlight = 0;
             int closing = 0;
@@ -243,8 +265,7 @@ public final class SqlLog {
         /**
          * Returns the recorded statements grouped by their text, heaviest first, which is the view that answers
          * where the time went: a statement run many times cheaply outranks one slow statement when it cost more in
-         * total. When hydration shapes are enabled ({@code storm.sql_log.hydration}), each read's line carries the
-         * declared hydration shape of its type in the configured form.
+         * total.
          *
          * @return one line per distinct statement, ordered by total time.
          */
@@ -255,9 +276,10 @@ public final class SqlLog {
             for (var statement : statements) {
                 Object key = statement.shapeId() != 0 ? statement.shapeId() : statement.statement();
                 var group = groups.computeIfAbsent(key, ignore -> new Group(statement.statement(),
-                        statement.operation(), statement.dataType()));
+                        statement.dataType()));
                 group.executions++;
                 group.durationNanos += statement.durationNanos();
+                group.maxNanos = Math.max(group.maxNanos, statement.durationNanos());
                 group.fetch |= statement.origin() == StatementOrigin.FETCH;
                 group.texts.add(statement.statement());
                 group.rows += statement.rows();
@@ -268,10 +290,9 @@ public final class SqlLog {
             }
             return groups.values().stream()
                     .map(group -> new StatementLine(group.text, group.dataTypeName, group.fetch, group.executions,
-                            group.texts.size(), group.durationNanos,
+                            group.texts.size(), group.durationNanos, group.maxNanos,
                             group.sites.isEmpty() ? null : group.sites.iterator().next(), group.sites.size(),
-                            group.rows, group.exactRows,
-                            SqlLogRenderer.hydrationOf(group.operation, group.dataType)))
+                            group.rows, group.exactRows))
                     .sorted(comparingLong(StatementLine::durationNanos).reversed())
                     .toList();
         }
@@ -279,21 +300,18 @@ public final class SqlLog {
         /** One statement group under construction; the first execution seen represents the group. */
         private static final class Group {
             final String text;
-            final SqlOperation operation;
-            final @Nullable Class<? extends Data> dataType;
             final String dataTypeName;
             final java.util.Set<String> texts = new java.util.HashSet<>();
             final java.util.Set<String> sites = new java.util.LinkedHashSet<>();
             boolean fetch;
             int executions;
             long durationNanos;
+            long maxNanos;
             long rows;
             boolean exactRows = true;
 
-            Group(String text, SqlOperation operation, @Nullable Class<? extends Data> dataType) {
+            Group(String text, @Nullable Class<? extends Data> dataType) {
                 this.text = text;
-                this.operation = operation;
-                this.dataType = dataType;
                 this.dataTypeName = dataType == null ? "-" : dataType.getSimpleName();
             }
         }
@@ -327,7 +345,10 @@ public final class SqlLog {
      * @param executions how many times it ran.
      * @param variants how many distinct texts the group covers; above one, a collection parameter expanded to a
      *                 different number of placeholders per execution.
-     * @param durationNanos the summed duration of those executions.
+     * @param durationNanos the summed database time of those executions.
+     * @param maxNanos the database time of the slowest of them, which the rendering shows when it stands out from
+     *                 the group's average: one slow execution among many cheap ones is a different finding from
+     *                 a statement that is uniformly slow.
      * @param callSite the application frame the executions came from, or {@code null} when the scope does not
      *                 record call sites; the first seen when a group covers several.
      * @param sites how many distinct call sites the group covers.
@@ -335,9 +356,6 @@ public final class SqlLog {
      * @param exactRows whether that count is exact; when a driver declined to report a batch entry's count or a
      *                  stream closed before its end, the count is a lower bound and the rendering marks it
      *                  {@code *}.
-     * @param hydration the rendered hydration shape of the statement's type in the configured
-     *                  {@link HydrationShapes} form, or {@code null} when shapes are off, the statement is not a
-     *                  SELECT, or it has no record type.
      */
     public record StatementLine(String statement,
                                 String dataType,
@@ -345,34 +363,11 @@ public final class SqlLog {
                                 int executions,
                                 int variants,
                                 long durationNanos,
+                                long maxNanos,
                                 @Nullable String callSite,
                                 int sites,
                                 long rows,
-                                boolean exactRows,
-                                @Nullable String hydration) {
-    }
-
-    /**
-     * How summary rows render the declared hydration shape of their statement's type.
-     *
-     * <p>Shapes state what reading a type costs, so they render on SELECT rows only. A write states its cost in
-     * the rows it affected, and the graph its type declares is not something it traverses.</p>
-     *
-     * @since 1.13
-     */
-    public enum HydrationShapes {
-
-        /** No shape renders. The default. */
-        OFF,
-
-        /**
-         * A read whose type hydrates beyond its own table ends with the numeric shape, {@code j2 c12 d3}: joins,
-         * columns, and graph depth. A flat type shows none.
-         */
-        SHORT,
-
-        /** Every mapped read ends with the full shape, {@code joins=2 columns=12 graph=Pet(Owner(City))}. */
-        FULL
+                                boolean exactRows) {
     }
 
     /** Statements recorded per scope before recording stops, keeping a runaway call from retaining the lot. */
@@ -440,7 +435,7 @@ public final class SqlLog {
         } finally {
             // A call that failed is worth summarizing too: the statements leading up to it are the evidence.
             long elapsed = System.nanoTime() - started;
-            onSummary.accept(new Summary(name, List.copyOf(recorder.statements), recorder.recorded.get(),
+            onSummary.accept(new Summary(name, recorder.statements(), recorder.recorded.get(),
                     recorder.cacheHits.get(), elapsed));
         }
     }
@@ -573,7 +568,7 @@ public final class SqlLog {
             } catch (Exception e) {
                 throw new PersistenceException(e);
             }
-            summary = new Summary(name, List.copyOf(recorder.statements), recorder.recorded.get(),
+            summary = new Summary(name, recorder.statements(), recorder.recorded.get(),
                     recorder.cacheHits.get(), elapsed);
         }
     }
@@ -609,7 +604,7 @@ public final class SqlLog {
      * @return the summary.
      */
     public static Summary summary(String name, Recorder recorder, long durationNanos) {
-        return new Summary(name, List.copyOf(recorder.statements), recorder.recorded.get(),
+        return new Summary(name, recorder.statements(), recorder.recorded.get(),
                 recorder.cacheHits.get(), durationNanos);
     }
 
@@ -617,7 +612,13 @@ public final class SqlLog {
      * Accumulates the statements of one scope.
      */
     public static final class Recorder implements StatementListener {
-        private final Queue<Statement> statements = new ConcurrentLinkedQueue<>();
+        /**
+         * One slot per execution, filled when the statement returns from the database and completed when the
+         * execution closes. A statement is what it cost the database as soon as the database has answered, so a
+         * read whose stream is still open when the scope closes is in the summary with its database time and the
+         * rows read so far, rather than missing from it.
+         */
+        private final Queue<Slot> statements = new ConcurrentLinkedQueue<>();
         private final int limit;
         private final boolean callSites;
         private final AtomicInteger recorded = new AtomicInteger();
@@ -628,20 +629,63 @@ public final class SqlLog {
             this.callSites = callSites;
         }
 
+        /** Returns the statements as they stand: completed ones as closed, open ones as of the database's return. */
+        List<Statement> statements() {
+            var snapshot = new java.util.ArrayList<Statement>();
+            for (var slot : statements) {
+                var statement = slot.statement;
+                if (statement != null) {
+                    snapshot.add(statement);
+                }
+            }
+            return snapshot;
+        }
+
+        /** The statement of one execution; written at the database's return, rewritten at close. */
+        private static final class Slot implements Handle {
+            private final Recorder recorder;
+            private final long start = System.nanoTime();
+            private final SqlOperation operation;
+            private final @Nullable Class<? extends Data> dataType;
+            private final StatementOrigin origin;
+            private final String text;
+            private final long shapeId;
+            private final @Nullable String callSite;
+            private long executed;
+            private volatile @Nullable Statement statement;
+
+            Slot(Recorder recorder, QueryContext context, @Nullable String callSite) {
+                this.recorder = recorder;
+                this.operation = context.operation();
+                this.dataType = context.dataType().orElse(null);
+                this.origin = context.origin();
+                this.text = context.statement().orElse("");
+                this.shapeId = context.shapeId();
+                this.callSite = callSite;
+            }
+
+            @Override
+            public void executed() {
+                executed = System.nanoTime();
+                // Rows are not known yet; the count is a lower bound until the close reports it.
+                statement = new Statement(operation, dataType, origin, text, start, executed, executed, shapeId,
+                        callSite, 0, false);
+                recorder.statements.add(this);
+            }
+
+            @Override
+            public void close(long rows, boolean exact) {
+                statement = new Statement(operation, dataType, origin, text, start, executed, System.nanoTime(),
+                        shapeId, callSite, rows, exact);
+            }
+        }
+
         @Override
         public Handle onExecute(QueryContext context, List<Parameter> parameters) {
             if (recorded.incrementAndGet() > limit) {
                 return Handle.NOOP;
             }
-            var callSite = callSites ? CallSiteCapture.callSite() : null;
-            long start = System.nanoTime();
-            var operation = context.operation();
-            var dataType = context.dataType().orElse(null);
-            var origin = context.origin();
-            var statement = context.statement().orElse("");
-            var shapeId = context.shapeId();
-            return (rows, exact) -> statements.add(new Statement(operation, dataType, origin, statement, start,
-                    System.nanoTime(), shapeId, callSite, rows, exact));
+            return new Slot(this, context, callSites ? CallSiteCapture.callSite() : null);
         }
 
         @Override

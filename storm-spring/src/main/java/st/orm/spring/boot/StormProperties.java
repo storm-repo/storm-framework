@@ -19,6 +19,7 @@ import java.time.Duration;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import org.jspecify.annotations.Nullable;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 import st.orm.StormConfig;
 
@@ -139,7 +140,7 @@ public class StormProperties {
         private String dirtyCheck;
 
         /** The maximum number of update shapes to cache. */
-        private Integer maxShapes;
+        private @Nullable Integer maxShapes;
 
         /** Returns the default update mode. */
         public String getDefaultMode() { return defaultMode; }
@@ -154,10 +155,10 @@ public class StormProperties {
         public void setDirtyCheck(String dirtyCheck) { this.dirtyCheck = dirtyCheck; }
 
         /** Returns the maximum number of update shapes to cache. */
-        public Integer getMaxShapes() { return maxShapes; }
+        public @Nullable Integer getMaxShapes() { return maxShapes; }
 
         /** Sets the maximum number of update shapes to cache. */
-        public void setMaxShapes(Integer maxShapes) { this.maxShapes = maxShapes; }
+        public void setMaxShapes(@Nullable Integer maxShapes) { this.maxShapes = maxShapes; }
     }
 
     /**
@@ -185,13 +186,13 @@ public class StormProperties {
     public static class TemplateCache {
 
         /** The maximum number of templates to cache. */
-        private Integer size;
+        private @Nullable Integer size;
 
         /** Returns the maximum number of templates to cache. */
-        public Integer getSize() { return size; }
+        public @Nullable Integer getSize() { return size; }
 
         /** Sets the maximum number of templates to cache. */
-        public void setSize(Integer size) { this.size = size; }
+        public void setSize(@Nullable Integer size) { this.size = size; }
     }
 
     /**
@@ -352,29 +353,40 @@ public class StormProperties {
          * text elides to what the row's other columns leave. A display property of the deployment, applied
          * once at startup.
          */
-        private Integer lineWidth;
+        private @Nullable Integer lineWidth;
 
         /** Returns the display width summary rows aim for. */
-        public Integer getLineWidth() { return lineWidth; }
+        public @Nullable Integer getLineWidth() { return lineWidth; }
 
         /** Sets the display width summary rows aim for. */
-        public void setLineWidth(Integer lineWidth) { this.lineWidth = lineWidth; }
+        public void setLineWidth(@Nullable Integer lineWidth) { this.lineWidth = lineWidth; }
 
         /**
-         * How a read's summary row renders the declared hydration shape of its type: {@code off} (the default),
-         * {@code short} for the numeric form ({@code j2 c12 d3}: joins, columns, graph depth; flat types show
-         * none), or {@code full} to name the joined-entity graph on every mapped read. Writes carry no shape.
+         * Database time above which a single statement execution is reported under the {@code st.orm.sql.slow}
+         * logger, such as {@code 200ms}: with the statement, its call site and what there is to analyze it by.
+         * Independent of {@code enabled}: it needs no scope and sees every execution, on whatever thread it runs.
+         * Unset means no slow log.
          */
-        private Hydration hydration = Hydration.OFF;
+        private @Nullable Duration slowStatement;
 
-        /** Returns how summary rows render hydration shapes. */
-        public Hydration getHydration() { return hydration; }
+        /** Returns the database time above which a statement execution is reported. */
+        public @Nullable Duration getSlowStatement() { return slowStatement; }
 
-        /** Sets how summary rows render hydration shapes. */
-        public void setHydration(Hydration hydration) { this.hydration = hydration; }
+        /** Sets the database time above which a statement execution is reported. */
+        public void setSlowStatement(@Nullable Duration slowStatement) { this.slowStatement = slowStatement; }
 
-        /** How a read's summary row renders the declared hydration shape of its type. */
-        public enum Hydration { OFF, SHORT, FULL }
+        /**
+         * Slow statement lines reported per shape per minute before the rest are suppressed and counted, so a
+         * degraded database names every shape that suffers without flooding the log with any of them; zero for
+         * no limit. Defaults to 5.
+         */
+        private @Nullable Integer slowStatementLimit;
+
+        /** Returns the slow statement lines reported per shape per minute. */
+        public @Nullable Integer getSlowStatementLimit() { return slowStatementLimit; }
+
+        /** Sets the slow statement lines reported per shape per minute. */
+        public void setSlowStatementLimit(@Nullable Integer slowStatementLimit) { this.slowStatementLimit = slowStatementLimit; }
 
         /** Reporting thresholds; with any set, only requests that exceed one are reported. */
         private Threshold threshold = new Threshold();
@@ -393,22 +405,22 @@ public class StormProperties {
         public static class Threshold {
 
             /** Number of statements above which a request is reported. */
-            private Integer statements;
+            private @Nullable Integer statements;
 
             /** Request duration above which a request is reported, such as {@code 500ms}. */
-            private Duration duration;
+            private @Nullable Duration duration;
 
             /** Returns the statement threshold. */
-            public Integer getStatements() { return statements; }
+            public @Nullable Integer getStatements() { return statements; }
 
             /** Sets the statement threshold. */
-            public void setStatements(Integer statements) { this.statements = statements; }
+            public void setStatements(@Nullable Integer statements) { this.statements = statements; }
 
             /** Returns the duration threshold. */
-            public Duration getDuration() { return duration; }
+            public @Nullable Duration getDuration() { return duration; }
 
             /** Sets the duration threshold. */
-            public void setDuration(Duration duration) { this.duration = duration; }
+            public void setDuration(@Nullable Duration duration) { this.duration = duration; }
         }
     }
 

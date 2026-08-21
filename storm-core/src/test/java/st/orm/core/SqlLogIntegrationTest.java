@@ -6,7 +6,6 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
-import static st.orm.Operator.EQUALS;
 import static st.orm.Operator.IN;
 
 import jakarta.persistence.EntityManager;
@@ -24,19 +23,17 @@ import org.springframework.boot.test.autoconfigure.orm.jpa.DataJpaTest;
 import org.springframework.test.context.ContextConfiguration;
 import org.springframework.test.context.junit.jupiter.SpringExtension;
 import org.springframework.transaction.annotation.Transactional;
+import st.orm.PersistenceException;
 import st.orm.Ref;
 import st.orm.core.model.City;
 import st.orm.core.model.City_;
-import st.orm.core.model.Pet;
 import st.orm.core.model.PetOwnerRef;
 import st.orm.core.model.PetOwnerRef_;
-import st.orm.core.model.Pet_;
 import st.orm.core.template.JpaTemplate;
 import st.orm.core.template.ORMTemplate;
 import st.orm.core.template.SqlLog;
 import st.orm.core.template.StatementOrigin;
 import st.orm.core.template.impl.SqlInterceptorManager;
-import st.orm.core.template.impl.SqlLogRenderer;
 
 /**
  * Verifies that a scope reports what a call cost the database: the statements it took whichever repository issued
@@ -208,6 +205,59 @@ public class SqlLogIntegrationTest {
     }
 
     @Test
+    public void testDatabaseTimeEndsWhenTheStatementReturns() throws Exception {
+        var orm = ORMTemplate.of(dataSource);
+        List<SqlLog.Summary> summaries = new ArrayList<>();
+        SqlLog.recordThrowing("streamed", () -> {
+            // The stream is held open well beyond the statement's return; that time is the application's, not the
+            // database's.
+            try (var stream = orm.entity(City.class).select().getResultStream()) {
+                Thread.sleep(50);
+                return stream.count();
+            }
+        }, summaries::add);
+        var statement = summaries.getFirst().statements().getFirst();
+        assertTrue(statement.executedNanos() >= statement.startNanos(), statement.toString());
+        assertTrue(statement.endNanos() >= statement.executedNanos(), statement.toString());
+        assertTrue(statement.durationNanos() < 50_000_000L, "database time excludes the hold: " + statement);
+        assertTrue(statement.consumeNanos() >= 50_000_000L, "consumption carries the hold: " + statement);
+        assertTrue(summaries.getFirst().databaseNanos() < 50_000_000L);
+    }
+
+    @Test
+    public void testAReadStillStreamingWhenTheScopeClosesIsInTheSummary() throws Exception {
+        var orm = ORMTemplate.of(dataSource);
+        var scope = SqlLog.open("streaming");
+        var stream = orm.entity(City.class).select().getResultStream();
+        try {
+            // The database has answered; the application has not finished reading. The summary carries what the
+            // execution cost the database, and the rows read so far as a lower bound.
+            scope.close();
+            var summary = scope.summary();
+            assertEquals(1, summary.statementCount());
+            assertEquals(1, summary.statements().size(), "the open read is in the summary");
+            assertFalse(summary.truncated(), "an open read is not a truncated recording");
+            var statement = summary.statements().getFirst();
+            assertTrue(statement.durationNanos() > 0, statement.toString());
+            assertFalse(statement.exactRows(), statement.toString());
+        } finally {
+            stream.close();
+        }
+    }
+
+    @Test
+    public void testAFailedExecutionStillCarriesItsDatabaseTime() {
+        var orm = ORMTemplate.of(dataSource);
+        List<SqlLog.Summary> summaries = new ArrayList<>();
+        assertThrows(PersistenceException.class, () -> SqlLog.record("failing", (Supplier<Object>) () ->
+                orm.query("SELECT * FROM no_such_table").getResultList(), summaries::add));
+        var statement = summaries.getFirst().statements().getFirst();
+        // The failure closes the execution without a separate return; database time then runs to the failure.
+        assertTrue(statement.executedNanos() >= statement.startNanos(), statement.toString());
+        assertTrue(statement.consumeNanos() < 1_000_000L, statement.toString());
+    }
+
+    @Test
     public void testAScopeOpensAndClosesWithTryWithResources() {
         var orm = ORMTemplate.of(dataSource);
         var scope = SqlLog.open("block");
@@ -325,87 +375,6 @@ public class SqlLogIntegrationTest {
         assertEquals(1, line.rows());
         assertTrue(line.durationNanos() > 0);
         assertTrue(summary.toString().contains("FROM city"), summary.toString());
-    }
-
-    @Test
-    public void testHydrationShapesAreOffByDefault() {
-        var orm = ORMTemplate.of(dataSource);
-        List<SqlLog.Summary> summaries = new ArrayList<>();
-        SqlLog.record("off", (Supplier<Object>) () -> orm.entity(Pet.class).getById(1), summaries::add);
-        var summary = summaries.getFirst();
-        // Shapes render only when switched on, in either rendering.
-        assertFalse(summary.toString().contains("j2"), summary.toString());
-        assertFalse(summary.toDetailedString().contains("graph="), summary.toDetailedString());
-    }
-
-    @Test
-    public void testShortShapesSkipFlatTypes() {
-        var orm = ORMTemplate.of(dataSource);
-        SqlLogRenderer.hydrationShapes(SqlLog.HydrationShapes.SHORT);
-        try {
-            List<SqlLog.Summary> summaries = new ArrayList<>();
-            SqlLog.record("short", (Supplier<Object>) () -> orm.entity(City.class).getById(1), summaries::add);
-            // A flat type says nothing its row does not already say, so the short form stays off its row.
-            assertFalse(summaries.getFirst().toString().contains("j0"), summaries.getFirst().toString());
-        } finally {
-            SqlLogRenderer.hydrationShapes(SqlLog.HydrationShapes.OFF);
-        }
-    }
-
-    @Test
-    public void testTheConfiguredFormRendersTheHydrationShape() throws Exception {
-        var orm = ORMTemplate.of(dataSource);
-        // Pet's type is a reference, so it stays a foreign key column; Owner reaches City through an inline
-        // Address, which is columns on the owner table rather than a subgraph, so City splices into Owner's
-        // children. The short form states the numbers only; the full form names the graph.
-        SqlLogRenderer.hydrationShapes(SqlLog.HydrationShapes.SHORT);
-        try {
-            List<SqlLog.Summary> summaries = new ArrayList<>();
-            SqlLog.record("shape", (Supplier<Object>) () -> orm.entity(Pet.class).getById(1), summaries::add);
-            assertTrue(summaries.getFirst().toString().contains("j2 c12 d3"), summaries.getFirst().toString());
-            assertFalse(summaries.getFirst().toString().contains("graph="), summaries.getFirst().toString());
-            SqlLogRenderer.hydrationShapes(SqlLog.HydrationShapes.FULL);
-            summaries.clear();
-            SqlLog.record("shape", (Supplier<Object>) () -> orm.entity(Pet.class).getById(1), summaries::add);
-            assertTrue(summaries.getFirst().toString().contains("joins=2 columns=12 graph=Pet(Owner(City))"),
-                    summaries.getFirst().toString());
-        } finally {
-            SqlLogRenderer.hydrationShapes(SqlLog.HydrationShapes.OFF);
-        }
-    }
-
-    @Test
-    public void testAWriteRendersNoHydrationShape() {
-        var orm = ORMTemplate.of(dataSource);
-        // A shape states what reading a type costs. The delete below targets the same type as the read before it,
-        // yet touches its own table only, so its row states no shape in either form.
-        for (var shapes : List.of(SqlLog.HydrationShapes.SHORT, SqlLog.HydrationShapes.FULL)) {
-            SqlLogRenderer.hydrationShapes(shapes);
-            try {
-                List<SqlLog.Summary> summaries = new ArrayList<>();
-                SqlLog.record("write", (Supplier<Object>) () -> {
-                    orm.entity(Pet.class).getById(1);
-                    return orm.entity(Pet.class).delete()
-                            .where(Pet_.name, EQUALS, "no pet answers to this")
-                            .executeUpdate();
-                }, summaries::add);
-                var lines = summaries.getFirst().byStatement();
-                var read = lines.stream()
-                        .filter(line -> line.statement().startsWith("SELECT"))
-                        .findFirst()
-                        .orElseThrow(() -> new AssertionError(lines.toString()));
-                // The delete carries a subquery, so what leads the statement decides, not what it contains.
-                var write = lines.stream()
-                        .filter(line -> line.statement().startsWith("DELETE"))
-                        .findFirst()
-                        .orElseThrow(() -> new AssertionError(lines.toString()));
-                assertEquals("Pet", write.dataType());
-                assertNotNull(read.hydration(), shapes.toString());
-                assertNull(write.hydration(), shapes.toString());
-            } finally {
-                SqlLogRenderer.hydrationShapes(SqlLog.HydrationShapes.OFF);
-            }
-        }
     }
 
     @Test

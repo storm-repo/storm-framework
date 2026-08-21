@@ -17,7 +17,6 @@ package st.orm.ktor
 
 import st.orm.EntityCallback
 import st.orm.StormConfig
-import st.orm.core.template.SqlLog.HydrationShapes
 import javax.sql.DataSource
 import kotlin.time.Duration
 
@@ -152,6 +151,27 @@ public class StormPluginConfig {
     public var sqlLogDurationThreshold: Duration? = null
 
     /**
+     * Database time above which a single statement execution is reported under the `st.orm.sql.slow` logger,
+     * with the statement, its call site and what there is to analyze it by. Independent of [sqlLog]: it needs no
+     * scope and sees every execution, on whatever thread or coroutine it runs. Applied JVM-wide at installation.
+     * Configuration key `storm.sqlLog.slowStatement`, as a duration such as `200ms`; when unset, the
+     * `storm.sql_log.slow_statement` system property's setting stays in effect.
+     *
+     * @since 1.14
+     */
+    public var sqlLogSlowStatement: Duration? = null
+
+    /**
+     * Slow statement lines reported per shape per minute before the rest are suppressed and counted, so a
+     * degraded database names every shape that suffers without flooding the log with any of them; zero for no
+     * limit. Configuration key `storm.sqlLog.slowStatementLimit`; when unset, the
+     * `storm.sql_log.slow_statement_limit` system property's setting, or its default of 5, stays in effect.
+     *
+     * @since 1.14
+     */
+    public var sqlLogSlowStatementLimit: Int? = null
+
+    /**
      * Whether each execution is attributed to the application frame that caused it, shown per row as
      * `@ File.ext:line`. Costs a stack walk per execution while a scope records; suited to development.
      * Configuration key `storm.sqlLog.callSites`; defaults to false.
@@ -180,18 +200,6 @@ public class StormPluginConfig {
      * @since 1.13
      */
     public var sqlLogLineWidth: Int? = null
-
-    /**
-     * How a read's summary row renders the declared hydration shape of its type: [HydrationShapes.OFF] (the
-     * default), [HydrationShapes.SHORT] for the numeric form (`j2 c12 d3`: joins, columns, graph depth; flat
-     * types show none), or [HydrationShapes.FULL] to name the joined-entity graph on every mapped read. Writes
-     * carry no shape. A display property of the deployment, applied JVM-wide at installation. Configuration
-     * key `storm.sqlLog.hydration`; when unset, the `storm.sql_log.hydration` system property's setting stays
-     * in effect.
-     *
-     * @since 1.13
-     */
-    public var sqlLogHydration: HydrationShapes? = null
 
     /**
      * Whether to expose the [st.orm.template.ORMTemplate] and the registered repositories through Ktor's

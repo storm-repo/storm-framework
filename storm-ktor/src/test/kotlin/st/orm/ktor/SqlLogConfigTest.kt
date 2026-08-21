@@ -7,7 +7,6 @@ import io.ktor.server.config.MapApplicationConfig
 import io.ktor.server.testing.testApplication
 import kotlinx.coroutines.runBlocking
 import org.junit.jupiter.api.Test
-import st.orm.core.template.SqlLog.HydrationShapes
 import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.seconds
 
@@ -24,10 +23,11 @@ internal class SqlLogConfigTest {
         settings.limit shouldBe 200
         settings.statementThreshold shouldBe null
         settings.durationThreshold shouldBe null
+        settings.slowStatement shouldBe null
+        settings.slowStatementLimit shouldBe null
         settings.callSites shouldBe false
         settings.callSiteSkip shouldBe emptyList()
         settings.lineWidth shouldBe null
-        settings.hydration shouldBe null
     }
 
     @Test
@@ -37,19 +37,21 @@ internal class SqlLogConfigTest {
             "storm.sqlLog.limit" to "50",
             "storm.sqlLog.threshold.statements" to "10",
             "storm.sqlLog.threshold.duration" to "250ms",
+            "storm.sqlLog.slowStatement" to "200ms",
+            "storm.sqlLog.slowStatementLimit" to "3",
             "storm.sqlLog.callSites" to "true",
             "storm.sqlLog.callSiteSkip" to "com.myapp.data, com.myapp.plumbing",
             "storm.sqlLog.lineWidth" to "120",
-            "storm.sqlLog.hydration" to "short",
         )
         settings.enabled shouldBe true
         settings.limit shouldBe 50
         settings.statementThreshold shouldBe 10
         settings.durationThreshold shouldBe 250.milliseconds
+        settings.slowStatement shouldBe 200.milliseconds
+        settings.slowStatementLimit shouldBe 3
         settings.callSites shouldBe true
         settings.callSiteSkip shouldBe listOf("com.myapp.data", "com.myapp.plumbing")
         settings.lineWidth shouldBe 120
-        settings.hydration shouldBe HydrationShapes.SHORT
     }
 
     @Test
@@ -59,19 +61,21 @@ internal class SqlLogConfigTest {
             "storm.sql_log.limit" to "25",
             "storm.sql_log.threshold.statements" to "5",
             "storm.sql_log.threshold.duration" to "2s",
+            "storm.sql_log.slow_statement" to "1s",
+            "storm.sql_log.slow_statement_limit" to "0",
             "storm.sql_log.call_sites" to "true",
             "storm.sql_log.call_site_skip" to "com.myapp.data",
             "storm.sql_log.line_width" to "240",
-            "storm.sql_log.hydration" to "FULL",
         )
         settings.enabled shouldBe true
         settings.limit shouldBe 25
         settings.statementThreshold shouldBe 5
         settings.durationThreshold shouldBe 2.seconds
+        settings.slowStatement shouldBe 1.seconds
+        settings.slowStatementLimit shouldBe 0
         settings.callSites shouldBe true
         settings.callSiteSkip shouldBe listOf("com.myapp.data")
         settings.lineWidth shouldBe 240
-        settings.hydration shouldBe HydrationShapes.FULL
     }
 
     @Test
@@ -129,15 +133,6 @@ internal class SqlLogConfigTest {
             resolve("storm.sqlLog.threshold.duration" to "fast")
         }
         exception.message!! shouldContain "storm.sqlLog.threshold.duration"
-    }
-
-    @Test
-    fun `an invalid hydration mode aborts installation naming the valid values`() {
-        val exception = shouldThrow<IllegalStateException> {
-            resolve("storm.sqlLog.hydration" to "verbose")
-        }
-        exception.message!! shouldContain "storm.sqlLog.hydration"
-        exception.message!! shouldContain "off, short, full"
     }
 
     private fun resolve(

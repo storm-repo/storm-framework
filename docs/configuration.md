@@ -20,9 +20,10 @@ Storm can be configured through `StormConfig`, system properties, Spring Boot's 
 | `storm.validation.schema_mode` | `fail` | Schema validation mode: `none`, `warn`, or `fail` (Spring Boot and Ktor) |
 | `storm.validation.strict` | `false` | Treat schema validation warnings as errors |
 | `storm.validation.interpolation_mode` | `warn` | Interpolation safety mode: `warn`, `fail`, or `none` (see [Interpolation Safety](#interpolation-safety)) |
-| `storm.sql_log.hydration` | `off` | How a read's SQL log summary row renders its type's declared hydration shape: `off`, `short`, or `full` (see [SQL Logging](sql-logging.md#per-call-summaries)) |
 | `storm.sql_log.line_width` | `200` | Display width SQL log summary rows aim for; at least 80 |
 | `storm.sql_log.call_site_skip` | — | Comma-separated package prefixes or source file names skipped in SQL log call-site attribution |
+| `storm.sql_log.slow_statement` | — | Database time above which a single statement execution is reported under `st.orm.sql.slow`, such as `200ms` (see [Slow Statements](sql-logging.md#slow-statements)) |
+| `storm.sql_log.slow_statement_limit` | `5` | Slow statement lines reported per shape per minute before the rest are suppressed and counted; `0` for no limit |
 | `st.orm.scrollable.maxSize` | `1000` | Maximum window size allowed in a serialized cursor (system property only) |
 
 ### Setting Properties

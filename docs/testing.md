@@ -527,11 +527,11 @@ Each captured statement is represented as a `CapturedSql` record with seven fiel
 | `statement`  | `String`          | The SQL text with `?` placeholders for bind variables.                          |
 | `parameters` | `List<Object>`    | The bound parameter values in order.                                            |
 | `origin`     | `Origin`          | What caused the statement: `DIRECT`, or `FETCH` for a statement resolving a reference. |
-| `duration`   | `Duration`        | How long the execution took.                                                    |
+| `duration`   | `Duration`        | The time the execution spent in the database, from prepare to the statement's return; for a streamed read this excludes consuming the stream. |
 | `rows`       | `long`            | The rows the execution produced or affected; a lower bound when not exact.      |
 | `exactRows`  | `boolean`         | Whether that count is exact; `false` when a driver declined to report a batch entry's count or a stream closed before its end. |
 
-Statements are captured around execution, so each carries its duration and a statement that is built but never run is not captured.
+Statements are captured around execution, so each carries its duration and a statement that is built but never run is not captured. The duration is the same database time the [SQL log](sql-logging.md#one-point-three-grains) reports, measured the same way.
 
 `origin` is what makes the cost of resolving references assertable. A reference the query did not resolve is selected as its foreign key column and resolved on demand, one statement per reference, and such a statement is shaped exactly like a primary key lookup the test could have written itself. Asserting `count(FETCH) == 0` pins the query down to the shape its fetch plan produces:
 
