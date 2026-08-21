@@ -16,56 +16,28 @@
 package st.orm.core.template.impl;
 
 import static java.util.Comparator.comparingLong;
-import static java.util.Objects.requireNonNull;
 import static java.util.concurrent.TimeUnit.NANOSECONDS;
-import static st.orm.core.spi.StormConfigHelper.getEnum;
 import static st.orm.core.spi.StormConfigHelper.getInt;
 
-import java.util.HashSet;
 import java.util.List;
-import java.util.Set;
-import org.jspecify.annotations.Nullable;
-import st.orm.Data;
-import st.orm.Entity;
-import st.orm.Ref;
 import st.orm.StormConfig;
-import st.orm.core.spi.Providers;
-import st.orm.core.template.SqlLog.HydrationShapes;
 import st.orm.core.template.SqlLog.StatementLine;
 import st.orm.core.template.SqlLog.Summary;
-import st.orm.core.template.SqlOperation;
 import st.orm.core.template.StatementOrigin;
 
 /**
- * Renders a {@link Summary} as a headline plus an aligned line per distinct statement, and derives the hydration
- * shape a summary row can carry.
+ * Renders a {@link Summary} as a headline plus an aligned line per distinct statement.
  *
- * <p>How a summary renders — hydration shapes, line width — is a property of the log viewer rather than of any
- * scope, configured like a deployment property: the {@code storm.sql_log.hydration} and
- * {@code storm.sql_log.line_width} system properties on a plain JVM, or the corresponding keys of the Spring and
- * Ktor integrations, which apply their configuration through the setters here.</p>
+ * <p>How a summary renders — its line width — is a property of the log viewer rather than of any scope,
+ * configured like a deployment property: the {@code storm.sql_log.line_width} system property on a plain JVM, or
+ * the corresponding keys of the Spring and Ktor integrations, which apply their configuration through the setter
+ * here.</p>
  *
  * @since 1.14
  */
 public final class SqlLogRenderer {
 
     private SqlLogRenderer() {
-    }
-
-    /**
-     * How shapes render, a property of the log viewer rather than of any scope: derived at rendering and cached
-     * per type, the setting costs nothing while calls run. Set once at startup; read at rendering only.
-     */
-    private static volatile HydrationShapes hydrationShapes = HydrationShapes.OFF;
-
-    /**
-     * Sets how a read's summary row renders the declared hydration shape of its type. Off by default; intended to
-     * be called once at startup.
-     *
-     * @param shapes how shapes render.
-     */
-    public static void hydrationShapes(HydrationShapes shapes) {
-        hydrationShapes = requireNonNull(shapes, "shapes");
     }
 
     /**
@@ -127,7 +99,8 @@ public final class SqlLogRenderer {
      *
      * <p>The headline separates the time the database spent from the time the call took, so a call that is slow for
      * other reasons says so. Under a fan-out the summed database time exceeds the elapsed time, and their ratio is
-     * the concurrency the work achieved.</p>
+     * the concurrency the work achieved. Database time is measured to the statement's return, so a streamed read
+     * held open while the application consumes it does not read as database time.</p>
      *
      * <p>Statements that ran past the recording limit are counted but not retained, so they contribute no duration
      * and no row. The database times are then lower bounds and are marked {@code +}, and a closing line reports how
@@ -190,7 +163,12 @@ public final class SqlLogRenderer {
                 .max()
                 .orElse(1);
         // The identifying columns align and lead; the free-form statement text comes last, where raggedness
-        // does not break the columns after it. The fetch and call-site columns appear only when any row has one.
+        // does not break the columns after it. The max, fetch and call-site columns appear only when any row has
+        // one.
+        int maxWidth = byStatement.stream()
+                .mapToInt(line -> maxLabel(line).length())
+                .max()
+                .orElse(0);
         boolean anyFetch = byStatement.stream().anyMatch(StatementLine::fetch);
         int siteWidth = byStatement.stream()
                 .mapToInt(line -> siteLabel(line).length())
@@ -198,15 +176,18 @@ public final class SqlLogRenderer {
                 .orElse(0);
         // The row aims for the configured line width: the statement text receives what the fixed columns and
         // the row's own suffixes leave, down to a floor that keeps it identifiable.
-        int prefixWidth = width + 5 + executionWidth + 3 + rowsWidth + 6 + typeWidth + 2
-                + (anyFetch ? 7 : 0) + (siteWidth > 0 ? siteWidth + 2 : 0);
+        int prefixWidth = width + 5 + (maxWidth > 0 ? maxWidth + 2 : 0) + executionWidth + 3 + rowsWidth + 6
+                + typeWidth + 2 + (anyFetch ? 7 : 0) + (siteWidth > 0 ? siteWidth + 2 : 0);
         // Ordering is presentation, so the renderer owns it rather than trusting the order it was handed.
         for (var line : byStatement.stream()
                 .sorted(comparingLong(StatementLine::durationNanos).reversed())
                 .toList()) {
+            rendered.append(String.format("%n\t%" + width + "d ms", NANOSECONDS.toMillis(line.durationNanos())));
+            if (maxWidth > 0) {
+                rendered.append(String.format("  %-" + maxWidth + "s", maxLabel(line)));
+            }
             rendered.append(String.format(
-                    "%n\t%" + width + "d ms  %" + rowsWidth + "s rows  %" + executionWidth + "dx  %-" + typeWidth + "s",
-                    NANOSECONDS.toMillis(line.durationNanos()),
+                    "  %" + rowsWidth + "s rows  %" + executionWidth + "dx  %-" + typeWidth + "s",
                     rowsLabel(line),
                     line.executions(),
                     line.dataType()));
@@ -216,21 +197,34 @@ public final class SqlLogRenderer {
             if (siteWidth > 0) {
                 rendered.append(String.format("  %-" + siteWidth + "s", siteLabel(line)));
             }
-            int suffixWidth = (line.variants() > 1 ? 12 + String.valueOf(line.variants()).length() : 0)
-                    + (line.hydration() != null ? 2 + line.hydration().length() : 0);
+            int suffixWidth = line.variants() > 1 ? 12 + String.valueOf(line.variants()).length() : 0;
             int statementBudget = Math.max(MIN_STATEMENT_WIDTH, lineWidth - prefixWidth - suffixWidth);
             rendered.append("  ").append(elide(line.statement(), statementBudget));
             if (line.variants() > 1) {
                 rendered.append(" (%d variants)".formatted(line.variants()));
-            }
-            if (line.hydration() != null) {
-                rendered.append("  ").append(line.hydration());
             }
         }
         if (notRecorded > 0) {
             rendered.append("%n\t(%s not recorded)".formatted(statements(notRecorded)));
         }
         return rendered.toString();
+    }
+
+    /**
+     * Returns the max column content: the slowest execution of the group when it stands out from the group's
+     * average, empty otherwise. A group's total ranks it, and a total is what one slow execution among many cheap
+     * ones and a uniformly slow statement have in common; the max is what tells them apart, so it shows only when
+     * the two readings differ: at least twice the average, and at least a millisecond.
+     */
+    private static String maxLabel(StatementLine line) {
+        if (line.executions() < 2) {
+            return "";
+        }
+        long maxMillis = NANOSECONDS.toMillis(line.maxNanos());
+        if (maxMillis < 1 || line.maxNanos() * line.executions() < 2 * line.durationNanos()) {
+            return "";
+        }
+        return "max %d ms".formatted(maxMillis);
     }
 
     /** Returns the row-count column content: the count, marked {@code *} when it is a lower bound. */
@@ -300,150 +294,12 @@ public final class SqlLogRenderer {
     }
 
     /**
-     * Returns the rendered hydration shape of the statement's type in the configured form, or {@code null} when
-     * shapes are off, the statement is not a read, or its type has none.
-     *
-     * @param operation what the statement does.
-     * @param dataType the entity or projection it targets, or {@code null} when it targets none.
-     * @return the rendered shape, or {@code null} when the row carries none.
-     */
-    @Nullable
-    public static String hydrationOf(SqlOperation operation, @Nullable Class<? extends Data> dataType) {
-        var shapes = hydrationShapes;
-        if (shapes == HydrationShapes.OFF) {
-            return null;
-        }
-        if (operation != SqlOperation.SELECT) {
-            // The shape states what reading the type joins and maps. A write touches its own table only, so
-            // the shape would describe a graph its statement never traverses and columns it never sets; a
-            // statement whose operation is undetermined cannot claim to be a read either.
-            return null;
-        }
-        if (dataType == null) {
-            return null;
-        }
-        var shape = HYDRATION.get(dataType);
-        if (shape == NO_HYDRATION) {
-            return null;
-        }
-        if (shapes == HydrationShapes.FULL) {
-            return "joins=%d columns=%d graph=%s".formatted(shape.joins(), shape.columns(), shape.graph());
-        }
-        if (shape.joins() == 0) {
-            // A flat type says nothing its row does not already say; the short token appears when hydration
-            // reaches beyond the statement's own table.
-            return null;
-        }
-        return "j%d c%d d%d".formatted(shape.joins(), shape.columns(), shape.depth());
-    }
-
-    /**
-     * The declared hydration shape of a type: what an eager read of it joins and maps.
-     *
-     * <p>Derived from the type declaration, not from any statement: an entity component is a join edge and
-     * recurses; an inline record is columns on the same table and no subgraph, so a joined entity it carries
-     * splices into its parent's children; a reference is its foreign key column and stops, which is exactly the
-     * width a {@code Ref} declaration saves. Computed once per type, at display time.</p>
-     *
-     * @param joins the join edges an eager read of the type takes.
-     * @param columns the columns it maps.
-     * @param depth the entity levels along the deepest chain: {@code 1} for a flat entity, {@code 3} for
-     *              {@code Pet(Owner(City))}.
-     * @param graph the joined-entity tree, such as {@code Pet(PetType, Owner(City))}.
-     */
-    private record Hydration(int joins, int columns, int depth, String graph) {
-    }
-
-    /** Marks a type without a mapped record structure, for which no shape renders. */
-    private static final Hydration NO_HYDRATION = new Hydration(0, 0, 0, "");
-
-    private static final ClassValue<Hydration> HYDRATION = new ClassValue<>() {
-        @Override
-        protected Hydration computeValue(Class<?> type) {
-            // The reflection provider recognizes the mapped structure of Java records and Kotlin data classes
-            // alike, which is the same bridge the model itself is built over.
-            if (Providers.getORMReflection().findRecordType(type).isEmpty()) {
-                return NO_HYDRATION;
-            }
-            var shape = shape(type, new HashSet<>());
-            String graph = type.getSimpleName()
-                    + (shape.children().isEmpty() ? "" : "(" + shape.children() + ")");
-            return new Hydration(shape.joins(), shape.columns(), 1 + shape.depth(), graph);
-        }
-    };
-
-    /**
-     * The shape of one type level: its joins and columns, the entity levels below it, and its joined children
-     * rendered as a list.
-     */
-    private record Shape(int joins, int columns, int depth, String children) {
-    }
-
-    private static Shape shape(Class<?> type, Set<Class<?>> path) {
-        if (!path.add(type)) {
-            // A cycle recurses no further; the revisited entity contributes its foreign key column.
-            return new Shape(0, 1, 0, "");
-        }
-        try {
-            var reflection = Providers.getORMReflection();
-            var recordType = reflection.findRecordType(type).orElse(null);
-            if (recordType == null) {
-                return new Shape(0, 1, 0, "");
-            }
-            int joins = 0;
-            int columns = 0;
-            int depth = 0;
-            var children = new StringBuilder();
-            for (var field : recordType.fields()) {
-                Class<?> fieldType = field.type();
-                if (Ref.class.isAssignableFrom(fieldType)) {
-                    // The foreign key column; a reference does not widen the read.
-                    columns++;
-                } else if (Entity.class.isAssignableFrom(fieldType)) {
-                    var child = shape(fieldType, path);
-                    joins += 1 + child.joins();
-                    columns += child.columns();
-                    depth = Math.max(depth, 1 + child.depth());
-                    if (!children.isEmpty()) {
-                        children.append(", ");
-                    }
-                    children.append(fieldType.getSimpleName());
-                    if (!child.children().isEmpty()) {
-                        children.append('(').append(child.children()).append(')');
-                    }
-                } else if (reflection.findRecordType(fieldType).isPresent()) {
-                    // Any other mapped record structure is an inline record: columns on this table, not a
-                    // subgraph; entities it joins splice up.
-                    // An inline record is not a level of its own, so an entity it joins counts at this level.
-                    var inline = shape(fieldType, path);
-                    joins += inline.joins();
-                    columns += inline.columns();
-                    depth = Math.max(depth, inline.depth());
-                    if (!inline.children().isEmpty()) {
-                        if (!children.isEmpty()) {
-                            children.append(", ");
-                        }
-                        children.append(inline.children());
-                    }
-                } else {
-                    columns++;
-                }
-            }
-            return new Shape(joins, columns, depth, children.toString());
-        } finally {
-            path.remove(type);
-        }
-    }
-
-    /**
      * Applies the display settings from configuration ({@link StormConfig#defaults()}, which reads system
      * properties). How the log renders is a property of the deployment, so it is configured like one; the Spring
      * and Ktor integrations apply their own configuration through the setters.
      */
     // Placed after every field it touches, since static initialization runs in textual order.
     static {
-        var config = StormConfig.defaults();
-        hydrationShapes(getEnum(config, StormConfig.SQL_LOG_HYDRATION, HydrationShapes.class, HydrationShapes.OFF));
-        lineWidth(getInt(config, StormConfig.SQL_LOG_LINE_WIDTH, 200));
+        lineWidth(getInt(StormConfig.defaults(), StormConfig.SQL_LOG_LINE_WIDTH, 200));
     }
 }

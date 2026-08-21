@@ -27,7 +27,8 @@ import java.util.List;
  * @param statement the SQL statement with {@code ?} placeholders.
  * @param parameters the bind variable values.
  * @param origin what caused the statement to execute.
- * @param duration how long the execution took.
+ * @param duration the time the execution spent in the database, from prepare to the statement's return; for a
+ *                 streamed read this excludes the consumption of the stream.
  * @param rows the rows the execution produced or affected; a lower bound when not exact.
  * @param exactRows whether that count is exact; false when a driver declined to report a batch entry's count or
  *                  a stream closed before its end.

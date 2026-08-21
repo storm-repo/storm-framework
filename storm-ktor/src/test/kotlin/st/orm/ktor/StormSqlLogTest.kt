@@ -14,9 +14,11 @@ import io.ktor.server.routing.get
 import io.ktor.server.routing.routing
 import io.ktor.server.testing.testApplication
 import org.junit.jupiter.api.Test
+import st.orm.core.template.impl.SlowStatementLog
 import st.orm.ktor.model.PetRepository
 import java.io.ByteArrayOutputStream
 import java.io.PrintStream
+import kotlin.time.Duration.Companion.nanoseconds
 
 /**
  * Verifies the per-call SQL log end to end: the summary reports through the `st.orm.sql.perf` logger, which the
@@ -108,6 +110,29 @@ internal class StormSqlLogTest {
             "storm.sqlLog.threshold.statements" to "999",
         )
         output shouldNotContain "SQL (GET /pets)"
+    }
+
+    @Test
+    fun `the slow statement log reports without the per-call summary`() {
+        try {
+            // A one-nanosecond threshold makes every execution slow; the summaries stay off.
+            val output = requestPets("storm.sqlLog.slowStatement" to "1ns")
+            output shouldContain "SQL slow (SELECT Pet)"
+            output shouldContain "WARN"
+            output shouldNotContain "SQL (GET /pets)"
+        } finally {
+            SlowStatementLog.threshold(null)
+        }
+    }
+
+    @Test
+    fun `the slow statement threshold applies from the plugin configuration`() {
+        try {
+            val output = requestPets { sqlLogSlowStatement = 1.nanoseconds }
+            output shouldContain "SQL slow (SELECT Pet)"
+        } finally {
+            SlowStatementLog.threshold(null)
+        }
     }
 
     @Test

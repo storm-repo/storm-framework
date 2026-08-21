@@ -745,6 +745,8 @@ Queries against a named database are tagged `storm.database=<name>`; the primary
 
 For development and per-call diagnosis, `sqlLog = true` in the plugin configuration (or `storm.sqlLog.enabled = true` in `application.conf`) reports what each call cost the database as one summary (statements, database time against total time, concurrency, and the statement that carried the weight) with thresholds that turn it into a production guardrail. See [SQL Logging](sql-logging.md#per-call-summaries).
 
+For production, `sqlLogSlowStatement = 200.milliseconds` (or `storm.sqlLog.slowStatement = 200ms`) reports each single execution whose database time exceeds the threshold, under `st.orm.sql.slow` at `WARN`: the statement, its call site, its rows, and how it compares to what its shape typically costs. It needs no request boundary, follows no coroutine context, and applies whether or not the summaries are enabled. See [Slow Statements](sql-logging.md#slow-statements).
+
 For full control, set an explicit observer in the plugin configuration; it takes precedence over the automatic binding. The `queryObserver` slot accepts any `st.orm.core.spi.QueryObserver`, including a hand-configured `MicrometerQueryObserver` from the `storm-micrometer` module (custom `ObservationConvention`, extra key values):
 
 ```kotlin

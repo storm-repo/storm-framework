@@ -60,6 +60,7 @@ import st.orm.core.spi.QueryContext.ExecutionKind;
 import st.orm.core.spi.QueryObserver;
 import st.orm.core.spi.QueryObserver.Observation;
 import st.orm.core.spi.RefFactory;
+import st.orm.core.spi.SqlCommenter;
 import st.orm.core.spi.TransactionScope;
 import st.orm.core.spi.TransactionTemplateProvider;
 import st.orm.core.spi.WeakInterner;
@@ -86,7 +87,8 @@ class QueryImpl implements Query {
                        @Nullable String statementText,
                        StatementOrigin origin,
                        long shapeId,
-                       List<Parameter> parameters) {
+                       List<Parameter> parameters,
+                       @Nullable SqlCommenter sqlCommenter) {
 
         /**
          * Returns the references to resolve while mapping rows into the given type.
@@ -237,7 +239,8 @@ class QueryImpl implements Query {
         try {
             var queryObserver = environment.queryObserver();
             var operators = SqlInterceptorManager.localOperators();
-            if (queryObserver == QueryObserver.NOOP && operators == null) {
+            boolean slowLog = SlowStatementLog.active();
+            if (queryObserver == QueryObserver.NOOP && operators == null && !slowLog) {
                 // Fast path: skip context creation when nothing is observing.
                 return Observation.NOOP;
             }
@@ -248,6 +251,16 @@ class QueryImpl implements Query {
                     : queryObserver.onExecute(context);
             // A scope times the execution rather than the statement, so it is notified here and closed with it.
             var handles = listen(operators, context, environment.parameters());
+            if (slowLog) {
+                // The slow log listens the way a scope does, at the same point, for every execution.
+                var slow = SlowStatementLog.onExecute(context, environment.parameters(), environment.sqlCommenter());
+                if (handles == null) {
+                    handles = new StatementListener.Handle[] {slow};
+                } else {
+                    handles = java.util.Arrays.copyOf(handles, handles.length + 1);
+                    handles[handles.length - 1] = slow;
+                }
+            }
             if (handles == null) {
                 return observation;
             }
@@ -298,12 +311,32 @@ class QueryImpl implements Query {
     static final class ListenedObservation implements Observation {
         private final Observation delegate;
         private final StatementListener.Handle[] handles;
+        private boolean executed;
         private long rows;
         private boolean exact = true;
 
         ListenedObservation(Observation delegate, StatementListener.Handle[] handles) {
             this.delegate = delegate;
             this.handles = handles;
+        }
+
+        /**
+         * Marks that the statement returned from the database, which is where its database time ends. Called on
+         * the executing thread as soon as the execute call returns; a failed execute is marked by the close that
+         * reports it, so every handle sees the mark exactly once, before its close.
+         */
+        void executed() {
+            if (executed) {
+                return;
+            }
+            executed = true;
+            for (var handle : handles) {
+                try {
+                    handle.executed();
+                } catch (Throwable ignore) {
+                    // Scope failures never affect query execution.
+                }
+            }
         }
 
         /**
@@ -334,11 +367,19 @@ class QueryImpl implements Query {
 
         @Override
         public void error(Throwable throwable) {
+            for (var handle : handles) {
+                try {
+                    handle.error(throwable);
+                } catch (Throwable ignore) {
+                    // Scope failures never affect query execution.
+                }
+            }
             delegate.error(throwable);
         }
 
         @Override
         public void close() {
+            executed();
             for (var handle : handles) {
                 try {
                     handle.close(rows, exact);
@@ -413,6 +454,9 @@ class QueryImpl implements Query {
                 applyFetchSize(statement);
                 Runnable streamingCleanup = configureStreamingTransaction(statement);
                 ResultSet resultSet = statement.executeQuery();
+                if (observation instanceof ListenedObservation listened) {
+                    listened.executed();
+                }
                 try {
                     int columnCount = resultSet.getMetaData().getColumnCount();
                     close = false;
@@ -480,6 +524,9 @@ class QueryImpl implements Query {
                 applyFetchSize(statement);
                 Runnable streamingCleanup = configureStreamingTransaction(statement);
                 ResultSet resultSet = statement.executeQuery();
+                if (observation instanceof ListenedObservation listened) {
+                    listened.executed();
+                }
                 int columnCount = resultSet.getMetaData().getColumnCount();
                 var mapper = getObjectMapper(columnCount, type, refFactory, environment.fetchPlanFor(type))
                         .orElseThrow(() -> new SqlTemplateException("No suitable constructor found for %s.".formatted(type.getName())));
@@ -569,6 +616,9 @@ class QueryImpl implements Query {
                 applyFetchSize(statement);
                 Runnable streamingCleanup = configureStreamingTransaction(statement);
                 ResultSet resultSet = statement.executeQuery();
+                if (observation instanceof ListenedObservation listened) {
+                    listened.executed();
+                }
                 closeStatementHere = false;  // close(resultSet, statement, ...) below owns the statement from here.
                 try {
                     int columnCount = resultSet.getMetaData().getColumnCount();
@@ -726,6 +776,7 @@ class QueryImpl implements Query {
                 try {
                     int result = statement.executeUpdate();
                     if (observation instanceof ListenedObservation listened) {
+                        listened.executed();
                         listened.rows(result);
                     }
                     invalidateAffectedEntityCaches();
@@ -790,6 +841,7 @@ class QueryImpl implements Query {
                 try {
                     int[] result = statement.executeBatch();
                     if (observation instanceof ListenedObservation listened) {
+                        listened.executed();
                         long affected = 0;
                         boolean exact = true;
                         for (int count : result) {

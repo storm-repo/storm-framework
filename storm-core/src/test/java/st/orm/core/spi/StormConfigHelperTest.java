@@ -2,8 +2,10 @@ package st.orm.core.spi;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import java.time.Duration;
 import java.util.Map;
 import org.junit.jupiter.api.Test;
 import st.orm.StormConfig;
@@ -91,5 +93,23 @@ public class StormConfigHelperTest {
     public void getEnumTrimsWhitespace() {
         var config = StormConfig.of(Map.of("key", "  green  "));
         assertEquals(Color.GREEN, StormConfigHelper.getEnum(config, "key", Color.class, Color.RED));
+    }
+
+    @Test
+    public void getDurationReadsAUnitSuffixABareNumberOrIso() {
+        assertEquals(Duration.ofMillis(200), StormConfigHelper.getDuration(StormConfig.of(Map.of("key", "200ms")), "key", null));
+        assertEquals(Duration.ofMillis(200), StormConfigHelper.getDuration(StormConfig.of(Map.of("key", "200")), "key", null));
+        assertEquals(Duration.ofSeconds(2), StormConfigHelper.getDuration(StormConfig.of(Map.of("key", "2s")), "key", null));
+        assertEquals(Duration.ofMillis(1500), StormConfigHelper.getDuration(StormConfig.of(Map.of("key", "1.5s")), "key", null));
+        assertEquals(Duration.ofMinutes(1), StormConfigHelper.getDuration(StormConfig.of(Map.of("key", "1m")), "key", null));
+        assertEquals(Duration.ofMillis(200), StormConfigHelper.getDuration(StormConfig.of(Map.of("key", "PT0.2S")), "key", null));
+        assertEquals(Duration.ofMillis(200), StormConfigHelper.getDuration(StormConfig.of(Map.of("key", " 200 ms ")), "key", null));
+    }
+
+    @Test
+    public void getDurationReturnsDefaultWhenMissingOrInvalid() {
+        assertNull(StormConfigHelper.getDuration(StormConfig.of(Map.of()), "key", null));
+        assertEquals(Duration.ofSeconds(1),
+                StormConfigHelper.getDuration(StormConfig.of(Map.of("key", "soon")), "key", Duration.ofSeconds(1)));
     }
 }

@@ -53,7 +53,11 @@ public final class SqlCapture {
 
     private final Queue<CapturedSql> statements = new ConcurrentLinkedQueue<>();
 
-    /** Records each execution as it completes, so the capture carries the execution's duration. */
+    /**
+     * Records each execution as it completes, so the capture carries the execution's duration: the time the
+     * statement spent in the database, from prepare to its return, which for a streamed read excludes the
+     * consumption of the stream.
+     */
     private final StatementListener listener = new StatementListener() {
         @Override
         public Handle onExecute(QueryContext context, List<Parameter> parameters) {
@@ -73,8 +77,20 @@ public final class SqlCapture {
                     .map(Parameter::dbValue)
                     .toList();
             long start = System.nanoTime();
-            return (rows, exact) -> statements.add(new CapturedSql(op, statement, values, origin,
-                    Duration.ofNanos(System.nanoTime() - start), rows, exact));
+            return new Handle() {
+                private long executed;
+
+                @Override
+                public void executed() {
+                    executed = System.nanoTime();
+                }
+
+                @Override
+                public void close(long rows, boolean exact) {
+                    statements.add(new CapturedSql(op, statement, values, origin,
+                            Duration.ofNanos(executed - start), rows, exact));
+                }
+            };
         }
     };
 

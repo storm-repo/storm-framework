@@ -31,7 +31,7 @@ public class SqlLogRendererTest {
     private static final String NL = System.lineSeparator();
 
     private static StatementLine line(String sql, String type, int executions, long millis, long rows) {
-        return new StatementLine(sql, type, false, executions, 1, millis * 1_000_000L, null, 0, rows, true, null);
+        return new StatementLine(sql, type, false, executions, 1, millis * 1_000_000L, 0, null, 0, rows, true);
     }
 
     @Test
@@ -58,7 +58,7 @@ public class SqlLogRendererTest {
     @Test
     public void aFetchIsNamedOnItsOwnLine() {
         String rendered = SqlLogRenderer.render("call", 9, 8, 0, 30, 30, 1, 40,
-                List.of(new StatementLine("SELECT c FROM city WHERE id = ?", "City", true, 8, 1, 28_000_000L, null, 0, 8, true, null)), 0);
+                List.of(new StatementLine("SELECT c FROM city WHERE id = ?", "City", true, 8, 1, 28_000_000L, 0, null, 0, 8, true)), 0);
         assertTrue(rendered.contains("8 fetches"), rendered);
         assertTrue(rendered.contains("28 ms  8 rows  8x  City  fetch  SELECT c FROM city WHERE id = ?"), rendered);
     }
@@ -100,7 +100,7 @@ public class SqlLogRendererTest {
     public void aGroupCoveringSeveralTextsSaysSo() {
         // A collection parameter that expands per execution yields one group with several texts.
         String rendered = SqlLogRenderer.render("call", 3, 0, 0, 12, 12, 1, 20,
-                List.of(new StatementLine("SELECT c FROM city WHERE id IN (?, ?)", "City", false, 3, 3, 12_000_000L, null, 0, 6, true, null)), 0);
+                List.of(new StatementLine("SELECT c FROM city WHERE id IN (?, ?)", "City", false, 3, 3, 12_000_000L, 0, null, 0, 6, true)), 0);
         assertTrue(rendered.contains("IN (?, ?) (3 variants)"), rendered);
     }
 
@@ -126,10 +126,29 @@ public class SqlLogRendererTest {
     }
 
     @Test
+    public void theSlowestExecutionShowsWhenItStandsOutFromTheGroup() {
+        // Seven executions totalling 96 ms with one of 60 ms: the total ranks the row, the max tells the reading.
+        String outlier = SqlLogRenderer.render("call", 7, 0, 0, 96, 96, 1, 120,
+                List.of(new StatementLine("SELECT v FROM visit", "Visit", false, 7, 1, 96_000_000L, 60_000_000L,
+                        null, 0, 6408, true)), 0);
+        assertTrue(outlier.contains("96 ms  max 60 ms  6408 rows  7x  Visit"), outlier);
+        // Two executions of 40 and 56 ms are uniformly slow; the max says nothing the total does not.
+        String uniform = SqlLogRenderer.render("call", 2, 0, 0, 96, 96, 1, 120,
+                List.of(new StatementLine("SELECT v FROM visit", "Visit", false, 2, 1, 96_000_000L, 56_000_000L,
+                        null, 0, 6408, true)), 0);
+        assertFalse(uniform.contains("max"), uniform);
+        // A single execution is its own max.
+        String single = SqlLogRenderer.render("call", 1, 0, 0, 96, 96, 1, 120,
+                List.of(new StatementLine("SELECT v FROM visit", "Visit", false, 1, 1, 96_000_000L, 96_000_000L,
+                        null, 0, 6408, true)), 0);
+        assertFalse(single.contains("max"), single);
+    }
+
+    @Test
     public void aCallSiteIsRenderedWhenRecorded() {
         String rendered = SqlLogRenderer.render("call", 9, 0, 0, 30, 30, 1, 40,
                 List.of(new StatementLine("SELECT s FROM user_session", "UserSession", false, 8, 1, 28_000_000L,
-                        "MeController.kt:41", 3, 8, true, null)), 0);
+                        0, "MeController.kt:41", 3, 8, true)), 0);
         assertTrue(rendered.contains("MeController.kt:41 (+2 sites)  SELECT s FROM user_session"), rendered);
     }
 
@@ -157,19 +176,11 @@ public class SqlLogRendererTest {
         // A batch entry whose count the driver declined to report, or a stream closed before its end, leaves the
         // count a known lower bound; the star says so, and the exact count in the other row stays unmarked.
         String rendered = SqlLogRenderer.render("call", 2, 0, 0, 45, 45, 1, 60, List.of(
-                new StatementLine("INSERT INTO city (name) VALUES (?)", "City", false, 1, 1, 40_000_000L, null, 0,
-                        500, false, null),
+                new StatementLine("INSERT INTO city (name) VALUES (?)", "City", false, 1, 1, 40_000_000L, 0, null, 0,
+                        500, false),
                 line("SELECT c FROM city", "City", 1, 5, 3)), 0);
         assertTrue(rendered.contains("40 ms  500* rows  1x  City  INSERT INTO city (name) VALUES (?)"), rendered);
         // The star participates in the column width, so the exact count aligns under it.
         assertTrue(rendered.contains(" 5 ms     3 rows  1x  City  SELECT c FROM city"), rendered);
-    }
-
-    @Test
-    public void aHydrationShapeRendersAtTheEndOfItsRow() {
-        String rendered = SqlLogRenderer.render("call", 1, 0, 0, 5, 5, 1, 9,
-                List.of(new StatementLine("SELECT p FROM pet", "Pet", false, 1, 1, 5_000_000L, null, 0, 1, true,
-                        "joins=2 columns=10 graph=Pet(Owner(City))")), 0);
-        assertTrue(rendered.contains("SELECT p FROM pet  joins=2 columns=10 graph=Pet(Owner(City))"), rendered);
     }
 }

@@ -85,7 +85,8 @@ public class FetchSizeTest {
                 sql,
                 st.orm.core.template.StatementOrigin.DIRECT,
                 0L,
-                java.util.List.of());
+                java.util.List.of(),
+                null);
         return new QueryImpl(
                 environment,
                 unsafe -> {

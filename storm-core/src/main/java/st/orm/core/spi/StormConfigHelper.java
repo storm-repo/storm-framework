@@ -15,6 +15,9 @@
  */
 package st.orm.core.spi;
 
+import java.time.Duration;
+import java.util.regex.Pattern;
+import org.jspecify.annotations.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import st.orm.StormConfig;
@@ -58,6 +61,45 @@ public final class StormConfigHelper {
         }
         return Boolean.parseBoolean(value.trim());
     }
+
+    /**
+     * Returns the duration value of the property, or the default if missing or unparseable. Accepts a number with a
+     * unit suffix ({@code 200ms}, {@code 2s}, {@code 1m}), a bare number of milliseconds, or an ISO-8601 duration
+     * ({@code PT0.2S}).
+     */
+    public static @Nullable Duration getDuration(StormConfig config, String key, @Nullable Duration defaultValue) {
+        String value = config.getProperty(key);
+        if (value == null) {
+            return defaultValue;
+        }
+        String text = value.trim();
+        try {
+            if (text.startsWith("P") || text.startsWith("-P")) {
+                return Duration.parse(text);
+            }
+            var matcher = DURATION.matcher(text);
+            if (matcher.matches()) {
+                double amount = Double.parseDouble(matcher.group(1));
+                String unit = matcher.group(2) == null ? "ms" : matcher.group(2);
+                long nanos = switch (unit) {
+                    case "ns" -> (long) amount;
+                    case "us" -> (long) (amount * 1_000L);
+                    case "s" -> (long) (amount * 1_000_000_000L);
+                    case "m" -> (long) (amount * 60_000_000_000L);
+                    case "h" -> (long) (amount * 3_600_000_000_000L);
+                    default -> (long) (amount * 1_000_000L);   // Milliseconds, the unit of a bare number too.
+                };
+                return Duration.ofNanos(nanos);
+            }
+        } catch (RuntimeException ignore) {
+            // Reported below.
+        }
+        LOGGER.warn("Invalid duration value '{}' for property '{}', using default {}.", value, key, defaultValue);
+        return defaultValue;
+    }
+
+    /** A number with an optional unit: {@code 200ms}, {@code 2s}, {@code 1.5m}, {@code 200}. */
+    private static final Pattern DURATION = Pattern.compile("(\\d+(?:\\.\\d+)?)\\s*(ns|us|ms|s|m|h)?");
 
     /**
      * Returns the enum value of the property, or the default if missing or unrecognized.
