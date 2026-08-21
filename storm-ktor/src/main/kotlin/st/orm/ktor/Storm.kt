@@ -28,7 +28,6 @@ import io.ktor.server.plugins.di.getBlocking
 import io.ktor.server.request.httpMethod
 import io.ktor.server.request.path
 import io.ktor.util.reflect.TypeInfo
-import io.micrometer.common.KeyValues
 import io.micrometer.observation.ObservationConvention
 import io.micrometer.observation.ObservationRegistry
 import org.slf4j.LoggerFactory
@@ -37,11 +36,9 @@ import st.orm.core.spi.JdbcTransactionTemplateProviderImpl
 import st.orm.core.template.impl.CallSiteCapture
 import st.orm.core.template.impl.SlowStatementLog
 import st.orm.core.template.impl.SqlLogRenderer
-import st.orm.micrometer.MicrometerQueryObserver
+import st.orm.micrometer.QueryObservers
 import st.orm.micrometer.StormQueryObservationContext
-import st.orm.micrometer.StormQueryObservationConvention
 import st.orm.micrometer.StormTransactionObservationContext
-import st.orm.micrometer.StormTransactionObservationConvention
 import st.orm.template.InternalStormApi
 import st.orm.template.ORMTemplate
 import st.orm.template.recordSqlLog
@@ -120,8 +117,13 @@ public val Storm: ApplicationPlugin<StormPluginConfig> = createApplicationPlugin
 
     // Query observers, keyed by database name (null for the primary database). An explicit queryObserver always
     // wins; otherwise a delegating observer is installed that binds to the ObservationRegistry from the
-    // dependency container once the application has started.
-    val delegatingObservers = LinkedHashMap<String?, DelegatingQueryObserver>()
+    // dependency container once the application has started, composing its convention from the database's
+    // configured semantic conventions and its own data source.
+    val delegatingObservers = LinkedHashMap<String?, PendingObservationBinding>()
+    // Validated at installation so a typo fails startup rather than silently changing the observation identity.
+    val rootSemanticConventions = application.readSemanticConventions().also {
+        QueryObservers.semanticConventionFor(it, "storm.observations.semanticConventions", null)
+    }
 
     // ---- Primary database ----
 
@@ -146,8 +148,11 @@ public val Storm: ApplicationPlugin<StormPluginConfig> = createApplicationPlugin
     pluginConfig.exceptionMapper?.let { builder.exceptionMapper(it) }
     pluginConfig.sqlCommenter?.let { builder.sqlCommenter(it) }
     builder.queryObserver(
-        pluginConfig.queryObserver ?: DelegatingQueryObserver().also { delegatingObservers[null] = it },
+        pluginConfig.queryObserver ?: DelegatingQueryObserver().also {
+            delegatingObservers[null] = PendingObservationBinding(it, dataSource, rootSemanticConventions)
+        },
     )
+    pluginConfig.customize?.invoke(builder)
     var ormTemplate = builder.build()
     if (pluginConfig.entityCallbacks.isNotEmpty()) {
         ormTemplate = ormTemplate.withEntityCallbacks(pluginConfig.entityCallbacks)
@@ -194,10 +199,16 @@ public val Storm: ApplicationPlugin<StormPluginConfig> = createApplicationPlugin
             )
         (databaseConfig.exceptionMapper ?: pluginConfig.exceptionMapper)?.let { databaseBuilder.exceptionMapper(it) }
         (databaseConfig.sqlCommenter ?: pluginConfig.sqlCommenter)?.let { databaseBuilder.sqlCommenter(it) }
+        val databaseSemanticConventions = application.readSemanticConventions("storm.databases.$name")
+            ?.also { QueryObservers.semanticConventionFor(it, "storm.databases.$name.observations.semanticConventions", null) }
+            ?: rootSemanticConventions
         databaseBuilder.queryObserver(
             databaseConfig.queryObserver ?: pluginConfig.queryObserver
-                ?: DelegatingQueryObserver().also { delegatingObservers[name] = it },
+                ?: DelegatingQueryObserver().also {
+                    delegatingObservers[name] = PendingObservationBinding(it, databaseDataSource, databaseSemanticConventions)
+                },
         )
+        (databaseConfig.customize ?: pluginConfig.customize)?.invoke(databaseBuilder)
         var databaseTemplate = databaseBuilder.build()
         val databaseCallbacks = pluginConfig.entityCallbacks + databaseConfig.entityCallbacks
         if (databaseCallbacks.isNotEmpty()) {
@@ -358,19 +369,37 @@ public val Storm: ApplicationPlugin<StormPluginConfig> = createApplicationPlugin
 }
 
 /**
+ * A delegating query observer awaiting its binding, together with the data source and configured semantic
+ * conventions its composed observer follows.
+ */
+internal class PendingObservationBinding(
+    val observer: DelegatingQueryObserver,
+    val dataSource: DataSource,
+    val semanticConventions: String?,
+)
+
+/**
+ * Reads the configured semantic conventions under the given prefix: `<prefix>.observations.semanticConventions`,
+ * or the `semantic_conventions` spelling.
+ */
+private fun Application.readSemanticConventions(prefix: String = "storm"): String? = environment.config.propertyOrNull("$prefix.observations.semanticConventions")?.getString()
+    ?: environment.config.propertyOrNull("$prefix.observations.semantic_conventions")?.getString()
+
+/**
  * Binds the delegating query observers to the [ObservationRegistry] from the dependency container, if one is
  * registered. Every observation carries a `storm.database` key value: the database name, or `primary` for the
  * primary database. The tag is always present because meters of one name must share a single set of tag keys;
  * registries such as Prometheus drop series whose tag keys differ.
  *
- * An `ObservationConvention<StormQueryObservationContext>` registered in the dependency container overrides
- * the naming and key values of the query observations, and an
- * `ObservationConvention<StormTransactionObservationContext>` those of the transaction observations, mirroring
- * the convention beans of the Spring Boot starters; register
- * [st.orm.micrometer.OtelDatabaseObservationConvention] to report the OpenTelemetry database semantic
- * conventions.
+ * The query convention follows the configured semantic conventions, resolved per database:
+ * `storm.observations.semanticConventions = otel` selects the OpenTelemetry database semantic conventions with
+ * the database product read from each database's own data source, and a database block overrides the value
+ * under `storm.databases.<name>.observations.semanticConventions`. An
+ * `ObservationConvention<StormQueryObservationContext>` registered in the dependency container overrides the
+ * configuration for every database, and an `ObservationConvention<StormTransactionObservationContext>` the
+ * transaction observations, mirroring the convention beans of the Spring Boot starters.
  */
-private fun Application.bindQueryObservations(delegatingObservers: Map<String?, DelegatingQueryObserver>) {
+private fun Application.bindQueryObservations(delegatingObservers: Map<String?, PendingObservationBinding>) {
     val registryKey = DependencyKey(TypeInfo(ObservationRegistry::class, ObservationRegistry::class.starProjectedType))
     if (!dependencies.contains(registryKey)) {
         return
@@ -378,18 +407,18 @@ private fun Application.bindQueryObservations(delegatingObservers: Map<String?, 
     val observationRegistry = dependencies.getBlocking<ObservationRegistry>(registryKey)
     val convention = resolveObservationConvention()
     val transactionConvention = resolveTransactionObservationConvention()
-    for ((databaseName, observer) in delegatingObservers) {
-        val extraKeyValues = KeyValues.of("storm.database", databaseName ?: "primary")
-        observer.delegate = if (convention != null || transactionConvention != null) {
-            MicrometerQueryObserver(
-                observationRegistry,
-                convention ?: StormQueryObservationConvention(),
-                transactionConvention ?: StormTransactionObservationConvention(),
-                extraKeyValues,
-            )
-        } else {
-            MicrometerQueryObserver(observationRegistry, extraKeyValues)
-        }
+    for ((databaseName, binding) in delegatingObservers) {
+        val databaseConvention = convention ?: QueryObservers.semanticConventionFor(
+            binding.semanticConventions,
+            "storm.observations.semanticConventions",
+            binding.dataSource,
+        )
+        binding.observer.delegate = QueryObservers.create(
+            observationRegistry,
+            databaseConvention,
+            transactionConvention,
+            databaseName ?: "primary",
+        )
     }
     log.info("Storm query observations enabled via the ObservationRegistry from the dependency container.")
 }

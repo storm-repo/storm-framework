@@ -118,6 +118,11 @@ install(Storm) {
     // Entity callbacks for lifecycle hooks
     entityCallback(AuditCallback())
 
+    // Application-specific template composition, applied after the plugin has wired the integration
+    customize = {
+        decorator { it.withTableNameResolver(TableNameResolver.toUpperCase(TableNameResolver.DEFAULT)) }
+    }
+
     // Repository auto-registration (enabled by default; see Repository Registration below)
     repositories("com.myapp.repository")   // optional: narrow to specific packages
     // autoRegisterRepositories = false    // optional: disable auto-registration
@@ -131,6 +136,7 @@ install(Storm) {
 | `migration(...)` | None | A hook that runs after the DataSource is available and before schema validation. The place for Flyway or Liquibase migrations, guaranteeing validation sees the migrated schema. |
 | `schemaValidation` | From config, else `"fail"` | Validates entity definitions against the database schema during installation. `"fail"` (the default) blocks startup on mismatches; `"warn"` logs them; `"none"` opts out. When not set, the mode is read from `storm.validation.schemaMode` in the application configuration. |
 | `entityCallback(...)` | None | Registers entity lifecycle callbacks for insert, update, and delete operations. |
+| `customize` | None | Composition applied to each database's template builder after the plugin has wired the integration, such as a template decorator. A database block inherits it unless it sets its own. |
 | `autoRegisterRepositories` | `true` | Registers all repository interfaces from the compile-time type index during installation, so `repository<T>()` works without further setup. |
 | `repositories(...)` | All indexed | Narrows repository auto-registration to the given packages (including sub-packages). |
 
@@ -643,26 +649,21 @@ If your entities do not use `Ref<T>` fields (i.e., all foreign keys are loaded e
 
 The `TemplateDecorator` lets you customize how Storm resolves table names, column names, and foreign key column names globally. This is useful when your database uses a naming convention that differs from Storm's default camelCase-to-snake_case conversion, or when you need to add a schema prefix.
 
-To use a decorator with the Ktor plugin, create a custom `ORMTemplate` and pass the DataSource to the plugin:
+Apply a decorator through the plugin's `customize` slot, which runs after the plugin has wired the integration, so the plugin's own template, and every repository registered on it, carries the decorator:
 
 ```kotlin
-fun Application.module() {
-    val dataSource = HikariDataSource(hikariConfig)
-
-    install(Storm) {
-        this.dataSource = dataSource
-    }
-
-    // Override the ORM template with a decorated version
-    val decoratedOrm = dataSource.orm { decorator ->
-        decorator
-            .withTableNameResolver(TableNameResolver.toUpperCase(TableNameResolver.DEFAULT))
-            .withColumnNameResolver(ColumnNameResolver.toUpperCase(ColumnNameResolver.DEFAULT))
+install(Storm) {
+    dataSource = myDataSource
+    customize = {
+        decorator {
+            it.withTableNameResolver(TableNameResolver.toUpperCase(TableNameResolver.DEFAULT))
+                .withColumnNameResolver(ColumnNameResolver.toUpperCase(ColumnNameResolver.DEFAULT))
+        }
     }
 }
 ```
 
-See the [Spring Integration](spring-integration.md#template-decorator) section on Template Decorator for the full list of available resolvers. The resolvers are framework-agnostic and work identically in Ktor.
+A database block inherits the plugin-level `customize` unless it sets its own, so one naming convention serves every database by default. See the [Spring Integration](spring-integration.md#template-decorator) section on Template Decorator for the full list of available resolvers. The resolvers are framework-agnostic and work identically in Ktor.
 
 ---
 
@@ -709,7 +710,17 @@ fun Application.module() {
 }
 ```
 
-No further configuration is needed; without a registry, queries run unobserved at no cost. To report the OpenTelemetry database client semantic conventions, the standard attributes observability backends key their database tooling on, register the convention alongside the registry:
+No further configuration is needed; without a registry, queries run unobserved at no cost. To report the OpenTelemetry database client semantic conventions, the standard attributes observability backends key their database tooling on, set the semantic conventions in the application configuration; the database product resolves from each database's own data source, and a named database overrides the value under `storm.databases.<name>.observations.semanticConventions`:
+
+```hocon
+storm {
+    observations {
+        semanticConventions = "otel"    # "storm" (default) or "otel"
+    }
+}
+```
+
+An `ObservationConvention<StormQueryObservationContext>` registered in the dependency container takes precedence over the configuration and serves every database:
 
 ```kotlin
 dependencies {

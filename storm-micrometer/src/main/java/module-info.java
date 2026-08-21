@@ -2,6 +2,7 @@ module storm.micrometer {
     exports st.orm.micrometer;
     requires storm.foundation;
     requires storm.core;
+    requires transitive java.sql;
     requires micrometer.observation;
     requires static micrometer.tracing;
     requires micrometer.commons;

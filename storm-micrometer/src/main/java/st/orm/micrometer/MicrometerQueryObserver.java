@@ -37,8 +37,8 @@ import st.orm.core.spi.TransactionScope;
  *
  * <p>Naming and key values come from the {@link StormQueryObservationConvention} and
  * {@link StormTransactionObservationConvention} by default; supply a custom {@link ObservationConvention} to
- * override either. Extra low-cardinality key values, such as the database name in a multi-database setup, are
- * appended to every observation.</p>
+ * override either. Extra low-cardinality key values, such as {@code storm.database} naming the template the
+ * observation came from, are appended to every observation.</p>
  *
  * @since 1.13
  */
@@ -63,8 +63,8 @@ public class MicrometerQueryObserver implements QueryObserver {
      * key values appended to every observation.
      *
      * @param observationRegistry the registry to report observations to.
-     * @param extraLowCardinalityKeyValues extra key values, such as {@code storm.database} in a multi-database
-     *                                     setup.
+     * @param extraLowCardinalityKeyValues extra key values, such as {@code storm.database} naming the
+     *                                     template the observation came from.
      */
     public MicrometerQueryObserver(ObservationRegistry observationRegistry,
                                    KeyValues extraLowCardinalityKeyValues) {
