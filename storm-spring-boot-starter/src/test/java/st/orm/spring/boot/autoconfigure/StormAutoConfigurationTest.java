@@ -715,4 +715,40 @@ class StormAutoConfigurationTest {
         }
     }
 
+    @Test
+    void templateFactoryComposesTemplatesForMultipleDataSources() {
+        // With several DataSource beans the single auto-configured template backs off, while the factory
+        // composes one fully integrated template per data source.
+        contextRunner
+                .withUserConfiguration(FactoryDataSourcesConfig.class)
+                .run(context -> {
+                    assertThat(context).doesNotHaveBean(st.orm.template.ORMTemplate.class);
+                    var factory = context.getBean(OrmTemplateFactory.class);
+                    var customized = new java.util.concurrent.atomic.AtomicBoolean();
+                    var orders = factory.create(
+                            context.getBean("ordersDataSource", javax.sql.DataSource.class), "orders",
+                            builder -> customized.set(true));
+                    var billing = factory.create(context.getBean("billingDataSource", javax.sql.DataSource.class), "billing");
+                    assertThat(customized).isTrue();
+                    assertThat(orders).isNotNull();
+                    assertThat(billing).isNotNull();
+                    assertThat(orders).isNotSameAs(billing);
+                });
+    }
+
+    @Configuration
+    static class FactoryDataSourcesConfig {
+        @Bean
+        javax.sql.DataSource ordersDataSource() {
+            return new org.springframework.jdbc.datasource.SimpleDriverDataSource(
+                    new org.h2.Driver(), "jdbc:h2:mem:factoryOrders;DB_CLOSE_DELAY=-1");
+        }
+
+        @Bean
+        javax.sql.DataSource billingDataSource() {
+            return new org.springframework.jdbc.datasource.SimpleDriverDataSource(
+                    new org.h2.Driver(), "jdbc:h2:mem:factoryBilling;DB_CLOSE_DELAY=-1");
+        }
+    }
+
 }

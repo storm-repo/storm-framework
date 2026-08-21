@@ -15,13 +15,17 @@
  */
 package st.orm.spring.boot.autoconfigure
 
+import io.micrometer.observation.ObservationConvention
+import io.micrometer.observation.ObservationRegistry
 import org.springframework.beans.factory.ObjectProvider
 import org.springframework.boot.autoconfigure.AutoConfiguration
+import org.springframework.boot.autoconfigure.condition.ConditionalOnBean
 import org.springframework.boot.autoconfigure.condition.ConditionalOnClass
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean
 import org.springframework.boot.autoconfigure.condition.ConditionalOnSingleCandidate
 import org.springframework.boot.context.properties.EnableConfigurationProperties
 import org.springframework.context.annotation.Bean
+import org.springframework.context.annotation.Configuration
 import st.orm.EntityCallback
 import st.orm.StormConfig
 import st.orm.core.spi.ConnectionProvider
@@ -29,7 +33,12 @@ import st.orm.core.spi.ExceptionMapper
 import st.orm.core.spi.QueryObserver
 import st.orm.core.spi.SqlCommenter
 import st.orm.core.spi.TransactionTemplateProvider
+import st.orm.micrometer.MicrometerQueryObserver
+import st.orm.micrometer.StormQueryObservationContext
+import st.orm.micrometer.StormTransactionObservationContext
+import st.orm.spring.SpringExceptionMapper
 import st.orm.spring.boot.StormProperties
+import st.orm.spring.boot.StormQueryObservers
 import st.orm.template.ORMTemplate
 import javax.sql.DataSource
 
@@ -43,7 +52,6 @@ import javax.sql.DataSource
  */
 @AutoConfiguration
 @ConditionalOnClass(ORMTemplate::class)
-@ConditionalOnSingleCandidate(DataSource::class)
 @EnableConfigurationProperties(StormProperties::class)
 public open class StormAutoConfiguration {
 
@@ -68,6 +76,7 @@ public open class StormAutoConfiguration {
      */
     @Bean
     @ConditionalOnMissingBean(ORMTemplate::class)
+    @ConditionalOnSingleCandidate(DataSource::class)
     public open fun ormTemplate(
         dataSource: DataSource,
         properties: StormProperties,
@@ -85,5 +94,98 @@ public open class StormAutoConfiguration {
         queryObserver.ifAvailable { builder.queryObserver(it) }
         sqlCommenter.ifAvailable { builder.sqlCommenter(it) }
         return builder.build().withEntityCallbacks(entityCallbacks)
+    }
+
+    /**
+     * Creates the [OrmTemplateFactory] that composes fully integrated templates for the data sources of a
+     * multi-database application, where the single auto-configured template does not apply.
+     *
+     * The factory consumes the same integration beans the auto-configured template does. SQL failure
+     * translation follows `storm.exception-translation.enabled`, with the mapper created per data source when
+     * no [ExceptionMapper] bean is defined, so every template translates against the database it runs on.
+     * Observations are composed per data source through [StormQueryObservers] when an [ObservationRegistry]
+     * is available; a [QueryObserver] bean is not consumed here, since it carries no database identity. A
+     * template that needs a custom observer sets it in the factory's customize block.
+     *
+     * @param properties the Storm configuration properties bound from `storm.*`.
+     * @param entityCallbacks the entity callbacks applied to every created template.
+     * @param connectionProvider the Spring-aware connection provider, when transaction integration is active.
+     * @param transactionTemplateProvider the Spring-aware transaction template provider.
+     * @param exceptionMapper user-defined exception mapper overriding the per-data-source default.
+     * @param sqlCommenter the SQL commenter contributed by the tracing auto-configuration.
+     * @param observationSupport the observation composition, present when Micrometer observations are active.
+     * @return the template factory.
+     */
+    @Bean
+    @ConditionalOnMissingBean(OrmTemplateFactory::class)
+    public open fun ormTemplateFactory(
+        properties: StormProperties,
+        entityCallbacks: List<EntityCallback<*>>,
+        connectionProvider: ObjectProvider<ConnectionProvider>,
+        transactionTemplateProvider: ObjectProvider<TransactionTemplateProvider>,
+        exceptionMapper: ObjectProvider<ExceptionMapper>,
+        sqlCommenter: ObjectProvider<SqlCommenter>,
+        observationSupport: ObjectProvider<OrmTemplateObservationSupport>,
+    ): OrmTemplateFactory = object : OrmTemplateFactory {
+        override fun create(
+            dataSource: DataSource,
+            database: String?,
+            customize: ORMTemplate.Builder.() -> Unit,
+        ): ORMTemplate {
+            val builder = ORMTemplate.builder(dataSource).config(properties.toStormConfig())
+            connectionProvider.ifAvailable { builder.connectionProvider(it) }
+            transactionTemplateProvider.ifAvailable { builder.transactionTemplateProvider(it) }
+            val mapper = exceptionMapper.ifAvailable
+                ?: if (properties.exceptionTranslation.enabled != false) SpringExceptionMapper(dataSource) else null
+            mapper?.let { builder.exceptionMapper(it) }
+            observationSupport.ifAvailable { builder.queryObserver(it.observerFor(dataSource, database)) }
+            sqlCommenter.ifAvailable { builder.sqlCommenter(it) }
+            builder.customize()
+            return builder.build().withEntityCallbacks(entityCallbacks)
+        }
+    }
+
+    /**
+     * Observation composition for factory-created templates, present when Micrometer observations are on the
+     * class path and an [ObservationRegistry] bean is available. Each observer resolves the semantic
+     * conventions against its own data source and carries the template's database name, so the observation
+     * identity follows the template rather than the application.
+     */
+    public class OrmTemplateObservationSupport internal constructor(
+        private val observationRegistry: ObservationRegistry,
+        private val properties: StormProperties,
+        private val queryConvention: ObservationConvention<StormQueryObservationContext>?,
+        private val transactionConvention: ObservationConvention<StormTransactionObservationContext>?,
+    ) {
+        /** Composes the observer for a template on [dataSource], reporting [database] as `storm.database`. */
+        public fun observerFor(dataSource: DataSource, database: String?): QueryObserver = StormQueryObservers.create(
+            observationRegistry,
+            properties,
+            dataSource,
+            database,
+            queryConvention,
+            transactionConvention,
+        )
+    }
+
+    /** Contributes the factory's observation composition when Micrometer observations are active. */
+    @Configuration(proxyBeanMethods = false)
+    @ConditionalOnClass(ObservationRegistry::class, MicrometerQueryObserver::class)
+    @ConditionalOnBean(ObservationRegistry::class)
+    public open class ObservationSupportConfiguration {
+
+        @Bean
+        @ConditionalOnMissingBean(OrmTemplateObservationSupport::class)
+        public open fun ormTemplateObservationSupport(
+            observationRegistry: ObservationRegistry,
+            properties: StormProperties,
+            queryConvention: ObjectProvider<ObservationConvention<StormQueryObservationContext>>,
+            transactionConvention: ObjectProvider<ObservationConvention<StormTransactionObservationContext>>,
+        ): OrmTemplateObservationSupport = OrmTemplateObservationSupport(
+            observationRegistry,
+            properties,
+            queryConvention.ifAvailable,
+            transactionConvention.ifAvailable,
+        )
     }
 }
