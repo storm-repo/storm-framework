@@ -21,7 +21,10 @@ import org.jspecify.annotations.Nullable;
 import st.orm.template.ORMTemplate;
 
 /**
- * Composes fully integrated {@link ORMTemplate}s for the data sources of a multi-database application.
+ * Composes fully integrated {@link ORMTemplate}s for applications that define their own template beans:
+ * several data sources, or a single one whose composition the application customizes. Defining a template
+ * bean backs the auto-configured single template off; the factory keeps the property-driven integration in
+ * both cases.
  *
  * <p>Each created template carries the same Spring integration the auto-configured single template does, driven
  * by the same {@code storm.*} properties: the Spring-aware connection and transaction template providers, SQL

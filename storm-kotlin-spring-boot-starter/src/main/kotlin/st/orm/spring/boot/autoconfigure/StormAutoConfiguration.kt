@@ -97,8 +97,9 @@ public open class StormAutoConfiguration {
     }
 
     /**
-     * Creates the [OrmTemplateFactory] that composes fully integrated templates for the data sources of a
-     * multi-database application, where the single auto-configured template does not apply.
+     * Creates the [OrmTemplateFactory] that composes fully integrated templates for the applications that
+     * define their own template beans, where the single auto-configured template does not apply: several data
+     * sources, or a single one whose composition the application customizes.
      *
      * The factory consumes the same integration beans the auto-configured template does. SQL failure
      * translation follows `storm.exception-translation.enabled`, with the mapper created per data source when
