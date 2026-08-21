@@ -3,6 +3,7 @@ package st.orm.template
 import io.kotest.matchers.collections.shouldHaveSize
 import io.kotest.matchers.shouldBe
 import io.kotest.matchers.shouldNotBe
+import io.kotest.matchers.string.shouldContain
 import kotlinx.coroutines.flow.count
 import kotlinx.coroutines.flow.toList
 import kotlinx.coroutines.runBlocking
@@ -401,6 +402,76 @@ internal open class QueryBuilderTest(
                 ((firstNamePath eq "George") and (lastNamePath eq "Franklin"))
         }.resultList
         result shouldHaveSize 2
+    }
+
+    // Cross-root predicate combination tests
+
+    @Test
+    fun `and across roots inline in a widened where should filter by both entities`() {
+        // data.sql: Pet('Leo') belongs to Owner(id=1, 'Betty', 'Davis'). The join widens the query, so the
+        // builder's root flows into the inference and the inline cross-root combination is accepted.
+        val petNamePath = Metamodel.of<Pet, String>(Pet::class.java, "name")
+        val ownerLastNamePath = Metamodel.of<Owner, String>(Owner::class.java, "lastName")
+        val pets = orm.entity(Pet::class).select()
+            .innerJoin(Owner::class).on(Pet::class)
+            .where((petNamePath eq "Leo") and (ownerLastNamePath eq "Davis"))
+            .resultList
+        pets shouldHaveSize 1
+        pets[0].name shouldBe "Leo"
+    }
+
+    @Test
+    fun `or across roots inline in a widened where should match either predicate`() {
+        // data.sql: the Davis owners (Betty, Harold) hold Leo and Iggy; Basil belongs to Franklin.
+        val petNamePath = Metamodel.of<Pet, String>(Pet::class.java, "name")
+        val ownerLastNamePath = Metamodel.of<Owner, String>(Owner::class.java, "lastName")
+        val pets = orm.entity(Pet::class).select()
+            .innerJoin(Owner::class).on(Pet::class)
+            .where((petNamePath eq "Basil") or (ownerLastNamePath eq "Davis"))
+            .resultList
+        pets.map { it.name }.toSet() shouldBe setOf("Basil", "Leo", "Iggy")
+    }
+
+    @Test
+    fun `a standalone cross-root predicate is accepted by a widened builder`() {
+        // Built outside any where call, the combination roots at the operands' least common root, which the
+        // widened builder accepts and verifies when the query is built.
+        val petNamePath = Metamodel.of<Pet, String>(Pet::class.java, "name")
+        val ownerLastNamePath = Metamodel.of<Owner, String>(Owner::class.java, "lastName")
+        val predicate = (petNamePath eq "Leo") and (ownerLastNamePath eq "Davis")
+        val pets = orm.entity(Pet::class).select()
+            .innerJoin(Owner::class).on(Pet::class)
+            .where(predicate)
+            .resultList
+        pets shouldHaveSize 1
+        pets[0].name shouldBe "Leo"
+    }
+
+    @Test
+    fun `and on a shared root keeps the root and serves a narrow builder`() {
+        // data.sql: Owner(id=4, 'Harold', 'Davis') is the only match. No join, so where() is typed to Owner
+        // and the same-root combination infers that root.
+        val firstNamePath = Metamodel.of<Owner, String>(Owner::class.java, "firstName")
+        val lastNamePath = Metamodel.of<Owner, String>(Owner::class.java, "lastName")
+        val owners = orm.entity(Owner::class).select()
+            .where((firstNamePath eq "Harold") and (lastNamePath eq "Davis"))
+            .resultList
+        owners shouldHaveSize 1
+        owners[0].firstName shouldBe "Harold"
+    }
+
+    @Test
+    fun `a combined predicate on an entity outside the query fails with a descriptive error`() {
+        // Vet is neither joined nor reachable from Pet, so building the query reports the foreign path.
+        val petNamePath = Metamodel.of<Pet, String>(Pet::class.java, "name")
+        val vetLastNamePath = Metamodel.of<Vet, String>(Vet::class.java, "lastName")
+        val exception = assertThrows<PersistenceException> {
+            orm.entity(Pet::class).select()
+                .innerJoin(Owner::class).on(Pet::class)
+                .where((petNamePath eq "Leo") and (vetLastNamePath eq "Carter"))
+                .resultList
+        }
+        exception.message!! shouldContain "Vet is not part of this query"
     }
 
     // ColumnImpl tests

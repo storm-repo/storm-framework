@@ -792,6 +792,8 @@ val roles = orm.entity<Role>()
 
 The widening trades the compile-time root check for query-time resolution: a path on an entity that is not part of the query fails when the query is built, with an error naming the entity and the root. Root-relative operations are affected by the wider type: `fetch(...)` comes before any join, and a grouped terminal such as `resultGroupedBy` needs the root back: `narrow<Role>()` restores it, verified against the query's FROM table. The counterpart `widen()` widens without a join, admitting short-form references to the entities already in the query's graph.
 
+The infix `and`/`or` combinators follow the same discipline: a combination roots at its operands' least common root, and written directly in a `where(...)` call the builder's root drives the inference. On the widened query above, `.where((UserRole_.user eq user) and (Role_.name eq name))` composes predicates across the joined entities in one clause, while the same expression on a narrow, join-less builder is rejected at the call site.
+
 </TabItem>
 <TabItem value="java" label="Java">
 

@@ -1392,26 +1392,36 @@ public fun <T : Data, V> Navigable<T, V>.isNull(): PredicateBuilder<T, T, *> = c
 public fun <T : Data, V> Navigable<T, V>.isNotNull(): PredicateBuilder<T, T, *> = create(this.asMetamodel(), IS_NOT_NULL, emptyList())
 
 /**
- * Combines two predicates that share the same root using an AND condition.
+ * Combines two predicates using an AND condition.
+ *
+ * The result is rooted at the operands' least common root: predicates that share a root keep it, and predicates
+ * rooted at different entities combine into a predicate that only a widened query accepts. Written directly in a
+ * `where(...)` call, the builder's root drives the inference, so a narrow builder rejects a cross-root combination
+ * at the call site while a widened builder accepts it and verifies the paths when the query is built.
  *
  * Inside a [WhereBuilder] scope, the scope's own `and` takes precedence and inherits the query root, so a widened
  * query combines predicates across joined entities with the same syntax.
  *
  * @param predicate the predicate to add.
- * @return the combined predicate builder.
+ * @return the combined predicate builder, rooted at the operands' least common root.
  */
-public infix fun <T : Data, R, ID> PredicateBuilder<T, R, ID>.and(predicate: PredicateBuilder<out T, *, *>): PredicateBuilder<T, R, ID> = combineAnd(this, predicate)
+public infix fun <T : Data> PredicateBuilder<out T, *, *>.and(predicate: PredicateBuilder<out T, *, *>): PredicateBuilder<T, *, *> = combineAnd(this, predicate)
 
 /**
- * Combines two predicates that share the same root using an OR condition.
+ * Combines two predicates using an OR condition.
+ *
+ * The result is rooted at the operands' least common root: predicates that share a root keep it, and predicates
+ * rooted at different entities combine into a predicate that only a widened query accepts. Written directly in a
+ * `where(...)` call, the builder's root drives the inference, so a narrow builder rejects a cross-root combination
+ * at the call site while a widened builder accepts it and verifies the paths when the query is built.
  *
  * Inside a [WhereBuilder] scope, the scope's own `or` takes precedence and inherits the query root, so a widened
  * query combines predicates across joined entities with the same syntax.
  *
  * @param predicate the predicate to add.
- * @return the combined predicate builder.
+ * @return the combined predicate builder, rooted at the operands' least common root.
  */
-public infix fun <T : Data, R, ID> PredicateBuilder<T, R, ID>.or(predicate: PredicateBuilder<out T, *, *>): PredicateBuilder<T, R, ID> = combineOr(this, predicate)
+public infix fun <T : Data> PredicateBuilder<out T, *, *>.or(predicate: PredicateBuilder<out T, *, *>): PredicateBuilder<T, *, *> = combineOr(this, predicate)
 
 // Block-based query DSL
 

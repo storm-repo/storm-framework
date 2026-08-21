@@ -94,25 +94,25 @@ internal fun <T : Data, R, ID, V : Data> createRefWithId(
 ): PredicateBuilder<T, R, ID> = PredicateBuilderImpl(PredicateBuilderFactory.createRefWithId(path, operator, o))
 
 /**
- * Combines two predicates using an AND condition, keeping the left-hand predicate's root.
+ * Combines two predicates using an AND condition, rooting the result at the operands' least common root.
  *
  * @param left the predicate to combine into
  * @param right the predicate to add
  * @return the combined [PredicateBuilder]
  */
-internal fun <T : Data, R, ID> combineAnd(
-    left: PredicateBuilder<T, R, ID>,
+internal fun <T : Data> combineAnd(
+    left: PredicateBuilder<out T, *, *>,
     right: PredicateBuilder<out T, *, *>,
-): PredicateBuilder<T, R, ID> = PredicateBuilderImpl((left as PredicateBuilderImpl<T, R, ID>).core.and((right as PredicateBuilderImpl<T, *, *>).core))
+): PredicateBuilder<T, *, *> = PredicateBuilderImpl((left as PredicateBuilderImpl<T, Any, Any>).core.and((right as PredicateBuilderImpl<T, Any, Any>).core))
 
 /**
- * Combines two predicates using an OR condition, keeping the left-hand predicate's root.
+ * Combines two predicates using an OR condition, rooting the result at the operands' least common root.
  *
  * @param left the predicate to combine into
  * @param right the predicate to add
  * @return the combined [PredicateBuilder]
  */
-internal fun <T : Data, R, ID> combineOr(
-    left: PredicateBuilder<T, R, ID>,
+internal fun <T : Data> combineOr(
+    left: PredicateBuilder<out T, *, *>,
     right: PredicateBuilder<out T, *, *>,
-): PredicateBuilder<T, R, ID> = PredicateBuilderImpl((left as PredicateBuilderImpl<T, R, ID>).core.or((right as PredicateBuilderImpl<T, *, *>).core))
+): PredicateBuilder<T, *, *> = PredicateBuilderImpl((left as PredicateBuilderImpl<T, Any, Any>).core.or((right as PredicateBuilderImpl<T, Any, Any>).core))
