@@ -56,7 +56,7 @@ import st.orm.core.template.impl.SqlLogRenderer;
  * accompanied by the execution that made it slow.</p>
  *
  * <p>Everything the log reports with is applied at startup and stays changeable while the application runs,
- * through {@link StormSqlLogEndpoint} where the actuator is on the classpath. Only {@code enabled} is fixed
+ * through {@link StormEndpoint} where the actuator is on the classpath. Only {@code enabled} is fixed
  * there: it decides whether the filter and the proxies exist, which a refreshed context cannot be given.</p>
  *
  * @since 1.13
@@ -133,9 +133,9 @@ public class StormSqlLogAutoConfiguration {
          * performance log is disabled; the slow statement log needs no boundary and is settable either way.
          */
         @Bean
-        @ConditionalOnMissingBean(StormSqlLogEndpoint.class)
-        StormSqlLogEndpoint stormSqlLogEndpoint(ObjectProvider<PerformanceLog.Boundary> boundaries) {
-            return new StormSqlLogEndpoint(boundaries.orderedStream().toList());
+        @ConditionalOnMissingBean(StormEndpoint.class)
+        StormEndpoint stormEndpoint(ObjectProvider<PerformanceLog.Boundary> boundaries) {
+            return new StormEndpoint(boundaries.orderedStream().toList());
         }
     }
 

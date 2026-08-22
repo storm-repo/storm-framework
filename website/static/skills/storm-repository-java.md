@@ -551,7 +551,7 @@ Run the test. Show the user the captured SQL and explain how it aligns with the 
 - Database time far below total time says the bottleneck is not the database, so stop optimizing queries.
 - `n from cache` counts reads the transaction's entity cache served without a statement, which is work already avoided rather than work to do.
 
-Set `storm.sql-log.call-sites: true` to name the application frame behind each row. In production, configure a statement or duration threshold so only calls that exceed one report, at `WARN`; summaries carry no parameter values at any level, so they are safe to leave enabled there.
+Set `storm.sql-log.performance.call-sites: true` to name the application frame behind each row. In production, configure a statement or duration threshold under `storm.sql-log.performance.threshold` so only calls that exceed one report, at `WARN`; summaries carry no parameter values at any level, so they are safe to leave enabled there. `storm.sql-log.slow.threshold: 200ms` adds the other half, one line per execution that exceeds it under `st.orm.sql.slow`, naming the statement a summary can only total.
 
 **Test isolation:** `SqlCapture` accumulates SQL across the entire test method. When writing multiple verification tests in one class, use `capture.clear()` between logical operations, or put each verification in its own `@Test` method. To avoid order-dependent failures, make assertions idempotent (don't assume specific row counts from prior inserts in other test methods) or use `@TestMethodOrder(MethodOrderer.OrderAnnotation.class)` with `@Order` if test ordering matters.
 

@@ -321,19 +321,19 @@ What a slow threshold should be is a question a degraded deployment answers bett
 <Tabs groupId="framework">
 <TabItem value="spring" label="Spring Boot" default>
 
-Where the actuator is on the classpath, the `stormsqllog` endpoint reads and sets both halves of the log. Expose it as any other endpoint:
+Where the actuator is on the classpath, the `storm` endpoint reads and sets both halves of the log. It is Storm's control surface on a running application, one section per subject, so anything else Storm learns to be told at runtime arrives beside these rather than as a second endpoint. Expose it as any other endpoint:
 
 ```yaml
 management:
   endpoints:
     web:
       exposure:
-        include: health,stormsqllog
+        include: health,storm
 ```
 
 ```
-GET  /actuator/stormsqllog
-POST /actuator/stormsqllog   {"slowStatement": "200ms", "duration": "1s", "callSites": true}
+GET  /actuator/storm
+POST /actuator/storm   {"slowStatement": "200ms", "duration": "1s", "callSites": true}
 ```
 
 `slowStatement` and `slowStatementLimit` set the slow statement log; `statements`, `duration`, `callSites` and `limit` set every performance boundary. What the request leaves out stays as it is, and `off` removes a threshold rather than setting one. It changes a running process only: nothing is written back to the configuration, and a restart returns to it.

@@ -365,7 +365,7 @@ public class StormSqlLogAutoConfigurationTest {
             contextRunner
                     .withUserConfiguration(JobConfiguration.class)
                     .run(context -> {
-                        var endpoint = context.getBean(StormSqlLogEndpoint.class);
+                        var endpoint = context.getBean(StormEndpoint.class);
                         assertEquals(false, slowStatementOf(endpoint).get("active"));
                         endpoint.configure("200ms", 3, null, null, null, null);
                         assertEquals(Duration.ofMillis(200), SlowStatementLog.threshold());
@@ -390,7 +390,7 @@ public class StormSqlLogAutoConfigurationTest {
                 .withUserConfiguration(JobConfiguration.class)
                 .withPropertyValues("storm.sql-log.performance.enabled=true", "storm.sql-log.performance.threshold.duration=500ms")
                 .run(context -> {
-                    var endpoint = context.getBean(StormSqlLogEndpoint.class);
+                    var endpoint = context.getBean(StormEndpoint.class);
                     var filter = context.getBean(StormPerformanceLogFilter.class);
                     var postProcessor = context.getBean(StormPerformanceLogEntryPointPostProcessor.class);
                     assertEquals(Duration.ofMillis(500), filter.settings().durationThreshold());
@@ -416,19 +416,19 @@ public class StormSqlLogAutoConfigurationTest {
         contextRunner
                 .withUserConfiguration(JobConfiguration.class)
                 .run(context -> {
-                    var endpoint = context.getBean(StormSqlLogEndpoint.class);
+                    var endpoint = context.getBean(StormEndpoint.class);
                     assertTrue(endpoint.settings().containsKey("slowStatement"));
                     assertTrue(performanceOf(endpoint).isEmpty());
                 });
     }
 
     @SuppressWarnings("unchecked")
-    private static Map<String, Object> slowStatementOf(StormSqlLogEndpoint endpoint) {
+    private static Map<String, Object> slowStatementOf(StormEndpoint endpoint) {
         return (Map<String, Object>) endpoint.settings().get("slowStatement");
     }
 
     @SuppressWarnings("unchecked")
-    private static Map<String, Object> performanceOf(StormSqlLogEndpoint endpoint) {
+    private static Map<String, Object> performanceOf(StormEndpoint endpoint) {
         return (Map<String, Object>) endpoint.settings().get("performance");
     }
 
