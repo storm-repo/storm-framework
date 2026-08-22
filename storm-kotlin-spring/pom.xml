@@ -74,6 +74,12 @@
                 <groupId>org.jetbrains.kotlin</groupId>
                 <artifactId>kotlin-maven-plugin</artifactId>
                 <version>${kotlin.version}</version>
+                <!-- Contributes the plugin's lifecycle mapping, which synthesises default-compile and
+                     default-kapt executions beside the ones declared below. The duplicate compilation is what
+                     this flag costs, and the flag has to stay: without it, CodeQL's Kotlin extractor binds
+                     against the wrong compiler generation and fails its analysis on a later module in the
+                     reactor, with an AbstractMethodError on ComponentRegistrar. -->
+                <extensions>true</extensions>
                 <configuration>
                     <jvmTarget>21</jvmTarget>
                     <args>

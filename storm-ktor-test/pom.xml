@@ -56,6 +56,12 @@
                 <groupId>org.jetbrains.kotlin</groupId>
                 <artifactId>kotlin-maven-plugin</artifactId>
                 <version>${kotlin.version}</version>
+                <!-- Contributes the plugin's lifecycle mapping, which synthesises default-compile and
+                     default-kapt executions beside the ones declared below. The duplicate compilation is what
+                     this flag costs, and the flag has to stay: without it, CodeQL's Kotlin extractor binds
+                     against the wrong compiler generation and fails its analysis on a later module in the
+                     reactor, with an AbstractMethodError on ComponentRegistrar. -->
+                <extensions>true</extensions>
                 <configuration>
                     <jvmTarget>21</jvmTarget>
                     <args>
@@ -149,6 +155,7 @@
                      roots, which include Maven's src/main/java whether it exists or not. Naming the Kotlin root
                      keeps a missing directory from being reported as an error on every build. -->
                 <configuration>
+                    <skip>${maven.javadoc.skip}</skip>
                     <sourceDirectories>
                         <dir>${project.basedir}/src/main/kotlin</dir>
                     </sourceDirectories>
