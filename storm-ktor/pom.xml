@@ -58,7 +58,6 @@
                 <groupId>org.jetbrains.kotlin</groupId>
                 <artifactId>kotlin-maven-plugin</artifactId>
                 <version>${kotlin.version}</version>
-                <extensions>true</extensions>
                 <configuration>
                     <jvmTarget>21</jvmTarget>
                     <args>
@@ -170,7 +169,18 @@
             <plugin>
                 <groupId>org.jetbrains.dokka</groupId>
                 <artifactId>dokka-maven-plugin</artifactId>
-                <version>2.0.0</version>
+                <!-- Dokka 2.0 analyses with a Kotlin 2.0 frontend, which cannot read the Kotlin 2.3 metadata this
+                     module and its stdlib carry; 2.2 can. The rest of the framework stays on 2.0 with its own
+                     compiler generation. -->
+                <version>2.2.0</version>
+                <!-- The module has no Java sources, and Dokka's default source roots are the project's compile
+                     roots, which include Maven's src/main/java whether it exists or not. Naming the Kotlin root
+                     keeps a missing directory from being reported as an error on every build. -->
+                <configuration>
+                    <sourceDirectories>
+                        <dir>${project.basedir}/src/main/kotlin</dir>
+                    </sourceDirectories>
+                </configuration>
                 <executions>
                     <execution>
                         <id>javadoc-jar</id>
