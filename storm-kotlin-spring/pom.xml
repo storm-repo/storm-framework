@@ -74,6 +74,10 @@
                 <groupId>org.jetbrains.kotlin</groupId>
                 <artifactId>kotlin-maven-plugin</artifactId>
                 <version>${kotlin.version}</version>
+                <!-- Contributes the plugin's lifecycle mapping, which also synthesises default-compile and
+                     default-kapt executions beside the ones declared below. That duplication is deliberate for
+                     now: dropping it changed what CodeQL's Kotlin extractor sees and broke its analysis. -->
+                <extensions>true</extensions>
                 <configuration>
                     <jvmTarget>21</jvmTarget>
                     <args>

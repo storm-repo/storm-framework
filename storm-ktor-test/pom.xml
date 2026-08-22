@@ -56,6 +56,10 @@
                 <groupId>org.jetbrains.kotlin</groupId>
                 <artifactId>kotlin-maven-plugin</artifactId>
                 <version>${kotlin.version}</version>
+                <!-- Contributes the plugin's lifecycle mapping, which also synthesises default-compile and
+                     default-kapt executions beside the ones declared below. That duplication is deliberate for
+                     now: dropping it changed what CodeQL's Kotlin extractor sees and broke its analysis. -->
+                <extensions>true</extensions>
                 <configuration>
                     <jvmTarget>21</jvmTarget>
                     <args>
@@ -141,10 +145,10 @@
             <plugin>
                 <groupId>org.jetbrains.dokka</groupId>
                 <artifactId>dokka-maven-plugin</artifactId>
-                <!-- Dokka 2.0 analyses with a Kotlin 2.0 frontend, which cannot read the Kotlin 2.3 metadata this
-                     module and its stdlib carry; 2.2 can. The rest of the framework stays on 2.0 with its own
-                     compiler generation. -->
-                <version>2.2.0</version>
+                <!-- Pinned to the generation the rest of the framework runs. Dokka 2.2 reads this module's
+                     Kotlin 2.3 metadata, which 2.0 reports errors for, but loading it into the reactor breaks
+                     CodeQL's Kotlin extractor on the next module the reactor compiles at Kotlin 2.0. -->
+                <version>2.0.0</version>
                 <!-- The module has no Java sources, and Dokka's default source roots are the project's compile
                      roots, which include Maven's src/main/java whether it exists or not. Naming the Kotlin root
                      keeps a missing directory from being reported as an error on every build. -->
