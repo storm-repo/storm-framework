@@ -313,13 +313,19 @@ public val Storm: ApplicationPlugin<StormPluginConfig> = createApplicationPlugin
     // ---- Per-call SQL log ----
 
     // Each option resolves from the plugin configuration first, then the application configuration under
-    // storm.sqlLog, so the log can be switched on through the configuration file alone. The display settings
-    // (call-site skip, line width) are JVM-wide by design and are only applied when actually configured, leaving the system-property defaults, or another application's settings, in effect otherwise.
+    // storm.sqlLog, so either log can be switched on through the configuration file alone. The display settings
+    // (call-site skip, line width) are JVM-wide by design and are only applied when actually configured, leaving
+    // the system-property defaults, or another application's settings, in effect otherwise.
     val sqlLogSettings = resolveSqlLogSettings(application, pluginConfig)
     // The slow statement log needs no request boundary: it reports each execution whose database time exceeds
-    // the threshold, wherever it runs, so it applies with or without the per-call summaries.
-    sqlLogSettings.slowStatement?.let { SlowStatementLog.threshold(it.toJavaDuration()) }
-    sqlLogSettings.slowStatementLimit?.let { SlowStatementLog.limit(it) }
+    // the threshold, wherever it runs, so it applies with or without the performance log. Left unset while the
+    // performance log runs against a duration threshold, it takes that duration: a call holds at least one
+    // execution, so the statement grain can only be exceeded inside a call that is reported anyway, which names
+    // the statement behind a warning rather than adding one.
+    val slowThreshold = sqlLogSettings.slowThreshold
+        ?: if (sqlLogSettings.enabled) sqlLogSettings.durationThreshold else null
+    slowThreshold?.let { SlowStatementLog.threshold(it.toJavaDuration()) }
+    sqlLogSettings.slowLimit?.let { SlowStatementLog.limit(it) }
     if (sqlLogSettings.enabled) {
         val limit = sqlLogSettings.limit
         val callSites = sqlLogSettings.callSites

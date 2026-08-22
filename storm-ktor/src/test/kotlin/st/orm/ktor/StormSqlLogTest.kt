@@ -91,14 +91,14 @@ internal class StormSqlLogTest {
 
     @Test
     fun `the per-call summary is enabled from the configuration file alone`() {
-        val output = requestPets("storm.sqlLog.enabled" to "true")
+        val output = requestPets("storm.sqlLog.performance.enabled" to "true")
         output shouldContain "SQL (GET /pets)"
     }
 
     @Test
     fun `a plugin setting overrides the configuration file`() {
-        val output = requestPets("storm.sqlLog.enabled" to "true") {
-            sqlLog = false
+        val output = requestPets("storm.sqlLog.performance.enabled" to "true") {
+            sqlLogPerformance = false
         }
         output shouldNotContain "SQL (GET /pets)"
     }
@@ -106,8 +106,8 @@ internal class StormSqlLogTest {
     @Test
     fun `an unexceeded threshold from the configuration file suppresses the summary`() {
         val output = requestPets(
-            "storm.sqlLog.enabled" to "true",
-            "storm.sqlLog.threshold.statements" to "999",
+            "storm.sqlLog.performance.enabled" to "true",
+            "storm.sqlLog.performance.threshold.statements" to "999",
         )
         output shouldNotContain "SQL (GET /pets)"
     }
@@ -116,7 +116,7 @@ internal class StormSqlLogTest {
     fun `the slow statement log reports without the per-call summary`() {
         try {
             // A one-nanosecond threshold makes every execution slow; the summaries stay off.
-            val output = requestPets("storm.sqlLog.slowStatement" to "1ns")
+            val output = requestPets("storm.sqlLog.slow.threshold" to "1ns")
             output shouldContain "SQL slow (SELECT Pet)"
             output shouldContain "WARN"
             output shouldNotContain "SQL (GET /pets)"
@@ -128,7 +128,7 @@ internal class StormSqlLogTest {
     @Test
     fun `the slow statement threshold applies from the plugin configuration`() {
         try {
-            val output = requestPets { sqlLogSlowStatement = 1.nanoseconds }
+            val output = requestPets { sqlLogSlowThreshold = 1.nanoseconds }
             output shouldContain "SQL slow (SELECT Pet)"
         } finally {
             SlowStatementLog.threshold(null)
@@ -138,8 +138,8 @@ internal class StormSqlLogTest {
     @Test
     fun `an exceeded threshold from the configuration file reports at WARN`() {
         val output = requestPets(
-            "storm.sql_log.enabled" to "true",
-            "storm.sql_log.threshold.statements" to "1",
+            "storm.sql_log.performance.enabled" to "true",
+            "storm.sql_log.performance.threshold.statements" to "1",
         )
         output shouldContain "SQL (GET /pets)"
         output shouldContain "WARN"

@@ -12,4 +12,17 @@ public final class SlowStatementLogTestSupport {
     public static void reset() {
         SlowStatementLog.reset();
     }
+
+    /** Returns the number of shapes tracked before new ones share the untracked budget. */
+    public static int maxShapes() {
+        return SlowStatementLog.maxShapes;
+    }
+
+    /**
+     * Sets the number of shapes tracked before new ones share the untracked budget, so a test can exhaust the map
+     * without generating four thousand shapes.
+     */
+    public static void maxShapes(int maxShapes) {
+        SlowStatementLog.maxShapes = maxShapes;
+    }
 }

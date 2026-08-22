@@ -57,7 +57,7 @@ import st.orm.core.template.impl.StatementListener;
  * issued after a suspension that resumed on another thread fall outside it.</p>
  *
  * <p>How summaries render — line width, call-site skips — is a property of the deployment, configured rather
- * than programmed: the {@code storm.sql_log.line_width} and {@code storm.sql_log.call_site_skip} system
+ * than programmed: the {@code storm.sql_log.performance.line_width} and {@code storm.sql_log.call_site_skip} system
  * properties on a plain JVM, or the corresponding keys of the Spring and Ktor integrations.</p>
  *
  * @since 1.13

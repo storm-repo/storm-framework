@@ -49,22 +49,22 @@ import st.orm.core.template.SqlLog;
  *
  * <p>Entry points are matched by annotation type name, directly present on the bean method, so a default whose
  * library is absent from the classpath simply never matches and costs nothing. The set is configurable through
- * {@code storm.sql-log.entry-points}.</p>
+ * {@code storm.sql-log.performance.entry-points}.</p>
  *
  * <p>The scope follows the invoking thread, which is where a blocking task or listener does its work. Work the
  * method hands to another thread falls outside it.</p>
  *
  * @since 1.13
  */
-public class StormSqlLogEntryPointPostProcessor implements BeanPostProcessor, Ordered {
+public class StormPerformanceLogEntryPointPostProcessor
+        implements BeanPostProcessor, Ordered, PerformanceLog.Boundary {
 
     private static final Logger LOGGER = LoggerFactory.getLogger("st.orm.sql.perf");
 
     private final Set<String> entryPointAnnotations;
-    private final int limit;
-    private final boolean callSites;
-    private final @Nullable Integer statementThreshold;
-    private final @Nullable Duration durationThreshold;
+
+    /** Read per invocation, so a replacement takes effect on the invocation after it. */
+    private volatile PerformanceLog.Settings settings;
 
     /**
      * Creates the post-processor.
@@ -75,16 +75,28 @@ public class StormSqlLogEntryPointPostProcessor implements BeanPostProcessor, Or
      * @param statementThreshold number of statements above which an invocation is reported, or {@code null}.
      * @param durationThreshold invocation duration above which an invocation is reported, or {@code null}.
      */
-    public StormSqlLogEntryPointPostProcessor(Set<String> entryPointAnnotations,
+    public StormPerformanceLogEntryPointPostProcessor(Set<String> entryPointAnnotations,
                                                 int limit,
                                                 boolean callSites,
                                                 @Nullable Integer statementThreshold,
                                                 @Nullable Duration durationThreshold) {
         this.entryPointAnnotations = Set.copyOf(entryPointAnnotations);
-        this.limit = limit;
-        this.callSites = callSites;
-        this.statementThreshold = statementThreshold;
-        this.durationThreshold = durationThreshold;
+        this.settings = new PerformanceLog.Settings(limit, callSites, statementThreshold, durationThreshold);
+    }
+
+    @Override
+    public PerformanceLog.Settings settings() {
+        return settings;
+    }
+
+    @Override
+    public void settings(PerformanceLog.Settings settings) {
+        this.settings = settings;
+    }
+
+    @Override
+    public String boundaryName() {
+        return "entry-point";
     }
 
     /**
@@ -164,18 +176,20 @@ public class StormSqlLogEntryPointPostProcessor implements BeanPostProcessor, Or
 
         @Override
         public Object invoke(MethodInvocation invocation) throws Throwable {
-            boolean thresholded = statementThreshold != null || durationThreshold != null;
-            if (!SqlLogReporting.consumes(LOGGER, thresholded)) {
+            // Read once, so a replacement mid-invocation cannot report an invocation against settings it was not
+            // recorded under.
+            var settings = StormPerformanceLogEntryPointPostProcessor.this.settings;
+            if (!PerformanceLog.consumes(LOGGER, settings)) {
                 // Nothing consumes the summary, so do not open a scope to build one.
                 return invocation.proceed();
             }
             String name = targetClass.getSimpleName() + "." + invocation.getMethod().getName();
-            var scope = SqlLog.open(name, limit, callSites);
+            var scope = SqlLog.open(name, settings.limit(), settings.callSites());
             try {
                 return invocation.proceed();
             } finally {
                 scope.close();
-                SqlLogReporting.report(LOGGER, scope.summary(), statementThreshold, durationThreshold);
+                PerformanceLog.report(LOGGER, scope.summary(), settings);
             }
         }
     }

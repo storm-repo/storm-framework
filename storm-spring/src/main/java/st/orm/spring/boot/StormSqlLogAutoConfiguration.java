@@ -16,8 +16,12 @@
 package st.orm.spring.boot;
 
 import jakarta.servlet.Filter;
+import java.time.Duration;
 import java.util.Set;
+import org.jspecify.annotations.Nullable;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.beans.factory.config.BeanFactoryPostProcessor;
+import org.springframework.boot.actuate.endpoint.annotation.Endpoint;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnClass;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
@@ -39,15 +43,21 @@ import st.orm.core.template.impl.SqlLogRenderer;
  * Auto-configuration that reports what each unit of work cost the database, and the single statement executions
  * that cost too much.
  *
- * <p>Opt in to the per-call summaries with {@code storm.sql-log.enabled=true}. Every way work enters the
+ * <p>Opt in to the performance log with {@code storm.sql-log.performance.enabled=true}. Every way work enters the
  * application is a boundary: HTTP requests are wrapped by a servlet filter, and scheduled tasks and message
  * listeners by a proxy around the annotated entry-point method, so a worker without a web layer reports the same
  * way a web application does. For a narrower boundary, such as one service method, open a scope directly with
  * {@link st.orm.template.SqlLog}.</p>
  *
- * <p>The slow statement log, {@code storm.sql-log.slow-statement=200ms}, needs no boundary: it reports each
+ * <p>The slow statement log, {@code storm.sql-log.slow.threshold=200ms}, needs no boundary: it reports each
  * execution whose database time exceeds the threshold, wherever it runs, and so applies with or without the
- * summaries.</p>
+ * performance log. Left unset alongside {@code storm.sql-log.performance.enabled=true} it takes
+ * {@code storm.sql-log.performance.threshold.duration} for its threshold, so a performance line that reports a slow call is
+ * accompanied by the execution that made it slow.</p>
+ *
+ * <p>Everything the log reports with is applied at startup and stays changeable while the application runs,
+ * through {@link StormSqlLogEndpoint} where the actuator is on the classpath. Only {@code enabled} is fixed
+ * there: it decides whether the filter and the proxies exist, which a refreshed context cannot be given.</p>
  *
  * @since 1.13
  */
@@ -71,13 +81,18 @@ public class StormSqlLogAutoConfiguration {
      * Applies the slow statement threshold. Statements execute while the application starts, migrations and
      * schema validation among them, so the threshold is applied when this bean is defined, which a bean factory
      * post-processor is before any singleton exists; the processor itself has nothing left to do.
+     *
+     * <p>Each setting is applied only when configured, so an application that configures neither keeps whatever
+     * the {@code storm.sql_log.*} system properties put in effect.</p>
      */
     @Bean
-    @ConditionalOnProperty(name = "storm.sql-log.slow-statement")
     static BeanFactoryPostProcessor stormSlowStatementLog(Environment environment) {
         var sqlLog = bind(environment);
-        SlowStatementLog.threshold(sqlLog.getSlowStatement());
-        var limit = sqlLog.getSlowStatementLimit();
+        var threshold = slowThreshold(sqlLog);
+        if (threshold != null) {
+            SlowStatementLog.threshold(threshold);
+        }
+        var limit = sqlLog.getSlow().getLimit();
         if (limit != null) {
             SlowStatementLog.limit(limit);
         }
@@ -86,36 +101,77 @@ public class StormSqlLogAutoConfiguration {
     }
 
     /**
-     * The per-call summaries, which need a boundary and are opted into with {@code storm.sql-log.enabled=true}.
+     * Returns the database time above which a single execution is reported, or {@code null} to leave the log as
+     * configured elsewhere.
+     *
+     * <p>An application that opted into the performance log and told it what a slow call is has already said what
+     * slow means for its workload, and already accepted a warning when work exceeds it. A call contains at least
+     * one execution, so the same duration at statement grain can only be exceeded inside a call that exceeds it
+     * too: the derived default names the statement behind a warning that was going to be logged anyway, rather
+     * than adding warnings of its own. Work outside a boundary has no summary to sit beside, and reports on the
+     * same threshold.</p>
+     */
+    private static @Nullable Duration slowThreshold(StormProperties.SqlLog sqlLog) {
+        var configured = sqlLog.getSlow().getThreshold();
+        if (configured != null) {
+            return configured;
+        }
+        var performance = sqlLog.getPerformance();
+        return performance.isEnabled() ? performance.getThreshold().getDuration() : null;
+    }
+
+    /**
+     * The endpoint that reads and retunes what the log reports at runtime, registered where the actuator is on
+     * the classpath. Exposing it is the application's decision, as it is for every endpoint.
      */
     @Configuration(proxyBeanMethods = false)
-    @ConditionalOnProperty(name = "storm.sql-log.enabled", havingValue = "true")
-    static class SummaryConfiguration {
+    @ConditionalOnClass(Endpoint.class)
+    static class EndpointConfiguration {
+
+        /**
+         * Provides the endpoint over the boundaries the application registered, of which there are none while the
+         * performance log is disabled; the slow statement log needs no boundary and is settable either way.
+         */
+        @Bean
+        @ConditionalOnMissingBean(StormSqlLogEndpoint.class)
+        StormSqlLogEndpoint stormSqlLogEndpoint(ObjectProvider<PerformanceLog.Boundary> boundaries) {
+            return new StormSqlLogEndpoint(boundaries.orderedStream().toList());
+        }
+    }
+
+    /**
+     * The performance log, which needs a boundary and is opted into with
+     * {@code storm.sql-log.performance.enabled=true}.
+     */
+    @Configuration(proxyBeanMethods = false)
+    @ConditionalOnProperty(name = "storm.sql-log.performance.enabled", havingValue = "true")
+    static class PerformanceLogConfiguration {
 
         /**
          * Provides the post-processor that wraps non-request entry points, such as {@code @Scheduled} tasks and
-         * message listeners, in a SQL log.
+         * message listeners, in a scope the performance log reports on.
          *
          * <p>Registered as a static bean and bound through the {@link Binder}, since a bean post-processor is
          * created before the configuration-properties machinery. The display settings, which apply to every
          * summary whichever boundary produced it, are applied here as the one unconditional spot of the
-         * summaries' configuration.</p>
+         * performance log's configuration.</p>
          */
         @Bean
-        @ConditionalOnMissingBean(StormSqlLogEntryPointPostProcessor.class)
-        static StormSqlLogEntryPointPostProcessor stormSqlLogEntryPointPostProcessor(
+        @ConditionalOnMissingBean(StormPerformanceLogEntryPointPostProcessor.class)
+        static StormPerformanceLogEntryPointPostProcessor stormPerformanceLogEntryPointPostProcessor(
                 Environment environment) {
             var sqlLog = bind(environment);
             applyDisplaySettings(sqlLog);
-            return new StormSqlLogEntryPointPostProcessor(Set.copyOf(sqlLog.getEntryPoints()),
-                    sqlLog.getLimit(),
-                    sqlLog.isCallSites(),
-                    sqlLog.getThreshold().getStatements(),
-                    sqlLog.getThreshold().getDuration());
+            var performance = sqlLog.getPerformance();
+            return new StormPerformanceLogEntryPointPostProcessor(Set.copyOf(performance.getEntryPoints()),
+                    performance.getLimit(),
+                    performance.isCallSites(),
+                    performance.getThreshold().getStatements(),
+                    performance.getThreshold().getDuration());
         }
 
         /**
-         * Wraps each HTTP request in a SQL log; the request is the boundary a web application already has.
+         * Wraps each HTTP request in a scope; the request is the boundary a web application already has.
          */
         @Configuration(proxyBeanMethods = false)
         @ConditionalOnWebApplication(type = ConditionalOnWebApplication.Type.SERVLET)
@@ -123,16 +179,16 @@ public class StormSqlLogAutoConfiguration {
         static class WebConfiguration {
 
             /**
-             * Provides the filter that wraps each request in a SQL log.
+             * Provides the filter that wraps each request in a scope the performance log reports on.
              */
             @Bean
-            @ConditionalOnMissingBean(StormSqlLogFilter.class)
-            StormSqlLogFilter stormSqlLogFilter(StormProperties properties) {
-                var sqlLog = properties.getSqlLog();
-                return new StormSqlLogFilter(sqlLog.getLimit(),
-                        sqlLog.isCallSites(),
-                        sqlLog.getThreshold().getStatements(),
-                        sqlLog.getThreshold().getDuration());
+            @ConditionalOnMissingBean(StormPerformanceLogFilter.class)
+            StormPerformanceLogFilter stormPerformanceLogFilter(StormProperties properties) {
+                var performance = properties.getSqlLog().getPerformance();
+                return new StormPerformanceLogFilter(performance.getLimit(),
+                        performance.isCallSites(),
+                        performance.getThreshold().getStatements(),
+                        performance.getThreshold().getDuration());
             }
         }
     }
@@ -142,7 +198,7 @@ public class StormSqlLogAutoConfiguration {
         if (!sqlLog.getCallSiteSkip().isEmpty()) {
             CallSiteCapture.ignoreCallSites(sqlLog.getCallSiteSkip().toArray(String[]::new));
         }
-        var lineWidth = sqlLog.getLineWidth();
+        var lineWidth = sqlLog.getPerformance().getLineWidth();
         if (lineWidth != null) {
             SqlLogRenderer.lineWidth(lineWidth);
         }

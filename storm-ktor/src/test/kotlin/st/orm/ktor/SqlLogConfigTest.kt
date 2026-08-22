@@ -23,8 +23,8 @@ internal class SqlLogConfigTest {
         settings.limit shouldBe 200
         settings.statementThreshold shouldBe null
         settings.durationThreshold shouldBe null
-        settings.slowStatement shouldBe null
-        settings.slowStatementLimit shouldBe null
+        settings.slowThreshold shouldBe null
+        settings.slowLimit shouldBe null
         settings.callSites shouldBe false
         settings.callSiteSkip shouldBe emptyList()
         settings.lineWidth shouldBe null
@@ -33,22 +33,22 @@ internal class SqlLogConfigTest {
     @Test
     fun `every option reads from camelCase configuration keys`() {
         val settings = resolve(
-            "storm.sqlLog.enabled" to "true",
-            "storm.sqlLog.limit" to "50",
-            "storm.sqlLog.threshold.statements" to "10",
-            "storm.sqlLog.threshold.duration" to "250ms",
-            "storm.sqlLog.slowStatement" to "200ms",
-            "storm.sqlLog.slowStatementLimit" to "3",
-            "storm.sqlLog.callSites" to "true",
+            "storm.sqlLog.performance.enabled" to "true",
+            "storm.sqlLog.performance.limit" to "50",
+            "storm.sqlLog.performance.threshold.statements" to "10",
+            "storm.sqlLog.performance.threshold.duration" to "250ms",
+            "storm.sqlLog.slow.threshold" to "200ms",
+            "storm.sqlLog.slow.limit" to "3",
+            "storm.sqlLog.performance.callSites" to "true",
             "storm.sqlLog.callSiteSkip" to "com.myapp.data, com.myapp.plumbing",
-            "storm.sqlLog.lineWidth" to "120",
+            "storm.sqlLog.performance.lineWidth" to "120",
         )
         settings.enabled shouldBe true
         settings.limit shouldBe 50
         settings.statementThreshold shouldBe 10
         settings.durationThreshold shouldBe 250.milliseconds
-        settings.slowStatement shouldBe 200.milliseconds
-        settings.slowStatementLimit shouldBe 3
+        settings.slowThreshold shouldBe 200.milliseconds
+        settings.slowLimit shouldBe 3
         settings.callSites shouldBe true
         settings.callSiteSkip shouldBe listOf("com.myapp.data", "com.myapp.plumbing")
         settings.lineWidth shouldBe 120
@@ -57,22 +57,22 @@ internal class SqlLogConfigTest {
     @Test
     fun `every option reads from snake_case configuration keys`() {
         val settings = resolve(
-            "storm.sql_log.enabled" to "true",
-            "storm.sql_log.limit" to "25",
-            "storm.sql_log.threshold.statements" to "5",
-            "storm.sql_log.threshold.duration" to "2s",
-            "storm.sql_log.slow_statement" to "1s",
-            "storm.sql_log.slow_statement_limit" to "0",
-            "storm.sql_log.call_sites" to "true",
+            "storm.sql_log.performance.enabled" to "true",
+            "storm.sql_log.performance.limit" to "25",
+            "storm.sql_log.performance.threshold.statements" to "5",
+            "storm.sql_log.performance.threshold.duration" to "2s",
+            "storm.sql_log.slow.threshold" to "1s",
+            "storm.sql_log.slow.limit" to "0",
+            "storm.sql_log.performance.call_sites" to "true",
             "storm.sql_log.call_site_skip" to "com.myapp.data",
-            "storm.sql_log.line_width" to "240",
+            "storm.sql_log.performance.line_width" to "240",
         )
         settings.enabled shouldBe true
         settings.limit shouldBe 25
         settings.statementThreshold shouldBe 5
         settings.durationThreshold shouldBe 2.seconds
-        settings.slowStatement shouldBe 1.seconds
-        settings.slowStatementLimit shouldBe 0
+        settings.slowThreshold shouldBe 1.seconds
+        settings.slowLimit shouldBe 0
         settings.callSites shouldBe true
         settings.callSiteSkip shouldBe listOf("com.myapp.data")
         settings.lineWidth shouldBe 240
@@ -89,12 +89,12 @@ internal class SqlLogConfigTest {
     @Test
     fun `a plugin setting overrides the configuration file`() {
         val pluginConfig = StormPluginConfig().apply {
-            sqlLog = false
-            sqlLogLimit = 5
+            sqlLogPerformance = false
+            sqlLogPerformanceLimit = 5
         }
         val settings = resolve(
-            "storm.sqlLog.enabled" to "true",
-            "storm.sqlLog.limit" to "99",
+            "storm.sqlLog.performance.enabled" to "true",
+            "storm.sqlLog.performance.limit" to "99",
             pluginConfig = pluginConfig,
         )
         settings.enabled shouldBe false
@@ -104,8 +104,8 @@ internal class SqlLogConfigTest {
     @Test
     fun `camelCase takes precedence over snake_case`() {
         val settings = resolve(
-            "storm.sqlLog.limit" to "10",
-            "storm.sql_log.limit" to "20",
+            "storm.sqlLog.performance.limit" to "10",
+            "storm.sql_log.performance.limit" to "20",
         )
         settings.limit shouldBe 10
     }
@@ -113,26 +113,26 @@ internal class SqlLogConfigTest {
     @Test
     fun `an invalid boolean aborts installation naming the key`() {
         val exception = shouldThrow<IllegalStateException> {
-            resolve("storm.sqlLog.enabled" to "yes")
+            resolve("storm.sqlLog.performance.enabled" to "yes")
         }
-        exception.message!! shouldContain "storm.sqlLog.enabled"
+        exception.message!! shouldContain "storm.sqlLog.performance.enabled"
         exception.message!! shouldContain "'yes'"
     }
 
     @Test
     fun `an invalid integer aborts installation naming the key`() {
         val exception = shouldThrow<IllegalStateException> {
-            resolve("storm.sql_log.limit" to "many")
+            resolve("storm.sql_log.performance.limit" to "many")
         }
-        exception.message!! shouldContain "storm.sql_log.limit"
+        exception.message!! shouldContain "storm.sql_log.performance.limit"
     }
 
     @Test
     fun `an invalid duration aborts installation naming the key`() {
         val exception = shouldThrow<IllegalStateException> {
-            resolve("storm.sqlLog.threshold.duration" to "fast")
+            resolve("storm.sqlLog.performance.threshold.duration" to "fast")
         }
-        exception.message!! shouldContain "storm.sqlLog.threshold.duration"
+        exception.message!! shouldContain "storm.sqlLog.performance.threshold.duration"
     }
 
     private fun resolve(

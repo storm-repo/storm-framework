@@ -569,7 +569,7 @@ storm {
 }
 ```
 
-A named database reads the same keys under `storm.databases.<name>`, inheriting every key it does not set from the `storm` section. The per-call [SQL log](sql-logging.md#per-call-summaries) is configured under `storm.sqlLog`. See the [Configuration](configuration.md) guide for a description of each property and the full precedence rules.
+A named database reads the same keys under `storm.databases.<name>`, inheriting every key it does not set from the `storm` section. The per-call [SQL log](sql-logging.md#the-performance-log) is configured under `storm.sqlLog`. See the [Configuration](configuration.md) guide for a description of each property and the full precedence rules.
 
 ### Environment-Specific Configuration
 
@@ -754,9 +754,9 @@ Physical transactions report as `storm.transaction` observations with their dura
 
 Queries against a named database are tagged `storm.database=<name>`; the primary database is tagged `storm.database=primary`. The tag is always present because meters of one name must share a single set of tag keys; registries such as Prometheus drop series whose tag keys differ. Queries issued during plugin installation, such as schema validation, run before the registry is resolved and are not observed.
 
-For development and per-call diagnosis, `sqlLog = true` in the plugin configuration (or `storm.sqlLog.enabled = true` in `application.conf`) reports what each call cost the database as one summary (statements, database time against total time, concurrency, and the statement that carried the weight) with thresholds that turn it into a production guardrail. See [SQL Logging](sql-logging.md#per-call-summaries).
+For development and per-call diagnosis, `sqlLogPerformance = true` in the plugin configuration (or `storm.sqlLog.performance.enabled = true` in `application.conf`) reports what each call cost the database as one summary (statements, database time against total time, concurrency, and the statement that carried the weight) with thresholds that turn it into a production guardrail. See [SQL Logging](sql-logging.md#the-performance-log).
 
-For production, `sqlLogSlowStatement = 200.milliseconds` (or `storm.sqlLog.slowStatement = 200ms`) reports each single execution whose database time exceeds the threshold, under `st.orm.sql.slow` at `WARN`: the statement, its call site, its rows, and how it compares to what its shape typically costs. It needs no request boundary, follows no coroutine context, and applies whether or not the summaries are enabled. See [Slow Statements](sql-logging.md#slow-statements).
+For production, `sqlLogSlowThreshold = 200.milliseconds` (or `storm.sqlLog.slow.threshold = 200ms`) reports each single execution whose database time exceeds the threshold, under `st.orm.sql.slow` at `WARN`: the statement, its call site, its rows, and how it compares to what its shape typically costs. It needs no request boundary, follows no coroutine context, and applies whether or not the performance log is enabled; left unset while the performance log runs against `sqlLogPerformanceDurationThreshold`, it takes that duration, so a reported call names the statement behind it. See [The Slow Statement Log](sql-logging.md#the-slow-statement-log).
 
 For full control, set an explicit observer in the plugin configuration; it takes precedence over the automatic binding. The `queryObserver` slot accepts any `st.orm.core.spi.QueryObserver`, including a hand-configured `MicrometerQueryObserver` from the `storm-micrometer` module (custom `ObservationConvention`, extra key values):
 

@@ -55,15 +55,24 @@ import st.orm.core.template.impl.StatementListener.Handle;
  * always safe to print. Values themselves render only while the logger is at {@code TRACE}, the rule every Storm
  * SQL logger follows; the line stays at {@code WARN}.</p>
  *
- * <p>Enabled by a threshold: the {@code storm.sql_log.slow_statement} system property on a plain JVM, or the
+ * <p>Enabled by a threshold: the {@code storm.sql_log.slow.threshold} system property on a plain JVM, or the
  * corresponding keys of the Spring and Ktor integrations, which apply their configuration through
  * {@link #threshold(Duration)}. Without a threshold nothing is measured; a statement reads one volatile field and
  * moves on. Lines report at {@code WARN}, so raising {@code st.orm.sql} to {@code DEBUG} for per-statement
  * logging duplicates nothing here.</p>
  *
+ * <p>The threshold is a live setting rather than a startup one: {@link #threshold(Duration)} and
+ * {@link #limit(int)} take effect on the next execution, so an application that exposes them can switch the log
+ * on while a database is degraded and off again afterwards, which is when the log is worth the most. A shape's
+ * baseline is learned from the executions observed since the log was switched on, so the first lines after a
+ * switch carry none.</p>
+ *
  * <p>Under a degraded database every statement is slow. Lines are rate-limited per shape
- * ({@code storm.sql_log.slow_statement_limit}, lines per shape per minute), and a line that follows suppressed
- * ones says how many it stands for, so the log names the shapes that suffer without drowning in them.</p>
+ * ({@code storm.sql_log.slow.limit}, lines per shape per minute), and a line that follows suppressed
+ * ones says how many it stands for, so the log names the shapes that suffer without drowning in them. An
+ * execution whose shape is not tracked, because the statement has no shape of its own or because the tracked
+ * shapes are exhausted, counts against one budget shared by all of them: such a line carries no baseline, but the
+ * limit still holds, since flooding the log is the one thing the limit exists to prevent.</p>
  *
  * @since 1.14
  */
@@ -82,12 +91,27 @@ public final class SlowStatementLog {
 
     /**
      * Sets the database time above which an execution is reported; {@code null} or a non-positive duration
-     * switches the log off. Intended to be called once at startup.
+     * switches the log off.
+     *
+     * <p>Safe to call at any time, not only at startup: the write is picked up by the next execution to return
+     * from the database. Switching the log on while an application runs is what lets a degraded database be
+     * diagnosed without a restart, at the cost of the first lines carrying no baseline, since a shape is only
+     * measured while the log is on.</p>
      *
      * @param threshold the threshold, or {@code null} for none.
      */
     public static void threshold(@Nullable Duration threshold) {
         thresholdNanos = threshold == null || threshold.isNegative() || threshold.isZero() ? 0 : threshold.toNanos();
+    }
+
+    /**
+     * Returns the database time above which an execution is reported, or {@code null} while the log is off.
+     *
+     * @return the threshold in effect, or {@code null} for none.
+     */
+    public static @Nullable Duration threshold() {
+        long nanos = thresholdNanos;
+        return nanos == 0 ? null : Duration.ofNanos(nanos);
     }
 
     /**
@@ -108,13 +132,24 @@ public final class SlowStatementLog {
 
     /**
      * Sets how many lines a shape may report per minute; the lines beyond it are suppressed and counted, and the
-     * first line the shape reports afterwards says how many. Zero lifts the limit. Intended to be called once at
-     * startup.
+     * first line the shape reports afterwards says how many. Zero lifts the limit.
+     *
+     * <p>Safe to call at any time, as {@link #threshold(Duration)} is: the write is picked up by the next
+     * execution that reports.</p>
      *
      * @param limit lines per shape per minute, or zero for no limit.
      */
     public static void limit(int limit) {
         linesPerMinute = Math.max(0, limit);
+    }
+
+    /**
+     * Returns how many lines a shape may report per minute, or zero when the limit is lifted.
+     *
+     * @return the limit in effect.
+     */
+    public static int limit() {
+        return linesPerMinute;
     }
 
     /** Executions of a shape before its baseline is trusted enough to appear on a line. */
@@ -123,8 +158,11 @@ public final class SlowStatementLog {
     /** The window a shape's samples and reporting budget are counted in. */
     private static final long WINDOW_NANOS = Duration.ofMinutes(1).toNanos();
 
-    /** Shapes tracked before new ones go untracked; templates bound the count, this bounds a runaway. */
-    private static final int MAX_SHAPES = 4096;
+    /**
+     * Shapes tracked before new ones go untracked; templates bound the count, this bounds a runaway. Not final so
+     * a test can exhaust the map without generating four thousand shapes.
+     */
+    static int maxShapes = 4096;
 
     /**
      * What a shape typically costs, and the reporting budget it has left, counted per window.
@@ -258,9 +296,18 @@ public final class SlowStatementLog {
 
     private static final ConcurrentHashMap<Long, ShapeStats> SHAPES = new ConcurrentHashMap<>();
 
+    /**
+     * The reporting budget every execution without stats of its own counts against: a statement whose shape could
+     * not be derived, and every shape beyond {@link #maxShapes}. Its means are never read, only its budget, so
+     * what the executions sharing it cost has no bearing on anything; what it carries is the guarantee that they
+     * cannot report without limit.
+     */
+    private static volatile ShapeStats untracked = new ShapeStats();
+
     /** Forgets every shape's baseline and reporting budget; for tests, which share the JVM and its shapes. */
     static void reset() {
         SHAPES.clear();
+        untracked = new ShapeStats();
     }
 
     /** Returns the stats of the shape, or {@code null} for an unknown shape or once the shape count is exhausted. */
@@ -272,7 +319,7 @@ public final class SlowStatementLog {
         if (stats != null) {
             return stats;
         }
-        if (SHAPES.size() >= MAX_SHAPES) {
+        if (SHAPES.size() >= maxShapes) {
             return null;
         }
         return SHAPES.computeIfAbsent(shapeId, ignore -> new ShapeStats());
@@ -322,22 +369,22 @@ public final class SlowStatementLog {
                 return;
             }
             var stats = statsOf(context.shapeId());
+            // An execution the map has no room for, or that has no shape to be keyed by, still counts against a
+            // budget; only its baseline is lost. Recording is what moves the window a budget is counted in, so
+            // the shared budget is recorded into as a shape's own is.
+            var budget = stats == null ? untracked : stats;
             // A batch binds its rows through bind variables, not the parameters the context carries, so the count
             // would describe the template rather than the execution.
             int parameterCount = context.kind() == ExecutionKind.BATCH ? 0 : parameters.size();
-            if (stats != null) {
-                stats.record(executed, databaseNanos, parameterCount);
-            }
+            budget.record(executed, databaseNanos, parameterCount);
             if (databaseNanos < threshold || !LOGGER.isWarnEnabled()) {
                 return;
             }
-            if (stats != null) {
-                suppressed = stats.claim(linesPerMinute);
-                if (suppressed < 0) {
-                    return;
-                }
-                baseline = stats.baseline(databaseNanos, parameterCount);
+            suppressed = budget.claim(linesPerMinute);
+            if (suppressed < 0) {
+                return;
             }
+            baseline = stats == null ? null : stats.baseline(databaseNanos, parameterCount);
             slow = true;
             // Only a slow execution pays for the stack walk, and it pays here, where the caller is still on it.
             callSite = CallSiteCapture.callSite();
@@ -485,7 +532,7 @@ public final class SlowStatementLog {
     // Placed after every field it touches, since static initialization runs in textual order.
     static {
         var config = StormConfig.defaults();
-        threshold(getDuration(config, StormConfig.SQL_LOG_SLOW_STATEMENT, null));
-        limit(getInt(config, StormConfig.SQL_LOG_SLOW_STATEMENT_LIMIT, DEFAULT_LIMIT));
+        threshold(getDuration(config, StormConfig.SQL_LOG_SLOW_THRESHOLD, null));
+        limit(getInt(config, StormConfig.SQL_LOG_SLOW_LIMIT, DEFAULT_LIMIT));
     }
 }

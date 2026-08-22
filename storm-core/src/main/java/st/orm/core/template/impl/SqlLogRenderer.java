@@ -29,7 +29,7 @@ import st.orm.core.template.StatementOrigin;
  * Renders a {@link Summary} as a headline plus an aligned line per distinct statement.
  *
  * <p>How a summary renders — its line width — is a property of the log viewer rather than of any scope,
- * configured like a deployment property: the {@code storm.sql_log.line_width} system property on a plain JVM, or
+ * configured like a deployment property: the {@code storm.sql_log.performance.line_width} system property on a plain JVM, or
  * the corresponding keys of the Spring and Ktor integrations, which apply their configuration through the setter
  * here.</p>
  *

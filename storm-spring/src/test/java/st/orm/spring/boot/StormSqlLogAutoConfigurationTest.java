@@ -26,7 +26,9 @@ import java.lang.annotation.ElementType;
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
+import java.time.Duration;
 import java.util.List;
+import java.util.Map;
 import java.util.function.Consumer;
 import javax.sql.DataSource;
 import org.junit.jupiter.api.Test;
@@ -127,7 +129,7 @@ public class StormSqlLogAutoConfigurationTest {
     public void testAScheduledMethodReportsAScopeNamedAfterIt() {
         contextRunner
                 .withUserConfiguration(JobConfiguration.class)
-                .withPropertyValues("storm.sql-log.enabled=true")
+                .withPropertyValues("storm.sql-log.performance.enabled=true")
                 .run(context -> withScopeLogger(events -> {
                     var job = context.getBean(ReportJob.class);
                     assertTrue(AopUtils.isCglibProxy(job));
@@ -142,7 +144,7 @@ public class StormSqlLogAutoConfigurationTest {
     public void testAMethodWithoutAnEntryPointAnnotationIsNotWrapped() {
         contextRunner
                 .withUserConfiguration(JobConfiguration.class)
-                .withPropertyValues("storm.sql-log.enabled=true")
+                .withPropertyValues("storm.sql-log.performance.enabled=true")
                 .run(context -> withScopeLogger(events -> {
                     context.getBean(ReportJob.class).plain();
                     assertTrue(events.isEmpty());
@@ -155,8 +157,8 @@ public class StormSqlLogAutoConfigurationTest {
     public void testConfiguredEntryPointsReplaceTheDefaults() {
         contextRunner
                 .withUserConfiguration(JobConfiguration.class)
-                .withPropertyValues("storm.sql-log.enabled=true",
-                        "storm.sql-log.entry-points=" + CustomListener.class.getName())
+                .withPropertyValues("storm.sql-log.performance.enabled=true",
+                        "storm.sql-log.performance.entry-points=" + CustomListener.class.getName())
                 .run(context -> withScopeLogger(events -> {
                     var job = context.getBean(ReportJob.class);
                     job.nightly();
@@ -172,9 +174,9 @@ public class StormSqlLogAutoConfigurationTest {
     public void testAThresholdReportsOnlyTheInvocationsExceedingIt() {
         contextRunner
                 .withUserConfiguration(JobConfiguration.class)
-                .withPropertyValues("storm.sql-log.enabled=true",
-                        "storm.sql-log.entry-points=" + CustomListener.class.getName(),
-                        "storm.sql-log.threshold.statements=2")
+                .withPropertyValues("storm.sql-log.performance.enabled=true",
+                        "storm.sql-log.performance.entry-points=" + CustomListener.class.getName(),
+                        "storm.sql-log.performance.threshold.statements=2")
                 .run(context -> withScopeLogger(events -> {
                     var job = context.getBean(ReportJob.class);
                     job.onMessage();
@@ -187,8 +189,8 @@ public class StormSqlLogAutoConfigurationTest {
     public void testAThresholdKeepsAnInvocationBelowItQuiet() {
         contextRunner
                 .withUserConfiguration(JobConfiguration.class)
-                .withPropertyValues("storm.sql-log.enabled=true",
-                        "storm.sql-log.threshold.statements=2")
+                .withPropertyValues("storm.sql-log.performance.enabled=true",
+                        "storm.sql-log.performance.threshold.statements=2")
                 .run(context -> withScopeLogger(events -> {
                     context.getBean(ReportJob.class).nightly();
                     assertTrue(events.isEmpty());
@@ -200,7 +202,7 @@ public class StormSqlLogAutoConfigurationTest {
         contextRunner
                 .withUserConfiguration(JobConfiguration.class)
                 .run(context -> {
-                    assertFalse(context.containsBean("stormSqlLogEntryPointPostProcessor"));
+                    assertFalse(context.containsBean("stormPerformanceLogEntryPointPostProcessor"));
                     assertFalse(AopUtils.isAopProxy(context.getBean(ReportJob.class)));
                 });
     }
@@ -210,9 +212,9 @@ public class StormSqlLogAutoConfigurationTest {
         new WebApplicationContextRunner()
                 .withConfiguration(AutoConfigurations.of(StormSqlLogAutoConfiguration.class))
                 .withUserConfiguration(JobConfiguration.class)
-                .withPropertyValues("storm.sql-log.enabled=true", "storm.sql-log.threshold.statements=5")
+                .withPropertyValues("storm.sql-log.performance.enabled=true", "storm.sql-log.performance.threshold.statements=5")
                 .run(context -> withScopeLogger(events -> {
-                    var filter = context.getBean("stormSqlLogFilter", StormSqlLogFilter.class);
+                    var filter = context.getBean("stormPerformanceLogFilter", StormPerformanceLogFilter.class);
                     // The threshold from the properties reached the filter: a request below it says nothing,
                     // although the logger would report it without a threshold.
                     try {
@@ -231,10 +233,10 @@ public class StormSqlLogAutoConfigurationTest {
         try {
             contextRunner
                     .withUserConfiguration(JobConfiguration.class)
-                    .withPropertyValues("storm.sql-log.slow-statement=200ms")
+                    .withPropertyValues("storm.sql-log.slow.threshold=200ms")
                     .run(context -> {
                         assertTrue(SlowStatementLog.active());
-                        assertFalse(context.containsBean("stormSqlLogEntryPointPostProcessor"));
+                        assertFalse(context.containsBean("stormPerformanceLogEntryPointPostProcessor"));
                     });
         } finally {
             SlowStatementLog.threshold(null);
@@ -249,10 +251,10 @@ public class StormSqlLogAutoConfigurationTest {
             new WebApplicationContextRunner()
                     .withConfiguration(AutoConfigurations.of(StormSqlLogAutoConfiguration.class))
                     .withUserConfiguration(JobConfiguration.class)
-                    .withPropertyValues("storm.sql-log.enabled=true", "storm.sql-log.slow-statement=1ns")
+                    .withPropertyValues("storm.sql-log.performance.enabled=true", "storm.sql-log.slow.threshold=1ns")
                     .run(context -> {
                         assertTrue(SlowStatementLog.active());
-                        assertTrue(context.containsBean("stormSqlLogFilter"));
+                        assertTrue(context.containsBean("stormPerformanceLogFilter"));
                         var slowLogger = (ch.qos.logback.classic.Logger)
                                 org.slf4j.LoggerFactory.getLogger("st.orm.sql.slow");
                         var appender = new ListAppender<ILoggingEvent>();
@@ -260,7 +262,7 @@ public class StormSqlLogAutoConfigurationTest {
                         slowLogger.addAppender(appender);
                         try {
                             withScopeLogger(events -> {
-                                var filter = context.getBean(StormSqlLogFilter.class);
+                                var filter = context.getBean(StormPerformanceLogFilter.class);
                                 var job = context.getBean(ReportJob.class);
                                 var request = new MockHttpServletRequest("GET", "/report");
                                 try {
@@ -290,8 +292,144 @@ public class StormSqlLogAutoConfigurationTest {
         SlowStatementLog.threshold(null);
         contextRunner
                 .withUserConfiguration(JobConfiguration.class)
-                .withPropertyValues("storm.sql-log.enabled=true")
+                .withPropertyValues("storm.sql-log.performance.enabled=true")
                 .run(context -> assertFalse(SlowStatementLog.active()));
+    }
+
+    @Test
+    public void testTheSummaryDurationThresholdBecomesTheStatementThreshold() {
+        // A call that exceeds the duration holds at least one execution, so the same duration at statement grain
+        // only reports inside a call that reports anyway: the summary gains the statement that caused it.
+        SlowStatementLog.threshold(null);
+        try {
+            contextRunner
+                    .withUserConfiguration(JobConfiguration.class)
+                    .withPropertyValues("storm.sql-log.performance.enabled=true", "storm.sql-log.performance.threshold.duration=500ms")
+                    .run(context -> assertEquals(Duration.ofMillis(500), SlowStatementLog.threshold()));
+        } finally {
+            SlowStatementLog.threshold(null);
+        }
+    }
+
+    @Test
+    public void testAnExplicitSlowStatementWinsOverTheSummaryThreshold() {
+        SlowStatementLog.threshold(null);
+        try {
+            contextRunner
+                    .withUserConfiguration(JobConfiguration.class)
+                    .withPropertyValues("storm.sql-log.performance.enabled=true",
+                            "storm.sql-log.performance.threshold.duration=500ms",
+                            "storm.sql-log.slow.threshold=50ms")
+                    .run(context -> assertEquals(Duration.ofMillis(50), SlowStatementLog.threshold()));
+        } finally {
+            SlowStatementLog.threshold(null);
+        }
+    }
+
+    @Test
+    public void testTheSummaryThresholdIsNotDerivedWithoutTheSummaries() {
+        // The duration only says what a slow call is once calls are being reported; on its own it configures
+        // nothing, so nothing is derived from it.
+        SlowStatementLog.threshold(null);
+        contextRunner
+                .withUserConfiguration(JobConfiguration.class)
+                .withPropertyValues("storm.sql-log.performance.threshold.duration=500ms")
+                .run(context -> assertFalse(SlowStatementLog.active()));
+    }
+
+    @Test
+    public void testTheLimitAppliesWithoutAThresholdOfItsOwn() {
+        // The threshold may arrive from a system property or at runtime, so a configured limit has to be applied
+        // whether or not this application configures the threshold too.
+        SlowStatementLog.threshold(null);
+        int previous = SlowStatementLog.limit();
+        try {
+            contextRunner
+                    .withUserConfiguration(JobConfiguration.class)
+                    .withPropertyValues("storm.sql-log.slow.limit=2")
+                    .run(context -> {
+                        assertFalse(SlowStatementLog.active());
+                        assertEquals(2, SlowStatementLog.limit());
+                    });
+        } finally {
+            SlowStatementLog.limit(previous);
+        }
+    }
+
+    @Test
+    public void testTheEndpointReadsAndSetsTheSlowThresholdAtRuntime() {
+        // Off by default costs nothing only while it can be switched on where it is needed, which is a running
+        // deployment whose database is degraded now.
+        SlowStatementLog.threshold(null);
+        try {
+            contextRunner
+                    .withUserConfiguration(JobConfiguration.class)
+                    .run(context -> {
+                        var endpoint = context.getBean(StormSqlLogEndpoint.class);
+                        assertEquals(false, slowStatementOf(endpoint).get("active"));
+                        endpoint.configure("200ms", 3, null, null, null, null);
+                        assertEquals(Duration.ofMillis(200), SlowStatementLog.threshold());
+                        assertEquals(3, SlowStatementLog.limit());
+                        assertEquals(true, slowStatementOf(endpoint).get("active"));
+                        endpoint.configure("off", null, null, null, null, null);
+                        assertFalse(SlowStatementLog.active());
+                        assertEquals(3, SlowStatementLog.limit());
+                    });
+        } finally {
+            SlowStatementLog.threshold(null);
+            SlowStatementLog.limit(SlowStatementLog.DEFAULT_LIMIT);
+        }
+    }
+
+    @Test
+    public void testTheEndpointRetunesThePerformanceBoundariesAtRuntime() {
+        // The performance log answers the same question about the same misbehaving deployment, so what it reports
+        // on is as live as the slow threshold; only whether the boundaries exist stays a startup decision.
+        new WebApplicationContextRunner()
+                .withConfiguration(AutoConfigurations.of(StormSqlLogAutoConfiguration.class))
+                .withUserConfiguration(JobConfiguration.class)
+                .withPropertyValues("storm.sql-log.performance.enabled=true", "storm.sql-log.performance.threshold.duration=500ms")
+                .run(context -> {
+                    var endpoint = context.getBean(StormSqlLogEndpoint.class);
+                    var filter = context.getBean(StormPerformanceLogFilter.class);
+                    var postProcessor = context.getBean(StormPerformanceLogEntryPointPostProcessor.class);
+                    assertEquals(Duration.ofMillis(500), filter.settings().durationThreshold());
+                    assertEquals(Duration.ofMillis(500), postProcessor.settings().durationThreshold());
+                    endpoint.configure(null, null, "20", "50ms", true, 500);
+                    for (var boundary : List.of(filter.settings(), postProcessor.settings())) {
+                        assertEquals(20, boundary.statementThreshold());
+                        assertEquals(Duration.ofMillis(50), boundary.durationThreshold());
+                        assertTrue(boundary.callSites());
+                        assertEquals(500, boundary.limit());
+                    }
+                    // Dropping both thresholds returns the boundaries to reporting every unit of work at INFO.
+                    endpoint.configure(null, null, "off", "off", null, null);
+                    assertFalse(filter.settings().thresholded());
+                    assertFalse(postProcessor.settings().thresholded());
+                });
+    }
+
+    @Test
+    public void testTheEndpointReportsTheSlowLogWithoutAnyBoundary() {
+        // The slow statement log needs no boundary, so the endpoint is useful in an application that never
+        // enabled the performance log at all.
+        contextRunner
+                .withUserConfiguration(JobConfiguration.class)
+                .run(context -> {
+                    var endpoint = context.getBean(StormSqlLogEndpoint.class);
+                    assertTrue(endpoint.settings().containsKey("slowStatement"));
+                    assertTrue(performanceOf(endpoint).isEmpty());
+                });
+    }
+
+    @SuppressWarnings("unchecked")
+    private static Map<String, Object> slowStatementOf(StormSqlLogEndpoint endpoint) {
+        return (Map<String, Object>) endpoint.settings().get("slowStatement");
+    }
+
+    @SuppressWarnings("unchecked")
+    private static Map<String, Object> performanceOf(StormSqlLogEndpoint endpoint) {
+        return (Map<String, Object>) endpoint.settings().get("performance");
     }
 
     @Test
@@ -299,10 +437,10 @@ public class StormSqlLogAutoConfigurationTest {
         // The runner is not a web application, so only the entry-point post-processor registers.
         contextRunner
                 .withUserConfiguration(JobConfiguration.class)
-                .withPropertyValues("storm.sql-log.enabled=true")
+                .withPropertyValues("storm.sql-log.performance.enabled=true")
                 .run(context -> {
-                    assertTrue(context.containsBean("stormSqlLogEntryPointPostProcessor"));
-                    assertFalse(context.containsBean("stormSqlLogFilter"));
+                    assertTrue(context.containsBean("stormPerformanceLogEntryPointPostProcessor"));
+                    assertFalse(context.containsBean("stormPerformanceLogFilter"));
                 });
     }
 }

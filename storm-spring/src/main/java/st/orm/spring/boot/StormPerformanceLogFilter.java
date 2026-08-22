@@ -41,7 +41,7 @@ import st.orm.core.template.SqlLog;
  * 	 9 ms    8 rows  8x  City  fetch   SELECT c.id, c.name FROM city c WHERE c.id = ?
  * }</pre>
  *
- * <p>Enabled with {@code storm.sql-log.enabled=true}. Statements are recorded only while the summary logger is
+ * <p>Enabled with {@code storm.sql-log.performance.enabled=true}. Statements are recorded only while the summary logger is
  * enabled, so a disabled logger costs nothing beyond the check.</p>
  *
  * <p><strong>Covers the statements the request thread issues.</strong> A request is a thread boundary, so this
@@ -56,16 +56,14 @@ import st.orm.core.template.SqlLog;
  *
  * @since 1.13
  */
-public class StormSqlLogFilter extends OncePerRequestFilter {
+public class StormPerformanceLogFilter extends OncePerRequestFilter implements PerformanceLog.Boundary {
 
     private static final Logger LOGGER = LoggerFactory.getLogger("st.orm.sql.perf");
 
-    private final int limit;
-    private final boolean callSites;
-    private final @Nullable Integer statementThreshold;
-    private final @Nullable Duration durationThreshold;
+    /** Read per request, so a replacement takes effect on the request after it. */
+    private volatile PerformanceLog.Settings settings;
 
-    public StormSqlLogFilter(int limit) {
+    public StormPerformanceLogFilter(int limit) {
         this(limit, false, null, null);
     }
 
@@ -78,7 +76,7 @@ public class StormSqlLogFilter extends OncePerRequestFilter {
      * @param statementThreshold number of statements above which a request is reported, or {@code null}.
      * @param durationThreshold request duration above which a request is reported, or {@code null}.
      */
-    public StormSqlLogFilter(int limit,
+    public StormPerformanceLogFilter(int limit,
                                @Nullable Integer statementThreshold,
                                @Nullable Duration durationThreshold) {
         this(limit, false, statementThreshold, durationThreshold);
@@ -93,35 +91,46 @@ public class StormSqlLogFilter extends OncePerRequestFilter {
      * @param statementThreshold number of statements above which a request is reported, or {@code null}.
      * @param durationThreshold request duration above which a request is reported, or {@code null}.
      */
-    public StormSqlLogFilter(int limit,
+    public StormPerformanceLogFilter(int limit,
                                boolean callSites,
                                @Nullable Integer statementThreshold,
                                @Nullable Duration durationThreshold) {
-        this.limit = limit;
-        this.callSites = callSites;
-        this.statementThreshold = statementThreshold;
-        this.durationThreshold = durationThreshold;
+        this.settings = new PerformanceLog.Settings(limit, callSites, statementThreshold, durationThreshold);
     }
 
-    private boolean thresholded() {
-        return statementThreshold != null || durationThreshold != null;
+    @Override
+    public PerformanceLog.Settings settings() {
+        return settings;
+    }
+
+    @Override
+    public void settings(PerformanceLog.Settings settings) {
+        this.settings = settings;
+    }
+
+    @Override
+    public String boundaryName() {
+        return "request";
     }
 
     @Override
     protected void doFilterInternal(HttpServletRequest request,
                                     HttpServletResponse response,
                                     FilterChain chain) throws ServletException, IOException {
-        if (!SqlLogReporting.consumes(LOGGER, thresholded())) {
+        // Read once, so a replacement mid-request cannot report a request against settings it was not recorded
+        // under.
+        var settings = this.settings;
+        if (!PerformanceLog.consumes(LOGGER, settings)) {
             // Nothing consumes the summary, so do not open a scope to build one.
             chain.doFilter(request, response);
             return;
         }
         String name = "%s %s".formatted(request.getMethod(), request.getRequestURI());
         try {
-            SqlLog.recordThrowing(name, limit, callSites, () -> {
+            SqlLog.recordThrowing(name, settings.limit(), settings.callSites(), () -> {
                 chain.doFilter(request, response);
                 return null;
-            }, summary -> SqlLogReporting.report(LOGGER, summary, statementThreshold, durationThreshold));
+            }, summary -> PerformanceLog.report(LOGGER, summary, settings));
         } catch (ServletException | IOException | RuntimeException e) {
             throw e;
         } catch (Exception e) {
