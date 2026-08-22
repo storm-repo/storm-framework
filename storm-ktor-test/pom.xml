@@ -149,6 +149,7 @@
                      roots, which include Maven's src/main/java whether it exists or not. Naming the Kotlin root
                      keeps a missing directory from being reported as an error on every build. -->
                 <configuration>
+                    <skip>${maven.javadoc.skip}</skip>
                     <sourceDirectories>
                         <dir>${project.basedir}/src/main/kotlin</dir>
                     </sourceDirectories>
