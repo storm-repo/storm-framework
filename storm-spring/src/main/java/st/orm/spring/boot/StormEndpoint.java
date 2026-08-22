@@ -27,20 +27,24 @@ import org.springframework.boot.convert.DurationStyle;
 import st.orm.core.template.impl.SlowStatementLog;
 
 /**
- * Reads and retunes what the SQL log reports, while the application runs.
+ * Storm's control surface on a running application, registered as the {@code storm} actuator endpoint.
  *
- * <p>Both halves of the log answer a question that arises about a deployment that is misbehaving now, which is
- * the moment a restart costs the most: the performance log says what a call cost the database, and the slow
+ * <p>It carries what Storm can be told about itself while it runs, in a section per subject; today that is the
+ * SQL log, under {@code performance} and {@code slowStatement}. A reader asks one endpoint what Storm is doing
+ * and tells it to do something else, the way {@code flyway} and {@code liquibase} answer for theirs.</p>
+ *
+ * <p>Both halves of the SQL log answer a question that arises about a deployment that is misbehaving now, which
+ * is the moment a restart costs the most: the performance log says what a call cost the database, and the slow
  * statement log names the execution that made it cost that. A threshold that can only be set at startup is a
  * threshold that is wrong when it matters, so both are read per unit of work and both are settable here.</p>
  *
- * <p>What cannot be set here is {@code storm.sql-log.performance.enabled}. It decides whether the request filter and the
- * entry-point proxies exist, and neither can be installed into a context that has already refreshed. An
- * application that wants the performance log reachable in production enables it and leaves the thresholds
- * high; lowering a threshold here then costs nothing until it is lowered. The slow statement log needs no such
+ * <p>What cannot be set here is {@code storm.sql-log.performance.enabled}. It decides whether the request filter
+ * and the entry-point proxies exist, and neither can be installed into a context that has already refreshed. An
+ * application that wants the performance log reachable in production enables it and leaves the thresholds high;
+ * lowering a threshold here then costs nothing until it is lowered. The slow statement log needs no such
  * plumbing and can be switched on from off.</p>
  *
- * <p>Registered as {@code stormsqllog}, and, like every actuator endpoint, only reachable once exposed through
+ * <p>Like every actuator endpoint it is only reachable once exposed through
  * {@code management.endpoints.web.exposure.include}. It reads and changes the diagnostic settings of a running
  * deployment, so it belongs behind the same authorization as the other write endpoints.</p>
  *
@@ -52,8 +56,8 @@ import st.orm.core.template.impl.SlowStatementLog;
  *
  * @since 1.14
  */
-@Endpoint(id = "stormsqllog")
-public class StormSqlLogEndpoint {
+@Endpoint(id = "storm")
+public class StormEndpoint {
 
     private final List<PerformanceLog.Boundary> boundaries;
 
@@ -63,7 +67,7 @@ public class StormSqlLogEndpoint {
      *
      * @param boundaries the request filter and the entry-point post-processor, where they exist.
      */
-    StormSqlLogEndpoint(List<PerformanceLog.Boundary> boundaries) {
+    StormEndpoint(List<PerformanceLog.Boundary> boundaries) {
         this.boundaries = List.copyOf(boundaries);
     }
 
