@@ -74,9 +74,11 @@
                 <groupId>org.jetbrains.kotlin</groupId>
                 <artifactId>kotlin-maven-plugin</artifactId>
                 <version>${kotlin.version}</version>
-                <!-- Contributes the plugin's lifecycle mapping, which also synthesises default-compile and
-                     default-kapt executions beside the ones declared below. That duplication is deliberate for
-                     now: dropping it changed what CodeQL's Kotlin extractor sees and broke its analysis. -->
+                <!-- Load-bearing beyond this module. It contributes the plugin's lifecycle mapping, which
+                     synthesises default-compile and default-kapt executions beside the ones declared below; the
+                     duplicate compilation looks removable and is not. Without it, CodeQL's Kotlin extractor binds
+                     against the wrong compiler generation and fails the analysis on a later module in the
+                     reactor, with an AbstractMethodError on ComponentRegistrar. Verified both ways. -->
                 <extensions>true</extensions>
                 <configuration>
                     <jvmTarget>21</jvmTarget>
