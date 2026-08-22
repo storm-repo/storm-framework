@@ -272,75 +272,19 @@ public class StormProperties {
     }
 
     /**
-     * Per-request SQL log configuration: what one request cost the database, reported as a single summary.
+     * SQL log configuration. The umbrella covers two logs that answer different questions about the same
+     * executions: the performance log ({@code st.orm.sql.perf}) says what a unit of work cost the database, and
+     * the slow statement log ({@code st.orm.sql.slow}) names the single execution that cost too much. Each has
+     * its own section; call-site attribution is shared, since both logs name the frame the same way.
      */
     public static class SqlLog {
 
-        /** Whether each request is wrapped in a SQL log whose summary is logged. Defaults to false. */
-        private boolean enabled;
-
-        /** Number of statements to record per request; the summary counts the rest regardless. */
-        private int limit = 200;
-
-        /** Returns whether per-request scopes are enabled. */
-        public boolean isEnabled() { return enabled; }
-
-        /** Sets whether per-request scopes are enabled. */
-        public void setEnabled(boolean enabled) { this.enabled = enabled; }
-
-        /** Returns the number of statements recorded per request. */
-        public int getLimit() { return limit; }
-
-        /** Sets the number of statements recorded per request. */
-        public void setLimit(int limit) { this.limit = limit; }
-
         /**
-         * Whether each execution is attributed to the application frame that caused it, shown per row as
-         * {@code @ File.ext:line}. Costs a stack walk per execution while a scope records; suited to
-         * development. Defaults to false.
-         */
-        private boolean callSites;
-
-        /** Returns whether call sites are recorded. */
-        public boolean isCallSites() { return callSites; }
-
-        /** Sets whether call sites are recorded. */
-        public void setCallSites(boolean callSites) { this.callSites = callSites; }
-
-        /**
-         * Packages whose frames are skipped when attributing an execution to a call site, so rows name the
-         * code that asked for the work rather than the application's own database plumbing.
+         * Packages whose frames are skipped when attributing an execution to a call site, so rows name the code
+         * that asked for the work rather than the application's own database plumbing. Shared: both logs
+         * attribute through the same walker.
          */
         private List<String> callSiteSkip = java.util.List.of();
-
-        /**
-         * Annotations that mark a bean method as an entry point to be wrapped in its own scope, covering the
-         * ways work enters the application without an HTTP request. Each invocation reports as one summary
-         * named after the method ({@code ReportJob.nightly}), with the same thresholds as the per-request
-         * filter.
-         *
-         * <p>Matching is by annotation type name, directly present on the bean method, so a default whose
-         * library is absent from the classpath never matches and costs nothing. Setting the property replaces
-         * the default list; an empty list turns entry-point wrapping off.</p>
-         */
-        private List<String> entryPoints = java.util.List.of(
-                "org.springframework.scheduling.annotation.Scheduled",
-                "org.springframework.scheduling.annotation.Schedules",
-                "org.springframework.kafka.annotation.KafkaListener",
-                "org.springframework.kafka.annotation.KafkaListeners",
-                "org.springframework.kafka.annotation.KafkaHandler",
-                "org.springframework.amqp.rabbit.annotation.RabbitListener",
-                "org.springframework.amqp.rabbit.annotation.RabbitListeners",
-                "org.springframework.amqp.rabbit.annotation.RabbitHandler",
-                "org.springframework.jms.annotation.JmsListener",
-                "org.springframework.jms.annotation.JmsListeners",
-                "io.awspring.cloud.sqs.annotation.SqsListener");
-
-        /** Returns the annotations that mark a bean method as an entry point. */
-        public List<String> getEntryPoints() { return entryPoints; }
-
-        /** Sets the annotations that mark a bean method as an entry point. */
-        public void setEntryPoints(List<String> entryPoints) { this.entryPoints = entryPoints; }
 
         /** Returns the packages skipped in call-site attribution. */
         public List<String> getCallSiteSkip() { return callSiteSkip; }
@@ -348,79 +292,180 @@ public class StormProperties {
         /** Sets the packages skipped in call-site attribution. */
         public void setCallSiteSkip(List<String> callSiteSkip) { this.callSiteSkip = callSiteSkip; }
 
-        /**
-         * Width a summary row aims for, such as 120 for narrow viewers or 240 for wide ones; the statement
-         * text elides to what the row's other columns leave. A display property of the deployment, applied
-         * once at startup.
-         */
-        private @Nullable Integer lineWidth;
+        /** The performance log. */
+        private Performance performance = new Performance();
 
-        /** Returns the display width summary rows aim for. */
-        public @Nullable Integer getLineWidth() { return lineWidth; }
+        /** Returns the performance log configuration. */
+        public Performance getPerformance() { return performance; }
 
-        /** Sets the display width summary rows aim for. */
-        public void setLineWidth(@Nullable Integer lineWidth) { this.lineWidth = lineWidth; }
+        /** Sets the performance log configuration. */
+        public void setPerformance(Performance performance) { this.performance = performance; }
 
-        /**
-         * Database time above which a single statement execution is reported under the {@code st.orm.sql.slow}
-         * logger, such as {@code 200ms}: with the statement, its call site and what there is to analyze it by.
-         * Independent of {@code enabled}: it needs no scope and sees every execution, on whatever thread it runs.
-         * Unset means no slow log.
-         */
-        private @Nullable Duration slowStatement;
+        /** The slow statement log. */
+        private Slow slow = new Slow();
 
-        /** Returns the database time above which a statement execution is reported. */
-        public @Nullable Duration getSlowStatement() { return slowStatement; }
+        /** Returns the slow statement log configuration. */
+        public Slow getSlow() { return slow; }
 
-        /** Sets the database time above which a statement execution is reported. */
-        public void setSlowStatement(@Nullable Duration slowStatement) { this.slowStatement = slowStatement; }
+        /** Sets the slow statement log configuration. */
+        public void setSlow(Slow slow) { this.slow = slow; }
 
         /**
-         * Slow statement lines reported per shape per minute before the rest are suppressed and counted, so a
-         * degraded database names every shape that suffers without flooding the log with any of them; zero for
-         * no limit. Defaults to 5.
+         * The performance log: what one unit of work cost the database, reported as a single summary under
+         * {@code st.orm.sql.perf}. Needs a boundary, which is what {@code enabled} installs.
          */
-        private @Nullable Integer slowStatementLimit;
+        public static class Performance {
 
-        /** Returns the slow statement lines reported per shape per minute. */
-        public @Nullable Integer getSlowStatementLimit() { return slowStatementLimit; }
+            /**
+             * Whether each unit of work is wrapped in a scope whose summary is logged. Defaults to false.
+             *
+             * <p>Installs the request filter and the entry-point proxies, so it is read once at startup. The
+             * settings that decide what the log reports are read per unit of work and stay changeable while the
+             * application runs.</p>
+             */
+            private boolean enabled;
 
-        /** Sets the slow statement lines reported per shape per minute. */
-        public void setSlowStatementLimit(@Nullable Integer slowStatementLimit) { this.slowStatementLimit = slowStatementLimit; }
+            /** Returns whether the performance log is enabled. */
+            public boolean isEnabled() { return enabled; }
 
-        /** Reporting thresholds; with any set, only requests that exceed one are reported. */
-        private Threshold threshold = new Threshold();
+            /** Sets whether the performance log is enabled. */
+            public void setEnabled(boolean enabled) { this.enabled = enabled; }
 
-        /** Returns the reporting thresholds. */
-        public Threshold getThreshold() { return threshold; }
+            /** Number of statements to record per unit of work; the summary counts the rest regardless. */
+            private int limit = 200;
 
-        /** Sets the reporting thresholds. */
-        public void setThreshold(Threshold threshold) { this.threshold = threshold; }
+            /** Returns the number of statements recorded per unit of work. */
+            public int getLimit() { return limit; }
+
+            /** Sets the number of statements recorded per unit of work. */
+            public void setLimit(int limit) { this.limit = limit; }
+
+            /**
+             * Whether each execution is attributed to the application frame that caused it, shown per row as
+             * {@code @ File.ext:line}. Costs a stack walk per execution while a scope records; suited to
+             * development. Defaults to false.
+             */
+            private boolean callSites;
+
+            /** Returns whether call sites are recorded. */
+            public boolean isCallSites() { return callSites; }
+
+            /** Sets whether call sites are recorded. */
+            public void setCallSites(boolean callSites) { this.callSites = callSites; }
+
+            /**
+             * Width a summary row aims for, such as 120 for narrow viewers or 240 for wide ones; the statement
+             * text elides to what the row's other columns leave. A display property of the deployment, applied
+             * once at startup.
+             */
+            private @Nullable Integer lineWidth;
+
+            /** Returns the display width summary rows aim for. */
+            public @Nullable Integer getLineWidth() { return lineWidth; }
+
+            /** Sets the display width summary rows aim for. */
+            public void setLineWidth(@Nullable Integer lineWidth) { this.lineWidth = lineWidth; }
+
+            /**
+             * Annotations that mark a bean method as an entry point to be wrapped in its own scope, covering the
+             * ways work enters the application without an HTTP request. Each invocation reports as one summary
+             * named after the method ({@code ReportJob.nightly}), with the same thresholds as the per-request
+             * filter.
+             *
+             * <p>Matching is by annotation type name, directly present on the bean method, so a default whose
+             * library is absent from the classpath never matches and costs nothing. Setting the property replaces
+             * the default list; an empty list turns entry-point wrapping off.</p>
+             */
+            private List<String> entryPoints = java.util.List.of(
+                    "org.springframework.scheduling.annotation.Scheduled",
+                    "org.springframework.scheduling.annotation.Schedules",
+                    "org.springframework.kafka.annotation.KafkaListener",
+                    "org.springframework.kafka.annotation.KafkaListeners",
+                    "org.springframework.kafka.annotation.KafkaHandler",
+                    "org.springframework.amqp.rabbit.annotation.RabbitListener",
+                    "org.springframework.amqp.rabbit.annotation.RabbitListeners",
+                    "org.springframework.amqp.rabbit.annotation.RabbitHandler",
+                    "org.springframework.jms.annotation.JmsListener",
+                    "org.springframework.jms.annotation.JmsListeners",
+                    "io.awspring.cloud.sqs.annotation.SqsListener");
+
+            /** Returns the annotations that mark a bean method as an entry point. */
+            public List<String> getEntryPoints() { return entryPoints; }
+
+            /** Sets the annotations that mark a bean method as an entry point. */
+            public void setEntryPoints(List<String> entryPoints) { this.entryPoints = entryPoints; }
+
+            /** Reporting thresholds; with any set, only work that exceeds one is reported. */
+            private Threshold threshold = new Threshold();
+
+            /** Returns the reporting thresholds. */
+            public Threshold getThreshold() { return threshold; }
+
+            /** Sets the reporting thresholds. */
+            public void setThreshold(Threshold threshold) { this.threshold = threshold; }
+
+            /**
+             * Reporting thresholds. Without thresholds every unit of work that touches the database is reported,
+             * which suits development; with a threshold set, only work that exceeds one is reported, at WARN,
+             * which is a guardrail suited to production.
+             */
+            public static class Threshold {
+
+                /** Number of statements above which a unit of work is reported. */
+                private @Nullable Integer statements;
+
+                /** Duration above which a unit of work is reported, such as {@code 500ms}. */
+                private @Nullable Duration duration;
+
+                /** Returns the statement threshold. */
+                public @Nullable Integer getStatements() { return statements; }
+
+                /** Sets the statement threshold. */
+                public void setStatements(@Nullable Integer statements) { this.statements = statements; }
+
+                /** Returns the duration threshold. */
+                public @Nullable Duration getDuration() { return duration; }
+
+                /** Sets the duration threshold. */
+                public void setDuration(@Nullable Duration duration) { this.duration = duration; }
+            }
+        }
 
         /**
-         * Reporting thresholds. Without thresholds every request that touches the database is reported, which
-         * suits development; with a threshold set, only requests that exceed one are reported, at WARN, which is
-         * a guardrail suited to production.
+         * The slow statement log: the single executions that cost too much, reported under
+         * {@code st.orm.sql.slow}. Needs no boundary and sees every execution, on whatever thread it runs.
          */
-        public static class Threshold {
+        public static class Slow {
 
-            /** Number of statements above which a request is reported. */
-            private @Nullable Integer statements;
+            /**
+             * Database time above which a single statement execution is reported, such as {@code 200ms}: with the
+             * statement, its call site and what there is to analyze it by.
+             *
+             * <p>Unset, it follows {@code performance.threshold.duration} while the performance log is enabled,
+             * since a unit of work that exceeds a duration holds at least one execution and a statement threshold
+             * no lower than the work's can only fire inside work that reports anyway. Unset with neither, there is
+             * no slow log.</p>
+             */
+            private @Nullable Duration threshold;
 
-            /** Request duration above which a request is reported, such as {@code 500ms}. */
-            private @Nullable Duration duration;
+            /** Returns the database time above which a statement execution is reported. */
+            public @Nullable Duration getThreshold() { return threshold; }
 
-            /** Returns the statement threshold. */
-            public @Nullable Integer getStatements() { return statements; }
+            /** Sets the database time above which a statement execution is reported. */
+            public void setThreshold(@Nullable Duration threshold) { this.threshold = threshold; }
 
-            /** Sets the statement threshold. */
-            public void setStatements(@Nullable Integer statements) { this.statements = statements; }
+            /**
+             * Slow statement lines reported per shape per minute before the rest are suppressed and counted, so a
+             * degraded database names every shape that suffers without flooding the log with any of them; zero for
+             * no limit. Defaults to 5.
+             */
+            private @Nullable Integer limit;
 
-            /** Returns the duration threshold. */
-            public @Nullable Duration getDuration() { return duration; }
+            /** Returns the slow statement lines reported per shape per minute. */
+            public @Nullable Integer getLimit() { return limit; }
 
-            /** Sets the duration threshold. */
-            public void setDuration(@Nullable Duration duration) { this.duration = duration; }
+            /** Sets the slow statement lines reported per shape per minute. */
+            public void setLimit(@Nullable Integer limit) { this.limit = limit; }
         }
     }
 

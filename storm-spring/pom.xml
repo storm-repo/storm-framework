@@ -196,6 +196,12 @@
             <artifactId>context-propagation</artifactId>
             <scope>provided</scope>
         </dependency>
+        <!-- Endpoint that reads and sets the slow statement threshold at runtime; guarded by @ConditionalOnClass. -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-actuator</artifactId>
+            <scope>provided</scope>
+        </dependency>
         <!-- Test -->
         <dependency>
             <groupId>org.springframework.boot</groupId>

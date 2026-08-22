@@ -88,7 +88,7 @@ SQL (SELECT Owner, fetch):
 Naming the reference in the query's fetch plan brings the referenced record back in the same statement instead. See [Refs](refs.md) for the fetch plan, and [Spring Integration](spring-integration.md#observability) for the `storm.origin` metric tag that measures the same thing in production.
 
 ---
-## Per-Call Summaries
+## The Performance Log
 
 Individual statements answer what ran. They do not answer what one unit of work cost, and that total is the part you act on: forty-four statements taking 678 ms tells you nothing about which of them to look at.
 
@@ -101,13 +101,13 @@ SQL (GET /owners): 12 statements, 8 fetches, 214 ms in database over 61 ms elaps
 	18 ms   112 rows  4x  Pet           PetService.kt:52    SELECT p.id, p.name FROM pet p WHERE p.owner_id = ?
 ```
 
-One row per distinct statement, heaviest first by **total** time, so a statement run many times cheaply ranks above one slow statement when it cost more overall. Repetition reads as the multiplier, each row carries the total rows its executions produced (or affected, for writes) followed by the execution count that accumulated them, and names the entity or projection it targets, and a statement that resolved a reference is marked `fetch`. A total is what one slow execution among many cheap ones and a uniformly slow statement have in common, so a row whose slowest execution stands out from its average, at least twice it, carries it as `max 60 ms`; the [slow statement log](#slow-statements) names that execution on its own. Long statements elide from the middle, keeping the FROM and WHERE clauses that identify them, and runs of placeholders collapse to `?, …, ?` so the visible text is the part that says something. A row count a driver declined to report in full (a batch entry answered with `SUCCESS_NO_INFO`), a stream closed before its end, or a stream still open when the scope closed is a known lower bound, marked `500*`. A statement is in the summary from the moment the database answers it, with the database time it cost, whether or not the application has finished reading the rows.
+One row per distinct statement, heaviest first by **total** time, so a statement run many times cheaply ranks above one slow statement when it cost more overall. Repetition reads as the multiplier, each row carries the total rows its executions produced (or affected, for writes) followed by the execution count that accumulated them, and names the entity or projection it targets, and a statement that resolved a reference is marked `fetch`. A total is what one slow execution among many cheap ones and a uniformly slow statement have in common, so a row whose slowest execution stands out from its average, at least twice it, carries it as `max 60 ms`; the [slow statement log](#the-slow-statement-log) names that execution on its own. Long statements elide from the middle, keeping the FROM and WHERE clauses that identify them, and runs of placeholders collapse to `?, …, ?` so the visible text is the part that says something. A row count a driver declined to report in full (a batch entry answered with `SUCCESS_NO_INFO`), a stream closed before its end, or a stream still open when the scope closed is a known lower bound, marked `500*`. A statement is in the summary from the moment the database answers it, with the database time it cost, whether or not the application has finished reading the rows.
 
 What answers which query a row is, and how it reads:
 
-- **Call sites** name the application frame that caused each execution (`VisitService.kt:88`), which is the identity a developer thinks in. An application with a database layer of its own declares it as plumbing, so rows name the caller beyond it: `storm.sql-log.call-site-skip` in Spring, `sqlLogCallSiteSkip` in Ktor, or the `storm.sql_log.call_site_skip` system property on a plain JVM. Entries ending in `.kt` or `.java` match by source file, which covers inline functions. Work resumed on another dispatcher has no caller on its stack at all; a context built with `sqlLogContext()` (and every context Storm builds, such as `transaction { }`) carries the launch site, captured while the caller is still on the stack, so such rows name the frame that launched the work. A stack that is plumbing end to end with no carried site reports its innermost plumbing frame rather than none. A stack walk per execution, so it is opt-in and suited to development: `storm.sql-log.call-sites: true` in Spring, `sqlLogCallSites = true` in Ktor, or the `callSites` parameter on a scope opened directly. A row seen from several frames shows the first plus `(+n sites)`.
+- **Call sites** name the application frame that caused each execution (`VisitService.kt:88`), which is the identity a developer thinks in. An application with a database layer of its own declares it as plumbing, so rows name the caller beyond it: `storm.sql-log.call-site-skip` in Spring, `sqlLogCallSiteSkip` in Ktor, or the `storm.sql_log.call_site_skip` system property on a plain JVM. Entries ending in `.kt` or `.java` match by source file, which covers inline functions. Work resumed on another dispatcher has no caller on its stack at all; a context built with `sqlLogContext()` (and every context Storm builds, such as `transaction { }`) carries the launch site, captured while the caller is still on the stack, so such rows name the frame that launched the work. A stack that is plumbing end to end with no carried site reports its innermost plumbing frame rather than none. A stack walk per execution, so it is opt-in and suited to development: `storm.sql-log.performance.call-sites: true` in Spring, `sqlLogPerformanceCallSites = true` in Ktor, or the `callSites` parameter on a scope opened directly. A row seen from several frames shows the first plus `(+n sites)`.
 - **TRACE detail**: with `st.orm.sql.perf` at `TRACE`, the un-elided statement texts follow the summary, one per row in row order. `TRACE` rather than `DEBUG` because this logger sits under `st.orm.sql`, so raising that to `DEBUG` for per-statement logging would otherwise repeat every statement twice. Summaries carry no parameter values at any level, so this level is as safe to enable as the others.
-- **Display width**: rows aim for 200 characters, the statement text eliding to what the other columns leave; `storm.sql-log.line-width` (Spring), `sqlLogLineWidth` (Ktor), or the `storm.sql_log.line_width` system property sets the target for narrow viewers (120) or wide ones (240).
+- **Display width**: rows aim for 200 characters, the statement text eliding to what the other columns leave; `storm.sql-log.performance.line-width` (Spring), `sqlLogPerformanceLineWidth` (Ktor), or the `storm.sql_log.performance.line_width` system property sets the target for narrow viewers (120) or wide ones (240).
 
 Statements group by the template they were generated from, not by text. A collection parameter that expands to a different number of placeholders per execution (`IN (?)`, `IN (?, ?)`) therefore stays one row, marked `(n variants)`.
 
@@ -136,21 +136,23 @@ Both integrations can wrap every way work enters the application, which needs no
 ```yaml
 storm:
   sql-log:
-    enabled: true
-    limit: 200      # statements recorded per unit of work; the count covers the rest
+    performance:
+      enabled: true
+      limit: 200    # statements recorded per unit of work; the count covers the rest
 ```
 
-A servlet filter wraps each HTTP request. The same switch covers the entry points a filter cannot see: a method annotated `@Scheduled`, `@KafkaListener`, `@RabbitListener`, `@JmsListener`, or `@SqsListener` (including the `@KafkaHandler`/`@RabbitHandler` methods of a class-level listener) reports as its own summary, named after the method (`ReportJob.nightly`), so a worker without a web layer reports the same way a web application does. Matching is by annotation name, directly present on the bean method, so a listener library that is absent from the classpath costs nothing, and `storm.sql-log.entry-points` replaces the set for others, such as a Pulsar listener or an application's own dispatch annotation. A final class or method cannot be proxied; open a scope inside it instead.
+A servlet filter wraps each HTTP request. The same switch covers the entry points a filter cannot see: a method annotated `@Scheduled`, `@KafkaListener`, `@RabbitListener`, `@JmsListener`, or `@SqsListener` (including the `@KafkaHandler`/`@RabbitHandler` methods of a class-level listener) reports as its own summary, named after the method (`ReportJob.nightly`), so a worker without a web layer reports the same way a web application does. Matching is by annotation name, directly present on the bean method, so a listener library that is absent from the classpath costs nothing, and `storm.sql-log.performance.entry-points` replaces the set for others, such as a Pulsar listener or an application's own dispatch annotation. A final class or method cannot be proxied; open a scope inside it instead.
 
 For production, thresholds turn the scope into a guardrail: only units of work that exceed one are reported, at WARN.
 
 ```yaml
 storm:
   sql-log:
-    enabled: true
-    threshold:
-      statements: 50
-      duration: 500ms
+    performance:
+      enabled: true
+      threshold:
+        statements: 50
+        duration: 500ms
 ```
 
 </TabItem>
@@ -158,8 +160,8 @@ storm:
 
 ```kotlin
 install(Storm) {
-    sqlLog = true
-    sqlLogLimit = 200
+    sqlLogPerformance = true
+    sqlLogPerformanceLimit = 200
 }
 ```
 
@@ -169,15 +171,17 @@ For production, thresholds turn the scope into a guardrail: only calls that exce
 
 ```hocon
 storm.sqlLog {
-    enabled = true
-    threshold {
-        statements = 50
-        duration = 500ms
+    performance {
+        enabled = true
+        threshold {
+            statements = 50
+            duration = 500ms
+        }
     }
 }
 ```
 
-The same thresholds in the plugin configuration are `sqlLogStatementThreshold = 50` and `sqlLogDurationThreshold = 500.milliseconds`.
+The same thresholds in the plugin configuration are `sqlLogPerformanceStatementThreshold = 50` and `sqlLogPerformanceDurationThreshold = 500.milliseconds`.
 
 </TabItem>
 </Tabs>
@@ -242,7 +246,7 @@ Parameter values are absent by design: they are database values, and a summary i
 A fetch served by the transaction's entity cache issues no statement, so the fetch count counts distinct cache misses rather than `fetch()` call sites.
 
 ---
-## Slow Statements
+## The Slow Statement Log
 
 A summary judges a call; it does not name the one execution inside it that took 900 ms, and a summary's thresholds are the call's: three statements taking a second between them trip nothing. Outside a scope, in background work or on a thread no boundary wraps, nothing times anything at all. The slow statement log fills that gap: one line per execution whose database time exceeds a threshold, wherever it runs, under `st.orm.sql.slow` at `WARN`.
 
@@ -252,27 +256,30 @@ A summary judges a call; it does not name the one execution inside it that took 
 ```yaml
 storm:
   sql-log:
-    slow-statement: 200ms
+    slow:
+      threshold: 200ms
 ```
 
-Independent of `storm.sql-log.enabled`: the slow log needs no boundary and applies with or without the summaries.
+Independent of `storm.sql-log.performance.enabled`: the slow log needs no boundary and applies with or without the performance log.
+
+Left unset while the performance log runs against a duration threshold, it takes that duration. A call that exceeds a duration holds at least one execution, so a statement threshold no lower than the call's can only be exceeded inside a call that is reported anyway: the derived default names the statement behind a warning rather than adding warnings of its own. Set it explicitly to report at a grain the performance log does not.
 
 </TabItem>
 <TabItem value="ktor" label="Ktor">
 
 ```kotlin
 install(Storm) {
-    sqlLogSlowStatement = 200.milliseconds
+    sqlLogSlowThreshold = 200.milliseconds
 }
 ```
 
-Or from `application.conf`, under `storm.sqlLog.slowStatement` (or `storm.sql_log.slow_statement`). Independent of `sqlLog`: the slow log needs no request boundary and applies with or without the summaries.
+Or from `application.conf`, under `storm.sqlLog.slow.threshold` (or `storm.sql_log.slow.threshold`). Independent of `sqlLogPerformance`: the slow log needs no request boundary and applies with or without the performance log. Left unset while the performance log runs against `performance.threshold.duration`, it takes that duration, for the reason above.
 
 </TabItem>
 <TabItem value="jvm" label="Plain JVM">
 
 ```
--Dstorm.sql_log.slow_statement=200ms
+-Dstorm.sql_log.slow.threshold=200ms
 ```
 
 A number with a unit (`200ms`, `2s`), a bare number of milliseconds, or an ISO-8601 duration.
@@ -292,20 +299,58 @@ SQL slow (SELECT Pet): 1840 ms in database, 3 rows, PetService.kt:42
 
 The statement is printed as sent, in full; the example is abridged to fit the page.
 
-The decision is made where the statement returns from the database, on the thread that executed it. That is what makes the line cheap and complete at once: the call site is walked only for the executions that turned out slow, at no cost to the rest, so every slow line names its caller without the per-execution stack walk that makes call sites an opt-in for summaries; and the log follows no request, entry point or coroutine context, so an execution on a background worker or a dispatcher thread is reported the same as one inside a request. The line is written when the execution completes, so it also carries the rows.
+The decision is made where the statement returns from the database, on the thread that executed it. That is what makes the line cheap and complete at once: the call site is walked only for the executions that turned out slow, at no cost to the rest, so every slow line names its caller without the per-execution stack walk that makes call sites an opt-in for the performance log; and the log follows no request, entry point or coroutine context, so an execution on a background worker or a dispatcher thread is reported the same as one inside a request. The line is written when the execution completes, so it also carries the rows.
 
 Reading the line, headline first:
 
 - **`1840 ms in database`** is the database time, prepare to return. A read whose rows took a while to consume adds `12400 rows read over 3200 ms`, so a large stream is not mistaken for a slow query, and a slow query is not hidden inside a large stream.
 - **`3 rows`** produced or affected, marked `*` when the count is a lower bound (a batch entry answered with `SUCCESS_NO_INFO`, a stream closed before its end). A batch reads `(INSERT Visit, batch)` and its rows are the rows the batch affected. An execution that failed, a lock wait or a statement timeout that ran its course before the database gave up, reads `failed (SQLTimeoutException)` instead: its time was spent all the same, and the line carries what the caller's exception does not, the call site and the baseline. The failure is named by class alone, since a driver's message may quote values.
-- **`PetService.kt:42`** is the application frame that caused the execution, subject to the same `call-site-skip` setting summaries use.
+- **`PetService.kt:42`** is the application frame that caused the execution, subject to the same `call-site-skip` setting the performance log uses.
 - **`shape 3f9a2c (typically 6.0 ms, 306x)`** is the answer to the question a slow statement raises first: is this statement always this slow, or was it these parameters? The shape is the statement's template identity, the same `storm.shape` the metrics are tagged with, and stable across parameter expansion, so an `IN` list of 3 and one of 32 are one shape. While the slow log is on, each shape keeps a baseline of what it typically costs over its recent minutes (a geometric mean, which an outlier barely moves; reported once eight other executions back it). `typically 6.0 ms, 306x` says the shape is normally fast and this execution was not: look at the values, or at a plan that changed. `typically 310 ms` with no multiplier says the statement is always this slow: look at the query, the graph its type declares (see [Entity Design](entity-design.md)) and its indexes.
 - **`parameters 32 (typically 3)`** is the parameter profile, safe to print in production: the count this execution bound against what the shape typically binds, shown when they differ by half or double. It names an oversized `IN` list, the commonest way a fast shape turns slow, without printing a value.
 - **`comment traceparent='…'`** is the SQL comment the statement carried, when a [`SqlCommenter`](spring-integration.md#observability) is configured. It is the key that joins this line to the database's own record of the same execution; see below.
 
 The values themselves render while the logger is at `TRACE`, inlined into the statement so it can be pasted into a console, under the rule every Storm SQL logger follows; the line stays at `WARN`, since a slow execution is one whatever detail it is reported with. `st.orm.sql.slow` is a child of `st.orm.sql`, so raising that to `TRACE` for statement logging raises the slow log with it, and no other level shows a value.
 
-Under a degraded database every statement is slow. Lines are rate-limited per shape, five per minute by default, and the first line of a shape after suppressed ones carries `+37 suppressed`, so the log names every shape that suffers without drowning in any of them. `storm.sql-log.slow-statement-limit` (Spring), `sqlLogSlowStatementLimit` / `storm.sqlLog.slowStatementLimit` (Ktor) or the `storm.sql_log.slow_statement_limit` system property sets the lines per shape per minute; `0` lifts the limit.
+Under a degraded database every statement is slow. Lines are rate-limited per shape, five per minute by default, and the first line of a shape after suppressed ones carries `+37 suppressed`, so the log names every shape that suffers without drowning in any of them. `storm.sql-log.slow.limit` (Spring), `sqlLogSlowLimit` / `storm.sqlLog.slow.limit` (Ktor) or the `storm.sql_log.slow.limit` system property sets the lines per shape per minute; `0` lifts the limit. A statement with no shape of its own, and every shape past the four thousand tracked, counts against one budget shared between them: those lines carry no `typically`, but the limit holds for them too.
+
+### Retuning A Running Application
+
+What a slow threshold should be is a question a degraded deployment answers better than a configuration file written months earlier, and that is the deployment a restart costs the most. Every setting the log reports with is read per unit of work, so it can be replaced while the application runs.
+
+<Tabs groupId="framework">
+<TabItem value="spring" label="Spring Boot" default>
+
+Where the actuator is on the classpath, the `stormsqllog` endpoint reads and sets both halves of the log. Expose it as any other endpoint:
+
+```yaml
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,stormsqllog
+```
+
+```
+GET  /actuator/stormsqllog
+POST /actuator/stormsqllog   {"slowStatement": "200ms", "duration": "1s", "callSites": true}
+```
+
+`slowStatement` and `slowStatementLimit` set the slow statement log; `statements`, `duration`, `callSites` and `limit` set every performance boundary. What the request leaves out stays as it is, and `off` removes a threshold rather than setting one. It changes a running process only: nothing is written back to the configuration, and a restart returns to it.
+
+Since the endpoint reads and changes what a deployment reports, it belongs behind the same authorization as the other write endpoints.
+
+</TabItem>
+<TabItem value="jvm" label="Plain JVM">
+
+`SlowStatementLog.threshold(Duration)` and `SlowStatementLog.limit(int)` are safe to call at any time; the write lands on the next execution to return from the database. Wire them to whatever control surface the application already has.
+
+</TabItem>
+</Tabs>
+
+`storm.sql-log.performance.enabled` is the exception. It decides whether the request filter and the entry-point proxies exist, and neither can be installed into a context that has already refreshed. An application that wants the performance log reachable in production enables it and leaves the thresholds high; lowering a threshold then costs nothing until it is lowered. The slow statement log needs no such plumbing and can be switched on from off.
+
+A shape's baseline is learned while the log runs, so lines reported shortly after switching it on carry no `typically`. The performance threshold the slow threshold is derived from is read at startup, so retuning the performance threshold leaves the slow threshold where it is; set both when both are meant to move.
 
 ### The Database Side
 
@@ -323,5 +368,5 @@ Storm does not run `EXPLAIN` on your behalf. Beyond the connection and dialect p
 4. **Read the top row first.** It is the statement that cost the most in total, whether it was slow once or cheap many times. A `fetch` row is one you can often remove by naming the reference in the query's fetch plan.
 5. **Compare `in database` against `total`.** A large gap says the call is slow for reasons the query layer cannot fix.
 6. **Assert query counts in tests** with `SqlCapture` rather than reading logs. See [Testing](testing.md) for `count(Origin.FETCH)`.
-7. **Leave `slow-statement` on in production**, at a threshold that means something for your database (200 ms is a common start). It costs a volatile read per execution until something is slow, and the line it writes is the one you would otherwise reconstruct from a metric spike, a request log and a guess.
+7. **Leave `slow.threshold` on in production**, at a threshold that means something for your database (200 ms is a common start). It costs a volatile read per execution until something is slow, and the line it writes is the one you would otherwise reconstruct from a metric spike, a request log and a guess. Where it has to stay off, expose the endpoint instead, so switching it on during an incident does not need a deploy.
 8. **Read `typically` before the statement.** A shape that is normally fast points at the parameters or the plan; a shape that is always slow points at the query.

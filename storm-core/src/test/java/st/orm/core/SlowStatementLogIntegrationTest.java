@@ -139,6 +139,11 @@ public class SlowStatementLogIntegrationTest {
     @Test
     public void testAStreamedReadReportsDatabaseTimeApartFromConsumption() {
         var orm = ORMTemplate.of(dataSource);
+        // The claim is that the two figures are kept apart, not that the database is fast; a first execution on a
+        // cold JVM costs enough to blur that, so the read is warmed before the one that is measured.
+        try (var warmUp = orm.entity(City.class).select().getResultStream()) {
+            warmUp.count();
+        }
         var events = capture(Level.WARN, () -> {
             try (var stream = orm.entity(City.class).select().getResultStream()) {
                 Thread.sleep(50);
@@ -175,6 +180,28 @@ public class SlowStatementLogIntegrationTest {
             assertEquals(2, limited.size(), limited.toString());
         } finally {
             SlowStatementLog.limit(SlowStatementLog.DEFAULT_LIMIT);
+        }
+    }
+
+    @Test
+    public void testAnUntrackedExecutionIsStillRateLimited() {
+        var orm = ORMTemplate.of(dataSource);
+        // With no room to track a shape, every execution takes the path a statement without a shape of its own
+        // takes: no stats, and so no baseline. The limit must still hold, or the log floods with exactly the
+        // statements it knows the least about.
+        int tracked = SlowStatementLogTestSupport.maxShapes();
+        SlowStatementLogTestSupport.maxShapes(0);
+        try {
+            var events = capture(Level.WARN, () -> {
+                for (int i = 0; i < 8; i++) {
+                    orm.entity(City.class).getById(1);
+                }
+            });
+            assertEquals(SlowStatementLog.DEFAULT_LIMIT, events.size(), events.toString());
+            String message = events.getFirst().getFormattedMessage();
+            assertFalse(message.contains("typically"), message);
+        } finally {
+            SlowStatementLogTestSupport.maxShapes(tracked);
         }
     }
 

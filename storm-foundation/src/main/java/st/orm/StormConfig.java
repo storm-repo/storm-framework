@@ -81,20 +81,20 @@ public final class StormConfig {
     public static final String VALIDATION_STRICT = "storm.validation.strict";
     /** Interpolation safety mode. Values: warn, fail, none. */
     public static final String VALIDATION_INTERPOLATION_MODE = "storm.validation.interpolation_mode";
-    /** Display width SQL log summary rows aim for, such as 120 for narrow viewers or 240 for wide ones; at least 80. */
-    public static final String SQL_LOG_LINE_WIDTH = "storm.sql_log.line_width";
+    /** Display width performance log summary rows aim for, such as 120 for narrow viewers or 240 for wide ones; at least 80. */
+    public static final String SQL_LOG_LINE_WIDTH = "storm.sql_log.performance.line_width";
     /** Comma-separated package prefixes or source file names skipped in SQL log call-site attribution. */
     public static final String SQL_LOG_CALL_SITE_SKIP = "storm.sql_log.call_site_skip";
     /**
      * Database time above which a single statement execution is reported under the {@code st.orm.sql.slow}
      * logger, such as {@code 200ms} or {@code 2s}; a bare number is milliseconds. Unset means no slow log.
      */
-    public static final String SQL_LOG_SLOW_STATEMENT = "storm.sql_log.slow_statement";
+    public static final String SQL_LOG_SLOW_THRESHOLD = "storm.sql_log.slow.threshold";
     /**
      * Slow statement lines reported per shape per minute before the rest are suppressed and counted; zero for no
      * limit. Defaults to 5.
      */
-    public static final String SQL_LOG_SLOW_STATEMENT_LIMIT = "storm.sql_log.slow_statement_limit";
+    public static final String SQL_LOG_SLOW_LIMIT = "storm.sql_log.slow.limit";
 
     private static final Set<String> SQL_SHAPING_KEYS = sqlShapingKeysFromDeclarations();
 

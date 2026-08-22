@@ -42,7 +42,7 @@ import st.orm.core.template.ORMTemplate;
  * request, opens only while something consumes the summary, reports every request at INFO without thresholds and
  * only the requests exceeding a threshold at WARN with one, and lets the request's own failure through untouched.
  */
-class StormSqlLogFilterTest {
+class StormPerformanceLogFilterTest {
 
     private ORMTemplate orm;
 
@@ -84,7 +84,7 @@ class StormSqlLogFilterTest {
         };
     }
 
-    private static void run(StormSqlLogFilter filter, FilterChain chain) throws ServletException, IOException {
+    private static void run(StormPerformanceLogFilter filter, FilterChain chain) throws ServletException, IOException {
         filter.doFilter(new MockHttpServletRequest("GET", "/owners/42"), new MockHttpServletResponse(), chain);
     }
 
@@ -92,7 +92,7 @@ class StormSqlLogFilterTest {
     void aRequestThatTouchesTheDatabaseIsReportedUnderItsMethodAndPath() throws Exception {
         withScopeLogger(Level.INFO, events -> {
             var invocations = new AtomicInteger();
-            run(new StormSqlLogFilter(10), handler(2, invocations));
+            run(new StormPerformanceLogFilter(10), handler(2, invocations));
             assertEquals(1, invocations.get());
             assertEquals(1, events.size());
             assertEquals(Level.INFO, events.getFirst().getLevel());
@@ -104,7 +104,7 @@ class StormSqlLogFilterTest {
     @Test
     void aRequestThatTouchesNoDatabaseSaysNothing() throws Exception {
         withScopeLogger(Level.INFO, events -> {
-            run(new StormSqlLogFilter(10), handler(0, new AtomicInteger()));
+            run(new StormPerformanceLogFilter(10), handler(0, new AtomicInteger()));
             assertTrue(events.isEmpty());
         });
     }
@@ -112,7 +112,7 @@ class StormSqlLogFilterTest {
     @Test
     void aThresholdReportsOnlyTheRequestsExceedingItAtWarn() throws Exception {
         withScopeLogger(Level.WARN, events -> {
-            var filter = new StormSqlLogFilter(10, 3, null);
+            var filter = new StormPerformanceLogFilter(10, 3, null);
             run(filter, handler(2, new AtomicInteger()));
             assertTrue(events.isEmpty(), "a request below the threshold stays quiet");
             run(filter, handler(3, new AtomicInteger()));
@@ -128,7 +128,7 @@ class StormSqlLogFilterTest {
         withScopeLogger(Level.WARN, events -> {
             // Any request lasts longer than zero, so the duration threshold alone selects it; the call-site
             // variant of the constructor is exercised alongside.
-            run(new StormSqlLogFilter(10, true, null, Duration.ZERO), handler(1, new AtomicInteger()));
+            run(new StormPerformanceLogFilter(10, true, null, Duration.ZERO), handler(1, new AtomicInteger()));
             assertEquals(1, events.size());
             assertEquals(Level.WARN, events.getFirst().getLevel());
         });
@@ -139,14 +139,14 @@ class StormSqlLogFilterTest {
         // INFO is off, so an unthresholded filter has no consumer; the request itself is unaffected.
         withScopeLogger(Level.WARN, events -> {
             var invocations = new AtomicInteger();
-            run(new StormSqlLogFilter(10), handler(2, invocations));
+            run(new StormPerformanceLogFilter(10), handler(2, invocations));
             assertEquals(1, invocations.get());
             assertTrue(events.isEmpty());
         });
         // WARN is off, so a thresholded filter has no consumer either.
         withScopeLogger(Level.ERROR, events -> {
             var invocations = new AtomicInteger();
-            run(new StormSqlLogFilter(10, 1, null), handler(2, invocations));
+            run(new StormPerformanceLogFilter(10, 1, null), handler(2, invocations));
             assertEquals(1, invocations.get());
             assertTrue(events.isEmpty());
         });
@@ -156,14 +156,14 @@ class StormSqlLogFilterTest {
     void aFailingRequestPropagatesItsExceptionUnchanged() throws Exception {
         withScopeLogger(Level.INFO, events -> {
             var failure = new IllegalStateException("handler failed");
-            var thrown = assertThrows(IllegalStateException.class, () -> run(new StormSqlLogFilter(10),
+            var thrown = assertThrows(IllegalStateException.class, () -> run(new StormPerformanceLogFilter(10),
                     (request, response) -> {
                         orm.query("SELECT 1").getSingleResult();
                         throw failure;
                     }));
             assertSame(failure, thrown);
             var servletFailure = new ServletException("handler failed");
-            var thrownServletFailure = assertThrows(ServletException.class, () -> run(new StormSqlLogFilter(10),
+            var thrownServletFailure = assertThrows(ServletException.class, () -> run(new StormPerformanceLogFilter(10),
                     (request, response) -> {
                         throw servletFailure;
                     }));

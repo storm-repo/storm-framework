@@ -19,23 +19,25 @@ import io.ktor.server.application.Application
 import kotlin.time.Duration
 
 /**
- * The per-call SQL log configuration the plugin runs with, resolved per option: an explicit
- * [StormPluginConfig] setting wins, otherwise the HOCON configuration under `storm.sqlLog`
- * (or `storm.sql_log`) applies, otherwise the option's default. The HOCON path is what makes the
+ * The SQL log configuration the plugin runs with, covering both logs: the performance log, which reports what a
+ * call cost, and the slow statement log, which names the execution that cost too much.
+ *
+ * Resolved per option: an explicit [StormPluginConfig] setting wins, otherwise the HOCON configuration under
+ * `storm.sqlLog` (or `storm.sql_log`) applies, otherwise the option's default. The HOCON path is what makes the
  * log switchable through `application.conf` without a code change, mirroring the Spring starter's
  * `storm.sql-log.*` properties.
  *
- * [lineWidth], [slowStatement] and [slowStatementLimit] are `null` when neither the DSL nor the configuration
- * sets them, so installation leaves the JVM-wide settings (the `storm.sql_log.*` system properties, or
- * another application's configuration in the same JVM) untouched.
+ * [lineWidth], [slowThreshold] and [slowLimit] are `null` when neither the DSL nor the configuration sets them,
+ * so installation leaves the JVM-wide settings (the `storm.sql_log.*` system properties, or another
+ * application's configuration in the same JVM) untouched.
  */
 internal class SqlLogSettings(
     val enabled: Boolean,
     val limit: Int,
     val statementThreshold: Int?,
     val durationThreshold: Duration?,
-    val slowStatement: Duration?,
-    val slowStatementLimit: Int?,
+    val slowThreshold: Duration?,
+    val slowLimit: Int?,
     val callSites: Boolean,
     val callSiteSkip: List<String>,
     val lineWidth: Int?,
@@ -47,19 +49,21 @@ internal class SqlLogSettings(
  * cannot silently misconfigure the log.
  */
 internal fun resolveSqlLogSettings(application: Application, pluginConfig: StormPluginConfig): SqlLogSettings = SqlLogSettings(
-    enabled = pluginConfig.sqlLog ?: booleanProperty(application, "enabled") ?: false,
-    limit = pluginConfig.sqlLogLimit ?: intProperty(application, "limit") ?: 200,
-    statementThreshold = pluginConfig.sqlLogStatementThreshold
-        ?: intProperty(application, "threshold.statements"),
-    durationThreshold = pluginConfig.sqlLogDurationThreshold
-        ?: durationProperty(application, "threshold.duration"),
-    slowStatement = pluginConfig.sqlLogSlowStatement ?: durationProperty(application, "slowStatement"),
-    slowStatementLimit = pluginConfig.sqlLogSlowStatementLimit ?: intProperty(application, "slowStatementLimit"),
-    callSites = pluginConfig.sqlLogCallSites ?: booleanProperty(application, "callSites") ?: false,
+    enabled = pluginConfig.sqlLogPerformance ?: booleanProperty(application, "performance.enabled") ?: false,
+    limit = pluginConfig.sqlLogPerformanceLimit ?: intProperty(application, "performance.limit") ?: 200,
+    statementThreshold = pluginConfig.sqlLogPerformanceStatementThreshold
+        ?: intProperty(application, "performance.threshold.statements"),
+    durationThreshold = pluginConfig.sqlLogPerformanceDurationThreshold
+        ?: durationProperty(application, "performance.threshold.duration"),
+    slowThreshold = pluginConfig.sqlLogSlowThreshold ?: durationProperty(application, "slow.threshold"),
+    slowLimit = pluginConfig.sqlLogSlowLimit ?: intProperty(application, "slow.limit"),
+    callSites = pluginConfig.sqlLogPerformanceCallSites
+        ?: booleanProperty(application, "performance.callSites") ?: false,
+    // Shared: both logs attribute a frame the same way, so the skip list sits above the two sections.
     callSiteSkip = pluginConfig.sqlLogCallSiteSkip
         ?: listProperty(application, "callSiteSkip")
         ?: emptyList(),
-    lineWidth = pluginConfig.sqlLogLineWidth ?: intProperty(application, "lineWidth"),
+    lineWidth = pluginConfig.sqlLogPerformanceLineWidth ?: intProperty(application, "performance.lineWidth"),
 )
 
 /**

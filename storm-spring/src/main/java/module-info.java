@@ -17,6 +17,7 @@ module storm.spring {
     requires static spring.web;
     requires static jakarta.servlet;
     requires static context.propagation;
+    requires static spring.boot.actuator;
     requires org.slf4j;
     requires org.aspectj.weaver;
     requires java.logging;
