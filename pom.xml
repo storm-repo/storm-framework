@@ -127,6 +127,10 @@
                         <source>${java.version}</source>
                         <target>${java.version}</target>
                         <release>${java.version}</release>
+                        <!-- Emits MethodParameters, which Spring's ParameterNameDiscoverer is the only
+                             remaining source for. The Spring Boot Actuator endpoint needs it to bind the
+                             arguments of its write operation. -->
+                        <parameters>true</parameters>
                     </configuration>
                 </plugin>
                 <plugin>
