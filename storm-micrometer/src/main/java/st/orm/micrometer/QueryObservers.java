@@ -54,9 +54,6 @@ public final class QueryObservers {
             @Nullable ObservationConvention<StormTransactionObservationContext> transactionConvention,
             @Nullable String database) {
         var keyValues = database == null ? KeyValues.empty() : KeyValues.of("storm.database", database);
-        if (queryConvention == null && transactionConvention == null) {
-            return new MicrometerQueryObserver(observationRegistry, keyValues);
-        }
         return new MicrometerQueryObserver(
                 observationRegistry,
                 queryConvention != null ? queryConvention : new StormQueryObservationConvention(),

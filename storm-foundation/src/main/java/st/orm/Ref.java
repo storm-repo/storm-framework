@@ -75,46 +75,8 @@ public interface Ref<T extends Data> {
      * @return a fully loaded ref instance for the provided entity.
      */
     static <E extends Entity<?>> Ref<E> of(E entity) {
-        class DetachedEntity<TE extends Entity<?>> extends AbstractRef<TE> {
-            private final TE entity;
-
-            DetachedEntity(TE entity) {
-                requireNonNull(entity, "Entity cannot be null.");
-                this.entity = entity;
-            }
-
-            @Override
-            public Class<TE> type() {
-                //noinspection unchecked
-                return (Class<TE>) entity.getClass();
-            }
-
-            @Override
-            public Object id() {
-                return entity.id();
-            }
-
-            @Override
-            public TE getOrNull() {
-                return entity;
-            }
-
-            @Override
-            public TE fetchOrNull() {
-                return entity;
-            }
-
-            @Override
-            public boolean isFetchable() {
-                return false;
-            }
-
-            @Override
-            public Ref<TE> unload() {
-                return Ref.of(type(), id());
-            }
-        }
-        return new DetachedEntity<>(entity);
+        requireNonNull(entity, "Entity cannot be null.");
+        return new LoadedRef<>(entity, entity.id());
     }
 
     /**
@@ -132,47 +94,9 @@ public interface Ref<T extends Data> {
      * @return a fully loaded ref instance for the provided projection.
      */
     static <P extends Projection<ID>, ID> Ref<P> of(P projection, ID id) {
-        class DetachedProjection<TE extends Projection<TID>, TID> extends AbstractRef<TE> {
-            private final TID id;
-            private final TE projection;
-
-            DetachedProjection(TID id, TE projection) {
-                this.id = requireNonNull(id, "ID cannot be null.");
-                this.projection = requireNonNull(projection, "Projection cannot be null.");
-            }
-
-            @Override
-            public Class<TE> type() {
-                //noinspection unchecked
-                return (Class<TE>) projection.getClass();
-            }
-
-            @Override
-            public Object id() {
-                return id;
-            }
-
-            @Override
-            public TE getOrNull() {
-                return projection;
-            }
-
-            @Override
-            public TE fetchOrNull() {
-                return projection;
-            }
-
-            @Override
-            public boolean isFetchable() {
-                return false;
-            }
-
-            @Override
-            public Ref<TE> unload() {
-                return Ref.of(type(), id());
-            }
-        }
-        return new DetachedProjection<>(id, projection);
+        requireNonNull(id, "ID cannot be null.");
+        requireNonNull(projection, "Projection cannot be null.");
+        return new LoadedRef<>(projection, id);
     }
 
     /**

@@ -226,13 +226,7 @@ public final class SqlInterceptorManager {
      * @param interceptor the interceptor to call for each SQL statement.
      */
     public static void registerGlobalInterceptor(UnaryOperator<Sql> interceptor) {
-        LOCK.writeLock().lock();
-        try {
-            GLOBAL_OPERATORS.add(interceptor);
-            globalOperatorCount = GLOBAL_OPERATORS.size();
-        } finally {
-            LOCK.writeLock().unlock();
-        }
+        addGlobalOperator(interceptor);
     }
 
     /**
@@ -241,13 +235,7 @@ public final class SqlInterceptorManager {
      * @param observer the observer to call for each SQL statement.
      */
     public static void registerGlobalObserver(Consumer<Sql> observer) {
-        LOCK.writeLock().lock();
-        try {
-            GLOBAL_OPERATORS.add(observer);
-            globalOperatorCount = GLOBAL_OPERATORS.size();
-        } finally {
-            LOCK.writeLock().unlock();
-        }
+        addGlobalOperator(observer);
     }
 
     /**
@@ -256,13 +244,7 @@ public final class SqlInterceptorManager {
      * @param observer the observer to unregister.
      */
     public static void unregisterGlobalObserver(UnaryOperator<Sql> observer) {
-        LOCK.writeLock().lock();
-        try {
-            GLOBAL_OPERATORS.remove(observer);
-            globalOperatorCount = GLOBAL_OPERATORS.size();
-        } finally {
-            LOCK.writeLock().unlock();
-        }
+        removeGlobalOperator(observer);
     }
 
     /**
@@ -271,9 +253,23 @@ public final class SqlInterceptorManager {
      * @param observer the observer to unregister.
      */
     public static void unregisterGlobalObserver(Consumer<Sql> observer) {
+        removeGlobalOperator(observer);
+    }
+
+    private static void addGlobalOperator(Object operator) {
         LOCK.writeLock().lock();
         try {
-            GLOBAL_OPERATORS.remove(observer);
+            GLOBAL_OPERATORS.add(operator);
+            globalOperatorCount = GLOBAL_OPERATORS.size();
+        } finally {
+            LOCK.writeLock().unlock();
+        }
+    }
+
+    private static void removeGlobalOperator(Object operator) {
+        LOCK.writeLock().lock();
+        try {
+            GLOBAL_OPERATORS.remove(operator);
             globalOperatorCount = GLOBAL_OPERATORS.size();
         } finally {
             LOCK.writeLock().unlock();

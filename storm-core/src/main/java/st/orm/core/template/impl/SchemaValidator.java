@@ -255,9 +255,7 @@ public final class SchemaValidator {
      * <p>This is a convenience method for "warn" mode: validation issues are logged but never cause an exception.</p>
      */
     public void validateOrWarn() {
-        LOGGER.info("Validating Data types for schema compatibility.");
-        List<Class<? extends Data>> types = TypeDiscovery.getDataTypes();
-        reportErrors(validate(types), false, types.size());
+        validateAndReport(false);
     }
 
     /**

@@ -24,9 +24,8 @@ import java.util.stream.Stream;
 import st.orm.StormConfig;
 import st.orm.core.spi.DefaultSqlDialect;
 import st.orm.core.template.Column;
-import st.orm.core.template.SqlDialect;
 
-public class MSSQLServerSqlDialect extends DefaultSqlDialect implements SqlDialect {
+public class MSSQLServerSqlDialect extends DefaultSqlDialect {
 
     public MSSQLServerSqlDialect() {
     }
@@ -54,18 +53,6 @@ public class MSSQLServerSqlDialect extends DefaultSqlDialect implements SqlDiale
     @Override
     public boolean supportsDeleteAlias() {
         return true;
-    }
-
-    /**
-     * Indicates whether the SQL dialect supports multi-value tuples in the IN clause.
-     *
-     * @return {@code true} if multi-value tuples are supported, {@code false} otherwise.
-     * @since 1.2
-     */
-    @Override
-    public boolean supportsMultiValueTuples() {
-        // SQL Server does not support multi-value tuple IN clauses.
-        return false;
     }
 
     /**
@@ -142,22 +129,6 @@ public class MSSQLServerSqlDialect extends DefaultSqlDialect implements SqlDiale
     @Override
     public Pattern getIdentifierPattern() {
         return IDENTIFIER_PATTERN;
-    }
-
-    /**
-     * Regex for single-quoted string literals, handling both double single quotes and backslash escapes.
-     */
-    private static final Pattern QUOTE_LITERAL_PATTERN = Pattern.compile("'(?:''|\\\\.|[^'\\\\])*'");
-
-    /**
-     * Returns the pattern for string literals.
-     *
-     * @return the pattern for string literals.
-     * @since 1.2
-     */
-    @Override
-    public Pattern getQuoteLiteralPattern() {
-        return QUOTE_LITERAL_PATTERN;
     }
 
     /**

@@ -254,24 +254,7 @@ public class SelectBuilderImpl<T extends Data, R, ID> extends QueryBuilderImpl<T
         if (hasLock && queryTemplate.dialect().applyLockHintAfterFrom()) {
             template = TemplateString.combine(template, TemplateString.of("\n"), forLock);
         }
-        //noinspection DuplicatedCode
-        if (!join.isEmpty()) {
-            template = join.stream()
-                    .reduce(template,
-                            (acc, join) -> TemplateString.combine(acc, wrap(join)),
-                            TemplateString::combine);
-        }
-        if (!where.isEmpty()) {
-            if (where.size() == 1) {
-                template = TemplateString.combine(template, TemplateString.of("\nWHERE "), wrap(where.getFirst()));
-            } else {
-                TemplateString whereClause = where.stream()
-                        .map(w -> TemplateString.combine(TemplateString.of("("), wrap(w), TemplateString.of(")")))
-                        .reduce((a, b) -> TemplateString.combine(a, TemplateString.of("\n  AND "), b))
-                        .orElseThrow();
-                template = TemplateString.combine(template, TemplateString.of("\nWHERE "), whereClause);
-            }
-        }
+        template = appendJoinsAndWhere(template);
         if (!groupBy.isEmpty()) {
             TemplateString groupByClause = groupBy.stream()
                     .reduce((a, b) -> TemplateString.combine(a, TemplateString.of(", "), b))

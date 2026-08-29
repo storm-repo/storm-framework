@@ -177,6 +177,31 @@ abstract class QueryBuilderImpl<T extends Data, R, ID> extends QueryBuilder<T, R
     protected abstract boolean supportsJoin();
 
     /**
+     * Appends the registered joins and the WHERE clause, with multiple where-conditions AND-ed together, to the
+     * given template.
+     */
+    protected final TemplateString appendJoinsAndWhere(TemplateString template) {
+        if (!join.isEmpty()) {
+            template = join.stream()
+                    .reduce(template,
+                            (acc, join) -> TemplateString.combine(acc, wrap(join)),
+                            TemplateString::combine);
+        }
+        if (!where.isEmpty()) {
+            if (where.size() == 1) {
+                template = TemplateString.combine(template, TemplateString.of("\nWHERE "), wrap(where.getFirst()));
+            } else {
+                TemplateString whereClause = where.stream()
+                        .map(w -> TemplateString.combine(TemplateString.of("("), wrap(w), TemplateString.of(")")))
+                        .reduce((a, b) -> TemplateString.combine(a, TemplateString.of("\n  AND "), b))
+                        .orElseThrow();
+                template = TemplateString.combine(template, TemplateString.of("\nWHERE "), whereClause);
+            }
+        }
+        return template;
+    }
+
+    /**
      * Resolving a reference selects the referenced table's columns into the row that holds the reference, which only a
      * statement that selects rows can do.
      */

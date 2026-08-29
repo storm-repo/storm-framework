@@ -56,13 +56,13 @@ public class DataStormTestContextCustomizerFactory implements ContextCustomizerF
         @Override
         public boolean equals(Object other) {
             return other instanceof DataStormTestContextCustomizer customizer
-                    && Objects.equals(new DataStormTypeExcludeFilter(annotation),
-                                      new DataStormTypeExcludeFilter(customizer.annotation));
+                    && Objects.equals(DataStormTypeExcludeFilter.annotationState(annotation),
+                                      DataStormTypeExcludeFilter.annotationState(customizer.annotation));
         }
 
         @Override
         public int hashCode() {
-            return new DataStormTypeExcludeFilter(annotation).hashCode();
+            return DataStormTypeExcludeFilter.annotationState(annotation).hashCode();
         }
     }
 }

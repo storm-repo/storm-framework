@@ -97,8 +97,9 @@ public class OtelDatabaseObservationConvention extends StormQueryObservationConv
 
     @Override
     public KeyValues getHighCardinalityKeyValues(StormQueryObservationContext context) {
+        var keyValues = super.getHighCardinalityKeyValues(context);
         return context.queryContext().statement()
-                .map(statement -> super.getHighCardinalityKeyValues(context).and("db.query.text", statement))
-                .orElseGet(() -> super.getHighCardinalityKeyValues(context));
+                .map(statement -> keyValues.and("db.query.text", statement))
+                .orElse(keyValues);
     }
 }

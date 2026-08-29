@@ -352,15 +352,6 @@ public abstract class QueryBuilder<T extends Data, R, ID> {
         return where(path.asMetamodel(), EQUALS, record);
     }
 
-    @SuppressWarnings("unchecked")
-    private static <T extends Data> Metamodel<?, ?>[] asMetamodels(Navigable<? extends T, ?>[] paths) {
-        Metamodel<?, ?>[] result = new Metamodel[paths.length];
-        for (int i = 0; i < paths.length; i++) {
-            result[i] = paths[i].asMetamodel();
-        }
-        return result;
-    }
-
     /**
      * Adds a WHERE clause that matches the specified ref. The ref can represent any of the related tables in the
      * table graph.

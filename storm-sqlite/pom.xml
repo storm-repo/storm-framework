@@ -37,7 +37,7 @@
                 <artifactId>maven-surefire-plugin</artifactId>
                 <configuration>
                     <!-- Run tests on the classpath: the test suite registers a Spring-aware ConnectionProvider via
-                         META-INF/services (see st.orm.spi.sqlite.testsupport), which ServiceLoader only picks up for
+                         META-INF/services (see st.orm.test.spring.TestSpringConnectionProvider), which ServiceLoader only picks up for
                          the unnamed module. This keeps the @Transactional test rollback applying to Storm
                          statements. -->
                     <useModulePath>false</useModulePath>
@@ -101,6 +101,12 @@
             <scope>provided</scope>
         </dependency>
         <!-- Test -->
+        <dependency>
+            <groupId>st.orm</groupId>
+            <artifactId>storm-test</artifactId>
+            <version>${project.version}</version>
+            <scope>test</scope>
+        </dependency>
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-test</artifactId>

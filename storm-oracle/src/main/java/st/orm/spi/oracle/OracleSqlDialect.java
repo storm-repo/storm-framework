@@ -8,7 +8,7 @@
  *      https://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
- * distributed under the "AS IS" BASIS,
+ * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
  * limitations under the License.
@@ -24,15 +24,13 @@ import static st.orm.Operator.LESS_THAN_OR_EQUAL;
 
 import java.util.List;
 import java.util.Set;
-import java.util.regex.Pattern;
 import java.util.stream.Stream;
 import st.orm.Operator;
 import st.orm.StormConfig;
 import st.orm.core.spi.DefaultSqlDialect;
 import st.orm.core.template.Column;
-import st.orm.core.template.SqlDialect;
 
-public class OracleSqlDialect extends DefaultSqlDialect implements SqlDialect {
+public class OracleSqlDialect extends DefaultSqlDialect {
 
     public OracleSqlDialect() {
     }
@@ -50,20 +48,6 @@ public class OracleSqlDialect extends DefaultSqlDialect implements SqlDialect {
     @Override
     public String name() {
         return "Oracle";
-    }
-
-    /**
-     * Indicates whether the SQL dialect supports delete aliases.
-     *
-     * <p>Delete aliases allow delete statements to use table aliases in joins,  making it easier to filter rows based
-     * on related data.</p>
-     *
-     * @return {@code true} if delete aliases are supported, {@code false} otherwise.
-     */
-    @Override
-    public boolean supportsDeleteAlias() {
-        // Oracle doesn't allow table aliases in DELETE.
-        return false;
     }
 
     /**
@@ -90,19 +74,6 @@ public class OracleSqlDialect extends DefaultSqlDialect implements SqlDialect {
         return selected;
     }
 
-    private static final Pattern ORACLE_IDENTIFIER = Pattern.compile("^[A-Za-z][A-Za-z0-9_]*$");
-
-    /**
-     * Returns the pattern for valid identifiers.
-     *
-     * @return the pattern for valid identifiers.
-     * @since 1.2
-     */
-    @Override
-    public Pattern getValidIdentifierPattern() {
-        return ORACLE_IDENTIFIER;
-    }
-
     private static final Set<String> ORACLE_RESERVED = Stream.concat(ANSI_KEYWORDS.stream(), Stream.of(
             "ACCESS", "AUDIT", "CLUSTER", "COMMENT", "COMPRESS", "EXCLUSIVE", "FILE", "IDENTIFIED",
             "INCREMENT", "INDEX", "INITIAL", "LOCK", "LONG", "MAXEXTENTS", "MLSLABEL", "MODE", "MODIFY", "NOWAIT",
@@ -125,28 +96,6 @@ public class OracleSqlDialect extends DefaultSqlDialect implements SqlDialect {
     @Override
     public String escape(String name) {
         return "\"%s\"".formatted(name.replace("\"", "\"\""));
-    }
-
-    /**
-     * Regex for double-quoted identifiers in Oracle (embedded quotes are doubled).
-     */
-    private static final Pattern IDENTIFIER_PATTERN = Pattern.compile(
-        "\"(?:\"\"|[^\"])*\""
-    );
-
-    @Override
-    public Pattern getIdentifierPattern() {
-        return IDENTIFIER_PATTERN;
-    }
-
-    /**
-     * Regex for single-quoted string literals in Oracle (escaped by doubling the single quote).
-     */
-    private static final Pattern QUOTE_LITERAL_PATTERN = Pattern.compile("'(?:''|\\\\.|[^'\\\\])*'");
-
-    @Override
-    public Pattern getQuoteLiteralPattern() {
-        return QUOTE_LITERAL_PATTERN;
     }
 
     /**
@@ -233,17 +182,6 @@ public class OracleSqlDialect extends DefaultSqlDialect implements SqlDialect {
     public String forShareLockHint() {
         // We may add configuration flags to choose between an empty String and a PersistenceException.
         return "";
-    }
-
-    /**
-     * Returns the lock hint for a write lock in Oracle.
-     * Oracle supports "FOR UPDATE" to lock rows for update.
-     *
-     * @return the lock hint for a write lock.
-     */
-    @Override
-    public String forUpdateLockHint() {
-        return "FOR UPDATE";
     }
 
     /**

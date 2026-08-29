@@ -607,7 +607,7 @@ final class QueryModelImpl implements QueryModel {
      * @return the resolved value.
      * @throws SqlTemplateException if the value is invalid in this context.
      */
-    private Object resolveElements(@Nullable Object value) throws SqlTemplateException {
+    private @Nullable Object resolveElements(@Nullable Object value) throws SqlTemplateException {
         return switch (value) {
             case TemplateString ignore -> throw new SqlTemplateException("TemplateString is not allowed as a string template value.");
             case Stream<?> ignore -> throw new SqlTemplateException("Stream is not supported as a string template value. Collect the Stream into a List before passing it.");

@@ -1,3 +1,6 @@
+// The qualified exports below target sibling modules that depend on storm-spring, so they are never
+// observable while storm-spring itself compiles; suppress the resulting "module not found" warnings.
+@SuppressWarnings("module")
 module storm.spring {
     requires static storm.java;
     requires static storm.micrometer;
@@ -27,6 +30,14 @@ module storm.spring {
     requires java.sql;
     exports st.orm.spring;
     exports st.orm.spring.boot;
-    exports st.orm.spring.impl;
+    // The impl package is reachable by Storm's own modules and by the Spring modules that reflectively
+    // instantiate its auto-configuration, registrar and runtime-hints classes; to everyone else it is not API.
+    exports st.orm.spring.impl to
+            storm.kotlin.spring,
+            spring.beans,
+            spring.boot,
+            spring.boot.autoconfigure,
+            spring.context,
+            spring.core;
     provides st.orm.core.spi.ExternalTransactionProvider with st.orm.spring.SpringExternalTransactionProvider;
 }

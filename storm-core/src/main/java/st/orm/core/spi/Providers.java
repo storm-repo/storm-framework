@@ -311,7 +311,7 @@ public final class Providers {
         }
         return DATABASE_PRODUCT_NAMES.computeIfAbsent(new DataSourceIdentity(dataSource, DATA_SOURCE_QUEUE), ignore -> {
             try (Connection connection = dataSource.getConnection()) {
-                return connection.getMetaData().getDatabaseProductName();
+                return getDatabaseProductName(connection);
             } catch (SQLException e) {
                 throw new PersistenceException("Failed to determine database product name.", e);
             }
@@ -358,12 +358,7 @@ public final class Providers {
      * @since 1.11
      */
     public static SqlDialect getSqlDialect(DataSource dataSource, StormConfig config) {
-        String productName = getDatabaseProductName(dataSource);
-        return enabled(SQL_DIALECT_PROVIDERS)
-                .filter(p -> p.supports(productName))
-                .map(p -> p.getSqlDialect(config))
-                .findFirst()
-                .orElseThrow();
+        return sqlDialectFor(getDatabaseProductName(dataSource), config);
     }
 
     /**
@@ -376,7 +371,10 @@ public final class Providers {
      * @since 1.11
      */
     public static SqlDialect getSqlDialect(Connection connection, StormConfig config) {
-        String productName = getDatabaseProductName(connection);
+        return sqlDialectFor(getDatabaseProductName(connection), config);
+    }
+
+    private static SqlDialect sqlDialectFor(String productName, StormConfig config) {
         return enabled(SQL_DIALECT_PROVIDERS)
                 .filter(p -> p.supports(productName))
                 .map(p -> p.getSqlDialect(config))

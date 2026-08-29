@@ -27,8 +27,6 @@ import st.orm.Page;
 import st.orm.Pageable;
 import st.orm.Projection;
 import st.orm.Ref;
-import st.orm.Scrollable;
-import st.orm.Window;
 import st.orm.repository.ProjectionRepository;
 import st.orm.template.Model;
 import st.orm.template.ORMTemplate;
@@ -131,13 +129,6 @@ public final class ProjectionRepositoryImpl<P extends Projection<ID>, ID> implem
     @Override
     public Page<Ref<P>> pageRef(Pageable pageable) {
         return core.pageRef(pageable);
-    }
-
-    // Window methods.
-
-    @Override
-    public Window<P> scroll(Scrollable<P> scrollable) {
-        return select().scroll(scrollable);
     }
 
     @Override

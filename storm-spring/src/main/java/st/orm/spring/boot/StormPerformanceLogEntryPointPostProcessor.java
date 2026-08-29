@@ -26,7 +26,6 @@ import org.aopalliance.intercept.MethodInterceptor;
 import org.aopalliance.intercept.MethodInvocation;
 import org.jspecify.annotations.Nullable;
 import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.springframework.aop.framework.Advised;
 import org.springframework.aop.framework.ProxyFactory;
 import org.springframework.aop.support.AopUtils;
@@ -59,7 +58,7 @@ import st.orm.core.template.SqlLog;
 public class StormPerformanceLogEntryPointPostProcessor
         implements BeanPostProcessor, Ordered, PerformanceLog.Boundary {
 
-    private static final Logger LOGGER = LoggerFactory.getLogger("st.orm.sql.perf");
+    private static final Logger LOGGER = PerformanceLog.LOGGER;
 
     private final Set<String> entryPointAnnotations;
 
@@ -179,7 +178,7 @@ public class StormPerformanceLogEntryPointPostProcessor
             // Read once, so a replacement mid-invocation cannot report an invocation against settings it was not
             // recorded under.
             var settings = StormPerformanceLogEntryPointPostProcessor.this.settings;
-            if (!PerformanceLog.consumes(LOGGER, settings)) {
+            if (!PerformanceLog.consumes(settings)) {
                 // Nothing consumes the summary, so do not open a scope to build one.
                 return invocation.proceed();
             }
@@ -189,7 +188,7 @@ public class StormPerformanceLogEntryPointPostProcessor
                 return invocation.proceed();
             } finally {
                 scope.close();
-                PerformanceLog.report(LOGGER, scope.summary(), settings);
+                PerformanceLog.report(scope.summary(), settings);
             }
         }
     }

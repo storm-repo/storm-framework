@@ -58,8 +58,6 @@ import st.orm.template.ORMTemplate;
 @EnableConfigurationProperties(StormProperties.class)
 public class StormAutoConfiguration {
 
-    private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(StormAutoConfiguration.class);
-
     /**
      * Creates an {@link ORMTemplate} bean using the provided {@link DataSource} and {@link StormProperties}.
      *

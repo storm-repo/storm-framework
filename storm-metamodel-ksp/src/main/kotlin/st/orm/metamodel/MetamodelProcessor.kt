@@ -368,6 +368,16 @@ class MetamodelProcessor(
     }
 
     private fun renderKotlinBaseName(qualifiedName: String, currentPackage: String): String = when (qualifiedName) {
+        "kotlin.Any" -> "Any"
+        else -> renderResolvedKotlinName(qualifiedName, currentPackage)
+    }
+
+    /**
+     * Renders the Kotlin name of a resolved declaration for the generated source: primitive-mapped names stay
+     * simple, a name in the current package drops the package, and everything else stays fully qualified. The
+     * `kotlin.Any` mapping is deliberately absent; the resolved-field call sites render it qualified.
+     */
+    private fun renderResolvedKotlinName(qualifiedName: String, currentPackage: String): String = when (qualifiedName) {
         "kotlin.String", "java.lang.String" -> "String"
         "kotlin.Int", "java.lang.Integer" -> "Int"
         "kotlin.Long", "java.lang.Long" -> "Long"
@@ -377,7 +387,7 @@ class MetamodelProcessor(
         "kotlin.Double", "java.lang.Double" -> "Double"
         "kotlin.Float", "java.lang.Float" -> "Float"
         "kotlin.Char", "java.lang.Character" -> "Char"
-        "java.lang.Object", "kotlin.Any" -> "Any"
+        "java.lang.Object" -> "Any"
         else -> {
             if (qualifiedName.startsWith(currentPackage) && currentPackage.isNotEmpty()) {
                 val simpleName = qualifiedName.substring(currentPackage.length + 1)
@@ -403,26 +413,7 @@ class MetamodelProcessor(
             val decl = resolvedType.declaration
             val qualifiedName = decl.qualifiedName?.asString() ?: return "Any"
 
-            val baseName = when (qualifiedName) {
-                "kotlin.String", "java.lang.String" -> "String"
-                "kotlin.Int", "java.lang.Integer" -> "Int"
-                "kotlin.Long", "java.lang.Long" -> "Long"
-                "kotlin.Short", "java.lang.Short" -> "Short"
-                "kotlin.Byte", "java.lang.Byte" -> "Byte"
-                "kotlin.Boolean", "java.lang.Boolean" -> "Boolean"
-                "kotlin.Double", "java.lang.Double" -> "Double"
-                "kotlin.Float", "java.lang.Float" -> "Float"
-                "kotlin.Char", "java.lang.Character" -> "Char"
-                "java.lang.Object" -> "Any"
-                else -> {
-                    if (qualifiedName.startsWith(currentPackage) && currentPackage.isNotEmpty()) {
-                        val simpleName = qualifiedName.substring(currentPackage.length + 1)
-                        if (!simpleName.contains(".")) simpleName else qualifiedName
-                    } else {
-                        qualifiedName
-                    }
-                }
-            }
+            val baseName = renderResolvedKotlinName(qualifiedName, currentPackage)
             val typeArguments = resolvedType.arguments
             if (typeArguments.isNotEmpty() && typeArguments.all { it.variance != Variance.STAR }) {
                 val wildcards = typeArguments.joinToString(", ") { "*" }
@@ -448,26 +439,10 @@ class MetamodelProcessor(
         fun render(type: KSType): String {
             val decl = type.declaration
             val qualifiedName = decl.qualifiedName?.asString() ?: decl.simpleName.asString()
-            val baseName = when (qualifiedName) {
-                "st.orm.Ref" -> "st.orm.Ref"
-                "kotlin.String", "java.lang.String" -> "String"
-                "kotlin.Int", "java.lang.Integer" -> "Int"
-                "kotlin.Long", "java.lang.Long" -> "Long"
-                "kotlin.Short", "java.lang.Short" -> "Short"
-                "kotlin.Byte", "java.lang.Byte" -> "Byte"
-                "kotlin.Boolean", "java.lang.Boolean" -> "Boolean"
-                "kotlin.Double", "java.lang.Double" -> "Double"
-                "kotlin.Float", "java.lang.Float" -> "Float"
-                "kotlin.Char", "java.lang.Character" -> "Char"
-                "java.lang.Object" -> "Any"
-                else -> {
-                    if (qualifiedName.startsWith(currentPackage) && currentPackage.isNotEmpty()) {
-                        val simpleName = qualifiedName.substring(currentPackage.length + 1)
-                        if (!simpleName.contains(".")) simpleName else qualifiedName
-                    } else {
-                        qualifiedName
-                    }
-                }
+            val baseName = if (qualifiedName == "st.orm.Ref") {
+                "st.orm.Ref"
+            } else {
+                renderResolvedKotlinName(qualifiedName, currentPackage)
             }
             val args = type.arguments
             val typeArgs = if (args.isNotEmpty()) {
@@ -741,67 +716,75 @@ class MetamodelProcessor(
 
     private fun ensureNullable(typeName: String): String = if (typeName.endsWith("?")) typeName else "$typeName?"
 
+    /**
+     * Renders the comparison for a primitive-typed value: floats and doubles compare by bit pattern so NaN
+     * equals NaN, the other primitives by value; the null-safe form reads through nullable receivers.
+     */
+    private fun primitiveEq(left: String, right: String, pk: PrimitiveKind, nullSafe: Boolean): String = when (pk) {
+        PrimitiveKind.FLOAT,
+        PrimitiveKind.DOUBLE,
+        -> if (nullSafe) "($left)?.toBits() == ($right)?.toBits()" else "($left).toBits() == ($right).toBits()"
+        PrimitiveKind.BOOLEAN,
+        PrimitiveKind.BYTE,
+        PrimitiveKind.SHORT,
+        PrimitiveKind.INT,
+        PrimitiveKind.LONG,
+        PrimitiveKind.CHAR,
+        -> "$left == $right"
+    }
+
     private fun sameExpr(left: String, right: String, typeRef: KSTypeReference, forceNullableChain: Boolean): String {
         val pk = primitiveKind(typeRef)
-        return if (forceNullableChain && pk != null) {
-            when (pk) {
-                PrimitiveKind.FLOAT -> "($left)?.toBits() == ($right)?.toBits()"
-                PrimitiveKind.DOUBLE -> "($left)?.toBits() == ($right)?.toBits()"
-                PrimitiveKind.BOOLEAN,
-                PrimitiveKind.BYTE,
-                PrimitiveKind.SHORT,
-                PrimitiveKind.INT,
-                PrimitiveKind.LONG,
-                PrimitiveKind.CHAR,
-                -> "$left == $right"
-            }
-        } else {
-            when (pk) {
-                PrimitiveKind.FLOAT -> "($left).toBits() == ($right).toBits()"
-                PrimitiveKind.DOUBLE -> "($left).toBits() == ($right).toBits()"
-                PrimitiveKind.BOOLEAN,
-                PrimitiveKind.BYTE,
-                PrimitiveKind.SHORT,
-                PrimitiveKind.INT,
-                PrimitiveKind.LONG,
-                PrimitiveKind.CHAR,
-                -> "$left == $right"
-                null -> if (isKotlinArrayType(typeRef)) "($left).contentEquals($right)" else "$left == $right"
-            }
+        if (pk != null) {
+            return primitiveEq(left, right, pk, nullSafe = forceNullableChain)
         }
+        return if (isKotlinArrayType(typeRef)) "($left).contentEquals($right)" else "$left == $right"
     }
 
     private fun identicalExpr(left: String, right: String, typeRef: KSTypeReference, forceNullableChain: Boolean): String {
         val pk = primitiveKind(typeRef)
-        return if (forceNullableChain && pk != null) {
-            when (pk) {
-                PrimitiveKind.FLOAT -> "($left)?.toBits() == ($right)?.toBits()"
-                PrimitiveKind.DOUBLE -> "($left)?.toBits() == ($right)?.toBits()"
-                PrimitiveKind.BOOLEAN,
-                PrimitiveKind.BYTE,
-                PrimitiveKind.SHORT,
-                PrimitiveKind.INT,
-                PrimitiveKind.LONG,
-                PrimitiveKind.CHAR,
-                -> "$left == $right"
-            }
-        } else {
-            when (pk) {
-                PrimitiveKind.FLOAT -> "($left).toBits() == ($right).toBits()"
-                PrimitiveKind.DOUBLE -> "($left).toBits() == ($right).toBits()"
-                PrimitiveKind.BOOLEAN,
-                PrimitiveKind.BYTE,
-                PrimitiveKind.SHORT,
-                PrimitiveKind.INT,
-                PrimitiveKind.LONG,
-                PrimitiveKind.CHAR,
-                -> "$left == $right"
-                null -> {
-                    if (isNullableKotlinPrimitive(typeRef)) return "$left == $right"
-                    if (isValueBasedType(typeRef)) "$left == $right" else "$left === $right"
-                }
-            }
+        if (pk != null) {
+            return primitiveEq(left, right, pk, nullSafe = forceNullableChain)
         }
+        if (isNullableKotlinPrimitive(typeRef)) return "$left == $right"
+        return if (isValueBasedType(typeRef)) "$left == $right" else "$left === $right"
+    }
+
+    /**
+     * Reports the key annotations that are not supported on inline record fields: @PK, @FK and @UK apply to
+     * top-level entity fields only.
+     */
+    private fun reportInlineKeyAnnotations(prop: KSPropertyDeclaration) {
+        if (hasAnnotationOrMeta(prop, PRIMARY_KEY)) {
+            logger.error(
+                "@PK is not supported on inline record fields. " +
+                    "Primary keys are only supported on top-level entity fields.",
+                prop,
+            )
+        }
+        if (hasAnnotationOrMeta(prop, FOREIGN_KEY)) {
+            logger.error(
+                "@FK is not supported on inline record fields. " +
+                    "Foreign keys are only supported on top-level entity fields.",
+                prop,
+            )
+        }
+        if (hasAnnotationOrMeta(prop, UNIQUE_KEY)) {
+            logger.error(
+                "@UK is not supported on inline record fields. " +
+                    "Unique keys are only supported on top-level entity fields.",
+                prop,
+            )
+        }
+    }
+
+    /**
+     * Returns the incremental-processing dependencies of a generated file: its declaration's containing file,
+     * or no sources for a declaration that has none (such as one from a library).
+     */
+    private fun dependenciesOf(classDeclaration: KSClassDeclaration): Dependencies {
+        val containingFile = classDeclaration.containingFile
+        return if (containingFile != null) Dependencies(true, containingFile) else Dependencies(false)
     }
 
     private fun buildInterfaceFields(
@@ -914,27 +897,7 @@ class MetamodelProcessor(
                 // Validate: @PK, @FK, and @UK are not supported on inline record fields. Both chain variants walk
                 // the same properties; only the base pass reports, so a diagnostic prints once.
                 if (!forceNullableChain && !classDeclaration.implementsInterface(DATA)) {
-                    if (hasAnnotationOrMeta(prop, PRIMARY_KEY)) {
-                        logger.error(
-                            "@PK is not supported on inline record fields. " +
-                                "Primary keys are only supported on top-level entity fields.",
-                            prop,
-                        )
-                    }
-                    if (hasAnnotationOrMeta(prop, FOREIGN_KEY)) {
-                        logger.error(
-                            "@FK is not supported on inline record fields. " +
-                                "Foreign keys are only supported on top-level entity fields.",
-                            prop,
-                        )
-                    }
-                    if (hasAnnotationOrMeta(prop, UNIQUE_KEY)) {
-                        logger.error(
-                            "@UK is not supported on inline record fields. " +
-                                "Unique keys are only supported on top-level entity fields.",
-                            prop,
-                        )
-                    }
+                    reportInlineKeyAnnotations(prop)
                 }
                 val inlineFlag = if (isChildData) "false" else "true"
                 val childForceNullable = forceNullableChain || propNullable
@@ -1022,27 +985,7 @@ class MetamodelProcessor(
                 // Validate: @PK, @FK, and @UK are not supported on inline record fields. Both chain variants walk
                 // the same properties; only the base pass reports, so a diagnostic prints once.
                 if (!forceNullableChain && !isData) {
-                    if (hasAnnotationOrMeta(prop, PRIMARY_KEY)) {
-                        logger.error(
-                            "@PK is not supported on inline record fields. " +
-                                "Primary keys are only supported on top-level entity fields.",
-                            prop,
-                        )
-                    }
-                    if (hasAnnotationOrMeta(prop, FOREIGN_KEY)) {
-                        logger.error(
-                            "@FK is not supported on inline record fields. " +
-                                "Foreign keys are only supported on top-level entity fields.",
-                            prop,
-                        )
-                    }
-                    if (hasAnnotationOrMeta(prop, UNIQUE_KEY)) {
-                        logger.error(
-                            "@UK is not supported on inline record fields. " +
-                                "Unique keys are only supported on top-level entity fields.",
-                            prop,
-                        )
-                    }
+                    reportInlineKeyAnnotations(prop)
                 }
                 val effectivelyNullable = if (!isData) {
                     // Leaf of a compound key: report raw field nullability for runtime derivation.
@@ -1230,8 +1173,7 @@ class MetamodelProcessor(
         val metaClassName = "Navigable${className}Metamodel"
         val navFields = buildNavClassFields(classDeclaration, packageName)
         val initFields = initNavClassFields(classDeclaration, packageName)
-        val containingFile = classDeclaration.containingFile
-        val deps = if (containingFile != null) Dependencies(true, containingFile) else Dependencies(false)
+        val deps = dependenciesOf(classDeclaration)
         val file = codeGenerator.createNewFile(dependencies = deps, packageName = packageName, fileName = metaClassName)
         OutputStreamWriter(file).use { writer ->
             writer.write(
@@ -1275,8 +1217,7 @@ class MetamodelProcessor(
         val refType = "st.orm.Ref<$className>"
         val navFields = buildNavClassFields(classDeclaration, packageName)
         val initFields = initNavClassFields(classDeclaration, packageName)
-        val containingFile = classDeclaration.containingFile
-        val deps = if (containingFile != null) Dependencies(true, containingFile) else Dependencies(false)
+        val deps = dependenciesOf(classDeclaration)
         val file = codeGenerator.createNewFile(dependencies = deps, packageName = packageName, fileName = metaClassName)
         OutputStreamWriter(file).use { writer ->
             writer.write(
@@ -1415,7 +1356,7 @@ class MetamodelProcessor(
         val componentNames = primaryConstructor.parameters.map { it.name?.asString() ?: return }
         val components = componentNames.joinToString(",\n") { "        instance.${escaped(it)}" }
         val containingFile = classDeclaration.containingFile
-        val deps = if (containingFile != null) Dependencies(true, containingFile) else Dependencies(false)
+        val deps = dependenciesOf(classDeclaration)
         val file = codeGenerator.createNewFile(
             dependencies = deps,
             packageName = packageName,
@@ -1474,8 +1415,7 @@ class MetamodelProcessor(
         val packageName = classDeclaration.packageName.asString()
         val className = classDeclaration.simpleName.asString()
         val metaInterfaceName = "${className}_"
-        val containingFile = classDeclaration.containingFile
-        val deps = if (containingFile != null) Dependencies(true, containingFile) else Dependencies(false)
+        val deps = dependenciesOf(classDeclaration)
         val file = codeGenerator.createNewFile(
             dependencies = deps,
             packageName = packageName,
@@ -1603,8 +1543,7 @@ class MetamodelProcessor(
             |    }
         """.trimMargin().trim('\n')
 
-        val containingFile = classDeclaration.containingFile
-        val deps = if (containingFile != null) Dependencies(true, containingFile) else Dependencies(false)
+        val deps = dependenciesOf(classDeclaration)
         val file = codeGenerator.createNewFile(
             dependencies = deps,
             packageName = packageName,

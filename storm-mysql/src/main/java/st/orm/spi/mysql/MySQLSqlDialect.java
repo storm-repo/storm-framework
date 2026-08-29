@@ -24,9 +24,8 @@ import st.orm.Operator;
 import st.orm.PersistenceException;
 import st.orm.StormConfig;
 import st.orm.core.spi.DefaultSqlDialect;
-import st.orm.core.template.SqlDialect;
 
-public class MySQLSqlDialect extends DefaultSqlDialect implements SqlDialect {
+public class MySQLSqlDialect extends DefaultSqlDialect {
 
     public MySQLSqlDialect() {
     }
@@ -138,22 +137,6 @@ public class MySQLSqlDialect extends DefaultSqlDialect implements SqlDialect {
     @Override
     public Pattern getIdentifierPattern() {
         return IDENTIFIER_PATTERN;
-    }
-
-    /**
-     * Regex for single-quoted string literals, handling both double single quotes and backslash escapes.
-     */
-    private static final Pattern QUOTE_LITERAL_PATTERN = Pattern.compile("'(?:''|\\\\.|[^'\\\\])*'");
-
-    /**
-     * Returns the pattern for string literals.
-     *
-     * @return the pattern for string literals.
-     * @since 1.2
-     */
-    @Override
-    public Pattern getQuoteLiteralPattern() {
-        return QUOTE_LITERAL_PATTERN;
     }
 
     /**

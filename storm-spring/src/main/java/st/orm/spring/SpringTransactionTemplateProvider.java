@@ -36,11 +36,11 @@ import st.orm.TransactionIsolation;
 import st.orm.TransactionPropagation;
 import st.orm.core.spi.CacheRetention;
 import st.orm.core.spi.EntityCache;
-import st.orm.core.spi.EntityCacheImpl;
 import st.orm.core.spi.TransactionContext;
 import st.orm.core.spi.TransactionStatus;
 import st.orm.core.spi.TransactionTemplate;
 import st.orm.core.spi.TransactionTemplateProvider;
+import st.orm.spring.impl.EntityCaches;
 import st.orm.spring.impl.SpringTransactionContext;
 
 /**
@@ -259,16 +259,12 @@ public class SpringTransactionTemplateProvider implements TransactionTemplatePro
             // The context is bound once per physical Spring transaction, which gives correct cache scoping for
             // REQUIRED and REQUIRES_NEW. NESTED savepoint rollbacks are not observable through Spring's hooks, so no
             // cache splitting is attempted for savepoints.
-            return caches.computeIfAbsent(entityType, ignore -> new EntityCacheImpl<>(retention));
+            return EntityCaches.entityCache(caches, entityType, retention);
         }
 
         @Override
         public EntityCache<? extends Entity<?>, ?> getEntityCache(Class<? extends Entity<?>> entityType) {
-            var cache = caches.get(entityType);
-            if (cache == null) {
-                throw new IllegalStateException("No entity cache exists for " + entityType.getName() + ".");
-            }
-            return cache;
+            return EntityCaches.getEntityCache(caches, entityType);
         }
 
         @Override
@@ -278,9 +274,7 @@ public class SpringTransactionTemplateProvider implements TransactionTemplatePro
 
         @Override
         public void clearAllEntityCaches() {
-            for (EntityCache<? extends Entity<?>, ?> cache : caches.values()) {
-                cache.clear();
-            }
+            EntityCaches.clearAll(caches);
         }
 
         @Override

@@ -27,8 +27,6 @@ import st.orm.Metamodel;
 import st.orm.Page;
 import st.orm.Pageable;
 import st.orm.Ref;
-import st.orm.Scrollable;
-import st.orm.Window;
 import st.orm.repository.EntityRepository;
 import st.orm.template.Model;
 import st.orm.template.ORMTemplate;
@@ -246,11 +244,6 @@ public final class EntityRepositoryImpl<E extends Entity<ID>, ID> implements Ent
     @Override
     public Page<Ref<E>> pageRef(Pageable pageable) {
         return core.pageRef(pageable);
-    }
-
-    @Override
-    public Window<E> scroll(Scrollable<E> scrollable) {
-        return select().scroll(scrollable);
     }
 
     @Override

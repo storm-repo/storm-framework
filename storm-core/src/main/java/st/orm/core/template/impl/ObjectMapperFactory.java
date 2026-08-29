@@ -37,8 +37,6 @@ import st.orm.Data;
 import st.orm.PK;
 import st.orm.core.spi.Instantiators;
 import st.orm.core.spi.Nullability;
-import st.orm.core.spi.ORMReflection;
-import st.orm.core.spi.Providers;
 import st.orm.core.spi.RefFactory;
 import st.orm.core.template.SqlTemplateException;
 import st.orm.mapping.Instantiator;
@@ -47,8 +45,6 @@ import st.orm.mapping.Instantiator;
  * Factory for creating instances of a specific type.
  */
 public final class ObjectMapperFactory {
-
-    private static final ORMReflection REFLECTION = Providers.getORMReflection();
 
     private ObjectMapperFactory() {
     }

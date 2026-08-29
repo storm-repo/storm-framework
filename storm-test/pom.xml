@@ -123,6 +123,13 @@
             <artifactId>h2</artifactId>
             <scope>provided</scope>
         </dependency>
+        <!-- Spring sits behind the Spring-aware test support in st.orm.test.spring: only suites that bind
+             Storm statements to Spring-managed test transactions bring it. -->
+        <dependency>
+            <groupId>org.springframework</groupId>
+            <artifactId>spring-jdbc</artifactId>
+            <scope>provided</scope>
+        </dependency>
         <!-- Testcontainers sits behind StormTest.database(): tests bring the module of the database they run on,
              and tests on H2 bring nothing, so the module compiles against the core in provided scope. -->
         <dependency>

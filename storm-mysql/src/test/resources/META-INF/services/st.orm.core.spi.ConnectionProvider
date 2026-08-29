@@ -1,1 +1,1 @@
-st.orm.spi.mysql.testsupport.TestSpringConnectionProvider
+st.orm.test.spring.TestSpringConnectionProvider

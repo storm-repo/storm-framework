@@ -58,7 +58,6 @@ import st.orm.TransactionTimedOutException;
 import st.orm.UnexpectedRollbackException;
 import st.orm.core.spi.CacheRetention;
 import st.orm.core.spi.EntityCache;
-import st.orm.core.spi.EntityCacheImpl;
 import st.orm.core.spi.TransactionContext;
 
 /**
@@ -134,6 +133,10 @@ public final class SpringTransactionContext implements TransactionContext {
             }
             long remaining = deadlineNanos - nowNanos();
             return remaining <= 0L ? 0 : (int) (remaining / NANOS_PER_SECOND);
+        }
+
+        boolean deadlineExpired() {
+            return deadlineNanos != null && nowNanos() >= deadlineNanos;
         }
     }
 
@@ -275,18 +278,15 @@ public final class SpringTransactionContext implements TransactionContext {
     @Override
     public EntityCache<? extends Entity<?>, ?> entityCache(Class<? extends Entity<?>> entityType,
                                                            CacheRetention retention) {
-        return (EntityCache<? extends Entity<?>, ?>) currentState().entityCacheMap
-                .computeIfAbsent(entityType, ignore -> new EntityCacheImpl<>(retention));
+        return (EntityCache<? extends Entity<?>, ?>) EntityCaches.entityCache(
+                currentState().entityCacheMap, entityType, retention);
     }
 
     @SuppressWarnings("unchecked")
     @Override
     public EntityCache<? extends Entity<?>, ?> getEntityCache(Class<? extends Entity<?>> entityType) {
-        var cache = (EntityCache<? extends Entity<?>, ?>) currentState().entityCacheMap.get(entityType);
-        if (cache == null) {
-            throw new IllegalStateException("No entity cache exists for " + entityType.getName() + ".");
-        }
-        return cache;
+        return (EntityCache<? extends Entity<?>, ?>) EntityCaches.getEntityCache(
+                currentState().entityCacheMap, entityType);
     }
 
     @SuppressWarnings("unchecked")
@@ -301,7 +301,7 @@ public final class SpringTransactionContext implements TransactionContext {
      */
     @Override
     public void clearAllEntityCaches() {
-        currentState().entityCacheMap.values().forEach(EntityCache::clear);
+        EntityCaches.clearAll(currentState().entityCacheMap);
     }
 
     @SuppressWarnings("unchecked")
@@ -658,16 +658,14 @@ public final class SpringTransactionContext implements TransactionContext {
 
     private void commit() {
         var current = currentState();
-        boolean expired = current.deadlineNanos != null && nowNanos() >= current.deadlineNanos;
-        if (current.rollbackOnly || expired) {
+        if (current.rollbackOnly || current.deadlineExpired()) {
             rollback();
             return;
         }
         var state = popState();
         // If this frame never touched a DataSource/started a status, still enforce timeout deterministically.
         if (state.transactionStatus == null) {
-            boolean expiredAfter = state.deadlineNanos != null && nowNanos() >= state.deadlineNanos;
-            if (expiredAfter) {
+            if (state.deadlineExpired()) {
                 throw new TransactionTimedOutException(
                         "Transaction did not complete within timeout (" + state.timeoutSeconds + "s).");
             }
@@ -676,8 +674,7 @@ public final class SpringTransactionContext implements TransactionContext {
         try {
             state.transactionManager.commit(state.transactionStatus);
         } catch (org.springframework.transaction.TransactionTimedOutException e) {
-            throw new TransactionTimedOutException(
-                    e.getMessage() == null ? "Did not complete within timeout." : e.getMessage());
+            throw timedOut(e);
         } catch (org.springframework.transaction.UnexpectedRollbackException e) {
             // If Spring threw because some inner joined frame marked rollback-only, surface a clean message.
             throw new UnexpectedRollbackException(
@@ -692,18 +689,13 @@ public final class SpringTransactionContext implements TransactionContext {
         var state = popState();
         // If the status never started, just check the deadline and throw appropriately.
         if (state.transactionStatus == null) {
-            boolean expired = state.deadlineNanos != null && nowNanos() >= state.deadlineNanos;
-            if (expired) {
-                throw new TransactionTimedOutException(
-                        "Did not complete within timeout (" + state.timeoutSeconds + "s).");
-            }
+            throwIfDeadlineExpired(state);
             return;
         }
         try {
             state.transactionManager.rollback(state.transactionStatus);
         } catch (org.springframework.transaction.TransactionTimedOutException e) {
-            throw new TransactionTimedOutException(
-                    e.getMessage() == null ? "Did not complete within timeout." : e.getMessage());
+            throw timedOut(e);
         } catch (Exception e) {
             throw new PersistenceException(e);
         }
@@ -716,11 +708,20 @@ public final class SpringTransactionContext implements TransactionContext {
                 outer.entityCacheMap.clear();
             }
         }
-        boolean expired = state.deadlineNanos != null && nowNanos() >= state.deadlineNanos;
-        if (expired) {
+        throwIfDeadlineExpired(state);
+    }
+
+    private static void throwIfDeadlineExpired(TransactionState state) {
+        if (state.deadlineExpired()) {
             throw new TransactionTimedOutException(
                     "Did not complete within timeout (" + state.timeoutSeconds + "s).");
         }
+    }
+
+    private static TransactionTimedOutException timedOut(
+            org.springframework.transaction.TransactionTimedOutException e) {
+        return new TransactionTimedOutException(
+                e.getMessage() == null ? "Did not complete within timeout." : e.getMessage());
     }
 
     private TransactionState popState() {

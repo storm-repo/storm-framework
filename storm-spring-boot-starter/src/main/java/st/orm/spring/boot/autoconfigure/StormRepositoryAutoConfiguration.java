@@ -20,6 +20,7 @@ import org.springframework.boot.autoconfigure.condition.ConditionalOnClass;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.context.annotation.Bean;
 import st.orm.spring.AbstractRepositoryBeanFactoryPostProcessor;
+import st.orm.spring.RepositoryBeanFactoryPostProcessor;
 import st.orm.template.ORMTemplate;
 
 /**

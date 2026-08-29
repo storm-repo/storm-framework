@@ -474,74 +474,60 @@ public final class SqlTemplateImpl implements SqlTemplate {
      * that differ only in how far a collection expanded share it.
      */
     private Object getShapeKey(BindingContext bindingContext) {
-        try {
-            var fragments = bindingContext.fragments();
-            var elements = bindingContext.elements();
-            var shapeGenerator = shapeGenerator();
-            var shapeKey = new ArrayList<>(fragments.size() + elements.size());
-            for (int i = 0, size = fragments.size(); i < size; i++) {
-                shapeKey.add(fragments.get(i));
-                if (i < elements.size()) {
-                    var element = elements.get(i);
-                    if (element instanceof Wrapped(var wrapped)) {
-                        for (var e : wrapped) {
-                            if (!e.synthetic()) {
-                                var key = getElementProcessor(e.element()).getShapeKey(e.element(), shapeGenerator);
-                                if (key != null) {
-                                    shapeKey.add(key);
-                                } else {
-                                    return null;
-                                }
-                            }
-                        }
-                    } else {
-                        var key = getElementProcessor(element).getShapeKey(element, shapeGenerator);
-                        if (key != null) {
-                            shapeKey.add(key);
-                        } else {
-                            return null;
-                        }
-                    }
-                }
-            }
-            return shapeKey;
-        } catch (SqlTemplateException e) {
-            throw new UncheckedSqlTemplateException(e);
-        }
+        var shapeGenerator = shapeGenerator();
+        return buildKey(bindingContext,
+                element -> getElementProcessor(element).getShapeKey(element, shapeGenerator));
     }
 
     private Object getCompilationKey(BindingContext bindingContext) {
+        return buildKey(bindingContext,
+                element -> getElementProcessor(element).getCompilationKey(element, keyGenerator));
+    }
+
+    /**
+     * The per-element contribution to a template key, or {@code null} when the element does not support keying.
+     */
+    @FunctionalInterface
+    private interface KeyExtractor {
+        @Nullable Object apply(Element element) throws SqlTemplateException;
+    }
+
+    /**
+     * Interleaves the template's fragments with the per-element keys the extractor produces, or returns
+     * {@code null} as soon as any element yields no key.
+     */
+    private @Nullable Object buildKey(BindingContext bindingContext, KeyExtractor extractor) {
         try {
             var fragments = bindingContext.fragments();
             var elements = bindingContext.elements();
             // Runs for every processed template; sized for the common case of one key per fragment and element.
-            var compilationKey = new ArrayList<>(fragments.size() + elements.size());
+            var templateKey = new ArrayList<>(fragments.size() + elements.size());
             for (int i = 0, size = fragments.size(); i < size; i++) {
-                compilationKey.add(fragments.get(i));
+                templateKey.add(fragments.get(i));
                 if (i < elements.size()) {
                     var element = elements.get(i);
                     if (element instanceof Wrapped(var wrapped)) {
                         for (var e : wrapped) {
-                            if (!e.synthetic()) {   // Ignore synthetic elements for the compilation key.
-                                var key = getElementProcessor(e.element()).getCompilationKey(e.element(), keyGenerator);
+                            if (!e.synthetic()) {   // Ignore synthetic elements for the key.
+                                var key = extractor.apply(e.element());
                                 if (key != null) {
-                                    compilationKey.add(key);
+                                    templateKey.add(key);
                                 } else {
                                     return null;
                                 }
                             }
                         }
                     } else {
-                        var key = getElementProcessor(element).getCompilationKey(element, keyGenerator);
+                        var key = extractor.apply(element);
                         if (key != null) {
-                            compilationKey.add(key);
+                            templateKey.add(key);
                         } else {
                             return null;
                         }
                     }
                 }
             }
-            return compilationKey;
+            return templateKey;
         } catch (SqlTemplateException e) {
             throw new UncheckedSqlTemplateException(e);
         }

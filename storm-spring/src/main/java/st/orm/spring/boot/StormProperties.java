@@ -248,11 +248,6 @@ public class StormProperties {
         public void setStrict(Boolean strict) { this.strict = strict; }
     }
 
-    /**
-     * Maps these properties onto Storm's configuration.
-     *
-     * @since 1.13
-     */
     /** Tracing configuration. */
     public static class Tracing {
 
@@ -284,7 +279,7 @@ public class StormProperties {
          * that asked for the work rather than the application's own database plumbing. Shared: both logs
          * attribute through the same walker.
          */
-        private List<String> callSiteSkip = java.util.List.of();
+        private List<String> callSiteSkip = List.of();
 
         /** Returns the packages skipped in call-site attribution. */
         public List<String> getCallSiteSkip() { return callSiteSkip; }
@@ -376,7 +371,7 @@ public class StormProperties {
              * library is absent from the classpath never matches and costs nothing. Setting the property replaces
              * the default list; an empty list turns entry-point wrapping off.</p>
              */
-            private List<String> entryPoints = java.util.List.of(
+            private List<String> entryPoints = List.of(
                     "org.springframework.scheduling.annotation.Scheduled",
                     "org.springframework.scheduling.annotation.Schedules",
                     "org.springframework.kafka.annotation.KafkaListener",
@@ -498,6 +493,11 @@ public class StormProperties {
         public void setEnabled(Boolean enabled) { this.enabled = enabled; }
     }
 
+    /**
+     * Maps these properties onto Storm's configuration.
+     *
+     * @since 1.13
+     */
     public StormConfig toStormConfig() {
         Map<String, String> map = new HashMap<>();
         if (update.getDefaultMode() != null) {
