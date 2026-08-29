@@ -164,11 +164,13 @@ public abstract class AbstractRepositoryBeanFactoryPostProcessor
             Stream<Class<?>> repositories
     ) {
         repositories.forEach(type -> {
+            var factoryBeanClass = getRepositoryFactoryBeanClass();
+            String prefix = getRepositoryPrefix();
             // A FactoryBean definition carrying the repository interface as a constructor argument, rather
             // than an instance supplier: suppliers cannot be processed by Spring AOT into generated code,
             // which would make scanned repositories unavailable in GraalVM native images.
             var definition = (RootBeanDefinition) BeanDefinitionBuilder
-                    .rootBeanDefinition(getRepositoryFactoryBeanClass())
+                    .rootBeanDefinition(factoryBeanClass)
                     .addConstructorArgValue(type)
                     .addConstructorArgValue(getOrmTemplateBeanName())
                     .getBeanDefinition();
@@ -177,9 +179,8 @@ public abstract class AbstractRepositoryBeanFactoryPostProcessor
             // The attribute is not carried into AOT-generated registrations; the target type is, and it
             // binds the FactoryBean's generic to the repository interface so the repository can still be
             // autowired by type in a native image.
-            definition.setTargetType(ResolvableType.forClassWithGenerics(getRepositoryFactoryBeanClass(), type));
-            definition.setAttribute("qualifier", getRepositoryPrefix());
-            String prefix = getRepositoryPrefix();
+            definition.setTargetType(ResolvableType.forClassWithGenerics(factoryBeanClass, type));
+            definition.setAttribute("qualifier", prefix);
             if (prefix != null && !prefix.isEmpty()) {
                 // The qualifier attribute supports autowiring by qualifier on the JVM; the definition-level
                 // qualifier survives AOT processing, where attributes are not carried into generated code.
@@ -188,7 +189,7 @@ public abstract class AbstractRepositoryBeanFactoryPostProcessor
             } else {
                 LOGGER.debug("Registering repository {}.", type.getName());
             }
-            String name = getRepositoryPrefix() + type.getSimpleName();
+            String name = prefix + type.getSimpleName();
             registry.registerBeanDefinition(name, definition);
         });
     }

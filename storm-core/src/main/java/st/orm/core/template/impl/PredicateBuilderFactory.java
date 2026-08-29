@@ -89,22 +89,4 @@ public interface PredicateBuilderFactory {
             Iterable<V> o) {
         return new PredicateBuilderImpl<>(wrap(new ObjectExpression(path, operator, o)));
     }
-    /**
-     * Creates a new instance of {@link PredicateBuilder} for the specified path, operator, and values with an ID.
-     *
-     * @param path the metamodel path representing the field to be queried
-     * @param operator the operator to be used in the predicate
-     * @param o the values to be used in the predicate
-     * @param <T> the type of the record
-     * @param <R> the type of the result
-     * @param <ID> the type of the ID
-     * @param <V> the type of the values
-     * @return a new instance of {@link PredicateBuilder}
-     */
-    static <T extends Data, R, ID, V extends Data> PredicateBuilder<T, R, ID> createRefWithId(
-            Metamodel<?, V> path,
-            Operator operator,
-            Iterable<Ref<V>> o) {
-        return new PredicateBuilderImpl<>(wrap(new ObjectExpression(path, operator, o)));
-    }
 }

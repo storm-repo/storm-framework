@@ -25,7 +25,7 @@ import java.util.function.Consumer
  *
  * Callbacks registered via [addOnCommit], [addOnRollback] and [addOnCompletion] are stored in a single list, so
  * they run in registration order regardless of which kind they are; the ones that do not apply to the outcome are
- * skipped. When [fireCommit] or [fireRollback] is called, the applicable callbacks are executed sequentially in
+ * skipped. When the transaction settles, the applicable callbacks are executed sequentially in
  * the enclosing coroutine context. If any callback throws, remaining callbacks still execute and the failures are
  * reported as a [TransactionCallbackException] whose cause is the first one, with subsequent ones added to it as
  * suppressed.
@@ -95,15 +95,7 @@ internal class TransactionCallbacks : st.orm.core.spi.TransactionCallbacks {
                 return
             }
         }
-        if (committed) fireCommit() else fireRollback()
-    }
-
-    suspend fun fireCommit() {
-        fire(true)
-    }
-
-    suspend fun fireRollback() {
-        fire(false)
+        fire(committed)
     }
 
     private suspend fun fire(committed: Boolean) {

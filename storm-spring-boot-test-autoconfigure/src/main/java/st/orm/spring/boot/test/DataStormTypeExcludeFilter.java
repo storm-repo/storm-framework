@@ -113,7 +113,7 @@ public final class DataStormTypeExcludeFilter extends TypeExcludeFilter {
         return annotationState(annotation).hashCode();
     }
 
-    private static List<Object> annotationState(DataStormTest annotation) {
+    static List<Object> annotationState(DataStormTest annotation) {
         return List.of(
                 annotation.useDefaultFilters(),
                 Arrays.stream(annotation.includeFilters()).map(AnnotationUtils::getAnnotationAttributes).toList(),

@@ -615,18 +615,6 @@ internal open class TemplatesTest(
     }
 
     @Test
-    fun `createWithId predicate builder should return PredicateBuilder`() {
-        val metamodel = Metamodel.of<City, Int>(City::class.java, "id")
-        val predicate = st.orm.template.impl.createWithId<City, City, Int, Int>(
-            metamodel,
-            Operator.IN,
-            listOf(1, 2, 3),
-        )
-        predicate.shouldNotBe(null)
-        predicate.shouldBeInstanceOf<PredicateBuilder<*, *, *>>()
-    }
-
-    @Test
     fun `predicate builder or composition should return PredicateBuilder`() {
         val metamodel = Metamodel.of<City, Int>(City::class.java, "id")
         val p1 = st.orm.template.impl.create<City, City, Int>(

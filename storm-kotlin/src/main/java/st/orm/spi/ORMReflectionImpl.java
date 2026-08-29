@@ -160,15 +160,6 @@ public class ORMReflectionImpl implements ORMReflection {
         });
     }
 
-    private KProperty1<?, ?> findVarProperty(KClass<?> kClass) {
-        for (KProperty1<?, ?> prop : KClasses.getMemberProperties(kClass)) {
-            if (prop instanceof KMutableProperty1<?, ?>) {
-                return prop;
-            }
-        }
-        return null;
-    }
-
     private boolean isMutableProperty(Class<?> declaringClass, String name) {
         KClass<?> kClass = JvmClassMappingKt.getKotlinClass(declaringClass);
         for (KProperty1<?, ?> p : KClasses.getMemberProperties(kClass)) {
@@ -268,9 +259,6 @@ public class ORMReflectionImpl implements ORMReflection {
                 return empty();
             }
             KClass<?> kClass = JvmClassMappingKt.getKotlinClass(type);
-            if (!kClass.isData()) {
-                return Optional.empty();
-            }
             @SuppressWarnings("unchecked")
             KFunction<?> primary = KClasses.getPrimaryConstructor((KClass<Object>) kClass);
             if (primary == null) {

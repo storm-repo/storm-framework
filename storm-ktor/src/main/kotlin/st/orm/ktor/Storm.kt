@@ -272,12 +272,13 @@ public val Storm: ApplicationPlugin<StormPluginConfig> = createApplicationPlugin
 
     // The packages declared by the named databases partition validation: each database validates only the entity
     // and projection types under its packages, and the primary validates everything else.
+    val rootSchemaMode = pluginConfig.schemaValidation
+        ?: application.environment.config.propertyOrNull("storm.validation.schemaMode")?.getString()
+        ?: application.environment.config.propertyOrNull("storm.validation.schema_mode")?.getString()
+        ?: "fail"
     application.runSchemaValidation(
         template = ormTemplate,
-        configuredMode = pluginConfig.schemaValidation
-            ?: application.environment.config.propertyOrNull("storm.validation.schemaMode")?.getString()
-            ?: application.environment.config.propertyOrNull("storm.validation.schema_mode")?.getString()
-            ?: "fail",
+        configuredMode = rootSchemaMode,
         property = "storm.validation.schemaMode",
         description = "primary database",
     ) { type -> claimedPackages.keys.none { type.java.name.startsWith("$it.") } }
@@ -290,10 +291,7 @@ public val Storm: ApplicationPlugin<StormPluginConfig> = createApplicationPlugin
             configuredMode = databaseConfig.schemaValidation
                 ?: application.environment.config.propertyOrNull("storm.databases.$name.validation.schemaMode")?.getString()
                 ?: application.environment.config.propertyOrNull("storm.databases.$name.validation.schema_mode")?.getString()
-                ?: pluginConfig.schemaValidation
-                ?: application.environment.config.propertyOrNull("storm.validation.schemaMode")?.getString()
-                ?: application.environment.config.propertyOrNull("storm.validation.schema_mode")?.getString()
-                ?: "fail",
+                ?: rootSchemaMode,
             property = "storm.databases.$name.validation.schemaMode",
             description = "database '$name'",
         ) { type -> databaseConfig.repositoryPackages.any { type.java.name.startsWith("$it.") } }

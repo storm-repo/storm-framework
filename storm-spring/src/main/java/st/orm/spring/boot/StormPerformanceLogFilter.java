@@ -22,8 +22,6 @@ import jakarta.servlet.http.HttpServletResponse;
 import java.io.IOException;
 import java.time.Duration;
 import org.jspecify.annotations.Nullable;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.springframework.web.filter.OncePerRequestFilter;
 import st.orm.core.template.SqlLog;
 
@@ -57,8 +55,6 @@ import st.orm.core.template.SqlLog;
  * @since 1.13
  */
 public class StormPerformanceLogFilter extends OncePerRequestFilter implements PerformanceLog.Boundary {
-
-    private static final Logger LOGGER = LoggerFactory.getLogger("st.orm.sql.perf");
 
     /** Read per request, so a replacement takes effect on the request after it. */
     private volatile PerformanceLog.Settings settings;
@@ -120,7 +116,7 @@ public class StormPerformanceLogFilter extends OncePerRequestFilter implements P
         // Read once, so a replacement mid-request cannot report a request against settings it was not recorded
         // under.
         var settings = this.settings;
-        if (!PerformanceLog.consumes(LOGGER, settings)) {
+        if (!PerformanceLog.consumes(settings)) {
             // Nothing consumes the summary, so do not open a scope to build one.
             chain.doFilter(request, response);
             return;
@@ -130,7 +126,7 @@ public class StormPerformanceLogFilter extends OncePerRequestFilter implements P
             SqlLog.recordThrowing(name, settings.limit(), settings.callSites(), () -> {
                 chain.doFilter(request, response);
                 return null;
-            }, summary -> PerformanceLog.report(LOGGER, summary, settings));
+            }, summary -> PerformanceLog.report(summary, settings));
         } catch (ServletException | IOException | RuntimeException e) {
             throw e;
         } catch (Exception e) {

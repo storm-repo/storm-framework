@@ -20,6 +20,7 @@ import kotlinx.coroutines.stream.consumeAsFlow
 import st.orm.*
 import st.orm.Operator.*
 import st.orm.ResolveScope.CASCADE
+import st.orm.core.template.impl.Elements
 import st.orm.core.template.impl.Elements.Clause.GROUP_BY
 import st.orm.core.template.impl.Elements.Clause.ORDER_BY_ASCENDING
 import st.orm.core.template.impl.Elements.Clause.ORDER_BY_DESCENDING
@@ -665,18 +666,29 @@ public abstract class QueryBuilder<T : Data, R, ID> {
         // We can safely invoke groupByAny as the underlying logic is identical. The main purpose of having these
         // separate methods is to provide (more) type safety when using metamodels that are guaranteed to be present in
         // the table graph.
+        return groupBy(columnList(path, GROUP_BY, "GROUP BY"))
+    }
+
+    /**
+     * Renders the paths as a comma-separated column list for the given clause.
+     */
+    private fun columnList(
+        path: Array<out Navigable<out T, *>>,
+        clause: Elements.Clause,
+        clauseName: String,
+    ): TemplateString {
         if (path.isEmpty()) {
-            throw PersistenceException("At least one path must be provided for GROUP BY clause.")
+            throw PersistenceException("At least one path must be provided for $clauseName clause.")
         }
         val templates = buildList {
             path.forEachIndexed { index, navigable ->
-                add(wrap(Columns(listOf(navigable.asMetamodel()), CASCADE, GROUP_BY)))
+                add(wrap(Columns(listOf(navigable.asMetamodel()), CASCADE, clause)))
                 if (index < path.lastIndex) {
                     add(raw(", "))
                 }
             }
         }
-        return groupBy(combine(*templates.toTypedArray()))
+        return combine(*templates.toTypedArray())
     }
 
     /**
@@ -801,20 +813,7 @@ public abstract class QueryBuilder<T : Data, R, ID> {
      * @return the query builder.
      * @since 1.2
      */
-    public fun orderBy(vararg path: Navigable<out T, *>): QueryBuilder<T, R, ID> {
-        if (path.isEmpty()) {
-            throw PersistenceException("At least one path must be provided for ORDER BY clause.")
-        }
-        val templates = buildList {
-            path.forEachIndexed { index, navigable ->
-                add(wrap(Columns(listOf(navigable.asMetamodel()), CASCADE, ORDER_BY_ASCENDING)))
-                if (index < path.lastIndex) {
-                    add(raw(", "))
-                }
-            }
-        }
-        return orderBy(combine(*templates.toTypedArray()))
-    }
+    public fun orderBy(vararg path: Navigable<out T, *>): QueryBuilder<T, R, ID> = orderBy(columnList(path, ORDER_BY_ASCENDING, "ORDER BY"))
 
     /**
      * Adds an ORDER BY clause to the query for the field at the specified path in the table graph. The results are
@@ -834,20 +833,7 @@ public abstract class QueryBuilder<T : Data, R, ID> {
      * @return the query builder.
      * @since 1.9
      */
-    public fun orderByDescending(vararg path: Navigable<out T, *>): QueryBuilder<T, R, ID> {
-        if (path.isEmpty()) {
-            throw PersistenceException("At least one path must be provided for ORDER BY clause.")
-        }
-        val templates = buildList {
-            path.forEachIndexed { index, navigable ->
-                add(wrap(Columns(listOf(navigable.asMetamodel()), CASCADE, ORDER_BY_DESCENDING)))
-                if (index < path.size - 1) {
-                    add(raw(", "))
-                }
-            }
-        }
-        return orderBy(combine(*templates.toTypedArray()))
-    }
+    public fun orderByDescending(vararg path: Navigable<out T, *>): QueryBuilder<T, R, ID> = orderBy(columnList(path, ORDER_BY_DESCENDING, "ORDER BY"))
 
     /**
      * Adds an ORDER BY clause to the query using a string template. The results are sorted in descending order.

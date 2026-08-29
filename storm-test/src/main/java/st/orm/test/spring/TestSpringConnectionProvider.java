@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package st.orm.spi.mysql.testsupport;
+package st.orm.test.spring;
 
 import java.sql.Connection;
 import javax.sql.DataSource;
@@ -25,8 +25,11 @@ import st.orm.core.spi.Orderable.BeforeAny;
 import st.orm.core.spi.TransactionContext;
 
 /**
- * Test-only connection provider that binds connections to Spring's transaction management, so the test suite's
+ * Test-only connection provider that binds connections to Spring's transaction management, so a test suite's
  * transaction-per-test isolation applies to statements executed by Storm templates.
+ *
+ * <p>A test suite registers this provider through {@code META-INF/services} on the test classpath; the
+ * production integration configures {@code SpringConnectionProvider} on the template builder instead.</p>
  */
 @BeforeAny
 public class TestSpringConnectionProvider implements ConnectionProvider {

@@ -58,42 +58,6 @@ internal fun <T : Data, R, V : Data> createRef(
 ): PredicateBuilder<T, R, *> = PredicateBuilderImpl(PredicateBuilderFactory.createRef(path, operator, o))
 
 /**
- * Creates a new instance of [PredicateBuilder] for the specified path, operator, and values with an ID.
- *
- * @param path the metamodel path representing the field to be queried
- * @param operator the operator to be used in the predicate
- * @param o the values to be used in the predicate
- * @param <T> the type of the record
- * @param <R> the type of the result
- * @param <ID> the type of the ID
- * @param <V> the type of the values
- * @return a new instance of [PredicateBuilder]
- */
-internal fun <T : Data, R, ID, V> createWithId(
-    path: Metamodel<*, V>,
-    operator: Operator,
-    o: Iterable<V>,
-): PredicateBuilder<T, R, ID> = PredicateBuilderImpl(PredicateBuilderFactory.createWithId(path, operator, o))
-
-/**
- * Creates a new instance of [PredicateBuilder] for the specified path, operator, and values with an ID.
- *
- * @param path the metamodel path representing the field to be queried
- * @param operator the operator to be used in the predicate
- * @param o the values to be used in the predicate
- * @param <T> the type of the record
- * @param <R> the type of the result
- * @param <ID> the type of the ID
- * @param <V> the type of the values
- * @return a new instance of [PredicateBuilder]
- */
-internal fun <T : Data, R, ID, V : Data> createRefWithId(
-    path: Metamodel<*, V>,
-    operator: Operator,
-    o: Iterable<Ref<V>>,
-): PredicateBuilder<T, R, ID> = PredicateBuilderImpl(PredicateBuilderFactory.createRefWithId(path, operator, o))
-
-/**
  * Combines two predicates using an AND condition, rooting the result at the operands' least common root.
  *
  * @param left the predicate to combine into

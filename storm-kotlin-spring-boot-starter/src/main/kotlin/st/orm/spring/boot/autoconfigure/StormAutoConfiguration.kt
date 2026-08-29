@@ -55,8 +55,6 @@ import javax.sql.DataSource
 @EnableConfigurationProperties(StormProperties::class)
 public open class StormAutoConfiguration {
 
-    private val logger = org.slf4j.LoggerFactory.getLogger(StormAutoConfiguration::class.java)
-
     /**
      * Creates an [ORMTemplate] bean using the provided [DataSource] and [StormProperties].
      *

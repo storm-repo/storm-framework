@@ -137,52 +137,37 @@ internal class ORMTemplateImpl(private val core: st.orm.core.template.ORMTemplat
         } as R
     }
 
-    private fun createEntityRepository(type: KClass<*>): EntityRepository<*, *>? {
-        if (!EntityRepository::class.java.isAssignableFrom(type.java)) return null
-        var entityClass: Class<*>? = null
-        for (iface in type.java.genericInterfaces) {
-            if (iface is ParameterizedType &&
-                (iface.rawType as? Class<*>)?.let {
-                    EntityRepository::class.java.isAssignableFrom(it)
-                } == true
-            ) {
-                val arg = iface.actualTypeArguments[0]
-                if (arg is Class<*>) {
-                    entityClass = arg
-                    break
-                }
-            }
-        }
-        requireNotNull(entityClass) {
-            "Could not determine entity class for repository: ${type.simpleName}."
-        }
-        // Use Java reflection to invoke the generic 'entity' method at runtime.
-        val method = this.javaClass.getMethod("entity", KClass::class.java)
-        return method.invoke(this, entityClass.kotlin) as EntityRepository<*, *>
-    }
+    private fun createEntityRepository(type: KClass<*>): EntityRepository<*, *>? = createRepositoryFor(type, EntityRepository::class.java, "entity") as EntityRepository<*, *>?
 
-    private fun createProjectionRepository(type: KClass<*>): ProjectionRepository<*, *>? {
-        if (!ProjectionRepository::class.java.isAssignableFrom(type.java)) return null
-        var projectionClass: Class<*>? = null
+    private fun createProjectionRepository(type: KClass<*>): ProjectionRepository<*, *>? = createRepositoryFor(type, ProjectionRepository::class.java, "projection") as ProjectionRepository<*, *>?
+
+    /**
+     * Creates the backing repository for a proxied repository interface: resolves the data type from the
+     * repository interface's type argument and invokes the given factory method ('entity' or 'projection')
+     * with it, or returns null when the interface does not extend the given repository type.
+     */
+    private fun createRepositoryFor(type: KClass<*>, repositoryInterface: Class<*>, factoryMethod: String): Any? {
+        if (!repositoryInterface.isAssignableFrom(type.java)) return null
+        var dataClass: Class<*>? = null
         for (iface in type.java.genericInterfaces) {
             if (iface is ParameterizedType &&
                 (iface.rawType as? Class<*>)?.let {
-                    ProjectionRepository::class.java.isAssignableFrom(it)
+                    repositoryInterface.isAssignableFrom(it)
                 } == true
             ) {
                 val arg = iface.actualTypeArguments[0]
                 if (arg is Class<*>) {
-                    projectionClass = arg
+                    dataClass = arg
                     break
                 }
             }
         }
-        requireNotNull(projectionClass) {
-            "Could not determine projection class for repository: ${type.simpleName}."
+        requireNotNull(dataClass) {
+            "Could not determine $factoryMethod class for repository: ${type.simpleName}."
         }
-        // Use Java reflection to invoke the generic 'projection' method at runtime.
-        val method = this.javaClass.getMethod("projection", KClass::class.java)
-        return method.invoke(this, projectionClass.kotlin) as ProjectionRepository<*, *>
+        // Use Java reflection to invoke the generic factory method at runtime.
+        val method = this.javaClass.getMethod(factoryMethod, KClass::class.java)
+        return method.invoke(this, dataClass.kotlin)
     }
 
     private fun createRepository(): Repository = object : Repository {

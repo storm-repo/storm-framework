@@ -29,9 +29,8 @@ import java.util.stream.Stream;
 import st.orm.PersistenceException;
 import st.orm.StormConfig;
 import st.orm.core.spi.DefaultSqlDialect;
-import st.orm.core.template.SqlDialect;
 
-public class SQLiteSqlDialect extends DefaultSqlDialect implements SqlDialect {
+public class SQLiteSqlDialect extends DefaultSqlDialect {
 
     public SQLiteSqlDialect() {
     }
@@ -49,22 +48,6 @@ public class SQLiteSqlDialect extends DefaultSqlDialect implements SqlDialect {
     @Override
     public String name() {
         return "SQLite";
-    }
-
-    /**
-     * SQLite does not support aliasing the target table in DELETE statements.
-     */
-    @Override
-    public boolean supportsDeleteAlias() {
-        return false;
-    }
-
-    /**
-     * SQLite does not support multi-value tuples in the IN clause.
-     */
-    @Override
-    public boolean supportsMultiValueTuples() {
-        return false;
     }
 
     private static final Pattern SQLITE_IDENTIFIER = Pattern.compile("^[A-Za-z_][A-Za-z0-9_]*$");
@@ -111,24 +94,7 @@ public class SQLiteSqlDialect extends DefaultSqlDialect implements SqlDialect {
     }
 
     /**
-     * Regex for double-quoted identifiers (handling doubled double quotes as escapes).
-     */
-    private static final Pattern IDENTIFIER_PATTERN = Pattern.compile(
-            "\"(?:\"\"|[^\"])*\""
-    );
-
-    /**
-     * Returns the pattern for identifiers.
-     *
-     * @return the pattern for identifiers.
-     */
-    @Override
-    public Pattern getIdentifierPattern() {
-        return IDENTIFIER_PATTERN;
-    }
-
-    /**
-     * Regex for single-quoted string literals, handling both doubled single quotes and backslash escapes.
+     * Regex for single-quoted string literals, handling doubled single quotes as escapes.
      */
     private static final Pattern QUOTE_LITERAL_PATTERN = Pattern.compile(
             "'(?:''|[^'])*'"

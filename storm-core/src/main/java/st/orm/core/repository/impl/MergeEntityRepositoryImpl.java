@@ -278,17 +278,7 @@ public abstract class MergeEntityRepositoryImpl<E extends Entity<ID>, ID> extend
      */
     @Override
     protected void doUpsert(E entity) {
-        validateUpsert(entity);
-        entityCache().ifPresent(cache -> {
-            if (!model.isDefaultPrimaryKey(entity.id())) {
-                cache.remove(entity.id());
-            }
-        });
-        var versionAware = new AtomicBoolean();
-        intercept(sql -> sql.versionAware(versionAware.getPlain()), () -> {
-            var query = ormTemplate.query(mergeStatement(mergeSelect(entity), versionAware)).managed();
-            query.executeUpdate();
-        });
+        doUpsertAndFetchId(entity);
     }
 
     /**
@@ -322,19 +312,7 @@ public abstract class MergeEntityRepositoryImpl<E extends Entity<ID>, ID> extend
     @Override
     protected void doUpsertBatch(List<E> batch, PreparedQuery query,
                                  @Nullable EntityCache<E, ID> cache) {
-        if (batch.isEmpty()) {
-            return;
-        }
-        batch.stream().map(this::validateUpsert).forEach(query::addBatch);
-        if (cache != null) {
-            batch.stream()
-                    .filter(e -> !model.isDefaultPrimaryKey(e.id()))
-                    .forEach(e -> cache.remove(e.id()));
-        }
-        int[] result = query.executeBatch();
-        if (IntStream.of(result).anyMatch(r -> r != 0 && r != 1 && r != 2)) {
-            throw new PersistenceException(upsertFailureMessage(batch.size()));
-        }
+        doUpsertAndFetchIdsBatch(batch, query, cache);
     }
 
     @Override

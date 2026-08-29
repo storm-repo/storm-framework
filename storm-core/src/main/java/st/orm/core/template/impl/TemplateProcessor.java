@@ -1054,19 +1054,7 @@ class TemplateProcessor {
          * @throws SqlTemplateException if binding fails.
          */
         void bindElements(BindingContext context) throws SqlTemplateException {
-            for (Element element : context.elements()) {
-                if (element instanceof Wrapped(var wrapped)) {
-                    for (var e : wrapped) {
-                        if (!e.synthetic()) {
-                            var hint = nextHint();
-                            getElementProcessor(e.element()).bind(e.element(), this, hint);
-                        }
-                    }
-                } else {
-                    var hint = nextHint();
-                    getElementProcessor(element).bind(element, this, hint);
-                }
-            }
+            bindAll(context.elements());
             if (hintCursor != bindHints.size()) {
                 throw new UncheckedSqlTemplateException(new SqlTemplateException(
                         "Bind hint consumption mismatch. Used %d hints but %d were produced."
@@ -1118,7 +1106,14 @@ class TemplateProcessor {
          * @throws SqlTemplateException if binding fails.
          */
         private void bindPreparedAttached(PreparedTemplate preparedTemplate) throws SqlTemplateException {
-            for (var element : preparedTemplate.context().elements()) {
+            bindAll(preparedTemplate.context().elements());
+        }
+
+        /**
+         * Binds the given elements, consuming a bind hint from the shared tape for each non-synthetic element.
+         */
+        private void bindAll(List<Element> elements) throws SqlTemplateException {
+            for (Element element : elements) {
                 if (element instanceof Wrapped(var wrapped)) {
                     for (var e : wrapped) {
                         if (!e.synthetic()) {

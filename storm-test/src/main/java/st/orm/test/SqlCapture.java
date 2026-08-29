@@ -200,9 +200,7 @@ public final class SqlCapture {
      * @return the matching statement count.
      */
     public int count(Operation operation) {
-        return (int) statements.stream()
-                .filter(s -> s.operation() == operation)
-                .count();
+        return statements(operation).size();
     }
 
     /**
@@ -216,9 +214,7 @@ public final class SqlCapture {
      * @since 1.13
      */
     public int count(Origin origin) {
-        return (int) statements.stream()
-                .filter(s -> s.origin() == origin)
-                .count();
+        return statements(origin).size();
     }
 
     /**

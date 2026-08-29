@@ -1111,11 +1111,7 @@ public final class MetamodelProcessor extends AbstractProcessor {
             components.append(components.isEmpty() ? "" : ",\n")
                     .append("                instance.").append(parameters.get(i).getSimpleName()).append("()");
         }
-        try {
-            JavaFileObject fileObject = processingEnv.getFiler()
-                    .createSourceFile((packageName.isEmpty() ? "" : packageName + ".") + instantiatorName, recordElement);
-            try (Writer writer = fileObject.openWriter()) {
-                writer.write(String.format("""
+        writeSourceFile(packageName, instantiatorName, recordElement, String.format("""
                     %simport javax.annotation.processing.Generated;
 
                     /**
@@ -1157,11 +1153,7 @@ public final class MetamodelProcessor extends AbstractProcessor {
                         recordName,
                         components
                 ));
-            }
-            generatedInstantiators.add((packageName.isEmpty() ? "" : packageName + ".") + instantiatorName);
-        } catch (IOException e) {
-            throw new UncheckedIOException("Failed to write " + instantiatorName, e);
-        }
+        generatedInstantiators.add((packageName.isEmpty() ? "" : packageName + ".") + instantiatorName);
     }
 
     private void generateMetamodelInterface(Element recordElement) {
@@ -1171,35 +1163,37 @@ public final class MetamodelProcessor extends AbstractProcessor {
         String packageName = elementUtils.getPackageOf(recordElement).getQualifiedName().toString();
         String recordName = recordElement.getSimpleName().toString();
         String metaInterfaceName = recordName + "_";
-        try {
-            JavaFileObject fileObject = processingEnv.getFiler()
-                    .createSourceFile((packageName.isEmpty() ? "" : packageName + ".") + metaInterfaceName, recordElement);
-            try (Writer writer = fileObject.openWriter()) {
-                writer.write(String.format("""
-                    %simport st.orm.Metamodel;
-                    import st.orm.AbstractMetamodel;
-                    import st.orm.AbstractKeyMetamodel;
-                    import javax.annotation.processing.Generated;
+        writeMetamodelInterface(packageName, recordName, metaInterfaceName,
+                buildInterfaceFields(recordElement, packageName), recordElement);
+    }
 
-                    /**
-                     * Metamodel for %s.
-                     */
-                    @Generated("%s")
-                    public interface %s extends Metamodel<%s, %s> {
-                    %s
-                    }""",
-                        (packageName.isEmpty() ? "" : "package " + packageName + ";\n\n"),
-                        recordName,
-                        getClass().getName(),
-                        metaInterfaceName,
-                        recordName,
-                        recordName,
-                        buildInterfaceFields(recordElement, packageName)
-                ));
-            }
-        } catch (IOException e) {
-            throw new UncheckedIOException("Failed to write " + metaInterfaceName, e);
-        }
+    /**
+     * Writes a metamodel interface: the per-field constants the callers assemble, wrapped in the shared
+     * interface shell.
+     */
+    private void writeMetamodelInterface(String packageName, String typeName, String metaInterfaceName,
+                                         String fields, Element originating) {
+        writeSourceFile(packageName, metaInterfaceName, originating, String.format("""
+            %simport st.orm.Metamodel;
+            import st.orm.AbstractMetamodel;
+            import st.orm.AbstractKeyMetamodel;
+            import javax.annotation.processing.Generated;
+
+            /**
+             * Metamodel for %s.
+             */
+            @Generated("%s")
+            public interface %s extends Metamodel<%s, %s> {
+            %s
+            }""",
+                (packageName.isEmpty() ? "" : "package " + packageName + ";\n\n"),
+                typeName,
+                getClass().getName(),
+                metaInterfaceName,
+                typeName,
+                typeName,
+                fields
+        ));
     }
 
     private String buildClassFields(Element recordElement,
@@ -1277,24 +1271,7 @@ public final class MetamodelProcessor extends AbstractProcessor {
                 // Validate: @PK, @FK, and @UK are not supported on inline record fields. Both chain variants walk
                 // the same fields; only the base pass reports, so a diagnostic prints once.
                 if (!nullableChain && !implementsData(recordElement)) {
-                    if (hasAnnotationOrMeta(enclosed, PRIMARY_KEY)) {
-                        processingEnv.getMessager().printMessage(ERROR,
-                                "@PK is not supported on inline record fields. "
-                                + "Primary keys are only supported on top-level entity fields.",
-                                enclosed);
-                    }
-                    if (hasAnnotationOrMeta(enclosed, FOREIGN_KEY)) {
-                        processingEnv.getMessager().printMessage(ERROR,
-                                "@FK is not supported on inline record fields. "
-                                + "Foreign keys are only supported on top-level entity fields.",
-                                enclosed);
-                    }
-                    if (hasAnnotationOrMeta(enclosed, UNIQUE_KEY)) {
-                        processingEnv.getMessager().printMessage(ERROR,
-                                "@UK is not supported on inline record fields. "
-                                + "Unique keys are only supported on top-level entity fields.",
-                                enclosed);
-                    }
+                    reportInlineKeyAnnotations(enclosed);
                 }
                 String inlineFlag = inline ? "true" : "false";
                 // Null-safe nested getter: parent record (root getter) can be null.
@@ -1349,24 +1326,7 @@ public final class MetamodelProcessor extends AbstractProcessor {
                 // Validate: @PK, @FK, and @UK are not supported on inline record fields. Both chain variants walk
                 // the same fields; only the base pass reports, so a diagnostic prints once.
                 if (!nullableChain && !isData) {
-                    if (hasAnnotationOrMeta(enclosed, PRIMARY_KEY)) {
-                        processingEnv.getMessager().printMessage(ERROR,
-                                "@PK is not supported on inline record fields. "
-                                + "Primary keys are only supported on top-level entity fields.",
-                                enclosed);
-                    }
-                    if (hasAnnotationOrMeta(enclosed, FOREIGN_KEY)) {
-                        processingEnv.getMessager().printMessage(ERROR,
-                                "@FK is not supported on inline record fields. "
-                                + "Foreign keys are only supported on top-level entity fields.",
-                                enclosed);
-                    }
-                    if (hasAnnotationOrMeta(enclosed, UNIQUE_KEY)) {
-                        processingEnv.getMessager().printMessage(ERROR,
-                                "@UK is not supported on inline record fields. "
-                                + "Unique keys are only supported on top-level entity fields.",
-                                enclosed);
-                    }
+                    reportInlineKeyAnnotations(enclosed);
                 }
                 String baseClass = (!isData || unique) ? "AbstractKeyMetamodel" : "AbstractMetamodel";
                 boolean effectivelyNullable = false;
@@ -1703,6 +1663,42 @@ public final class MetamodelProcessor extends AbstractProcessor {
         }
     }
 
+    /**
+     * Renders the body of the root metamodel's isSame: reads both roots through the getter, treats a null
+     * root as equal only to another null, and applies the given comparison to the non-null pair.
+     */
+    private static String rootIsSameBody(String typeName, String comparison) {
+        return typeName + " ra = getter.apply(a);\n" +
+                "        " + typeName + " rb = getter.apply(b);\n" +
+                "        if (ra == null || rb == null) return ra == rb;\n" +
+                "        return " + comparison + ";";
+    }
+
+    /**
+     * Reports the key annotations that are not supported on inline record fields: @PK, @FK and @UK apply to
+     * top-level entity fields only.
+     */
+    private void reportInlineKeyAnnotations(Element enclosed) {
+        if (hasAnnotationOrMeta(enclosed, PRIMARY_KEY)) {
+            processingEnv.getMessager().printMessage(ERROR,
+                    "@PK is not supported on inline record fields. "
+                    + "Primary keys are only supported on top-level entity fields.",
+                    enclosed);
+        }
+        if (hasAnnotationOrMeta(enclosed, FOREIGN_KEY)) {
+            processingEnv.getMessager().printMessage(ERROR,
+                    "@FK is not supported on inline record fields. "
+                    + "Foreign keys are only supported on top-level entity fields.",
+                    enclosed);
+        }
+        if (hasAnnotationOrMeta(enclosed, UNIQUE_KEY)) {
+            processingEnv.getMessager().printMessage(ERROR,
+                    "@UK is not supported on inline record fields. "
+                    + "Unique keys are only supported on top-level entity fields.",
+                    enclosed);
+        }
+    }
+
     private void generateMetamodelClass(Element recordElement, boolean nullableChain) {
         String packageName = elementUtils.getPackageOf(recordElement).getQualifiedName().toString();
         String recordName = recordElement.getSimpleName().toString();
@@ -1711,7 +1707,7 @@ public final class MetamodelProcessor extends AbstractProcessor {
 
         // Root isSame: compare by PK if present, else compare by value, but guard for null root record.
         Optional<String> pkNameOpt = findPrimaryKeyFieldName(recordElement);
-        String rootIsSameBody;
+        String rootIsSameBody = null;
         if (pkNameOpt.isPresent()) {
             String pkName = pkNameOpt.get();
             TypeMirror pkType = getTypeElement(recordElement, pkName);
@@ -1720,173 +1716,159 @@ public final class MetamodelProcessor extends AbstractProcessor {
                     processingEnv.getMessager().printMessage(ERROR,
                             "Found @PK on '" + pkName + "' but could not resolve its type on " + recordName);
                 }
-                rootIsSameBody =
-                        recordName + " ra = getter.apply(a);\n" +
-                                "        " + recordName + " rb = getter.apply(b);\n" +
-                                "        if (ra == null || rb == null) return ra == rb;\n" +
-                                "        return Objects.equals(ra, rb);";
             } else {
                 String left = accessorExpr(recordElement, "ra", pkName, pkType);
                 String right = accessorExpr(recordElement, "rb", pkName, pkType);
-                rootIsSameBody =
-                        recordName + " ra = getter.apply(a);\n" +
-                                "        " + recordName + " rb = getter.apply(b);\n" +
-                                "        if (ra == null || rb == null) return ra == rb;\n" +
-                                "        return " + sameComparisonExpr(left, right, pkType) + ";";
+                rootIsSameBody = rootIsSameBody(recordName, sameComparisonExpr(left, right, pkType));
             }
-        } else {
-            rootIsSameBody =
-                    recordName + " ra = getter.apply(a);\n" +
-                            "        " + recordName + " rb = getter.apply(b);\n" +
-                            "        if (ra == null || rb == null) return ra == rb;\n" +
-                            "        return Objects.equals(ra, rb);";
+        }
+        if (rootIsSameBody == null) {
+            rootIsSameBody = rootIsSameBody(recordName, "Objects.equals(ra, rb)");
         }
 
-        try {
-            JavaFileObject fileObject = processingEnv.getFiler()
-                    .createSourceFile((packageName.isEmpty() ? "" : packageName + ".") + metaClassName, recordElement);
+        String classFields = buildClassFields(recordElement, packageName, recordName, nullableChain);
+        String initFields = initClassFields(recordElement, packageName, recordName, metaClassName, nullableChain);
+        String flattenMethod = buildFlattenMethod(recordElement, isData);
 
-            String classFields = buildClassFields(recordElement, packageName, recordName, nullableChain);
-            String initFields = initClassFields(recordElement, packageName, recordName, metaClassName, nullableChain);
+        String isNullableOverride = "";
+        if (!isData) {
+            isNullableOverride =
+                    "    @Override\n" +
+                    "    @SuppressWarnings(\"rawtypes\")\n" +
+                    "    public boolean isNullable() {\n" +
+                    "        if (!super.isNullable()) return false;\n" +
+                    "        for (var leaf : flatten()) {\n" +
+                    "            if (leaf instanceof Metamodel.Key key && key.isNullable()) return true;\n" +
+                    "        }\n" +
+                    "        return false;\n" +
+                    "    }\n\n";
+        }
 
-            String header =
-                    (packageName.isEmpty() ? "" : "package " + packageName + ";\n\n") +
-                            "import st.orm.Metamodel;\n" +
-                            "import st.orm.AbstractMetamodel;\n" +
-                            "import st.orm.AbstractKeyMetamodel;\n" +
-                            "import javax.annotation.processing.Generated;\n" +
-                            "import java.util.Objects;\n\n" +
-                            "/**\n" +
-                            (nullableChain
-                                    ? " * Nullable-chain metamodel implementation for " + recordName
-                                            + ": a parent in the graph can be null, so every value read through it can be.\n"
-                                    : " * Metamodel implementation for " + recordName + ".\n") +
-                            " *\n" +
-                            " * @param <T> the record type of the root table of the entity graph.\n" +
-                            " */\n" +
-                            "@Generated(\"" + getClass().getName() + "\")\n" +
-                            "public final class " + metaClassName + "<T extends st.orm.Data> extends " + (isData ? "AbstractMetamodel" : "AbstractKeyMetamodel") + "<T, " + recordName + ", " + recordName + "> {\n\n";
+        writeSourceFile(packageName, metaClassName, recordElement,
+                renderMetamodelClassSource(packageName, recordName, metaClassName, isData, nullableChain,
+                        rootIsSameBody, classFields, initFields, flattenMethod, isNullableOverride));
+    }
 
-            String flattenMethod = buildFlattenMethod(recordElement, isData);
-
-            String isNullableOverride = "";
-            if (!isData) {
-                isNullableOverride =
+    /**
+     * Renders a metamodel class: the shared shell around the pieces the record and sealed-interface
+     * generators derive differently (fields, initializers, the root isSame body, the flatten method and the
+     * optional isNullable override).
+     */
+    private String renderMetamodelClassSource(String packageName,
+                                              String typeName,
+                                              String metaClassName,
+                                              boolean isData,
+                                              boolean nullableChain,
+                                              String rootIsSameBody,
+                                              String classFields,
+                                              String initFields,
+                                              String flattenMethod,
+                                              String isNullableOverride) {
+        String header =
+                (packageName.isEmpty() ? "" : "package " + packageName + ";\n\n") +
+                        "import st.orm.Metamodel;\n" +
+                        "import st.orm.AbstractMetamodel;\n" +
+                        "import st.orm.AbstractKeyMetamodel;\n" +
+                        "import javax.annotation.processing.Generated;\n" +
+                        "import java.util.Objects;\n\n" +
+                        "/**\n" +
+                        (nullableChain
+                                ? " * Nullable-chain metamodel implementation for " + typeName
+                                        + ": a parent in the graph can be null, so every value read through it can be.\n"
+                                : " * Metamodel implementation for " + typeName + ".\n") +
+                        " *\n" +
+                        " * @param <T> the record type of the root table of the entity graph.\n" +
+                        " */\n" +
+                        "@Generated(\"" + getClass().getName() + "\")\n" +
+                        "public final class " + metaClassName + "<T extends st.orm.Data> extends " + (isData ? "AbstractMetamodel" : "AbstractKeyMetamodel") + "<T, " + typeName + ", " + typeName + "> {\n\n";
+        String body =
+                classFields + "\n" +
+                        "    private final java.util.function.Function<T, " + typeName + "> getter;\n\n" +
                         "    @Override\n" +
-                        "    @SuppressWarnings(\"rawtypes\")\n" +
-                        "    public boolean isNullable() {\n" +
-                        "        if (!super.isNullable()) return false;\n" +
-                        "        for (var leaf : flatten()) {\n" +
-                        "            if (leaf instanceof Metamodel.Key key && key.isNullable()) return true;\n" +
-                        "        }\n" +
-                        "        return false;\n" +
-                        "    }\n\n";
-            }
-
-            String body =
-                    classFields + "\n" +
-                            "    private final java.util.function.Function<T, " + recordName + "> getter;\n\n" +
-                            "    @Override\n" +
-                            "    public " + nullableReturnType(recordName) + " getValue(T record) {\n" +
-                            "        return getter.apply(record);\n" +
+                        "    public " + nullableReturnType(typeName) + " getValue(T record) {\n" +
+                        "        return getter.apply(record);\n" +
+                        "    }\n\n" +
+                        "    @Override\n" +
+                        "    public boolean isIdentical(T a, T b) {\n" +
+                        "        " + typeName + " ra = getter.apply(a);\n" +
+                        "        " + typeName + " rb = getter.apply(b);\n" +
+                        "        return ra == rb;\n" +
+                        "    }\n\n" +
+                        "    @Override\n" +
+                        "    public boolean isSame(T a, T b) {\n" +
+                        "        " + rootIsSameBody + "\n" +
+                        "    }\n\n" +
+                        flattenMethod +
+                        isNullableOverride;
+        String constructors;
+        if (isData) {
+            constructors =
+                    "    public " + metaClassName + "() {\n" +
+                            "        this(\"\", \"\", false, (Metamodel<T, ?>) Metamodel.root(" + typeName + ".class), " +
+                            "t -> (" + typeName + ") t);\n" +
                             "    }\n\n" +
-                            "    @Override\n" +
-                            "    public boolean isIdentical(T a, T b) {\n" +
-                            "        " + recordName + " ra = getter.apply(a);\n" +
-                            "        " + recordName + " rb = getter.apply(b);\n" +
-                            "        return ra == rb;\n" +
+                            "    public " + metaClassName + "(String field, Metamodel<T, ?> parent) {\n" +
+                            "        this(\"\", field, false, parent, t -> (" + typeName + ") t);\n" +
                             "    }\n\n" +
-                            "    @Override\n" +
-                            "    public boolean isSame(T a, T b) {\n" +
-                            "        " + rootIsSameBody + "\n" +
+                            "    public " + metaClassName + "(String path, String field, Metamodel<T, ?> parent) {\n" +
+                            "        this(path, field, false, parent, t -> (" + typeName + ") t);\n" +
                             "    }\n\n" +
-                            flattenMethod +
-                            isNullableOverride;
-            String constructors;
-            if (isData) {
-                constructors =
-                        "    public " + metaClassName + "() {\n" +
-                                "        this(\"\", \"\", false, (Metamodel<T, ?>) Metamodel.root(" + recordName + ".class), " +
-                                "t -> (" + recordName + ") t);\n" +
-                                "    }\n\n" +
-                                "    public " + metaClassName + "(String field, Metamodel<T, ?> parent) {\n" +
-                                "        this(\"\", field, false, parent, t -> (" + recordName + ") t);\n" +
-                                "    }\n\n" +
-                                "    public " + metaClassName + "(String path, String field, Metamodel<T, ?> parent) {\n" +
-                                "        this(path, field, false, parent, t -> (" + recordName + ") t);\n" +
-                                "    }\n\n" +
-                                "    public " + metaClassName + "(String path, String field, Metamodel<T, ?> parent, " +
-                                "java.util.function.Function<T, " + recordName + "> getter) {\n" +
-                                "        this(path, field, false, parent, getter);\n" +
-                                "    }\n\n" +
-                                "    public " + metaClassName + "(String path, String field, boolean inline, Metamodel<T, ?> parent) {\n" +
-                                "        this(path, field, inline, parent, t -> (" + recordName + ") t);\n" +
-                                "    }\n\n";
-            } else {
-                constructors =
-                        "    public " + metaClassName + "(String path, String field, Metamodel<T, ?> parent, " +
-                                "java.util.function.Function<T, " + recordName + "> getter) {\n" +
-                                "        this(path, field, false, parent, getter);\n" +
-                                "    }\n\n";
-            }
-            String fullCtor;
-            if (isData) {
-                fullCtor =
-                        "    public " + metaClassName + "(String path, String field, boolean inline, Metamodel<T, ?> parent, " +
-                                "java.util.function.Function<T, " + recordName + "> getter) {\n" +
-                                "        super(" + recordName + ".class, path, field, inline, parent);\n" +
-                                "        this.getter = getter;\n\n" +
-                                "        String subPath = inline ? path : field.isEmpty() ? path : path.isEmpty() ? field : " +
-                                "path + \".\" + field;\n" +
-                                "        String fieldBase = inline ? (field.isEmpty() ? \"\" : field + \".\") : \"\";\n\n" +
-                                initFields + "\n" +
-                                "    }\n";
-            } else {
-                fullCtor =
-                        "    public " + metaClassName + "(String path, String field, boolean inline, Metamodel<T, ?> parent, " +
-                                "java.util.function.Function<T, " + recordName + "> getter, boolean nullable) {\n" +
-                                "        super(" + recordName + ".class, path, field, inline, parent, !inline && !field.isEmpty(), nullable);\n" +
-                                "        this.getter = getter;\n\n" +
-                                "        String subPath = inline ? path : field.isEmpty() ? path : path.isEmpty() ? field : " +
-                                "path + \".\" + field;\n" +
-                                "        String fieldBase = inline ? (field.isEmpty() ? \"\" : field + \".\") : \"\";\n\n" +
-                                initFields + "\n" +
-                                "    }\n\n" +
-                                "    public " + metaClassName + "(String path, String field, boolean inline, Metamodel<T, ?> parent, " +
-                                "java.util.function.Function<T, " + recordName + "> getter) {\n" +
-                                "        this(path, field, inline, parent, getter, false);\n" +
-                                "    }\n";
-            }
-            String staticInstance = "";
-            if (isData && !nullableChain) {
-                staticInstance =
-                        "\n    @SuppressWarnings(\"rawtypes\")\n" +
-                        "    private static final " + metaClassName + " INSTANCE = new " + metaClassName + "();\n\n" +
-                        "    @SuppressWarnings(\"unchecked\")\n" +
-                        "    public static <T extends st.orm.Data> " + metaClassName + "<T> instance() {\n" +
-                        "        return INSTANCE;\n" +
-                        "    }\n";
-            }
-            String footer = "}\n";
-            try (Writer writer = fileObject.openWriter()) {
-                writer.write(header);
-                writer.write(body);
-                writer.write(constructors);
-                writer.write(fullCtor);
-                writer.write(staticInstance);
-                writer.write(footer);
-            }
-        } catch (IOException e) {
-            throw new UncheckedIOException("Failed to write " + metaClassName, e);
+                            "    public " + metaClassName + "(String path, String field, Metamodel<T, ?> parent, " +
+                            "java.util.function.Function<T, " + typeName + "> getter) {\n" +
+                            "        this(path, field, false, parent, getter);\n" +
+                            "    }\n\n" +
+                            "    public " + metaClassName + "(String path, String field, boolean inline, Metamodel<T, ?> parent) {\n" +
+                            "        this(path, field, inline, parent, t -> (" + typeName + ") t);\n" +
+                            "    }\n\n";
+        } else {
+            constructors =
+                    "    public " + metaClassName + "(String path, String field, Metamodel<T, ?> parent, " +
+                            "java.util.function.Function<T, " + typeName + "> getter) {\n" +
+                            "        this(path, field, false, parent, getter);\n" +
+                            "    }\n\n";
         }
+        String fullCtor;
+        if (isData) {
+            fullCtor =
+                    "    public " + metaClassName + "(String path, String field, boolean inline, Metamodel<T, ?> parent, " +
+                            "java.util.function.Function<T, " + typeName + "> getter) {\n" +
+                            "        super(" + typeName + ".class, path, field, inline, parent);\n" +
+                            "        this.getter = getter;\n\n" +
+                            "        String subPath = inline ? path : field.isEmpty() ? path : path.isEmpty() ? field : " +
+                            "path + \".\" + field;\n" +
+                            "        String fieldBase = inline ? (field.isEmpty() ? \"\" : field + \".\") : \"\";\n\n" +
+                            initFields + "\n" +
+                            "    }\n";
+        } else {
+            fullCtor =
+                    "    public " + metaClassName + "(String path, String field, boolean inline, Metamodel<T, ?> parent, " +
+                            "java.util.function.Function<T, " + typeName + "> getter, boolean nullable) {\n" +
+                            "        super(" + typeName + ".class, path, field, inline, parent, !inline && !field.isEmpty(), nullable);\n" +
+                            "        this.getter = getter;\n\n" +
+                            "        String subPath = inline ? path : field.isEmpty() ? path : path.isEmpty() ? field : " +
+                            "path + \".\" + field;\n" +
+                            "        String fieldBase = inline ? (field.isEmpty() ? \"\" : field + \".\") : \"\";\n\n" +
+                            initFields + "\n" +
+                            "    }\n\n" +
+                            "    public " + metaClassName + "(String path, String field, boolean inline, Metamodel<T, ?> parent, " +
+                            "java.util.function.Function<T, " + typeName + "> getter) {\n" +
+                            "        this(path, field, inline, parent, getter, false);\n" +
+                            "    }\n";
+        }
+        String staticInstance = "";
+        if (isData && !nullableChain) {
+            staticInstance =
+                    "\n    @SuppressWarnings(\"rawtypes\")\n" +
+                    "    private static final " + metaClassName + " INSTANCE = new " + metaClassName + "();\n\n" +
+                    "    @SuppressWarnings(\"unchecked\")\n" +
+                    "    public static <T extends st.orm.Data> " + metaClassName + "<T> instance() {\n" +
+                    "        return INSTANCE;\n" +
+                    "    }\n";
+        }
+        return header + body + constructors + fullCtor + staticInstance + "}\n";
     }
 
     // ---- Sealed interface support ----
-
-    private static boolean hasAnnotation(Element element, String annotationFqn) {
-        return element.getAnnotationMirrors().stream()
-                .anyMatch(am -> annotationFqn.equals(am.getAnnotationType().toString()));
-    }
 
     private static List<ExecutableElement> getDeclaredAbstractGetters(TypeElement sealedInterface) {
         return sealedInterface.getEnclosedElements().stream()
@@ -1912,11 +1894,6 @@ public final class MetamodelProcessor extends AbstractProcessor {
     private boolean isPrimaryKeyOnSubclass(TypeElement sealedInterface, String fieldName) {
         TypeElement firstRecord = getFirstPermittedRecord(sealedInterface);
         return firstRecord != null && isPrimaryKeyField(firstRecord, fieldName);
-    }
-
-    private boolean isUniqueFieldOnSubclass(TypeElement sealedInterface, String fieldName) {
-        TypeElement firstRecord = getFirstPermittedRecord(sealedInterface);
-        return firstRecord != null && isUniqueField(firstRecord, fieldName);
     }
 
     /**
@@ -2027,35 +2004,7 @@ public final class MetamodelProcessor extends AbstractProcessor {
             fields.setLength(fields.length() - 1);
         }
 
-        try {
-            JavaFileObject fileObject = processingEnv.getFiler()
-                    .createSourceFile((packageName.isEmpty() ? "" : packageName + ".") + metaInterfaceName, sealedInterface);
-            try (Writer writer = fileObject.openWriter()) {
-                writer.write(String.format("""
-                    %simport st.orm.Metamodel;
-                    import st.orm.AbstractMetamodel;
-                    import st.orm.AbstractKeyMetamodel;
-                    import javax.annotation.processing.Generated;
-
-                    /**
-                     * Metamodel for %s.
-                     */
-                    @Generated("%s")
-                    public interface %s extends Metamodel<%s, %s> {
-                    %s
-                    }""",
-                        (packageName.isEmpty() ? "" : "package " + packageName + ";\n\n"),
-                        typeName,
-                        getClass().getName(),
-                        metaInterfaceName,
-                        typeName,
-                        typeName,
-                        fields.toString()
-                ));
-            }
-        } catch (IOException e) {
-            throw new UncheckedIOException("Failed to write " + metaInterfaceName, e);
-        }
+        writeMetamodelInterface(packageName, typeName, metaInterfaceName, fields.toString(), sealedInterface);
     }
 
     private void generateSealedMetamodelClass(TypeElement sealedInterface,
@@ -2082,17 +2031,9 @@ public final class MetamodelProcessor extends AbstractProcessor {
         if (pkName != null && pkType != null) {
             String left = "ra." + pkName + "()";
             String right = "rb." + pkName + "()";
-            rootIsSameBody =
-                    typeName + " ra = getter.apply(a);\n" +
-                            "        " + typeName + " rb = getter.apply(b);\n" +
-                            "        if (ra == null || rb == null) return ra == rb;\n" +
-                            "        return " + sameComparisonExpr(left, right, pkType) + ";";
+            rootIsSameBody = rootIsSameBody(typeName, sameComparisonExpr(left, right, pkType));
         } else {
-            rootIsSameBody =
-                    typeName + " ra = getter.apply(a);\n" +
-                            "        " + typeName + " rb = getter.apply(b);\n" +
-                            "        if (ra == null || rb == null) return ra == rb;\n" +
-                            "        return Objects.equals(ra, rb);";
+            rootIsSameBody = rootIsSameBody(typeName, "Objects.equals(ra, rb)");
         }
 
         // Build class fields.
@@ -2254,125 +2195,8 @@ public final class MetamodelProcessor extends AbstractProcessor {
         flattenMethod.append("    }\n\n");
 
         // Assemble the class.
-        try {
-            JavaFileObject fileObject = processingEnv.getFiler()
-                    .createSourceFile((packageName.isEmpty() ? "" : packageName + ".") + metaClassName, sealedInterface);
-
-            String header =
-                    (packageName.isEmpty() ? "" : "package " + packageName + ";\n\n") +
-                            "import st.orm.Metamodel;\n" +
-                            "import st.orm.AbstractMetamodel;\n" +
-                            "import st.orm.AbstractKeyMetamodel;\n" +
-                            "import javax.annotation.processing.Generated;\n" +
-                            "import java.util.Objects;\n\n" +
-                            "/**\n" +
-                            (nullableChain
-                                    ? " * Nullable-chain metamodel implementation for " + typeName
-                                            + ": a parent in the graph can be null, so every value read through it can be.\n"
-                                    : " * Metamodel implementation for " + typeName + ".\n") +
-                            " *\n" +
-                            " * @param <T> the record type of the root table of the entity graph.\n" +
-                            " */\n" +
-                            "@Generated(\"" + getClass().getName() + "\")\n" +
-                            "public final class " + metaClassName + "<T extends st.orm.Data> extends " +
-                            (isData ? "AbstractMetamodel" : "AbstractKeyMetamodel") + "<T, " + typeName + ", " + typeName + "> {\n\n";
-
-            String body =
-                    classFields + "\n" +
-                            "    private final java.util.function.Function<T, " + typeName + "> getter;\n\n" +
-                            "    @Override\n" +
-                            "    public " + nullableReturnType(typeName) + " getValue(T record) {\n" +
-                            "        return getter.apply(record);\n" +
-                            "    }\n\n" +
-                            "    @Override\n" +
-                            "    public boolean isIdentical(T a, T b) {\n" +
-                            "        " + typeName + " ra = getter.apply(a);\n" +
-                            "        " + typeName + " rb = getter.apply(b);\n" +
-                            "        return ra == rb;\n" +
-                            "    }\n\n" +
-                            "    @Override\n" +
-                            "    public boolean isSame(T a, T b) {\n" +
-                            "        " + rootIsSameBody + "\n" +
-                            "    }\n\n" +
-                            flattenMethod;
-
-            String constructors;
-            if (isData) {
-                constructors =
-                        "    public " + metaClassName + "() {\n" +
-                                "        this(\"\", \"\", false, (Metamodel<T, ?>) Metamodel.root(" + typeName + ".class), " +
-                                "t -> (" + typeName + ") t);\n" +
-                                "    }\n\n" +
-                                "    public " + metaClassName + "(String field, Metamodel<T, ?> parent) {\n" +
-                                "        this(\"\", field, false, parent, t -> (" + typeName + ") t);\n" +
-                                "    }\n\n" +
-                                "    public " + metaClassName + "(String path, String field, Metamodel<T, ?> parent) {\n" +
-                                "        this(path, field, false, parent, t -> (" + typeName + ") t);\n" +
-                                "    }\n\n" +
-                                "    public " + metaClassName + "(String path, String field, Metamodel<T, ?> parent, " +
-                                "java.util.function.Function<T, " + typeName + "> getter) {\n" +
-                                "        this(path, field, false, parent, getter);\n" +
-                                "    }\n\n" +
-                                "    public " + metaClassName + "(String path, String field, boolean inline, Metamodel<T, ?> parent) {\n" +
-                                "        this(path, field, inline, parent, t -> (" + typeName + ") t);\n" +
-                                "    }\n\n";
-            } else {
-                constructors =
-                        "    public " + metaClassName + "(String path, String field, Metamodel<T, ?> parent, " +
-                                "java.util.function.Function<T, " + typeName + "> getter) {\n" +
-                                "        this(path, field, false, parent, getter);\n" +
-                                "    }\n\n";
-            }
-
-            String fullCtor;
-            if (isData) {
-                fullCtor =
-                        "    public " + metaClassName + "(String path, String field, boolean inline, Metamodel<T, ?> parent, " +
-                                "java.util.function.Function<T, " + typeName + "> getter) {\n" +
-                                "        super(" + typeName + ".class, path, field, inline, parent);\n" +
-                                "        this.getter = getter;\n\n" +
-                                "        String subPath = inline ? path : field.isEmpty() ? path : path.isEmpty() ? field : " +
-                                "path + \".\" + field;\n" +
-                                "        String fieldBase = inline ? (field.isEmpty() ? \"\" : field + \".\") : \"\";\n\n" +
-                                initFields + "\n" +
-                                "    }\n";
-            } else {
-                fullCtor =
-                        "    public " + metaClassName + "(String path, String field, boolean inline, Metamodel<T, ?> parent, " +
-                                "java.util.function.Function<T, " + typeName + "> getter, boolean nullable) {\n" +
-                                "        super(" + typeName + ".class, path, field, inline, parent, !inline && !field.isEmpty(), nullable);\n" +
-                                "        this.getter = getter;\n\n" +
-                                "        String subPath = inline ? path : field.isEmpty() ? path : path.isEmpty() ? field : " +
-                                "path + \".\" + field;\n" +
-                                "        String fieldBase = inline ? (field.isEmpty() ? \"\" : field + \".\") : \"\";\n\n" +
-                                initFields + "\n" +
-                                "    }\n\n" +
-                                "    public " + metaClassName + "(String path, String field, boolean inline, Metamodel<T, ?> parent, " +
-                                "java.util.function.Function<T, " + typeName + "> getter) {\n" +
-                                "        this(path, field, inline, parent, getter, false);\n" +
-                                "    }\n";
-            }
-            String staticInstance = "";
-            if (isData && !nullableChain) {
-                staticInstance =
-                        "\n    @SuppressWarnings(\"rawtypes\")\n" +
-                        "    private static final " + metaClassName + " INSTANCE = new " + metaClassName + "();\n\n" +
-                        "    @SuppressWarnings(\"unchecked\")\n" +
-                        "    public static <T extends st.orm.Data> " + metaClassName + "<T> instance() {\n" +
-                        "        return INSTANCE;\n" +
-                        "    }\n";
-            }
-            String footer = "}\n";
-            try (Writer writer = fileObject.openWriter()) {
-                writer.write(header);
-                writer.write(body);
-                writer.write(constructors);
-                writer.write(fullCtor);
-                writer.write(staticInstance);
-                writer.write(footer);
-            }
-        } catch (IOException e) {
-            throw new UncheckedIOException("Failed to write " + metaClassName, e);
-        }
+        writeSourceFile(packageName, metaClassName, sealedInterface,
+                renderMetamodelClassSource(packageName, typeName, metaClassName, isData, nullableChain,
+                        rootIsSameBody, classFields.toString(), initFields.toString(), flattenMethod.toString(), ""));
     }
 }

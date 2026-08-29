@@ -227,7 +227,7 @@ public final class JsonORMConverterImpl implements ORMConverter {
         RefFactory outerRefFactory = REF_FACTORY.get();
         REF_FACTORY.set(refFactory);
         try {
-            return mapper.readValue((String) values[0], typeReference);
+            return mapper.readValue((String) value, typeReference);
         } catch (JacksonException e) {
             throw new SqlTemplateException(e);
         } finally {

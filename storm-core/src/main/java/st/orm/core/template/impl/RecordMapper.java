@@ -1272,9 +1272,12 @@ final class RecordMapper {
      * @return the reader for the target's primary key.
      * @throws SqlTemplateException if the type declares no primary key.
      */
-    private static KeyReader keyReader(RecordType type, FetchPlan fetchPlan) throws SqlTemplateException {
-        RecordField pkField = findPkField(type.type()).orElseThrow(() -> new SqlTemplateException(
-                "Cannot resolve a reference to %s: the type declares no primary key.".formatted(type.type().getSimpleName())));
+    /**
+     * Returns the flat column offset of the primary key field: the sum of the column counts of all fields
+     * preceding it.
+     */
+    private static int pkColumnOffset(RecordType type, RecordField pkField, FetchPlan fetchPlan)
+            throws SqlTemplateException {
         int offset = 0;
         for (RecordField field : type.fields()) {
             if (field.name().equals(pkField.name())) {
@@ -1282,6 +1285,13 @@ final class RecordMapper {
             }
             offset += getFieldColumnCount(field, fetchPlan);
         }
+        return offset;
+    }
+
+    private static KeyReader keyReader(RecordType type, FetchPlan fetchPlan) throws SqlTemplateException {
+        RecordField pkField = findPkField(type.type()).orElseThrow(() -> new SqlTemplateException(
+                "Cannot resolve a reference to %s: the type declares no primary key.".formatted(type.type().getSimpleName())));
+        int offset = pkColumnOffset(type, pkField, fetchPlan);
         int columnCount = getFieldColumnCount(pkField, fetchPlan);
         Constructor<?> keyConstructor = null;
         if (columnCount > 1) {
@@ -1401,14 +1411,7 @@ final class RecordMapper {
             return PkInfo.NONE;
         }
         RecordField pkField = pkFieldOpt.get();
-        // Calculate the offset: sum of column counts for all fields before the PK field.
-        int offset = 0;
-        for (RecordField field : type.fields()) {
-            if (field.name().equals(pkField.name())) {
-                break;
-            }
-            offset += getFieldColumnCount(field, fetchPlan);
-        }
+        int offset = pkColumnOffset(type, pkField, fetchPlan);
         // Calculate how many columns the PK spans.
         int pkColumnCount = getFieldColumnCount(pkField, fetchPlan);
         // For composite PKs (record types), we need the constructor.

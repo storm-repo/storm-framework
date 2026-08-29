@@ -43,7 +43,6 @@ import java.util.Calendar;
 import java.util.List;
 import java.util.TimeZone;
 import java.util.UUID;
-import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Function;
 import java.util.function.Predicate;
 import java.util.function.Supplier;
@@ -570,24 +569,6 @@ public final class PreparedStatementTemplateImpl implements PreparedStatementTem
                         throw new SQLException("Named parameters not supported for PreparedStatement.");
             }
         }
-    }
-
-    @FunctionalInterface
-    interface SqlRunnable { void run() throws SQLException; }
-
-    private static void setObjectOr(PreparedStatement ps,
-                                    AtomicBoolean supportsSetObject,
-                                    SqlRunnable typedSetter,
-                                    SqlRunnable legacyFallback) throws SQLException {
-        if (supportsSetObject.get()) {
-            try {
-                typedSetter.run();
-                return;
-            } catch (SQLFeatureNotSupportedException e) {
-                supportsSetObject.set(false);
-            }
-        }
-        legacyFallback.run();
     }
 
     @Override

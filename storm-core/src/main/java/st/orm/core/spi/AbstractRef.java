@@ -18,6 +18,7 @@ package st.orm.core.spi;
 import java.util.Objects;
 import st.orm.Data;
 import st.orm.Ref;
+import st.orm.core.template.impl.LazySupplier;
 
 /**
  * Abstract implementation of {@link Ref} to have consistent implementations of {@link #hashCode()}
@@ -30,9 +31,14 @@ import st.orm.Ref;
  * as-is.</p>
  *
  * @param <T> record type.
+ * @param <ID> primary key type.
  * @since 1.3
  */
-abstract class AbstractRef<T extends Data> implements Ref<T> {
+abstract class AbstractRef<T extends Data, ID> extends BaseRef<T, ID> {
+
+    AbstractRef(LazySupplier<T> supplier, Class<T> type, ID pk) {
+        super(supplier, type, pk);
+    }
 
     /**
      * Lazily computed row identity of the id. Computed outside construction because only map-keyed usage needs the
@@ -72,7 +78,7 @@ abstract class AbstractRef<T extends Data> implements Ref<T> {
         if (this == obj) {
             return true;
         }
-        if (obj instanceof AbstractRef<?> other) {
+        if (obj instanceof AbstractRef<?, ?> other) {
             return Objects.equals(type(), other.type())
                     && Objects.equals(rowId(), other.rowId());
         }

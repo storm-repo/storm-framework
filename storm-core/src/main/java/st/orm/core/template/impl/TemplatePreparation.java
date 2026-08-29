@@ -330,15 +330,7 @@ class TemplatePreparation {
     ) throws SqlTemplateException {
         String previous = removeComments(previousFragment, template.dialect()).stripTrailing().toUpperCase();
         return switch (operation) {
-            case SELECT, DELETE, UNDEFINED -> {
-                if (endsWithKeyword(previous, "WHERE")) {
-                    if (o != null) {
-                        yield where(o);
-                    }
-                    throw new SqlTemplateException("Non-null object expected after WHERE.");
-                }
-                yield param(o);
-            }
+            case SELECT, DELETE, UNDEFINED -> whereOrParam(previous, o);
             case INSERT -> {
                 if (endsWithKeyword(previous, "VALUES")) {
                     if (o instanceof Data r) {
@@ -346,13 +338,7 @@ class TemplatePreparation {
                     }
                     throw new SqlTemplateException("Record expected after VALUES.");
                 }
-                if (endsWithKeyword(previous, "WHERE")) {
-                    if (o != null) {
-                        yield where(o);
-                    }
-                    throw new SqlTemplateException("Non-null object expected after WHERE.");
-                }
-                yield param(o);
+                yield whereOrParam(previous, o);
             }
             case UPDATE -> {
                 if (endsWithKeyword(previous, "SET")) {
@@ -361,15 +347,23 @@ class TemplatePreparation {
                     }
                     throw new SqlTemplateException("Record expected after SET.");
                 }
-                if (endsWithKeyword(previous, "WHERE")) {
-                    if (o != null) {
-                        yield where(o);
-                    }
-                    throw new SqlTemplateException("Non-null object expected after WHERE.");
-                }
-                yield param(o);
+                yield whereOrParam(previous, o);
             }
         };
+    }
+
+    /**
+     * Resolves an object in a position where a where-object is accepted: after WHERE the object becomes a
+     * where-element (and must be non-null), anywhere else it becomes a parameter.
+     */
+    private Element whereOrParam(String previous, @Nullable Object o) throws SqlTemplateException {
+        if (endsWithKeyword(previous, "WHERE")) {
+            if (o != null) {
+                return where(o);
+            }
+            throw new SqlTemplateException("Non-null object expected after WHERE.");
+        }
+        return param(o);
     }
 
     /**
@@ -1170,19 +1164,7 @@ class TemplatePreparation {
                 if (beyondRef && !isReferencedBeyond(referenced.joined(), pkPath)) {
                     continue;
                 }
-                String fromAlias;
-                if (fkName == null) {
-                    fromAlias = aliasMapper.getAlias(
-                            table,
-                            fkPath,
-                            INNER,
-                            template.dialect(),
-                            () -> new SqlTemplateException("Table %s for From not found at path %s."
-                                    .formatted(type.type().getSimpleName(), fkPath))
-                    );
-                } else {
-                    fromAlias = fkName;
-                }
+                String fromAlias = resolveFromAlias(fkName, table, fkPath, type, aliasMapper);
                 RecordType fieldType = getRecordType(field.type());
                 boolean effectiveOuterJoin = outerJoin || field.nullable();
                 String alias = addForeignKeyJoin(table, rootTable, field, fieldType, fromAlias, fkPath,
@@ -1198,22 +1180,34 @@ class TemplatePreparation {
                 if (beyondRef && !isReferencedBeyond(referenced.joined(), pkPath)) {
                     continue;
                 }
-                String fromAlias;
-                if (fkName == null) {
-                    fromAlias = aliasMapper.getAlias(
-                            table,
-                            fkPath,
-                            INNER,
-                            template.dialect(),
-                            () -> new SqlTemplateException("Table %s for From not found at path %s."
-                                    .formatted(type.type().getSimpleName(), fkPath))
-                    );
-                } else {
-                    fromAlias = fkName;
-                }
+                String fromAlias = resolveFromAlias(fkName, table, fkPath, type, aliasMapper);
                 deriveAutoJoins(getRecordType(field.type()), table, copy, fromAlias, outerJoin, beyondRef, context);
             }
         }
+    }
+
+    /**
+     * Resolves the alias a derived join starts from: the enclosing foreign key's name when the traversal is inside
+     * one, or the alias registered for the table at the foreign key path otherwise.
+     */
+    private String resolveFromAlias(
+            @Nullable String fkName,
+            Class<? extends Data> table,
+            String fkPath,
+            RecordType type,
+            AliasMapper aliasMapper
+    ) throws SqlTemplateException {
+        if (fkName != null) {
+            return fkName;
+        }
+        return aliasMapper.getAlias(
+                table,
+                fkPath,
+                INNER,
+                template.dialect(),
+                () -> new SqlTemplateException("Table %s for From not found at path %s."
+                        .formatted(type.type().getSimpleName(), fkPath))
+        );
     }
 
     /**

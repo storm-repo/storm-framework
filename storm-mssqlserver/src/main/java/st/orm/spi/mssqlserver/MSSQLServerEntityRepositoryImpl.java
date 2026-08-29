@@ -18,7 +18,6 @@ package st.orm.spi.mssqlserver;
 import static st.orm.GenerationStrategy.IDENTITY;
 import static st.orm.GenerationStrategy.NONE;
 import static st.orm.GenerationStrategy.SEQUENCE;
-import static st.orm.core.repository.impl.StreamSupport.partitioned;
 import static st.orm.core.template.SqlInterceptor.intercept;
 import static st.orm.core.template.TemplateString.combine;
 import static st.orm.core.template.TemplateString.raw;
@@ -26,22 +25,17 @@ import static st.orm.core.template.TemplateString.wrap;
 import static st.orm.core.template.impl.StringTemplates.flatten;
 
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
-import java.util.Map;
 import java.util.Objects;
-import java.util.Set;
 import java.util.concurrent.atomic.AtomicBoolean;
 import st.orm.Entity;
-import st.orm.Metamodel;
 import st.orm.PersistenceException;
 import st.orm.core.repository.EntityRepository;
 import st.orm.core.repository.impl.MergeEntityRepositoryImpl;
 import st.orm.core.template.Column;
 import st.orm.core.template.Model;
 import st.orm.core.template.ORMTemplate;
-import st.orm.core.template.PreparedQuery;
 import st.orm.core.template.Query;
 import st.orm.core.template.SqlTemplateException;
 import st.orm.core.template.TemplateString;
@@ -158,20 +152,6 @@ public class MSSQLServerEntityRepositoryImpl<E extends Entity<ID>, ID>
         return TemplateString.of("\nWHEN NOT MATCHED THEN%s".formatted(sql));
     }
 
-    // Partition keys for the SEQUENCE-specific upsertAndFetchIds.
-    private sealed interface SeqPartitionKey {}
-    private static final class SeqNoOpKey implements SeqPartitionKey {
-        private static final SeqNoOpKey INSTANCE = new SeqNoOpKey();
-    }
-    private static final class SeqUpsertKey implements SeqPartitionKey {
-        private static final SeqUpsertKey INSTANCE = new SeqUpsertKey();
-    }
-    private record SeqUpdateKey(Set<Metamodel<?, ?>> fields) implements SeqPartitionKey {
-        SeqUpdateKey() {
-            this(Set.of()); // All fields.
-        }
-    }
-
     /**
      * Overrides to use SEQUENCE-specific OUTPUT clause for batch fetch IDs when applicable.
      *
@@ -207,49 +187,8 @@ public class MSSQLServerEntityRepositoryImpl<E extends Entity<ID>, ID>
                     "Use the column's DEFAULT constraint for sequence values instead.");
         }
         // SEQUENCE path with empty sequence: use a single query with OUTPUT clause instead of batched prepared statements.
-        Map<Set<Metamodel<?, ?>>, PreparedQuery> updateQueries = new HashMap<>();
-        try {
-            var result = new ArrayList<ID>();
-            var entityCache = entityCache();
-            partitioned(toStream(entities), defaultBatchSize, entity -> {
-                if (isUpsertUpdate(entity)) {
-                    var dirty = getDirty(entity, entityCache.orElse(null));
-                    if (dirty.isEmpty()) {
-                        return SeqNoOpKey.INSTANCE;
-                    }
-                    return new SeqUpdateKey(dirty.get());
-                } else {
-                    return SeqUpsertKey.INSTANCE;
-                }
-            }, getMaxShapes(), new SeqUpdateKey()).forEach(partition -> {
-                switch (partition.key()) {
-                    case SeqNoOpKey ignore -> result.addAll(partition.chunk().stream().map(E::id).toList());
-                    case SeqUpsertKey ignore -> {
-                        List<E> batch = hasEntityCallbacks()
-                                ? partition.chunk().stream().map(this::fireBeforeUpsert).toList()
-                                : partition.chunk();
-                        // Remove from cache entities with non-default PKs (could be updates via MERGE).
-                        entityCache.ifPresent(cache -> batch.stream()
-                                .filter(e -> !model.isDefaultPrimaryKey(e.id()))
-                                .forEach(e -> cache.remove(e.id())));
-                        List<ID> ids = getUpsertQuery(batch).getResultList(model.primaryKeyType());
-                        result.addAll(ids);
-                        fireAfterUpsert(batch, ids);
-                    }
-                    case SeqUpdateKey u -> {
-                        List<E> batch = hasEntityCallbacks()
-                                ? partition.chunk().stream().map(this::fireBeforeUpdate).toList()
-                                : partition.chunk();
-                        result.addAll(updateAndFetchIds(batch,
-                                updateQueries.computeIfAbsent(u.fields(), this::prepareUpdateQuery),
-                                entityCache.orElse(null)));
-                    }
-                }
-            });
-            return result;
-        } finally {
-            closeQuietly(updateQueries.values().stream());
-        }
+        return upsertAndFetchIdsPartitioned(entities,
+                (chunk, entityCache) -> upsertPartitionAndFetchIds(chunk, entityCache, this::getUpsertQuery));
     }
 
     private Query getUpsertQuery(Iterable<E> entities) {

@@ -144,11 +144,7 @@ public final class TransactionScope {
      * path are not observed.
      */
     public static @Nullable TransactionContext resolveContext(TransactionTemplateProvider provider) {
-        var scope = CURRENT.get();
-        if (scope != null) {
-            return scope.getOrMaterializeContext(provider);
-        }
-        return provider.getTransactionTemplate().currentContext().orElse(null);
+        return resolveContext(provider, null);
     }
 
     /**

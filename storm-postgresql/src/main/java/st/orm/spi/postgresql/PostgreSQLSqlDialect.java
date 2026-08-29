@@ -27,15 +27,13 @@ import java.sql.SQLException;
 import java.sql.Types;
 import java.util.Set;
 import java.util.UUID;
-import java.util.regex.Pattern;
 import java.util.stream.Stream;
 import st.orm.Operator;
 import st.orm.StormConfig;
 import st.orm.core.spi.DefaultSqlDialect;
 import st.orm.core.spi.JsonString;
-import st.orm.core.template.SqlDialect;
 
-public class PostgreSQLSqlDialect extends DefaultSqlDialect implements SqlDialect {
+public class PostgreSQLSqlDialect extends DefaultSqlDialect {
 
     public PostgreSQLSqlDialect() {
     }
@@ -56,32 +54,11 @@ public class PostgreSQLSqlDialect extends DefaultSqlDialect implements SqlDialec
     }
 
     /**
-     * PostgreSQL does not support aliasing the target table in DELETE statements.
-     */
-    @Override
-    public boolean supportsDeleteAlias() {
-        return false;
-    }
-
-    /**
      * PostgreSQL supports multi-value tuples in the IN clause.
      */
     @Override
     public boolean supportsMultiValueTuples() {
         return true;
-    }
-
-    private static final Pattern POSTGRESQL_IDENTIFIER = Pattern.compile("^[A-Za-z][A-Za-z0-9_]*$");
-
-    /**
-     * Returns the pattern for valid identifiers.
-     *
-     * @return the pattern for valid identifiers.
-     * @since 1.2
-     */
-    @Override
-    public Pattern getValidIdentifierPattern() {
-        return POSTGRESQL_IDENTIFIER;
     }
 
     private static final Set<String> POSTGRESQL_KEYWORDS = Stream.concat(ANSI_KEYWORDS.stream(), Stream.of(
@@ -110,40 +87,6 @@ public class PostgreSQLSqlDialect extends DefaultSqlDialect implements SqlDialec
     @Override
     public String escape(String name) {
         return "\"%s\"".formatted(name.replace("\"", "\"\""));
-    }
-
-    /**
-     * Regex for double-quoted identifiers (handling doubled double quotes as escapes).
-     */
-    private static final Pattern IDENTIFIER_PATTERN = Pattern.compile(
-            "\"(?:\"\"|[^\"])*\""
-    );
-
-    /**
-     * Returns the pattern for identifiers.
-     *
-     * @return the pattern for identifiers.
-     */
-    @Override
-    public Pattern getIdentifierPattern() {
-        return IDENTIFIER_PATTERN;
-    }
-
-    /**
-     * Regex for single-quoted string literals, handling both doubled single quotes and backslash escapes.
-     */
-    private static final Pattern QUOTE_LITERAL_PATTERN = Pattern.compile(
-            "'(?:''|\\\\.|[^'\\\\])*'"
-    );
-
-    /**
-     * Returns the pattern for string literals.
-     *
-     * @return the pattern for string literals.
-     */
-    @Override
-    public Pattern getQuoteLiteralPattern() {
-        return QUOTE_LITERAL_PATTERN;
     }
 
     /**
@@ -277,16 +220,6 @@ public class PostgreSQLSqlDialect extends DefaultSqlDialect implements SqlDialec
     public String forShareLockHint() {
         // We may add configuration flags to use the old PostgreSQL need FOR SHARE instead.
         return "FOR KEY SHARE";
-    }
-
-    /**
-     * Returns the lock hint for a write lock.
-     *
-     * @return the lock hint for a write lock.
-     */
-    @Override
-    public String forUpdateLockHint() {
-        return "FOR UPDATE";
     }
 
     /**

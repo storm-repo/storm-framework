@@ -54,8 +54,6 @@ import st.orm.ProjectionQuery;
 import st.orm.Ref;
 import st.orm.StormConfig;
 import st.orm.Version;
-import st.orm.core.spi.ORMReflection;
-import st.orm.core.spi.Providers;
 import st.orm.core.spi.TypeDiscovery;
 import st.orm.core.template.SqlTemplate;
 import st.orm.core.template.SqlTemplate.Parameter;
@@ -70,7 +68,6 @@ import st.orm.mapping.RecordType;
 @SuppressWarnings("ALL")
 final class RecordValidation {
 
-    private static final ORMReflection REFLECTION = Providers.getORMReflection();
     private static final Logger LOGGER = LoggerFactory.getLogger("st.orm.validation");
 
     private RecordValidation() {

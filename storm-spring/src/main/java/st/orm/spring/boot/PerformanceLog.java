@@ -18,6 +18,7 @@ package st.orm.spring.boot;
 import java.time.Duration;
 import org.jspecify.annotations.Nullable;
 import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import st.orm.core.template.SqlLog;
 
 /**
@@ -29,6 +30,9 @@ import st.orm.core.template.SqlLog;
  * only the ones that exceed it are, at WARN. At TRACE the full statement texts follow the summary.</p>
  */
 final class PerformanceLog {
+
+    /** The logger every boundary reports under. */
+    static final Logger LOGGER = LoggerFactory.getLogger("st.orm.sql.perf");
 
     private PerformanceLog() {
     }
@@ -77,14 +81,14 @@ final class PerformanceLog {
      * Returns whether a summary would reach the logger, so a caller can skip opening a scope whose summary
      * nothing consumes.
      */
-    static boolean consumes(Logger logger, Settings settings) {
-        return settings.thresholded() ? logger.isWarnEnabled() : logger.isInfoEnabled();
+    static boolean consumes(Settings settings) {
+        return settings.thresholded() ? LOGGER.isWarnEnabled() : LOGGER.isInfoEnabled();
     }
 
     /**
      * Reports the summary. A unit of work that touched no database says nothing worth a line.
      */
-    static void report(Logger logger, SqlLog.Summary summary, Settings settings) {
+    static void report(SqlLog.Summary summary, Settings settings) {
         if (summary.statementCount() == 0) {
             return;
         }
@@ -93,15 +97,15 @@ final class PerformanceLog {
         // At TRACE the full statement texts follow the summary, so an elided row can be matched to its
         // statement. TRACE rather than DEBUG because this logger is a child of st.orm.sql: raising that to DEBUG
         // for per-statement logging would otherwise repeat every statement the statement logger already wrote.
-        Object rendered = logger.isTraceEnabled() ? summary.toDetailedString() : summary;
+        Object rendered = LOGGER.isTraceEnabled() ? summary.toDetailedString() : summary;
         if (statementThreshold == null && durationThreshold == null) {
-            logger.info("{}", rendered);
+            LOGGER.info("{}", rendered);
             return;
         }
         boolean exceeded = (statementThreshold != null && summary.statementCount() >= statementThreshold)
                 || (durationThreshold != null && summary.durationNanos() >= durationThreshold.toNanos());
         if (exceeded) {
-            logger.warn("{}", rendered);
+            LOGGER.warn("{}", rendered);
         }
     }
 }
