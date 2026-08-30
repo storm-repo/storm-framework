@@ -452,7 +452,7 @@ public final class SlowStatementLog {
         var facts = new StringBuilder();
         long shapeId = context.shapeId();
         if (shapeId != 0) {
-            facts.append("shape ").append(Long.toHexString(shapeId));
+            facts.append("shape ").append("%016x".formatted(shapeId));
             if (baseline != null && baseline.typicalNanos() > 0) {
                 facts.append(" (typically ").append(millis(baseline.typicalNanos()));
                 long ratio = databaseNanos / baseline.typicalNanos();

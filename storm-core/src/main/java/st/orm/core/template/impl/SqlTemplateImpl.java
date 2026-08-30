@@ -451,8 +451,7 @@ public final class SqlTemplateImpl implements SqlTemplate {
             // every binding of one compiled template shares its shape.
             long shapeId = processor.shapeId(() -> {
                 try {
-                    Object shapeKey = getShapeKey(bindingContext);
-                    return shapeKey == null ? 0L : shapeKey.hashCode();
+                    return ShapeHash.of(getShapeKey(bindingContext));
                 } catch (UncheckedSqlTemplateException e) {
                     // A template whose shape cannot be derived groups by text instead.
                     return 0L;

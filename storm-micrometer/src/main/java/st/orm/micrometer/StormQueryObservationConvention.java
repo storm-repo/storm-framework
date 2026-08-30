@@ -83,7 +83,7 @@ public class StormQueryObservationConvention implements ObservationConvention<St
                         "storm.execution", queryContext.kind().name(),
                         "storm.data_type", queryContext.dataType().map(Class::getSimpleName).orElse("none"),
                         "storm.origin", queryContext.origin().name(),
-                        "storm.shape", shapeId != 0 ? Long.toHexString(shapeId) : "none")
+                        "storm.shape", shapeId != 0 ? "%016x".formatted(shapeId) : "none")
                 .and(context.extraLowCardinalityKeyValues());
     }
 

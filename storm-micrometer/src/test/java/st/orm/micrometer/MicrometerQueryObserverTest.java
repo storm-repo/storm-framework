@@ -105,7 +105,7 @@ public class MicrometerQueryObserverTest {
         TestObservationRegistryAssert.assertThat(registry)
                 .hasObservationWithNameEqualTo("storm.query")
                 .that()
-                .hasLowCardinalityKeyValue("storm.shape", "cafe");
+                .hasLowCardinalityKeyValue("storm.shape", "000000000000cafe");
     }
 
     @Test
