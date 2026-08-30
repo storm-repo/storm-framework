@@ -21,6 +21,7 @@ import st.orm.BindVars;
 import st.orm.Data;
 import st.orm.PersistenceException;
 import st.orm.Ref;
+import st.orm.SqlTemplateException;
 import st.orm.core.spi.Providers;
 import st.orm.core.spi.QueryFactory;
 import st.orm.core.spi.RefFactory;
@@ -32,7 +33,6 @@ import st.orm.core.template.QueryBuilder;
 import st.orm.core.template.QueryPlan;
 import st.orm.core.template.QueryTemplate;
 import st.orm.core.template.SqlDialect;
-import st.orm.core.template.SqlTemplateException;
 import st.orm.core.template.TemplateString;
 
 class QueryTemplateImpl implements QueryTemplate {

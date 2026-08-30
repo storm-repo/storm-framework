@@ -8,7 +8,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import org.junit.jupiter.api.Test;
 import st.orm.PersistenceException;
-import st.orm.core.template.SqlTemplateException;
+import st.orm.SqlTemplateException;
 
 /**
  * Tests for {@link EnumMapper}.

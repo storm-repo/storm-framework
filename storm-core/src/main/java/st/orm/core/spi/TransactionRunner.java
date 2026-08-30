@@ -22,6 +22,7 @@ import java.util.function.Consumer;
 import org.jspecify.annotations.Nullable;
 import st.orm.Transaction;
 import st.orm.TransactionCallbackException;
+import st.orm.TransactionOptions;
 import st.orm.TransactionPropagation;
 import st.orm.TransactionTimedOutException;
 import st.orm.UnexpectedRollbackException;
@@ -80,9 +81,9 @@ public final class TransactionRunner {
      * @param <R> the result type.
      * @param <E> the checked exception type thrown by the block, if any.
      */
-    public static <R, E extends Exception> R execute(TransactionScope.Options options,
+    public static <R, E extends Exception> R execute(TransactionOptions options,
                                                      Block<R, E> block) throws E {
-        var scope = TransactionScope.open(options);
+        var scope = TransactionScope.open(options, false);
         var parentCallbacks = CURRENT_CALLBACKS.get();
         if (isJoining(options.propagation()) && scope.parent() != null && parentCallbacks != null) {
             // Joining an outer transaction block: delegate callbacks to the outer holder; do not fire here.

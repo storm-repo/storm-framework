@@ -34,6 +34,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.jdbc.datasource.DelegatingDataSource;
 import st.orm.PersistenceException;
+import st.orm.TransactionOptions;
 import st.orm.TransactionPropagation;
 import st.orm.core.template.ORMTemplate;
 
@@ -136,7 +137,7 @@ public class ManualCommitConnectionsTest {
     private static <R> R inTransaction(TransactionPropagation propagation,
                                        TransactionRunner.Block<R, RuntimeException> block) {
         return TransactionRunner.execute(
-                new TransactionScope.Options(propagation, null, null, null, false), block);
+                new TransactionOptions(propagation, null, null, null), block);
     }
 
     private static int countRows() throws SQLException {

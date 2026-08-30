@@ -18,9 +18,10 @@ package st.orm.core.spi;
 import java.util.function.Consumer;
 import org.jspecify.annotations.Nullable;
 import st.orm.PersistenceException;
-import st.orm.TransactionIsolation;
+import st.orm.TransactionOptions;
 import st.orm.TransactionPropagation;
 import st.orm.core.spi.TransactionTemplate.TransactionHandle;
+import st.orm.spi.QueryObserver;
 
 /**
  * A pending transaction scope that binds to the first ORM template that executes inside it.
@@ -46,24 +47,6 @@ import st.orm.core.spi.TransactionTemplate.TransactionHandle;
  * @since 1.13
  */
 public final class TransactionScope {
-
-    /**
-     * The transaction options requested for a scope.
-     *
-     * @param propagation the propagation behavior, such as {@code REQUIRED} or {@code REQUIRES_NEW};
-     *                    {@code null} for the provider default ({@code REQUIRED}).
-     * @param isolation the isolation level, or {@code null} for the provider default.
-     * @param timeoutSeconds the transaction timeout in seconds, or {@code null} for no timeout.
-     * @param readOnly whether the transaction is read-only, or {@code null} for the provider default.
-     * @param suspendMode whether the transaction is created to be used in suspend mode.
-     * @since 1.13
-     */
-    public record Options(@Nullable TransactionPropagation propagation,
-                          @Nullable TransactionIsolation isolation,
-                          @Nullable Integer timeoutSeconds,
-                          @Nullable Boolean readOnly,
-                          boolean suspendMode) {
-    }
 
     private static final ThreadLocal<TransactionScope> CURRENT = new ThreadLocal<>();
 
@@ -98,10 +81,11 @@ public final class TransactionScope {
      * scope; callers must invoke {@link #close()} on the same thread when the transactional block completes.</p>
      *
      * @param options the requested transaction options.
+     * @param suspendMode whether the transaction is created to be used in suspend mode.
      * @return the newly opened scope.
      */
-    public static TransactionScope open(Options options) {
-        var scope = new TransactionScope(options, CURRENT.get());
+    public static TransactionScope open(TransactionOptions options, boolean suspendMode) {
+        var scope = new TransactionScope(options, suspendMode, CURRENT.get());
         CURRENT.set(scope);
         return scope;
     }
@@ -113,11 +97,13 @@ public final class TransactionScope {
      * {@link #close()} must not be called on scopes created through this method.</p>
      *
      * @param options the requested transaction options.
+     * @param suspendMode whether the transaction is created to be used in suspend mode.
      * @param parent the parent scope, or {@code null} when this is an outermost scope.
      * @return the new scope.
      */
-    public static TransactionScope create(Options options, @Nullable TransactionScope parent) {
-        return new TransactionScope(options, parent);
+    public static TransactionScope create(TransactionOptions options, boolean suspendMode,
+                                          @Nullable TransactionScope parent) {
+        return new TransactionScope(options, suspendMode, parent);
     }
 
     /**
@@ -171,7 +157,8 @@ public final class TransactionScope {
         return provider.getTransactionTemplate().currentContext().orElse(null);
     }
 
-    private final Options options;
+    private final TransactionOptions options;
+    private final boolean suspendMode;
     private final @Nullable TransactionScope parent;
     private final @Nullable Long deadlineNanos;
 
@@ -181,8 +168,9 @@ public final class TransactionScope {
     private boolean rollbackOnly;       // Buffered until materialization; guarded by this.
     private boolean rollbackInherited;  // Set when the mark came from a joined inner scope; guarded by this.
 
-    private TransactionScope(Options options, @Nullable TransactionScope parent) {
+    private TransactionScope(TransactionOptions options, boolean suspendMode, @Nullable TransactionScope parent) {
         this.options = options;
+        this.suspendMode = suspendMode;
         this.parent = parent;
         this.deadlineNanos = options.timeoutSeconds() != null
                 ? System.nanoTime() + options.timeoutSeconds() * 1_000_000_000L
@@ -194,7 +182,7 @@ public final class TransactionScope {
      *
      * @return the transaction options.
      */
-    public Options options() {
+    public TransactionOptions options() {
         return options;
     }
 
@@ -320,7 +308,7 @@ public final class TransactionScope {
         if (options.readOnly() != null) {
             template = template.readOnly(options.readOnly());
         }
-        var newHandle = template.open(outerContext, options.suspendMode());
+        var newHandle = template.open(outerContext, suspendMode);
         if (rollbackOnly) {
             newHandle.status().setRollbackOnly();
         }
@@ -447,7 +435,7 @@ public final class TransactionScope {
      * When the scope was never materialized this is a no-op, except that a rollback outcome is propagated to the
      * parent scope when this scope's propagation joins the outer transaction.</p>
      *
-     * <p>This method does not uninstall the scope from the current thread; callers opened via {@link #open(Options)}
+     * <p>This method does not uninstall the scope from the current thread; callers opened via {@link #open(TransactionOptions)}
      * must additionally call {@link #close()}.</p>
      *
      * @param rollback whether the transactional block failed and the transaction must be rolled back.
@@ -492,7 +480,7 @@ public final class TransactionScope {
     /**
      * Uninstalls this scope from the current thread, restoring its parent as the current scope.
      *
-     * <p>Must be called on the thread that opened the scope via {@link #open(Options)}, after {@link #complete}.</p>
+     * <p>Must be called on the thread that opened the scope via {@link #open(TransactionOptions)}, after {@link #complete}.</p>
      *
      * @throws IllegalStateException if this scope is not the current scope of this thread.
      */

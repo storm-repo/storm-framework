@@ -28,7 +28,7 @@ import java.util.function.Supplier;
 import java.util.function.UnaryOperator;
 import st.orm.core.template.Sql;
 import st.orm.core.template.SqlTemplate;
-import st.orm.core.template.StatementOrigin;
+import st.orm.spi.StatementOrigin;
 
 /**
  * Manages SQL interceptors.

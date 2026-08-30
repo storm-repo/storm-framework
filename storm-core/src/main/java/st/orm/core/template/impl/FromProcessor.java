@@ -19,7 +19,7 @@ import static st.orm.core.template.impl.RecordReflection.getTableName;
 
 import java.util.List;
 import java.util.function.Function;
-import st.orm.core.template.SqlTemplateException;
+import st.orm.SqlTemplateException;
 import st.orm.core.template.TemplateString;
 import st.orm.core.template.impl.Elements.From;
 import st.orm.core.template.impl.Elements.TableSource;

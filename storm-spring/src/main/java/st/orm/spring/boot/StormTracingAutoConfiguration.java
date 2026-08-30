@@ -24,8 +24,8 @@ import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
 import st.orm.PersistenceException;
-import st.orm.core.spi.SqlCommenter;
 import st.orm.micrometer.TraceContextSqlCommenter;
+import st.orm.spi.SqlCommenter;
 
 /**
  * Auto-configuration that appends the current trace context to SQL statements as a sqlcommenter-style

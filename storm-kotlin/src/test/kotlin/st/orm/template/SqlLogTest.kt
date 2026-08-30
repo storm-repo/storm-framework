@@ -20,7 +20,7 @@ import org.springframework.test.context.jdbc.Sql
 import org.springframework.test.context.junit.jupiter.SpringExtension
 import st.orm.Metamodel
 import st.orm.core.template.SqlLog.Summary
-import st.orm.core.template.StatementOrigin.FETCH
+import st.orm.spi.StatementOrigin.FETCH
 import st.orm.template.model.Owner
 import st.orm.template.model.PetOwnerRef
 

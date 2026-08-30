@@ -2,7 +2,7 @@ package st.orm.core.template.impl;
 
 import java.util.function.Function;
 import st.orm.Element;
-import st.orm.core.template.SqlTemplateException;
+import st.orm.SqlTemplateException;
 import st.orm.core.template.TemplateString;
 
 /**

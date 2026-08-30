@@ -16,18 +16,18 @@
 package st.orm.core.template.impl;
 
 import static java.util.regex.Pattern.DOTALL;
-import static st.orm.core.template.SqlOperation.DELETE;
-import static st.orm.core.template.SqlOperation.INSERT;
-import static st.orm.core.template.SqlOperation.SELECT;
-import static st.orm.core.template.SqlOperation.UNDEFINED;
-import static st.orm.core.template.SqlOperation.UPDATE;
+import static st.orm.spi.SqlOperation.DELETE;
+import static st.orm.spi.SqlOperation.INSERT;
+import static st.orm.spi.SqlOperation.SELECT;
+import static st.orm.spi.SqlOperation.UNDEFINED;
+import static st.orm.spi.SqlOperation.UPDATE;
 
 import java.util.List;
 import java.util.regex.Pattern;
 import st.orm.core.template.SqlDialect;
-import st.orm.core.template.SqlOperation;
 import st.orm.core.template.TemplateString;
 import st.orm.core.template.impl.Elements.Unsafe;
+import st.orm.spi.SqlOperation;
 
 /**
  * SQL parser for basic SQL processing.

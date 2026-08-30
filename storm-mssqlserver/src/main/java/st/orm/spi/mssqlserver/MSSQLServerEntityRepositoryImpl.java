@@ -31,13 +31,13 @@ import java.util.Objects;
 import java.util.concurrent.atomic.AtomicBoolean;
 import st.orm.Entity;
 import st.orm.PersistenceException;
+import st.orm.SqlTemplateException;
 import st.orm.core.repository.EntityRepository;
 import st.orm.core.repository.impl.MergeEntityRepositoryImpl;
 import st.orm.core.template.Column;
 import st.orm.core.template.Model;
 import st.orm.core.template.ORMTemplate;
 import st.orm.core.template.Query;
-import st.orm.core.template.SqlTemplateException;
 import st.orm.core.template.TemplateString;
 import st.orm.core.template.impl.JoinedEntityHelper;
 

@@ -41,8 +41,8 @@ import st.orm.Navigable;
 import st.orm.PK;
 import st.orm.PersistenceException;
 import st.orm.Ref;
+import st.orm.SqlTemplateException;
 import st.orm.UK;
-import st.orm.core.template.SqlTemplateException;
 import st.orm.mapping.RecordField;
 
 /**

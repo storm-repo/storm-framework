@@ -89,7 +89,7 @@ Note that in-memory navigation (using `next()` and `previous()` directly, withou
 
 ## Custom cursor codecs
 
-To add cursor serialization support for a custom type, implement the `CursorCodecProvider` SPI. Storm discovers providers via `ServiceLoader`.
+To add cursor serialization support for a custom type, implement the `CursorCodecProvider` SPI from the `st.orm.spi` package of `storm-foundation`. Storm discovers providers via `ServiceLoader`.
 
 ### Step 1: Implement the codec
 
@@ -143,7 +143,7 @@ public class MyCursorCodecProvider implements CursorCodecProvider {
 
 ### Step 2: Register the provider
 
-Create a service file at `META-INF/services/st.orm.core.spi.CursorCodecProvider` containing the fully qualified class name of your provider:
+Create a service file at `META-INF/services/st.orm.spi.CursorCodecProvider` containing the fully qualified class name of your provider:
 
 ```
 com.example.MyCursorCodecProvider

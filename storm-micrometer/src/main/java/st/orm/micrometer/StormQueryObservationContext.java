@@ -19,7 +19,7 @@ import static java.util.Objects.requireNonNull;
 
 import io.micrometer.common.KeyValues;
 import io.micrometer.observation.Observation;
-import st.orm.core.spi.QueryContext;
+import st.orm.spi.QueryContext;
 
 /**
  * {@link Observation.Context} for a Storm query execution.

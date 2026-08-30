@@ -69,9 +69,8 @@ import st.orm.repository.ProjectionRepository;
  * {@code INSERT}, {@code UPDATE}, and {@code DELETE}, as well as utility methods for working with parameters,
  * tables, aliases, and more.
  *
- * <p>Additionally, the {@code Templates} interface provides methods to create {@link ORMTemplate}
- * instances for use with different data sources like JDBC's {@link DataSource} or {@link Connection}, or
- * JPA's {@code EntityManager} (see {@code JpaTemplate}).
+ * <p>Additionally, {@link ORMTemplate} provides factory methods to create instances for use with JDBC's
+ * {@link DataSource} or {@link Connection}.
  *
  * <h2>Using Templates</h2>
  *
@@ -135,18 +134,12 @@ import st.orm.repository.ProjectionRepository;
  **
  * <h2>Howto start</h2>
  *
- * <p>The {@code Templates} interface provides static methods to create {@link ORMTemplate} instances based on your data source:
- *
- * <h3>Using EntityManager (JPA)</h3>
- * <pre>{@code
- * EntityManager entityManager = ...;
- * ORMTemplate orm = Templates.ORM(entityManager);
- * }</pre>
+ * <p>{@link ORMTemplate} provides static factory methods to create instances based on your data source:
  *
  * <h3>Using DataSource (JDBC)</h3>
  * <pre>{@code
  * DataSource dataSource = ...;
- * ORMTemplate orm = Templates.ORM(dataSource);
+ * ORMTemplate orm = ORMTemplate.of(dataSource);
  * }</pre>
  *
  * <h3>Using Connection (JDBC)</h3>
@@ -155,7 +148,7 @@ import st.orm.repository.ProjectionRepository;
  *
  * <pre>{@code
  * Connection connection = ...;
- * ORMTemplate orm = Templates.ORM(connection);
+ * ORMTemplate orm = ORMTemplate.of(connection);
  * }</pre>
  *
  * @see EntityRepository

@@ -37,13 +37,12 @@ import org.slf4j.LoggerFactory;
 import st.orm.BindVars;
 import st.orm.Data;
 import st.orm.Ref;
+import st.orm.SqlTemplateException;
 import st.orm.StormConfig;
 import st.orm.core.spi.JsonString;
 import st.orm.core.spi.Provider;
 import st.orm.core.spi.Providers;
-import st.orm.core.spi.QueryContext.ExecutionKind;
 import st.orm.core.spi.QueryFactory;
-import st.orm.core.spi.QueryObserver.Observation;
 import st.orm.core.spi.RefFactory;
 import st.orm.core.spi.RefFactoryImpl;
 import st.orm.core.spi.WeakInterner;
@@ -56,12 +55,13 @@ import st.orm.core.template.SqlDialect;
 import st.orm.core.template.SqlTemplate;
 import st.orm.core.template.SqlTemplate.NamedParameter;
 import st.orm.core.template.SqlTemplate.PositionalParameter;
-import st.orm.core.template.SqlTemplateException;
 import st.orm.core.template.TableAliasResolver;
 import st.orm.core.template.TemplateString;
 import st.orm.mapping.ColumnNameResolver;
 import st.orm.mapping.ForeignKeyResolver;
 import st.orm.mapping.TableNameResolver;
+import st.orm.spi.QueryContext.ExecutionKind;
+import st.orm.spi.QueryObserver.Observation;
 
 public final class JpaTemplateImpl implements JpaTemplate, QueryFactory {
 

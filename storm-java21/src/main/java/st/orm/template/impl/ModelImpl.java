@@ -19,7 +19,7 @@ import java.util.List;
 import java.util.function.BiConsumer;
 import org.jspecify.annotations.Nullable;
 import st.orm.Data;
-import st.orm.core.template.SqlTemplateException;
+import st.orm.SqlTemplateException;
 import st.orm.template.Column;
 import st.orm.template.Model;
 

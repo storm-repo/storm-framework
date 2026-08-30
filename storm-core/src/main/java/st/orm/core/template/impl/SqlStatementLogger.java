@@ -21,7 +21,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import st.orm.Data;
 import st.orm.core.template.Sql;
-import st.orm.core.template.StatementOrigin;
+import st.orm.spi.StatementOrigin;
 
 /**
  * Logs statements as they execute.

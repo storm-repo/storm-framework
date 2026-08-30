@@ -20,12 +20,12 @@ import st.orm.PersistenceException;
 import st.orm.Projection;
 import st.orm.ProjectionQuery;
 import st.orm.Ref;
+import st.orm.SqlTemplateException;
 import st.orm.StormConfig;
 import st.orm.Version;
 import st.orm.core.template.SqlTemplate.NamedParameter;
 import st.orm.core.template.SqlTemplate.Parameter;
 import st.orm.core.template.SqlTemplate.PositionalParameter;
-import st.orm.core.template.SqlTemplateException;
 
 /**
  * Tests for {@link RecordValidation} to cover data type validation, parameter validation, and

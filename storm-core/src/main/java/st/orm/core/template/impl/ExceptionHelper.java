@@ -20,14 +20,14 @@ import java.util.function.Function;
 import org.jspecify.annotations.Nullable;
 import st.orm.Data;
 import st.orm.PersistenceException;
-import st.orm.core.spi.ExceptionContext;
-import st.orm.core.spi.ExceptionMapper;
+import st.orm.SqlTemplateException;
 import st.orm.core.spi.TransactionContext;
 import st.orm.core.spi.TransactionScope;
 import st.orm.core.spi.TransactionTemplateProvider;
 import st.orm.core.template.Sql;
-import st.orm.core.template.SqlOperation;
-import st.orm.core.template.SqlTemplateException;
+import st.orm.spi.ExceptionContext;
+import st.orm.spi.ExceptionMapper;
+import st.orm.spi.SqlOperation;
 
 /**
  * Helper class for augmenting exceptions with SQL statements and mapping them via the template's exception mapper.

@@ -40,12 +40,12 @@ import org.jspecify.annotations.Nullable;
 import st.orm.BindVars;
 import st.orm.Entity;
 import st.orm.PersistenceException;
+import st.orm.SqlTemplateException;
 import st.orm.core.spi.EntityCache;
 import st.orm.core.template.Column;
 import st.orm.core.template.Model;
 import st.orm.core.template.ORMTemplate;
 import st.orm.core.template.PreparedQuery;
-import st.orm.core.template.SqlTemplateException;
 import st.orm.core.template.TemplateString;
 
 /**

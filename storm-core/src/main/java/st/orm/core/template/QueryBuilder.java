@@ -508,10 +508,8 @@ public abstract class QueryBuilder<T extends Data, R, ID> {
      */
     @SafeVarargs
     public final QueryBuilder<T, R, ID> groupBy(Navigable<? extends T, ?>... path) {
-        // We can safely invoke groupByAny as the underlying logic is identical. The main purpose of having these
-        // separate methods is to provide (more) type safety when using metamodels that are guaranteed to be present in
-        // the table graph. Navigation-only nodes reached beyond a reference are accepted here: they name a column, and
-        // Storm materializes the join for the referenced table on demand.
+        // Navigation-only nodes reached beyond a reference are accepted here: they name a column, and Storm
+        // materializes the join for the referenced table on demand.
         if (path.length == 0) {
             throw new PersistenceException("At least one path must be provided for GROUP BY clause.");
         }
@@ -603,9 +601,6 @@ public abstract class QueryBuilder<T extends Data, R, ID> {
      */
     @SafeVarargs
     public final QueryBuilder<T, R, ID> orderBy(Navigable<? extends T, ?>... path) {
-        // We can safely invoke orderByAny as the underlying logic is identical. The main purpose of having these
-        // separate methods is to provide (more) type safety when using metamodels that are guaranteed to be present in
-        // the table graph.
         if (path.length == 0) {
             throw new PersistenceException("At least one path must be provided for ORDER BY clause.");
         }

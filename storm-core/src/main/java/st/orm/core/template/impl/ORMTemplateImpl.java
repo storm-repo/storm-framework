@@ -38,6 +38,7 @@ import st.orm.Entity;
 import st.orm.EntityCallback;
 import st.orm.PersistenceException;
 import st.orm.Projection;
+import st.orm.SqlTemplateException;
 import st.orm.StormConfig;
 import st.orm.WriteSet;
 import st.orm.core.repository.EntityRepository;
@@ -49,7 +50,6 @@ import st.orm.core.spi.Provider;
 import st.orm.core.spi.Providers;
 import st.orm.core.spi.QueryFactory;
 import st.orm.core.template.ORMTemplate;
-import st.orm.core.template.SqlTemplateException;
 
 public final class ORMTemplateImpl extends QueryTemplateImpl implements ORMTemplate {
 

@@ -409,7 +409,7 @@ internal class StormAutoConfigurationTest {
                 "spring.datasource.driver-class-name=org.h2.Driver",
             )
             .run { context ->
-                context.getBean(st.orm.core.spi.ExceptionMapper::class.java)
+                context.getBean(st.orm.spi.ExceptionMapper::class.java)
                     .shouldBeInstanceOf<st.orm.spring.SpringExceptionMapper>()
             }
         contextRunner
@@ -419,7 +419,7 @@ internal class StormAutoConfigurationTest {
                 "storm.exception-translation.enabled=false",
             )
             .run { context ->
-                context.getBeanNamesForType(st.orm.core.spi.ExceptionMapper::class.java).toList().shouldBeEmpty()
+                context.getBeanNamesForType(st.orm.spi.ExceptionMapper::class.java).toList().shouldBeEmpty()
             }
     }
 
@@ -461,7 +461,7 @@ internal class StormAutoConfigurationTest {
                 "spring.datasource.driver-class-name=org.h2.Driver",
             )
             .run { context ->
-                context.getBeanNamesForType(st.orm.core.spi.QueryObserver::class.java).toList().shouldBeEmpty()
+                context.getBeanNamesForType(st.orm.spi.QueryObserver::class.java).toList().shouldBeEmpty()
             }
         contextRunner
             .withPropertyValues(
@@ -470,7 +470,7 @@ internal class StormAutoConfigurationTest {
             )
             .withBean(io.micrometer.observation.ObservationRegistry::class.java, { io.micrometer.observation.ObservationRegistry.create() })
             .run { context ->
-                context.getBean(st.orm.core.spi.QueryObserver::class.java)
+                context.getBean(st.orm.spi.QueryObserver::class.java)
                     .shouldBeInstanceOf<st.orm.micrometer.MicrometerQueryObserver>()
             }
     }

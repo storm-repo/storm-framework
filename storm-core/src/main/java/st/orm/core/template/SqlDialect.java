@@ -37,6 +37,7 @@ import java.util.UUID;
 import java.util.function.Function;
 import java.util.regex.Pattern;
 import st.orm.Operator;
+import st.orm.SqlTemplateException;
 import st.orm.core.spi.JsonString;
 
 /**

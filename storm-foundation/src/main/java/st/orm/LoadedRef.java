@@ -64,6 +64,10 @@ final class LoadedRef<T extends Data> extends AbstractRef<T> {
 
     @Override
     public Ref<T> unload() {
-        return Ref.of(type(), id());
+        if (id == null) {
+            throw new PersistenceException(
+                    "Cannot unload a ref wrapping an unsaved record: the primary key is not available yet.");
+        }
+        return Ref.of(type(), id);
     }
 }

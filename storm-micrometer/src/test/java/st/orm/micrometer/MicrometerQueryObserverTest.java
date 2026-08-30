@@ -34,9 +34,9 @@ import st.orm.Data;
 import st.orm.Entity;
 import st.orm.PK;
 import st.orm.PersistenceException;
-import st.orm.core.spi.QueryContext;
 import st.orm.core.template.ORMTemplate;
-import st.orm.core.template.SqlOperation;
+import st.orm.spi.QueryContext;
+import st.orm.spi.SqlOperation;
 
 /**
  * Tests for {@link MicrometerQueryObserver}: observation lifecycle, naming and key values from the default

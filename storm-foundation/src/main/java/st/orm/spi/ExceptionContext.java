@@ -13,11 +13,10 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package st.orm.core.spi;
+package st.orm.spi;
 
 import java.util.Optional;
 import st.orm.Data;
-import st.orm.core.template.SqlOperation;
 
 /**
  * Describes the execution context in which a failure occurred.

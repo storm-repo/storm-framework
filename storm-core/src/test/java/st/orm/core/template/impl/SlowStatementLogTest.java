@@ -10,11 +10,11 @@ import java.util.Optional;
 import java.util.OptionalInt;
 import org.junit.jupiter.api.Test;
 import st.orm.Data;
-import st.orm.core.spi.QueryContext;
-import st.orm.core.spi.QueryContext.ExecutionKind;
-import st.orm.core.template.SqlOperation;
-import st.orm.core.template.StatementOrigin;
 import st.orm.core.template.impl.SlowStatementLog.ShapeStats;
+import st.orm.spi.QueryContext;
+import st.orm.spi.QueryContext.ExecutionKind;
+import st.orm.spi.SqlOperation;
+import st.orm.spi.StatementOrigin;
 
 /**
  * Verifies how a slow line renders and how a shape's baseline and reporting budget behave, both without a database.

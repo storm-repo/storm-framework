@@ -28,12 +28,12 @@ import st.orm.DbTable;
 import st.orm.Entity;
 import st.orm.Metamodel;
 import st.orm.PK;
+import st.orm.SqlTemplateException;
 import st.orm.core.IntegrationConfig;
 import st.orm.core.model.Owner;
 import st.orm.core.template.ORMTemplate;
 import st.orm.core.template.Sql;
 import st.orm.core.template.SqlTemplate;
-import st.orm.core.template.SqlTemplateException;
 import st.orm.core.template.TemplateString;
 
 /**

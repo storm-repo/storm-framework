@@ -447,10 +447,7 @@ public abstract class QueryBuilder<T : Data, R, ID> {
      * @return the query builder.
      * @since 1.3
      */
-    public fun where(ref: Ref<out T>): QueryBuilder<T, R, ID> = whereBuilder {
-        @Suppress("UNCHECKED_CAST")
-        whereRef(ref as Ref<T>)
-    }
+    public fun where(ref: Ref<out T>): QueryBuilder<T, R, ID> = whereBuilder { whereRef(ref) }
 
     /**
      * Adds a WHERE clause that matches the specified record.
@@ -486,7 +483,7 @@ public abstract class QueryBuilder<T : Data, R, ID> {
      * @param record the records to match.
      * @return the predicate builder.
      */
-    public fun <V : Data> where(path: Metamodel<out T, V>, record: V): QueryBuilder<T, R, ID> = where(path eq record)
+    public fun <V : Data> where(path: Navigable<out T, V>, record: V): QueryBuilder<T, R, ID> = where(path eq record)
 
     /**
      * Adds a WHERE clause that matches the specified ref. The ref can represent any of the related tables in the
@@ -497,7 +494,7 @@ public abstract class QueryBuilder<T : Data, R, ID> {
      * @return the predicate builder.
      * @since 1.3
      */
-    public fun <V : Data> where(path: Metamodel<out T, V>, ref: Ref<V>): QueryBuilder<T, R, ID> = whereBuilder { where(path, ref) }
+    public fun <V : Data> where(path: Navigable<out T, V>, ref: Ref<V>): QueryBuilder<T, R, ID> = whereBuilder { where(path, ref) }
 
     /**
      * Adds a WHERE clause that matches the specified records. The records can represent any of the related tables in
@@ -519,7 +516,7 @@ public abstract class QueryBuilder<T : Data, R, ID> {
      * @since 1.3
      */
     public fun <V : Data> whereRef(
-        path: Metamodel<T, V>,
+        path: Navigable<out T, V>,
         it: Iterable<Ref<V>>,
     ): QueryBuilder<T, R, ID> = whereBuilder { whereRef(path, it) }
 
@@ -662,12 +659,7 @@ public abstract class QueryBuilder<T : Data, R, ID> {
      * @return the query builder.
      * @since 1.2
      */
-    public fun groupBy(vararg path: Navigable<out T, *>): QueryBuilder<T, R, ID> {
-        // We can safely invoke groupByAny as the underlying logic is identical. The main purpose of having these
-        // separate methods is to provide (more) type safety when using metamodels that are guaranteed to be present in
-        // the table graph.
-        return groupBy(columnList(path, GROUP_BY, "GROUP BY"))
-    }
+    public fun groupBy(vararg path: Navigable<out T, *>): QueryBuilder<T, R, ID> = groupBy(columnList(path, GROUP_BY, "GROUP BY"))
 
     /**
      * Renders the paths as a comma-separated column list for the given clause.
@@ -880,7 +872,7 @@ public abstract class QueryBuilder<T : Data, R, ID> {
      * @return `true` if ORDER BY columns are present, `false` otherwise.
      * @since 1.9
      */
-    public abstract fun hasOrderBy(): Boolean
+    protected abstract fun hasOrderBy(): Boolean
 
     /**
      * Adds a LIMIT clause to the query.
@@ -1064,6 +1056,8 @@ public abstract class QueryBuilder<T : Data, R, ID> {
      * most `size` results along with a `hasNext` flag. The caller is responsible for managing any WHERE
      * and ORDER BY clauses externally.
      *
+     * The returned window does not carry navigation tokens ([Window.next] and [Window.previous] return `null`).
+     *
      * @param size the maximum number of results to include in the window (must be positive).
      * @return a window containing the results and a flag indicating whether more results exist.
      * @throws IllegalArgumentException if [size] is not positive.
@@ -1076,7 +1070,7 @@ public abstract class QueryBuilder<T : Data, R, ID> {
      * [Window.next] or [Window.previous].
      *
      * @param scrollable the scroll request containing cursor state, key, sort, size, and direction.
-     * @return a window containing the results for the requested scroll position.
+     * @return a window containing the results and navigation tokens.
      * @since 1.11
      */
     public abstract fun scroll(scrollable: Scrollable<T>): Window<R>
@@ -1449,13 +1443,28 @@ public class SqlScope<T : Data, R, ID : Any> @PublishedApi internal constructor(
     }
 
     /** Adds a WHERE clause matching a metamodel path to a data record. */
-    public fun <V : Data> where(path: Metamodel<*, V>, record: V) {
+    public fun <V : Data> where(path: Navigable<*, V>, record: V) {
         builder = builder.where(path, record)
     }
 
     /** Adds a WHERE clause matching a metamodel path to a [Ref]. */
-    public fun <V : Data> where(path: Metamodel<*, V>, ref: Ref<V>) {
+    public fun <V : Data> where(path: Navigable<*, V>, ref: Ref<V>) {
         builder = builder.where(path, ref)
+    }
+
+    /** Adds a WHERE clause matching a metamodel path to any of the specified records. */
+    public fun <V : Data> where(path: Navigable<*, V>, it: Iterable<V>) {
+        builder = builder.where(path, it)
+    }
+
+    /** Adds a WHERE clause matching a metamodel path to value(s) using an [Operator]. */
+    public fun <V> where(path: Navigable<*, V>, operator: Operator, it: Iterable<V>) {
+        builder = builder.where(path, operator, it)
+    }
+
+    /** Adds a WHERE clause matching a metamodel path to any of the specified [Ref]s. */
+    public fun <V : Data> whereRef(path: Navigable<*, V>, it: Iterable<Ref<V>>) {
+        builder = builder.whereRef(path, it)
     }
 
     /** Adds a WHERE clause matching a primary key. */
@@ -1471,6 +1480,11 @@ public class SqlScope<T : Data, R, ID : Any> @PublishedApi internal constructor(
     /** Adds a WHERE clause matching a record. */
     public fun where(record: T) {
         builder = builder.where(record)
+    }
+
+    /** Adds a WHERE clause matching any of the specified records. */
+    public fun where(it: Iterable<T>) {
+        builder = builder.where(it)
     }
 
     /** Adds a WHERE clause matching any of the specified primary keys. */
@@ -1685,6 +1699,11 @@ public class SqlScope<T : Data, R, ID : Any> @PublishedApi internal constructor(
     /** Adds an ORDER BY clause using a SQL template expression. */
     public fun orderBy(template: TemplateBuilder) {
         builder = builder.orderBy(template)
+    }
+
+    /** Adds an ORDER BY clause (descending) using a SQL template expression. */
+    public fun orderByDescending(template: TemplateBuilder) {
+        builder = builder.orderByDescending(template)
     }
 
     /** Adds a LIMIT clause restricting the maximum number of results. */

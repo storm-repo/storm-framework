@@ -21,7 +21,7 @@ import static java.util.Objects.requireNonNull;
 import java.util.List;
 import org.jspecify.annotations.Nullable;
 import st.orm.Converter;
-import st.orm.core.template.SqlTemplateException;
+import st.orm.SqlTemplateException;
 import st.orm.mapping.RecordField;
 
 /**

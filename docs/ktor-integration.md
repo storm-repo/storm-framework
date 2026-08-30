@@ -758,7 +758,7 @@ For development and per-call diagnosis, `sqlLogPerformance = true` in the plugin
 
 For production, `sqlLogSlowThreshold = 200.milliseconds` (or `storm.sqlLog.slow.threshold = 200ms`) reports each single execution whose database time exceeds the threshold, under `st.orm.sql.slow` at `WARN`: the statement, its call site, its rows, and how it compares to what its shape typically costs. It needs no request boundary, follows no coroutine context, and applies whether or not the performance log is enabled; left unset while the performance log runs against `sqlLogPerformanceDurationThreshold`, it takes that duration, so a reported call names the statement behind it. See [The Slow Statement Log](sql-logging.md#the-slow-statement-log).
 
-For full control, set an explicit observer in the plugin configuration; it takes precedence over the automatic binding. The `queryObserver` slot accepts any `st.orm.core.spi.QueryObserver`, including a hand-configured `MicrometerQueryObserver` from the `storm-micrometer` module (custom `ObservationConvention`, extra key values):
+For full control, set an explicit observer in the plugin configuration; it takes precedence over the automatic binding. The `queryObserver` slot accepts any `st.orm.spi.QueryObserver`, including a hand-configured `MicrometerQueryObserver` from the `storm-micrometer` module (custom `ObservationConvention`, extra key values).
 
 ```kotlin
 install(Storm) {

@@ -52,6 +52,7 @@ import st.orm.core.repository.EntityRepository;
 import st.orm.core.spi.CacheRetention;
 import st.orm.core.spi.EntityCache;
 import st.orm.core.spi.EntityCacheMetrics;
+import st.orm.core.spi.StormConfigHelper;
 import st.orm.core.spi.TransactionContext;
 import st.orm.core.spi.TransactionScope;
 import st.orm.core.template.Column;
@@ -123,7 +124,7 @@ public class EntityRepositoryImpl<E extends Entity<ID>, ID>
             throw new PersistenceException("Sequence generation is only supported for single-column primary keys for %s.".formatted(model.type().getSimpleName()));
         }
         this.dirtySupport = new DirtySupport<>(model, ormTemplate.config());
-        this.cacheRetention = CacheRetention.fromConfig(ormTemplate.config());
+        this.cacheRetention = StormConfigHelper.cacheRetention(ormTemplate.config());
         this.entityCallbacks = new CallbackSupport<>(ormTemplate.entityCallbacks(), model.type());
         EntityCacheMetrics.getInstance().registerEntity(model.type().getName(), cacheRetention.name());
         LOGGER.debug("{}: cacheRetention={}", model.type().getSimpleName(), cacheRetention);

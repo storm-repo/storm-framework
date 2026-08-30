@@ -20,7 +20,6 @@ import static java.lang.StringTemplate.RAW;
 import st.orm.BindVars;
 import st.orm.Data;
 import st.orm.Ref;
-import st.orm.core.template.SqlDialect;
 
 /**
  * Provides methods for constructing SQL queries and query builders using String Templates or the fluent API.
@@ -34,8 +33,8 @@ import st.orm.core.template.SqlDialect;
  *       {@link #selectFrom(Class)} and {@link #deleteFrom(Class)} methods, which return a {@link QueryBuilder}.</li>
  * </ul>
  *
- * <p>This interface also provides utility methods for accessing the {@link st.orm.core.template.SqlDialect},
- * creating {@link st.orm.BindVars} for batch operations, and retrieving {@link Model} metadata for entity types.</p>
+ * <p>This interface also provides utility methods for creating {@link st.orm.BindVars} for batch operations and
+ * retrieving {@link Model} metadata for entity types.</p>
  *
  * <h2>Example: Query with String Template</h2>
  * <pre>{@code
@@ -58,18 +57,6 @@ import st.orm.core.template.SqlDialect;
  * @see Query
  */
 public interface QueryTemplate extends SubqueryTemplate {
-
-    /**
-     * Get the SQL dialect for this template.
-     *
-     * <p>This method is aware of any registered {@code SqlInterceptor} instances and returns the SQL dialect used by
-     * the underlying SQL template. The dialect is determined based on the SQL template's configuration and the
-     * interceptors that have been applied to it.</p>
-     *
-     * @return the SQL dialect.
-     * @since 1.2
-     */
-    SqlDialect dialect();
 
     /**
      * Create a new bind variables instance that can be used to add bind variables to a batch.
@@ -145,6 +132,9 @@ public interface QueryTemplate extends SubqueryTemplate {
     /**
      * Creates a query builder for the specified table and select type.
      *
+     * <p>The select list is rendered from the FROM table, so {@code selectType} may be any record shape over those
+     * columns, such as a wrapper record nesting the from-entity; it need not be a {@code Data} type itself.</p>
+     *
      * @param fromType the table to select from.
      * @param selectType the result type of the query.
      * @return the query builder.
@@ -153,7 +143,7 @@ public interface QueryTemplate extends SubqueryTemplate {
      */
     default <T extends Data, R> QueryBuilder<T, R, ?> selectFrom(Class<T> fromType,
                                                                  Class<R> selectType) {
-        return selectFrom(fromType, selectType, RAW."\{selectType}");
+        return selectFrom(fromType, selectType, RAW."\{fromType}");
     }
 
     /**

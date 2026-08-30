@@ -1772,22 +1772,6 @@ internal open class QueryBuilderTest(
         deleted shouldBe 14
     }
 
-    // hasOrderBy tests
-
-    @Test
-    fun `hasOrderBy should return false when no order by is set`() {
-        val builder = orm.entity(City::class).select()
-        builder.hasOrderBy() shouldBe false
-    }
-
-    @Test
-    fun `hasOrderBy should return true after orderBy is called`() {
-        val repo = orm.entity(City::class)
-        val idPath = metamodel<City, Int>(repo.model, "id")
-        val builder = repo.select().orderBy(idPath)
-        builder.hasOrderBy() shouldBe true
-    }
-
     // forLock() tests
 
     @Test
@@ -2474,7 +2458,9 @@ internal open class QueryBuilderTest(
         override fun havingNotExists(subquery: QueryBuilder<*, *, *>): QueryBuilder<City, City, Int> = delegate.havingNotExists(subquery)
         override fun subqueryTemplate(): SubqueryTemplate = delegate.subqueryTemplate()
         override fun orderBy(template: TemplateString): QueryBuilder<City, City, Int> = delegate.orderBy(template)
-        override fun hasOrderBy(): Boolean = delegate.hasOrderBy()
+
+        // hasOrderBy is protected on another instance, and the tests using this forwarder never order.
+        override fun hasOrderBy(): Boolean = false
         override fun limit(limit: Int): QueryBuilder<City, City, Int> = delegate.limit(limit)
         override fun offset(offset: Int): QueryBuilder<City, City, Int> = delegate.offset(offset)
         override fun forShare(): QueryBuilder<City, City, Int> = delegate.forShare()

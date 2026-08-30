@@ -13,23 +13,12 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package st.orm.template
-
-import st.orm.TransactionIsolation
-import st.orm.TransactionPropagation
-
 /**
- * Internal class to hold transaction options.
+ * Implementation details of the Kotlin facade.
  *
- * @param propagation The transaction propagation behavior.
- * @param isolation The transaction isolation level.
- * @param timeoutSeconds The transaction timeout in seconds.
- * @param readOnly Whether the transaction is read-only.
- * @since 1.6
+ * <p>Null-marked: type uses are non-null unless annotated {@code @Nullable}.</p>
  */
-internal data class TransactionOptions(
-    val propagation: TransactionPropagation = TransactionPropagation.REQUIRED,
-    val isolation: TransactionIsolation? = null,
-    val timeoutSeconds: Int? = null,
-    val readOnly: Boolean = false,
-)
+@NullMarked
+package st.orm.template.impl;
+
+import org.jspecify.annotations.NullMarked;

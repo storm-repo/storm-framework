@@ -134,18 +134,19 @@ import st.orm.core.template.impl.Subqueryable;
  **
  * <h2>Howto start</h2>
  *
- * <p>The {@code Templates} interface provides static methods to create {@link ORMTemplate} instances based on your data source:
+ * <p>{@link ORMTemplate} and {@link JpaTemplate} provide static methods to create {@code ORMTemplate} instances based
+ * on your data source:
  *
  * <h3>Using EntityManager (JPA)</h3>
  * <pre>{@code
  * EntityManager entityManager = ...;
- * ORMTemplate orm = Templates.ORM(entityManager);
+ * ORMTemplate orm = JpaTemplate.ORM(entityManager);
  * }</pre>
  *
  * <h3>Using DataSource (JDBC)</h3>
  * <pre>{@code
  * DataSource dataSource = ...;
- * ORMTemplate orm = Templates.ORM(dataSource);
+ * ORMTemplate orm = ORMTemplate.of(dataSource);
  * }</pre>
  *
  * <h3>Using Connection (JDBC)</h3>
@@ -154,7 +155,7 @@ import st.orm.core.template.impl.Subqueryable;
  *
  * <pre>{@code
  * Connection connection = ...;
- * ORMTemplate orm = Templates.ORM(connection);
+ * ORMTemplate orm = ORMTemplate.of(connection);
  * }</pre>
  *
  * @see EntityRepository

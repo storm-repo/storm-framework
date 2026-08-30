@@ -18,6 +18,7 @@ package st.orm.core.template;
 import java.util.List;
 import org.jspecify.annotations.Nullable;
 import st.orm.BindVars;
+import st.orm.SqlTemplateException;
 import st.orm.StormConfig;
 import st.orm.core.template.impl.BindVarsHandle;
 import st.orm.core.template.impl.SqlTemplateImpl;

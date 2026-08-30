@@ -20,8 +20,8 @@ import java.util.SequencedMap;
 import java.util.function.Function;
 import org.jspecify.annotations.Nullable;
 import st.orm.Operator;
+import st.orm.SqlTemplateException;
 import st.orm.core.template.SqlDialect;
-import st.orm.core.template.SqlTemplateException;
 
 /**
  * The single source of truth for rendering a column comparison in a WHERE clause. One column renders as the plain

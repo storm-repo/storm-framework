@@ -32,7 +32,7 @@ import java.util.Optional;
 import org.jspecify.annotations.Nullable;
 import st.orm.Data;
 import st.orm.Metamodel;
-import st.orm.core.template.SqlTemplateException;
+import st.orm.SqlTemplateException;
 import st.orm.core.template.impl.Elements.TableSource;
 import st.orm.core.template.impl.Elements.TableTarget;
 import st.orm.core.template.impl.Elements.TemplateSource;

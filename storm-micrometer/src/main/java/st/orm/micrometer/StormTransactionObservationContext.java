@@ -20,12 +20,12 @@ import static java.util.Objects.requireNonNull;
 import io.micrometer.common.KeyValues;
 import io.micrometer.observation.Observation;
 import org.jspecify.annotations.Nullable;
-import st.orm.core.spi.TransactionScope;
+import st.orm.TransactionOptions;
 
 /**
  * {@link Observation.Context} for a Storm transaction.
  *
- * <p>Carries the {@link TransactionScope.Options} the transaction was opened with, so custom
+ * <p>Carries the {@link TransactionOptions} the transaction was opened with, so custom
  * {@link io.micrometer.observation.ObservationConvention}s and
  * {@link io.micrometer.observation.ObservationHandler}s can derive their own names, key values or attributes from
  * the transaction's configuration. The outcome is set when the transaction completes, before the observation
@@ -35,11 +35,11 @@ import st.orm.core.spi.TransactionScope;
  */
 public class StormTransactionObservationContext extends Observation.Context {
 
-    private final TransactionScope.Options options;
+    private final TransactionOptions options;
     private final KeyValues extraLowCardinalityKeyValues;
     private @Nullable Boolean rolledBack;
 
-    public StormTransactionObservationContext(TransactionScope.Options options,
+    public StormTransactionObservationContext(TransactionOptions options,
                                               KeyValues extraLowCardinalityKeyValues) {
         this.options = requireNonNull(options, "options");
         this.extraLowCardinalityKeyValues = requireNonNull(extraLowCardinalityKeyValues, "extraLowCardinalityKeyValues");
@@ -50,7 +50,7 @@ public class StormTransactionObservationContext extends Observation.Context {
      *
      * @return the transaction options; never {@code null}.
      */
-    public TransactionScope.Options options() {
+    public TransactionOptions options() {
         return options;
     }
 

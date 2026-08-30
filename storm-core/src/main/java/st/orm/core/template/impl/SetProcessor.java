@@ -27,10 +27,10 @@ import java.util.function.Function;
 import st.orm.BindVars;
 import st.orm.Data;
 import st.orm.Metamodel;
+import st.orm.SqlTemplateException;
 import st.orm.core.template.Column;
 import st.orm.core.template.Model;
 import st.orm.core.template.SqlDialect;
-import st.orm.core.template.SqlTemplateException;
 import st.orm.core.template.impl.Elements.Set;
 
 final class SetProcessor implements ElementProcessor<Set> {

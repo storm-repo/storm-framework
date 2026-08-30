@@ -17,7 +17,7 @@ package st.orm.core.template.impl;
 
 import static st.orm.core.template.impl.RecordReflection.getTableName;
 
-import st.orm.core.template.SqlTemplateException;
+import st.orm.SqlTemplateException;
 import st.orm.core.template.impl.Elements.Table;
 
 final class TableProcessor implements ElementProcessor<Table> {

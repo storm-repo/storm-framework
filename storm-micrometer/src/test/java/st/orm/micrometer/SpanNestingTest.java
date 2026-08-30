@@ -26,8 +26,8 @@ import java.util.Optional;
 import java.util.OptionalInt;
 import org.junit.jupiter.api.Test;
 import st.orm.Data;
-import st.orm.core.spi.QueryContext;
-import st.orm.core.template.SqlOperation;
+import st.orm.spi.QueryContext;
+import st.orm.spi.SqlOperation;
 
 /**
  * Verifies that Storm query observations become spans that nest under the enclosing observation, which is how they

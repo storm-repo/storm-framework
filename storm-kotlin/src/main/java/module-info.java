@@ -1,5 +1,5 @@
 module storm.kotlin {
-    requires storm.foundation;
+    requires transitive storm.foundation;
     requires storm.core;
     exports st.orm.template;
     exports st.orm.repository;
@@ -13,5 +13,5 @@ module storm.kotlin {
     requires org.slf4j;
     requires org.jetbrains.annotations;
     uses st.orm.core.spi.ORMReflection;
-    provides st.orm.core.spi.ORMReflectionProvider with st.orm.spi.ORMReflectionProviderImpl;
+    provides st.orm.core.spi.ORMReflectionProvider with st.orm.template.impl.ORMReflectionProviderImpl;
 }

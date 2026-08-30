@@ -22,7 +22,7 @@ import io.micrometer.tracing.TraceContext;
 import io.micrometer.tracing.Tracer;
 import java.util.Optional;
 import org.jspecify.annotations.Nullable;
-import st.orm.core.spi.SqlCommenter;
+import st.orm.spi.SqlCommenter;
 
 /**
  * {@link SqlCommenter} that appends the current trace context to SQL statements, following the sqlcommenter

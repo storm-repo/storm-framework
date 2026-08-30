@@ -116,6 +116,9 @@ public interface QueryTemplate : SubqueryTemplate {
     /**
      * Creates a query builder for the specified table and select type.
      *
+     * The select list is rendered from the FROM table, so `selectType` may be any record shape over those
+     * columns, such as a wrapper record nesting the from-entity; it need not be a `Data` type itself.
+     *
      * @param fromType the table to select from.
      * @param selectType the result type of the query.
      * @return the query builder.
@@ -125,7 +128,7 @@ public interface QueryTemplate : SubqueryTemplate {
     public fun <T : Data, R : Any> selectFrom(
         fromType: KClass<T>,
         selectType: KClass<R>,
-    ): QueryBuilder<T, R, *> = selectFrom(fromType, selectType, wrap(selectType))
+    ): QueryBuilder<T, R, *> = selectFrom(fromType, selectType, wrap(fromType))
 
     /**
      * Creates a query builder for the specified table and select type using the given `template`.

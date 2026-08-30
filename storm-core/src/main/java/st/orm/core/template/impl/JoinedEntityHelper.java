@@ -31,12 +31,12 @@ import st.orm.Entity;
 import st.orm.PK;
 import st.orm.PersistenceException;
 import st.orm.Ref;
+import st.orm.SqlTemplateException;
 import st.orm.core.spi.ORMReflection;
 import st.orm.core.spi.Providers;
 import st.orm.core.template.Column;
 import st.orm.core.template.Model;
 import st.orm.core.template.QueryTemplate;
-import st.orm.core.template.SqlTemplateException;
 
 /**
  * Utility for handling multi-table DML operations for joined sealed entity types (Joined Table inheritance).

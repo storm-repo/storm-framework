@@ -21,9 +21,9 @@ import org.jspecify.annotations.Nullable;
 import st.orm.BindVars;
 import st.orm.Data;
 import st.orm.Element;
+import st.orm.SqlTemplateException;
 import st.orm.core.template.Model;
 import st.orm.core.template.SqlTemplate.PositionalParameter;
-import st.orm.core.template.SqlTemplateException;
 import st.orm.core.template.TemplateString;
 
 /**

@@ -21,7 +21,6 @@ import java.util.concurrent.atomic.AtomicReference;
 import st.orm.TransactionOptions;
 import st.orm.TransactionPropagation;
 import st.orm.core.spi.TransactionRunner;
-import st.orm.core.spi.TransactionScope;
 
 /**
  * Programmatic transactions for Java.
@@ -132,13 +131,7 @@ public final class Transactions {
         requireNonNull(options, "options");
         requireNonNull(block, "block");
         var resolved = merge(options, currentDefaults());
-        var scopeOptions = new TransactionScope.Options(
-                resolved.propagation(),
-                resolved.isolation(),
-                resolved.timeoutSeconds(),
-                resolved.readOnly(),
-                false);
-        return TransactionRunner.execute(scopeOptions, block::execute);
+        return TransactionRunner.execute(resolved, block::execute);
     }
 
     /**

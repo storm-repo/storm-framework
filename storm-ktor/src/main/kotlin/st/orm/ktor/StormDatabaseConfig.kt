@@ -72,25 +72,25 @@ public class StormDatabaseConfig internal constructor(internal val name: String)
     public var transactionTemplateProvider: st.orm.core.spi.TransactionTemplateProvider? = null
 
     /**
-     * Optional [st.orm.core.spi.ExceptionMapper] for this database's template; inherits the plugin-level
+     * Optional [st.orm.spi.ExceptionMapper] for this database's template; inherits the plugin-level
      * mapper when unset.
      */
-    public var exceptionMapper: st.orm.core.spi.ExceptionMapper? = null
+    public var exceptionMapper: st.orm.spi.ExceptionMapper? = null
 
     /**
-     * Optional [st.orm.core.spi.QueryObserver] for this database's template; inherits the plugin-level
+     * Optional [st.orm.spi.QueryObserver] for this database's template; inherits the plugin-level
      * observer when unset. Without either, query observations bind to the `ObservationRegistry` from the
      * dependency container once the application has started.
      */
-    public var queryObserver: st.orm.core.spi.QueryObserver? = null
+    public var queryObserver: st.orm.spi.QueryObserver? = null
 
     /**
-     * Optional [st.orm.core.spi.SqlCommenter] for this database; inherits the plugin-level commenter when
+     * Optional [st.orm.spi.SqlCommenter] for this database; inherits the plugin-level commenter when
      * unset.
      *
      * @since 1.13
      */
-    public var sqlCommenter: st.orm.core.spi.SqlCommenter? = null
+    public var sqlCommenter: st.orm.spi.SqlCommenter? = null
 
     /**
      * Optional composition applied to this database's template builder after the plugin has wired the

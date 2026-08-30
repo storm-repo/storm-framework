@@ -15,7 +15,7 @@
  */
 package st.orm.core.template.impl;
 
-import st.orm.core.template.SqlTemplateException;
+import st.orm.SqlTemplateException;
 
 /**
  * Represents the SQL result of processing a template element.

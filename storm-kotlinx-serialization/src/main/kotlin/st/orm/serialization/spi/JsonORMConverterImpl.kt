@@ -25,11 +25,12 @@ import kotlinx.serialization.serializer
 import st.orm.Data
 import st.orm.Json
 import st.orm.Ref
+import st.orm.SqlTemplateException
 import st.orm.core.spi.*
-import st.orm.core.template.SqlTemplateException
 import st.orm.mapping.RecordField
 import st.orm.serialization.RefSerializer
 import st.orm.serialization.StormSerializersModule
+import st.orm.spi.*
 import java.util.concurrent.ConcurrentHashMap
 import kotlin.reflect.KClass
 import kotlin.reflect.KType

@@ -19,10 +19,10 @@ import io.micrometer.observation.ObservationConvention;
 import io.micrometer.observation.ObservationRegistry;
 import javax.sql.DataSource;
 import org.jspecify.annotations.Nullable;
-import st.orm.core.spi.QueryObserver;
 import st.orm.micrometer.QueryObservers;
 import st.orm.micrometer.StormQueryObservationContext;
 import st.orm.micrometer.StormTransactionObservationContext;
+import st.orm.spi.QueryObserver;
 
 /**
  * Composes the query observer the Spring Boot integration reports Storm executions with.

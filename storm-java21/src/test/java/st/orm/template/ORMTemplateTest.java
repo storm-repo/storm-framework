@@ -710,11 +710,6 @@ public class ORMTemplateTest {
     // QueryTemplate methods
 
     @Test
-    public void testDialect() {
-        assertNotNull(orm.dialect());
-    }
-
-    @Test
     public void testCreateBindVars() {
         assertNotNull(orm.createBindVars());
     }

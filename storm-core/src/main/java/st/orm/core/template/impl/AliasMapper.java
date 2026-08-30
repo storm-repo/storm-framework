@@ -36,8 +36,8 @@ import org.jspecify.annotations.Nullable;
 import st.orm.Data;
 import st.orm.Metamodel;
 import st.orm.ResolveScope;
+import st.orm.SqlTemplateException;
 import st.orm.core.template.SqlDialect;
-import st.orm.core.template.SqlTemplateException;
 import st.orm.core.template.TableAliasResolver;
 import st.orm.mapping.TableNameResolver;
 

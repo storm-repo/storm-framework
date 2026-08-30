@@ -10,8 +10,8 @@ import java.lang.reflect.Parameter;
 import org.junit.jupiter.api.Test;
 import st.orm.Data;
 import st.orm.Ref;
+import st.orm.SqlTemplateException;
 import st.orm.core.spi.RefFactory;
-import st.orm.core.template.SqlTemplateException;
 
 /**
  * Tests for {@link ObjectMapperFactory}.

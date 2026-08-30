@@ -73,8 +73,8 @@ import st.orm.core.template.TemplateString;
  * class. The orm template can be requested as demonstrated below. Note that orm templates are supported for
  * Data Sources, JDBC Connections and JPA Entity Managers.</p>
  * <pre>{@code
- * ORMTemplate orm = Templates.ORM(dataSource);
- * EntityRepository<User> userRepository = orm.entity(User.class);
+ * ORMTemplate orm = ORMTemplate.of(dataSource);
+ * EntityRepository<User> users = orm.entity(User.class);
  * }</pre>
  * <p>Alternatively, a specialized repository can be requested by calling the {@code repository} method with the repository
  * class. Specialized repositories allow specialized repository methods to be defined in the repository interface. The
@@ -207,13 +207,12 @@ public interface EntityRepository<E extends Entity<ID>, ID> extends Repository {
     /**
      * Creates a new ref entity instance for the specified entity.
      *
-     * <p>This method wraps a fully loaded entity in a lightweight reference. Although the complete entity is provided,
-     * the returned ref retains only the primary key for identification. In this case, calling {@link Ref#fetch()} will
-     * return the full entity (which is already loaded), ensuring a consistent API for accessing entity records on
-     * demand. This approach supports lazy-loading scenarios where only the identifier is needed initially.</p>
+     * <p>This method wraps a fully loaded entity in a reference. The returned ref is attached and keeps the entity
+     * loaded: calling {@link Ref#fetch()} returns the entity without a database call. Use {@link #unload} instead
+     * when the record data should be dropped and re-fetched on demand.</p>
      *
      * @param entity the entity to wrap in a ref.
-     * @return a ref entity instance containing the primary key of the provided entity.
+     * @return an attached, loaded ref wrapping the provided entity.
      * @since 1.3
      */
     Ref<E> ref(E entity);

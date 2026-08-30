@@ -126,6 +126,9 @@ public interface QueryTemplate extends SubqueryTemplate {
     /**
      * Creates a query builder for the specified table and select type.
      *
+     * <p>The select list is rendered from the FROM table, so {@code selectType} may be any record shape over those
+     * columns, such as a wrapper record nesting the from-entity; it need not be a {@code Data} type itself.</p>
+     *
      * @param fromType the table to select from.
      * @param selectType the result type of the query.
      * @return the query builder.

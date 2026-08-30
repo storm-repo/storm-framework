@@ -39,6 +39,7 @@ import st.orm.spring.model.Pet;
 import st.orm.spring.model.Visit;
 import st.orm.template.ORMTemplate;
 import st.orm.template.Transactions;
+import st.orm.template.impl.BuilderImpl;
 
 /**
  * Verifies that Storm's programmatic transaction API ({@link Transactions}) is bridged into Spring's
@@ -318,9 +319,9 @@ class SpringTransactionBridgeTest {
 
     @Test
     void providerWithoutManagersRejectsStormInitiatedTransactions() {
-        ORMTemplate unbridged = ORMTemplate.builder(dataSource)
+        ORMTemplate unbridged = new BuilderImpl(st.orm.core.template.ORMTemplate.builder(dataSource)
                 .connectionProvider(new SpringConnectionProvider())
-                .transactionTemplateProvider(new SpringTransactionTemplateProvider())
+                .transactionTemplateProvider(new SpringTransactionTemplateProvider()))
                 .build();
         EntityRepository<Visit, Integer> unbridgedVisits = unbridged.entity(Visit.class);
         PersistenceException exception = assertThrows(PersistenceException.class, () ->

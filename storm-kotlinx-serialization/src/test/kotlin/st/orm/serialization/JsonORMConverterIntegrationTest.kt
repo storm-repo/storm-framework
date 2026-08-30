@@ -20,8 +20,8 @@ import org.springframework.boot.test.autoconfigure.orm.jpa.DataJpaTest
 import org.springframework.test.context.ContextConfiguration
 import org.springframework.test.context.junit.jupiter.SpringExtension
 import st.orm.*
+import st.orm.SqlTemplateException
 import st.orm.core.template.SqlInterceptor
-import st.orm.core.template.SqlTemplateException
 import st.orm.serialization.model.*
 import st.orm.template.ORMTemplate
 import st.orm.template.Templates.alias

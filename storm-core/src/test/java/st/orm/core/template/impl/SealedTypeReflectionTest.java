@@ -19,7 +19,7 @@ import st.orm.GenerationStrategy;
 import st.orm.PK;
 import st.orm.Polymorphic;
 import st.orm.Ref;
-import st.orm.core.template.SqlTemplateException;
+import st.orm.SqlTemplateException;
 import st.orm.mapping.RecordField;
 
 /**

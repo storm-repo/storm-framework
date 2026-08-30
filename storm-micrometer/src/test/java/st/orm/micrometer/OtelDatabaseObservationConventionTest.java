@@ -25,8 +25,8 @@ import java.util.OptionalInt;
 import org.junit.jupiter.api.Test;
 import st.orm.Data;
 import st.orm.Entity;
-import st.orm.core.spi.QueryContext;
-import st.orm.core.template.SqlOperation;
+import st.orm.spi.QueryContext;
+import st.orm.spi.SqlOperation;
 
 /**
  * Tests for {@link OtelDatabaseObservationConvention}: the OpenTelemetry database attributes are emitted

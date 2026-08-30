@@ -21,6 +21,7 @@ import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withContext
 import st.orm.TransactionIsolation
+import st.orm.TransactionOptions
 import st.orm.TransactionPropagation
 import st.orm.TransactionPropagation.MANDATORY
 import st.orm.TransactionPropagation.NESTED
@@ -72,12 +73,11 @@ public fun <T> transactionBlocking(
     block: Transaction.() -> T,
 ): T {
     val options = localTransactionOptions.get() ?: globalTransactionOptions.get()
-    val scopeOptions = TransactionScope.Options(
+    val scopeOptions = TransactionOptions(
         propagation ?: options.propagation,
         isolation ?: options.isolation,
         timeoutSeconds ?: options.timeoutSeconds,
         readOnly ?: options.readOnly,
-        false,
     )
     // The blocking orchestration lives once, in core's TransactionRunner; wrap the language-neutral handle in
     // the Kotlin Transaction so the receiver keeps its suspend-friendly callback overloads.
@@ -130,15 +130,14 @@ public suspend fun <T> transaction(
     val currentContext = currentCoroutineContext()
     val options = currentContext[Scoped]?.options ?: globalTransactionOptions.get()
     val resolvedPropagation = propagation ?: options.propagation
-    val scopeOptions = TransactionScope.Options(
+    val scopeOptions = TransactionOptions(
         resolvedPropagation,
         isolation ?: options.isolation,
         timeoutSeconds ?: options.timeoutSeconds,
         readOnly ?: options.readOnly,
-        true,
     )
     val parentScope = TransactionScope.current()
-    val scope = TransactionScope.create(scopeOptions, parentScope)
+    val scope = TransactionScope.create(scopeOptions, true, parentScope)
     val parentCallbacks = currentContext[CallbacksKey]?.callbacks
     if (resolvedPropagation.isJoining && parentScope != null && parentCallbacks != null) {
         // Joining an outer transaction block: delegate callbacks to the outer holder; do not fire here.
@@ -288,20 +287,20 @@ private fun scopeTransaction(scope: TransactionScope, callbacks: TransactionCall
 /**
  * Global transaction options that are applied to all transactions by default.
  */
-private val globalTransactionOptions = AtomicReference(TransactionOptions())
+private val globalTransactionOptions = AtomicReference(TransactionDefaults())
 
 /**
  * Coroutine context element for transaction options that are applied to all transactions started in the current
  * coroutine context.
  */
-private class Scoped(val options: TransactionOptions) : AbstractCoroutineContextElement(Key) {
+private class Scoped(val options: TransactionDefaults) : AbstractCoroutineContextElement(Key) {
     companion object Key : CoroutineContext.Key<Scoped>
 }
 
 /**
  * Thread-local transaction options that are applied to all transactions started in the current thread.
  */
-private val localTransactionOptions: ThreadLocal<TransactionOptions?> = ThreadLocal.withInitial { null }
+private val localTransactionOptions: ThreadLocal<TransactionDefaults?> = ThreadLocal.withInitial { null }
 
 /**
  * Sets the global transaction options.
@@ -322,7 +321,7 @@ public fun setGlobalTransactionOptions(
     timeoutSeconds: Int? = null,
     readOnly: Boolean? = null,
 ) {
-    val defaults = TransactionOptions()
+    val defaults = TransactionDefaults()
     globalTransactionOptions.set(
         defaults.copy(
             propagation = propagation ?: defaults.propagation,
@@ -355,7 +354,7 @@ public suspend fun <T> withTransactionOptions(
 ): T {
     val currentContext = currentCoroutineContext()
     val current = currentContext[Scoped]?.options ?: globalTransactionOptions.get()
-    val scoped = TransactionOptions().copy(
+    val scoped = TransactionDefaults().copy(
         propagation = propagation ?: current.propagation,
         isolation = isolation ?: current.isolation,
         timeoutSeconds = timeoutSeconds ?: current.timeoutSeconds,
@@ -391,7 +390,7 @@ public fun <T> withTransactionOptionsBlocking(
     val previous = localTransactionOptions.get()
     val current = previous ?: globalTransactionOptions.get()
     localTransactionOptions.set(
-        TransactionOptions(
+        TransactionDefaults(
             propagation = propagation ?: current.propagation,
             isolation = isolation ?: current.isolation,
             timeoutSeconds = timeoutSeconds ?: current.timeoutSeconds,

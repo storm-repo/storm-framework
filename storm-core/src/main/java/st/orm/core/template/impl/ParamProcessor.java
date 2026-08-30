@@ -18,9 +18,9 @@ package st.orm.core.template.impl;
 import org.jspecify.annotations.Nullable;
 import st.orm.Data;
 import st.orm.Ref;
+import st.orm.SqlTemplateException;
 import st.orm.core.spi.ORMReflection;
 import st.orm.core.spi.Providers;
-import st.orm.core.template.SqlTemplateException;
 import st.orm.core.template.impl.Elements.Param;
 
 final class ParamProcessor implements ElementProcessor<Param> {

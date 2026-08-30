@@ -31,14 +31,14 @@ import st.orm.core.repository.EntityRepository;
 import st.orm.core.repository.ProjectionRepository;
 import st.orm.core.repository.RepositoryLookup;
 import st.orm.core.spi.ConnectionProvider;
-import st.orm.core.spi.ExceptionMapper;
 import st.orm.core.spi.JdbcConnectionProviderImpl;
 import st.orm.core.spi.Providers;
-import st.orm.core.spi.QueryObserver;
-import st.orm.core.spi.SqlCommenter;
 import st.orm.core.spi.TransactionTemplateProvider;
 import st.orm.core.template.impl.PreparedStatementTemplateImpl;
 import st.orm.mapping.TemplateDecorator;
+import st.orm.spi.ExceptionMapper;
+import st.orm.spi.QueryObserver;
+import st.orm.spi.SqlCommenter;
 
 /**
  * <p>The {@code ORMTemplate} is the primary interface that extends the {@code QueryTemplate} and
@@ -208,7 +208,7 @@ public interface ORMTemplate extends QueryTemplate, RepositoryLookup {
      * <p>Example usage:
      * <pre>{@code
      * DataSource dataSource = ...;
-     * ORMTemplate orm = Templates.ORM(dataSource);
+     * ORMTemplate orm = ORMTemplate.of(dataSource);
      * List<MyTable> otherTables = orm.query(RAW."""
      *         SELECT \{MyTable.class}
      *         FROM \{MyTable.class}
@@ -232,7 +232,7 @@ public interface ORMTemplate extends QueryTemplate, RepositoryLookup {
      * <p>Example usage:
      * <pre>{@code
      * DataSource dataSource = ...;
-     * ORMTemplate orm = Templates.ORM(dataSource);
+     * ORMTemplate orm = ORMTemplate.of(dataSource);
      * List<MyTable> otherTables = orm.query(RAW."""
      *         SELECT \{MyTable.class}
      *         FROM \{MyTable.class}
@@ -263,7 +263,7 @@ public interface ORMTemplate extends QueryTemplate, RepositoryLookup {
      * <p>Example usage:
      * <pre>{@code
      * try (Connection connection = ...) {
-     *     ORMTemplate orm = Templates.ORM(connection);
+     *     ORMTemplate orm = ORMTemplate.of(connection);
      *     List<MyTable> otherTables = orm.query(RAW."""
      *             SELECT \{MyTable.class}
      *             FROM \{MyTable.class}
@@ -290,7 +290,7 @@ public interface ORMTemplate extends QueryTemplate, RepositoryLookup {
      * <p>Example usage:
      * <pre>{@code
      * try (Connection connection = ...) {
-     *     ORMTemplate orm = Templates.ORM(connection);
+     *     ORMTemplate orm = ORMTemplate.of(connection);
      *     List<MyTable> otherTables = orm.query(RAW."""
      *             SELECT \{MyTable.class}
      *             FROM \{MyTable.class}

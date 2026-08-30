@@ -32,12 +32,14 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import st.orm.Data;
 import st.orm.PersistenceException;
-import st.orm.core.spi.QueryContext;
 import st.orm.core.template.SqlTemplate.Parameter;
 import st.orm.core.template.impl.CallSiteCapture;
 import st.orm.core.template.impl.SqlInterceptorManager;
 import st.orm.core.template.impl.SqlLogRenderer;
 import st.orm.core.template.impl.StatementListener;
+import st.orm.spi.QueryContext;
+import st.orm.spi.SqlOperation;
+import st.orm.spi.StatementOrigin;
 
 /**
  * Records the statements a call executes, so a unit of work can be judged by what it cost the database.

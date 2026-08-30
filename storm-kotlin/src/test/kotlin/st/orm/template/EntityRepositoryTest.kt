@@ -89,7 +89,7 @@ internal open class EntityRepositoryTest(
     fun `findRefBy with field and value should return matching ref`() {
         val repo = orm.entity(City::class)
         val namePath = metamodel<City, String>(repo.model, "name")
-        val ref = repo.findRefBy<Any, Any, String>(namePath, "Madison")
+        val ref = repo.findRefBy(namePath, "Madison")
         ref.shouldNotBeNull()
     }
 
@@ -97,7 +97,7 @@ internal open class EntityRepositoryTest(
     fun `findRefBy with field and value should return null when no match`() {
         val repo = orm.entity(City::class)
         val namePath = metamodel<City, String>(repo.model, "name")
-        val ref = repo.findRefBy<Any, Any, String>(namePath, "NonExistent")
+        val ref = repo.findRefBy(namePath, "NonExistent")
         ref.shouldBeNull()
     }
 

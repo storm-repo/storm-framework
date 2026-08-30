@@ -55,21 +55,21 @@ import st.orm.NoResultException;
 import st.orm.NonUniqueResultException;
 import st.orm.PersistenceException;
 import st.orm.Ref;
-import st.orm.core.spi.QueryContext;
-import st.orm.core.spi.QueryContext.ExecutionKind;
-import st.orm.core.spi.QueryObserver;
-import st.orm.core.spi.QueryObserver.Observation;
+import st.orm.SqlTemplateException;
 import st.orm.core.spi.RefFactory;
-import st.orm.core.spi.SqlCommenter;
 import st.orm.core.spi.TransactionScope;
 import st.orm.core.spi.TransactionTemplateProvider;
 import st.orm.core.spi.WeakInterner;
 import st.orm.core.template.PreparedQuery;
 import st.orm.core.template.Query;
-import st.orm.core.template.SqlOperation;
 import st.orm.core.template.SqlTemplate.Parameter;
-import st.orm.core.template.SqlTemplateException;
-import st.orm.core.template.StatementOrigin;
+import st.orm.spi.QueryContext;
+import st.orm.spi.QueryContext.ExecutionKind;
+import st.orm.spi.QueryObserver;
+import st.orm.spi.QueryObserver.Observation;
+import st.orm.spi.SqlCommenter;
+import st.orm.spi.SqlOperation;
+import st.orm.spi.StatementOrigin;
 
 @SuppressWarnings("ALL")
 class QueryImpl implements Query {

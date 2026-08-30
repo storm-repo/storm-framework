@@ -12,8 +12,8 @@ import java.util.Map;
 import java.util.SequencedMap;
 import org.junit.jupiter.api.Test;
 import st.orm.Operator;
+import st.orm.SqlTemplateException;
 import st.orm.StormConfig;
-import st.orm.core.template.SqlTemplateException;
 
 /**
  * Unit tests for {@link OracleSqlDialect} verifying Oracle-specific SQL generation behavior.
