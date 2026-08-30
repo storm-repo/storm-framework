@@ -20,6 +20,7 @@ import static java.util.Optional.empty;
 import static java.util.Optional.ofNullable;
 import static st.orm.core.template.impl.ElementRouter.getElementProcessor;
 import static st.orm.core.template.impl.RecordValidation.validateParameters;
+import static st.orm.core.template.impl.RecordValidation.validatePlaceholders;
 import static st.orm.core.template.impl.SqlParser.hasWhereClause;
 
 import java.util.ArrayList;
@@ -201,6 +202,9 @@ class TemplateProcessor {
      */
     @Nullable
     private Optional<String> unsafeWarning;
+
+    /** Whether the compiled SQL was checked for a placeholder per positional parameter. Benign race. */
+    private volatile boolean placeholdersValidated;
 
     /**
      * Compile-time only: whether the compiled template requires binding.
@@ -617,6 +621,11 @@ class TemplateProcessor {
             session.assertAllHintsConsumed();
         }
         validateParameters(session.parameters, positionalParameterCount.getPlain());
+        // A pure function of the compiled SQL and its parameter count, so it is checked once per processor.
+        if (!placeholdersValidated) {
+            validatePlaceholders(sql, positionalParameterCount.getPlain(), template.dialect());
+            placeholdersValidated = true;
+        }
         // The safety check is a pure function of the compiled SQL and operation and is computed once per
         // processor. The benign race publishes an immutable Optional.
         var warning = unsafeWarning;

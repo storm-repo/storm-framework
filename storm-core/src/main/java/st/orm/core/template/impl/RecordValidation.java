@@ -56,6 +56,7 @@ import st.orm.SqlTemplateException;
 import st.orm.StormConfig;
 import st.orm.Version;
 import st.orm.core.spi.TypeDiscovery;
+import st.orm.core.template.SqlDialect;
 import st.orm.core.template.SqlTemplate;
 import st.orm.core.template.SqlTemplate.Parameter;
 import st.orm.core.template.SqlTemplate.PositionalParameter;
@@ -565,6 +566,59 @@ final class RecordValidation {
     static void validateParameters(List<Parameter> parameters, int expectedPositionalParameters) throws SqlTemplateException {
         validatePositionalParameters(parameters, expectedPositionalParameters);
         validateNamedParameters(parameters);
+    }
+
+    /**
+     * Validates that the compiled SQL exposes a placeholder for every positional parameter it binds.
+     *
+     * <p>A value interpolated inside a string literal renders as the literal text {@code '?'}. The driver reads
+     * that as a quoted question mark rather than a placeholder, while the value is still bound, so every parameter
+     * after it binds one position early. Some drivers reject the statement outright; others run it against
+     * silently wrong arguments, which is the worse outcome and the reason this is checked here.</p>
+     *
+     * @param sql the compiled SQL.
+     * @param expectedPositionalParameters the number of positional parameters compilation produced.
+     * @param dialect the SQL dialect, used to recognise literals, quoted identifiers and comments.
+     * @throws SqlTemplateException if the SQL exposes fewer placeholders than the statement binds.
+     */
+    static void validatePlaceholders(String sql, int expectedPositionalParameters, SqlDialect dialect)
+            throws SqlTemplateException {
+        if (expectedPositionalParameters == 0) {
+            return;
+        }
+        // One pass over the compiled SQL counts the placeholders and notes whether a string literal could be
+        // hiding one. Only a literal hides a placeholder silently: interpolating into a quoted identifier yields
+        // a column named "?", which the database rejects on its own. Generated SQL carries identifier quotes
+        // routinely and literals almost never, so this settles the common case without allocating.
+        int placeholders = 0;
+        boolean literal = false;
+        for (int i = 0; i < sql.length(); i++) {
+            char c = sql.charAt(i);
+            if (c == '?') {
+                placeholders++;
+            } else if (c == '\'') {
+                literal = true;
+            }
+        }
+        if (literal) {
+            String cleared = SqlParser.clearStringLiterals(
+                    SqlParser.clearQuotedIdentifiers(SqlParser.removeComments(sql, dialect), dialect), dialect);
+            placeholders = 0;
+            for (int i = 0; i < cleared.length(); i++) {
+                if (cleared.charAt(i) == '?') {
+                    placeholders++;
+                }
+            }
+        }
+        // More placeholders than parameters is the bind-vars case, where the values arrive per batch.
+        if (placeholders >= expectedPositionalParameters) {
+            return;
+        }
+        throw new SqlTemplateException(("The statement binds %d positional parameters but exposes %d placeholders. " +
+                "A value interpolated inside a string literal renders as '?', which the driver reads as text rather " +
+                "than a placeholder, so the values after it bind one position early. Interpolate the value without " +
+                "the quotes around it, as in DATE_FORMAT(date, \\0) rather than DATE_FORMAT(date, '\\0'). SQL: %s")
+                .formatted(expectedPositionalParameters, placeholders, sql));
     }
 
     /**

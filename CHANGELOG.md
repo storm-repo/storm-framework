@@ -64,6 +64,14 @@ Applications program against the facade API; the engine that executes it is a ru
 - Creating a template without the engine on the runtime classpath names the missing `st.orm:storm-core` dependency, rather than surfacing as a `NoClassDefFoundError` at the first statement.
 - `@StormTest` injects `SchemaValidation`, a facade over the engine's schema validator that reports mismatches as rendered messages.
 
+### A placeholder inside a string literal is refused
+
+A value interpolated inside quotes, as in `DATE_FORMAT(date, '\0')`, renders as the literal text `'?'`. The driver reads a quoted question mark rather than a placeholder, while the value is still bound, so every parameter after it binds one position early. H2 rejects such a statement; MySQL and MariaDB accept it and return results computed from the wrong arguments.
+
+- A statement that binds more positional parameters than it exposes placeholders is refused when it is built, naming the cause and the SQL. Interpolate the value without the quotes around it, as in `DATE_FORMAT(date, \0)`, and it binds as a parameter.
+- The check reads the compiled SQL once per cached statement shape, and only walks it for literals when the SQL contains a quote at all. More placeholders than parameters stays legal: that is bind vars, whose values arrive per batch.
+- Storm does not inline the value into the literal instead. Inlining a bound value on the strength of two quote characters would turn a parameterised statement into a concatenated one, which is what parameters exist to prevent; `inlineParameters` remains the explicit opt-in.
+
 ### Highlights
 
 - The public API is JSpecify null-marked, and the jakarta annotations are gone from Storm's signatures, so `jakarta.annotation-api` is no longer a dependency. JSpecify itself is optional: compilers and analysis tools read the annotations from bytecode. Kotlin callers get real `T`/`T?` types where the Java surface used to be platform types, and the generated nullable metamodel chain compiles on Kotlin 2.1+.
