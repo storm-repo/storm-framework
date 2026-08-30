@@ -66,7 +66,7 @@ Applications program against the facade API; the engine that executes it is a ru
 
 ### A placeholder inside a string literal is refused
 
-A value interpolated inside quotes, as in `DATE_FORMAT(date, '\0')`, renders as the literal text `'?'`. The driver reads a quoted question mark rather than a placeholder, while the value is still bound, so every parameter after it binds one position early. H2 rejects such a statement; MySQL and MariaDB accept it and return results computed from the wrong arguments.
+A value interpolated inside quotes, as in `DATE_FORMAT(date, '\0')`, renders as the literal text `'?'`. That is valid SQL: a string literal holding a question mark. The value is still bound but has no placeholder to bind to, so every parameter after it takes the position before its own. Where the leftover count does not balance the driver rejects the bind with an out-of-range index; where it does balance the statement runs against the wrong arguments and returns results that look ordinary.
 
 - A statement that binds more positional parameters than it exposes placeholders is refused when it is built, naming the cause and the SQL. Interpolate the value without the quotes around it, as in `DATE_FORMAT(date, \0)`, and it binds as a parameter.
 - The check reads the compiled SQL once per cached statement shape, and only walks it for literals when the SQL contains a quote at all. More placeholders than parameters stays legal: that is bind vars, whose values arrive per batch.
