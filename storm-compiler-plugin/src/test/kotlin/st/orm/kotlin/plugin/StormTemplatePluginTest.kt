@@ -86,6 +86,64 @@ class StormTemplatePluginTest {
     }
 
     @Test
+    fun `interpolation inside a string literal is rejected`() {
+        val source = SourceFile.kotlin(
+            "Test.kt",
+            """
+            import st.orm.template.*
+
+            fun main() {
+                val format = "%Y-%m"
+                val builder: TemplateBuilder = { "SELECT DATE_FORMAT(created, '${'$'}format') FROM users" }
+                println(builder.build().fragments.size)
+            }
+            """,
+        )
+        val result = compile(source)
+        assertEquals(KotlinCompilation.ExitCode.COMPILATION_ERROR, result.exitCode, result.messages)
+        assertTrue(result.messages.contains("interpolated inside a SQL string literal"), result.messages)
+    }
+
+    @Test
+    fun `a like pattern built inside quotes is rejected too`() {
+        val source = SourceFile.kotlin(
+            "Test.kt",
+            """
+            import st.orm.template.*
+
+            fun main() {
+                val name = "ann"
+                val builder: TemplateBuilder = { "SELECT id FROM users WHERE name LIKE '%${'$'}name%'" }
+                println(builder.build().fragments.size)
+            }
+            """,
+        )
+        val result = compile(source)
+        assertEquals(KotlinCompilation.ExitCode.COMPILATION_ERROR, result.exitCode, result.messages)
+    }
+
+    @Test
+    fun `a quoted constant with no interpolation is left alone`() {
+        val source = SourceFile.kotlin(
+            "Test.kt",
+            """
+            import st.orm.template.*
+
+            fun main() {
+                val id = 1
+                val builder: TemplateBuilder = { "SELECT id FROM users WHERE mark = '?' AND id = ${'$'}id" }
+                val result = builder.build()
+                println(result.fragments.joinToString("|"))
+                println(result.values.size)
+            }
+            """,
+        )
+        val result = compile(source)
+        assertEquals(KotlinCompilation.ExitCode.OK, result.exitCode, result.messages)
+        assertEquals("1", result.runMain().lines()[1])
+    }
+
+    @Test
     fun `plain string literal is unchanged`() {
         val source = SourceFile.kotlin(
             "Test.kt",

@@ -70,6 +70,7 @@ A value interpolated inside quotes, as in `DATE_FORMAT(date, '\0')`, renders as 
 
 - A statement that binds more positional parameters than it exposes placeholders is refused when it is built, naming the cause and the SQL. Interpolate the value without the quotes around it, as in `DATE_FORMAT(date, \0)`, and it binds as a parameter.
 - The check reads the compiled SQL once per cached statement shape, and only walks it for literals when the SQL contains a quote at all. More placeholders than parameters stays legal: that is bind vars, whose values arrive per batch.
+- The Kotlin compiler plugin reports it where it is written, so the error arrives in the editor with the offending interpolation under the cursor rather than at the first execution. The runtime check stays for what the plugin cannot see: Java callers, templates assembled outside a string literal, and code compiled without the plugin.
 - Storm does not inline the value into the literal instead. Inlining a bound value on the strength of two quote characters would turn a parameterised statement into a concatenated one, which is what parameters exist to prevent; `inlineParameters` remains the explicit opt-in.
 
 ### Highlights
