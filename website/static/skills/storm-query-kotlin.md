@@ -40,7 +40,7 @@ Ask what data they need, filters, ordering, or pagination.
 
 **Layering rule:** Follow the codebase's existing convention first — if handlers already use repositories directly, or a service layer is consistently in place, match that style rather than introduce a competing one. Absent a clear stance (new code, greenfield), promote the layered architecture: controller → service → repository, where controllers never inject repositories — all data access flows through services, which own the transaction boundaries and return view-model types. Whatever the stance, do not mix styles: layer-skipping controllers undermine the service layer's cross-cutting concerns (transactions, caching, authorization).
 
-**Code-first WHERE clauses:** Always express WHERE conditions using metamodel-based predicates (`eq`, `isFalse()`, `isNotNull()`, etc.) instead of template strings. Only fall back to template expressions for conditions that predicates cannot express (e.g., `COALESCE`, date arithmetic, aggregate functions). When a WHERE clause mixes expressible and inexpressible conditions, split it: use code-based predicates for what you can, templates only for what you must. Multiple `where()` calls are AND-combined automatically. FK paths through the object graph (e.g., `User_.city eq city`) do not require explicit joins.
+**Code-first WHERE clauses:** Always express WHERE conditions using metamodel-based predicates (`eq`, `isFalse()`, `isNotNull()`, etc.) instead of template strings. Only fall back to template expressions for conditions that predicates cannot express (e.g., `COALESCE`, date arithmetic, aggregate functions). When a WHERE clause mixes expressible and inexpressible conditions, split it: use code-based predicates for what you can, templates only for what you must. Multiple `where()` calls are AND-combined automatically. FK paths through the object graph do not require explicit joins, whether they stop at the foreign key (`User_.city eq city`, which is the foreign key column and joins nothing) or navigate past it (`User_.city.country.code eq "US"`, for which Storm joins `COUNTRY` on demand). This holds for a `Ref` foreign key as well, which is navigable without being hydrated: see **Navigating Through a Ref**.
 
 ```kotlin
 // ❌ Wrong — WHERE conditions as a template string
@@ -243,6 +243,26 @@ Select result type: `.select(ResultType::class)` to return a different type than
 
 **Template joins are a code smell.** If you need a template-based ON clause (`.innerJoin<T>().on { "..." }`) or a full `orm.query { }` to express a join that follows a database FK constraint, the entity model is missing an `@FK` annotation. Fix the entity first — add `@FK` (with `Ref<T>` for PK fields, full entity for non-PK fields) — then the join becomes `.innerJoin<Entity>().on<OnEntity>()`, pure code with no templates. Template joins are only justified when there is genuinely no FK constraint in the database. Projections join like entities: `.on<ProjectionType>()` resolves the foreign key by matching the referenced entity's table against the projection's table. When multiple foreign keys reference that table the join is ambiguous — Storm fails with an error naming the candidate fields; disambiguate with a template ON clause.
 
+**Prefer a path over a join.** An explicit join is not how you filter on a related table. When the relationship is a foreign key, name the column through it and Storm joins the referenced table itself, for `Ref` foreign keys as much as for eager ones. Both forms name the same occurrence, so a query that writes the join by hand and then filters through it gains nothing over the path alone:
+
+```kotlin
+// Order holds `@FK val user: Ref<User>`; User holds `@FK val city: City`.
+
+// ✅ The path carries the query; Storm joins the user and city tables on demand
+orders.select()
+    .where(Order_.user.city.name eq "Madison")
+    .resultList
+
+// ❌ The same joins, spelled out, to reach a column the path already reaches
+orders.select()
+    .innerJoin<User>().on<Order>()
+    .innerJoin<City>().on<User>()
+    .where(City_.name eq "Madison")
+    .resultList
+```
+
+Reach for an explicit join when a path cannot express the query: a relationship the entity model does not carry as a foreign key, the to-many side of one (a path navigates to-one only), a self-join that needs its own alias, or a join whose entity you want the query widened to rather than filtered by.
+
 Three rules:
 
 1. **Code-first:** If it can be done with QueryBuilder methods (joins, where, orderBy, groupBy, having), do it in code. Never use a template string for a `WHERE` clause that could be a `.where(predicate)`, or an `ORDER BY` that could be `.orderBy(field)`.
@@ -370,7 +390,7 @@ val refs = orm.entity<User>()
 
 ### Navigating Through a Ref
 
-A `Ref<T>` foreign key is still navigable in queries. Filter, order, and select through it with the metamodel; Storm adds the join for the referenced table on demand, only for a query that references a column beyond the foreign key. Selecting the root leaves the field as an unloaded `Ref`.
+A `Ref<T>` foreign key is still navigable in queries. Filter, order, and select through it with the metamodel; Storm adds the join for the referenced table on demand, only for a query that references a column beyond the foreign key, so filtering or ordering on the referenced table takes no explicit join of its own. Selecting the root leaves the field as an unloaded `Ref`.
 
 ```kotlin
 // User.city is Ref<City>; City has a country FK. The city and country tables are joined

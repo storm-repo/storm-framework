@@ -277,7 +277,7 @@ List<Ref<User>> refs = orm.entity(User.class).selectRef()
 
 ### Navigating Through a Ref
 
-A `Ref<T>` foreign key is still navigable in queries. Filter, order, and select through it with the metamodel; Storm adds the join for the referenced table on demand, only for a query that references a column beyond the foreign key. Selecting the root leaves the field as an unloaded `Ref`.
+A `Ref<T>` foreign key is still navigable in queries. Filter, order, and select through it with the metamodel; Storm adds the join for the referenced table on demand, only for a query that references a column beyond the foreign key, so filtering or ordering on the referenced table takes no explicit join of its own. Selecting the root leaves the field as an unloaded `Ref`.
 
 ```java
 // User.city is Ref<City>; City has a country FK. The city and country tables are joined
@@ -470,6 +470,26 @@ users.removeAll();
 **Always prefer entity/metamodel-based QueryBuilder methods over SQL template strings.** SQL templates are an escape hatch for things the QueryBuilder cannot express.
 
 **Template joins are a code smell.** If you need a template-based ON clause (`.innerJoin(T.class).on(RAW."...")`) or a full `orm.query(RAW."...")` to express a join that follows a database FK constraint, the entity model is missing an `@FK` annotation. Fix the entity first — add `@FK` (with `Ref<T>` for PK fields, full entity for non-PK fields) — then the join becomes `.innerJoin(Entity.class).on(OtherEntity.class)`, pure code with no templates. Template joins are only justified when there is genuinely no FK constraint in the database. Projections join like entities: `.on(ProjectionType.class)` resolves the foreign key by matching the referenced entity's table against the projection's table. When multiple foreign keys reference that table the join is ambiguous — Storm fails with an error naming the candidate fields; disambiguate with a template ON clause.
+
+**Prefer a path over a join.** An explicit join is not how you filter on a related table. When the relationship is a foreign key, name the column through it and Storm joins the referenced table itself, for `Ref` foreign keys as much as for eager ones. Both forms name the same occurrence, so a query that writes the join by hand and then filters through it gains nothing over the path alone:
+
+```java
+// Order holds `@FK Ref<User> user`; User holds `@FK City city`.
+
+// ✅ The path carries the query; Storm joins the user and city tables on demand
+orders.select()
+    .where(Order_.user.city.name, EQUALS, "Madison")
+    .getResultList();
+
+// ❌ The same joins, spelled out, to reach a column the path already reaches
+orders.select()
+    .innerJoin(User.class).on(Order.class)
+    .innerJoin(City.class).on(User.class)
+    .where(City_.name, EQUALS, "Madison")
+    .getResultList();
+```
+
+Reach for an explicit join when a path cannot express the query: a relationship the entity model does not carry as a foreign key, the to-many side of one (a path navigates to-one only), a self-join that needs its own alias, or a join whose entity you want the query widened to rather than filtered by.
 
 Three rules:
 
