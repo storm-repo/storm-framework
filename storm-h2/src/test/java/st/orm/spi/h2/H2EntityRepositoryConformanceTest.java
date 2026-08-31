@@ -15,6 +15,15 @@ public class H2EntityRepositoryConformanceTest extends AbstractEntityRepositoryC
     @Override
     protected List<String> schemaDdl() {
         return List.of(
+                "DROP TABLE IF EXISTS non_autogen_entity",
+                """
+                        CREATE TABLE non_autogen_entity (
+                        id integer PRIMARY KEY,
+                        name varchar(255),
+                        version bigint DEFAULT 0
+                        )""",
+                "INSERT INTO non_autogen_entity (id, name) VALUES (1, 'First')",
+                "INSERT INTO non_autogen_entity (id, name) VALUES (2, 'Second')",
                 "DROP TABLE IF EXISTS pk_only_entity",
                 """
                         CREATE TABLE pk_only_entity (
@@ -145,6 +154,16 @@ public class H2EntityRepositoryConformanceTest extends AbstractEntityRepositoryC
                         	INSERT (vet_id, specialty_id)
                         	VALUES (src.vet_id, src.specialty_id)""")),
                 entry(Statement.UPSERT_AND_FETCH_NON_AUTO_GENERATED_BATCH, Expected.sql("""
+                        MERGE INTO specialty t
+                        USING (SELECT CAST(? AS INTEGER) AS id, CAST(? AS VARCHAR) AS name) src
+                        ON (t.id = src.id)
+                        WHEN MATCHED THEN
+                        	UPDATE SET t.name = src.name
+                        WHEN NOT MATCHED THEN
+                        	INSERT (id, name)
+                        	VALUES (src.id, src.name)"""))
+,
+                entry(Statement.UPSERT_NON_AUTO_GENERATED_BATCH, Expected.sql("""
                         MERGE INTO specialty t
                         USING (SELECT CAST(? AS INTEGER) AS id, CAST(? AS VARCHAR) AS name) src
                         ON (t.id = src.id)

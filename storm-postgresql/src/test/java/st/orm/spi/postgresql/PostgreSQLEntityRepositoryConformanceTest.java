@@ -32,6 +32,15 @@ public class PostgreSQLEntityRepositoryConformanceTest extends AbstractEntityRep
     @Override
     protected List<String> schemaDdl() {
         return List.of(
+                "DROP TABLE IF EXISTS non_autogen_entity",
+                """
+                        CREATE TABLE non_autogen_entity (
+                        id integer PRIMARY KEY,
+                        name varchar(255),
+                        version integer DEFAULT 0
+                        )""",
+                "INSERT INTO non_autogen_entity (id, name) VALUES (1, 'First')",
+                "INSERT INTO non_autogen_entity (id, name) VALUES (2, 'Second')",
                 "DROP TABLE IF EXISTS pk_only_entity",
                 """
                         CREATE TABLE pk_only_entity (
@@ -144,6 +153,11 @@ public class PostgreSQLEntityRepositoryConformanceTest extends AbstractEntityRep
                         VALUES (?, ?)
                         ON CONFLICT (vet_id, specialty_id) DO NOTHING""")),
                 entry(Statement.UPSERT_AND_FETCH_NON_AUTO_GENERATED_BATCH, Expected.sql("""
+                        INSERT INTO specialty (id, name)
+                        VALUES (?, ?)
+                        ON CONFLICT (id) DO UPDATE SET name = EXCLUDED.name"""))
+,
+                entry(Statement.UPSERT_NON_AUTO_GENERATED_BATCH, Expected.sql("""
                         INSERT INTO specialty (id, name)
                         VALUES (?, ?)
                         ON CONFLICT (id) DO UPDATE SET name = EXCLUDED.name"""))
