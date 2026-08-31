@@ -73,6 +73,15 @@ A value interpolated inside quotes, as in `DATE_FORMAT(date, '\0')`, renders as 
 - The Kotlin compiler plugin reports it where it is written, so the error arrives in the editor with the offending interpolation under the cursor rather than at the first execution. The runtime check stays for what the plugin cannot see: Java callers, templates assembled outside a string literal, and code compiled without the plugin.
 - Storm does not inline the value into the literal instead. Inlining a bound value on the strength of two quote characters would turn a parameterised statement into a concatenated one, which is what parameters exist to prevent; `inlineParameters` remains the explicit opt-in.
 
+### A placeholder inside a string literal is refused
+
+A value interpolated inside quotes, as in `DATE_FORMAT(date, '\0')`, renders as the literal text `'?'`. That is valid SQL: a string literal holding a question mark. The value is still bound but has no placeholder to bind to, so every parameter after it takes the position before its own. Where the leftover count does not balance the driver rejects the bind with an out-of-range index; where it does balance the statement runs against the wrong arguments and returns results that look ordinary.
+
+- A statement that binds more positional parameters than it exposes placeholders is refused when it is built, naming the cause and the SQL. Interpolate the value without the quotes around it, as in `DATE_FORMAT(date, \0)`, and it binds as a parameter.
+- The check reads the compiled SQL once per cached statement shape, and only walks it for literals when the SQL contains a quote at all. More placeholders than parameters stays legal: that is bind vars, whose values arrive per batch.
+- The Kotlin compiler plugin reports it where it is written, so the error arrives in the editor with the offending interpolation under the cursor rather than at the first execution. The runtime check stays for what the plugin cannot see: Java callers, templates assembled outside a string literal, and code compiled without the plugin.
+- Storm does not inline the value into the literal instead. Inlining a bound value on the strength of two quote characters would turn a parameterised statement into a concatenated one, which is what parameters exist to prevent; `inlineParameters` remains the explicit opt-in.
+
 ### Highlights
 
 - The public API is JSpecify null-marked, and the jakarta annotations are gone from Storm's signatures, so `jakarta.annotation-api` is no longer a dependency. JSpecify itself is optional: compilers and analysis tools read the annotations from bytecode. Kotlin callers get real `T`/`T?` types where the Java surface used to be platform types, and the generated nullable metamodel chain compiles on Kotlin 2.1+.
