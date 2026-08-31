@@ -62,6 +62,8 @@
         <module>storm-foundation</module>
         <module>storm-core</module>
         <module>storm-test</module>
+        <!-- The conformance suite the dialect modules below run; build-time only. -->
+        <module>storm-dialect-tck</module>
         <module>storm-jackson2</module>
         <module>storm-jackson3</module>
         <module>storm-kotlinx-serialization</module>

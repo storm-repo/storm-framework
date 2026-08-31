@@ -70,6 +70,12 @@
         <!-- Test -->
         <dependency>
             <groupId>st.orm</groupId>
+            <artifactId>storm-dialect-tck</artifactId>
+            <version>${project.version}</version>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>st.orm</groupId>
             <artifactId>storm-test</artifactId>
             <version>${project.version}</version>
             <scope>test</scope>
