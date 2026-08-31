@@ -70,34 +70,6 @@ public class H2EntityRepositoryTest {
             @Version int version
     ) implements Entity<Integer> {}
 
-    @Test
-    public void testUpsertAndFetchBatch() {
-        String expectedSql = """
-                UPDATE vet
-                SET first_name = ?, last_name = ?
-                WHERE id = ?""";
-        var repo = PreparedStatementTemplate.ORM(dataSource).entity(Vet.class);
-        var first = new AtomicBoolean(false);
-        observe(sql -> {
-            if (!first.getAndSet(true)) {
-                assertEquals(expectedSql, sql.statement());
-                assertEquals(sql.generatedKeys(), List.of());
-                assertFalse(sql.versionAware());
-                assertTrue(sql.bindVariables().isPresent());
-            }
-        }, () -> {
-            var entities = repo.upsertAndFetch(List.of(
-                    Vet.builder().id(1).firstName("John").lastName("Doe").build(),
-                    Vet.builder().id(2).firstName("Jane").lastName("Doe").build()
-            )).stream().sorted(Comparator.comparingInt(Entity::id)).toList();
-            assertEquals(2, entities.size());
-            assertEquals("John", entities.getFirst().firstName());
-            assertEquals("Doe", entities.getFirst().lastName());
-            assertEquals("Jane", entities.getLast().firstName());
-            assertEquals("Doe", entities.getLast().lastName());
-        });
-    }
-
     @Builder(toBuilder = true)
     public record Specialty(
             @PK(generation = NONE) Integer id,

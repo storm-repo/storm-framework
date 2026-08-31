@@ -82,6 +82,31 @@ public class SQLiteEntityRepositoryConformanceTest extends AbstractEntityReposit
                 entry(Statement.UPDATE_AND_FETCH_INLINE_VERSION_BATCH, Expected.sql("""
                 UPDATE owner
                 SET first_name = ?, last_name = ?, address = ?, city = ?, telephone = ?, version = version + 1
-                WHERE id = ? AND version = ?""").keys().bound(true)));
+                WHERE id = ? AND version = ?""").keys().bound(true)),
+                entry(Statement.UPSERT_BATCH, Expected.sql("""
+                        INSERT INTO vet (first_name, last_name)
+                        VALUES (?, ?)
+                        ON CONFLICT (id) DO UPDATE SET first_name = EXCLUDED.first_name, last_name = EXCLUDED.last_name""")),
+                entry(Statement.UPSERT_AND_FETCH_BATCH, Expected.sql("""
+                        UPDATE vet
+                        SET first_name = ?, last_name = ?
+                        WHERE id = ?""")),
+                entry(Statement.UPSERT_AND_FETCH_BATCH_EXISTING_COMPOUND_PK, Expected.sql("""
+                        INSERT INTO vet_specialty (vet_id, specialty_id)
+                        VALUES (?, ?)
+                        ON CONFLICT (vet_id, specialty_id) DO NOTHING""")),
+                entry(Statement.UPSERT_AND_FETCH_INLINE_VERSION, Expected.sql("""
+                        UPDATE owner
+                        SET first_name = ?, last_name = ?, address = ?, city = ?, telephone = ?, version = version + 1
+                        WHERE id = ? AND version = ?""")),
+                entry(Statement.UPSERT_INLINE_VERSION_BATCH, Expected.sql("""
+                        UPDATE owner
+                        SET first_name = ?, last_name = ?, address = ?, city = ?, telephone = ?, version = version + 1
+                        WHERE id = ? AND version = ?""")),
+                entry(Statement.UPSERT, Expected.sql("""
+                        INSERT INTO vet (first_name, last_name)
+                        VALUES (?, ?)
+                        ON CONFLICT (id) DO UPDATE SET first_name = EXCLUDED.first_name, last_name = EXCLUDED.last_name"""))
+);
     }
 }

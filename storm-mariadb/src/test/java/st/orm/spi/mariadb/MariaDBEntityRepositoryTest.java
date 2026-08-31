@@ -90,82 +90,6 @@ public class MariaDBEntityRepositoryTest {
     ) implements Entity<Integer> {}
 
     @Test
-    public void testUpsertAndFetchBatch() {
-        String expectedSql = """
-                UPDATE vet
-                SET first_name = ?, last_name = ?
-                WHERE id = ?""";
-        var repo = PreparedStatementTemplate.ORM(dataSource).entity(Vet.class);
-        var first = new AtomicBoolean(false);
-        observe(sql -> {
-            if (!first.getAndSet(true)) {
-                assertEquals(expectedSql, sql.statement());
-                assertEquals(sql.generatedKeys(), List.of());
-                assertFalse(sql.versionAware());
-                assertTrue(sql.bindVariables().isPresent());
-            }
-        }, () -> {
-            var entities = repo.upsertAndFetch(List.of(
-                    Vet.builder().id(1).firstName("John").lastName("Doe").build(),
-                    Vet.builder().id(2).firstName("Jane").lastName("Doe").build()
-            )).stream().sorted(Comparator.comparingInt(Entity::id)).toList();
-            assertEquals(2, entities.size());
-            assertEquals("John", entities.getFirst().firstName());
-            assertEquals("Doe", entities.getFirst().lastName());
-            assertEquals("Jane", entities.getLast().firstName());
-            assertEquals("Doe", entities.getLast().lastName());
-        });
-    }
-
-    @Test
-    public void testUpsert() {
-        // Oracle executes the insert statement here instead.
-        String expectedSql = """
-                INSERT INTO vet (first_name, last_name)
-                VALUES (?, ?)
-                ON DUPLICATE KEY UPDATE id = LAST_INSERT_ID(id), first_name = VALUES(first_name), last_name = VALUES(last_name)""";
-        var repo = PreparedStatementTemplate.ORM(dataSource).entity(Vet.class);
-        observe(sql -> {
-            assertEquals(expectedSql, sql.statement());
-            assertEquals(sql.generatedKeys(), List.of("id"));
-            assertFalse(sql.versionAware());
-            assertEquals("John", sql.parameters().get(0).dbValue());
-            assertEquals("Doe", sql.parameters().get(1).dbValue());
-        }, () -> repo.upsert(Vet.builder().firstName("John").lastName("Doe").build()));
-             var entity = repo.select().where(Metamodel.of(Vet.class, "firstName"), EQUALS, "John").getSingleResult();
-             repo.upsert(entity.toBuilder().lastName("Smith").build());
-             var updated = repo.select().where(Metamodel.of(Vet.class, "firstName"), EQUALS, "John").getSingleResult();
-             assertEquals(entity.id(), updated.id());
-             assertEquals("John", updated.firstName());
-             assertEquals("Smith", updated.lastName());
-    }
-
-    @Test
-    public void testUpsertBatch() {
-        // Oracle executes the insert statement here instead.
-        String expectedSql = """
-                INSERT INTO vet (first_name, last_name)
-                VALUES (?, ?)
-                ON DUPLICATE KEY UPDATE id = LAST_INSERT_ID(id), first_name = VALUES(first_name), last_name = VALUES(last_name)""";
-        var repo = PreparedStatementTemplate.ORM(dataSource).entity(Vet.class);
-        observe(sql -> {
-            assertEquals(expectedSql, sql.statement());
-            assertEquals(sql.generatedKeys(), List.of("id"));
-            assertFalse(sql.versionAware());
-            assertTrue(sql.bindVariables().isPresent());
-        }, () -> repo.upsert(List.of(
-                Vet.builder().firstName("John").lastName("Doe").build(),
-                Vet.builder().firstName("Jane").lastName("Doe").build())));
-        var entities = repo.select().where(Metamodel.of(Vet.class, "lastName"), EQUALS, "Doe").getResultList();
-        repo.upsert(entities.stream().map(entity -> entity.toBuilder().lastName("Smith").build()).toList());
-        var updated = repo.select().where(Metamodel.of(Vet.class, "lastName"), EQUALS, "Smith").getResultList();
-        var none = repo.select().where(Metamodel.of(Vet.class, "lastName"), EQUALS, "Doe").getResultCount();
-        assertEquals(2, updated.size());
-        assertTrue(updated.stream().allMatch(entity -> entity.lastName().equals("Smith")));
-        assertEquals(0, none);
-    }
-
-    @Test
     public void testUpsertInlineVersion() {
         String expectedSql = """
                 UPDATE owner
@@ -190,39 +114,6 @@ public class MariaDBEntityRepositoryTest {
         }, () -> {
             repo.upsert(entity.toBuilder().lastName("Smith").build());
             var update = repo.getById(1);
-            assertEquals("Betty", update.firstName());
-            assertEquals("Smith", update.lastName());
-            assertEquals("638 Cardinal Ave.", update.address().address());
-            assertEquals("Sun Prairie", update.address().city());
-            assertEquals("6085551749", update.telephone());
-            assertEquals(1, update.version());
-        });
-    }
-
-    @Test
-    public void testUpsertAndFetchInlineVersion() {
-        String expectedSql = """
-                UPDATE owner
-                SET first_name = ?, last_name = ?, address = ?, city = ?, telephone = ?, version = version + 1
-                WHERE id = ? AND version = ?""";
-        var repo = PreparedStatementTemplate.ORM(dataSource).entity(Owner.class);
-        var entity = repo.getById(1);
-        var first = new AtomicBoolean(false);
-        observe(sql -> {
-            if (!first.getAndSet(true)) {
-                assertEquals(expectedSql, sql.statement());
-                assertEquals(sql.generatedKeys(), List.of());
-                assertTrue(sql.versionAware());
-                assertEquals("Betty", sql.parameters().get(0).dbValue());
-                assertEquals("Smith", sql.parameters().get(1).dbValue());
-                assertEquals("638 Cardinal Ave.", sql.parameters().get(2).dbValue());
-                assertEquals("Sun Prairie", sql.parameters().get(3).dbValue());
-                assertEquals("6085551749", sql.parameters().get(4).dbValue());
-                assertEquals(1, sql.parameters().get(5).dbValue());
-                assertEquals(0, sql.parameters().get(6).dbValue());
-            }
-        }, () -> {
-            var update = repo.upsertAndFetch(entity.toBuilder().lastName("Smith").build());
             assertEquals("Betty", update.firstName());
             assertEquals("Smith", update.lastName());
             assertEquals("638 Cardinal Ave.", update.address().address());
@@ -264,43 +155,6 @@ public class MariaDBEntityRepositoryTest {
             assertEquals("Sun Prairie", insert.address().city());
             assertEquals("6085551749", insert.telephone());
             assertEquals(0, insert.version());
-        });
-    }
-
-    @Test
-    public void testUpsertInlineVersionBatch() {
-        String expectedSql = """
-                UPDATE owner
-                SET first_name = ?, last_name = ?, address = ?, city = ?, telephone = ?, version = version + 1
-                WHERE id = ? AND version = ?""";
-        var repo = PreparedStatementTemplate.ORM(dataSource).entity(Owner.class);
-        var entities = repo.findAllById(List.of(1, 2));
-        var first = new AtomicBoolean(false);
-        observe(sql -> {
-            if (!first.getAndSet(true)) {
-                assertEquals(expectedSql, sql.statement());
-                assertEquals(sql.generatedKeys(), List.of());
-                assertTrue(sql.versionAware());
-                assertTrue(sql.bindVariables().isPresent());
-            }
-        }, () -> {
-            repo.upsert(
-                    entities.stream().map(entity -> entity.toBuilder().lastName("Smith").build()).toList()
-            );
-            var updates = repo.findAllById(List.of(1, 2)).stream().sorted(Comparator.comparingInt(Entity::id)).toList();
-            assertEquals(2, updates.size());
-            assertEquals("Betty", updates.getFirst().firstName());
-            assertEquals("Smith", updates.getFirst().lastName());
-            assertEquals("638 Cardinal Ave.", updates.getFirst().address().address());
-            assertEquals("Sun Prairie", updates.getFirst().address().city());
-            assertEquals("6085551749", updates.getFirst().telephone());
-            assertEquals(1, updates.getFirst().version());
-            assertEquals("George", updates.getLast().firstName());
-            assertEquals("Smith", updates.getLast().lastName());
-            assertEquals("110 W. Liberty St.", updates.getLast().address().address());
-            assertEquals("Madison", updates.getLast().address().city());
-            assertEquals("6085551023", updates.getLast().telephone());
-            assertEquals(1, updates.getLast().version());
         });
     }
 
@@ -501,39 +355,6 @@ public class MariaDBEntityRepositoryTest {
             assertEquals(2, entities.getFirst().id().specialtyId());
             assertEquals(6, entities.getLast().id().vetId());
             assertEquals(3, entities.getLast().id().specialtyId());
-        });
-    }
-
-    @Test
-    public void testUpsertAndFetchBatchExistingCompoundPk() {
-        String expectedSql = """
-                INSERT INTO vet_specialty (vet_id, specialty_id)
-                VALUES (?, ?)
-                ON DUPLICATE KEY UPDATE vet_id = VALUES(vet_id), specialty_id = VALUES(specialty_id)""";
-        var orm = PreparedStatementTemplate.ORM(dataSource);
-        var repo = orm.entity(VetSpecialty.class);
-        var first = new AtomicBoolean(false);
-        var vet1 = orm.entity(Vet.class).getById(1);
-        var vet3 = orm.entity(Vet.class).getById(3);
-        var specialty1 = orm.entity(Specialty.class).getById(1);
-        var specialty2 = orm.entity(Specialty.class).getById(2);
-        observe(sql -> {
-            if (!first.getAndSet(true)) {
-                assertEquals(expectedSql, sql.statement());
-                assertEquals(sql.generatedKeys(), List.of());
-                assertFalse(sql.versionAware());
-                assertTrue(sql.bindVariables().isPresent());
-            }
-        }, () -> {
-            var entities = repo.upsertAndFetch(List.of(
-                    VetSpecialty.builder().id(VetSpecialtyPK.builder().vetId(2).specialtyId(1).build()).vet(vet1).specialty(specialty1).build(),
-                    VetSpecialty.builder().id(VetSpecialtyPK.builder().vetId(3).specialtyId(2).build()).vet(vet3).specialty(specialty2).build()
-            )).stream().sorted(Comparator.comparingInt(a -> a.id().vetId())).toList();
-            assertEquals(2, entities.size());
-            assertEquals(2, entities.getFirst().id().vetId());
-            assertEquals(1, entities.getFirst().id().specialtyId());
-            assertEquals(3, entities.getLast().id().vetId());
-            assertEquals(2, entities.getLast().id().specialtyId());
         });
     }
 
@@ -1879,13 +1700,6 @@ public class MariaDBEntityRepositoryTest {
                 NonAutoGenEntity.builder().id(5).name("Fifth").version(0).build()));
         assertEquals("First Batch", repo.getById(1).name());
         assertEquals("Fifth", repo.getById(5).name());
-    }
-
-    @Test
-    public void testUpsertAndFetchIdsEmptyList() {
-        var repo = PreparedStatementTemplate.ORM(dataSource).entity(NonAutoGenEntity.class);
-        var ids = repo.upsertAndFetchIds(List.of());
-        assertTrue(ids.isEmpty());
     }
 
     @Test

@@ -6,6 +6,8 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assumptions.assumeTrue;
+import static st.orm.Operator.EQUALS;
 import static st.orm.core.template.SqlInterceptor.observe;
 
 import java.sql.Connection;
@@ -25,6 +27,8 @@ import st.orm.core.template.Sql;
 import st.orm.tck.model.Address;
 import st.orm.tck.model.ApiKey;
 import st.orm.tck.model.Owner;
+import st.orm.tck.model.SeqEntity;
+import st.orm.tck.model.Specialty;
 import st.orm.tck.model.VersionInstantEntity;
 import st.orm.tck.model.VersionLongEntity;
 import st.orm.tck.model.Vet;
@@ -89,6 +93,19 @@ public abstract class AbstractEntityRepositoryConformanceTest {
         return "CURRENT_TIMESTAMP";
     }
 
+    /** Whether the dialect has sequences at all. MySQL does not. */
+    protected boolean supportsSequences() {
+        return true;
+    }
+
+    /**
+     * Whether the dialect can hand back generated keys from an upsert of a sequence-keyed entity. Both H2 and MySQL
+     * reject the combination up front with a descriptive error, which each module's own test verifies.
+     */
+    protected boolean supportsUpsertFetchWithSequences() {
+        return supportsSequences();
+    }
+
     /** What this dialect is expected to generate for each pinned {@link Statement}. */
     protected abstract Map<Statement, Expected> expectedSql();
 
@@ -111,6 +128,12 @@ public abstract class AbstractEntityRepositoryConformanceTest {
         var seen = new AtomicReference<Sql>();
         observe(sql -> {
             if (seen.compareAndSet(null, sql)) {
+                if (expected == null) {
+                    // Fail with the entry to add, so a single run of the suite hands the dialect its table.
+                    throw new AssertionError("no expected SQL pinned for " + statement + "; the dialect generated:\n"
+                            + "                entry(Statement." + statement + ", Expected.sql(\"\"\"\n"
+                            + sql.statement().indent(24).stripTrailing() + "\"\"\")),");
+                }
                 assertEquals(expected.statement(), sql.statement());
                 if (expected.generatedKeys() != null) {
                     assertEquals(expected.generatedKeys(), sql.generatedKeys());
@@ -412,5 +435,122 @@ public abstract class AbstractEntityRepositoryConformanceTest {
         assertNotNull(key);
         assertEquals("Secondary Key", key.name());
         assertNull(key.externalReference());
+    }
+
+    @Test
+    public void testUpsert() {
+        var vets = PreparedStatementTemplate.ORM(dataSource).entity(Vet.class);
+        var sql = assertStatement(Statement.UPSERT,
+                () -> vets.upsert(Vet.builder().firstName("John").lastName("Doe").build()));
+        assertFalse(sql.versionAware());
+        assertEquals("John", sql.parameters().get(0).dbValue());
+        assertEquals("Doe", sql.parameters().get(1).dbValue());
+        var entity = vets.select().where(Metamodel.of(Vet.class, "firstName"), EQUALS, "John").getSingleResult();
+        vets.upsert(entity.toBuilder().lastName("Smith").build());
+        var updated = vets.select().where(Metamodel.of(Vet.class, "firstName"), EQUALS, "John").getSingleResult();
+        assertEquals(entity.id(), updated.id());
+        assertEquals("John", updated.firstName());
+        assertEquals("Smith", updated.lastName());
+    }
+
+    @Test
+    public void testUpsertBatch() {
+        var vets = PreparedStatementTemplate.ORM(dataSource).entity(Vet.class);
+        var sql = assertStatement(Statement.UPSERT_BATCH, () -> vets.upsert(List.of(
+                Vet.builder().firstName("John").lastName("Doe").build(),
+                Vet.builder().firstName("Jane").lastName("Doe").build())));
+        assertFalse(sql.versionAware());
+        var entities = vets.select().where(Metamodel.of(Vet.class, "lastName"), EQUALS, "Doe").getResultList();
+        vets.upsert(entities.stream().map(entity -> entity.toBuilder().lastName("Smith").build()).toList());
+        var updated = vets.select().where(Metamodel.of(Vet.class, "lastName"), EQUALS, "Smith").getResultList();
+        var none = vets.select().where(Metamodel.of(Vet.class, "lastName"), EQUALS, "Doe").getResultCount();
+        assertEquals(2, updated.size());
+        assertTrue(updated.stream().allMatch(entity -> entity.lastName().equals("Smith")));
+        assertEquals(0, none);
+    }
+
+    @Test
+    public void testUpsertAndFetchBatch() {
+        var vets = PreparedStatementTemplate.ORM(dataSource).entity(Vet.class);
+        var sql = assertStatement(Statement.UPSERT_AND_FETCH_BATCH, () -> {
+            var entities = vets.upsertAndFetch(List.of(
+                            Vet.builder().id(1).firstName("John").lastName("Doe").build(),
+                            Vet.builder().id(2).firstName("Jane").lastName("Doe").build()))
+                    .stream().sorted(Comparator.comparingInt(Vet::id)).toList();
+            assertEquals(2, entities.size());
+            assertEquals("John", entities.getFirst().firstName());
+            assertEquals("Doe", entities.getFirst().lastName());
+            assertEquals("Jane", entities.getLast().firstName());
+            assertEquals("Doe", entities.getLast().lastName());
+        });
+        assertFalse(sql.versionAware());
+    }
+
+    @Test
+    public void testUpsertAndFetchInlineVersion() {
+        var owners = PreparedStatementTemplate.ORM(dataSource).entity(Owner.class);
+        var entity = owners.getById(1);
+        var sql = assertStatement(Statement.UPSERT_AND_FETCH_INLINE_VERSION, () -> {
+            var update = owners.upsertAndFetch(entity.toBuilder().lastName("Smith").build());
+            assertEquals("Betty", update.firstName());
+            assertEquals("Smith", update.lastName());
+            assertEquals("638 Cardinal Ave.", update.address().address());
+            assertEquals("Sun Prairie", update.address().city());
+            assertEquals("6085551749", update.telephone());
+            assertEquals(1, update.version());
+        });
+        assertTrue(sql.versionAware());
+        assertEquals("Betty", sql.parameters().get(0).dbValue());
+        assertEquals("Smith", sql.parameters().get(1).dbValue());
+    }
+
+    @Test
+    public void testUpsertInlineVersionBatch() {
+        var owners = PreparedStatementTemplate.ORM(dataSource).entity(Owner.class);
+        var entities = owners.findAllById(List.of(1, 2));
+        var sql = assertStatement(Statement.UPSERT_INLINE_VERSION_BATCH, () -> {
+            owners.upsert(entities.stream().map(entity -> entity.toBuilder().lastName("Smith").build()).toList());
+            var updates = owners.findAllById(List.of(1, 2)).stream()
+                    .sorted(Comparator.comparingInt(Owner::id)).toList();
+            assertEquals(2, updates.size());
+            assertEquals("Betty", updates.getFirst().firstName());
+            assertEquals("Smith", updates.getFirst().lastName());
+            assertEquals(1, updates.getFirst().version());
+            assertEquals("George", updates.getLast().firstName());
+            assertEquals("Smith", updates.getLast().lastName());
+            assertEquals(1, updates.getLast().version());
+        });
+        assertTrue(sql.versionAware());
+    }
+
+    @Test
+    public void testUpsertAndFetchBatchExistingCompoundPk() {
+        var orm = PreparedStatementTemplate.ORM(dataSource);
+        var vetSpecialties = orm.entity(VetSpecialty.class);
+        var vet1 = orm.entity(Vet.class).getById(1);
+        var vet3 = orm.entity(Vet.class).getById(3);
+        var specialty1 = orm.entity(Specialty.class).getById(1);
+        var specialty2 = orm.entity(Specialty.class).getById(2);
+        var sql = assertStatement(Statement.UPSERT_AND_FETCH_BATCH_EXISTING_COMPOUND_PK, () -> {
+            var entities = vetSpecialties.upsertAndFetch(List.of(
+                            VetSpecialty.builder().id(VetSpecialtyPK.builder().vetId(2).specialtyId(1).build())
+                                    .vet(vet1).specialty(specialty1).build(),
+                            VetSpecialty.builder().id(VetSpecialtyPK.builder().vetId(3).specialtyId(2).build())
+                                    .vet(vet3).specialty(specialty2).build()))
+                    .stream().sorted(Comparator.comparingInt(a -> a.id().vetId())).toList();
+            assertEquals(2, entities.size());
+            assertEquals(2, entities.getFirst().id().vetId());
+            assertEquals(1, entities.getFirst().id().specialtyId());
+            assertEquals(3, entities.getLast().id().vetId());
+            assertEquals(2, entities.getLast().id().specialtyId());
+        });
+        assertFalse(sql.versionAware());
+    }
+
+    @Test
+    public void testUpsertAndFetchIdsEmptyList() {
+        assumeTrue(supportsUpsertFetchWithSequences());
+        var entities = PreparedStatementTemplate.ORM(dataSource).entity(SeqEntity.class);
+        assertTrue(entities.upsertAndFetchIds(List.of()).isEmpty());
     }
 }

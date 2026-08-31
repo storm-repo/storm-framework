@@ -53,6 +53,11 @@ public class MySQLEntityRepositoryConformanceTest extends AbstractEntityReposito
     }
 
     @Override
+    protected boolean supportsSequences() {
+        return false;
+    }
+
+    @Override
     protected Map<Statement, Expected> expectedSql() {
         return Map.ofEntries(
                 entry(Statement.INSERT_AND_FETCH, Expected.sql("""
@@ -94,6 +99,31 @@ public class MySQLEntityRepositoryConformanceTest extends AbstractEntityReposito
                 entry(Statement.UPDATE_AND_FETCH_INLINE_VERSION_BATCH, Expected.sql("""
                 UPDATE owner
                 SET first_name = ?, last_name = ?, address = ?, city = ?, telephone = ?, version = version + 1
-                WHERE id = ? AND version = ?""").keys().bound(true)));
+                WHERE id = ? AND version = ?""").keys().bound(true)),
+                entry(Statement.UPSERT_BATCH, Expected.sql("""
+                        INSERT INTO vet (first_name, last_name)
+                        VALUES (?, ?)
+                        ON DUPLICATE KEY UPDATE id = LAST_INSERT_ID(id), first_name = VALUES(first_name), last_name = VALUES(last_name)""")),
+                entry(Statement.UPSERT_AND_FETCH_BATCH, Expected.sql("""
+                        UPDATE vet
+                        SET first_name = ?, last_name = ?
+                        WHERE id = ?""")),
+                entry(Statement.UPSERT_AND_FETCH_BATCH_EXISTING_COMPOUND_PK, Expected.sql("""
+                        INSERT INTO vet_specialty (vet_id, specialty_id)
+                        VALUES (?, ?)
+                        ON DUPLICATE KEY UPDATE vet_id = VALUES(vet_id), specialty_id = VALUES(specialty_id)""")),
+                entry(Statement.UPSERT_AND_FETCH_INLINE_VERSION, Expected.sql("""
+                        UPDATE owner
+                        SET first_name = ?, last_name = ?, address = ?, city = ?, telephone = ?, version = version + 1
+                        WHERE id = ? AND version = ?""")),
+                entry(Statement.UPSERT_INLINE_VERSION_BATCH, Expected.sql("""
+                        UPDATE owner
+                        SET first_name = ?, last_name = ?, address = ?, city = ?, telephone = ?, version = version + 1
+                        WHERE id = ? AND version = ?""")),
+                entry(Statement.UPSERT, Expected.sql("""
+                        INSERT INTO vet (first_name, last_name)
+                        VALUES (?, ?)
+                        ON DUPLICATE KEY UPDATE id = LAST_INSERT_ID(id), first_name = VALUES(first_name), last_name = VALUES(last_name)"""))
+);
     }
 }
