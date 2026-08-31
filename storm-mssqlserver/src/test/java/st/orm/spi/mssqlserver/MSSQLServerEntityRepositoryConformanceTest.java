@@ -134,6 +134,45 @@ public class MSSQLServerEntityRepositoryConformanceTest extends AbstractEntityRe
                 entry(Statement.UPSERT, Expected.sql("""
                         INSERT INTO vet (first_name, last_name)
                         VALUES (?, ?)"""))
+,
+                entry(Statement.UPSERT_INLINE_VERSION, Expected.sql("""
+                        UPDATE owner
+                        SET first_name = ?, last_name = ?, address = ?, city = ?, telephone = ?, version = version + 1
+                        WHERE id = ? AND version = ?""")),
+                entry(Statement.UPSERT_AND_FETCH_NON_AUTO_GENERATED, Expected.sql("""
+                        MERGE INTO specialty t
+                        USING (SELECT ? AS id, ? AS name) src
+                        ON (t.id = src.id)
+                        WHEN MATCHED THEN
+                        	UPDATE SET t.name = src.name
+                        WHEN NOT MATCHED THEN
+                        	INSERT (id, name)
+                        	VALUES (src.id, src.name);""")),
+                entry(Statement.UPSERT_NON_AUTO_GENERATED, Expected.sql("""
+                        MERGE INTO specialty t
+                        USING (SELECT ? AS id, ? AS name) src
+                        ON (t.id = src.id)
+                        WHEN MATCHED THEN
+                        	UPDATE SET t.name = src.name
+                        WHEN NOT MATCHED THEN
+                        	INSERT (id, name)
+                        	VALUES (src.id, src.name);""")),
+                entry(Statement.UPSERT_AND_FETCH_BATCH_NEW_COMPOUND_PK, Expected.sql("""
+                        MERGE INTO vet_specialty t
+                        USING (SELECT ? AS vet_id, ? AS specialty_id) src
+                        ON (t.vet_id = src.vet_id AND t.specialty_id = src.specialty_id)
+                        WHEN NOT MATCHED THEN
+                        	INSERT (vet_id, specialty_id)
+                        	VALUES (src.vet_id, src.specialty_id);""")),
+                entry(Statement.UPSERT_AND_FETCH_NON_AUTO_GENERATED_BATCH, Expected.sql("""
+                        MERGE INTO specialty t
+                        USING (SELECT ? AS id, ? AS name) src
+                        ON (t.id = src.id)
+                        WHEN MATCHED THEN
+                        	UPDATE SET t.name = src.name
+                        WHEN NOT MATCHED THEN
+                        	INSERT (id, name)
+                        	VALUES (src.id, src.name);"""))
 );
     }
 }
