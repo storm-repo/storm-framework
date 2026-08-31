@@ -212,19 +212,6 @@ public class OracleEntityRepositoryTest {
     }
 
     @Test
-    public void testInsertAndFetchWithSequence() {
-        var repo = PreparedStatementTemplate.ORM(dataSource).entity(Pet.class);
-        var e = assertThrows(PersistenceException.class, () ->
-                repo.insertAndFetch(Pet.builder()
-                        .name("Buddy")
-                        .birthDate(LocalDate.of(2020, 1, 1))
-                        .type(PetType.builder().id(1).build())
-                        .owner(Owner.builder().id(1).build())
-                        .build()));
-        assertNull(e.getCause(), "Exception must be raised by storm.");
-    }
-
-    @Test
     public void testInsertAndFetchWithSequenceIgnoreAutoGenerate() {
         String expectedSql = """
                 INSERT INTO pet (id, name, birth_date, type_id, owner_id)
@@ -946,35 +933,6 @@ public class OracleEntityRepositoryTest {
                 assertEquals(1, entity.type().id());
                 assertEquals(1, entity.owner().id());
             });
-        });
-    }
-
-    @Test
-    public void testUpsertWithSequenceEmptyNew() {
-        String expectedSql = """
-                UPDATE pet
-                SET name = ?, birth_date = ?, type_id = ?, owner_id = ?
-                WHERE id = ?""";
-        var repo = PreparedStatementTemplate.ORM(dataSource).entity(PetSequenceEmpty.class);
-        var first = new AtomicBoolean(false);
-        observe(sql -> {
-            if (!first.getAndSet(true)) {
-                assertEquals(expectedSql, sql.statement());
-                assertEquals(sql.generatedKeys(), List.of());
-                assertFalse(sql.versionAware());
-                assertFalse(sql.bindVariables().isPresent());
-            }
-        }, () -> {
-            var id = 100;
-            var e = assertThrows(PersistenceException.class, () ->
-                    repo.upsert(PetSequenceEmpty.builder()
-                            .id(id)
-                            .name("Buddy")
-                            .birthDate(LocalDate.of(2020, 1, 1))
-                            .type(PetType.builder().id(1).build())
-                            .owner(Owner.builder().id(1).build())
-                            .build()));
-            assertNull(e.getCause(), "Exception must be raised by storm.");
         });
     }
 

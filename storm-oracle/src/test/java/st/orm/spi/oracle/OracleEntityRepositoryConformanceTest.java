@@ -69,7 +69,7 @@ public class OracleEntityRepositoryConformanceTest extends AbstractEntityReposit
     }
 
     @Override
-    protected boolean supportsUpsertFetchWithSequences() {
+    protected boolean supportsFetchWithSequences() {
         return false;
     }
 
@@ -190,6 +190,13 @@ public class OracleEntityRepositoryConformanceTest extends AbstractEntityReposit
                         WHEN NOT MATCHED THEN
                         	INSERT (id, name)
                         	VALUES (src.id, src.name)"""))
+,
+                entry(Statement.INSERT_AND_FETCH_WITH_SEQUENCE, Expected.notApplicable())
+,
+                entry(Statement.UPSERT_WITH_SEQUENCE_EMPTY_NEW, Expected.sql("""
+                        UPDATE pet
+                        SET name = ?, birth_date = ?, type_id = ?, owner_id = ?
+                        WHERE id = ?"""))
 );
     }
 }

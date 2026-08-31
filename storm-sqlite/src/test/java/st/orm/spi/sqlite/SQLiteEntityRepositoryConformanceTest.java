@@ -18,6 +18,11 @@ public class SQLiteEntityRepositoryConformanceTest extends AbstractEntityReposit
     }
 
     @Override
+    protected boolean supportsSequences() {
+        return false;
+    }
+
+    @Override
     protected List<String> schemaDdl() {
         return List.of(
                 "DROP TABLE IF EXISTS non_autogen_entity",
@@ -149,6 +154,13 @@ public class SQLiteEntityRepositoryConformanceTest extends AbstractEntityReposit
                         INSERT INTO specialty (id, name)
                         VALUES (?, ?)
                         ON CONFLICT (id) DO UPDATE SET name = EXCLUDED.name"""))
+,
+                entry(Statement.UPSERT_WITH_SEQUENCE_EMPTY_NEW, Expected.sql("""
+                        UPDATE pet
+                        SET name = ?, birth_date = ?, type_id = ?, owner_id = ?
+                        WHERE id = ?"""))
+,
+                entry(Statement.INSERT_AND_FETCH_WITH_SEQUENCE, Expected.notApplicable())
 );
     }
 }

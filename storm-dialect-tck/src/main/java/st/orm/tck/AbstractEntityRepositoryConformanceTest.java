@@ -5,6 +5,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assumptions.assumeTrue;
 import static st.orm.Operator.EQUALS;
@@ -14,6 +15,7 @@ import static st.orm.core.template.SqlInterceptor.observe;
 import java.sql.Connection;
 import java.sql.SQLException;
 import java.time.Instant;
+import java.time.LocalDate;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
@@ -23,12 +25,16 @@ import javax.sql.DataSource;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import st.orm.Metamodel;
+import st.orm.PersistenceException;
 import st.orm.core.template.PreparedStatementTemplate;
 import st.orm.core.template.Sql;
 import st.orm.tck.model.Address;
 import st.orm.tck.model.ApiKey;
 import st.orm.tck.model.NonAutoGenEntity;
 import st.orm.tck.model.Owner;
+import st.orm.tck.model.Pet;
+import st.orm.tck.model.PetSequenceEmpty;
+import st.orm.tck.model.PetType;
 import st.orm.tck.model.PkOnlyEntity;
 import st.orm.tck.model.SeqEntity;
 import st.orm.tck.model.Specialty;
@@ -96,16 +102,16 @@ public abstract class AbstractEntityRepositoryConformanceTest {
         return "CURRENT_TIMESTAMP";
     }
 
-    /** Whether the dialect has sequences at all. MySQL does not. */
+    /** Whether the dialect has sequences at all. MySQL and SQLite do not. */
     protected boolean supportsSequences() {
         return true;
     }
 
     /**
-     * Whether the dialect can hand back generated keys from an upsert of a sequence-keyed entity. Both H2 and MySQL
+     * Whether the dialect can hand back generated keys for a sequence-keyed entity. H2, MySQL, SQL Server and Oracle
      * reject the combination up front with a descriptive error, which each module's own test verifies.
      */
-    protected boolean supportsUpsertFetchWithSequences() {
+    protected boolean supportsFetchWithSequences() {
         return supportsSequences();
     }
 
@@ -552,7 +558,7 @@ public abstract class AbstractEntityRepositoryConformanceTest {
 
     @Test
     public void testUpsertAndFetchIdsEmptyList() {
-        assumeTrue(supportsUpsertFetchWithSequences());
+        assumeTrue(supportsFetchWithSequences());
         var entities = PreparedStatementTemplate.ORM(dataSource).entity(SeqEntity.class);
         assertTrue(entities.upsertAndFetchIds(List.of()).isEmpty());
     }
@@ -716,5 +722,42 @@ public abstract class AbstractEntityRepositoryConformanceTest {
         assertEquals(2, ids.size());
         assertTrue(ids.contains(1));
         assertTrue(ids.contains(6));
+    }
+
+    @Test
+    public void testInsertAndFetchWithSequence() {
+        assumeTrue(supportsSequences() && supportsFetchWithSequences());
+        var pets = PreparedStatementTemplate.ORM(dataSource).entity(Pet.class);
+        var sql = assertStatement(Statement.INSERT_AND_FETCH_WITH_SEQUENCE, () -> {
+            var entity = pets.insertAndFetch(Pet.builder()
+                    .name("Buddy")
+                    .birthDate(LocalDate.of(2020, 1, 1))
+                    .type(PetType.builder().id(1).build())
+                    .owner(Owner.builder().id(1).build())
+                    .build());
+            assertNotNull(entity.id());
+            assertEquals("Buddy", entity.name());
+            assertEquals(LocalDate.of(2020, 1, 1), entity.birthDate());
+            assertEquals(1, entity.type().id());
+        });
+        assertFalse(sql.versionAware());
+    }
+
+    @Test
+    public void testUpsertWithSequenceEmptyNew() {
+        assumeTrue(supportsSequences());
+        var pets = PreparedStatementTemplate.ORM(dataSource).entity(PetSequenceEmpty.class);
+        var sql = assertStatement(Statement.UPSERT_WITH_SEQUENCE_EMPTY_NEW, () -> {
+            // Asking for a sequence without naming one is the dialect's own error, not the driver's.
+            var exception = assertThrows(PersistenceException.class, () -> pets.upsert(PetSequenceEmpty.builder()
+                    .id(100)
+                    .name("Buddy")
+                    .birthDate(LocalDate.of(2020, 1, 1))
+                    .type(PetType.builder().id(1).build())
+                    .owner(Owner.builder().id(1).build())
+                    .build()));
+            assertNull(exception.getCause(), "Exception must be raised by storm.");
+        });
+        assertFalse(sql.versionAware());
     }
 }

@@ -9,9 +9,18 @@ import org.jspecify.annotations.Nullable;
  * test cares and the two differ between dialects that return keys from a {@code RETURNING} clause and dialects that
  * report them through the driver.
  */
-public record Expected(String statement,
+public record Expected(@Nullable String statement,
                        @Nullable List<String> generatedKeys,
                        @Nullable Boolean bindVariables) {
+
+    /**
+     * States that this dialect never generates the statement, because the capability it belongs to is one it does not
+     * have. The suite skips the test; recording it here keeps every constant accounted for, so a genuinely forgotten
+     * expectation is still a failure.
+     */
+    public static Expected notApplicable() {
+        return new Expected(null, null, null);
+    }
 
     /** Pins the statement text alone. */
     public static Expected sql(String statement) {

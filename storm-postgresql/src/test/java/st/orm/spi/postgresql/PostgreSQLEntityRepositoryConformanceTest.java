@@ -161,6 +161,15 @@ public class PostgreSQLEntityRepositoryConformanceTest extends AbstractEntityRep
                         INSERT INTO specialty (id, name)
                         VALUES (?, ?)
                         ON CONFLICT (id) DO UPDATE SET name = EXCLUDED.name"""))
+,
+                entry(Statement.UPSERT_WITH_SEQUENCE_EMPTY_NEW, Expected.sql("""
+                        UPDATE pet
+                        SET name = ?, birth_date = ?, type_id = ?, owner_id = ?
+                        WHERE id = ?""")),
+                entry(Statement.INSERT_AND_FETCH_WITH_SEQUENCE, Expected.sql("""
+                        INSERT INTO pet (id, name, birth_date, type_id, owner_id)
+                        VALUES (nextval('pet_id_seq'), ?, ?, ?, ?)
+                        RETURNING id"""))
 );
     }
 }
