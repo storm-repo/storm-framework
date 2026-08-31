@@ -27,7 +27,7 @@ import st.orm.core.template.JpaTemplate;
 import st.orm.core.template.ORMTemplate;
 
 @ExtendWith(SpringExtension.class)
-@ContextConfiguration(classes = IntegrationConfig.class)
+@ContextConfiguration(classes = JpaIntegrationConfig.class)
 @DataJpaTest(showSql = false)
 public class JpaIntegrationTest {
 
