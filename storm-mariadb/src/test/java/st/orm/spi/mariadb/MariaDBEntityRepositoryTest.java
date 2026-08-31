@@ -4,9 +4,9 @@ import static java.util.Collections.nCopies;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
-import static org.springframework.test.util.AssertionErrors.assertNull;
 import static st.orm.GenerationStrategy.NONE;
 import static st.orm.GenerationStrategy.SEQUENCE;
 import static st.orm.Operator.EQUALS;
@@ -24,15 +24,7 @@ import lombok.Builder;
 import org.jspecify.annotations.Nullable;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.extension.ExtendWith;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.autoconfigure.jdbc.AutoConfigureTestDatabase;
-import org.springframework.boot.test.autoconfigure.orm.jpa.DataJpaTest;
 import org.springframework.jdbc.core.JdbcTemplate;
-import org.springframework.test.context.ContextConfiguration;
-import org.springframework.test.context.DynamicPropertyRegistry;
-import org.springframework.test.context.DynamicPropertySource;
-import org.springframework.test.context.junit.jupiter.SpringExtension;
 import org.testcontainers.containers.MariaDBContainer;
 import org.testcontainers.containers.wait.strategy.Wait;
 import org.testcontainers.junit.jupiter.Container;
@@ -46,12 +38,11 @@ import st.orm.Persist;
 import st.orm.PersistenceException;
 import st.orm.Version;
 import st.orm.core.template.PreparedStatementTemplate;
+import st.orm.tck.ContainerDataSource;
+import st.orm.test.StormTest;
 
-@ExtendWith(SpringExtension.class)
-@ContextConfiguration(classes = IntegrationConfig.class)
-@AutoConfigureTestDatabase(replace = AutoConfigureTestDatabase.Replace.NONE)    // Prevent swapping to H2.
-@DataJpaTest(showSql = false)
 @Testcontainers
+@StormTest(scripts = "/data.sql")
 public class MariaDBEntityRepositoryTest {
 
     @SuppressWarnings("resource")
@@ -63,15 +54,17 @@ public class MariaDBEntityRepositoryTest {
             .waitingFor(Wait.forListeningPort());
     ;
 
-    @DynamicPropertySource
-    static void overrideProperties(DynamicPropertyRegistry registry) {
-        registry.add("spring.datasource.url", mariadbContainer::getJdbcUrl);
-        registry.add("spring.datasource.username", mariadbContainer::getUsername);
-        registry.add("spring.datasource.password", mariadbContainer::getPassword);
+    public static DataSource dataSource() {
+        return ContainerDataSource.of(mariadbContainer.getJdbcUrl(), mariadbContainer.getUsername(),
+                mariadbContainer.getPassword());
     }
 
-    @Autowired
     private DataSource dataSource;
+
+    @BeforeEach
+    void bindDataSource(DataSource dataSource) {
+        this.dataSource = dataSource;
+    }
 
     @Builder(toBuilder = true)
     public record Vet(
@@ -337,7 +330,7 @@ public class MariaDBEntityRepositoryTest {
         assertEquals("description", entity.description());
         repo.upsert(PetType.builder().name("dragon").description(null).build());
         var updated = repo.select().where(Metamodel.of(PetType.class, "name"), EQUALS, "dragon").getSingleResult();
-        assertNull("description", updated.description());
+        assertNull(updated.description(), "description");
     }
 
     @Builder(toBuilder = true)
@@ -907,7 +900,7 @@ public class MariaDBEntityRepositoryTest {
                         .type(PetType.builder().id(1).build())
                         .owner(Owner.builder().id(1).build())
                         .build()));
-            assertNull("Exception must be raised by storm.", e.getCause());
+            assertNull(e.getCause(), "Exception must be raised by storm.");
         });
     }
 
@@ -936,7 +929,7 @@ public class MariaDBEntityRepositoryTest {
                         .type(PetType.builder().id(1).build())
                         .owner(Owner.builder().id(1).build())
                         .build()).toList()));
-            assertNull("Exception must be raised by storm.", e.getCause());
+            assertNull(e.getCause(), "Exception must be raised by storm.");
         });
     }
 
@@ -965,7 +958,7 @@ public class MariaDBEntityRepositoryTest {
                             .type(PetType.builder().id(1).build())
                             .owner(Owner.builder().id(1).build())
                             .build())));
-            assertNull("Exception must be raised by storm.", e.getCause());
+            assertNull(e.getCause(), "Exception must be raised by storm.");
         });
     }
 
@@ -1462,7 +1455,7 @@ public class MariaDBEntityRepositoryTest {
                             .type(PetType.builder().id(1).build())
                             .owner(Owner.builder().id(1).build())
                             .build()));
-            assertNull("Exception must be raised by storm.", e.getCause());
+            assertNull(e.getCause(), "Exception must be raised by storm.");
         });
     }
 
@@ -1491,7 +1484,7 @@ public class MariaDBEntityRepositoryTest {
                             .type(PetType.builder().id(1).build())
                             .owner(Owner.builder().id(1).build())
                             .build()).toList()));
-            assertNull("Exception must be raised by storm.", e.getCause());
+            assertNull(e.getCause(), "Exception must be raised by storm.");
         });
     }
 
@@ -1520,7 +1513,7 @@ public class MariaDBEntityRepositoryTest {
                             .type(PetType.builder().id(1).build())
                             .owner(Owner.builder().id(1).build())
                             .build())));
-            assertNull("Exception must be raised by storm.", e.getCause());
+            assertNull(e.getCause(), "Exception must be raised by storm.");
         });
     }
 

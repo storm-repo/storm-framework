@@ -12,13 +12,8 @@ import java.util.List;
 import javax.sql.DataSource;
 import lombok.Builder;
 import org.jspecify.annotations.Nullable;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.extension.ExtendWith;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.autoconfigure.jdbc.AutoConfigureTestDatabase;
-import org.springframework.boot.test.autoconfigure.orm.jpa.DataJpaTest;
-import org.springframework.test.context.ContextConfiguration;
-import org.springframework.test.context.junit.jupiter.SpringExtension;
 import st.orm.DbTable;
 import st.orm.Entity;
 import st.orm.FK;
@@ -26,19 +21,21 @@ import st.orm.PK;
 import st.orm.Version;
 import st.orm.core.template.ORMTemplate;
 import st.orm.core.template.SqlInterceptor;
+import st.orm.test.StormTest;
 
 /**
  * Write-set tests that require a dialect with native upsert support; the H2 dialect maps upsert to {@code MERGE}.
  * Also covers generated-key propagation for sequence-based primary keys.
  */
-@ExtendWith(SpringExtension.class)
-@ContextConfiguration(classes = IntegrationConfig.class)
-@AutoConfigureTestDatabase(replace = AutoConfigureTestDatabase.Replace.NONE)
-@DataJpaTest(showSql = false)
+@StormTest(scripts = "/data.sql")
 public class H2WriteSetTest {
 
-    @Autowired
     private DataSource dataSource;
+
+    @BeforeEach
+    void bindDataSource(DataSource dataSource) {
+        this.dataSource = dataSource;
+    }
 
     @Builder(toBuilder = true)
     public record Owner(

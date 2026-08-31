@@ -4,9 +4,9 @@ import static java.util.Collections.nCopies;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
-import static org.springframework.test.util.AssertionErrors.assertNull;
 import static st.orm.GenerationStrategy.NONE;
 import static st.orm.GenerationStrategy.SEQUENCE;
 import static st.orm.Operator.EQUALS;
@@ -26,12 +26,6 @@ import lombok.Builder;
 import org.jspecify.annotations.Nullable;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.extension.ExtendWith;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.autoconfigure.jdbc.AutoConfigureTestDatabase;
-import org.springframework.boot.test.autoconfigure.orm.jpa.DataJpaTest;
-import org.springframework.test.context.ContextConfiguration;
-import org.springframework.test.context.junit.jupiter.SpringExtension;
 import st.orm.DbTable;
 import st.orm.Entity;
 import st.orm.FK;
@@ -41,15 +35,17 @@ import st.orm.Persist;
 import st.orm.PersistenceException;
 import st.orm.Version;
 import st.orm.core.template.PreparedStatementTemplate;
+import st.orm.test.StormTest;
 
-@ExtendWith(SpringExtension.class)
-@ContextConfiguration(classes = IntegrationConfig.class)
-@AutoConfigureTestDatabase(replace = AutoConfigureTestDatabase.Replace.NONE)
-@DataJpaTest(showSql = false)
+@StormTest(scripts = "/data.sql")
 public class H2EntityRepositoryTest {
 
-    @Autowired
     private DataSource dataSource;
+
+    @BeforeEach
+    void bindDataSource(DataSource dataSource) {
+        this.dataSource = dataSource;
+    }
 
     @Builder(toBuilder = true)
     public record Vet(
@@ -637,7 +633,7 @@ public class H2EntityRepositoryTest {
                             .type(PetType.builder().id(1).build())
                             .owner(Owner.builder().id(1).build())
                             .build()));
-            assertNull("Exception must be raised by storm.", e.getCause());
+            assertNull(e.getCause(), "Exception must be raised by storm.");
         });
     }
 
@@ -666,7 +662,7 @@ public class H2EntityRepositoryTest {
                             .type(PetType.builder().id(1).build())
                             .owner(Owner.builder().id(1).build())
                             .build()).toList()));
-            assertNull("Exception must be raised by storm.", e.getCause());
+            assertNull(e.getCause(), "Exception must be raised by storm.");
         });
     }
 
@@ -695,7 +691,7 @@ public class H2EntityRepositoryTest {
                             .type(PetType.builder().id(1).build())
                             .owner(Owner.builder().id(1).build())
                             .build())));
-            assertNull("Exception must be raised by storm.", e.getCause());
+            assertNull(e.getCause(), "Exception must be raised by storm.");
         });
     }
 
@@ -1011,7 +1007,7 @@ public class H2EntityRepositoryTest {
                             .type(PetType.builder().id(1).build())
                             .owner(Owner.builder().id(1).build())
                             .build()));
-            assertNull("Exception must be raised by storm.", e.getCause());
+            assertNull(e.getCause(), "Exception must be raised by storm.");
         });
     }
 
@@ -1040,7 +1036,7 @@ public class H2EntityRepositoryTest {
                             .type(PetType.builder().id(1).build())
                             .owner(Owner.builder().id(1).build())
                             .build()).toList()));
-            assertNull("Exception must be raised by storm.", e.getCause());
+            assertNull(e.getCause(), "Exception must be raised by storm.");
         });
     }
 
@@ -1069,7 +1065,7 @@ public class H2EntityRepositoryTest {
                             .type(PetType.builder().id(1).build())
                             .owner(Owner.builder().id(1).build())
                             .build())));
-            assertNull("Exception must be raised by storm.", e.getCause());
+            assertNull(e.getCause(), "Exception must be raised by storm.");
         });
     }
 

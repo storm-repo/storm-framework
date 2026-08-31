@@ -8,15 +8,8 @@ import static st.orm.Polymorphic.Strategy.JOINED;
 
 import java.util.List;
 import javax.sql.DataSource;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.extension.ExtendWith;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.autoconfigure.jdbc.AutoConfigureTestDatabase;
-import org.springframework.boot.test.autoconfigure.orm.jpa.DataJpaTest;
-import org.springframework.test.context.ContextConfiguration;
-import org.springframework.test.context.DynamicPropertyRegistry;
-import org.springframework.test.context.DynamicPropertySource;
-import org.springframework.test.context.junit.jupiter.SpringExtension;
 import org.testcontainers.containers.PostgreSQLContainer;
 import org.testcontainers.containers.wait.strategy.Wait;
 import org.testcontainers.junit.jupiter.Container;
@@ -28,13 +21,12 @@ import st.orm.PK;
 import st.orm.Polymorphic;
 import st.orm.Ref;
 import st.orm.core.template.ORMTemplate;
+import st.orm.tck.ContainerDataSource;
+import st.orm.test.StormTest;
 
 @SuppressWarnings("ALL")
-@ExtendWith(SpringExtension.class)
-@ContextConfiguration(classes = IntegrationConfig.class)
-@AutoConfigureTestDatabase(replace = AutoConfigureTestDatabase.Replace.NONE)
-@DataJpaTest(showSql = false)
 @Testcontainers
+@StormTest(scripts = "/data.sql")
 public class PostgreSQLPolymorphicTest {
 
     @SuppressWarnings("resource")
@@ -45,15 +37,17 @@ public class PostgreSQLPolymorphicTest {
             .withPassword("test")
             .waitingFor(Wait.forListeningPort());
 
-    @DynamicPropertySource
-    static void overrideProperties(DynamicPropertyRegistry registry) {
-        registry.add("spring.datasource.url", postgresContainer::getJdbcUrl);
-        registry.add("spring.datasource.username", postgresContainer::getUsername);
-        registry.add("spring.datasource.password", postgresContainer::getPassword);
+    public static DataSource dataSource() {
+        return ContainerDataSource.of(postgresContainer.getJdbcUrl(), postgresContainer.getUsername(),
+                postgresContainer.getPassword());
     }
 
-    @Autowired
     private DataSource dataSource;
+
+    @BeforeEach
+    void bindDataSource(DataSource dataSource) {
+        this.dataSource = dataSource;
+    }
 
     // Joined Table Inheritance models
     @Discriminator @Polymorphic(JOINED) @DbTable("joined_animal")

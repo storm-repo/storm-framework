@@ -8,13 +8,8 @@ import static st.orm.Polymorphic.Strategy.JOINED;
 
 import java.util.List;
 import javax.sql.DataSource;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.extension.ExtendWith;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.autoconfigure.jdbc.AutoConfigureTestDatabase;
-import org.springframework.boot.test.autoconfigure.orm.jpa.DataJpaTest;
-import org.springframework.test.context.ContextConfiguration;
-import org.springframework.test.context.junit.jupiter.SpringExtension;
 import st.orm.DbTable;
 import st.orm.Discriminator;
 import st.orm.Entity;
@@ -22,16 +17,18 @@ import st.orm.PK;
 import st.orm.Polymorphic;
 import st.orm.Ref;
 import st.orm.core.template.ORMTemplate;
+import st.orm.test.StormTest;
 
 @SuppressWarnings("ALL")
-@ExtendWith(SpringExtension.class)
-@ContextConfiguration(classes = IntegrationConfig.class)
-@AutoConfigureTestDatabase(replace = AutoConfigureTestDatabase.Replace.NONE)
-@DataJpaTest(showSql = false)
+@StormTest(scripts = "/data.sql")
 public class H2PolymorphicTest {
 
-    @Autowired
     private DataSource dataSource;
+
+    @BeforeEach
+    void bindDataSource(DataSource dataSource) {
+        this.dataSource = dataSource;
+    }
 
     // Joined Table Inheritance models
     @Discriminator @Polymorphic(JOINED) @DbTable("joined_animal")
