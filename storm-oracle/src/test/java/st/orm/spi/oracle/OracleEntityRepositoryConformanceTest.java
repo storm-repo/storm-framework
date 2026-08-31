@@ -32,6 +32,13 @@ public class OracleEntityRepositoryConformanceTest extends AbstractEntityReposit
     @Override
     protected List<String> schemaDdl() {
         return List.of(
+                "DROP TABLE pk_only_entity",
+                """
+                        CREATE TABLE pk_only_entity (
+                        id integer PRIMARY KEY
+                        )""",
+                "INSERT INTO pk_only_entity (id) VALUES (1)",
+                "INSERT INTO pk_only_entity (id) VALUES (2)",
                 "DROP TABLE version_long_entity",
                 """
                         CREATE TABLE version_long_entity (

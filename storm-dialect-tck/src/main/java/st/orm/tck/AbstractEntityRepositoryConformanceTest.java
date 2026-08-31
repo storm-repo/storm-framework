@@ -27,6 +27,7 @@ import st.orm.core.template.Sql;
 import st.orm.tck.model.Address;
 import st.orm.tck.model.ApiKey;
 import st.orm.tck.model.Owner;
+import st.orm.tck.model.PkOnlyEntity;
 import st.orm.tck.model.SeqEntity;
 import st.orm.tck.model.Specialty;
 import st.orm.tck.model.VersionInstantEntity;
@@ -552,5 +553,35 @@ public abstract class AbstractEntityRepositoryConformanceTest {
         assumeTrue(supportsUpsertFetchWithSequences());
         var entities = PreparedStatementTemplate.ORM(dataSource).entity(SeqEntity.class);
         assertTrue(entities.upsertAndFetchIds(List.of()).isEmpty());
+    }
+
+    @Test
+    public void testUpsertPkOnlyEntity() {
+        var entities = PreparedStatementTemplate.ORM(dataSource).entity(PkOnlyEntity.class);
+        entities.upsert(PkOnlyEntity.builder().id(1).build());
+        entities.upsert(PkOnlyEntity.builder().id(3).build());
+        assertEquals(3, entities.findAll().size());
+    }
+
+    @Test
+    public void testUpsertBatchPkOnlyEntity() {
+        var entities = PreparedStatementTemplate.ORM(dataSource).entity(PkOnlyEntity.class);
+        entities.upsert(List.of(
+                PkOnlyEntity.builder().id(1).build(),
+                PkOnlyEntity.builder().id(2).build(),
+                PkOnlyEntity.builder().id(4).build()));
+        assertEquals(3, entities.findAll().size());
+    }
+
+    @Test
+    public void testUpsertBatchWithVersionInstant() {
+        var entities = PreparedStatementTemplate.ORM(dataSource).entity(VersionInstantEntity.class);
+        var first = entities.getById(1);
+        var second = entities.getById(2);
+        entities.upsert(List.of(
+                first.toBuilder().name("Alice Instant Batch").build(),
+                second.toBuilder().name("Bob Instant Batch").build()));
+        assertEquals("Alice Instant Batch", entities.getById(1).name());
+        assertEquals("Bob Instant Batch", entities.getById(2).name());
     }
 }

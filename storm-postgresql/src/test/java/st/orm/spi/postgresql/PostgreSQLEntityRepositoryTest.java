@@ -1593,53 +1593,6 @@ public class PostgreSQLEntityRepositoryTest {
     ) implements Entity<Integer> {}
 
     @Test
-    public void testUpsertBatchWithVersionInstant() {
-        var repo = PreparedStatementTemplate.ORM(dataSource).entity(VersionInstantEntity.class);
-        var entity1 = repo.getById(1);
-        var entity2 = repo.getById(2);
-
-        repo.upsert(List.of(
-                entity1.toBuilder().name("Alice Instant Batch").build(),
-                entity2.toBuilder().name("Bob Instant Batch").build()));
-
-        var updated1 = repo.getById(1);
-        var updated2 = repo.getById(2);
-        assertEquals("Alice Instant Batch", updated1.name());
-        assertEquals("Bob Instant Batch", updated2.name());
-    }
-
-    @Test
-    public void testUpsertPkOnlyEntity() {
-        String expectedSql = """
-                INSERT INTO pk_only_entity (id)
-                VALUES (?)
-                ON CONFLICT (id) DO NOTHING""";
-        var repo = PreparedStatementTemplate.ORM(dataSource).entity(PkOnlyEntity.class);
-        var first = new AtomicBoolean(false);
-        observe(sql -> {
-            if (!first.getAndSet(true)) {
-                assertEquals(expectedSql, sql.statement());
-            }
-        }, () -> {
-            repo.upsert(PkOnlyEntity.builder().id(1).build());
-            repo.upsert(PkOnlyEntity.builder().id(3).build());
-        });
-        assertEquals(3, repo.findAll().size());
-    }
-
-    @Test
-    public void testUpsertBatchPkOnlyEntity() {
-        var repo = PreparedStatementTemplate.ORM(dataSource).entity(PkOnlyEntity.class);
-        repo.upsert(List.of(
-                PkOnlyEntity.builder().id(1).build(),
-                PkOnlyEntity.builder().id(2).build(),
-                PkOnlyEntity.builder().id(4).build()));
-        assertEquals(3, repo.findAll().stream()
-                .filter(entity -> entity.id() >= 3 || entity.id() <= 2)
-                .count());
-    }
-
-    @Test
     public void testInsertAndFetchIdWithSequence() {
         var repo = PreparedStatementTemplate.ORM(dataSource).entity(SeqEntity.class);
         var entity = SeqEntity.builder()

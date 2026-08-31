@@ -32,6 +32,13 @@ public class PostgreSQLEntityRepositoryConformanceTest extends AbstractEntityRep
     @Override
     protected List<String> schemaDdl() {
         return List.of(
+                "DROP TABLE IF EXISTS pk_only_entity",
+                """
+                        CREATE TABLE pk_only_entity (
+                        id integer PRIMARY KEY
+                        )""",
+                "INSERT INTO pk_only_entity (id) VALUES (1)",
+                "INSERT INTO pk_only_entity (id) VALUES (2)",
                 "DROP TABLE IF EXISTS version_long_entity CASCADE",
                 """
                         CREATE TABLE version_long_entity (
