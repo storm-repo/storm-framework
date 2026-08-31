@@ -152,12 +152,12 @@
         </dependency>
         <dependency>
             <groupId>org.testcontainers</groupId>
-            <artifactId>testcontainers-junit-jupiter</artifactId>
+            <artifactId>junit-jupiter</artifactId>
             <scope>test</scope>
         </dependency>
         <dependency>
             <groupId>org.testcontainers</groupId>
-            <artifactId>testcontainers-mariadb</artifactId>
+            <artifactId>mariadb</artifactId>
             <scope>test</scope>
         </dependency>
         <dependency>

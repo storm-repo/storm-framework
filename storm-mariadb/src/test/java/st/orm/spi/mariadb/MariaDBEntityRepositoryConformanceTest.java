@@ -1,17 +1,33 @@
 package st.orm.spi.mariadb;
 
 import static java.util.Map.entry;
-import static st.orm.test.TestDatabase.MARIADB;
 
 import java.util.List;
 import java.util.Map;
+import javax.sql.DataSource;
+import org.testcontainers.containers.MariaDBContainer;
 import st.orm.tck.AbstractEntityRepositoryConformanceTest;
+import st.orm.tck.ContainerDataSource;
 import st.orm.tck.Expected;
 import st.orm.tck.Statement;
 import st.orm.test.StormTest;
 
-@StormTest(database = MARIADB, scripts = "/data.sql")
+@StormTest(scripts = "/data.sql")
 public class MariaDBEntityRepositoryConformanceTest extends AbstractEntityRepositoryConformanceTest {
+
+    private static MariaDBContainer<?> container;
+
+    /**
+     * {@code @StormTest} takes the data source from this method, so the suite owns its container rather than the
+     * {@code database} attribute, and the module stays on the Testcontainers generation its other tests use.
+     */
+    public static synchronized DataSource dataSource() {
+        if (container == null) {
+            container = new MariaDBContainer<>("mariadb:11.8");
+            container.start();
+        }
+        return ContainerDataSource.of(container.getJdbcUrl(), container.getUsername(), container.getPassword());
+    }
 
     @Override
     protected List<String> schemaDdl() {

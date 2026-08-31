@@ -1,17 +1,33 @@
 package st.orm.spi.mysql;
 
 import static java.util.Map.entry;
-import static st.orm.test.TestDatabase.MYSQL;
 
 import java.util.List;
 import java.util.Map;
+import javax.sql.DataSource;
+import org.testcontainers.containers.MySQLContainer;
 import st.orm.tck.AbstractEntityRepositoryConformanceTest;
+import st.orm.tck.ContainerDataSource;
 import st.orm.tck.Expected;
 import st.orm.tck.Statement;
 import st.orm.test.StormTest;
 
-@StormTest(database = MYSQL, scripts = "/data.sql")
+@StormTest(scripts = "/data.sql")
 public class MySQLEntityRepositoryConformanceTest extends AbstractEntityRepositoryConformanceTest {
+
+    private static MySQLContainer<?> container;
+
+    /**
+     * {@code @StormTest} takes the data source from this method, so the suite owns its container rather than the
+     * {@code database} attribute, and the module stays on the Testcontainers generation its other tests use.
+     */
+    public static synchronized DataSource dataSource() {
+        if (container == null) {
+            container = new MySQLContainer<>("mysql:9.2");
+            container.start();
+        }
+        return ContainerDataSource.of(container.getJdbcUrl(), container.getUsername(), container.getPassword());
+    }
 
     @Override
     protected List<String> schemaDdl() {
