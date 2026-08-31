@@ -56,15 +56,6 @@ public class OracleEntityRepositoryTest {
             .withEnv("ORACLE_PASSWORD", "oracle")
             .withEnv("APP_USER", "test")
             .withEnv("APP_USER_PASSWORD", "test")
-            // Set the platform to linux/arm64/v8 and assign a container name.
-            .withCreateContainerCmdModifier(cmd -> {
-                // Retrieve the platform from an environment variable or default to "linux/arm64/v8"
-                String dockerPlatform = System.getenv("DOCKER_PLATFORM");
-                if (dockerPlatform == null || dockerPlatform.isEmpty()) {
-                    dockerPlatform = "linux/arm64/v8";
-                }
-                cmd.withPlatform(dockerPlatform);
-            })
             .waitingFor(Wait.forLogMessage(".*DATABASE IS READY TO USE!.*\\n", 1))
             .withStartupTimeout(Duration.ofMinutes(1));
 

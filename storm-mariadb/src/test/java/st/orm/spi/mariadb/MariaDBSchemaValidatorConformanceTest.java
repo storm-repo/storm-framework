@@ -1,0 +1,20 @@
+package st.orm.spi.mariadb;
+
+import javax.sql.DataSource;
+import org.testcontainers.containers.MariaDBContainer;
+import st.orm.tck.AbstractSchemaValidatorConformanceTest;
+import st.orm.tck.ContainerDataSource;
+import st.orm.test.StormTest;
+
+@StormTest(scripts = "/data.sql")
+public class MariaDBSchemaValidatorConformanceTest extends AbstractSchemaValidatorConformanceTest {
+    private static MariaDBContainer<?> container;
+
+    public static synchronized DataSource dataSource() {
+        if (container == null) {
+            container = new MariaDBContainer<>("mariadb:11.8");
+            container.start();
+        }
+        return ContainerDataSource.of(container.getJdbcUrl(), container.getUsername(), container.getPassword());
+    }
+}
