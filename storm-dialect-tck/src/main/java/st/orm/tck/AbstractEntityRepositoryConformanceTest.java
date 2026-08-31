@@ -1,0 +1,416 @@
+package st.orm.tck;
+
+import static java.util.Arrays.stream;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+import static st.orm.core.template.SqlInterceptor.observe;
+
+import java.sql.Connection;
+import java.sql.SQLException;
+import java.time.Instant;
+import java.util.Comparator;
+import java.util.List;
+import java.util.Map;
+import java.util.UUID;
+import java.util.concurrent.atomic.AtomicReference;
+import javax.sql.DataSource;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import st.orm.Metamodel;
+import st.orm.core.template.PreparedStatementTemplate;
+import st.orm.core.template.Sql;
+import st.orm.tck.model.Address;
+import st.orm.tck.model.ApiKey;
+import st.orm.tck.model.Owner;
+import st.orm.tck.model.VersionInstantEntity;
+import st.orm.tck.model.VersionLongEntity;
+import st.orm.tck.model.Vet;
+import st.orm.tck.model.VetSpecialty;
+import st.orm.tck.model.VetSpecialtyPK;
+
+/**
+ * The repository behavior every dialect is expected to implement.
+ *
+ * <p>A dialect module runs this suite by extending it and annotating the subclass with {@code @StormTest}, naming the
+ * database to run on and the script that creates the schema. Behavior is asserted here so that it is asserted
+ * identically everywhere; the statement text a dialect generates is supplied by the dialect through
+ * {@link #expectedSql()}, because that text is the part that legitimately differs. Where a dialect cannot support a
+ * behavior at all, it says so by overriding the matching {@code supports} method, which states the exception in one
+ * place instead of leaving a test absent.
+ */
+public abstract class AbstractEntityRepositoryConformanceTest {
+
+    protected static final UUID DEFAULT_KEY_ID = UUID.fromString("550e8400-e29b-41d4-a716-446655440000");
+    protected static final UUID SECONDARY_KEY_ID = UUID.fromString("6ba7b810-9dad-11d1-80b4-00c04fd430c8");
+    protected static final UUID DEFAULT_KEY_EXTERNAL_REF = UUID.fromString("a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11");
+
+    protected DataSource dataSource;
+
+    /**
+     * {@code @StormTest} resolves the data source as a parameter, so it is bound here rather than injected into the
+     * field directly. The tables the schema script does not create are created here, from the DDL the dialect
+     * supplies.
+     */
+    @BeforeEach
+    final void prepare(DataSource dataSource) throws SQLException {
+        this.dataSource = dataSource;
+        try (Connection connection = dataSource.getConnection();
+             java.sql.Statement statement = connection.createStatement()) {
+            for (String ddl : schemaDdl()) {
+                if (ddl.regionMatches(true, 0, "DROP", 0, 4)) {
+                    // A drop is a guard against a previous run, and not every dialect spells it conditionally:
+                    // Oracle has no DROP TABLE IF EXISTS, so a drop that finds nothing is the normal case.
+                    try {
+                        statement.execute(ddl);
+                    } catch (SQLException ignored) {
+                        // The table was not there to drop.
+                    }
+                } else {
+                    statement.execute(ddl);
+                }
+            }
+        }
+    }
+
+    /**
+     * DDL for the tables this suite needs that the schema script does not create, in the order it must run. The
+     * statements differ per dialect down to the identity and timestamp syntax, so the dialect states them.
+     */
+    protected abstract List<String> schemaDdl();
+
+    /**
+     * The expression this dialect writes for the current timestamp, which a version column of type
+     * {@link Instant} is set to.
+     */
+    protected String currentTimestampExpression() {
+        return "CURRENT_TIMESTAMP";
+    }
+
+    /** What this dialect is expected to generate for each pinned {@link Statement}. */
+    protected abstract Map<Statement, Expected> expectedSql();
+
+    /**
+     * Every pinned statement carries an expectation, so that a dialect joining the suite cannot quietly opt out of the
+     * statement assertions one constant at a time.
+     */
+    @Test
+    public void everyPinnedStatementHasAnExpectation() {
+        var missing = stream(Statement.values()).filter(s -> !expectedSql().containsKey(s)).toList();
+        assertTrue(missing.isEmpty(), () -> "no expected SQL for " + missing);
+    }
+
+    /**
+     * Runs {@code action} and asserts the first statement it generates against this dialect's expectation, returning
+     * that statement so a test can assert the properties that hold on every dialect.
+     */
+    protected Sql assertStatement(Statement statement, Runnable action) {
+        Expected expected = expectedSql().get(statement);
+        var seen = new AtomicReference<Sql>();
+        observe(sql -> {
+            if (seen.compareAndSet(null, sql)) {
+                assertEquals(expected.statement(), sql.statement());
+                if (expected.generatedKeys() != null) {
+                    assertEquals(expected.generatedKeys(), sql.generatedKeys());
+                }
+                if (expected.bindVariables() != null) {
+                    assertEquals(expected.bindVariables(), sql.bindVariables().isPresent());
+                }
+            }
+        }, action);
+        return seen.get();
+    }
+
+    @Test
+    public void testInsertAndFetch() {
+        var vets = PreparedStatementTemplate.ORM(dataSource).entity(Vet.class);
+        var sql = assertStatement(Statement.INSERT_AND_FETCH, () -> {
+            var vet = vets.insertAndFetch(Vet.builder().firstName("John").lastName("Doe").build());
+            assertTrue(vet.id() > 0);
+            assertEquals("John", vet.firstName());
+            assertEquals("Doe", vet.lastName());
+        });
+        assertFalse(sql.versionAware());
+        assertEquals("John", sql.parameters().get(0).dbValue());
+        assertEquals("Doe", sql.parameters().get(1).dbValue());
+    }
+
+    @Test
+    public void testInsertAndFetchBatch() {
+        var vets = PreparedStatementTemplate.ORM(dataSource).entity(Vet.class);
+        var sql = assertStatement(Statement.INSERT_AND_FETCH_BATCH, () -> {
+            var inserted = vets.insertAndFetch(List.of(
+                            Vet.builder().firstName("John").lastName("Doe").build(),
+                            Vet.builder().firstName("Jane").lastName("Doe").build()))
+                    .stream().sorted(Comparator.comparingInt(Vet::id)).toList();
+            assertEquals(2, inserted.size());
+            assertEquals("John", inserted.getFirst().firstName());
+            assertEquals("Doe", inserted.getFirst().lastName());
+            assertEquals("Jane", inserted.getLast().firstName());
+            assertEquals("Doe", inserted.getLast().lastName());
+        });
+        assertFalse(sql.versionAware());
+    }
+
+    @Test
+    public void testInsertAndFetchCompoundPk() {
+        var vetSpecialties = PreparedStatementTemplate.ORM(dataSource).entity(VetSpecialty.class);
+        var sql = assertStatement(Statement.INSERT_AND_FETCH_COMPOUND_PK, () -> {
+            var entity = vetSpecialties.insertAndFetch(VetSpecialty.builder()
+                    .id(VetSpecialtyPK.builder().vetId(1).specialtyId(2).build()).build());
+            assertEquals(1, entity.id().vetId());
+            assertEquals(2, entity.id().specialtyId());
+        });
+        assertFalse(sql.versionAware());
+        assertEquals(1, sql.parameters().get(0).dbValue());
+        assertEquals(2, sql.parameters().get(1).dbValue());
+    }
+
+    @Test
+    public void testInsertAndFetchBatchCompoundPk() {
+        var vetSpecialties = PreparedStatementTemplate.ORM(dataSource).entity(VetSpecialty.class);
+        var sql = assertStatement(Statement.INSERT_AND_FETCH_BATCH_COMPOUND_PK, () -> {
+            var entities = vetSpecialties.insertAndFetch(List.of(
+                            VetSpecialty.builder().id(VetSpecialtyPK.builder().vetId(1).specialtyId(2).build()).build(),
+                            VetSpecialty.builder().id(VetSpecialtyPK.builder().vetId(6).specialtyId(3).build()).build()))
+                    .stream().sorted(Comparator.comparingInt(a -> a.id().vetId())).toList();
+            assertEquals(2, entities.size());
+            assertEquals(1, entities.getFirst().id().vetId());
+            assertEquals(2, entities.getFirst().id().specialtyId());
+            assertEquals(6, entities.getLast().id().vetId());
+            assertEquals(3, entities.getLast().id().specialtyId());
+        });
+        assertFalse(sql.versionAware());
+    }
+
+    @Test
+    public void testInsertAndFetchInline() {
+        var owners = PreparedStatementTemplate.ORM(dataSource).entity(Owner.class);
+        var sql = assertStatement(Statement.INSERT_AND_FETCH_INLINE, () -> {
+            var entity = owners.insertAndFetch(Owner.builder().firstName("John").lastName("Doe")
+                    .address(Address.builder().address("243 Acalanes Dr").city("Sunnyvale").build()).build());
+            assertTrue(entity.id() > 0);
+            assertEquals("John", entity.firstName());
+            assertEquals("Doe", entity.lastName());
+            assertEquals("243 Acalanes Dr", entity.address().address());
+            assertEquals("Sunnyvale", entity.address().city());
+            assertNull(entity.telephone());
+            assertEquals(0, entity.version());
+        });
+        assertFalse(sql.versionAware());
+        assertEquals("John", sql.parameters().get(0).dbValue());
+        assertEquals("Doe", sql.parameters().get(1).dbValue());
+    }
+
+    @Test
+    public void testInsertAndFetchInlineBatch() {
+        var owners = PreparedStatementTemplate.ORM(dataSource).entity(Owner.class);
+        var sql = assertStatement(Statement.INSERT_AND_FETCH_INLINE_BATCH, () -> {
+            var entities = owners.insertAndFetch(List.of(
+                            Owner.builder().firstName("John").lastName("Doe").address(
+                                    Address.builder().address("243 Acalanes Dr").city("Sunnyvale").build()).build(),
+                            Owner.builder().firstName("Jane").lastName("Doe").address(
+                                    Address.builder().address("243 Acalanes Dr").city("Sunnyvale").build()).build()))
+                    .stream().sorted(Comparator.comparingInt(Owner::id)).toList();
+            assertEquals(2, entities.size());
+            assertEquals("John", entities.getFirst().firstName());
+            assertEquals("Jane", entities.getLast().firstName());
+            assertEquals("243 Acalanes Dr", entities.getFirst().address().address());
+            assertEquals("Sunnyvale", entities.getFirst().address().city());
+            assertNull(entities.getFirst().telephone());
+            assertEquals(0, entities.getFirst().version());
+            assertEquals(0, entities.getLast().version());
+        });
+        assertFalse(sql.versionAware());
+    }
+
+    @Test
+    public void testSelectLimit() {
+        var owners = PreparedStatementTemplate.ORM(dataSource).entity(Owner.class);
+        assertStatement(Statement.SELECT_LIMIT, () -> {
+            var entities = owners.select().limit(2).getResultList();
+            assertEquals(2, entities.size());
+            assertEquals("Betty", entities.getFirst().firstName());
+            assertEquals("Davis", entities.getFirst().lastName());
+            assertEquals("638 Cardinal Ave.", entities.getFirst().address().address());
+            assertEquals("Sun Prairie", entities.getFirst().address().city());
+            assertEquals("6085551749", entities.getFirst().telephone());
+            assertEquals(0, entities.getFirst().version());
+            assertEquals("George", entities.getLast().firstName());
+            assertEquals("Franklin", entities.getLast().lastName());
+        });
+    }
+
+    @Test
+    public void testSelectOffset() {
+        var owners = PreparedStatementTemplate.ORM(dataSource).entity(Owner.class);
+        assertStatement(Statement.SELECT_OFFSET, () -> {
+            var entities = owners.select().orderBy(Metamodel.of(Owner.class, "id")).offset(1).getResultList();
+            assertEquals(9, entities.size());
+            assertEquals("George", entities.getFirst().firstName());
+            assertEquals("Franklin", entities.getFirst().lastName());
+            assertEquals("110 W. Liberty St.", entities.getFirst().address().address());
+            assertEquals("Madison", entities.getFirst().address().city());
+            assertEquals("6085551023", entities.getFirst().telephone());
+        });
+    }
+
+    @Test
+    public void testSelectLimitOffset() {
+        var owners = PreparedStatementTemplate.ORM(dataSource).entity(Owner.class);
+        assertStatement(Statement.SELECT_LIMIT_OFFSET, () -> {
+            var entities = owners.select().orderBy(Metamodel.of(Owner.class, "id")).offset(1).limit(2)
+                    .getResultList();
+            assertEquals(2, entities.size());
+            assertEquals("George", entities.getFirst().firstName());
+            assertEquals("Franklin", entities.getFirst().lastName());
+            assertEquals("Eduardo", entities.getLast().firstName());
+            assertEquals("Rodriquez", entities.getLast().lastName());
+            assertEquals("2693 Commerce St.", entities.getLast().address().address());
+            assertEquals("McFarland", entities.getLast().address().city());
+        });
+    }
+
+    @Test
+    public void testUpdateAndFetchInlineVersion() {
+        var owners = PreparedStatementTemplate.ORM(dataSource).entity(Owner.class);
+        var entity = owners.getById(1);
+        var sql = assertStatement(Statement.UPDATE_AND_FETCH_INLINE_VERSION, () -> {
+            var update = owners.updateAndFetch(entity.toBuilder().lastName("Smith").build());
+            assertEquals("Betty", update.firstName());
+            assertEquals("Smith", update.lastName());
+            assertEquals("638 Cardinal Ave.", update.address().address());
+            assertEquals("Sun Prairie", update.address().city());
+            assertEquals("6085551749", update.telephone());
+            assertEquals(1, update.version());
+        });
+        assertTrue(sql.versionAware());
+        assertEquals("Betty", sql.parameters().get(0).dbValue());
+        assertEquals("Smith", sql.parameters().get(1).dbValue());
+        assertEquals(1, sql.parameters().get(5).dbValue());
+        assertEquals(0, sql.parameters().get(6).dbValue());
+    }
+
+    @Test
+    public void testUpdateAndFetchInlineVersionBatch() {
+        var owners = PreparedStatementTemplate.ORM(dataSource).entity(Owner.class);
+        var first = owners.getById(1);
+        var second = owners.getById(2);
+        var sql = assertStatement(Statement.UPDATE_AND_FETCH_INLINE_VERSION_BATCH, () -> {
+            var updated = owners.updateAndFetch(List.of(
+                            first.toBuilder().lastName("Smith").build(),
+                            second.toBuilder().lastName("Jones").build()))
+                    .stream().sorted(Comparator.comparingInt(Owner::id)).toList();
+            assertEquals(2, updated.size());
+            assertEquals("Smith", updated.getFirst().lastName());
+            assertEquals("Jones", updated.getLast().lastName());
+            assertEquals(1, updated.getFirst().version());
+            assertEquals(1, updated.getLast().version());
+        });
+        assertTrue(sql.versionAware());
+    }
+
+    @Test
+    public void testUpsertWithVersionLong() {
+        var entities = PreparedStatementTemplate.ORM(dataSource).entity(VersionLongEntity.class);
+        var entity = entities.getById(1);
+        assertEquals("Alice", entity.name());
+        assertEquals(0L, entity.version());
+        observe(sql -> assertTrue(sql.versionAware()),
+                () -> entities.upsert(entity.toBuilder().name("Alice Updated").build()));
+        var updated = entities.getById(1);
+        assertEquals("Alice Updated", updated.name());
+        assertEquals(1L, updated.version());
+    }
+
+    @Test
+    public void testUpsertBatchWithVersionLong() {
+        var entities = PreparedStatementTemplate.ORM(dataSource).entity(VersionLongEntity.class);
+        var first = entities.getById(1);
+        var second = entities.getById(2);
+        entities.upsert(List.of(
+                first.toBuilder().name("Alice Batch").build(),
+                second.toBuilder().name("Bob Batch").build()));
+        var updatedFirst = entities.getById(1);
+        var updatedSecond = entities.getById(2);
+        assertEquals("Alice Batch", updatedFirst.name());
+        assertEquals(1L, updatedFirst.version());
+        assertEquals("Bob Batch", updatedSecond.name());
+        assertEquals(1L, updatedSecond.version());
+    }
+
+    @Test
+    public void testUpsertWithVersionInstant() {
+        var entities = PreparedStatementTemplate.ORM(dataSource).entity(VersionInstantEntity.class);
+        var entity = entities.getById(1);
+        assertEquals("Alice", entity.name());
+        assertNotNull(entity.version());
+        Instant versionBefore = entity.version();
+        observe(sql -> {
+            assertTrue(sql.versionAware());
+            assertTrue(sql.statement().contains(currentTimestampExpression()));
+        }, () -> entities.upsert(entity.toBuilder().name("Alice Instant").build()));
+        var updated = entities.getById(1);
+        assertEquals("Alice Instant", updated.name());
+        assertNotNull(updated.version());
+        assertTrue(updated.version().compareTo(versionBefore) >= 0);
+    }
+
+    @Test
+    public void testUuidInsert() {
+        var apiKeys = PreparedStatementTemplate.ORM(dataSource).entity(ApiKey.class);
+        UUID newId = UUID.randomUUID();
+        UUID newExternalReference = UUID.randomUUID();
+        apiKeys.insert(new ApiKey(newId, "New Key", newExternalReference));
+        ApiKey inserted = apiKeys.getById(newId);
+        assertNotNull(inserted);
+        assertEquals("New Key", inserted.name());
+        assertEquals(newExternalReference, inserted.externalReference());
+        assertEquals(3, apiKeys.count());
+    }
+
+    @Test
+    public void testUuidUpdate() {
+        var apiKeys = PreparedStatementTemplate.ORM(dataSource).entity(ApiKey.class);
+        ApiKey key = apiKeys.getById(DEFAULT_KEY_ID);
+        UUID newExternalReference = UUID.randomUUID();
+        apiKeys.update(key.toBuilder().name("Updated Key").externalReference(newExternalReference).build());
+        ApiKey fetched = apiKeys.getById(DEFAULT_KEY_ID);
+        assertEquals("Updated Key", fetched.name());
+        assertEquals(newExternalReference, fetched.externalReference());
+    }
+
+    @Test
+    public void testUuidDelete() {
+        var apiKeys = PreparedStatementTemplate.ORM(dataSource).entity(ApiKey.class);
+        long before = apiKeys.count();
+        apiKeys.remove(apiKeys.getById(DEFAULT_KEY_ID));
+        assertEquals(before - 1, apiKeys.count());
+    }
+
+    @Test
+    public void testUuidFindAll() {
+        var apiKeys = PreparedStatementTemplate.ORM(dataSource).entity(ApiKey.class);
+        assertEquals(2, apiKeys.findAll().size());
+    }
+
+    @Test
+    public void testUuidGetById() {
+        var apiKeys = PreparedStatementTemplate.ORM(dataSource).entity(ApiKey.class);
+        ApiKey key = apiKeys.getById(DEFAULT_KEY_ID);
+        assertNotNull(key);
+        assertEquals("Default Key", key.name());
+        assertEquals(DEFAULT_KEY_EXTERNAL_REF, key.externalReference());
+    }
+
+    @Test
+    public void testUuidGetByIdWithNullExternalReference() {
+        var apiKeys = PreparedStatementTemplate.ORM(dataSource).entity(ApiKey.class);
+        ApiKey key = apiKeys.getById(SECONDARY_KEY_ID);
+        assertNotNull(key);
+        assertEquals("Secondary Key", key.name());
+        assertNull(key.externalReference());
+    }
+}

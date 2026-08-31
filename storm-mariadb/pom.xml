@@ -109,6 +109,12 @@
         <!-- Test -->
         <dependency>
             <groupId>st.orm</groupId>
+            <artifactId>storm-dialect-tck</artifactId>
+            <version>${project.version}</version>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>st.orm</groupId>
             <artifactId>storm-test</artifactId>
             <version>${project.version}</version>
             <scope>test</scope>
@@ -146,12 +152,12 @@
         </dependency>
         <dependency>
             <groupId>org.testcontainers</groupId>
-            <artifactId>junit-jupiter</artifactId>
+            <artifactId>testcontainers-junit-jupiter</artifactId>
             <scope>test</scope>
         </dependency>
         <dependency>
             <groupId>org.testcontainers</groupId>
-            <artifactId>mariadb</artifactId>
+            <artifactId>testcontainers-mariadb</artifactId>
             <scope>test</scope>
         </dependency>
         <dependency>

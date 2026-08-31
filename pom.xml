@@ -3,6 +3,7 @@
          xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
     <modelVersion>4.0.0</modelVersion>
     <properties>
+        <testcontainers.version>2.0.5</testcontainers.version>
         <!-- Dev default for local/CI builds. Releases override this via -Drevision=<tag> (see .github/workflows/release.yml). -->
         <revision>0.0.0-SNAPSHOT</revision>
         <java.version>21</java.version>
@@ -62,6 +63,8 @@
         <module>storm-foundation</module>
         <module>storm-core</module>
         <module>storm-test</module>
+        <!-- The conformance suite the dialect modules below run; build-time only. -->
+        <module>storm-dialect-tck</module>
         <module>storm-jackson2</module>
         <module>storm-jackson3</module>
         <module>storm-kotlinx-serialization</module>
@@ -106,6 +109,15 @@
                 <groupId>org.jspecify</groupId>
                 <artifactId>jspecify</artifactId>
                 <version>${jspecify.version}</version>
+            </dependency>
+            <dependency>
+                <!-- Before the Spring Boot BOM, whose Testcontainers 1 versions would otherwise win. Storm targets
+                     Testcontainers 2, which renamed the modules with a testcontainers- prefix. -->
+                <groupId>org.testcontainers</groupId>
+                <artifactId>testcontainers-bom</artifactId>
+                <version>${testcontainers.version}</version>
+                <type>pom</type>
+                <scope>import</scope>
             </dependency>
             <dependency>
                 <groupId>org.springframework.boot</groupId>
