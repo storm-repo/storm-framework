@@ -17,12 +17,8 @@ import java.util.Objects;
 import javax.sql.DataSource;
 import lombok.Builder;
 import org.jspecify.annotations.Nullable;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.extension.ExtendWith;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.autoconfigure.orm.jpa.DataJpaTest;
-import org.springframework.test.context.ContextConfiguration;
-import org.springframework.test.context.junit.jupiter.SpringExtension;
 import st.orm.DbTable;
 import st.orm.Entity;
 import st.orm.Inline;
@@ -36,14 +32,17 @@ import st.orm.jackson.model.Owner;
 import st.orm.jackson.model.Specialty;
 import st.orm.jackson.model.Vet;
 import st.orm.jackson.model.VetSpecialty;
+import st.orm.test.StormTest;
 
-@ExtendWith(SpringExtension.class)
-@ContextConfiguration(classes = IntegrationConfig.class)
-@DataJpaTest(showSql = false)
+@StormTest(scripts = "/data.sql")
 public class JsonORMConverterIntegrationTest {
 
-    @Autowired
     private DataSource dataSource;
+
+    @BeforeEach
+    void bindDataSource(DataSource dataSource) {
+        this.dataSource = dataSource;
+    }
 
     @Test
     public void selectOwnersShouldReturnAll10DistinctOwnersFromTestData() {

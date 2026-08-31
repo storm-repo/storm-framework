@@ -7,28 +7,27 @@ import static st.orm.core.template.ORMTemplate.of;
 
 import java.util.List;
 import javax.sql.DataSource;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.extension.ExtendWith;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.autoconfigure.orm.jpa.DataJpaTest;
-import org.springframework.test.context.ContextConfiguration;
-import org.springframework.test.context.junit.jupiter.SpringExtension;
 import st.orm.Metamodel;
 import st.orm.Operator;
 import st.orm.jackson.model.Owner;
+import st.orm.test.StormTest;
 
 /**
  * A converted column is stored as one type and held as another: the address lives in a single JSON column while the
  * record holds an {@code Address}. The metamodel has to address it as the column it is, not as the parts of the
  * record it holds.
  */
-@ExtendWith(SpringExtension.class)
-@ContextConfiguration(classes = IntegrationConfig.class)
-@DataJpaTest(showSql = false)
+@StormTest(scripts = "/data.sql")
 public class JsonMetamodelTest {
 
-    @Autowired
     private DataSource dataSource;
+
+    @BeforeEach
+    void bindDataSource(DataSource dataSource) {
+        this.dataSource = dataSource;
+    }
 
     @Test
     public void convertedFieldIsAColumnRatherThanAnInlineRecord() {

@@ -9,12 +9,8 @@ import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import java.time.LocalDate;
 import javax.sql.DataSource;
 import org.jspecify.annotations.Nullable;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.extension.ExtendWith;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.autoconfigure.orm.jpa.DataJpaTest;
-import org.springframework.test.context.ContextConfiguration;
-import org.springframework.test.context.junit.jupiter.SpringExtension;
 import st.orm.DbColumn;
 import st.orm.DbTable;
 import st.orm.Entity;
@@ -28,14 +24,17 @@ import st.orm.jackson.model.Address;
 import st.orm.jackson.model.Owner;
 import st.orm.jackson.model.Pet;
 import st.orm.jackson.model.PetType;
+import st.orm.test.StormTest;
 
-@ExtendWith(SpringExtension.class)
-@ContextConfiguration(classes = IntegrationConfig.class)
-@DataJpaTest(showSql = false)
+@StormTest(scripts = "/data.sql")
 public class JsonIntegrationTest {
 
-    @Autowired
     private DataSource dataSource;
+
+    @BeforeEach
+    void bindDataSource(DataSource dataSource) {
+        this.dataSource = dataSource;
+    }
 
     @Test
     public void ownerEntityWithJsonAddressShouldRoundTripThroughJackson() throws Exception {

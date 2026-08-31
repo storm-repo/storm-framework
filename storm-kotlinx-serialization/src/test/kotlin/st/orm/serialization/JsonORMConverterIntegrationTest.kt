@@ -13,26 +13,28 @@ import org.junit.jupiter.api.Assertions
 import org.junit.jupiter.api.Assertions.assertNotNull
 import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Assertions.assertThrows
+import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
-import org.junit.jupiter.api.extension.ExtendWith
-import org.springframework.beans.factory.annotation.Autowired
-import org.springframework.boot.test.autoconfigure.orm.jpa.DataJpaTest
-import org.springframework.test.context.ContextConfiguration
-import org.springframework.test.context.junit.jupiter.SpringExtension
 import st.orm.*
 import st.orm.SqlTemplateException
 import st.orm.core.template.SqlInterceptor
 import st.orm.serialization.model.*
 import st.orm.template.ORMTemplate
 import st.orm.template.Templates.alias
+import st.orm.test.StormTest
 import javax.sql.DataSource
 import kotlin.test.assertEquals
 
 @Suppress("OPT_IN_USAGE")
-@ExtendWith(SpringExtension::class)
-@ContextConfiguration(classes = [IntegrationConfig::class])
-@DataJpaTest(showSql = false)
-internal open class JsonORMConverterIntegrationTest(@Autowired val dataSource: DataSource) {
+@StormTest(scripts = ["/data.sql"])
+internal open class JsonORMConverterIntegrationTest {
+
+    private lateinit var dataSource: DataSource
+
+    @BeforeEach
+    fun bindDataSource(dataSource: DataSource) {
+        this.dataSource = dataSource
+    }
 
     @Test
     fun `select owners should return all 10 distinct owners from test data`() {

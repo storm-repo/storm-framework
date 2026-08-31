@@ -4,27 +4,27 @@ import kotlinx.serialization.*
 import kotlinx.serialization.encoding.Decoder
 import kotlinx.serialization.encoding.Encoder
 import org.junit.jupiter.api.Assertions
+import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
-import org.junit.jupiter.api.extension.ExtendWith
-import org.springframework.beans.factory.annotation.Autowired
-import org.springframework.boot.test.autoconfigure.orm.jpa.DataJpaTest
-import org.springframework.test.context.ContextConfiguration
-import org.springframework.test.context.junit.jupiter.SpringExtension
 import st.orm.*
 import st.orm.serialization.model.Address
 import st.orm.serialization.model.Person
 import st.orm.template.ORMTemplate
+import st.orm.test.StormTest
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
 import javax.sql.DataSource
 import kotlinx.serialization.json.Json as JsonMapper
 
-@ExtendWith(SpringExtension::class)
-@ContextConfiguration(classes = [IntegrationConfig::class])
-@DataJpaTest(showSql = false)
-internal open class JsonIntegrationTest(
-    @Autowired val dataSource: DataSource,
-) {
+@StormTest(scripts = ["/data.sql"])
+internal open class JsonIntegrationTest {
+
+    private lateinit var dataSource: DataSource
+
+    @BeforeEach
+    fun bindDataSource(dataSource: DataSource) {
+        this.dataSource = dataSource
+    }
 
     @Serializable
     @DbTable("owner")
