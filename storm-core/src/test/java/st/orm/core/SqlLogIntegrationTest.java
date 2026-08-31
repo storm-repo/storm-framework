@@ -32,8 +32,8 @@ import st.orm.core.model.PetOwnerRef_;
 import st.orm.core.template.JpaTemplate;
 import st.orm.core.template.ORMTemplate;
 import st.orm.core.template.SqlLog;
-import st.orm.core.template.StatementOrigin;
 import st.orm.core.template.impl.SqlInterceptorManager;
+import st.orm.spi.StatementOrigin;
 
 /**
  * Verifies that a scope reports what a call cost the database: the statements it took whichever repository issued

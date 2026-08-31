@@ -24,11 +24,11 @@ import java.util.Optional;
 import org.jspecify.annotations.Nullable;
 import st.orm.Data;
 import st.orm.core.template.Sql;
-import st.orm.core.template.SqlOperation;
 import st.orm.core.template.SqlTemplate;
 import st.orm.core.template.SqlTemplate.BindVariables;
 import st.orm.core.template.SqlTemplate.Parameter;
-import st.orm.core.template.StatementOrigin;
+import st.orm.spi.SqlOperation;
+import st.orm.spi.StatementOrigin;
 
 /**
  * A result record that contains the generated SQL and the parameters that were used to generate it.

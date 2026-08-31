@@ -24,9 +24,9 @@ import java.util.SequencedMap;
 import java.util.function.Function;
 import st.orm.Data;
 import st.orm.Metamodel;
+import st.orm.SqlTemplateException;
 import st.orm.core.template.Column;
 import st.orm.core.template.Model;
-import st.orm.core.template.SqlTemplateException;
 import st.orm.core.template.TemplateString;
 import st.orm.core.template.impl.Elements.Where;
 

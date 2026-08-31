@@ -1,4 +1,4 @@
-package st.orm.spi;
+package st.orm.template.impl;
 
 import st.orm.core.spi.ORMReflection;
 import st.orm.core.spi.ORMReflectionProvider;

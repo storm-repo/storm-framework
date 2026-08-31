@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package st.orm.core.spi;
+package st.orm.spi;
 
 import java.util.List;
 
@@ -23,7 +23,7 @@ import java.util.List;
  * <p>Implementations are discovered via {@link java.util.ServiceLoader} and used to extend the set of types that
  * {@link st.orm.Scrollable#toCursor()} and {@link st.orm.Scrollable#fromCursor} can serialize. To register a custom
  * codec, implement this interface and add the fully qualified class name to
- * {@code META-INF/services/st.orm.core.cursor.CursorCodecProvider}.</p>
+ * {@code META-INF/services/st.orm.spi.CursorCodecProvider}.</p>
  *
  * <pre>{@code
  * public class MyCursorCodecProvider implements CursorCodecProvider {

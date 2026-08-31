@@ -13,8 +13,9 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package st.orm.core.spi;
+package st.orm.spi;
 
+import st.orm.TransactionOptions;
 
 /**
  * Observes query executions performed by an ORM template.
@@ -52,7 +53,7 @@ public interface QueryObserver {
      * @return the observation tracking this transaction; never {@code null}.
      * @since 1.13
      */
-    default TransactionObservation onTransaction(TransactionScope.Options options) {
+    default TransactionObservation onTransaction(TransactionOptions options) {
         return TransactionObservation.NOOP;
     }
 

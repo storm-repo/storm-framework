@@ -21,7 +21,7 @@ import java.util.SequencedMap;
 import java.util.function.BiConsumer;
 import org.jspecify.annotations.Nullable;
 import st.orm.Data;
-import st.orm.core.template.SqlTemplateException;
+import st.orm.SqlTemplateException;
 
 /**
  * Provides metadata about an entity or projection type, including its table name, primary key type, and column
@@ -92,7 +92,7 @@ public interface Model<E extends Data, ID> {
      *
      * <p>Relationship expansion is not applied. The returned list preserves declared order.</p>
      *
-     * <p><strong>Index semantics:</strong> {@link st.orm.core.template.Column#index()} refers to the index in {@link #columns()},
+     * <p><strong>Index semantics:</strong> {@link Column#index()} refers to the index in {@link #columns()},
      * not in this list.</p>
      *
      * @return the declared columns of this model.

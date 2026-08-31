@@ -16,12 +16,12 @@ import io.ktor.server.testing.testApplication
 import kotlinx.coroutines.runBlocking
 import org.junit.jupiter.api.Test
 import st.orm.EntityCallback
-import st.orm.core.spi.ExceptionMapper
-import st.orm.core.spi.QueryContext
-import st.orm.core.spi.QueryObserver
 import st.orm.ktor.model.PetRepository
 import st.orm.ktor.vet.Vet
 import st.orm.ktor.vet.VetRepository
+import st.orm.spi.ExceptionMapper
+import st.orm.spi.QueryContext
+import st.orm.spi.QueryObserver
 import st.orm.template.ORMTemplate
 import java.util.concurrent.CopyOnWriteArrayList
 import java.util.concurrent.atomic.AtomicInteger

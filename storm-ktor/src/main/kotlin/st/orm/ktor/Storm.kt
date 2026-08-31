@@ -13,6 +13,8 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+@file:OptIn(InternalStormApi::class)
+
 package st.orm.ktor
 
 import io.ktor.server.application.Application
@@ -141,10 +143,10 @@ public val Storm: ApplicationPlugin<StormPluginConfig> = createApplicationPlugin
     // Compose the template with explicit, plugin-scoped integration strategies: one provider instance per
     // database, so all repositories of a database share transactions, and the ambient transaction { }
     // API binds to the database's provider when its template executes inside a transaction block.
-    val builder = ORMTemplate.builder(dataSource)
-        .config(stormConfig)
+    val engine = st.orm.core.template.ORMTemplate.builder(dataSource)
         .connectionProvider(pluginConfig.connectionProvider ?: JdbcConnectionProviderImpl())
         .transactionTemplateProvider(pluginConfig.transactionTemplateProvider ?: JdbcTransactionTemplateProviderImpl())
+    val builder = ORMTemplate.Builder(engine).config(stormConfig)
     pluginConfig.exceptionMapper?.let { builder.exceptionMapper(it) }
     pluginConfig.sqlCommenter?.let { builder.sqlCommenter(it) }
     builder.queryObserver(
@@ -191,12 +193,12 @@ public val Storm: ApplicationPlugin<StormPluginConfig> = createApplicationPlugin
         val databaseStormConfig = databaseConfig.config
             ?: readStormConfig(application, "storm.databases.$name", fallback = stormConfig)
         databaseConfig.migration?.invoke(databaseDataSource)
-        val databaseBuilder = ORMTemplate.builder(databaseDataSource)
-            .config(databaseStormConfig)
+        val databaseEngine = st.orm.core.template.ORMTemplate.builder(databaseDataSource)
             .connectionProvider(databaseConfig.connectionProvider ?: JdbcConnectionProviderImpl())
             .transactionTemplateProvider(
                 databaseConfig.transactionTemplateProvider ?: JdbcTransactionTemplateProviderImpl(),
             )
+        val databaseBuilder = ORMTemplate.Builder(databaseEngine).config(databaseStormConfig)
         (databaseConfig.exceptionMapper ?: pluginConfig.exceptionMapper)?.let { databaseBuilder.exceptionMapper(it) }
         (databaseConfig.sqlCommenter ?: pluginConfig.sqlCommenter)?.let { databaseBuilder.sqlCommenter(it) }
         val databaseSemanticConventions = application.readSemanticConventions("storm.databases.$name")

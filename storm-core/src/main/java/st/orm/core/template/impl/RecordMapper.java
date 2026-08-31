@@ -55,13 +55,13 @@ import st.orm.Discriminator;
 import st.orm.Entity;
 import st.orm.EnumType;
 import st.orm.Ref;
+import st.orm.SqlTemplateException;
 import st.orm.StormConfig;
-import st.orm.core.spi.CacheRetention;
 import st.orm.core.spi.EntityCache;
 import st.orm.core.spi.RefFactory;
+import st.orm.core.spi.StormConfigHelper;
 import st.orm.core.spi.TransactionContext;
 import st.orm.core.spi.WeakInterner;
-import st.orm.core.template.SqlTemplateException;
 import st.orm.mapping.RecordField;
 import st.orm.mapping.RecordType;
 
@@ -485,7 +485,7 @@ final class RecordMapper {
     private static EntityCache<Entity<?>, ?> resolveEntityCache(TransactionContext transactionContext,
                                                                 RecordType type) {
         return (EntityCache<Entity<?>, ?>) transactionContext.entityCache(
-                (Class<? extends Entity<?>>) type.type(), CacheRetention.fromConfig(StormConfig.defaults()));
+                (Class<? extends Entity<?>>) type.type(), StormConfigHelper.cacheRetention(StormConfig.defaults()));
     }
 
     private static <T> ObjectMapper<T> wrapConstructor(RecordType type,
@@ -1080,7 +1080,7 @@ final class RecordMapper {
             if (context != null && subIsEntity && cacheWriteEnabled) {
                 //noinspection unchecked
                 entityCache = (EntityCache<Entity<?>, ?>) context.entityCache(
-                        (Class<? extends Entity<?>>) subType.type(), CacheRetention.fromConfig(StormConfig.defaults()));
+                        (Class<? extends Entity<?>>) subType.type(), StormConfigHelper.cacheRetention(StormConfig.defaults()));
             }
             if (subIsEntity && pkFlatOffset >= 0) {
                 Object pk = extractPk(flatArgs, start + pkFlatOffset);

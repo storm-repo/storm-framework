@@ -30,7 +30,7 @@ import org.springframework.dao.DuplicateKeyException;
 import org.springframework.jdbc.datasource.DataSourceTransactionManager;
 import org.springframework.jdbc.datasource.init.ResourceDatabasePopulator;
 import st.orm.PersistenceException;
-import st.orm.core.spi.ExceptionContext;
+import st.orm.spi.ExceptionContext;
 import st.orm.spring.model.PetType;
 import st.orm.template.ORMTemplate;
 
@@ -123,8 +123,8 @@ class SpringExceptionMapperTest {
     private static ExceptionContext emptyContext() {
         return new ExceptionContext() {
             @Override
-            public st.orm.core.template.SqlOperation operation() {
-                return st.orm.core.template.SqlOperation.UNDEFINED;
+            public st.orm.spi.SqlOperation operation() {
+                return st.orm.spi.SqlOperation.UNDEFINED;
             }
 
             @Override

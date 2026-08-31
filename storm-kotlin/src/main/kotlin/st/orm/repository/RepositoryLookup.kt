@@ -207,7 +207,7 @@ public inline fun <reified T : Projection<ID>, ID : Any> RepositoryLookup.projec
 public inline fun <reified T : Projection<*>> RepositoryLookup.projection(): ProjectionRepository<T, *> = projection(T::class as KClass<Projection<Any>>) as ProjectionRepository<T, *>
 
 /**
- * Extensions for [RepositoryLookup] to provide convenient access to repositories.
+ * Returns the repository of type [R].
  */
 public inline fun <reified R : Repository> RepositoryLookup.repository(): R = repository(R::class)
 
@@ -335,22 +335,22 @@ public inline fun <reified T : Data, V> RepositoryLookup.getBy(field: Metamodel<
 public inline fun <reified T : Data, V : Data> RepositoryLookup.getBy(field: Metamodel<T, V>, value: Ref<V>): T = select<T>().where(field, value).singleResult
 
 /**
- * Retrieves an optional entity of type [T] based on a single field and its value.
- * Returns a ref with a null value if no matching entity is found.
+ * Retrieves an optional ref to a record of type [T] based on a single field and its value.
+ * Returns null if no matching record is found.
  *
- * @param field metamodel reference of the entity field.
+ * @param field metamodel reference of the record field.
  * @param value the value to match against.
- * @return an optional entity, or null if none found.
+ * @return a ref to the matching record, or null if none found.
  */
 public inline fun <reified T : Data, V> RepositoryLookup.findRefBy(field: Metamodel<T, V>, value: V): Ref<T>? = selectRef<T>().where(field eq value).optionalResult
 
 /**
- * Retrieves an optional entity of type [T] based on a single field and its value.
- * Returns a ref with a null value if no matching entity is found.
+ * Retrieves an optional ref to a record of type [T] based on a single field and its value.
+ * Returns null if no matching record is found.
  *
- * @param field metamodel reference of the entity field.
+ * @param field metamodel reference of the record field.
  * @param value the value to match against.
- * @return an optional entity, or null if none found.
+ * @return a ref to the matching record, or null if none found.
  */
 public inline fun <reified T : Data, V : Data> RepositoryLookup.findRefBy(field: Metamodel<T, V>, value: Ref<V>): Ref<T>? = selectRef<T>().where(field, value).optionalResult
 
@@ -419,56 +419,66 @@ public inline fun <reified T : Data, V> RepositoryLookup.getRefBy(field: Metamod
 public inline fun <reified T : Data, V : Data> RepositoryLookup.getRefBy(field: Metamodel<T, V>, value: Ref<V>): Ref<T> = selectRef<T>().where(field, value).singleResult
 
 /**
- * Creates a query builder to select records of type [T].
+ * Retrieves all records of type [T] matching the specified predicate.
  *
  * [T] must be either an Entity or Projection type.
  *
- * @return A [QueryBuilder] for selecting records of type [T].
+ * @param predicate the predicate to match against.
+ * @return a list of matching records.
  */
 public inline fun <reified T : Data> RepositoryLookup.findAll(predicate: PredicateBuilder<T, *, *>): List<T> = select<T>().where(predicate).resultList
 
 /**
- * Creates a query builder to select records of type [T].
+ * Retrieves refs to all records of type [T] matching the specified predicate.
  *
  * [T] must be either an Entity or Projection type.
  *
- * @return A [QueryBuilder] for selecting records of type [T].
+ * @param predicate the predicate to match against.
+ * @return a list of refs to the matching records.
  */
 public inline fun <reified T : Data> RepositoryLookup.findAllRef(predicate: PredicateBuilder<T, *, *>): List<Ref<T>> = selectRef<T>().where(predicate).resultList
 
 /**
- * Creates a query builder to select records of type [T].
+ * Retrieves an optional record of type [T] matching the specified predicate.
  *
  * [T] must be either an Entity or Projection type.
  *
- * @return A [QueryBuilder] for selecting records of type [T].
+ * @param predicate the predicate to match against.
+ * @return the matching record, or null if none found.
  */
 public inline fun <reified T : Data> RepositoryLookup.find(predicate: PredicateBuilder<T, *, *>): T? = select<T>().where(predicate).optionalResult
 
 /**
- * Creates a query builder to select records of type [T].
+ * Retrieves an optional ref to a record of type [T] matching the specified predicate.
  *
  * [T] must be either an Entity or Projection type.
  *
- * @return A [QueryBuilder] for selecting records of type [T].
+ * @param predicate the predicate to match against.
+ * @return a ref to the matching record, or null if none found.
  */
 public inline fun <reified T : Data> RepositoryLookup.findRef(predicate: PredicateBuilder<T, *, *>): Ref<T>? = selectRef<T>().where(predicate).optionalResult
 
 /**
- * Creates a query builder to select records of type [T].
+ * Retrieves exactly one record of type [T] matching the specified predicate.
  *
  * [T] must be either an Entity or Projection type.
  *
- * @return A [QueryBuilder] for selecting records of type [T].
+ * @param predicate the predicate to match against.
+ * @return the matching record.
+ * @throws st.orm.NoResultException if there is no result.
+ * @throws st.orm.NonUniqueResultException if more than one result.
  */
 public inline fun <reified T : Data> RepositoryLookup.get(predicate: PredicateBuilder<T, *, *>): T = select<T>().where(predicate).singleResult
 
 /**
- * Creates a query builder to select records of type [T].
+ * Retrieves a ref to exactly one record of type [T] matching the specified predicate.
  *
  * [T] must be either an Entity or Projection type.
  *
- * @return A [QueryBuilder] for selecting records of type [T].
+ * @param predicate the predicate to match against.
+ * @return a ref to the matching record.
+ * @throws st.orm.NoResultException if there is no result.
+ * @throws st.orm.NonUniqueResultException if more than one result.
  */
 public inline fun <reified T : Data> RepositoryLookup.getRef(predicate: PredicateBuilder<T, *, *>): Ref<T> = selectRef<T>().where(predicate).singleResult
 
@@ -547,9 +557,9 @@ public inline fun <reified T : Data, V> RepositoryLookup.countBy(field: Metamode
 public inline fun <reified T : Data, V : Data> RepositoryLookup.countBy(field: Metamodel<T, V>, value: Ref<V>): Long = selectCount<T>().where(field, value).singleResult
 
 /**
- * Counts entities of type [T] matching the specified predicate.
+ * Counts all entities of type [T].
  *
- * @return the count of matching entities.
+ * @return the total count of entities.
  */
 @Suppress("UNCHECKED_CAST")
 public inline fun <reified T : Data> RepositoryLookup.countAll(): Long = if (T::class.isSubclassOf(Entity::class)) {
@@ -585,9 +595,9 @@ public inline fun <reified T : Data, V> RepositoryLookup.existsBy(field: Metamod
 public inline fun <reified T : Data, V : Data> RepositoryLookup.existsBy(field: Metamodel<T, V>, value: Ref<V>): Boolean = selectCount<T>().where(field, value).singleResult > 0
 
 /**
- * Checks if entities of type [T] matching the specified predicate exists.
+ * Checks if any entities of type [T] exist.
  *
- * @return true if any matching entities exist, false otherwise.
+ * @return true if any entities exist, false otherwise.
  */
 @Suppress("UNCHECKED_CAST")
 public inline fun <reified T : Data> RepositoryLookup.exists(): Boolean = if (T::class.isSubclassOf(Entity::class)) {

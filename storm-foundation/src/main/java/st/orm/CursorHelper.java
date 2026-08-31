@@ -22,7 +22,7 @@ import org.jspecify.annotations.Nullable;
 /**
  * Bridge to cursor serialization implementation in storm-core. Mirrors the {@link MetamodelHelper} pattern:
  * foundation defines the public API ({@link Scrollable#toCursor()}, {@link Scrollable#fromCursor}), and this
- * helper delegates to {@code st.orm.core.cursor.CursorFactory} via reflection.
+ * helper delegates to {@code st.orm.core.spi.CursorFactory} via reflection.
  */
 class CursorHelper {
 

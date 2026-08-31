@@ -27,6 +27,8 @@ import st.orm.mapping.TemplateDecorator;
 import st.orm.repository.EntityRepository;
 import st.orm.repository.ProjectionRepository;
 import st.orm.repository.RepositoryLookup;
+import st.orm.template.impl.BuilderImpl;
+import st.orm.template.impl.Engine;
 import st.orm.template.impl.ORMTemplateImpl;
 
 /**
@@ -201,6 +203,7 @@ public interface ORMTemplate extends QueryTemplate, RepositoryLookup {
      * @return an {@link ORMTemplate} configured for use with JDBC.
      */
     static ORMTemplate of(DataSource dataSource) {
+        Engine.require();
         return new ORMTemplateImpl(st.orm.core.template.ORMTemplate.of(dataSource));
     }
 
@@ -228,6 +231,7 @@ public interface ORMTemplate extends QueryTemplate, RepositoryLookup {
      * @return an {@link ORMTemplate} configured for use with JDBC.
      */
     static ORMTemplate of(Connection connection) {
+        Engine.require();
         return new ORMTemplateImpl(st.orm.core.template.ORMTemplate.of(connection));
     }
 
@@ -242,6 +246,7 @@ public interface ORMTemplate extends QueryTemplate, RepositoryLookup {
      * @return an {@link ORMTemplate} configured for use with JDBC.
      */
     static ORMTemplate of(DataSource dataSource, UnaryOperator<TemplateDecorator> decorator) {
+        Engine.require();
         return new ORMTemplateImpl(st.orm.core.template.ORMTemplate.of(dataSource, decorator));
     }
 
@@ -258,6 +263,7 @@ public interface ORMTemplate extends QueryTemplate, RepositoryLookup {
      * @return an {@link ORMTemplate} configured for use with JDBC.
      */
     static ORMTemplate of(Connection connection, UnaryOperator<TemplateDecorator> decorator) {
+        Engine.require();
         return new ORMTemplateImpl(st.orm.core.template.ORMTemplate.of(connection, decorator));
     }
 
@@ -271,6 +277,7 @@ public interface ORMTemplate extends QueryTemplate, RepositoryLookup {
      * @return an {@link ORMTemplate} configured for use with JDBC.
      */
     static ORMTemplate of(DataSource dataSource, StormConfig config) {
+        Engine.require();
         return new ORMTemplateImpl(st.orm.core.template.ORMTemplate.of(dataSource, config));
     }
 
@@ -285,6 +292,7 @@ public interface ORMTemplate extends QueryTemplate, RepositoryLookup {
      */
     static ORMTemplate of(DataSource dataSource, StormConfig config,
                           UnaryOperator<TemplateDecorator> decorator) {
+        Engine.require();
         return new ORMTemplateImpl(st.orm.core.template.ORMTemplate.of(dataSource, config, decorator));
     }
 
@@ -298,6 +306,7 @@ public interface ORMTemplate extends QueryTemplate, RepositoryLookup {
      * @return an {@link ORMTemplate} configured for use with JDBC.
      */
     static ORMTemplate of(Connection connection, StormConfig config) {
+        Engine.require();
         return new ORMTemplateImpl(st.orm.core.template.ORMTemplate.of(connection, config));
     }
 
@@ -314,6 +323,7 @@ public interface ORMTemplate extends QueryTemplate, RepositoryLookup {
      */
     static ORMTemplate of(Connection connection, StormConfig config,
                           UnaryOperator<TemplateDecorator> decorator) {
+        Engine.require();
         return new ORMTemplateImpl(st.orm.core.template.ORMTemplate.of(connection, config, decorator));
     }
 
@@ -329,7 +339,8 @@ public interface ORMTemplate extends QueryTemplate, RepositoryLookup {
      * @since 1.13
      */
     static Builder builder(DataSource dataSource) {
-        return new Builder(st.orm.core.template.ORMTemplate.builder(dataSource));
+        Engine.require();
+        return new BuilderImpl(st.orm.core.template.ORMTemplate.builder(dataSource));
     }
 
     /**
@@ -343,7 +354,8 @@ public interface ORMTemplate extends QueryTemplate, RepositoryLookup {
      * @since 1.13
      */
     static Builder builder(Connection connection) {
-        return new Builder(st.orm.core.template.ORMTemplate.builder(connection));
+        Engine.require();
+        return new BuilderImpl(st.orm.core.template.ORMTemplate.builder(connection));
     }
 
     /**
@@ -351,12 +363,7 @@ public interface ORMTemplate extends QueryTemplate, RepositoryLookup {
      *
      * @since 1.13
      */
-    final class Builder {
-        private final st.orm.core.template.ORMTemplate.Builder core;
-
-        private Builder(st.orm.core.template.ORMTemplate.Builder core) {
-            this.core = core;
-        }
+    interface Builder {
 
         /**
          * Sets the Storm configuration to apply to the template instance.
@@ -364,10 +371,7 @@ public interface ORMTemplate extends QueryTemplate, RepositoryLookup {
          * @param config the Storm configuration; must not be {@code null}.
          * @return this builder.
          */
-        public Builder config(StormConfig config) {
-            core.config(config);
-            return this;
-        }
+        Builder config(StormConfig config);
 
         /**
          * Sets a function that transforms the {@link TemplateDecorator} to customize template processing.
@@ -375,23 +379,7 @@ public interface ORMTemplate extends QueryTemplate, RepositoryLookup {
          * @param decorator the decorator function; must not be {@code null}.
          * @return this builder.
          */
-        public Builder decorator(UnaryOperator<TemplateDecorator> decorator) {
-            core.decorator(decorator);
-            return this;
-        }
-
-        /**
-         * Sets the connection provider used by the template to acquire and release connections.
-         *
-         * <p>Only valid for data source backed templates; {@link #build()} fails fast otherwise.</p>
-         *
-         * @param connectionProvider the connection provider; must not be {@code null}.
-         * @return this builder.
-         */
-        public Builder connectionProvider(st.orm.core.spi.ConnectionProvider connectionProvider) {
-            core.connectionProvider(connectionProvider);
-            return this;
-        }
+        Builder decorator(UnaryOperator<TemplateDecorator> decorator);
 
         /**
          * Declares that the data source hands out connections with auto-commit disabled.
@@ -402,31 +390,13 @@ public interface ORMTemplate extends QueryTemplate, RepositoryLookup {
          * and releases connections in their arrived state; non-transactional connections get auto-commit enabled
          * while Storm uses them and restored before release, so each statement still commits.</p>
          *
-         * <p>Cannot be combined with a custom {@link #connectionProvider(st.orm.core.spi.ConnectionProvider)
-         * connection provider} and only valid for data source backed templates; {@link #build()} fails fast
-         * otherwise.</p>
+         * <p>Cannot be combined with a custom connection provider and only valid for data source backed templates;
+         * {@link #build()} fails fast otherwise.</p>
          *
          * @return this builder.
          * @since 1.14
          */
-        public Builder manualCommitConnections() {
-            core.manualCommitConnections();
-            return this;
-        }
-
-        /**
-         * Sets the transaction template provider used by the template to participate in transactions.
-         *
-         * <p>Templates that should share transactions must be configured with the <em>same provider instance</em>.</p>
-         *
-         * @param transactionTemplateProvider the transaction template provider; must not be {@code null}.
-         * @return this builder.
-         */
-        public Builder transactionTemplateProvider(
-                st.orm.core.spi.TransactionTemplateProvider transactionTemplateProvider) {
-            core.transactionTemplateProvider(transactionTemplateProvider);
-            return this;
-        }
+        Builder manualCommitConnections();
 
         /**
          * Sets the exception mapper that maps failures raised during query execution to the runtime exception thrown
@@ -435,10 +405,7 @@ public interface ORMTemplate extends QueryTemplate, RepositoryLookup {
          * @param exceptionMapper the exception mapper; must not be {@code null}.
          * @return this builder.
          */
-        public Builder exceptionMapper(st.orm.core.spi.ExceptionMapper exceptionMapper) {
-            core.exceptionMapper(exceptionMapper);
-            return this;
-        }
+        Builder exceptionMapper(st.orm.spi.ExceptionMapper exceptionMapper);
 
         /**
          * Sets the query observer that is notified of query executions performed by the template.
@@ -446,10 +413,7 @@ public interface ORMTemplate extends QueryTemplate, RepositoryLookup {
          * @param queryObserver the query observer; must not be {@code null}.
          * @return this builder.
          */
-        public Builder queryObserver(st.orm.core.spi.QueryObserver queryObserver) {
-            core.queryObserver(queryObserver);
-            return this;
-        }
+        Builder queryObserver(st.orm.spi.QueryObserver queryObserver);
 
         /**
          * Sets the SQL commenter that appends per-execution comment content to statements, such as the
@@ -459,18 +423,13 @@ public interface ORMTemplate extends QueryTemplate, RepositoryLookup {
          * @return this builder.
          * @since 1.13
          */
-        public Builder sqlCommenter(st.orm.core.spi.SqlCommenter sqlCommenter) {
-            core.sqlCommenter(sqlCommenter);
-            return this;
-        }
+        Builder sqlCommenter(st.orm.spi.SqlCommenter sqlCommenter);
 
         /**
          * Builds the ORM template.
          *
          * @return the ORM template.
          */
-        public ORMTemplate build() {
-            return new ORMTemplateImpl(core.build());
-        }
+        ORMTemplate build();
     }
 }

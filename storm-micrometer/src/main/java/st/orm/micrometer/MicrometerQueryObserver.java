@@ -21,9 +21,9 @@ import static java.util.Objects.requireNonNull;
 import io.micrometer.common.KeyValues;
 import io.micrometer.observation.ObservationConvention;
 import io.micrometer.observation.ObservationRegistry;
-import st.orm.core.spi.QueryContext;
-import st.orm.core.spi.QueryObserver;
-import st.orm.core.spi.TransactionScope;
+import st.orm.TransactionOptions;
+import st.orm.spi.QueryContext;
+import st.orm.spi.QueryObserver;
 
 /**
  * {@link QueryObserver} that reports Storm query executions as Micrometer
@@ -108,7 +108,7 @@ public class MicrometerQueryObserver implements QueryObserver {
     }
 
     @Override
-    public TransactionObservation onTransaction(TransactionScope.Options options) {
+    public TransactionObservation onTransaction(TransactionOptions options) {
         if (observationRegistry.isNoop()) {
             return TransactionObservation.NOOP;
         }

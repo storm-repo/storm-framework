@@ -16,7 +16,7 @@
 package st.orm.template
 
 import st.orm.Data
-import st.orm.core.template.SqlTemplateException
+import st.orm.SqlTemplateException
 import kotlin.reflect.KClass
 
 /**
@@ -78,10 +78,9 @@ public interface Model<E : Data, ID : Any> {
     /**
      * Returns the columns declared directly on this model.
      *
-     * <p>Relationship expansion is not applied. The returned list preserves declared order.</p>
+     * Relationship expansion is not applied. The returned list preserves declared order.
      *
-     * <p><strong>Index semantics:</strong> {@link Column#index()} refers to the index in {@link #columns()},
-     * not in this list.</p>
+     * **Index semantics:** [Column.index] refers to the index in [columns], not in this list.
      *
      * @return the declared columns of this model.
      * @since 1.8
@@ -94,7 +93,7 @@ public interface Model<E : Data, ID : Any> {
      * determining if the entity is new or has been persisted before.
      *
      * @param pk primary key to check.
-     * @return {code true} if the specified primary key represents a default value, `false` otherwise.
+     * @return `true` if the specified primary key represents a default value, `false` otherwise.
      * @since 1.2
      */
     public fun isDefaultPrimaryKey(pk: ID?): Boolean
@@ -102,10 +101,10 @@ public interface Model<E : Data, ID : Any> {
     /**
      * Iterates over the values of the given columns for the supplied record.
      *
-     * <p>Values are JDBC-ready. Conversions have already been applied.</p>
+     * Values are JDBC-ready. Conversions have already been applied.
      *
-     * <p><strong>Ordering requirement:</strong> {@code columns} must be ordered according to the model's
-     * column order (usually {@link #columns()} or {@link #declaredColumns()}).</p>
+     * **Ordering requirement:** `columns` must be ordered according to the model's column order
+     * (usually [columns] or [declaredColumns]).
      *
      * @param columns the columns to extract values for, ordered in model column order.
      * @param record the record to extract values from.
@@ -122,8 +121,8 @@ public interface Model<E : Data, ID : Any> {
     /**
      * Collects column values into an ordered map.
      *
-     * <p><strong>Ordering requirement:</strong> {@code columns} must be ordered according to the model's
-     * column order (usually {@link #columns()} or {@link #declaredColumns()}).</p>
+     * **Ordering requirement:** `columns` must be ordered according to the model's column order
+     * (usually [columns] or [declaredColumns]).
      *
      * @param columns the columns to extract values for.
      * @param record the record to extract values from.
@@ -145,7 +144,7 @@ public interface Model<E : Data, ID : Any> {
     /**
      * Collects all column values into an ordered map.
      *
-     * <p>This method is equivalent to {@link #values(List, Data)} with {@link #columns()}.</p>
+     * This method is equivalent to calling [values] with [columns].
      *
      * @param record the record to extract values from.
      * @return a map of columns to extracted values.

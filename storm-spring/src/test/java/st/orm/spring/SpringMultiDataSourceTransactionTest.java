@@ -36,6 +36,7 @@ import org.springframework.transaction.PlatformTransactionManager;
 import st.orm.repository.EntityRepository;
 import st.orm.spring.model.Visit;
 import st.orm.template.ORMTemplate;
+import st.orm.template.impl.BuilderImpl;
 
 /**
  * A transaction block binds to one data source, and the frames that share its physical transaction must agree
@@ -65,9 +66,9 @@ class SpringMultiDataSourceTransactionTest {
 
     private static ORMTemplate template(DataSource dataSource,
                                         SpringTransactionTemplateProvider transactionTemplateProvider) {
-        return ORMTemplate.builder(dataSource)
+        return new BuilderImpl(st.orm.core.template.ORMTemplate.builder(dataSource)
                 .connectionProvider(new SpringConnectionProvider())
-                .transactionTemplateProvider(transactionTemplateProvider)
+                .transactionTemplateProvider(transactionTemplateProvider))
                 .build();
     }
 

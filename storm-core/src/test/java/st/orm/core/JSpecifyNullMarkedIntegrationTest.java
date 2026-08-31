@@ -29,11 +29,11 @@ import org.springframework.boot.test.autoconfigure.orm.jpa.DataJpaTest;
 import org.springframework.test.context.ContextConfiguration;
 import org.springframework.test.context.junit.jupiter.SpringExtension;
 import st.orm.PersistenceException;
+import st.orm.SqlTemplateException;
 import st.orm.core.model.nullmarked.MarkedComment;
 import st.orm.core.model.nullmarked.MarkedNote;
 import st.orm.core.model.nullmarked.UnmarkedNote;
 import st.orm.core.template.ORMTemplate;
-import st.orm.core.template.SqlTemplateException;
 
 /**
  * Verifies JSpecify {@code @NullMarked} scope semantics: inside a null-marked package, unannotated components are

@@ -54,6 +54,7 @@ import st.orm.PK;
 import st.orm.Persist;
 import st.orm.PersistenceException;
 import st.orm.Ref;
+import st.orm.SqlTemplateException;
 import st.orm.TemporalType;
 import st.orm.core.model.Address;
 import st.orm.core.model.City;
@@ -69,7 +70,6 @@ import st.orm.core.model.Visit;
 import st.orm.core.model.Visit_;
 import st.orm.core.repository.spring.PetRepository;
 import st.orm.core.template.ORMTemplate;
-import st.orm.core.template.SqlTemplateException;
 import st.orm.core.template.TemplateBuilder;
 import st.orm.core.template.TemplateString;
 

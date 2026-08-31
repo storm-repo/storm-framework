@@ -15,12 +15,16 @@
  */
 package st.orm.spring.kotlin
 
+import org.springframework.beans.factory.BeanFactory
 import org.springframework.transaction.PlatformTransactionManager
 import st.orm.EntityCallback
 import st.orm.StormConfig
+import st.orm.core.spi.ConnectionProvider
+import st.orm.core.spi.TransactionTemplateProvider
 import st.orm.spring.SpringConnectionProvider
 import st.orm.spring.SpringExceptionMapper
 import st.orm.spring.SpringTransactionTemplateProvider
+import st.orm.template.InternalStormApi
 import st.orm.template.ORMTemplate
 import javax.sql.DataSource
 
@@ -42,15 +46,35 @@ import javax.sql.DataSource
  * @param transactionManagers supplies the transaction managers of the owning application context.
  * @since 1.13
  */
+@OptIn(InternalStormApi::class)
 public fun springOrmTemplate(
     dataSource: DataSource,
     config: StormConfig = StormConfig.defaults(),
     entityCallbacks: List<EntityCallback<*>> = emptyList(),
     transactionManagers: () -> List<PlatformTransactionManager>,
-): ORMTemplate = ORMTemplate.builder(dataSource)
+): ORMTemplate = ORMTemplate.Builder(
+    st.orm.core.template.ORMTemplate.builder(dataSource)
+        .connectionProvider(SpringConnectionProvider())
+        .transactionTemplateProvider(SpringTransactionTemplateProvider { transactionManagers() }),
+)
     .config(config)
-    .connectionProvider(SpringConnectionProvider())
-    .transactionTemplateProvider(SpringTransactionTemplateProvider { transactionManagers() })
     .exceptionMapper(SpringExceptionMapper(dataSource))
     .build()
     .withEntityCallbacks(entityCallbacks)
+
+/**
+ * Returns a facade builder over an engine builder that carries the Spring-aware transaction integration of the
+ * owning application context: the `ConnectionProvider` and `TransactionTemplateProvider` beans, when the context
+ * defines them. Application-facing options and customization apply on the returned builder.
+ *
+ * @param dataSource the data source backing the template.
+ * @param beanFactory the bean factory of the owning application context.
+ * @since 1.14
+ */
+@OptIn(InternalStormApi::class)
+public fun springOrmTemplateBuilder(dataSource: DataSource, beanFactory: BeanFactory): ORMTemplate.Builder {
+    val engine = st.orm.core.template.ORMTemplate.builder(dataSource)
+    beanFactory.getBeanProvider(ConnectionProvider::class.java).ifAvailable { engine.connectionProvider(it) }
+    beanFactory.getBeanProvider(TransactionTemplateProvider::class.java).ifAvailable { engine.transactionTemplateProvider(it) }
+    return ORMTemplate.Builder(engine)
+}

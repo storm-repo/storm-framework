@@ -14,7 +14,7 @@ import st.orm.Data;
 import st.orm.DbTable;
 import st.orm.PK;
 import st.orm.PersistenceException;
-import st.orm.core.template.SqlTemplateException;
+import st.orm.SqlTemplateException;
 import st.orm.mapping.RecordField;
 import st.orm.mapping.RecordType;
 

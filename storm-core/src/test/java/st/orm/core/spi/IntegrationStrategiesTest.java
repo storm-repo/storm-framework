@@ -34,11 +34,15 @@ import org.jspecify.annotations.Nullable;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 import st.orm.PersistenceException;
-import st.orm.core.spi.QueryContext.ExecutionKind;
-import st.orm.core.spi.QueryObserver.Observation;
 import st.orm.core.template.ORMTemplate;
-import st.orm.core.template.SqlOperation;
 import st.orm.core.testsupport.TestSpringConnectionProvider;
+import st.orm.spi.ExceptionContext;
+import st.orm.spi.ExceptionMapper;
+import st.orm.spi.QueryContext;
+import st.orm.spi.QueryContext.ExecutionKind;
+import st.orm.spi.QueryObserver;
+import st.orm.spi.QueryObserver.Observation;
+import st.orm.spi.SqlOperation;
 
 /**
  * Tests for the instance-scoped integration strategies configured through {@link ORMTemplate.Builder}: strategy

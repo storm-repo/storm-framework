@@ -30,6 +30,7 @@ import st.orm.Metamodel;
 import st.orm.Operator;
 import st.orm.ResolveScope;
 import st.orm.SelectMode;
+import st.orm.core.template.Column;
 import st.orm.core.template.TemplateString;
 import st.orm.mapping.RecordField;
 

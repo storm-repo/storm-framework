@@ -46,9 +46,9 @@ public interface Ref<T extends Data> {
     /**
      * Creates a detached ref instance for the given type and primary key.
      *
-     * <p>The returned ref is not connected to a database context. Calling {@link #fetch()} or {@link #fetchOrNull()}
-     * on a detached ref will return {@code null} since there is no database connection available to retrieve the
-     * record.</p>
+     * <p>The returned ref is not connected to a database context. Calling {@link #fetchOrNull()} on a detached ref
+     * returns {@code null} since there is no database connection available to retrieve the record, and
+     * {@link #fetch()} throws a {@link PersistenceException}.</p>
      *
      * @param type the class of the record.
      * @param pk the primary key of the record.
@@ -247,6 +247,7 @@ public interface Ref<T extends Data> {
      * <p>For refs that are already detached and unloaded, this method may return the same instance.</p>
      *
      * @return a detached ref with the same type and primary key but without cached data.
+     * @throws PersistenceException if the ref wraps an unsaved record whose primary key is not available yet.
      */
     Ref<T> unload();
 }

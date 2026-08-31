@@ -8,10 +8,10 @@ import org.junit.jupiter.api.Test;
 import st.orm.DbTable;
 import st.orm.Entity;
 import st.orm.PK;
+import st.orm.SqlTemplateException;
 import st.orm.core.spi.JsonString;
 import st.orm.core.template.Sql;
 import st.orm.core.template.SqlTemplate;
-import st.orm.core.template.SqlTemplateException;
 
 /**
  * Tests for inline parameter rendering in {@link TemplateProcessor.TemplateCompilerImpl},

@@ -21,12 +21,12 @@ import java.util.ArrayList;
 import java.util.List;
 import org.jspecify.annotations.Nullable;
 import st.orm.Entity;
+import st.orm.SqlTemplateException;
 import st.orm.StormConfig;
-import st.orm.core.spi.CacheRetention;
 import st.orm.core.spi.EntityCache;
+import st.orm.core.spi.StormConfigHelper;
 import st.orm.core.spi.TransactionContext;
 import st.orm.core.spi.WeakInterner;
-import st.orm.core.template.SqlTemplateException;
 
 /**
  * Skips JDBC column decoding for entity column regions whose entity is already cached.
@@ -205,7 +205,7 @@ final class ColumnSkipper {
         if (cacheReadEnabled) {
             //noinspection unchecked
             var entityCache = (EntityCache<Entity<?>, ?>) context.entityCache(
-                    region.entityType(), CacheRetention.fromConfig(StormConfig.defaults()));
+                    region.entityType(), StormConfigHelper.cacheRetention(StormConfig.defaults()));
             //noinspection unchecked,rawtypes
             return ((EntityCache) entityCache).get(pk).isPresent();
         }

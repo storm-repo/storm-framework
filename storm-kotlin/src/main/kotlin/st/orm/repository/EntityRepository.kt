@@ -70,11 +70,13 @@ import kotlin.reflect.KClass
  * <h2>Repository Lookup</h2>
  *
  * An entity repository can be obtained by invoking `entity` on an `ORMTemplate` with the desired entity
- * class. The orm template can be requested as demonstrated below. Note that orm templates are supported for
- * Data Sources, JDBC Connections and JPA Entity Managers.
- * <pre>`ORMTemplate orm = Templates.ORM(dataSource);
- * EntityRepository<User> userRepository = orm.entity(User.class);
-`</pre> *
+ * class. The orm template can be requested as demonstrated below. Orm templates are supported for
+ * Data Sources and JDBC Connections.
+ * ```kotlin
+ * val orm = ORMTemplate.of(dataSource)
+ * val users = orm.entity(User::class)
+ * ```
+ *
  *
  * Alternatively, a specialized repository can be requested by calling the `repository` method with the repository
  * class. Specialized repositories allow specialized repository methods to be defined in the repository interface. The
@@ -183,13 +185,12 @@ public interface EntityRepository<E, ID : Any> : Repository where E : Entity<ID>
      * Creates a new ref entity instance for the specified entity.
      *
      *
-     * This method wraps a fully loaded entity in a lightweight reference. Although the complete entity is provided,
-     * the returned ref retains only the primary key for identification. In this case, calling [Ref.fetch] will
-     * return the full entity (which is already loaded), ensuring a consistent API for accessing entity records on
-     * demand. This approach supports lazy-loading scenarios where only the identifier is needed initially.
+     * This method wraps a fully loaded entity in a reference. The returned ref is attached and keeps the entity
+     * loaded: calling [Ref.fetch] returns the entity without a database call. Use [unload] instead when the record
+     * data should be dropped and re-fetched on demand.
      *
      * @param entity the entity to wrap in a ref.
-     * @return a ref entity instance containing the primary key of the provided entity.
+     * @return an attached, loaded ref wrapping the provided entity.
      * @since 1.3
      */
     public fun ref(entity: E): Ref<E>
@@ -1446,22 +1447,22 @@ public interface EntityRepository<E, ID : Any> : Repository where E : Entity<ID>
     public fun <V : Data> getBy(field: Metamodel<E, V>, value: Ref<V>): E = select().where(field, value).singleResult
 
     /**
-     * Retrieves an optional entity of type [E] based on a single field and its value.
-     * Returns a ref with a null value if no matching entity is found.
+     * Retrieves an optional ref to an entity of type [E] based on a single field and its value.
+     * Returns null if no matching entity is found.
      *
      * @param field metamodel reference of the entity field.
      * @param value the value to match against.
-     * @return an optional entity, or null if none found.
+     * @return a ref to the matching entity, or null if none found.
      */
-    public fun <T, ID, V> findRefBy(field: Metamodel<E, V>, value: V): Ref<E>? = selectRef().where(field eq value).optionalResult
+    public fun <V> findRefBy(field: Metamodel<E, V>, value: V): Ref<E>? = selectRef().where(field eq value).optionalResult
 
     /**
-     * Retrieves an optional entity of type [E] based on a single field and its value.
-     * Returns a ref with a null value if no matching entity is found.
+     * Retrieves an optional ref to an entity of type [E] based on a single field and its value.
+     * Returns null if no matching entity is found.
      *
      * @param field metamodel reference of the entity field.
      * @param value the value to match against.
-     * @return an optional entity, or null if none found.
+     * @return a ref to the matching entity, or null if none found.
      */
     public fun <V : Data> findRefBy(field: Metamodel<E, V>, value: Ref<V>): Ref<E>? = selectRef().where(field, value).optionalResult
 
@@ -1493,7 +1494,7 @@ public interface EntityRepository<E, ID : Any> : Repository where E : Entity<ID>
      * @param values Iterable of values to match against.
      * @return a list of matching entities.
      */
-    public fun <V : Data> findAllRefBy(field: Metamodel<E, V>, values: Iterable<V>): List<Ref<E>> = selectRef().where(field inList values).resultList
+    public fun <V> findAllRefBy(field: Metamodel<E, V>, values: Iterable<V>): List<Ref<E>> = selectRef().where(field inList values).resultList
 
     /**
      * Retrieves entities of type [E] matching a single field against multiple values.
@@ -1554,10 +1555,10 @@ public interface EntityRepository<E, ID : Any> : Repository where E : Entity<ID>
     ): E? = select().where(predicate).optionalResult
 
     /**
-     * Retrieves an optional entity of type [E] matching the specified predicate.
-     * Returns a ref with a null value if no matching entity is found.
+     * Retrieves an optional ref to an entity of type [E] matching the specified predicate.
+     * Returns null if no matching entity is found.
      *
-     * @return an optional entity, or null if none found.
+     * @return a ref to the matching entity, or null if none found.
      */
     public fun findRef(
         predicate: PredicateBuilder<E, *, *>,

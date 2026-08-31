@@ -573,7 +573,7 @@ internal open class ProjectionRepositoryTest(
     fun `findRefBy with field and value should return matching ref`() {
         val repo = orm.projection(OwnerView::class)
         val firstNamePath = metamodel<OwnerView, String>(repo.model, "first_name")
-        val ref = repo.findRefBy<Any, Any, String>(firstNamePath, "Betty")
+        val ref = repo.findRefBy(firstNamePath, "Betty")
         ref.shouldNotBeNull()
     }
 
@@ -581,7 +581,7 @@ internal open class ProjectionRepositoryTest(
     fun `findRefBy with field and value should return null when no match`() {
         val repo = orm.projection(OwnerView::class)
         val firstNamePath = metamodel<OwnerView, String>(repo.model, "first_name")
-        val ref = repo.findRefBy<Any, Any, String>(firstNamePath, "NonExistent")
+        val ref = repo.findRefBy(firstNamePath, "NonExistent")
         ref.shouldBeNull()
     }
 
@@ -877,7 +877,7 @@ internal open class ProjectionRepositoryTest(
     fun `findRefBy with field and string value should return null when no match`() {
         val repo = orm.projection(OwnerView::class)
         val firstNamePath = metamodel<OwnerView, String>(repo.model, "first_name")
-        val ref = repo.findRefBy<Any, Any, String>(firstNamePath, "NonExistentName")
+        val ref = repo.findRefBy(firstNamePath, "NonExistentName")
         ref.shouldBeNull()
     }
 

@@ -17,8 +17,8 @@ package st.orm.core.template.impl;
 
 import org.jspecify.annotations.Nullable;
 import st.orm.Data;
+import st.orm.SqlTemplateException;
 import st.orm.core.template.Model;
-import st.orm.core.template.SqlTemplateException;
 import st.orm.mapping.ColumnNameResolver;
 import st.orm.mapping.ForeignKeyResolver;
 import st.orm.mapping.TableNameResolver;

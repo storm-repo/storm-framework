@@ -17,7 +17,7 @@ package st.orm.core.template.impl;
 
 import static java.util.Objects.requireNonNull;
 
-import st.orm.core.template.SqlTemplateException;
+import st.orm.SqlTemplateException;
 import st.orm.core.template.impl.BindHint.NoBindHint;
 
 /**

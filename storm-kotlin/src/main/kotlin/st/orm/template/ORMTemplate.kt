@@ -20,6 +20,7 @@ import st.orm.EntityCallback
 import st.orm.StormConfig
 import st.orm.mapping.TemplateDecorator
 import st.orm.repository.RepositoryLookup
+import st.orm.template.impl.Engine
 import st.orm.template.impl.ORMTemplateImpl
 import java.sql.Connection
 import javax.sql.DataSource
@@ -195,7 +196,10 @@ public interface ORMTemplate :
          * @param dataSource the [DataSource] to use for database operations; must not be `null`.
          * @return an [ORMTemplate] configured for use with JDBC.
          */
-        public fun of(dataSource: DataSource): ORMTemplate = ORMTemplateImpl(st.orm.core.template.ORMTemplate.of(dataSource))
+        public fun of(dataSource: DataSource): ORMTemplate {
+            Engine.require()
+            return ORMTemplateImpl(st.orm.core.template.ORMTemplate.of(dataSource))
+        }
 
         /**
          * Returns an [ORMTemplate] for use with JDBC.
@@ -220,7 +224,10 @@ public interface ORMTemplate :
          * @param connection the [Connection] to use for database operations; must not be `null`.
          * @return an [ORMTemplate] configured for use with JDBC.
          */
-        public fun of(connection: Connection): ORMTemplate = ORMTemplateImpl(st.orm.core.template.ORMTemplate.of(connection))
+        public fun of(connection: Connection): ORMTemplate {
+            Engine.require()
+            return ORMTemplateImpl(st.orm.core.template.ORMTemplate.of(connection))
+        }
 
         /**
          * Returns an [ORMTemplate] for use with JDBC, with a custom template decorator.
@@ -235,7 +242,10 @@ public interface ORMTemplate :
         public fun of(
             dataSource: DataSource,
             decorator: (TemplateDecorator) -> TemplateDecorator,
-        ): ORMTemplate = ORMTemplateImpl(st.orm.core.template.ORMTemplate.of(dataSource, decorator))
+        ): ORMTemplate {
+            Engine.require()
+            return ORMTemplateImpl(st.orm.core.template.ORMTemplate.of(dataSource, decorator))
+        }
 
         /**
          * Returns an [ORMTemplate] for use with JDBC, with a custom template decorator.
@@ -252,7 +262,10 @@ public interface ORMTemplate :
         public fun of(
             connection: Connection,
             decorator: (TemplateDecorator) -> TemplateDecorator,
-        ): ORMTemplate = ORMTemplateImpl(st.orm.core.template.ORMTemplate.of(connection, decorator))
+        ): ORMTemplate {
+            Engine.require()
+            return ORMTemplateImpl(st.orm.core.template.ORMTemplate.of(connection, decorator))
+        }
 
         /**
          * Returns an [ORMTemplate] for use with JDBC, configured with the provided [StormConfig].
@@ -261,7 +274,10 @@ public interface ORMTemplate :
          * @param config the Storm configuration to apply.
          * @return an [ORMTemplate] configured for use with JDBC.
          */
-        public fun of(dataSource: DataSource, config: StormConfig): ORMTemplate = ORMTemplateImpl(st.orm.core.template.ORMTemplate.of(dataSource, config))
+        public fun of(dataSource: DataSource, config: StormConfig): ORMTemplate {
+            Engine.require()
+            return ORMTemplateImpl(st.orm.core.template.ORMTemplate.of(dataSource, config))
+        }
 
         /**
          * Returns an [ORMTemplate] for use with JDBC, configured with the provided [StormConfig] and a custom
@@ -276,7 +292,10 @@ public interface ORMTemplate :
             dataSource: DataSource,
             config: StormConfig,
             decorator: (TemplateDecorator) -> TemplateDecorator,
-        ): ORMTemplate = ORMTemplateImpl(st.orm.core.template.ORMTemplate.of(dataSource, config, decorator))
+        ): ORMTemplate {
+            Engine.require()
+            return ORMTemplateImpl(st.orm.core.template.ORMTemplate.of(dataSource, config, decorator))
+        }
 
         /**
          * Returns an [ORMTemplate] for use with JDBC, configured with the provided [StormConfig].
@@ -287,7 +306,10 @@ public interface ORMTemplate :
          * @param config the Storm configuration to apply.
          * @return an [ORMTemplate] configured for use with JDBC.
          */
-        public fun of(connection: Connection, config: StormConfig): ORMTemplate = ORMTemplateImpl(st.orm.core.template.ORMTemplate.of(connection, config))
+        public fun of(connection: Connection, config: StormConfig): ORMTemplate {
+            Engine.require()
+            return ORMTemplateImpl(st.orm.core.template.ORMTemplate.of(connection, config))
+        }
 
         /**
          * Returns an [ORMTemplate] for use with JDBC, configured with the provided [StormConfig] and a custom
@@ -304,7 +326,10 @@ public interface ORMTemplate :
             connection: Connection,
             config: StormConfig,
             decorator: (TemplateDecorator) -> TemplateDecorator,
-        ): ORMTemplate = ORMTemplateImpl(st.orm.core.template.ORMTemplate.of(connection, config, decorator))
+        ): ORMTemplate {
+            Engine.require()
+            return ORMTemplateImpl(st.orm.core.template.ORMTemplate.of(connection, config, decorator))
+        }
 
         /**
          * Returns a builder for constructing an [ORMTemplate] with instance-scoped integration strategies.
@@ -317,7 +342,11 @@ public interface ORMTemplate :
          * @return a builder for constructing the ORM template.
          * @since 1.13
          */
-        public fun builder(dataSource: DataSource): Builder = Builder(st.orm.core.template.ORMTemplate.builder(dataSource))
+        @OptIn(InternalStormApi::class)
+        public fun builder(dataSource: DataSource): Builder {
+            Engine.require()
+            return Builder(st.orm.core.template.ORMTemplate.builder(dataSource))
+        }
 
         /**
          * Returns a builder for constructing an [ORMTemplate] backed by a single connection, with instance-scoped
@@ -329,7 +358,11 @@ public interface ORMTemplate :
          * @return a builder for constructing the ORM template.
          * @since 1.13
          */
-        public fun builder(connection: Connection): Builder = Builder(st.orm.core.template.ORMTemplate.builder(connection))
+        @OptIn(InternalStormApi::class)
+        public fun builder(connection: Connection): Builder {
+            Engine.require()
+            return Builder(st.orm.core.template.ORMTemplate.builder(connection))
+        }
     }
 
     /**
@@ -337,7 +370,7 @@ public interface ORMTemplate :
      *
      * @since 1.13
      */
-    public class Builder internal constructor(private val core: st.orm.core.template.ORMTemplate.Builder) {
+    public class Builder @InternalStormApi public constructor(private val core: st.orm.core.template.ORMTemplate.Builder) {
 
         /**
          * Sets the Storm configuration to apply to the template instance.
@@ -350,13 +383,6 @@ public interface ORMTemplate :
         public fun decorator(decorator: (TemplateDecorator) -> TemplateDecorator): Builder = apply { core.decorator(decorator) }
 
         /**
-         * Sets the connection provider used by the template to acquire and release connections.
-         *
-         * Only valid for data source backed templates; [build] fails fast otherwise.
-         */
-        public fun connectionProvider(connectionProvider: st.orm.core.spi.ConnectionProvider): Builder = apply { core.connectionProvider(connectionProvider) }
-
-        /**
          * Declares that the data source hands out connections with auto-commit disabled.
          *
          * The declared mode is verified in both directions: a declared template that receives an auto-commit
@@ -365,7 +391,7 @@ public interface ORMTemplate :
          * and releases connections in their arrived state; non-transactional connections get auto-commit enabled
          * while Storm uses them and restored before release, so each statement still commits.
          *
-         * Cannot be combined with a custom [connectionProvider] and only valid for data source backed templates;
+         * Cannot be combined with a custom connection provider and only valid for data source backed templates;
          * [build] fails fast otherwise.
          *
          * @since 1.14
@@ -373,22 +399,15 @@ public interface ORMTemplate :
         public fun manualCommitConnections(): Builder = apply { core.manualCommitConnections() }
 
         /**
-         * Sets the transaction template provider used by the template to participate in transactions.
-         *
-         * Templates that should share transactions must be configured with the *same provider instance*.
-         */
-        public fun transactionTemplateProvider(transactionTemplateProvider: st.orm.core.spi.TransactionTemplateProvider): Builder = apply { core.transactionTemplateProvider(transactionTemplateProvider) }
-
-        /**
          * Sets the exception mapper that maps failures raised during query execution to the runtime exception thrown
          * to the caller.
          */
-        public fun exceptionMapper(exceptionMapper: st.orm.core.spi.ExceptionMapper): Builder = apply { core.exceptionMapper(exceptionMapper) }
+        public fun exceptionMapper(exceptionMapper: st.orm.spi.ExceptionMapper): Builder = apply { core.exceptionMapper(exceptionMapper) }
 
         /**
          * Sets the query observer that is notified of query executions performed by the template.
          */
-        public fun queryObserver(queryObserver: st.orm.core.spi.QueryObserver): Builder = apply { core.queryObserver(queryObserver) }
+        public fun queryObserver(queryObserver: st.orm.spi.QueryObserver): Builder = apply { core.queryObserver(queryObserver) }
 
         /**
          * Sets the SQL commenter that appends per-execution comment content to statements, such as the
@@ -396,7 +415,7 @@ public interface ORMTemplate :
          *
          * @since 1.13
          */
-        public fun sqlCommenter(sqlCommenter: st.orm.core.spi.SqlCommenter): Builder = apply { core.sqlCommenter(sqlCommenter) }
+        public fun sqlCommenter(sqlCommenter: st.orm.spi.SqlCommenter): Builder = apply { core.sqlCommenter(sqlCommenter) }
 
         /**
          * Builds the ORM template.

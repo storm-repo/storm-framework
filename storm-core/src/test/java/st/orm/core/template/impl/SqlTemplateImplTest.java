@@ -11,12 +11,12 @@ import static st.orm.core.template.TemplateString.raw;
 
 import java.util.Map;
 import org.junit.jupiter.api.Test;
+import st.orm.SqlTemplateException;
 import st.orm.StormConfig;
 import st.orm.core.spi.DefaultSqlDialect;
 import st.orm.core.template.Sql;
 import st.orm.core.template.SqlDialect;
 import st.orm.core.template.SqlTemplate;
-import st.orm.core.template.SqlTemplateException;
 import st.orm.core.template.TableAliasResolver;
 import st.orm.mapping.ColumnNameResolver;
 import st.orm.mapping.ForeignKeyResolver;

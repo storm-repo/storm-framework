@@ -16,7 +16,7 @@
 package st.orm.core.template.impl;
 
 import org.jspecify.annotations.Nullable;
-import st.orm.core.template.SqlTemplateException;
+import st.orm.SqlTemplateException;
 
 /**
  * Mapper for creating instances of a specific type.

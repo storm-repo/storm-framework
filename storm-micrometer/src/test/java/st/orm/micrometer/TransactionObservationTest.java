@@ -22,6 +22,7 @@ import io.micrometer.observation.tck.TestObservationRegistry;
 import io.micrometer.observation.tck.TestObservationRegistryAssert;
 import java.util.List;
 import org.junit.jupiter.api.Test;
+import st.orm.TransactionOptions;
 import st.orm.TransactionPropagation;
 import st.orm.core.spi.TransactionScope;
 import st.orm.core.template.ORMTemplate;
@@ -33,8 +34,8 @@ import st.orm.core.template.ORMTemplate;
  */
 public class TransactionObservationTest {
 
-    private static TransactionScope.Options options(TransactionPropagation propagation) {
-        return new TransactionScope.Options(propagation, null, null, null, false);
+    private static TransactionOptions options(TransactionPropagation propagation) {
+        return new TransactionOptions(propagation, null, null, null);
     }
 
     private ORMTemplate template(TestObservationRegistry registry, String database) {
@@ -56,7 +57,7 @@ public class TransactionObservationTest {
     public void committedTransactionIsObservedWithOutcome() {
         var registry = TestObservationRegistry.create();
         var orm = template(registry, "txobserved");
-        var scope = TransactionScope.open(options(null));
+        var scope = TransactionScope.open(options(null), false);
         try {
             orm.query("SELECT 1").getSingleResult(Integer.class);
             scope.complete(false);
@@ -73,7 +74,7 @@ public class TransactionObservationTest {
     public void rolledBackTransactionCarriesTheOutcome() {
         var registry = TestObservationRegistry.create();
         var orm = template(registry, "txrollback");
-        var scope = TransactionScope.open(options(null));
+        var scope = TransactionScope.open(options(null), false);
         try {
             orm.query("SELECT 1").getSingleResult(Integer.class);
             scope.complete(true);
@@ -89,11 +90,11 @@ public class TransactionObservationTest {
     public void joinedBlocksAreNotObservedButRequiresNewIs() {
         var registry = TestObservationRegistry.create();
         var orm = template(registry, "txnesting");
-        var outer = TransactionScope.open(options(null));
+        var outer = TransactionScope.open(options(null), false);
         try {
             orm.query("SELECT 1").getSingleResult(Integer.class);
             // Joined inner block: same physical transaction, no observation.
-            var joined = TransactionScope.open(options(TransactionPropagation.REQUIRED));
+            var joined = TransactionScope.open(options(TransactionPropagation.REQUIRED), false);
             try {
                 orm.query("SELECT 2").getSingleResult(Integer.class);
                 joined.complete(false);
@@ -101,7 +102,7 @@ public class TransactionObservationTest {
                 joined.close();
             }
             // REQUIRES_NEW: its own physical transaction, its own observation.
-            var independent = TransactionScope.open(options(TransactionPropagation.REQUIRES_NEW));
+            var independent = TransactionScope.open(options(TransactionPropagation.REQUIRES_NEW), false);
             try {
                 orm.query("SELECT 3").getSingleResult(Integer.class);
                 independent.complete(false);

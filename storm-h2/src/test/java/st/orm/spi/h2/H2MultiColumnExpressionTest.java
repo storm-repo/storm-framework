@@ -8,7 +8,7 @@ import java.util.List;
 import java.util.SequencedMap;
 import org.junit.jupiter.api.Test;
 import st.orm.Operator;
-import st.orm.core.template.SqlTemplateException;
+import st.orm.SqlTemplateException;
 
 public class H2MultiColumnExpressionTest {
 

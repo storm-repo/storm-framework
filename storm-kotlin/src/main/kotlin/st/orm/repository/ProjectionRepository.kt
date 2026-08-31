@@ -340,7 +340,7 @@ public interface ProjectionRepository<P, ID : Any> : Repository where P : Projec
      * **Note:** Loading all projections into memory at once can be very memory-intensive if your table
      * is large.
      *
-     * @return a stream of all entities of the type supported by this repository.
+     * @return a list of all projections of the type supported by this repository.
      * @throws st.orm.PersistenceException if the selection operation fails due to underlying database issues, such as
      * connectivity.
      */
@@ -389,16 +389,6 @@ public interface ProjectionRepository<P, ID : Any> : Repository where P : Projec
     public fun findAllByRef(refs: Iterable<Ref<P>>): List<P>
 
     // Stream based methods.
-    //
-    // The BatchCallback interface is used to allow the caller to process the results in batches. This approach is
-    // preferred over returning a stream of results directly because it allows the repository to control the batch
-    // processing and resource management. The repository can decide how to batch the results and ensure that the
-    // resources are properly managed. The BatchCallback interface provides a clean and flexible way to process the
-    // results in batches, allowing the caller to define the processing logic for each batch.
-    //
-    // If the repository returned a stream of results directly, that stream would effectively be linked to the input
-    // stream. If the caller would fail to fully consume the resulting stream, the input stream would not be fully
-    // processed. The BatchCallback approach prevents the caller from accidentally misusing the API.
     //
 
     /**
@@ -557,22 +547,22 @@ public interface ProjectionRepository<P, ID : Any> : Repository where P : Projec
     public fun <V : Data> getBy(field: Metamodel<P, V>, value: Ref<V>): P = select().where(field, value).singleResult
 
     /**
-     * Retrieves an optional entity of type [P] based on a single field and its value.
-     * Returns a ref with a null value if no matching entity is found.
+     * Retrieves an optional ref to a projection of type [P] based on a single field and its value.
+     * Returns null if no matching projection is found.
      *
-     * @param field metamodel reference of the entity field.
+     * @param field metamodel reference of the projection field.
      * @param value the value to match against.
-     * @return an optional entity, or null if none found.
+     * @return a ref to the matching projection, or null if none found.
      */
-    public fun <T, ID, V> findRefBy(field: Metamodel<P, V>, value: V): Ref<P>? = selectRef().where(field eq value).optionalResult
+    public fun <V> findRefBy(field: Metamodel<P, V>, value: V): Ref<P>? = selectRef().where(field eq value).optionalResult
 
     /**
-     * Retrieves an optional entity of type [P] based on a single field and its value.
-     * Returns a ref with a null value if no matching entity is found.
+     * Retrieves an optional ref to a projection of type [P] based on a single field and its value.
+     * Returns null if no matching projection is found.
      *
-     * @param field metamodel reference of the entity field.
+     * @param field metamodel reference of the projection field.
      * @param value the value to match against.
-     * @return an optional entity, or null if none found.
+     * @return a ref to the matching projection, or null if none found.
      */
     public fun <V : Data> findRefBy(field: Metamodel<P, V>, value: Ref<V>): Ref<P>? = selectRef().where(field, value).optionalResult
 
@@ -604,7 +594,7 @@ public interface ProjectionRepository<P, ID : Any> : Repository where P : Projec
      * @param values Iterable of values to match against.
      * @return a list of matching entities.
      */
-    public fun <V : Data> findAllRefBy(field: Metamodel<P, V>, values: Iterable<V>): List<Ref<P>> = selectRef().where(field inList values).resultList
+    public fun <V> findAllRefBy(field: Metamodel<P, V>, values: Iterable<V>): List<Ref<P>> = selectRef().where(field inList values).resultList
 
     /**
      * Retrieves entities of type [P] matching a single field against multiple values.
@@ -665,10 +655,10 @@ public interface ProjectionRepository<P, ID : Any> : Repository where P : Projec
     ): P? = select().where(predicate).optionalResult
 
     /**
-     * Retrieves an optional entity of type [P] matching the specified predicate.
-     * Returns a ref with a null value if no matching entity is found.
+     * Retrieves an optional ref to a projection of type [P] matching the specified predicate.
+     * Returns null if no matching projection is found.
      *
-     * @return an optional entity, or null if none found.
+     * @return a ref to the matching projection, or null if none found.
      */
     public fun findRef(
         predicate: PredicateBuilder<P, *, *>,

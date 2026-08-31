@@ -63,7 +63,7 @@ open class JsonORMConverterKotlinInteropTest {
     @Test
     fun `kotlin reflection provider is active`() {
         // The interop premise: with storm-kotlin on the class path, its provider outranks the default one.
-        assertEquals("st.orm.spi.ORMReflectionImpl", Providers.getORMReflection().javaClass.name)
+        assertEquals("st.orm.template.impl.ORMReflectionImpl", Providers.getORMReflection().javaClass.name)
     }
 
     // Custom serializer/deserializer annotations on a Kotlin constructor property.

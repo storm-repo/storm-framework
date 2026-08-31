@@ -25,10 +25,10 @@ import org.springframework.boot.autoconfigure.condition.ConditionalOnClass;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
-import st.orm.core.spi.QueryObserver;
 import st.orm.micrometer.MicrometerQueryObserver;
 import st.orm.micrometer.StormQueryObservationContext;
 import st.orm.micrometer.StormTransactionObservationContext;
+import st.orm.spi.QueryObserver;
 
 /**
  * Auto-configuration that reports Storm query executions as Micrometer Observations when an

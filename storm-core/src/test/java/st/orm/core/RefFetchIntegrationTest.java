@@ -31,7 +31,7 @@ import st.orm.core.model.PetOwnerRef_;
 import st.orm.core.model.Pet_;
 import st.orm.core.template.ORMTemplate;
 import st.orm.core.template.SqlInterceptor;
-import st.orm.core.template.StatementOrigin;
+import st.orm.spi.StatementOrigin;
 
 /**
  * Verifies that a query resolves the references named by {@code fetch}, selecting the referenced table's columns in

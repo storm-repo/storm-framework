@@ -73,6 +73,7 @@ import st.orm.PersistenceException;
 import st.orm.Ref;
 import st.orm.Scrollable;
 import st.orm.SelectMode;
+import st.orm.SqlTemplateException;
 import st.orm.Version;
 import st.orm.core.model.Address;
 import st.orm.core.model.City;
@@ -114,7 +115,6 @@ import st.orm.core.template.ORMTemplate;
 import st.orm.core.template.QueryBuilder;
 import st.orm.core.template.Sql;
 import st.orm.core.template.SqlTemplate.PositionalParameter;
-import st.orm.core.template.SqlTemplateException;
 import st.orm.core.template.TemplateBuilder;
 import st.orm.core.template.TemplateString;
 

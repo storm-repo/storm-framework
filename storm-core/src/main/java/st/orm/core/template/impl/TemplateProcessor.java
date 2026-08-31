@@ -20,6 +20,7 @@ import static java.util.Optional.empty;
 import static java.util.Optional.ofNullable;
 import static st.orm.core.template.impl.ElementRouter.getElementProcessor;
 import static st.orm.core.template.impl.RecordValidation.validateParameters;
+import static st.orm.core.template.impl.RecordValidation.validatePlaceholders;
 import static st.orm.core.template.impl.SqlParser.hasWhereClause;
 
 import java.util.ArrayList;
@@ -34,17 +35,15 @@ import st.orm.Data;
 import st.orm.Element;
 import st.orm.Metamodel;
 import st.orm.ResolveScope;
+import st.orm.SqlTemplateException;
 import st.orm.core.template.Model;
 import st.orm.core.template.Sql;
 import st.orm.core.template.SqlDialect;
-import st.orm.core.template.SqlOperation;
 import st.orm.core.template.SqlTemplate;
 import st.orm.core.template.SqlTemplate.BindVariables;
 import st.orm.core.template.SqlTemplate.NamedParameter;
 import st.orm.core.template.SqlTemplate.Parameter;
 import st.orm.core.template.SqlTemplate.PositionalParameter;
-import st.orm.core.template.SqlTemplateException;
-import st.orm.core.template.StatementOrigin;
 import st.orm.core.template.TemplateString;
 import st.orm.core.template.impl.BindHint.NoBindHint;
 import st.orm.core.template.impl.Elements.Fetch;
@@ -52,6 +51,8 @@ import st.orm.core.template.impl.SqlTemplateImpl.Wrapped;
 import st.orm.core.template.impl.TemplatePreparation.BindingContext;
 import st.orm.core.template.impl.TemplatePreparation.CompilationContext;
 import st.orm.core.template.impl.TemplatePreparation.PreparedTemplate;
+import st.orm.spi.SqlOperation;
+import st.orm.spi.StatementOrigin;
 
 /**
  * Compiles and binds a {@link SqlTemplate} in two phases.
@@ -201,6 +202,9 @@ class TemplateProcessor {
      */
     @Nullable
     private Optional<String> unsafeWarning;
+
+    /** Whether the compiled SQL was checked for a placeholder per positional parameter. Benign race. */
+    private volatile boolean placeholdersValidated;
 
     /**
      * Compile-time only: whether the compiled template requires binding.
@@ -617,6 +621,11 @@ class TemplateProcessor {
             session.assertAllHintsConsumed();
         }
         validateParameters(session.parameters, positionalParameterCount.getPlain());
+        // A pure function of the compiled SQL and its parameter count, so it is checked once per processor.
+        if (!placeholdersValidated) {
+            validatePlaceholders(sql, positionalParameterCount.getPlain(), template.dialect());
+            placeholdersValidated = true;
+        }
         // The safety check is a pure function of the compiled SQL and operation and is computed once per
         // processor. The benign race publishes an immutable Optional.
         var warning = unsafeWarning;

@@ -33,11 +33,11 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import st.orm.BindVars;
 import st.orm.Element;
+import st.orm.SqlTemplateException;
 import st.orm.StormConfig;
 import st.orm.core.template.Sql;
 import st.orm.core.template.SqlDialect;
 import st.orm.core.template.SqlTemplate;
-import st.orm.core.template.SqlTemplateException;
 import st.orm.core.template.TableAliasResolver;
 import st.orm.core.template.TemplateString;
 import st.orm.core.template.impl.TemplatePreparation.BindingContext;
@@ -451,8 +451,7 @@ public final class SqlTemplateImpl implements SqlTemplate {
             // every binding of one compiled template shares its shape.
             long shapeId = processor.shapeId(() -> {
                 try {
-                    Object shapeKey = getShapeKey(bindingContext);
-                    return shapeKey == null ? 0L : shapeKey.hashCode();
+                    return ShapeHash.of(getShapeKey(bindingContext));
                 } catch (UncheckedSqlTemplateException e) {
                     // A template whose shape cannot be derived groups by text instead.
                     return 0L;

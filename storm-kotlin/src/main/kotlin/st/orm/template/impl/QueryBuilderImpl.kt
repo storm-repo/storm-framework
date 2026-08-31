@@ -340,23 +340,33 @@ internal class QueryBuilderImpl<T : Data, R, ID>(
 
         override fun whereId(id: IDX): PredicateBuilder<TX, RX, IDX> = PredicateBuilderImpl<TX, RX, IDX>(core.whereId(id))
 
-        override fun whereRef(ref: Ref<TX>): PredicateBuilder<TX, RX, IDX> = PredicateBuilderImpl<TX, RX, IDX>(core.whereRef(ref))
+        override fun whereRef(ref: Ref<out TX>): PredicateBuilder<TX, RX, IDX> {
+            // The ref is only read for its id and type, so re-labelling the covariant ref to the core's invariant
+            // parameter is safe.
+            @Suppress("UNCHECKED_CAST")
+            return PredicateBuilderImpl<TX, RX, IDX>(core.whereRef(ref as Ref<TX>))
+        }
 
         override fun where(record: TX): PredicateBuilder<TX, RX, IDX> = PredicateBuilderImpl<TX, RX, IDX>(core.where(record))
 
         override fun whereId(it: Iterable<IDX>): PredicateBuilder<TX, RX, IDX> = PredicateBuilderImpl<TX, RX, IDX>(core.whereId(it))
 
-        override fun whereRef(it: Iterable<Ref<TX>>): PredicateBuilder<TX, RX, IDX> = PredicateBuilderImpl<TX, RX, IDX>(core.whereRef(it))
+        override fun whereRef(it: Iterable<Ref<out TX>>): PredicateBuilder<TX, RX, IDX> {
+            // The refs are only read for their id and type, so re-labelling the covariant refs to the core's
+            // invariant parameter is safe.
+            @Suppress("UNCHECKED_CAST")
+            return PredicateBuilderImpl<TX, RX, IDX>(core.whereRef(it as Iterable<Ref<TX>>))
+        }
 
         override fun where(it: Iterable<TX>): PredicateBuilder<TX, RX, IDX> = PredicateBuilderImpl<TX, RX, IDX>(core.where(it))
 
         override fun <V : Data> where(
-            path: Metamodel<out TX, V>,
+            path: Navigable<out TX, V>,
             ref: Ref<V>,
         ): PredicateBuilder<TX, RX, IDX> = PredicateBuilderImpl<TX, RX, IDX>(core.where<V>(path, ref))
 
         override fun <V : Data> whereRef(
-            path: Metamodel<out TX, V>,
+            path: Navigable<out TX, V>,
             it: Iterable<Ref<V>>,
         ): PredicateBuilder<TX, RX, IDX> = PredicateBuilderImpl<TX, RX, IDX>(core.whereRef<V>(path, it))
 

@@ -18,12 +18,12 @@ import st.orm.FK;
 import st.orm.PK;
 import st.orm.Persist;
 import st.orm.PersistenceException;
+import st.orm.SqlTemplateException;
 import st.orm.core.model.Owner;
 import st.orm.core.model.Pet;
 import st.orm.core.model.PetType;
 import st.orm.core.model.PetTypeEnum;
 import st.orm.core.template.ORMTemplate;
-import st.orm.core.template.SqlTemplateException;
 
 @ExtendWith(SpringExtension.class)
 @ContextConfiguration(classes = IntegrationConfig.class)

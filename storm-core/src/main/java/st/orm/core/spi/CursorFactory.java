@@ -34,6 +34,9 @@ import java.util.Map;
 import java.util.ServiceLoader;
 import java.util.UUID;
 import org.jspecify.annotations.Nullable;
+import st.orm.spi.CursorCodec;
+import st.orm.spi.CursorCodecEntry;
+import st.orm.spi.CursorCodecProvider;
 
 /**
  * Factory for cursor serialization and deserialization. This class is called reflectively from

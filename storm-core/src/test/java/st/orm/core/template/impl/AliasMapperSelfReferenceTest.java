@@ -21,8 +21,8 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import static st.orm.ResolveScope.CASCADE;
 
 import org.junit.jupiter.api.Test;
+import st.orm.SqlTemplateException;
 import st.orm.core.model.City;
-import st.orm.core.template.SqlTemplateException;
 import st.orm.core.template.TableAliasResolver;
 import st.orm.mapping.TableNameResolver;
 

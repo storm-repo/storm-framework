@@ -21,7 +21,7 @@ import io.micrometer.observation.ObservationRegistry;
 import javax.sql.DataSource;
 import org.jspecify.annotations.Nullable;
 import st.orm.PersistenceException;
-import st.orm.core.spi.QueryObserver;
+import st.orm.spi.QueryObserver;
 
 /**
  * Composes the query observers the framework integrations report Storm executions with.

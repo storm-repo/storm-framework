@@ -478,8 +478,8 @@ class StormAutoConfigurationTest {
                         "spring.datasource.driver-class-name=org.h2.Driver"
                 )
                 .run(context -> {
-                    assertThat(context).hasSingleBean(st.orm.core.spi.ExceptionMapper.class);
-                    assertThat(context).getBean(st.orm.core.spi.ExceptionMapper.class)
+                    assertThat(context).hasSingleBean(st.orm.spi.ExceptionMapper.class);
+                    assertThat(context).getBean(st.orm.spi.ExceptionMapper.class)
                             .isInstanceOf(st.orm.spring.SpringExceptionMapper.class);
                 });
     }
@@ -493,7 +493,7 @@ class StormAutoConfigurationTest {
                         "storm.exception-translation.enabled=false"
                 )
                 .run(context -> {
-                    assertThat(context).doesNotHaveBean(st.orm.core.spi.ExceptionMapper.class);
+                    assertThat(context).doesNotHaveBean(st.orm.spi.ExceptionMapper.class);
                 });
     }
 
@@ -506,8 +506,8 @@ class StormAutoConfigurationTest {
                 )
                 .withUserConfiguration(CustomExceptionMapperConfig.class)
                 .run(context -> {
-                    assertThat(context).hasSingleBean(st.orm.core.spi.ExceptionMapper.class);
-                    assertThat(context).getBean(st.orm.core.spi.ExceptionMapper.class)
+                    assertThat(context).hasSingleBean(st.orm.spi.ExceptionMapper.class);
+                    assertThat(context).getBean(st.orm.spi.ExceptionMapper.class)
                             .isSameAs(context.getBean("customExceptionMapper"));
                 });
     }
@@ -538,7 +538,7 @@ class StormAutoConfigurationTest {
                         "spring.datasource.url=jdbc:h2:mem:observationAbsentTest;DB_CLOSE_DELAY=-1",
                         "spring.datasource.driver-class-name=org.h2.Driver"
                 )
-                .run(context -> assertThat(context).doesNotHaveBean(st.orm.core.spi.QueryObserver.class));
+                .run(context -> assertThat(context).doesNotHaveBean(st.orm.spi.QueryObserver.class));
     }
 
     @Test
@@ -552,7 +552,7 @@ class StormAutoConfigurationTest {
                 )
                 .withUserConfiguration(TestObservationRegistryConfig.class)
                 .run(context -> {
-                    assertThat(context).getBean(st.orm.core.spi.QueryObserver.class)
+                    assertThat(context).getBean(st.orm.spi.QueryObserver.class)
                             .isInstanceOf(st.orm.micrometer.MicrometerQueryObserver.class);
                     ORMTemplate orm = context.getBean(ORMTemplate.class);
                     orm.query("CREATE TABLE observed (id INT PRIMARY KEY)").executeUpdate();
@@ -596,8 +596,8 @@ class StormAutoConfigurationTest {
                 )
                 .withUserConfiguration(TestObservationRegistryConfig.class, TransactionConventionConfig.class)
                 .run(context -> {
-                    var observer = context.getBean(st.orm.core.spi.QueryObserver.class);
-                    observer.onTransaction(new st.orm.core.spi.TransactionScope.Options(null, null, null, null, false))
+                    var observer = context.getBean(st.orm.spi.QueryObserver.class);
+                    observer.onTransaction(new st.orm.TransactionOptions(null, null, null, null))
                             .close(false);
                     var registry = context.getBean(io.micrometer.observation.tck.TestObservationRegistry.class);
                     io.micrometer.observation.tck.TestObservationRegistryAssert.assertThat(registry)
@@ -628,7 +628,7 @@ class StormAutoConfigurationTest {
                         "storm.tracing.sql-comments=sampled"
                 )
                 .withBean(io.micrometer.tracing.Tracer.class, () -> org.mockito.Mockito.mock(io.micrometer.tracing.Tracer.class))
-                .run(context -> assertThat(context).getBean(st.orm.core.spi.SqlCommenter.class)
+                .run(context -> assertThat(context).getBean(st.orm.spi.SqlCommenter.class)
                         .isInstanceOf(st.orm.micrometer.TraceContextSqlCommenter.class));
         contextRunner
                 .withPropertyValues(
@@ -650,7 +650,7 @@ class StormAutoConfigurationTest {
                         "spring.datasource.driver-class-name=org.h2.Driver"
                 )
                 .withBean(io.micrometer.tracing.Tracer.class, () -> org.mockito.Mockito.mock(io.micrometer.tracing.Tracer.class))
-                .run(context -> assertThat(context).doesNotHaveBean(st.orm.core.spi.SqlCommenter.class));
+                .run(context -> assertThat(context).doesNotHaveBean(st.orm.spi.SqlCommenter.class));
         contextRunner
                 .withPropertyValues(
                         "spring.datasource.url=jdbc:h2:mem:sqlCommentsEnabledTest;DB_CLOSE_DELAY=-1",
@@ -659,8 +659,8 @@ class StormAutoConfigurationTest {
                 )
                 .withBean(io.micrometer.tracing.Tracer.class, () -> org.mockito.Mockito.mock(io.micrometer.tracing.Tracer.class))
                 .run(context -> {
-                    assertThat(context).hasSingleBean(st.orm.core.spi.SqlCommenter.class);
-                    assertThat(context).getBean(st.orm.core.spi.SqlCommenter.class)
+                    assertThat(context).hasSingleBean(st.orm.spi.SqlCommenter.class);
+                    assertThat(context).getBean(st.orm.spi.SqlCommenter.class)
                             .isInstanceOf(st.orm.micrometer.TraceContextSqlCommenter.class);
                 });
     }
@@ -710,8 +710,8 @@ class StormAutoConfigurationTest {
     @Configuration
     static class CustomExceptionMapperConfig {
         @Bean
-        public st.orm.core.spi.ExceptionMapper customExceptionMapper() {
-            return st.orm.core.spi.ExceptionMapper.defaultMapper();
+        public st.orm.spi.ExceptionMapper customExceptionMapper() {
+            return st.orm.spi.ExceptionMapper.defaultMapper();
         }
     }
 

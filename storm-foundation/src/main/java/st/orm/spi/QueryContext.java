@@ -13,13 +13,11 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package st.orm.core.spi;
+package st.orm.spi;
 
 import java.util.Optional;
 import java.util.OptionalInt;
 import st.orm.Data;
-import st.orm.core.template.SqlOperation;
-import st.orm.core.template.StatementOrigin;
 
 /**
  * Describes a single statement execution observed by a {@link QueryObserver}.

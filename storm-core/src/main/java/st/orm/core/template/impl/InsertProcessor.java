@@ -19,8 +19,8 @@ import static java.util.stream.Collectors.joining;
 
 import java.util.ArrayList;
 import java.util.Objects;
+import st.orm.SqlTemplateException;
 import st.orm.core.template.Column;
-import st.orm.core.template.SqlTemplateException;
 import st.orm.core.template.impl.Elements.Insert;
 
 final class InsertProcessor implements ElementProcessor<Insert> {

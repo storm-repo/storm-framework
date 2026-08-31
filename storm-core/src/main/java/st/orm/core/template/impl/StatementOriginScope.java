@@ -16,7 +16,7 @@
 package st.orm.core.template.impl;
 
 import java.util.function.Supplier;
-import st.orm.core.template.StatementOrigin;
+import st.orm.spi.StatementOrigin;
 
 /**
  * Attributes statements to what caused them to execute.

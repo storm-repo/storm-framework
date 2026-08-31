@@ -19,9 +19,9 @@ import io.micrometer.observation.ObservationRegistry
 import io.micrometer.observation.tck.TestObservationRegistry
 import io.micrometer.observation.tck.TestObservationRegistryAssert
 import org.junit.jupiter.api.Test
-import st.orm.core.spi.QueryObserver
 import st.orm.ktor.model.PetRepository
 import st.orm.ktor.vet.VetRepository
+import st.orm.spi.QueryObserver
 import java.util.concurrent.atomic.AtomicInteger
 
 /**
@@ -352,7 +352,7 @@ internal class StormObservabilityTest {
                         // automatic observation binding.
                         customize = {
                             queryObserver(object : QueryObserver {
-                                override fun onExecute(context: st.orm.core.spi.QueryContext): QueryObserver.Observation {
+                                override fun onExecute(context: st.orm.spi.QueryContext): QueryObserver.Observation {
                                     observed.incrementAndGet()
                                     return QueryObserver.Observation.NOOP
                                 }

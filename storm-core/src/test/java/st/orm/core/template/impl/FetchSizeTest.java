@@ -75,15 +75,15 @@ public class FetchSizeTest {
         var environment = new QueryImpl.Environment(
                 DETACHED_REF_FACTORY,
                 st.orm.core.spi.Providers.getTransactionTemplateProvider(),
-                st.orm.core.spi.QueryObserver.noop(),
+                st.orm.spi.QueryObserver.noop(),
                 e -> e instanceof PersistenceException persistenceException
                         ? persistenceException
                         : new PersistenceException(e),
-                st.orm.core.template.SqlOperation.SELECT,
+                st.orm.spi.SqlOperation.SELECT,
                 null,
                 FetchPlan.NONE,
                 sql,
-                st.orm.core.template.StatementOrigin.DIRECT,
+                st.orm.spi.StatementOrigin.DIRECT,
                 0L,
                 java.util.List.of(),
                 null);

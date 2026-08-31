@@ -725,17 +725,6 @@ public interface ProjectionRepository<P extends Projection<ID>, ID> extends Repo
     List<P> findAllByRef(Iterable<Ref<P>> refs);
 
     // Stream based methods.
-
-    //
-    // The BatchCallback interface is used to allow the caller to process the results in batches. This approach is
-    // preferred over returning a stream of results directly because it allows the repository to control the batch
-    // processing and resource management. The repository can decide how to batch the results and ensure that the
-    // resources are properly managed. The BatchCallback interface provides a clean and flexible way to process the
-    // results in batches, allowing the caller to define the processing logic for each batch.
-    //
-    // If the repository returned a stream of results directly, that stream would effectively be linked to the input
-    // stream. If the caller would fail to fully consume the resulting stream, the input stream would not be fully
-    // processed. The BatchCallback approach prevents the caller from accidentally misusing the API.
     //
 
     /**

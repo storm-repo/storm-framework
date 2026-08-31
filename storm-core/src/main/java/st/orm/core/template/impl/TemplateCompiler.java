@@ -23,10 +23,10 @@ import st.orm.Data;
 import st.orm.Element;
 import st.orm.Metamodel;
 import st.orm.ResolveScope;
+import st.orm.SqlTemplateException;
 import st.orm.core.template.Model;
 import st.orm.core.template.SqlDialect;
 import st.orm.core.template.SqlTemplate;
-import st.orm.core.template.SqlTemplateException;
 import st.orm.core.template.TemplateString;
 
 /**

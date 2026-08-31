@@ -23,6 +23,7 @@ import org.springframework.test.context.ContextConfiguration;
 import org.springframework.test.context.junit.jupiter.SpringExtension;
 import st.orm.PersistenceException;
 import st.orm.Scrollable;
+import st.orm.SqlTemplateException;
 import st.orm.core.model.Pet;
 import st.orm.core.model.Pet_;
 import st.orm.core.model.Specialty;
@@ -32,7 +33,6 @@ import st.orm.core.model.Vet_;
 import st.orm.core.model.Visit;
 import st.orm.core.model.Visit_;
 import st.orm.core.template.ORMTemplate;
-import st.orm.core.template.SqlTemplateException;
 import st.orm.core.template.TemplateBuilder;
 
 @ExtendWith(SpringExtension.class)

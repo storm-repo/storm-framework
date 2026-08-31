@@ -24,8 +24,8 @@ import org.springframework.jdbc.support.SQLErrorCodeSQLExceptionTranslator;
 import org.springframework.jdbc.support.SQLExceptionSubclassTranslator;
 import org.springframework.jdbc.support.SQLExceptionTranslator;
 import st.orm.PersistenceException;
-import st.orm.core.spi.ExceptionContext;
-import st.orm.core.spi.ExceptionMapper;
+import st.orm.spi.ExceptionContext;
+import st.orm.spi.ExceptionMapper;
 
 /**
  * Exception mapper that translates SQL failures to Spring's {@link DataAccessException} hierarchy.

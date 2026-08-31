@@ -20,10 +20,6 @@ import static java.util.stream.Collectors.joining;
 import static st.orm.ResolveScope.CASCADE;
 import static st.orm.ResolveScope.INNER;
 import static st.orm.core.spi.Providers.getORMConverter;
-import static st.orm.core.template.SqlOperation.DELETE;
-import static st.orm.core.template.SqlOperation.INSERT;
-import static st.orm.core.template.SqlOperation.SELECT;
-import static st.orm.core.template.SqlOperation.UPDATE;
 import static st.orm.core.template.Templates.delete;
 import static st.orm.core.template.Templates.from;
 import static st.orm.core.template.Templates.insert;
@@ -52,6 +48,10 @@ import static st.orm.core.template.impl.SqlParser.endsWithKeyword;
 import static st.orm.core.template.impl.SqlParser.getSqlOperation;
 import static st.orm.core.template.impl.SqlParser.removeComments;
 import static st.orm.core.template.impl.SqlParser.startsWithKeyword;
+import static st.orm.spi.SqlOperation.DELETE;
+import static st.orm.spi.SqlOperation.INSERT;
+import static st.orm.spi.SqlOperation.SELECT;
+import static st.orm.spi.SqlOperation.UPDATE;
 
 import java.util.ArrayList;
 import java.util.HashSet;
@@ -74,12 +74,11 @@ import st.orm.PK;
 import st.orm.ProjectionQuery;
 import st.orm.Ref;
 import st.orm.SelectMode;
+import st.orm.SqlTemplateException;
 import st.orm.core.spi.ORMReflection;
 import st.orm.core.spi.Providers;
 import st.orm.core.template.Query;
-import st.orm.core.template.SqlOperation;
 import st.orm.core.template.SqlTemplate;
-import st.orm.core.template.SqlTemplateException;
 import st.orm.core.template.TemplateString;
 import st.orm.core.template.impl.Elements.Alias;
 import st.orm.core.template.impl.Elements.Clause;
@@ -100,6 +99,7 @@ import st.orm.core.template.impl.SqlTemplateImpl.ElementNode;
 import st.orm.core.template.impl.SqlTemplateImpl.Wrapped;
 import st.orm.mapping.RecordField;
 import st.orm.mapping.RecordType;
+import st.orm.spi.SqlOperation;
 
 /**
  * Prepares a {@link TemplateString} for compilation and binding.

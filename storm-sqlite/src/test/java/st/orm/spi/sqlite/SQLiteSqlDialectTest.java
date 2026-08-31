@@ -13,8 +13,8 @@ import java.util.SequencedMap;
 import org.junit.jupiter.api.Test;
 import st.orm.Operator;
 import st.orm.PersistenceException;
+import st.orm.SqlTemplateException;
 import st.orm.StormConfig;
-import st.orm.core.template.SqlTemplateException;
 
 class SQLiteSqlDialectTest {
 

@@ -23,8 +23,8 @@ import st.orm.PK;
 import st.orm.PersistenceException;
 import st.orm.Polymorphic;
 import st.orm.Ref;
+import st.orm.SqlTemplateException;
 import st.orm.Version;
-import st.orm.core.template.SqlTemplateException;
 import st.orm.mapping.RecordField;
 
 /**

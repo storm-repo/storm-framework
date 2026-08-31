@@ -33,9 +33,9 @@ import java.util.function.Function;
 import java.util.regex.Pattern;
 import st.orm.Operator;
 import st.orm.PersistenceException;
+import st.orm.SqlTemplateException;
 import st.orm.StormConfig;
 import st.orm.core.template.SqlDialect;
-import st.orm.core.template.SqlTemplateException;
 
 public class DefaultSqlDialect implements SqlDialect {
 

@@ -32,7 +32,7 @@ import st.orm.Json;
 import st.orm.PK;
 import st.orm.PersistenceException;
 import st.orm.Ref;
-import st.orm.core.template.SqlTemplateException;
+import st.orm.SqlTemplateException;
 import st.orm.jackson.model.Address;
 import st.orm.jackson.model.Owner;
 import st.orm.jackson.model.Specialty;

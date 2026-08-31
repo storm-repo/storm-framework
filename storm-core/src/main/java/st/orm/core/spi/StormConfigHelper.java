@@ -120,4 +120,14 @@ public final class StormConfigHelper {
             return defaultValue;
         }
     }
+
+    /**
+     * Resolves the entity cache retention from the given configuration.
+     *
+     * @param config the configuration to read from.
+     * @return the configured cache retention.
+     */
+    public static CacheRetention cacheRetention(StormConfig config) {
+        return getEnum(config, StormConfig.ENTITY_CACHE_RETENTION, CacheRetention.class, CacheRetention.DEFAULT);
+    }
 }

@@ -35,10 +35,10 @@ import java.util.function.Supplier;
 import org.jspecify.annotations.Nullable;
 import st.orm.Data;
 import st.orm.PK;
+import st.orm.SqlTemplateException;
 import st.orm.core.spi.Instantiators;
 import st.orm.core.spi.Nullability;
 import st.orm.core.spi.RefFactory;
-import st.orm.core.template.SqlTemplateException;
 import st.orm.mapping.Instantiator;
 
 /**

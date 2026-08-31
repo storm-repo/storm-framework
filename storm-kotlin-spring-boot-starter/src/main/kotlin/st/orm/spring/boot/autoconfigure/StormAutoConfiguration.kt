@@ -17,6 +17,7 @@ package st.orm.spring.boot.autoconfigure
 
 import io.micrometer.observation.ObservationConvention
 import io.micrometer.observation.ObservationRegistry
+import org.springframework.beans.factory.BeanFactory
 import org.springframework.beans.factory.ObjectProvider
 import org.springframework.boot.autoconfigure.AutoConfiguration
 import org.springframework.boot.autoconfigure.condition.ConditionalOnBean
@@ -28,17 +29,16 @@ import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
 import st.orm.EntityCallback
 import st.orm.StormConfig
-import st.orm.core.spi.ConnectionProvider
-import st.orm.core.spi.ExceptionMapper
-import st.orm.core.spi.QueryObserver
-import st.orm.core.spi.SqlCommenter
-import st.orm.core.spi.TransactionTemplateProvider
 import st.orm.micrometer.MicrometerQueryObserver
 import st.orm.micrometer.StormQueryObservationContext
 import st.orm.micrometer.StormTransactionObservationContext
+import st.orm.spi.ExceptionMapper
+import st.orm.spi.QueryObserver
+import st.orm.spi.SqlCommenter
 import st.orm.spring.SpringExceptionMapper
 import st.orm.spring.boot.StormProperties
 import st.orm.spring.boot.StormQueryObservers
+import st.orm.spring.kotlin.springOrmTemplateBuilder
 import st.orm.template.ORMTemplate
 import javax.sql.DataSource
 
@@ -79,15 +79,12 @@ public open class StormAutoConfiguration {
         dataSource: DataSource,
         properties: StormProperties,
         entityCallbacks: List<EntityCallback<*>>,
-        connectionProvider: ObjectProvider<ConnectionProvider>,
-        transactionTemplateProvider: ObjectProvider<TransactionTemplateProvider>,
+        beanFactory: BeanFactory,
         exceptionMapper: ObjectProvider<ExceptionMapper>,
         queryObserver: ObjectProvider<QueryObserver>,
         sqlCommenter: ObjectProvider<SqlCommenter>,
     ): ORMTemplate {
-        val builder = ORMTemplate.builder(dataSource).config(properties.toStormConfig())
-        connectionProvider.ifAvailable { builder.connectionProvider(it) }
-        transactionTemplateProvider.ifAvailable { builder.transactionTemplateProvider(it) }
+        val builder = springOrmTemplateBuilder(dataSource, beanFactory).config(properties.toStormConfig())
         exceptionMapper.ifAvailable { builder.exceptionMapper(it) }
         queryObserver.ifAvailable { builder.queryObserver(it) }
         sqlCommenter.ifAvailable { builder.sqlCommenter(it) }
@@ -107,8 +104,7 @@ public open class StormAutoConfiguration {
      *
      * @param properties the Storm configuration properties bound from `storm.*`.
      * @param entityCallbacks the entity callbacks applied to every created template.
-     * @param connectionProvider the Spring-aware connection provider, when transaction integration is active.
-     * @param transactionTemplateProvider the Spring-aware transaction template provider.
+     * @param beanFactory the bean factory holding the Spring-aware transaction integration, when active.
      * @param exceptionMapper user-defined exception mapper overriding the per-data-source default.
      * @param sqlCommenter the SQL commenter contributed by the tracing auto-configuration.
      * @param observationSupport the observation composition, present when Micrometer observations are active.
@@ -119,8 +115,7 @@ public open class StormAutoConfiguration {
     public open fun ormTemplateFactory(
         properties: StormProperties,
         entityCallbacks: List<EntityCallback<*>>,
-        connectionProvider: ObjectProvider<ConnectionProvider>,
-        transactionTemplateProvider: ObjectProvider<TransactionTemplateProvider>,
+        beanFactory: BeanFactory,
         exceptionMapper: ObjectProvider<ExceptionMapper>,
         sqlCommenter: ObjectProvider<SqlCommenter>,
         observationSupport: ObjectProvider<OrmTemplateObservationSupport>,
@@ -130,9 +125,7 @@ public open class StormAutoConfiguration {
             database: String?,
             customize: ORMTemplate.Builder.() -> Unit,
         ): ORMTemplate {
-            val builder = ORMTemplate.builder(dataSource).config(properties.toStormConfig())
-            connectionProvider.ifAvailable { builder.connectionProvider(it) }
-            transactionTemplateProvider.ifAvailable { builder.transactionTemplateProvider(it) }
+            val builder = springOrmTemplateBuilder(dataSource, beanFactory).config(properties.toStormConfig())
             val mapper = exceptionMapper.ifAvailable
                 ?: if (properties.exceptionTranslation.enabled != false) SpringExceptionMapper(dataSource) else null
             mapper?.let { builder.exceptionMapper(it) }

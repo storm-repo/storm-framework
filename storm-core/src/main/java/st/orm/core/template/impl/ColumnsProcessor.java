@@ -19,7 +19,7 @@ import static java.util.stream.Collectors.joining;
 import static st.orm.core.template.impl.Elements.Clause.GROUP_BY;
 
 import st.orm.Metamodel;
-import st.orm.core.template.SqlTemplateException;
+import st.orm.SqlTemplateException;
 import st.orm.core.template.impl.Elements.Columns;
 
 /**

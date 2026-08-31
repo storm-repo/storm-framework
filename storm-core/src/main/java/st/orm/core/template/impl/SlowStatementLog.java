@@ -31,12 +31,12 @@ import org.jspecify.annotations.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import st.orm.StormConfig;
-import st.orm.core.spi.QueryContext;
-import st.orm.core.spi.QueryContext.ExecutionKind;
-import st.orm.core.spi.SqlCommenter;
 import st.orm.core.template.SqlTemplate.Parameter;
-import st.orm.core.template.StatementOrigin;
 import st.orm.core.template.impl.StatementListener.Handle;
+import st.orm.spi.QueryContext;
+import st.orm.spi.QueryContext.ExecutionKind;
+import st.orm.spi.SqlCommenter;
+import st.orm.spi.StatementOrigin;
 
 /**
  * Reports individual statement executions whose database time exceeds a threshold, under the
@@ -452,7 +452,7 @@ public final class SlowStatementLog {
         var facts = new StringBuilder();
         long shapeId = context.shapeId();
         if (shapeId != 0) {
-            facts.append("shape ").append(Long.toHexString(shapeId));
+            facts.append("shape ").append("%016x".formatted(shapeId));
             if (baseline != null && baseline.typicalNanos() > 0) {
                 facts.append(" (typically ").append(millis(baseline.typicalNanos()));
                 long ratio = databaseNanos / baseline.typicalNanos();

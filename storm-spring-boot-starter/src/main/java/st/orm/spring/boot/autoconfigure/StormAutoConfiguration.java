@@ -20,6 +20,7 @@ import io.micrometer.observation.ObservationRegistry;
 import java.util.List;
 import javax.sql.DataSource;
 import org.jspecify.annotations.Nullable;
+import org.springframework.beans.factory.BeanFactory;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnBean;
@@ -31,15 +32,14 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import st.orm.EntityCallback;
 import st.orm.StormConfig;
-import st.orm.core.spi.ConnectionProvider;
-import st.orm.core.spi.ExceptionMapper;
-import st.orm.core.spi.QueryObserver;
-import st.orm.core.spi.SqlCommenter;
-import st.orm.core.spi.TransactionTemplateProvider;
 import st.orm.micrometer.MicrometerQueryObserver;
 import st.orm.micrometer.StormQueryObservationContext;
 import st.orm.micrometer.StormTransactionObservationContext;
+import st.orm.spi.ExceptionMapper;
+import st.orm.spi.QueryObserver;
+import st.orm.spi.SqlCommenter;
 import st.orm.spring.SpringExceptionMapper;
+import st.orm.spring.SpringOrmTemplate;
 import st.orm.spring.boot.StormProperties;
 import st.orm.spring.boot.StormQueryObservers;
 import st.orm.template.ORMTemplate;
@@ -75,14 +75,11 @@ public class StormAutoConfiguration {
     @ConditionalOnSingleCandidate(DataSource.class)
     public ORMTemplate ormTemplate(DataSource dataSource, StormProperties properties,
                                    List<EntityCallback<?>> entityCallbacks,
-                                   ObjectProvider<ConnectionProvider> connectionProvider,
-                                   ObjectProvider<TransactionTemplateProvider> transactionTemplateProvider,
+                                   BeanFactory beanFactory,
                                    ObjectProvider<ExceptionMapper> exceptionMapper,
                                    ObjectProvider<QueryObserver> queryObserver,
                                    ObjectProvider<SqlCommenter> sqlCommenter) {
-        var builder = ORMTemplate.builder(dataSource).config(properties.toStormConfig());
-        connectionProvider.ifAvailable(builder::connectionProvider);
-        transactionTemplateProvider.ifAvailable(builder::transactionTemplateProvider);
+        var builder = SpringOrmTemplate.builder(dataSource, beanFactory).config(properties.toStormConfig());
         exceptionMapper.ifAvailable(builder::exceptionMapper);
         queryObserver.ifAvailable(builder::queryObserver);
         sqlCommenter.ifAvailable(builder::sqlCommenter);
@@ -103,8 +100,7 @@ public class StormAutoConfiguration {
      *
      * @param properties the Storm configuration properties bound from {@code storm.*}.
      * @param entityCallbacks the entity callbacks applied to every created template.
-     * @param connectionProvider the Spring-aware connection provider, when transaction integration is active.
-     * @param transactionTemplateProvider the Spring-aware transaction template provider.
+     * @param beanFactory the bean factory holding the Spring-aware transaction integration, when active.
      * @param exceptionMapper user-defined exception mapper overriding the per-data-source default.
      * @param sqlCommenter the SQL commenter contributed by the tracing auto-configuration.
      * @param observationSupport the observation composition, present when Micrometer observations are active.
@@ -114,15 +110,12 @@ public class StormAutoConfiguration {
     @ConditionalOnMissingBean(OrmTemplateFactory.class)
     public OrmTemplateFactory ormTemplateFactory(StormProperties properties,
                                                  List<EntityCallback<?>> entityCallbacks,
-                                                 ObjectProvider<ConnectionProvider> connectionProvider,
-                                                 ObjectProvider<TransactionTemplateProvider> transactionTemplateProvider,
+                                                 BeanFactory beanFactory,
                                                  ObjectProvider<ExceptionMapper> exceptionMapper,
                                                  ObjectProvider<SqlCommenter> sqlCommenter,
                                                  ObjectProvider<OrmTemplateObservationSupport> observationSupport) {
         return (dataSource, database, customize) -> {
-            var builder = ORMTemplate.builder(dataSource).config(properties.toStormConfig());
-            connectionProvider.ifAvailable(builder::connectionProvider);
-            transactionTemplateProvider.ifAvailable(builder::transactionTemplateProvider);
+            var builder = SpringOrmTemplate.builder(dataSource, beanFactory).config(properties.toStormConfig());
             var mapper = exceptionMapper.getIfAvailable();
             if (mapper == null && !Boolean.FALSE.equals(properties.getExceptionTranslation().getEnabled())) {
                 mapper = new SpringExceptionMapper(dataSource);

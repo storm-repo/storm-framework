@@ -112,6 +112,68 @@ internal open class SqlDslTest(
     }
 
     @Test
+    fun `select entities matching a collection of records`() {
+        val cityRepository = orm.entity(City::class)
+        val subset = cityRepository.select().resultList.filter { it.id in listOf(2, 5) }
+        val cities = cityRepository.select { where(subset) }.resultList
+        cities shouldHaveSize 2
+    }
+
+    @Test
+    fun `select entities with path operator and value collection`() {
+        val cityRepository = orm.entity(City::class)
+        val namePath = metamodel<City, String>(cityRepository.model, "name")
+        val cities = cityRepository.select {
+            where(namePath, IN, listOf("Madison", "Monona"))
+        }.resultList
+        cities shouldHaveSize 2
+    }
+
+    @Test
+    fun `select entities with path and record collection`() {
+        // data.sql: City 2 (Madison) has 4 owners, City 5 (Monona) has 2 owners. Total: 6.
+        val cityRepository = orm.entity(City::class)
+        val ownerRepository = orm.entity(Owner::class)
+        val cityPath = metamodel<Owner, City>(ownerRepository.model, "city_id")
+        val selectedCities = cityRepository.select().resultList.filter { it.id in listOf(2, 5) }
+        val owners = ownerRepository.select { where(cityPath, selectedCities) }.resultList
+        owners shouldHaveSize 6
+    }
+
+    @Test
+    fun `select entities with path and ref collection`() {
+        // data.sql: City 2 (Madison) has 4 owners, City 5 (Monona) has 2 owners. Total: 6.
+        val ownerRepository = orm.entity(Owner::class)
+        val cityPath = metamodel<Owner, City>(ownerRepository.model, "city_id")
+        val cityRefs = listOf(Ref.of(City::class.java, 2), Ref.of(City::class.java, 5))
+        val owners = ownerRepository.select { whereRef(cityPath, cityRefs) }.resultList
+        owners shouldHaveSize 6
+    }
+
+    @Test
+    fun `select entities with descending order template`() {
+        val cityRepository = orm.entity(City::class)
+        val idPath = metamodel<City, Int>(cityRepository.model, "id")
+        val cities = cityRepository.select {
+            orderByDescending { "${t(Templates.column(idPath))}" }
+        }.resultList
+        cities shouldHaveSize 6
+        cities[0].id shouldBe 6
+    }
+
+    @Test
+    fun `whereRef inside whereBuilder combines with other predicates`() {
+        // data.sql: City 1 is Windsor, City 2 is Madison.
+        val cityRepository = orm.entity(City::class)
+        val namePath = metamodel<City, String>(cityRepository.model, "name")
+        val madison = Ref.of(City::class.java, 2)
+        val cities = cityRepository.select {
+            whereBuilder { whereRef(madison) or (namePath eq "Windsor") }
+        }.resultList
+        cities shouldHaveSize 2
+    }
+
+    @Test
     fun `select entities with limit and offset`() {
         val cityRepository = orm.entity(City::class)
         val idPath = metamodel<City, Int>(cityRepository.model, "id")
@@ -160,8 +222,8 @@ internal open class SqlDslTest(
     }
 
     @Test
-    fun `select entities with groupByAny and havingAny on a joined entity`() {
-        // havingAny pairs with groupByAny: a HAVING condition on a joined column is only valid once that column is
+    fun `select entities with groupBy and having on a joined entity`() {
+        // Grouping and having pair up: a HAVING condition on a joined column is only valid once that column is
         // grouped. data.sql: Betty Davis lives in city 1, Harold Davis in city 4.
         val cityRepository = orm.entity(City::class)
         val idPath = metamodel<City, Int>(cityRepository.model, "id")
@@ -347,7 +409,7 @@ internal open class SqlDslTest(
         views[2].lastName shouldBe "Davis"
     }
 
-    // SqlScope: whereAny, orderByAny, orderByDescendingAny
+    // SqlScope: relaxed where and orderBy forms
 
     @Test
     fun `select with a relaxed where predicate`() {

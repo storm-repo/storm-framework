@@ -21,6 +21,7 @@ import st.orm.EntityCallback;
 import st.orm.OptimisticLockException;
 import st.orm.PersistenceException;
 import st.orm.Ref;
+import st.orm.SqlTemplateException;
 import st.orm.core.model.Address;
 import st.orm.core.model.City;
 import st.orm.core.model.Owner;
@@ -30,7 +31,6 @@ import st.orm.core.model.VetSpecialty;
 import st.orm.core.model.VetSpecialtyPK;
 import st.orm.core.model.Visit;
 import st.orm.core.template.ORMTemplate;
-import st.orm.core.template.SqlTemplateException;
 
 /**
  * Integration tests for {@code EntityRepositoryImpl} validation paths, non-auto-generated PK

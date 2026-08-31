@@ -17,7 +17,7 @@ import st.orm.Entity
 import st.orm.PK
 import st.orm.PersistenceException
 import st.orm.Ref
-import st.orm.spi.ORMReflectionImpl
+import st.orm.template.impl.ORMReflectionImpl
 import st.orm.template.model.*
 import java.lang.invoke.MethodHandles
 import java.lang.reflect.Method

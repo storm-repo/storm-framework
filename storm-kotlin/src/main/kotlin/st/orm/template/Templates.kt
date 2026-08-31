@@ -37,9 +37,8 @@ import kotlin.reflect.KClass
  * `INSERT`, `UPDATE`, and `DELETE`, as well as utility methods for working with parameters,
  * tables, aliases, and more.
  *
- * Additionally, the `Templates` interface provides methods to create [ORMTemplate]
- * instances for use with different data sources like JDBC's [DataSource] or [Connection], or
- * JPA's `EntityManager` (see `JpaTemplate`).
+ * Additionally, [ORMTemplate] provides factory methods to create instances for use with JDBC's
+ * [DataSource] or [Connection].
  *
  * ## Using Templates
  *
@@ -119,18 +118,12 @@ import kotlin.reflect.KClass
  *
  * ## Howto start
  *
- * The `Templates` interface provides static methods to create [ORMTemplate] instances based on your data source:
- *
- * ### Using EntityManager (JPA)
- * ```
- * val entityManager = ...
- * val orm = Templates.ORM(entityManager)
- * ```
+ * [ORMTemplate] provides factory methods to create instances based on your data source:
  *
  * ### Using DataSource (JDBC)
  * ```
  * val dataSource = ...
- * val orm = Templates.ORM(dataSource)
+ * val orm = ORMTemplate.of(dataSource)
  * ```
  *
  * ### Using Connection (JDBC)
@@ -139,7 +132,7 @@ import kotlin.reflect.KClass
  *
  * ```
  * val connection = ...
- * val orm = Templates.ORM(connection)
+ * val orm = ORMTemplate.of(connection)
  * ```
  *
  * @see st.orm.repository.EntityRepository
@@ -1334,6 +1327,33 @@ public object Templates {
      * @return an [Element] representing the calendar parameter with the specified temporal type.
      */
     public fun param(value: Calendar, temporalType: TemporalType): Element = param(value) {
+        when (temporalType) {
+            TemporalType.DATE -> java.sql.Date(it.timeInMillis)
+            TemporalType.TIME -> Time(it.timeInMillis)
+            TemporalType.TIMESTAMP -> Timestamp(it.timeInMillis)
+        }
+    }
+
+    /**
+     * Generates a named parameter element for the specified [Calendar] value with a temporal type.
+     *
+     * This method creates a named parameter for a [Calendar] value, converting it to the appropriate
+     * SQL type based on the provided [TemporalType]. Named parameters improve query readability
+     * and are especially useful in complex queries.
+     *
+     * Example usage in a string template:
+     * ```
+     * SELECT *
+     * FROM ${t(MyTable::class)}
+     * WHERE event_time = ${t(param("eventTime", calendarValue, TemporalType.TIMESTAMP))}
+     * ```
+     *
+     * @param name the name of the parameter; must not be null.
+     * @param value the [Calendar] value to be used as a parameter; must not be null.
+     * @param temporalType the [TemporalType] specifying how the calendar should be handled; must not be null.
+     * @return an [Element] representing the named calendar parameter with the specified temporal type.
+     */
+    public fun param(name: String, value: Calendar, temporalType: TemporalType): Element = param(name, value) {
         when (temporalType) {
             TemporalType.DATE -> java.sql.Date(it.timeInMillis)
             TemporalType.TIME -> Time(it.timeInMillis)

@@ -24,8 +24,8 @@ import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import st.orm.Entity;
 import st.orm.PK;
+import st.orm.TransactionOptions;
 import st.orm.core.spi.TransactionRunner;
-import st.orm.core.spi.TransactionScope;
 import st.orm.core.template.ORMTemplate;
 
 /**
@@ -38,8 +38,8 @@ class StormExtensionRollbackTest {
 
     record Item(@PK Integer id, String name) implements Entity<Integer> {}
 
-    private static final TransactionScope.Options DEFAULT_OPTIONS =
-            new TransactionScope.Options(null, null, null, null, false);
+    private static final TransactionOptions DEFAULT_OPTIONS =
+            new TransactionOptions(null, null, null, null);
 
     @Test
     void insertShouldBeRolledBackAfterTheTest(ORMTemplate orm) {

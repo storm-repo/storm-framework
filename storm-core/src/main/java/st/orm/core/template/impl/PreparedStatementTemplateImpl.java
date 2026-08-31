@@ -50,17 +50,15 @@ import javax.sql.DataSource;
 import org.jspecify.annotations.Nullable;
 import st.orm.BindVars;
 import st.orm.PersistenceException;
+import st.orm.SqlTemplateException;
 import st.orm.StormConfig;
 import st.orm.core.spi.ConnectionProvider;
-import st.orm.core.spi.ExceptionMapper;
 import st.orm.core.spi.JsonString;
 import st.orm.core.spi.Provider;
 import st.orm.core.spi.Providers;
 import st.orm.core.spi.QueryFactory;
-import st.orm.core.spi.QueryObserver;
 import st.orm.core.spi.RefFactory;
 import st.orm.core.spi.RefFactoryImpl;
-import st.orm.core.spi.SqlCommenter;
 import st.orm.core.spi.SqlDialectProvider;
 import st.orm.core.spi.TransactionContext;
 import st.orm.core.spi.TransactionScope;
@@ -76,12 +74,14 @@ import st.orm.core.template.SqlTemplate.BatchListener;
 import st.orm.core.template.SqlTemplate.NamedParameter;
 import st.orm.core.template.SqlTemplate.Parameter;
 import st.orm.core.template.SqlTemplate.PositionalParameter;
-import st.orm.core.template.SqlTemplateException;
 import st.orm.core.template.TableAliasResolver;
 import st.orm.core.template.TemplateString;
 import st.orm.mapping.ColumnNameResolver;
 import st.orm.mapping.ForeignKeyResolver;
 import st.orm.mapping.TableNameResolver;
+import st.orm.spi.ExceptionMapper;
+import st.orm.spi.QueryObserver;
+import st.orm.spi.SqlCommenter;
 
 public final class PreparedStatementTemplateImpl implements PreparedStatementTemplate, QueryFactory {
 

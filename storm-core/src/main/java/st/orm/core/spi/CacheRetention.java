@@ -15,11 +15,6 @@
  */
 package st.orm.core.spi;
 
-import static st.orm.StormConfig.ENTITY_CACHE_RETENTION;
-import static st.orm.core.spi.StormConfigHelper.getEnum;
-
-import st.orm.StormConfig;
-
 /**
  * Controls the retention behavior of the transaction-scoped entity cache.
  *
@@ -42,15 +37,5 @@ public enum CacheRetention {
      * Observed state may be cleaned up as soon as the application no longer holds a reference to the entity. This
      * reduces memory overhead but may cause dirty-check cache misses, resulting in full-row updates.
      */
-    LIGHT;
-
-    /**
-     * Resolves the cache retention from the given configuration.
-     *
-     * @param config the configuration to read from.
-     * @return the configured cache retention.
-     */
-    public static CacheRetention fromConfig(StormConfig config) {
-        return getEnum(config, ENTITY_CACHE_RETENTION, CacheRetention.class, DEFAULT);
-    }
+    LIGHT
 }

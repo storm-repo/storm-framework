@@ -15,9 +15,9 @@
  */
 package st.orm.ktor
 
-import st.orm.core.spi.QueryContext
-import st.orm.core.spi.QueryObserver
-import st.orm.core.spi.TransactionScope
+import st.orm.TransactionOptions
+import st.orm.spi.QueryContext
+import st.orm.spi.QueryObserver
 
 /**
  * [QueryObserver] whose target can be swapped after the ORM template has been built. The plugin installs it when
@@ -32,5 +32,5 @@ internal class DelegatingQueryObserver : QueryObserver {
 
     override fun onExecute(context: QueryContext): QueryObserver.Observation = delegate.onExecute(context)
 
-    override fun onTransaction(options: TransactionScope.Options): QueryObserver.TransactionObservation = delegate.onTransaction(options)
+    override fun onTransaction(options: TransactionOptions): QueryObserver.TransactionObservation = delegate.onTransaction(options)
 }

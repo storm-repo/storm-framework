@@ -15,7 +15,7 @@
  */
 package st.orm.core.template.impl;
 
-import st.orm.core.template.SqlTemplateException;
+import st.orm.SqlTemplateException;
 import st.orm.core.template.impl.Elements.Update;
 
 final class UpdateProcessor implements ElementProcessor<Update> {

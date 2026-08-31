@@ -11,9 +11,9 @@ import java.util.List;
 import java.util.Optional;
 import org.junit.jupiter.api.Test;
 import st.orm.core.template.Sql;
-import st.orm.core.template.SqlOperation;
 import st.orm.core.template.SqlTemplate;
-import st.orm.core.template.StatementOrigin;
+import st.orm.spi.SqlOperation;
+import st.orm.spi.StatementOrigin;
 
 /**
  * Tests for {@link SqlImpl}.

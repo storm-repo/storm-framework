@@ -397,7 +397,7 @@ public abstract class QueryBuilder<T extends Data, R, ID> {
      * @param record the records to match.
      * @return the predicate builder.
      */
-    public final <V extends Record> QueryBuilder<T, R, ID> where(Navigable<? extends T, V> path, V record) {
+    public final <V extends Data> QueryBuilder<T, R, ID> where(Navigable<? extends T, V> path, V record) {
         return where(path, EQUALS, record);
     }
 
@@ -541,9 +541,6 @@ public abstract class QueryBuilder<T extends Data, R, ID> {
      */
     @SafeVarargs
     public final QueryBuilder<T, R, ID> groupBy(Navigable<? extends T, ?>... path) {
-        // We can safely invoke groupByAny as the underlying logic is identical. The main purpose of having these
-        // separate methods is to provide (more) type safety when using metamodels that are guaranteed to be present in
-        // the table graph.
         if (path.length == 0) {
             throw new PersistenceException("At least one path must be provided for GROUP BY clause.");
         }
@@ -620,9 +617,6 @@ public abstract class QueryBuilder<T extends Data, R, ID> {
      */
     @SafeVarargs
     public final QueryBuilder<T, R, ID> orderBy(Navigable<? extends T, ?>... path) {
-        // We can safely invoke orderByAny as the underlying logic is identical. The main purpose of having these
-        // separate methods is to provide (more) type safety when using metamodels that are guaranteed to be present in
-        // the table graph.
         if (path.length == 0) {
             throw new PersistenceException("At least one path must be provided for ORDER BY clause.");
         }
@@ -1019,7 +1013,7 @@ public abstract class QueryBuilder<T extends Data, R, ID> {
      * @return the single result.
      * @throws NoResultException if there is no result.
      * @throws NonUniqueResultException if more than one result.
-     * @throws PersistenceException if the query fails.
+     * @throws PersistenceException if the single row's value is null, or the query fails.
      */
     public abstract R getSingleResult();
 
@@ -1028,7 +1022,7 @@ public abstract class QueryBuilder<T extends Data, R, ID> {
      *
      * @return the optional result.
      * @throws NonUniqueResultException if more than one result.
-     * @throws PersistenceException if the query fails.
+     * @throws PersistenceException if the single row's value is null, or the query fails.
      */
     public abstract Optional<R> getOptionalResult();
 

@@ -22,7 +22,6 @@ import st.orm.BindVars;
 import st.orm.Data;
 import st.orm.PersistenceException;
 import st.orm.Ref;
-import st.orm.core.template.SqlDialect;
 import st.orm.template.Model;
 import st.orm.template.Query;
 import st.orm.template.QueryBuilder;
@@ -34,11 +33,6 @@ public class QueryTemplateImpl implements QueryTemplate {
 
     public QueryTemplateImpl(st.orm.core.template.QueryTemplate core) {
         this.core = requireNonNull(core, "core");
-    }
-
-    @Override
-    public SqlDialect dialect() {
-        return core.dialect();
     }
 
     @Override

@@ -20,7 +20,7 @@ import static java.util.Optional.empty;
 import java.util.Arrays;
 import java.util.Optional;
 import st.orm.PersistenceException;
-import st.orm.core.template.SqlTemplateException;
+import st.orm.SqlTemplateException;
 
 /**
  * Factory for creating instances of a specific type.

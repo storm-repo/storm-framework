@@ -24,6 +24,8 @@ import st.orm.core.template.SqlTemplate.Parameter;
 import st.orm.core.template.impl.Elements.Insert;
 import st.orm.core.template.impl.Elements.Set;
 import st.orm.core.template.impl.Elements.Table;
+import st.orm.spi.SqlOperation;
+import st.orm.spi.StatementOrigin;
 
 /**
  * Represents the generated SQL statement with parameters.

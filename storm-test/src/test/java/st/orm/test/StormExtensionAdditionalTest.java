@@ -8,12 +8,12 @@ import org.junit.jupiter.api.Test;
 import st.orm.Entity;
 import st.orm.PK;
 import st.orm.core.template.ORMTemplate;
-import st.orm.core.template.impl.SchemaValidator;
+
 
 /**
  * Additional tests for {@link StormExtension} covering edge cases:
  * - Custom URL
- * - SchemaValidator parameter injection
+ * - SchemaValidation parameter injection
  * - Empty scripts array (default)
  * - ORMTemplate factory method resolution
  */
@@ -23,7 +23,7 @@ class StormExtensionAdditionalTest {
     record Item(@PK Integer id, String name) implements Entity<Integer> {}
 
     @Test
-    void schemaValidatorShouldBeInjected(SchemaValidator validator) {
+    void schemaValidatorShouldBeInjected(SchemaValidation validator) {
         assertNotNull(validator);
     }
 

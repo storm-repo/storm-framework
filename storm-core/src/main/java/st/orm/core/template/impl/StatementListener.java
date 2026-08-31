@@ -17,8 +17,8 @@ package st.orm.core.template.impl;
 
 import java.util.List;
 import st.orm.Data;
-import st.orm.core.spi.QueryContext;
 import st.orm.core.template.SqlTemplate.Parameter;
+import st.orm.spi.QueryContext;
 
 /**
  * Observes statement executions on behalf of a scope.

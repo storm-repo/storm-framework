@@ -23,6 +23,7 @@ import java.util.function.BiConsumer;
 import org.jspecify.annotations.Nullable;
 import st.orm.Data;
 import st.orm.Metamodel;
+import st.orm.SqlTemplateException;
 import st.orm.mapping.RecordType;
 
 /**

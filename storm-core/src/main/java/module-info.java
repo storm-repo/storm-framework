@@ -11,7 +11,7 @@ module storm.core {
     uses st.orm.core.spi.ConnectionProvider;
     uses st.orm.core.spi.TransactionTemplateProvider;
     uses st.orm.core.spi.ExternalTransactionProvider;
-    uses st.orm.core.spi.CursorCodecProvider;
+    uses st.orm.spi.CursorCodecProvider;
     uses st.orm.mapping.Instantiator;
     exports st.orm.core.template;
     // The impl packages are reachable by Storm's own modules only; to everyone else they are not API.
@@ -32,7 +32,26 @@ module storm.core {
             storm.sqlite,
             storm.test;
     exports st.orm.core.spi;
-    exports st.orm.core.repository;
+    // The repository engine surface exists to build the Java and Kotlin facades and the dialect overrides;
+    // applications program against the facade repositories, so the package is not application API.
+    exports st.orm.core.repository to
+            storm.h2,
+            storm.jackson2,
+            storm.jackson3,
+            storm.java,
+            storm.kotlin,
+            storm.kotlin.spring,
+            storm.ktor,
+            storm.mariadb,
+            storm.micrometer,
+            storm.mssqlserver,
+            storm.mysql,
+            storm.oracle,
+            storm.postgresql,
+            storm.serialization,
+            storm.spring,
+            storm.sqlite,
+            storm.test;
     exports st.orm.core.repository.impl to
             storm.h2,
             storm.kotlin,

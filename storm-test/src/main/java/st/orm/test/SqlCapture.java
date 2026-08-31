@@ -22,10 +22,10 @@ import java.util.concurrent.Callable;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.function.Supplier;
 import org.jspecify.annotations.Nullable;
-import st.orm.core.spi.QueryContext;
 import st.orm.core.template.SqlTemplate.Parameter;
 import st.orm.core.template.impl.SqlInterceptorManager;
 import st.orm.core.template.impl.StatementListener;
+import st.orm.spi.QueryContext;
 import st.orm.test.CapturedSql.Operation;
 import st.orm.test.CapturedSql.Origin;
 

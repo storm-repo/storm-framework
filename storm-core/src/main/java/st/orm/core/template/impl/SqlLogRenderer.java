@@ -23,7 +23,7 @@ import java.util.List;
 import st.orm.StormConfig;
 import st.orm.core.template.SqlLog.StatementLine;
 import st.orm.core.template.SqlLog.Summary;
-import st.orm.core.template.StatementOrigin;
+import st.orm.spi.StatementOrigin;
 
 /**
  * Renders a {@link Summary} as a headline plus an aligned line per distinct statement.

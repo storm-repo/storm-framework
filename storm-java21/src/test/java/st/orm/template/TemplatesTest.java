@@ -298,14 +298,6 @@ public class TemplatesTest {
         assertEquals(6, count);
     }
 
-    // QueryTemplateImpl - dialect()
-
-    @Test
-    public void testDialect() {
-        var dialect = orm.dialect();
-        assertNotNull(dialect);
-    }
-
     // QueryTemplateImpl - model without requiring primary key
 
     @Test

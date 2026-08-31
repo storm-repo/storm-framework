@@ -21,7 +21,7 @@ import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnSingleCandidate;
 import org.springframework.context.annotation.Bean;
-import st.orm.core.spi.ExceptionMapper;
+import st.orm.spi.ExceptionMapper;
 import st.orm.spring.SpringExceptionMapper;
 
 /**

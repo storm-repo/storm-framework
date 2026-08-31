@@ -73,11 +73,11 @@ import st.orm.template.QueryBuilder;
  *
  * <h2>Repository Lookup</h2>
  * <p>An entity repository can be obtained by invoking {@code entity} on an {@code ORMTemplate} with the desired entity
- * class. The orm template can be requested as demonstrated below. Note that orm templates are supported for
- * Data Sources, JDBC Connections and JPA Entity Managers.</p>
+ * class. The orm template can be requested as demonstrated below. Orm templates are supported for
+ * Data Sources and JDBC Connections.</p>
  * <pre>{@code
- * ORMTemplate orm = Templates.ORM(dataSource);
- * EntityRepository<User> userRepository = orm.entity(User.class);
+ * ORMTemplate orm = ORMTemplate.of(dataSource);
+ * EntityRepository<User> users = orm.entity(User.class);
  * }</pre>
  * <p>Alternatively, a specialized repository can be requested by calling the {@code repository} method with the repository
  * class. Specialized repositories allow specialized repository methods to be defined in the repository interface. The
@@ -194,13 +194,12 @@ public interface EntityRepository<E extends Entity<ID>, ID> extends Repository {
     /**
      * Creates a new ref entity instance for the specified entity.
      *
-     * <p>This method wraps a fully loaded entity in a lightweight reference. Although the complete entity is provided,
-     * the returned ref retains only the primary key for identification. In this case, calling {@link Ref#fetch()} will
-     * return the full entity (which is already loaded), ensuring a consistent API for accessing entity records on
-     * demand. This approach supports lazy-loading scenarios where only the identifier is needed initially.</p>
+     * <p>This method wraps a fully loaded entity in a reference. The returned ref is attached and keeps the entity
+     * loaded: calling {@link Ref#fetch()} returns the entity without a database call. Use {@link #unload} instead
+     * when the record data should be dropped and re-fetched on demand.</p>
      *
      * @param entity the entity to wrap in a ref.
-     * @return a ref entity instance containing the primary key of the provided entity.
+     * @return an attached, loaded ref wrapping the provided entity.
      * @since 1.3
      */
     Ref<E> ref(E entity);
@@ -1306,17 +1305,6 @@ public interface EntityRepository<E extends Entity<ID>, ID> extends Repository {
     void removeByRef(Iterable<Ref<E>> refs);
 
     // Stream based methods.
-
-    //
-    // The BatchCallback interface is used to allow the caller to process the results in batches. This approach is
-    // preferred over returning a stream of results directly because it allows the repository to control the batch
-    // processing and resource management. The repository can decide how to batch the results and ensure that the
-    // resources are properly managed. The BatchCallback interface provides a clean and flexible way to process the
-    // results in batches, allowing the caller to define the processing logic for each batch.
-    //
-    // If the repository had returned a stream of results directly, that stream would effectively be linked to the input
-    // stream. If the caller would fail to fully consume the resulting stream, the input stream would not be fully
-    // processed. The BatchCallback approach prevents the caller from accidentally misusing the API.
     //
 
     /**

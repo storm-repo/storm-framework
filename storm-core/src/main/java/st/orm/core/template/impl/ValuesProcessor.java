@@ -20,9 +20,9 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.function.Function;
 import st.orm.Data;
+import st.orm.SqlTemplateException;
 import st.orm.core.template.Column;
 import st.orm.core.template.Model;
-import st.orm.core.template.SqlTemplateException;
 import st.orm.core.template.impl.Elements.Values;
 
 final class ValuesProcessor implements ElementProcessor<Values> {

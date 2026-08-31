@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package st.orm.core.spi;
+package st.orm.spi;
 
 import java.util.Optional;
 
@@ -29,7 +29,6 @@ import java.util.Optional;
  * through the {@code ServiceLoader} mechanism. Note that a per-execution comment changes the statement text on
  * every call, which defeats driver-side and server-side prepared statement caching; enable selectively.</p>
  *
- * @see st.orm.core.template.ORMTemplate.Builder#sqlCommenter(SqlCommenter)
  * @since 1.13
  */
 @FunctionalInterface

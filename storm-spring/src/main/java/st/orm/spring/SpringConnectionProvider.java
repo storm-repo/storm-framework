@@ -32,12 +32,12 @@ import st.orm.spring.impl.SpringTransactionContext;
  * Spring-managed ({@code @Transactional}) transactions via thread-bound connections, and degrade gracefully to plain
  * connections when no transaction is active. Storm's own transaction API is not bridged by this provider.</p>
  *
- * <p>Configure this provider on the template that belongs to the owning application context:
+ * <p>Templates created through {@link SpringOrmTemplate#of} and by the Spring Boot starters carry this provider.
+ * Composing a template by hand goes through the engine's builder, which owns the transaction-bridging strategies:
  * <pre>{@code
- * ORMTemplate orm = ORMTemplate.builder(dataSource)
+ * var engine = st.orm.core.template.ORMTemplate.builder(dataSource)
  *         .connectionProvider(new SpringConnectionProvider())
- *         .transactionTemplateProvider(new SpringTransactionTemplateProvider())
- *         .build();
+ *         .transactionTemplateProvider(new SpringTransactionTemplateProvider());
  * }</pre>
  *
  * @since 1.13

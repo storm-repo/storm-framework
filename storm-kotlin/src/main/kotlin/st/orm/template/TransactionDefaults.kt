@@ -13,12 +13,23 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-/**
- * Kotlin reflection provider.
- *
- * <p>Null-marked: type uses are non-null unless annotated {@code @Nullable}.</p>
- */
-@NullMarked
-package st.orm.spi;
+package st.orm.template
 
-import org.jspecify.annotations.NullMarked;
+import st.orm.TransactionIsolation
+import st.orm.TransactionPropagation
+
+/**
+ * Internal class to hold transaction options.
+ *
+ * @param propagation The transaction propagation behavior.
+ * @param isolation The transaction isolation level.
+ * @param timeoutSeconds The transaction timeout in seconds.
+ * @param readOnly Whether the transaction is read-only.
+ * @since 1.6
+ */
+internal data class TransactionDefaults(
+    val propagation: TransactionPropagation = TransactionPropagation.REQUIRED,
+    val isolation: TransactionIsolation? = null,
+    val timeoutSeconds: Int? = null,
+    val readOnly: Boolean = false,
+)

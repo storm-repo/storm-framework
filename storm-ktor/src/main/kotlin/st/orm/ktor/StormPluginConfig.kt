@@ -64,30 +64,30 @@ public class StormPluginConfig {
     public var transactionTemplateProvider: st.orm.core.spi.TransactionTemplateProvider? = null
 
     /**
-     * Optional [st.orm.core.spi.ExceptionMapper] that maps failures raised during query execution to the runtime
+     * Optional [st.orm.spi.ExceptionMapper] that maps failures raised during query execution to the runtime
      * exception thrown to the caller. Applies to every database unless a database block sets its own.
      *
      * @since 1.13
      */
-    public var exceptionMapper: st.orm.core.spi.ExceptionMapper? = null
+    public var exceptionMapper: st.orm.spi.ExceptionMapper? = null
 
     /**
-     * Optional [st.orm.core.spi.QueryObserver] that is notified of query executions, for metrics and tracing
+     * Optional [st.orm.spi.QueryObserver] that is notified of query executions, for metrics and tracing
      * bindings. Applies to every database unless a database block sets its own.
      *
      * @since 1.13
      */
-    public var queryObserver: st.orm.core.spi.QueryObserver? = null
+    public var queryObserver: st.orm.spi.QueryObserver? = null
 
     /**
-     * Optional [st.orm.core.spi.SqlCommenter] that appends per-execution comment content to statements, such
+     * Optional [st.orm.spi.SqlCommenter] that appends per-execution comment content to statements, such
      * as the current trace context ([st.orm.micrometer.TraceContextSqlCommenter]). Note that per-execution
      * content defeats prepared statement caching; enable selectively. Applies to every database unless a
      * database block sets its own.
      *
      * @since 1.13
      */
-    public var sqlCommenter: st.orm.core.spi.SqlCommenter? = null
+    public var sqlCommenter: st.orm.spi.SqlCommenter? = null
 
     /**
      * Optional composition applied to each database's template builder after the plugin has wired the
