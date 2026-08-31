@@ -279,9 +279,44 @@ class StormTemplateIrTransformer(
                 else -> listOf(wrapInT(transformed, receiver, tFunction))
             }
         }
+        checkQuotedInterpolations(newArguments)
         expression.arguments.clear()
         expression.arguments.addAll(newArguments)
         return expression
+    }
+
+    /**
+     * Reports a value interpolated inside a SQL string literal.
+     *
+     * Such a value renders as the literal text `'?'`, which the database reads as a string holding a question mark
+     * rather than a placeholder. The value is still bound but has nowhere to bind to, so every parameter after it
+     * takes the position before its own: where the leftover count does not balance the driver rejects the bind,
+     * and where it does balance the statement runs against the wrong arguments and returns results that look
+     * ordinary. Quoting is never what the author wants here, since the value is bound rather than pasted in.
+     */
+    private fun checkQuotedInterpolations(arguments: List<IrExpression>) {
+        var inLiteral = false
+        for (argument in arguments) {
+            if (argument is IrConst<*> && argument.value is String) {
+                // A doubled quote escapes itself in SQL, which toggling twice already handles.
+                for (character in argument.value as String) {
+                    if (character == '\'') {
+                        inLiteral = !inLiteral
+                    }
+                }
+            } else if (inLiteral) {
+                report(
+                    CompilerMessageSeverity.ERROR,
+                    "This value is interpolated inside a SQL string literal, where it renders as '?': the database " +
+                        "reads a string holding a question mark rather than a placeholder, so the value never " +
+                        "reaches the statement while it stays bound, and the parameters after it bind one position " +
+                        "early. Interpolate it without the quotes around it.",
+                    argument,
+                )
+                // One report per template: the positions after this one are shifted by it, not faults of their own.
+                return
+            }
+        }
     }
 
     /** Transforms [expression] with [textPosition] set for the duration of the visit. */
