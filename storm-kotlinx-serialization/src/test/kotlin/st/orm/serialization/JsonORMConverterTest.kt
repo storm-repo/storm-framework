@@ -5,12 +5,8 @@ import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertNotNull
 import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Assertions.assertThrows
+import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
-import org.junit.jupiter.api.extension.ExtendWith
-import org.springframework.beans.factory.annotation.Autowired
-import org.springframework.boot.test.autoconfigure.orm.jpa.DataJpaTest
-import org.springframework.test.context.ContextConfiguration
-import org.springframework.test.context.junit.jupiter.SpringExtension
 import st.orm.DbTable
 import st.orm.Entity
 import st.orm.Json
@@ -20,6 +16,7 @@ import st.orm.Ref
 import st.orm.serialization.model.Address
 import st.orm.serialization.model.Owner
 import st.orm.template.ORMTemplate
+import st.orm.test.StormTest
 import javax.sql.DataSource
 
 /**
@@ -32,12 +29,15 @@ import javax.sql.DataSource
  * - getColumns via nameResolver
  * - JSON caching for same CacheKey
  */
-@ExtendWith(SpringExtension::class)
-@ContextConfiguration(classes = [IntegrationConfig::class])
-@DataJpaTest(showSql = false)
-internal open class JsonORMConverterTest(
-    @Autowired val dataSource: DataSource,
-) {
+@StormTest(scripts = ["/data.sql"])
+internal open class JsonORMConverterTest {
+
+    private lateinit var dataSource: DataSource
+
+    @BeforeEach
+    fun bindDataSource(dataSource: DataSource) {
+        this.dataSource = dataSource
+    }
 
     // Map<Ref<Owner>, String> exercises tryCreateRefAwareSerializer Map key path
 

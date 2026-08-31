@@ -9,15 +9,8 @@ import static st.orm.core.template.TemplateString.raw;
 import java.time.LocalDate;
 import javax.sql.DataSource;
 import org.jspecify.annotations.Nullable;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.extension.ExtendWith;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.autoconfigure.jdbc.AutoConfigureTestDatabase;
-import org.springframework.boot.test.autoconfigure.orm.jpa.DataJpaTest;
-import org.springframework.test.context.ContextConfiguration;
-import org.springframework.test.context.DynamicPropertyRegistry;
-import org.springframework.test.context.DynamicPropertySource;
-import org.springframework.test.context.junit.jupiter.SpringExtension;
 import org.testcontainers.containers.PostgreSQLContainer;
 import org.testcontainers.containers.wait.strategy.Wait;
 import org.testcontainers.junit.jupiter.Container;
@@ -27,6 +20,8 @@ import st.orm.FK;
 import st.orm.Metamodel;
 import st.orm.PK;
 import st.orm.core.template.ORMTemplate;
+import st.orm.tck.ContainerDataSource;
+import st.orm.test.StormTest;
 
 /**
  * PostgreSQL enforces the GROUP BY rule, so it is where naming the wrong one of two equal columns is visible.
@@ -39,11 +34,8 @@ import st.orm.core.template.ORMTemplate;
  *
  * @since 1.14
  */
-@ExtendWith(SpringExtension.class)
-@ContextConfiguration(classes = IntegrationConfig.class)
-@AutoConfigureTestDatabase(replace = AutoConfigureTestDatabase.Replace.NONE)    // Prevent swapping to H2.
-@DataJpaTest(showSql = false)
 @Testcontainers
+@StormTest(scripts = "/data.sql")
 public class PostgreSQLGroupByForeignKeyPathTest {
 
     @SuppressWarnings("resource")
@@ -54,15 +46,17 @@ public class PostgreSQLGroupByForeignKeyPathTest {
             .withPassword("test")
             .waitingFor(Wait.forListeningPort());
 
-    @DynamicPropertySource
-    static void overrideProperties(DynamicPropertyRegistry registry) {
-        registry.add("spring.datasource.url", postgresContainer::getJdbcUrl);
-        registry.add("spring.datasource.username", postgresContainer::getUsername);
-        registry.add("spring.datasource.password", postgresContainer::getPassword);
+    public static DataSource dataSource() {
+        return ContainerDataSource.of(postgresContainer.getJdbcUrl(), postgresContainer.getUsername(),
+                postgresContainer.getPassword());
     }
 
-    @Autowired
     private DataSource dataSource;
+
+    @BeforeEach
+    void bindDataSource(DataSource dataSource) {
+        this.dataSource = dataSource;
+    }
 
     public record City(
             @PK Integer id,

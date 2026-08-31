@@ -5,9 +5,9 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
-import static org.springframework.test.util.AssertionErrors.assertNull;
 import static st.orm.GenerationStrategy.NONE;
 import static st.orm.GenerationStrategy.SEQUENCE;
 import static st.orm.Operator.EQUALS;
@@ -29,14 +29,6 @@ import lombok.Builder;
 import org.jspecify.annotations.Nullable;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.extension.ExtendWith;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.autoconfigure.jdbc.AutoConfigureTestDatabase;
-import org.springframework.boot.test.autoconfigure.orm.jpa.DataJpaTest;
-import org.springframework.test.context.ContextConfiguration;
-import org.springframework.test.context.DynamicPropertyRegistry;
-import org.springframework.test.context.DynamicPropertySource;
-import org.springframework.test.context.junit.jupiter.SpringExtension;
 import org.testcontainers.containers.GenericContainer;
 import org.testcontainers.containers.wait.strategy.Wait;
 import org.testcontainers.junit.jupiter.Container;
@@ -50,12 +42,11 @@ import st.orm.Persist;
 import st.orm.PersistenceException;
 import st.orm.Version;
 import st.orm.core.template.PreparedStatementTemplate;
+import st.orm.tck.ContainerDataSource;
+import st.orm.test.StormTest;
 
-@ExtendWith(SpringExtension.class)
-@ContextConfiguration(classes = IntegrationConfig.class)
-@AutoConfigureTestDatabase(replace = AutoConfigureTestDatabase.Replace.NONE)    // Prevent swapping to H2.
-@DataJpaTest(showSql = false)
 @Testcontainers
+@StormTest(scripts = "/data.sql")
 public class OracleEntityRepositoryTest {
 
     @SuppressWarnings("resource")
@@ -77,18 +68,18 @@ public class OracleEntityRepositoryTest {
             .waitingFor(Wait.forLogMessage(".*DATABASE IS READY TO USE!.*\\n", 1))
             .withStartupTimeout(Duration.ofMinutes(1));
 
-    @DynamicPropertySource
-    static void overrideProperties(DynamicPropertyRegistry registry) {
-        String host = oracleContainer.getHost();
-        Integer port = oracleContainer.getMappedPort(1521);
-        String jdbcUrl = String.format("jdbc:oracle:thin:@//%s:%d/FREEPDB1", host, port);
-        registry.add("spring.datasource.url", () -> jdbcUrl);
-        registry.add("spring.datasource.username", () -> "test");
-        registry.add("spring.datasource.password", () -> "test");
+    public static DataSource dataSource() {
+        String jdbcUrl = String.format("jdbc:oracle:thin:@//%s:%d/FREEPDB1",
+                oracleContainer.getHost(), oracleContainer.getMappedPort(1521));
+        return ContainerDataSource.of(jdbcUrl, "test", "test");
     }
 
-    @Autowired
     private DataSource dataSource;
+
+    @BeforeEach
+    void bindDataSource(DataSource dataSource) {
+        this.dataSource = dataSource;
+    }
 
     @Builder(toBuilder = true)
     public record Vet(
@@ -636,7 +627,7 @@ public class OracleEntityRepositoryTest {
                         .type(PetType.builder().id(1).build())
                         .owner(Owner.builder().id(1).build())
                         .build()));
-        assertNull("Exception must be raised by storm.", e.getCause());
+        assertNull(e.getCause(), "Exception must be raised by storm.");
     }
 
     @Test
@@ -680,7 +671,7 @@ public class OracleEntityRepositoryTest {
                 .type(PetType.builder().id(1).build())
                 .owner(Owner.builder().id(1).build())
                 .build())).stream().distinct().toList());
-        assertNull("Exception must be raised by storm.", e.getCause());
+        assertNull(e.getCause(), "Exception must be raised by storm.");
     }
 
     @Test
@@ -912,7 +903,7 @@ public class OracleEntityRepositoryTest {
                             .type(PetType.builder().id(1).build())
                             .owner(Owner.builder().id(1).build())
                             .build()));
-            assertNull("Exception must be raised by storm.", e.getCause());
+            assertNull(e.getCause(), "Exception must be raised by storm.");
         });
     }
 
@@ -941,7 +932,7 @@ public class OracleEntityRepositoryTest {
                             .type(PetType.builder().id(1).build())
                             .owner(Owner.builder().id(1).build())
                             .build()).toList()));
-            assertNull("Exception must be raised by storm.", e.getCause());
+            assertNull(e.getCause(), "Exception must be raised by storm.");
         });
     }
 
@@ -970,7 +961,7 @@ public class OracleEntityRepositoryTest {
                             .type(PetType.builder().id(1).build())
                             .owner(Owner.builder().id(1).build())
                             .build())));
-            assertNull("Exception must be raised by storm.", e.getCause());
+            assertNull(e.getCause(), "Exception must be raised by storm.");
         });
     }
 
@@ -1014,7 +1005,7 @@ public class OracleEntityRepositoryTest {
                         .type(PetType.builder().id(1).build())
                         .owner(Owner.builder().id(1).build())
                         .build()));
-        assertNull("Exception must be raised by storm.", e.getCause());
+        assertNull(e.getCause(), "Exception must be raised by storm.");
     }
 
     @Test
@@ -1027,7 +1018,7 @@ public class OracleEntityRepositoryTest {
                 .type(PetType.builder().id(1).build())
                 .owner(Owner.builder().id(1).build())
                 .build())).stream().distinct().toList());
-        assertNull("Exception must be raised by storm.", e.getCause());
+        assertNull(e.getCause(), "Exception must be raised by storm.");
     }
 
     @Test
@@ -1113,7 +1104,7 @@ public class OracleEntityRepositoryTest {
                 .type(PetType.builder().id(1).build())
                 .owner(Owner.builder().id(1).build())
                 .build()));
-        assertNull("Exception must be raised by storm.", e.getCause());
+        assertNull(e.getCause(), "Exception must be raised by storm.");
     }
 
     @Test
@@ -1157,7 +1148,7 @@ public class OracleEntityRepositoryTest {
                     .type(PetType.builder().id(1).build())
                     .owner(Owner.builder().id(1).build())
                     .build())).stream().distinct().toList());
-        assertNull("Exception must be raised by storm.", e.getCause());
+        assertNull(e.getCause(), "Exception must be raised by storm.");
     }
 
     @Test
@@ -1389,7 +1380,7 @@ public class OracleEntityRepositoryTest {
                             .type(PetType.builder().id(1).build())
                             .owner(Owner.builder().id(1).build())
                             .build()));
-            assertNull("Exception must be raised by storm.", e.getCause());
+            assertNull(e.getCause(), "Exception must be raised by storm.");
         });
     }
 
@@ -1418,7 +1409,7 @@ public class OracleEntityRepositoryTest {
                             .type(PetType.builder().id(1).build())
                             .owner(Owner.builder().id(1).build())
                             .build()).toList()));
-            assertNull("Exception must be raised by storm.", e.getCause());
+            assertNull(e.getCause(), "Exception must be raised by storm.");
         });
     }
 
@@ -1447,7 +1438,7 @@ public class OracleEntityRepositoryTest {
                             .type(PetType.builder().id(1).build())
                             .owner(Owner.builder().id(1).build())
                             .build())));
-            assertNull("Exception must be raised by storm.", e.getCause());
+            assertNull(e.getCause(), "Exception must be raised by storm.");
         });
     }
 
@@ -1491,7 +1482,7 @@ public class OracleEntityRepositoryTest {
                 .type(PetType.builder().id(1).build())
                 .owner(Owner.builder().id(1).build())
                 .build()));
-        assertNull("Exception must be raised by storm.", e.getCause());
+        assertNull(e.getCause(), "Exception must be raised by storm.");
     }
 
     @Test
@@ -1504,7 +1495,7 @@ public class OracleEntityRepositoryTest {
                     .type(PetType.builder().id(1).build())
                     .owner(Owner.builder().id(1).build())
                     .build())).stream().distinct().toList());
-        assertNull("Exception must be raised by storm.", e.getCause());
+        assertNull(e.getCause(), "Exception must be raised by storm.");
     }
 
     @Test
@@ -1571,7 +1562,7 @@ public class OracleEntityRepositoryTest {
                     Pet.builder().id(2).name("Bella").birthDate(LocalDate.of(2020, 2, 1))
                             .type(PetType.builder().id(1).build()).owner(Owner.builder().id(1).build()).build()
             )));
-        assertNull("Exception must be raised by storm.", e.getCause());
+        assertNull(e.getCause(), "Exception must be raised by storm.");
     }
 
     @BeforeEach

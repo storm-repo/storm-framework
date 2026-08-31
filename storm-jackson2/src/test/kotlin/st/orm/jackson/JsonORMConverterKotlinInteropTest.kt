@@ -27,13 +27,8 @@ import com.fasterxml.jackson.databind.annotation.JsonDeserialize
 import com.fasterxml.jackson.databind.annotation.JsonSerialize
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertTrue
+import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
-import org.junit.jupiter.api.extension.ExtendWith
-import org.springframework.beans.factory.annotation.Autowired
-import org.springframework.boot.test.autoconfigure.orm.jpa.DataJpaTest
-import org.springframework.test.annotation.DirtiesContext
-import org.springframework.test.context.ContextConfiguration
-import org.springframework.test.context.junit.jupiter.SpringExtension
 import st.orm.DbTable
 import st.orm.Entity
 import st.orm.Json
@@ -41,6 +36,7 @@ import st.orm.PK
 import st.orm.core.spi.Providers
 import st.orm.core.template.ORMTemplate.of
 import st.orm.core.template.impl.BindHint
+import st.orm.test.StormTest
 import javax.sql.DataSource
 
 /**
@@ -49,14 +45,15 @@ import javax.sql.DataSource
  * annotations placed on Kotlin constructor properties, Kotlin sealed hierarchies in the sealed-type walk, and
  * Java sealed hierarchies enumerated through Kotlin reflection.
  */
-@ExtendWith(SpringExtension::class)
-@ContextConfiguration(classes = [IntegrationConfig::class])
-@DataJpaTest(showSql = false)
-@DirtiesContext(classMode = DirtiesContext.ClassMode.AFTER_CLASS)
+@StormTest(scripts = ["/data.sql"])
 open class JsonORMConverterKotlinInteropTest {
 
-    @Autowired
     private lateinit var dataSource: DataSource
+
+    @BeforeEach
+    fun bindDataSource(dataSource: DataSource) {
+        this.dataSource = dataSource
+    }
 
     data class RawOwnerRow(val address: String?, val telephone: String?)
 

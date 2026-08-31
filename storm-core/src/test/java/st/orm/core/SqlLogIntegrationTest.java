@@ -41,7 +41,7 @@ import st.orm.spi.StatementOrigin;
  */
 @SuppressWarnings("ALL")
 @ExtendWith(SpringExtension.class)
-@ContextConfiguration(classes = IntegrationConfig.class)
+@ContextConfiguration(classes = JpaIntegrationConfig.class)
 @DataJpaTest(showSql = false)
 public class SqlLogIntegrationTest {
 

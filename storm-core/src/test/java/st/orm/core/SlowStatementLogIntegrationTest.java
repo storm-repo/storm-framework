@@ -19,7 +19,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.autoconfigure.orm.jpa.DataJpaTest;
+import org.springframework.boot.test.autoconfigure.jdbc.JdbcTest;
 import org.springframework.test.context.ContextConfiguration;
 import org.springframework.test.context.junit.jupiter.SpringExtension;
 import st.orm.core.model.City;
@@ -35,7 +35,7 @@ import st.orm.core.template.impl.SlowStatementLogTestSupport;
 @SuppressWarnings("ALL")
 @ExtendWith(SpringExtension.class)
 @ContextConfiguration(classes = IntegrationConfig.class)
-@DataJpaTest(showSql = false)
+@JdbcTest
 public class SlowStatementLogIntegrationTest {
 
     private static final String LOGGER = "st.orm.sql.slow";

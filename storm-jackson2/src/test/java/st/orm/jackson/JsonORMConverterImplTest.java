@@ -23,13 +23,8 @@ import java.util.Map;
 import javax.sql.DataSource;
 import lombok.Builder;
 import org.jspecify.annotations.Nullable;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.extension.ExtendWith;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.autoconfigure.orm.jpa.DataJpaTest;
-import org.springframework.test.annotation.DirtiesContext;
-import org.springframework.test.context.ContextConfiguration;
-import org.springframework.test.context.junit.jupiter.SpringExtension;
 import st.orm.DbTable;
 import st.orm.Entity;
 import st.orm.Json;
@@ -38,6 +33,7 @@ import st.orm.PersistenceException;
 import st.orm.Ref;
 import st.orm.jackson.model.Address;
 import st.orm.jackson.model.Owner;
+import st.orm.test.StormTest;
 
 /**
  * Tests for {@link st.orm.jackson.spi.JsonORMConverterImpl} targeting uncovered branches:
@@ -48,14 +44,15 @@ import st.orm.jackson.model.Owner;
  *   <li>failOnUnknown and failOnMissing enabled paths</li>
  * </ul>
  */
-@ExtendWith(SpringExtension.class)
-@ContextConfiguration(classes = IntegrationConfig.class)
-@DataJpaTest(showSql = false)
-@DirtiesContext(classMode = DirtiesContext.ClassMode.AFTER_CLASS)
+@StormTest(scripts = "/data.sql")
 public class JsonORMConverterImplTest {
 
-    @Autowired
     private DataSource dataSource;
+
+    @BeforeEach
+    void bindDataSource(DataSource dataSource) {
+        this.dataSource = dataSource;
+    }
 
     // Custom Serializer/Deserializer for Address
 

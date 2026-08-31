@@ -35,7 +35,7 @@ import javax.sql.DataSource;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.autoconfigure.orm.jpa.DataJpaTest;
+import org.springframework.boot.test.autoconfigure.jdbc.JdbcTest;
 import org.springframework.test.context.ContextConfiguration;
 import org.springframework.test.context.junit.jupiter.SpringExtension;
 import st.orm.core.model.City;
@@ -51,7 +51,7 @@ import st.orm.core.template.ORMTemplate;
  */
 @ExtendWith(SpringExtension.class)
 @ContextConfiguration(classes = IntegrationConfig.class)
-@DataJpaTest(showSql = false)
+@JdbcTest
 public class ColumnSkipperIntegrationTest {
 
     // Flat column layout of the Pet graph: pet (id, name, birth_date, type ref), then the owner region

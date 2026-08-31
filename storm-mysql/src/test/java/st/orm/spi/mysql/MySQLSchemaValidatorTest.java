@@ -24,15 +24,8 @@ import java.time.LocalDate;
 import java.util.List;
 import javax.sql.DataSource;
 import org.jspecify.annotations.Nullable;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.extension.ExtendWith;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.autoconfigure.jdbc.AutoConfigureTestDatabase;
-import org.springframework.boot.test.autoconfigure.orm.jpa.DataJpaTest;
-import org.springframework.test.context.ContextConfiguration;
-import org.springframework.test.context.DynamicPropertyRegistry;
-import org.springframework.test.context.DynamicPropertySource;
-import org.springframework.test.context.junit.jupiter.SpringExtension;
 import org.testcontainers.containers.MySQLContainer;
 import org.testcontainers.containers.wait.strategy.Wait;
 import org.testcontainers.junit.jupiter.Container;
@@ -42,12 +35,11 @@ import st.orm.Entity;
 import st.orm.PK;
 import st.orm.core.template.impl.SchemaValidationError.ErrorKind;
 import st.orm.core.template.impl.SchemaValidator;
+import st.orm.tck.ContainerDataSource;
+import st.orm.test.StormTest;
 
-@ExtendWith(SpringExtension.class)
-@ContextConfiguration(classes = IntegrationConfig.class)
-@AutoConfigureTestDatabase(replace = AutoConfigureTestDatabase.Replace.NONE)
-@DataJpaTest(showSql = false)
 @Testcontainers
+@StormTest(scripts = "/data.sql")
 public class MySQLSchemaValidatorTest {
 
     @SuppressWarnings("resource")
@@ -58,15 +50,17 @@ public class MySQLSchemaValidatorTest {
             .withPassword("test")
             .waitingFor(Wait.forListeningPort());
 
-    @DynamicPropertySource
-    static void overrideProperties(DynamicPropertyRegistry registry) {
-        registry.add("spring.datasource.url", mysqlContainer::getJdbcUrl);
-        registry.add("spring.datasource.username", mysqlContainer::getUsername);
-        registry.add("spring.datasource.password", mysqlContainer::getPassword);
+    public static DataSource dataSource() {
+        return ContainerDataSource.of(mysqlContainer.getJdbcUrl(), mysqlContainer.getUsername(),
+                mysqlContainer.getPassword());
     }
 
-    @Autowired
     private DataSource dataSource;
+
+    @BeforeEach
+    void bindDataSource(DataSource dataSource) {
+        this.dataSource = dataSource;
+    }
 
     // Happy path entities
 

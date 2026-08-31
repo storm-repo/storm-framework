@@ -3,17 +3,14 @@ package st.orm.serialization
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertNotNull
 import org.junit.jupiter.api.Assertions.assertThrows
+import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
-import org.junit.jupiter.api.extension.ExtendWith
-import org.springframework.beans.factory.annotation.Autowired
-import org.springframework.boot.test.autoconfigure.orm.jpa.DataJpaTest
-import org.springframework.test.context.ContextConfiguration
-import org.springframework.test.context.junit.jupiter.SpringExtension
 import st.orm.Entity
 import st.orm.Json
 import st.orm.PK
 import st.orm.PersistenceException
 import st.orm.template.ORMTemplate
+import st.orm.test.StormTest
 import javax.sql.DataSource
 
 /**
@@ -25,12 +22,15 @@ import javax.sql.DataSource
  * - Lines 88/148: Constructor/createRefSerializer paths that are partially covered
  * - Lines 182-183: toDatabase exception path (SqlTemplateException wrapping)
  */
-@ExtendWith(SpringExtension::class)
-@ContextConfiguration(classes = [IntegrationConfig::class])
-@DataJpaTest(showSql = false)
-internal open class JsonORMConverterProviderGapTest(
-    @Autowired val dataSource: DataSource,
-) {
+@StormTest(scripts = ["/data.sql"])
+internal open class JsonORMConverterProviderGapTest {
+
+    private lateinit var dataSource: DataSource
+
+    @BeforeEach
+    fun bindDataSource(dataSource: DataSource) {
+        this.dataSource = dataSource
+    }
 
     // toDatabase error path: trigger SqlTemplateException by causing a serialization failure
 

@@ -23,15 +23,8 @@ import java.util.Map;
 import javax.sql.DataSource;
 import lombok.Builder;
 import org.jspecify.annotations.Nullable;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.extension.ExtendWith;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.autoconfigure.jdbc.AutoConfigureTestDatabase;
-import org.springframework.boot.test.autoconfigure.orm.jpa.DataJpaTest;
-import org.springframework.test.context.ContextConfiguration;
-import org.springframework.test.context.DynamicPropertyRegistry;
-import org.springframework.test.context.DynamicPropertySource;
-import org.springframework.test.context.junit.jupiter.SpringExtension;
 import org.testcontainers.containers.PostgreSQLContainer;
 import org.testcontainers.containers.wait.strategy.Wait;
 import org.testcontainers.junit.jupiter.Container;
@@ -41,6 +34,8 @@ import st.orm.Entity;
 import st.orm.Json;
 import st.orm.PK;
 import st.orm.core.template.PreparedStatementTemplate;
+import st.orm.tck.ContainerDataSource;
+import st.orm.test.StormTest;
 
 /**
  * Verifies that {@code @Json} fields bind correctly against PostgreSQL's native {@code jsonb} columns.
@@ -49,11 +44,8 @@ import st.orm.core.template.PreparedStatementTemplate;
  * output is bound as an untyped parameter via the dialect — these tests exercise the insert, update and upsert
  * (INSERT ... ON CONFLICT) paths against real {@code jsonb} columns.</p>
  */
-@ExtendWith(SpringExtension.class)
-@ContextConfiguration(classes = IntegrationConfig.class)
-@AutoConfigureTestDatabase(replace = AutoConfigureTestDatabase.Replace.NONE)    // Prevent swapping to H2.
-@DataJpaTest(showSql = false)
 @Testcontainers
+@StormTest(scripts = "/data.sql")
 public class PostgreSQLJsonTest {
 
     @SuppressWarnings("resource")
@@ -64,15 +56,17 @@ public class PostgreSQLJsonTest {
             .withPassword("test")
             .waitingFor(Wait.forListeningPort());
 
-    @DynamicPropertySource
-    static void overrideProperties(DynamicPropertyRegistry registry) {
-        registry.add("spring.datasource.url", postgresContainer::getJdbcUrl);
-        registry.add("spring.datasource.username", postgresContainer::getUsername);
-        registry.add("spring.datasource.password", postgresContainer::getPassword);
+    public static DataSource dataSource() {
+        return ContainerDataSource.of(postgresContainer.getJdbcUrl(), postgresContainer.getUsername(),
+                postgresContainer.getPassword());
     }
 
-    @Autowired
     private DataSource dataSource;
+
+    @BeforeEach
+    void bindDataSource(DataSource dataSource) {
+        this.dataSource = dataSource;
+    }
 
     // Note: @Json fields use Map types here — Jackson reflects on java.base types without requiring this
     // module to be opened to jackson-databind. Structured @Json records are covered by the jackson2/jackson3
