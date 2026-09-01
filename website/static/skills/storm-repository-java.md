@@ -245,6 +245,8 @@ List<User> users = userRepository.findByCountry(country);   // city resolved
 users.forEach(user -> render(user.city().getOrThrow()));
 ```
 
+**The convenience reads resolve nothing.** `findById`, `findAllById`, `getById`, `findAll`, and the predicate and `Ref` lookups carry no fetch plan, so every `Ref` on the rows they return comes back unloaded and `getOrThrow()` on one of them throws. A read whose caller reads a reference needs a query that names it.
+
 
 
 ## Batch Operations
