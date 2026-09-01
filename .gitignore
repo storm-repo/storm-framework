@@ -61,3 +61,4 @@ website/static/llms-full.txt
 # Working analysis docs — not for check-in
 ADOPTION_ANALYSIS.md
 ARTICLE_SCHEDULE.md
+RELEASE_NOTES_*.md

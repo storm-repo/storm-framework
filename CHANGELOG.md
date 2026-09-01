@@ -10,110 +10,54 @@ for the CLI, to [npm](https://www.npmjs.com/package/@storm-orm/cli)
 (`@storm-orm/cli`). Full release notes for every version are on the
 [GitHub Releases](https://github.com/storm-orm/storm-framework/releases) page.
 
-## [1.14.0] - Unreleased
+## [1.14.0] - 2026-09-02
 
-A quality release: a smaller, more coherent API, and SQL that is correct on every dialect Storm supports rather than on the permissive ones.
+A quality release: a smaller, more coherent API, and SQL that is correct on every dialect Storm supports rather than on the permissive ones, held there by a Technology Compatibility Kit that every dialect runs.
 
-### A join widens the query
-
-From the join onward every clause accepts paths from any entity in the query, so referencing a joined table needs no separate method:
-
-```kotlin
-orm.entity<Role>().select()
-    .innerJoin<UserRole>().on<Role>()
-    .where(UserRole_.user eq user)
-    .resultList
-```
-
-- Removed `whereAny`, `whereAnyRef`, `whereAnyBuilder`, `havingAny`, `groupByAny`, `orderByAny`, `orderByDescendingAny`, `andAny` and `orAny`; `and`/`or` inherit the query root. A path on an entity the query does not carry fails when the query is built, naming the entity, the root, and the paths that pin the table where it appears more than once.
-- Added `widen()` and `narrow(rootType)`, the two directions made explicit: `widen()` admits short-form references on a query that joins nothing, `narrow` restores the root for the operations defined relative to it, `resultGroupedBy` and `scroll`.
-- Renamed `typed(pkType)` to `typedId(pkType)`: it types the erased primary-key parameter, where `narrow` types the root.
-- `fetch(...)` comes right after `select()`, before any join, enforced at compile time.
-- Kotlin's `select { }` and `delete { }` blocks are widened from the start, return the widened builder, and carry the chained builder's clause vocabulary.
-
-### A grouping states an identity
-
-A grouping says what one row stands for, and the generator emits the columns that express it. Naming the entity is enough:
-
-```kotlin
-orm.entity<User>()
-    .select<CityCount, _, _> { "${City::class}, COUNT(*)" }
-    .groupBy(User_.city)
-```
-
-```sql
--- PostgreSQL, MySQL, SQLite, H2
-GROUP BY c.id
--- SQL Server, Oracle, which do not resolve functional dependency from a key
-GROUP BY c.id, c.name, c.population
-```
-
-- The relationship (`User_.city`), the key beyond it (`User_.city.id`), the root's own key (`User_.id`) and a reference all state the same identity. Any other path groups by its value.
-- Selecting an entity selects the tables its foreign keys reach, so a grouping covers those keys too. Every foreign key is to-one, so this cannot move a row into a different group.
-- A grouping that determines nothing, such as selecting `Pet` while grouping by `Pet_.owner`, is refused when the query is built, on every dialect rather than only the ones that would notice.
-
-### The engine leaves the compile classpath
-
-Applications program against the facade API; the engine that executes it is a runtime concern. `storm-core` reaches the application at runtime only, so completion and imports offer exactly one `EntityRepository`, one `ORMTemplate`, one `QueryBuilder`: the facade's.
-
-- The integration contract lives in `storm-foundation` under `st.orm.spi`: exception translation (`ExceptionMapper`, `ExceptionContext`, `SqlOperation`), query observation (`QueryObserver`, `QueryContext`, `StatementOrigin`), SQL commenting (`SqlCommenter`) and cursor codecs. `SqlTemplateException` joins `PersistenceException` in `st.orm`. Transaction bridging, `RefFactory` and the dialect surface are engine SPI and stay in `storm-core`.
-- The Spring Boot starters carry `storm-core` at runtime scope; the library modules declare it `provided`.
-- The facade builders keep the options an application can name: `config`, `decorator`, `manualCommitConnections`, `exceptionMapper`, `queryObserver` and `sqlCommenter`. Transaction bridging is framework-level composition, available through `SpringOrmTemplate.builder(dataSource, beanFactory)` and `springOrmTemplateBuilder(dataSource, beanFactory)`.
-- On the module path the facades require `storm-foundation` transitively; `storm.core` stays non-transitive, and its repository package is exported to Storm's own modules only.
-- `QueryObserver.onTransaction` receives the `st.orm.TransactionOptions` an application passes to `transaction(options) { }`.
-- Creating a template without the engine on the runtime classpath names the missing `st.orm:storm-core` dependency, rather than surfacing as a `NoClassDefFoundError` at the first statement.
-- `@StormTest` injects `SchemaValidation`, a facade over the engine's schema validator that reports mismatches as rendered messages.
-
-### A placeholder inside a string literal is refused
-
-A value interpolated inside quotes, as in `DATE_FORMAT(date, '\0')`, renders as the literal text `'?'`. That is valid SQL: a string literal holding a question mark. The value is still bound but has no placeholder to bind to, so every parameter after it takes the position before its own. Where the leftover count does not balance the driver rejects the bind with an out-of-range index; where it does balance the statement runs against the wrong arguments and returns results that look ordinary.
-
-- A statement that binds more positional parameters than it exposes placeholders is refused when it is built, naming the cause and the SQL. Interpolate the value without the quotes around it, as in `DATE_FORMAT(date, \0)`, and it binds as a parameter.
-- The check reads the compiled SQL once per cached statement shape, and only walks it for literals when the SQL contains a quote at all. More placeholders than parameters stays legal: that is bind vars, whose values arrive per batch.
-- The Kotlin compiler plugin reports it where it is written, so the error arrives in the editor with the offending interpolation under the cursor rather than at the first execution. The runtime check stays for what the plugin cannot see: Java callers, templates assembled outside a string literal, and code compiled without the plugin.
-- Storm does not inline the value into the literal instead. Inlining a bound value on the strength of two quote characters would turn a parameterised statement into a concatenated one, which is what parameters exist to prevent; `inlineParameters` remains the explicit opt-in.
-
-### A placeholder inside a string literal is refused
-
-A value interpolated inside quotes, as in `DATE_FORMAT(date, '\0')`, renders as the literal text `'?'`. That is valid SQL: a string literal holding a question mark. The value is still bound but has no placeholder to bind to, so every parameter after it takes the position before its own. Where the leftover count does not balance the driver rejects the bind with an out-of-range index; where it does balance the statement runs against the wrong arguments and returns results that look ordinary.
-
-- A statement that binds more positional parameters than it exposes placeholders is refused when it is built, naming the cause and the SQL. Interpolate the value without the quotes around it, as in `DATE_FORMAT(date, \0)`, and it binds as a parameter.
-- The check reads the compiled SQL once per cached statement shape, and only walks it for literals when the SQL contains a quote at all. More placeholders than parameters stays legal: that is bind vars, whose values arrive per batch.
-- The Kotlin compiler plugin reports it where it is written, so the error arrives in the editor with the offending interpolation under the cursor rather than at the first execution. The runtime check stays for what the plugin cannot see: Java callers, templates assembled outside a string literal, and code compiled without the plugin.
-- Storm does not inline the value into the literal instead. Inlining a bound value on the strength of two quote characters would turn a parameterised statement into a concatenated one, which is what parameters exist to prevent; `inlineParameters` remains the explicit opt-in.
-
-### Highlights
-
-- The public API is JSpecify null-marked, and the jakarta annotations are gone from Storm's signatures, so `jakarta.annotation-api` is no longer a dependency. JSpecify itself is optional: compilers and analysis tools read the annotations from bytecode. Kotlin callers get real `T`/`T?` types where the Java surface used to be platform types, and the generated nullable metamodel chain compiles on Kotlin 2.1+.
+- A join widens the query: from the join onward every clause accepts paths from any entity in the query, so referencing a joined table needs no separate method. `whereAny`, `whereAnyRef`, `whereAnyBuilder`, `havingAny`, `groupByAny`, `orderByAny`, `orderByDescendingAny`, `andAny` and `orAny` are removed, and `and` / `or` inherit the query root. A path on an entity the query does not carry fails when the query is built, naming the entity, the root, and the paths that pin the table where it appears more than once.
+- Added `widen()` and `narrow(rootType)`, the two directions made explicit; renamed `typed(pkType)` to `typedId(pkType)`; `fetch(...)` comes right after `select()`, before any join, enforced at compile time. Kotlin's `select { }` and `delete { }` blocks are widened from the start and carry the chained builder's clause vocabulary.
+- A grouping states an identity, and the generator emits the columns that express it. `groupBy(User_.city)` emits `GROUP BY c.id` on PostgreSQL, MySQL, SQLite and H2, and every column of the referenced key on SQL Server and Oracle, which do not resolve functional dependency from a key. The relationship, the key beyond it, the root's own key and a reference all state the same identity; any other path groups by its value. A grouping that determines nothing is refused when the query is built, on every dialect rather than only the ones that would notice.
+- Every dialect runs the same Technology Compatibility Kit. The new build-time `storm-dialect-tck` module holds 146 conformance tests over entity repository, polymorphic, schema validation and multi-column expression behavior, and all seven dialects run all four of them; fourteen behaviors used to run on H2 alone, the most permissive dialect in the set, among them the key chains where a key is a reference the mapper has to flatten rather than a column. Where dialects legitimately differ they state a capability once and pin their own statement text, and a drift guard fails naming any statement a dialect can reach but has not pinned. A dialect that cannot do something demonstrates that it refuses cleanly rather than being silently exempt.
+- The engine leaves the application's compile classpath. `storm-core` is `provided` on the library modules and `runtime` on the Spring Boot starters, so completion and imports offer exactly one `EntityRepository`, one `ORMTemplate`, one `QueryBuilder`: the facade's. Creating a template without the engine on the runtime classpath names the missing `st.orm:storm-core` dependency instead of surfacing as a `NoClassDefFoundError` at the first statement.
+- The integration contract moves to `st.orm.spi` in storm-foundation: `ExceptionMapper`, `ExceptionContext`, `SqlOperation`, `QueryObserver`, `QueryContext`, `StatementOrigin`, `SqlCommenter` and the cursor codecs; `SqlTemplateException` joins `PersistenceException` in `st.orm`. Transaction bridging, `RefFactory` and the dialect surface stay engine SPI in `storm-core`. `QueryTemplate.dialect()` is removed from the Java API, the facade builders drop `connectionProvider` and `transactionTemplateProvider` in favor of `SpringOrmTemplate.builder(dataSource, beanFactory)` and `springOrmTemplateBuilder(dataSource, beanFactory)`, `QueryObserver.onTransaction` receives `st.orm.TransactionOptions`, and `@StormTest` injects `SchemaValidation` rather than the engine's validator.
+- A placeholder swallowed by a string literal is refused. A value interpolated inside quotes renders as the literal text `'?'`, which is valid SQL, so the value binds to the position of the next placeholder and every parameter after it shifts; where the count balances, the statement runs against the wrong arguments and returns results that look ordinary. A statement that binds more positional parameters than it exposes placeholders is now refused when it is built, and the Kotlin compiler plugin reports it in the editor where it is written. `inlineParameters` remains the explicit opt-in for inlining.
+- The SQL log is configured per log and named after the two loggers it writes to: `storm.sql-log.performance.*` for the performance log (`st.orm.sql.perf`), which says what a unit of work cost the database, and `storm.sql-log.slow.*` for the slow statement log (`st.orm.sql.slow`), which names the execution that cost too much. The old flat keys are removed rather than mapped. The Ktor DSL, the HOCON keys, the system properties and the Spring types follow: `StormPerformanceLogFilter` and `StormPerformanceLogEntryPointPostProcessor`.
+- Added the slow statement log: each execution whose database time exceeds a threshold reports at `WARN`, carrying the statement, the rows, and how the execution compares to what its shape typically costs (`typically 6.0 ms, 306x`) and binds (`parameters 32 (typically 3)`). Values render at `TRACE` only and lines are rate-limited per shape. The threshold derives from the performance log when it has none of its own. Database time is measured to the statement's return everywhere, so the summary, `SqlCapture.duration` and the slow line agree.
+- The SQL log is retunable while the application runs: `SlowStatementLog.threshold(Duration)` and `limit(int)` land on the next execution, and the performance log reads its settings per unit of work. Where the actuator is on the class path, the `storm` endpoint reads and sets both halves (`GET` / `POST /actuator/storm`).
 - `@StormTest` runs each test inside a database transaction that is rolled back afterwards, so tests no longer observe each other's writes. Transaction blocks demarcate with savepoints inside it; `rollback = false` opts a class out.
 - `@StormTest` and `@DataStormTest` run on the database the application deploys on: `database = POSTGRESQL` (or `MYSQL`, `MARIADB`, `MSSQL_SERVER`, `ORACLE`) starts a Testcontainers-managed container once per JVM and gives each test class a freshly created database inside it. The database's Testcontainers 2 module and JDBC driver stay out of `storm-test`'s dependencies, and a test that names a container database fails naming both when one is missing. `TestDatabase.POSTGRESQL.container()` exposes the shared container, and `createDatabase()` a database of your own.
+- The public API is JSpecify null-marked, and the jakarta annotations are gone from Storm's signatures, so `jakarta.annotation-api` is no longer a dependency. JSpecify itself is optional: compilers and analysis tools read the annotations from bytecode. Kotlin callers get real `T` / `T?` types where the Java surface used to be platform types, and the generated nullable metamodel chain compiles on Kotlin 2.1+.
 - `Projection<ID>`'s type argument is a checked contract instead of a phantom parameter: `ID` is the projection's row identity type, which for a foreign-key-typed primary key is the referenced table's key. Record validation rejects a declaration the record contradicts, and the rule that a foreign key must not be an auto-generated primary key applies to entities only.
-- The slow statement log reports each execution whose database time exceeds a threshold, under `st.orm.sql.slow` at `WARN`: `storm.sql-log.slow.threshold=200ms` in Spring, `sqlLogSlowThreshold` in Ktor, `storm.sql_log.slow.threshold` on a plain JVM. The line carries the statement, the rows, and how the execution compares to what its shape typically costs (`typically 6.0 ms, 306x`) and binds (`parameters 32 (typically 3)`), which says whether to look at the parameters or at the query; values render at `TRACE` only and lines are rate-limited per shape. Database time is measured to the statement's return everywhere, so the summary, `SqlCapture.duration` and the slow line agree.
-- The SQL log is configured per log and named after the two loggers it writes to: `storm.sql-log.performance.*` for the performance log (`st.orm.sql.perf`), which says what a unit of work cost the database, and `storm.sql-log.slow.*` for the slow statement log (`st.orm.sql.slow`), which names the execution that cost too much. The Ktor DSL, the HOCON keys, the system properties and the Spring types follow: `StormPerformanceLogFilter` and `StormPerformanceLogEntryPointPostProcessor`.
-- The SQL log is retunable while the application runs: `SlowStatementLog.threshold(Duration)` and `limit(int)` land on the next execution, and the performance log reads its settings per unit of work. Where the actuator is on the class path, the `storm` endpoint reads and sets both halves (`GET`/`POST /actuator/storm`), Storm's control surface rather than the SQL log's.
-- The slow statement log takes its threshold from the performance log when it has none of its own, so the derived default names the statement behind a warning instead of adding warnings of its own.
 - The implementation is sealed: `st.orm.core.template.impl` and `st.orm.core.repository.impl` are exported to Storm's own modules only, and storm-kotlin's `impl` packages are `internal` throughout, including the `Flow` operators that collided with their kotlinx.coroutines namesakes. All five Kotlin modules compile in explicit API mode; the coroutine-aware SQL log recording the Ktor plugin shares is the one exception, behind `@InternalStormApi`.
-
-### Other changes
-
-- The slow statement log's per-shape rate limit covers the executions it has no shape for, which used to skip it entirely. The shape identity uses the full 64 bits it is declared with, derived from the shape key's content, and renders as sixteen hex digits in the log and in the `storm.shape` observation tag.
-- The Spring Boot starters expose `OrmTemplateFactory`: one bean that composes a fully integrated `ORMTemplate` wherever the application defines its own template beans. Failure translation follows `storm.exception-translation.enabled` per data source, observations resolve their conventions from each data source's JDBC URL and report the template's name as `storm.database`, and a customize block applies application-specific composition without touching the integration SPI.
+- Added `OrmTemplateFactory` to the Spring Boot starters: one bean that composes a fully integrated `ORMTemplate` wherever the application defines its own template beans. Failure translation follows `storm.exception-translation.enabled` per data source, observations resolve their conventions from each data source's JDBC URL and report the template's name as `storm.database`, and a customize block applies application-specific composition without touching the integration SPI.
 - The Ktor plugin closes its composition gaps against the starters: `storm.observations.semanticConventions = otel` selects the OpenTelemetry conventions per database, and a `customize` slot applies application-specific composition after the integration is wired. Observer composition is shared with the starters through `QueryObservers` in storm-micrometer.
-- Both metamodel processors reject a cycle of non-Ref foreign keys at compile time, naming the cycle and the fix. They converge on one contract: the Java processor generates the `<Type>NullableMetamodel` chain variant, and KSP sources components from the primary constructor, contributes abstract properties only for sealed interfaces, and escapes keyword-named properties.
-- The Java annotation processor registers with Gradle as an aggregating incremental processor, so attaching it no longer forces full recompilation. The Gradle plugin wires it into every source set's processor configuration, so entities in test sources get a metamodel.
-- The Jackson converters key their mapper cache on the field's type, so a serializer shared by fields of different types is registered per field type. A record component's field metadata includes the annotations Java propagates to the backing field, accessor or constructor parameter, and `@Json` fields serialize with the declared field type, so a polymorphic value writes the discriminator that reading the column expects.
 - Storm-initiated transaction blocks resolve the Spring manager that owns their data source, covering `JdbcTransactionManager`, a `JpaTransactionManager` backed by it, and a `JtaTransactionManager` where no resource-bound manager claims it. An option a manager refuses is reported against the option passed to the block, and a connection that arrives with auto-commit disabled fails naming the two possible causes and the fix.
 - What a transaction block joins, and which blocks share a connection, follows from the block structure rather than from what happens to be bound at the time. A `REQUIRED` block inside a `NOT_SUPPORTED` or `NEVER` block opens a transaction of its own, `MANDATORY` and `NEVER` are checked against the block the enclosing code declares, and data source consistency is checked per physical transaction, so an audit write can go to a second database from inside a transaction on the first.
-- The `@DataStormTest` slice imports every auto-configuration the starters register in production, verified by a parity test, and provides `JdbcTemplate`, `JdbcClient` and Testcontainers service connection support.
-- Transaction observations go through an observation convention, `StormTransactionObservationConvention`, the way query observations always did, and the Ktor plugin forwards them. Query observations carry the shape identity as the low-cardinality `storm.shape` key value, cached per compiled template.
-- `StormConfig.sqlShapingKeys()` exposes the configuration keys whose values affect the generated SQL, and the template cache key includes exactly these.
-- `SqlLog` carries the diagnostics API only: summary rendering lives in `SqlLogRenderer` and call-site capture in `CallSiteCapture`, both internal. The hydration shape is gone from summary rows; the per-type report belongs to `storm analyze` (#503).
-- The deliberately paired artifacts, `storm-java21`/`storm-kotlin`, the two Spring Boot starters, `storm-jackson2`/`storm-jackson3` and the two metamodel processors, ship the same fully qualified names, one half per class path. Each half bans its twin through a maven-enforcer rule.
-- The Java and Kotlin facades close their remaining parity gaps. Kotlin's path-based `where` and `whereRef` clauses accept `Navigable` paths, so navigation-only nodes reached through a `Ref` compile in both languages; Java's `where(path, record)` bounds the record by `Data`. Kotlin's `findRefBy` drops two unused type parameters, `findAllRefBy(field, values)` accepts any value type, and `Templates` gains the named `param(name, Calendar, TemporalType)` variant.
+- Added `manualCommitConnections()`: a template declares that its `DataSource` hands out connections with auto-commit already disabled, and the non-transactional paths manage auto-commit accordingly.
+- The `and` and `or` combinators root at their operands' least common root, so a cross-root conjunction is one clause rather than an escalation to `whereBuilder { }`. On a narrow builder the combination is unsatisfiable and is rejected at the call site, at compile time.
+- The Java and Kotlin facades close their remaining parity gaps. Kotlin's path-based `where` and `whereRef` clauses accept `Navigable` paths, so navigation-only nodes reached through a `Ref` compile in both languages; Java's `where(path, record)` bounds the record by `Data`. Kotlin's `findRefBy` drops two unused type parameters, `findAllRefBy(field, values)` accepts any value type, and `Templates` gains the named `param(name, Calendar, TemporalType)` variant. `hasOrderBy()` is no longer public API, and the two-argument `selectFrom(fromType, selectType)` renders the select list from the FROM table, so `selectType` may be any record shape over those columns.
 - The `select { }` and `delete { }` blocks add the remaining clause forms: `where(records)`, `where(path, records)`, `where(path, operator, values)`, `whereRef(path, refs)` and the descending order template. `whereRef` works inside `whereBuilder { }` too.
-- The query builder's `hasOrderBy()` probe is no longer public API. Combining explicit `orderBy` with `Pageable` or `Scrollable` sorting still fails with a descriptive error.
-- The two-argument `selectFrom(fromType, selectType)` renders the select list from the FROM table, so `selectType` may be any record shape over those columns, such as a wrapper record nesting the from-entity.
-- Unloading a ref that wraps an unsaved record fails with an error naming the cause instead of a `NullPointerException`.
+- Transaction observations go through an observation convention, `StormTransactionObservationConvention`, the way query observations always did, and the Ktor plugin forwards them. Query observations carry the shape identity as the low-cardinality `storm.shape` key value, cached per compiled template. The shape identity uses the full 64 bits it is declared with and renders as sixteen hex digits.
+- Both metamodel processors reject a cycle of non-Ref foreign keys at compile time, naming the cycle and the fix, and converge on one contract: the Java processor generates the `<Type>NullableMetamodel` chain variant, and KSP sources components from the primary constructor, contributes abstract properties only for sealed interfaces, and escapes keyword-named properties. The Java processor registers with Gradle as an aggregating incremental processor, and the Gradle plugin wires it into every source set, so entities in test sources get a metamodel.
+- The `@DataStormTest` slice imports every auto-configuration the starters register in production, verified by a parity test, and provides `JdbcTemplate`, `JdbcClient` and Testcontainers service connection support.
+- `StormConfig.sqlShapingKeys()` exposes the configuration keys whose values affect the generated SQL, and the template cache key includes exactly these. `SqlLog` carries the diagnostics API only: summary rendering lives in `SqlLogRenderer` and call-site capture in `CallSiteCapture`, both internal, and the hydration shape is gone from summary rows.
+- The deliberately paired artifacts, `storm-java21` / `storm-kotlin`, the two Spring Boot starters, `storm-jackson2` / `storm-jackson3` and the two metamodel processors, ship the same fully qualified names, one half per class path. Each half bans its twin through a maven-enforcer rule.
+- Fixed `getResultCount()` counting the rows a select returned instead of executing a count query; page totals are inferred from it and `QueryBuilder.append` is removed.
+- Fixed grouping by a reference resolving to its own column rather than to the referenced table's key.
+- Fixed `@GenerateMetamodel` living where the processors could not find it, Java record entities missing from the type index, and a missing type index passing unreported.
+- Fixed Storm-initiated transaction blocks failing to find a `JpaTransactionManager`: matching is JPA-first, ambiguity fails fast naming the candidates, and the auto-configuration orders after the JDBC and Hibernate managers.
+- Fixed an explicitly set dialect being dropped back to discovery by `withConfig`, and discovery silently picking the first candidate; resolution is lazy and reports the candidates by name.
+- Fixed static caches pinning classes, class loaders and data sources, which kept redeployed applications alive.
+- Fixed compiler-folded constant interpolations reaching the SQL as text rather than as parameters, template keywords dispatching inside identifiers rather than on word boundaries, and unknown interpolation-safety modes passing silently; the compiler plugin marker is now required.
+- Fixed `Metamodel.KeyDelegate.isNullable()` always returning false through the documented factory, so nullability now derives from the underlying field.
+- Fixed the JSON converters sharing one mapper cache across field types, dropping the annotations Java propagates to a record component's backing field, accessor or constructor parameter, and writing `@Json` fields with the runtime rather than the declared type. Fixed the outer `RefFactory` not being restored after nested deserialization, and compound primary key `Ref` objects failing to deserialize.
+- Fixed MariaDB sequences going undiscovered during schema validation, and `@StormTest` sharing one database across test classes.
+- Fixed `SqlCapture` losing statements across Kotlin coroutine boundaries and skipping an action that returns no row; storm-kotlin-test gains a blocking `recording { }` scope and the Ktor test scope captures for real.
+- Fixed Ktor named databases not inheriting plugin-level configuration, an unclaimed named lookup passing silently, the SQL log not binding to `application.conf`, and the plugin closing pools it did not create.
+- Fixed unknown validation-mode values skipping schema validation with only a boot warning and silently escalating record validation; a typo now fails fast naming the accepted values.
+- Fixed the slow log's per-shape rate limit skipping the executions it has no shape for, which is where a degraded database could flood it.
+- Fixed error messages and API docs naming methods that exist on no surface, the PostgreSQL, MariaDB and MSSQL JDBC drivers leaking onto consumers' classpaths at compile scope, published POM metadata pointing at the wrong organization, and the CLI accepting unknown commands.
+
 
 ## [1.13.1] - 2026-08-07
 
