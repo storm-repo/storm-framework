@@ -18,8 +18,29 @@ public class SQLiteEntityRepositoryConformanceTest extends AbstractEntityReposit
     }
 
     @Override
+    protected boolean supportsSequences() {
+        return false;
+    }
+
+    @Override
     protected List<String> schemaDdl() {
         return List.of(
+                "DROP TABLE IF EXISTS non_autogen_entity",
+                """
+                        CREATE TABLE non_autogen_entity (
+                        id integer PRIMARY KEY,
+                        name varchar(255),
+                        version integer DEFAULT 0
+                        )""",
+                "INSERT INTO non_autogen_entity (id, name) VALUES (1, 'First')",
+                "INSERT INTO non_autogen_entity (id, name) VALUES (2, 'Second')",
+                "DROP TABLE IF EXISTS pk_only_entity",
+                """
+                        CREATE TABLE pk_only_entity (
+                        id integer PRIMARY KEY
+                        )""",
+                "INSERT INTO pk_only_entity (id) VALUES (1)",
+                "INSERT INTO pk_only_entity (id) VALUES (2)",
                 "DROP TABLE IF EXISTS version_long_entity",
                 """
                         CREATE TABLE version_long_entity (
@@ -82,6 +103,63 @@ public class SQLiteEntityRepositoryConformanceTest extends AbstractEntityReposit
                 entry(Statement.UPDATE_AND_FETCH_INLINE_VERSION_BATCH, Expected.sql("""
                 UPDATE owner
                 SET first_name = ?, last_name = ?, address = ?, city = ?, telephone = ?, version = version + 1
-                WHERE id = ? AND version = ?""").keys().bound(true)));
+                WHERE id = ? AND version = ?""").keys().bound(true)),
+                entry(Statement.UPSERT_BATCH, Expected.sql("""
+                        INSERT INTO vet (first_name, last_name)
+                        VALUES (?, ?)
+                        ON CONFLICT (id) DO UPDATE SET first_name = EXCLUDED.first_name, last_name = EXCLUDED.last_name""")),
+                entry(Statement.UPSERT_AND_FETCH_BATCH, Expected.sql("""
+                        UPDATE vet
+                        SET first_name = ?, last_name = ?
+                        WHERE id = ?""")),
+                entry(Statement.UPSERT_AND_FETCH_BATCH_EXISTING_COMPOUND_PK, Expected.sql("""
+                        INSERT INTO vet_specialty (vet_id, specialty_id)
+                        VALUES (?, ?)
+                        ON CONFLICT (vet_id, specialty_id) DO NOTHING""")),
+                entry(Statement.UPSERT_AND_FETCH_INLINE_VERSION, Expected.sql("""
+                        UPDATE owner
+                        SET first_name = ?, last_name = ?, address = ?, city = ?, telephone = ?, version = version + 1
+                        WHERE id = ? AND version = ?""")),
+                entry(Statement.UPSERT_INLINE_VERSION_BATCH, Expected.sql("""
+                        UPDATE owner
+                        SET first_name = ?, last_name = ?, address = ?, city = ?, telephone = ?, version = version + 1
+                        WHERE id = ? AND version = ?""")),
+                entry(Statement.UPSERT, Expected.sql("""
+                        INSERT INTO vet (first_name, last_name)
+                        VALUES (?, ?)
+                        ON CONFLICT (id) DO UPDATE SET first_name = EXCLUDED.first_name, last_name = EXCLUDED.last_name"""))
+,
+                entry(Statement.UPSERT_INLINE_VERSION, Expected.sql("""
+                        UPDATE owner
+                        SET first_name = ?, last_name = ?, address = ?, city = ?, telephone = ?, version = version + 1
+                        WHERE id = ? AND version = ?""")),
+                entry(Statement.UPSERT_AND_FETCH_NON_AUTO_GENERATED, Expected.sql("""
+                        INSERT INTO specialty (id, name)
+                        VALUES (?, ?)
+                        ON CONFLICT (id) DO UPDATE SET name = EXCLUDED.name""")),
+                entry(Statement.UPSERT_NON_AUTO_GENERATED, Expected.sql("""
+                        INSERT INTO specialty (id, name)
+                        VALUES (?, ?)
+                        ON CONFLICT (id) DO UPDATE SET name = EXCLUDED.name""")),
+                entry(Statement.UPSERT_AND_FETCH_BATCH_NEW_COMPOUND_PK, Expected.sql("""
+                        INSERT INTO vet_specialty (vet_id, specialty_id)
+                        VALUES (?, ?)
+                        ON CONFLICT (vet_id, specialty_id) DO NOTHING""")),
+                entry(Statement.UPSERT_AND_FETCH_NON_AUTO_GENERATED_BATCH, Expected.sql("""
+                        INSERT INTO specialty (id, name)
+                        VALUES (?, ?)
+                        ON CONFLICT (id) DO UPDATE SET name = EXCLUDED.name"""))
+,
+                entry(Statement.UPSERT_NON_AUTO_GENERATED_BATCH, Expected.sql("""
+                        INSERT INTO specialty (id, name)
+                        VALUES (?, ?)
+                        ON CONFLICT (id) DO UPDATE SET name = EXCLUDED.name"""))
+,
+                entry(Statement.UPSERT_WITH_SEQUENCE_EMPTY_NEW, Expected.sql("""
+                        UPDATE pet
+                        SET name = ?, birth_date = ?, type_id = ?, owner_id = ?
+                        WHERE id = ?"""))
+
+);
     }
 }

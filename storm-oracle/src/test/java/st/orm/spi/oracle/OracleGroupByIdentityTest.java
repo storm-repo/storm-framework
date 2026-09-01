@@ -47,13 +47,6 @@ public class OracleGroupByIdentityTest {
             .withEnv("ORACLE_PASSWORD", "oracle")
             .withEnv("APP_USER", "test")
             .withEnv("APP_USER_PASSWORD", "test")
-            .withCreateContainerCmdModifier(cmd -> {
-                String dockerPlatform = System.getenv("DOCKER_PLATFORM");
-                if (dockerPlatform == null || dockerPlatform.isEmpty()) {
-                    dockerPlatform = "linux/arm64/v8";
-                }
-                cmd.withPlatform(dockerPlatform);
-            })
             .waitingFor(Wait.forLogMessage(".*DATABASE IS READY TO USE!.*\\n", 1))
             .withStartupTimeout(Duration.ofMinutes(5));
 

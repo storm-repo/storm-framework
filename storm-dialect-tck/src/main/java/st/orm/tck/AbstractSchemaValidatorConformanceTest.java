@@ -1,23 +1,9 @@
-/*
- * Copyright 2024 - 2026 the original author or authors.
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *      https://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
-package st.orm.spi.postgresql;
+package st.orm.tck;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assumptions.assumeTrue;
 import static st.orm.GenerationStrategy.NONE;
 import static st.orm.GenerationStrategy.SEQUENCE;
 
@@ -27,43 +13,36 @@ import javax.sql.DataSource;
 import org.jspecify.annotations.Nullable;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.testcontainers.containers.PostgreSQLContainer;
-import org.testcontainers.containers.wait.strategy.Wait;
-import org.testcontainers.junit.jupiter.Container;
-import org.testcontainers.junit.jupiter.Testcontainers;
 import st.orm.DbTable;
 import st.orm.Entity;
 import st.orm.PK;
 import st.orm.core.template.impl.SchemaValidationError.ErrorKind;
 import st.orm.core.template.impl.SchemaValidator;
-import st.orm.tck.ContainerDataSource;
-import st.orm.test.StormTest;
 
-@Testcontainers
-@StormTest(scripts = "/data.sql")
-public class PostgreSQLSchemaValidatorTest {
+/**
+ * The schema mismatches every dialect is expected to report.
+ *
+ * <p>None of these assertions depends on the SQL a dialect generates, so unlike
+ * {@link AbstractEntityRepositoryConformanceTest} this suite pins no statements. A dialect runs it by extending it and
+ * annotating the subclass with {@code @StormTest}.
+ *
+ * <p>The entities are declared here rather than reused from {@code st.orm.tck.model} because they exist to be wrong in
+ * specific ways: a table that is absent, a column that is absent, a type that cannot hold the column, a non-null
+ * component over a nullable column, a key that does not match. Reusing the model would make them right.
+ */
+public abstract class AbstractSchemaValidatorConformanceTest {
 
-    @SuppressWarnings("resource")
-    @Container
-    public static PostgreSQLContainer<?> postgresContainer = new PostgreSQLContainer<>("postgres:17")
-            .withDatabaseName("test")
-            .withUsername("test")
-            .withPassword("test")
-            .waitingFor(Wait.forListeningPort());
-
-    public static DataSource dataSource() {
-        return ContainerDataSource.of(postgresContainer.getJdbcUrl(), postgresContainer.getUsername(),
-                postgresContainer.getPassword());
-    }
-
-    private DataSource dataSource;
+    protected DataSource dataSource;
 
     @BeforeEach
-    void bindDataSource(DataSource dataSource) {
+    final void bindDataSource(DataSource dataSource) {
         this.dataSource = dataSource;
     }
 
-    // Happy path entities
+    /** Whether the dialect has sequences, and so reports {@code SEQUENCE_NOT_FOUND} at all. */
+    protected boolean supportsSequences() {
+        return true;
+    }
 
     public record Vet(
             @PK Integer id,
@@ -84,8 +63,6 @@ public class PostgreSQLSchemaValidatorTest {
             @Nullable String telephone,
             @Nullable Integer version
     ) implements Entity<Integer> {}
-
-    // Mismatch entities
 
     public record MissingTableEntity(
             @PK Integer id,
@@ -118,8 +95,6 @@ public class PostgreSQLSchemaValidatorTest {
             Integer specialtyId
     ) implements Entity<Integer> {}
 
-    // Sequence entities
-
     @DbTable("vet")
     public record SequenceExistsEntity(
             @PK(generation = SEQUENCE, sequence = "pet_id_seq") Integer id,
@@ -134,19 +109,15 @@ public class PostgreSQLSchemaValidatorTest {
             String lastName
     ) implements Entity<Integer> {}
 
-    // Tests
-
     @Test
     public void testValidEntitiesPass() {
-        var validator = SchemaValidator.of(dataSource);
-        var errors = validator.validate(List.of(Vet.class, Owner.class));
-        assertTrue(errors.isEmpty(), "Expected no errors but got: " + errors);
+        var errors = SchemaValidator.of(dataSource).validate(List.of(Vet.class, Owner.class));
+        assertTrue(errors.isEmpty(), () -> "Expected no errors but got: " + errors);
     }
 
     @Test
     public void testTableNotFound() {
-        var validator = SchemaValidator.of(dataSource);
-        var errors = validator.validate(List.of(MissingTableEntity.class));
+        var errors = SchemaValidator.of(dataSource).validate(List.of(MissingTableEntity.class));
         assertEquals(1, errors.size());
         assertEquals(ErrorKind.TABLE_NOT_FOUND, errors.getFirst().kind());
         assertTrue(errors.getFirst().message().contains("missing_table_entity"));
@@ -154,8 +125,7 @@ public class PostgreSQLSchemaValidatorTest {
 
     @Test
     public void testColumnNotFound() {
-        var validator = SchemaValidator.of(dataSource);
-        var errors = validator.validate(List.of(MissingColumnEntity.class));
+        var errors = SchemaValidator.of(dataSource).validate(List.of(MissingColumnEntity.class));
         assertFalse(errors.isEmpty());
         assertTrue(errors.stream().anyMatch(
                 error -> error.kind() == ErrorKind.COLUMN_NOT_FOUND
@@ -164,8 +134,7 @@ public class PostgreSQLSchemaValidatorTest {
 
     @Test
     public void testTypeIncompatible() {
-        var validator = SchemaValidator.of(dataSource);
-        var errors = validator.validate(List.of(TypeMismatchEntity.class));
+        var errors = SchemaValidator.of(dataSource).validate(List.of(TypeMismatchEntity.class));
         assertFalse(errors.isEmpty());
         assertTrue(errors.stream().anyMatch(
                 error -> error.kind() == ErrorKind.TYPE_INCOMPATIBLE
@@ -174,8 +143,7 @@ public class PostgreSQLSchemaValidatorTest {
 
     @Test
     public void testNullabilityMismatch() {
-        var validator = SchemaValidator.of(dataSource);
-        var errors = validator.validate(List.of(NullabilityMismatchEntity.class));
+        var errors = SchemaValidator.of(dataSource).validate(List.of(NullabilityMismatchEntity.class));
         assertFalse(errors.isEmpty());
         assertTrue(errors.stream().anyMatch(
                 error -> error.kind() == ErrorKind.NULLABILITY_MISMATCH
@@ -184,26 +152,23 @@ public class PostgreSQLSchemaValidatorTest {
 
     @Test
     public void testPrimaryKeyMismatch() {
-        var validator = SchemaValidator.of(dataSource);
-        var errors = validator.validate(List.of(PrimaryKeyMismatchEntity.class));
+        var errors = SchemaValidator.of(dataSource).validate(List.of(PrimaryKeyMismatchEntity.class));
         assertFalse(errors.isEmpty());
-        assertTrue(errors.stream().anyMatch(
-                error -> error.kind() == ErrorKind.PRIMARY_KEY_MISMATCH));
+        assertTrue(errors.stream().anyMatch(error -> error.kind() == ErrorKind.PRIMARY_KEY_MISMATCH));
     }
 
     @Test
     public void testSequenceExists() {
-        var validator = SchemaValidator.of(dataSource);
-        var errors = validator.validate(List.of(SequenceExistsEntity.class));
-        assertFalse(errors.stream().anyMatch(
-                error -> error.kind() == ErrorKind.SEQUENCE_NOT_FOUND),
+        assumeTrue(supportsSequences());
+        var errors = SchemaValidator.of(dataSource).validate(List.of(SequenceExistsEntity.class));
+        assertFalse(errors.stream().anyMatch(error -> error.kind() == ErrorKind.SEQUENCE_NOT_FOUND),
                 "Expected no SEQUENCE_NOT_FOUND when pet_id_seq exists.");
     }
 
     @Test
     public void testSequenceNotFound() {
-        var validator = SchemaValidator.of(dataSource);
-        var errors = validator.validate(List.of(SequenceNotFoundEntity.class));
+        assumeTrue(supportsSequences());
+        var errors = SchemaValidator.of(dataSource).validate(List.of(SequenceNotFoundEntity.class));
         assertTrue(errors.stream().anyMatch(
                 error -> error.kind() == ErrorKind.SEQUENCE_NOT_FOUND
                         && error.message().contains("nonexistent_seq")));

@@ -15,6 +15,22 @@ public class H2EntityRepositoryConformanceTest extends AbstractEntityRepositoryC
     @Override
     protected List<String> schemaDdl() {
         return List.of(
+                "DROP TABLE IF EXISTS non_autogen_entity",
+                """
+                        CREATE TABLE non_autogen_entity (
+                        id integer PRIMARY KEY,
+                        name varchar(255),
+                        version bigint DEFAULT 0
+                        )""",
+                "INSERT INTO non_autogen_entity (id, name) VALUES (1, 'First')",
+                "INSERT INTO non_autogen_entity (id, name) VALUES (2, 'Second')",
+                "DROP TABLE IF EXISTS pk_only_entity",
+                """
+                        CREATE TABLE pk_only_entity (
+                        id integer PRIMARY KEY
+                        )""",
+                "INSERT INTO pk_only_entity (id) VALUES (1)",
+                "INSERT INTO pk_only_entity (id) VALUES (2)",
                 "DROP TABLE IF EXISTS version_long_entity CASCADE",
                 """
                         CREATE TABLE version_long_entity (
@@ -33,6 +49,11 @@ public class H2EntityRepositoryConformanceTest extends AbstractEntityRepositoryC
                         )""",
                 "INSERT INTO version_instant_entity (name) VALUES ('Alice')",
                 "INSERT INTO version_instant_entity (name) VALUES ('Bob')");
+    }
+
+    @Override
+    protected boolean supportsFetchWithSequences() {
+        return false;
     }
 
     @Override
@@ -77,6 +98,174 @@ public class H2EntityRepositoryConformanceTest extends AbstractEntityRepositoryC
                 entry(Statement.UPDATE_AND_FETCH_INLINE_VERSION_BATCH, Expected.sql("""
                 UPDATE owner
                 SET first_name = ?, last_name = ?, address = ?, city = ?, telephone = ?, version = version + 1
-                WHERE id = ? AND version = ?""").keys().bound(true)));
+                WHERE id = ? AND version = ?""").keys().bound(true)),
+                entry(Statement.UPSERT_BATCH, Expected.sql("""
+                        INSERT INTO vet (first_name, last_name)
+                        VALUES (?, ?)""")),
+                entry(Statement.UPSERT_AND_FETCH_BATCH, Expected.sql("""
+                        UPDATE vet
+                        SET first_name = ?, last_name = ?
+                        WHERE id = ?""")),
+                entry(Statement.UPSERT_AND_FETCH_BATCH_EXISTING_COMPOUND_PK, Expected.sql("""
+                        MERGE INTO vet_specialty t
+                        USING (SELECT CAST(? AS INTEGER) AS vet_id, CAST(? AS INTEGER) AS specialty_id) src
+                        ON (t.vet_id = src.vet_id AND t.specialty_id = src.specialty_id)
+                        WHEN NOT MATCHED THEN
+                        	INSERT (vet_id, specialty_id)
+                        	VALUES (src.vet_id, src.specialty_id)""")),
+                entry(Statement.UPSERT_AND_FETCH_INLINE_VERSION, Expected.sql("""
+                        UPDATE owner
+                        SET first_name = ?, last_name = ?, address = ?, city = ?, telephone = ?, version = version + 1
+                        WHERE id = ? AND version = ?""")),
+                entry(Statement.UPSERT_INLINE_VERSION_BATCH, Expected.sql("""
+                        UPDATE owner
+                        SET first_name = ?, last_name = ?, address = ?, city = ?, telephone = ?, version = version + 1
+                        WHERE id = ? AND version = ?""")),
+                entry(Statement.UPSERT, Expected.sql("""
+                        INSERT INTO vet (first_name, last_name)
+                        VALUES (?, ?)""")),
+                entry(Statement.UPSERT_INLINE_VERSION, Expected.sql("""
+                        UPDATE owner
+                        SET first_name = ?, last_name = ?, address = ?, city = ?, telephone = ?, version = version + 1
+                        WHERE id = ? AND version = ?""")),
+                entry(Statement.UPSERT_AND_FETCH_NON_AUTO_GENERATED, Expected.sql("""
+                        MERGE INTO specialty t
+                        USING (SELECT CAST(? AS INTEGER) AS id, CAST(? AS VARCHAR) AS name) src
+                        ON (t.id = src.id)
+                        WHEN MATCHED THEN
+                        	UPDATE SET t.name = src.name
+                        WHEN NOT MATCHED THEN
+                        	INSERT (id, name)
+                        	VALUES (src.id, src.name)""")),
+                entry(Statement.UPSERT_NON_AUTO_GENERATED, Expected.sql("""
+                        MERGE INTO specialty t
+                        USING (SELECT CAST(? AS INTEGER) AS id, CAST(? AS VARCHAR) AS name) src
+                        ON (t.id = src.id)
+                        WHEN MATCHED THEN
+                        	UPDATE SET t.name = src.name
+                        WHEN NOT MATCHED THEN
+                        	INSERT (id, name)
+                        	VALUES (src.id, src.name)""")),
+                entry(Statement.UPSERT_AND_FETCH_BATCH_NEW_COMPOUND_PK, Expected.sql("""
+                        MERGE INTO vet_specialty t
+                        USING (SELECT CAST(? AS INTEGER) AS vet_id, CAST(? AS INTEGER) AS specialty_id) src
+                        ON (t.vet_id = src.vet_id AND t.specialty_id = src.specialty_id)
+                        WHEN NOT MATCHED THEN
+                        	INSERT (vet_id, specialty_id)
+                        	VALUES (src.vet_id, src.specialty_id)""")),
+                entry(Statement.UPSERT_AND_FETCH_NON_AUTO_GENERATED_BATCH, Expected.sql("""
+                        MERGE INTO specialty t
+                        USING (SELECT CAST(? AS INTEGER) AS id, CAST(? AS VARCHAR) AS name) src
+                        ON (t.id = src.id)
+                        WHEN MATCHED THEN
+                        	UPDATE SET t.name = src.name
+                        WHEN NOT MATCHED THEN
+                        	INSERT (id, name)
+                        	VALUES (src.id, src.name)"""))
+,
+                entry(Statement.UPSERT_NON_AUTO_GENERATED_BATCH, Expected.sql("""
+                        MERGE INTO specialty t
+                        USING (SELECT CAST(? AS INTEGER) AS id, CAST(? AS VARCHAR) AS name) src
+                        ON (t.id = src.id)
+                        WHEN MATCHED THEN
+                        	UPDATE SET t.name = src.name
+                        WHEN NOT MATCHED THEN
+                        	INSERT (id, name)
+                        	VALUES (src.id, src.name)"""))
+,
+                entry(Statement.UPSERT_WITH_SEQUENCE_EMPTY_NEW, Expected.sql("""
+                        UPDATE pet
+                        SET name = ?, birth_date = ?, type_id = ?, owner_id = ?
+                        WHERE id = ?"""))
+
+,
+                entry(Statement.UPSERT_WITH_SEQUENCE_EXISTING_STREAM, Expected.sql("""
+                        UPDATE pet
+                        SET name = ?, birth_date = ?, type_id = ?, owner_id = ?
+                        WHERE id = ?""")),
+                entry(Statement.UPSERT_WITH_SEQUENCE_EMPTY_STREAM, Expected.sql("""
+                        INSERT INTO pet (name, birth_date, type_id, owner_id)
+                        VALUES (?, ?, ?, ?)""")),
+                entry(Statement.INSERT_WITH_SEQUENCE_IGNORE_AUTO_GENERATE_BATCH, Expected.sql("""
+                        INSERT INTO pet (id, name, birth_date, type_id, owner_id)
+                        VALUES (?, ?, ?, ?, ?), (?, ?, ?, ?, ?)""")),
+                entry(Statement.INSERT_WITH_SEQUENCE_EMPTY_IGNORE_AUTO_GENERATE_STREAM, Expected.sql("""
+                        INSERT INTO pet (id, name, birth_date, type_id, owner_id)
+                        VALUES (?, ?, ?, ?, ?), (?, ?, ?, ?, ?)""")),
+                entry(Statement.UPSERT_WITH_SEQUENCE_NEW, Expected.sql("""
+                        UPDATE pet
+                        SET name = ?, birth_date = ?, type_id = ?, owner_id = ?
+                        WHERE id = ?""")),
+                entry(Statement.INSERT_WITH_SEQUENCE_IGNORE_AUTO_GENERATE_STREAM, Expected.sql("""
+                        INSERT INTO pet (id, name, birth_date, type_id, owner_id)
+                        VALUES (?, ?, ?, ?, ?), (?, ?, ?, ?, ?)""")),
+                entry(Statement.UPSERT_WITH_SEQUENCE_NEW_BATCH, Expected.sql("""
+                        UPDATE pet
+                        SET name = ?, birth_date = ?, type_id = ?, owner_id = ?
+                        WHERE id = ?""")),
+                entry(Statement.INSERT_WITH_SEQUENCE_EMPTY_STREAM, Expected.sql("""
+                        INSERT INTO pet (name, birth_date, type_id, owner_id)
+                        VALUES (?, ?, ?, ?)""")),
+                entry(Statement.INSERT_AND_FETCH_WITH_SEQUENCE_IGNORE_AUTO_GENERATE, Expected.sql("""
+                        INSERT INTO pet (id, name, birth_date, type_id, owner_id)
+                        VALUES (?, ?, ?, ?, ?)""")),
+                entry(Statement.UPSERT_WITH_SEQUENCE_EMPTY_EXISTING_STREAM, Expected.sql("""
+                        UPDATE pet
+                        SET name = ?, birth_date = ?, type_id = ?, owner_id = ?
+                        WHERE id = ?""")),
+                entry(Statement.UPSERT_WITH_SEQUENCE_EMPTY_NEW_STREAM, Expected.sql("""
+                        UPDATE pet
+                        SET name = ?, birth_date = ?, type_id = ?, owner_id = ?
+                        WHERE id = ?""")),
+                entry(Statement.UPSERT_WITH_SEQUENCE_EMPTY, Expected.sql("""
+                        INSERT INTO pet (name, birth_date, type_id, owner_id)
+                        VALUES (?, ?, ?, ?)""")),
+                entry(Statement.UPSERT_WITH_SEQUENCE_EXISTING, Expected.sql("""
+                        UPDATE pet
+                        SET name = ?, birth_date = ?, type_id = ?, owner_id = ?
+                        WHERE id = ?""")),
+                entry(Statement.INSERT_WITH_SEQUENCE_STREAM, Expected.sql("""
+                        INSERT INTO pet (id, name, birth_date, type_id, owner_id)
+                        VALUES (NEXT VALUE FOR pet_id_seq, ?, ?, ?, ?)""")),
+                entry(Statement.INSERT_WITH_SEQUENCE_EMPTY_IGNORE_AUTO_GENERATE, Expected.sql("""
+                        INSERT INTO pet (id, name, birth_date, type_id, owner_id)
+                        VALUES (?, ?, ?, ?, ?)""")),
+                entry(Statement.UPSERT_WITH_SEQUENCE, Expected.sql("""
+                        INSERT INTO pet (id, name, birth_date, type_id, owner_id)
+                        VALUES (NEXT VALUE FOR pet_id_seq, ?, ?, ?, ?)""")),
+                entry(Statement.UPSERT_WITH_SEQUENCE_NEW_STREAM, Expected.sql("""
+                        UPDATE pet
+                        SET name = ?, birth_date = ?, type_id = ?, owner_id = ?
+                        WHERE id = ?""")),
+                entry(Statement.UPSERT_WITH_SEQUENCE_EMPTY_NEW_BATCH, Expected.sql("""
+                        UPDATE pet
+                        SET name = ?, birth_date = ?, type_id = ?, owner_id = ?
+                        WHERE id = ?""")),
+                entry(Statement.INSERT_WITH_SEQUENCE_EMPTY_IGNORE_AUTO_GENERATE_BATCH, Expected.sql("""
+                        INSERT INTO pet (id, name, birth_date, type_id, owner_id)
+                        VALUES (?, ?, ?, ?, ?), (?, ?, ?, ?, ?)""")),
+                entry(Statement.INSERT_WITH_SEQUENCE, Expected.sql("""
+                        INSERT INTO pet (id, name, birth_date, type_id, owner_id)
+                        VALUES (NEXT VALUE FOR pet_id_seq, ?, ?, ?, ?)""")),
+                entry(Statement.UPSERT_WITH_SEQUENCE_EXISTING_BATCH, Expected.sql("""
+                        UPDATE pet
+                        SET name = ?, birth_date = ?, type_id = ?, owner_id = ?
+                        WHERE id = ?""")),
+                entry(Statement.UPSERT_WITH_SEQUENCE_EMPTY_EXISTING_BATCH, Expected.sql("""
+                        UPDATE pet
+                        SET name = ?, birth_date = ?, type_id = ?, owner_id = ?
+                        WHERE id = ?""")),
+                entry(Statement.INSERT_WITH_SEQUENCE_EMPTY, Expected.sql("""
+                        INSERT INTO pet (name, birth_date, type_id, owner_id)
+                        VALUES (?, ?, ?, ?)""")),
+                entry(Statement.UPSERT_WITH_SEQUENCE_EMPTY_EXISTING, Expected.sql("""
+                        UPDATE pet
+                        SET name = ?, birth_date = ?, type_id = ?, owner_id = ?
+                        WHERE id = ?""")),
+                entry(Statement.UPSERT_WITH_SEQUENCE_STREAM, Expected.sql("""
+                        INSERT INTO pet (id, name, birth_date, type_id, owner_id)
+                        VALUES (NEXT VALUE FOR pet_id_seq, ?, ?, ?, ?)"""))
+
+);
     }
 }

@@ -1,4 +1,4 @@
-package st.orm.spi.mssqlserver;
+package st.orm.tck;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -10,10 +10,6 @@ import java.util.List;
 import javax.sql.DataSource;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.testcontainers.containers.MSSQLServerContainer;
-import org.testcontainers.containers.wait.strategy.Wait;
-import org.testcontainers.junit.jupiter.Container;
-import org.testcontainers.junit.jupiter.Testcontainers;
 import st.orm.DbTable;
 import st.orm.Discriminator;
 import st.orm.Entity;
@@ -21,46 +17,44 @@ import st.orm.PK;
 import st.orm.Polymorphic;
 import st.orm.Ref;
 import st.orm.core.template.ORMTemplate;
-import st.orm.tck.ContainerDataSource;
-import st.orm.test.StormTest;
 
+/**
+ * The polymorphic mapping every dialect is expected to implement: single-table and joined hierarchies, with and
+ * without a discriminator, read and written through the sealed supertype.
+ *
+ * <p>None of these assertions depends on the SQL a dialect generates, so this suite pins no statements. A dialect runs
+ * it by extending it and annotating the subclass with {@code @StormTest}.
+ */
 @SuppressWarnings("ALL")
-@Testcontainers
-@StormTest(scripts = "/data.sql")
-public class MSSQLServerPolymorphicTest {
+public abstract class AbstractPolymorphicConformanceTest {
 
-    @SuppressWarnings("resource")
-    @Container
-    public static MSSQLServerContainer<?> sqlServerContainer =
-            new MSSQLServerContainer<>("mcr.microsoft.com/mssql/server:2019-latest")
-                    .acceptLicense()
-                    .withPassword("test@1234")
-                    .waitingFor(Wait.forListeningPort());
-
-    public static DataSource dataSource() {
-        return ContainerDataSource.of(sqlServerContainer.getJdbcUrl(), sqlServerContainer.getUsername(),
-                sqlServerContainer.getPassword());
-    }
-
-    private DataSource dataSource;
+    protected DataSource dataSource;
 
     @BeforeEach
-    void bindDataSource(DataSource dataSource) {
+    final void bindDataSource(DataSource dataSource) {
         this.dataSource = dataSource;
     }
 
+
+    // Joined Table Inheritance models
     @Discriminator @Polymorphic(JOINED) @DbTable("joined_animal")
     public sealed interface JoinedAnimal extends Entity<Integer> permits JoinedCat, JoinedDog {}
+
     @DbTable("joined_cat")
     public record JoinedCat(@PK Integer id, String name, boolean indoor) implements JoinedAnimal {}
+
     public record JoinedDog(@PK Integer id, String name, int weight) implements JoinedAnimal {}
 
+    // No-Discriminator Joined Table Inheritance models
     @Polymorphic(JOINED) @DbTable("nodsc_animal")
     public sealed interface NodscAnimal extends Entity<Integer> permits NodscCat, NodscDog, NodscBird {}
+
     @DbTable("nodsc_cat")
     public record NodscCat(@PK Integer id, String name, boolean indoor) implements NodscAnimal {}
+
     @DbTable("nodsc_dog")
     public record NodscDog(@PK Integer id, String name, int weight) implements NodscAnimal {}
+
     @DbTable("nodsc_bird")
     public record NodscBird(@PK Integer id, String name) implements NodscAnimal {}
 
@@ -152,7 +146,7 @@ public class MSSQLServerPolymorphicTest {
         assertEquals(before + 3, animals.count());
     }
 
-    // Joined Table Inheritance tests
+    // Joined Table Inheritance Tests
     // Batch inserts for joined table inheritance group records by subtype, which may assign
     // IDs in a different order than the original list. Since result ordering without ORDER BY
     // is not guaranteed, these tests use stream-based lookups by name instead of positional
@@ -187,6 +181,7 @@ public class MSSQLServerPolymorphicTest {
         long before = animals.count();
         animals.insert(new JoinedCat(null, "Bella", true));
         assertEquals(before + 1, animals.count());
+        // Verify the inserted cat is returned correctly.
         var result = animals.select().getResultList();
         var bella = result.stream()
                 .filter(a -> a instanceof JoinedCat c && c.name().equals("Bella"))
@@ -221,11 +216,13 @@ public class MSSQLServerPolymorphicTest {
     public void testUpdateJoinedCat() {
         var orm = ORMTemplate.of(dataSource);
         var animals = orm.entity(JoinedAnimal.class);
+        // Select the first cat (Whiskers, indoor) and update it.
         var result = animals.select().getResultList();
         var whiskers = (JoinedCat) result.stream()
                 .filter(a -> a instanceof JoinedCat c && c.name().equals("Whiskers"))
                 .findFirst().orElseThrow();
         animals.update(new JoinedCat(whiskers.id(), "Sir Whiskers", true));
+        // Verify the update.
         var updated = animals.select().getResultList();
         assertTrue(updated.stream().anyMatch(a -> a instanceof JoinedCat c && c.name().equals("Sir Whiskers")));
     }
@@ -234,6 +231,7 @@ public class MSSQLServerPolymorphicTest {
     public void testDeleteJoinedAnimal() {
         var orm = ORMTemplate.of(dataSource);
         var animals = orm.entity(JoinedAnimal.class);
+        // Insert a new animal and then delete it.
         animals.insert(new JoinedCat(null, "Temp", false));
         long before = animals.count();
         var result = animals.select().getResultList();
@@ -246,6 +244,7 @@ public class MSSQLServerPolymorphicTest {
     public void testDeleteByIdJoinedAnimal() {
         var orm = ORMTemplate.of(dataSource);
         var animals = orm.entity(JoinedAnimal.class);
+        // Insert a new animal and then delete by ID.
         var id = animals.insertAndFetchId(new JoinedDog(null, "TempDog", 10));
         long before = animals.count();
         animals.removeById(id);
@@ -257,7 +256,11 @@ public class MSSQLServerPolymorphicTest {
         var orm = ORMTemplate.of(dataSource);
         var animals = orm.entity(JoinedAnimal.class);
         long before = animals.count();
-        animals.insert(List.of(new JoinedCat(null, "Bella", true), new JoinedDog(null, "Max", 20), new JoinedCat(null, "Cleo", false)));
+        animals.insert(List.of(
+                new JoinedCat(null, "Bella", true),
+                new JoinedDog(null, "Max", 20),
+                new JoinedCat(null, "Cleo", false)
+        ));
         assertEquals(before + 3, animals.count());
         var result = animals.select().getResultList();
         var bella = result.stream()
@@ -278,16 +281,26 @@ public class MSSQLServerPolymorphicTest {
     public void testBatchInsertAndFetchIdsJoinedAnimals() {
         var orm = ORMTemplate.of(dataSource);
         var animals = orm.entity(JoinedAnimal.class);
-        var ids = animals.insertAndFetchIds(List.of(new JoinedCat(null, "Sid", true), new JoinedDog(null, "Bud", 15)));
+        var ids = animals.insertAndFetchIds(List.of(
+                new JoinedCat(null, "Sid", true),
+                new JoinedDog(null, "Bud", 15)
+        ));
         assertEquals(2, ids.size());
-        ids.forEach(id -> { assertNotNull(id); assertTrue(id > 0); });
+        ids.forEach(id -> {
+            assertNotNull(id);
+            assertTrue(id > 0);
+        });
     }
 
     @Test
     public void testBatchUpdateJoinedAnimals() {
         var orm = ORMTemplate.of(dataSource);
         var animals = orm.entity(JoinedAnimal.class);
-        animals.insert(List.of(new JoinedCat(null, "UpdCat", true), new JoinedDog(null, "UpdDog", 10)));
+        // Insert entities to update.
+        animals.insert(List.of(
+                new JoinedCat(null, "UpdCat", true),
+                new JoinedDog(null, "UpdDog", 10)
+        ));
         var result = animals.select().getResultList();
         var cat = (JoinedCat) result.stream()
                 .filter(a -> a instanceof JoinedCat c && c.name().equals("UpdCat"))
@@ -295,7 +308,11 @@ public class MSSQLServerPolymorphicTest {
         var dog = (JoinedDog) result.stream()
                 .filter(a -> a instanceof JoinedDog d && d.name().equals("UpdDog"))
                 .findFirst().orElseThrow();
-        animals.update(List.of(new JoinedCat(cat.id(), "UpdatedCat", false), new JoinedDog(dog.id(), "UpdatedDog", 99)));
+        // Batch update.
+        animals.update(List.of(
+                new JoinedCat(cat.id(), "UpdatedCat", false),
+                new JoinedDog(dog.id(), "UpdatedDog", 99)
+        ));
         var updated = animals.select().getResultList();
         var updatedCat = (JoinedCat) updated.stream()
                 .filter(a -> a instanceof JoinedCat c && c.name().equals("UpdatedCat"))
@@ -313,7 +330,11 @@ public class MSSQLServerPolymorphicTest {
     public void testBatchDeleteJoinedAnimals() {
         var orm = ORMTemplate.of(dataSource);
         var animals = orm.entity(JoinedAnimal.class);
-        animals.insert(List.of(new JoinedCat(null, "DelCat", true), new JoinedDog(null, "DelDog", 5)));
+        // Insert entities to delete.
+        animals.insert(List.of(
+                new JoinedCat(null, "DelCat", true),
+                new JoinedDog(null, "DelDog", 5)
+        ));
         long before = animals.count();
         var result = animals.select().getResultList();
         var cat = result.get(result.size() - 2);
@@ -326,14 +347,21 @@ public class MSSQLServerPolymorphicTest {
     public void testBatchDeleteByRefJoinedAnimals() {
         var orm = ORMTemplate.of(dataSource);
         var animals = orm.entity(JoinedAnimal.class);
-        var ids = animals.insertAndFetchIds(List.of(new JoinedCat(null, "RefCat", true), new JoinedDog(null, "RefDog", 7)));
+        // Insert entities to delete by ref.
+        var ids = animals.insertAndFetchIds(List.of(
+                new JoinedCat(null, "RefCat", true),
+                new JoinedDog(null, "RefDog", 7)
+        ));
         long before = animals.count();
-        List<Ref<JoinedAnimal>> refs = ids.stream().map(id -> Ref.of(JoinedAnimal.class, id)).toList();
+        // deleteByRef uses Ref without knowing the concrete type.
+        List<Ref<JoinedAnimal>> refs = ids.stream()
+                .map(id -> Ref.of(JoinedAnimal.class, id))
+                .toList();
         animals.removeByRef(refs);
         assertEquals(before - 2, animals.count());
     }
 
-    // No-discriminator Joined Table Inheritance tests
+    // No-Discriminator Joined Table Inheritance Tests
 
     @Test
     public void testSelectAllNodscAnimals() {
@@ -392,6 +420,8 @@ public class MSSQLServerPolymorphicTest {
         var tweety = (NodscBird) result.stream()
                 .filter(a -> a instanceof NodscBird b && b.name().equals("Tweety"))
                 .findFirst().orElseThrow();
+        // Update the bird (PK-only extension table, no extension fields).
+        // Only the base table name field should be updated.
         animals.update(new NodscBird(tweety.id(), "Tweety Bird"));
         var updated = animals.select().getResultList();
         assertTrue(updated.stream().anyMatch(a -> a instanceof NodscBird b && b.name().equals("Tweety Bird")));
@@ -401,6 +431,7 @@ public class MSSQLServerPolymorphicTest {
     public void testDeleteNodscAnimal() {
         var orm = ORMTemplate.of(dataSource);
         var animals = orm.entity(NodscAnimal.class);
+        // Insert a new animal and then delete it.
         animals.insert(new NodscCat(null, "Temp", false));
         long before = animals.count();
         var result = animals.select().getResultList();
@@ -414,7 +445,11 @@ public class MSSQLServerPolymorphicTest {
         var orm = ORMTemplate.of(dataSource);
         var animals = orm.entity(NodscAnimal.class);
         long before = animals.count();
-        animals.insert(List.of(new NodscCat(null, "BatchCat", true), new NodscDog(null, "BatchDog", 22), new NodscBird(null, "BatchBird")));
+        animals.insert(List.of(
+                new NodscCat(null, "BatchCat", true),
+                new NodscDog(null, "BatchDog", 22),
+                new NodscBird(null, "BatchBird")
+        ));
         assertEquals(before + 3, animals.count());
         var result = animals.select().getResultList();
         result.stream()
@@ -433,7 +468,12 @@ public class MSSQLServerPolymorphicTest {
     public void testBatchDeleteNodscAnimals() {
         var orm = ORMTemplate.of(dataSource);
         var animals = orm.entity(NodscAnimal.class);
-        animals.insert(List.of(new NodscCat(null, "DelCat", false), new NodscDog(null, "DelDog", 3), new NodscBird(null, "DelBird")));
+        // Insert entities to delete (mixed subtypes).
+        animals.insert(List.of(
+                new NodscCat(null, "DelCat", false),
+                new NodscDog(null, "DelDog", 3),
+                new NodscBird(null, "DelBird")
+        ));
         long before = animals.count();
         var result = animals.select().getResultList();
         var cat = result.get(result.size() - 3);
@@ -453,6 +493,7 @@ public class MSSQLServerPolymorphicTest {
         var whiskers = (JoinedCat) result.stream()
                 .filter(a -> a instanceof JoinedCat c && c.name().equals("Whiskers"))
                 .findFirst().orElseThrow();
+        // Convert cat to dog.
         animals.update(new JoinedDog(whiskers.id(), "Whiskers", 12));
         var updated = animals.select().getResultList();
         var converted = updated.stream()
@@ -469,6 +510,7 @@ public class MSSQLServerPolymorphicTest {
         var whiskers = (NodscCat) result.stream()
                 .filter(a -> a instanceof NodscCat c && c.name().equals("Whiskers"))
                 .findFirst().orElseThrow();
+        // Convert cat to dog.
         animals.update(new NodscDog(whiskers.id(), "Whiskers", 12));
         var updated = animals.select().getResultList();
         var converted = updated.stream()
