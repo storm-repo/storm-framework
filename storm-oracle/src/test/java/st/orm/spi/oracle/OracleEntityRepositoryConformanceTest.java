@@ -309,6 +309,10 @@ public class OracleEntityRepositoryConformanceTest extends AbstractEntityReposit
                 entry(Statement.UPSERT_WITH_SEQUENCE_STREAM, Expected.sql("""
                         INSERT INTO pet (id, name, birth_date, type_id, owner_id)
                         VALUES (pet_id_seq.NEXTVAL, ?, ?, ?, ?)"""))
+,
+                entry(Statement.UPSERT_UNIQUE_KEY, Expected.sql("""
+                        INSERT INTO pet_type (name, description)
+                        VALUES (?, ?)"""))
 );
     }
 }

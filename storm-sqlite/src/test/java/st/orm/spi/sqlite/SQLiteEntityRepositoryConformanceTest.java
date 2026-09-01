@@ -189,6 +189,11 @@ public class SQLiteEntityRepositoryConformanceTest extends AbstractEntityReposit
                         SET name = ?, birth_date = ?, type_id = ?, owner_id = ?
                         WHERE id = ?"""))
 
+,
+                entry(Statement.UPSERT_UNIQUE_KEY, Expected.sql("""
+                        INSERT INTO pet_type (name, description)
+                        VALUES (?, ?)
+                        ON CONFLICT (id) DO UPDATE SET name = EXCLUDED.name, description = EXCLUDED.description"""))
 );
     }
 }

@@ -1,18 +1,14 @@
 package st.orm.spi.oracle;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertFalse;
-import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static st.orm.GenerationStrategy.NONE;
 import static st.orm.GenerationStrategy.SEQUENCE;
-import static st.orm.Operator.EQUALS;
 import static st.orm.core.template.SqlInterceptor.observe;
 
 import java.sql.Connection;
 import java.sql.SQLException;
-import java.sql.SQLIntegrityConstraintViolationException;
 import java.time.Duration;
 import java.time.Instant;
 import java.time.LocalDate;
@@ -31,7 +27,6 @@ import org.testcontainers.junit.jupiter.Testcontainers;
 import st.orm.DbTable;
 import st.orm.Entity;
 import st.orm.FK;
-import st.orm.Metamodel;
 import st.orm.PK;
 import st.orm.Persist;
 import st.orm.PersistenceException;
@@ -96,27 +91,6 @@ public class OracleEntityRepositoryTest {
             String name,
             @Nullable String description
     ) implements Entity<Integer> {}
-
-    @Test
-    public void testUpsertUniqueKey() {
-        // Mysql is able to update a record with the same unique key, where Oracle throws an exception.
-        // This use case may be handled in the future by specifying @UK (unique constraint) in the entity.
-        String expectedSql = """
-                INSERT INTO pet_type (name, description)
-                VALUES (?, ?)""";
-        var repo = PreparedStatementTemplate.ORM(dataSource).entity(PetType.class);
-        observe(sql -> {
-            assertEquals(expectedSql, sql.statement());
-            assertEquals(sql.generatedKeys(), List.of("id"));
-            assertFalse(sql.versionAware());
-            assertEquals("dragon", sql.parameters().get(0).dbValue());
-            assertEquals("description", sql.parameters().get(1).dbValue());
-        }, () -> repo.upsert(PetType.builder().name("dragon").description("description").build()));
-        var entity = repo.select().where(Metamodel.of(PetType.class, "name"), EQUALS, "dragon").getSingleResult();
-        assertEquals("description", entity.description());
-        var e = assertThrows(PersistenceException.class, () -> repo.upsert(PetType.builder().name("dragon").description("description").build()));
-        assertInstanceOf(SQLIntegrityConstraintViolationException.class, e.getCause());
-    }
 
     @Builder(toBuilder = true)
     public record Specialty(

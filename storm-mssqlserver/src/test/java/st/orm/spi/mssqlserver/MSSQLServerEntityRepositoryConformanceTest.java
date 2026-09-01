@@ -349,6 +349,10 @@ public class MSSQLServerEntityRepositoryConformanceTest extends AbstractEntityRe
                         INSERT INTO pet (name, birth_date, type_id, owner_id)
                         OUTPUT INSERTED.id
                         VALUES (?, ?, ?, ?)"""))
+,
+                entry(Statement.UPSERT_UNIQUE_KEY, Expected.sql("""
+                        INSERT INTO pet_type (name, description)
+                        VALUES (?, ?)"""))
 );
     }
 }

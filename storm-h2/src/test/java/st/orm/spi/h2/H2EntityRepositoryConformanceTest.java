@@ -295,6 +295,10 @@ public class H2EntityRepositoryConformanceTest extends AbstractEntityRepositoryC
                         INSERT INTO pet (id, name, birth_date, type_id, owner_id)
                         VALUES (NEXT VALUE FOR pet_id_seq, ?, ?, ?, ?)"""))
 
+,
+                entry(Statement.UPSERT_UNIQUE_KEY, Expected.sql("""
+                        INSERT INTO pet_type (name, description)
+                        VALUES (?, ?)"""))
 );
     }
 }

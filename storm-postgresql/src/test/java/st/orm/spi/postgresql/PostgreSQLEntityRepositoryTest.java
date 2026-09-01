@@ -2,13 +2,10 @@ package st.orm.spi.postgresql;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
-import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
-import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static st.orm.GenerationStrategy.NONE;
 import static st.orm.GenerationStrategy.SEQUENCE;
-import static st.orm.Operator.EQUALS;
 import static st.orm.core.template.SqlInterceptor.observe;
 
 import java.sql.Connection;
@@ -23,7 +20,6 @@ import lombok.Builder;
 import org.jspecify.annotations.Nullable;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.postgresql.util.PSQLException;
 import org.testcontainers.containers.PostgreSQLContainer;
 import org.testcontainers.containers.wait.strategy.Wait;
 import org.testcontainers.junit.jupiter.Container;
@@ -31,10 +27,8 @@ import org.testcontainers.junit.jupiter.Testcontainers;
 import st.orm.DbTable;
 import st.orm.Entity;
 import st.orm.FK;
-import st.orm.Metamodel;
 import st.orm.PK;
 import st.orm.Persist;
-import st.orm.PersistenceException;
 import st.orm.Version;
 import st.orm.core.template.PreparedStatementTemplate;
 import st.orm.tck.ContainerDataSource;
@@ -115,28 +109,6 @@ public class PostgreSQLEntityRepositoryTest {
             String name,
             @Nullable String description
     ) implements Entity<Integer> {}
-
-    @Test
-    public void testUpsertUniqueKey() {
-        // Mysql is able to update a record with the same unique key, where PostgreSQL throws an exception.
-        // This use case may be handled in the future by specifying @UK (unique constraint) in the entity.
-        String expectedSql = """
-                INSERT INTO pet_type (name, description)
-                VALUES (?, ?)
-                ON CONFLICT (id) DO UPDATE SET name = EXCLUDED.name, description = EXCLUDED.description""";
-        var repo = PreparedStatementTemplate.ORM(dataSource).entity(PetType.class);
-        observe(sql -> {
-            assertEquals(expectedSql, sql.statement());
-            assertEquals(sql.generatedKeys(), List.of("id"));
-            assertFalse(sql.versionAware());
-            assertEquals("dragon", sql.parameters().get(0).dbValue());
-            assertEquals("description", sql.parameters().get(1).dbValue());
-        }, () -> repo.upsert(PetType.builder().name("dragon").description("description").build()));
-        var entity = repo.select().where(Metamodel.of(PetType.class, "name"), EQUALS, "dragon").getSingleResult();
-        assertEquals("description", entity.description());
-        var e = assertThrows(PersistenceException.class, () -> repo.upsert(PetType.builder().name("dragon").description("description").build()));
-        assertInstanceOf(PSQLException.class, e.getCause());
-    }
 
     @Builder(toBuilder = true)
     public record Specialty(

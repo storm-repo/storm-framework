@@ -129,6 +129,20 @@ public abstract class AbstractEntityRepositoryConformanceTest {
         return supportsFetchWithSequences();
     }
 
+    /**
+     * Whether an upsert whose row collides on a unique key other than the primary key updates that row instead of
+     * raising.
+     *
+     * <p>MySQL and MariaDB match on any unique constraint, so the statement finds the existing row and updates it.
+     * PostgreSQL, SQL Server and Oracle match only on the conflict target the statement names, which is the primary
+     * key, so the duplicate reaches the database and the driver raises. Both are correct for the dialect and neither
+     * is what the entity asked for, since the model has no way to name the unique constraint; {@code @UK} would give
+     * it one.
+     */
+    protected boolean upsertMatchesAnyUniqueKey() {
+        return false;
+    }
+
     /** What this dialect is expected to generate for each pinned {@link Statement}. */
     protected abstract Map<Statement, Expected> expectedSql();
 
@@ -1668,5 +1682,29 @@ public abstract class AbstractEntityRepositoryConformanceTest {
                 .owner(Owner.builder().id(1).build())
                 .build()));
         assertNull(exception.getCause(), "Exception must be raised by storm.");
+    }
+
+    @Test
+    public void testUpsertUniqueKey() {
+        var petTypes = PreparedStatementTemplate.ORM(dataSource).entity(PetType.class);
+        var sql = assertStatement(Statement.UPSERT_UNIQUE_KEY,
+                () -> petTypes.upsert(PetType.builder().name("dragon").description("description").build()));
+        assertFalse(sql.versionAware());
+        assertEquals("dragon", sql.parameters().get(0).dbValue());
+        assertEquals("description", sql.parameters().get(1).dbValue());
+        var stored = petTypes.select()
+                .where(Metamodel.of(PetType.class, "name"), EQUALS, "dragon").getSingleResult();
+        assertEquals("description", stored.description());
+        if (upsertMatchesAnyUniqueKey()) {
+            petTypes.upsert(PetType.builder().name("dragon").description(null).build());
+            var updated = petTypes.select()
+                    .where(Metamodel.of(PetType.class, "name"), EQUALS, "dragon").getSingleResult();
+            assertNull(updated.description());
+        } else {
+            var exception = assertThrows(PersistenceException.class, () -> petTypes.upsert(
+                    PetType.builder().name("dragon").description("description").build()));
+            // The database rejected it rather than Storm, which is what distinguishes this from a refusal.
+            assertNotNull(exception.getCause());
+        }
     }
 }

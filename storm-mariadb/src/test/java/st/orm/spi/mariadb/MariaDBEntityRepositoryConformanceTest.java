@@ -30,6 +30,11 @@ public class MariaDBEntityRepositoryConformanceTest extends AbstractEntityReposi
     }
 
     @Override
+    protected boolean upsertMatchesAnyUniqueKey() {
+        return true;
+    }
+
+    @Override
     protected List<String> schemaDdl() {
         return List.of(
                 "DROP TABLE IF EXISTS specialty_note_history",
@@ -322,6 +327,11 @@ public class MariaDBEntityRepositoryConformanceTest extends AbstractEntityReposi
                         INSERT INTO pet (name, birth_date, type_id, owner_id)
                         VALUES (?, ?, ?, ?)
                         RETURNING id"""))
+,
+                entry(Statement.UPSERT_UNIQUE_KEY, Expected.sql("""
+                        INSERT INTO pet_type (name, description)
+                        VALUES (?, ?)
+                        ON DUPLICATE KEY UPDATE id = LAST_INSERT_ID(id), name = VALUES(name), description = VALUES(description)"""))
 );
     }
 }

@@ -30,6 +30,11 @@ public class MySQLEntityRepositoryConformanceTest extends AbstractEntityReposito
     }
 
     @Override
+    protected boolean upsertMatchesAnyUniqueKey() {
+        return true;
+    }
+
+    @Override
     protected List<String> schemaDdl() {
         return List.of(
                 "DROP TABLE IF EXISTS specialty_note_history",
@@ -196,6 +201,11 @@ public class MySQLEntityRepositoryConformanceTest extends AbstractEntityReposito
                         VALUES (?, ?)
                         ON DUPLICATE KEY UPDATE id = VALUES(id), name = VALUES(name)"""))
 
+,
+                entry(Statement.UPSERT_UNIQUE_KEY, Expected.sql("""
+                        INSERT INTO pet_type (name, description)
+                        VALUES (?, ?)
+                        ON DUPLICATE KEY UPDATE id = LAST_INSERT_ID(id), name = VALUES(name), description = VALUES(description)"""))
 );
     }
 }
