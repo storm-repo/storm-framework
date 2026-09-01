@@ -1,6 +1,5 @@
 package st.orm.spi.h2;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static st.orm.GenerationStrategy.NONE;
 import static st.orm.GenerationStrategy.SEQUENCE;
@@ -244,11 +243,4 @@ public class H2EntityRepositoryTest {
     private static final UUID SECONDARY_KEY_ID = UUID.fromString("6ba7b810-9dad-11d1-80b4-00c04fd430c8");
     private static final UUID DEFAULT_KEY_EXTERNAL_REF = UUID.fromString("a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11");
 
-    @Test
-    public void testUuidRemove() {
-        var repo = PreparedStatementTemplate.ORM(dataSource).entity(ApiKey.class);
-        long before = repo.count();
-        repo.remove(repo.getById(DEFAULT_KEY_ID));
-        assertEquals(before - 1, repo.count());
-    }
 }

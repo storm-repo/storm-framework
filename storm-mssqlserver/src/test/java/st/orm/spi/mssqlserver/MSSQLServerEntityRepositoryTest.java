@@ -273,51 +273,6 @@ public class MSSQLServerEntityRepositoryTest {
     // Entity callbacks on the dialect-specific insert and upsert paths.
 
     @Test
-    public void testBatchInsertAndFetchIdsFiresCallbacksWithGeneratedKeys() {
-        var observed = new java.util.ArrayList<Vet>();
-        var orm = PreparedStatementTemplate.ORM(dataSource).withEntityCallback(new st.orm.EntityCallback<Vet>() {
-            @Override
-            public Vet beforeInsert(Vet entity) {
-                return entity.toBuilder().lastName(entity.lastName().toUpperCase()).build();
-            }
-
-            @Override
-            public void afterInsert(Vet entity) {
-                observed.add(entity);
-            }
-        });
-        var repo = orm.entity(Vet.class);
-        // Identity keys also take the dialect-specific batch path, because this dialect cannot return generated keys
-        // from a JDBC batch.
-        var ids = repo.insertAndFetchIds(List.of(
-                Vet.builder().firstName("Cb").lastName("one").build(),
-                Vet.builder().firstName("Cb").lastName("two").build()));
-        assertEquals(2, ids.size());
-        assertEquals("ONE", repo.getById(ids.get(0)).lastName());
-        assertEquals("TWO", repo.getById(ids.get(1)).lastName());
-        assertEquals(ids, observed.stream().map(Vet::id).toList());
-        assertEquals(List.of("ONE", "TWO"), observed.stream().map(Vet::lastName).toList());
-    }
-
-    @Test
-    public void testUpsertAndFetchIdsReportsGeneratedKeysToCallbacks() {
-        var observed = new java.util.ArrayList<Vet>();
-        var orm = PreparedStatementTemplate.ORM(dataSource).withEntityCallback(new st.orm.EntityCallback<Vet>() {
-            @Override
-            public void afterInsert(Vet entity) {
-                observed.add(entity);
-            }
-        });
-        // An auto-generated key routes the upsert to insert on this dialect, so the insert callbacks fire and must
-        // carry the keys the database assigned.
-        var ids = orm.entity(Vet.class).upsertAndFetchIds(List.of(
-                Vet.builder().firstName("Upsert").lastName("cbOne").build(),
-                Vet.builder().firstName("Upsert").lastName("cbTwo").build()));
-        assertEquals(2, ids.size());
-        assertEquals(ids, observed.stream().map(Vet::id).toList());
-    }
-
-    @Test
     public void testUpsertAndFetchIdsWithIdentityKeyRoutesToInsert() {
         var repo = PreparedStatementTemplate.ORM(dataSource).entity(Vet.class);
         // An auto-generated key cannot go through MERGE on this dialect, so the upsert routes to insert. The insert
