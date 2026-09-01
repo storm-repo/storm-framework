@@ -13,8 +13,12 @@
     <name>Storm Dialect TCK</name>
     <description>The conformance suite every dialect module runs. Build-time only; not published.</description>
     <properties>
-        <!-- Test infrastructure for the reactor's dialect modules, of no use to a consumer. -->
+        <!-- Test infrastructure for the reactor's dialect modules, of no use to a consumer. The release profile's
+             Central publishing plugin ignores maven.deploy.skip and stages every reactor module into the one bundle
+             it uploads, so the module also lists itself in that plugin's exclusion list: Central rejects the whole
+             bundle over a single unsigned artifact or one without sources and javadoc. -->
         <maven.deploy.skip>true</maven.deploy.skip>
+        <excludeArtifacts>${project.artifactId}</excludeArtifacts>
         <maven.javadoc.skip>true</maven.javadoc.skip>
         <maven.source.skip>true</maven.source.skip>
         <gpg.skip>true</gpg.skip>
