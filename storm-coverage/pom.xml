@@ -18,7 +18,11 @@
         report attributes none of that, so this module is what the coverage number is read from. Not published.
     </description>
     <properties>
+        <!-- The release profile's Central publishing plugin ignores maven.deploy.skip and stages every reactor module
+             into the one bundle it uploads, so the module also lists itself in that plugin's exclusion list: Central
+             rejects the whole bundle over a single unsigned artifact. -->
         <maven.deploy.skip>true</maven.deploy.skip>
+        <excludeArtifacts>${project.artifactId}</excludeArtifacts>
         <maven.javadoc.skip>true</maven.javadoc.skip>
         <maven.source.skip>true</maven.source.skip>
         <gpg.skip>true</gpg.skip>
