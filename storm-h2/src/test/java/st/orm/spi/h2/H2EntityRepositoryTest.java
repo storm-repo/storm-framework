@@ -9,7 +9,6 @@ import java.sql.Connection;
 import java.sql.SQLException;
 import java.time.Instant;
 import java.time.LocalDate;
-import java.util.List;
 import java.util.UUID;
 import javax.sql.DataSource;
 import lombok.Builder;
@@ -230,27 +229,6 @@ public class H2EntityRepositoryTest {
             String name,
             @Version int version
     ) implements Entity<Integer> {}
-
-    @Test
-    public void testInsertAndFetchIdWithSeqEntityThrows() {
-        // H2 does not support using sequence-based ID generation together with fetch mode.
-        var repo = PreparedStatementTemplate.ORM(dataSource).entity(SeqEntity.class);
-        var entity = SeqEntity.builder()
-                .name("Gamma")
-                .version(0)
-                .build();
-        assertThrows(PersistenceException.class, () -> repo.insertAndFetchId(entity));
-    }
-
-    @Test
-    public void testInsertAndFetchIdsWithSeqEntityThrows() {
-        // H2 does not support using sequence-based ID generation together with fetch mode.
-        var repo = PreparedStatementTemplate.ORM(dataSource).entity(SeqEntity.class);
-        var entities = List.of(
-                SeqEntity.builder().name("Delta").version(0).build(),
-                SeqEntity.builder().name("Epsilon").version(0).build());
-        assertThrows(PersistenceException.class, () -> repo.insertAndFetchIds(entities));
-    }
 
     // UUID support
 

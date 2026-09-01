@@ -1,7 +1,6 @@
 package st.orm.spi.oracle;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static st.orm.GenerationStrategy.NONE;
 import static st.orm.GenerationStrategy.SEQUENCE;
@@ -12,7 +11,6 @@ import java.sql.SQLException;
 import java.time.Duration;
 import java.time.Instant;
 import java.time.LocalDate;
-import java.util.List;
 import java.util.UUID;
 import java.util.concurrent.atomic.AtomicBoolean;
 import javax.sql.DataSource;
@@ -29,7 +27,6 @@ import st.orm.Entity;
 import st.orm.FK;
 import st.orm.PK;
 import st.orm.Persist;
-import st.orm.PersistenceException;
 import st.orm.Version;
 import st.orm.core.template.PreparedStatementTemplate;
 import st.orm.tck.ContainerDataSource;
@@ -218,13 +215,6 @@ public class OracleEntityRepositoryTest {
             @PK(generation = SEQUENCE, sequence = "seq_entity_id_seq") Integer id,
             String name
     ) implements Entity<Integer> {}
-
-    @Test
-    public void testUpsertAndFetchIdsWithSequenceAutoGenThrows() {
-        var repo = PreparedStatementTemplate.ORM(dataSource).entity(SeqEntity.class);
-        assertThrows(PersistenceException.class, () ->
-                repo.upsertAndFetchIds(List.of(SeqEntity.builder().id(1).name("test").build())));
-    }
 
     @Test
     public void testUpsertNonAutoGenMerge() {

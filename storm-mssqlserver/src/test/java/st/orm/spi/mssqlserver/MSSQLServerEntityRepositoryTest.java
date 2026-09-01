@@ -1,7 +1,6 @@
 package st.orm.spi.mssqlserver;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static st.orm.GenerationStrategy.NONE;
 import static st.orm.GenerationStrategy.SEQUENCE;
@@ -28,7 +27,6 @@ import st.orm.Entity;
 import st.orm.FK;
 import st.orm.PK;
 import st.orm.Persist;
-import st.orm.PersistenceException;
 import st.orm.Version;
 import st.orm.core.template.PreparedStatementTemplate;
 import st.orm.tck.ContainerDataSource;
@@ -231,13 +229,6 @@ public class MSSQLServerEntityRepositoryTest {
             @PK(generation = SEQUENCE) Integer id,
             String name
     ) implements Entity<Integer> {}
-
-    @Test
-    public void testUpsertAndFetchIdsWithNamedSequenceThrows() {
-        var repo = PreparedStatementTemplate.ORM(dataSource).entity(SeqNamedEntity.class);
-        assertThrows(PersistenceException.class, () ->
-                repo.upsertAndFetchIds(List.of(SeqNamedEntity.builder().id(1).name("test").build())));
-    }
 
     @Test
     public void testUpsertNonAutoGenMerge() {

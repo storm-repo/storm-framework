@@ -2,7 +2,6 @@ package st.orm.spi.postgresql;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
-import static org.junit.jupiter.api.Assertions.assertTrue;
 import static st.orm.GenerationStrategy.NONE;
 import static st.orm.GenerationStrategy.SEQUENCE;
 
@@ -226,47 +225,6 @@ public class PostgreSQLEntityRepositoryTest {
             String name,
             @Version int version
     ) implements Entity<Integer> {}
-
-    @Test
-    public void testUpsertAndFetchIdsWithSequenceNew() {
-        var repo = PreparedStatementTemplate.ORM(dataSource).entity(SeqEntity.class);
-        var entities = List.of(
-                SeqEntity.builder().name("Zeta").version(0).build(),
-                SeqEntity.builder().name("Eta").version(0).build());
-
-        var ids = repo.upsertAndFetchIds(entities);
-        assertEquals(2, ids.size());
-        assertTrue(ids.get(0) > 0);
-        assertTrue(ids.get(1) > 0);
-    }
-
-    @Test
-    public void testUpsertAndFetchIdsWithSequenceExisting() {
-        var repo = PreparedStatementTemplate.ORM(dataSource).entity(SeqEntity.class);
-        var existing = repo.findAll();
-        var updates = existing.stream()
-                .map(entity -> entity.toBuilder().name(entity.name() + " Updated").build())
-                .toList();
-
-        var ids = repo.upsertAndFetchIds(updates);
-        assertEquals(existing.size(), ids.size());
-        for (int i = 0; i < ids.size(); i++) {
-            assertEquals(existing.get(i).id(), ids.get(i));
-        }
-    }
-
-    @Test
-    public void testUpsertAndFetchIdsWithSequenceMixed() {
-        var repo = PreparedStatementTemplate.ORM(dataSource).entity(SeqEntity.class);
-        var existing = repo.getById(1);
-        var entities = List.of(
-                SeqEntity.builder().name("Theta").version(0).build(),
-                existing.toBuilder().name("Alpha Updated").build());
-
-        var ids = repo.upsertAndFetchIds(entities);
-        assertEquals(2, ids.size());
-        assertEquals(existing.id(), ids.get(1));
-    }
 
     // UUID support
 

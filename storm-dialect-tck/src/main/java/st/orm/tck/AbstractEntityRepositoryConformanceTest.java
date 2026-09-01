@@ -1748,4 +1748,47 @@ public abstract class AbstractEntityRepositoryConformanceTest {
             assertNull(exception.getCause(), "Exception must be raised by storm.");
         }
     }
+
+    @Test
+    public void testUpsertAndFetchIdsWithSequenceNew() {
+        assumeTrue(supportsSequences());
+        var entities = PreparedStatementTemplate.ORM(dataSource).entity(SeqEntity.class);
+        var pending = List.of(
+                SeqEntity.builder().name("Eta").version(0).build(),
+                SeqEntity.builder().name("Theta").version(0).build());
+        if (supportsBatchUpsertAndFetchWithSequences()) {
+            var ids = entities.upsertAndFetchIds(pending);
+            assertEquals(2, ids.size());
+            assertTrue(ids.get(0) > 0);
+            assertTrue(ids.get(1) > 0);
+        } else {
+            var exception = assertThrows(PersistenceException.class, () -> entities.upsertAndFetchIds(pending));
+            assertNull(exception.getCause(), "Exception must be raised by storm.");
+        }
+    }
+
+    @Test
+    public void testUpsertAndFetchIdsWithSequenceExisting() {
+        assumeTrue(supportsSequences() && supportsBatchUpsertAndFetchWithSequences());
+        var entities = PreparedStatementTemplate.ORM(dataSource).entity(SeqEntity.class);
+        var existing = entities.findAll();
+        var ids = entities.upsertAndFetchIds(existing.stream()
+                .map(entity -> entity.toBuilder().name(entity.name() + " Updated").build()).toList());
+        assertEquals(existing.size(), ids.size());
+        for (int index = 0; index < ids.size(); index++) {
+            assertEquals(existing.get(index).id(), ids.get(index));
+        }
+    }
+
+    @Test
+    public void testUpsertAndFetchIdsWithSequenceMixed() {
+        assumeTrue(supportsSequences() && supportsBatchUpsertAndFetchWithSequences());
+        var entities = PreparedStatementTemplate.ORM(dataSource).entity(SeqEntity.class);
+        var existing = entities.getById(1);
+        var ids = entities.upsertAndFetchIds(List.of(
+                SeqEntity.builder().name("Iota").version(0).build(),
+                existing.toBuilder().name("Alpha Updated").build()));
+        assertEquals(2, ids.size());
+        assertEquals(existing.id(), ids.get(1));
+    }
 }
