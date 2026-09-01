@@ -145,18 +145,6 @@ public abstract class AbstractEntityRepositoryConformanceTest {
         return false;
     }
 
-    /**
-     * Whether an upsert hands the keys it generated to {@code afterUpsert}.
-     *
-     * <p>MariaDB does not, although {@code upsertAndFetchIds} returns those same keys to the caller and
-     * {@code afterInsert} receives them on the same dialect. That reads as an inconsistency in the MariaDB
-     * repository rather than something the database cannot do, so this is recorded to keep the suite honest about
-     * what runs, not to bless the behavior.
-     */
-    protected boolean reportsGeneratedKeysToUpsertCallbacks() {
-        return true;
-    }
-
     /** What this dialect is expected to generate for each pinned {@link Statement}. */
     protected abstract Map<Statement, Expected> expectedSql();
 
@@ -1874,7 +1862,6 @@ public abstract class AbstractEntityRepositoryConformanceTest {
     @Test
     public void testUpsertAndFetchIdsReportsGeneratedKeysToCallbacks() {
         assumeTrue(supportsSequences() && supportsBatchUpsertAndFetchWithSequences());
-        assumeTrue(reportsGeneratedKeysToUpsertCallbacks());
         var observed = new ArrayList<SeqEntity>();
         var orm = PreparedStatementTemplate.ORM(dataSource).withEntityCallback(new EntityCallback<SeqEntity>() {
             @Override

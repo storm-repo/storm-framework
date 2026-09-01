@@ -35,11 +35,6 @@ public class MariaDBEntityRepositoryConformanceTest extends AbstractEntityReposi
     }
 
     @Override
-    protected boolean reportsGeneratedKeysToUpsertCallbacks() {
-        return false;
-    }
-
-    @Override
     protected List<String> schemaDdl() {
         return List.of(
                 "DROP TABLE IF EXISTS seq_entity",
