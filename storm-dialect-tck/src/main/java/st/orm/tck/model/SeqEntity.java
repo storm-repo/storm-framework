@@ -6,6 +6,7 @@ import lombok.Builder;
 import st.orm.DbTable;
 import st.orm.Entity;
 import st.orm.PK;
+import st.orm.Version;
 
 /**
  * Sequence-backed key. The sequence is named explicitly because the dialects that support sequences at all expect to
@@ -16,5 +17,6 @@ import st.orm.PK;
 @DbTable("seq_entity")
 public record SeqEntity(
         @PK(generation = SEQUENCE, sequence = "seq_entity_id_seq") Integer id,
-        String name
+        String name,
+        @Version int version
 ) implements Entity<Integer> {}

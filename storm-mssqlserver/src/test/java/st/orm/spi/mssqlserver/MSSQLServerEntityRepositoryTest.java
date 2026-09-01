@@ -1,18 +1,11 @@
 package st.orm.spi.mssqlserver;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertFalse;
-import static org.junit.jupiter.api.Assertions.assertInstanceOf;
-import static org.junit.jupiter.api.Assertions.assertNotNull;
-import static org.junit.jupiter.api.Assertions.assertNull;
-import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static st.orm.GenerationStrategy.NONE;
 import static st.orm.GenerationStrategy.SEQUENCE;
-import static st.orm.Operator.EQUALS;
 import static st.orm.core.template.SqlInterceptor.observe;
 
-import com.microsoft.sqlserver.jdbc.SQLServerException;
 import java.sql.Connection;
 import java.sql.SQLException;
 import java.time.Instant;
@@ -32,10 +25,8 @@ import org.testcontainers.junit.jupiter.Testcontainers;
 import st.orm.DbTable;
 import st.orm.Entity;
 import st.orm.FK;
-import st.orm.Metamodel;
 import st.orm.PK;
 import st.orm.Persist;
-import st.orm.PersistenceException;
 import st.orm.Version;
 import st.orm.core.template.PreparedStatementTemplate;
 import st.orm.tck.ContainerDataSource;
@@ -95,27 +86,6 @@ public class MSSQLServerEntityRepositoryTest {
             @Nullable String description
     ) implements Entity<Integer> {}
 
-    @Test
-    public void testUpsertUniqueKey() {
-        // Mysql is able to update a record with the same unique key, where Sql Server throws an exception.
-        // This use case may be handled in the future by specifying @UK (unique constraint) in the entity.
-        String expectedSql = """
-                INSERT INTO pet_type (name, description)
-                VALUES (?, ?)""";
-        var repo = PreparedStatementTemplate.ORM(dataSource).entity(PetType.class);
-        observe(sql -> {
-            assertEquals(expectedSql, sql.statement());
-            assertEquals(sql.generatedKeys(), List.of("id"));
-            assertFalse(sql.versionAware());
-            assertEquals("dragon", sql.parameters().get(0).dbValue());
-            assertEquals("description", sql.parameters().get(1).dbValue());
-        }, () -> repo.upsert(PetType.builder().name("dragon").description("description").build()));
-        var entity = repo.select().where(Metamodel.of(PetType.class, "name"), EQUALS, "dragon").getSingleResult();
-        assertEquals("description", entity.description());
-        var e = assertThrows(PersistenceException.class, () -> repo.upsert(PetType.builder().name("dragon").description("description").build()));
-        assertInstanceOf(SQLServerException.class, e.getCause());
-    }
-
     @Builder(toBuilder = true)
     public record Specialty(
             @PK(generation = NONE) Integer id,
@@ -158,36 +128,6 @@ public class MSSQLServerEntityRepositoryTest {
             @FK PetType type,
             @Nullable @FK Owner owner
     ) implements Entity<Integer> {}
-
-    @Test
-    public void testUpsertAndFetchWithSequenceExisting() {
-        var repo = PreparedStatementTemplate.ORM(dataSource).entity(Pet.class);
-        // First insert a pet and get the id.
-        var inserted = repo.insertAndFetch(Pet.builder()
-                .name("Buddy")
-                .birthDate(LocalDate.of(2020, 1, 1))
-                .type(PetType.builder().id(1).build())
-                .owner(Owner.builder().id(1).build())
-                .build());
-        assertNotNull(inserted.id());
-        // Now upsert the same pet with an existing non-default id.
-        var updated = repo.upsertAndFetch(inserted.toBuilder().name("Max").build());
-        assertEquals(inserted.id(), updated.id());
-        assertEquals("Max", updated.name());
-    }
-
-    @Test
-    public void testUpsertAndFetchWithSequenceExistingBatch() {
-        var repo = PreparedStatementTemplate.ORM(dataSource).entity(Pet.class);
-        var e = assertThrows(PersistenceException.class, () ->
-            repo.upsertAndFetch(List.of(
-                    Pet.builder().id(1).name("Max").birthDate(LocalDate.of(2020, 1, 1))
-                            .type(PetType.builder().id(1).build()).owner(Owner.builder().id(1).build()).build(),
-                    Pet.builder().id(2).name("Bella").birthDate(LocalDate.of(2020, 2, 1))
-                            .type(PetType.builder().id(1).build()).owner(Owner.builder().id(1).build()).build()
-            )));
-        assertNull(e.getCause(), "Exception must be raised by storm.");
-    }
 
     @BeforeEach
     void setUpBranchTables() throws SQLException {
@@ -291,39 +231,6 @@ public class MSSQLServerEntityRepositoryTest {
     ) implements Entity<Integer> {}
 
     @Test
-    public void testUpsertAndFetchIdsWithNamedSequenceThrows() {
-        var repo = PreparedStatementTemplate.ORM(dataSource).entity(SeqNamedEntity.class);
-        assertThrows(PersistenceException.class, () ->
-                repo.upsertAndFetchIds(List.of(SeqNamedEntity.builder().id(1).name("test").build())));
-    }
-
-    @Test
-    public void testInsertAndFetchIdWithSequence() {
-        var repo = PreparedStatementTemplate.ORM(dataSource).entity(SeqEmptyEntity.class);
-        var first = new AtomicBoolean(false);
-        observe(sql -> {
-            if (!first.getAndSet(true)) {
-                assertTrue(sql.statement().contains("OUTPUT INSERTED"));
-            }
-        }, () -> {
-            var id = repo.insertAndFetchId(SeqEmptyEntity.builder().name("Gamma").build());
-            assertNotNull(id);
-            assertTrue(id > 0);
-        });
-    }
-
-    @Test
-    public void testInsertAndFetchIdsWithSequence() {
-        var repo = PreparedStatementTemplate.ORM(dataSource).entity(SeqEmptyEntity.class);
-        var ids = repo.insertAndFetchIds(List.of(
-                SeqEmptyEntity.builder().name("Delta").build(),
-                SeqEmptyEntity.builder().name("Epsilon").build()));
-        assertEquals(2, ids.size());
-        assertTrue(ids.get(0) > 0);
-        assertTrue(ids.get(1) > 0);
-    }
-
-    @Test
     public void testUpsertNonAutoGenMerge() {
         var repo = PreparedStatementTemplate.ORM(dataSource).entity(NonAutoGenEntity.class);
 
@@ -349,21 +256,6 @@ public class MSSQLServerEntityRepositoryTest {
         assertEquals("Third", created.name());
     }
 
-    @Test
-    public void testUpsertNewEntityRoutesToInsert() {
-        var repo = PreparedStatementTemplate.ORM(dataSource).entity(VersionLongEntity.class);
-        var first = new AtomicBoolean(false);
-        observe(sql -> {
-            if (!first.getAndSet(true)) {
-                assertTrue(sql.statement().contains("INSERT INTO"));
-            }
-        }, () -> {
-            repo.upsert(VersionLongEntity.builder().name("New Entity").version(0L).build());
-        });
-        var entities = repo.findAll();
-        assertTrue(entities.stream().anyMatch(entity -> "New Entity".equals(entity.name())));
-    }
-
     // UUID support
 
     @Builder(toBuilder = true)
@@ -379,73 +271,6 @@ public class MSSQLServerEntityRepositoryTest {
     private static final UUID DEFAULT_KEY_EXTERNAL_REF = UUID.fromString("a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11");
 
     // Entity callbacks on the dialect-specific insert and upsert paths.
-
-    @Test
-    public void testSequenceInsertAndFetchIdFiresCallbacksWithGeneratedKey() {
-        var observed = new java.util.ArrayList<SeqNamedEntity>();
-        var orm = PreparedStatementTemplate.ORM(dataSource).withEntityCallback(new st.orm.EntityCallback<SeqNamedEntity>() {
-            @Override
-            public SeqNamedEntity beforeInsert(SeqNamedEntity entity) {
-                return entity.toBuilder().name(entity.name().toUpperCase()).build();
-            }
-
-            @Override
-            public void afterInsert(SeqNamedEntity entity) {
-                observed.add(entity);
-            }
-        });
-        var repo = orm.entity(SeqNamedEntity.class);
-        // The OUTPUT INSERTED path for sequence keys is dialect-specific; it must still run the callbacks.
-        var id = repo.insertAndFetchId(SeqNamedEntity.builder().name("callback seq").build());
-        assertEquals("CALLBACK SEQ", repo.getById(id).name());
-        assertEquals(1, observed.size());
-        assertEquals(id, observed.getFirst().id());
-    }
-
-    @Test
-    public void testBatchInsertAndFetchIdsFiresCallbacksWithGeneratedKeys() {
-        var observed = new java.util.ArrayList<Vet>();
-        var orm = PreparedStatementTemplate.ORM(dataSource).withEntityCallback(new st.orm.EntityCallback<Vet>() {
-            @Override
-            public Vet beforeInsert(Vet entity) {
-                return entity.toBuilder().lastName(entity.lastName().toUpperCase()).build();
-            }
-
-            @Override
-            public void afterInsert(Vet entity) {
-                observed.add(entity);
-            }
-        });
-        var repo = orm.entity(Vet.class);
-        // Identity keys also take the dialect-specific batch path, because this dialect cannot return generated keys
-        // from a JDBC batch.
-        var ids = repo.insertAndFetchIds(List.of(
-                Vet.builder().firstName("Cb").lastName("one").build(),
-                Vet.builder().firstName("Cb").lastName("two").build()));
-        assertEquals(2, ids.size());
-        assertEquals("ONE", repo.getById(ids.get(0)).lastName());
-        assertEquals("TWO", repo.getById(ids.get(1)).lastName());
-        assertEquals(ids, observed.stream().map(Vet::id).toList());
-        assertEquals(List.of("ONE", "TWO"), observed.stream().map(Vet::lastName).toList());
-    }
-
-    @Test
-    public void testUpsertAndFetchIdsReportsGeneratedKeysToCallbacks() {
-        var observed = new java.util.ArrayList<Vet>();
-        var orm = PreparedStatementTemplate.ORM(dataSource).withEntityCallback(new st.orm.EntityCallback<Vet>() {
-            @Override
-            public void afterInsert(Vet entity) {
-                observed.add(entity);
-            }
-        });
-        // An auto-generated key routes the upsert to insert on this dialect, so the insert callbacks fire and must
-        // carry the keys the database assigned.
-        var ids = orm.entity(Vet.class).upsertAndFetchIds(List.of(
-                Vet.builder().firstName("Upsert").lastName("cbOne").build(),
-                Vet.builder().firstName("Upsert").lastName("cbTwo").build()));
-        assertEquals(2, ids.size());
-        assertEquals(ids, observed.stream().map(Vet::id).toList());
-    }
 
     @Test
     public void testUpsertAndFetchIdsWithIdentityKeyRoutesToInsert() {

@@ -17,6 +17,7 @@ import java.sql.Connection;
 import java.sql.SQLException;
 import java.time.Instant;
 import java.time.LocalDate;
+import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
@@ -25,12 +26,14 @@ import java.util.concurrent.atomic.AtomicReference;
 import javax.sql.DataSource;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import st.orm.EntityCallback;
 import st.orm.Metamodel;
 import st.orm.PersistenceException;
 import st.orm.core.template.PreparedStatementTemplate;
 import st.orm.core.template.Sql;
 import st.orm.tck.model.Address;
 import st.orm.tck.model.ApiKey;
+import st.orm.tck.model.CycleA;
 import st.orm.tck.model.NonAutoGenEntity;
 import st.orm.tck.model.Owner;
 import st.orm.tck.model.Pet;
@@ -39,10 +42,14 @@ import st.orm.tck.model.PetType;
 import st.orm.tck.model.PkOnlyEntity;
 import st.orm.tck.model.SeqEntity;
 import st.orm.tck.model.Specialty;
+import st.orm.tck.model.SpecialtyNote;
+import st.orm.tck.model.SpecialtyNoteHistory;
 import st.orm.tck.model.VersionInstantEntity;
 import st.orm.tck.model.VersionLongEntity;
 import st.orm.tck.model.Vet;
 import st.orm.tck.model.VetSpecialty;
+import st.orm.tck.model.VetSpecialtyNote;
+import st.orm.tck.model.VetSpecialtyNoteAudit;
 import st.orm.tck.model.VetSpecialtyPK;
 
 /**
@@ -116,6 +123,28 @@ public abstract class AbstractEntityRepositoryConformanceTest {
         return supportsSequences();
     }
 
+    /**
+     * Whether the dialect can hand back generated keys for a whole batch of sequence-keyed rows it upserts. SQL
+     * Server manages the insert form and a single upsert, but not the batch upsert.
+     */
+    protected boolean supportsBatchUpsertAndFetchWithSequences() {
+        return supportsFetchWithSequences();
+    }
+
+    /**
+     * Whether an upsert whose row collides on a unique key other than the primary key updates that row instead of
+     * raising.
+     *
+     * <p>MySQL and MariaDB match on any unique constraint, so the statement finds the existing row and updates it.
+     * PostgreSQL, SQL Server and Oracle match only on the conflict target the statement names, which is the primary
+     * key, so the duplicate reaches the database and the driver raises. Both are correct for the dialect and neither
+     * is what the entity asked for, since the model has no way to name the unique constraint; {@code @UK} would give
+     * it one.
+     */
+    protected boolean upsertMatchesAnyUniqueKey() {
+        return false;
+    }
+
     /** What this dialect is expected to generate for each pinned {@link Statement}. */
     protected abstract Map<Statement, Expected> expectedSql();
 
@@ -131,7 +160,15 @@ public abstract class AbstractEntityRepositoryConformanceTest {
     private boolean unreachable(Statement statement) {
         String name = statement.name();
         if (name.contains("SEQUENCE")) {
-            return !supportsSequences() || (name.contains("AND_FETCH") && !supportsFetchWithSequences());
+            if (!supportsSequences()) {
+                return true;
+            }
+            if (!name.contains("AND_FETCH")) {
+                return false;
+            }
+            return name.startsWith("UPSERT") && name.contains("BATCH")
+                    ? !supportsBatchUpsertAndFetchWithSequences()
+                    : !supportsFetchWithSequences();
         }
         return false;
     }
@@ -580,7 +617,7 @@ public abstract class AbstractEntityRepositoryConformanceTest {
 
     @Test
     public void testUpsertAndFetchIdsEmptyList() {
-        assumeTrue(supportsFetchWithSequences());
+        assumeTrue(supportsBatchUpsertAndFetchWithSequences());
         var entities = PreparedStatementTemplate.ORM(dataSource).entity(SeqEntity.class);
         assertTrue(entities.upsertAndFetchIds(List.of()).isEmpty());
     }
@@ -1105,7 +1142,7 @@ public abstract class AbstractEntityRepositoryConformanceTest {
 
     @Test
     public void testUpsertAndFetchWithSequenceBatch() {
-        assumeTrue(supportsSequences() && supportsFetchWithSequences());
+        assumeTrue(supportsSequences() && supportsBatchUpsertAndFetchWithSequences());
         var pets = PreparedStatementTemplate.ORM(dataSource).entity(Pet.class);
         var sql = assertStatement(Statement.UPSERT_AND_FETCH_WITH_SEQUENCE_BATCH, () -> {
             var entities = pets.upsertAndFetch(nCopies(2, Pet.builder()
@@ -1148,7 +1185,7 @@ public abstract class AbstractEntityRepositoryConformanceTest {
 
     @Test
     public void testUpsertAndFetchWithSequenceEmptyBatch() {
-        assumeTrue(supportsSequences() && supportsFetchWithSequences());
+        assumeTrue(supportsSequences() && supportsBatchUpsertAndFetchWithSequences());
         var pets = PreparedStatementTemplate.ORM(dataSource).entity(PetSequenceEmpty.class);
         var sql = assertStatement(Statement.UPSERT_AND_FETCH_WITH_SEQUENCE_EMPTY_BATCH, () -> {
             var entities = pets.upsertAndFetch(nCopies(2, PetSequenceEmpty.builder()
@@ -1498,5 +1535,344 @@ public abstract class AbstractEntityRepositoryConformanceTest {
             }
         });
         assertFalse(sql.versionAware());
+    }
+
+    @Test
+    public void testUpsertDependentOneToOne() {
+        var orm = PreparedStatementTemplate.ORM(dataSource);
+        var specialty = orm.entity(Specialty.class).getById(1);
+        var notes = orm.entity(SpecialtyNote.class);
+        notes.upsert(SpecialtyNote.builder()
+                .specialty(specialty)
+                .note("first")
+                .updatedAt(Instant.parse("2026-01-01T10:00:00Z"))
+                .build());
+        var stored = notes.getById(specialty);
+        assertEquals("first", stored.note());
+        notes.upsert(stored.toBuilder()
+                .note("second")
+                .updatedAt(Instant.parse("2026-01-02T10:00:00Z"))
+                .build());
+        var updated = notes.getById(specialty);
+        assertEquals("second", updated.note());
+        assertEquals(Instant.parse("2026-01-02T10:00:00Z"), updated.updatedAt());
+    }
+
+    @Test
+    public void testUpsertDependentOneToOneBatch() {
+        var orm = PreparedStatementTemplate.ORM(dataSource);
+        var specialties = orm.entity(Specialty.class);
+        var notes = orm.entity(SpecialtyNote.class);
+        var pending = List.of(
+                SpecialtyNote.builder().specialty(specialties.getById(2)).note("surgery note")
+                        .updatedAt(Instant.parse("2026-01-01T10:00:00Z")).build(),
+                SpecialtyNote.builder().specialty(specialties.getById(3)).note("dentistry note")
+                        .updatedAt(Instant.parse("2026-01-01T10:00:00Z")).build());
+        notes.upsert(pending);
+        notes.upsert(pending.stream()
+                .map(note -> note.toBuilder().note("%s updated".formatted(note.note())).build()).toList());
+        assertEquals("surgery note updated", notes.getById(specialties.getById(2)).note());
+        assertEquals("dentistry note updated", notes.getById(specialties.getById(3)).note());
+    }
+
+    @Test
+    public void testUpsertCompoundForeignKeyAsPrimaryKey() {
+        var notes = PreparedStatementTemplate.ORM(dataSource).entity(VetSpecialtyNote.class);
+        var vetSpecialty = new VetSpecialty(new VetSpecialtyPK(2, 1));
+        notes.upsert(VetSpecialtyNote.builder().vetSpecialty(vetSpecialty).note("first").build());
+        assertEquals("first", notes.getById(vetSpecialty).note());
+        notes.upsert(VetSpecialtyNote.builder().vetSpecialty(vetSpecialty).note("second").build());
+        assertEquals("second", notes.getById(vetSpecialty).note());
+    }
+
+    @Test
+    public void testCrudNestedCompoundKeyChain() {
+        var orm = PreparedStatementTemplate.ORM(dataSource);
+        var notes = orm.entity(VetSpecialtyNote.class);
+        var vetSpecialty = new VetSpecialty(new VetSpecialtyPK(3, 2));
+        notes.upsert(VetSpecialtyNote.builder().vetSpecialty(vetSpecialty).note("base note").build());
+        var note = notes.getById(vetSpecialty);
+        var audits = orm.entity(VetSpecialtyNoteAudit.class);
+        audits.insert(VetSpecialtyNoteAudit.builder().note(note).remark("created").build());
+        var stored = audits.getById(note);
+        assertEquals("created", stored.remark());
+        assertEquals(vetSpecialty.id(), stored.note().vetSpecialty().id());
+        audits.update(stored.toBuilder().remark("updated").build());
+        assertEquals("updated", audits.getById(note).remark());
+        audits.remove(stored.toBuilder().remark("updated").build());
+        assertTrue(audits.findById(note).isEmpty());
+    }
+
+    @Test
+    public void testUpsertNestedCompoundKeyChain() {
+        var orm = PreparedStatementTemplate.ORM(dataSource);
+        var notes = orm.entity(VetSpecialtyNote.class);
+        var vetSpecialty = new VetSpecialty(new VetSpecialtyPK(4, 2));
+        notes.upsert(VetSpecialtyNote.builder().vetSpecialty(vetSpecialty).note("base note").build());
+        var note = notes.getById(vetSpecialty);
+        var audits = orm.entity(VetSpecialtyNoteAudit.class);
+        audits.upsert(VetSpecialtyNoteAudit.builder().note(note).remark("created").build());
+        assertEquals("created", audits.getById(note).remark());
+        audits.upsert(VetSpecialtyNoteAudit.builder().note(note).remark("revised").build());
+        assertEquals("revised", audits.getById(note).remark());
+    }
+
+    @Test
+    public void testUpsertNestedSingleColumnKeyChain() {
+        var orm = PreparedStatementTemplate.ORM(dataSource);
+        var specialty = orm.entity(Specialty.class).getById(3);
+        var notes = orm.entity(SpecialtyNote.class);
+        notes.upsert(SpecialtyNote.builder()
+                .specialty(specialty)
+                .note("dentistry note")
+                .updatedAt(Instant.parse("2026-01-01T10:00:00Z"))
+                .build());
+        var note = notes.getById(specialty);
+        var history = orm.entity(SpecialtyNoteHistory.class);
+        history.upsert(SpecialtyNoteHistory.builder().note(note).remark("created").build());
+        assertEquals("created", history.getById(note).remark());
+        history.upsert(SpecialtyNoteHistory.builder().note(note).remark("revised").build());
+        assertEquals("revised", history.getById(note).remark());
+    }
+
+    @Test
+    public void testCircularKeyChainFailsFast() {
+        // A key chain that references itself cannot be flattened; the model must say so rather than loop.
+        assertThrows(PersistenceException.class,
+                () -> PreparedStatementTemplate.ORM(dataSource).entity(CycleA.class).findAll());
+    }
+
+    @Test
+    public void testUpsertAndFetchWithSequenceExisting() {
+        assumeTrue(supportsSequences() && supportsFetchWithSequences());
+        var pets = PreparedStatementTemplate.ORM(dataSource).entity(Pet.class);
+        var inserted = pets.insertAndFetch(Pet.builder()
+                .name("Buddy")
+                .birthDate(LocalDate.of(2020, 1, 1))
+                .type(PetType.builder().id(1).build())
+                .owner(Owner.builder().id(1).build())
+                .build());
+        assertNotNull(inserted.id());
+        // The key is no longer the sequence default, so the upsert has to route to an update.
+        var updated = pets.upsertAndFetch(inserted.toBuilder().name("Max").build());
+        assertEquals(inserted.id(), updated.id());
+        assertEquals("Max", updated.name());
+    }
+
+    @Test
+    public void testUpsertAndFetchWithSequenceExistingBatch() {
+        assumeTrue(supportsSequences() && supportsBatchUpsertAndFetchWithSequences());
+        var pets = PreparedStatementTemplate.ORM(dataSource).entity(Pet.class);
+        var insertedIds = pets.insertAndFetchIds(List.of(
+                Pet.builder().name("Buddy").birthDate(LocalDate.of(2020, 1, 1))
+                        .type(PetType.builder().id(1).build()).owner(Owner.builder().id(1).build()).build(),
+                Pet.builder().name("Rex").birthDate(LocalDate.of(2020, 2, 1))
+                        .type(PetType.builder().id(1).build()).owner(Owner.builder().id(1).build()).build()));
+        assertEquals(2, insertedIds.size());
+        var updated = pets.upsertAndFetch(List.of(
+                        Pet.builder().id(insertedIds.get(0)).name("Max").birthDate(LocalDate.of(2020, 1, 1))
+                                .type(PetType.builder().id(1).build()).owner(Owner.builder().id(1).build()).build(),
+                        Pet.builder().id(insertedIds.get(1)).name("Bella").birthDate(LocalDate.of(2020, 2, 1))
+                                .type(PetType.builder().id(1).build()).owner(Owner.builder().id(1).build()).build()))
+                .stream().sorted(Comparator.comparingInt(Pet::id)).toList();
+        assertEquals(2, updated.size());
+        assertEquals("Max", updated.get(0).name());
+        assertEquals("Bella", updated.get(1).name());
+    }
+
+    @Test
+    public void testInsertAndFetchWithSequenceRefusedWhenUnsupported() {
+        assumeTrue(supportsSequences() && !supportsFetchWithSequences());
+        var pets = PreparedStatementTemplate.ORM(dataSource).entity(Pet.class);
+        var exception = assertThrows(PersistenceException.class, () -> pets.insertAndFetch(Pet.builder()
+                .name("Buddy")
+                .birthDate(LocalDate.of(2020, 1, 1))
+                .type(PetType.builder().id(1).build())
+                .owner(Owner.builder().id(1).build())
+                .build()));
+        assertNull(exception.getCause(), "Exception must be raised by storm.");
+    }
+
+    @Test
+    public void testUpsertUniqueKey() {
+        var petTypes = PreparedStatementTemplate.ORM(dataSource).entity(PetType.class);
+        var sql = assertStatement(Statement.UPSERT_UNIQUE_KEY,
+                () -> petTypes.upsert(PetType.builder().name("dragon").description("description").build()));
+        assertFalse(sql.versionAware());
+        assertEquals("dragon", sql.parameters().get(0).dbValue());
+        assertEquals("description", sql.parameters().get(1).dbValue());
+        var stored = petTypes.select()
+                .where(Metamodel.of(PetType.class, "name"), EQUALS, "dragon").getSingleResult();
+        assertEquals("description", stored.description());
+        if (upsertMatchesAnyUniqueKey()) {
+            petTypes.upsert(PetType.builder().name("dragon").description(null).build());
+            var updated = petTypes.select()
+                    .where(Metamodel.of(PetType.class, "name"), EQUALS, "dragon").getSingleResult();
+            assertNull(updated.description());
+        } else {
+            var exception = assertThrows(PersistenceException.class, () -> petTypes.upsert(
+                    PetType.builder().name("dragon").description("description").build()));
+            // The database rejected it rather than Storm, which is what distinguishes this from a refusal.
+            assertNotNull(exception.getCause());
+        }
+    }
+
+    @Test
+    public void testInsertAndFetchIdWithSequence() {
+        assumeTrue(supportsSequences());
+        var entities = PreparedStatementTemplate.ORM(dataSource).entity(SeqEntity.class);
+        if (supportsFetchWithSequences()) {
+            var id = entities.insertAndFetchId(SeqEntity.builder().name("Gamma").version(0).build());
+            assertNotNull(id);
+            assertTrue(id > 0);
+        } else {
+            // The dialect cannot read back a key the sequence produced, and says so itself.
+            var exception = assertThrows(PersistenceException.class,
+                    () -> entities.insertAndFetchId(SeqEntity.builder().name("Gamma").version(0).build()));
+            assertNull(exception.getCause(), "Exception must be raised by storm.");
+        }
+    }
+
+    @Test
+    public void testInsertAndFetchIdsWithSequence() {
+        assumeTrue(supportsSequences());
+        var entities = PreparedStatementTemplate.ORM(dataSource).entity(SeqEntity.class);
+        var pending = List.of(
+                SeqEntity.builder().name("Delta").version(0).build(),
+                SeqEntity.builder().name("Epsilon").version(0).build());
+        if (supportsFetchWithSequences()) {
+            var ids = entities.insertAndFetchIds(pending);
+            assertEquals(2, ids.size());
+            assertTrue(ids.get(0) > 0);
+            assertTrue(ids.get(1) > ids.get(0));
+        } else {
+            var exception = assertThrows(PersistenceException.class, () -> entities.insertAndFetchIds(pending));
+            assertNull(exception.getCause(), "Exception must be raised by storm.");
+        }
+    }
+
+    @Test
+    public void testUpsertAndFetchIdsWithSequenceNew() {
+        assumeTrue(supportsSequences());
+        var entities = PreparedStatementTemplate.ORM(dataSource).entity(SeqEntity.class);
+        var pending = List.of(
+                SeqEntity.builder().name("Eta").version(0).build(),
+                SeqEntity.builder().name("Theta").version(0).build());
+        if (supportsBatchUpsertAndFetchWithSequences()) {
+            var ids = entities.upsertAndFetchIds(pending);
+            assertEquals(2, ids.size());
+            assertTrue(ids.get(0) > 0);
+            assertTrue(ids.get(1) > 0);
+        } else {
+            var exception = assertThrows(PersistenceException.class, () -> entities.upsertAndFetchIds(pending));
+            assertNull(exception.getCause(), "Exception must be raised by storm.");
+        }
+    }
+
+    @Test
+    public void testUpsertAndFetchIdsWithSequenceExisting() {
+        assumeTrue(supportsSequences() && supportsBatchUpsertAndFetchWithSequences());
+        var entities = PreparedStatementTemplate.ORM(dataSource).entity(SeqEntity.class);
+        var existing = entities.findAll();
+        var ids = entities.upsertAndFetchIds(existing.stream()
+                .map(entity -> entity.toBuilder().name(entity.name() + " Updated").build()).toList());
+        assertEquals(existing.size(), ids.size());
+        for (int index = 0; index < ids.size(); index++) {
+            assertEquals(existing.get(index).id(), ids.get(index));
+        }
+    }
+
+    @Test
+    public void testUpsertAndFetchIdsWithSequenceMixed() {
+        assumeTrue(supportsSequences() && supportsBatchUpsertAndFetchWithSequences());
+        var entities = PreparedStatementTemplate.ORM(dataSource).entity(SeqEntity.class);
+        var existing = entities.getById(1);
+        var ids = entities.upsertAndFetchIds(List.of(
+                SeqEntity.builder().name("Iota").version(0).build(),
+                existing.toBuilder().name("Alpha Updated").build()));
+        assertEquals(2, ids.size());
+        assertEquals(existing.id(), ids.get(1));
+    }
+
+    @Test
+    public void testUpsertNewEntityRoutesToInsert() {
+        var entities = PreparedStatementTemplate.ORM(dataSource).entity(VersionLongEntity.class);
+        entities.upsert(VersionLongEntity.builder().name("New Entity").version(0L).build());
+        assertTrue(entities.findAll().stream().anyMatch(entity -> "New Entity".equals(entity.name())));
+    }
+
+    @Test
+    public void testSequenceInsertAndFetchIdFiresCallbacksWithGeneratedKey() {
+        assumeTrue(supportsSequences() && supportsFetchWithSequences());
+        var observed = new ArrayList<SeqEntity>();
+        var orm = PreparedStatementTemplate.ORM(dataSource).withEntityCallback(new EntityCallback<SeqEntity>() {
+            @Override
+            public SeqEntity beforeInsert(SeqEntity entity) {
+                return entity.toBuilder().name(entity.name().toUpperCase()).build();
+            }
+
+            @Override
+            public void afterInsert(SeqEntity entity) {
+                observed.add(entity);
+            }
+        });
+        var entities = orm.entity(SeqEntity.class);
+        // Reading the key back is dialect-specific, and must still run the callbacks with the key it produced.
+        var id = entities.insertAndFetchId(SeqEntity.builder().name("callback seq").version(0).build());
+        assertEquals("CALLBACK SEQ", entities.getById(id).name());
+        assertEquals(1, observed.size());
+        assertEquals(id, observed.getFirst().id());
+        assertEquals("CALLBACK SEQ", observed.getFirst().name());
+    }
+
+    @Test
+    public void testUpsertNonAutoGeneratedPk() {
+        var entities = PreparedStatementTemplate.ORM(dataSource).entity(NonAutoGenEntity.class);
+        entities.upsert(NonAutoGenEntity.builder().id(1).name("First Updated").version(0).build());
+        assertEquals("First Updated", entities.getById(1).name());
+        entities.upsert(NonAutoGenEntity.builder().id(3).name("Third").version(0).build());
+        assertEquals("Third", entities.getById(3).name());
+    }
+
+    @Test
+    public void testSequenceBatchInsertAndFetchIdsFiresCallbacksWithGeneratedKeys() {
+        assumeTrue(supportsSequences() && supportsFetchWithSequences());
+        var observed = new ArrayList<SeqEntity>();
+        var orm = PreparedStatementTemplate.ORM(dataSource).withEntityCallback(new EntityCallback<SeqEntity>() {
+            @Override
+            public SeqEntity beforeInsert(SeqEntity entity) {
+                return entity.toBuilder().name(entity.name().toUpperCase()).build();
+            }
+
+            @Override
+            public void afterInsert(SeqEntity entity) {
+                observed.add(entity);
+            }
+        });
+        var entities = orm.entity(SeqEntity.class);
+        var ids = entities.insertAndFetchIds(List.of(
+                SeqEntity.builder().name("cb batch one").version(0).build(),
+                SeqEntity.builder().name("cb batch two").version(0).build()));
+        assertEquals(2, ids.size());
+        assertEquals("CB BATCH ONE", entities.getById(ids.get(0)).name());
+        assertEquals(ids, observed.stream().map(SeqEntity::id).toList());
+        assertEquals(List.of("CB BATCH ONE", "CB BATCH TWO"), observed.stream().map(SeqEntity::name).toList());
+    }
+
+    @Test
+    public void testUpsertAndFetchIdsReportsGeneratedKeysToCallbacks() {
+        assumeTrue(supportsSequences() && supportsBatchUpsertAndFetchWithSequences());
+        var observed = new ArrayList<SeqEntity>();
+        var orm = PreparedStatementTemplate.ORM(dataSource).withEntityCallback(new EntityCallback<SeqEntity>() {
+            @Override
+            public void afterUpsert(SeqEntity entity) {
+                observed.add(entity);
+            }
+        });
+        var ids = orm.entity(SeqEntity.class).upsertAndFetchIds(List.of(
+                SeqEntity.builder().name("upsert callback one").version(0).build(),
+                SeqEntity.builder().name("upsert callback two").version(0).build()));
+        assertEquals(2, ids.size());
+        assertEquals(ids, observed.stream().map(SeqEntity::id).toList());
     }
 }

@@ -1,21 +1,14 @@
 package st.orm.spi.mysql;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
-import static org.junit.jupiter.api.Assertions.assertNull;
-import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static st.orm.GenerationStrategy.NONE;
 import static st.orm.GenerationStrategy.SEQUENCE;
-import static st.orm.Operator.EQUALS;
-import static st.orm.core.template.SqlInterceptor.observe;
 
 import java.sql.Connection;
 import java.sql.SQLException;
 import java.time.Instant;
 import java.time.LocalDate;
-import java.util.List;
 import java.util.UUID;
 import javax.sql.DataSource;
 import lombok.Builder;
@@ -29,10 +22,8 @@ import org.testcontainers.junit.jupiter.Testcontainers;
 import st.orm.DbTable;
 import st.orm.Entity;
 import st.orm.FK;
-import st.orm.Metamodel;
 import st.orm.PK;
 import st.orm.Persist;
-import st.orm.PersistenceException;
 import st.orm.Version;
 import st.orm.core.template.PreparedStatementTemplate;
 import st.orm.tck.ContainerDataSource;
@@ -93,28 +84,6 @@ public class MySQLEntityRepositoryTest {
             @Nullable String description
     ) implements Entity<Integer> {}
 
-    @Test
-    public void testUpsertUniqueKey() {
-        // Mysql is able to update a record with the same unique key, where Oracle throws an exception.
-        String expectedSql = """
-                INSERT INTO pet_type (name, description)
-                VALUES (?, ?)
-                ON DUPLICATE KEY UPDATE id = LAST_INSERT_ID(id), name = VALUES(name), description = VALUES(description)""";
-        var repo = PreparedStatementTemplate.ORM(dataSource).entity(PetType.class);
-        observe(sql -> {
-            assertEquals(expectedSql, sql.statement());
-            assertEquals(sql.generatedKeys(), List.of("id"));
-            assertFalse(sql.versionAware());
-            assertEquals("dragon", sql.parameters().get(0).dbValue());
-            assertEquals("description", sql.parameters().get(1).dbValue());
-        }, () -> repo.upsert(PetType.builder().name("dragon").description("description").build()));
-        var entity = repo.select().where(Metamodel.of(PetType.class, "name"), EQUALS, "dragon").getSingleResult();
-        assertEquals("description", entity.description());
-        repo.upsert(PetType.builder().name("dragon").description(null).build());
-        var updated = repo.select().where(Metamodel.of(PetType.class, "name"), EQUALS, "dragon").getSingleResult();
-        assertNull(updated.description(), "description");
-    }
-
     @Builder(toBuilder = true)
     public record Specialty(
             @PK(generation = NONE) Integer id,
@@ -157,40 +126,6 @@ public class MySQLEntityRepositoryTest {
             @FK PetType type,
             @Nullable @FK Owner owner
     ) implements Entity<Integer> {}
-
-    @Test
-    public void testUpsertAndFetchWithSequenceExisting() {
-        var repo = PreparedStatementTemplate.ORM(dataSource).entity(Pet.class);
-        // First insert a pet with explicit id using ignoreAutoGenerate.
-        repo.insert(Pet.builder()
-                .id(100)
-                .name("Buddy")
-                .birthDate(LocalDate.of(2020, 1, 1))
-                .type(PetType.builder().id(1).build())
-                .owner(Owner.builder().id(1).build())
-                .build(), true);
-        // Now upsert the same pet with an existing non-default id.
-        var updated = repo.upsertAndFetch(Pet.builder().id(100).name("Max")
-                .birthDate(LocalDate.of(2020, 1, 1))
-                .type(PetType.builder().id(1).build())
-                .owner(Owner.builder().id(1).build())
-                .build());
-        assertEquals(100, updated.id());
-        assertEquals("Max", updated.name());
-    }
-
-    @Test
-    public void testUpsertAndFetchWithSequenceExistingBatch() {
-        var repo = PreparedStatementTemplate.ORM(dataSource).entity(Pet.class);
-        var e = assertThrows(PersistenceException.class, () ->
-            repo.upsertAndFetch(List.of(
-                    Pet.builder().id(1).name("Max").birthDate(LocalDate.of(2020, 1, 1))
-                            .type(PetType.builder().id(1).build()).owner(Owner.builder().id(1).build()).build(),
-                    Pet.builder().id(2).name("Bella").birthDate(LocalDate.of(2020, 2, 1))
-                            .type(PetType.builder().id(1).build()).owner(Owner.builder().id(1).build()).build()
-            )));
-        assertNull(e.getCause(), "Exception must be raised by storm.");
-    }
 
     @BeforeEach
     void setUpBranchTables() throws SQLException {
@@ -286,48 +221,6 @@ public class MySQLEntityRepositoryTest {
             @PK(generation = SEQUENCE) Integer id,
             String name
     ) implements Entity<Integer> {}
-
-    @Test
-    public void testInsertAndFetchIdWithSequenceThrows() {
-        var repo = PreparedStatementTemplate.ORM(dataSource).entity(SeqEntity.class);
-        assertThrows(PersistenceException.class, () ->
-                repo.insertAndFetchId(SeqEntity.builder().name("test").build()));
-    }
-
-    @Test
-    public void testInsertAndFetchIdsWithSequenceThrows() {
-        var repo = PreparedStatementTemplate.ORM(dataSource).entity(SeqEntity.class);
-        assertThrows(PersistenceException.class, () ->
-                repo.insertAndFetchIds(List.of(SeqEntity.builder().name("test").build())));
-    }
-
-    @Test
-    public void testUpsertAndFetchIdsWithSequenceThrows() {
-        var repo = PreparedStatementTemplate.ORM(dataSource).entity(SeqEntity.class);
-        assertThrows(PersistenceException.class, () ->
-                repo.upsertAndFetchIds(List.of(SeqEntity.builder().id(1).name("test").build())));
-    }
-
-    @Test
-    public void testUpsertNonAutoGeneratedPk() {
-        var repo = PreparedStatementTemplate.ORM(dataSource).entity(NonAutoGenEntity.class);
-
-        repo.upsert(NonAutoGenEntity.builder().id(1).name("First Updated").version(0).build());
-        var updated = repo.getById(1);
-        assertEquals("First Updated", updated.name());
-
-        repo.upsert(NonAutoGenEntity.builder().id(3).name("Third").version(0).build());
-        var created = repo.getById(3);
-        assertEquals("Third", created.name());
-    }
-
-    @Test
-    public void testUpsertNewEntityWithAutoIncrementPk() {
-        var repo = PreparedStatementTemplate.ORM(dataSource).entity(VersionLongEntity.class);
-        repo.upsert(VersionLongEntity.builder().name("New Entity").version(0L).build());
-        var entities = repo.findAll();
-        assertTrue(entities.stream().anyMatch(entity -> "New Entity".equals(entity.name())));
-    }
 
     @Test
     public void testUpsertAndFetchIdNewEntityWithAutoIncrementPk() {

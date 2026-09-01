@@ -125,7 +125,7 @@ public class MariaDBEntityRepositoryImpl<E extends Entity<ID>, ID>
             });
             List<ID> ids = getUpsertQuery(batch).getResultList(model.primaryKeyType());
             if (hasEntityCallbacks()) {
-                batch.forEach(this::fireAfterUpsert);
+                fireAfterUpsert(batch, ids);
             }
             return ids;
         });

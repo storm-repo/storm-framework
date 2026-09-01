@@ -1,19 +1,14 @@
 package st.orm.spi.mariadb;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
-import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static st.orm.GenerationStrategy.NONE;
 import static st.orm.GenerationStrategy.SEQUENCE;
-import static st.orm.Operator.EQUALS;
 import static st.orm.core.template.SqlInterceptor.observe;
 
 import java.time.Instant;
 import java.time.LocalDate;
-import java.util.Comparator;
-import java.util.List;
 import java.util.UUID;
 import java.util.concurrent.atomic.AtomicBoolean;
 import javax.sql.DataSource;
@@ -29,7 +24,6 @@ import org.testcontainers.junit.jupiter.Testcontainers;
 import st.orm.DbTable;
 import st.orm.Entity;
 import st.orm.FK;
-import st.orm.Metamodel;
 import st.orm.PK;
 import st.orm.Persist;
 import st.orm.Version;
@@ -91,28 +85,6 @@ public class MariaDBEntityRepositoryTest {
             String name,
             @Nullable String description
     ) implements Entity<Integer> {}
-
-    @Test
-    public void testUpsertUniqueKey() {
-        // Mariadb is able to update a record with the same unique key, where Oracle throws an exception.
-        String expectedSql = """
-                INSERT INTO pet_type (name, description)
-                VALUES (?, ?)
-                ON DUPLICATE KEY UPDATE id = LAST_INSERT_ID(id), name = VALUES(name), description = VALUES(description)""";
-        var repo = PreparedStatementTemplate.ORM(dataSource).entity(PetType.class);
-        observe(sql -> {
-            assertEquals(expectedSql, sql.statement());
-            assertEquals(sql.generatedKeys(), List.of("id"));
-            assertFalse(sql.versionAware());
-            assertEquals("dragon", sql.parameters().get(0).dbValue());
-            assertEquals("description", sql.parameters().get(1).dbValue());
-        }, () -> repo.upsert(PetType.builder().name("dragon").description("description").build()));
-        var entity = repo.select().where(Metamodel.of(PetType.class, "name"), EQUALS, "dragon").getSingleResult();
-        assertEquals("description", entity.description());
-        repo.upsert(PetType.builder().name("dragon").description(null).build());
-        var updated = repo.select().where(Metamodel.of(PetType.class, "name"), EQUALS, "dragon").getSingleResult();
-        assertNull(updated.description(), "description");
-    }
 
     @Builder(toBuilder = true)
     public record Specialty(
@@ -179,53 +151,6 @@ public class MariaDBEntityRepositoryTest {
             @FK PetType type,
             @Nullable @FK Owner owner
     ) implements Entity<Integer> {}
-
-    @Test
-    public void testUpsertAndFetchWithSequenceExisting() {
-        var repo = PreparedStatementTemplate.ORM(dataSource).entity(Pet.class);
-        // First insert a pet and get the id.
-        var inserted = repo.insertAndFetch(Pet.builder()
-                .name("Buddy")
-                .birthDate(LocalDate.of(2020, 1, 1))
-                .type(PetType.builder().id(1).build())
-                .owner(Owner.builder().id(1).build())
-                .build());
-        assertNotNull(inserted.id());
-        // Now upsert the same pet with an existing non-default id.
-        var updated = repo.upsertAndFetch(inserted.toBuilder().name("Max").build());
-        assertEquals(inserted.id(), updated.id());
-        assertEquals("Max", updated.name());
-    }
-
-    @Test
-    public void testUpsertAndFetchWithSequenceExistingBatch() {
-        var repo = PreparedStatementTemplate.ORM(dataSource).entity(Pet.class);
-        // First insert two pets and get the ids.
-        var insertedIds = repo.insertAndFetchIds(List.of(
-                Pet.builder()
-                        .name("Buddy")
-                        .birthDate(LocalDate.of(2020, 1, 1))
-                        .type(PetType.builder().id(1).build())
-                        .owner(Owner.builder().id(1).build())
-                        .build(),
-                Pet.builder()
-                        .name("Rex")
-                        .birthDate(LocalDate.of(2020, 2, 1))
-                        .type(PetType.builder().id(1).build())
-                        .owner(Owner.builder().id(1).build())
-                        .build()));
-        assertEquals(2, insertedIds.size());
-        // Now upsert the same pets with existing non-default ids.
-        var updatedEntities = repo.upsertAndFetch(List.of(
-                Pet.builder().id(insertedIds.get(0)).name("Max").birthDate(LocalDate.of(2020, 1, 1))
-                        .type(PetType.builder().id(1).build()).owner(Owner.builder().id(1).build()).build(),
-                Pet.builder().id(insertedIds.get(1)).name("Bella").birthDate(LocalDate.of(2020, 2, 1))
-                        .type(PetType.builder().id(1).build()).owner(Owner.builder().id(1).build()).build()
-        )).stream().sorted(Comparator.comparingInt(Entity::id)).toList();
-        assertEquals(2, updatedEntities.size());
-        assertEquals("Max", updatedEntities.get(0).name());
-        assertEquals("Bella", updatedEntities.get(1).name());
-    }
 
     @BeforeEach
     void setUpBranchTables() {
@@ -306,32 +231,6 @@ public class MariaDBEntityRepositoryTest {
     ) implements Entity<Integer> {}
 
     @Test
-    public void testInsertAndFetchIdWithSequence() {
-        var repo = PreparedStatementTemplate.ORM(dataSource).entity(SeqEntity.class);
-        var first = new AtomicBoolean(false);
-        observe(sql -> {
-            if (!first.getAndSet(true)) {
-                assertTrue(sql.statement().contains("RETURNING id"));
-            }
-        }, () -> {
-            var id = repo.insertAndFetchId(SeqEntity.builder().name("Gamma").version(0).build());
-            assertNotNull(id);
-            assertTrue(id > 0);
-        });
-    }
-
-    @Test
-    public void testInsertAndFetchIdsWithSequence() {
-        var repo = PreparedStatementTemplate.ORM(dataSource).entity(SeqEntity.class);
-        var ids = repo.insertAndFetchIds(List.of(
-                SeqEntity.builder().name("Delta").version(0).build(),
-                SeqEntity.builder().name("Epsilon").version(0).build()));
-        assertEquals(2, ids.size());
-        assertTrue(ids.get(0) > 0);
-        assertTrue(ids.get(1) > 0);
-    }
-
-    @Test
     public void testUpsertAndFetchIdWithSequence() {
         var repo = PreparedStatementTemplate.ORM(dataSource).entity(SeqEntity.class);
         var first = new AtomicBoolean(false);
@@ -344,65 +243,6 @@ public class MariaDBEntityRepositoryTest {
             assertNotNull(id);
             assertTrue(id > 0);
         });
-    }
-
-    @Test
-    public void testUpsertAndFetchIdsWithSequenceNew() {
-        var repo = PreparedStatementTemplate.ORM(dataSource).entity(SeqEntity.class);
-        var ids = repo.upsertAndFetchIds(List.of(
-                SeqEntity.builder().name("Eta").version(0).build(),
-                SeqEntity.builder().name("Theta").version(0).build()));
-        assertEquals(2, ids.size());
-        assertTrue(ids.get(0) > 0);
-        assertTrue(ids.get(1) > 0);
-    }
-
-    @Test
-    public void testUpsertAndFetchIdsWithSequenceExisting() {
-        var repo = PreparedStatementTemplate.ORM(dataSource).entity(SeqEntity.class);
-        var existing = repo.findAll();
-        var updates = existing.stream()
-                .map(entity -> entity.toBuilder().name(entity.name() + " Updated").build())
-                .toList();
-
-        var ids = repo.upsertAndFetchIds(updates);
-        assertEquals(existing.size(), ids.size());
-        for (int i = 0; i < ids.size(); i++) {
-            assertEquals(existing.get(i).id(), ids.get(i));
-        }
-    }
-
-    @Test
-    public void testUpsertAndFetchIdsWithSequenceMixed() {
-        var repo = PreparedStatementTemplate.ORM(dataSource).entity(SeqEntity.class);
-        var existing = repo.getById(1);
-        var entities = List.of(
-                SeqEntity.builder().name("Iota").version(0).build(),
-                existing.toBuilder().name("Alpha Updated").build());
-
-        var ids = repo.upsertAndFetchIds(entities);
-        assertEquals(2, ids.size());
-        assertEquals(existing.id(), ids.get(1));
-    }
-
-    @Test
-    public void testUpsertNonAutoGeneratedPk() {
-        var repo = PreparedStatementTemplate.ORM(dataSource).entity(NonAutoGenEntity.class);
-        repo.upsert(NonAutoGenEntity.builder().id(1).name("First Updated").version(0).build());
-        var updated = repo.getById(1);
-        assertEquals("First Updated", updated.name());
-
-        repo.upsert(NonAutoGenEntity.builder().id(3).name("Third").version(0).build());
-        var created = repo.getById(3);
-        assertEquals("Third", created.name());
-    }
-
-    @Test
-    public void testUpsertNewEntityRoutesToInsert() {
-        var repo = PreparedStatementTemplate.ORM(dataSource).entity(VersionLongEntity.class);
-        repo.upsert(VersionLongEntity.builder().name("New Entity").version(0L).build());
-        var entities = repo.findAll();
-        assertTrue(entities.stream().anyMatch(entity -> "New Entity".equals(entity.name())));
     }
 
     // UUID support
@@ -421,49 +261,4 @@ public class MariaDBEntityRepositoryTest {
 
     // Entity callbacks on the dialect-specific sequence insert paths.
 
-    @Test
-    public void testSequenceInsertAndFetchIdFiresCallbacksWithGeneratedKey() {
-        var observed = new java.util.ArrayList<SeqEntity>();
-        var orm = PreparedStatementTemplate.ORM(dataSource).withEntityCallback(new st.orm.EntityCallback<SeqEntity>() {
-            @Override
-            public SeqEntity beforeInsert(SeqEntity entity) {
-                return entity.toBuilder().name(entity.name().toUpperCase()).build();
-            }
-
-            @Override
-            public void afterInsert(SeqEntity entity) {
-                observed.add(entity);
-            }
-        });
-        var repo = orm.entity(SeqEntity.class);
-        // The RETURNING path for sequence keys is dialect-specific; it must still run the callbacks.
-        var id = repo.insertAndFetchId(SeqEntity.builder().name("callback seq").version(0).build());
-        assertEquals("CALLBACK SEQ", repo.getById(id).name());
-        assertEquals(1, observed.size());
-        assertEquals(id, observed.getFirst().id());
-    }
-
-    @Test
-    public void testSequenceBatchInsertAndFetchIdsFiresCallbacksWithGeneratedKeys() {
-        var observed = new java.util.ArrayList<SeqEntity>();
-        var orm = PreparedStatementTemplate.ORM(dataSource).withEntityCallback(new st.orm.EntityCallback<SeqEntity>() {
-            @Override
-            public SeqEntity beforeInsert(SeqEntity entity) {
-                return entity.toBuilder().name(entity.name().toUpperCase()).build();
-            }
-
-            @Override
-            public void afterInsert(SeqEntity entity) {
-                observed.add(entity);
-            }
-        });
-        var repo = orm.entity(SeqEntity.class);
-        var ids = repo.insertAndFetchIds(List.of(
-                SeqEntity.builder().name("cb batch one").version(0).build(),
-                SeqEntity.builder().name("cb batch two").version(0).build()));
-        assertEquals(2, ids.size());
-        assertEquals("CB BATCH ONE", repo.getById(ids.get(0)).name());
-        assertEquals(ids, observed.stream().map(SeqEntity::id).toList());
-        assertEquals(List.of("CB BATCH ONE", "CB BATCH TWO"), observed.stream().map(SeqEntity::name).toList());
-    }
 }

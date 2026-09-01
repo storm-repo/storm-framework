@@ -32,6 +32,46 @@ public class PostgreSQLEntityRepositoryConformanceTest extends AbstractEntityRep
     @Override
     protected List<String> schemaDdl() {
         return List.of(
+                "DROP TABLE IF EXISTS seq_entity",
+                "DROP SEQUENCE IF EXISTS seq_entity_id_seq",
+                "CREATE SEQUENCE seq_entity_id_seq START WITH 1 INCREMENT BY 1",
+                """
+                        CREATE TABLE seq_entity (
+                        id integer PRIMARY KEY DEFAULT nextval('seq_entity_id_seq'),
+                        name varchar(255),
+                        version integer DEFAULT 0
+                        )""",
+                "INSERT INTO seq_entity (name) VALUES ('Alpha')",
+                "INSERT INTO seq_entity (name) VALUES ('Beta')",
+                "DROP TABLE IF EXISTS specialty_note_history",
+                """
+                        CREATE TABLE specialty_note_history (
+                        note_id integer PRIMARY KEY,
+                        remark varchar(255) NOT NULL
+                        )""",
+                "DROP TABLE IF EXISTS vet_specialty_note_audit",
+                """
+                        CREATE TABLE vet_specialty_note_audit (
+                        vet_id integer NOT NULL,
+                        specialty_id integer NOT NULL,
+                        remark varchar(255) NOT NULL,
+                        PRIMARY KEY (vet_id, specialty_id)
+                        )""",
+                "DROP TABLE IF EXISTS vet_specialty_note",
+                """
+                        CREATE TABLE vet_specialty_note (
+                        vet_id integer NOT NULL,
+                        specialty_id integer NOT NULL,
+                        note varchar(255) NOT NULL,
+                        PRIMARY KEY (vet_id, specialty_id)
+                        )""",
+                "DROP TABLE IF EXISTS specialty_note",
+                """
+                        CREATE TABLE specialty_note (
+                        specialty_id integer PRIMARY KEY,
+                        note varchar(255) NOT NULL,
+                        updated_at timestamp NOT NULL
+                        )""",
                 "DROP TABLE IF EXISTS non_autogen_entity",
                 """
                         CREATE TABLE non_autogen_entity (
@@ -293,6 +333,11 @@ public class PostgreSQLEntityRepositoryConformanceTest extends AbstractEntityRep
                         INSERT INTO pet (name, birth_date, type_id, owner_id)
                         VALUES (?, ?, ?, ?)
                         RETURNING id"""))
+,
+                entry(Statement.UPSERT_UNIQUE_KEY, Expected.sql("""
+                        INSERT INTO pet_type (name, description)
+                        VALUES (?, ?)
+                        ON CONFLICT (id) DO UPDATE SET name = EXCLUDED.name, description = EXCLUDED.description"""))
 );
     }
 }

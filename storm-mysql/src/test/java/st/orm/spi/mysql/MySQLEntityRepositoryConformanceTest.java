@@ -30,8 +30,42 @@ public class MySQLEntityRepositoryConformanceTest extends AbstractEntityReposito
     }
 
     @Override
+    protected boolean upsertMatchesAnyUniqueKey() {
+        return true;
+    }
+
+    @Override
     protected List<String> schemaDdl() {
         return List.of(
+                "DROP TABLE IF EXISTS specialty_note_history",
+                """
+                        CREATE TABLE specialty_note_history (
+                        note_id integer PRIMARY KEY,
+                        remark varchar(255) NOT NULL
+                        )""",
+                "DROP TABLE IF EXISTS vet_specialty_note_audit",
+                """
+                        CREATE TABLE vet_specialty_note_audit (
+                        vet_id integer NOT NULL,
+                        specialty_id integer NOT NULL,
+                        remark varchar(255) NOT NULL,
+                        PRIMARY KEY (vet_id, specialty_id)
+                        )""",
+                "DROP TABLE IF EXISTS vet_specialty_note",
+                """
+                        CREATE TABLE vet_specialty_note (
+                        vet_id integer NOT NULL,
+                        specialty_id integer NOT NULL,
+                        note varchar(255) NOT NULL,
+                        PRIMARY KEY (vet_id, specialty_id)
+                        )""",
+                "DROP TABLE IF EXISTS specialty_note",
+                """
+                        CREATE TABLE specialty_note (
+                        specialty_id integer PRIMARY KEY,
+                        note varchar(255) NOT NULL,
+                        updated_at datetime NOT NULL
+                        )""",
                 "DROP TABLE IF EXISTS non_autogen_entity",
                 """
                         CREATE TABLE non_autogen_entity (
@@ -167,6 +201,11 @@ public class MySQLEntityRepositoryConformanceTest extends AbstractEntityReposito
                         VALUES (?, ?)
                         ON DUPLICATE KEY UPDATE id = VALUES(id), name = VALUES(name)"""))
 
+,
+                entry(Statement.UPSERT_UNIQUE_KEY, Expected.sql("""
+                        INSERT INTO pet_type (name, description)
+                        VALUES (?, ?)
+                        ON DUPLICATE KEY UPDATE id = LAST_INSERT_ID(id), name = VALUES(name), description = VALUES(description)"""))
 );
     }
 }
