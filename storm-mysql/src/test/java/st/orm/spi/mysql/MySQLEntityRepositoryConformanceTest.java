@@ -166,9 +166,7 @@ public class MySQLEntityRepositoryConformanceTest extends AbstractEntityReposito
                         INSERT INTO specialty (id, name)
                         VALUES (?, ?)
                         ON DUPLICATE KEY UPDATE id = VALUES(id), name = VALUES(name)"""))
-,
-                entry(Statement.INSERT_AND_FETCH_WITH_SEQUENCE, Expected.notApplicable()),
-                entry(Statement.UPSERT_WITH_SEQUENCE_EMPTY_NEW, Expected.notApplicable())
+
 );
     }
 }

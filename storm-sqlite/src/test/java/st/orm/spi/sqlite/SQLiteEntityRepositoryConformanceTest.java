@@ -159,8 +159,7 @@ public class SQLiteEntityRepositoryConformanceTest extends AbstractEntityReposit
                         UPDATE pet
                         SET name = ?, birth_date = ?, type_id = ?, owner_id = ?
                         WHERE id = ?"""))
-,
-                entry(Statement.INSERT_AND_FETCH_WITH_SEQUENCE, Expected.notApplicable())
+
 );
     }
 }

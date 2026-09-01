@@ -177,8 +177,95 @@ public class H2EntityRepositoryConformanceTest extends AbstractEntityRepositoryC
                         UPDATE pet
                         SET name = ?, birth_date = ?, type_id = ?, owner_id = ?
                         WHERE id = ?"""))
+
 ,
-                entry(Statement.INSERT_AND_FETCH_WITH_SEQUENCE, Expected.notApplicable())
+                entry(Statement.UPSERT_WITH_SEQUENCE_EXISTING_STREAM, Expected.sql("""
+                        UPDATE pet
+                        SET name = ?, birth_date = ?, type_id = ?, owner_id = ?
+                        WHERE id = ?""")),
+                entry(Statement.UPSERT_WITH_SEQUENCE_EMPTY_STREAM, Expected.sql("""
+                        INSERT INTO pet (name, birth_date, type_id, owner_id)
+                        VALUES (?, ?, ?, ?)""")),
+                entry(Statement.INSERT_WITH_SEQUENCE_IGNORE_AUTO_GENERATE_BATCH, Expected.sql("""
+                        INSERT INTO pet (id, name, birth_date, type_id, owner_id)
+                        VALUES (?, ?, ?, ?, ?), (?, ?, ?, ?, ?)""")),
+                entry(Statement.INSERT_WITH_SEQUENCE_EMPTY_IGNORE_AUTO_GENERATE_STREAM, Expected.sql("""
+                        INSERT INTO pet (id, name, birth_date, type_id, owner_id)
+                        VALUES (?, ?, ?, ?, ?), (?, ?, ?, ?, ?)""")),
+                entry(Statement.UPSERT_WITH_SEQUENCE_NEW, Expected.sql("""
+                        UPDATE pet
+                        SET name = ?, birth_date = ?, type_id = ?, owner_id = ?
+                        WHERE id = ?""")),
+                entry(Statement.INSERT_WITH_SEQUENCE_IGNORE_AUTO_GENERATE_STREAM, Expected.sql("""
+                        INSERT INTO pet (id, name, birth_date, type_id, owner_id)
+                        VALUES (?, ?, ?, ?, ?), (?, ?, ?, ?, ?)""")),
+                entry(Statement.UPSERT_WITH_SEQUENCE_NEW_BATCH, Expected.sql("""
+                        UPDATE pet
+                        SET name = ?, birth_date = ?, type_id = ?, owner_id = ?
+                        WHERE id = ?""")),
+                entry(Statement.INSERT_WITH_SEQUENCE_EMPTY_STREAM, Expected.sql("""
+                        INSERT INTO pet (name, birth_date, type_id, owner_id)
+                        VALUES (?, ?, ?, ?)""")),
+                entry(Statement.INSERT_AND_FETCH_WITH_SEQUENCE_IGNORE_AUTO_GENERATE, Expected.sql("""
+                        INSERT INTO pet (id, name, birth_date, type_id, owner_id)
+                        VALUES (?, ?, ?, ?, ?)""")),
+                entry(Statement.UPSERT_WITH_SEQUENCE_EMPTY_EXISTING_STREAM, Expected.sql("""
+                        UPDATE pet
+                        SET name = ?, birth_date = ?, type_id = ?, owner_id = ?
+                        WHERE id = ?""")),
+                entry(Statement.UPSERT_WITH_SEQUENCE_EMPTY_NEW_STREAM, Expected.sql("""
+                        UPDATE pet
+                        SET name = ?, birth_date = ?, type_id = ?, owner_id = ?
+                        WHERE id = ?""")),
+                entry(Statement.UPSERT_WITH_SEQUENCE_EMPTY, Expected.sql("""
+                        INSERT INTO pet (name, birth_date, type_id, owner_id)
+                        VALUES (?, ?, ?, ?)""")),
+                entry(Statement.UPSERT_WITH_SEQUENCE_EXISTING, Expected.sql("""
+                        UPDATE pet
+                        SET name = ?, birth_date = ?, type_id = ?, owner_id = ?
+                        WHERE id = ?""")),
+                entry(Statement.INSERT_WITH_SEQUENCE_STREAM, Expected.sql("""
+                        INSERT INTO pet (id, name, birth_date, type_id, owner_id)
+                        VALUES (NEXT VALUE FOR pet_id_seq, ?, ?, ?, ?)""")),
+                entry(Statement.INSERT_WITH_SEQUENCE_EMPTY_IGNORE_AUTO_GENERATE, Expected.sql("""
+                        INSERT INTO pet (id, name, birth_date, type_id, owner_id)
+                        VALUES (?, ?, ?, ?, ?)""")),
+                entry(Statement.UPSERT_WITH_SEQUENCE, Expected.sql("""
+                        INSERT INTO pet (id, name, birth_date, type_id, owner_id)
+                        VALUES (NEXT VALUE FOR pet_id_seq, ?, ?, ?, ?)""")),
+                entry(Statement.UPSERT_WITH_SEQUENCE_NEW_STREAM, Expected.sql("""
+                        UPDATE pet
+                        SET name = ?, birth_date = ?, type_id = ?, owner_id = ?
+                        WHERE id = ?""")),
+                entry(Statement.UPSERT_WITH_SEQUENCE_EMPTY_NEW_BATCH, Expected.sql("""
+                        UPDATE pet
+                        SET name = ?, birth_date = ?, type_id = ?, owner_id = ?
+                        WHERE id = ?""")),
+                entry(Statement.INSERT_WITH_SEQUENCE_EMPTY_IGNORE_AUTO_GENERATE_BATCH, Expected.sql("""
+                        INSERT INTO pet (id, name, birth_date, type_id, owner_id)
+                        VALUES (?, ?, ?, ?, ?), (?, ?, ?, ?, ?)""")),
+                entry(Statement.INSERT_WITH_SEQUENCE, Expected.sql("""
+                        INSERT INTO pet (id, name, birth_date, type_id, owner_id)
+                        VALUES (NEXT VALUE FOR pet_id_seq, ?, ?, ?, ?)""")),
+                entry(Statement.UPSERT_WITH_SEQUENCE_EXISTING_BATCH, Expected.sql("""
+                        UPDATE pet
+                        SET name = ?, birth_date = ?, type_id = ?, owner_id = ?
+                        WHERE id = ?""")),
+                entry(Statement.UPSERT_WITH_SEQUENCE_EMPTY_EXISTING_BATCH, Expected.sql("""
+                        UPDATE pet
+                        SET name = ?, birth_date = ?, type_id = ?, owner_id = ?
+                        WHERE id = ?""")),
+                entry(Statement.INSERT_WITH_SEQUENCE_EMPTY, Expected.sql("""
+                        INSERT INTO pet (name, birth_date, type_id, owner_id)
+                        VALUES (?, ?, ?, ?)""")),
+                entry(Statement.UPSERT_WITH_SEQUENCE_EMPTY_EXISTING, Expected.sql("""
+                        UPDATE pet
+                        SET name = ?, birth_date = ?, type_id = ?, owner_id = ?
+                        WHERE id = ?""")),
+                entry(Statement.UPSERT_WITH_SEQUENCE_STREAM, Expected.sql("""
+                        INSERT INTO pet (id, name, birth_date, type_id, owner_id)
+                        VALUES (NEXT VALUE FOR pet_id_seq, ?, ?, ?, ?)"""))
+
 );
     }
 }

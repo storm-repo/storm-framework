@@ -1,6 +1,7 @@
 package st.orm.tck;
 
 import static java.util.Arrays.stream;
+import static java.util.Collections.nCopies;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
@@ -122,9 +123,30 @@ public abstract class AbstractEntityRepositoryConformanceTest {
      * Every pinned statement carries an expectation, so that a dialect joining the suite cannot quietly opt out of the
      * statement assertions one constant at a time.
      */
+    /**
+     * Whether a capability this dialect lacks keeps it from ever generating {@code statement}, in which case there is
+     * nothing for it to pin. Derived from the constant's name so that adding a statement to an existing family needs
+     * no bookkeeping in seven modules.
+     */
+    private boolean unreachable(Statement statement) {
+        String name = statement.name();
+        if (name.contains("SEQUENCE")) {
+            return !supportsSequences() || (name.contains("AND_FETCH") && !supportsFetchWithSequences());
+        }
+        return false;
+    }
+
+    /**
+     * Every statement this dialect can reach carries an expectation, so that a dialect cannot quietly opt out of the
+     * statement assertions one constant at a time. Statements gated off by a missing capability are exempt, since the
+     * dialect never generates them.
+     */
     @Test
     public void everyPinnedStatementHasAnExpectation() {
-        var missing = stream(Statement.values()).filter(s -> !expectedSql().containsKey(s)).toList();
+        var missing = stream(Statement.values())
+                .filter(statement -> !unreachable(statement))
+                .filter(statement -> !expectedSql().containsKey(statement))
+                .toList();
         assertTrue(missing.isEmpty(), () -> "no expected SQL for " + missing);
     }
 
@@ -757,6 +779,723 @@ public abstract class AbstractEntityRepositoryConformanceTest {
                     .owner(Owner.builder().id(1).build())
                     .build()));
             assertNull(exception.getCause(), "Exception must be raised by storm.");
+        });
+        assertFalse(sql.versionAware());
+    }
+
+    @Test
+    public void testInsertAndFetchWithSequenceBatch() {
+        assumeTrue(supportsSequences() && supportsFetchWithSequences());
+        var pets = PreparedStatementTemplate.ORM(dataSource).entity(Pet.class);
+        var sql = assertStatement(Statement.INSERT_AND_FETCH_WITH_SEQUENCE_BATCH, () -> {
+            var entities = pets.insertAndFetch(nCopies(2, Pet.builder()
+                    .name("Buddy")
+                    .birthDate(LocalDate.of(2020, 1, 1))
+                    .type(PetType.builder().id(1).build())
+                    .owner(Owner.builder().id(1).build())
+                    .build())).stream().distinct().toList();
+            assertEquals(2, entities.size());
+            for (var entity : entities) {
+                assertNotNull(entity.id());
+                assertEquals("Buddy", entity.name());
+                assertEquals(LocalDate.of(2020, 1, 1), entity.birthDate());
+                assertEquals(1, entity.type().id());
+                assertEquals(1, entity.owner().id());
+            }
+        });
+        assertFalse(sql.versionAware());
+    }
+
+    @Test
+    public void testInsertAndFetchWithSequenceEmpty() {
+        assumeTrue(supportsSequences() && supportsFetchWithSequences());
+        var pets = PreparedStatementTemplate.ORM(dataSource).entity(PetSequenceEmpty.class);
+        var sql = assertStatement(Statement.INSERT_AND_FETCH_WITH_SEQUENCE_EMPTY, () -> {
+            var entity = pets.insertAndFetch(PetSequenceEmpty.builder()
+                    .name("Buddy")
+                    .birthDate(LocalDate.of(2020, 1, 1))
+                    .type(PetType.builder().id(1).build())
+                    .owner(Owner.builder().id(1).build())
+                    .build());
+            assertNotNull(entity.id());
+            assertEquals("Buddy", entity.name());
+            assertEquals(LocalDate.of(2020, 1, 1), entity.birthDate());
+            assertEquals(1, entity.type().id());
+            assertEquals(1, entity.owner().id());
+        });
+        assertFalse(sql.versionAware());
+    }
+
+    @Test
+    public void testInsertAndFetchWithSequenceEmptyBatch() {
+        assumeTrue(supportsSequences() && supportsFetchWithSequences());
+        var pets = PreparedStatementTemplate.ORM(dataSource).entity(PetSequenceEmpty.class);
+        var sql = assertStatement(Statement.INSERT_AND_FETCH_WITH_SEQUENCE_EMPTY_BATCH, () -> {
+            var entities = pets.insertAndFetch(nCopies(2, PetSequenceEmpty.builder()
+                    .name("Buddy")
+                    .birthDate(LocalDate.of(2020, 1, 1))
+                    .type(PetType.builder().id(1).build())
+                    .owner(Owner.builder().id(1).build())
+                    .build())).stream().distinct().toList();
+            assertEquals(2, entities.size());
+            for (var entity : entities) {
+                assertNotNull(entity.id());
+                assertEquals("Buddy", entity.name());
+                assertEquals(LocalDate.of(2020, 1, 1), entity.birthDate());
+                assertEquals(1, entity.type().id());
+                assertEquals(1, entity.owner().id());
+            }
+        });
+        assertFalse(sql.versionAware());
+    }
+
+    @Test
+    public void testInsertAndFetchWithSequenceIgnoreAutoGenerate() {
+        assumeTrue(supportsSequences() && supportsFetchWithSequences());
+        var pets = PreparedStatementTemplate.ORM(dataSource).entity(Pet.class);
+        var sql = assertStatement(Statement.INSERT_AND_FETCH_WITH_SEQUENCE_IGNORE_AUTO_GENERATE, () -> {
+            pets.insert(Pet.builder()
+                    .id(100)
+                    .name("Buddy")
+                    .birthDate(LocalDate.of(2020, 1, 1))
+                    .type(PetType.builder().id(1).build())
+                    .owner(Owner.builder().id(1).build())
+                    .build(), true);
+            var entity = pets.getById(100);
+            assertNotNull(entity.id());
+            assertEquals("Buddy", entity.name());
+            assertEquals(LocalDate.of(2020, 1, 1), entity.birthDate());
+            assertEquals(1, entity.type().id());
+            assertEquals(1, entity.owner().id());
+        });
+        assertFalse(sql.versionAware());
+    }
+
+    @Test
+    public void testInsertWithSequence() {
+        assumeTrue(supportsSequences());
+        var pets = PreparedStatementTemplate.ORM(dataSource).entity(Pet.class);
+        var sql = assertStatement(Statement.INSERT_WITH_SEQUENCE, () -> {
+            pets.insert(Pet.builder()
+                    .name("Buddy")
+                    .birthDate(LocalDate.of(2020, 1, 1))
+                    .type(PetType.builder().id(1).build())
+                    .owner(Owner.builder().id(1).build())
+                    .build());
+            var entity = pets.findAll().stream().max(Comparator.comparingInt(Pet::id)).orElseThrow();
+            assertNotNull(entity.id());
+            assertEquals("Buddy", entity.name());
+            assertEquals(LocalDate.of(2020, 1, 1), entity.birthDate());
+            assertEquals(1, entity.type().id());
+            assertEquals(1, entity.owner().id());
+        });
+        assertFalse(sql.versionAware());
+    }
+
+    @Test
+    public void testInsertWithSequenceEmpty() {
+        assumeTrue(supportsSequences());
+        var pets = PreparedStatementTemplate.ORM(dataSource).entity(PetSequenceEmpty.class);
+        var sql = assertStatement(Statement.INSERT_WITH_SEQUENCE_EMPTY, () -> {
+            pets.insert(PetSequenceEmpty.builder()
+                    .name("Buddy")
+                    .birthDate(LocalDate.of(2020, 1, 1))
+                    .type(PetType.builder().id(1).build())
+                    .owner(Owner.builder().id(1).build())
+                    .build());
+            var entity = pets.findAll().stream().max(Comparator.comparingInt(PetSequenceEmpty::id)).orElseThrow();
+            assertNotNull(entity.id());
+            assertEquals("Buddy", entity.name());
+            assertEquals(LocalDate.of(2020, 1, 1), entity.birthDate());
+            assertEquals(1, entity.type().id());
+            assertEquals(1, entity.owner().id());
+        });
+        assertFalse(sql.versionAware());
+    }
+
+    @Test
+    public void testInsertWithSequenceEmptyIgnoreAutoGenerate() {
+        assumeTrue(supportsSequences());
+        var pets = PreparedStatementTemplate.ORM(dataSource).entity(PetSequenceEmpty.class);
+        var sql = assertStatement(Statement.INSERT_WITH_SEQUENCE_EMPTY_IGNORE_AUTO_GENERATE, () -> {
+            pets.insert(PetSequenceEmpty.builder()
+                    .id(100)
+                    .name("Buddy")
+                    .birthDate(LocalDate.of(2020, 1, 1))
+                    .type(PetType.builder().id(1).build())
+                    .owner(Owner.builder().id(1).build())
+                    .build(), true);
+            var entity = pets.getById(100);
+            assertNotNull(entity.id());
+            assertEquals("Buddy", entity.name());
+            assertEquals(LocalDate.of(2020, 1, 1), entity.birthDate());
+            assertEquals(1, entity.type().id());
+            assertEquals(1, entity.owner().id());
+        });
+        assertFalse(sql.versionAware());
+    }
+
+    @Test
+    public void testInsertWithSequenceEmptyIgnoreAutoGenerateBatch() {
+        assumeTrue(supportsSequences());
+        var pets = PreparedStatementTemplate.ORM(dataSource).entity(PetSequenceEmpty.class);
+        var sql = assertStatement(Statement.INSERT_WITH_SEQUENCE_EMPTY_IGNORE_AUTO_GENERATE_BATCH, () -> {
+            var ids = List.of(100, 101);
+            pets.insert(ids.stream().map(id -> PetSequenceEmpty.builder()
+                    .id(id)
+                    .name("Buddy")
+                    .birthDate(LocalDate.of(2020, 1, 1))
+                    .type(PetType.builder().id(1).build())
+                    .owner(Owner.builder().id(1).build())
+                    .build()).toList(), true);
+            ids.forEach(id -> {
+                var entity = pets.getById(id);
+                assertEquals(id, entity.id());
+                assertEquals("Buddy", entity.name());
+                assertEquals(LocalDate.of(2020, 1, 1), entity.birthDate());
+                assertEquals(1, entity.type().id());
+                assertEquals(1, entity.owner().id());
+            });
+        });
+        assertFalse(sql.versionAware());
+    }
+
+    @Test
+    public void testInsertWithSequenceEmptyIgnoreAutoGenerateStream() {
+        assumeTrue(supportsSequences());
+        var pets = PreparedStatementTemplate.ORM(dataSource).entity(PetSequenceEmpty.class);
+        var sql = assertStatement(Statement.INSERT_WITH_SEQUENCE_EMPTY_IGNORE_AUTO_GENERATE_STREAM, () -> {
+            var ids = List.of(100, 101);
+            pets.insert(ids.stream().map(id -> PetSequenceEmpty.builder()
+                    .id(id)
+                    .name("Buddy")
+                    .birthDate(LocalDate.of(2020, 1, 1))
+                    .type(PetType.builder().id(1).build())
+                    .owner(Owner.builder().id(1).build())
+                    .build()), true);
+            ids.forEach(id -> {
+                var entity = pets.getById(id);
+                assertEquals(id, entity.id());
+                assertEquals("Buddy", entity.name());
+                assertEquals(LocalDate.of(2020, 1, 1), entity.birthDate());
+                assertEquals(1, entity.type().id());
+                assertEquals(1, entity.owner().id());
+            });
+        });
+        assertFalse(sql.versionAware());
+    }
+
+    @Test
+    public void testInsertWithSequenceEmptyStream() {
+        assumeTrue(supportsSequences());
+        var pets = PreparedStatementTemplate.ORM(dataSource).entity(PetSequenceEmpty.class);
+        var sql = assertStatement(Statement.INSERT_WITH_SEQUENCE_EMPTY_STREAM, () -> {
+            pets.insert(nCopies(2, PetSequenceEmpty.builder()
+                    .name("Buddy")
+                    .birthDate(LocalDate.of(2020, 1, 1))
+                    .type(PetType.builder().id(1).build())
+                    .owner(Owner.builder().id(1).build())
+                    .build()).stream());
+            var entities = pets.findAll().stream().sorted(Comparator.comparingInt(PetSequenceEmpty::id)).skip(13).toList();
+            assertEquals(2, entities.size());
+            for (var entity : entities) {
+                assertNotNull(entity.id());
+                assertEquals("Buddy", entity.name());
+                assertEquals(LocalDate.of(2020, 1, 1), entity.birthDate());
+                assertEquals(1, entity.type().id());
+                assertEquals(1, entity.owner().id());
+            }
+        });
+        assertFalse(sql.versionAware());
+    }
+
+    @Test
+    public void testInsertWithSequenceIgnoreAutoGenerateBatch() {
+        assumeTrue(supportsSequences());
+        var pets = PreparedStatementTemplate.ORM(dataSource).entity(Pet.class);
+        var sql = assertStatement(Statement.INSERT_WITH_SEQUENCE_IGNORE_AUTO_GENERATE_BATCH, () -> {
+            var ids = List.of(100, 101);
+            pets.insert(ids.stream().map(id -> Pet.builder()
+                    .id(id)
+                    .name("Buddy")
+                    .birthDate(LocalDate.of(2020, 1, 1))
+                    .type(PetType.builder().id(1).build())
+                    .owner(Owner.builder().id(1).build())
+                    .build()).toList(), true);
+            ids.forEach(id -> {
+                var entity = pets.getById(id);
+                assertEquals(id, entity.id());
+                assertEquals("Buddy", entity.name());
+                assertEquals(LocalDate.of(2020, 1, 1), entity.birthDate());
+                assertEquals(1, entity.type().id());
+                assertEquals(1, entity.owner().id());
+            });
+        });
+        assertFalse(sql.versionAware());
+    }
+
+    @Test
+    public void testInsertWithSequenceIgnoreAutoGenerateStream() {
+        assumeTrue(supportsSequences());
+        var pets = PreparedStatementTemplate.ORM(dataSource).entity(Pet.class);
+        var sql = assertStatement(Statement.INSERT_WITH_SEQUENCE_IGNORE_AUTO_GENERATE_STREAM, () -> {
+            var ids = List.of(100, 101);
+            pets.insert(ids.stream().map(id -> Pet.builder()
+                    .id(id)
+                    .name("Buddy")
+                    .birthDate(LocalDate.of(2020, 1, 1))
+                    .type(PetType.builder().id(1).build())
+                    .owner(Owner.builder().id(1).build())
+                    .build()), true);
+            ids.forEach(id -> {
+                var entity = pets.getById(id);
+                assertEquals(id, entity.id());
+                assertEquals("Buddy", entity.name());
+                assertEquals(LocalDate.of(2020, 1, 1), entity.birthDate());
+                assertEquals(1, entity.type().id());
+                assertEquals(1, entity.owner().id());
+            });
+        });
+        assertFalse(sql.versionAware());
+    }
+
+    @Test
+    public void testInsertWithSequenceStream() {
+        assumeTrue(supportsSequences());
+        var pets = PreparedStatementTemplate.ORM(dataSource).entity(Pet.class);
+        var sql = assertStatement(Statement.INSERT_WITH_SEQUENCE_STREAM, () -> {
+            pets.insert(nCopies(2, Pet.builder()
+                    .name("Buddy")
+                    .birthDate(LocalDate.of(2020, 1, 1))
+                    .type(PetType.builder().id(1).build())
+                    .owner(Owner.builder().id(1).build())
+                    .build()).stream());
+            var entities = pets.findAll().stream().sorted(Comparator.comparingInt(Pet::id)).skip(13).toList();
+            assertEquals(2, entities.size());
+            for (var entity : entities) {
+                assertNotNull(entity.id());
+                assertEquals("Buddy", entity.name());
+                assertEquals(LocalDate.of(2020, 1, 1), entity.birthDate());
+                assertEquals(1, entity.type().id());
+                assertEquals(1, entity.owner().id());
+            }
+        });
+        assertFalse(sql.versionAware());
+    }
+
+    @Test
+    public void testUpsertAndFetchWithSequence() {
+        assumeTrue(supportsSequences() && supportsFetchWithSequences());
+        var pets = PreparedStatementTemplate.ORM(dataSource).entity(Pet.class);
+        var sql = assertStatement(Statement.UPSERT_AND_FETCH_WITH_SEQUENCE, () -> {
+            var entity = pets.upsertAndFetch(Pet.builder()
+                    .name("Buddy")
+                    .birthDate(LocalDate.of(2020, 1, 1))
+                    .type(PetType.builder().id(1).build())
+                    .owner(Owner.builder().id(1).build())
+                    .build());
+            assertNotNull(entity.id());
+            assertEquals("Buddy", entity.name());
+            assertEquals(LocalDate.of(2020, 1, 1), entity.birthDate());
+            assertEquals(1, entity.type().id());
+            assertEquals(1, entity.owner().id());
+        });
+        assertFalse(sql.versionAware());
+    }
+
+    @Test
+    public void testUpsertAndFetchWithSequenceBatch() {
+        assumeTrue(supportsSequences() && supportsFetchWithSequences());
+        var pets = PreparedStatementTemplate.ORM(dataSource).entity(Pet.class);
+        var sql = assertStatement(Statement.UPSERT_AND_FETCH_WITH_SEQUENCE_BATCH, () -> {
+            var entities = pets.upsertAndFetch(nCopies(2, Pet.builder()
+                    .name("Buddy")
+                    .birthDate(LocalDate.of(2020, 1, 1))
+                    .type(PetType.builder().id(1).build())
+                    .owner(Owner.builder().id(1).build())
+                    .build())).stream().distinct().toList();
+            assertEquals(2, entities.size());
+            for (var entity : entities) {
+                assertNotNull(entity.id());
+                assertEquals("Buddy", entity.name());
+                assertEquals(LocalDate.of(2020, 1, 1), entity.birthDate());
+                assertEquals(1, entity.type().id());
+                assertEquals(1, entity.owner().id());
+            }
+        });
+        assertFalse(sql.versionAware());
+    }
+
+    @Test
+    public void testUpsertAndFetchWithSequenceEmpty() {
+        assumeTrue(supportsSequences() && supportsFetchWithSequences());
+        var pets = PreparedStatementTemplate.ORM(dataSource).entity(PetSequenceEmpty.class);
+        var sql = assertStatement(Statement.UPSERT_AND_FETCH_WITH_SEQUENCE_EMPTY, () -> {
+            var entity = pets.upsertAndFetch(PetSequenceEmpty.builder()
+                    .name("Buddy")
+                    .birthDate(LocalDate.of(2020, 1, 1))
+                    .type(PetType.builder().id(1).build())
+                    .owner(Owner.builder().id(1).build())
+                    .build());
+            assertNotNull(entity.id());
+            assertEquals("Buddy", entity.name());
+            assertEquals(LocalDate.of(2020, 1, 1), entity.birthDate());
+            assertEquals(1, entity.type().id());
+            assertEquals(1, entity.owner().id());
+        });
+        assertFalse(sql.versionAware());
+    }
+
+    @Test
+    public void testUpsertAndFetchWithSequenceEmptyBatch() {
+        assumeTrue(supportsSequences() && supportsFetchWithSequences());
+        var pets = PreparedStatementTemplate.ORM(dataSource).entity(PetSequenceEmpty.class);
+        var sql = assertStatement(Statement.UPSERT_AND_FETCH_WITH_SEQUENCE_EMPTY_BATCH, () -> {
+            var entities = pets.upsertAndFetch(nCopies(2, PetSequenceEmpty.builder()
+                    .name("Buddy")
+                    .birthDate(LocalDate.of(2020, 1, 1))
+                    .type(PetType.builder().id(1).build())
+                    .owner(Owner.builder().id(1).build())
+                    .build())).stream().distinct().toList();
+            assertEquals(2, entities.size());
+            for (var entity : entities) {
+                assertNotNull(entity.id());
+                assertEquals("Buddy", entity.name());
+                assertEquals(LocalDate.of(2020, 1, 1), entity.birthDate());
+                assertEquals(1, entity.type().id());
+                assertEquals(1, entity.owner().id());
+            }
+        });
+        assertFalse(sql.versionAware());
+    }
+
+    @Test
+    public void testUpsertWithSequence() {
+        assumeTrue(supportsSequences());
+        var pets = PreparedStatementTemplate.ORM(dataSource).entity(Pet.class);
+        var sql = assertStatement(Statement.UPSERT_WITH_SEQUENCE, () -> {
+            pets.upsert(Pet.builder()
+                    .name("Buddy")
+                    .birthDate(LocalDate.of(2020, 1, 1))
+                    .type(PetType.builder().id(1).build())
+                    .owner(Owner.builder().id(1).build())
+                    .build());
+            var entity = pets.findAll().stream().max(Comparator.comparingInt(Pet::id)).orElseThrow();
+            assertNotNull(entity.id());
+            assertEquals("Buddy", entity.name());
+            assertEquals(LocalDate.of(2020, 1, 1), entity.birthDate());
+            assertEquals(1, entity.type().id());
+            assertEquals(1, entity.owner().id());
+        });
+        assertFalse(sql.versionAware());
+    }
+
+    @Test
+    public void testUpsertWithSequenceEmpty() {
+        assumeTrue(supportsSequences());
+        var pets = PreparedStatementTemplate.ORM(dataSource).entity(PetSequenceEmpty.class);
+        var sql = assertStatement(Statement.UPSERT_WITH_SEQUENCE_EMPTY, () -> {
+            pets.upsert(PetSequenceEmpty.builder()
+                    .name("Buddy")
+                    .birthDate(LocalDate.of(2020, 1, 1))
+                    .type(PetType.builder().id(1).build())
+                    .owner(Owner.builder().id(1).build())
+                    .build());
+            var entity = pets.findAll().stream().max(Comparator.comparingInt(PetSequenceEmpty::id)).orElseThrow();
+            assertNotNull(entity.id());
+            assertEquals("Buddy", entity.name());
+            assertEquals(LocalDate.of(2020, 1, 1), entity.birthDate());
+            assertEquals(1, entity.type().id());
+            assertEquals(1, entity.owner().id());
+        });
+        assertFalse(sql.versionAware());
+    }
+
+    @Test
+    public void testUpsertWithSequenceEmptyExisting() {
+        assumeTrue(supportsSequences());
+        var pets = PreparedStatementTemplate.ORM(dataSource).entity(PetSequenceEmpty.class);
+        var sql = assertStatement(Statement.UPSERT_WITH_SEQUENCE_EMPTY_EXISTING, () -> {
+            var id = 1;
+            pets.upsert(PetSequenceEmpty.builder()
+                    .id(id)
+                    .name("Buddy")
+                    .birthDate(LocalDate.of(2020, 1, 1))
+                    .type(PetType.builder().id(1).build())
+                    .owner(Owner.builder().id(1).build())
+                    .build());
+            var entity = pets.getById(id);
+            assertEquals(id, entity.id());
+            assertEquals("Buddy", entity.name());
+            assertEquals(LocalDate.of(2020, 1, 1), entity.birthDate());
+            assertEquals(1, entity.type().id());
+            assertEquals(1, entity.owner().id());
+        });
+        assertFalse(sql.versionAware());
+    }
+
+    @Test
+    public void testUpsertWithSequenceEmptyExistingBatch() {
+        assumeTrue(supportsSequences());
+        var pets = PreparedStatementTemplate.ORM(dataSource).entity(PetSequenceEmpty.class);
+        var sql = assertStatement(Statement.UPSERT_WITH_SEQUENCE_EMPTY_EXISTING_BATCH, () -> {
+            var ids = List.of(1, 2);
+            pets.upsert(ids.stream().map(id -> PetSequenceEmpty.builder()
+                    .id(id)
+                    .name("Buddy")
+                    .birthDate(LocalDate.of(2020, 1, 1))
+                    .type(PetType.builder().id(1).build())
+                    .owner(Owner.builder().id(1).build())
+                    .build()).toList());
+            ids.forEach(id -> {
+                var entity = pets.getById(id);
+                assertEquals(id, entity.id());
+                assertEquals("Buddy", entity.name());
+                assertEquals(LocalDate.of(2020, 1, 1), entity.birthDate());
+                assertEquals(1, entity.type().id());
+                assertEquals(1, entity.owner().id());
+            });
+        });
+        assertFalse(sql.versionAware());
+    }
+
+    @Test
+    public void testUpsertWithSequenceEmptyExistingStream() {
+        assumeTrue(supportsSequences());
+        var pets = PreparedStatementTemplate.ORM(dataSource).entity(PetSequenceEmpty.class);
+        var sql = assertStatement(Statement.UPSERT_WITH_SEQUENCE_EMPTY_EXISTING_STREAM, () -> {
+            var ids = List.of(1, 2);
+            pets.upsert(ids.stream().map(id -> PetSequenceEmpty.builder()
+                    .id(id)
+                    .name("Buddy")
+                    .birthDate(LocalDate.of(2020, 1, 1))
+                    .type(PetType.builder().id(1).build())
+                    .owner(Owner.builder().id(1).build())
+                    .build()));
+            ids.forEach(id -> {
+                var entity = pets.getById(id);
+                assertEquals(id, entity.id());
+                assertEquals("Buddy", entity.name());
+                assertEquals(LocalDate.of(2020, 1, 1), entity.birthDate());
+                assertEquals(1, entity.type().id());
+                assertEquals(1, entity.owner().id());
+            });
+        });
+        assertFalse(sql.versionAware());
+    }
+
+    @Test
+    public void testUpsertWithSequenceEmptyNewBatch() {
+        assumeTrue(supportsSequences());
+        var pets = PreparedStatementTemplate.ORM(dataSource).entity(PetSequenceEmpty.class);
+        var sql = assertStatement(Statement.UPSERT_WITH_SEQUENCE_EMPTY_NEW_BATCH, () -> {
+            var ids = List.of(100, 101);
+            var e = assertThrows(PersistenceException.class, () ->
+                    pets.upsert(ids.stream().map(id -> PetSequenceEmpty.builder()
+                            .id(id)
+                            .name("Buddy")
+                            .birthDate(LocalDate.of(2020, 1, 1))
+                            .type(PetType.builder().id(1).build())
+                            .owner(Owner.builder().id(1).build())
+                            .build()).toList()));
+            assertNull(e.getCause(), "Exception must be raised by storm.");
+        });
+        assertFalse(sql.versionAware());
+    }
+
+    @Test
+    public void testUpsertWithSequenceEmptyNewStream() {
+        assumeTrue(supportsSequences());
+        var pets = PreparedStatementTemplate.ORM(dataSource).entity(PetSequenceEmpty.class);
+        var sql = assertStatement(Statement.UPSERT_WITH_SEQUENCE_EMPTY_NEW_STREAM, () -> {
+            var ids = List.of(100, 101);
+            var e = assertThrows(PersistenceException.class, () ->
+                    pets.upsert(ids.stream().map(id -> PetSequenceEmpty.builder()
+                            .id(id)
+                            .name("Buddy")
+                            .birthDate(LocalDate.of(2020, 1, 1))
+                            .type(PetType.builder().id(1).build())
+                            .owner(Owner.builder().id(1).build())
+                            .build())));
+            assertNull(e.getCause(), "Exception must be raised by storm.");
+        });
+        assertFalse(sql.versionAware());
+    }
+
+    @Test
+    public void testUpsertWithSequenceEmptyStream() {
+        assumeTrue(supportsSequences());
+        var pets = PreparedStatementTemplate.ORM(dataSource).entity(PetSequenceEmpty.class);
+        var sql = assertStatement(Statement.UPSERT_WITH_SEQUENCE_EMPTY_STREAM, () -> {
+            pets.upsert(nCopies(2, PetSequenceEmpty.builder()
+                    .name("Buddy")
+                    .birthDate(LocalDate.of(2020, 1, 1))
+                    .type(PetType.builder().id(1).build())
+                    .owner(Owner.builder().id(1).build())
+                    .build()).stream());
+            var entities = pets.findAll().stream().sorted(Comparator.comparingInt(PetSequenceEmpty::id)).skip(13).toList();
+            assertEquals(2, entities.size());
+            for (var entity : entities) {
+                assertNotNull(entity.id());
+                assertEquals("Buddy", entity.name());
+                assertEquals(LocalDate.of(2020, 1, 1), entity.birthDate());
+                assertEquals(1, entity.type().id());
+                assertEquals(1, entity.owner().id());
+            }
+        });
+        assertFalse(sql.versionAware());
+    }
+
+    @Test
+    public void testUpsertWithSequenceExisting() {
+        assumeTrue(supportsSequences());
+        var pets = PreparedStatementTemplate.ORM(dataSource).entity(Pet.class);
+        var sql = assertStatement(Statement.UPSERT_WITH_SEQUENCE_EXISTING, () -> {
+            var id = 1;
+            pets.upsert(Pet.builder()
+                    .id(id)
+                    .name("Buddy")
+                    .birthDate(LocalDate.of(2020, 1, 1))
+                    .type(PetType.builder().id(1).build())
+                    .owner(Owner.builder().id(1).build())
+                    .build());
+            var entity = pets.getById(id);
+            assertEquals(id, entity.id());
+            assertEquals("Buddy", entity.name());
+            assertEquals(LocalDate.of(2020, 1, 1), entity.birthDate());
+            assertEquals(1, entity.type().id());
+            assertEquals(1, entity.owner().id());
+        });
+        assertFalse(sql.versionAware());
+    }
+
+    @Test
+    public void testUpsertWithSequenceExistingBatch() {
+        assumeTrue(supportsSequences());
+        var pets = PreparedStatementTemplate.ORM(dataSource).entity(Pet.class);
+        var sql = assertStatement(Statement.UPSERT_WITH_SEQUENCE_EXISTING_BATCH, () -> {
+            var ids = List.of(1, 2);
+            pets.upsert(ids.stream().map(id -> Pet.builder()
+                    .id(id)
+                    .name("Buddy")
+                    .birthDate(LocalDate.of(2020, 1, 1))
+                    .type(PetType.builder().id(1).build())
+                    .owner(Owner.builder().id(1).build())
+                    .build()).toList());
+            ids.forEach(id -> {
+                var entity = pets.getById(id);
+                assertEquals(id, entity.id());
+                assertEquals("Buddy", entity.name());
+                assertEquals(LocalDate.of(2020, 1, 1), entity.birthDate());
+                assertEquals(1, entity.type().id());
+                assertEquals(1, entity.owner().id());
+            });
+        });
+        assertFalse(sql.versionAware());
+    }
+
+    @Test
+    public void testUpsertWithSequenceExistingStream() {
+        assumeTrue(supportsSequences());
+        var pets = PreparedStatementTemplate.ORM(dataSource).entity(Pet.class);
+        var sql = assertStatement(Statement.UPSERT_WITH_SEQUENCE_EXISTING_STREAM, () -> {
+            var ids = List.of(1, 2);
+            pets.upsert(ids.stream().map(id -> Pet.builder()
+                    .id(id)
+                    .name("Buddy")
+                    .birthDate(LocalDate.of(2020, 1, 1))
+                    .type(PetType.builder().id(1).build())
+                    .owner(Owner.builder().id(1).build())
+                    .build()));
+            ids.forEach(id -> {
+                var entity = pets.getById(id);
+                assertEquals(id, entity.id());
+                assertEquals("Buddy", entity.name());
+                assertEquals(LocalDate.of(2020, 1, 1), entity.birthDate());
+                assertEquals(1, entity.type().id());
+                assertEquals(1, entity.owner().id());
+            });
+        });
+        assertFalse(sql.versionAware());
+    }
+
+    @Test
+    public void testUpsertWithSequenceNew() {
+        assumeTrue(supportsSequences());
+        var pets = PreparedStatementTemplate.ORM(dataSource).entity(Pet.class);
+        var sql = assertStatement(Statement.UPSERT_WITH_SEQUENCE_NEW, () -> {
+            var id = 100;
+            var e = assertThrows(PersistenceException.class, () ->
+                    pets.upsert(Pet.builder()
+                            .id(id)
+                            .name("Buddy")
+                            .birthDate(LocalDate.of(2020, 1, 1))
+                            .type(PetType.builder().id(1).build())
+                            .owner(Owner.builder().id(1).build())
+                            .build()));
+            assertNull(e.getCause(), "Exception must be raised by storm.");
+        });
+        assertFalse(sql.versionAware());
+    }
+
+    @Test
+    public void testUpsertWithSequenceNewBatch() {
+        assumeTrue(supportsSequences());
+        var pets = PreparedStatementTemplate.ORM(dataSource).entity(Pet.class);
+        var sql = assertStatement(Statement.UPSERT_WITH_SEQUENCE_NEW_BATCH, () -> {
+            var ids = List.of(100, 101);
+            var e = assertThrows(PersistenceException.class, () ->
+                    pets.upsert(ids.stream().map(id -> Pet.builder()
+                            .id(id)
+                            .name("Buddy")
+                            .birthDate(LocalDate.of(2020, 1, 1))
+                            .type(PetType.builder().id(1).build())
+                            .owner(Owner.builder().id(1).build())
+                            .build()).toList()));
+            assertNull(e.getCause(), "Exception must be raised by storm.");
+        });
+        assertFalse(sql.versionAware());
+    }
+
+    @Test
+    public void testUpsertWithSequenceNewStream() {
+        assumeTrue(supportsSequences());
+        var pets = PreparedStatementTemplate.ORM(dataSource).entity(Pet.class);
+        var sql = assertStatement(Statement.UPSERT_WITH_SEQUENCE_NEW_STREAM, () -> {
+            var ids = List.of(100, 101);
+            var e = assertThrows(PersistenceException.class, () ->
+                    pets.upsert(ids.stream().map(id -> Pet.builder()
+                            .id(id)
+                            .name("Buddy")
+                            .birthDate(LocalDate.of(2020, 1, 1))
+                            .type(PetType.builder().id(1).build())
+                            .owner(Owner.builder().id(1).build())
+                            .build())));
+            assertNull(e.getCause(), "Exception must be raised by storm.");
+        });
+        assertFalse(sql.versionAware());
+    }
+
+    @Test
+    public void testUpsertWithSequenceStream() {
+        assumeTrue(supportsSequences());
+        var pets = PreparedStatementTemplate.ORM(dataSource).entity(Pet.class);
+        var sql = assertStatement(Statement.UPSERT_WITH_SEQUENCE_STREAM, () -> {
+            pets.upsert(nCopies(2, Pet.builder()
+                    .name("Buddy")
+                    .birthDate(LocalDate.of(2020, 1, 1))
+                    .type(PetType.builder().id(1).build())
+                    .owner(Owner.builder().id(1).build())
+                    .build()).stream());
+            var entities = pets.findAll().stream().sorted(Comparator.comparingInt(Pet::id)).skip(13).toList();
+            assertEquals(2, entities.size());
+            for (var entity : entities) {
+                assertNotNull(entity.id());
+                assertEquals("Buddy", entity.name());
+                assertEquals(LocalDate.of(2020, 1, 1), entity.birthDate());
+                assertEquals(1, entity.type().id());
+                assertEquals(1, entity.owner().id());
+            }
         });
         assertFalse(sql.versionAware());
     }

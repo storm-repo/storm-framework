@@ -170,6 +170,129 @@ public class PostgreSQLEntityRepositoryConformanceTest extends AbstractEntityRep
                         INSERT INTO pet (id, name, birth_date, type_id, owner_id)
                         VALUES (nextval('pet_id_seq'), ?, ?, ?, ?)
                         RETURNING id"""))
+,
+                entry(Statement.UPSERT_WITH_SEQUENCE_EXISTING_STREAM, Expected.sql("""
+                        UPDATE pet
+                        SET name = ?, birth_date = ?, type_id = ?, owner_id = ?
+                        WHERE id = ?""")),
+                entry(Statement.UPSERT_WITH_SEQUENCE_EMPTY_STREAM, Expected.sql("""
+                        INSERT INTO pet (name, birth_date, type_id, owner_id)
+                        VALUES (?, ?, ?, ?)
+                        ON CONFLICT (id) DO UPDATE SET name = EXCLUDED.name, birth_date = EXCLUDED.birth_date, type_id = EXCLUDED.type_id, owner_id = EXCLUDED.owner_id""")),
+                entry(Statement.INSERT_WITH_SEQUENCE_IGNORE_AUTO_GENERATE_BATCH, Expected.sql("""
+                        INSERT INTO pet (id, name, birth_date, type_id, owner_id)
+                        VALUES (?, ?, ?, ?, ?), (?, ?, ?, ?, ?)""")),
+                entry(Statement.INSERT_WITH_SEQUENCE_EMPTY_IGNORE_AUTO_GENERATE_STREAM, Expected.sql("""
+                        INSERT INTO pet (id, name, birth_date, type_id, owner_id)
+                        VALUES (?, ?, ?, ?, ?), (?, ?, ?, ?, ?)""")),
+                entry(Statement.UPSERT_WITH_SEQUENCE_NEW, Expected.sql("""
+                        UPDATE pet
+                        SET name = ?, birth_date = ?, type_id = ?, owner_id = ?
+                        WHERE id = ?""")),
+                entry(Statement.INSERT_WITH_SEQUENCE_IGNORE_AUTO_GENERATE_STREAM, Expected.sql("""
+                        INSERT INTO pet (id, name, birth_date, type_id, owner_id)
+                        VALUES (?, ?, ?, ?, ?), (?, ?, ?, ?, ?)""")),
+                entry(Statement.UPSERT_WITH_SEQUENCE_NEW_BATCH, Expected.sql("""
+                        UPDATE pet
+                        SET name = ?, birth_date = ?, type_id = ?, owner_id = ?
+                        WHERE id = ?""")),
+                entry(Statement.INSERT_WITH_SEQUENCE_EMPTY_STREAM, Expected.sql("""
+                        INSERT INTO pet (name, birth_date, type_id, owner_id)
+                        VALUES (?, ?, ?, ?)""")),
+                entry(Statement.INSERT_AND_FETCH_WITH_SEQUENCE_IGNORE_AUTO_GENERATE, Expected.sql("""
+                        INSERT INTO pet (id, name, birth_date, type_id, owner_id)
+                        VALUES (?, ?, ?, ?, ?)""")),
+                entry(Statement.UPSERT_WITH_SEQUENCE_EMPTY_EXISTING_STREAM, Expected.sql("""
+                        UPDATE pet
+                        SET name = ?, birth_date = ?, type_id = ?, owner_id = ?
+                        WHERE id = ?""")),
+                entry(Statement.UPSERT_WITH_SEQUENCE_EMPTY_NEW_STREAM, Expected.sql("""
+                        UPDATE pet
+                        SET name = ?, birth_date = ?, type_id = ?, owner_id = ?
+                        WHERE id = ?""")),
+                entry(Statement.UPSERT_WITH_SEQUENCE_EMPTY, Expected.sql("""
+                        INSERT INTO pet (name, birth_date, type_id, owner_id)
+                        VALUES (?, ?, ?, ?)
+                        ON CONFLICT (id) DO UPDATE SET name = EXCLUDED.name, birth_date = EXCLUDED.birth_date, type_id = EXCLUDED.type_id, owner_id = EXCLUDED.owner_id""")),
+                entry(Statement.INSERT_AND_FETCH_WITH_SEQUENCE_EMPTY_BATCH, Expected.sql("""
+                        INSERT INTO pet (name, birth_date, type_id, owner_id)
+                        VALUES (?, ?, ?, ?), (?, ?, ?, ?)
+                        RETURNING "id\"""")),
+                entry(Statement.UPSERT_WITH_SEQUENCE_EXISTING, Expected.sql("""
+                        UPDATE pet
+                        SET name = ?, birth_date = ?, type_id = ?, owner_id = ?
+                        WHERE id = ?""")),
+                entry(Statement.INSERT_WITH_SEQUENCE_STREAM, Expected.sql("""
+                        INSERT INTO pet (id, name, birth_date, type_id, owner_id)
+                        VALUES (nextval('pet_id_seq'), ?, ?, ?, ?)""")),
+                entry(Statement.INSERT_WITH_SEQUENCE_EMPTY_IGNORE_AUTO_GENERATE, Expected.sql("""
+                        INSERT INTO pet (id, name, birth_date, type_id, owner_id)
+                        VALUES (?, ?, ?, ?, ?)""")),
+                entry(Statement.UPSERT_WITH_SEQUENCE, Expected.sql("""
+                        INSERT INTO pet (id, name, birth_date, type_id, owner_id)
+                        VALUES (nextval('pet_id_seq'), ?, ?, ?, ?)
+                        ON CONFLICT (id) DO UPDATE SET name = EXCLUDED.name, birth_date = EXCLUDED.birth_date, type_id = EXCLUDED.type_id, owner_id = EXCLUDED.owner_id""")),
+                entry(Statement.UPSERT_WITH_SEQUENCE_NEW_STREAM, Expected.sql("""
+                        UPDATE pet
+                        SET name = ?, birth_date = ?, type_id = ?, owner_id = ?
+                        WHERE id = ?""")),
+                entry(Statement.UPSERT_WITH_SEQUENCE_EMPTY_NEW_BATCH, Expected.sql("""
+                        UPDATE pet
+                        SET name = ?, birth_date = ?, type_id = ?, owner_id = ?
+                        WHERE id = ?""")),
+                entry(Statement.UPSERT_AND_FETCH_WITH_SEQUENCE, Expected.sql("""
+                        INSERT INTO pet (id, name, birth_date, type_id, owner_id)
+                        VALUES (nextval('pet_id_seq'), ?, ?, ?, ?)
+                        ON CONFLICT (id) DO UPDATE SET name = EXCLUDED.name, birth_date = EXCLUDED.birth_date, type_id = EXCLUDED.type_id, owner_id = EXCLUDED.owner_id
+                        RETURNING id""")),
+                entry(Statement.UPSERT_AND_FETCH_WITH_SEQUENCE_EMPTY_BATCH, Expected.sql("""
+                        INSERT INTO pet (name, birth_date, type_id, owner_id)
+                        VALUES (?, ?, ?, ?), (?, ?, ?, ?)
+                        ON CONFLICT (id) DO UPDATE SET name = EXCLUDED.name, birth_date = EXCLUDED.birth_date, type_id = EXCLUDED.type_id, owner_id = EXCLUDED.owner_id
+                        RETURNING id""")),
+                entry(Statement.INSERT_WITH_SEQUENCE_EMPTY_IGNORE_AUTO_GENERATE_BATCH, Expected.sql("""
+                        INSERT INTO pet (id, name, birth_date, type_id, owner_id)
+                        VALUES (?, ?, ?, ?, ?), (?, ?, ?, ?, ?)""")),
+                entry(Statement.INSERT_WITH_SEQUENCE, Expected.sql("""
+                        INSERT INTO pet (id, name, birth_date, type_id, owner_id)
+                        VALUES (nextval('pet_id_seq'), ?, ?, ?, ?)""")),
+                entry(Statement.UPSERT_WITH_SEQUENCE_EXISTING_BATCH, Expected.sql("""
+                        UPDATE pet
+                        SET name = ?, birth_date = ?, type_id = ?, owner_id = ?
+                        WHERE id = ?""")),
+                entry(Statement.UPSERT_WITH_SEQUENCE_EMPTY_EXISTING_BATCH, Expected.sql("""
+                        UPDATE pet
+                        SET name = ?, birth_date = ?, type_id = ?, owner_id = ?
+                        WHERE id = ?""")),
+                entry(Statement.INSERT_WITH_SEQUENCE_EMPTY, Expected.sql("""
+                        INSERT INTO pet (name, birth_date, type_id, owner_id)
+                        VALUES (?, ?, ?, ?)""")),
+                entry(Statement.UPSERT_WITH_SEQUENCE_EMPTY_EXISTING, Expected.sql("""
+                        UPDATE pet
+                        SET name = ?, birth_date = ?, type_id = ?, owner_id = ?
+                        WHERE id = ?""")),
+                entry(Statement.UPSERT_WITH_SEQUENCE_STREAM, Expected.sql("""
+                        INSERT INTO pet (id, name, birth_date, type_id, owner_id)
+                        VALUES (nextval('pet_id_seq'), ?, ?, ?, ?)
+                        ON CONFLICT (id) DO UPDATE SET name = EXCLUDED.name, birth_date = EXCLUDED.birth_date, type_id = EXCLUDED.type_id, owner_id = EXCLUDED.owner_id""")),
+                entry(Statement.UPSERT_AND_FETCH_WITH_SEQUENCE_BATCH, Expected.sql("""
+                        INSERT INTO pet (id, name, birth_date, type_id, owner_id)
+                        VALUES (nextval('pet_id_seq'), ?, ?, ?, ?), (nextval('pet_id_seq'), ?, ?, ?, ?)
+                        ON CONFLICT (id) DO UPDATE SET name = EXCLUDED.name, birth_date = EXCLUDED.birth_date, type_id = EXCLUDED.type_id, owner_id = EXCLUDED.owner_id
+                        RETURNING id""")),
+                entry(Statement.UPSERT_AND_FETCH_WITH_SEQUENCE_EMPTY, Expected.sql("""
+                        INSERT INTO pet (name, birth_date, type_id, owner_id)
+                        VALUES (?, ?, ?, ?)
+                        ON CONFLICT (id) DO UPDATE SET name = EXCLUDED.name, birth_date = EXCLUDED.birth_date, type_id = EXCLUDED.type_id, owner_id = EXCLUDED.owner_id
+                        RETURNING id""")),
+                entry(Statement.INSERT_AND_FETCH_WITH_SEQUENCE_BATCH, Expected.sql("""
+                        INSERT INTO pet (id, name, birth_date, type_id, owner_id)
+                        VALUES (nextval('pet_id_seq'), ?, ?, ?, ?), (nextval('pet_id_seq'), ?, ?, ?, ?)
+                        RETURNING "id\"""")),
+                entry(Statement.INSERT_AND_FETCH_WITH_SEQUENCE_EMPTY, Expected.sql("""
+                        INSERT INTO pet (name, birth_date, type_id, owner_id)
+                        VALUES (?, ?, ?, ?)
+                        RETURNING id"""))
 );
     }
 }
