@@ -23,7 +23,7 @@
     "react-dom": "^19.2.8"
   },
   "devDependencies": {
-    "@docusaurus/module-type-aliases": "^3.7.0",
+    "@docusaurus/module-type-aliases": "^3.10.2",
     "@docusaurus/tsconfig": "^3.7.0",
     "typescript": "~5.7.0"
   },
