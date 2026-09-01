@@ -434,6 +434,8 @@ val city = users.first().city.getOrThrow()   // no query; throws if the plan did
 
 Read a resolved reference with `getOrThrow()`, not `fetch()`. Both return the record, but `fetch()` silently queries when the plan did not cover the path, so a `fetch(...)` lost in a refactor degrades into one query per row without failing; `getOrThrow()` never queries and reports it where the assumption was made. Use `fetch()` on the ref only where resolving on demand is the intent.
 
+`getOrThrow()` is a claim about the query that produced the row, so assert it only where that query is in view: the same function, or a repository method whose doc names what it resolves. A function that takes an entity as a parameter cannot see the plan the entity was loaded under, and each caller settles that independently, so read its references with `fetch()`, or take the resolved record as a parameter instead of the entity.
+
 ```
 isLoaded()      // is the record here?
 getOrThrow()       // give it to me, never queries, throws if absent
