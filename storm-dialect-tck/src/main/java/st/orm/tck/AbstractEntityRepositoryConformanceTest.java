@@ -121,6 +121,14 @@ public abstract class AbstractEntityRepositoryConformanceTest {
         return supportsSequences();
     }
 
+    /**
+     * Whether the dialect can hand back generated keys for a whole batch of sequence-keyed rows, which SQL Server
+     * cannot even though it manages a single row.
+     */
+    protected boolean supportsBatchFetchWithSequences() {
+        return supportsFetchWithSequences();
+    }
+
     /** What this dialect is expected to generate for each pinned {@link Statement}. */
     protected abstract Map<Statement, Expected> expectedSql();
 
@@ -136,7 +144,8 @@ public abstract class AbstractEntityRepositoryConformanceTest {
     private boolean unreachable(Statement statement) {
         String name = statement.name();
         if (name.contains("SEQUENCE")) {
-            return !supportsSequences() || (name.contains("AND_FETCH") && !supportsFetchWithSequences());
+            return !supportsSequences() || (name.contains("AND_FETCH")
+                    && !(name.contains("BATCH") ? supportsBatchFetchWithSequences() : supportsFetchWithSequences()));
         }
         return false;
     }
@@ -585,7 +594,7 @@ public abstract class AbstractEntityRepositoryConformanceTest {
 
     @Test
     public void testUpsertAndFetchIdsEmptyList() {
-        assumeTrue(supportsFetchWithSequences());
+        assumeTrue(supportsBatchFetchWithSequences());
         var entities = PreparedStatementTemplate.ORM(dataSource).entity(SeqEntity.class);
         assertTrue(entities.upsertAndFetchIds(List.of()).isEmpty());
     }
@@ -1110,7 +1119,7 @@ public abstract class AbstractEntityRepositoryConformanceTest {
 
     @Test
     public void testUpsertAndFetchWithSequenceBatch() {
-        assumeTrue(supportsSequences() && supportsFetchWithSequences());
+        assumeTrue(supportsSequences() && supportsBatchFetchWithSequences());
         var pets = PreparedStatementTemplate.ORM(dataSource).entity(Pet.class);
         var sql = assertStatement(Statement.UPSERT_AND_FETCH_WITH_SEQUENCE_BATCH, () -> {
             var entities = pets.upsertAndFetch(nCopies(2, Pet.builder()
@@ -1153,7 +1162,7 @@ public abstract class AbstractEntityRepositoryConformanceTest {
 
     @Test
     public void testUpsertAndFetchWithSequenceEmptyBatch() {
-        assumeTrue(supportsSequences() && supportsFetchWithSequences());
+        assumeTrue(supportsSequences() && supportsBatchFetchWithSequences());
         var pets = PreparedStatementTemplate.ORM(dataSource).entity(PetSequenceEmpty.class);
         var sql = assertStatement(Statement.UPSERT_AND_FETCH_WITH_SEQUENCE_EMPTY_BATCH, () -> {
             var entities = pets.upsertAndFetch(nCopies(2, PetSequenceEmpty.builder()
@@ -1608,5 +1617,56 @@ public abstract class AbstractEntityRepositoryConformanceTest {
         // A key chain that references itself cannot be flattened; the model must say so rather than loop.
         assertThrows(PersistenceException.class,
                 () -> PreparedStatementTemplate.ORM(dataSource).entity(CycleA.class).findAll());
+    }
+
+    @Test
+    public void testUpsertAndFetchWithSequenceExisting() {
+        assumeTrue(supportsSequences() && supportsFetchWithSequences());
+        var pets = PreparedStatementTemplate.ORM(dataSource).entity(Pet.class);
+        var inserted = pets.insertAndFetch(Pet.builder()
+                .name("Buddy")
+                .birthDate(LocalDate.of(2020, 1, 1))
+                .type(PetType.builder().id(1).build())
+                .owner(Owner.builder().id(1).build())
+                .build());
+        assertNotNull(inserted.id());
+        // The key is no longer the sequence default, so the upsert has to route to an update.
+        var updated = pets.upsertAndFetch(inserted.toBuilder().name("Max").build());
+        assertEquals(inserted.id(), updated.id());
+        assertEquals("Max", updated.name());
+    }
+
+    @Test
+    public void testUpsertAndFetchWithSequenceExistingBatch() {
+        assumeTrue(supportsSequences() && supportsBatchFetchWithSequences());
+        var pets = PreparedStatementTemplate.ORM(dataSource).entity(Pet.class);
+        var insertedIds = pets.insertAndFetchIds(List.of(
+                Pet.builder().name("Buddy").birthDate(LocalDate.of(2020, 1, 1))
+                        .type(PetType.builder().id(1).build()).owner(Owner.builder().id(1).build()).build(),
+                Pet.builder().name("Rex").birthDate(LocalDate.of(2020, 2, 1))
+                        .type(PetType.builder().id(1).build()).owner(Owner.builder().id(1).build()).build()));
+        assertEquals(2, insertedIds.size());
+        var updated = pets.upsertAndFetch(List.of(
+                        Pet.builder().id(insertedIds.get(0)).name("Max").birthDate(LocalDate.of(2020, 1, 1))
+                                .type(PetType.builder().id(1).build()).owner(Owner.builder().id(1).build()).build(),
+                        Pet.builder().id(insertedIds.get(1)).name("Bella").birthDate(LocalDate.of(2020, 2, 1))
+                                .type(PetType.builder().id(1).build()).owner(Owner.builder().id(1).build()).build()))
+                .stream().sorted(Comparator.comparingInt(Pet::id)).toList();
+        assertEquals(2, updated.size());
+        assertEquals("Max", updated.get(0).name());
+        assertEquals("Bella", updated.get(1).name());
+    }
+
+    @Test
+    public void testInsertAndFetchWithSequenceRefusedWhenUnsupported() {
+        assumeTrue(supportsSequences() && !supportsFetchWithSequences());
+        var pets = PreparedStatementTemplate.ORM(dataSource).entity(Pet.class);
+        var exception = assertThrows(PersistenceException.class, () -> pets.insertAndFetch(Pet.builder()
+                .name("Buddy")
+                .birthDate(LocalDate.of(2020, 1, 1))
+                .type(PetType.builder().id(1).build())
+                .owner(Owner.builder().id(1).build())
+                .build()));
+        assertNull(exception.getCause(), "Exception must be raised by storm.");
     }
 }

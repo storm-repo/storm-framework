@@ -31,6 +31,11 @@ public class MSSQLServerEntityRepositoryConformanceTest extends AbstractEntityRe
     }
 
     @Override
+    protected boolean supportsBatchFetchWithSequences() {
+        return false;
+    }
+
+    @Override
     protected List<String> schemaDdl() {
         return List.of(
                 "DROP TABLE IF EXISTS specialty_note_history",
@@ -96,11 +101,6 @@ public class MSSQLServerEntityRepositoryConformanceTest extends AbstractEntityRe
                         )""",
                 "INSERT INTO version_instant_entity (name) VALUES ('Alice')",
                 "INSERT INTO version_instant_entity (name) VALUES ('Bob')");
-    }
-
-    @Override
-    protected boolean supportsFetchWithSequences() {
-        return false;
     }
 
     @Override
@@ -311,6 +311,44 @@ public class MSSQLServerEntityRepositoryConformanceTest extends AbstractEntityRe
                 entry(Statement.UPSERT_WITH_SEQUENCE_STREAM, Expected.sql("""
                         INSERT INTO pet (id, name, birth_date, type_id, owner_id)
                         VALUES (NEXT VALUE FOR pet_id_seq, ?, ?, ?, ?)"""))
+,
+                entry(Statement.INSERT_AND_FETCH_WITH_SEQUENCE_IGNORE_AUTO_GENERATE, Expected.sql("""
+                        INSERT INTO pet (id, name, birth_date, type_id, owner_id)
+                        VALUES (?, ?, ?, ?, ?)""")),
+                entry(Statement.INSERT_AND_FETCH_WITH_SEQUENCE_EMPTY_BATCH, Expected.sql("""
+                        INSERT INTO pet (name, birth_date, type_id, owner_id)
+                        OUTPUT INSERTED.id
+                        VALUES (?, ?, ?, ?), (?, ?, ?, ?)""")),
+                entry(Statement.INSERT_AND_FETCH_WITH_SEQUENCE, Expected.sql("""
+                        INSERT INTO pet (id, name, birth_date, type_id, owner_id)
+                        OUTPUT INSERTED.id
+                        VALUES (NEXT VALUE FOR pet_id_seq, ?, ?, ?, ?)""")),
+                entry(Statement.UPSERT_AND_FETCH_WITH_SEQUENCE, Expected.sql("""
+                        INSERT INTO pet (id, name, birth_date, type_id, owner_id)
+                        OUTPUT INSERTED.id
+                        VALUES (NEXT VALUE FOR pet_id_seq, ?, ?, ?, ?)""")),
+                entry(Statement.UPSERT_AND_FETCH_WITH_SEQUENCE_EMPTY_BATCH, Expected.sql("""
+                        MERGE INTO pet t
+                        USING (VALUES (?, ?, ?, ?, ?), (?, ?, ?, ?, ?)) AS src(id, name, birth_date, type_id, owner_id)
+                        ON (t.id = src.id)
+                        WHEN MATCHED THEN
+                        	UPDATE SET t.name = src.name, t.birth_date = src.birth_date, t.type_id = src.type_id, t.owner_id = src.owner_id
+                        WHEN NOT MATCHED THEN
+                        	INSERT (name, birth_date, type_id, owner_id)
+                        	VALUES (src.name, src.birth_date, src.type_id, src.owner_id)
+                        OUTPUT INSERTED.id;""")),
+                entry(Statement.UPSERT_AND_FETCH_WITH_SEQUENCE_EMPTY, Expected.sql("""
+                        INSERT INTO pet (name, birth_date, type_id, owner_id)
+                        OUTPUT INSERTED.id
+                        VALUES (?, ?, ?, ?)""")),
+                entry(Statement.INSERT_AND_FETCH_WITH_SEQUENCE_BATCH, Expected.sql("""
+                        INSERT INTO pet (id, name, birth_date, type_id, owner_id)
+                        OUTPUT INSERTED.id
+                        VALUES (NEXT VALUE FOR pet_id_seq, ?, ?, ?, ?), (NEXT VALUE FOR pet_id_seq, ?, ?, ?, ?)""")),
+                entry(Statement.INSERT_AND_FETCH_WITH_SEQUENCE_EMPTY, Expected.sql("""
+                        INSERT INTO pet (name, birth_date, type_id, owner_id)
+                        OUTPUT INSERTED.id
+                        VALUES (?, ?, ?, ?)"""))
 );
     }
 }
