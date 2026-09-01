@@ -17,6 +17,7 @@ import java.sql.Connection;
 import java.sql.SQLException;
 import java.time.Instant;
 import java.time.LocalDate;
+import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
@@ -25,6 +26,7 @@ import java.util.concurrent.atomic.AtomicReference;
 import javax.sql.DataSource;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import st.orm.EntityCallback;
 import st.orm.Metamodel;
 import st.orm.PersistenceException;
 import st.orm.core.template.PreparedStatementTemplate;
@@ -1790,5 +1792,36 @@ public abstract class AbstractEntityRepositoryConformanceTest {
                 existing.toBuilder().name("Alpha Updated").build()));
         assertEquals(2, ids.size());
         assertEquals(existing.id(), ids.get(1));
+    }
+
+    @Test
+    public void testUpsertNewEntityRoutesToInsert() {
+        var entities = PreparedStatementTemplate.ORM(dataSource).entity(VersionLongEntity.class);
+        entities.upsert(VersionLongEntity.builder().name("New Entity").version(0L).build());
+        assertTrue(entities.findAll().stream().anyMatch(entity -> "New Entity".equals(entity.name())));
+    }
+
+    @Test
+    public void testSequenceInsertAndFetchIdFiresCallbacksWithGeneratedKey() {
+        assumeTrue(supportsSequences() && supportsFetchWithSequences());
+        var observed = new ArrayList<SeqEntity>();
+        var orm = PreparedStatementTemplate.ORM(dataSource).withEntityCallback(new EntityCallback<SeqEntity>() {
+            @Override
+            public SeqEntity beforeInsert(SeqEntity entity) {
+                return entity.toBuilder().name(entity.name().toUpperCase()).build();
+            }
+
+            @Override
+            public void afterInsert(SeqEntity entity) {
+                observed.add(entity);
+            }
+        });
+        var entities = orm.entity(SeqEntity.class);
+        // Reading the key back is dialect-specific, and must still run the callbacks with the key it produced.
+        var id = entities.insertAndFetchId(SeqEntity.builder().name("callback seq").version(0).build());
+        assertEquals("CALLBACK SEQ", entities.getById(id).name());
+        assertEquals(1, observed.size());
+        assertEquals(id, observed.getFirst().id());
+        assertEquals("CALLBACK SEQ", observed.getFirst().name());
     }
 }

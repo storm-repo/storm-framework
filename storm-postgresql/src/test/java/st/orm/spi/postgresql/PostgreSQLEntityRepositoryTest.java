@@ -243,29 +243,6 @@ public class PostgreSQLEntityRepositoryTest {
     // Entity callbacks on the dialect-specific insert and upsert paths.
 
     @Test
-    public void testSequenceInsertAndFetchIdFiresCallbacksWithGeneratedKey() {
-        var observed = new java.util.ArrayList<SeqEntity>();
-        var orm = PreparedStatementTemplate.ORM(dataSource).withEntityCallback(new st.orm.EntityCallback<SeqEntity>() {
-            @Override
-            public SeqEntity beforeInsert(SeqEntity entity) {
-                return entity.toBuilder().name(entity.name().toUpperCase()).build();
-            }
-
-            @Override
-            public void afterInsert(SeqEntity entity) {
-                observed.add(entity);
-            }
-        });
-        var repo = orm.entity(SeqEntity.class);
-        // The RETURNING path for sequence keys is dialect-specific; it must still run the callbacks.
-        var id = repo.insertAndFetchId(SeqEntity.builder().name("callback seq").version(0).build());
-        assertEquals("CALLBACK SEQ", repo.getById(id).name());
-        assertEquals(1, observed.size());
-        assertEquals(id, observed.getFirst().id());
-        assertEquals("CALLBACK SEQ", observed.getFirst().name());
-    }
-
-    @Test
     public void testUpsertAndFetchIdsReportsGeneratedKeysToCallbacks() {
         var observed = new java.util.ArrayList<SeqEntity>();
         var orm = PreparedStatementTemplate.ORM(dataSource).withEntityCallback(new st.orm.EntityCallback<SeqEntity>() {

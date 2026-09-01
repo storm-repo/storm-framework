@@ -237,14 +237,6 @@ public class MySQLEntityRepositoryTest {
     }
 
     @Test
-    public void testUpsertNewEntityWithAutoIncrementPk() {
-        var repo = PreparedStatementTemplate.ORM(dataSource).entity(VersionLongEntity.class);
-        repo.upsert(VersionLongEntity.builder().name("New Entity").version(0L).build());
-        var entities = repo.findAll();
-        assertTrue(entities.stream().anyMatch(entity -> "New Entity".equals(entity.name())));
-    }
-
-    @Test
     public void testUpsertAndFetchIdNewEntityWithAutoIncrementPk() {
         var repo = PreparedStatementTemplate.ORM(dataSource).entity(VersionLongEntity.class);
         var id = repo.upsertAndFetchId(VersionLongEntity.builder().name("New Fetch").version(0L).build());

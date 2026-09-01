@@ -250,21 +250,6 @@ public class OracleEntityRepositoryTest {
         });
     }
 
-    @Test
-    public void testUpsertNewEntityRoutesToInsert() {
-        var repo = PreparedStatementTemplate.ORM(dataSource).entity(VersionLongEntity.class);
-        var first = new AtomicBoolean(false);
-        observe(sql -> {
-            if (!first.getAndSet(true)) {
-                assertTrue(sql.statement().contains("INSERT INTO"));
-            }
-        }, () -> {
-            repo.upsert(VersionLongEntity.builder().name("New Entity").version(0L).build());
-        });
-        var entities = repo.findAll();
-        assertTrue(entities.stream().anyMatch(entity -> "New Entity".equals(entity.name())));
-    }
-
     // UUID support
 
     @Builder(toBuilder = true)

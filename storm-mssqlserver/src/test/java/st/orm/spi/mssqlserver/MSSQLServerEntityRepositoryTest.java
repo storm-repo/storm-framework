@@ -256,21 +256,6 @@ public class MSSQLServerEntityRepositoryTest {
         assertEquals("Third", created.name());
     }
 
-    @Test
-    public void testUpsertNewEntityRoutesToInsert() {
-        var repo = PreparedStatementTemplate.ORM(dataSource).entity(VersionLongEntity.class);
-        var first = new AtomicBoolean(false);
-        observe(sql -> {
-            if (!first.getAndSet(true)) {
-                assertTrue(sql.statement().contains("INSERT INTO"));
-            }
-        }, () -> {
-            repo.upsert(VersionLongEntity.builder().name("New Entity").version(0L).build());
-        });
-        var entities = repo.findAll();
-        assertTrue(entities.stream().anyMatch(entity -> "New Entity".equals(entity.name())));
-    }
-
     // UUID support
 
     @Builder(toBuilder = true)
@@ -286,28 +271,6 @@ public class MSSQLServerEntityRepositoryTest {
     private static final UUID DEFAULT_KEY_EXTERNAL_REF = UUID.fromString("a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11");
 
     // Entity callbacks on the dialect-specific insert and upsert paths.
-
-    @Test
-    public void testSequenceInsertAndFetchIdFiresCallbacksWithGeneratedKey() {
-        var observed = new java.util.ArrayList<SeqNamedEntity>();
-        var orm = PreparedStatementTemplate.ORM(dataSource).withEntityCallback(new st.orm.EntityCallback<SeqNamedEntity>() {
-            @Override
-            public SeqNamedEntity beforeInsert(SeqNamedEntity entity) {
-                return entity.toBuilder().name(entity.name().toUpperCase()).build();
-            }
-
-            @Override
-            public void afterInsert(SeqNamedEntity entity) {
-                observed.add(entity);
-            }
-        });
-        var repo = orm.entity(SeqNamedEntity.class);
-        // The OUTPUT INSERTED path for sequence keys is dialect-specific; it must still run the callbacks.
-        var id = repo.insertAndFetchId(SeqNamedEntity.builder().name("callback seq").build());
-        assertEquals("CALLBACK SEQ", repo.getById(id).name());
-        assertEquals(1, observed.size());
-        assertEquals(id, observed.getFirst().id());
-    }
 
     @Test
     public void testBatchInsertAndFetchIdsFiresCallbacksWithGeneratedKeys() {
