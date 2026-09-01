@@ -1,7 +1,6 @@
 package st.orm.spi.mssqlserver;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static st.orm.GenerationStrategy.NONE;
@@ -238,32 +237,6 @@ public class MSSQLServerEntityRepositoryTest {
         var repo = PreparedStatementTemplate.ORM(dataSource).entity(SeqNamedEntity.class);
         assertThrows(PersistenceException.class, () ->
                 repo.upsertAndFetchIds(List.of(SeqNamedEntity.builder().id(1).name("test").build())));
-    }
-
-    @Test
-    public void testInsertAndFetchIdWithSequence() {
-        var repo = PreparedStatementTemplate.ORM(dataSource).entity(SeqEmptyEntity.class);
-        var first = new AtomicBoolean(false);
-        observe(sql -> {
-            if (!first.getAndSet(true)) {
-                assertTrue(sql.statement().contains("OUTPUT INSERTED"));
-            }
-        }, () -> {
-            var id = repo.insertAndFetchId(SeqEmptyEntity.builder().name("Gamma").build());
-            assertNotNull(id);
-            assertTrue(id > 0);
-        });
-    }
-
-    @Test
-    public void testInsertAndFetchIdsWithSequence() {
-        var repo = PreparedStatementTemplate.ORM(dataSource).entity(SeqEmptyEntity.class);
-        var ids = repo.insertAndFetchIds(List.of(
-                SeqEmptyEntity.builder().name("Delta").build(),
-                SeqEmptyEntity.builder().name("Epsilon").build()));
-        assertEquals(2, ids.size());
-        assertTrue(ids.get(0) > 0);
-        assertTrue(ids.get(1) > 0);
     }
 
     @Test

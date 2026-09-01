@@ -32,6 +32,17 @@ public class OracleEntityRepositoryConformanceTest extends AbstractEntityReposit
     @Override
     protected List<String> schemaDdl() {
         return List.of(
+                "DROP TABLE seq_entity",
+                "DROP SEQUENCE seq_entity_id_seq",
+                "CREATE SEQUENCE seq_entity_id_seq START WITH 1 INCREMENT BY 1",
+                """
+                        CREATE TABLE seq_entity (
+                        id NUMBER DEFAULT seq_entity_id_seq.NEXTVAL PRIMARY KEY,
+                        name VARCHAR2(255),
+                        version NUMBER DEFAULT 0
+                        )""",
+                "INSERT INTO seq_entity (name) VALUES ('Alpha')",
+                "INSERT INTO seq_entity (name) VALUES ('Beta')",
                 "DROP TABLE specialty_note_history",
                 """
                         CREATE TABLE specialty_note_history (

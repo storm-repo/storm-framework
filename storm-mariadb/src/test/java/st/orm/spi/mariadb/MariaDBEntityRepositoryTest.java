@@ -232,32 +232,6 @@ public class MariaDBEntityRepositoryTest {
     ) implements Entity<Integer> {}
 
     @Test
-    public void testInsertAndFetchIdWithSequence() {
-        var repo = PreparedStatementTemplate.ORM(dataSource).entity(SeqEntity.class);
-        var first = new AtomicBoolean(false);
-        observe(sql -> {
-            if (!first.getAndSet(true)) {
-                assertTrue(sql.statement().contains("RETURNING id"));
-            }
-        }, () -> {
-            var id = repo.insertAndFetchId(SeqEntity.builder().name("Gamma").version(0).build());
-            assertNotNull(id);
-            assertTrue(id > 0);
-        });
-    }
-
-    @Test
-    public void testInsertAndFetchIdsWithSequence() {
-        var repo = PreparedStatementTemplate.ORM(dataSource).entity(SeqEntity.class);
-        var ids = repo.insertAndFetchIds(List.of(
-                SeqEntity.builder().name("Delta").version(0).build(),
-                SeqEntity.builder().name("Epsilon").version(0).build()));
-        assertEquals(2, ids.size());
-        assertTrue(ids.get(0) > 0);
-        assertTrue(ids.get(1) > 0);
-    }
-
-    @Test
     public void testUpsertAndFetchIdWithSequence() {
         var repo = PreparedStatementTemplate.ORM(dataSource).entity(SeqEntity.class);
         var first = new AtomicBoolean(false);

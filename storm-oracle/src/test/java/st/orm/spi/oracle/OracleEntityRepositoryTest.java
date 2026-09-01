@@ -220,20 +220,6 @@ public class OracleEntityRepositoryTest {
     ) implements Entity<Integer> {}
 
     @Test
-    public void testInsertAndFetchIdWithSequenceThrows() {
-        var repo = PreparedStatementTemplate.ORM(dataSource).entity(SeqEntity.class);
-        assertThrows(PersistenceException.class, () ->
-                repo.insertAndFetchId(SeqEntity.builder().name("test").build()));
-    }
-
-    @Test
-    public void testInsertAndFetchIdsWithSequenceThrows() {
-        var repo = PreparedStatementTemplate.ORM(dataSource).entity(SeqEntity.class);
-        assertThrows(PersistenceException.class, () ->
-                repo.insertAndFetchIds(List.of(SeqEntity.builder().name("test").build())));
-    }
-
-    @Test
     public void testUpsertAndFetchIdsWithSequenceAutoGenThrows() {
         var repo = PreparedStatementTemplate.ORM(dataSource).entity(SeqEntity.class);
         assertThrows(PersistenceException.class, () ->

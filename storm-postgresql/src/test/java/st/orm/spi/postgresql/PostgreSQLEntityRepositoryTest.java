@@ -2,11 +2,9 @@ package st.orm.spi.postgresql;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
-import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static st.orm.GenerationStrategy.NONE;
 import static st.orm.GenerationStrategy.SEQUENCE;
-import static st.orm.core.template.SqlInterceptor.observe;
 
 import java.sql.Connection;
 import java.sql.SQLException;
@@ -14,7 +12,6 @@ import java.time.Instant;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.UUID;
-import java.util.concurrent.atomic.AtomicBoolean;
 import javax.sql.DataSource;
 import lombok.Builder;
 import org.jspecify.annotations.Nullable;
@@ -229,42 +226,6 @@ public class PostgreSQLEntityRepositoryTest {
             String name,
             @Version int version
     ) implements Entity<Integer> {}
-
-    @Test
-    public void testInsertAndFetchIdWithSequence() {
-        var repo = PreparedStatementTemplate.ORM(dataSource).entity(SeqEntity.class);
-        var entity = SeqEntity.builder()
-                .name("Gamma")
-                .version(0)
-                .build();
-
-        var first = new AtomicBoolean(false);
-        observe(sql -> {
-            if (!first.getAndSet(true)) {
-                assertTrue(sql.statement().contains("RETURNING id"));
-            }
-        }, () -> {
-            var id = repo.insertAndFetchId(entity);
-            assertNotNull(id);
-            assertTrue(id > 0);
-            var fetched = repo.getById(id);
-            assertEquals("Gamma", fetched.name());
-        });
-    }
-
-    @Test
-    public void testInsertAndFetchIdsWithSequence() {
-        var repo = PreparedStatementTemplate.ORM(dataSource).entity(SeqEntity.class);
-        var entities = List.of(
-                SeqEntity.builder().name("Delta").version(0).build(),
-                SeqEntity.builder().name("Epsilon").version(0).build());
-
-        var ids = repo.insertAndFetchIds(entities);
-        assertEquals(2, ids.size());
-        assertTrue(ids.get(0) > 0);
-        assertTrue(ids.get(1) > 0);
-        assertTrue(ids.get(1) > ids.get(0));
-    }
 
     @Test
     public void testUpsertAndFetchIdsWithSequenceNew() {

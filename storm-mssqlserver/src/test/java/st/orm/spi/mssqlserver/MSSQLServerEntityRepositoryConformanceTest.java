@@ -31,13 +31,24 @@ public class MSSQLServerEntityRepositoryConformanceTest extends AbstractEntityRe
     }
 
     @Override
-    protected boolean supportsBatchFetchWithSequences() {
+    protected boolean supportsBatchUpsertAndFetchWithSequences() {
         return false;
     }
 
     @Override
     protected List<String> schemaDdl() {
         return List.of(
+                "DROP TABLE IF EXISTS seq_entity",
+                "DROP SEQUENCE IF EXISTS seq_entity_id_seq",
+                "CREATE SEQUENCE seq_entity_id_seq START WITH 1 INCREMENT BY 1",
+                """
+                        CREATE TABLE seq_entity (
+                        id int PRIMARY KEY DEFAULT (NEXT VALUE FOR seq_entity_id_seq),
+                        name varchar(255),
+                        version int DEFAULT 0
+                        )""",
+                "INSERT INTO seq_entity (name) VALUES ('Alpha')",
+                "INSERT INTO seq_entity (name) VALUES ('Beta')",
                 "DROP TABLE IF EXISTS specialty_note_history",
                 """
                         CREATE TABLE specialty_note_history (

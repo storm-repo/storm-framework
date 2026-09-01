@@ -131,18 +131,6 @@ public class H2EntityRepositoryTest {
             @Nullable String description
     ) implements Entity<Integer> {}
 
-    @Test
-    public void testInsertAndFetchIdWithSequenceThrows() {
-        // H2 does not support using sequence-based ID generation together with fetch mode.
-        var repo = PreparedStatementTemplate.ORM(dataSource).entity(Pet.class);
-        assertThrows(PersistenceException.class, () -> repo.insertAndFetchId(Pet.builder()
-                .name("Buddy")
-                .birthDate(LocalDate.of(2020, 1, 1))
-                .type(PetType.builder().id(1).build())
-                .owner(Owner.builder().id(1).build())
-                .build()));
-    }
-
     @Builder(toBuilder = true)
     @DbTable("pet")
     public record PetSequenceEmpty(
