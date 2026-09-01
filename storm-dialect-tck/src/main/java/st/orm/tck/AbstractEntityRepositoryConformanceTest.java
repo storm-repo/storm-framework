@@ -31,6 +31,7 @@ import st.orm.core.template.PreparedStatementTemplate;
 import st.orm.core.template.Sql;
 import st.orm.tck.model.Address;
 import st.orm.tck.model.ApiKey;
+import st.orm.tck.model.CycleA;
 import st.orm.tck.model.NonAutoGenEntity;
 import st.orm.tck.model.Owner;
 import st.orm.tck.model.Pet;
@@ -39,10 +40,14 @@ import st.orm.tck.model.PetType;
 import st.orm.tck.model.PkOnlyEntity;
 import st.orm.tck.model.SeqEntity;
 import st.orm.tck.model.Specialty;
+import st.orm.tck.model.SpecialtyNote;
+import st.orm.tck.model.SpecialtyNoteHistory;
 import st.orm.tck.model.VersionInstantEntity;
 import st.orm.tck.model.VersionLongEntity;
 import st.orm.tck.model.Vet;
 import st.orm.tck.model.VetSpecialty;
+import st.orm.tck.model.VetSpecialtyNote;
+import st.orm.tck.model.VetSpecialtyNoteAudit;
 import st.orm.tck.model.VetSpecialtyPK;
 
 /**
@@ -1498,5 +1503,110 @@ public abstract class AbstractEntityRepositoryConformanceTest {
             }
         });
         assertFalse(sql.versionAware());
+    }
+
+    @Test
+    public void testUpsertDependentOneToOne() {
+        var orm = PreparedStatementTemplate.ORM(dataSource);
+        var specialty = orm.entity(Specialty.class).getById(1);
+        var notes = orm.entity(SpecialtyNote.class);
+        notes.upsert(SpecialtyNote.builder()
+                .specialty(specialty)
+                .note("first")
+                .updatedAt(Instant.parse("2026-01-01T10:00:00Z"))
+                .build());
+        var stored = notes.getById(specialty);
+        assertEquals("first", stored.note());
+        notes.upsert(stored.toBuilder()
+                .note("second")
+                .updatedAt(Instant.parse("2026-01-02T10:00:00Z"))
+                .build());
+        var updated = notes.getById(specialty);
+        assertEquals("second", updated.note());
+        assertEquals(Instant.parse("2026-01-02T10:00:00Z"), updated.updatedAt());
+    }
+
+    @Test
+    public void testUpsertDependentOneToOneBatch() {
+        var orm = PreparedStatementTemplate.ORM(dataSource);
+        var specialties = orm.entity(Specialty.class);
+        var notes = orm.entity(SpecialtyNote.class);
+        var pending = List.of(
+                SpecialtyNote.builder().specialty(specialties.getById(2)).note("surgery note")
+                        .updatedAt(Instant.parse("2026-01-01T10:00:00Z")).build(),
+                SpecialtyNote.builder().specialty(specialties.getById(3)).note("dentistry note")
+                        .updatedAt(Instant.parse("2026-01-01T10:00:00Z")).build());
+        notes.upsert(pending);
+        notes.upsert(pending.stream()
+                .map(note -> note.toBuilder().note("%s updated".formatted(note.note())).build()).toList());
+        assertEquals("surgery note updated", notes.getById(specialties.getById(2)).note());
+        assertEquals("dentistry note updated", notes.getById(specialties.getById(3)).note());
+    }
+
+    @Test
+    public void testUpsertCompoundForeignKeyAsPrimaryKey() {
+        var notes = PreparedStatementTemplate.ORM(dataSource).entity(VetSpecialtyNote.class);
+        var vetSpecialty = new VetSpecialty(new VetSpecialtyPK(2, 1));
+        notes.upsert(VetSpecialtyNote.builder().vetSpecialty(vetSpecialty).note("first").build());
+        assertEquals("first", notes.getById(vetSpecialty).note());
+        notes.upsert(VetSpecialtyNote.builder().vetSpecialty(vetSpecialty).note("second").build());
+        assertEquals("second", notes.getById(vetSpecialty).note());
+    }
+
+    @Test
+    public void testCrudNestedCompoundKeyChain() {
+        var orm = PreparedStatementTemplate.ORM(dataSource);
+        var notes = orm.entity(VetSpecialtyNote.class);
+        var vetSpecialty = new VetSpecialty(new VetSpecialtyPK(3, 2));
+        notes.upsert(VetSpecialtyNote.builder().vetSpecialty(vetSpecialty).note("base note").build());
+        var note = notes.getById(vetSpecialty);
+        var audits = orm.entity(VetSpecialtyNoteAudit.class);
+        audits.insert(VetSpecialtyNoteAudit.builder().note(note).remark("created").build());
+        var stored = audits.getById(note);
+        assertEquals("created", stored.remark());
+        assertEquals(vetSpecialty.id(), stored.note().vetSpecialty().id());
+        audits.update(stored.toBuilder().remark("updated").build());
+        assertEquals("updated", audits.getById(note).remark());
+        audits.remove(stored.toBuilder().remark("updated").build());
+        assertTrue(audits.findById(note).isEmpty());
+    }
+
+    @Test
+    public void testUpsertNestedCompoundKeyChain() {
+        var orm = PreparedStatementTemplate.ORM(dataSource);
+        var notes = orm.entity(VetSpecialtyNote.class);
+        var vetSpecialty = new VetSpecialty(new VetSpecialtyPK(4, 2));
+        notes.upsert(VetSpecialtyNote.builder().vetSpecialty(vetSpecialty).note("base note").build());
+        var note = notes.getById(vetSpecialty);
+        var audits = orm.entity(VetSpecialtyNoteAudit.class);
+        audits.upsert(VetSpecialtyNoteAudit.builder().note(note).remark("created").build());
+        assertEquals("created", audits.getById(note).remark());
+        audits.upsert(VetSpecialtyNoteAudit.builder().note(note).remark("revised").build());
+        assertEquals("revised", audits.getById(note).remark());
+    }
+
+    @Test
+    public void testUpsertNestedSingleColumnKeyChain() {
+        var orm = PreparedStatementTemplate.ORM(dataSource);
+        var specialty = orm.entity(Specialty.class).getById(3);
+        var notes = orm.entity(SpecialtyNote.class);
+        notes.upsert(SpecialtyNote.builder()
+                .specialty(specialty)
+                .note("dentistry note")
+                .updatedAt(Instant.parse("2026-01-01T10:00:00Z"))
+                .build());
+        var note = notes.getById(specialty);
+        var history = orm.entity(SpecialtyNoteHistory.class);
+        history.upsert(SpecialtyNoteHistory.builder().note(note).remark("created").build());
+        assertEquals("created", history.getById(note).remark());
+        history.upsert(SpecialtyNoteHistory.builder().note(note).remark("revised").build());
+        assertEquals("revised", history.getById(note).remark());
+    }
+
+    @Test
+    public void testCircularKeyChainFailsFast() {
+        // A key chain that references itself cannot be flattened; the model must say so rather than loop.
+        assertThrows(PersistenceException.class,
+                () -> PreparedStatementTemplate.ORM(dataSource).entity(CycleA.class).findAll());
     }
 }

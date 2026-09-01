@@ -32,6 +32,35 @@ public class OracleEntityRepositoryConformanceTest extends AbstractEntityReposit
     @Override
     protected List<String> schemaDdl() {
         return List.of(
+                "DROP TABLE specialty_note_history",
+                """
+                        CREATE TABLE specialty_note_history (
+                        note_id NUMBER PRIMARY KEY,
+                        remark VARCHAR2(255) NOT NULL
+                        )""",
+                "DROP TABLE vet_specialty_note_audit",
+                """
+                        CREATE TABLE vet_specialty_note_audit (
+                        vet_id NUMBER NOT NULL,
+                        specialty_id NUMBER NOT NULL,
+                        remark VARCHAR2(255) NOT NULL,
+                        PRIMARY KEY (vet_id, specialty_id)
+                        )""",
+                "DROP TABLE vet_specialty_note",
+                """
+                        CREATE TABLE vet_specialty_note (
+                        vet_id NUMBER NOT NULL,
+                        specialty_id NUMBER NOT NULL,
+                        note VARCHAR2(255) NOT NULL,
+                        PRIMARY KEY (vet_id, specialty_id)
+                        )""",
+                "DROP TABLE specialty_note",
+                """
+                        CREATE TABLE specialty_note (
+                        specialty_id NUMBER PRIMARY KEY,
+                        note VARCHAR2(255) NOT NULL,
+                        updated_at TIMESTAMP NOT NULL
+                        )""",
                 "DROP TABLE non_autogen_entity",
                 """
                         CREATE TABLE non_autogen_entity (

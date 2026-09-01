@@ -33,6 +33,35 @@ public class MSSQLServerEntityRepositoryConformanceTest extends AbstractEntityRe
     @Override
     protected List<String> schemaDdl() {
         return List.of(
+                "DROP TABLE IF EXISTS specialty_note_history",
+                """
+                        CREATE TABLE specialty_note_history (
+                        note_id int PRIMARY KEY,
+                        remark varchar(255) NOT NULL
+                        )""",
+                "DROP TABLE IF EXISTS vet_specialty_note_audit",
+                """
+                        CREATE TABLE vet_specialty_note_audit (
+                        vet_id int NOT NULL,
+                        specialty_id int NOT NULL,
+                        remark varchar(255) NOT NULL,
+                        PRIMARY KEY (vet_id, specialty_id)
+                        )""",
+                "DROP TABLE IF EXISTS vet_specialty_note",
+                """
+                        CREATE TABLE vet_specialty_note (
+                        vet_id int NOT NULL,
+                        specialty_id int NOT NULL,
+                        note varchar(255) NOT NULL,
+                        PRIMARY KEY (vet_id, specialty_id)
+                        )""",
+                "DROP TABLE IF EXISTS specialty_note",
+                """
+                        CREATE TABLE specialty_note (
+                        specialty_id int PRIMARY KEY,
+                        note varchar(255) NOT NULL,
+                        updated_at datetime2 NOT NULL
+                        )""",
                 "DROP TABLE IF EXISTS non_autogen_entity",
                 """
                         CREATE TABLE non_autogen_entity (

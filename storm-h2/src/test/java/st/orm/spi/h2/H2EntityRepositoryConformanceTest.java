@@ -15,6 +15,35 @@ public class H2EntityRepositoryConformanceTest extends AbstractEntityRepositoryC
     @Override
     protected List<String> schemaDdl() {
         return List.of(
+                "DROP TABLE IF EXISTS specialty_note_history",
+                """
+                        CREATE TABLE specialty_note_history (
+                        note_id integer PRIMARY KEY,
+                        remark varchar(255) NOT NULL
+                        )""",
+                "DROP TABLE IF EXISTS vet_specialty_note_audit",
+                """
+                        CREATE TABLE vet_specialty_note_audit (
+                        vet_id integer NOT NULL,
+                        specialty_id integer NOT NULL,
+                        remark varchar(255) NOT NULL,
+                        PRIMARY KEY (vet_id, specialty_id)
+                        )""",
+                "DROP TABLE IF EXISTS vet_specialty_note",
+                """
+                        CREATE TABLE vet_specialty_note (
+                        vet_id integer NOT NULL,
+                        specialty_id integer NOT NULL,
+                        note varchar(255) NOT NULL,
+                        PRIMARY KEY (vet_id, specialty_id)
+                        )""",
+                "DROP TABLE IF EXISTS specialty_note",
+                """
+                        CREATE TABLE specialty_note (
+                        specialty_id integer PRIMARY KEY,
+                        note varchar(255) NOT NULL,
+                        updated_at timestamp NOT NULL
+                        )""",
                 "DROP TABLE IF EXISTS non_autogen_entity",
                 """
                         CREATE TABLE non_autogen_entity (
