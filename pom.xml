@@ -361,7 +361,10 @@
                     <plugin>
                         <groupId>org.sonatype.central</groupId>
                         <artifactId>central-publishing-maven-plugin</artifactId>
-                        <version>0.7.0</version>
+                        <!-- Central's deployment status response carries a warnings list; versions
+                             before 0.8.0 fail to parse it and report a deployment Central has
+                             published as a build failure. -->
+                        <version>0.11.0</version>
                         <extensions>true</extensions>
                         <configuration>
                             <publishingServerId>central</publishingServerId>
@@ -371,6 +374,14 @@
                                  returns, so the deploy must block until Central has validated and
                                  published the bundle, not merely received it. -->
                             <waitUntil>published</waitUntil>
+                            <!-- Makes a release tag re-runnable. A component Central already holds
+                                 at this version is left out of the bundle, and with nothing left to
+                                 stage the plugin skips the upload and the build succeeds, so the
+                                 npm, Gradle Plugin Portal and docs jobs that depend on this one still
+                                 run when a release fails after Central published. Central rejects a
+                                 re-upload of a published version, so this is the only way to finish
+                                 such a release from the same tag. -->
+                            <ignorePublishedComponents>true</ignorePublishedComponents>
                         </configuration>
                     </plugin>
                 </plugins>
