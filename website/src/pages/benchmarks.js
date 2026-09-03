@@ -6,7 +6,7 @@ import {
 } from '../components/tutorial/tutorialTheme';
 
 const TITLE = 'Benchmarks · ST/ORM vs Hibernate, jOOQ, Exposed, Ktorm and Jimmer';
-const DESC = 'Across this reproducible latency suite Storm is fastest on five of twelve workloads with no framework within 3%, within 3% of the fastest on eleven, and top three on all twelve. No other ORM is that consistent.';
+const DESC = 'Across this reproducible latency suite Storm takes five of twelve workloads outright, is in the leading group on eleven, and is top three on all twelve. No other ORM matches that consistency.';
 
 // Results from the reproducible suite: one tuned PostgreSQL 17 container over TCP, JMH,
 // 5 forks, 5x3s measured iterations, single thread. Values are the median fork in us/op, with
@@ -1665,7 +1665,7 @@ ${navHtml('benchmarks')}
 
 <div class="pagehero">
   <h1>Concise by design.<br><span class="grad">Fast by default.</span></h1>
-  <p class="dek">Across this reproducible latency suite Storm is fastest on five of twelve workloads with no framework within 3%, within 3% of the fastest on eleven, and top three on all twelve. No other ORM is that consistent, and Storm's clearest margins are on the mapping-heavy joins.</p>
+  <p class="dek">Across this reproducible latency suite Storm takes five of twelve workloads outright, with no framework inside 3%. It is in the leading group on eleven and top three on all twelve, a consistency no other ORM matches. Its clearest margins are on the mapping-heavy joins.</p>
   <p class="dek">Eight implementations run against the same database with identical schema, data, and transaction boundaries. Every result includes a real TCP round trip, and the source behind every number is open for inspection.</p>
   <p class="bm-meta">PostgreSQL 17 over TCP · JMH · Storm 1.14.0 · measured 2026-09-03</p>
 
