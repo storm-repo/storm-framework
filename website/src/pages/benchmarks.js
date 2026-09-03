@@ -6,11 +6,11 @@ import {
 } from '../components/tutorial/tutorialTheme';
 
 const TITLE = 'Benchmarks · ST/ORM vs Hibernate, jOOQ, Exposed, Ktorm and Jimmer';
-const DESC = 'Across this reproducible latency suite, Storm is the fastest ORM on 7 of 12 workloads and second on the rest, its lead widening on the mapping-heavy joins.';
+const DESC = 'Across this reproducible latency suite, Storm is the fastest ORM on 8 of 12 workloads and second on the rest, its lead widening on the mapping-heavy joins.';
 
 // Results from the reproducible suite: one tuned PostgreSQL 17 container over TCP, JMH,
 // 5 forks, 5x3s measured iterations, single thread. Values are the median fork in us/op, with
-// the fork range [fastest–slowest] in brackets (see the benchmark repository's methodology). Rows are same-session comparisons; the bare SELECT 1 baseline measured ~84 us
+// the fork range [fastest–slowest] in brackets (see the benchmark repository's methodology). Rows are same-session comparisons; the bare SELECT 1 baseline measured ~141 us
 // on this runner.
 const LIBS = {
   jdbc: {name: 'JDBC', cls: 'jdbc'},
@@ -28,7 +28,7 @@ const WORKLOADS = [
     id: 'singleRowById',
     title: 'Primary key lookup',
     desc: 'Load one visit by primary key. The purest round-trip test: one query, one row.',
-    results: {jdbc: [121.7, 120.5, 122.3], storm: [128.6, 128.1, 129.3], hibernate: [135.7, 135.3, 136.7], jooq: [143.7, 143.5, 144.1], jimmer: [145.8, 144.3, 146.7], ktorm: [149.5, 149.2, 150.9], exposed: [248.8, 247.2, 251.2], exposedDao: [263.8, 261.4, 265.8]},
+    results: {jdbc: [186.3, 185.5, 187.9], storm: [192.8, 191.4, 193.7], jimmer: [201.1, 199.8, 201.4], hibernate: [202.1, 201.3, 203.3], jooq: [211.7, 210.0, 212.1], ktorm: [215.0, 213.9, 216.1], exposed: [370.9, 369.5, 374.5], exposedDao: [387.8, 385.4, 389.9]},
     mark: ['exposed', 'exposedDao'],
     note: '† Transaction overhead.',
   },
@@ -36,67 +36,67 @@ const WORKLOADS = [
     id: 'projection',
     title: 'Projection',
     desc: 'Three columns across three tables into a flat DTO, one hundred rows.',
-    results: {jdbc: [851.0, 845.5, 853.0], hibernate: [862.2, 860.8, 882.2], storm: [883.3, 879.2, 885.7], jimmer: [899.6, 897.6, 903.0], ktorm: [899.9, 896.7, 901.2], jooq: [903.6, 900.3, 904.1], exposed: [1030.0, 1029.0, 1031.1], exposedDao: [1037.5, 1033.5, 1041.4]},
+    results: {jdbc: [967.3, 962.0, 973.8], hibernate: [971.1, 964.4, 975.1], storm: [979.9, 979.2, 983.6], jimmer: [985.5, 979.3, 992.3], ktorm: [1000.9, 997.7, 1002.9], jooq: [1014.1, 1009.9, 1019.4], exposed: [1205.8, 1195.5, 1208.3], exposedDao: [1207.4, 1203.6, 1212.9]},
   },
   {
     id: 'multiStatement',
     title: 'Create then amend',
     desc: 'Insert a visit, then amend it by its generated key, in one transaction.',
-    results: {jdbc: [437.1, 433.9, 438.1], hibernate: [462.6, 460.1, 468.8], storm: [462.7, 461.8, 465.4], exposed: [470.6, 467.9, 471.9], ktorm: [486.7, 479.0, 487.1], jimmer: [501.0, 497.9, 507.0], exposedDao: [511.5, 509.2, 515.7], jooq: [582.5, 580.5, 595.3]},
+    results: {jdbc: [635.1, 633.2, 637.5], storm: [670.9, 667.4, 674.1], hibernate: [672.3, 669.5, 674.2], exposed: [675.8, 671.2, 677.3], ktorm: [689.8, 687.4, 692.1], jimmer: [699.9, 695.3, 701.4], exposedDao: [715.6, 713.6, 717.0], jooq: [843.4, 842.7, 849.4]},
   },
   {
     id: 'updateById',
     title: 'Read, modify, update',
     desc: 'Read one owner, change one field, persist atomically with one UPDATE.',
-    results: {jdbc: [378.1, 375.0, 386.9], exposed: [392.3, 390.9, 394.7], storm: [395.7, 387.8, 403.0], hibernate: [404.7, 402.0, 406.1], ktorm: [417.1, 414.4, 421.3], exposedDao: [420.1, 416.6, 422.7], jimmer: [439.4, 436.4, 441.7], jooq: [515.0, 511.2, 518.3]},
+    results: {jdbc: [557.6, 553.0, 575.2], storm: [579.8, 576.9, 600.3], exposed: [582.2, 580.0, 585.4], hibernate: [592.0, 591.1, 596.2], ktorm: [609.8, 605.6, 628.0], exposedDao: [611.1, 607.7, 613.0], jimmer: [612.0, 609.4, 613.2], jooq: [756.7, 754.1, 761.8]},
   },
   {
     id: 'dynamic',
     title: 'Dynamic query',
     desc: 'A filtered search assembled at runtime from a cycling set of optional predicates.',
-    results: {jdbc: [634.4, 632.0, 640.7], hibernate: [797.5, 796.6, 800.0], storm: [804.6, 802.7, 806.8], jooq: [823.2, 820.3, 831.0], ktorm: [825.1, 820.7, 831.7], jimmer: [836.5, 834.9, 844.2], exposed: [934.3, 933.1, 936.1], exposedDao: [946.9, 943.0, 950.5]},
+    results: {jdbc: [758.6, 755.9, 766.3], hibernate: [929.5, 925.2, 939.3], storm: [941.6, 939.0, 950.3], ktorm: [944.7, 938.8, 951.8], jimmer: [950.5, 942.6, 959.1], jooq: [952.2, 948.9, 965.9], exposed: [1134.2, 1132.8, 1143.8], exposedDao: [1170.7, 1148.1, 1174.2]},
   },
   {
     id: 'graphInsert',
     title: 'Graph insert',
     desc: 'Write 20 owner-to-pet-to-visit graphs, generated keys threaded level to level.',
-    results: {jdbc: [1861.3, 1847.6, 1867.5], storm: [2121.1, 2114.4, 2150.6], ktorm: [2168.7, 2140.1, 2207.7], jooq: [2258.7, 2251.4, 2278.2], hibernate: [2911.4, 2883.1, 2918.1], jimmer: [3087.1, 3076.7, 3105.8], exposed: [3118.2, 3079.2, 3130.1], exposedDao: [3127.6, 3109.5, 3161.9]},
+    results: {jdbc: [2495.4, 2450.5, 2524.5], ktorm: [2711.9, 2674.5, 2751.2], storm: [2724.9, 2718.2, 2758.6], jooq: [2932.3, 2911.9, 2940.0], hibernate: [3918.8, 3900.7, 3956.7], jimmer: [3924.3, 3916.4, 3958.9], exposed: [4173.4, 4102.7, 4185.3], exposedDao: [4210.2, 4145.3, 4247.6]},
   },
   {
     id: 'objectGraph',
     title: 'Object graph',
     desc: 'Load the owners of a city, each with their list of pets, grouped one-to-many.',
-    results: {jooq: [846.1, 840.0, 847.6], jdbc: [945.6, 943.2, 947.8], storm: [1048.4, 1042.9, 1050.2], hibernate: [1223.7, 1216.8, 1234.7], exposed: [1223.8, 1220.3, 1235.3], jimmer: [1495.4, 1487.5, 1504.4], exposedDao: [1783.4, 1767.5, 1790.4], ktorm: [1831.9, 1791.9, 1854.2]},
+    results: {jooq: [912.7, 910.5, 915.1], jdbc: [1079.3, 1072.9, 1097.1], storm: [1193.4, 1187.7, 1202.1], exposed: [1398.6, 1394.4, 1406.6], hibernate: [1408.2, 1401.6, 1413.9], jimmer: [1718.2, 1710.9, 1733.0], exposedDao: [1968.5, 1955.2, 1978.3], ktorm: [2000.1, 1966.6, 2013.0]},
   },
   {
     id: 'batchInsert',
     title: 'Batch insert',
     desc: 'Insert 100 visits atomically and fetch their database-generated keys.',
-    results: {jdbc: [2553.6, 2544.4, 2572.1], storm: [2746.7, 2726.6, 2774.3], ktorm: [2825.8, 2801.6, 2838.6], jooq: [2986.1, 2954.3, 3007.6], hibernate: [4245.4, 4221.3, 4268.9], jimmer: [4322.4, 4299.8, 4359.0], exposed: [4481.3, 4464.2, 4507.2], exposedDao: [4832.4, 4825.3, 4879.2]},
+    results: {jdbc: [3410.5, 3344.2, 3450.9], storm: [3640.1, 3624.0, 3664.0], ktorm: [3661.2, 3644.1, 3680.7], jooq: [3872.8, 3839.8, 3880.7], hibernate: [6039.3, 5992.0, 6079.2], jimmer: [6079.2, 6033.6, 6093.3], exposed: [6480.3, 6439.8, 6500.9], exposedDao: [6969.2, 6897.4, 7001.6]},
   },
   {
     id: 'keyset',
     title: 'Keyset pagination',
     desc: 'One page of 20 rows by keyset (seek) pagination, object graph materialized.',
-    results: {jdbc: [286.9, 284.1, 288.0], storm: [352.8, 350.0, 358.9], hibernate: [385.1, 384.3, 388.3], jooq: [394.8, 393.5, 400.6], exposed: [481.2, 474.6, 481.5], jimmer: [672.3, 667.3, 674.3], exposedDao: [717.1, 711.5, 721.6], ktorm: [855.6, 851.5, 860.0]},
+    results: {jdbc: [401.8, 396.0, 403.5], storm: [461.1, 454.6, 463.2], hibernate: [490.4, 487.8, 495.4], jooq: [511.5, 508.7, 513.2], exposed: [653.5, 647.8, 655.4], jimmer: [779.2, 776.4, 781.4], exposedDao: [952.4, 949.5, 954.4], ktorm: [1018.3, 1010.7, 1019.4]},
   },
   {
     id: 'joinWithMapping10',
     title: 'Three-table join · 10 rows',
     desc: 'Load pets with owner and city hydrated through a single three-table join.',
-    results: {jdbc: [478.8, 474.0, 486.3], storm: [510.6, 509.4, 513.1], hibernate: [545.1, 540.0, 551.1], jooq: [568.7, 567.4, 571.3], jimmer: [588.6, 583.4, 589.6], ktorm: [646.4, 637.2, 653.8], exposedDao: [669.0, 667.6, 672.7], exposed: [672.1, 666.7, 677.0]},
+    results: {jdbc: [641.9, 638.9, 650.0], storm: [673.4, 666.1, 679.6], hibernate: [700.4, 698.8, 724.1], jimmer: [713.9, 709.3, 715.8], jooq: [714.3, 709.8, 726.3], ktorm: [809.9, 803.9, 811.7], exposed: [893.3, 884.9, 895.6], exposedDao: [917.5, 914.3, 919.9]},
   },
   {
     id: 'joinWithMapping100',
     title: 'Three-table join · 100 rows',
     desc: 'The same join at 100 rows. Hydration cost starts to separate the field.',
-    results: {jdbc: [594.8, 593.3, 601.2], storm: [734.1, 730.1, 747.1], jooq: [884.2, 881.5, 889.2], exposed: [910.1, 907.1, 913.3], hibernate: [928.7, 918.0, 932.8], ktorm: [1114.2, 1108.9, 1136.8], jimmer: [1187.0, 1176.7, 1195.0], exposedDao: [1815.9, 1805.8, 1851.8]},
+    results: {jdbc: [737.3, 734.7, 739.2], storm: [890.9, 886.4, 897.1], jooq: [1030.5, 1027.6, 1045.4], exposed: [1078.1, 1078.1, 1086.6], jimmer: [1087.3, 1075.8, 1090.5], hibernate: [1097.2, 1062.8, 1111.8], ktorm: [1238.7, 1230.6, 1249.0], exposedDao: [2002.3, 1961.5, 2006.1]},
   },
   {
     id: 'joinWithMapping1000',
     title: 'Three-table join · 1,000 rows',
     desc: 'The same join at 1,000 rows. Row mapping now dominates the round trip.',
-    results: {jdbc: [2010.8, 2000.0, 2016.5], storm: [2878.8, 2850.3, 2896.5], exposed: [3547.7, 3504.6, 3611.8], jooq: [4299.1, 4263.8, 4311.0], hibernate: [4711.7, 4581.6, 4742.2], ktorm: [6291.0, 6243.1, 6570.3], jimmer: [6670.4, 6609.0, 6761.1], exposedDao: [6766.4, 6732.2, 6833.5]},
+    results: {jdbc: [2451.7, 2427.8, 2459.3], storm: [3274.6, 3237.4, 3279.1], exposed: [3873.8, 3756.9, 3899.8], jooq: [4661.7, 4584.1, 4772.7], hibernate: [5096.5, 4964.9, 5169.6], jimmer: [5887.5, 5810.4, 5940.9], exposedDao: [6557.4, 6511.0, 6716.1], ktorm: [6931.8, 6664.2, 6970.4]},
   },
 ];
 
@@ -1650,14 +1650,14 @@ ${navHtml('benchmarks')}
 
 <div class="pagehero">
   <h1>Concise by design.<br><span class="grad">Fast by default.</span></h1>
-  <p class="dek">Across this reproducible latency suite, Storm is the fastest ORM on 7 of 12 workloads and second on the rest, its lead widening on the mapping-heavy joins.</p>
+  <p class="dek">Across this reproducible latency suite, Storm is the fastest ORM on 8 of 12 workloads and second on the rest, its lead widening on the mapping-heavy joins.</p>
   <p class="dek">Eight implementations run against the same database with identical schema, data, and transaction boundaries. Every result includes a real TCP round trip, and the source behind every number is open for inspection.</p>
-  <p class="bm-meta">PostgreSQL 17 over TCP · JMH · Storm 1.13.0 · measured 2026-07-25</p>
+  <p class="bm-meta">PostgreSQL 17 over TCP · JMH · Storm 1.14.0 · measured 2026-09-03</p>
 
   <div class="bm-stats">
-    <div class="bm-stat"><b>7 of 12</b><span>workloads where Storm is the fastest ORM outright.</span></div>
-    <div class="bm-stat"><b>Always top 2</b><span>No other ORM is that consistent; each drops to fourth or lower on some workload.</span></div>
-    <div class="bm-stat"><b>44% less</b><span>per-row hydration overhead than the closest framework on the thousand-row join.</span></div>
+    <div class="bm-stat"><b>8 of 12</b><span>workloads where Storm is the fastest ORM outright.</span></div>
+    <div class="bm-stat"><b>Always top 2</b><span>No other ORM is that consistent; each drops to fifth or lower on some workload.</span></div>
+    <div class="bm-stat"><b>42% less</b><span>per-row hydration overhead than the closest framework on the thousand-row join.</span></div>
   </div>
   ${heroArt('benchmarks', {priority: true})}
 </div>
@@ -1667,11 +1667,11 @@ ${navHtml('benchmarks')}
   <p>The workloads cover common data-access paths: point reads, joined entity hydration, projections, keyset pagination, dynamic queries, batch and dependency-ordered writes, change-aware updates and one-to-many object graphs.</p>
   <p>Eight implementations, one database, one discipline: same schema, same data, same transaction boundaries, every score a real network round trip away from PostgreSQL. The chart plots every workload as a multiple of the hand-written JDBC baseline, so each line traces a framework's overhead across the twelve workloads. The chart opens with the primary key lookup and then orders the workloads by how far the field spreads from JDBC, keeping the three join sizes together, so overhead grows to the right and a flat line means the framework does not follow. Lower is faster; the dashed line is JDBC itself.</p>
   ${lineChartHtml()}
-  <p class="bm-matrix-read">Storm leads or shares the lead on ten of twelve workloads: alone in front on the primary-key lookup, keyset pagination, all three joins and both inserts, and within 2% of the leader on the dynamic query, the update and the create-then-amend. The two it does not reach go to jOOQ, which takes the object graph with a single MULTISET JSON aggregate instead of repeated join rows, and Hibernate, which edges the projection by 2.4%.</p>
+  <p class="bm-matrix-read">Storm leads or shares the lead on eleven of twelve workloads: alone in front on the primary-key lookup, keyset pagination, all three joins, the batch insert, the update and the create-then-amend, and within 2% of the leader on the projection, the dynamic query and the graph insert. The one it does not reach goes to jOOQ, which takes the object graph with a single MULTISET JSON aggregate instead of repeated join rows.</p>
 
-  <p class="bm-matrix-read">Hydration is where the field spreads furthest: on the thousand-row join Storm carries 44% less per-row overhead than the closest framework, and the rest of the field pays at least 2.6x Storm's cost.</p>
+  <p class="bm-matrix-read">Hydration is where the field spreads furthest: on the thousand-row join Storm carries 42% less per-row overhead than the closest framework, and the rest of the field pays at least 2.7x Storm's cost.</p>
 
-  <p class="bm-matrix-read">Storm's write advantage is a volume story: the batch and graph inserts run 1.4 to 1.5x faster than Hibernate, while the single-row update and create-then-amend are a near-tie at the front, Storm within a percent of the leader on both.</p>
+  <p class="bm-matrix-read">Storm's write advantage is a volume story: the batch and graph inserts run 1.4 to 1.7x faster than Hibernate, while the single-row update and the create-then-amend lead the field outright.</p>
 
   <details class="bm-details">
     <summary>Per-workload charts: each framework's distance to the fastest, fork range on hover</summary>
@@ -1933,7 +1933,7 @@ ${charts}
     <li><b>Rows are the unit of comparison.</b> Libraries within one chart ran in the same session under the same conditions. Comparing across charts, or treating values as absolute costs, carries environment drift that comparing within a chart does not.</li>
   </ul>
 
-  <p>Versions: Storm 1.13.0, Hibernate 7.4.5, jOOQ 3.21.6, Exposed 1.3.1, Ktorm 4.1.1, Jimmer 0.11.0, PostgreSQL 17, JDK 21.</p>
+  <p>Versions: Storm 1.14.0, Hibernate 7.4.7, jOOQ 3.21.7, Exposed 1.5.0, Ktorm 4.2.1, Jimmer 0.11.7, PostgreSQL 17, JDK 21.</p>
 
   <h3>Reproducing these numbers</h3>
   <p>The published figures come from the repository's <code>benchmark</code> GitHub Actions workflow on a GitHub-hosted dedicated runner (dedicated, 4 vCPU, 16 GB, Ubuntu 24.04), which builds Storm from source at the commit stated with each run, executes the full suite against PostgreSQL 17 in Docker, and uploads the results as an artifact. The raw per-fork JMH data, the merged tables and a metadata file recording the exact versions, runner and JMH configuration are committed under <code>results/</code> in the repository, so every published number can be recomputed from its artifacts.</p>

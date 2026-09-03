@@ -468,20 +468,20 @@ const SQL = [
   '<span class="sqlk">WHERE</span> c.country = <span class="sqlq">?</span>',
 ];
 
-// Storm-vs-X figures from the published 5-fork benchmark run of 2026-07-25
+// Storm-vs-X figures from the published 5-fork benchmark run of 2026-09-03
 // (median fork; differences within 2% count as level). Hibernate is the default
 // because it is the framework most visitors are coming from; the rest are one
 // click away. Nothing here changes on a timer.
 const VS = {
   hibernate: {
     label: 'Hibernate',
-    speed: ['9 of 12', 'workloads faster than Hibernate', 'Level on two more; behind only on projection, by 2.4%.'],
+    speed: ['9 of 12', 'workloads faster than Hibernate', 'Level on the other three, where the two sit within 1.3% of each other; Storm leads the rest by up to 1.7x.'],
     entities: ['78%', 'fewer entity lines', 'The five-table model: 31 lines in Storm, 141 in Hibernate.'],
     queries: ['14%', 'fewer query lines', 'All twelve workloads: 161 lines in Storm, 188 in Hibernate, with no query strings.'],
   },
   jooq: {
     label: 'jOOQ',
-    speed: ['11 of 12', 'workloads faster than jOOQ', 'jOOQ takes only the object graph, with a clever JSON-aggregate query; Storm leads the other eleven, including all four writes.'],
+    speed: ['10 of 12', 'workloads faster than jOOQ', 'jOOQ takes only the object graph, with a clever JSON-aggregate query; level on the dynamic query, and Storm leads the other ten, including all four writes.'],
     entities: ['31 lines', 'instead of manual mapping', 'jOOQ maps results by hand into DTOs; Storm turns one 31-line model into typed rows everywhere.'],
     queries: ['17%', 'fewer query lines', 'All twelve workloads: 161 lines in Storm, 194 in jOOQ, no hand-written row mapping.'],
   },
@@ -493,25 +493,25 @@ const VS = {
   },
   exposedDao: {
     label: 'Exposed DAO',
-    speed: ['12 of 12', 'workloads faster than Exposed DAO', 'Faster on all twelve workloads, from 6% to 2.5x ahead.'],
+    speed: ['12 of 12', 'workloads faster than Exposed DAO', 'Faster on all twelve workloads, from 5% to 2.2x ahead.'],
     entities: ['58%', 'fewer entity lines', 'One data class per table in Storm; Exposed DAO needs the table object, the DAO class and a DTO.'],
     queries: ['15%', 'fewer query lines', 'All twelve workloads: 161 lines in Storm, 190 in Exposed DAO.'],
   },
   ktorm: {
     label: 'Ktorm',
-    speed: ['11 of 12', 'workloads faster than Ktorm', 'Level on projection; ahead on the other eleven, peaking at 2.4x.'],
+    speed: ['9 of 12', 'workloads faster than Ktorm', 'Level on the dynamic query and both batch writes; ahead on the other nine, peaking at 2.2x.'],
     entities: ['48%', 'fewer entity lines', 'The five-table model: 31 lines in Storm, 60 lines of Ktorm tables and entity interfaces.'],
     queries: ['9%', 'fewer query lines', 'All twelve workloads: 161 lines in Storm, 177 in Ktorm.'],
   },
   jimmer: {
     label: 'Jimmer',
-    speed: ['11 of 12', 'workloads faster than Jimmer', 'Level on projection; faster on the other eleven, peaking at 2.3x.'],
+    speed: ['10 of 12', 'workloads faster than Jimmer', 'Level on the projection and the dynamic query; faster on the other ten, peaking at 1.8x.'],
     entities: ['46%', 'fewer entity lines', 'The five-table model: 31 lines of data classes in Storm, 57 lines of interfaces in Jimmer.'],
     queries: ['40%', 'fewer query lines', 'All twelve workloads: 161 lines in Storm, 270 in Jimmer.'],
   },
   jdbc: {
     label: 'JDBC',
-    speed: ['Within 15%', 'of hand-written JDBC speed', 'averaged across the twelve workloads; the next-closest framework averages 31%. The trade: typed entities and compile-checked queries instead of strings and hand-mapped rows.'],
+    speed: ['Within 12%', 'of hand-written JDBC speed', 'averaged across the twelve workloads; the next-closest framework averages 25%. The trade: typed entities and compile-checked queries instead of strings and hand-mapped rows.'],
     entities: ['31 lines', 'instead of manual mapping', 'JDBC has no entities: every row stays untyped until you map it by hand.'],
     queries: ['59%', 'fewer query lines', 'All twelve workloads: 161 lines in Storm, 395 of hand-written JDBC and mapping.'],
   },
