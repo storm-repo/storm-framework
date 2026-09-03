@@ -1672,7 +1672,7 @@ ${navHtml('benchmarks')}
   <div class="bm-stats">
     <div class="bm-stat"><b>5 of 12</b><span>workloads where Storm is fastest, with no framework within 3%.</span></div>
     <div class="bm-stat"><b>11 of 12</b><span>workloads where Storm is within 3% of the fastest, the band inside which a repeat run reorders the field.</span></div>
-    <div class="bm-stat"><b>12 of 12</b><span>workloads where Storm is top three. No other ORM manages more than eight, and its worst placing across the suite is third.</span></div>
+    <div class="bm-stat"><b>Only ORM</b><span>in the top three on every workload. No other ORM manages more than eight, and Storm's worst placing across the suite is third.</span></div>
   </div>
   ${heroArt('benchmarks', {priority: true})}
 </div>
@@ -1684,7 +1684,7 @@ ${navHtml('benchmarks')}
   ${lineChartHtml()}
   <p class="bm-matrix-read">The field falls into three groups. Storm is alone at the front on five workloads, with no framework within 3%: the primary-key lookup, keyset pagination and all three joins. On six more it is level with the leaders, inside a band narrower than the run-to-run noise: the projection, the dynamic query, both single-row writes and both batch writes. One workload goes to jOOQ, which takes the object graph with a single MULTISET JSON aggregate instead of repeated join rows, and Storm is second on it. Repeating the whole suite on identical hardware reproduces those three groups exactly, workload for workload.</p>
 
-  <p class="bm-matrix-read">The consistency is the part no other framework matches: Storm is in the top three on all twelve workloads and its worst placing anywhere in the suite is third. The next most consistent ORM reaches the top three on eight, and every other framework drops to fifth or lower somewhere, three of them to seventh. A framework that is quick on the workloads it likes and mid-field on the rest is a different proposition from one with no weak workload at all.</p>
+  <p class="bm-matrix-read">The consistency is the part no other framework matches: Storm is in the top three on all twelve workloads and its worst placing anywhere in the suite is third. The next most consistent ORM reaches the top three on eight, and every other framework drops to fifth or lower somewhere, three of them to seventh. Only one ORM leads Storm anywhere in the suite, jOOQ on the object graph; the other five never lead on any of the twelve. A framework that is quick on the workloads it likes and mid-field on the rest is a different proposition from one with no weak workload at all.</p>
 
   <p class="bm-matrix-read">Hydration is where the field spreads furthest: on the thousand-row join Storm carries at least 40% less per-row overhead than the closest framework, and the rest of the field pays at least 2.6x Storm's cost.</p>
 
