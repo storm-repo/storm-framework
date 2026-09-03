@@ -6,7 +6,7 @@ import {
 } from '../components/tutorial/tutorialTheme';
 
 const TITLE = 'Benchmarks · ST/ORM vs Hibernate, jOOQ, Exposed, Ktorm and Jimmer';
-const DESC = 'Across this reproducible latency suite, Storm is the fastest ORM on 8 of 12 workloads and second on the rest, its lead widening on the mapping-heavy joins.';
+const DESC = 'Across this reproducible latency suite Storm is alone at the front on five of twelve workloads, level on six more, and runs about twice as close to hand-written JDBC as the next framework.';
 
 // Results from the reproducible suite: one tuned PostgreSQL 17 container over TCP, JMH,
 // 5 forks, 5x3s measured iterations, single thread. Values are the median fork in us/op, with
@@ -104,10 +104,19 @@ function fmt(v) {
   return v >= 1000 ? (v / 1000).toFixed(2) + ' ms' : Math.round(v) + ' µs';
 }
 
+// Frameworks inside this band of the fastest are reported as level rather than ranked. Two full
+// runs of the same code on identical hardware move each figure by about 1% (median), and every
+// workload in this suite is either inside 1.3% or clear by more than 4%, so the band sits in an
+// empty stretch of the distribution: 2, 3 or 4 percent all partition the field identically.
+const BAND_PCT = 3;
+const BAND = 1 + BAND_PCT / 100;
+
 function chartHtml(w) {
   const entries = Object.entries(w.results).sort((a, b) => a[1][0] - b[1][0]);
   const max = entries[entries.length - 1][1][0];
   const frameworkBest = Math.min(...entries.filter(([l]) => l !== 'jdbc').map(([, v]) => v[0]));
+  // How many frameworks sit inside the band. One means a real lead; more than one means a tie.
+  const leadCount = entries.filter(([l, v]) => l !== 'jdbc' && v[0] <= frameworkBest * BAND).length;
   // JDBC is the reference, not a competitor: it renders first, with the frameworks ranked below it.
   const ordered = [...entries.filter(([l]) => l === 'jdbc'), ...entries.filter(([l]) => l !== 'jdbc')];
   // One unit for the whole card, so a row never reads in ms beside a neighbour in µs. Milliseconds
@@ -119,20 +128,26 @@ function chartHtml(w) {
   const rows = ordered.map(([lib, [mean, lo, hi]]) => {
     const meta = LIBS[lib];
     const width = Math.max(1.5, (mean / max) * 100);
-    const leading = lib !== 'jdbc' && mean <= frameworkBest * 1.02;
+    const leading = lib !== 'jdbc' && mean <= frameworkBest * BAND;
     const marked = (w.mark || []).includes(lib);
     const gap = (mean / frameworkBest - 1) * 100;
-    // Percentages are the distance to the fastest framework, so that row is labelled outright to
-    // anchor the column. JDBC is signed against the same reference: a negative reads as the raw
-    // driver running that much ahead of the fastest framework, positive where a framework passes it.
+    // Percentages are the distance to the fastest framework. JDBC is signed against the same
+    // reference: a negative reads as the raw driver running that much ahead of the fastest
+    // framework, positive where a framework passes it.
+    //
+    // A row is only called "fastest" when it is alone inside the band. Where several frameworks
+    // are within it the run-to-run noise is larger than the gap between them, so they all read
+    // "level": naming a winner there would be reporting which way the noise fell, not a result.
     const signed = (g) => (g >= 0 ? '+' : '') + (Math.abs(g) < 10 ? g.toFixed(1) : Math.round(g)) + '%';
     const delta = lib === 'jdbc'
       ? signed(gap)
+      : leadCount > 1
+      ? (leading ? 'level' : '+' + (gap < 10 ? gap.toFixed(1) : Math.round(gap)) + '%')
       : mean === frameworkBest
       ? 'fastest'
       : '+' + (gap < 0.05 ? '0' : gap < 10 ? gap.toFixed(1) : Math.round(gap)) + '%';
     return `<div class="bm-row ${lib === 'storm' ? '' : meta.cls}${leading ? ' win' : ''}">
-      <span class="bm-name"${leading ? ' title="within 2% of the fastest framework"' : ''}>${meta.name}${marked ? '<sup class="bm-mark">†</sup>' : ''}</span>
+      <span class="bm-name"${leading ? ` title="within ${BAND_PCT}% of the fastest framework"` : ''}>${meta.name}${marked ? '<sup class="bm-mark">†</sup>' : ''}</span>
       <span class="bm-track"><span class="bm-bar" style="width:${width.toFixed(1)}%"></span></span>
       <span class="bm-val" data-range="Fork range ${bound(lo)}–${bound(hi)} ${unit}">${val(mean)}</span>
       <span class="bm-delta">${delta}</span>
@@ -1348,7 +1363,7 @@ const CODE_GINSERT_JIMMER = [
 
 // ---- Relative line chart: every workload as a multiple of the JDBC baseline. Storm carries the
 // gradient; the other frameworks render in shades of gray and light up from the legend. Frameworks
-// within 2% of the fastest share the lead: differences that small are within run-to-run variation.
+// within 3% of the fastest share the lead: differences that small are within run-to-run variation.
 const CHART_LIBS = ['storm', 'hibernate', 'jooq', 'exposed', 'exposedDao', 'ktorm', 'jimmer'];
 const CHART_GRAYS = {
   hibernate: '#b6b6c0', jooq: '#a2a2ad', exposed: '#8d8d99', exposedDao: '#6f6f7a',
@@ -1650,14 +1665,14 @@ ${navHtml('benchmarks')}
 
 <div class="pagehero">
   <h1>Concise by design.<br><span class="grad">Fast by default.</span></h1>
-  <p class="dek">Across this reproducible latency suite, Storm is the fastest ORM on 8 of 12 workloads and second on the rest, its lead widening on the mapping-heavy joins.</p>
+  <p class="dek">Across this reproducible latency suite Storm is alone at the front on five of twelve workloads, level on six more, and runs about twice as close to hand-written JDBC as the next framework. Its clearest margins are on the mapping-heavy joins.</p>
   <p class="dek">Eight implementations run against the same database with identical schema, data, and transaction boundaries. Every result includes a real TCP round trip, and the source behind every number is open for inspection.</p>
   <p class="bm-meta">PostgreSQL 17 over TCP · JMH · Storm 1.14.0 · measured 2026-09-03</p>
 
   <div class="bm-stats">
-    <div class="bm-stat"><b>8 of 12</b><span>workloads where Storm is the fastest ORM outright.</span></div>
-    <div class="bm-stat"><b>Always top 2</b><span>No other ORM is that consistent; each drops to fifth or lower on some workload.</span></div>
-    <div class="bm-stat"><b>42% less</b><span>per-row hydration overhead than the closest framework on the thousand-row join.</span></div>
+    <div class="bm-stat"><b>5 of 12</b><span>workloads where Storm is alone at the front, with no framework within 3%. It is level on six more.</span></div>
+    <div class="bm-stat"><b>2x closer to JDBC</b><span>Storm averages 12% over hand-written JDBC across the twelve; the next framework averages 25%.</span></div>
+    <div class="bm-stat"><b>34% worst case</b><span>Storm's most expensive workload, measured against hand-written JDBC. No other framework's worst is below 87%.</span></div>
   </div>
   ${heroArt('benchmarks', {priority: true})}
 </div>
@@ -1667,15 +1682,15 @@ ${navHtml('benchmarks')}
   <p>The workloads cover common data-access paths: point reads, joined entity hydration, projections, keyset pagination, dynamic queries, batch and dependency-ordered writes, change-aware updates and one-to-many object graphs.</p>
   <p>Eight implementations, one database, one discipline: same schema, same data, same transaction boundaries, every score a real network round trip away from PostgreSQL. The chart plots every workload as a multiple of the hand-written JDBC baseline, so each line traces a framework's overhead across the twelve workloads. The chart opens with the primary key lookup and then orders the workloads by how far the field spreads from JDBC, keeping the three join sizes together, so overhead grows to the right and a flat line means the framework does not follow. Lower is faster; the dashed line is JDBC itself.</p>
   ${lineChartHtml()}
-  <p class="bm-matrix-read">Storm leads or shares the lead on eleven of twelve workloads: alone in front on the primary-key lookup, keyset pagination, all three joins, the batch insert, the update and the create-then-amend, and within 2% of the leader on the projection, the dynamic query and the graph insert. The one it does not reach goes to jOOQ, which takes the object graph with a single MULTISET JSON aggregate instead of repeated join rows.</p>
+  <p class="bm-matrix-read">The field falls into three groups. Storm is alone at the front on five workloads, with no framework within 3%: the primary-key lookup, keyset pagination and all three joins. On six more it is level with the leaders, inside a band narrower than the run-to-run noise: the projection, the dynamic query, both single-row writes and both batch writes. One workload goes to jOOQ, which takes the object graph with a single MULTISET JSON aggregate instead of repeated join rows. Repeating the whole suite on identical hardware reproduces those three groups exactly, workload for workload.</p>
 
-  <p class="bm-matrix-read">Hydration is where the field spreads furthest: on the thousand-row join Storm carries 42% less per-row overhead than the closest framework, and the rest of the field pays at least 2.7x Storm's cost.</p>
+  <p class="bm-matrix-read">Hydration is where the field spreads furthest: on the thousand-row join Storm carries at least 40% less per-row overhead than the closest framework, and the rest of the field pays at least 2.6x Storm's cost.</p>
 
-  <p class="bm-matrix-read">Storm's write advantage is a volume story: the batch and graph inserts run 1.4 to 1.7x faster than Hibernate, while the single-row update and the create-then-amend lead the field outright.</p>
+  <p class="bm-matrix-read">Storm's write advantage is a volume story: the batch and graph inserts run 1.4 to 1.7x faster than Hibernate, while all four writes sit in the leading group, none of them more than 1.5% off the front.</p>
 
   <details class="bm-details">
     <summary>Per-workload charts: each framework's distance to the fastest, fork range on hover</summary>
-    <p class="bm-desc">Compare within a chart; each chart is a same-session comparison. The percentage is each framework's distance to the fastest; gold marks the leading group, every framework within 2%. Hover a row for its fork range.</p>
+    <p class="bm-desc">Compare within a chart; each chart is a same-session comparison. The percentage is each framework's distance to the fastest; gold marks the leading group, every framework within 3%. Where more than one framework is in it they read level rather than ranked, because the gap between them is smaller than the run-to-run noise. Hover a row for its fork range.</p>
     <div class="bm-grid">
 ${charts}
     </div>
