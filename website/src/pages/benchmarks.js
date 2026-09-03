@@ -6,7 +6,7 @@ import {
 } from '../components/tutorial/tutorialTheme';
 
 const TITLE = 'Benchmarks · ST/ORM vs Hibernate, jOOQ, Exposed, Ktorm and Jimmer';
-const DESC = 'Across this reproducible latency suite Storm is alone at the front on five of twelve workloads, level on six more, and runs about twice as close to hand-written JDBC as the next framework.';
+const DESC = 'Across this reproducible latency suite Storm is fastest on five of twelve workloads with no framework within 3%, within 3% of the fastest on eleven, and top three on all twelve. No other ORM is that consistent.';
 
 // Results from the reproducible suite: one tuned PostgreSQL 17 container over TCP, JMH,
 // 5 forks, 5x3s measured iterations, single thread. Values are the median fork in us/op, with
@@ -1665,14 +1665,14 @@ ${navHtml('benchmarks')}
 
 <div class="pagehero">
   <h1>Concise by design.<br><span class="grad">Fast by default.</span></h1>
-  <p class="dek">Across this reproducible latency suite Storm is alone at the front on five of twelve workloads, level on six more, and runs about twice as close to hand-written JDBC as the next framework. Its clearest margins are on the mapping-heavy joins.</p>
+  <p class="dek">Across this reproducible latency suite Storm is fastest on five of twelve workloads with no framework within 3%, within 3% of the fastest on eleven, and top three on all twelve. No other ORM is that consistent, and Storm's clearest margins are on the mapping-heavy joins.</p>
   <p class="dek">Eight implementations run against the same database with identical schema, data, and transaction boundaries. Every result includes a real TCP round trip, and the source behind every number is open for inspection.</p>
   <p class="bm-meta">PostgreSQL 17 over TCP · JMH · Storm 1.14.0 · measured 2026-09-03</p>
 
   <div class="bm-stats">
-    <div class="bm-stat"><b>5 of 12</b><span>workloads where Storm is alone at the front, with no framework within 3%. It is level on six more.</span></div>
-    <div class="bm-stat"><b>2x closer to JDBC</b><span>Storm averages 12% over hand-written JDBC across the twelve; the next framework averages 25%.</span></div>
-    <div class="bm-stat"><b>34% worst case</b><span>Storm's most expensive workload, measured against hand-written JDBC. No other framework's worst is below 87%.</span></div>
+    <div class="bm-stat"><b>5 of 12</b><span>workloads where Storm is fastest, with no framework within 3%.</span></div>
+    <div class="bm-stat"><b>11 of 12</b><span>workloads where Storm is within 3% of the fastest, the band inside which a repeat run reorders the field.</span></div>
+    <div class="bm-stat"><b>12 of 12</b><span>workloads where Storm is top three. No other ORM manages more than eight, and its worst placing across the suite is third.</span></div>
   </div>
   ${heroArt('benchmarks', {priority: true})}
 </div>
@@ -1682,7 +1682,9 @@ ${navHtml('benchmarks')}
   <p>The workloads cover common data-access paths: point reads, joined entity hydration, projections, keyset pagination, dynamic queries, batch and dependency-ordered writes, change-aware updates and one-to-many object graphs.</p>
   <p>Eight implementations, one database, one discipline: same schema, same data, same transaction boundaries, every score a real network round trip away from PostgreSQL. The chart plots every workload as a multiple of the hand-written JDBC baseline, so each line traces a framework's overhead across the twelve workloads. The chart opens with the primary key lookup and then orders the workloads by how far the field spreads from JDBC, keeping the three join sizes together, so overhead grows to the right and a flat line means the framework does not follow. Lower is faster; the dashed line is JDBC itself.</p>
   ${lineChartHtml()}
-  <p class="bm-matrix-read">The field falls into three groups. Storm is alone at the front on five workloads, with no framework within 3%: the primary-key lookup, keyset pagination and all three joins. On six more it is level with the leaders, inside a band narrower than the run-to-run noise: the projection, the dynamic query, both single-row writes and both batch writes. One workload goes to jOOQ, which takes the object graph with a single MULTISET JSON aggregate instead of repeated join rows. Repeating the whole suite on identical hardware reproduces those three groups exactly, workload for workload.</p>
+  <p class="bm-matrix-read">The field falls into three groups. Storm is alone at the front on five workloads, with no framework within 3%: the primary-key lookup, keyset pagination and all three joins. On six more it is level with the leaders, inside a band narrower than the run-to-run noise: the projection, the dynamic query, both single-row writes and both batch writes. One workload goes to jOOQ, which takes the object graph with a single MULTISET JSON aggregate instead of repeated join rows, and Storm is second on it. Repeating the whole suite on identical hardware reproduces those three groups exactly, workload for workload.</p>
+
+  <p class="bm-matrix-read">The consistency is the part no other framework matches: Storm is in the top three on all twelve workloads and its worst placing anywhere in the suite is third. The next most consistent ORM reaches the top three on eight, and every other framework drops to fifth or lower somewhere, three of them to seventh. A framework that is quick on the workloads it likes and mid-field on the rest is a different proposition from one with no weak workload at all.</p>
 
   <p class="bm-matrix-read">Hydration is where the field spreads furthest: on the thousand-row join Storm carries at least 40% less per-row overhead than the closest framework, and the rest of the field pays at least 2.6x Storm's cost.</p>
 
