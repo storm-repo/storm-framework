@@ -572,7 +572,7 @@ function buildBody(version) {
     <span class="hline">Radically Simple. Fast.</span>
     <span class="hline grad">ST<span class="slash">/</span>ORM for Kotlin.</span>
   </h1>
-  <p class="sub sub-lead">A modern alternative to Hibernate and Exposed.</p>
+  <p class="sub sub-lead">A modern alternative to Hibernate.</p>
   <p class="sub" style="max-width:940px">Immutable data-class entities. Concise queries checked at compile time. No proxies, persistence context, or accidental N+1 queries.</p>
   <div class="cta hero-cta">
     <a href="/quickstart" class="btn primary go">Try it in 5 minutes →</a>
