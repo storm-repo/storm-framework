@@ -55,7 +55,6 @@ Use the `@Convert` annotation on a record component to specify exactly which con
 <TabItem value="kotlin" label="Kotlin" default>
 
 ```kotlin
-@DbTable("product")
 data class Product(
     @PK val id: Int,
     val name: String,
@@ -67,7 +66,6 @@ data class Product(
 <TabItem value="java" label="Java">
 
 ```java
-@DbTable("product")
 public record Product(
     @PK int id,
     String name,
@@ -102,7 +100,6 @@ class MoneyConverter : Converter<BigDecimal, Money> {
 With this converter registered, any `Money` component in any entity will automatically use `MoneyConverter` without needing `@Convert`:
 
 ```kotlin
-@DbTable("product")
 data class Product(
     @PK val id: Int,
     val name: String,
@@ -132,7 +129,6 @@ public class MoneyConverter implements Converter<BigDecimal, Money> {
 With this converter registered, any `Money` component in any entity will automatically use `MoneyConverter` without needing `@Convert`:
 
 ```java
-@DbTable("product")
 public record Product(
     @PK int id,
     String name,
@@ -151,7 +147,6 @@ If an auto-apply converter would match a component but you want the built-in map
 <TabItem value="kotlin" label="Kotlin" default>
 
 ```kotlin
-@DbTable("product")
 data class Product(
     @PK val id: Int,
     val name: String,
@@ -163,7 +158,6 @@ data class Product(
 <TabItem value="java" label="Java">
 
 ```java
-@DbTable("product")
 public record Product(
     @PK int id,
     String name,
@@ -282,7 +276,6 @@ class EncryptedStringConverter : Converter<String, String> {
 Apply it explicitly on sensitive fields:
 
 ```kotlin
-@DbTable("user")
 data class User(
     @PK val id: Int,
     val name: String,
@@ -313,7 +306,6 @@ public class EncryptedStringConverter implements Converter<String, String> {
 Apply it explicitly on sensitive fields:
 
 ```java
-@DbTable("user")
 public record User(
     @PK int id,
     String name,

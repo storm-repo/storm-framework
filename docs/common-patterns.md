@@ -115,7 +115,6 @@ Most applications need to track when records were created and last modified. Sto
 <TabItem value="kotlin" label="Kotlin" default>
 
 ```kotlin
-@DbTable("article")
 data class Article(
     @PK val id: Int = 0,
     val title: String,
@@ -129,7 +128,6 @@ data class Article(
 <TabItem value="java" label="Java">
 
 ```java
-@DbTable("article")
 public record Article(
     @PK Integer id,
     String title,
@@ -226,7 +224,6 @@ Soft deletes mark records as deleted without physically removing them from the d
 <TabItem value="kotlin" label="Kotlin" default>
 
 ```kotlin
-@DbTable("customer")
 data class Customer(
     @PK val id: Int,
     val name: String,
@@ -239,7 +236,6 @@ data class Customer(
 <TabItem value="java" label="Java">
 
 ```java
-@DbTable("customer")
 public record Customer(
     @PK int id,
     String name,

@@ -506,7 +506,6 @@ When an entity field uses a type that is not directly supported by the JDBC driv
 ```kotlin
 data class Money(val amount: BigDecimal)
 
-@DbTable("product")
 data class Product(
     @PK val id: Int = 0,
     val name: String,
@@ -520,7 +519,6 @@ data class Product(
 ```java
 record Money(BigDecimal amount) {}
 
-@DbTable("product")
 record Product(@PK Integer id,
                String name,
                @Convert(converter = MoneyConverter.class) Money price

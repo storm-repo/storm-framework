@@ -147,7 +147,6 @@ Storm's `EntityCallback` interface provides lifecycle hooks that execute before 
 <TabItem value="kotlin" label="Kotlin" default>
 
 ```kotlin
-@DbTable("document")
 data class Document(
     @PK val id: Int,
     val title: String,
@@ -192,7 +191,6 @@ fun auditCallback(): EntityCallback<*> = AuditCallback()
 <TabItem value="java" label="Java">
 
 ```java
-@DbTable("document")
 public record Document(
     @PK int id,
     String title,
@@ -346,7 +344,6 @@ Use projections to expose different views of the same table to different user ro
 
 ```kotlin
 // Full entity (for admin users).
-@DbTable("user")
 data class User(
     @PK val id: Int,
     val name: String,
@@ -369,7 +366,6 @@ data class UserPublicView(
 
 ```java
 // Full entity (for admin users).
-@DbTable("user")
 public record User(
     @PK int id,
     String name,
