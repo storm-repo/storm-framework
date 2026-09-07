@@ -1671,7 +1671,7 @@ ${navHtml('benchmarks')}
 
   <div class="bm-stats">
     <div class="bm-stat"><b>5 of 12</b><span>workloads where Storm is fastest, with no framework within 3%.</span></div>
-    <div class="bm-stat"><b>11 of 12</b><span>workloads where Storm is within 3% of the fastest, the band inside which a repeat run reorders the field.</span></div>
+    <div class="bm-stat"><b>11 of 12</b><span>workloads where Storm is within 3% of the fastest.</span></div>
     <div class="bm-stat"><b>Only ORM</b><span>in the top three on every workload. No other ORM manages more than eight, and Storm's worst placing across the suite is third.</span></div>
   </div>
   ${heroArt('benchmarks', {priority: true})}
