@@ -35,7 +35,7 @@ dependencies {
 
 See [Installation](installation.md#gradle-plugin-recommended) for the plugin's `storm { }` options and the manual setup if you prefer explicit configuration.
 
-Storm integrates with Ktor's built-in dependency injection out of the box (see [Dependency Injection](#dependency-injection)); if your project uses [Koin](https://insert-koin.io/) instead, see [Using with Koin](#using-with-koin).
+Storm integrates with Ktor's built-in dependency injection out of the box (see [Dependency Injection](#dependency-injection)).
 
 ---
 
@@ -73,7 +73,7 @@ storm {
 }
 ```
 
-The plugin reads Storm ORM properties from the same `storm` section (see [Configuration](#configuration) below).
+The plugin reads Storm ORM properties from the same `storm` section (see [Configuration](#configuration) below). Configuration files are loaded by Ktor's `EngineMain` entry point (`fun main(args: Array<String>) = EngineMain.main(args)`); a hand-built `embeddedServer` starts from an empty configuration unless you pass one explicitly.
 
 ### Explicit DataSource
 
@@ -208,7 +208,7 @@ Use `transaction { }` to group writes into a single atomic operation. The transa
 post("/users") {
     val request = call.receive<CreateUserRequest>()
     val user = transaction {
-        call.orm insert User(email = request.email, name = request.name, city = city)
+        call.orm insert User(email = request.email, name = request.name)
     }
     call.respond(HttpStatusCode.Created, user)
 }
@@ -232,7 +232,7 @@ routing {
         put("/owners/{id}") { ... }
     }
 
-    // Reads that need one consistent snapshot across several queries.
+    // Reads that span several queries: one transaction, hinted read-only.
     transactional(readOnly = true) {
         get("/reports/summary") { ... }
     }
@@ -270,7 +270,7 @@ All seven Spring-style propagation modes are supported: `REQUIRED` (default), `R
 
 ### Read-Only Transactions
 
-For queries that benefit from repeatable-read consistency (e.g., generating a report from multiple queries that must see the same data snapshot), use a read-only transaction:
+For reads that span several queries, such as a report assembled from multiple lookups, run them in one transaction and mark it read-only:
 
 ```kotlin
 get("/reports/summary") {
@@ -283,7 +283,7 @@ get("/reports/summary") {
 }
 ```
 
-Read-only transactions hint the database driver to optimize for reads and enable Storm's entity cache to serve repeated lookups within the same transaction without re-querying the database.
+Read-only is a hint, not an enforcement mechanism: it lets the database optimize for reads, such as taking lighter locks, and the database may or may not reject writes. See [Transactions](transactions.md#read-only-transactions) for the details.
 
 ---
 
@@ -470,41 +470,6 @@ val reportsByType: ReportRepository by dependencies
 
 Repositories keep unnamed dependency keys because package partitioning makes each repository type belong to exactly one database; only the templates need names. Transactions bind to one database per physical transaction: a `transaction { }` block binds to the database of the first template that runs in it, and a single block cannot atomically span databases.
 
-### Using with Koin
-
-If your project uses Koin for dependency injection, the same integration is a few lines of application code, because the plugin exposes `Application.orm` and the repository registry, which any DI framework can consume:
-
-```kotlin
-fun Application.stormModule(): Module {
-    val ormTemplate = orm
-    val registry = stormRepositories { }
-    return module {
-        single { ormTemplate }
-        registry.forEach { type, instance ->
-            @Suppress("UNCHECKED_CAST")
-            single { instance } bind (type as KClass<Repository>)
-        }
-    }
-}
-
-fun Application.module() {
-    install(Storm)
-
-    install(Koin) {
-        modules(
-            stormModule(),
-            module {
-                // Repositories are injected by type; no manual lookups.
-                singleOf(::TopMoviesService)
-                singleOf(::WatchlistService)
-            },
-        )
-    }
-}
-```
-
-With auto-registration (the default), this module covers the application's entire repository layer, so services declare repositories as plain constructor parameters and Koin's constructor DSL (`singleOf`) wires them without any Storm-specific code. Install the Storm plugin before Koin so the repositories are registered when the module is built.
-
 ---
 
 ## Configuration
@@ -573,7 +538,7 @@ A named database reads the same keys under `storm.databases.<name>`, inheriting 
 
 ### Environment-Specific Configuration
 
-HOCON supports substitution and include directives, making it straightforward to maintain environment-specific configurations without code changes. Define sensible defaults in `application.conf` and override them per environment:
+Define sensible defaults in `application.conf` and keep each environment's overrides in a file of its own. `EngineMain` accepts multiple `-config` parameters and merges them in order, so the environment is selected at launch, without code changes:
 
 ```hocon
 # application.conf (default / development)
@@ -601,13 +566,13 @@ storm {
 }
 ```
 
-Include the environment file with:
+Start the application with both files; keys in later files override those in earlier ones:
 
-```hocon
-include "application-${?KTOR_ENV}.conf"
+```shell
+java -jar app.jar -config=application.conf -config=application-production.conf
 ```
 
-Set the `KTOR_ENV` environment variable to select the active profile (e.g., `KTOR_ENV=production`). Properties in the included file override those in `application.conf`.
+Each `-config` value resolves against the classpath first, then the file system. Passing any `-config` parameter replaces the default `application.conf` lookup entirely, so list the defaults first and the environment file after it. Secrets stay out of both files: `${DB_USER}` and `${DB_PASSWORD}` are substituted from environment variables when the configuration loads.
 
 ---
 
@@ -731,7 +696,7 @@ dependencies {
 }
 ```
 
-With tracing in place, the `sqlCommenter` slot appends the current trace context to statements as a sqlcommenter-style comment, correlating database-side diagnostics such as slow query logs back to the trace. Opt-in: a per-execution comment defeats prepared statement caching; `TraceContextSqlCommenter(tracer, onlySampled = true)` limits the comments to sampled traces.
+With tracing in place, the `sqlCommenter` slot appends the current trace context to statements as a sqlcommenter-style comment, correlating database-side diagnostics such as slow query logs back to the trace. Opt-in: a per-execution comment defeats prepared statement caching; the `onlySampled` constructor argument (`TraceContextSqlCommenter(tracer, true)`) limits the comments to sampled traces.
 
 ```kotlin
 install(Storm) {
@@ -859,12 +824,11 @@ Both approaches use H2 in-memory databases by default. To run a `@StormTest` cla
 A minimal but complete Ktor application with Storm, showing plugin setup, repository registration, CRUD routes, and HOCON configuration:
 
 ```kotlin
+// UserRepository.kt
+interface UserRepository : EntityRepository<User, Int>
+
 // Application.kt
-fun main(args: Array<String>) {
-    embeddedServer(Netty, port = 8080) {
-        module()
-    }.start(wait = true)
-}
+fun main(args: Array<String>) = EngineMain.main(args)
 
 fun Application.module() {
     install(Storm)
@@ -884,11 +848,12 @@ fun Application.module() {
 
         get("/users/{id}") {
             val id = call.parameters.getOrFail("id").toInt()
-            val user = call.orm.entity<User>().findById(id)
+            val user = call.repository<UserRepository>().findById(id)
             call.respond(user ?: HttpStatusCode.NotFound)
         }
 
         post("/users") {
+            // Ad-hoc write through the template; the infix insert needs no repository interface.
             val request = call.receive<CreateUserRequest>()
             val user = transaction {
                 call.orm insert User(email = request.email, name = request.name)
@@ -899,7 +864,7 @@ fun Application.module() {
         delete("/users/{id}") {
             val id = call.parameters.getOrFail("id").toInt()
             transaction {
-                call.orm.entity<User>().removeById(id)
+                call.repository<UserRepository>().removeById(id)
             }
             call.respond(HttpStatusCode.NoContent)
         }
@@ -909,6 +874,15 @@ fun Application.module() {
 
 ```hocon
 # application.conf
+ktor {
+    deployment {
+        port = 8080
+    }
+    application {
+        modules = [ com.myapp.ApplicationKt.module ]
+    }
+}
+
 storm {
     datasource {
         jdbcUrl = "jdbc:postgresql://localhost:5432/mydb"
