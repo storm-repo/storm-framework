@@ -92,10 +92,10 @@ interface UserRepository extends EntityRepository<User, Integer> {
 
 Key rules:
 1. ALL query methods have EXPLICIT BODIES with `default` keyword. Storm does NOT derive queries from method names.
-2. Inherited CRUD: insert, insertAndFetch, update, remove, removeById, removeByRef, removeAll, findById, getById, findBy(Key), findAll, findAllRef, count, existsById, page, pageRef, scroll.
+2. Inherited CRUD: insert, insertAndFetch, update, remove, removeById, removeByRef, removeAll, findById, getById, findBy(Key), findAll, findAllRef, count, existsById, page, pageRef, scroll, windows.
 3. Descriptive variable names: `var users = orm.entity(User.class)`, not `var repo`.
 4. QueryBuilder is IMMUTABLE. Always chain or capture the return value.
-5. Streaming: `select().getResultStream()` returns a `Stream`. ALWAYS use try-with-resources to avoid connection leaks.
+5. Streaming: `select().getResultStream()` returns a `Stream`. ALWAYS use try-with-resources to avoid connection leaks. While rows remain unread it is one statement and its connection is consume-only (a query, `Ref.fetch()` or write from the loop inside a transaction throws, on every database). A loop that reads or writes per row uses `windows(size)` (`Stream<Window<E>>`): one closed statement per window, nothing to close, write per window with `update(window.content().stream().map(...).toList())`.
 6. DELETE/UPDATE without WHERE throws. Use `unsafe()` for intentional bulk ops.
 7. Pagination: `page(0, 20)` for offset-based. `scroll(scrollable)` for keyset on large tables.
 8. **Prefer entity/metamodel-based methods over templates.** Use `.innerJoin(Entity.class).on(OtherEntity.class)` for joins unless it cannot be expressed with entity classes. Only fall back to template lambdas when QueryBuilder cannot express the query.
@@ -123,7 +123,7 @@ Unlike Kotlin, Java has no `select(predicate)` / `delete(predicate)` shorthand a
 - **Exists/Count:** `count()`, `exists()`, `existsById()`, `existsByRef()`, `countBy(field, value)`
 - **Write:** `insert()`, `insertAndFetch()`, `update()`, `updateAndFetch()`, `upsert()`, `upsertAndFetch()`
 - **Remove:** `remove(entity)`, `removeById(id)`, `removeByRef(ref)`, `removeAll()`, `removeAllBy(field, value)`, `remove(Iterable)`, `removeByRef(Iterable)`, `remove(Stream)`, `removeByRef(Stream)`
-- **Pagination:** `page()`, `pageRef()`, `scroll()`
+- **Pagination:** `page()`, `pageRef()`, `scroll()`, `windows()`
 
 **Level 2 — Builder** returns `QueryBuilder` for chaining ordering, pagination, or joins:
 ```java
@@ -131,7 +131,7 @@ users.select().where(User_.city, EQUALS, city)
     .orderBy(User_.name).getResultList();
 ```
 
-Terminal operations: `.getResultList()`, `.getSingleResult()`, `.getOptionalResult()`, `.getResultStream()`, `.getResultCount()`, `.page()`, `.scroll()`, `.executeUpdate()`
+Terminal operations: `.getResultList()`, `.getSingleResult()`, `.getOptionalResult()`, `.getResultStream()`, `.windows(size)`, `.getResultCount()`, `.page()`, `.scroll()`, `.executeUpdate()`
 
 The `find`/`get` distinction: `find` returns `Optional` (no result = empty), `get` throws `NoResultException`.
 
@@ -383,11 +383,18 @@ try (Stream<User> stream = users.select()
     stream.forEach(System.out::println);
 }
 
+// A stream with rows still unread is one statement: its connection is consume-only, so inside a transaction a query,
+// Ref.fetch() or write from the loop throws. Loops that need the database use windows: keyset windows
+// over the primary key, one closed statement per window, connection free in between, nothing to close.
+users.select().where(User_.active, EQUALS, true).windows(1000).forEach(window ->
+    users.update(window.content().stream().map(user -> /* copy with changes */ user).toList()));
+
 // Count via Stream
 long count = users.countById(idStream);
 long count = users.countByRef(refStream, chunkSize);
 
-// Batch insert/update/remove via Stream
+// Batch insert/update/remove via Stream. Feed an in-memory stream; a getResultStream() of the same
+// transaction is refused as soon as a batch executes while that stream still has rows unread.
 users.insert(userStream);
 users.insert(userStream, batchSize);
 users.update(userStream);

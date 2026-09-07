@@ -157,7 +157,7 @@ Repository/entity methods fall into two categories:
 - `selectCount()` -- build COUNT queries
 - `delete()`, `delete(predicate)`, `delete { }` -- build DELETE queries
 
-Terminal operations: `.resultList`, `.singleResult`, `.optionalResult`, `.resultFlow`, `.resultStream`, `.resultCount`, `.resultGroupedBy(path)`, `.resultGroupedByRef(path)`, `.page()`, `.scroll()`, `.executeUpdate()`
+Terminal operations: `.resultList`, `.singleResult`, `.optionalResult`, `.resultFlow`, `.resultStream`, `.windows(size)`, `.resultCount`, `.resultGroupedBy(path)`, `.resultGroupedByRef(path)`, `.page()`, `.scroll()`, `.executeUpdate()`
 
 **One-to-many loading:** `resultGroupedBy(path)` groups results by a related record, typically the parent entity of a foreign key. The same select is executed (single query, no SQL change) and the results are grouped during hydration into an unmodifiable, insertion-ordered `Map<Parent, List<T>>`. Repeated parents are materialized once and grouped by instance identity, so the join's duplication is not paid during hydration. The path must resolve non-null for every result. The ref-based variant returns `Map<Ref<Parent>, List<T>>` with keys compared by primary key. For eager entity paths the keys are loaded refs (`getOrNull()` returns the already-materialized record); for `Ref` foreign-key fields it groups directly on the foreign key without fetching the parent, and `findAllByRef(map.keys)` fetches the parents in one query when needed.
 
@@ -199,7 +199,7 @@ Prefer the simplest approach that works. Four query levels, from simplest to mos
 | Parents with their children (one-to-many) | `select().resultGroupedBy(parentPath)` | per-parent queries in a loop (N+1) or manual `groupBy` after `resultList` |
 | Filtered + **ordering/pagination** | `select(predicate).orderBy(...).resultList` | convenience methods (can't add ordering) |
 | Filtered + **joins** | `select { }` or `select().innerJoin(...)` | convenience methods (can't add joins) |
-| Filtered + **streaming** | `select(predicate).resultFlow` | convenience methods (return List, not Flow) |
+| Filtered + **streaming** | `select(predicate).resultFlow` (consume-only) or `.windows(size)` (loop may query/write) | convenience methods (return List, not Flow) |
 | Aggregates, CTEs, window functions | SQL Template (/storm-sql-kotlin) | QueryBuilder (can't express these) |
 
 The rule: **escalate only when the simpler level cannot express what you need.** If you need ordering, you need at least Level 2. If you need joins, you need Level 2 or 3. If you need CTEs or window functions, you need Level 4.
@@ -713,8 +713,9 @@ QueryBuilder terminals:
 - `.singleResult` → `R` (throws `NoResultException` if empty, `NonUniqueResultException` if multiple)
 - `.optionalResult` → `R?` (null if empty, throws if multiple)
 - `.resultCount` → `Long`
-- `.resultFlow` → `Flow<R>` (lazy, coroutines-based)
-- `.resultStream` → `Stream<R>` (lazy, must close after use)
+- `.resultFlow` → `Flow<R>` (lazy, coroutines-based; one open statement, the connection is consume-only while collecting)
+- `.resultStream` → `Stream<R>` (lazy, must close after use; same connection rule)
+- `.windows(size)` / `.windows(scrollable)` → `Flow<Window<R>>` (keyset windows over the primary key, one closed statement per window; the loop may query, fetch refs and write between windows; nothing to close)
 - `.page(pageNumber, pageSize)` → `Page<R>` (offset-based pagination)
 - `.scroll(scrollable)` → `Window<R>` (keyset scrolling — do NOT combine with `orderBy()`, see Keyset Scrolling section). Use `next()` / `previous()` for programmatic navigation, or `nextCursor()` / `previousCursor()` for REST APIs.
 - `.executeUpdate()` → `Int` (for DELETE/UPDATE)
@@ -723,7 +724,7 @@ Critical rules:
 - QueryBuilder is IMMUTABLE. Every method returns a new instance. Always use the return value (or use the `select { }` DSL which handles this automatically).
 - Multiple .where() calls are AND-combined.
 - DELETE/UPDATE without WHERE throws. Use unsafe().
-- Streaming: `select().resultFlow` returns a Flow with automatic cleanup. There are no `selectBy` methods that return Flow/Stream directly -- always use `select()` (optionally with predicate or block DSL) and then `.resultFlow` or `.resultStream`.
+- Streaming: `select().resultFlow` returns a Flow with automatic cleanup. While rows remain to be emitted the flow is one open statement and its connection is consume-only: inside `transaction { }` a query, `Ref.fetch()` or write from the collector throws `PersistenceException`, on every database. For a loop that reads or writes per row use `select().windows(size)` (`Flow<Window<R>>`): one closed statement per window, the connection is free between windows, write per window with `update(window.content().map { ... })`. There are no `selectBy` methods that return Flow/Stream directly -- always use `select()` (optionally with predicate or block DSL) and then `.resultFlow`, `.resultStream` or `.windows(size)`.
 - **Metamodel navigation depth**: Multiple levels of navigation are allowed on the root entity. Joined (non-root) entities can only navigate one level deep. For deeper navigation, explicitly join the intermediate entity.
 - **Use `Ref` for map keys and set membership**: Prefer `Ref<Entity>` (via `.ref()`) for map keys, set membership, and identity-based lookups. `Ref` provides identity-based `equals`/`hashCode` on the primary key:
   ```kotlin

@@ -113,6 +113,10 @@ internal class EntityRepositoryImpl<E, ID : Any>(
 
     override fun scroll(scrollable: Scrollable<E>): Window<E> = select().scroll(scrollable)
 
+    override fun windows(size: Int): Flow<Window<E>> = select().windows(size)
+
+    override fun windows(scrollable: Scrollable<E>): Flow<Window<E>> = select().windows(scrollable)
+
     override fun findById(id: ID): E? = core.findById(id).orElse(null)
 
     override fun findByRef(ref: Ref<E>): E? = core.findByRef(ref).orElse(null)

@@ -41,7 +41,7 @@ Repository/entity methods fall into two categories:
 
 (The `select(predicate)` / `delete(predicate)` shorthands are Kotlin-only — in Java, chain `.where(...)` on the builder.)
 
-Terminal operations: `.getResultList()`, `.getSingleResult()`, `.getOptionalResult()`, `.getResultStream()`, `.getResultCount()`, `.getResultGroupedBy(path)`, `.getResultGroupedByRef(path)`, `.page()`, `.scroll()`, `.executeUpdate()`
+Terminal operations: `.getResultList()`, `.getSingleResult()`, `.getOptionalResult()`, `.getResultStream()`, `.windows(size)`, `.getResultCount()`, `.getResultGroupedBy(path)`, `.getResultGroupedByRef(path)`, `.page()`, `.scroll()`, `.executeUpdate()`
 
 **One-to-many loading:** `getResultGroupedBy(path)` groups results by a related record, typically the parent entity of a foreign key. The same select is executed (single query, no SQL change) and the results are grouped during hydration into an unmodifiable, insertion-ordered `Map<Parent, List<T>>`. Repeated parents are materialized once and grouped by instance identity, so the join's duplication is not paid during hydration. The path must resolve non-null for every result. The ref-based variant returns `Map<Ref<Parent>, List<T>>` with keys compared by primary key. For eager entity paths the keys are loaded refs (`getOrNull()` returns the already-materialized record); for `Ref` foreign-key fields it groups directly on the foreign key without fetching the parent, and `findAllByRef(map.keys)` fetches the parents in one query when needed.
 
@@ -79,7 +79,7 @@ Prefer the simplest approach that works. Three query levels, from simplest to mo
 | Parents with their children (one-to-many) | `select().getResultGroupedBy(parentPath)` | per-parent queries in a loop (N+1) or manual grouping after `getResultList()` |
 | Filtered + **ordering/pagination** | `select().where(...).orderBy(...).getResultList()` | convenience methods (can't add ordering) |
 | Filtered + **joins** | `select().innerJoin(...).on(...).getResultList()` | convenience methods (can't add joins) |
-| Filtered + **streaming** | `select().where(...).getResultStream()` | convenience methods (return List, not Stream) |
+| Filtered + **streaming** | `select().where(...).getResultStream()` (consume-only) or `.windows(size)` (loop may query/write) | convenience methods (return List, not Stream) |
 | Aggregates, CTEs, window functions | SQL Template (/storm-sql-java) | QueryBuilder (can't express these) |
 
 The rule: **escalate only when the simpler level cannot express what you need.** If you need ordering, you need Level 2. If you need CTEs or window functions, you need Level 3.
@@ -116,6 +116,8 @@ Ordering: `.orderBy(User_.name)`, `.orderByDescending(User_.createdAt)`
 Limit/Offset: `.limit(10)`, `.offset(20)`
 Pagination: `.page(0, 20)` or `.page(Pageable.ofSize(20).sortBy(User_.name))`
 Scrolling (keyset): `.scroll(Scrollable.of(User_.id, 20))` — do NOT combine with `orderBy()` (Scrollable manages ORDER BY internally, see Keyset Scrolling section)
+
+Streaming: `.getResultStream()` is one open statement; while rows remain unread its connection is consume-only, so inside a transaction a query, `Ref.fetch()` or write from the loop throws `PersistenceException`, on every database. A loop that reads or writes per row uses `.windows(size)` (`Stream<Window<R>>`): keyset windows over the primary key, one closed statement per window, the connection is free between windows, nothing to close; write per window with `update(window.content().stream().map(...).toList())`.
 Explicit joins: `.innerJoin(Entity.class).on(OtherEntity.class)`, `.leftJoin(Entity.class).on(OtherEntity.class)`, `.rightJoin(Entity.class).on(OtherEntity.class)`
 **Auto-join types follow FK nullability.** A `@FK` record component is non-null by default, so its auto-join is an INNER JOIN. Mark the component `@Nullable` (JSpecify `org.jspecify.annotations.Nullable` or `jakarta.annotation.Nullable`) when the FK column allows NULL; that produces a LEFT JOIN. If generated SQL shows INNER JOIN where you expect LEFT JOIN, the FK component is missing `@Nullable` in the entity.
 Result type: `.select(ResultType.class)` to return a different type than the root entity. **Cross-entity pitfall:** Selecting a different entity type from the wrong root repository can fail with "Cannot find alias for column" when both entities have columns with the same name (e.g., `id`). Put the query on the target entity's repository instead.

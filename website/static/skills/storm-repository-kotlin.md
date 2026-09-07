@@ -109,10 +109,10 @@ interface UserRepository : EntityRepository<User, Int> {
 
 Key rules:
 1. ALL query methods have EXPLICIT BODIES. Storm does NOT derive queries from method names.
-2. Inherited CRUD: insert, update, remove, removeById, removeByRef, removeAll, findById, findBy(Key), count, existsById, page, scroll.
+2. Inherited CRUD: insert, update, remove, removeById, removeByRef, removeAll, findById, findBy(Key), count, existsById, page, scroll, windows.
 3. Descriptive variable names: `val users = orm.entity<User>()`, not `val repo`.
 4. QueryBuilder is IMMUTABLE. Always chain or capture the return value (or use the `select { }` DSL which handles this automatically).
-5. Streaming: `select().resultFlow` returns a `Flow` with automatic resource cleanup.
+5. Streaming: `select().resultFlow` returns a `Flow` with automatic resource cleanup; while rows remain to be emitted it is one open statement and its connection is consume-only (a query, `Ref.fetch()` or write from the collector inside `transaction { }` throws, on every database). A loop that reads or writes per row uses `windows(size)` (`Flow<Window<E>>`): one closed statement per window, write per window with `update(window.content().map { ... })`.
 6. DELETE/UPDATE without WHERE throws. Use `unsafe()` for intentional bulk ops.
 7. Pagination: `page(0, 20)` for offset-based. `scroll(Scrollable.of(User_.id, 20))` for keyset on large tables (see Keyset Scrolling section).
 8. **Prefer entity/metamodel-based methods over templates.** For joins, use `innerJoin<Entity, OnEntity>()` in the block DSL, or `.innerJoin<Entity>().on<OnEntity>()` in the chained API. Only fall back to template lambdas when QueryBuilder cannot express the query.
@@ -138,7 +138,7 @@ Four levels, from simplest to most powerful — always prefer the simplest that 
 - **Exists/Count:** `count()`, `count(predicate)`, `exists()`, `exists(predicate)`, `existsById()`, `existsByRef()`, `countBy(field, value)`
 - **Write:** `insert()`, `insertAndFetch()`, `update()`, `updateAndFetch()`, `upsert()`, `upsertAndFetch()`
 - **Remove:** `remove(entity)`, `removeById(id)`, `removeByRef(ref)`, `removeAll()`, `removeAll(predicate)`, `removeAllBy(field, value)`, `remove(Iterable)`, `removeByRef(Iterable)`, `remove(Flow)`, `removeByRef(Flow)`
-- **Pagination:** `page()`, `pageRef()`, `scroll()`
+- **Pagination:** `page()`, `pageRef()`, `scroll()`, `windows()`
 
 **Level 2 — Builder with predicate** returns `QueryBuilder` for chaining ordering, pagination, or joins:
 ```kotlin
@@ -170,7 +170,7 @@ users.delete {
 }.executeUpdate()
 ```
 
-Terminal operations: `.resultList`, `.singleResult`, `.optionalResult`, `.resultFlow`, `.resultStream`, `.resultCount`, `.page()`, `.scroll()`, `.executeUpdate()`
+Terminal operations: `.resultList`, `.singleResult`, `.optionalResult`, `.resultFlow`, `.resultStream`, `.windows(size)`, `.resultCount`, `.page()`, `.scroll()`, `.executeUpdate()`
 
 The `find`/`get` distinction: `find` returns nullable (no result = null), `get` throws `NoResultException`.
 
@@ -487,11 +487,19 @@ val allUsers: Flow<User> = users.select().resultFlow
 // Stream with filter (builder method + terminal)
 val activeUsers: Flow<User> = users.select(User_.active eq true).resultFlow
 
+// A flow with rows still to emit is one open statement: its connection is consume-only, so inside transaction { }
+// a query, Ref.fetch() or write from the collector throws. Loops that need the database use windows:
+// keyset windows over the primary key, one closed statement per window, connection free in between.
+users.select(User_.active eq true).windows(1000).collect { window ->
+    users.update(window.content().map { it.copy(processed = true) })   // one batched statement per window
+}
+
 // Count via Flow
 val count: Long = users.countById(idFlow)
 val count: Long = users.countByRef(refFlow, chunkSize = 500)
 
-// Batch insert/update/remove via Flow (suspending)
+// Batch insert/update/remove via Flow (suspending). Feed an in-memory flow; a resultFlow of the same
+// transaction is refused as soon as a batch executes while that flow still has rows to emit.
 users.insert(userFlow, batchSize = 100)
 users.update(userFlow, batchSize = 100)
 users.remove(userFlow, batchSize = 100)
