@@ -61,7 +61,6 @@ import st.orm.core.template.impl.Elements.TemplateExpression;
 import st.orm.core.template.impl.Elements.TemplateSource;
 import st.orm.core.template.impl.Elements.TemplateTarget;
 import st.orm.core.template.impl.Elements.Where;
-import st.orm.impl.PositionAccess;
 
 /**
  * Abstract query builder implementation.
@@ -132,7 +131,12 @@ abstract class QueryBuilderImpl<T extends Data, R, ID> extends QueryBuilder<T, R
         boolean reverse = position != null && !position.after();
         QueryBuilder<T, R, ID> query = this;
         if (position != null) {
-            var values = PositionAccess.values(position);
+            var values = PositionImpl.of(position).values();
+            if (values.size() != orders.size()) {
+                throw new IllegalArgumentException(
+                        "A position carries one value per sort field and one for the key: expected %d values, got %d."
+                                .formatted(orders.size(), values.size()));
+            }
             query = query.where(wb -> keysetPredicate(wb, orders, values, reverse));
         }
         for (var order : orders) {

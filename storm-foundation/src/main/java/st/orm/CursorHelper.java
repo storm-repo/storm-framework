@@ -18,27 +18,23 @@ package st.orm;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.util.List;
-import st.orm.impl.PositionAccess;
 
 /**
- * Bridges cursor serialization to the codec registry in storm-core, so the foundation carries the types and the
- * engine carries the codecs.
+ * Bridges positions and cursor serialization to storm-core, so the foundation carries the types and the engine
+ * carries the values and the codecs.
  */
 final class CursorHelper {
 
+    private static final Method POSITION_METHOD;
     private static final Method TO_CURSOR_METHOD;
     private static final Method FROM_CURSOR_METHOD;
-    private static final Method CONTENT_AFTER_METHOD;
-    private static final Method CONTENT_VALUES_METHOD;
 
     static {
         try {
             Class<?> factoryClass = Class.forName("st.orm.core.spi.CursorFactory");
-            TO_CURSOR_METHOD = factoryClass.getMethod("toCursor", int.class, boolean.class, List.class);
+            POSITION_METHOD = factoryClass.getMethod("position", List.class, boolean.class);
+            TO_CURSOR_METHOD = factoryClass.getMethod("toCursor", int.class, Position.class);
             FROM_CURSOR_METHOD = factoryClass.getMethod("fromCursor", int.class, String.class, Class[].class);
-            Class<?> contentClass = FROM_CURSOR_METHOD.getReturnType();
-            CONTENT_AFTER_METHOD = contentClass.getMethod("after");
-            CONTENT_VALUES_METHOD = contentClass.getMethod("values");
         } catch (ReflectiveOperationException e) {
             var ex = new ExceptionInInitializerError(
                     "Failed to initialize cursor serialization. "
@@ -51,23 +47,17 @@ final class CursorHelper {
     private CursorHelper() {}
 
     /**
+     * Builds a position from the values of the sort fields and the key, in that order.
+     */
+    static Position position(List<Object> values, boolean after) {
+        return (Position) invoke(POSITION_METHOD, values, after);
+    }
+
+    /**
      * Serializes a position into a Base64 URL-safe string under the fingerprint of its ordering.
      */
     static String toCursor(int orderingFingerprint, Position position) {
-        try {
-            try {
-                return (String) TO_CURSOR_METHOD.invoke(
-                        null, orderingFingerprint, position.after(), PositionAccess.values(position));
-            } catch (InvocationTargetException e) {
-                throw e.getTargetException();
-            } catch (ReflectiveOperationException e) {
-                throw new PersistenceException("Reflection invocation failed for CursorFactory.toCursor.", e);
-            }
-        } catch (RuntimeException | Error e) {
-            throw e;
-        } catch (Throwable t) {
-            throw new PersistenceException(t);
-        }
+        return (String) invoke(TO_CURSOR_METHOD, orderingFingerprint, position);
     }
 
     /**
@@ -75,16 +65,17 @@ final class CursorHelper {
      * against the declared field type where that type is a plain value type.
      */
     static Position fromCursor(int orderingFingerprint, String cursor, Class<?>[] valueTypes) {
+        return (Position) invoke(FROM_CURSOR_METHOD, orderingFingerprint, cursor, valueTypes);
+    }
+
+    private static Object invoke(Method method, Object... arguments) {
         try {
             try {
-                Object content = FROM_CURSOR_METHOD.invoke(null, orderingFingerprint, cursor, valueTypes);
-                @SuppressWarnings("unchecked")
-                var values = (List<Object>) CONTENT_VALUES_METHOD.invoke(content);
-                return new Position(values, (boolean) CONTENT_AFTER_METHOD.invoke(content));
+                return method.invoke(null, arguments);
             } catch (InvocationTargetException e) {
                 throw e.getTargetException();
             } catch (ReflectiveOperationException e) {
-                throw new PersistenceException("Reflection invocation failed for CursorFactory.fromCursor.", e);
+                throw new PersistenceException("Reflection invocation failed for CursorFactory." + method.getName() + ".", e);
             }
         } catch (RuntimeException | Error e) {
             throw e;

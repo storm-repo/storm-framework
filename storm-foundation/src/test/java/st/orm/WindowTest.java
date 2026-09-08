@@ -57,7 +57,7 @@ class WindowTest {
 
     @Test
     void windowWithNextScrollableHasNext() {
-        var next = Scrollable.of(KEY, 20).after(42);
+        var next = Scrollable.of(KEY, 20);
         var window = new Window<>(List.of("a", "b"), true, false, next, null);
         assertTrue(window.hasNext());
         assertFalse(window.hasPrevious());
@@ -67,7 +67,7 @@ class WindowTest {
 
     @Test
     void windowWithPreviousScrollableHasPrevious() {
-        var prev = Scrollable.of(KEY, 20).before(1);
+        var prev = Scrollable.of(KEY, 10);
         var window = new Window<>(List.of("a", "b"), false, true, null, prev);
         assertFalse(window.hasNext());
         assertTrue(window.hasPrevious());
@@ -77,8 +77,8 @@ class WindowTest {
 
     @Test
     void windowWithBothNavigations() {
-        var next = Scrollable.of(KEY, 20).after(42);
-        var prev = Scrollable.of(KEY, 20).before(1);
+        var next = Scrollable.of(KEY, 20);
+        var prev = Scrollable.of(KEY, 10);
         var window = new Window<>(List.of("a", "b"), true, true, next, prev);
         assertTrue(window.hasNext());
         assertTrue(window.hasPrevious());
@@ -106,23 +106,21 @@ class WindowTest {
 
     @Test
     void nextReturnsTypedScrollable() {
-        var scrollable = Scrollable.of(KEY, 20).after(42);
+        var scrollable = Scrollable.of(KEY, 20);
         var window = new Window<>(List.of("a", "b"), true, false, scrollable, null);
         Scrollable<Data> typed = window.next();
         assertNotNull(typed);
-        assertEquals(scrollable.position(), typed.position());
-        assertTrue(typed.position().after());
+        assertEquals(scrollable, typed);
         assertEquals(20, typed.size());
     }
 
     @Test
     void previousReturnsTypedScrollable() {
-        var scrollable = Scrollable.of(KEY, 20).before(1);
+        var scrollable = Scrollable.of(KEY, 10);
         var window = new Window<>(List.of("a", "b"), false, true, null, scrollable);
         Scrollable<Data> typed = window.previous();
         assertNotNull(typed);
-        assertEquals(scrollable.position(), typed.position());
-        assertFalse(typed.position().after());
+        assertEquals(scrollable, typed);
     }
 
     @Test

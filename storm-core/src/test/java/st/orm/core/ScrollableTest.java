@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package st.orm;
+package st.orm.core;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -24,6 +24,11 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import java.lang.reflect.Proxy;
 import java.util.List;
 import org.junit.jupiter.api.Test;
+import st.orm.Data;
+import st.orm.Metamodel;
+import st.orm.Order;
+import st.orm.Scrollable;
+import st.orm.core.template.impl.PositionImpl;
 
 class ScrollableTest {
 
@@ -99,10 +104,10 @@ class ScrollableTest {
     @Test
     void afterAndBeforeCarryOneValuePerFieldThenTheKey() {
         var after = Scrollable.of(KEY, 20).sortBy(SORT).after("Carter", 3);
-        assertEquals(new Position(List.of("Carter", 3), true), after.position());
+        assertEquals(List.of("Carter", 3), PositionImpl.of(after.position()).values());
         assertTrue(after.position().after());
         var before = Scrollable.of(KEY, 20).sortBy(SORT).before("Carter", 3);
-        assertEquals(new Position(List.of("Carter", 3), false), before.position());
+        assertEquals(List.of("Carter", 3), PositionImpl.of(before.position()).values());
         assertFalse(before.position().after());
     }
 
@@ -110,7 +115,7 @@ class ScrollableTest {
     void positionMustMatchTheOrdering() {
         assertThrows(IllegalArgumentException.class, () -> Scrollable.of(KEY, 20).after("Carter", 3));
         assertThrows(IllegalArgumentException.class, () -> Scrollable.of(KEY, 20).sortBy(SORT).after(3));
-        assertThrows(IllegalArgumentException.class, () -> new Position(List.of(), true));
+        assertThrows(IllegalArgumentException.class, () -> new PositionImpl(List.of(), true));
     }
 
     @Test

@@ -66,11 +66,6 @@ public record Scrollable<T extends Data>(
         if (size <= 0) {
             throw new IllegalArgumentException("size must be positive.");
         }
-        if (position != null && position.size() != sort.size() + 1) {
-            throw new IllegalArgumentException(
-                    "A position carries one value per sort field and one for the key: expected %d values, got %d."
-                            .formatted(sort.size() + 1, position.size()));
-        }
     }
 
     /**
@@ -150,7 +145,7 @@ public record Scrollable<T extends Data>(
      * @since 1.14
      */
     public Scrollable<T> after(Object... values) {
-        return at(new Position(List.of(values), true));
+        return at(position(values, true));
     }
 
     /**
@@ -162,7 +157,16 @@ public record Scrollable<T extends Data>(
      * @since 1.14
      */
     public Scrollable<T> before(Object... values) {
-        return at(new Position(List.of(values), false));
+        return at(position(values, false));
+    }
+
+    private Position position(Object[] values, boolean after) {
+        if (values.length != sort.size() + 1) {
+            throw new IllegalArgumentException(
+                    "A position carries one value per sort field and one for the key: expected %d values, got %d."
+                            .formatted(sort.size() + 1, values.length));
+        }
+        return CursorHelper.position(List.of(values), after);
     }
 
     private Scrollable<T> at(Position position) {
