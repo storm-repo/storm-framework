@@ -110,7 +110,7 @@ class WindowTest {
         var window = new Window<>(List.of("a", "b"), true, false, scrollable, null);
         Scrollable<Data> typed = window.next();
         assertNotNull(typed);
-        assertEquals(List.of(42), typed.position().values());
+        assertEquals(scrollable.position(), typed.position());
         assertTrue(typed.position().after());
         assertEquals(20, typed.size());
     }
@@ -121,7 +121,7 @@ class WindowTest {
         var window = new Window<>(List.of("a", "b"), false, true, null, scrollable);
         Scrollable<Data> typed = window.previous();
         assertNotNull(typed);
-        assertEquals(List.of(1), typed.position().values());
+        assertEquals(scrollable.position(), typed.position());
         assertFalse(typed.position().after());
     }
 

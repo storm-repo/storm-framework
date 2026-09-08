@@ -119,7 +119,7 @@ public record Window<R>(
      *
      * @return the cursor string, or {@code null}.
      * @see Scrollable#toCursor()
-     * @see Scrollable#fromCursor(Metamodel.Key, String)
+     * @see Scrollable#from(String)
      */
     @Nullable
     public String nextCursor() {
@@ -135,7 +135,7 @@ public record Window<R>(
      *
      * @return the cursor string, or {@code null}.
      * @see Scrollable#toCursor()
-     * @see Scrollable#fromCursor(Metamodel.Key, String)
+     * @see Scrollable#from(String)
      */
     @Nullable
     public String previousCursor() {

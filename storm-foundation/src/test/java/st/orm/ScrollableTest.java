@@ -102,9 +102,10 @@ class ScrollableTest {
     void afterAndBeforeCarryOneValuePerFieldThenTheKey() {
         var after = Scrollable.of(KEY, 20).sortBy(SORT).after("Carter", 3);
         assertTrue(after.hasPosition());
-        assertEquals(List.of("Carter", 3), after.position().values());
+        assertEquals(new Position(List.of("Carter", 3), true), after.position());
         assertTrue(after.position().after());
         var before = Scrollable.of(KEY, 20).sortBy(SORT).before("Carter", 3);
+        assertEquals(new Position(List.of("Carter", 3), false), before.position());
         assertFalse(before.position().after());
     }
 
@@ -124,7 +125,7 @@ class ScrollableTest {
     void sizeMayChangeWithoutTouchingThePosition() {
         var scrollable = Scrollable.of(KEY, 20).after(3).size(50);
         assertEquals(50, scrollable.size());
-        assertEquals(List.of(3), scrollable.position().values());
+        assertEquals(Scrollable.of(KEY, 20).after(3).position(), scrollable.position());
     }
 
     @Test

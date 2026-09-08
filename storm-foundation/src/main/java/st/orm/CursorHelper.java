@@ -17,6 +17,8 @@ package st.orm;
 
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
+import java.util.List;
+import st.orm.impl.PositionAccess;
 
 /**
  * Bridges cursor serialization to the codec registry in storm-core, so the foundation carries the types and the
@@ -26,12 +28,17 @@ final class CursorHelper {
 
     private static final Method TO_CURSOR_METHOD;
     private static final Method FROM_CURSOR_METHOD;
+    private static final Method CONTENT_AFTER_METHOD;
+    private static final Method CONTENT_VALUES_METHOD;
 
     static {
         try {
             Class<?> factoryClass = Class.forName("st.orm.core.spi.CursorFactory");
-            TO_CURSOR_METHOD = factoryClass.getMethod("toCursor", int.class, Position.class);
+            TO_CURSOR_METHOD = factoryClass.getMethod("toCursor", int.class, boolean.class, List.class);
             FROM_CURSOR_METHOD = factoryClass.getMethod("fromCursor", int.class, String.class, Class[].class);
+            Class<?> contentClass = FROM_CURSOR_METHOD.getReturnType();
+            CONTENT_AFTER_METHOD = contentClass.getMethod("after");
+            CONTENT_VALUES_METHOD = contentClass.getMethod("values");
         } catch (ReflectiveOperationException e) {
             var ex = new ExceptionInInitializerError(
                     "Failed to initialize cursor serialization. "
@@ -49,7 +56,8 @@ final class CursorHelper {
     static String toCursor(int orderingFingerprint, Position position) {
         try {
             try {
-                return (String) TO_CURSOR_METHOD.invoke(null, orderingFingerprint, position);
+                return (String) TO_CURSOR_METHOD.invoke(
+                        null, orderingFingerprint, position.after(), PositionAccess.values(position));
             } catch (InvocationTargetException e) {
                 throw e.getTargetException();
             } catch (ReflectiveOperationException e) {
@@ -69,7 +77,10 @@ final class CursorHelper {
     static Position fromCursor(int orderingFingerprint, String cursor, Class<?>[] valueTypes) {
         try {
             try {
-                return (Position) FROM_CURSOR_METHOD.invoke(null, orderingFingerprint, cursor, valueTypes);
+                Object content = FROM_CURSOR_METHOD.invoke(null, orderingFingerprint, cursor, valueTypes);
+                @SuppressWarnings("unchecked")
+                var values = (List<Object>) CONTENT_VALUES_METHOD.invoke(content);
+                return new Position(values, (boolean) CONTENT_AFTER_METHOD.invoke(content));
             } catch (InvocationTargetException e) {
                 throw e.getTargetException();
             } catch (ReflectiveOperationException e) {

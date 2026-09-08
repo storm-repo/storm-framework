@@ -66,10 +66,10 @@ public record Scrollable<T extends Data>(
         if (size <= 0) {
             throw new IllegalArgumentException("size must be positive.");
         }
-        if (position != null && position.values().size() != sort.size() + 1) {
+        if (position != null && position.size() != sort.size() + 1) {
             throw new IllegalArgumentException(
                     "A position carries one value per sort field and one for the key: expected %d values, got %d."
-                            .formatted(sort.size() + 1, position.values().size()));
+                            .formatted(sort.size() + 1, position.size()));
         }
     }
 
@@ -176,7 +176,7 @@ public record Scrollable<T extends Data>(
     }
 
     /**
-     * Returns this request at the given position.
+     * Returns this request at the given position, as taken from another request with the same ordering.
      *
      * @param position the position to continue from, or {@code null} to start at the beginning.
      * @return the request at that position.

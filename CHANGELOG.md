@@ -17,6 +17,7 @@ for the CLI, to [npm](https://www.npmjs.com/package/@storm-orm/cli)
 - `scroll(int)` is `slice(int)` and returns `Slice`, the shape without a key: the query's own ordering and offset, `hasNext` from one extra row, `hasPrevious` from the offset. `Slice` iterates over its content and reports `size()` and `isEmpty()`, so a loop reads `for (user in window)`. `Order` is a top-level type that `Pageable` and `Scrollable` share.
 - `windows(size)` iterates a compound primary key, read from the mapped record, and refuses a start position before a row, since it always continues after each window.
 - `Page` navigates the way `Window` does: `next()` and `previous()` replace `nextPageable()` and `previousPageable()`, and `previous()` is `null` on the first page, on `Page` and on `Pageable`, where the request used to answer with itself.
+- A position is opaque, like the cursor that carries it: `Position` says on which side of the row the request continues and nothing else, and the values it names are read by the engine only.
 - A refused cursor string throws `InvalidCursorException`, a `PersistenceException`, whether the cursor is malformed, from an earlier format, issued for another ordering or codec registry, or carries a value of the wrong type, so a web layer maps one exception to its "start over" response.
 - Keyset scrolling joins the Technology Compatibility Kit: every dialect runs the keyset predicate with mixed directions, the previous-window order and flags, refs and reference sort fields, cursor round trips and offset slices.
 

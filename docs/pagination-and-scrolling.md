@@ -167,7 +167,7 @@ A scroll request is a `Scrollable`: an ordering, a window size, and optionally t
 
 - **The key** is a unique, non-nullable field, typically the primary key. It orders last, breaks ties, and makes every row addressable. Fields annotated with `@UK` or `@PK` generate a `Metamodel.Key`; see [Metamodel](metamodel.md#unique-keys-uk-and-metamodelkey).
 - **Sort fields** order before the key, each in its own direction, and must not allow NULL values.
-- **The position** names a row by its sort and key values, and says whether to continue after it or before it. It is what a `Window` hands back as `next()` and `previous()`, and what a cursor string carries across a network boundary.
+- **The position** names a row by its sort and key values, and says whether to continue after it or before it. It is what a `Window` hands back as `next()` and `previous()`, and what a cursor string carries across a network boundary. Like the cursor, it is opaque: the application states it through `after`, `before` or `from`, and the engine reads the row it names.
 
 <Tabs groupId="language">
 <TabItem value="kotlin" label="Kotlin" default>

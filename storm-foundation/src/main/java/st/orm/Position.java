@@ -15,28 +15,73 @@
  */
 package st.orm;
 
-import static java.util.List.copyOf;
-
 import java.util.List;
+import st.orm.impl.PositionAccess;
 
 /**
  * The row a scroll request continues from, and on which side of it.
  *
- * <p>The values name one row in the ordering of the {@link Scrollable} the position belongs to: one value per
- * sort field, in sort order, and the key value last. A position {@code after} that row asks for the rows that
- * follow it in sort order; a position {@code before} it asks for the rows that precede it. Either way the window
- * comes back in sort order.</p>
+ * <p>A position is opaque, like the cursor string that carries it between requests. It comes from
+ * {@link Scrollable#after(Object...)}, {@link Scrollable#before(Object...)} or {@link Scrollable#from(String)} and
+ * travels with the {@link Scrollable} it belongs to; the engine reads the row it names when it builds the window.
+ * A position {@code after} a row asks for the rows that follow it in sort order; a position {@code before} it asks
+ * for the rows that precede it. Either way the window comes back in sort order.</p>
  *
- * @param values the values of the sort fields and the key, in that order; never contain {@code null}.
- * @param after {@code true} to continue after the row, {@code false} to continue before it.
  * @since 1.14
  */
-public record Position(List<Object> values, boolean after) {
+public final class Position {
 
-    public Position {
-        values = copyOf(values);
-        if (values.isEmpty()) {
+    static {
+        PositionAccess.register(position -> position.values);
+    }
+
+    private final List<Object> values;
+    private final boolean after;
+
+    /**
+     * Creates a position.
+     *
+     * @param values the values of the sort fields and the key, in that order; must not contain {@code null}.
+     * @param after {@code true} to continue after the row, {@code false} to continue before it.
+     */
+    Position(List<Object> values, boolean after) {
+        this.values = List.copyOf(values);
+        if (this.values.isEmpty()) {
             throw new IllegalArgumentException("A position needs at least the key value.");
         }
+        this.after = after;
+    }
+
+    /**
+     * Returns {@code true} if the request continues after the row, {@code false} if it continues before it.
+     *
+     * @return {@code true} to continue after the row, {@code false} to continue before it.
+     */
+    public boolean after() {
+        return after;
+    }
+
+    /**
+     * Returns the number of values: one per sort field and one for the key.
+     *
+     * @return the number of values.
+     */
+    int size() {
+        return values.size();
+    }
+
+    @Override
+    public boolean equals(Object other) {
+        return other instanceof Position that && after == that.after && values.equals(that.values);
+    }
+
+    @Override
+    public int hashCode() {
+        return 31 * values.hashCode() + Boolean.hashCode(after);
+    }
+
+    @Override
+    public String toString() {
+        return (after ? "after " : "before ") + values;
     }
 }

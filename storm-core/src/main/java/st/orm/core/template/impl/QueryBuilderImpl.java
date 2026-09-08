@@ -62,6 +62,7 @@ import st.orm.core.template.impl.Elements.TemplateExpression;
 import st.orm.core.template.impl.Elements.TemplateSource;
 import st.orm.core.template.impl.Elements.TemplateTarget;
 import st.orm.core.template.impl.Elements.Where;
+import st.orm.impl.PositionAccess;
 
 /**
  * Abstract query builder implementation.
@@ -147,7 +148,7 @@ abstract class QueryBuilderImpl<T extends Data, R, ID> extends QueryBuilder<T, R
         boolean reverse = position != null && !position.after();
         QueryBuilder<T, R, ID> query = this;
         if (position != null) {
-            var values = position.values();
+            var values = PositionAccess.values(position);
             query = query.where(wb -> keysetPredicate(wb, orders, values, reverse));
         }
         for (var order : orders) {

@@ -31,13 +31,13 @@ import java.time.ZoneOffset;
 import java.util.ArrayList;
 import java.util.Base64;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.ServiceLoader;
 import java.util.UUID;
 import org.jspecify.annotations.Nullable;
 import st.orm.Data;
 import st.orm.InvalidCursorException;
-import st.orm.Position;
 import st.orm.Ref;
 import st.orm.spi.CursorCodec;
 import st.orm.spi.CursorCodecEntry;
@@ -176,6 +176,14 @@ public final class CursorFactory {
     private CursorFactory() {}
 
     /**
+     * What a cursor carries: on which side of the row the request continues, and the row's values.
+     *
+     * @param after {@code true} to continue after the row, {@code false} to continue before it.
+     * @param values the values of the sort fields and the key, in that order.
+     */
+    public record Content(boolean after, List<Object> values) {}
+
+    /**
      * Serializes a position into a Base64 URL-safe string.
      *
      * <p>The cursor carries the fingerprint of the ordering it was issued for, the registry fingerprint, whether
@@ -183,18 +191,19 @@ public final class CursorFactory {
      * key. The window size is not part of it: the size belongs to the request.</p>
      *
      * @param orderingFingerprint the fingerprint of the key and sort fields with their directions.
-     * @param position the position to serialize.
+     * @param after {@code true} to continue after the row, {@code false} to continue before it.
+     * @param values the values of the sort fields and the key, in that order.
      * @return the encoded cursor string.
      */
-    public static String toCursor(int orderingFingerprint, Position position) {
+    public static String toCursor(int orderingFingerprint, boolean after, List<Object> values) {
         try (var byteStream = new ByteArrayOutputStream();
              var dataStream = new DataOutputStream(byteStream)) {
             dataStream.writeByte(CURSOR_VERSION);
             dataStream.writeInt(orderingFingerprint);
             dataStream.writeInt(REGISTRY_FINGERPRINT);
-            dataStream.writeBoolean(position.after());
-            dataStream.writeByte(position.values().size());
-            for (var value : position.values()) {
+            dataStream.writeBoolean(after);
+            dataStream.writeByte(values.size());
+            for (var value : values) {
                 writeValue(dataStream, value);
             }
             dataStream.flush();
@@ -216,7 +225,7 @@ public final class CursorFactory {
      * @throws InvalidCursorException if the cursor is invalid, was issued for another ordering or registry, or
      *                                carries a value of the wrong type.
      */
-    public static Position fromCursor(int orderingFingerprint, String cursor, Class<?>[] valueTypes) {
+    public static Content fromCursor(int orderingFingerprint, String cursor, Class<?>[] valueTypes) {
         try (var byteStream = new ByteArrayInputStream(Base64.getUrlDecoder().decode(cursor));
              var dataStream = new DataInputStream(byteStream)) {
             int version = dataStream.readUnsignedByte();
@@ -252,7 +261,7 @@ public final class CursorFactory {
             if (dataStream.read() != -1) {
                 throw new InvalidCursorException("Invalid cursor: trailing bytes found.");
             }
-            return new Position(values, after);
+            return new Content(after, values);
         } catch (InvalidCursorException e) {
             throw e;
         } catch (IOException | RuntimeException e) {

@@ -45,96 +45,94 @@ class CursorSerializationTest {
         return Scrollable.of(key, 20).after(value);
     }
 
-    private static Object restoredValue(Scrollable<?> original) {
+    private static void assertRoundTrip(Scrollable<?> original) {
         var restored = Scrollable.of(original.key(), original.size()).from(original.toCursor());
-        assertEquals(original.position().after(), restored.position().after());
-        assertEquals(1, restored.position().values().size());
-        return restored.position().values().getFirst();
+        assertEquals(original.position(), restored.position());
     }
 
     @Test
     void roundTripIntegerCursor() {
         var key = Metamodel.key(Metamodel.of(StubEntity.class, "id"));
-        assertEquals(42, restoredValue(after(key, 42)));
+        assertRoundTrip(after(key, 42));
     }
 
     @Test
     void roundTripLongCursor() {
         var key = Metamodel.key(Metamodel.of(LongEntity.class, "id"));
-        assertEquals(123456789012345L, restoredValue(Scrollable.of(key, 10).before(123456789012345L)));
+        assertRoundTrip(Scrollable.of(key, 10).before(123456789012345L));
     }
 
     @Test
     void roundTripStringCursor() {
         var key = Metamodel.key(Metamodel.of(StringEntity.class, "id"));
-        assertEquals("hello world", restoredValue(after(key, "hello world")));
+        assertRoundTrip(after(key, "hello world"));
     }
 
     @Test
     void roundTripStringWithSpecialCharacters() {
         var key = Metamodel.key(Metamodel.of(StringEntity.class, "id"));
         String value = "line1\nline2\ttab|pipe:colon\"quote\\backslash\0null";
-        assertEquals(value, restoredValue(after(key, value)));
+        assertRoundTrip(after(key, value));
     }
 
     @Test
     void roundTripUuidCursor() {
         var key = Metamodel.key(Metamodel.of(UuidEntity.class, "id"));
         UUID uuid = UUID.randomUUID();
-        assertEquals(uuid, restoredValue(after(key, uuid)));
+        assertRoundTrip(after(key, uuid));
     }
 
     @Test
     void roundTripInstantCursor() {
         var key = Metamodel.key(Metamodel.of(InstantEntity.class, "id"));
         Instant instant = Instant.parse("2026-03-16T12:30:45.123456789Z");
-        assertEquals(instant, restoredValue(after(key, instant)));
+        assertRoundTrip(after(key, instant));
     }
 
     @Test
     void roundTripLocalDateCursor() {
         var key = Metamodel.key(Metamodel.of(LocalDateEntity.class, "id"));
         LocalDate date = LocalDate.of(2026, 3, 16);
-        assertEquals(date, restoredValue(after(key, date)));
+        assertRoundTrip(after(key, date));
     }
 
     @Test
     void roundTripLocalDateTimeCursor() {
         var key = Metamodel.key(Metamodel.of(LocalDateTimeEntity.class, "id"));
         LocalDateTime dateTime = LocalDateTime.of(2026, 3, 16, 14, 30, 45, 123456789);
-        assertEquals(dateTime, restoredValue(after(key, dateTime)));
+        assertRoundTrip(after(key, dateTime));
     }
 
     @Test
     void roundTripOffsetDateTimeCursor() {
         var key = Metamodel.key(Metamodel.of(OffsetDateTimeEntity.class, "id"));
         OffsetDateTime dateTime = OffsetDateTime.of(2026, 3, 16, 14, 30, 45, 0, ZoneOffset.ofHours(2));
-        assertEquals(dateTime, restoredValue(after(key, dateTime)));
+        assertRoundTrip(after(key, dateTime));
     }
 
     @Test
     void roundTripBigDecimalCursor() {
         var key = Metamodel.key(Metamodel.of(BigDecimalEntity.class, "id"));
         BigDecimal value = new BigDecimal("12345.6789012345");
-        assertEquals(value, restoredValue(after(key, value)));
+        assertRoundTrip(after(key, value));
     }
 
     @Test
     void roundTripBooleanCursor() {
         var key = Metamodel.key(Metamodel.of(BooleanEntity.class, "id"));
-        assertEquals(true, restoredValue(after(key, true)));
+        assertRoundTrip(after(key, true));
     }
 
     @Test
     void roundTripShortCursor() {
         var key = Metamodel.key(Metamodel.of(ShortEntity.class, "id"));
-        assertEquals((short) 32000, restoredValue(after(key, (short) 32000)));
+        assertRoundTrip(after(key, (short) 32000));
     }
 
     @Test
     void roundTripByteCursor() {
         var key = Metamodel.key(Metamodel.of(ByteEntity.class, "id"));
-        assertEquals((byte) 127, restoredValue(after(key, (byte) 127)));
+        assertRoundTrip(after(key, (byte) 127));
     }
 
     // Float/Double are excluded from default codecs
@@ -160,7 +158,7 @@ class CursorSerializationTest {
         Instant sortValue = Instant.parse("2026-01-15T08:00:00Z");
         var original = Scrollable.of(key, 20).sortBy(sort).after(sortValue, 42);
         var restored = Scrollable.of(key, 20).sortBy(sort).from(original.toCursor());
-        assertEquals(java.util.List.of(sortValue, 42), restored.position().values());
+        assertEquals(original.position(), restored.position());
         assertTrue(restored.position().after());
     }
 
@@ -172,7 +170,7 @@ class CursorSerializationTest {
         Instant instant = Instant.parse("2026-01-15T08:00:00Z");
         var original = Scrollable.of(key, 15).sortByDescending(label).sortBy(createdAt).before("desc_value", instant, 99);
         var restored = Scrollable.of(key, 15).sortByDescending(label).sortBy(createdAt).from(original.toCursor());
-        assertEquals(java.util.List.of("desc_value", instant, 99), restored.position().values());
+        assertEquals(original.position(), restored.position());
         assertFalse(restored.position().after());
     }
 
@@ -181,7 +179,7 @@ class CursorSerializationTest {
         var key = Metamodel.key(Metamodel.of(StubEntity.class, "id"));
         var restored = Scrollable.of(key, 50).from(after(key, 42).toCursor());
         assertEquals(50, restored.size());
-        assertEquals(java.util.List.of(42), restored.position().values());
+        assertEquals(after(key, 42).position(), restored.position());
     }
 
     // Error cases
@@ -219,7 +217,7 @@ class CursorSerializationTest {
         String cursor = window.nextCursor();
         assertNotNull(cursor);
         var restored = Scrollable.of(key, 20).from(cursor);
-        assertEquals(java.util.List.of(42), restored.position().values());
+        assertEquals(after(key, 42).position(), restored.position());
         assertTrue(restored.position().after());
     }
 
@@ -230,7 +228,7 @@ class CursorSerializationTest {
         String cursor = window.previousCursor();
         assertNotNull(cursor);
         var restored = Scrollable.of(key, 10).from(cursor);
-        assertEquals(java.util.List.of(5), restored.position().values());
+        assertEquals(Scrollable.of(key, 10).before(5).position(), restored.position());
         assertFalse(restored.position().after());
     }
 
