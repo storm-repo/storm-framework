@@ -48,7 +48,7 @@ import st.orm.tck.model.Vet;
  * agree on their order.</p>
  */
 @SuppressWarnings("ALL")
-public abstract class AbstractScrollConformanceTest {
+public abstract class AbstractPaginationConformanceTest {
 
     protected DataSource dataSource;
 

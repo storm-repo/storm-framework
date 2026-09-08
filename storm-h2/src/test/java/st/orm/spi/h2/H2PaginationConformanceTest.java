@@ -13,26 +13,13 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package st.orm.spi.mysql;
+package st.orm.spi.h2;
 
-import javax.sql.DataSource;
-import org.testcontainers.containers.MySQLContainer;
-import st.orm.tck.AbstractScrollConformanceTest;
-import st.orm.tck.ContainerDataSource;
+import st.orm.tck.AbstractPaginationConformanceTest;
 import st.orm.test.StormTest;
 
 /**
- * Runs the keyset scrolling conformance suite against MySQL.
+ * Runs the keyset scrolling conformance suite against H2.
  */
 @StormTest(scripts = "/data.sql")
-public class MySQLScrollConformanceTest extends AbstractScrollConformanceTest {
-    private static MySQLContainer<?> container;
-
-    public static synchronized DataSource dataSource() {
-        if (container == null) {
-            container = new MySQLContainer<>("mysql:9.2");
-            container.start();
-        }
-        return ContainerDataSource.of(container.getJdbcUrl(), container.getUsername(), container.getPassword());
-    }
-}
+public class H2PaginationConformanceTest extends AbstractPaginationConformanceTest {}

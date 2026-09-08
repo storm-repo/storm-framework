@@ -15,11 +15,11 @@
  */
 package st.orm.spi.sqlite;
 
-import st.orm.tck.AbstractScrollConformanceTest;
+import st.orm.tck.AbstractPaginationConformanceTest;
 import st.orm.test.StormTest;
 
 /**
  * Runs the keyset scrolling conformance suite against SQLite.
  */
 @StormTest(url = "jdbc:sqlite:target/conformance.db", scripts = "/data.sql")
-public class SQLiteScrollConformanceTest extends AbstractScrollConformanceTest {}
+public class SQLitePaginationConformanceTest extends AbstractPaginationConformanceTest {}

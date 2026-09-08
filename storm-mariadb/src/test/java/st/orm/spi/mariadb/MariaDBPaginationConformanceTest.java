@@ -13,24 +13,24 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package st.orm.spi.oracle;
+package st.orm.spi.mariadb;
 
 import javax.sql.DataSource;
-import org.testcontainers.oracle.OracleContainer;
-import st.orm.tck.AbstractScrollConformanceTest;
+import org.testcontainers.containers.MariaDBContainer;
+import st.orm.tck.AbstractPaginationConformanceTest;
 import st.orm.tck.ContainerDataSource;
 import st.orm.test.StormTest;
 
 /**
- * Runs the keyset scrolling conformance suite against Oracle.
+ * Runs the keyset scrolling conformance suite against MariaDB.
  */
 @StormTest(scripts = "/data.sql")
-public class OracleScrollConformanceTest extends AbstractScrollConformanceTest {
-    private static OracleContainer container;
+public class MariaDBPaginationConformanceTest extends AbstractPaginationConformanceTest {
+    private static MariaDBContainer<?> container;
 
     public static synchronized DataSource dataSource() {
         if (container == null) {
-            container = new OracleContainer("gvenzl/oracle-free:23");
+            container = new MariaDBContainer<>("mariadb:11.8");
             container.start();
         }
         return ContainerDataSource.of(container.getJdbcUrl(), container.getUsername(), container.getPassword());

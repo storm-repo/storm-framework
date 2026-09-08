@@ -13,24 +13,25 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package st.orm.spi.mariadb;
+package st.orm.spi.mssqlserver;
 
 import javax.sql.DataSource;
-import org.testcontainers.containers.MariaDBContainer;
-import st.orm.tck.AbstractScrollConformanceTest;
+import org.testcontainers.containers.MSSQLServerContainer;
+import st.orm.tck.AbstractPaginationConformanceTest;
 import st.orm.tck.ContainerDataSource;
 import st.orm.test.StormTest;
 
 /**
- * Runs the keyset scrolling conformance suite against MariaDB.
+ * Runs the keyset scrolling conformance suite against MSSQLServer.
  */
 @StormTest(scripts = "/data.sql")
-public class MariaDBScrollConformanceTest extends AbstractScrollConformanceTest {
-    private static MariaDBContainer<?> container;
+public class MSSQLServerPaginationConformanceTest extends AbstractPaginationConformanceTest {
+    private static MSSQLServerContainer<?> container;
 
     public static synchronized DataSource dataSource() {
         if (container == null) {
-            container = new MariaDBContainer<>("mariadb:11.8");
+            container = new MSSQLServerContainer<>("mcr.microsoft.com/mssql/server:2019-latest")
+                .acceptLicense();
             container.start();
         }
         return ContainerDataSource.of(container.getJdbcUrl(), container.getUsername(), container.getPassword());

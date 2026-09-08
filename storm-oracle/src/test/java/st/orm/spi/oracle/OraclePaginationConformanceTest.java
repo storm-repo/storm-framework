@@ -13,24 +13,24 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package st.orm.spi.postgresql;
+package st.orm.spi.oracle;
 
 import javax.sql.DataSource;
-import org.testcontainers.containers.PostgreSQLContainer;
-import st.orm.tck.AbstractScrollConformanceTest;
+import org.testcontainers.oracle.OracleContainer;
+import st.orm.tck.AbstractPaginationConformanceTest;
 import st.orm.tck.ContainerDataSource;
 import st.orm.test.StormTest;
 
 /**
- * Runs the keyset scrolling conformance suite against PostgreSQL.
+ * Runs the keyset scrolling conformance suite against Oracle.
  */
 @StormTest(scripts = "/data.sql")
-public class PostgreSQLScrollConformanceTest extends AbstractScrollConformanceTest {
-    private static PostgreSQLContainer<?> container;
+public class OraclePaginationConformanceTest extends AbstractPaginationConformanceTest {
+    private static OracleContainer container;
 
     public static synchronized DataSource dataSource() {
         if (container == null) {
-            container = new PostgreSQLContainer<>("postgres:17");
+            container = new OracleContainer("gvenzl/oracle-free:23");
             container.start();
         }
         return ContainerDataSource.of(container.getJdbcUrl(), container.getUsername(), container.getPassword());

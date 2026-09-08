@@ -13,25 +13,24 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package st.orm.spi.mssqlserver;
+package st.orm.spi.postgresql;
 
 import javax.sql.DataSource;
-import org.testcontainers.containers.MSSQLServerContainer;
-import st.orm.tck.AbstractScrollConformanceTest;
+import org.testcontainers.containers.PostgreSQLContainer;
+import st.orm.tck.AbstractPaginationConformanceTest;
 import st.orm.tck.ContainerDataSource;
 import st.orm.test.StormTest;
 
 /**
- * Runs the keyset scrolling conformance suite against MSSQLServer.
+ * Runs the keyset scrolling conformance suite against PostgreSQL.
  */
 @StormTest(scripts = "/data.sql")
-public class MSSQLServerScrollConformanceTest extends AbstractScrollConformanceTest {
-    private static MSSQLServerContainer<?> container;
+public class PostgreSQLPaginationConformanceTest extends AbstractPaginationConformanceTest {
+    private static PostgreSQLContainer<?> container;
 
     public static synchronized DataSource dataSource() {
         if (container == null) {
-            container = new MSSQLServerContainer<>("mcr.microsoft.com/mssql/server:2019-latest")
-                .acceptLicense();
+            container = new PostgreSQLContainer<>("postgres:17");
             container.start();
         }
         return ContainerDataSource.of(container.getJdbcUrl(), container.getUsername(), container.getPassword());
