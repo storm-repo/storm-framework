@@ -19,7 +19,7 @@ Each read answers a different question, so pick by what the application needs to
 | Needs | an ordering | an ordering | an ordering | a unique key, sort fields that are not nullable | a primary key, or a `Scrollable` |
 | Count query | no | no | yes, on every full page | no | no |
 | `hasNext` from | not reported | one extra row | the count | one extra row | one extra row |
-| Next request | yours | `slice.next()` | `page.next()` | `window.next()` | the stream continues |
+| Next request | yours | `pageable.next()` | `page.next()` | `window.next()` | the stream continues |
 | Random access | yes | yes | yes | no | no |
 | Stable under inserts and deletes | no | no | no | yes | yes |
 | Cost of going deep | grows with the offset | grows with the offset | grows with the offset | constant | constant |
@@ -27,7 +27,7 @@ Each read answers a different question, so pick by what the application needs to
 
 **Offset and Limit** gives raw control with `offset()` and `limit()` on the query builder. The database scans and discards every skipped row, so the cost grows with the offset, and rows inserted or deleted since the last read shift what the next read returns.
 
-**Slice** is a page without the count query. It takes the same `Pageable`, reads one row beyond the page size to report `hasNext`, and navigates with `next()` and `previous()` the way a page does. It is the read for a "load more" that does not need a total, and for a query without a unique key, where scrolling is not possible.
+**Slice** is a page without the count query. It takes the same `Pageable`, reads one row beyond the page size to report `hasNext`, and navigates through that `Pageable`. `Slice` is also the shape a `Page` and a `Window` share. It is the read for a "load more" that does not need a total, and for a query without a unique key, where scrolling is not possible.
 
 **Page** wraps offset and limit with a total count and page metadata, for UIs that show page numbers or jump to a page. The count is a second query on every full page; `page(pageable, totalCount)` reuses a count the application already has.
 
@@ -68,15 +68,16 @@ List<User> results = orm.entity(User.class)
 
 ## Slices
 
-A slice is a page without the count query. `slice(pageable)` takes the same `Pageable` as `page(pageable)`, reads the requested page with `OFFSET` and `LIMIT`, and fetches one row beyond the page size to decide `hasNext`; `hasPrevious` follows from the page number. Use it for a "load more" that does not need a total, and for a query without a unique key, such as an aggregation, where scrolling is not possible.
+A slice is a page without the count query. `slice(pageable)` takes the same `Pageable` as `page(pageable)`, reads the requested page with `OFFSET` and `LIMIT`, and fetches one row beyond the page size to decide `hasNext`; `hasPrevious` follows from the page number. The next slice is the request's `next()`. Use it for a "load more" that does not need a total, and for a query without a unique key, such as an aggregation, where scrolling is not possible.
 
 <Tabs groupId="language">
 <TabItem value="kotlin" label="Kotlin" default>
 
 ```kotlin
-val first: Slice<User> = userRepository.slice(Pageable.ofSize(20).sortBy(User_.email))
-if (first.hasNext) {
-    val second = userRepository.slice(first.next())
+val pageable = Pageable.ofSize(20).sortBy(User_.email)
+val first: Slice<User> = userRepository.slice(pageable)
+if (first.hasNext()) {
+    val second = userRepository.slice(pageable.next())
 }
 
 // On the query builder, with the query's own ordering
@@ -89,9 +90,10 @@ val slice = userRepository.select()
 <TabItem value="java" label="Java">
 
 ```java
-Slice<User> first = userRepository.slice(Pageable.ofSize(20).sortBy(User_.email));
+Pageable pageable = Pageable.ofSize(20).sortBy(User_.email);
+Slice<User> first = userRepository.slice(pageable);
 if (first.hasNext()) {
-    Slice<User> second = userRepository.slice(first.next());
+    Slice<User> second = userRepository.slice(pageable.next());
 }
 
 // On the query builder, with the query's own ordering
@@ -103,16 +105,14 @@ Slice<User> slice = userRepository.select()
 </TabItem>
 </Tabs>
 
-The `Slice` type:
+`Slice` is the shape `Page` and `Window` share, so every read in parts offers it:
 
-| Field / Method | Description |
+| Method | Description |
 |---|---|
-| `content` | The list of results for the current slice |
-| `hasNext` | Whether a row existed after this slice at query time |
-| `pageNumber()` | Zero-based index of the current slice |
-| `pageSize()` | Maximum number of elements per slice |
-| `hasPrevious()` | Whether this is not the first slice |
-| `next()` / `previous()` | Returns a `Pageable` for the adjacent slice; `previous()` is `null` on the first slice |
+| `content()` | The list of results, in the order they were read |
+| `hasNext()` / `hasPrevious()` | Whether rows existed after and before the slice at query time |
+| `size()` / `isEmpty()` | The number of results |
+| `iterator()` / `stream()` | Iteration over the content, so `for (user : slice)` reads the rows |
 
 `sliceRef` reads refs instead of entities, the way `pageRef` does. As with `page`, a `Pageable` that carries sort orders cannot be combined with an explicit `orderBy` on the query.
 
@@ -267,7 +267,7 @@ var byName = userRepository.scroll(Scrollable.of(User_.id, 20).sortBy(User_.city
 </TabItem>
 </Tabs>
 
-A `Window<R>` iterates over its content and reports `size()` and `isEmpty()`; `for (user in window)` reads the rows without going through `content()`. It carries:
+A `Window<R>` is a `Slice`, so it iterates over its content and reports `size()` and `isEmpty()`; `for (user in window)` reads the rows without going through `content()`. It carries:
 
 | Field / Method | Description |
 |-------|-------------|
@@ -459,6 +459,6 @@ See [Manual Key Wrapping](metamodel.md#manual-key-wrapping) for more details.
 | Result | `Slice` | `Page` | `Window` |
 | Method | `slice(pageable)` | `page(pageable)` | `scroll(scrollable)` |
 | Count query | no | yes | no |
-| Navigate forward | `slice.next()` | `page.next()` | `window.next()` |
-| Navigate backward | `slice.previous()` | `page.previous()` | `window.previous()`, same order as forward |
+| Navigate forward | `pageable.next()` | `page.next()` | `window.next()` |
+| Navigate backward | `pageable.previous()` | `page.previous()` | `window.previous()`, same order as forward |
 | Sorting | `sortBy` / `sortByDescending` on the request | `sortBy` / `sortByDescending` on the request | `sortBy` / `sortByDescending` on the request, key as tiebreaker |

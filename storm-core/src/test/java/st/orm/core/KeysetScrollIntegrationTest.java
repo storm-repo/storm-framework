@@ -36,6 +36,7 @@ import org.springframework.test.context.junit.jupiter.SpringExtension;
 import st.orm.Data;
 import st.orm.FK;
 import st.orm.Metamodel;
+import st.orm.Pageable;
 import st.orm.PersistenceException;
 import st.orm.Ref;
 import st.orm.Scrollable;
@@ -215,12 +216,10 @@ public class KeysetScrollIntegrationTest {
         assertEquals(List.of(1, 2, 3, 4), first.stream().map(Vet::id).toList());
         assertTrue(first.hasNext());
         assertFalse(first.hasPrevious());
-        assertNull(first.previous());
-        var rest = orm.selectFrom(Vet.class).orderBy(Vet_.id).slice(first.next());
+        var rest = orm.selectFrom(Vet.class).orderBy(Vet_.id).slice(Pageable.of(0, 4).next());
         assertEquals(List.of(5, 6), rest.stream().map(Vet::id).toList());
         assertFalse(rest.hasNext());
         assertTrue(rest.hasPrevious());
-        assertEquals(first.pageable(), rest.previous());
     }
 
     @Test

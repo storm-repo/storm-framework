@@ -1060,7 +1060,7 @@ public abstract class QueryBuilder<T : Data, R, ID> {
      * [Slice.hasPrevious] follows from the page number. Use it for a "load more" that needs no total, and for a
      * query without a unique key, where [scroll] is not possible.
      *
-     * Use [Pageable.ofSize] for the first slice, then navigate with [Slice.next] or [Slice.previous].
+     * Use [Pageable.ofSize] for the first slice, then navigate with [Pageable.next] or [Pageable.previous].
      *
      * @param pageable the request specifying page number, page size and sort orders.
      * @return the slice.
@@ -1070,7 +1070,7 @@ public abstract class QueryBuilder<T : Data, R, ID> {
     public fun slice(pageable: Pageable): Slice<R> {
         val content = pageContent(pageable, pageable.pageSize() + 1)
         val hasNext = content.size > pageable.pageSize()
-        return Slice(if (hasNext) content.subList(0, pageable.pageSize()) else content, hasNext, pageable)
+        return Slice.of(if (hasNext) content.subList(0, pageable.pageSize()) else content, hasNext, pageable.pageNumber() > 0)
     }
 
     private fun pageContent(pageable: Pageable, limit: Int): List<R> {

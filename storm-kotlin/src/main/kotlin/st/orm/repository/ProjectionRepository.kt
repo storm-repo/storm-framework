@@ -835,7 +835,7 @@ public interface ProjectionRepository<P, ID : Any> : Repository where P : Projec
      * This method executes a query with OFFSET and LIMIT for the requested page and one row beyond it, which
      * decides [Slice.hasNext]; no count query runs.
      *
-     * Use [Pageable.ofSize] for the first slice, then navigate with [Slice.next] or [Slice.previous].
+     * Use [Pageable.ofSize] for the first slice, then navigate with [Pageable.next] or [Pageable.previous].
      *
      * @param pageable the request specifying page number, page size and sort orders.
      * @return a slice containing the results.

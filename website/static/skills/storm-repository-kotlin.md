@@ -598,8 +598,9 @@ val nextPage = users.page(page.next())
 // page.next()  — Pageable for the next page
 
 // Slice: page without the count query; same Pageable, hasNext from one extra row
-val slice: Slice<User> = users.slice(Pageable.ofSize(20).sortBy(User_.name))
-val more = users.slice(slice.next())
+val pageable = Pageable.ofSize(20).sortBy(User_.name)
+val slice: Slice<User> = users.slice(pageable)
+val more = users.slice(pageable.next())               // the request navigates
 val refSlice: Slice<Ref<User>> = users.sliceRef(0, 20)
 
 // Keyset scrolling (better for large tables — no COUNT, cursor-based)
@@ -623,7 +624,7 @@ val refs = users.scrollRef(Scrollable.of(User_.id, 20))
 val request = Scrollable.of(User_.id, 20).sortBy(User_.email)
 val window = users.scroll(if (cursor != null) request.from(cursor) else request)
 
-// Window<R> iterates over its content: iterate it directly (for (user in window)), every window is in sort order.
+// Window<R> is a Slice: iterate it directly (for (user in window)), every window is in sort order.
 // Window is a Java record; the accessors are methods, call with ()
 // window.content() — List<User> of results
 // window.hasNext() / window.hasPrevious() — rows exist after / before the window

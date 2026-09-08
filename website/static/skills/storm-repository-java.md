@@ -492,8 +492,9 @@ Page<User> next = users.page(page.next());
 Page<Ref<User>> refPage = users.pageRef(0, 20);
 
 // Slice: page without the count query; same Pageable, hasNext from one extra row
-Slice<User> slice = users.slice(Pageable.ofSize(20).sortBy(User_.name));
-Slice<User> more = users.slice(slice.next());
+Pageable pageable = Pageable.ofSize(20).sortBy(User_.name);
+Slice<User> slice = users.slice(pageable);
+Slice<User> more = users.slice(pageable.next());       // the request navigates
 Slice<Ref<User>> refSlice = users.sliceRef(0, 20);
 
 // Keyset scrolling (better for large tables — no COUNT, cursor-based)
@@ -516,7 +517,7 @@ var refs = users.scrollRef(Scrollable.of(User_.id, 20));
 var request = Scrollable.of(User_.id, 20).sortBy(User_.email);
 var window = users.scroll(cursor != null ? request.from(cursor) : request);
 
-// Window<R> iterates over its content: iterate it directly, every window is in sort order.
+// Window<R> is a Slice: iterate it directly, every window is in sort order.
 // window.content() — List<User>
 // window.hasNext() / window.hasPrevious() — rows exist after / before the window
 // window.nextCursor() / window.previousCursor() — opaque cursors for REST APIs (see above)

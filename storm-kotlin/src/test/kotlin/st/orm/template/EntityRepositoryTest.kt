@@ -1820,13 +1820,14 @@ internal open class EntityRepositoryTest(
     fun `entity slice should navigate by page number without a count`() {
         val repo = orm.entity(City::class)
         val idPath = metamodel<City, Int>(repo.model, "id")
-        val first = repo.slice(Pageable.ofSize(4).sortBy(idPath))
-        first.content.map { it.id } shouldBe listOf(1, 2, 3, 4)
-        first.hasNext shouldBe true
+        val pageable = Pageable.ofSize(4).sortBy(idPath)
+        val first = repo.slice(pageable)
+        first.content().map { it.id } shouldBe listOf(1, 2, 3, 4)
+        first.hasNext() shouldBe true
         first.hasPrevious() shouldBe false
-        val rest = repo.slice(first.next())
-        rest.content.map { it.id } shouldBe listOf(5, 6)
-        rest.hasNext shouldBe false
+        val rest = repo.slice(pageable.next())
+        rest.content().map { it.id } shouldBe listOf(5, 6)
+        rest.hasNext() shouldBe false
         rest.hasPrevious() shouldBe true
     }
 
@@ -1834,8 +1835,8 @@ internal open class EntityRepositoryTest(
     fun `entity sliceRef should return refs`() {
         val repo = orm.entity(City::class)
         val refs = repo.sliceRef(0, 4)
-        refs.content shouldHaveSize 4
-        refs.hasNext shouldBe true
-        refs.content.all { it.id() != null } shouldBe true
+        refs.content() shouldHaveSize 4
+        refs.hasNext() shouldBe true
+        refs.content().all { it.id() != null } shouldBe true
     }
 }

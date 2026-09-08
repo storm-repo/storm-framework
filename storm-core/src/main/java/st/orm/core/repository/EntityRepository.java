@@ -742,8 +742,8 @@ public interface EntityRepository<E extends Entity<ID>, ID> extends Repository {
      * <p>This method executes a query with OFFSET and LIMIT for the requested page and one row beyond it, which
      * decides {@link Slice#hasNext()}; no count query runs.</p>
      *
-     * <p>Use {@link Pageable#ofSize(int)} for the first slice, then navigate with {@link Slice#next()} or
-     * {@link Slice#previous()}.</p>
+     * <p>Use {@link Pageable#ofSize(int)} for the first slice, then navigate with {@link Pageable#next()} or
+     * {@link Pageable#previous()}.</p>
      *
      * @param pageable the request specifying page number, page size and sort orders.
      * @return a slice containing the results.

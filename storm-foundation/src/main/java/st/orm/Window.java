@@ -17,18 +17,15 @@ package st.orm;
 
 import static java.util.List.copyOf;
 
-import java.util.Iterator;
 import java.util.List;
-import java.util.stream.Stream;
 import org.jspecify.annotations.Nullable;
 
 /**
  * Represents a window of query results from a scrolling operation with {@link Scrollable} navigation tokens.
  *
- * <p>A {@code Window} provides cursor-based navigation for sequential traversal through large result sets. Use
- * {@link #next()} and {@link #previous()} for typed programmatic navigation, or {@link #nextCursor()} and
- * {@link #previousCursor()} for serialized cursor strings suitable for REST APIs. A window iterates over its
- * content.</p>
+ * <p>A {@code Window} is a {@link Slice} that navigates by keyset for sequential traversal through large result
+ * sets. Use {@link #next()} and {@link #previous()} for typed programmatic navigation, or {@link #nextCursor()}
+ * and {@link #previousCursor()} for serialized cursor strings suitable for REST APIs.</p>
  *
  * <pre>{@code
  * Window<User> window = userRepository.scroll(Scrollable.of(User_.id, 20));
@@ -58,7 +55,7 @@ public record Window<R>(
         boolean hasPrevious,
         @Nullable Scrollable<?> nextScrollable,
         @Nullable Scrollable<?> previousScrollable
-) implements Iterable<R> {
+) implements Slice<R> {
 
     public Window {
         content = copyOf(content);
@@ -145,35 +142,4 @@ public record Window<R>(
         return hasPrevious && previousScrollable != null ? previousScrollable.toCursor() : null;
     }
 
-    /**
-     * Returns the number of results in this window.
-     *
-     * @return the number of results.
-     */
-    public int size() {
-        return content.size();
-    }
-
-    /**
-     * Returns {@code true} if this window holds no results.
-     *
-     * @return {@code true} if the window is empty.
-     */
-    public boolean isEmpty() {
-        return content.isEmpty();
-    }
-
-    @Override
-    public Iterator<R> iterator() {
-        return content.iterator();
-    }
-
-    /**
-     * Returns the results as a stream.
-     *
-     * @return a stream over the content.
-     */
-    public Stream<R> stream() {
-        return content.stream();
-    }
 }

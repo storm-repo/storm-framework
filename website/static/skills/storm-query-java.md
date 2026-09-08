@@ -441,9 +441,9 @@ String nextCursor = window.nextCursor();                              // null wh
 
 **Tokens for every result type:** the sort and key values are read from the row, so `selectRef().scroll(...)`, `users.scrollRef(...)`, projections read as another type and custom select types all navigate. A compound (inline record) key is read from the mapped record and needs the entity type as the result.
 
-**Iterate windows:** `for (User user : window)` works, `Window` iterates over its content; `window.size()`, `window.isEmpty()` and `window.stream()` exist too.
+**Iterate windows:** `for (User user : window)` works, `Window` is a `Slice` and iterates over its content; `window.size()`, `window.isEmpty()` and `window.stream()` exist too.
 
-**Slices:** `select().slice(Pageable.ofSize(20).sortBy(User_.email))` is `page` without the count query: `hasNext()` from one extra row, `hasPrevious()` from the page number, `next()` / `previous()` return the adjacent `Pageable`. `slice(0, 20)` uses the query's own ordering.
+**Slices:** `select().slice(Pageable.ofSize(20).sortBy(User_.email))` is `page` without the count query: `hasNext()` from one extra row, `hasPrevious()` from the page number, the next slice from `pageable.next()`. `slice(0, 20)` uses the query's own ordering. `Slice` is the interface `Page` and `Window` implement.
 
 ## Bulk DELETE/UPDATE
 

@@ -17,7 +17,6 @@ package st.orm.core;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
-import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -48,16 +47,16 @@ public class SliceIntegrationTest {
     @Test
     public void sliceOrdersByTheRequestAndNavigatesByPageNumber() {
         var vets = ORMTemplate.of(dataSource).entity(Vet.class);
-        var first = vets.slice(Pageable.ofSize(4).sortByDescending(Vet_.id));
+        var pageable = Pageable.ofSize(4).sortByDescending(Vet_.id);
+        var first = vets.slice(pageable);
         assertEquals(List.of(6, 5, 4, 3), first.stream().map(Vet::id).toList());
         assertTrue(first.hasNext());
         assertFalse(first.hasPrevious());
-        assertNull(first.previous());
-        var rest = vets.slice(first.next());
+        var rest = vets.slice(pageable.next());
         assertEquals(List.of(2, 1), rest.stream().map(Vet::id).toList());
         assertFalse(rest.hasNext());
         assertTrue(rest.hasPrevious());
-        assertEquals(first.pageable(), rest.previous());
+        assertEquals(first.content(), vets.slice(pageable.next().previous()).content());
     }
 
     @Test

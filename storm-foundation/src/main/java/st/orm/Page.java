@@ -17,9 +17,7 @@ package st.orm;
 
 import static java.util.List.copyOf;
 
-import java.util.Iterator;
 import java.util.List;
-import java.util.stream.Stream;
 import org.jspecify.annotations.Nullable;
 
 /**
@@ -37,7 +35,7 @@ import org.jspecify.annotations.Nullable;
  * @param <R> the type of the results.
  * @since 1.10
  */
-public record Page<R>(List<R> content, long totalCount, Pageable pageable) implements Iterable<R> {
+public record Page<R>(List<R> content, long totalCount, Pageable pageable) implements Slice<R> {
     public Page {
         content = copyOf(content);
         if (totalCount < 0) {
@@ -124,35 +122,4 @@ public record Page<R>(List<R> content, long totalCount, Pageable pageable) imple
         return pageable.previous();
     }
 
-    /**
-     * Returns the number of results in this page.
-     *
-     * @return the number of results.
-     */
-    public int size() {
-        return content.size();
-    }
-
-    /**
-     * Returns {@code true} if this page holds no results.
-     *
-     * @return {@code true} if the page is empty.
-     */
-    public boolean isEmpty() {
-        return content.isEmpty();
-    }
-
-    @Override
-    public Iterator<R> iterator() {
-        return content.iterator();
-    }
-
-    /**
-     * Returns the results as a stream.
-     *
-     * @return a stream over the content.
-     */
-    public Stream<R> stream() {
-        return content.stream();
-    }
 }

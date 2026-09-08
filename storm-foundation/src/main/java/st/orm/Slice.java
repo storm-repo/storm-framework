@@ -15,100 +15,51 @@
  */
 package st.orm;
 
-import static java.util.List.copyOf;
-
 import java.util.Iterator;
 import java.util.List;
 import java.util.stream.Stream;
-import org.jspecify.annotations.Nullable;
 
 /**
- * A slice of query results for offset-based reads without a count.
+ * A slice of query results: the shape a {@link Page}, a {@link Window} and a plain slice share.
  *
- * <p>A slice is read the way a {@link Page} is, with OFFSET and LIMIT from a {@link Pageable}, but it fetches one
- * row beyond the page size instead of running a count query: {@link #hasNext()} says whether that row existed, and
- * {@link #hasPrevious()} follows from the page number. Use it for a "load more" that needs no total, and for a query
- * without a unique key, where scrolling is not possible.</p>
+ * <p>A slice holds its content in the order it was read and says whether rows existed after and before it at query
+ * time. It iterates over its content, so a loop reads {@code for (user : slice)}. A page adds a total count and
+ * navigates by page number, a window navigates by keyset, and the plain slice that {@code slice(pageable)} returns
+ * is a page without the count query, navigated through its {@link Pageable}.</p>
  *
- * <p>Page numbers are zero-based: the first slice is page 0.</p>
- *
- * @param content the list of results in this slice; never contains {@code null} elements.
- * @param hasNext {@code true} if a row existed after this slice at query time.
- * @param pageable the request that produced this slice.
  * @param <R> the type of the results.
- * @since 1.14
+ * @since 1.10
  */
-public record Slice<R>(List<R> content, boolean hasNext, Pageable pageable) implements Iterable<R> {
-
-    public Slice {
-        content = copyOf(content);
-    }
+public interface Slice<R> extends Iterable<R> {
 
     /**
-     * Creates a slice with the specified content, next flag, page number, and page size.
+     * Returns the results in this slice, in the order they were read.
      *
-     * @param content the list of results in this slice.
-     * @param hasNext {@code true} if a row existed after this slice at query time.
-     * @param pageNumber the zero-based index of this slice.
-     * @param pageSize the maximum number of elements per slice.
+     * @return the content; never contains {@code null} elements.
      */
-    public Slice(List<R> content, boolean hasNext, int pageNumber, int pageSize) {
-        this(content, hasNext, Pageable.of(pageNumber, pageSize));
-    }
+    List<R> content();
 
     /**
-     * Returns the zero-based index of this slice.
+     * Returns {@code true} if rows existed after this slice at query time.
      *
-     * @return the page number.
+     * @return {@code true} if a next slice exists.
      */
-    public int pageNumber() {
-        return pageable.pageNumber();
-    }
+    boolean hasNext();
 
     /**
-     * Returns the maximum number of elements per slice.
+     * Returns {@code true} if rows existed before this slice at query time.
      *
-     * @return the page size.
+     * @return {@code true} if a previous slice exists.
      */
-    public int pageSize() {
-        return pageable.pageSize();
-    }
-
-    /**
-     * Returns {@code true} if a slice exists before this one, which is the case for every page number above zero.
-     *
-     * @return {@code true} if this is not the first slice.
-     */
-    public boolean hasPrevious() {
-        return pageable.pageNumber() > 0;
-    }
-
-    /**
-     * Returns the request for the slice after this one.
-     *
-     * @return the request for the next slice.
-     */
-    public Pageable next() {
-        return pageable.next();
-    }
-
-    /**
-     * Returns the request for the slice before this one, or {@code null} on the first slice.
-     *
-     * @return the request for the previous slice, or {@code null}.
-     */
-    @Nullable
-    public Pageable previous() {
-        return pageable.previous();
-    }
+    boolean hasPrevious();
 
     /**
      * Returns the number of results in this slice.
      *
      * @return the number of results.
      */
-    public int size() {
-        return content.size();
+    default int size() {
+        return content().size();
     }
 
     /**
@@ -116,13 +67,13 @@ public record Slice<R>(List<R> content, boolean hasNext, Pageable pageable) impl
      *
      * @return {@code true} if the slice is empty.
      */
-    public boolean isEmpty() {
-        return content.isEmpty();
+    default boolean isEmpty() {
+        return content().isEmpty();
     }
 
     @Override
-    public Iterator<R> iterator() {
-        return content.iterator();
+    default Iterator<R> iterator() {
+        return content().iterator();
     }
 
     /**
@@ -130,7 +81,21 @@ public record Slice<R>(List<R> content, boolean hasNext, Pageable pageable) impl
      *
      * @return a stream over the content.
      */
-    public Stream<R> stream() {
-        return content.stream();
+    default Stream<R> stream() {
+        return content().stream();
+    }
+
+    /**
+     * Creates a plain slice with the given content and flags.
+     *
+     * @param content the results.
+     * @param hasNext {@code true} if rows existed after the slice.
+     * @param hasPrevious {@code true} if rows existed before the slice.
+     * @param <R> the type of the results.
+     * @return the slice.
+     * @since 1.14
+     */
+    static <R> Slice<R> of(List<R> content, boolean hasNext, boolean hasPrevious) {
+        return new SimpleSlice<>(content, hasNext, hasPrevious);
     }
 }

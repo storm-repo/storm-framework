@@ -197,15 +197,15 @@ public abstract class AbstractScrollConformanceTest {
     public void sliceFollowsTheRequestOrderingAndThePageNumber() {
         var orm = ORMTemplate.of(dataSource);
         var vets = orm.entity(Vet.class);
-        var first = vets.slice(Pageable.ofSize(4).sortBy(Metamodel.of(Vet.class, "id")));
+        var pageable = Pageable.ofSize(4).sortBy(Metamodel.of(Vet.class, "id"));
+        var first = vets.slice(pageable);
         assertEquals(List.of(1, 2, 3, 4), first.stream().map(Vet::id).toList());
         assertTrue(first.hasNext());
         assertFalse(first.hasPrevious());
-        var rest = vets.slice(first.next());
+        var rest = vets.slice(pageable.next());
         assertEquals(List.of(5, 6), rest.stream().map(Vet::id).toList());
         assertFalse(rest.hasNext());
         assertTrue(rest.hasPrevious());
-        assertEquals(first.pageable(), rest.previous());
         // The query's own ordering serves a request without sort orders.
         var ordered = vets.select().orderBy(Metamodel.of(Vet.class, "id")).slice(1, 4);
         assertEquals(rest.content(), ordered.content());

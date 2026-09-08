@@ -868,8 +868,8 @@ public abstract class QueryBuilder<T extends Data, R, ID> {
      * {@link Slice#hasPrevious()} follows from the page number. Use it for a "load more" that needs no total, and
      * for a query without a unique key, where {@link #scroll(Scrollable)} is not possible.</p>
      *
-     * <p>Use {@link Pageable#ofSize(int)} for the first slice, then navigate with {@link Slice#next()} or
-     * {@link Slice#previous()}.</p>
+     * <p>Use {@link Pageable#ofSize(int)} for the first slice, then navigate with {@link Pageable#next()} or
+     * {@link Pageable#previous()}.</p>
      *
      * @param pageable the request specifying page number, page size and sort orders.
      * @return the slice.
@@ -879,7 +879,7 @@ public abstract class QueryBuilder<T extends Data, R, ID> {
     public final Slice<R> slice(Pageable pageable) {
         List<R> content = pageContent(pageable, pageable.pageSize() + 1);
         boolean hasNext = content.size() > pageable.pageSize();
-        return new Slice<>(hasNext ? content.subList(0, pageable.pageSize()) : content, hasNext, pageable);
+        return Slice.of(hasNext ? content.subList(0, pageable.pageSize()) : content, hasNext, pageable.pageNumber() > 0);
     }
 
     /**

@@ -191,11 +191,12 @@ public class RepositoryTest {
 
     @Test
     public void testSliceOnRepository() {
-        Slice<City> first = orm.entity(City.class).slice(Pageable.ofSize(4).sortBy(City_.id));
+        Pageable pageable = Pageable.ofSize(4).sortBy(City_.id);
+        Slice<City> first = orm.entity(City.class).slice(pageable);
         assertEquals(4, first.size());
         assertTrue(first.hasNext());
         assertFalse(first.hasPrevious());
-        Slice<City> rest = orm.entity(City.class).slice(first.next());
+        Slice<City> rest = orm.entity(City.class).slice(pageable.next());
         assertEquals(2, rest.size());
         assertFalse(rest.hasNext());
         assertTrue(rest.hasPrevious());

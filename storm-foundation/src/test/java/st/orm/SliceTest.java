@@ -17,7 +17,6 @@ package st.orm;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
-import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -28,12 +27,11 @@ import org.junit.jupiter.api.Test;
 class SliceTest {
 
     @Test
-    void carriesContentAndTheNextFlag() {
-        var slice = new Slice<>(List.of("a", "b"), true, 0, 2);
+    void carriesContentAndFlags() {
+        var slice = Slice.of(List.of("a", "b"), true, false);
         assertEquals(List.of("a", "b"), slice.content());
         assertTrue(slice.hasNext());
-        assertEquals(0, slice.pageNumber());
-        assertEquals(2, slice.pageSize());
+        assertFalse(slice.hasPrevious());
         assertEquals(2, slice.size());
         assertFalse(slice.isEmpty());
         assertEquals(List.of("a", "b"), slice.stream().toList());
@@ -47,21 +45,18 @@ class SliceTest {
     @Test
     void contentIsAnImmutableCopy() {
         var original = new ArrayList<>(List.of("a"));
-        var slice = new Slice<>(original, false, 0, 10);
+        var slice = Slice.of(original, false, true);
         original.add("b");
         assertEquals(1, slice.size());
+        assertTrue(slice.hasPrevious());
         assertThrows(UnsupportedOperationException.class, () -> slice.content().add("c"));
     }
 
     @Test
-    void previousFollowsFromThePageNumber() {
-        var first = new Slice<>(List.of("a"), true, Pageable.ofSize(1));
-        assertFalse(first.hasPrevious());
-        assertNull(first.previous());
-        assertEquals(Pageable.of(1, 1), first.next());
-        var second = new Slice<>(List.of("b"), false, first.next());
-        assertTrue(second.hasPrevious());
-        assertEquals(Pageable.of(0, 1), second.previous());
-        assertEquals(Pageable.of(2, 1), second.next());
+    void pageAndWindowAreSlices() {
+        Slice<String> page = new Page<>(List.of("a"), 1, 0, 10);
+        Slice<String> window = new Window<>(List.of("a"), false, false, null, null);
+        assertEquals(page.content(), window.content());
+        assertTrue(Slice.of(List.of(), false, false).isEmpty());
     }
 }

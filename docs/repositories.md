@@ -305,15 +305,16 @@ if (page.hasNext()) {
 
 ### Slices
 
-`slice` is `page` without the count query: the same `Pageable`, one row beyond the page size to decide `hasNext`, and `next()` and `previous()` to navigate. Use it for a "load more" that needs no total.
+`slice` is `page` without the count query: the same `Pageable`, one row beyond the page size to decide `hasNext`, and the request's `next()` and `previous()` to navigate. Use it for a "load more" that needs no total.
 
 <Tabs groupId="language">
 <TabItem value="kotlin" label="Kotlin" default>
 
 ```kotlin
-val slice: Slice<User> = userRepository.slice(Pageable.ofSize(20).sortBy(User_.email))
-if (slice.hasNext) {
-    val more = userRepository.slice(slice.next())
+val pageable = Pageable.ofSize(20).sortBy(User_.email)
+val slice: Slice<User> = userRepository.slice(pageable)
+if (slice.hasNext()) {
+    val more = userRepository.slice(pageable.next())
 }
 ```
 
@@ -321,9 +322,10 @@ if (slice.hasNext) {
 <TabItem value="java" label="Java">
 
 ```java
-Slice<User> slice = userRepository.slice(Pageable.ofSize(20).sortBy(User_.email));
+Pageable pageable = Pageable.ofSize(20).sortBy(User_.email);
+Slice<User> slice = userRepository.slice(pageable);
 if (slice.hasNext()) {
-    Slice<User> more = userRepository.slice(slice.next());
+    Slice<User> more = userRepository.slice(pageable.next());
 }
 ```
 
