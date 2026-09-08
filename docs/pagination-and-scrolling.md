@@ -3,7 +3,7 @@ import TabItem from '@theme/TabItem';
 
 # Pagination and Scrolling
 
-Storm reads a result set in parts in four ways: a slice, a page, a window, and a stream of windows, with raw offset and limit as the manual baseline. This page covers each in detail, including their trade-offs, type signatures, and advanced usage.
+Storm reads a result set in parts in four ways: a slice, a page, a window, and a stream of windows. This page covers each in detail, including their trade-offs, type signatures, and advanced usage, with raw offset and limit as the manual baseline they build on.
 
 For a quick overview, see [Queries: Data Retrieval Strategies](queries.md#data-retrieval-strategies).
 
@@ -11,21 +11,19 @@ For a quick overview, see [Queries: Data Retrieval Strategies](queries.md#data-r
 
 Each read answers a different question, so pick by what the application needs to know and how it moves through the data.
 
-| | Offset and Limit | Slice | Page | Scroll | Windows |
-|---|---|---|---|---|---|
-| Method | `offset(n).limit(size)` | `slice(pageable)` | `page(pageable)` | `scroll(scrollable)` | `windows(size)` |
-| Result | `List<R>` | `Slice<R>` | `Page<R>` | `Window<R>` | `Stream<Window<R>>` or `Flow<Window<R>>` |
-| Moves by | offset | offset | page number | row values | row values |
-| Needs | an ordering | an ordering | an ordering | a unique key, sort fields that are not nullable | a primary key, or a `Scrollable` |
-| Count query | no | no | yes, on every full page | no | no |
-| `hasNext` from | not reported | one extra row | the count | one extra row | one extra row |
-| Next request | yours | `pageable.next()` | `page.next()` | `window.next()` | the stream continues |
-| Random access | yes | yes | yes | no | no |
-| Stable under inserts and deletes | no | no | no | yes | yes |
-| Cost of going deep | grows with the offset | grows with the offset | grows with the offset | constant | constant |
-| Typical use | ad hoc reads | "load more" without a count, or a query without a unique key | numbered pages, "page 3 of 12" | infinite scroll, REST cursors | batch jobs that write while they read |
-
-**Offset and Limit** gives raw control with `offset()` and `limit()` on the query builder. The database scans and discards every skipped row, so the cost grows with the offset, and rows inserted or deleted since the last read shift what the next read returns.
+| | Slice | Page | Scroll | Windows |
+|---|---|---|---|---|
+| Method | `slice(pageable)` | `page(pageable)` | `scroll(scrollable)` | `windows(size)` |
+| Result | `Slice<R>` | `Page<R>` | `Window<R>` | `Stream<Window<R>>` or `Flow<Window<R>>` |
+| Moves by | offset | page number | row values | row values |
+| Needs | an ordering | an ordering | a unique key, sort fields that are not nullable | a primary key, or a `Scrollable` |
+| Count query | no | yes, on every full page | no | no |
+| `hasNext` from | one extra row | the count | one extra row | one extra row |
+| Next request | `pageable.next()` | `page.next()` | `window.next()` | the stream continues |
+| Random access | yes | yes | no | no |
+| Stable under inserts and deletes | no | no | yes | yes |
+| Cost of going deep | grows with the offset | grows with the offset | constant | constant |
+| Typical use | "load more" without a count, or a query without a unique key | numbered pages, "page 3 of 12" | infinite scroll, REST cursors | batch jobs that write while they read |
 
 **Slice** is a page without the count query. It takes the same `Pageable`, reads one row beyond the page size to report `hasNext`, and navigates through that `Pageable`. `Slice` is also the shape a `Page` and a `Window` share. It is the read for a "load more" that does not need a total, and for a query without a unique key, where scrolling is not possible.
 

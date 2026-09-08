@@ -563,11 +563,10 @@ clause filters groups, so the id, ref and record matching that `where()`'s build
 
 ## Data Retrieval Strategies
 
-When working with large result sets, Storm reads them in parts: a slice, a page, a window, or a stream of windows, with raw offset and limit as the manual baseline.
+When working with large result sets, Storm reads them in parts: a slice, a page, a window, or a stream of windows. `offset()` and `limit()` on the query builder remain the manual baseline they build on.
 
 | Read | Method | Result type | Count query | Typical use |
 |------|--------|-------------|-------------|-------------|
-| **Offset and Limit** | `offset(n).limit(size)` | `List<R>` | no | ad hoc reads with known bounds |
 | **Slice** | `slice(pageable)` | `Slice<R>` | no | "load more" without a total, queries without a unique key |
 | **Page** | `page(pageable)` | `Page<R>` | yes | numbered pages, reports |
 | **Scroll** | `scroll(scrollable)` | `Window<R>` | no | infinite scroll, REST cursors |
