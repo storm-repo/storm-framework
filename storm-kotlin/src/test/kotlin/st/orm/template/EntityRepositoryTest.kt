@@ -584,22 +584,53 @@ internal open class EntityRepositoryTest(
     // EntityRepository: Scroll methods
 
     @Test
+    fun `scrollRef should navigate like scroll and every window is in sort order`() {
+        val repo = orm.entity(City::class)
+        val idKey = metamodel<City, Int>(repo.model, "id").key()
+        val first = repo.scrollRef(Scrollable.of(idKey, 4))
+        first.content.map { it.id() } shouldBe listOf(1, 2, 3, 4)
+        first.hasNext shouldBe true
+        val second = repo.scrollRef(first.next<City>()!!)
+        second.content.map { it.id() } shouldBe listOf(5, 6)
+        second.hasPrevious shouldBe true
+        val back = repo.scrollRef(second.previous<City>()!!)
+        back.content.map { it.id() } shouldBe listOf(1, 2, 3, 4)
+        back.hasNext shouldBe true
+        back.hasPrevious shouldBe false
+    }
+
+    @Test
+    fun `window iterates over its content`() {
+        val repo = orm.entity(City::class)
+        val idKey = metamodel<City, Int>(repo.model, "id").key()
+        val window = repo.scroll(Scrollable.of(idKey, 3))
+        val ids = mutableListOf<Int>()
+        for (city in window) {
+            ids += city.id
+        }
+        ids shouldBe listOf(1, 2, 3)
+        window.size() shouldBe 3
+        window.isEmpty() shouldBe false
+        window.map { it.name } shouldBe window.content.map { it.name }
+    }
+
+    @Test
     fun `scrollon entity repo should return first page`() {
         val repo = orm.entity(City::class)
         val idPath = metamodel<City, Int>(repo.model, "id")
-        val window = repo.select().orderBy(idPath).scroll(3)
-        window.content shouldHaveSize 3
-        window.hasNext shouldBe true
-        window.content[0].id shouldBe 1
+        val window = repo.select().orderBy(idPath).slice(3)
+        window.content() shouldHaveSize 3
+        window.hasNext() shouldBe true
+        window.content()[0].id shouldBe 1
     }
 
     @Test
     fun `scroll with large size should return all entities`() {
         val repo = orm.entity(City::class)
         val idPath = metamodel<City, Int>(repo.model, "id")
-        val window = repo.select().orderBy(idPath).scroll(100)
-        window.content shouldHaveSize 6
-        window.hasNext shouldBe false
+        val window = repo.select().orderBy(idPath).slice(100)
+        window.content() shouldHaveSize 6
+        window.hasNext() shouldBe false
     }
 
     // RepositoryLookup: removeAll extension functions
@@ -1286,7 +1317,7 @@ internal open class EntityRepositoryTest(
     fun `entity scrollBefore with Metamodel Key should return descending first page`() {
         val repo = orm.entity(City::class)
         val idKey = metamodel<City, Int>(repo.model, "id").key()
-        val window = repo.scroll(Scrollable.of(idKey, 3).backward())
+        val window = repo.scroll(Scrollable.of(idKey, 3).descending())
         window.content shouldHaveSize 3
         window.hasNext shouldBe true
         window.content[0].id shouldBe 6
@@ -1305,7 +1336,7 @@ internal open class EntityRepositoryTest(
     fun `entity scrollBeforeRef with Metamodel Key should return refs descending`() {
         val repo = orm.entity(City::class)
         val idKey = metamodel<City, Int>(repo.model, "id").key()
-        val window = repo.selectRef().scroll(Scrollable.of(idKey, 3).backward())
+        val window = repo.selectRef().scroll(Scrollable.of(idKey, 3).descending())
         window.content shouldHaveSize 3
         window.hasNext shouldBe true
     }
@@ -1334,7 +1365,7 @@ internal open class EntityRepositoryTest(
         val repo = orm.entity(City::class)
         val idKey = metamodel<City, Int>(repo.model, "id").key()
         val namePath = metamodel<City, String>(repo.model, "name")
-        val window = repo.select().where(namePath like "M%").scroll(Scrollable.of(idKey, 10).backward())
+        val window = repo.select().where(namePath like "M%").scroll(Scrollable.of(idKey, 10).descending())
         window.content shouldHaveSize 3
     }
 
@@ -1364,7 +1395,7 @@ internal open class EntityRepositoryTest(
         val cities = orm.entity(City::class)
         val idKey = metamodel<City, Int>(cities.model, "id").key()
         val namePath = metamodel<City, String>(cities.model, "name")
-        val window = cities.select().where(namePath like "M%").scroll(Scrollable.of(idKey, 10).backward())
+        val window = cities.select().where(namePath like "M%").scroll(Scrollable.of(idKey, 10).descending())
         window.content shouldHaveSize 3
     }
 
@@ -1373,7 +1404,7 @@ internal open class EntityRepositoryTest(
         val cities = orm.entity(City::class)
         val idKey = metamodel<City, Int>(cities.model, "id").key()
         val namePath = metamodel<City, String>(cities.model, "name")
-        val window = cities.selectRef().where(namePath like "M%").scroll(Scrollable.of(idKey, 10).backward())
+        val window = cities.selectRef().where(namePath like "M%").scroll(Scrollable.of(idKey, 10).descending())
         window.content shouldHaveSize 3
     }
 
@@ -1381,7 +1412,7 @@ internal open class EntityRepositoryTest(
     fun `entity scrollAfter with key and cursor should return next page`() {
         val repo = orm.entity(City::class)
         val idKey = metamodel<City, Int>(repo.model, "id").key()
-        val window = repo.select().scroll(Scrollable(idKey, 3, null, null, 3, true))
+        val window = repo.select().scroll(Scrollable.of(idKey, 3).after(3))
         window.content shouldHaveSize 3
         window.content[0].id shouldBe 4
     }
@@ -1390,7 +1421,7 @@ internal open class EntityRepositoryTest(
     fun `entity scrollAfterRef with key and cursor should return next page refs`() {
         val repo = orm.entity(City::class)
         val idKey = metamodel<City, Int>(repo.model, "id").key()
-        val window = repo.selectRef().scroll(Scrollable(idKey, 3, null, null, 3, true))
+        val window = repo.selectRef().scroll(Scrollable.of(idKey, 3).after(3))
         window.content shouldHaveSize 3
     }
 
@@ -1398,7 +1429,7 @@ internal open class EntityRepositoryTest(
     fun `entity scrollBefore with key and cursor should return previous page`() {
         val repo = orm.entity(City::class)
         val idKey = metamodel<City, Int>(repo.model, "id").key()
-        val window = repo.select().scroll(Scrollable(idKey, 4, null, null, 3, false))
+        val window = repo.select().scroll(Scrollable.of(idKey, 3).before(4))
         window.content shouldHaveSize 3
     }
 
@@ -1406,7 +1437,7 @@ internal open class EntityRepositoryTest(
     fun `entity scrollBeforeRef with key and cursor should return previous page refs`() {
         val repo = orm.entity(City::class)
         val idKey = metamodel<City, Int>(repo.model, "id").key()
-        val window = repo.selectRef().scroll(Scrollable(idKey, 4, null, null, 3, false))
+        val window = repo.selectRef().scroll(Scrollable.of(idKey, 3).before(4))
         window.content shouldHaveSize 3
     }
 
@@ -1415,7 +1446,7 @@ internal open class EntityRepositoryTest(
         val repo = orm.entity(City::class)
         val idKey = metamodel<City, Int>(repo.model, "id").key()
         val namePath = metamodel<City, String>(repo.model, "name")
-        val window = repo.select().where(namePath like "M%").scroll(Scrollable(idKey, 1, null, null, 10, true))
+        val window = repo.select().where(namePath like "M%").scroll(Scrollable.of(idKey, 10).after(1))
         window.content shouldHaveSize 3
     }
 
@@ -1424,7 +1455,7 @@ internal open class EntityRepositoryTest(
         val repo = orm.entity(City::class)
         val idKey = metamodel<City, Int>(repo.model, "id").key()
         val namePath = metamodel<City, String>(repo.model, "name")
-        val window = repo.selectRef().where(namePath like "M%").scroll(Scrollable(idKey, 1, null, null, 10, true))
+        val window = repo.selectRef().where(namePath like "M%").scroll(Scrollable.of(idKey, 10).after(1))
         window.content shouldHaveSize 3
     }
 
@@ -1433,7 +1464,7 @@ internal open class EntityRepositoryTest(
         val repo = orm.entity(City::class)
         val idKey = metamodel<City, Int>(repo.model, "id").key()
         val namePath = metamodel<City, String>(repo.model, "name")
-        val window = repo.select().where(namePath like "M%").scroll(Scrollable(idKey, 6, null, null, 10, false))
+        val window = repo.select().where(namePath like "M%").scroll(Scrollable.of(idKey, 10).before(6))
         window.content shouldHaveSize 3
     }
 
@@ -1442,7 +1473,7 @@ internal open class EntityRepositoryTest(
         val repo = orm.entity(City::class)
         val idKey = metamodel<City, Int>(repo.model, "id").key()
         val namePath = metamodel<City, String>(repo.model, "name")
-        val window = repo.selectRef().where(namePath like "M%").scroll(Scrollable(idKey, 6, null, null, 10, false))
+        val window = repo.selectRef().where(namePath like "M%").scroll(Scrollable.of(idKey, 10).before(6))
         window.content shouldHaveSize 3
     }
 
@@ -1453,7 +1484,7 @@ internal open class EntityRepositoryTest(
         val repo = orm.entity(City::class)
         val idKey = metamodel<City, Int>(repo.model, "id").key()
         val namePath = metamodel<City, String>(repo.model, "name")
-        val window = repo.scroll(Scrollable.of(idKey, namePath, 3))
+        val window = repo.scroll(Scrollable.of(idKey, 3).sortBy(namePath))
         window.content shouldHaveSize 3
         window.hasNext shouldBe true
     }
@@ -1463,7 +1494,7 @@ internal open class EntityRepositoryTest(
         val repo = orm.entity(City::class)
         val idKey = metamodel<City, Int>(repo.model, "id").key()
         val namePath = metamodel<City, String>(repo.model, "name")
-        val window = repo.scroll(Scrollable.of(idKey, namePath, 3).backward())
+        val window = repo.scroll(Scrollable.of(idKey, 3).sortByDescending(namePath).descending())
         window.content shouldHaveSize 3
         window.hasNext shouldBe true
     }
@@ -1473,7 +1504,7 @@ internal open class EntityRepositoryTest(
         val repo = orm.entity(City::class)
         val idKey = metamodel<City, Int>(repo.model, "id").key()
         val namePath = metamodel<City, String>(repo.model, "name")
-        val window = repo.selectRef().scroll(Scrollable.of(idKey, namePath, 3))
+        val window = repo.selectRef().scroll(Scrollable.of(idKey, 3).sortBy(namePath))
         window.content shouldHaveSize 3
         window.hasNext shouldBe true
     }
@@ -1483,7 +1514,7 @@ internal open class EntityRepositoryTest(
         val repo = orm.entity(City::class)
         val idKey = metamodel<City, Int>(repo.model, "id").key()
         val namePath = metamodel<City, String>(repo.model, "name")
-        val window = repo.selectRef().scroll(Scrollable.of(idKey, namePath, 3).backward())
+        val window = repo.selectRef().scroll(Scrollable.of(idKey, 3).sortByDescending(namePath).descending())
         window.content shouldHaveSize 3
         window.hasNext shouldBe true
     }
@@ -1505,7 +1536,7 @@ internal open class EntityRepositoryTest(
         val repo = orm.entity(Owner::class)
         val idKey = metamodel<Owner, Int>(repo.model, "id").key()
         // Owners have ids 1-10. After id > 5: ids 6,7,8,9,10 = 5 owners.
-        val window = repo.select().scroll(Scrollable(idKey, 5, null, null, 10, true))
+        val window = repo.select().scroll(Scrollable.of(idKey, 10).after(5))
         window.content.size shouldBe 5
     }
 
@@ -1513,7 +1544,7 @@ internal open class EntityRepositoryTest(
     fun `entity scrollAfterRef should return next page refs`() {
         val repo = orm.entity(Owner::class)
         val idKey = metamodel<Owner, Int>(repo.model, "id").key()
-        val window = repo.selectRef().scroll(Scrollable(idKey, 5, null, null, 10, true))
+        val window = repo.selectRef().scroll(Scrollable.of(idKey, 10).after(5))
         window.content.size shouldBe 5
     }
 
@@ -1522,7 +1553,7 @@ internal open class EntityRepositoryTest(
         val repo = orm.entity(Owner::class)
         val idKey = metamodel<Owner, Int>(repo.model, "id").key()
         // Owners have ids 1-10. Before id < 6: ids 1,2,3,4,5 = 5 owners.
-        val window = repo.select().scroll(Scrollable(idKey, 6, null, null, 10, false))
+        val window = repo.select().scroll(Scrollable.of(idKey, 10).before(6))
         window.content.size shouldBe 5
     }
 
@@ -1530,7 +1561,7 @@ internal open class EntityRepositoryTest(
     fun `entity scrollBeforeRef should return previous page refs`() {
         val repo = orm.entity(Owner::class)
         val idKey = metamodel<Owner, Int>(repo.model, "id").key()
-        val window = repo.selectRef().scroll(Scrollable(idKey, 6, null, null, 10, false))
+        val window = repo.selectRef().scroll(Scrollable.of(idKey, 10).before(6))
         window.content.size shouldBe 5
     }
 
@@ -1540,7 +1571,7 @@ internal open class EntityRepositoryTest(
         val idKey = metamodel<Owner, Int>(repo.model, "id").key()
         val lastNamePath = metamodel<Owner, String>(repo.model, "last_name")
         // After id > 1 AND last_name LIKE 'D%': owners 4 (Harold Davis) = 1 owner.
-        val window = repo.select().where(lastNamePath like "D%").scroll(Scrollable(idKey, 1, null, null, 10, true))
+        val window = repo.select().where(lastNamePath like "D%").scroll(Scrollable.of(idKey, 10).after(1))
         window.content.size shouldBe 1
     }
 
@@ -1549,7 +1580,7 @@ internal open class EntityRepositoryTest(
         val repo = orm.entity(Owner::class)
         val idKey = metamodel<Owner, Int>(repo.model, "id").key()
         val lastNamePath = metamodel<Owner, String>(repo.model, "last_name")
-        val window = repo.selectRef().where(lastNamePath like "D%").scroll(Scrollable(idKey, 1, null, null, 10, true))
+        val window = repo.selectRef().where(lastNamePath like "D%").scroll(Scrollable.of(idKey, 10).after(1))
         window.content.size shouldBe 1
     }
 
@@ -1559,7 +1590,7 @@ internal open class EntityRepositoryTest(
         val idKey = metamodel<Owner, Int>(repo.model, "id").key()
         val lastNamePath = metamodel<Owner, String>(repo.model, "last_name")
         // Before id < 10 AND last_name LIKE 'D%': owners 1 (Betty Davis), 4 (Harold Davis) = 2 owners.
-        val window = repo.select().where(lastNamePath like "D%").scroll(Scrollable(idKey, 10, null, null, 10, false))
+        val window = repo.select().where(lastNamePath like "D%").scroll(Scrollable.of(idKey, 10).before(10))
         window.content.size shouldBe 2
     }
 
@@ -1568,7 +1599,7 @@ internal open class EntityRepositoryTest(
         val repo = orm.entity(Owner::class)
         val idKey = metamodel<Owner, Int>(repo.model, "id").key()
         val lastNamePath = metamodel<Owner, String>(repo.model, "last_name")
-        val window = repo.selectRef().where(lastNamePath like "D%").scroll(Scrollable(idKey, 10, null, null, 10, false))
+        val window = repo.selectRef().where(lastNamePath like "D%").scroll(Scrollable.of(idKey, 10).before(10))
         window.content.size shouldBe 2
     }
 
@@ -1579,10 +1610,10 @@ internal open class EntityRepositoryTest(
         val repo = orm.entity(City::class)
         val idKey = metamodel<City, Int>(repo.model, "id").key()
         val namePath = metamodel<City, String>(repo.model, "name")
-        val firstPage = repo.scroll(Scrollable.of(idKey, namePath, 3))
+        val firstPage = repo.scroll(Scrollable.of(idKey, 3).sortBy(namePath))
         firstPage.content shouldHaveSize 3
         val lastItem = firstPage.content.last()
-        val nextPage = repo.select().scroll(Scrollable(idKey, lastItem.id, namePath, lastItem.name, 3, true))
+        val nextPage = repo.select().scroll(Scrollable.of(idKey, 3).sortBy(namePath).after(lastItem.name, lastItem.id))
         nextPage.content shouldHaveSize 3
     }
 
@@ -1591,10 +1622,10 @@ internal open class EntityRepositoryTest(
         val repo = orm.entity(City::class)
         val idKey = metamodel<City, Int>(repo.model, "id").key()
         val namePath = metamodel<City, String>(repo.model, "name")
-        val lastPage = repo.scroll(Scrollable.of(idKey, namePath, 3).backward())
+        val lastPage = repo.scroll(Scrollable.of(idKey, 3).sortByDescending(namePath).descending())
         lastPage.content shouldHaveSize 3
         val firstItem = lastPage.content.last()
-        val previousPage = repo.select().scroll(Scrollable(idKey, firstItem.id, namePath, firstItem.name, 3, false))
+        val previousPage = repo.select().scroll(Scrollable.of(idKey, 3).sortBy(namePath).before(firstItem.name, firstItem.id))
         previousPage.content shouldHaveSize 3
     }
 
@@ -1603,9 +1634,9 @@ internal open class EntityRepositoryTest(
         val repo = orm.entity(City::class)
         val idKey = metamodel<City, Int>(repo.model, "id").key()
         val namePath = metamodel<City, String>(repo.model, "name")
-        val firstPage = repo.scroll(Scrollable.of(idKey, namePath, 3))
+        val firstPage = repo.scroll(Scrollable.of(idKey, 3).sortBy(namePath))
         val lastItem = firstPage.content.last()
-        val nextPage = repo.selectRef().scroll(Scrollable(idKey, lastItem.id, namePath, lastItem.name, 3, true))
+        val nextPage = repo.selectRef().scroll(Scrollable.of(idKey, 3).sortBy(namePath).after(lastItem.name, lastItem.id))
         nextPage.content shouldHaveSize 3
     }
 
@@ -1614,9 +1645,9 @@ internal open class EntityRepositoryTest(
         val repo = orm.entity(City::class)
         val idKey = metamodel<City, Int>(repo.model, "id").key()
         val namePath = metamodel<City, String>(repo.model, "name")
-        val lastPage = repo.scroll(Scrollable.of(idKey, namePath, 3).backward())
+        val lastPage = repo.scroll(Scrollable.of(idKey, 3).sortByDescending(namePath).descending())
         val firstItem = lastPage.content.last()
-        val previousPage = repo.selectRef().scroll(Scrollable(idKey, firstItem.id, namePath, firstItem.name, 3, false))
+        val previousPage = repo.selectRef().scroll(Scrollable.of(idKey, 3).sortBy(namePath).before(firstItem.name, firstItem.id))
         previousPage.content shouldHaveSize 3
     }
 
@@ -1626,7 +1657,7 @@ internal open class EntityRepositoryTest(
         val idKey = metamodel<Owner, Int>(repo.model, "id").key()
         val lastNamePath = metamodel<Owner, String>(repo.model, "last_name")
         // After (lastName > "A" OR (lastName = "A" AND id > 1)): all 10 owners have lastName > "A".
-        val window = repo.select().scroll(Scrollable(idKey, 1, lastNamePath, "A", 10, true))
+        val window = repo.select().scroll(Scrollable.of(idKey, 10).sortBy(lastNamePath).after("A", 1))
         window.content.size shouldBe 10
     }
 
@@ -1636,7 +1667,7 @@ internal open class EntityRepositoryTest(
         val idKey = metamodel<Owner, Int>(repo.model, "id").key()
         val lastNamePath = metamodel<Owner, String>(repo.model, "last_name")
         // Before (lastName < "Z" OR (lastName = "Z" AND id < 10)): all 10 owners have lastName < "Z".
-        val window = repo.select().scroll(Scrollable(idKey, 10, lastNamePath, "Z", 10, false))
+        val window = repo.select().scroll(Scrollable.of(idKey, 10).sortBy(lastNamePath).before("Z", 10))
         window.content.size shouldBe 10
     }
 
@@ -1645,7 +1676,7 @@ internal open class EntityRepositoryTest(
         val repo = orm.entity(Owner::class)
         val idKey = metamodel<Owner, Int>(repo.model, "id").key()
         val lastNamePath = metamodel<Owner, String>(repo.model, "last_name")
-        val window = repo.selectRef().scroll(Scrollable(idKey, 1, lastNamePath, "A", 10, true))
+        val window = repo.selectRef().scroll(Scrollable.of(idKey, 10).sortBy(lastNamePath).after("A", 1))
         window.content.size shouldBe 10
     }
 
@@ -1654,7 +1685,7 @@ internal open class EntityRepositoryTest(
         val repo = orm.entity(Owner::class)
         val idKey = metamodel<Owner, Int>(repo.model, "id").key()
         val lastNamePath = metamodel<Owner, String>(repo.model, "last_name")
-        val window = repo.selectRef().scroll(Scrollable(idKey, 10, lastNamePath, "Z", 10, false))
+        val window = repo.selectRef().scroll(Scrollable.of(idKey, 10).sortBy(lastNamePath).before("Z", 10))
         window.content.size shouldBe 10
     }
 
@@ -1758,7 +1789,7 @@ internal open class EntityRepositoryTest(
         firstWindow.content shouldHaveSize 3
         val cursor = firstWindow.nextCursor()
         cursor.shouldNotBeNull()
-        val scrollable = Scrollable.fromCursor(idKey, cursor)
+        val scrollable = Scrollable.of(idKey, 3).from(cursor)
         val nextFromCursor = repo.scroll(scrollable)
         val nextFromScrollable = repo.scroll(firstWindow.next<City>()!!)
         nextFromCursor.content.map { it.id } shouldBe nextFromScrollable.content.map { it.id }
@@ -1768,7 +1799,7 @@ internal open class EntityRepositoryTest(
     fun `entity scroll backward then navigate further back`() {
         val repo = orm.entity(City::class)
         val idKey = metamodel<City, Int>(repo.model, "id").key()
-        val lastWindow = repo.scroll(Scrollable.of(idKey, 3).backward())
+        val lastWindow = repo.scroll(Scrollable.of(idKey, 3).descending())
         lastWindow.content shouldHaveSize 3
         lastWindow.hasNext shouldBe true
         // Backward scroll returns results in descending order.

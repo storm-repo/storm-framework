@@ -734,6 +734,21 @@ public interface EntityRepository<E extends Entity<ID>, ID> extends Repository {
     }
 
     /**
+     * Scrolls through entities as refs using the given scroll request.
+     *
+     * <p>This is a convenience method that delegates to {@code selectRef().scroll(scrollable)}. The window carries
+     * navigation tokens like one of full entities, since the cursor values are read from the row.</p>
+     *
+     * @param scrollable the scroll request: ordering, size and position.
+     * @return a window containing the refs and navigation tokens.
+     * @throws PersistenceException if the query fails due to underlying database issues.
+     * @since 1.14
+     */
+    default Window<Ref<E>> scrollRef(Scrollable<E> scrollable) {
+        return selectRef().scroll(scrollable);
+    }
+
+    /**
      * Iterates the entities in windows of {@code size} rows ordered by the primary key, each window one closed
      * statement.
      *

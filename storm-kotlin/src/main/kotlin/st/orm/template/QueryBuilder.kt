@@ -1050,27 +1050,33 @@ public abstract class QueryBuilder<T : Data, R, ID> {
     }
 
     /**
-     * Executes the query and returns a [Window] of results.
+     * Executes the query and returns a [Slice] of at most [size] results, with the flags that say whether rows
+     * exist after and before it.
      *
-     * This method fetches `size + 1` rows to determine whether more results are available, then returns at
-     * most `size` results along with a `hasNext` flag. The caller is responsible for managing any WHERE
-     * and ORDER BY clauses externally.
+     * The slice is read with the query's own WHERE, ORDER BY and offset, so the caller owns the ordering and the
+     * position. `size + 1` rows are fetched to decide `hasNext`; `hasPrevious` follows from the offset. A slice
+     * carries no navigation tokens: a query that should navigate by keyset uses [scroll].
      *
-     * The returned window does not carry navigation tokens ([Window.next] and [Window.previous] return `null`).
-     *
-     * @param size the maximum number of results to include in the window (must be positive).
-     * @return a window containing the results and a flag indicating whether more results exist.
+     * @param size the maximum number of results in the slice (must be positive).
+     * @return the slice.
      * @throws IllegalArgumentException if [size] is not positive.
-     * @since 1.11
+     * @since 1.14
      */
-    public abstract fun scroll(size: Int): Window<R>
+    public abstract fun slice(size: Int): Slice<R>
 
     /**
-     * Executes a scroll request from a [Scrollable] token, typically obtained from
-     * [Window.next] or [Window.previous].
+     * Executes a scroll request and returns a [Window]: the results in the request's sort order, the flags that
+     * say whether rows exist after and before the window, and the tokens that continue from it.
      *
-     * @param scrollable the scroll request containing cursor state, key, sort, size, and direction.
+     * The request owns the ordering, so the query must not carry an ORDER BY of its own. The sort fields and the
+     * key are read from each row alongside the result, so the tokens are there for every result type: the entity,
+     * a projection, a ref or a custom select type. A window reached through [Window.previous] comes back in the
+     * same sort order as every other window.
+     *
+     * @param scrollable the scroll request: ordering, size and position.
      * @return a window containing the results and navigation tokens.
+     * @throws PersistenceException if the query carries an explicit ORDER BY, the key is compound or nullable, or
+     * a sort field is nullable.
      * @since 1.11
      */
     public abstract fun scroll(scrollable: Scrollable<T>): Window<R>
@@ -1088,11 +1094,11 @@ public abstract class QueryBuilder<T : Data, R, ID> {
      * Windows are keyset windows over the primary key, so the query must not carry an ORDER BY of its own, and the
      * result type must be the entity type the key belongs to: `selectRef()` and custom select types are refused. A
      * compound primary key is refused too; pass [windows] a [Scrollable] with a single-column unique key instead.
-     * The rows come in ascending key order; pass `Scrollable.of(key, size).backward()` for descending order.
+     * The rows come in ascending key order; pass `Scrollable.of(key, size).descending()` for descending order.
      *
      * ```kotlin
-     * users.select().where(User_.active eq true).windows(1000).collect { window ->
-     *     users.update(window.content().map { it.copy(processed = true) })
+     * users.select().where(User_.city eq city).windows(1000).collect { window ->
+     *     users.update(window.content().map { it.copy(email = it.email.lowercase()) })
      * }
      * ```
      *
@@ -1108,9 +1114,10 @@ public abstract class QueryBuilder<T : Data, R, ID> {
     /**
      * Executes the query in windows described by the given scroll request, each window one closed statement.
      *
-     * This is the form of [windows] that chooses the key, the sort field, the direction and the starting position:
-     * `Scrollable.of(key, size)` iterates from the start, a [Window.next] token or [Scrollable.fromCursor] resumes
-     * after an earlier window, and `.backward()` iterates in descending order. The same key rules as [scroll] apply.
+     * This is the form of [windows] that chooses the key, the sort fields, the directions and the starting
+     * position: `Scrollable.of(key, size)` iterates from the start, a [Window.next] token or [Scrollable.from]
+     * resumes after an earlier window, and `.descending()` iterates in descending key order. The same key rules as
+     * [scroll] apply.
      *
      * @param scrollable the scroll request describing key, sort, size, direction and starting position.
      * @return a flow of windows; each window's [Window.next] resumes the iteration after that window.

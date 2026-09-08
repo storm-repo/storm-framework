@@ -1,12 +1,28 @@
+/*
+ * Copyright 2024 - 2026 the original author or authors.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *      https://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 package st.orm;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
-import static org.junit.jupiter.api.Assertions.assertSame;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.lang.reflect.Proxy;
+import java.util.List;
 import org.junit.jupiter.api.Test;
 
 class ScrollableTest {
@@ -39,30 +55,40 @@ class ScrollableTest {
     private static final Metamodel.Key<Data, Integer> KEY = stubKey(Integer.class, "id");
     private static final Metamodel<Data, String> SORT = stubSort(String.class, "name");
 
-    // Factory methods
+    // Factory and ordering
 
     @Test
-    void ofCreatesForwardScrollableWithoutCursor() {
+    void ofOrdersByTheKeyAscendingFromTheStart() {
         var scrollable = Scrollable.of(KEY, 20);
-        assertTrue(scrollable.isForward());
-        assertFalse(scrollable.hasCursor());
-        assertFalse(scrollable.isComposite());
+        assertFalse(scrollable.keyDescending());
+        assertTrue(scrollable.sort().isEmpty());
+        assertFalse(scrollable.hasPosition());
+        assertNull(scrollable.position());
         assertEquals(20, scrollable.size());
+        assertEquals(List.of(new Order(KEY, false)), scrollable.orders());
     }
 
     @Test
-    void ofCompositeCreatesForwardScrollableWithSort() {
-        var scrollable = Scrollable.of(KEY, SORT, 10);
-        assertTrue(scrollable.isForward());
-        assertFalse(scrollable.hasCursor());
-        assertTrue(scrollable.isComposite());
-        assertEquals(10, scrollable.size());
+    void descendingFlipsTheKeyOnly() {
+        var scrollable = Scrollable.of(KEY, 20).sortBy(SORT).descending();
+        assertTrue(scrollable.keyDescending());
+        assertEquals(List.of(Order.asc(SORT), new Order(KEY, true)), scrollable.orders());
+        assertFalse(scrollable.ascending().keyDescending());
+    }
+
+    @Test
+    void sortFieldsKeepTheirOwnDirectionAndPrecedence() {
+        var last = stubSort(String.class, "lastName");
+        var first = stubSort(String.class, "firstName");
+        var scrollable = Scrollable.of(KEY, 10).sortByDescending(last).sortBy(first);
+        assertEquals(List.of(Order.desc(last), Order.asc(first), new Order(KEY, false)), scrollable.orders());
     }
 
     @Test
     void ofRejectsNonPositiveSize() {
         assertThrows(IllegalArgumentException.class, () -> Scrollable.of(KEY, 0));
         assertThrows(IllegalArgumentException.class, () -> Scrollable.of(KEY, -1));
+        assertThrows(IllegalArgumentException.class, () -> Scrollable.of(KEY, 5).size(0));
     }
 
     @Test
@@ -70,51 +96,39 @@ class ScrollableTest {
         assertThrows(NullPointerException.class, () -> Scrollable.of(null, 10));
     }
 
-    // Direction methods
+    // Positions
 
     @Test
-    void backwardReturnsBackwardScrollable() {
-        var scrollable = Scrollable.of(KEY, 20).backward();
-        assertFalse(scrollable.isForward());
+    void afterAndBeforeCarryOneValuePerFieldThenTheKey() {
+        var after = Scrollable.of(KEY, 20).sortBy(SORT).after("Carter", 3);
+        assertTrue(after.hasPosition());
+        assertEquals(List.of("Carter", 3), after.position().values());
+        assertTrue(after.position().after());
+        var before = Scrollable.of(KEY, 20).sortBy(SORT).before("Carter", 3);
+        assertFalse(before.position().after());
     }
 
     @Test
-    void backwardIsIdempotent() {
-        var scrollable = Scrollable.of(KEY, 20).backward();
-        assertSame(scrollable, scrollable.backward());
+    void positionMustMatchTheOrdering() {
+        assertThrows(IllegalArgumentException.class, () -> Scrollable.of(KEY, 20).after("Carter", 3));
+        assertThrows(IllegalArgumentException.class, () -> Scrollable.of(KEY, 20).sortBy(SORT).after(3));
+        assertThrows(IllegalArgumentException.class, () -> new Position(List.of(), true));
     }
 
     @Test
-    void forwardReturnsForwardScrollable() {
-        var scrollable = Scrollable.of(KEY, 20).backward().forward();
-        assertTrue(scrollable.isForward());
+    void sortFieldsComeBeforeThePosition() {
+        assertThrows(IllegalStateException.class, () -> Scrollable.of(KEY, 20).after(3).sortBy(SORT));
     }
 
     @Test
-    void forwardIsIdempotent() {
-        var scrollable = Scrollable.of(KEY, 20);
-        assertSame(scrollable, scrollable.forward());
+    void sizeMayChangeWithoutTouchingThePosition() {
+        var scrollable = Scrollable.of(KEY, 20).after(3).size(50);
+        assertEquals(50, scrollable.size());
+        assertEquals(List.of(3), scrollable.position().values());
     }
 
     @Test
-    void reverseTogglesDirection() {
-        var forward = Scrollable.of(KEY, 20);
-        var backward = forward.reverse();
-        assertFalse(backward.isForward());
-        assertTrue(backward.reverse().isForward());
-    }
-
-    // Validation
-
-    @Test
-    void compositeSortCursorRequiredWhenKeyCursorPresent() {
-        assertThrows(IllegalArgumentException.class,
-                () -> new Scrollable<>(KEY, 42, SORT, null, 20, true));
-    }
-
-    @Test
-    void sortCursorWithoutSortFieldIsRejected() {
-        assertThrows(IllegalArgumentException.class,
-                () -> new Scrollable<>(KEY, null, null, "value", 20, true));
+    void toCursorNeedsAPosition() {
+        assertThrows(IllegalStateException.class, () -> Scrollable.of(KEY, 20).toCursor());
     }
 }

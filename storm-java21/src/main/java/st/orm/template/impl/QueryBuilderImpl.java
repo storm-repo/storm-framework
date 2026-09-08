@@ -33,6 +33,7 @@ import st.orm.Operator;
 import st.orm.PersistenceException;
 import st.orm.Ref;
 import st.orm.Scrollable;
+import st.orm.Slice;
 import st.orm.Window;
 import st.orm.core.spi.ORMReflection;
 import st.orm.core.spi.Providers;
@@ -597,8 +598,8 @@ public final class QueryBuilderImpl<T extends Data, R, ID> extends QueryBuilder<
     }
 
     @Override
-    public Window<R> scroll(int size) {
-        return core.scroll(size);
+    public Slice<R> slice(int size) {
+        return core.slice(size);
     }
 
     @Override

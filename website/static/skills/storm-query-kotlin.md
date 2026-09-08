@@ -538,61 +538,38 @@ Two operations are defined relative to the root and are affected by the widening
 
 ## Keyset Scrolling
 
-Keyset scrolling uses cursor-based navigation instead of offset, making it efficient for large tables. `Scrollable<T>` takes a **single type parameter** — the entity type (e.g., `Scrollable<User>`). Do not pass a second type parameter. **Scrollable manages ORDER BY internally** — do NOT add `orderBy()` when using `scroll(Scrollable)`, or Storm throws `PersistenceException`.
-
-**Composite PK limitation:** The scroll key must be a single-column, non-nullable unique key (e.g. a simple `@PK` or `@UK` field). Entities whose only unique key is a composite PK (e.g., junction tables) cannot be scrolled directly — the key doesn't resolve to a single column. To scroll filtered results from a junction table, query the related entity with a simple PK and JOIN through the junction table for filtering:
-```kotlin
-// ❌ Cannot scroll a junction table with composite PK
-userRoles.scroll(Scrollable.of(UserRole_.id, 20))  // fails — UserRole has composite PK
-
-// ✅ Scroll User (simple PK) with a JOIN through UserRole for filtering
-users.select {
-    innerJoin<UserRole, User>()
-    where(UserRole_.role eq role)
-}.scroll(Scrollable.of(User_.id, 20))
-```
+Keyset scrolling navigates by position instead of offset, making it efficient for large tables. A `Scrollable<T>` takes a **single type parameter**, the entity type. It states the ordering and the size; the position to continue from comes from `window.next()` / `window.previous()` or from a client's cursor string. **The request owns ORDER BY** — do NOT add `orderBy()` when using `scroll(Scrollable)`, or Storm throws `PersistenceException`.
 
 ```kotlin
-// WRONG: orderBy conflicts with Scrollable
+// WRONG: orderBy conflicts with the request's ordering
 select {
     where(User_.active eq true)
-    orderBy(User_.name)        // ❌ Scrollable manages ordering
+    orderBy(User_.name)        // ❌ the Scrollable orders
 }.scroll(Scrollable.of(User_.id, 20))
 
-// CORRECT: ordering is controlled by the Scrollable's key (and optional sort field)
+// CORRECT: the request orders; sort fields go before the key, which stays the tiebreaker
 select {
     where(User_.active eq true)
-}.scroll(Scrollable.of(User_.id, 20))
+}.scroll(Scrollable.of(User_.id, 20).sortBy(User_.email))
 ```
 
-**First request vs subsequent requests:** On the first request there is no cursor, so use `Scrollable.of()`. On subsequent requests, use `Scrollable.fromCursor()`. The cursor is **opaque** and exists for client-server communication: it contains exactly the information the client needs to navigate the scroll window (key position, window size, direction). Clients treat it as a black box — never parse or construct it — and echo it back unchanged to fetch the adjacent window. Server-side code never needs the cursor: `window.next()` / `window.previous()` return a ready-to-use typed `Scrollable<T>` — the cursor is merely the serialized form of that same `Scrollable` for crossing the client-server boundary:
+**Ordering:** `Scrollable.of(key, size)` orders by the key ascending. `sortBy(field)` / `sortByDescending(field)` add sort fields before the key, in any number, each in its own direction; `descending()` orders the key itself descending. Sort fields must be non-nullable. A newest-first feed is `Scrollable.of(Post_.id, 20).sortByDescending(Post_.createdAt).descending()`.
+
+**Every window is in sort order.** `window.previous()` returns the window before this one in the same order as `window.next()` returns the one after it; never reverse a window for display. `hasNext()` / `hasPrevious()` say whether rows existed after / before the window at query time; the tokens are non-null whenever the window has content, and following one is always allowed.
+
+**First request vs subsequent requests:** the ordering and the size are code; the position is the client's cursor. On the first request there is no cursor. On subsequent requests, put the same request at the client's cursor with `.from(cursor)`. The cursor is **opaque**: it carries the position only (the row's sort and key values, and whether to continue after or before it) under a fingerprint of the ordering, so a cursor issued for another ordering is refused. Clients treat it as a black box and echo it back unchanged. Server-side code never needs the cursor: `window.next()` / `window.previous()` are ready-to-use `Scrollable<T>` requests.
 
 ```kotlin
-val scrollable = if (cursor != null) {
-    Scrollable.fromCursor(User_.id, cursor)           // size encoded in cursor
-} else {
-    Scrollable.of(User_.id, 20)                       // first page, size 20
-}
-val window = users.scroll(scrollable)                     // prefer val — avoids Window<User> verbosity
-val nextCursor: String? = window.nextCursor()          // null if no more results
+val request = Scrollable.of(User_.id, size).sortBy(User_.email)      // ordering and size: code
+val window = users.scroll(if (cursor != null) request.from(cursor) else request)
+val nextCursor: String? = window.nextCursor()                          // null when nothing follows
 ```
 
-**Custom sort column** (non-unique sort field with key as tiebreaker):
-```kotlin
-val scrollable = Scrollable.of(User_.id, User_.name, 20)
-val window = users.scroll(scrollable)
-```
+**Tokens for every result type:** the sort and key values are read from the row, so `selectRef().scroll(...)`, `users.scrollRef(...)`, projections read as another type and custom select types all navigate. A compound (inline record) key is read from the mapped record and needs the entity type as the result.
 
-**Backward scrolling and navigation** (`Window` is a Java record — accessors are methods, call with `()`):
-```kotlin
-val window = users.scroll(Scrollable.of(User_.id, 20))
-if (window.hasNext()) {
-    val next = users.scroll(window.next()!!)
-}
-if (window.hasPrevious()) {
-    val previous = users.scroll(window.previous()!!)
-}
-```
+**Iterate windows:** `for (user in window)` works, `Window` is a `Slice` and iterates over its content; `window.size()` and `window.isEmpty()` exist too. `Window` is a Java record, so the other accessors are methods: `window.content()`, `window.hasNext()`.
+
+**Slices:** `select().orderBy(User_.email).offset(40).slice(20)` returns a `Slice` without tokens: the query's own ordering and offset, `hasNext` from one extra row, `hasPrevious` from the offset.
 
 ## Bulk DELETE/UPDATE
 
@@ -713,7 +690,7 @@ A `resultFlow` is one open statement. While it still has rows to emit, the conne
 ```kotlin
 transaction {
     users.select().resultFlow.collect { user ->
-        orm update user.copy(processed = true)   // ❌ write while the flow has rows left
+        orm update user.copy(email = user.email.lowercase())   // ❌ write while the flow has rows left
         user.city.fetch()                        // ❌ Ref.fetch() is a statement too
         cities.count()                           // ❌ any query
     }
@@ -728,18 +705,18 @@ The last line is the trap that passes small tests: the flow completes and closes
 ```kotlin
 // One transaction for the whole walk:
 transaction {
-    users.select(User_.active eq true).windows(1000).collect { window ->
-        users.update(window.content().map { it.copy(processed = true) })
+    users.select(User_.city eq city).windows(1000).collect { window ->
+        users.update(window.content().map { it.copy(email = it.email.lowercase()) })
     }
 }
 
 // Or a transaction per window, so progress is durable and locks are short-lived:
 users.windows(1000).collect { window ->
-    transaction { users.update(window.content().map { it.copy(processed = true) }) }
+    transaction { users.update(window.content().map { it.copy(email = it.email.lowercase()) }) }
 }
 
 // Resume after a restart from a stored cursor:
-users.windows(Scrollable.fromCursor(User_.id, storedCursor)).collect { window ->
+users.windows(Scrollable.of(User_.id, 1000).from(storedCursor)).collect { window ->
     process(window.content())
     store(window.nextCursor())
 }

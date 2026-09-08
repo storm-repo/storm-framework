@@ -654,6 +654,18 @@ public interface ProjectionRepository<P extends Projection<ID>, ID> extends Repo
     }
 
     /**
+     * Scrolls through projections as refs using the given scroll request. The window carries navigation tokens like
+     * one of full projections, since the cursor values are read from the row.
+     *
+     * @param scrollable the scroll request: ordering, size and position.
+     * @return a window containing the refs and navigation tokens.
+     * @since 1.14
+     */
+    default Window<Ref<P>> scrollRef(Scrollable<P> scrollable) {
+        return selectRef().scroll(scrollable);
+    }
+
+    /**
      * Iterates the projections in windows of {@code size} rows ordered by the primary key, each window one closed
      * statement.
      *

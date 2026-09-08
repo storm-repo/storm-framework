@@ -141,6 +141,6 @@ class PageableTest {
     void ordersListIsUnmodifiable() {
         Pageable pageable = Pageable.ofSize(10).sortBy(FIELD_A);
         assertThrows(UnsupportedOperationException.class,
-                () -> pageable.orders().add(new Pageable.Order(FIELD_B, false)));
+                () -> pageable.orders().add(new Order(FIELD_B, false)));
     }
 }

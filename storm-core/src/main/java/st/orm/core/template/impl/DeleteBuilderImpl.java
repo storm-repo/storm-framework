@@ -23,6 +23,7 @@ import java.util.List;
 import java.util.function.Supplier;
 import java.util.stream.Stream;
 import st.orm.Data;
+import st.orm.Metamodel;
 import st.orm.PersistenceException;
 import st.orm.core.template.Column;
 import st.orm.core.template.Model;
@@ -269,6 +270,16 @@ public class DeleteBuilderImpl<T extends Data, ID> extends QueryBuilderImpl<T, O
      * @throws PersistenceException if the query operation fails due to underlying database issues, such as
      *                              connectivity.
      */
+    @Override
+    protected int offsetOrZero() {
+        return 0;
+    }
+
+    @Override
+    protected List<KeyedRow<Object>> getKeyedResultList(List<Metamodel<T, ?>> columns) {
+        throw new PersistenceException("A delete query cannot be scrolled.");
+    }
+
     @Override
     public Stream<Object> getResultStream() {
         throw new PersistenceException("Cannot get a result stream from a DELETE query.");

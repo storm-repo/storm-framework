@@ -69,7 +69,7 @@ const CODE_STORM_CURSOR = [
   C('// Serialize the position into an opaque string for the client\n'),
   K('val '), P('cursor: '), T('String'), P('? = window.'), F('nextCursor'), P('()\n\n'),
   C('// The client sends it back; reconstruct the position and continue\n'),
-  K('val '), P('scrollable = '), T('Scrollable'), P('.'), F('fromCursor'), P('('), T('User_'), P('.id, cursor)\n'),
+  K('val '), P('scrollable = '), T('Scrollable'), P('.'), F('of'), P('('), T('User_'), P('.id, '), N('10'), P(').'), F('from'), P('(cursor)\n'),
   K('val '), P('next = users.'), F('scroll'), P('(scrollable)'),
 ].join('');
 
@@ -98,7 +98,7 @@ ${navHtml('tutorials')}
   <h2><span class="hno">04</span>Keyset scrolling</h2>
   <p>For feeds and load-more lists, <code>scroll()</code> replaces offsets with a cursor: it remembers the last key seen and asks the database for rows after it. The database seeks via the index instead of scanning:</p>
   ${editor({file: 'FeedService.kt', tag: 'Kotlin · Storm', code: CODE_STORM_SCROLL, sql: SQL_STORM_SCROLL})}
-  <p>The <code>Scrollable</code> key is a typed metamodel reference, and it must be unique so the sort is stable; sorting by a non-unique column takes an explicit sort overload with the key as tiebreaker. Two guardrails are built in: adding your own <code>orderBy()</code> to a scrolled query is rejected at runtime instead of silently corrupting page boundaries, and there is deliberately no total count, because counting a large filtered set on every request is exactly the cost scrolling exists to avoid.</p>
+  <p>The <code>Scrollable</code> key is a typed metamodel reference, and it must be unique so the sort is stable; sorting by non-unique columns adds them with <code>sortBy</code>, in any number and each in its own direction, with the key as tiebreaker. Two guardrails are built in: adding your own <code>orderBy()</code> to a scrolled query is rejected at runtime instead of silently corrupting page boundaries, and there is deliberately no total count, because counting a large filtered set on every request is exactly the cost scrolling exists to avoid.</p>
 
   <h2><span class="hno">05</span>Cursors for REST APIs</h2>
   <p>Scroll state usually needs to cross a network boundary. <code>Window</code> serializes its position to an opaque cursor string, and a <code>Scrollable</code> reconstructs from it:</p>
@@ -111,7 +111,7 @@ ${navHtml('tutorials')}
     <tr><td>Deep pages</td><td><code>OFFSET</code> walks and discards rows; keyset available via <code>ScrollPosition</code></td><td>Keyset scrolling seeks via the index</td></tr>
     <tr><td>Total count</td><td><code>Page</code> counts on every request; <code>Slice</code> drops it</td><td><code>page()</code> includes it; <code>scroll()</code> skips it by design</td></tr>
     <tr><td>Sort specification</td><td>Property name strings</td><td>Metamodel references, checked at compile time</td></tr>
-    <tr><td>REST cursors</td><td>Hand-rolled serialization</td><td><code>nextCursor()</code> and <code>Scrollable.fromCursor()</code> built in</td></tr>
+    <tr><td>REST cursors</td><td>Hand-rolled serialization</td><td><code>nextCursor()</code> and <code>Scrollable.from()</code> built in</td></tr>
   </table>
 
   <h2><span class="hno">07</span>Keep going</h2>

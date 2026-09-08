@@ -34,14 +34,6 @@ import java.util.List;
  */
 public record Pageable(int pageNumber, int pageSize, List<Order> orders) {
 
-    /**
-     * Represents a sort order for a single metamodel field.
-     *
-     * @param field the metamodel field to sort by.
-     * @param descending {@code true} for descending order, {@code false} for ascending.
-     */
-    public record Order(Metamodel<?, ?> field, boolean descending) {}
-
     public Pageable {
         orders = copyOf(orders);
         if (pageNumber < 0) {

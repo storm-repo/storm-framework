@@ -453,7 +453,7 @@ internal class QueryBuilderImpl<T : Data, R, ID>(
      */
     override fun offset(offset: Int): QueryBuilder<T, R, ID> = QueryBuilderImpl<T, R, ID>(core.offset(offset))
 
-    override fun scroll(size: Int): Window<R> = core.scroll(size)
+    override fun slice(size: Int): Slice<R> = core.slice(size)
 
     override fun scroll(scrollable: Scrollable<T>): Window<R> = core.scroll(scrollable)
 

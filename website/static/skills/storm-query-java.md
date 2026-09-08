@@ -403,58 +403,38 @@ Two operations are defined relative to the root and are affected by the widening
 
 ## Keyset Scrolling
 
-Keyset scrolling uses cursor-based navigation instead of offset, making it efficient for large tables. **Scrollable manages ORDER BY internally** — do NOT add `orderBy()` when using `scroll(Scrollable)`, or Storm throws `PersistenceException`.
-
-**Composite PK limitation:** The scroll key must be a single-column, non-nullable unique key (a `Metamodel.Key`, e.g. a simple `@PK` or `@UK` field). Entities whose only unique key is a composite PK (e.g., junction tables) cannot be scrolled directly — the key doesn't resolve to a single column. To scroll filtered results from a junction table, query the related entity with a simple PK and JOIN through the junction table for filtering:
-```java
-// ❌ Cannot scroll a junction table with composite PK
-userRoles.scroll(Scrollable.of(UserRole_.id, 20));  // fails — UserRole has composite PK
-
-// ✅ Scroll User (simple PK) with a JOIN through UserRole for filtering
-users.select()
-    .innerJoin(UserRole.class).on(User.class)
-    .where(UserRole_.role, EQUALS, role)
-    .scroll(Scrollable.of(User_.id, 20));
-```
+Keyset scrolling navigates by position instead of offset, making it efficient for large tables. A `Scrollable<T>` states the ordering and the size; the position to continue from comes from `window.next()` / `window.previous()` or from a client's cursor string. **The request owns ORDER BY** — do NOT add `orderBy()` when using `scroll(Scrollable)`, or Storm throws `PersistenceException`.
 
 ```java
-// WRONG: orderBy conflicts with Scrollable
+// WRONG: orderBy conflicts with the request's ordering
 users.select()
     .where(User_.active, EQUALS, true)
-    .orderBy(User_.name)        // ❌ Scrollable manages ordering
+    .orderBy(User_.name)        // ❌ the Scrollable orders
     .scroll(Scrollable.of(User_.id, 20));
 
-// CORRECT: ordering is controlled by the Scrollable's key (and optional sort field)
+// CORRECT: the request orders; sort fields go before the key, which stays the tiebreaker
 users.select()
     .where(User_.active, EQUALS, true)
-    .scroll(Scrollable.of(User_.id, 20));
+    .scroll(Scrollable.of(User_.id, 20).sortBy(User_.email));
 ```
 
-**First request vs subsequent requests:** On the first request there is no cursor, so use `Scrollable.of()`. On subsequent requests, use `Scrollable.fromCursor()`. The cursor is **opaque** and exists for client-server communication: it contains exactly the information the client needs to navigate the scroll window (key position, window size, direction). Clients treat it as a black box — never parse or construct it — and echo it back unchanged to fetch the adjacent window. Server-side code never needs the cursor: `window.next()` / `window.previous()` return a ready-to-use typed `Scrollable<T>` — the cursor is merely the serialized form of that same `Scrollable` for crossing the client-server boundary:
+**Ordering:** `Scrollable.of(key, size)` orders by the key ascending. `sortBy(field)` / `sortByDescending(field)` add sort fields before the key, in any number, each in its own direction; `descending()` orders the key itself descending. Sort fields must be non-nullable. A newest-first feed is `Scrollable.of(Post_.id, 20).sortByDescending(Post_.createdAt).descending()`.
+
+**Every window is in sort order.** `window.previous()` returns the window before this one in the same order as `window.next()` returns the one after it; never reverse a window for display. `hasNext()` / `hasPrevious()` say whether rows existed after / before the window at query time; the tokens are non-null whenever the window has content, and following one is always allowed.
+
+**First request vs subsequent requests:** the ordering and the size are code; the position is the client's cursor. On the first request there is no cursor. On subsequent requests, put the same request at the client's cursor with `.from(cursor)`. The cursor is **opaque**: it carries the position only (the row's sort and key values, and whether to continue after or before it) under a fingerprint of the ordering, so a cursor issued for another ordering is refused. Clients treat it as a black box and echo it back unchanged. Server-side code never needs the cursor: `window.next()` / `window.previous()` are ready-to-use `Scrollable<T>` requests.
 
 ```java
-var scrollable = cursor != null
-    ? Scrollable.fromCursor(User_.id, cursor)       // size encoded in cursor
-    : Scrollable.of(User_.id, 20);                  // first page, size 20
-var window = users.scroll(scrollable);                     // prefer var — avoids Window<User> verbosity
-String nextCursor = window.nextCursor();             // null if no more results
+var request = Scrollable.of(User_.id, size).sortBy(User_.email);      // ordering and size: code
+var window = users.scroll(cursor != null ? request.from(cursor) : request);
+String nextCursor = window.nextCursor();                              // null when nothing follows
 ```
 
-**Custom sort column** (non-unique sort field with key as tiebreaker):
-```java
-var scrollable = Scrollable.of(User_.id, User_.name, 20);
-```
+**Tokens for every result type:** the sort and key values are read from the row, so `selectRef().scroll(...)`, `users.scrollRef(...)`, projections read as another type and custom select types all navigate. A compound (inline record) key is read from the mapped record and needs the entity type as the result.
 
-**Backward scrolling and navigation:**
-```java
-var window = users.scroll(Scrollable.of(User_.id, 20));
-if (window.hasNext()) {
-    var next = users.scroll(window.next());
-}
-if (window.hasPrevious()) {
-    var previous = users.scroll(window.previous());
-}
-```
+**Iterate windows:** `for (User user : window)` works, `Window` is a `Slice` and iterates over its content; `window.size()`, `window.isEmpty()` and `window.stream()` exist too.
+
+**Slices:** `select().orderBy(User_.email).offset(40).slice(20)` returns a `Slice` without tokens: the query's own ordering and offset, `hasNext` from one extra row, `hasPrevious` from the offset.
 
 ## Bulk DELETE/UPDATE
 
@@ -537,13 +517,13 @@ The last line is the trap that passes small tests: a batch that executes after t
 
 ```java
 transaction(tx -> {
-    users.select().where(User_.active, EQUALS, true).windows(1000).forEach(window ->
+    users.select().where(User_.city, EQUALS, city).windows(1000).forEach(window ->
         users.update(window.content().stream().map(user -> /* copy with changes */ user).toList()));
     return null;
 });
 
 // Resume after a restart from a stored cursor:
-users.windows(Scrollable.fromCursor(User_.id, storedCursor)).forEach(window -> {
+users.windows(Scrollable.of(User_.id, 1000).from(storedCursor)).forEach(window -> {
     process(window.content());
     store(window.nextCursor());
 });

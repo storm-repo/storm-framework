@@ -490,8 +490,8 @@ val activeUsers: Flow<User> = users.select(User_.active eq true).resultFlow
 // A flow with rows still to emit is one open statement: its connection is consume-only, so inside transaction { }
 // a query, Ref.fetch() or write from the collector throws. Loops that need the database use windows:
 // keyset windows over the primary key, one closed statement per window, connection free in between.
-users.select(User_.active eq true).windows(1000).collect { window ->
-    users.update(window.content().map { it.copy(processed = true) })   // one batched statement per window
+users.select(User_.city eq city).windows(1000).collect { window ->
+    users.update(window.content().map { it.copy(email = it.email.lowercase()) })   // one batched statement per window
 }
 
 // Count via Flow
@@ -521,7 +521,7 @@ A `resultFlow` is one open statement. While it still has rows to emit, the conne
 ```kotlin
 transaction {
     users.select().resultFlow.collect { user ->
-        orm update user.copy(processed = true)   // ❌ write while the flow has rows left
+        orm update user.copy(email = user.email.lowercase())   // ❌ write while the flow has rows left
         user.city.fetch()                        // ❌ Ref.fetch() is a statement too
         cities.count()                           // ❌ any query
     }
@@ -536,18 +536,18 @@ The last line is the trap that passes small tests: the flow completes and closes
 ```kotlin
 // One transaction for the whole walk:
 transaction {
-    users.select(User_.active eq true).windows(1000).collect { window ->
-        users.update(window.content().map { it.copy(processed = true) })
+    users.select(User_.city eq city).windows(1000).collect { window ->
+        users.update(window.content().map { it.copy(email = it.email.lowercase()) })
     }
 }
 
 // Or a transaction per window, so progress is durable and locks are short-lived:
 users.windows(1000).collect { window ->
-    transaction { users.update(window.content().map { it.copy(processed = true) }) }
+    transaction { users.update(window.content().map { it.copy(email = it.email.lowercase()) }) }
 }
 
 // Resume after a restart from a stored cursor:
-users.windows(Scrollable.fromCursor(User_.id, storedCursor)).collect { window ->
+users.windows(Scrollable.of(User_.id, 1000).from(storedCursor)).collect { window ->
     process(window.content())
     store(window.nextCursor())
 }
@@ -591,36 +591,30 @@ val nextPage = users.page(page.nextPageable())
 // Keyset scrolling (better for large tables — no COUNT, cursor-based)
 // Scrollable<T> takes a single type parameter (the entity type)
 // ⚠️ Scrollable manages ORDER BY internally — do NOT add orderBy() when using scroll(Scrollable)
-// ⚠️ The scroll key must be a single-column, non-nullable unique key (e.g. a simple @PK or @UK
-//    field) — junction tables with composite PKs cannot be scrolled directly.
-//    To scroll filtered results from a junction table, query the entity with a simple PK
-//    and JOIN through the junction table (e.g., scroll User with a JOIN through UserRole).
+// ⚠️ The key must be a non-nullable unique key (e.g. @PK or @UK). A compound (inline record)
+//    key is read from the mapped record and needs the entity as the result type.
 val window = users.scroll(Scrollable.of(User_.id, 20))
 
-// With custom sort order (sort column in addition to key)
-val window = users.scroll(Scrollable.of(User_.id, User_.name, 20))
+// Sort fields before the key, in any number, each in its own direction; descending() flips the key
+val window = users.scroll(Scrollable.of(User_.id, 20).sortBy(User_.email))
+val latest = users.scroll(Scrollable.of(Post_.id, 20).sortByDescending(Post_.createdAt).descending())
 
-// First request vs subsequent: use Scrollable.of() when no cursor exists,
-// Scrollable.fromCursor() when resuming. The cursor is opaque and exists for
-// client-server communication: it contains exactly what the client needs to
-// navigate the scroll window (key position, size, direction) — clients echo
-// it back unchanged, never parse or construct it. Server-side code never
-// needs the cursor: window.next()/previous() return a ready-to-use typed
-// Scrollable<T> — the cursor is merely its serialized form.
-val scrollable = if (cursor != null) {
-    Scrollable.fromCursor(User_.id, cursor)
-} else {
-    Scrollable.of(User_.id, 20)
-}
-val window = users.scroll(scrollable)
+// Refs navigate too: the key is read from the row
+val refs = users.scrollRef(Scrollable.of(User_.id, 20))
 
-// Window<R> is the scroll result record. Both scroll() methods return Window.
-// Window API — Window is a Java record; ALL accessors are methods, call with ()
+// First request vs subsequent: the ordering and the size are code, the position is
+// the client's cursor. The cursor is opaque (the row's values and after/before, under
+// a fingerprint of the ordering): clients echo it back unchanged. Server-side code
+// never needs it: window.next()/previous() are ready-to-use Scrollable<T> requests.
+val request = Scrollable.of(User_.id, 20).sortBy(User_.email)
+val window = users.scroll(if (cursor != null) request.from(cursor) else request)
+
+// Window<R> is a Slice: iterate it directly (for (user in window)), every window is in sort order.
+// Window is a Java record; the accessors are methods, call with ()
 // window.content() — List<User> of results
-// window.hasNext() / window.hasPrevious() — bounds checking
+// window.hasNext() / window.hasPrevious() — rows exist after / before the window
 // window.nextCursor() / window.previousCursor() — opaque cursors for REST APIs (see above)
-// window.next() / window.previous() — typed Scrollable<T> for programmatic navigation
-// window.nextScrollable() / window.previousScrollable() — raw Scrollable<?> record component accessors (use next()/previous() instead)
+// window.next() / window.previous() — typed Scrollable<T> for the adjacent window, same order
 ```
 
 ## Framework-Specific Repository Registration

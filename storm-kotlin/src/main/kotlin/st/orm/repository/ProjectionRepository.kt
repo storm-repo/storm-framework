@@ -824,6 +824,16 @@ public interface ProjectionRepository<P, ID : Any> : Repository where P : Projec
     public fun scroll(scrollable: Scrollable<P>): Window<P> = select().scroll(scrollable)
 
     /**
+     * Scrolls through projections as refs using the given scroll request. The window carries navigation tokens like
+     * one of full projections, since the cursor values are read from the row.
+     *
+     * @param scrollable the scroll request: ordering, size and position.
+     * @return a window containing the refs and navigation tokens.
+     * @since 1.14
+     */
+    public fun scrollRef(scrollable: Scrollable<P>): Window<Ref<P>> = selectRef().scroll(scrollable)
+
+    /**
      * Iterates the projections in windows of [size] rows ordered by the primary key, each window one closed
      * statement.
      *
