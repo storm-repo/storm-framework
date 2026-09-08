@@ -466,6 +466,15 @@ public class RepositoryTest {
     }
 
     @Test
+    public void testProjectionWindows() {
+        var ownerViews = orm.projection(OwnerView.class);
+        List<Window<OwnerView>> windows = ownerViews.windows(5).toList();
+        assertEquals(2, windows.size());
+        assertEquals(ownerViews.count(), windows.stream().mapToLong(window -> window.content().size()).sum());
+        assertFalse(windows.getLast().hasNext());
+    }
+
+    @Test
     public void testProjectionScrollBeforeByKey() {
         Window<OwnerView> window = orm.projection(OwnerView.class).scroll(Scrollable.of(OwnerView_.id, 5).backward());
         assertEquals(5, window.content().size());

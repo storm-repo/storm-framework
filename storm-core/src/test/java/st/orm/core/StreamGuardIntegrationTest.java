@@ -164,6 +164,47 @@ public class StreamGuardIntegrationTest {
     }
 
     @Test
+    public void statementThatCannotNameItsConnectionIsNotGuarded() throws SQLException {
+        // The guard identifies the connection through the statement's own getConnection(). A driver or wrapper
+        // that cannot answer it leaves the connection unguarded rather than failing the statement.
+        try (var connection = sharedConnection()) {
+            var orm = ORMTemplate.of(withAnonymousStatements(connection));
+            var counted = new AtomicInteger();
+            try (var vets = orm.selectFrom(Vet.class).getResultStream()) {
+                vets.forEach(vet -> counted.addAndGet((int) orm.selectFrom(Vet.class).getResultCount()));
+            }
+            assertEquals(36, counted.get());
+        }
+    }
+
+    /** Wraps the connection so every statement it prepares throws from {@code getConnection()}. */
+    private static Connection withAnonymousStatements(Connection connection) {
+        return (Connection) java.lang.reflect.Proxy.newProxyInstance(Connection.class.getClassLoader(),
+                new Class<?>[] {Connection.class}, (ignore, method, args) -> {
+                    Object result;
+                    try {
+                        result = method.invoke(connection, args);
+                    } catch (java.lang.reflect.InvocationTargetException e) {
+                        throw e.getTargetException();
+                    }
+                    if (result instanceof java.sql.PreparedStatement statement) {
+                        return java.lang.reflect.Proxy.newProxyInstance(Connection.class.getClassLoader(),
+                                new Class<?>[] {java.sql.PreparedStatement.class}, (ignored, statementMethod, statementArgs) -> {
+                                    if (statementMethod.getName().equals("getConnection")) {
+                                        throw new SQLException("This statement does not name its connection.");
+                                    }
+                                    try {
+                                        return statementMethod.invoke(statement, statementArgs);
+                                    } catch (java.lang.reflect.InvocationTargetException e) {
+                                        throw e.getTargetException();
+                                    }
+                                });
+                    }
+                    return result;
+                });
+    }
+
+    @Test
     public void secondStreamOnSharedConnectionIsRefused() throws SQLException {
         try (var connection = sharedConnection()) {
             var orm = ORMTemplate.of(connection);

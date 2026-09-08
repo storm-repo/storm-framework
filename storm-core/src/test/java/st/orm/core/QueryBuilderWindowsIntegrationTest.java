@@ -36,7 +36,9 @@ import st.orm.Scrollable;
 import st.orm.Window;
 import st.orm.core.model.Vet;
 import st.orm.core.model.VetSpecialty;
+import st.orm.core.model.VetView;
 import st.orm.core.model.Vet_;
+import st.orm.core.model.VisitView;
 import st.orm.core.template.ORMTemplate;
 import st.orm.spi.QueryObserver;
 
@@ -161,6 +163,22 @@ public class QueryBuilderWindowsIntegrationTest {
                 .windows(Scrollable.of(Vet_.id, 2))
                 .toList());
         assertTrue(exception.getMessage().contains("carry the key"), exception.getMessage());
+    }
+
+    @Test
+    public void projectionWindowsByPrimaryKeyCoverAllRowsInKeyOrder() {
+        var windows = ORMTemplate.of(dataSource).projection(VetView.class).windows(4).toList();
+        assertEquals(2, windows.size());
+        assertEquals(List.of(1, 2, 3, 4, 5, 6),
+                windows.stream().flatMap(window -> window.content().stream()).map(VetView::id).toList());
+    }
+
+    @Test
+    public void windowsRejectProjectionWithoutPrimaryKey() {
+        // VisitView does not expose the primary key of the underlying visit table.
+        var exception = assertThrows(PersistenceException.class,
+                () -> ORMTemplate.of(dataSource).projection(VisitView.class).windows(2));
+        assertTrue(exception.getMessage().contains("has none"), exception.getMessage());
     }
 
     @Test
