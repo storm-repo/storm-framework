@@ -303,9 +303,36 @@ if (page.hasNext()) {
 </TabItem>
 </Tabs>
 
+### Slices
+
+`slice` is `page` without the count query: the same `Pageable`, one row beyond the page size to decide `hasNext`, and `next()` and `previous()` to navigate. Use it for a "load more" that needs no total.
+
+<Tabs groupId="language">
+<TabItem value="kotlin" label="Kotlin" default>
+
+```kotlin
+val slice: Slice<User> = userRepository.slice(Pageable.ofSize(20).sortBy(User_.email))
+if (slice.hasNext) {
+    val more = userRepository.slice(slice.next())
+}
+```
+
+</TabItem>
+<TabItem value="java" label="Java">
+
+```java
+Slice<User> slice = userRepository.slice(Pageable.ofSize(20).sortBy(User_.email));
+if (slice.hasNext()) {
+    Slice<User> more = userRepository.slice(slice.next());
+}
+```
+
+</TabItem>
+</Tabs>
+
 ### Ref Variants
 
-Use `pageRef` to load only primary keys instead of full entities, returning a `Page<Ref<E>>`. This is useful when you need identifiers for a subsequent batch operation without the overhead of fetching full entity data.
+Use `pageRef` and `sliceRef` to load only primary keys instead of full entities, returning a `Page<Ref<E>>` or a `Slice<Ref<E>>`. This is useful when you need identifiers for a subsequent batch operation without the overhead of fetching full entity data.
 
 <Tabs groupId="language">
 <TabItem value="kotlin" label="Kotlin" default>

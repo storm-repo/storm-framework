@@ -209,16 +209,18 @@ public class KeysetScrollIntegrationTest {
     }
 
     @Test
-    public void sliceFollowsTheQueryOrderingAndOffset() {
+    public void sliceFollowsTheQueryOrderingAndThePageNumber() {
         var orm = ORMTemplate.of(dataSource);
-        var first = orm.selectFrom(Vet.class).orderBy(Vet_.id).slice(4);
+        var first = orm.selectFrom(Vet.class).orderBy(Vet_.id).slice(0, 4);
         assertEquals(List.of(1, 2, 3, 4), first.stream().map(Vet::id).toList());
         assertTrue(first.hasNext());
         assertFalse(first.hasPrevious());
-        var rest = orm.selectFrom(Vet.class).orderBy(Vet_.id).offset(4).slice(4);
+        assertNull(first.previous());
+        var rest = orm.selectFrom(Vet.class).orderBy(Vet_.id).slice(first.next());
         assertEquals(List.of(5, 6), rest.stream().map(Vet::id).toList());
         assertFalse(rest.hasNext());
         assertTrue(rest.hasPrevious());
+        assertEquals(first.pageable(), rest.previous());
     }
 
     @Test

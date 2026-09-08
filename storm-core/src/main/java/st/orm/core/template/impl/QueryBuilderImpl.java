@@ -42,7 +42,6 @@ import st.orm.Order;
 import st.orm.PersistenceException;
 import st.orm.Ref;
 import st.orm.Scrollable;
-import st.orm.Slice;
 import st.orm.SqlTemplateException;
 import st.orm.Window;
 import st.orm.core.template.JoinBuilder;
@@ -113,22 +112,7 @@ abstract class QueryBuilderImpl<T extends Data, R, ID> extends QueryBuilder<T, R
      * @param columns the cursor columns, in the order their values are wanted.
      * @return the rows with their cursor values.
      */
-    protected abstract List<KeyedQuery.Row<R>> getKeyedResultList(List<Metamodel<T, ?>> columns);
-
-    /**
-     * Returns the query's offset, or zero when it has none.
-     */
-    protected abstract int offsetOrZero();
-
-    @Override
-    public final Slice<R> slice(int size) {
-        if (size <= 0) {
-            throw new IllegalArgumentException("size must be positive.");
-        }
-        List<R> results = this.limit(size + 1).getResultList();
-        boolean hasNext = results.size() > size;
-        return Slice.of(hasNext ? results.subList(0, size) : results, hasNext, offsetOrZero() > 0);
-    }
+    abstract List<KeyedQuery.Row<R>> getKeyedResultList(List<Metamodel<T, ?>> columns);
 
     @Override
     @SuppressWarnings("unchecked")

@@ -1001,7 +1001,7 @@ public abstract class QueryBuilder<T : Data, R, ID> {
      * @since 1.10
      */
     public fun page(pageable: Pageable): Page<R> {
-        val content = pageContent(pageable)
+        val content = pageContent(pageable, pageable.pageSize())
         val totalCount = if (content.size < pageable.pageSize() && (pageable.offset() == 0L || content.isNotEmpty())) {
             // A page that is not full is the last page, so the total follows from the page itself. An empty page
             // beyond the first proves nothing: the offset may lie anywhere past the end.
@@ -1030,39 +1030,62 @@ public abstract class QueryBuilder<T : Data, R, ID> {
      * @throws PersistenceException if the pageable has sort orders and the query builder has explicit orderBy calls.
      * @since 1.10
      */
-    public fun page(pageable: Pageable, totalCount: Long): Page<R> = Page(pageContent(pageable), totalCount, pageable)
+    public fun page(pageable: Pageable, totalCount: Long): Page<R> = Page(pageContent(pageable, pageable.pageSize()), totalCount, pageable)
 
     /**
      * Fetches the content for the requested page, applying the pageable's sort orders and offset/limit window.
      */
-    private fun pageContent(pageable: Pageable): List<R> {
+    /**
+     * Executes the query and returns a [Slice] of results using offset-based pagination without a count.
+     *
+     * The slice is read the way a page is, with OFFSET and LIMIT from the request, but one row beyond the page
+     * size is fetched instead of running a count query: [Slice.hasNext] says whether that row existed, and
+     * [Slice.hasPrevious] follows from the page number. Use it for a "load more" that needs no total, and for a
+     * query without a unique key, where [scroll] is not possible.
+     *
+     * Page numbers are zero-based: pass `0` for the first slice.
+     *
+     * @param pageNumber the zero-based page index.
+     * @param pageSize the maximum number of results per slice.
+     * @return the slice.
+     * @since 1.14
+     */
+    public fun slice(pageNumber: Int, pageSize: Int): Slice<R> = slice(Pageable.of(pageNumber, pageSize))
+
+    /**
+     * Executes the query and returns a [Slice] of results using offset-based pagination without a count.
+     *
+     * The slice is read the way a page is, with OFFSET and LIMIT from the request, but one row beyond the page
+     * size is fetched instead of running a count query: [Slice.hasNext] says whether that row existed, and
+     * [Slice.hasPrevious] follows from the page number. Use it for a "load more" that needs no total, and for a
+     * query without a unique key, where [scroll] is not possible.
+     *
+     * Use [Pageable.ofSize] for the first slice, then navigate with [Slice.next] or [Slice.previous].
+     *
+     * @param pageable the request specifying page number, page size and sort orders.
+     * @return the slice.
+     * @throws PersistenceException if the request carries sort orders and the query an explicit ORDER BY.
+     * @since 1.14
+     */
+    public fun slice(pageable: Pageable): Slice<R> {
+        val content = pageContent(pageable, pageable.pageSize() + 1)
+        val hasNext = content.size > pageable.pageSize()
+        return Slice(if (hasNext) content.subList(0, pageable.pageSize()) else content, hasNext, pageable)
+    }
+
+    private fun pageContent(pageable: Pageable, limit: Int): List<R> {
         // Forbid combining explicit orderBy with Pageable sort orders for consistency with scroll, which also
         // manages ORDER BY internally and forbids explicit orderBy calls.
         if (hasOrderBy() && pageable.orders().isNotEmpty()) {
-            throw PersistenceException("page with Pageable sort orders cannot be combined with explicit orderBy calls.")
+            throw PersistenceException("Pageable sort orders cannot be combined with explicit orderBy calls.")
         }
         var sorted: QueryBuilder<T, R, ID> = this
         for (order in pageable.orders()) {
             // The Pageable's sort field may be rooted anywhere in the query, so the column is named directly.
             sorted = sorted.orderBy(wrap(Columns(listOf(order.field()), CASCADE, if (order.descending()) ORDER_BY_DESCENDING else ORDER_BY_ASCENDING)))
         }
-        return sorted.offset(pageable.offset().toInt()).limit(pageable.pageSize()).resultList
+        return sorted.offset(pageable.offset().toInt()).limit(limit).resultList
     }
-
-    /**
-     * Executes the query and returns a [Slice] of at most [size] results, with the flags that say whether rows
-     * exist after and before it.
-     *
-     * The slice is read with the query's own WHERE, ORDER BY and offset, so the caller owns the ordering and the
-     * position. `size + 1` rows are fetched to decide `hasNext`; `hasPrevious` follows from the offset. A slice
-     * carries no navigation tokens: a query that should navigate by keyset uses [scroll].
-     *
-     * @param size the maximum number of results in the slice (must be positive).
-     * @return the slice.
-     * @throws IllegalArgumentException if [size] is not positive.
-     * @since 1.14
-     */
-    public abstract fun slice(size: Int): Slice<R>
 
     /**
      * Executes a scroll request and returns a [Window]: the results in the request's sort order, the flags that

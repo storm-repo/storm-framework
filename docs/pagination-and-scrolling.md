@@ -3,28 +3,37 @@ import TabItem from '@theme/TabItem';
 
 # Pagination and Scrolling
 
-Storm supports three strategies for retrieving subsets of a result set: manual offset/limit, offset-based pagination, and cursor-based scrolling. This page covers each in detail, including their trade-offs, type signatures, and advanced usage.
+Storm reads a result set in parts in four ways: a slice, a page, a window, and a stream of windows, with raw offset and limit as the manual baseline. This page covers each in detail, including their trade-offs, type signatures, and advanced usage.
 
 For a quick overview, see [Queries: Data Retrieval Strategies](queries.md#data-retrieval-strategies).
 
-## Choosing a Strategy
+## Choosing a Read
 
-Storm provides three ways to retrieve a subset of query results. The right choice depends on how your application navigates the data and how large the result set is.
+Each read answers a different question, so pick by what the application needs to know and how it moves through the data.
 
-| Feature | Offset and Limit | Pagination | Scrolling |
-|---------|-----------------|------------|-----------|
-| Navigation | manual | page number | cursor |
-| Result type | `List<R>` or `Slice<R>` | `Page<R>` | `Window<R>` |
-| Count query | no | yes | no |
-| Random access | yes | yes | no |
-| Navigation tokens | no | `next()` / `previous()` | `next()` / `previous()` |
-| Performance on large datasets | degrades with offset | degrades with offset | constant |
+| | Offset and Limit | Slice | Page | Scroll | Windows |
+|---|---|---|---|---|---|
+| Method | `offset(n).limit(size)` | `slice(pageable)` | `page(pageable)` | `scroll(scrollable)` | `windows(size)` |
+| Result | `List<R>` | `Slice<R>` | `Page<R>` | `Window<R>` | `Stream<Window<R>>` or `Flow<Window<R>>` |
+| Moves by | offset | offset | page number | row values | row values |
+| Needs | an ordering | an ordering | an ordering | a unique key, sort fields that are not nullable | a primary key, or a `Scrollable` |
+| Count query | no | no | yes, on every full page | no | no |
+| `hasNext` from | not reported | one extra row | the count | one extra row | one extra row |
+| Next request | yours | `slice.next()` | `page.next()` | `window.next()` | the stream continues |
+| Random access | yes | yes | yes | no | no |
+| Stable under inserts and deletes | no | no | no | yes | yes |
+| Cost of going deep | grows with the offset | grows with the offset | grows with the offset | constant | constant |
+| Typical use | ad hoc reads | "load more" without a count, or a query without a unique key | numbered pages, "page 3 of 12" | infinite scroll, REST cursors | batch jobs that write while they read |
 
-**Offset and Limit** gives raw control with `offset()` and `limit()` on the query builder. Both pagination and offset/limit use SQL `OFFSET` under the hood, which degrades on large tables because the database must scan and discard all skipped rows.
+**Offset and Limit** gives raw control with `offset()` and `limit()` on the query builder. The database scans and discards every skipped row, so the cost grows with the offset, and rows inserted or deleted since the last read shift what the next read returns.
 
-**Pagination** wraps offset/limit with a `Page` container that includes total counts and page metadata. This is useful for UIs that display "Page 3 of 12" or need random page access.
+**Slice** is a page without the count query. It takes the same `Pageable`, reads one row beyond the page size to report `hasNext`, and navigates with `next()` and `previous()` the way a page does. It is the read for a "load more" that does not need a total, and for a query without a unique key, where scrolling is not possible.
 
-**Scrolling** uses keyset pagination: it remembers the row a window ended on and asks the database for the rows after it, or before it. The database seeks directly to that row using an index, so performance stays constant regardless of depth. The trade-off is that you can only move forward or backward from the current window.
+**Page** wraps offset and limit with a total count and page metadata, for UIs that show page numbers or jump to a page. The count is a second query on every full page; `page(pageable, totalCount)` reuses a count the application already has.
+
+**Scroll** navigates by keyset: the request names the row a window ended on and asks for the rows after it, or before it. The database seeks straight to that row through an index, so the cost is the same at any depth, and rows inserted or deleted elsewhere do not shift the window. The trade-off is that you move forward or backward from the current window only.
+
+**Windows** iterates scroll requests for you: each window is one closed statement, and the connection is free between windows, so the loop body can write. See [Batch Processing & Streaming](batch-streaming.md#windows).
 
 ## Offset and Limit
 
@@ -56,6 +65,56 @@ List<User> results = orm.entity(User.class)
 
 </TabItem>
 </Tabs>
+
+## Slices
+
+A slice is a page without the count query. `slice(pageable)` takes the same `Pageable` as `page(pageable)`, reads the requested page with `OFFSET` and `LIMIT`, and fetches one row beyond the page size to decide `hasNext`; `hasPrevious` follows from the page number. Use it for a "load more" that does not need a total, and for a query without a unique key, such as an aggregation, where scrolling is not possible.
+
+<Tabs groupId="language">
+<TabItem value="kotlin" label="Kotlin" default>
+
+```kotlin
+val first: Slice<User> = userRepository.slice(Pageable.ofSize(20).sortBy(User_.email))
+if (first.hasNext) {
+    val second = userRepository.slice(first.next())
+}
+
+// On the query builder, with the query's own ordering
+val slice = userRepository.select()
+    .where(User_.city eq city)
+    .slice(0, 20)
+```
+
+</TabItem>
+<TabItem value="java" label="Java">
+
+```java
+Slice<User> first = userRepository.slice(Pageable.ofSize(20).sortBy(User_.email));
+if (first.hasNext()) {
+    Slice<User> second = userRepository.slice(first.next());
+}
+
+// On the query builder, with the query's own ordering
+Slice<User> slice = userRepository.select()
+    .where(User_.city, EQUALS, city)
+    .slice(0, 20);
+```
+
+</TabItem>
+</Tabs>
+
+The `Slice` type:
+
+| Field / Method | Description |
+|---|---|
+| `content` | The list of results for the current slice |
+| `hasNext` | Whether a row existed after this slice at query time |
+| `pageNumber()` | Zero-based index of the current slice |
+| `pageSize()` | Maximum number of elements per slice |
+| `hasPrevious()` | Whether this is not the first slice |
+| `next()` / `previous()` | Returns a `Pageable` for the adjacent slice; `previous()` is `null` on the first slice |
+
+`sliceRef` reads refs instead of entities, the way `pageRef` does. As with `page`, a `Pageable` that carries sort orders cannot be combined with an explicit `orderBy` on the query.
 
 ## Pagination
 
@@ -390,42 +449,16 @@ Window<OrderSummary> next = orm.selectFrom(Order.class, OrderSummary.class, ...)
 
 See [Manual Key Wrapping](metamodel.md#manual-key-wrapping) for more details.
 
-### Slices
-
-`slice(size)` on the query builder is the shape without a key: it reads at most `size` rows with the query's own `WHERE`, `ORDER BY` and offset, fetches one extra row to decide `hasNext`, and derives `hasPrevious` from the offset. It returns a `Slice`, which carries no tokens, so the caller owns the position. It fits a "has more" check on an ordered, offset query where keyset navigation is not wanted.
-
-<Tabs groupId="language">
-<TabItem value="kotlin" label="Kotlin" default>
-
-```kotlin
-val slice: Slice<User> = userRepository.select()
-    .orderBy(User_.email)
-    .offset(40)
-    .slice(20)
-```
-
-</TabItem>
-<TabItem value="java" label="Java">
-
-```java
-Slice<User> slice = userRepository.select()
-    .orderBy(User_.email)
-    .offset(40)
-    .slice(20);
-```
-
-</TabItem>
-</Tabs>
-
 **REST cursor support.** For REST APIs that pass scroll state as a query parameter, `Window` provides `nextCursor()` and `previousCursor()`, which serialize the position to an opaque string, and `Scrollable.from(cursor)` puts a request at that position. The cursor carries the position only; the ordering and the size stay in code, so a client may ask for another size on the next request. See [Cursor Serialization](cursors.md).
 
-## Pagination vs Scrolling Summary
+## Summary
 
-| | Pagination | Scrolling |
-|---|---|---|
-| Request | `Pageable` | `Scrollable<T>` |
-| Result | `Page` | `Window` |
-| Method | `page(pageable)` | `scroll(scrollable)` |
-| Navigate forward | `page.next()` | `window.next()` |
-| Navigate backward | `page.previous()` | `window.previous()`, same order as forward |
-| Sorting | `sortBy` / `sortByDescending` on the request | `sortBy` / `sortByDescending` on the request, key as tiebreaker |
+| | Slice | Pagination | Scrolling |
+|---|---|---|---|
+| Request | `Pageable` | `Pageable` | `Scrollable<T>` |
+| Result | `Slice` | `Page` | `Window` |
+| Method | `slice(pageable)` | `page(pageable)` | `scroll(scrollable)` |
+| Count query | no | yes | no |
+| Navigate forward | `slice.next()` | `page.next()` | `window.next()` |
+| Navigate backward | `slice.previous()` | `page.previous()` | `window.previous()`, same order as forward |
+| Sorting | `sortBy` / `sortByDescending` on the request | `sortBy` / `sortByDescending` on the request | `sortBy` / `sortByDescending` on the request, key as tiebreaker |

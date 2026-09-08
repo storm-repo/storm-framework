@@ -27,6 +27,7 @@ import st.orm.PersistenceException;
 import st.orm.Projection;
 import st.orm.Ref;
 import st.orm.Scrollable;
+import st.orm.Slice;
 import st.orm.Window;
 import st.orm.core.template.Model;
 import st.orm.core.template.QueryBuilder;
@@ -362,6 +363,68 @@ public interface ProjectionRepository<P extends Projection<ID>, ID> extends Repo
      */
     default Page<Ref<P>> pageRef(Pageable pageable) {
         return selectRef().page(pageable);
+    }
+
+    /**
+     * Returns a slice of projections using offset-based pagination without a count.
+     *
+     * <p>This method executes a query with OFFSET and LIMIT for the requested page and one row beyond it, which
+     * decides {@link Slice#hasNext()}; no count query runs.</p>
+     *
+     * <p>Page numbers are zero-based: pass {@code 0} for the first slice.</p>
+     *
+     * @param pageNumber the zero-based page index.
+     * @param pageSize the maximum number of projections per slice.
+     * @return a slice containing the results.
+     * @since 1.14
+     */
+    default Slice<P> slice(int pageNumber, int pageSize) {
+        return slice(Pageable.of(pageNumber, pageSize));
+    }
+
+    /**
+     * Returns a slice of projections using offset-based pagination without a count.
+     *
+     * <p>This method executes a query with OFFSET and LIMIT for the requested page and one row beyond it, which
+     * decides {@link Slice#hasNext()}; no count query runs.</p>
+     *
+     * <p>Use {@link Pageable#ofSize(int)} for the first slice, then navigate with {@link Slice#next()} or
+     * {@link Slice#previous()}.</p>
+     *
+     * @param pageable the request specifying page number, page size and sort orders.
+     * @return a slice containing the results.
+     * @since 1.14
+     */
+    default Slice<P> slice(Pageable pageable) {
+        return select().slice(pageable);
+    }
+
+    /**
+     * Returns a slice of projection refs using offset-based pagination without a count.
+     *
+     * <p>Page numbers are zero-based: pass {@code 0} for the first slice.</p>
+     *
+     * @param pageNumber the zero-based page index.
+     * @param pageSize the maximum number of refs per slice.
+     * @return a slice containing the ref results.
+     * @since 1.14
+     */
+    default Slice<Ref<P>> sliceRef(int pageNumber, int pageSize) {
+        return sliceRef(Pageable.of(pageNumber, pageSize));
+    }
+
+    /**
+     * Returns a slice of projection refs using offset-based pagination without a count.
+     *
+     * <p>This method executes a query with OFFSET and LIMIT for the requested page and one row beyond it, which
+     * decides {@link Slice#hasNext()}; no count query runs.</p>
+     *
+     * @param pageable the request specifying page number, page size and sort orders.
+     * @return a slice containing the ref results.
+     * @since 1.14
+     */
+    default Slice<Ref<P>> sliceRef(Pageable pageable) {
+        return selectRef().slice(pageable);
     }
 
     /**

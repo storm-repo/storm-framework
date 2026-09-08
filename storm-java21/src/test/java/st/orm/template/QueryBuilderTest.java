@@ -537,14 +537,14 @@ public class QueryBuilderTest {
 
     @Test
     public void testScroll() {
-        Slice<City> window = orm.entity(City.class).select().slice(3);
+        Slice<City> window = orm.entity(City.class).select().slice(0, 3);
         assertEquals(3, window.content().size());
         assertTrue(window.hasNext());
     }
 
     @Test
     public void testScrollNoMore() {
-        Slice<City> window = orm.entity(City.class).select().slice(100);
+        Slice<City> window = orm.entity(City.class).select().slice(0, 100);
         assertEquals(6, window.content().size());
         assertFalse(window.hasNext());
     }
@@ -1194,13 +1194,13 @@ public class QueryBuilderTest {
     @Test
     public void testScrollSizeZeroThrows() {
         assertThrows(IllegalArgumentException.class, () ->
-                orm.entity(City.class).select().slice(0));
+                orm.entity(City.class).select().slice(0, 0));
     }
 
     @Test
     public void testScrollSizeNegativeThrows() {
         assertThrows(IllegalArgumentException.class, () ->
-                orm.entity(City.class).select().slice(-1));
+                orm.entity(City.class).select().slice(0, -1));
     }
 
     // QueryBuilder - getResultList / getResultCount via default methods

@@ -28,6 +28,7 @@ import javax.sql.DataSource;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import st.orm.Metamodel;
+import st.orm.Pageable;
 import st.orm.Ref;
 import st.orm.Scrollable;
 import st.orm.Window;
@@ -193,15 +194,21 @@ public abstract class AbstractScrollConformanceTest {
     }
 
     @Test
-    public void sliceFollowsTheQueryOrderingAndOffset() {
+    public void sliceFollowsTheRequestOrderingAndThePageNumber() {
         var orm = ORMTemplate.of(dataSource);
-        var first = orm.entity(Vet.class).select().orderBy(Metamodel.of(Vet.class, "id")).slice(4);
+        var vets = orm.entity(Vet.class);
+        var first = vets.slice(Pageable.ofSize(4).sortBy(Metamodel.of(Vet.class, "id")));
         assertEquals(List.of(1, 2, 3, 4), first.stream().map(Vet::id).toList());
         assertTrue(first.hasNext());
         assertFalse(first.hasPrevious());
-        var rest = orm.entity(Vet.class).select().orderBy(Metamodel.of(Vet.class, "id")).offset(4).slice(4);
+        var rest = vets.slice(first.next());
         assertEquals(List.of(5, 6), rest.stream().map(Vet::id).toList());
         assertFalse(rest.hasNext());
         assertTrue(rest.hasPrevious());
+        assertEquals(first.pageable(), rest.previous());
+        // The query's own ordering serves a request without sort orders.
+        var ordered = vets.select().orderBy(Metamodel.of(Vet.class, "id")).slice(1, 4);
+        assertEquals(rest.content(), ordered.content());
+        assertEquals(List.of(1, 2, 3, 4), vets.sliceRef(0, 4).stream().map(ref -> ref.id()).toList());
     }
 }

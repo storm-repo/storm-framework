@@ -229,11 +229,6 @@ public class SelectBuilderImpl<T extends Data, R, ID> extends QueryBuilderImpl<T
         };
     }
 
-    @Override
-    protected int offsetOrZero() {
-        return offset == null ? 0 : offset;
-    }
-
     /**
      * Executes the query with the cursor columns appended to the select list. The leading columns map to the
      * result type exactly as they do without the cursor columns, so an entity, a projection, a ref and a custom
@@ -241,7 +236,7 @@ public class SelectBuilderImpl<T extends Data, R, ID> extends QueryBuilderImpl<T
      */
     @Override
     @SuppressWarnings("unchecked")
-    protected List<KeyedQuery.Row<R>> getKeyedResultList(List<Metamodel<T, ?>> columns) {
+    List<KeyedQuery.Row<R>> getKeyedResultList(List<Metamodel<T, ?>> columns) {
         var parts = new ArrayList<TemplateString>();
         parts.add(selectClause());
         for (var column : columns) {

@@ -143,13 +143,4 @@ class WindowTest {
         var window = new Window<>(List.of("a"), false, false, null, null);
         assertNull(window.previousCursor());
     }
-
-    @Test
-    void sliceOfCarriesContentAndFlags() {
-        var slice = Slice.of(List.of("a"), true, false);
-        assertEquals(List.of("a"), slice.content());
-        assertTrue(slice.hasNext());
-        assertFalse(slice.hasPrevious());
-        assertEquals(1, slice.size());
-    }
 }

@@ -178,7 +178,7 @@ public class QueryBuilderScrollIntegrationTest {
                 ORMTemplate.of(dataSource)
                         .selectFrom(Vet.class)
                         .orderBy(Vet_.id)
-                        .slice(0));
+                        .slice(0, 0));
     }
 
     @Test
@@ -187,6 +187,6 @@ public class QueryBuilderScrollIntegrationTest {
                 ORMTemplate.of(dataSource)
                         .selectFrom(Vet.class)
                         .orderBy(Vet_.id)
-                        .slice(-1));
+                        .slice(0, -1));
     }
 }

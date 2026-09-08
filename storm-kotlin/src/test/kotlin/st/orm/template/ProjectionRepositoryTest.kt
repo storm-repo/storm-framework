@@ -758,7 +758,7 @@ internal open class ProjectionRepositoryTest(
     fun `scroll should return first page of projections`() {
         val repo = orm.projection(OwnerView::class)
         val idPath = metamodel<OwnerView, Int>(repo.model, "id")
-        val window = repo.select().orderBy(idPath).slice(3)
+        val window = repo.select().orderBy(idPath).slice(0, 3)
         window.content() shouldHaveSize 3
         window.hasNext() shouldBe true
     }
@@ -785,7 +785,7 @@ internal open class ProjectionRepositoryTest(
     fun `scroll with large size should not have next`() {
         val repo = orm.projection(OwnerView::class)
         val idPath = metamodel<OwnerView, Int>(repo.model, "id")
-        val window = repo.select().orderBy(idPath).slice(100)
+        val window = repo.select().orderBy(idPath).slice(0, 100)
         window.content() shouldHaveSize 10
         window.hasNext() shouldBe false
     }

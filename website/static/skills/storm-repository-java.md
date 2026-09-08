@@ -463,6 +463,15 @@ users.removeAll();
 
 ## Pagination and Scrolling
 
+Pick the read by what the caller needs to know:
+
+| Read | Method | Result | Count query | Needs |
+|---|---|---|---|---|
+| Page | `page(pageable)` | `Page<R>` | yes | an ordering |
+| Slice | `slice(pageable)` | `Slice<R>` | no | an ordering; a page without the count query, the only read for a query without a unique key |
+| Scroll | `scroll(scrollable)` | `Window<R>` | no | a unique key; constant cost at any depth |
+| Windows | `windows(size)` | `Stream<Window<R>>` | no | a primary key; one closed statement per window, so the loop may write |
+
 ```java
 // Offset-based pagination (executes count + select)
 Page<User> page = users.page(0, 20);
@@ -481,6 +490,11 @@ Page<User> next = users.page(page.next());
 
 // Ref-based pagination
 Page<Ref<User>> refPage = users.pageRef(0, 20);
+
+// Slice: page without the count query; same Pageable, hasNext from one extra row
+Slice<User> slice = users.slice(Pageable.ofSize(20).sortBy(User_.name));
+Slice<User> more = users.slice(slice.next());
+Slice<Ref<User>> refSlice = users.sliceRef(0, 20);
 
 // Keyset scrolling (better for large tables — no COUNT, cursor-based)
 // ⚠️ The request owns ORDER BY — do NOT add orderBy() when using scroll(Scrollable)

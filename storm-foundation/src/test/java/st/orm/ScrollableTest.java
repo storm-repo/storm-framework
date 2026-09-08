@@ -62,7 +62,6 @@ class ScrollableTest {
         var scrollable = Scrollable.of(KEY, 20);
         assertFalse(scrollable.keyDescending());
         assertTrue(scrollable.sort().isEmpty());
-        assertFalse(scrollable.hasPosition());
         assertNull(scrollable.position());
         assertEquals(20, scrollable.size());
         assertEquals(List.of(new Order(KEY, false)), scrollable.orders());
@@ -73,7 +72,6 @@ class ScrollableTest {
         var scrollable = Scrollable.of(KEY, 20).sortBy(SORT).descending();
         assertTrue(scrollable.keyDescending());
         assertEquals(List.of(Order.asc(SORT), new Order(KEY, true)), scrollable.orders());
-        assertFalse(scrollable.ascending().keyDescending());
     }
 
     @Test
@@ -101,7 +99,6 @@ class ScrollableTest {
     @Test
     void afterAndBeforeCarryOneValuePerFieldThenTheKey() {
         var after = Scrollable.of(KEY, 20).sortBy(SORT).after("Carter", 3);
-        assertTrue(after.hasPosition());
         assertEquals(new Position(List.of("Carter", 3), true), after.position());
         assertTrue(after.position().after());
         var before = Scrollable.of(KEY, 20).sortBy(SORT).before("Carter", 3);

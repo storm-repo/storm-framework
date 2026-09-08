@@ -17,6 +17,7 @@ import org.springframework.test.context.ContextConfiguration
 import org.springframework.test.context.jdbc.Sql
 import org.springframework.test.context.junit.jupiter.SpringExtension
 import st.orm.*
+import st.orm.Pageable
 import st.orm.repository.*
 import st.orm.template.model.*
 
@@ -618,7 +619,7 @@ internal open class EntityRepositoryTest(
     fun `scrollon entity repo should return first page`() {
         val repo = orm.entity(City::class)
         val idPath = metamodel<City, Int>(repo.model, "id")
-        val window = repo.select().orderBy(idPath).slice(3)
+        val window = repo.select().orderBy(idPath).slice(0, 3)
         window.content() shouldHaveSize 3
         window.hasNext() shouldBe true
         window.content()[0].id shouldBe 1
@@ -628,7 +629,7 @@ internal open class EntityRepositoryTest(
     fun `scroll with large size should return all entities`() {
         val repo = orm.entity(City::class)
         val idPath = metamodel<City, Int>(repo.model, "id")
-        val window = repo.select().orderBy(idPath).slice(100)
+        val window = repo.select().orderBy(idPath).slice(0, 100)
         window.content() shouldHaveSize 6
         window.hasNext() shouldBe false
     }
@@ -1813,5 +1814,28 @@ internal open class EntityRepositoryTest(
         furtherIds shouldBe furtherIds.sortedDescending()
         // All IDs in the further-back window should be less than the minimum of the first window.
         furtherIds.max() shouldBe (ids.min() - 1)
+    }
+
+    @Test
+    fun `entity slice should navigate by page number without a count`() {
+        val repo = orm.entity(City::class)
+        val idPath = metamodel<City, Int>(repo.model, "id")
+        val first = repo.slice(Pageable.ofSize(4).sortBy(idPath))
+        first.content.map { it.id } shouldBe listOf(1, 2, 3, 4)
+        first.hasNext shouldBe true
+        first.hasPrevious() shouldBe false
+        val rest = repo.slice(first.next())
+        rest.content.map { it.id } shouldBe listOf(5, 6)
+        rest.hasNext shouldBe false
+        rest.hasPrevious() shouldBe true
+    }
+
+    @Test
+    fun `entity sliceRef should return refs`() {
+        val repo = orm.entity(City::class)
+        val refs = repo.sliceRef(0, 4)
+        refs.content shouldHaveSize 4
+        refs.hasNext shouldBe true
+        refs.content.all { it.id() != null } shouldBe true
     }
 }

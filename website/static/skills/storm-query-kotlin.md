@@ -538,6 +538,15 @@ Two operations are defined relative to the root and are affected by the widening
 
 ## Keyset Scrolling
 
+Pick the read by what the caller needs to know:
+
+| Read | Method | Result | Count query | Needs |
+|---|---|---|---|---|
+| Page | `page(pageable)` | `Page<R>` | yes | an ordering |
+| Slice | `slice(pageable)` | `Slice<R>` | no | an ordering; a page without the count query, the only read for a query without a unique key |
+| Scroll | `scroll(scrollable)` | `Window<R>` | no | a unique key; constant cost at any depth |
+| Windows | `windows(size)` | `Flow<Window<R>>` | no | a primary key; one closed statement per window, so the loop may write |
+
 Keyset scrolling navigates by position instead of offset, making it efficient for large tables. A `Scrollable<T>` takes a **single type parameter**, the entity type. It states the ordering and the size; the position to continue from comes from `window.next()` / `window.previous()` or from a client's cursor string. **The request owns ORDER BY** — do NOT add `orderBy()` when using `scroll(Scrollable)`, or Storm throws `PersistenceException`.
 
 ```kotlin
@@ -569,7 +578,7 @@ val nextCursor: String? = window.nextCursor()                          // null w
 
 **Iterate windows:** `for (user in window)` works, `Window` is a `Slice` and iterates over its content; `window.size()` and `window.isEmpty()` exist too. `Window` is a Java record, so the other accessors are methods: `window.content()`, `window.hasNext()`.
 
-**Slices:** `select().orderBy(User_.email).offset(40).slice(20)` returns a `Slice` without tokens: the query's own ordering and offset, `hasNext` from one extra row, `hasPrevious` from the offset.
+**Slices:** `select().slice(Pageable.ofSize(20).sortBy(User_.email))` is `page` without the count query: `hasNext` from one extra row, `hasPrevious()` from the page number, `next()` / `previous()` return the adjacent `Pageable`. `slice(0, 20)` uses the query's own ordering.
 
 ## Bulk DELETE/UPDATE
 

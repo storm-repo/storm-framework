@@ -17,6 +17,7 @@ package st.orm.repository
 
 import kotlinx.coroutines.flow.Flow
 import st.orm.*
+import st.orm.Slice
 import st.orm.template.*
 import kotlin.reflect.KClass
 
@@ -780,7 +781,7 @@ public interface ProjectionRepository<P, ID : Any> : Repository where P : Projec
      * projections.
      *
      * Use [Pageable.ofSize] for the first page, then navigate with
-     * [Page.nextPageable] or [Page.previousPageable].
+     * [Page.next] or [Page.previous].
      *
      * @param pageable the pagination request specifying page number and page size.
      * @return a page containing the results and pagination metadata.
@@ -812,6 +813,59 @@ public interface ProjectionRepository<P, ID : Any> : Repository where P : Projec
      * @since 1.10
      */
     public fun pageRef(pageable: Pageable): Page<Ref<P>>
+
+    /**
+     * Returns a slice of projections using offset-based pagination without a count.
+     *
+     * This method executes a query with OFFSET and LIMIT for the requested page and one row beyond it, which
+     * decides [Slice.hasNext]; no count query runs.
+     *
+     * Page numbers are zero-based: pass `0` for the first slice.
+     *
+     * @param pageNumber the zero-based page index.
+     * @param pageSize the maximum number of projections per slice.
+     * @return a slice containing the results.
+     * @since 1.14
+     */
+    public fun slice(pageNumber: Int, pageSize: Int): Slice<P>
+
+    /**
+     * Returns a slice of projections using offset-based pagination without a count.
+     *
+     * This method executes a query with OFFSET and LIMIT for the requested page and one row beyond it, which
+     * decides [Slice.hasNext]; no count query runs.
+     *
+     * Use [Pageable.ofSize] for the first slice, then navigate with [Slice.next] or [Slice.previous].
+     *
+     * @param pageable the request specifying page number, page size and sort orders.
+     * @return a slice containing the results.
+     * @since 1.14
+     */
+    public fun slice(pageable: Pageable): Slice<P>
+
+    /**
+     * Returns a slice of projection refs using offset-based pagination without a count.
+     *
+     * Page numbers are zero-based: pass `0` for the first slice.
+     *
+     * @param pageNumber the zero-based page index.
+     * @param pageSize the maximum number of refs per slice.
+     * @return a slice containing the ref results.
+     * @since 1.14
+     */
+    public fun sliceRef(pageNumber: Int, pageSize: Int): Slice<Ref<P>>
+
+    /**
+     * Returns a slice of projection refs using offset-based pagination without a count.
+     *
+     * This method executes a query with OFFSET and LIMIT for the requested page and one row beyond it, which
+     * decides [Slice.hasNext]; no count query runs.
+     *
+     * @param pageable the request specifying page number, page size and sort orders.
+     * @return a slice containing the ref results.
+     * @since 1.14
+     */
+    public fun sliceRef(pageable: Pageable): Slice<Ref<P>>
 
     /**
      * Executes a scroll request from a [Scrollable] token, typically obtained from

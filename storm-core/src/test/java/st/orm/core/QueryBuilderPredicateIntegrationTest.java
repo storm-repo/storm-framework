@@ -393,7 +393,7 @@ public class QueryBuilderPredicateIntegrationTest {
     public void testScrollNonPositiveSizeThrows() {
         var orm = ORMTemplate.of(dataSource);
         assertThrows(IllegalArgumentException.class, () ->
-                orm.selectFrom(City.class).orderBy(City_.id).slice(0));
+                orm.selectFrom(City.class).orderBy(City_.id).slice(0, 0));
     }
 
     // QueryBuilder.scroll basic without key
@@ -403,7 +403,7 @@ public class QueryBuilderPredicateIntegrationTest {
         var orm = ORMTemplate.of(dataSource);
         var window = orm.selectFrom(City.class)
                 .orderBy(City_.id)
-                .slice(3);
+                .slice(0, 3);
         assertEquals(3, window.content().size());
         assertTrue(window.hasNext(), "Expected hasNext=true since there are 6 cities");
     }

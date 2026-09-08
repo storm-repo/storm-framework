@@ -170,23 +170,43 @@ public class RepositoryTest {
 
     @Test
     public void testScrollBasic() {
-        Slice<City> window = orm.entity(City.class).select().slice(2);
+        Slice<City> window = orm.entity(City.class).select().slice(0, 2);
         assertEquals(2, window.content().size());
         assertTrue(window.hasNext());
     }
 
     @Test
     public void testScrollLastPage() {
-        Slice<City> window = orm.entity(City.class).select().slice(100);
+        Slice<City> window = orm.entity(City.class).select().slice(0, 100);
         assertFalse(window.hasNext());
     }
 
     @Test
     public void testScrollInvalidSize() {
         assertThrows(IllegalArgumentException.class, () ->
-                orm.entity(City.class).select().slice(0));
+                orm.entity(City.class).select().slice(0, 0));
         assertThrows(IllegalArgumentException.class, () ->
-                orm.entity(City.class).select().slice(-1));
+                orm.entity(City.class).select().slice(0, -1));
+    }
+
+    @Test
+    public void testSliceOnRepository() {
+        Slice<City> first = orm.entity(City.class).slice(Pageable.ofSize(4).sortBy(City_.id));
+        assertEquals(4, first.size());
+        assertTrue(first.hasNext());
+        assertFalse(first.hasPrevious());
+        Slice<City> rest = orm.entity(City.class).slice(first.next());
+        assertEquals(2, rest.size());
+        assertFalse(rest.hasNext());
+        assertTrue(rest.hasPrevious());
+    }
+
+    @Test
+    public void testSliceRefOnRepository() {
+        Slice<Ref<City>> refs = orm.entity(City.class).sliceRef(0, 4);
+        assertEquals(4, refs.size());
+        assertTrue(refs.hasNext());
+        assertTrue(refs.stream().allMatch(ref -> ref.id() != null));
     }
 
     // EntityRepository - select with custom select type

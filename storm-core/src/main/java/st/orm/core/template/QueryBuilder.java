@@ -807,7 +807,7 @@ public abstract class QueryBuilder<T extends Data, R, ID> {
      * @since 1.10
      */
     public final Page<R> page(Pageable pageable) {
-        List<R> content = pageContent(pageable);
+        List<R> content = pageContent(pageable, pageable.pageSize());
         long totalCount;
         if (content.size() < pageable.pageSize() && (pageable.offset() == 0 || !content.isEmpty())) {
             // A page that is not full is the last page, so the total follows from the page itself. An empty page
@@ -838,41 +838,66 @@ public abstract class QueryBuilder<T extends Data, R, ID> {
      * @since 1.10
      */
     public final Page<R> page(Pageable pageable, long totalCount) {
-        return new Page<>(pageContent(pageable), totalCount, pageable);
+        return new Page<>(pageContent(pageable, pageable.pageSize()), totalCount, pageable);
     }
 
     /**
-     * Fetches the content for the requested page, applying the pageable's sort orders and offset/limit window.
+     * Executes the query and returns a {@link Slice} of results using offset-based pagination without a count.
+     *
+     * <p>The slice is read the way a page is, with OFFSET and LIMIT from the request, but one row beyond the page
+     * size is fetched instead of running a count query: {@link Slice#hasNext()} says whether that row existed, and
+     * {@link Slice#hasPrevious()} follows from the page number. Use it for a "load more" that needs no total, and
+     * for a query without a unique key, where {@link #scroll(Scrollable)} is not possible.</p>
+     *
+     * <p>Page numbers are zero-based: pass {@code 0} for the first slice.</p>
+     *
+     * @param pageNumber the zero-based page index.
+     * @param pageSize the maximum number of results per slice.
+     * @return the slice.
+     * @since 1.14
      */
-    private List<R> pageContent(Pageable pageable) {
+    public final Slice<R> slice(int pageNumber, int pageSize) {
+        return slice(Pageable.of(pageNumber, pageSize));
+    }
+
+    /**
+     * Executes the query and returns a {@link Slice} of results using offset-based pagination without a count.
+     *
+     * <p>The slice is read the way a page is, with OFFSET and LIMIT from the request, but one row beyond the page
+     * size is fetched instead of running a count query: {@link Slice#hasNext()} says whether that row existed, and
+     * {@link Slice#hasPrevious()} follows from the page number. Use it for a "load more" that needs no total, and
+     * for a query without a unique key, where {@link #scroll(Scrollable)} is not possible.</p>
+     *
+     * <p>Use {@link Pageable#ofSize(int)} for the first slice, then navigate with {@link Slice#next()} or
+     * {@link Slice#previous()}.</p>
+     *
+     * @param pageable the request specifying page number, page size and sort orders.
+     * @return the slice.
+     * @throws PersistenceException if the request carries sort orders and the query an explicit ORDER BY.
+     * @since 1.14
+     */
+    public final Slice<R> slice(Pageable pageable) {
+        List<R> content = pageContent(pageable, pageable.pageSize() + 1);
+        boolean hasNext = content.size() > pageable.pageSize();
+        return new Slice<>(hasNext ? content.subList(0, pageable.pageSize()) : content, hasNext, pageable);
+    }
+
+    /**
+     * Fetches the content for the requested page, applying the pageable's sort orders and offset, and the limit.
+     */
+    private List<R> pageContent(Pageable pageable, int limit) {
         // Forbid combining explicit orderBy with Pageable sort orders for consistency with scroll, which also
         // manages ORDER BY internally and forbids explicit orderBy calls.
         if (hasOrderBy() && !pageable.orders().isEmpty()) {
-            throw new PersistenceException("page with Pageable sort orders cannot be combined with explicit orderBy calls.");
+            throw new PersistenceException("Pageable sort orders cannot be combined with explicit orderBy calls.");
         }
         QueryBuilder<T, R, ID> sorted = this;
         for (var order : pageable.orders()) {
             // The Pageable's sort field may be rooted anywhere in the query, so the column is named directly.
             sorted = sorted.orderBy(wrap(new Columns(List.of(order.field()), CASCADE, order.descending() ? ORDER_BY_DESCENDING : ORDER_BY_ASCENDING)));
         }
-        return sorted.offset((int) pageable.offset()).limit(pageable.pageSize()).getResultList();
+        return sorted.offset((int) pageable.offset()).limit(limit).getResultList();
     }
-
-    /**
-     * Executes the query and returns a {@link Slice} of at most {@code size} results, with the flags that say
-     * whether rows exist after and before it.
-     *
-     * <p>The slice is read with the query's own WHERE, ORDER BY and offset, so the caller owns the ordering and
-     * the position. {@code size + 1} rows are fetched to decide {@code hasNext}; {@code hasPrevious} follows from
-     * the offset. A slice carries no navigation tokens: a query that should navigate by keyset uses
-     * {@link #scroll(Scrollable)}.</p>
-     *
-     * @param size the maximum number of results in the slice (must be positive).
-     * @return the slice.
-     * @throws IllegalArgumentException if {@code size} is not positive.
-     * @since 1.14
-     */
-    public abstract Slice<R> slice(int size);
 
     /**
      * Executes a scroll request and returns a {@link Window}: the results in the request's sort order, the flags

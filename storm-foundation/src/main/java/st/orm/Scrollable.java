@@ -101,16 +101,6 @@ public record Scrollable<T extends Data>(
     }
 
     /**
-     * Returns this request with the key ordered ascending, which is the default.
-     *
-     * @return the request with the key ascending.
-     * @since 1.14
-     */
-    public Scrollable<T> ascending() {
-        return new Scrollable<>(key, false, sort, size, position);
-    }
-
-    /**
      * Returns this request with an ascending sort field appended before the key.
      *
      * @param field the field to sort by; must not allow NULL values.
@@ -175,14 +165,7 @@ public record Scrollable<T extends Data>(
         return at(new Position(List.of(values), false));
     }
 
-    /**
-     * Returns this request at the given position, as taken from another request with the same ordering.
-     *
-     * @param position the position to continue from, or {@code null} to start at the beginning.
-     * @return the request at that position.
-     * @since 1.14
-     */
-    public Scrollable<T> at(@Nullable Position position) {
+    private Scrollable<T> at(Position position) {
         return new Scrollable<>(key, keyDescending, sort, size, position);
     }
 
@@ -202,15 +185,6 @@ public record Scrollable<T extends Data>(
     public Scrollable<T> from(String cursor) {
         requireNonNull(cursor, "cursor must not be null.");
         return at(CursorHelper.fromCursor(fingerprint(), cursor, valueTypes()));
-    }
-
-    /**
-     * Returns {@code true} if this request continues from a position rather than from the beginning.
-     *
-     * @return {@code true} if a position is set.
-     */
-    public boolean hasPosition() {
-        return position != null;
     }
 
     /**

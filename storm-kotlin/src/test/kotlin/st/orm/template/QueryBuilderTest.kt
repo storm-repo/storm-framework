@@ -26,7 +26,6 @@ import st.orm.Pageable
 import st.orm.PersistenceException
 import st.orm.Ref
 import st.orm.Scrollable
-import st.orm.Slice
 import st.orm.TypedMetamodel
 import st.orm.Window
 import st.orm.repository.entity
@@ -1472,7 +1471,7 @@ internal open class QueryBuilderTest(
     fun `scroll with simple size should return correct page`() {
         val repo = orm.entity(City::class)
         val idPath = metamodel<City, Int>(repo.model, "id")
-        val window = repo.select().orderBy(idPath).slice(3)
+        val window = repo.select().orderBy(idPath).slice(0, 3)
         window.content() shouldHaveSize 3
         window.hasNext() shouldBe true
     }
@@ -1481,7 +1480,7 @@ internal open class QueryBuilderTest(
     fun `scroll with size greater than total should not have next`() {
         val repo = orm.entity(City::class)
         val idPath = metamodel<City, Int>(repo.model, "id")
-        val window = repo.select().orderBy(idPath).slice(10)
+        val window = repo.select().orderBy(idPath).slice(0, 10)
         window.content() shouldHaveSize 6
         window.hasNext() shouldBe false
     }
@@ -1490,7 +1489,7 @@ internal open class QueryBuilderTest(
     fun `scroll with exact size should not have next`() {
         val repo = orm.entity(City::class)
         val idPath = metamodel<City, Int>(repo.model, "id")
-        val window = repo.select().orderBy(idPath).slice(6)
+        val window = repo.select().orderBy(idPath).slice(0, 6)
         window.content() shouldHaveSize 6
         window.hasNext() shouldBe false
     }
@@ -1499,7 +1498,7 @@ internal open class QueryBuilderTest(
     fun `scroll with zero size should throw IllegalArgumentException`() {
         val repo = orm.entity(City::class)
         assertThrows<IllegalArgumentException> {
-            repo.select().slice(0)
+            repo.select().slice(0, 0)
         }
     }
 
@@ -2469,7 +2468,6 @@ internal open class QueryBuilderTest(
         override fun forUpdate(): QueryBuilder<City, City, Int> = delegate.forUpdate()
         override fun forLock(template: TemplateString): QueryBuilder<City, City, Int> = delegate.forLock(template)
         override fun build(): Query = delegate.build()
-        override fun slice(size: Int): Slice<City> = delegate.slice(size)
         override fun scroll(scrollable: Scrollable<City>): Window<City> = delegate.scroll(scrollable)
         override fun windows(size: Int): Flow<Window<City>> = delegate.windows(size)
         override fun windows(scrollable: Scrollable<City>): Flow<Window<City>> = delegate.windows(scrollable)

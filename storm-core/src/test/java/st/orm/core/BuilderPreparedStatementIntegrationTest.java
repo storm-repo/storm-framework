@@ -309,7 +309,7 @@ public class BuilderPreparedStatementIntegrationTest {
         var window = ORMTemplate.of(dataSource)
                 .selectFrom(Vet.class)
                 .orderBy(Vet_.id)
-                .slice(3);
+                .slice(0, 3);
         assertEquals(3, window.content().size());
         assertTrue(window.hasNext());
     }
@@ -320,7 +320,7 @@ public class BuilderPreparedStatementIntegrationTest {
         var window = ORMTemplate.of(dataSource)
                 .selectFrom(Vet.class)
                 .orderBy(Vet_.id)
-                .slice(10);
+                .slice(0, 10);
         assertEquals(6, window.content().size());
         assertFalse(window.hasNext());
     }

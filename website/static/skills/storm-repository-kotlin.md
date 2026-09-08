@@ -570,6 +570,15 @@ users.removeAll()   // removes all entities
 
 ## Pagination and Scrolling
 
+Pick the read by what the caller needs to know:
+
+| Read | Method | Result | Count query | Needs |
+|---|---|---|---|---|
+| Page | `page(pageable)` | `Page<R>` | yes | an ordering |
+| Slice | `slice(pageable)` | `Slice<R>` | no | an ordering; a page without the count query, the only read for a query without a unique key |
+| Scroll | `scroll(scrollable)` | `Window<R>` | no | a unique key; constant cost at any depth |
+| Windows | `windows(size)` | `Flow<Window<R>>` | no | a primary key; one closed statement per window, so the loop may write |
+
 ```kotlin
 // Offset-based pagination (executes count + select)
 // Page numbers are 0-based — page 0 is the first page.
@@ -587,6 +596,11 @@ val nextPage = users.page(page.next())
 // page.hasNext()       — whether a next page exists
 // page.hasPrevious()   — whether a previous page exists
 // page.next()  — Pageable for the next page
+
+// Slice: page without the count query; same Pageable, hasNext from one extra row
+val slice: Slice<User> = users.slice(Pageable.ofSize(20).sortBy(User_.name))
+val more = users.slice(slice.next())
+val refSlice: Slice<Ref<User>> = users.sliceRef(0, 20)
 
 // Keyset scrolling (better for large tables — no COUNT, cursor-based)
 // Scrollable<T> takes a single type parameter (the entity type)

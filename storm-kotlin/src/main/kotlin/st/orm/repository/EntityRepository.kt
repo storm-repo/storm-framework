@@ -23,6 +23,7 @@ import st.orm.Page
 import st.orm.Pageable
 import st.orm.Ref
 import st.orm.Scrollable
+import st.orm.Slice
 import st.orm.Window
 import st.orm.template.*
 import kotlin.reflect.KClass
@@ -1738,7 +1739,7 @@ public interface EntityRepository<E, ID : Any> : Repository where E : Entity<ID>
      * entities.
      *
      * Use [Pageable.ofSize] for the first page, then navigate with
-     * [Page.nextPageable] or [Page.previousPageable].
+     * [Page.next] or [Page.previous].
      *
      * @param pageable the pagination request specifying page number and page size.
      * @return a page containing the results and pagination metadata.
@@ -1770,6 +1771,59 @@ public interface EntityRepository<E, ID : Any> : Repository where E : Entity<ID>
      * @since 1.10
      */
     public fun pageRef(pageable: Pageable): Page<Ref<E>>
+
+    /**
+     * Returns a slice of entities using offset-based pagination without a count.
+     *
+     * This method executes a query with OFFSET and LIMIT for the requested page and one row beyond it, which
+     * decides [Slice.hasNext]; no count query runs.
+     *
+     * Page numbers are zero-based: pass `0` for the first slice.
+     *
+     * @param pageNumber the zero-based page index.
+     * @param pageSize the maximum number of entities per slice.
+     * @return a slice containing the results.
+     * @since 1.14
+     */
+    public fun slice(pageNumber: Int, pageSize: Int): Slice<E>
+
+    /**
+     * Returns a slice of entities using offset-based pagination without a count.
+     *
+     * This method executes a query with OFFSET and LIMIT for the requested page and one row beyond it, which
+     * decides [Slice.hasNext]; no count query runs.
+     *
+     * Use [Pageable.ofSize] for the first slice, then navigate with [Slice.next] or [Slice.previous].
+     *
+     * @param pageable the request specifying page number, page size and sort orders.
+     * @return a slice containing the results.
+     * @since 1.14
+     */
+    public fun slice(pageable: Pageable): Slice<E>
+
+    /**
+     * Returns a slice of entity refs using offset-based pagination without a count.
+     *
+     * Page numbers are zero-based: pass `0` for the first slice.
+     *
+     * @param pageNumber the zero-based page index.
+     * @param pageSize the maximum number of refs per slice.
+     * @return a slice containing the ref results.
+     * @since 1.14
+     */
+    public fun sliceRef(pageNumber: Int, pageSize: Int): Slice<Ref<E>>
+
+    /**
+     * Returns a slice of entity refs using offset-based pagination without a count.
+     *
+     * This method executes a query with OFFSET and LIMIT for the requested page and one row beyond it, which
+     * decides [Slice.hasNext]; no count query runs.
+     *
+     * @param pageable the request specifying page number, page size and sort orders.
+     * @return a slice containing the ref results.
+     * @since 1.14
+     */
+    public fun sliceRef(pageable: Pageable): Slice<Ref<E>>
 
     /**
      * Executes a scroll request from a [Scrollable] token, typically obtained from
