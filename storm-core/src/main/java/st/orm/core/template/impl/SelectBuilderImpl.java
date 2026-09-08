@@ -241,7 +241,7 @@ public class SelectBuilderImpl<T extends Data, R, ID> extends QueryBuilderImpl<T
      */
     @Override
     @SuppressWarnings("unchecked")
-    protected List<KeyedRow<R>> getKeyedResultList(List<Metamodel<T, ?>> columns) {
+    protected List<KeyedQuery.Row<R>> getKeyedResultList(List<Metamodel<T, ?>> columns) {
         var parts = new ArrayList<TemplateString>();
         parts.add(selectClause());
         for (var column : columns) {
@@ -255,7 +255,7 @@ public class SelectBuilderImpl<T extends Data, R, ID> extends QueryBuilderImpl<T
         Class<?>[] types = columns.stream().map(SelectBuilderImpl::cursorValueType).toArray(Class<?>[]::new);
         if (refType != null) {
             assert pkType != null : "Primary key type must be specified for ref queries.";
-            return (List<KeyedRow<R>>) (List<?>) keyed.getKeyedRefList(refType, pkType, types);
+            return (List<KeyedQuery.Row<R>>) (List<?>) keyed.getKeyedRefList(refType, pkType, types);
         }
         return keyed.getKeyedResultList(selectType, types);
     }

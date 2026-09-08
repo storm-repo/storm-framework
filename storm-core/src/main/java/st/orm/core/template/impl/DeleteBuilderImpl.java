@@ -276,7 +276,7 @@ public class DeleteBuilderImpl<T extends Data, ID> extends QueryBuilderImpl<T, O
     }
 
     @Override
-    protected List<KeyedRow<Object>> getKeyedResultList(List<Metamodel<T, ?>> columns) {
+    protected List<KeyedQuery.Row<Object>> getKeyedResultList(List<Metamodel<T, ?>> columns) {
         throw new PersistenceException("A delete query cannot be scrolled.");
     }
 

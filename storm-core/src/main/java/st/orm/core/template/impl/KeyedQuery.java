@@ -27,13 +27,23 @@ import st.orm.Ref;
 interface KeyedQuery {
 
     /**
+     * A result row with the values of its cursor columns, read from the row itself rather than from the mapped
+     * result, so a scroll window can hand out navigation tokens whatever type the row was mapped to.
+     *
+     * @param value the mapped result.
+     * @param cursor the cursor column values, in the order the columns were requested.
+     * @param <R> the result type.
+     */
+    record Row<R>(R value, Object[] cursor) {}
+
+    /**
      * Executes the query and maps every row to the given type, reading the trailing columns as cursor values.
      *
      * @param type the result type mapped from the leading columns.
      * @param trailingTypes the target types of the trailing columns, one per cursor column.
      * @return the rows with their cursor values.
      */
-    <T> List<KeyedRow<T>> getKeyedResultList(Class<T> type, Class<?>[] trailingTypes);
+    <T> List<Row<T>> getKeyedResultList(Class<T> type, Class<?>[] trailingTypes);
 
     /**
      * Executes the query and maps every row to a ref of the given type, reading the trailing columns as cursor
@@ -44,5 +54,5 @@ interface KeyedQuery {
      * @param trailingTypes the target types of the trailing columns, one per cursor column.
      * @return the rows with their cursor values.
      */
-    <T extends Data> List<KeyedRow<Ref<T>>> getKeyedRefList(Class<T> type, Class<?> pkType, Class<?>[] trailingTypes);
+    <T extends Data> List<Row<Ref<T>>> getKeyedRefList(Class<T> type, Class<?> pkType, Class<?>[] trailingTypes);
 }

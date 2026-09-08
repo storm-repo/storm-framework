@@ -112,7 +112,7 @@ abstract class QueryBuilderImpl<T extends Data, R, ID> extends QueryBuilder<T, R
      * @param columns the cursor columns, in the order their values are wanted.
      * @return the rows with their cursor values.
      */
-    protected abstract List<KeyedRow<R>> getKeyedResultList(List<Metamodel<T, ?>> columns);
+    protected abstract List<KeyedQuery.Row<R>> getKeyedResultList(List<Metamodel<T, ?>> columns);
 
     /**
      * Returns the query's offset, or zero when it has none.
@@ -156,7 +156,7 @@ abstract class QueryBuilderImpl<T extends Data, R, ID> extends QueryBuilder<T, R
         }
         int size = scrollable.size();
         var limited = (QueryBuilderImpl<T, R, ID>) query.limit(size + 1);
-        List<KeyedRow<R>> rows = scrollable.key().isInline()
+        List<KeyedQuery.Row<R>> rows = scrollable.key().isInline()
                 ? limited.keyedRowsFromRecords(orders)
                 : limited.getKeyedResultList(orders.stream().<Metamodel<T, ?>>map(order -> (Metamodel<T, ?>) order.field()).toList());
         boolean more = rows.size() > size;
@@ -166,7 +166,7 @@ abstract class QueryBuilderImpl<T extends Data, R, ID> extends QueryBuilder<T, R
         if (reverse) {
             rows = rows.reversed();
         }
-        List<R> content = rows.stream().map(KeyedRow::value).toList();
+        List<R> content = rows.stream().map(KeyedQuery.Row::value).toList();
         Scrollable<T> next = null;
         Scrollable<T> previous = null;
         if (!rows.isEmpty()) {
@@ -186,8 +186,8 @@ abstract class QueryBuilderImpl<T extends Data, R, ID> extends QueryBuilder<T, R
      * type carries.
      */
     @SuppressWarnings("unchecked")
-    private List<KeyedRow<R>> keyedRowsFromRecords(List<Order> orders) {
-        var rows = new ArrayList<KeyedRow<R>>();
+    private List<KeyedQuery.Row<R>> keyedRowsFromRecords(List<Order> orders) {
+        var rows = new ArrayList<KeyedQuery.Row<R>>();
         for (R value : getResultList()) {
             if (!getFromType().isInstance(value)) {
                 throw new PersistenceException(
@@ -199,7 +199,7 @@ abstract class QueryBuilderImpl<T extends Data, R, ID> extends QueryBuilder<T, R
             for (int i = 0; i < orders.size(); i++) {
                 cursor[i] = ((Metamodel<T, Object>) orders.get(i).field()).getValue((T) value);
             }
-            rows.add(new KeyedRow<>(value, cursor));
+            rows.add(new KeyedQuery.Row<>(value, cursor));
         }
         return rows;
     }

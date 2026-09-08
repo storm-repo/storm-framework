@@ -682,7 +682,7 @@ class QueryImpl implements Query, KeyedQuery {
     }
 
     @Override
-    public <T> List<KeyedRow<T>> getKeyedResultList(Class<T> type, Class<?>[] trailingTypes) {
+    public <T> List<KeyedQuery.Row<T>> getKeyedResultList(Class<T> type, Class<?>[] trailingTypes) {
         if (streamOnlyFetchSize && defaultFetchSize != 0) {
             return withoutFetchSize().getKeyedResultList(type, trailingTypes);
         }
@@ -690,7 +690,7 @@ class QueryImpl implements Query, KeyedQuery {
     }
 
     @Override
-    public <T extends Data> List<KeyedRow<Ref<T>>> getKeyedRefList(Class<T> type, Class<?> pkType,
+    public <T extends Data> List<KeyedQuery.Row<Ref<T>>> getKeyedRefList(Class<T> type, Class<?> pkType,
                                                                     Class<?>[] trailingTypes) {
         var interner = new WeakInterner();
         return getKeyedResultList(pkType, trailingTypes).stream()
@@ -700,7 +700,7 @@ class QueryImpl implements Query, KeyedQuery {
                                 "Primary key for %s is NULL. This usually indicates an invalid query result or incorrect mapping."
                                         .formatted(type.getName()));
                     }
-                    return new KeyedRow<>(interner.intern(refFactory.create(type, row.value())), row.cursor());
+                    return new KeyedQuery.Row<>(interner.intern(refFactory.create(type, row.value())), row.cursor());
                 })
                 .toList();
     }
@@ -710,7 +710,7 @@ class QueryImpl implements Query, KeyedQuery {
      * decoded to their target types as cursor values. Consumed and closed within the call, like
      * {@link #readSingleRow(Class)}.
      */
-    private <T> List<KeyedRow<T>> readKeyedRows(Class<T> type, Class<?>[] trailingTypes) {
+    private <T> List<KeyedQuery.Row<T>> readKeyedRows(Class<T> type, Class<?>[] trailingTypes) {
         var observation = observe(ExecutionKind.QUERY);
         try {
             PreparedStatement statement = getStatement();
@@ -734,7 +734,7 @@ class QueryImpl implements Query, KeyedQuery {
                     }
                     var calendarSupplier = lazy(() -> Calendar.getInstance(TimeZone.getTimeZone(ZoneOffset.UTC)));
                     var spliterator = rowSpliterator(resultSet, columnCount, mapper);
-                    var rows = new ArrayList<KeyedRow<T>>();
+                    var rows = new ArrayList<KeyedQuery.Row<T>>();
                     // The spliterator hands the mapped value over while the result set still sits on the row, so
                     // the trailing columns are read from the same row.
                     while (spliterator.tryAdvance(value -> {
@@ -746,7 +746,7 @@ class QueryImpl implements Query, KeyedQuery {
                         } catch (SQLException e) {
                             throw new PersistenceException(e);
                         }
-                        rows.add(new KeyedRow<>(value, cursor));
+                        rows.add(new KeyedQuery.Row<>(value, cursor));
                     })) {
                         // Reading continues until the spliterator reports the end.
                     }
