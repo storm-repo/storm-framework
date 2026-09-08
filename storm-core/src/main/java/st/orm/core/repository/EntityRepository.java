@@ -38,14 +38,14 @@ import st.orm.core.template.TemplateString;
 /**
  * Provides a generic interface with CRUD operations for entities.
  *
- * <h1>Using Entity Repositories</h1>
+ * <h2>Using Entity Repositories</h2>
  *
  * <p>Entity repositories provide a high-level abstraction for managing entities in the database. They offer a set of
  * methods for creating, reading, updating, and deleting entities, as well as querying and filtering entities based on
  * specific criteria. The {@code EntityRepository} interface is designed to work with entity records that implement the
  * {@link Entity} interface, providing a consistent and type-safe way to interact with the database.</p>
  *
- * <h2>Entity Definition</h2>
+ * <h3>Entity Definition</h3>
  * <p>Define the entity records to use them to in combination with repositories. The {@link Entity} interface is a
  * marker interface that indicates that the record is an entity and has a primary key of type {@code ID}. The {@link PK}
  * annotation is used to mark the primary key field of the entity record. The {@link FK} annotation is used to mark
@@ -68,7 +68,7 @@ import st.orm.core.template.TemplateString;
  * ) implements Entity<Integer> {};
  * }</pre>
  *
- * <h2>Repository Lookup</h2>
+ * <h3>Repository Lookup</h3>
  * <p>An entity repository can be obtained by invoking {@code entity} on an {@code ORMTemplate} with the desired entity
  * class. The orm template can be requested as demonstrated below. Note that orm templates are supported for
  * Data Sources, JDBC Connections and JPA Entity Managers.</p>
@@ -95,16 +95,16 @@ import st.orm.core.template.TemplateString;
  * UserRepository userRepository = orm.repository(UserRepository.class)
  * }</pre>
  *
- * <h2>Repository Injection</h2>
+ * <h3>Repository Injection</h3>
  * <p>A specialized repository can also be injected using Spring's dependency injection mechanism when the
  * {@code storm-spring} package is included in the project. Check the storm-spring package to lean how to make
  * repositories available to the application for dependency injection.</p>
  *
- * <h2>CRUD Operations</h2>
+ * <h3>CRUD Operations</h3>
  * <p>Entity repositories provide a set of methods for creating, reading, updating, and deleting entities in the
  * database. The following sections provide examples of how to use these methods to interact with the database.</p>
  *
- * <h3>Create</h3>
+ * <h4>Create</h4>
  *
  * <p>Insert a user into the database. The template engine also supports insertion of multiple entries in batch mode by
  * passing a list of entities. Alternatively, insertion can also be executed using a stream of entities.</p>
@@ -113,7 +113,7 @@ import st.orm.core.template.TemplateString;
  * userRepository.insert(user);
  * }</pre>
  *
- * <h3>Read</h3>
+ * <h4>Read</h4>
  *
  * <p>Select all users from the database that are linked to cities with the name "Sunnyvale". The static metamodel is
  * used to specify the City entity in the QueryBuilder's entity graph.</p>
@@ -144,7 +144,7 @@ import st.orm.core.template.TemplateString;
  * userRepository.update(user);
  * }</pre>
  *
- * <h3>Delete</h3>
+ * <h4>Delete</h4>
  *
  * <p>Remove user from the database. The repository also supports removals for multiple entries in batch mode by passing a
  * list entities or primary keys. Alternatively, removal can be executed using a stream of entities.
