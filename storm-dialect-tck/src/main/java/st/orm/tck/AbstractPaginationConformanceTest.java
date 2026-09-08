@@ -253,4 +253,23 @@ public abstract class AbstractPaginationConformanceTest {
         assertEquals(6, counted.totalCount());
         assertFalse(counted.hasNext());
     }
+
+    @Test
+    public void offsetReadsNeedNoOrderingOfTheirOwn() {
+        // An unordered offset read is the documented first page; its order is the database's choice, its shape is
+        // not, and every dialect renders it, with a constant ordering where the grammar demands one.
+        var vets = ORMTemplate.of(dataSource).entity(Vet.class);
+        var page = vets.page(0, 4);
+        assertEquals(4, page.size());
+        assertEquals(6, page.totalCount());
+        assertTrue(page.hasNext());
+        var slice = vets.slice(0, 4);
+        assertEquals(4, slice.size());
+        assertTrue(slice.hasNext());
+        var rest = vets.sliceRef(1, 4);
+        assertEquals(2, rest.size());
+        assertFalse(rest.hasNext());
+        assertEquals(2, vets.select().offset(2).limit(2).getResultList().size());
+        assertEquals(4, vets.select().offset(2).getResultList().size());
+    }
 }

@@ -321,6 +321,14 @@ public class SelectBuilderImpl<T extends Data, R, ID> extends QueryBuilderImpl<T
                     .orElseThrow();
             template = TemplateString.combine(template, TemplateString.of("\nORDER BY "), orderByClause);
         }
+        if (withOrderBy && orderBy.isEmpty() && offset != null) {
+            // An offset on an unordered result is refused by some databases; the dialect says what ordering, if
+            // any, satisfies them.
+            String orderByForOffset = queryTemplate.dialect().orderByForOffset();
+            if (orderByForOffset != null) {
+                template = TemplateString.combine(template, TemplateString.of("\n"), TemplateString.of(orderByForOffset));
+            }
+        }
         if (!queryTemplate.dialect().applyLimitAfterSelect()) {
             if (limit != null && offset == null) {
                 template = TemplateString.combine(template, TemplateString.of("\n"), TemplateString.of(queryTemplate.dialect().limit(limit)));

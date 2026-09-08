@@ -45,7 +45,7 @@ Every read here hands back a complete result, so the loop that follows may query
 
 ## Offset and Limit
 
-For direct offset/limit control, use `offset` and `limit` on the query builder. Always combine these with `orderBy` to ensure deterministic ordering.
+For direct offset/limit control, use `offset` and `limit` on the query builder. Always combine these with `orderBy` to ensure deterministic ordering. Without one the database chooses the order, and the read still runs on every dialect: SQL Server accepts an offset only after an `ORDER BY`, so Storm adds a constant one there.
 
 <Tabs groupId="language">
 <TabItem value="kotlin" label="Kotlin" default>
