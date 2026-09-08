@@ -12,12 +12,31 @@ For a quick overview, see [Queries: Data Retrieval Strategies](queries.md#data-r
 The results share one shape, `Slice`, and two of them add navigation to it:
 
 ```
-Slice<R>                  content(), hasNext(), hasPrevious(), size(), isEmpty(), iteration
-├── Page<R>               + totalCount, totalPages(), next() / previous() as a Pageable
-├── Window<R>             + next() / previous() as a Scrollable, nextCursor() / previousCursor()
-└── the plain slice       the shape and nothing more, navigated through the Pageable that produced it
-
-Stream<Window<R>> or Flow<Window<R>>    one Window per closed statement, from windows(size)
+                        ┌────────────────────────────────────────────┐
+                        │                  Slice<R>                  │
+                        │  content()  hasNext()  hasPrevious()       │
+                        │  size()  isEmpty()  iterator()  stream()   │
+                        │                                            │
+                        │  slice(pageable) returns this shape as is  │
+                        └──────────────────────┬─────────────────────┘
+                                               │
+                       ┌───────────────────────┴────────────────────────┐
+                       ▼                                                ▼
+┌────────────────────────────────────────────┐   ┌────────────────────────────────────────────┐
+│                  Page<R>                   │   │                 Window<R>                  │
+│  + totalCount  totalPages()                │   │  + next() / previous(), a Scrollable       │
+│  + next() / previous(), a Pageable         │   │  + nextCursor() / previousCursor()         │
+│                                            │   │                                            │
+│  page(pageable)                            │   │  scroll(scrollable)                        │
+└────────────────────────────────────────────┘   └──────────────────────┬─────────────────────┘
+                                                                        │
+                                                                        ▼
+                                                 ┌────────────────────────────────────────────┐
+                                                 │   Stream<Window<R>>  or  Flow<Window<R>>   │
+                                                 │  one Window per closed statement           │
+                                                 │                                            │
+                                                 │  windows(size)  windows(scrollable)        │
+                                                 └────────────────────────────────────────────┘
 ```
 
 Each read answers a different question, so pick by what the application needs to know and how it moves through the data.
