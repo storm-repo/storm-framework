@@ -576,7 +576,7 @@ users.removeAll()   // removes all entities
 // When accepting 1-based page numbers from a URL (e.g., ?page=1), pass page - 1.
 val page: Page<User> = users.page(0, 20)
 val page: Page<User> = users.page(Pageable.ofSize(20).sortBy(User_.name))
-val nextPage = users.page(page.nextPageable())
+val nextPage = users.page(page.next())
 
 // Page API — Page is a Java record; ALL accessors are methods, call with ()
 // page.content()       — List<User> of results for this page
@@ -586,7 +586,7 @@ val nextPage = users.page(page.nextPageable())
 // page.pageSize()      — page size
 // page.hasNext()       — whether a next page exists
 // page.hasPrevious()   — whether a previous page exists
-// page.nextPageable()  — Pageable for the next page
+// page.next()  — Pageable for the next page
 
 // Keyset scrolling (better for large tables — no COUNT, cursor-based)
 // Scrollable<T> takes a single type parameter (the entity type)

@@ -2681,8 +2681,8 @@ public class RepositoryPreparedStatementIntegrationTest {
         assertEquals(6, firstPage.totalCount());
         assertEquals(0, firstPage.pageNumber());
         assertTrue(firstPage.hasNext());
-        // Navigate to the next page using nextPageable().
-        var secondPage = ORMTemplate.of(dataSource).entity(City.class).page(firstPage.nextPageable());
+        // Navigate to the next page using next().
+        var secondPage = ORMTemplate.of(dataSource).entity(City.class).page(firstPage.next());
         assertEquals(2, secondPage.content().size());
         assertEquals(1, secondPage.pageNumber());
         assertTrue(secondPage.hasNext());

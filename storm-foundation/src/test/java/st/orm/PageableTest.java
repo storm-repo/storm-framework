@@ -2,6 +2,7 @@ package st.orm;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -54,10 +55,9 @@ class PageableTest {
     }
 
     @Test
-    void previousOnFirstPageReturnsSame() {
+    void previousOnFirstPageIsNull() {
         Pageable pageable = Pageable.ofSize(10);
-        Pageable previous = pageable.previous();
-        assertSame(pageable, previous);
+        assertNull(pageable.previous());
     }
 
     @Test

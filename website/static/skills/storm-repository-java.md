@@ -467,7 +467,7 @@ users.removeAll();
 // Offset-based pagination (executes count + select)
 Page<User> page = users.page(0, 20);
 Page<User> page = users.page(Pageable.ofSize(20).sortBy(User_.name));
-Page<User> next = users.page(page.nextPageable());
+Page<User> next = users.page(page.next());
 
 // Page API (record accessors):
 // page.content()       — List<User> of results for this page
@@ -477,7 +477,7 @@ Page<User> next = users.page(page.nextPageable());
 // page.pageSize()      — page size
 // page.hasNext()       — whether a next page exists
 // page.hasPrevious()   — whether a previous page exists
-// page.nextPageable()  — Pageable for the next page
+// page.next()  — Pageable for the next page
 
 // Ref-based pagination
 Page<Ref<User>> refPage = users.pageRef(0, 20);

@@ -1721,7 +1721,7 @@ internal open class EntityRepositoryTest(
         firstPage.content shouldHaveSize 2
         firstPage.totalCount shouldBe 6
         firstPage.pageNumber() shouldBe 0
-        val secondPage = repo.page(firstPage.nextPageable())
+        val secondPage = repo.page(firstPage.next())
         secondPage.content shouldHaveSize 2
         secondPage.pageNumber() shouldBe 1
     }

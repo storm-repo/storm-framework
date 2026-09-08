@@ -93,7 +93,7 @@ ${navHtml('tutorials')}
   <h2><span class="hno">03</span>Classic pages, typed</h2>
   <p>When the UI genuinely needs page numbers and totals, Storm's <code>page()</code> works the way you expect, with the sort expressed against the metamodel instead of a string:</p>
   ${editor({file: 'UserService.kt', tag: 'Kotlin · Storm', code: CODE_STORM_PAGE, sql: SQL_STORM_PAGE})}
-  <p>Sort orders attach to the <code>Pageable</code> and carry over automatically when you navigate with <code>nextPageable()</code>, so page 2 cannot accidentally sort differently from page 1.</p>
+  <p>Sort orders attach to the <code>Pageable</code> and carry over automatically when you navigate with <code>next()</code>, so page 2 cannot accidentally sort differently from page 1.</p>
 
   <h2><span class="hno">04</span>Keyset scrolling</h2>
   <p>For feeds and load-more lists, <code>scroll()</code> replaces offsets with a cursor: it remembers the last key seen and asks the database for rows after it. The database seeks via the index instead of scanning:</p>

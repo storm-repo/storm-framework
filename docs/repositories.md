@@ -253,8 +253,8 @@ A `Pageable` describes a pagination request: which page to fetch, how many resul
 | `totalPages()` | Total number of pages |
 | `hasNext()` | Whether a next page exists |
 | `hasPrevious()` | Whether a previous page exists |
-| `nextPageable()` | Returns a `Pageable` for the next page (preserves sort orders) |
-| `previousPageable()` | Returns a `Pageable` for the previous page (preserves sort orders) |
+| `next()` | Returns a `Pageable` for the next page (preserves sort orders) |
+| `previous()` | Returns a `Pageable` for the previous page (preserves sort orders), or `null` on the first page |
 
 Create a `Pageable` using one of the factory methods:
 
@@ -279,7 +279,7 @@ val page: Page<User> = userRepository.page(pageable)
 
 // Navigate to next page
 if (page.hasNext()) {
-    val nextPage = userRepository.page(page.nextPageable())
+    val nextPage = userRepository.page(page.next())
 }
 ```
 
@@ -296,7 +296,7 @@ Page<User> page = userRepository.page(pageable);
 
 // Navigate to next page
 if (page.hasNext()) {
-    Page<User> nextPage = userRepository.page(page.nextPageable());
+    Page<User> nextPage = userRepository.page(page.next());
 }
 ```
 
@@ -468,8 +468,8 @@ Storm supports two strategies for traversing large result sets. The table below 
 | Performance at page 1 | Good | Good |
 | Performance at page 1,000 | Degrades (database must skip rows) | Consistent (index seek) |
 | Handles concurrent inserts | Rows may shift between pages | Stable cursor |
-| Navigate forward | `page.nextPageable()` | `window.next()` |
-| Navigate backward | `page.previousPageable()` | `window.previous()`, same order as forward |
+| Navigate forward | `page.next()` | `window.next()` |
+| Navigate backward | `page.previous()` | `window.previous()`, same order as forward |
 
 Use pagination when you need random page access or a total count (for example, displaying "Page 3 of 12" in a UI). Use scrolling when you need consistent performance over deep result sets or when the data changes frequently between requests.
 

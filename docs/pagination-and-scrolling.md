@@ -17,7 +17,7 @@ Storm provides three ways to retrieve a subset of query results. The right choic
 | Result type | `List<R>` or `Slice<R>` | `Page<R>` | `Window<R>` |
 | Count query | no | yes | no |
 | Random access | yes | yes | no |
-| Navigation tokens | no | `nextPageable()` / `previousPageable()` | `next()` / `previous()` |
+| Navigation tokens | no | `next()` / `previous()` | `next()` / `previous()` |
 | Performance on large datasets | degrades with offset | degrades with offset | constant |
 
 **Offset and Limit** gives raw control with `offset()` and `limit()` on the query builder. Both pagination and offset/limit use SQL `OFFSET` under the hood, which degrades on large tables because the database must scan and discard all skipped rows.
@@ -78,7 +78,7 @@ if (page.hasNext()) {
     val nextPage = orm.entity<User>()
         .select()
         .where(User_.city eq city)
-        .page(page.nextPageable())
+        .page(page.next())
 }
 ```
 
@@ -97,7 +97,7 @@ if (page.hasNext()) {
     Page<User> nextPage = orm.entity(User.class)
         .select()
         .where(User_.city, EQUALS, city)
-        .page(page.nextPageable());
+        .page(page.next());
 }
 ```
 
@@ -114,11 +114,11 @@ The `Page` record contains everything needed to build pagination controls:
 | `pageSize()` | Maximum number of elements per page |
 | `totalPages()` | Computed total number of pages |
 | `hasNext()` / `hasPrevious()` | Whether adjacent pages exist |
-| `nextPageable()` / `previousPageable()` | Returns a `Pageable` for the adjacent page |
+| `next()` / `previous()` | Returns a `Pageable` for the adjacent page; `previous()` is `null` on the first page |
 
 ### Sorting
 
-Sort orders are specified on the `Pageable` using `sortBy` (ascending) and `sortByDescending` (descending). Multiple calls append columns to build a multi-column sort, and the orders carry over automatically when navigating with `nextPageable()` or `previousPageable()`. You do not need to call `orderBy` separately on the query builder.
+Sort orders are specified on the `Pageable` using `sortBy` (ascending) and `sortByDescending` (descending). Multiple calls append columns to build a multi-column sort, and the orders carry over automatically when navigating with `next()` or `previous()`. You do not need to call `orderBy` separately on the query builder.
 
 <Tabs groupId="language">
 <TabItem value="kotlin" label="Kotlin" default>
@@ -426,6 +426,6 @@ Slice<User> slice = userRepository.select()
 | Request | `Pageable` | `Scrollable<T>` |
 | Result | `Page` | `Window` |
 | Method | `page(pageable)` | `scroll(scrollable)` |
-| Navigate forward | `page.nextPageable()` | `window.next()` |
-| Navigate backward | `page.previousPageable()` | `window.previous()`, same order as forward |
+| Navigate forward | `page.next()` | `window.next()` |
+| Navigate backward | `page.previous()` | `window.previous()`, same order as forward |
 | Sorting | `sortBy` / `sortByDescending` on the request | `sortBy` / `sortByDescending` on the request, key as tiebreaker |
