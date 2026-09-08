@@ -9,6 +9,17 @@ For a quick overview, see [Queries: Data Retrieval Strategies](queries.md#data-r
 
 ## Choosing a Read
 
+The results share one shape, `Slice`, and two of them add navigation to it:
+
+```
+Slice<R>                  content(), hasNext(), hasPrevious(), size(), isEmpty(), iteration
+├── Page<R>               + totalCount, totalPages(), next() / previous() as a Pageable
+├── Window<R>             + next() / previous() as a Scrollable, nextCursor() / previousCursor()
+└── the plain slice       the shape and nothing more, navigated through the Pageable that produced it
+
+Stream<Window<R>> or Flow<Window<R>>    one Window per closed statement, from windows(size)
+```
+
 Each read answers a different question, so pick by what the application needs to know and how it moves through the data.
 
 | | Slice | Page | Scroll | Windows |
