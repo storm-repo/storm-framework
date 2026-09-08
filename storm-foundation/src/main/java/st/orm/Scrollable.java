@@ -195,7 +195,8 @@ public record Scrollable<T extends Data>(
      *
      * @param cursor the cursor string.
      * @return the request at the cursor's position.
-     * @throws IllegalArgumentException if the cursor is invalid or was issued for another ordering.
+     * @throws InvalidCursorException if the cursor is malformed, from an earlier format, issued for another ordering
+     *                                or codec registry, or carries a value of the wrong type.
      * @since 1.14
      */
     public Scrollable<T> from(String cursor) {

@@ -15,6 +15,7 @@ import java.time.ZoneOffset;
 import java.util.UUID;
 import org.junit.jupiter.api.Test;
 import st.orm.Data;
+import st.orm.InvalidCursorException;
 import st.orm.Metamodel;
 import st.orm.Scrollable;
 import st.orm.Window;
@@ -188,7 +189,7 @@ class CursorSerializationTest {
     @Test
     void fromCursorRejectsInvalidBase64() {
         var key = Metamodel.key(Metamodel.of(StubEntity.class, "id"));
-        assertThrows(IllegalArgumentException.class,
+        assertThrows(InvalidCursorException.class,
                 () -> Scrollable.of(key, 20).from("not-valid-base64!!!"));
     }
 
@@ -197,7 +198,7 @@ class CursorSerializationTest {
         var key = Metamodel.key(Metamodel.of(StubEntity.class, "id"));
         String cursor = after(key, 42).toCursor();
         String truncated = cursor.substring(0, cursor.length() / 2);
-        assertThrows(IllegalArgumentException.class, () -> Scrollable.of(key, 20).from(truncated));
+        assertThrows(InvalidCursorException.class, () -> Scrollable.of(key, 20).from(truncated));
     }
 
     @Test
@@ -240,7 +241,7 @@ class CursorSerializationTest {
         var stubKey = Metamodel.key(Metamodel.of(StubEntity.class, "id"));
         String cursor = after(stubKey, 42).toCursor();
         var longKey = Metamodel.key(Metamodel.of(LongEntity.class, "id"));
-        assertThrows(IllegalArgumentException.class, () -> Scrollable.of(longKey, 20).from(cursor));
+        assertThrows(InvalidCursorException.class, () -> Scrollable.of(longKey, 20).from(cursor));
     }
 
     @Test
@@ -249,14 +250,14 @@ class CursorSerializationTest {
         var sort = Metamodel.of(CompositeEntity.class, "createdAt");
         String cursor = Scrollable.of(key, 20).sortBy(sort).after(Instant.parse("2026-01-15T08:00:00Z"), 42).toCursor();
         var differentSort = Metamodel.of(CompositeEntity.class, "label");
-        assertThrows(IllegalArgumentException.class, () -> Scrollable.of(key, 20).sortBy(differentSort).from(cursor));
+        assertThrows(InvalidCursorException.class, () -> Scrollable.of(key, 20).sortBy(differentSort).from(cursor));
     }
 
     @Test
     void fromCursorWithMismatchedDirectionRejects() {
         var key = Metamodel.key(Metamodel.of(StubEntity.class, "id"));
         String cursor = after(key, 42).toCursor();
-        assertThrows(IllegalArgumentException.class, () -> Scrollable.of(key, 20).descending().from(cursor));
+        assertThrows(InvalidCursorException.class, () -> Scrollable.of(key, 20).descending().from(cursor));
     }
 
     @Test
@@ -265,6 +266,6 @@ class CursorSerializationTest {
         var intKey = Metamodel.key(Metamodel.of(StubEntity.class, "id"));
         // Same path and direction, so the ordering fingerprints agree; the value type does not.
         String cursor = after(stringKey, "text").toCursor();
-        assertThrows(IllegalArgumentException.class, () -> Scrollable.of(intKey, 20).from(cursor));
+        assertThrows(InvalidCursorException.class, () -> Scrollable.of(intKey, 20).from(cursor));
     }
 }

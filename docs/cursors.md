@@ -75,7 +75,37 @@ The serialized cursor is a Base64 URL-safe encoded binary payload. The format is
 - Whether the request continues after or before the row
 - The row's values, one per sort field and one for the key
 
-Cursors produced by one application instance can be consumed by another, as long as both state the same ordering and use the same entity model and codec registry. A cursor becomes invalid if the ordering changes (for example, adding a sort field or flipping a direction), if the metamodel paths change (for example, renaming the key field), or if the codec registry changes (for example, adding or removing a custom codec). Cursors issued before Storm 1.14.1 carry an earlier format and are refused by the version check, so a client holding one starts over from the first window.
+Cursors produced by one application instance can be consumed by another, as long as both state the same ordering and use the same entity model and codec registry. A cursor becomes invalid if the ordering changes (for example, adding a sort field or flipping a direction), if the metamodel paths change (for example, renaming the key field), or if the codec registry changes (for example, adding or removing a custom codec). Cursors issued before Storm 1.14.1 carry an earlier format and are refused by the version check.
+
+A refused cursor throws `InvalidCursorException`, a `PersistenceException`. A cursor comes from a client, so a web layer maps this one exception to its "start over from the first window" response and never has to inspect a message:
+
+<Tabs groupId="language">
+<TabItem value="kotlin" label="Kotlin" default>
+
+```kotlin
+val request = Scrollable.of(User_.id, size).sortBy(User_.email)
+val window = try {
+    userRepository.scroll(if (cursor != null) request.from(cursor) else request)
+} catch (e: InvalidCursorException) {
+    userRepository.scroll(request)   // the client's cursor no longer fits: first window again
+}
+```
+
+</TabItem>
+<TabItem value="java" label="Java">
+
+```java
+var request = Scrollable.of(User_.id, size).sortBy(User_.email);
+Window<User> window;
+try {
+    window = userRepository.scroll(cursor != null ? request.from(cursor) : request);
+} catch (InvalidCursorException e) {
+    window = userRepository.scroll(request);   // the client's cursor no longer fits: first window again
+}
+```
+
+</TabItem>
+</Tabs>
 
 ## Security
 

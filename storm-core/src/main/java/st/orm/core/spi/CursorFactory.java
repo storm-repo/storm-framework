@@ -36,6 +36,7 @@ import java.util.ServiceLoader;
 import java.util.UUID;
 import org.jspecify.annotations.Nullable;
 import st.orm.Data;
+import st.orm.InvalidCursorException;
 import st.orm.Position;
 import st.orm.Ref;
 import st.orm.spi.CursorCodec;
@@ -212,36 +213,36 @@ public final class CursorFactory {
      *                   against its type where the type is a plain value type, and left alone where the field is
      *                   a reference, whose column carries the referenced key.
      * @return the position the cursor carries.
-     * @throws IllegalArgumentException if the cursor is invalid, was issued for another ordering or registry, or
-     *                                  carries a value of the wrong type.
+     * @throws InvalidCursorException if the cursor is invalid, was issued for another ordering or registry, or
+     *                                carries a value of the wrong type.
      */
     public static Position fromCursor(int orderingFingerprint, String cursor, Class<?>[] valueTypes) {
         try (var byteStream = new ByteArrayInputStream(Base64.getUrlDecoder().decode(cursor));
              var dataStream = new DataInputStream(byteStream)) {
             int version = dataStream.readUnsignedByte();
             if (version != CURSOR_VERSION) {
-                throw new IllegalArgumentException("Unsupported cursor version: " + version + ".");
+                throw new InvalidCursorException("Unsupported cursor version: " + version + ".");
             }
             int actualOrderingFingerprint = dataStream.readInt();
             if (orderingFingerprint != actualOrderingFingerprint) {
-                throw new IllegalArgumentException("Cursor does not match the requested key and sort definition.");
+                throw new InvalidCursorException("Cursor does not match the requested key and sort definition.");
             }
             int actualRegistryFingerprint = dataStream.readInt();
             if (REGISTRY_FINGERPRINT != actualRegistryFingerprint) {
-                throw new IllegalArgumentException(
+                throw new InvalidCursorException(
                         "Cursor was produced with a different codec registry configuration.");
             }
             boolean after = dataStream.readBoolean();
             int count = dataStream.readUnsignedByte();
             if (count != valueTypes.length) {
-                throw new IllegalArgumentException(
+                throw new InvalidCursorException(
                         "Invalid cursor: carries " + count + " values, the ordering has " + valueTypes.length + ".");
             }
             var values = new ArrayList<>(count);
             for (int i = 0; i < count; i++) {
                 Object value = readValue(dataStream);
                 if (value == null) {
-                    throw new IllegalArgumentException("Invalid cursor: value " + i + " is null.");
+                    throw new InvalidCursorException("Invalid cursor: value " + i + " is null.");
                 }
                 if (isValueType(valueTypes[i])) {
                     validateType("value " + i, value, valueTypes[i]);
@@ -249,13 +250,13 @@ public final class CursorFactory {
                 values.add(value);
             }
             if (dataStream.read() != -1) {
-                throw new IllegalArgumentException("Invalid cursor: trailing bytes found.");
+                throw new InvalidCursorException("Invalid cursor: trailing bytes found.");
             }
             return new Position(values, after);
-        } catch (IllegalArgumentException e) {
+        } catch (InvalidCursorException e) {
             throw e;
         } catch (IOException | RuntimeException e) {
-            throw new IllegalArgumentException("Invalid cursor.", e);
+            throw new InvalidCursorException("Invalid cursor.", e);
         }
     }
 
@@ -270,7 +271,7 @@ public final class CursorFactory {
         Class<?> boxed = box(expectedType);
         // Object.class means "accept any type" (used in tests or untyped metamodels).
         if (boxed != Object.class && !boxed.isInstance(value)) {
-            throw new IllegalArgumentException(
+            throw new InvalidCursorException(
                     "Invalid cursor: " + label + " has type " + value.getClass().getName()
                             + " but metamodel expects " + boxed.getName() + ".");
         }
