@@ -102,7 +102,7 @@ orm remove user
 orm.removeBy(User_.city, city)
 
 // Remove by predicate
-orm.removeAll(User_.active eq false)
+orm.removeAll(User_.postalCode.isNull())
 
 // Remove all
 orm.removeAll<User>()
@@ -425,8 +425,8 @@ val byName: Window<User> = userRepository.scroll(Scrollable.of(User_.id, 20).sor
 val next: Window<Post> = postRepository.scroll(window.next())
 
 // With filter (use query builder)
-val activeWindow = postRepository.select()
-    .where(Post_.active eq true)
+val matching = postRepository.select()
+    .where(Post_.title like "%storm%")
     .scroll(Scrollable.of(Post_.id, 20).sortBy(Post_.createdAt))
 ```
 

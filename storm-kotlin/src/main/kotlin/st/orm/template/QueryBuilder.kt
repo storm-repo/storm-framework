@@ -81,12 +81,12 @@ import kotlin.reflect.KClass
  * ```kotlin
  * // WRONG - the where clause is lost because the return value is discarded:
  * val builder = userRepository.select()
- * builder.where(User_.active eq true)  // returns a new builder, but it's ignored
+ * builder.where(User_.email like "%@example.com")  // returns a new builder, but it's ignored
  * builder.resultList                   // executes without the WHERE clause
  *
  * // CORRECT - chain the calls or capture the returned builder:
  * val results = userRepository.select()
- *     .where(User_.active eq true)
+ *     .where(User_.email like "%@example.com")
  *     .resultList
  * ```
  *
@@ -1484,7 +1484,7 @@ public infix fun <T : Data> PredicateBuilder<out T, *, *>.or(predicate: Predicat
  *
  * ```kotlin
  * userRepository.select {
- *     where(User_.active eq true)
+ *     where(User_.email like "%@example.com")
  *     orderBy(User_.name)
  * }.resultList
  * ```

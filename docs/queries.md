@@ -260,7 +260,7 @@ Multiple `where()` calls on the same query builder are combined with AND. This l
 ```kotlin
 val results = orm.entity<User>()
     .select()
-    .where(User_.active eq true)
+    .where(User_.email like "%@example.com")
     .where(User_.city eq city)           // AND-combined with previous where
     .resultList
 ```
@@ -270,8 +270,8 @@ Builder-style `where()` calls (with `and`/`or` predicates) compose with other `w
 ```kotlin
 val results = orm.entity<User>()
     .select()
-    .where(User_.active eq true)
-    .where(                              // AND-combined with the active filter above
+    .where(User_.email like "%@example.com")
+    .where(                              // AND-combined with the email filter above
         (User_.role eq adminRole) or (User_.role eq superUserRole)
     )
     .resultList
@@ -283,7 +283,7 @@ val results = orm.entity<User>()
 ```java
 List<User> results = orm.entity(User.class)
     .select()
-    .where(User_.active, EQUALS, true)
+    .where(User_.email, LIKE, "%@example.com")
     .where(User_.city, EQUALS, city)     // AND-combined with previous where
     .getResultList();
 ```
@@ -293,8 +293,8 @@ Builder-style `where()` calls (with `and`/`or` predicates) compose with other `w
 ```java
 List<User> results = orm.entity(User.class)
     .select()
-    .where(User_.active, EQUALS, true)
-    .where(it -> it.where(User_.role, EQUALS, adminRole)  // AND-combined with active filter
+    .where(User_.email, LIKE, "%@example.com")
+    .where(it -> it.where(User_.role, EQUALS, adminRole)  // AND-combined with the email filter
             .or(it.where(User_.role, EQUALS, superUserRole)))
     .getResultList();
 ```
@@ -590,7 +590,7 @@ val results = orm.entity<User>().select()
 
 // Pagination
 val page: Page<User> = orm.entity<User>().select()
-    .where(User_.active eq true)
+    .where(User_.email like "%@example.com")
     .page(Pageable.ofSize(10))
 
 // Scrolling
@@ -612,7 +612,7 @@ var results = orm.entity(User.class).select()
 
 // Pagination
 Page<User> page = orm.entity(User.class).select()
-    .where(User_.active, EQUALS, true)
+    .where(User_.email, LIKE, "%@example.com")
     .page(Pageable.ofSize(10));
 
 // Scrolling
@@ -666,7 +666,7 @@ group key; the result is a map from parent to its children:
 // Load cities with their users in one query
 val usersByCity: Map<City, List<User>> = orm.entity<User>()
     .select()
-    .where(User_.active eq true)
+    .where(User_.email like "%@example.com")
     .orderBy(User_.city)
     .resultGroupedBy(User_.city)
 ```
@@ -678,7 +678,7 @@ val usersByCity: Map<City, List<User>> = orm.entity<User>()
 // Load cities with their users in one query
 Map<City, List<User>> usersByCity = orm.entity(User.class)
     .select()
-    .where(User_.active, EQUALS, true)
+    .where(User_.email, LIKE, "%@example.com")
     .orderBy(User_.city)
     .getResultGroupedBy(User_.city);
 ```

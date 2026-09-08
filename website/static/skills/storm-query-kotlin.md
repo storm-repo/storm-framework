@@ -44,20 +44,20 @@ Ask what data they need, filters, ordering, or pagination.
 
 ```kotlin
 // ❌ Wrong — WHERE conditions as a template string
-fun findActiveWithEmail(city: City, minAge: Int): List<User> =
+fun findWithPostalCodeAndEmail(city: City, minAge: Int): List<User> =
     select {
         where {
             """${User_.city} = ${city.id()}
-            AND ${User_.active} = true
+            AND ${User_.postalCode} IS NOT NULL
             AND ${User_.email} IS NOT NULL
             AND TIMESTAMPDIFF(YEAR, ${User_.birthDate}, CURDATE()) >= $minAge"""
         }
     }.resultList
 
 // ✅ Correct — code-based predicates where possible, template only when no alternative exists
-fun findActiveWithEmail(city: City, minAge: Int): List<User> =
+fun findWithPostalCodeAndEmail(city: City, minAge: Int): List<User> =
     select {
-        where((User_.city eq city) and (User_.active.isTrue()) and (User_.email.isNotNull()))
+        where((User_.city eq city) and (User_.postalCode.isNotNull()) and (User_.email.isNotNull()))
         where { "TIMESTAMPDIFF(YEAR, ${User_.birthDate}, CURDATE()) >= $minAge" }
     }.resultList
 ```
@@ -79,7 +79,7 @@ User_.roles inList listOf("a","b") // IN
 User_.roles notInList listOf("x")  // NOT_IN
 User_.city inRefs cityRefs         // IN over Iterable<Ref<T>> — for FK fields with refs
 User_.age.between(18, 65)          // BETWEEN
-User_.active.isTrue()              // IS_TRUE
+User_.postalCode.isNotNull()              // IS_TRUE
 User_.archived.isFalse()           // IS_FALSE
 User_.email.isNull()               // IS_NULL
 User_.email.isNotNull()            // IS_NOT_NULL
@@ -87,7 +87,7 @@ User_.email.isNotNull()            // IS_NOT_NULL
 
 Combine with `and`/`or`:
 ```kotlin
-(User_.active eq true) and User_.email.isNotNull()
+(User_.email like "%@example.com") and User_.email.isNotNull()
 (User_.role eq "admin") or (User_.role eq "superadmin")
 ```
 
@@ -209,7 +209,7 @@ The rule: **escalate only when the simpler level cannot express what you need.**
 val user = orm.find(User_.email eq email)
 val users = orm.findAll(User_.city eq city)
 val exists = orm.existsBy(User_.email, email)
-val removed = orm.removeAll(User_.active eq false)
+val removed = orm.removeAll(User_.postalCode.isNull())
 ```
 
 **Level 2 — Builder with predicate** (returns `QueryBuilder`, chain terminal + ordering/pagination):
@@ -322,17 +322,17 @@ val topCities = orm.entity<City>()
     .resultList
 
 // Multi-field groupBy — always use the varargs metamodel form:
-data class CityActiveCount(val city: Ref<City>, val active: Boolean, val userCount: Long)
+data class CityPostalCodeCount(val city: Ref<City>, val postalCode: String?, val userCount: Long)
 
 val counts = orm.entity<User>()
-    .select<CityActiveCount, _, _> { "${User_.city}, ${User_.active}, COUNT(*)" }
-    .groupBy(User_.city, User_.active)    // ✅ varargs metamodel form
+    .select<CityPostalCodeCount, _, _> { "${User_.city}, ${User_.postalCode}, COUNT(*)" }
+    .groupBy(User_.city, User_.postalCode)    // ✅ varargs metamodel form
     .resultList
 
 // ❌ Don't use template lambda when metamodel fields work:
-//    .groupBy { "${User_.city}, ${User_.active}" }
+//    .groupBy { "${User_.city}, ${User_.postalCode}" }
 // ✅ Use varargs metamodel form — code-first, type-safe:
-//    .groupBy(User_.city, User_.active)
+//    .groupBy(User_.city, User_.postalCode)
 ```
 
 **`Ref<T>` in aggregation result types:** When the SELECT clause references a FK field (`${User_.city}`) rather than a full entity (`${City::class}`), use `Ref<T>` in the result type — not the raw ID type and not the full entity. `Ref<City>` maps correctly to the FK column value. Use the full entity type only when the SELECT includes all its columns via `${City::class}`.
@@ -362,7 +362,7 @@ val uniqueCities = orm.entity<User>()
 
 val count = orm.entity<User>()
     .selectCount()
-    .where(User_.active eq true)
+    .where(User_.email like "%@example.com")
     .singleResult
 ```
 
@@ -477,14 +477,14 @@ Two forms build a WHERE clause: **always use `where(predicate)` unless the condi
 // ✅ Compound predicates belong in where() — infix and/or, parenthesized per group
 val users = orm.entity<User>()
     .select()
-    .where(((User_.active eq true) and User_.email.isNotNull()) or (User_.role eq "admin"))
+    .where(((User_.email like "%@example.com") and User_.email.isNotNull()) or (User_.role eq "admin"))
     .resultList
 
 // ❌ whereBuilder adds nothing here — same query, more machinery
 val users = orm.entity<User>()
     .select()
     .whereBuilder {
-        where(User_.active, EQUALS, true)
+        where(User_.email, LIKE, "%@example.com")
             .and(where(User_.email, IS_NOT_NULL))
             .or(where(User_.role, EQUALS, "admin"))
     }
@@ -496,13 +496,13 @@ Consecutive `where()` calls AND together (each clause parenthesized), and the in
 ```kotlin
 users.select()
     .innerJoin<UserRole>().on<User>()     // the join widens the query
-    .where(User_.active eq true)          // root field
+    .where(User_.email like "%@example.com")          // root field
     .where(UserRole_.role eq role)        // joined entity — same call
     .resultList
 
 users.select()
     .innerJoin<UserRole>().on<User>()
-    .where((User_.active eq true) and (UserRole_.role eq role))   // or as one compound clause
+    .where((User_.email like "%@example.com") and (UserRole_.role eq role))   // or as one compound clause
     .resultList
 ```
 
@@ -511,7 +511,7 @@ A genuine `whereBuilder { }` case — a subquery composed into compound logic (a
 ```kotlin
 users.select()
     .whereBuilder {
-        (User_.active eq true) and exists(subquery(UserRole::class).where(UserRole_.role eq role))
+        (User_.email like "%@example.com") and exists(subquery(UserRole::class).where(UserRole_.role eq role))
     }
     .resultList
 ```
@@ -543,13 +543,13 @@ Keyset scrolling navigates by position instead of offset, making it efficient fo
 ```kotlin
 // WRONG: orderBy conflicts with the request's ordering
 select {
-    where(User_.active eq true)
+    where(User_.email like "%@example.com")
     orderBy(User_.name)        // ❌ the Scrollable orders
 }.scroll(Scrollable.of(User_.id, 20))
 
 // CORRECT: the request orders; sort fields go before the key, which stays the tiebreaker
 select {
-    where(User_.active eq true)
+    where(User_.email like "%@example.com")
 }.scroll(Scrollable.of(User_.id, 20).sortBy(User_.email))
 ```
 
@@ -577,10 +577,10 @@ val nextCursor: String? = window.nextCursor()                          // null w
 
 ```kotlin
 // DELETE with WHERE (safe) -- builder returns QueryBuilder, terminal executes
-orm.entity<User>().delete().where(User_.active eq false).executeUpdate()
+orm.entity<User>().delete().where(User_.postalCode.isNull()).executeUpdate()
 
 // DELETE with predicate shorthand -- also returns QueryBuilder
-orm.entity<User>().delete(User_.active eq false).executeUpdate()
+orm.entity<User>().delete(User_.postalCode.isNull()).executeUpdate()
 
 // DELETE/UPDATE without WHERE throws by default. Use unsafe() to confirm intent:
 orm.entity<User>().delete().unsafe().executeUpdate()
@@ -598,7 +598,7 @@ Use `select { }` / `delete { }` to build queries without chaining. Both are **bu
 ```kotlin
 // Standalone: get the entity repository first — there is NO orm.select<T> { block } reified form
 orm.entity<User>().select {
-    where(User_.active eq true)
+    where(User_.email like "%@example.com")
     orderBy(User_.name)
     limit(10)
 }.resultList
@@ -610,17 +610,17 @@ select {
 
 // delete { } also returns QueryBuilder — call .executeUpdate() to run it
 delete {
-    where(User_.active eq false)
+    where(User_.postalCode.isNull())
 }.executeUpdate()
 ```
 
 Predicate variants also return `QueryBuilder`:
 ```kotlin
 // select(predicate) returns QueryBuilder
-users.select(User_.active eq true).resultList
+users.select(User_.email like "%@example.com").resultList
 
 // delete(predicate) returns QueryBuilder
-users.delete(User_.active eq false).executeUpdate()
+users.delete(User_.postalCode.isNull()).executeUpdate()
 ```
 
 **Conditional logic inside the block:** The block is a regular Kotlin lambda — use `if`, `when`, and loops to compose queries dynamically. This avoids duplicating shared parts (ordering, pagination, terminals) across branches:
@@ -660,12 +660,12 @@ The block DSL is typed to the root entity. There is **no** `select(ResultType::c
 ```kotlin
 // ❌ Not valid — no block DSL overload for result type
 select(UserSummary::class) {
-    where(User_.active eq true)
+    where(User_.email like "%@example.com")
 }.resultList
 
 // ✅ Use chained API for a different result type
 select(UserSummary::class)
-    .where(User_.active eq true)
+    .where(User_.email like "%@example.com")
     .resultList
 
 // ✅ With joins — chained API uses .innerJoin<A>().on<B>(), not the two-type-arg form
@@ -765,18 +765,18 @@ Tell the user what you are doing and why: explain that `SqlCapture` records ever
 @StormTest(scripts = ["/schema.sql", "/data.sql"])
 class UserQueryTest {
     @Test
-    fun findActiveUsersInCity(orm: ORMTemplate, capture: SqlCapture) {
+    fun findExampleUsersInCity(orm: ORMTemplate, capture: SqlCapture) {
         val city = orm.entity<City, _>().getById(1)   // getById is ID-based — use the two-type-arg form
         val users = capture.execute {
             orm.entity<User>().select()
-                .where((User_.city eq city) and (User_.active eq true))
+                .where((User_.city eq city) and (User_.email like "%@example.com"))
                 .orderBy(User_.name)
                 .resultList
         }
-        // Verify intent: single query, only active users in the given city, ordered by name.
+        // Verify intent: single query, only example.com users in the given city, ordered by name.
         assertEquals(1, capture.count(Operation.SELECT))
         assertFalse(users.isEmpty())
-        assertTrue(users.all { it.city == city && it.active })
+        assertTrue(users.all { it.city == city && it.email.endsWith("@example.com") })
         assertEquals(users.sortedBy { it.name }, users)
     }
 }

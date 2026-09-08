@@ -102,8 +102,8 @@ val userRepository = orm.repository<UserRepository>()  // import st.orm.reposito
 interface UserRepository : EntityRepository<User, Int> {
     fun findByEmail(email: String): User? = find(User_.email eq email)
     fun findByCity(city: City): List<User> = findAll(User_.city eq city)
-    fun findActiveInCity(city: City): List<User> =
-        findAll((User_.city eq city) and (User_.active eq true))
+    fun findExampleUsersInCity(city: City): List<User> =
+        findAll((User_.city eq city) and (User_.email like "%@example.com"))
 }
 ```
 
@@ -146,7 +146,7 @@ users.select(User_.city eq city)
     .orderBy(User_.name)
     .resultList
 
-users.delete(User_.active eq false)
+users.delete(User_.postalCode.isNull())
     .executeUpdate()
 ```
 
@@ -161,7 +161,7 @@ users.select()
 **Level 3 — Block DSL** for complex queries with multiple joins and conditions:
 ```kotlin
 users.select {
-    where(User_.active eq true)
+    where(User_.email like "%@example.com")
     orderBy(User_.name)
 }.resultList
 
@@ -182,10 +182,10 @@ users.removeById(42)
 users.removeAll()
 
 // remove — with predicate (convenience, executes immediately)
-val removed: Int = users.removeAll(User_.active eq false)
+val removed: Int = users.removeAll(User_.postalCode.isNull())
 
 // delete — build a query with filtering (returns QueryBuilder)
-users.delete(User_.active eq false).executeUpdate()
+users.delete(User_.postalCode.isNull()).executeUpdate()
 users.delete { where(User_.score less 10) }.executeUpdate()
 ```
 
@@ -308,7 +308,7 @@ val alice: User? = users.find(User_.email eq "alice@example.com")
 val alice: User = users.get(User_.email eq "alice@example.com")
 
 // List of results
-val activeUsers: List<User> = users.findAll(User_.active eq true)
+val exampleUsers: List<User> = users.findAll(User_.email like "%@example.com")
 
 // Compare by entity — use the FK field directly, don't extract the ID
 val cityUsers: List<User> = users.findAll(User_.city eq city)
@@ -323,16 +323,16 @@ val cityUsers: List<User> = users.findAll(User_.city eq city)
 
 // Ref variants (return Ref<User> instead of User — lightweight, only loads PK)
 val ref: Ref<User>? = users.findRef(User_.email eq "alice@example.com")
-val refs: List<Ref<User>> = users.findAllRef(User_.active eq true)
+val refs: List<Ref<User>> = users.findAllRef(User_.email like "%@example.com")
 
 // Count by predicate
-val activeCount: Long = users.count(User_.active eq true)
+val exampleCount: Long = users.count(User_.email like "%@example.com")
 
 // Exists by predicate
-val hasActive: Boolean = users.exists(User_.active eq true)
+val hasExampleUsers: Boolean = users.exists(User_.email like "%@example.com")
 
 // Remove by predicate
-val removed: Int = users.removeAll(User_.active eq false)
+val removed: Int = users.removeAll(User_.postalCode.isNull())
 ```
 
 These accept a `PredicateBuilder` built with infix operators. Use parentheses — not braces — for predicates. Braces are reserved for the block DSL (see below).
@@ -485,7 +485,7 @@ Use Kotlin `Flow` for memory-efficient processing of large datasets:
 val allUsers: Flow<User> = users.select().resultFlow
 
 // Stream with filter (builder method + terminal)
-val activeUsers: Flow<User> = users.select(User_.active eq true).resultFlow
+val exampleUsers: Flow<User> = users.select(User_.email like "%@example.com").resultFlow
 
 // A flow with rows still to emit is one open statement: its connection is consume-only, so inside transaction { }
 // a query, Ref.fetch() or write from the collector throws. Loops that need the database use windows:
@@ -731,14 +731,14 @@ Repository methods can use the `select { }` / `delete { }` DSL for building quer
 
 ```kotlin
 interface UserRepository : EntityRepository<User, Int> {
-    fun findActive(): List<User> = select { where(User_.active eq true) }.resultList
+    fun findExampleDomain(): List<User> = select { where(User_.email like "%@example.com") }.resultList
 
-    fun findActiveByCity(city: City): List<User> = select {
-        where((User_.active eq true) and (User_.address.city eq city))
+    fun findExampleUsersByCity(city: City): List<User> = select {
+        where((User_.email like "%@example.com") and (User_.address.city eq city))
         orderBy(User_.name)
     }.resultList
 
-    fun deleteInactive(): Int = delete { where(User_.active eq false) }.executeUpdate()
+    fun deleteWithoutPostalCode(): Int = delete { where(User_.postalCode.isNull()) }.executeUpdate()
 }
 ```
 
@@ -748,12 +748,12 @@ Both `select { }` and `delete { }` return a `QueryBuilder`, so you pick the term
 ```kotlin
 // ❌ Not valid — no block DSL overload for result type
 fun findSummaries(): List<UserSummary> = select(UserSummary::class) {
-    where(User_.active eq true)
+    where(User_.email like "%@example.com")
 }.resultList
 
 // ✅ Use chained API — note: joins use .innerJoin<A>().on<B>(), not the two-type-arg form
 fun findSummaries(): List<UserSummary> = select(UserSummary::class)
-    .where(User_.active eq true)
+    .where(User_.email like "%@example.com")
     .resultList
 ```
 
@@ -789,10 +789,10 @@ fun findFiltered(city: Ref<City>?, page: Int, size: Int): Page<User> =
 Predicate variants also return `QueryBuilder`:
 ```kotlin
 // select(predicate) returns QueryBuilder
-users.select(User_.active eq true).resultList
+users.select(User_.email like "%@example.com").resultList
 
 // delete(predicate) returns QueryBuilder
-users.delete(User_.active eq false).executeUpdate()
+users.delete(User_.postalCode.isNull()).executeUpdate()
 ```
 
 Standalone usage via `ORMTemplate` — note there is **no** `orm.select<T> { block }` reified form; get the entity repository first:

@@ -230,8 +230,8 @@ public interface EntityRepository<E, ID : Any> : Repository where E : Entity<ID>
      *
      * ```kotlin
      * interface UserRepository : EntityRepository<User, Int> {
-     *     fun findActive(): List<User> = select {
-     *         where(User_.active eq true)
+     *     fun findExampleDomain(): List<User> = select {
+     *         where(User_.email like "%@example.com")
      *         orderBy(User_.name)
      *     }.resultList
      * }
@@ -251,7 +251,7 @@ public interface EntityRepository<E, ID : Any> : Repository where E : Entity<ID>
      * Constructs a SELECT query filtered by the given predicate.
      *
      * ```kotlin
-     * userRepository.select(User_.active eq true).resultList
+     * userRepository.select(User_.email like "%@example.com").resultList
      * ```
      */
     public fun select(predicate: PredicateBuilder<E, *, *>): QueryBuilder<E, E, ID> = select().where(predicate)
@@ -290,7 +290,7 @@ public interface EntityRepository<E, ID : Any> : Repository where E : Entity<ID>
      * Constructs a SELECT query for refs, filtered by the given predicate.
      *
      * ```kotlin
-     * userRepository.selectRef(User_.active eq true).resultList
+     * userRepository.selectRef(User_.email like "%@example.com").resultList
      * ```
      *
      * @since 1.3
@@ -343,7 +343,7 @@ public interface EntityRepository<E, ID : Any> : Repository where E : Entity<ID>
      * Constructs a DELETE query filtered by the given predicate.
      *
      * ```kotlin
-     * userRepository.delete(User_.active eq false).executeUpdate()
+     * userRepository.delete(User_.postalCode.isNull()).executeUpdate()
      * ```
      */
     public fun delete(predicate: PredicateBuilder<E, *, *>): QueryBuilder<E, *, ID> = delete().where(predicate)

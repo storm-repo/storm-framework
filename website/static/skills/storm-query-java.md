@@ -173,7 +173,7 @@ So the naming rule stands unchanged for single-column foreign keys, which is the
 
 ```java
 long userCount = orm.entity(User.class).selectCount()
-    .where(User_.active, EQUALS, true)
+    .where(User_.email, LIKE, "%@example.com")
     .getSingleResult();
 
 List<CitySummary> citySummaries = orm.entity(City.class)
@@ -215,17 +215,17 @@ List<CityUserStats> topCities = orm.entity(City.class)
     .getResultList();
 
 // Multi-field groupBy — always use the varargs metamodel form:
-record CityActiveCount(@FK Ref<City> city, boolean active, long userCount) {}
+record CityPostalCodeCount(@FK Ref<City> city, String postalCode, long userCount) {}
 
-List<CityActiveCount> counts = orm.entity(User.class)
-    .select(CityActiveCount.class, RAW."\{User_.city}, \{User_.active}, COUNT(*)")
-    .groupBy(User_.city, User_.active)    // ✅ varargs metamodel form
+List<CityPostalCodeCount> counts = orm.entity(User.class)
+    .select(CityPostalCodeCount.class, RAW."\{User_.city}, \{User_.postalCode}, COUNT(*)")
+    .groupBy(User_.city, User_.postalCode)    // ✅ varargs metamodel form
     .getResultList();
 
 // ❌ Don't use template when metamodel fields work:
-//    .groupBy(RAW."\{User_.city}, \{User_.active}")
+//    .groupBy(RAW."\{User_.city}, \{User_.postalCode}")
 // ✅ Use varargs metamodel form — code-first, type-safe:
-//    .groupBy(User_.city, User_.active)
+//    .groupBy(User_.city, User_.postalCode)
 ```
 
 **`Ref<T>` in aggregation result types:** When the SELECT clause references a FK field (`\{User_.city}`) rather than a full entity (`\{City.class}`), use `Ref<T>` in the result type — not the raw ID type and not the full entity. `Ref<City>` maps correctly to the FK column value. Use the full entity type only when the SELECT includes all its columns via `\{City.class}`.
@@ -252,9 +252,9 @@ List<City> uniqueCities = orm.entity(User.class)
     .distinct()
     .getResultList();
 
-long activeCount = orm.entity(User.class)
+long exampleCount = orm.entity(User.class)
     .selectCount()
-    .where(User_.active, EQUALS, true)
+    .where(User_.email, LIKE, "%@example.com")
     .getSingleResult();
 ```
 
@@ -358,19 +358,19 @@ List<City> citiesWithoutUsers = orm.entity(City.class)
 
 Two preferences govern every WHERE clause, and both say: **use the weakest form that compiles**.
 
-- **Typed overloads over the lambda.** `where(User_.active, EQUALS, true)` beats `where(it -> it.where(User_.active, EQUALS, true))`. Before a join the chained `where(path, ...)` overloads take root-typed paths — and a nested path from the root (`User_.city.country.code`) is root-typed, so navigating through a foreign key never forces the lambda. **A join widens the query**: from the join onward the same overloads accept paths from any entity in the query, so joined-entity fields need no special form. Reach for the `where(it -> ...)` lambda only for what the typed overloads cannot express: AND/OR grouping and EXISTS/NOT EXISTS.
+- **Typed overloads over the lambda.** `where(User_.email, LIKE, "%@example.com")` beats `where(it -> it.where(User_.email, LIKE, "%@example.com"))`. Before a join the chained `where(path, ...)` overloads take root-typed paths — and a nested path from the root (`User_.city.country.code`) is root-typed, so navigating through a foreign key never forces the lambda. **A join widens the query**: from the join onward the same overloads accept paths from any entity in the query, so joined-entity fields need no special form. Reach for the `where(it -> ...)` lambda only for what the typed overloads cannot express: AND/OR grouping and EXISTS/NOT EXISTS.
 
 ```java
 // ✅ Single condition — typed overload, no lambda
-.where(User_.active, EQUALS, true)
+.where(User_.email, LIKE, "%@example.com")
 
 // ❌ Lambda adds nothing for a single condition
-.where(it -> it.where(User_.active, EQUALS, true))
+.where(it -> it.where(User_.email, LIKE, "%@example.com"))
 
 // ✅ Lambda earns its place for AND/OR grouping
 List<User> users = orm.entity(User.class)
     .select()
-    .where(it -> it.where(User_.active, EQUALS, true)
+    .where(it -> it.where(User_.email, LIKE, "%@example.com")
             .and(it.where(User_.email, IS_NOT_NULL))
             .or(it.where(User_.role, EQUALS, "admin")))
     .getResultList();
@@ -381,7 +381,7 @@ Consecutive `where()` calls AND together (each clause parenthesized), so an AND 
 ```java
 users.select()
     .innerJoin(UserRole.class).on(User.class)     // the join widens the query
-    .where(User_.active, EQUALS, true)            // root field
+    .where(User_.email, LIKE, "%@example.com")            // root field
     .where(UserRole_.role, EQUALS, role)          // joined entity — same overload
     .getResultList();
 ```
@@ -408,13 +408,13 @@ Keyset scrolling navigates by position instead of offset, making it efficient fo
 ```java
 // WRONG: orderBy conflicts with the request's ordering
 users.select()
-    .where(User_.active, EQUALS, true)
+    .where(User_.email, LIKE, "%@example.com")
     .orderBy(User_.name)        // ❌ the Scrollable orders
     .scroll(Scrollable.of(User_.id, 20));
 
 // CORRECT: the request orders; sort fields go before the key, which stays the tiebreaker
 users.select()
-    .where(User_.active, EQUALS, true)
+    .where(User_.email, LIKE, "%@example.com")
     .scroll(Scrollable.of(User_.id, 20).sortBy(User_.email));
 ```
 
@@ -442,7 +442,7 @@ String nextCursor = window.nextCursor();                              // null wh
 
 ```java
 // DELETE with WHERE (safe) -- builder returns QueryBuilder, terminal executes
-orm.entity(User.class).delete().where(User_.active, EQUALS, false).executeUpdate();
+orm.entity(User.class).delete().where(User_.postalCode, IS_NULL).executeUpdate();
 
 // DELETE/UPDATE without WHERE throws by default. Use unsafe() to confirm intent:
 orm.entity(User.class).delete().unsafe().executeUpdate();
@@ -565,17 +565,17 @@ Tell the user what you are doing and why: explain that `SqlCapture` records ever
 @StormTest(scripts = {"/schema.sql", "/data.sql"})
 class UserQueryTest {
     @Test
-    void findActiveUsersInCity(ORMTemplate orm, SqlCapture capture) {
+    void findExampleUsersInCity(ORMTemplate orm, SqlCapture capture) {
         City city = orm.entity(City.class).findById(1).orElseThrow();
         List<User> users = capture.execute(() ->
             orm.entity(User.class).select()
                 .where(User_.city, EQUALS, city)
                 .orderBy(User_.name)
                 .getResultList());
-        // Verify intent: single query, only active users in the given city, ordered by name.
+        // Verify intent: single query, only example.com users in the given city, ordered by name.
         assertEquals(1, capture.count(Operation.SELECT));
         assertFalse(users.isEmpty());
-        assertTrue(users.stream().allMatch(u -> u.city().equals(city) && u.active()));
+        assertTrue(users.stream().allMatch(u -> u.city().equals(city) && u.email().endsWith("@example.com")));
     }
 }
 ```

@@ -143,7 +143,7 @@ users.removeById(42);
 users.removeAll();
 
 // delete — build a query with filtering
-users.delete().where(User_.active, EQUALS, false).executeUpdate();
+users.delete().where(User_.postalCode, IS_NULL).executeUpdate();
 ```
 
 > ⚠️ There is **no** `delete(entity)` or `delete(id)` overload (unlike JPA / Spring Data `CrudRepository`). `delete()` returns a `QueryBuilder`, so it takes no entity argument. To delete an entity or id you already hold, use `remove(entity)` / `removeById(id)` / `removeByRef(ref)`.
@@ -378,7 +378,7 @@ try (Stream<User> stream = users.select().getResultStream()) {
 
 // Stream with filter (builder method + terminal)
 try (Stream<User> stream = users.select()
-        .where(User_.active, EQUALS, true)
+        .where(User_.email, LIKE, "%@example.com")
         .getResultStream()) {
     stream.forEach(System.out::println);
 }

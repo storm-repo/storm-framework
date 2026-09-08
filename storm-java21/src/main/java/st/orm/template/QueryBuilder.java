@@ -81,7 +81,7 @@ import st.orm.core.template.impl.Elements.ObjectExpression;
  *         .select()
  *         .innerJoin(Order.class).on(User.class)
  *         .where(predicate -> predicate
- *             .where(User_.active, EQUALS, true)
+ *             .where(User_.email, LIKE, "%@example.com")
  *             .and(predicate.where(Order_.total, GREATER_THAN, 100)))
  *         .getResultList();
  * }</pre>
@@ -94,12 +94,12 @@ import st.orm.core.template.impl.Elements.ObjectExpression;
  * <pre>{@code
  * // WRONG - the where clause is lost because the return value is discarded:
  * var builder = userRepository.select();
- * builder.where(User_.active, EQUALS, true);  // returns a new builder, but it's ignored
+ * builder.where(User_.email, LIKE, "%@example.com");  // returns a new builder, but it's ignored
  * builder.getResultList();                     // executes without the WHERE clause
  *
  * // CORRECT - chain the calls or capture the returned builder:
  * var results = userRepository.select()
- *         .where(User_.active, EQUALS, true)
+ *         .where(User_.email, LIKE, "%@example.com")
  *         .getResultList();
  * }</pre>
  *
