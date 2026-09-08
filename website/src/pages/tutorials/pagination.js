@@ -30,19 +30,19 @@ const SQL_JPA_PAGE = [
 const CODE_STORM_PAGE = [
   K('val '), P('pageable = '), T('Pageable'), P('.'), F('ofSize'), P('('), N('10'), P(').'), F('sortBy'), P('('), T('User_'), P('.createdAt)   '), C('// type-checked sort\n\n'),
   K('val '), P('page = orm.'), F('entity'), P('<'), T('User'), P('>().'), F('select'), P('()\n'),
-  P('    .'), F('where'), P('('), T('User_'), P('.active, '), T('EQUALS'), P(', '), K('true'), P(')\n'),
+  P('    .'), F('where'), P('('), T('User_'), P('.city, '), T('EQUALS'), P(', city)\n'),
   P('    .'), F('page'), P('(pageable)\n\n'),
   P('page.content          '), C('// the rows\n'),
   P('page.totalCount       '), C('// total matches\n'),
   P('page.'), F('totalPages'), P('()     '), C('// computed\n'),
-  P('page.'), F('nextPageable'), P('()   '), C('// sort orders carry over'),
+  P('page.'), F('next'), P('()           '), C('// sort orders carry over'),
 ].join('');
 
 const SQL_STORM_PAGE = [
   QC('-- page(): a count and a data query, classic offset pagination'), '\n',
-  QK('SELECT COUNT'), '(*) ', QK('FROM'), ' "user" u ', QK('WHERE'), ' u.active = ', QQ('?'), '\n',
+  QK('SELECT COUNT'), '(*) ', QK('FROM'), ' "user" u ', QK('WHERE'), ' u.city_id = ', QQ('?'), '\n',
   QK('SELECT'), ' u.id, u.email, u.name ', QK('FROM'), ' "user" u\n',
-  QK('WHERE'), ' u.active = ', QQ('?'), ' ', QK('ORDER BY'), ' u.created_at ', QK('LIMIT'), ' ', QQ('10'), ' ', QK('OFFSET'), ' ', QQ('?'),
+  QK('WHERE'), ' u.city_id = ', QQ('?'), ' ', QK('ORDER BY'), ' u.created_at ', QK('LIMIT'), ' ', QQ('10'), ' ', QK('OFFSET'), ' ', QQ('?'),
 ].join('');
 
 const CODE_STORM_SCROLL = [
@@ -51,8 +51,8 @@ const CODE_STORM_SCROLL = [
   K('val '), P('first = users.'), F('select'), P('().'), F('scroll'), P('('), T('Scrollable'), P('.'), F('of'), P('('), T('User_'), P('.id, '), N('10'), P('))\n'),
   F('render'), P('(first.'), F('content'), P('())\n\n'),
   C('// Next window: seeks straight to the cursor position\n'),
-  P('first.'), F('next'), P('()?.'), F('let'), P(' { cursor ->\n'),
-  P('    '), K('val '), P('second = users.'), F('select'), P('().'), F('scroll'), P('(cursor)\n'),
+  P('first.'), F('next'), P('()?.'), F('let'), P(' { request ->\n'),
+  P('    '), K('val '), P('second = users.'), F('select'), P('().'), F('scroll'), P('(request)\n'),
   P('}'),
 ].join('');
 
@@ -109,7 +109,7 @@ ${navHtml('tutorials')}
   <table class="cmp">
     <tr><th></th><th>Spring Data JPA</th><th>Storm</th></tr>
     <tr><td>Deep pages</td><td><code>OFFSET</code> walks and discards rows; keyset available via <code>ScrollPosition</code></td><td>Keyset scrolling seeks via the index</td></tr>
-    <tr><td>Total count</td><td><code>Page</code> counts on every request; <code>Slice</code> drops it</td><td><code>page()</code> includes it; <code>scroll()</code> skips it by design</td></tr>
+    <tr><td>Total count</td><td><code>Page</code> counts on every request; <code>Slice</code> drops it</td><td><code>page()</code> includes it; <code>slice()</code> and <code>scroll()</code> skip it</td></tr>
     <tr><td>Sort specification</td><td>Property name strings</td><td>Metamodel references, checked at compile time</td></tr>
     <tr><td>REST cursors</td><td>Hand-rolled serialization</td><td><code>nextCursor()</code> and <code>Scrollable.from()</code> built in</td></tr>
   </table>

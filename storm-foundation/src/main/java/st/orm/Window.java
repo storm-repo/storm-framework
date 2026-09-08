@@ -45,8 +45,8 @@ import org.jspecify.annotations.Nullable;
  * the cursor is left to the developer.</p>
  *
  * @param content the list of results in this window; never contains {@code null} elements.
- * @param hasNext {@code true} if more results existed beyond this window in the scroll direction at query time.
- * @param hasPrevious {@code true} if this window was fetched with a cursor position (i.e., not the first page).
+ * @param hasNext {@code true} if rows existed after this window, in sort order, at query time.
+ * @param hasPrevious {@code true} if rows existed before this window, in sort order, at query time.
  * @param nextScrollable the scrollable to fetch the next window, or {@code null} if the window is empty.
  * @param previousScrollable the scrollable to fetch the previous window, or {@code null} if the window is empty.
  * @param <R> the result type (e.g., {@code User} for entity queries, {@code Ref<User>} for ref queries).

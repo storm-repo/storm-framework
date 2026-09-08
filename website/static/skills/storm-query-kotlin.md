@@ -576,7 +576,7 @@ val nextCursor: String? = window.nextCursor()                          // null w
 
 **Tokens for every result type:** the sort and key values are read from the row, so `selectRef().scroll(...)`, `users.scrollRef(...)`, projections read as another type and custom select types all navigate. A compound (inline record) key is read from the mapped record and needs the entity type as the result.
 
-**Iterate windows:** `for (user in window)` works, `Window` is a `Slice` and iterates over its content; `window.size()` and `window.isEmpty()` exist too. `Window` is a Java record, so the other accessors are methods: `window.content()`, `window.hasNext()`.
+**Iterate windows:** `for (user in window)` works, `Window` iterates over its content; `window.size()` and `window.isEmpty()` exist too. `Window` is a Java record, so the other accessors are methods: `window.content()`, `window.hasNext()`.
 
 **Slices:** `select().slice(Pageable.ofSize(20).sortBy(User_.email))` is `page` without the count query: `hasNext` from one extra row, `hasPrevious()` from the page number, `next()` / `previous()` return the adjacent `Pageable`. `slice(0, 20)` uses the query's own ordering.
 

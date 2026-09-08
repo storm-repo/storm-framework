@@ -497,7 +497,7 @@ Each method returns a `Window` containing the page content and navigation cursor
 | Navigate forward | `page.next()` | `window.next()` |
 | Navigate backward | `page.previous()` | `window.previous()` |
 
-Use pagination when you need random page access or a total count (for example, displaying "Page 3 of 12" in a UI). Use scrolling when you need consistent performance over deep result sets or when the data changes frequently between requests.
+Use pagination when you need random page access or a total count (for example, displaying "Page 3 of 12" in a UI). Use scrolling when you need consistent performance over deep result sets or when the data changes frequently between requests. For a "load more" that needs no total, `slice(pageable)` is `page` without the count query. The full comparison of every read, windows included, is in [Pagination and Scrolling: Choosing a Read](pagination-and-scrolling.md#choosing-a-read).
 
 ---
 

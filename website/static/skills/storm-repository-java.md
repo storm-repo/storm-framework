@@ -516,7 +516,7 @@ var refs = users.scrollRef(Scrollable.of(User_.id, 20));
 var request = Scrollable.of(User_.id, 20).sortBy(User_.email);
 var window = users.scroll(cursor != null ? request.from(cursor) : request);
 
-// Window<R> is a Slice: iterate it directly, every window is in sort order.
+// Window<R> iterates over its content: iterate it directly, every window is in sort order.
 // window.content() — List<User>
 // window.hasNext() / window.hasPrevious() — rows exist after / before the window
 // window.nextCursor() / window.previousCursor() — opaque cursors for REST APIs (see above)

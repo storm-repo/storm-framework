@@ -623,7 +623,7 @@ val refs = users.scrollRef(Scrollable.of(User_.id, 20))
 val request = Scrollable.of(User_.id, 20).sortBy(User_.email)
 val window = users.scroll(if (cursor != null) request.from(cursor) else request)
 
-// Window<R> is a Slice: iterate it directly (for (user in window)), every window is in sort order.
+// Window<R> iterates over its content: iterate it directly (for (user in window)), every window is in sort order.
 // Window is a Java record; the accessors are methods, call with ()
 // window.content() — List<User> of results
 // window.hasNext() / window.hasPrevious() — rows exist after / before the window

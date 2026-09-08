@@ -267,7 +267,7 @@ var byName = userRepository.scroll(Scrollable.of(User_.id, 20).sortBy(User_.city
 </TabItem>
 </Tabs>
 
-A `Window<R>` is a `Slice`, so it iterates over its content and reports `size()` and `isEmpty()`; `for (user in window)` reads the rows without going through `content()`. It carries:
+A `Window<R>` iterates over its content and reports `size()` and `isEmpty()`; `for (user in window)` reads the rows without going through `content()`. It carries:
 
 | Field / Method | Description |
 |-------|-------------|

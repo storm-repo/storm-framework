@@ -993,7 +993,7 @@ public abstract class QueryBuilder<T : Data, R, ID> {
      * If both are present, a [PersistenceException] is thrown.
      *
      * Use [Pageable.ofSize] for the first page, then navigate with
-     * [Page.nextPageable] or [Page.previousPageable].
+     * [Page.next] or [Page.previous].
      *
      * @param pageable the pagination request specifying page number and page size.
      * @return a page containing the results and pagination metadata.
