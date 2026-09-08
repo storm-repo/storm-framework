@@ -96,6 +96,6 @@ public interface Slice<R> extends Iterable<R> {
      * @since 1.14
      */
     static <R> Slice<R> of(List<R> content, boolean hasNext, boolean hasPrevious) {
-        return new SimpleSlice<>(content, hasNext, hasPrevious);
+        return new SliceImpl<>(content, hasNext, hasPrevious);
     }
 }

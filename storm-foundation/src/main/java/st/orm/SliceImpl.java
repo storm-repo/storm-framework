@@ -27,9 +27,9 @@ import java.util.List;
  * @param hasPrevious {@code true} if rows existed before the slice, that is, the page number is above zero.
  * @param <R> the type of the results.
  */
-record SimpleSlice<R>(List<R> content, boolean hasNext, boolean hasPrevious) implements Slice<R> {
+record SliceImpl<R>(List<R> content, boolean hasNext, boolean hasPrevious) implements Slice<R> {
 
-    SimpleSlice {
+    SliceImpl {
         content = copyOf(content);
     }
 }
