@@ -494,6 +494,16 @@ public class RepositoryTest {
     }
 
     @Test
+    public void testProjectionScrollRefNavigatesInSortOrder() {
+        var ownerViews = orm.projection(OwnerView.class);
+        Window<Ref<OwnerView>> first = ownerViews.scrollRef(Scrollable.of(OwnerView_.id, 4));
+        assertEquals(4, first.size());
+        Window<Ref<OwnerView>> second = ownerViews.scrollRef(first.next());
+        assertTrue(second.hasPrevious());
+        assertEquals(first.content(), ownerViews.scrollRef(second.previous()).content());
+    }
+
+    @Test
     public void testProjectionScrollBeforeByKey() {
         Window<OwnerView> window = orm.projection(OwnerView.class).scroll(Scrollable.of(OwnerView_.id, 5).descending());
         assertEquals(5, window.content().size());
@@ -615,7 +625,7 @@ public class RepositoryTest {
         assertEquals(0, firstPage.pageNumber());
         assertTrue(firstPage.hasNext());
 
-        Page<City> secondPage = orm.entity(City.class).page(firstPage.nextPageable());
+        Page<City> secondPage = orm.entity(City.class).page(firstPage.next());
         assertEquals(2, secondPage.content().size());
         assertEquals(1, secondPage.pageNumber());
         assertTrue(secondPage.hasNext());

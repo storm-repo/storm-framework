@@ -45,8 +45,11 @@ import st.orm.core.model.Pet;
 import st.orm.core.model.PetType;
 import st.orm.core.model.Pet_;
 import st.orm.core.model.Vet;
+import st.orm.core.model.VetView;
+import st.orm.core.model.VetView_;
 import st.orm.core.model.Vet_;
 import st.orm.core.template.ORMTemplate;
+import st.orm.core.template.SqlLog;
 
 /**
  * The scroll request states an ordering and a position; every window comes back in that ordering with the tokens
@@ -216,6 +219,71 @@ public class KeysetScrollIntegrationTest {
         assertEquals(List.of(5, 6), rest.stream().map(Vet::id).toList());
         assertFalse(rest.hasNext());
         assertTrue(rest.hasPrevious());
+    }
+
+    @Test
+    public void inlineRecordSortFieldIsRefused() {
+        var exception = assertThrows(PersistenceException.class, () -> ORMTemplate.of(dataSource).entity(Owner.class)
+                .scroll(Scrollable.of(Owner_.id, 5).sortBy(Owner_.address)));
+        assertTrue(exception.getMessage().contains("inline record"), exception.getMessage());
+    }
+
+    @Test
+    public void inlineRecordKeyNeedsTheEntityAsResult() {
+        // An inline key is read from the mapped record, which a ref does not carry.
+        var exception = assertThrows(PersistenceException.class, () -> ORMTemplate.of(dataSource).entity(Owner.class)
+                .selectRef()
+                .scroll(Scrollable.of(Metamodel.key(Owner_.address), 5)));
+        assertTrue(exception.getMessage().contains("result type to be Owner"), exception.getMessage());
+    }
+
+    @Test
+    public void inlineRecordKeyScrollsTheEntityFromTheRecord() {
+        var orm = ORMTemplate.of(dataSource);
+        var first = orm.entity(Owner.class).scroll(Scrollable.of(Metamodel.key(Owner_.address), 4));
+        assertEquals(4, first.size());
+        assertNotNull(first.<Owner>next());
+        var second = orm.entity(Owner.class).scroll(first.next());
+        assertFalse(second.isEmpty());
+        assertTrue(second.hasPrevious());
+        var ids = new ArrayList<>(first.content().stream().map(Owner::id).toList());
+        ids.addAll(second.content().stream().map(Owner::id).toList());
+        assertEquals(ids.size(), ids.stream().distinct().count());
+    }
+
+    @Test
+    public void deleteQueryCannotBeScrolled() {
+        var exception = assertThrows(PersistenceException.class, () -> ORMTemplate.of(dataSource).entity(Vet.class)
+                .delete()
+                .scroll(Scrollable.of(Vet_.id, 2)));
+        assertTrue(exception.getMessage().toLowerCase().contains("delete"), exception.getMessage());
+    }
+
+    @Test
+    public void projectionRepositoryScrollsRefs() {
+        var vetViews = ORMTemplate.of(dataSource).projection(VetView.class);
+        var first = vetViews.scrollRef(Scrollable.of(VetView_.id, 4));
+        assertEquals(List.of(1, 2, 3, 4), first.content().stream().map(ref -> (Integer) ref.id()).toList());
+        var second = vetViews.scrollRef(first.next());
+        assertEquals(List.of(5, 6), second.content().stream().map(ref -> (Integer) ref.id()).toList());
+        assertEquals(first.content(), vetViews.scrollRef(second.previous()).content());
+    }
+
+    @Test
+    public void scrollReportsItsRowsToTheSqlLog() {
+        var orm = ORMTemplate.of(dataSource);
+        var scope = SqlLog.open("scroll");
+        try {
+            orm.entity(Vet.class).scroll(Scrollable.of(Vet_.id, 4));
+        } finally {
+            scope.close();
+        }
+        var summary = scope.summary();
+        assertEquals(1, summary.statementCount());
+        var statement = summary.statements().getFirst();
+        // The window reads size + 1 rows to decide hasNext, and reports them exactly.
+        assertTrue(statement.exactRows(), statement.toString());
+        assertEquals(5, statement.rows(), statement.toString());
     }
 
     @Test

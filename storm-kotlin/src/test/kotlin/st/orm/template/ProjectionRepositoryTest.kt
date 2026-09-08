@@ -764,6 +764,17 @@ internal open class ProjectionRepositoryTest(
     }
 
     @Test
+    fun `scrollRef should navigate projections in sort order`() {
+        val repo = orm.projection(OwnerView::class)
+        val idKey = metamodel<OwnerView, Int>(repo.model, "id").key()
+        val first = repo.scrollRef(Scrollable.of(idKey, 4))
+        first.content.map { it.id() } shouldBe listOf(1, 2, 3, 4)
+        val second = repo.scrollRef(first.next<OwnerView>()!!)
+        second.content.map { it.id() } shouldBe listOf(5, 6, 7, 8)
+        repo.scrollRef(second.previous<OwnerView>()!!).content shouldBe first.content
+    }
+
+    @Test
     fun `windows should emit projection windows in key order`(): Unit = runBlocking {
         val windows = orm.projection(OwnerView::class).windows(4).toList()
         windows.map { it.content().size } shouldBe listOf(4, 4, 2)

@@ -52,13 +52,4 @@ public record Order(Metamodel<?, ?> field, boolean descending) {
     public static Order desc(Metamodel<?, ?> field) {
         return new Order(field, true);
     }
-
-    /**
-     * Returns this order with its direction reversed.
-     *
-     * @return the reversed order.
-     */
-    public Order reversed() {
-        return new Order(field, !descending);
-    }
 }

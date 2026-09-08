@@ -234,6 +234,63 @@ class CursorSerializationTest {
         assertFalse(restored.position().after());
     }
 
+    // Tampered and foreign cursors
+
+    private static String tampered(String cursor, java.util.function.UnaryOperator<byte[]> change) {
+        byte[] bytes = java.util.Base64.getUrlDecoder().decode(cursor);
+        return java.util.Base64.getUrlEncoder().withoutPadding().encodeToString(change.apply(bytes));
+    }
+
+    @Test
+    void fromCursorRejectsAnotherFormatVersion() {
+        var key = Metamodel.key(Metamodel.of(StubEntity.class, "id"));
+        String earlier = tampered(after(key, 42).toCursor(), bytes -> { bytes[0] = 1; return bytes; });
+        var exception = assertThrows(InvalidCursorException.class, () -> Scrollable.of(key, 20).from(earlier));
+        assertTrue(exception.getMessage().contains("version"), exception.getMessage());
+    }
+
+    @Test
+    void fromCursorRejectsTrailingBytes() {
+        var key = Metamodel.key(Metamodel.of(StubEntity.class, "id"));
+        String longer = tampered(after(key, 42).toCursor(), bytes -> java.util.Arrays.copyOf(bytes, bytes.length + 1));
+        var exception = assertThrows(InvalidCursorException.class, () -> Scrollable.of(key, 20).from(longer));
+        assertTrue(exception.getMessage().contains("trailing"), exception.getMessage());
+    }
+
+    @Test
+    void fromCursorRejectsAValueCountThatDoesNotMatchTheOrdering() {
+        var key = Metamodel.key(Metamodel.of(CompositeEntity.class, "id"));
+        var sort = Metamodel.of(CompositeEntity.class, "label");
+        // The value count sits right after the version, the two fingerprints and the direction flag.
+        String twoValues = tampered(Scrollable.of(key, 20).sortBy(sort).after("x", 42).toCursor(), bytes -> {
+            bytes[1 + 4 + 4 + 1] = 1;
+            return bytes;
+        });
+        // The fingerprint still matches the sorted ordering, so the count is what is refused.
+        var exception = assertThrows(InvalidCursorException.class,
+                () -> Scrollable.of(key, 20).sortBy(sort).from(twoValues));
+        assertTrue(exception.getMessage().contains("values"), exception.getMessage());
+    }
+
+    @Test
+    void fromCursorRejectsANullValue() {
+        var key = Metamodel.key(Metamodel.of(StubEntity.class, "id"));
+        // The value's type tag follows the count; tag 0 is the null marker.
+        String withNull = tampered(after(key, 42).toCursor(), bytes -> {
+            int tag = 1 + 4 + 4 + 1 + 1;
+            bytes[tag] = 0;
+            return java.util.Arrays.copyOf(bytes, tag + 1);
+        });
+        var exception = assertThrows(InvalidCursorException.class, () -> Scrollable.of(key, 20).from(withNull));
+        assertTrue(exception.getMessage().contains("null"), exception.getMessage());
+    }
+
+    @Test
+    void invalidCursorIsAPersistenceException() {
+        var key = Metamodel.key(Metamodel.of(StubEntity.class, "id"));
+        assertThrows(st.orm.PersistenceException.class, () -> Scrollable.of(key, 20).from("nope"));
+    }
+
     // Ordering validation
 
     @Test
