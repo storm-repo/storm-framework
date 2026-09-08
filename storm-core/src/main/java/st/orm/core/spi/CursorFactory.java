@@ -31,7 +31,6 @@ import java.time.ZoneOffset;
 import java.util.ArrayList;
 import java.util.Base64;
 import java.util.LinkedHashMap;
-import java.util.List;
 import java.util.Map;
 import java.util.ServiceLoader;
 import java.util.UUID;
@@ -177,16 +176,6 @@ public final class CursorFactory {
 
     private CursorFactory() {}
 
-    /**
-     * Builds the position of a scroll request.
-     *
-     * @param values the values of the sort fields and the key, in that order; must not contain {@code null}.
-     * @param after {@code true} to continue after the row, {@code false} to continue before it.
-     * @return the position.
-     */
-    public static Position position(List<Object> values, boolean after) {
-        return new PositionImpl(values, after);
-    }
 
     /**
      * Serializes a position into a Base64 URL-safe string.

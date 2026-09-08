@@ -166,7 +166,7 @@ public record Scrollable<T extends Data>(
                     "A position carries one value per sort field and one for the key: expected %d values, got %d."
                             .formatted(sort.size() + 1, values.length));
         }
-        return CursorHelper.position(List.of(values), after);
+        return PositionHelper.position(List.of(values), after);
     }
 
     private Scrollable<T> at(Position position) {

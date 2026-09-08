@@ -17,22 +17,19 @@ package st.orm;
 
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
-import java.util.List;
 
 /**
- * Bridges positions and cursor serialization to storm-core, so the foundation carries the types and the engine
- * carries the values and the codecs.
+ * Bridges cursor serialization to the codec registry in storm-core, so the foundation carries the types and the
+ * engine carries the codecs.
  */
 final class CursorHelper {
 
-    private static final Method POSITION_METHOD;
     private static final Method TO_CURSOR_METHOD;
     private static final Method FROM_CURSOR_METHOD;
 
     static {
         try {
             Class<?> factoryClass = Class.forName("st.orm.core.spi.CursorFactory");
-            POSITION_METHOD = factoryClass.getMethod("position", List.class, boolean.class);
             TO_CURSOR_METHOD = factoryClass.getMethod("toCursor", int.class, Position.class);
             FROM_CURSOR_METHOD = factoryClass.getMethod("fromCursor", int.class, String.class, Class[].class);
         } catch (ReflectiveOperationException e) {
@@ -45,13 +42,6 @@ final class CursorHelper {
     }
 
     private CursorHelper() {}
-
-    /**
-     * Builds a position from the values of the sort fields and the key, in that order.
-     */
-    static Position position(List<Object> values, boolean after) {
-        return (Position) invoke(POSITION_METHOD, values, after);
-    }
 
     /**
      * Serializes a position into a Base64 URL-safe string under the fingerprint of its ordering.
