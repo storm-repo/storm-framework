@@ -12,9 +12,9 @@ For a quick overview, see [Queries: Data Retrieval Strategies](queries.md#data-r
 The results share one shape, `Slice`, and two of them add navigation to it:
 
 ```
-Slice<R>          content, hasNext, hasPrevious, iteration           slice(pageable)
-├── Page<R>       + totalCount, next() / previous() as a Pageable    page(pageable)
-└── Window<R>     + next() / previous() as a Scrollable, cursors     scroll(scrollable), windows(size) as a stream of them
+Slice<R>          content, hasNext, hasPrevious, iteration
+├── Page<R>       + totalCount, next() / previous() as a Pageable
+└── Window<R>     + next() / previous() as a Scrollable, cursors
 ```
 
 Each read answers a different question, so pick by what the application needs to know and how it moves through the data.
