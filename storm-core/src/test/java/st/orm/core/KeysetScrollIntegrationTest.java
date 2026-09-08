@@ -36,6 +36,7 @@ import org.springframework.test.context.junit.jupiter.SpringExtension;
 import st.orm.Data;
 import st.orm.FK;
 import st.orm.Metamodel;
+import st.orm.Order;
 import st.orm.Pageable;
 import st.orm.PersistenceException;
 import st.orm.Ref;
@@ -207,6 +208,17 @@ public class KeysetScrollIntegrationTest {
         var exception = assertThrows(PersistenceException.class, () -> ORMTemplate.of(dataSource).entity(Vet.class)
                 .windows(Scrollable.of(Vet_.id, 2).before(4)));
         assertTrue(exception.getMessage().contains("before"), exception.getMessage());
+    }
+
+    @Test
+    public void positionMustMatchTheOrderingWhenScrolled() {
+        var orm = ORMTemplate.of(dataSource);
+        // A request built through after() checks the count itself; the canonical constructor does not, so the
+        // engine checks it when the request is scrolled.
+        var position = Scrollable.of(Metamodel.key(Vet_.id), 4).after(3).position();
+        var mismatched = new Scrollable<>(Metamodel.key(Vet_.id), false, List.of(Order.asc(Vet_.lastName)), 4, position);
+        var exception = assertThrows(IllegalArgumentException.class, () -> orm.entity(Vet.class).scroll(mismatched));
+        assertTrue(exception.getMessage().contains("expected 2 values, got 1"), exception.getMessage());
     }
 
     @Test
