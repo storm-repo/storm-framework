@@ -31,7 +31,10 @@ Each read answers a different question, so pick by what the application needs to
 | Random access | yes | yes | no | no |
 | Stable under inserts and deletes | no | no | yes | yes |
 | Cost of going deep | grows with the offset | grows with the offset | constant | constant |
+| Other statements while iterating | yes, the slice is complete when it returns | yes, the page is complete when it returns | yes, the window is complete when it returns | yes, each window is one closed statement |
 | Typical use | "load more" without a count, or a query without a unique key | numbered pages, "page 3 of 12" | infinite scroll, REST cursors | batch jobs that write while they read |
+
+Every read here hands back a complete result, so the loop that follows may query, fetch references and write. A result stream does not: it holds the connection consume-only until it is read to its end or closed, and Storm refuses any other statement on that connection meanwhile. See [Batch Processing & Streaming](batch-streaming.md#the-connection-is-consume-only-while-a-stream-is-open).
 
 **Slice** is a page without the count query. It takes the same `Pageable`, reads one row beyond the page size to report `hasNext`, and navigates through that `Pageable`. `Slice` is also the shape a `Page` and a `Window` share. It is the read for a "load more" that does not need a total, and for a query without a unique key, where scrolling is not possible.
 
