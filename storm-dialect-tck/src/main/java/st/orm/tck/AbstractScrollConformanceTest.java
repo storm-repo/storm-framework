@@ -39,8 +39,9 @@ import st.orm.tck.model.Pet;
 import st.orm.tck.model.Vet;
 
 /**
- * Keyset scrolling conformance: every dialect renders the keyset predicate, the ordering and the window limit, and
- * every window comes back in the request's sort order with its tokens read from the row.
+ * Read-in-parts conformance: every dialect renders the keyset predicate, the ordering and the window limit, every
+ * window comes back in the request's sort order with its tokens read from the row, and the offset reads, page and
+ * slice, render their offset, limit and count.
  *
  * <p>The suite relies on the shared seed data: six vets with ids 1 to 6, ten owners of whom two share the last name
  * Davis, and thirteen pets over six types. Names are capitalised words, so binary and case-insensitive collations
@@ -209,6 +210,47 @@ public abstract class AbstractScrollConformanceTest {
         // The query's own ordering serves a request without sort orders.
         var ordered = vets.select().orderBy(Metamodel.of(Vet.class, "id")).slice(1, 4);
         assertEquals(rest.content(), ordered.content());
-        assertEquals(List.of(1, 2, 3, 4), vets.sliceRef(0, 4).stream().map(ref -> ref.id()).toList());
+        var refs = vets.sliceRef(Pageable.ofSize(4).sortBy(Metamodel.of(Vet.class, "id")));
+        assertEquals(List.of(1, 2, 3, 4), refs.stream().map(ref -> ref.id()).toList());
+        assertTrue(refs.hasNext());
+    }
+
+    @Test
+    public void pageCountsAFullPageAndDerivesTheTotalFromAShortOne() {
+        var vets = ORMTemplate.of(dataSource).entity(Vet.class);
+        var pageable = Pageable.ofSize(4).sortByDescending(Metamodel.of(Vet.class, "id"));
+        var first = vets.page(pageable);
+        assertEquals(List.of(6, 5, 4, 3), first.stream().map(Vet::id).toList());
+        assertEquals(6, first.totalCount());
+        assertEquals(2, first.totalPages());
+        assertTrue(first.hasNext());
+        assertFalse(first.hasPrevious());
+        assertNull(first.previous());
+        var last = vets.page(first.next());
+        assertEquals(List.of(2, 1), last.stream().map(Vet::id).toList());
+        assertEquals(6, last.totalCount());
+        assertFalse(last.hasNext());
+        assertTrue(last.hasPrevious());
+        assertEquals(first.content(), vets.page(last.previous()).content());
+        // A page beyond the end is empty and still reports the total.
+        var beyond = vets.page(Pageable.of(5, 4).sortByDescending(Metamodel.of(Vet.class, "id")));
+        assertTrue(beyond.isEmpty());
+        assertEquals(6, beyond.totalCount());
+        assertTrue(beyond.hasPrevious());
+    }
+
+    @Test
+    public void pageRefReadsRefsWithTheSameTotal() {
+        var vets = ORMTemplate.of(dataSource).entity(Vet.class);
+        var id = Metamodel.of(Vet.class, "id");
+        var refs = vets.pageRef(Pageable.ofSize(4).sortBy(id));
+        assertEquals(List.of(1, 2, 3, 4), refs.stream().map(ref -> ref.id()).toList());
+        assertEquals(6, refs.totalCount());
+        assertTrue(refs.hasNext());
+        // The query builder pages with its own ordering, and a total the application holds skips the count query.
+        var counted = vets.select().orderBy(id).page(Pageable.of(1, 4), 6);
+        assertEquals(List.of(5, 6), counted.stream().map(Vet::id).toList());
+        assertEquals(6, counted.totalCount());
+        assertFalse(counted.hasNext());
     }
 }
