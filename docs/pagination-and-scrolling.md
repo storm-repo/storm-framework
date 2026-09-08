@@ -12,31 +12,9 @@ For a quick overview, see [Queries: Data Retrieval Strategies](queries.md#data-r
 The results share one shape, `Slice`, and two of them add navigation to it:
 
 ```
-                        ┌────────────────────────────────────────────┐
-                        │                  Slice<R>                  │
-                        │  content()  hasNext()  hasPrevious()       │
-                        │  size()  isEmpty()  iterator()  stream()   │
-                        │                                            │
-                        │  slice(pageable) returns this shape as is  │
-                        └──────────────────────┬─────────────────────┘
-                                               │
-                       ┌───────────────────────┴────────────────────────┐
-                       ▼                                                ▼
-┌────────────────────────────────────────────┐   ┌────────────────────────────────────────────┐
-│                  Page<R>                   │   │                 Window<R>                  │
-│  + totalCount  totalPages()                │   │  + next() / previous(), a Scrollable       │
-│  + next() / previous(), a Pageable         │   │  + nextCursor() / previousCursor()         │
-│                                            │   │                                            │
-│  page(pageable)                            │   │  scroll(scrollable)                        │
-└────────────────────────────────────────────┘   └──────────────────────┬─────────────────────┘
-                                                                        │
-                                                                        ▼
-                                                 ┌────────────────────────────────────────────┐
-                                                 │   Stream<Window<R>>  or  Flow<Window<R>>   │
-                                                 │  one Window per closed statement           │
-                                                 │                                            │
-                                                 │  windows(size)  windows(scrollable)        │
-                                                 └────────────────────────────────────────────┘
+Slice<R>          content, hasNext, hasPrevious, iteration           slice(pageable)
+├── Page<R>       + totalCount, next() / previous() as a Pageable    page(pageable)
+└── Window<R>     + next() / previous() as a Scrollable, cursors     scroll(scrollable), windows(size) as a stream of them
 ```
 
 Each read answers a different question, so pick by what the application needs to know and how it moves through the data.
